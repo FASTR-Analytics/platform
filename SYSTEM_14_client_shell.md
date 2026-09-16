@@ -310,7 +310,7 @@ the PO editor's data panel).
 - Help system has no `pt`: the generator and `getHelpUrl` are EN/FR-only, so
   Portuguese users silently get English summaries and the English site. Needs a
   site-side `pt` tree before the app side can follow.
-- Help-button adoption is 1 of 41 generated targets. The machinery is built;
+- Help-button adoption is 1 of 43 generated targets. The machinery is built;
   the buttons were never rolled out.
 - `components/_shared/**` custody: S12's manifest owns it but `sort_control.tsx`
   is shell furniture. Settle the custody (manifest or §4.1 exception) rather

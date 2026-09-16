@@ -39,6 +39,8 @@ export const indicatorMetadataSchema = z.strictObject({
   label: z.string(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
   thresholds: thresholdsRuleSchema.optional(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+  target: z.number().optional(),
   group_label: z.string().optional(),
   sort_order: z.number().optional(),
 });
@@ -55,6 +57,8 @@ const _im: Required<IndicatorMetadataDisplay> = {
     direction: "higher-is-better",
     noDataColor: "",
   },
+  direction: "higher-is-better",
+  target: 0,
   group_label: "",
   sort_order: 0,
 };

@@ -39,7 +39,7 @@ import {
 } from "../exposed_env_vars.ts";
 import { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 import {
-  buildRunCommonIndicators,
+  buildRunHmisIndicators,
   buildRunIndicatorCatalog,
   runDirInputRowsReader,
 } from "./indicator_catalog.ts";
@@ -245,7 +245,7 @@ export async function buildRunPackageIntoTmp(
     runModules,
     inputRowsReader,
   );
-  const commonIndicators = await buildRunCommonIndicators(inputRowsReader);
+  const hmisIndicators = await buildRunHmisIndicators(inputRowsReader);
 
   const manifest: RunManifest = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
@@ -275,7 +275,7 @@ export async function buildRunPackageIntoTmp(
     resultsObjects: runResultsObjects,
     metricAvailability,
     indicators,
-    commonIndicators,
+    hmisIndicators,
     population: opts.population,
     inputFiles,
   };

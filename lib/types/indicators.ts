@@ -1,33 +1,59 @@
 import { capitalizeFirstLetter } from "@timroberton/panther";
 import type { TranslatableString } from "../translate/types.ts";
-import type { ThresholdsRule } from "./conditional_formatting.ts";
+import type {
+  ThresholdDirection,
+  ThresholdsRule,
+} from "./conditional_formatting.ts";
+import { EXPRESSION_FUNCTION_NAMES } from "../indicator_expression/parse.ts";
+import { POPULATION_TYPE_IDS } from "./population.ts";
+import {
+  isSpecialIndicatorId,
+  SPECIAL_INDICATOR_IDS,
+} from "../special_indicators.ts";
 
 // ============================================================================
 // Indicator Types
 // ============================================================================
 
-export type IndicatorType = "raw" | "common";
-
 export type InstanceIndicatorDetails = {
-  commonIndicators: CommonIndicatorWithMappings[];
-  rawIndicators: RawIndicatorWithMappings[];
+  indicators: HmisIndicator[];
 };
 
-export type CommonIndicatorWithMappings = CommonIndicator & {
-  raw_indicator_ids: string[]; // Array of mapped raw IDs
-};
+// The dictionary download (PLAN_A6 ruling 8): one CSV for the whole list,
+// `type` in the four code names, `dhis2_id` for a DHIS2 element and blank
+// for every other type (an Uploaded indicator's key is opaque and means
+// nothing to a reader), `members` semicolon-separated for a sum,
+// `expression` for a calculated, `include_in_analysis` true/false,
+// `thresholds` a calculated indicator's rule as JSON text and empty otherwise,
+// `direction` the direction code or empty, `target` in stored units or
+// empty, `expected_low_counts` true/false. A download format only: nothing
+// reads it back.
+export const INDICATOR_DOWNLOAD_FILE_COLUMNS = [
+  "indicator_id",
+  "label",
+  "type",
+  "dhis2_id",
+  "members",
+  "expression",
+  "include_in_analysis",
+  "format_as",
+  "thresholds",
+  "direction",
+  "target",
+  "expected_low_counts",
+] as const;
 
-export type RawIndicatorWithMappings = {
-  raw_indicator_id: string;
-  raw_indicator_label: string;
-  indicator_common_ids: string[];
-};
+export const INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR = ";";
 
-export type BatchIndicator = {
-  indicator_common_id: string;
-  indicator_common_label: string;
-  mapped_raw_indicator_ids: string; // This will be comma-separated or semicolon-separated raw_indicator_ids
-};
+// What a DHIS2 element's data id may be: a data element UID or an operand
+// `UID.UID`.
+export const DHIS2_UID_PATTERN = /^[a-zA-Z][a-zA-Z0-9]{10}$/;
+export const DHIS2_OPERAND_PATTERN =
+  /^([a-zA-Z][a-zA-Z0-9]{10})\.([a-zA-Z][a-zA-Z0-9]{10})$/;
+
+export function isDhis2ShapedId(id: string): boolean {
+  return DHIS2_UID_PATTERN.test(id) || DHIS2_OPERAND_PATTERN.test(id);
+}
 
 export const INDICATOR_ID_MAX_LENGTH = 128;
 
@@ -35,18 +61,26 @@ export type NewIndicatorIdIssue =
   | "empty"
   | "untrimmed"
   | "forbidden_chars"
-  | "too_long";
+  | "too_long"
+  | "reserved"
+  | "special_calculated";
+
+// The identifiers no indicator id may be, however the id is produced (typed,
+// generated, decomposed from DHIS2): the special ids (except
+// as a count), the population type ids and the expression function names.
+// Instance migration 084 guards stored ids against the last two.
+export const RESERVED_WORDS: readonly string[] = [
+  ...SPECIAL_INDICATOR_IDS,
+  ...POPULATION_TYPE_IDS,
+  ...EXPRESSION_FUNCTION_NAMES,
+];
 
 // Applies to NEWLY created ids only (never to existing stored ids). Commas,
-// semicolons, and colons corrupt the STRING_AGG/split round-trip and the CSV
-// import re-split. Square brackets break the expression grammar's [quoted
-// identifier] form, which has no escape (PLAN_1a §1.3): one rule for common
-// AND raw ids, since raw ids have no use for brackets either. Instance
-// migration 079 guards stored ids the same way. Dots stay legal (DHIS2
-// operand ids contain them).
-export function getNewIndicatorIdIssue(
-  id: string,
-): NewIndicatorIdIssue | undefined {
+// semicolons, and colons corrupt the dictionary download's member list.
+// Square brackets break the expression grammar's [quoted
+// identifier] form, which has no escape (PLAN_1a §1.3). Instance migration
+// 079 guards stored ids the same way. Dots stay legal.
+function getIdCharsetIssue(id: string): NewIndicatorIdIssue | undefined {
   if (id.length === 0) {
     return "empty";
   }
@@ -62,6 +96,36 @@ export function getNewIndicatorIdIssue(
   return undefined;
 }
 
+// A special id is read by the module scripts as a count, so it may exist
+// only as Uploaded, a DHIS2 element or a Sum. Checked at create (inside
+// getNewIndicatorIdIssue) and at retype, where the id is not new but its
+// type is.
+export function getSpecialIndicatorTypeIssue(
+  id: string,
+  type: HmisIndicatorType,
+): "special_calculated" | undefined {
+  return isSpecialIndicatorId(id) && !isCount(type)
+    ? "special_calculated"
+    : undefined;
+}
+
+export function getNewIndicatorIdIssue(
+  id: string,
+  type: HmisIndicatorType,
+): NewIndicatorIdIssue | undefined {
+  const charsetIssue = getIdCharsetIssue(id);
+  if (charsetIssue) {
+    return charsetIssue;
+  }
+  if (isSpecialIndicatorId(id)) {
+    return getSpecialIndicatorTypeIssue(id, type);
+  }
+  if (RESERVED_WORDS.includes(id)) {
+    return "reserved";
+  }
+  return undefined;
+}
+
 export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string {
   switch (issue) {
     case "empty":
@@ -72,54 +136,134 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
       return "must not contain commas, semicolons, colons, or square brackets";
     case "too_long":
       return `must be at most ${INDICATOR_ID_MAX_LENGTH} characters`;
+    case "reserved":
+      return `is a reserved word (${RESERVED_WORDS.join(", ")})`;
+    case "special_calculated":
+      return `is a special indicator id, which the analysis modules read as a count, so it can only be a DHIS2 element, Uploaded or a Sum (special: ${
+        SPECIAL_INDICATOR_IDS.join(", ")
+      })`;
   }
 }
 
 // ============================================================================
-// Common indicator definitions
+// HMIS indicator definitions
 // ============================================================================
 
-// What a common indicator IS (PLAN_1a §1.2, PLAN_1c). Generation decides what
-// the numbers are made of; the query only aggregates and applies the formula.
+// What an indicator IS (PLAN_A5 §2, PLAN_A6 §2). The data rows of
+// dataset_hmis are facts keyed by `data_id`; the dictionary is a layer of
+// names and types over them, and nothing in it moves a row. Generation
+// decides what the numbers are made of; the query only aggregates and
+// applies the formula.
 //
-//   base   : mapped raw indicators, summed at extract. No formula. A count,
-//             so its format is always `number`.
-//   derived: an arbitrary expression over other commons (base or derived;
-//             chained by substitution) and population terms. Its additive
-//             ingredients travel on the results row and the expression is
-//             applied AFTER aggregation. A population term is written
-//             `[population:<type>]`, where `<type>` is an id in
-//             POPULATION_TYPES (lib/types/population.ts); it is a
-//             leaf ingredient exactly like a base common, carrying that
-//             population's person-years.
-export type CommonIndicatorDefinition =
-  | { type: "base" }
-  | { type: "derived"; expression: string };
+//   uploaded     : an additive monthly series filled by file. Its rows carry
+//                  its `data_id`, an opaque key generated when the indicator
+//                  is created (`generateDataKey`, lib/indicator_id.ts), never
+//                  typed, never shown and never matched against a file value:
+//                  the CSV wizard maps each value the file's indicator column
+//                  says onto an indicator, and staging writes the rows under
+//                  that indicator's key. A count: format `number`.
+//   dhis2_element: an additive monthly series the DHIS2 import fetches. Its
+//                  rows carry its `data_id`, the data element UID or
+//                  `UID.COC` operand. A count; format `number`.
+//   sum          : a list of Uploaded or DHIS2 element ids, `members`,
+//                  summed from their rows at extract into one facility x
+//                  month series, adjusted by m001 and m002 like any count.
+//                  A count; format `number`.
+//   calculated      : an arbitrary expression over indicators of any type
+//                  (chained by substitution) and population terms, evaluated
+//                  by m012 after adjustment and aggregation. A population
+//                  term is written as the type's id (`population_total`, one
+//                  of POPULATION_TYPES in lib/types/population.ts, a reserved
+//                  word); it is a leaf ingredient exactly like a count,
+//                  carrying that population's person-years.
+//
+// The indicator's id is its name: the key of member lists, expressions, the
+// extract, every package and every figure, and it is renamable. The data id
+// is the key of the rows and is fixed once rows exist under it.
+export type HmisIndicatorDefinition =
+  | { type: "uploaded"; data_id: string }
+  | { type: "dhis2_element"; data_id: string }
+  | { type: "sum"; members: string[] }
+  | { type: "calculated"; expression: string };
 
-export type CommonIndicatorType = CommonIndicatorDefinition["type"];
+// What a client posts as a definition: the stored shape, except that an
+// Uploaded indicator carries no data id. Its key is generated at creation
+// and kept on update; no path accepts one from a client (PLAN_A6 ruling 1).
+export type HmisIndicatorDefinitionInput =
+  | { type: "uploaded" }
+  | Exclude<HmisIndicatorDefinition, { type: "uploaded" }>;
 
-export const COMMON_INDICATOR_TYPES: readonly CommonIndicatorType[] = [
-  "base",
-  "derived",
+export type HmisIndicatorType = HmisIndicatorDefinition["type"];
+
+export const HMIS_INDICATOR_TYPES: readonly HmisIndicatorType[] = [
+  "dhis2_element",
+  "uploaded",
+  "sum",
+  "calculated",
 ] as const;
 
-export function isCommonIndicatorType(
+export function isHmisIndicatorType(
   value: string,
-): value is CommonIndicatorType {
-  return (COMMON_INDICATOR_TYPES as readonly string[]).includes(value);
+): value is HmisIndicatorType {
+  return (HMIS_INDICATOR_TYPES as readonly string[]).includes(value);
 }
 
-// A common indicator's presentation: its display format and, optionally, a
+// The two predicates the database holds as generated columns, `has_rows`
+// and `is_count`, stated once more for lib and the client.
+export function hasRows(type: HmisIndicatorType): boolean {
+  return type === "uploaded" || type === "dhis2_element";
+}
+
+export function isCount(type: HmisIndicatorType): boolean {
+  return type !== "calculated";
+}
+
+export function definitionDataId(
+  definition: HmisIndicatorDefinition,
+): string | null {
+  return definition.type === "uploaded" || definition.type === "dhis2_element"
+    ? definition.data_id
+    : null;
+}
+
+// The `type` a package's frozen catalog row may carry: the four code names,
+// plus `base` for counts in packages generated before PLAN_A5, which no
+// transform resolves because the real type lives only in the live
+// dictionary. No read path consumes it.
+export type PackageIndicatorType = HmisIndicatorType | "base";
+
+export const PACKAGE_INDICATOR_TYPES: readonly PackageIndicatorType[] = [
+  ...HMIS_INDICATOR_TYPES,
+  "base",
+] as const;
+
+// An HMIS indicator's presentation: its display format and, optionally, a
 // conditional-formatting rule (cutoffs in STORED units, buckets with colour and
-// label, direction). A figure whose CF source is `indicator` colours each value
+// label). A figure whose CF source is `indicator` colours each value
 // by its own indicator's rule; null means the indicator is never coloured.
-export type CommonIndicator = {
+// `direction` is THE direction of the indicator: whether a higher value is
+// better or worse, higher by default. The rule's own `direction` key is
+// written from it on every save (the server overwrites whatever a client
+// posts), so the two cannot disagree. `target` is a
+// number in STORED units, on a calculated indicator only, like the rule; null
+// means none. `expected_low_counts` marks a count whose facility-month
+// values are expected to be small, for the adjustment modules; always false
+// on a calculated indicator, which is never adjusted.
+// `include_in_analysis` on means the extract carries the indicator and m001
+// and m002 adjust it (the analysed set, PLAN_A4 ruling 3, stated once in
+// lib/hmis_indicator_catalog.ts); off means dictionary only: its data is
+// still imported and stored, and it is still usable as a member or in an
+// expression.
+export type HmisIndicator = {
   indicator_common_id: string;
   indicator_common_label: string;
-  is_default: boolean;
-  definition: CommonIndicatorDefinition;
+  definition: HmisIndicatorDefinition;
+  include_in_analysis: boolean;
   format_as: IndicatorFormat;
   thresholds: ThresholdsRule | null;
+  direction: ThresholdDirection;
+  target: number | null;
+  expected_low_counts: boolean;
   sort_order: number;
 };
 
@@ -151,6 +295,14 @@ export interface DHIS2DataElement {
   dataElementGroups?: Array<{
     id: string;
     name: string;
+  }>;
+  // The period type of each data set the element is collected in. An element
+  // in no data set has no period, so the eligibility check refuses it.
+  dataSetElements?: Array<{
+    dataSet?: {
+      id?: string;
+      periodType?: string;
+    };
   }>;
   created?: string;
   lastUpdated?: string;
@@ -215,6 +367,194 @@ export interface DHIS2CategoryCombo {
   }>;
 }
 
+// ============================================================================
+// Element eligibility and indicator decomposition (PLAN_A3 rulings 6 and 8)
+// ============================================================================
+
+// Why a DHIS2 data element cannot fill a DHIS2 element indicator: it must be
+// an additive monthly count by DHIS2's own metadata. `value` is what the metadata said; undefined
+// when the field was absent (a period type is absent when the element is in
+// no data set). `element_not_found` is for an operand whose element the
+// server no longer has.
+export type Dhis2ElementRefusal =
+  | { kind: "aggregation_type"; value: string | undefined }
+  | { kind: "value_type"; value: string | undefined }
+  | { kind: "period_type"; value: string | undefined }
+  | { kind: "element_not_found" };
+
+export type Dhis2ElementVerdict =
+  | { accepted: true }
+  | { accepted: false; refusal: Dhis2ElementRefusal };
+
+export type Dhis2DataElementSearchItem = DHIS2DataElement & {
+  verdict: Dhis2ElementVerdict;
+};
+
+// One `#{uid}` or `#{uid.coc}` term of a DHIS2 indicator formula. `data_id`
+// is the term's id as a DHIS2 element's data id (`uid` or `uid.coc`), which
+// is also the identifier the decomposed expression names it by.
+export type Dhis2ParsedOperand = {
+  data_id: string;
+  data_element_id: string;
+  category_option_combo_id?: string;
+};
+
+// Why an indicator formula is outside the whitelist. `term` is the offending
+// text where there is one (a syntax refusal carries the token it stopped at).
+export type Dhis2IndicatorParseRefusal =
+  | { kind: "annualized" }
+  | { kind: "factor"; value: number | undefined }
+  | { kind: "empty"; side: "numerator" | "denominator" }
+  | { kind: "term"; side: "numerator" | "denominator"; term: string }
+  | { kind: "syntax"; side: "numerator" | "denominator"; term: string }
+  | { kind: "too_many_operands"; count: number; max: number };
+
+// A parsed DHIS2 indicator: its operands, the calculated's expression in the
+// app's own grammar with each operand written as `[data_id]` (the naming
+// step renames those identifiers to the indicator ids it creates), and the
+// display format its factor maps to. `note` is set when the factor is 1000,
+// which has no format of its own: the expression carries `* 1000` and the
+// calculated is formatted as a number.
+export type Dhis2IndicatorParse =
+  | {
+    accepted: true;
+    operands: Dhis2ParsedOperand[];
+    expression: string;
+    format_as: IndicatorFormat;
+    note?: TranslatableString;
+  }
+  | { accepted: false; refusal: Dhis2IndicatorParseRefusal };
+
+export type Dhis2DecompositionOperand = Dhis2ParsedOperand & {
+  verdict: Dhis2ElementVerdict;
+};
+
+// The parse plus each operand's eligibility verdict, checked through its element
+// on the live server. `accepted` is the whole-indicator answer: the parse
+// accepted and every operand accepted.
+export type Dhis2IndicatorDecomposition = {
+  accepted: boolean;
+  parse: Dhis2IndicatorParse;
+  operands: Dhis2DecompositionOperand[];
+};
+
+export type Dhis2IndicatorSearchItem = DHIS2Indicator & {
+  decomposition: Dhis2IndicatorDecomposition;
+};
+
+export function describeDhis2ElementRefusal(
+  refusal: Dhis2ElementRefusal,
+): TranslatableString {
+  switch (refusal.kind) {
+    case "aggregation_type":
+      return {
+        en: `its aggregation type is ${refusal.value ?? "not set"}, not SUM`,
+        fr: `son type d'agrégation est ${refusal.value ?? "non défini"}, pas SUM`,
+        pt: `o seu tipo de agregação é ${refusal.value ?? "não definido"}, não SUM`,
+      };
+    case "value_type":
+      return {
+        en: `its value type is ${refusal.value ?? "not set"}, not a count`,
+        fr: `son type de valeur est ${refusal.value ?? "non défini"}, pas un dénombrement`,
+        pt: `o seu tipo de valor é ${refusal.value ?? "não definido"}, não uma contagem`,
+      };
+    case "period_type":
+      return refusal.value === undefined
+        ? {
+          en: "it is in no data set, so it has no period type",
+          fr: "il n'appartient à aucun ensemble de données et n'a donc pas de type de période",
+          pt: "não pertence a nenhum conjunto de dados, pelo que não tem tipo de período",
+        }
+        : {
+          en: `its data sets are ${refusal.value}; none is monthly`,
+          fr: `ses ensembles de données sont ${refusal.value} ; aucun n'est mensuel`,
+          pt: `os seus conjuntos de dados são ${refusal.value}; nenhum é mensal`,
+        };
+    case "element_not_found":
+      return {
+        en: "its data element no longer exists on the DHIS2 server",
+        fr: "son élément de données n'existe plus sur le serveur DHIS2",
+        pt: "o seu elemento de dados já não existe no servidor DHIS2",
+      };
+  }
+}
+
+export function describeDhis2ParseRefusal(
+  refusal: Dhis2IndicatorParseRefusal,
+): TranslatableString {
+  const side = (s: "numerator" | "denominator") =>
+    s === "numerator"
+      ? { en: "numerator", fr: "numérateur", pt: "numerador" }
+      : { en: "denominator", fr: "dénominateur", pt: "denominador" };
+  switch (refusal.kind) {
+    case "annualized":
+      return {
+        en: "it is annualized",
+        fr: "il est annualisé",
+        pt: "é anualizado",
+      };
+    case "factor":
+      return {
+        en: `its factor is ${refusal.value ?? "not set"}; only 1, 100, 1000 and 10000 are supported`,
+        fr: `son facteur est ${refusal.value ?? "non défini"} ; seuls 1, 100, 1000 et 10000 sont pris en charge`,
+        pt: `o seu fator é ${refusal.value ?? "não definido"}; apenas 1, 100, 1000 e 10000 são suportados`,
+      };
+    case "empty":
+      return {
+        en: `its ${side(refusal.side).en} is empty`,
+        fr: `son ${side(refusal.side).fr} est vide`,
+        pt: `o seu ${side(refusal.side).pt} está vazio`,
+      };
+    case "term":
+      return {
+        en: `its ${side(refusal.side).en} contains ${refusal.term}, which is outside the supported formula forms`,
+        fr: `son ${side(refusal.side).fr} contient ${refusal.term}, qui n'est pas une forme de formule prise en charge`,
+        pt: `o seu ${side(refusal.side).pt} contém ${refusal.term}, que está fora das formas de fórmula suportadas`,
+      };
+    case "syntax":
+      return {
+        en: `its ${side(refusal.side).en} could not be read at ${refusal.term}`,
+        fr: `son ${side(refusal.side).fr} n'a pas pu être lu à ${refusal.term}`,
+        pt: `o seu ${side(refusal.side).pt} não pôde ser lido em ${refusal.term}`,
+      };
+    case "too_many_operands":
+      return {
+        en: `it has ${refusal.count} distinct operands; at most ${refusal.max} are supported`,
+        fr: `il a ${refusal.count} opérandes distincts ; au plus ${refusal.max} sont pris en charge`,
+        pt: `tem ${refusal.count} operandos distintos; no máximo ${refusal.max} são suportados`,
+      };
+  }
+}
+
+// ============================================================================
+// The naming step (PLAN_A6 ruling 7)
+// ============================================================================
+
+// A DHIS2 element or operand the naming step imports (PLAN_A6 ruling 7): it
+// becomes a new DHIS2 element under `indicator_id` carrying `data_id`. An
+// existing id is refused. A data id some indicator already holds creates
+// nothing.
+export type IndicatorNamingElement = {
+  data_id: string;
+  indicator_id: string;
+  label: string;
+};
+
+// A calculated indicator authored over candidate elements: its expression names
+// each element by `[data_id]`, and the transaction rewrites every identifier
+// to the indicator that element lands in.
+export type IndicatorNamingCalculated = {
+  indicator_id: string;
+  label: string;
+  expression: string;
+  format_as: IndicatorFormat;
+};
+
+export type IndicatorNamingInput = {
+  elements: IndicatorNamingElement[];
+  calculated: IndicatorNamingCalculated[];
+};
+
 export interface DHIS2PagedResponse {
   pager?: {
     page: number;
@@ -238,20 +578,27 @@ export type IndicatorMetadata = {
   id: string;
   label: string;
   format_as?: IndicatorFormat;
-  // The indicator's own CF rule (common indicators only). The `indicator` CF
+  // The indicator's own CF rule (HMIS indicators only). The `indicator` CF
   // source resolves it per value through EffectiveIndicatorFacts.ruleForValue.
   thresholds?: ThresholdsRule;
-  // The HFA/ICEH category carrier; a common indicator never sets it.
+  // Whether a higher value is better or worse; absent when the family does
+  // not declare it. Declared by HMIS indicators today; any family may
+  // declare it.
+  direction?: ThresholdDirection;
+  // A target value in STORED units (a fraction for a percent); absent when
+  // none is set. Declared by HMIS calculated indicators today.
+  target?: number;
+  // The HFA/ICEH category carrier; an HMIS indicator never sets it.
   group_label?: string;
   sort_order?: number;
-  // Common-indicator evaluation, stamped for HMIS dictionaries only
+  // Expression evaluation, stamped for HMIS dictionaries only
   // (PLAN_1a §1.5). `expression` is the FLATTENED formula: every identifier
-  // in it is a base common indicator or a `population:<type>` term, and
+  // in it is a count indicator id or a population type id, and
   // `slot_map` says which ingredient column of an indicator_values row
-  // carries that ingredient's sum. A `base` indicator's expression is its own
-  // single slot. Absent on every other family's catalog entries, and on a
-  // base common the extract has no counts for.
-  type?: CommonIndicatorType;
+  // carries that ingredient's sum. A count's expression is its own single
+  // slot. Absent on every other family's catalog entries, and on a count the
+  // extract has no rows for.
+  type?: PackageIndicatorType;
   expression?: string;
   slot_map?: Record<string, string>;
 };

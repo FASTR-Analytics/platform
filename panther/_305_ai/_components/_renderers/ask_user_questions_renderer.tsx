@@ -3,7 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Button, createSignal, For, onMount, Show, t3 } from "../../deps.ts";
+import {
+  Button,
+  createSignal,
+  For,
+  onMount,
+  Show,
+  StableWeightText,
+  t3,
+} from "../../deps.ts";
 import type {
   AskUserQuestionsAnswer,
   AskUserQuestionsInput,
@@ -85,7 +93,7 @@ export function AskUserQuestionsRenderer(p: Props) {
               onClick={() => handleSelect(option.label)}
               classList={{
                 "w-full rounded border px-3 py-2 text-left": true,
-                "border-primary bg-primary-subtle font-700": isSelected(
+                "border-primary bg-primary-subtle": isSelected(
                   option.label,
                 ),
                 " ui-hoverable-base-100": !isSelected(option.label) &&
@@ -96,7 +104,12 @@ export function AskUserQuestionsRenderer(p: Props) {
                 "cursor-default": submitted(),
               }}
             >
-              <div class="text-sm">{option.label}</div>
+              <StableWeightText
+                class={isSelected(option.label)
+                  ? "text-sm font-700"
+                  : "text-sm"}
+                text={option.label}
+              />
               <Show when={option.description}>
                 <div class="text-base-content-muted mt-0.5 text-xs">
                   {option.description}

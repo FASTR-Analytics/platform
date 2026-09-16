@@ -69,7 +69,7 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "15": project AA2 scope (PLAN_1_PROJECT_AA2_SCOPE): payloads are computed
 // under the project's scope and the keys gain a scopeToken segment; "14"
 // entries were keyed without it.
-// "17": the common-indicator restructure (PLAN_1a). Manifest schema v6
+// "17": the indicator restructure (PLAN_1a). Manifest schema v6
 // rewrites indicators[] in place under the SAME runId: legacy catalogs gain
 // sort_order, which axis order now comes from, and the items payload for a
 // catalog-evaluated results object is a computed `value` where "16" entries
@@ -82,7 +82,15 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "19" (2026-09-04): the write-only freshness pair (moduleLastRun,
 // datasetsVersion) left every data payload (PLAN_RESULTS_RUNS ruling 4):
 // the run id IS the provenance; "18" entries carry the old shape.
-const PO_CACHE_VERSION = "19";
+// "20" (2026-09-15): IndicatorMetadataDisplay gained `direction` and
+// `target`, which po_items carries; "19" entries lack them.
+// "21" (2026-09-15): manifest schema v9 (hmisIndicators entries carry the
+// interpretation facts). No cached payload reads that list; the bump is the
+// protocol's per-block rule (PROTOCOL_APP_MIGRATIONS, manifest checklist).
+// "22" (2026-09-15): manifest schema v10 (the indicators mirror's `derived`
+// rows read `calculated`). No cached payload carries the mirror row's type;
+// the bump is the same per-block rule.
+const PO_CACHE_VERSION = "22";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches: two projects
@@ -127,8 +135,12 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // which decides how the client compiles the fetch config, and v8 entries
   // carry it as absent. v10: the PO config's `cfMode` enum gained
   // "indicator" and lost `specialScorecardTable` (PLAN_1d): a v9 payload
-  // embeds the pre-transform config.
->("po_detail_v10", {
+  // embeds the pre-transform config. v11: manifest schema v9 (hmisIndicators
+  // entries carry the interpretation facts); the payload does not embed that
+  // list, the bump is the protocol's per-block rule. v12: manifest schema v10
+  // (the indicators mirror's `derived` rows read `calculated`); the payload
+  // does not carry the mirror row's type, same per-block rule.
+>("po_detail_v12", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

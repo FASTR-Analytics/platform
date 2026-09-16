@@ -11,6 +11,7 @@ import {
   type ProjectPermission,
   type ProjectUser,
   type ProjectUserRoleType,
+  type RunHmisIndicator,
 } from "lib";
 import { Sql } from "postgres";
 import {
@@ -69,7 +70,7 @@ export async function getProjectDetail(
     let projectModules: InstalledModuleSummary[] = [];
     let metrics: MetricWithStatus[] = [];
     let datasetsInProject: RunDataset[] = [];
-    let commonIndicators: { id: string; label: string }[] = [];
+    let hmisIndicators: RunHmisIndicator[] = [];
     let icehIndicators: { id: string; label: string; category: string }[] = [];
     let hfaTaxonomy = EMPTY_HFA_TAXONOMY;
     if (rawProject.run_id !== null) {
@@ -79,7 +80,7 @@ export async function getProjectDetail(
         projectModules = getModuleSummariesFromManifest(manifest);
         metrics = getMetricsWithStatusFromManifest(manifest);
         datasetsInProject = getRunDatasetsFromManifest(manifest);
-        commonIndicators = manifest.commonIndicators;
+        hmisIndicators = manifest.hmisIndicators;
         icehIndicators = await getIcehIndicatorsFromManifestInputs(runCtx);
         hfaTaxonomy = {
           ...(await getHfaTaxonomyFromManifestInputs(runCtx)),
@@ -196,7 +197,7 @@ export async function getProjectDetail(
       projectDatasets: datasetsInProject,
       projectModules,
       metrics,
-      commonIndicators,
+      hmisIndicators,
       icehIndicators,
       hfaTaxonomy,
       visualizations: resVisualizations.data,

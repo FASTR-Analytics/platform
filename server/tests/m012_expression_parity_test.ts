@@ -12,32 +12,34 @@
 import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import {
-  type CommonIndicator,
-  type CommonIndicatorCatalogRow,
+  type HmisIndicator,
+  type HmisIndicatorCatalogRow,
   evaluateIndicatorExpression,
   type ExpressionValues,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
-  populationIngredientId,
-  resolveCommonIndicatorCatalog,
+  resolveHmisIndicatorCatalog,
 } from "lib";
 import { getModuleDefinitionDetail } from "../module_loader/mod.ts";
 import { getScriptWithParameters } from "../server_only_funcs/get_script_with_parameters.ts";
 
-const POPULATION_TYPE = "u5";
+const POPULATION_TYPE = "population_u5";
 
-function common(
+function indicator(
   id: string,
-  definition: CommonIndicator["definition"],
+  definition: HmisIndicator["definition"],
   sortOrder: number,
-): CommonIndicator {
+): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: id,
-    is_default: false,
     definition,
+    include_in_analysis: true,
     format_as: "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: sortOrder,
   };
 }
@@ -46,30 +48,30 @@ function common(
 // row: a missing ingredient, a zero denominator, a nullif that fires, a
 // population the store does not cover, an ingredient with no rows at all,
 // and a coalesce that turns a missing ingredient into a kept row.
-const COMMONS: CommonIndicator[] = [
-  common("anc1", { type: "base" }, 1),
-  common("anc4", { type: "base" }, 2),
-  common("penta1", { type: "base" }, 3),
-  common("opd", { type: "base" }, 4),
-  common("anc4_rate", { type: "derived", expression: "anc4 / anc1" }, 5),
-  common("anc4_rate_fill", {
-    type: "derived",
+const INDICATORS: HmisIndicator[] = [
+  indicator("anc1", { type: "uploaded", data_id: "anc1" }, 1),
+  indicator("anc4", { type: "uploaded", data_id: "anc4" }, 2),
+  indicator("penta1", { type: "uploaded", data_id: "penta1" }, 3),
+  indicator("opd", { type: "uploaded", data_id: "opd" }, 4),
+  indicator("anc4_rate", { type: "calculated", expression: "anc4 / anc1" }, 5),
+  indicator("anc4_rate_fill", {
+    type: "calculated",
     expression: "coalesce(anc4, 0) / anc1",
   }, 6),
-  common("anc1_not5", { type: "derived", expression: "nullif(anc1, 5)" }, 7),
-  common("anc1_per_1000_u5", {
-    type: "derived",
-    expression: `1000 * anc1 / [${populationIngredientId(POPULATION_TYPE)}]`,
+  indicator("anc1_not5", { type: "calculated", expression: "nullif(anc1, 5)" }, 7),
+  indicator("anc1_per_1000_u5", {
+    type: "calculated",
+    expression: `1000 * anc1 / ${POPULATION_TYPE}`,
   }, 8),
-  common("penta1_share", { type: "derived", expression: "penta1 / anc1" }, 9),
-  common("anc_gap", {
-    type: "derived",
+  indicator("penta1_share", { type: "calculated", expression: "penta1 / anc1" }, 9),
+  indicator("anc_gap", {
+    type: "calculated",
     expression: "-anc1 + abs(anc4 - anc1)",
   }, 10),
 ];
 
-// `opd` is unmapped; `penta1` is mapped but has no rows.
-const BASE_IDS_IN_DATA = new Set(["anc1", "anc4", "penta1"]);
+// `opd` has no rows; `penta1` has rows but none in the fixture's dataset.
+const IDS_WITH_DATA = new Set(["anc1", "anc4", "penta1"]);
 
 type AdjustedRow = {
   facility: string;
@@ -162,7 +164,7 @@ const cellKey = (indicator: string, aa2: string, period: number) =>
 // builds. A row exists in m012 only when at least one ingredient joined
 // (its inner join), and survives only when the expression over the sums is
 // a number.
-function expectedCells(catalog: CommonIndicatorCatalogRow[]): Set<string> {
+function expectedCells(catalog: HmisIndicatorCatalogRow[]): Set<string> {
   const sums = new Map<string, number>();
   for (const r of ADJUSTED) {
     const key = cellKey(r.indicator, r.aa2, r.period);
@@ -171,7 +173,7 @@ function expectedCells(catalog: CommonIndicatorCatalogRow[]): Set<string> {
   for (const aa2 of POPULATION_AREAS) {
     for (const p of PERIODS) {
       sums.set(
-        cellKey(populationIngredientId(POPULATION_TYPE), aa2, p),
+        cellKey(POPULATION_TYPE, aa2, p),
         POPULATION_PERSON_YEARS,
       );
     }
@@ -259,9 +261,9 @@ Deno.test({
     const detailRes = await getModuleDefinitionDetail("m012", "en", undefined);
     if (!detailRes.success) throw new Error(detailRes.err);
     const detail = detailRes.data;
-    const catalog = resolveCommonIndicatorCatalog(
-      COMMONS,
-      BASE_IDS_IN_DATA,
+    const catalog = resolveHmisIndicatorCatalog(
+      INDICATORS,
+      IDS_WITH_DATA,
       POPULATION_TYPE_IDS,
     );
     const script = getScriptWithParameters(

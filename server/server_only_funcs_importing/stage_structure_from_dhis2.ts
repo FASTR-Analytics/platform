@@ -186,7 +186,8 @@ export async function stageStructureFromDhis2V2(
       getEnabledOptionalFacilityColumns(resStructureSchema.data);
     // DHIS2 only supplies facility_name (from displayName). Never stage the other
     // metadata columns: integration writes exactly the staged columns, and a
-    // blank facility_type/ownership would wipe existing values.
+    // blank facility_type/ownership would wipe existing values under the two
+    // updating strategies (replace_all blanks unmapped columns by design).
     const dhis2OptionalColumns = enabledOptionalColumns.filter(
       (c) => c === "facility_name"
     );

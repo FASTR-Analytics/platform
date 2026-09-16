@@ -164,6 +164,6 @@ function generateScript(
     inputs.hfaVariantCode,
     inputs.hfaSentinelRows,
     inputs.hfaTimePointOrder,
-    inputs.commonIndicatorCatalog,
+    inputs.hmisIndicatorCatalog,
   );
 }

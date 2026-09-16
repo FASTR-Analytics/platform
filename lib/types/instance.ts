@@ -5,7 +5,6 @@ import type { DatasetType } from "./datasets.ts";
 import type {
   IndicatorMetadata,
   IndicatorMetadataDisplay,
-  IndicatorType,
 } from "./indicators.ts";
 import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
@@ -117,8 +116,7 @@ export type InstanceDetail = {
   structureLastUpdated?: string;
   hfaWeights: HfaWeightsCoverage[];
   indicators: {
-    commonIndicators: number;
-    rawIndicators: number;
+    hmisIndicators: number;
     hfaIndicators: number;
   };
   assets: AssetInfo[];
@@ -460,10 +458,9 @@ export type ConflictDecisions = {
 // ============================================================================
 
 export type ItemsHolderDatasetHmisDisplay = {
-  rawOrCommonIndicators: IndicatorType;
   structureSchema: StructureSchema;
   versionId: number | undefined;
-  indicatorMappingsVersion: string | undefined;
+  indicatorsVersion: string | undefined;
   vizItems: Record<string, string>[];
   periodBounds: PeriodBounds;
   indicatorLabelReplacements: Record<string, string>;

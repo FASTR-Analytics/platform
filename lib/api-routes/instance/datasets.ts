@@ -8,33 +8,29 @@ import type {
   HfaImportRunSummary,
 } from "../../types/dataset_hfa_import.ts";
 import {
-  datasetHmisWindowingRawSchema,
+  datasetHmisWindowingSchema,
   structureSchemaSchema,
 } from "../../types/mod.ts";
 import type {
   DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
+  HmisCsvIndicatorScan,
   DatasetHmisImportRunDetail,
   DatasetHmisImportRunSummary,
   DatasetHmisScheduledImport,
   DatasetHmisVersion,
-  DatasetHmisWindowingRaw,
   Dhis2ImportSchedulingInfo,
-  IndicatorType,
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-const dhis2CredentialsSchema = z.object({
-  url: z.string(),
-  username: z.string(),
-  password: z.string(),
-});
-
+// A window selects indicators; the server expands them to the data ids it
+// fetches at launch (PLAN_A4 ruling 5). A pairs selection names the
+// (data id, month) pairs the ledger recorded: retries and re-imports.
 const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("window"),
-    rawIndicatorIds: z.array(z.string()).min(1),
+    indicatorIds: z.array(z.string()).min(1),
     startPeriod: z.number().int(),
     endPeriod: z.number().int(),
   }),
@@ -43,7 +39,7 @@ const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
     pairs: z
       .array(
         z.object({
-          indicatorRawId: z.string(),
+          dataId: z.string(),
           periodId: z.number().int(),
         }),
       )
@@ -54,12 +50,12 @@ const dhis2RunSelectionSchema = z.discriminatedUnion("kind", [
 const dhis2ScheduleSelectionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("last_n_months"),
-    rawIndicatorIds: z.array(z.string()).min(1),
+    indicatorIds: z.array(z.string()).min(1),
     monthsBack: z.number().int().min(1).max(120),
   }),
   z.object({
     kind: z.literal("explicit_range"),
-    rawIndicatorIds: z.array(z.string()).min(1),
+    indicatorIds: z.array(z.string()).min(1),
     startPeriod: z.number().int(),
     endPeriod: z.number().int(),
   }),
@@ -100,17 +96,23 @@ const dhis2ScheduleFieldsSchema = z.object({
   recurrence: dhis2ScheduleRecurrenceSchema.optional(),
 });
 
-// Reuses the step-2 mappings shape verbatim (HmisCsvMappingParams). The file
-// is an instance asset named by fileName; the server stamps the byte pin at
-// launch validation (pins never travel in client bodies).
+const hmisCsvColumnsSchema = z.object({
+  facility_id: z.string(),
+  data_id: z.string(),
+  period_id: z.string(),
+  count: z.string(),
+});
+
+// The file is an instance asset named by fileName. `pin` is the pin the
+// scan returned: the launch refuses a file whose bytes no longer match it,
+// so the mapping always describes the file that is staged (PLAN_A6 ruling
+// 4). `mapping` is every distinct value the scan found, to a data id or to
+// null for skipped (ruling 3).
 const hmisCsvRunConfigSchema = z.object({
   fileName: z.string(),
-  mappings: z.object({
-    facility_id: z.string(),
-    raw_indicator_id: z.string(),
-    period_id: z.string(),
-    count: z.string(),
-  }),
+  pin: z.object({ size: z.number(), mtimeMs: z.number() }),
+  columns: hmisCsvColumnsSchema,
+  mapping: z.record(z.string(), z.string().nullable()),
 });
 
 const hfaRowFilterSchema = z.object({
@@ -163,8 +165,7 @@ export const datasetRouteRegistry = {
     method: "POST",
     body: z.object({
       versionId: z.number(),
-      baseIndicatorMappingsVersion: z.string(),
-      rawOrCommonIndicators: z.enum(["raw", "common"]),
+      countIndicatorsVersion: z.string(),
       structureSchema: structureSchemaSchema,
     }),
     response: {} as ItemsHolderDatasetHmisDisplay,
@@ -172,16 +173,14 @@ export const datasetRouteRegistry = {
   deleteAllDatasetHmisData: route({
     path: "/datasets/hmis/data",
     method: "DELETE",
-    body: z.object({ windowing: datasetHmisWindowingRawSchema }),
+    body: z.object({ windowing: datasetHmisWindowingSchema }),
   }),
 
   // DHIS2 import runs (per-pair fetch+integrate; PLAN_DHIS2_IMPORTER Phase 3)
-  // credentials absent = use the stored instance credentials (Phase 4 C3).
   launchDatasetHmisDhis2Run: route({
     path: "/datasets/hmis/dhis2-runs",
     method: "POST",
     body: z.object({
-      credentials: dhis2CredentialsSchema.optional(),
       selection: dhis2RunSelectionSchema,
     }),
     response: {} as { runId: number },
@@ -248,6 +247,15 @@ export const datasetRouteRegistry = {
     body: z.object({ fileName: z.string() }),
     response: {} as { headers: string[] },
   }),
+  // Stateless: every distinct value in the file's indicator column with its
+  // row count, plus the pin of the bytes read, for the wizard's mapping
+  // step. Refuses above HMIS_CSV_MAX_DISTINCT_INDICATOR_VALUES values.
+  scanDatasetHmisCsvIndicatorValues: route({
+    path: "/datasets/hmis/csv-runs/scan-indicator-values",
+    method: "POST",
+    body: z.object({ fileName: z.string(), columns: hmisCsvColumnsSchema }),
+    response: {} as HmisCsvIndicatorScan,
+  }),
   launchDatasetHmisCsvRun: route({
     path: "/datasets/hmis/csv-runs",
     method: "POST",
@@ -262,6 +270,8 @@ export const datasetRouteRegistry = {
     body: z.object({ config: hmisCsvRunConfigSchema }),
     response: {} as { runId: number },
   }),
+  // A needs_review hold offers two actions (PLAN_A6 ruling 6): integrate
+  // the surviving staged rows anyway, or discard the run.
   resolveDatasetHmisCsvReview: route({
     path: "/datasets/hmis/csv-runs/resolve-review",
     method: "POST",

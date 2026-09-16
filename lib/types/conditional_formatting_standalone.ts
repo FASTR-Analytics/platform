@@ -22,7 +22,7 @@ const thresholdBucketSchema = z.object({
     .optional(),
 });
 
-// A thresholds rule on its own: what a common indicator carries (DB JSON
+// A thresholds rule on its own: what an HMIS indicator carries (DB JSON
 // text, catalog row, manifest entry, API body) and what the figure-level
 // `thresholds` source wraps. Cutoffs are in STORED units, ascending; one
 // bucket more than cutoffs. No `type` discriminator: that belongs to the

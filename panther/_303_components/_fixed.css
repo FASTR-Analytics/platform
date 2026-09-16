@@ -281,6 +281,19 @@
   --ui-heading-bar-tonal-fg: var(--color-base-content);
 
   /* ============================================= */
+  /* Modal sizing                                  */
+  /* ============================================= */
+  /* The dialog host (alert.tsx) is a size container and the modal
+     wrapper carries the gutter as margin on all sides, so the max sizes
+     measure the host's content box: inside its scrollbar, which vw/vh
+     would ignore. The gutter must not also be host padding: cq units
+     exclude padding, so it would be subtracted twice. */
+
+  --ui-modal-gutter: 3rem;
+  --ui-modal-max-w: calc(100cqw - 2 * var(--ui-modal-gutter));
+  --ui-modal-max-h: calc(100cqh - 2 * var(--ui-modal-gutter));
+
+  /* ============================================= */
   /* App-level markdown (--md-*)                   */
   /* ============================================= */
   /* Defaults for HTML-rendered markdown (MARKDOWN_BASE_STYLES). Contract:
@@ -577,6 +590,70 @@
   padding-inline: var(--ui-pad-lg-x);
 }
 
+/* ---- Pad — vertical only ---- */
+
+@utility ui-pad-y-sm { /* = py-2 */
+  padding-block: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-y { /* = py-4 */
+  padding-block: var(--ui-pad-y);
+}
+
+@utility ui-pad-y-lg { /* = py-6 */
+  padding-block: var(--ui-pad-lg-y);
+}
+
+/* ---- Pad — one side ---- */
+
+@utility ui-pad-t-sm { /* = pt-2 */
+  padding-block-start: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-t { /* = pt-4 */
+  padding-block-start: var(--ui-pad-y);
+}
+
+@utility ui-pad-t-lg { /* = pt-6 */
+  padding-block-start: var(--ui-pad-lg-y);
+}
+
+@utility ui-pad-b-sm { /* = pb-2 */
+  padding-block-end: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-b { /* = pb-4 */
+  padding-block-end: var(--ui-pad-y);
+}
+
+@utility ui-pad-b-lg { /* = pb-6 */
+  padding-block-end: var(--ui-pad-lg-y);
+}
+
+@utility ui-pad-l-sm { /* = pl-2 */
+  padding-inline-start: var(--ui-pad-sm-x);
+}
+
+@utility ui-pad-l { /* = pl-4 */
+  padding-inline-start: var(--ui-pad-x);
+}
+
+@utility ui-pad-l-lg { /* = pl-8 */
+  padding-inline-start: var(--ui-pad-lg-x);
+}
+
+@utility ui-pad-r-sm { /* = pr-2 */
+  padding-inline-end: var(--ui-pad-sm-x);
+}
+
+@utility ui-pad-r { /* = pr-4 */
+  padding-inline-end: var(--ui-pad-x);
+}
+
+@utility ui-pad-r-lg { /* = pr-8 */
+  padding-inline-end: var(--ui-pad-lg-x);
+}
+
 /* ---- Gap — symmetric x/y ---- */
 /* If an app ever needs asymmetric gap, use raw gap-x-N / gap-y-N at the
    call site. */
@@ -829,6 +906,26 @@
      surfaces). Outlines track border-radius in modern browsers. */
   .ui-focusable {
     @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
+  }
+
+  /* Text whose weight toggles with state — public. The child span and a
+     hidden bold copy share one grid cell, so the cell always has the bold
+     size and a weight change never reflows siblings or adds a wrap line.
+     Size, colour and weight classes go on the wrapper so the copy inherits
+     them. Rendered by StableWeightText, which keeps data-text in sync. */
+  .ui-stable-weight {
+    display: inline-grid;
+    user-select: none;
+  }
+  .ui-stable-weight > span,
+  .ui-stable-weight::after {
+    grid-area: 1 / 1;
+  }
+  .ui-stable-weight::after {
+    content: attr(data-text);
+    font-weight: 700;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   /* ============================================= */

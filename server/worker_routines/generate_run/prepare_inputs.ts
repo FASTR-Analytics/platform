@@ -8,7 +8,7 @@ import {
   populationCellCoverage,
   populationTypesReferencedByCatalog,
   throwIfErrWithData,
-  type CommonIndicatorCatalogRow,
+  type HmisIndicatorCatalogRow,
   type DatasetType,
   type HfaIndicator,
   type HfaIndicatorCode,
@@ -89,10 +89,10 @@ export type PreparedRunInputs = {
     // assignments ride hfaIndicators' variantGroupId.
     hfaVariantCode: HfaIndicatorVariantCode[];
     hfaSentinelRows: HfaSentinelRow[];
-    // The resolved common-indicator catalog, from the HMIS capture. m012's
+    // The resolved HMIS indicator catalog, from the HMIS capture. m012's
     // ingredient table is built from it and substituted into its script
     // (PLAN_1a §1.5); empty when the run carries no HMIS family.
-    commonIndicatorCatalog: CommonIndicatorCatalogRow[];
+    hmisIndicatorCatalog: HmisIndicatorCatalogRow[];
   };
 };
 
@@ -137,7 +137,7 @@ export async function prepareRunInputs(
     hfaIndicatorCode: [],
     hfaVariantCode: [],
     hfaSentinelRows: [],
-    commonIndicatorCatalog: [],
+    hmisIndicatorCatalog: [],
   };
 
   if (step1.hmis) {
@@ -153,7 +153,7 @@ export async function prepareRunInputs(
       lastUpdated: capture.lastUpdated,
       info: capture.info,
     });
-    // The v2 indicators mirror: the WHOLE common dictionary, resolved
+    // The v2 indicators mirror: the WHOLE HMIS dictionary, resolved
     // (PLAN_1a §1.10). The separate calculated_indicators_snapshot.json that
     // used to sit beside it is gone: one writer, one catalog contract.
     await writeInputJson(tmpDir, "indicators.json", capture.indicators);
@@ -162,7 +162,7 @@ export async function prepareRunInputs(
     // ingredient table is substituted into its script as a data literal
     // (PLAN_1a §1.5), so nothing is written to inputs/ for it and no
     // memoization input class exists: the literal rides in scriptText.
-    scriptInputs.commonIndicatorCatalog = capture.indicators;
+    scriptInputs.hmisIndicatorCatalog = capture.indicators;
     await writeFacilitiesParquet(tmpDir, "facilities_hmis", capture.facilities);
     extraInputFiles.push("inputs/facilities_hmis.parquet");
     facilitiesTables.push({
@@ -336,7 +336,7 @@ async function writePopulationPersonYears(
   mainDb: Sql,
   tmpDir: string,
   capture: {
-    indicators: CommonIndicatorCatalogRow[];
+    indicators: HmisIndicatorCatalogRow[];
     periodRange: { min: number; max: number };
     adminDepth: number;
   },

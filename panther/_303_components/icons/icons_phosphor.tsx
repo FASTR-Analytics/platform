@@ -13,10 +13,12 @@ import type { IconComponent, IconName } from "./icon_types.ts";
 // Nearest-match substitutions (keys Phosphor lacks a 1:1 glyph for):
 //   - arrowsDiagonal2 -> arrows-out-simple (no mirrored diagonal; same as arrowsDiagonal)
 //   - arrowsDiagonalMinimize2 -> arrows-in-simple (same as arrowsDiagonalMinimize)
+//   - arrowsUpDown -> arrows-down-up (Phosphor names the pair down-up)
 //   - badge -> seal (nearest award/badge shape)
 //   - calendar -> calendar-blank (plain calendar has digits, too busy small)
 //   - clearAll -> list-dashes (nearest to staggered-lines glyph)
 //   - databaseImport -> tray-arrow-down (Phosphor has no database-import)
+//   - filter / filterFilled -> funnel regular / funnel fill (Phosphor names the glyph funnel)
 //   - helpSquare -> question (no square variant; same as help)
 //   - infoSmall -> info (no small variant; same as info)
 //   - infoSquare -> info (no square variant; same as info)
@@ -105,6 +107,14 @@ function PhArrowsDiagonalMinimize2(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M213.66,53.66,163.31,104H192a8,8,0,0,1,0,16H144a8,8,0,0,1-8-8V64a8,8,0,0,1,16,0V92.69l50.34-50.35a8,8,0,0,1,11.32,11.32ZM112,136H64a8,8,0,0,0,0,16H92.69L42.34,202.34a8,8,0,0,0,11.32,11.32L104,163.31V192a8,8,0,0,0,16,0V144A8,8,0,0,0,112,136Z" />
+    </PhosphorWrapper>
+  );
+}
+
+function PhArrowsUpDown(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z" />
     </PhosphorWrapper>
   );
 }
@@ -305,6 +315,22 @@ function PhFile(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Z" />
+    </PhosphorWrapper>
+  );
+}
+
+function PhFilter(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M230.6,49.53A15.81,15.81,0,0,0,216,40H40A16,16,0,0,0,28.19,66.76l.08.09L96,139.17V216a16,16,0,0,0,24.87,13.32l32-21.34A16,16,0,0,0,160,194.66V139.17l67.74-72.32.08-.09A15.8,15.8,0,0,0,230.6,49.53ZM40,56h0Zm106.18,74.58A8,8,0,0,0,144,136v58.66L112,216V136a8,8,0,0,0-2.16-5.47L40,56H216Z" />
+    </PhosphorWrapper>
+  );
+}
+
+function PhFilterFilled(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M227.81,66.76l-.08.09L160,139.17v55.49A16,16,0,0,1,152.87,208l-32,21.34A16,16,0,0,1,96,216V139.17L28.27,66.85l-.08-.09A16,16,0,0,1,40,40H216a16,16,0,0,1,11.84,26.76Z" />
     </PhosphorWrapper>
   );
 }
@@ -735,6 +761,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   arrowsDiagonal2: PhArrowsDiagonal2,
   arrowsDiagonalMinimize: PhArrowsDiagonalMinimize,
   arrowsDiagonalMinimize2: PhArrowsDiagonalMinimize2,
+  arrowsUpDown: PhArrowsUpDown,
   backspace: PhBackspace,
   badge: PhBadge,
   bell: PhBell,
@@ -760,6 +787,8 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   eyeOff: PhEyeOff,
   eraser: PhEraser,
   file: PhFile,
+  filter: PhFilter,
+  filterFilled: PhFilterFilled,
   folder: PhFolder,
   gripVertical: PhGripVertical,
   help: PhHelp,

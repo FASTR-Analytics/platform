@@ -120,6 +120,7 @@ export * from "./_308_clerk_ui/mod.ts";
 // @protocol PROTOCOL_ALL_STRUCTURE.md
 // @protocol PROTOCOL_ALL_SIZING.md
 // @protocol PROTOCOL_ALL_TRANSLATION.md
+// @protocol PROTOCOL_ALL_PLANS.md
 // @protocol PROTOCOL_UI_SOLIDJS.md
 // @protocol PROTOCOL_UI_STATE.md
 // @protocol PROTOCOL_UI_STYLING.md

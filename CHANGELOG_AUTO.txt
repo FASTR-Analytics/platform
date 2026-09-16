@@ -1,3 +1,88 @@
+[1.73.1] [user] [added] - Indicator count now shown next to the "Indicators" heading
+[1.73.1] [user] [added] - Indicator types now displayed as color-coded badges
+[1.73.1] [user] [added] - Long indicator IDs and labels now wrap neatly instead of overflowing
+[1.73.1] [user] [added] - "Add from DHIS2" button moved into the indicators table toolbar
+[1.73.1] [user] [added] - Selected indicator count shown prominently in DHIS2 picker
+[1.73.1] [user] [changed] - "Download CSV" button shortened to "Download"
+[1.73.1] [user] [changed] - "Create indicator" button shortened to "Create new"
+[1.73.1] [user] [changed] - "Include in analysis" column header shortened to "Include"
+[1.73.1] [user] [changed] - Indicator table rows are now more compact
+[1.73.1] [user] [changed] - "Add from DHIS2" button now visible to all users, not just admins
+[1.73.1] [user] [changed] - Format column removed from the indicators table
+[1.73.1] [admin] [changed] - Indicator type now shown as colored badges
+[1.73.1] [admin] [changed] - Long indicator IDs and labels wrap neatly at underscores
+[1.73.1] [admin] [changed] - Indicator table displays total indicator count in heading
+[1.73.1] [admin] [changed] - "Add from DHIS2" button moved into the indicator table toolbar
+[1.73.1] [admin] [changed] - "Add from DHIS2" button now visible to all admins, not just global admins
+[1.73.1] [admin] [changed] - Format column removed from indicator table
+[1.73.1] [admin] [changed] - "Include in analysis" column header shortened to "Include"
+[1.73.1] [admin] [changed] - Download and Create buttons use shorter labels
+[1.73.1] [admin] [changed] - Indicator table rows are more compact
+[1.73.1] [admin] [changed] - DHIS2 indicator picker shows selected count more prominently
+[1.73.1] [admin] [changed] - DHIS2 indicator picker table rows are more compact
+[1.73.1] [user] [changed] - Formula indicators now labeled "calculated" instead of "derived"
+[1.73.1] [admin] [changed] - Results packages now automatically update renamed indicator types on startup
+[1.73.1] [admin] [changed] - Visualization caches are refreshed to reflect the indicator type rename
+[1.73.1] [admin] [internal] - Added an input transform stage for upgrading stored results package data
+[1.73.0] [user] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the platform
+[1.73.0] [user] [added] - The Type column in the indicator list can now be filtered
+[1.73.0] [user] [added] - The Format column in the indicator list can now be filtered
+[1.73.0] [user] [added] - The Analysed column in the indicator list can now be filtered
+[1.73.0] [admin] [changed] - "Derived" indicators are now called "Calculated" indicators throughout the interface
+[1.73.0] [admin] [added] - Indicator list Type column is now filterable
+[1.73.0] [admin] [added] - Indicator list Format column is now filterable
+[1.73.0] [admin] [added] - Indicator list Include in Analysis column is now filterable
+[1.73.0] [user] [changed] - Results package modules now use collapsible sections instead of cards
+[1.73.0] [user] [changed] - Module output files show a download icon button instead of a text button
+[1.73.0] [user] [changed] - Script and log viewers now display a tonal heading bar
+[1.73.0] [user] [added] - Indicator editor now supports four types: Uploaded, DHIS2 element, Sum, and Derived
+[1.73.0] [user] [added] - Indicators can now be renamed with automatic formula and schedule updates
+[1.73.0] [user] [added] - New "Include in analysis" checkbox on each indicator
+[1.73.0] [user] [added] - New "Expected low counts" option for count indicators
+[1.73.0] [user] [added] - Direction setting (higher/lower is better) added to indicator editor
+[1.73.0] [user] [added] - Target value field added for derived indicators
+[1.73.0] [user] [added] - Special indicator badge shown for indicators used by analysis modules
+[1.73.0] [user] [added] - Indicator types reference modal explaining each type
+[1.73.0] [user] [added] - DHIS2 import naming step lets you review and edit proposed indicator IDs
+[1.73.0] [user] [changed] - DHIS2 connection management simplified to a single connection per instance
+[1.73.0] [user] [removed] - Removed option to enter temporary DHIS2 credentials for a single session
+[1.73.0] [user] [changed] - Computability warnings now say "has no data" instead of "has no mapped raw indicator"
+[1.73.0] [user] [changed] - Module parameter inputs now use a wider layout on medium screens
+[1.73.0] [user] [fixed] - Modal titles now display consistently across help, email, and permissions dialogs
+[1.73.0] [admin] [changed] - Indicator system simplified: raw and common indicators merged into a single unified indicator model
+[1.73.0] [admin] [added] - New indicator types: Uploaded, DHIS2 element, Sum, and Derived replace the old raw/common split
+[1.73.0] [admin] [added] - Indicators can now be renamed, with automatic rewriting of formulas and import schedules
+[1.73.0] [admin] [added] - Include in analysis toggle added to each indicator
+[1.73.0] [admin] [added] - Expected low counts option for count indicators to improve data quality adjustment
+[1.73.0] [admin] [added] - Direction setting (higher/lower is better) added per indicator
+[1.73.0] [admin] [added] - Target value can now be set on derived indicators
+[1.73.0] [admin] [added] - Special indicator badge shown for indicators read by analysis modules
+[1.73.0] [admin] [added] - Indicator type facts modal explains what each type entails
+[1.73.0] [admin] [added] - DHIS2 import naming step lets you choose indicator IDs when importing from DHIS2
+[1.73.0] [admin] [changed] - Results package modules now shown as collapsible sections instead of cards
+[1.73.0] [admin] [changed] - DHIS2 connection management simplified to a single connection editor
+[1.73.0] [admin] [removed] - Removed one-off DHIS2 credential override form; all flows use the stored connection
+[1.73.0] [admin] [changed] - Module parameter inputs now use a wider layout on medium screens
+[1.73.0] [admin] [changed] - Computability warnings now say "has no data" instead of "has no mapped raw indicator"
+[1.73.0] [admin] [internal] - Script and log viewers now use tonal heading bar styling
+[1.72.1] [user] [changed] - XLSForm upload option now only appears for HFA imports
+[1.72.1] [admin] [changed] - XLSForm upload option now only appears for HFA imports
+[1.72.1] [admin] [fixed] - Server rejects XLSForm files submitted for non-HFA imports
+[1.72.1] [user] [changed] - Population references in formulas now use simpler names like "population_total" instead of bracket syntax
+[1.72.1] [user] [added] - Reserved word validation prevents creating indicators with names that conflict with population types or formula functions
+[1.72.1] [user] [changed] - "Replace all" facility import now updates existing facilities and only deletes those missing from your file, instead of wiping everything first
+[1.72.1] [user] [added] - "Replace all" import now shows how many facilities will be deleted and warns if any still have data
+[1.72.1] [user] [fixed] - "Replace all" import no longer silently deletes facilities that still have linked data; it now refuses and tells you which ones to fix
+[1.72.1] [user] [changed] - Clearer description of "Replace all" import behavior on the import confirmation screen
+[1.72.1] [user] [changed] - Formula help text updated to show simpler population reference format
+[1.72.1] [admin] [changed] - Population type IDs renamed (e.g. "u5" is now "population_u5")
+[1.72.1] [admin] [changed] - Population references in derived indicator formulas simplified to plain identifiers (e.g. "population_pregnancies" instead of "[population:pregnancies]")
+[1.72.1] [admin] [added] - Population type IDs and function names are now reserved words and cannot be used as common indicator IDs
+[1.72.1] [admin] [changed] - "Replace all" facility import now updates matching facilities and deletes only those absent from your file, instead of wiping everything first
+[1.72.1] [admin] [added] - "Replace all" import now refuses if facilities not in your file still have data; you must remove their data first
+[1.72.1] [admin] [added] - Import preview now shows how many existing facilities would be deleted and how many still have data blocking the import
+[1.72.1] [admin] [changed] - Unmapped optional columns are now cleared on updated facilities during "Replace all" imports
+[1.72.1] [admin] [fixed] - Reserved word indicator IDs now show a specific error message explaining which words are reserved
 [1.71.1] [user] [added] - Population grid now shows a data coverage summary strip indicating gaps
 [1.71.1] [user] [changed] - Delete button for population data now uses an icon only
 [1.71.1] [user] [changed] - Simplified population heading to show only the year range

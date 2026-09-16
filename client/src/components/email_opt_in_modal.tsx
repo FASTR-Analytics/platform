@@ -25,11 +25,7 @@ export function EmailOptInModal(p: AlertComponentProps<void, undefined>) {
   return (
     <ModalContainer
       width="sm"
-      topPanel={
-        <div class="font-700 text-base-content text-xl">
-          {t3({ en: "Stay in the loop", fr: "Restez informé", pt: "Mantenha-se informado" })}
-        </div>
-      }
+      title={t3({ en: "Stay in the loop", fr: "Restez informé", pt: "Mantenha-se informado" })}
       leftButtons={
         // eslint-disable-next-line jsx-key
         [

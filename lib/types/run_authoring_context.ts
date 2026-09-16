@@ -2,6 +2,7 @@ import type { DerivedDefaultVisualization } from "../derive_default_visualizatio
 import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
 import type { RunDataset } from "./run_datasets.ts";
+import type { RunHmisIndicator } from "./run_manifest.ts";
 
 // Everything an author needs FROM a package: which modules ran, which metrics
 // they produced and whether each is available, which datasets were captured,
@@ -24,7 +25,7 @@ export type RunAuthoringContext = {
   modules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
   datasets: RunDataset[];
-  commonIndicators: { id: string; label: string }[];
+  hmisIndicators: RunHmisIndicator[];
   icehIndicators: { id: string; label: string; category: string }[];
   hfaTaxonomy: RunAuthoringContextHfaTaxonomy;
   // Presets are not products: no rows, no detail read. They render through

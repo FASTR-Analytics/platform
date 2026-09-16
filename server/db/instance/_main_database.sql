@@ -424,59 +424,93 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- INDICATORS
 -- ============================================================================
 
--- A common indicator carries what it IS and how it is presented. `expression`
--- holds a derived indicator's formula (which may name a population type as
--- `[population:<type>]`; the app validates the reference, there is no FK)
--- and is NULL for a base one. `thresholds` is the indicator's own
--- conditional-formatting rule as JSON text (lib thresholdsRuleSchema:
--- cutoffs in stored units, buckets with colour + label, direction), NULL
--- when it has none.
+-- The dictionary (PLAN_A5 §2, PLAN_A6 §2). The data rows of dataset_hmis
+-- are facts keyed by `data_id`; an indicator is a name and a type over
+-- them, and nothing here moves a row. Four types: `uploaded` (an additive
+-- monthly series filled by file; its rows carry its `data_id`, an opaque
+-- key generated when the indicator is created, `u_` plus a UUID, never
+-- typed and never matched against a file value: the CSV wizard maps each
+-- file value onto an indicator), `dhis2_element` (a series the import
+-- fetches; `data_id` is the data element UID or `UID.COC` operand,
+-- DHIS2-shaped), `sum` (the members in indicator_sum_members, summed from
+-- their rows at extract), `calculated` (`expression`, a formula over
+-- indicators of any type and population terms, evaluated by m012 after
+-- adjustment; a population type is named by its id, a reserved word, with
+-- no FK). `has_rows` and `is_count` are generated: the two facts read off
+-- the type, and the predicates lib restates as hasRows and isCount.
+-- `include_in_analysis` off keeps an indicator dictionary-only: its data is
+-- still stored, and it is still usable as a member or in a formula.
+-- `thresholds` is a calculated indicator's own conditional-formatting rule as
+-- JSON text (lib thresholdsRuleSchema), NULL when it has none and always
+-- NULL on a count, which is also always formatted as a number. The indicator id
+-- is renamable (ON UPDATE CASCADE follows it into the junction); the data
+-- id is fixed once rows exist under it (the data FK has no update action).
+-- A new database has an empty dictionary.
 CREATE TABLE indicators (
   indicator_common_id text PRIMARY KEY NOT NULL,
   indicator_common_label text NOT NULL,
-  is_default boolean NOT NULL DEFAULT FALSE,
-
-  definition_type text NOT NULL DEFAULT 'base',
+  definition_type text NOT NULL
+    CONSTRAINT indicators_definition_type_check
+    CHECK (definition_type IN ('uploaded', 'dhis2_element', 'sum', 'calculated')),
+  data_id text CONSTRAINT indicators_data_id_key UNIQUE,
   expression text,
-
-  format_as text NOT NULL DEFAULT 'number',
+  include_in_analysis boolean NOT NULL DEFAULT TRUE,
+  format_as text NOT NULL DEFAULT 'number'
+    CONSTRAINT indicators_format_as_check
+    CHECK (format_as IN ('percent', 'number', 'rate_per_10k')),
   thresholds text,  -- JSON: ThresholdsRule (nullable)
+  direction text NOT NULL DEFAULT 'higher-is-better'
+    CONSTRAINT indicators_direction_check
+    CHECK (direction IN ('higher-is-better', 'lower-is-better')),
+  target double precision,
+  expected_low_counts boolean NOT NULL DEFAULT FALSE,
   sort_order integer NOT NULL DEFAULT 0,
-
   updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
 
-  CONSTRAINT indicators_definition_type_check
-    CHECK (definition_type IN ('base', 'derived')),
+  has_rows boolean GENERATED ALWAYS AS
+    (definition_type IN ('uploaded', 'dhis2_element')) STORED,
+  is_count boolean GENERATED ALWAYS AS
+    (definition_type IN ('uploaded', 'dhis2_element', 'sum')) STORED,
 
-  CONSTRAINT indicators_definition_fields_check CHECK (
-    (definition_type = 'base' AND expression IS NULL)
-    OR
-    (definition_type = 'derived' AND expression IS NOT NULL)
+  CONSTRAINT indicators_fields_check CHECK (
+    (definition_type = 'uploaded'      AND expression IS NULL AND data_id IS NOT NULL) OR
+    (definition_type = 'dhis2_element' AND expression IS NULL AND data_id IS NOT NULL) OR
+    (definition_type = 'sum'           AND expression IS NULL AND data_id IS NULL) OR
+    (definition_type = 'calculated'    AND expression IS NOT NULL AND data_id IS NULL)
   ),
-
-  CONSTRAINT indicators_format_as_check
-    CHECK (format_as IN ('percent', 'number', 'rate_per_10k'))
+  CONSTRAINT indicators_element_shape_check CHECK (
+    definition_type <> 'dhis2_element'
+    OR data_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}(\.[a-zA-Z][a-zA-Z0-9]{10})?$'
+  ),
+  CONSTRAINT indicators_count_format_check CHECK (NOT is_count OR format_as = 'number'),
+  CONSTRAINT indicators_count_thresholds_check CHECK (NOT is_count OR thresholds IS NULL),
+  CONSTRAINT indicators_count_target_check CHECK (NOT is_count OR target IS NULL),
+  CONSTRAINT indicators_calculated_low_counts_check CHECK (is_count OR NOT expected_low_counts),
+  -- Required by the composite FK in indicator_sum_members; redundant with the PK otherwise.
+  CONSTRAINT indicators_common_id_has_rows_key UNIQUE (indicator_common_id, has_rows)
 );
 
-CREATE TABLE indicators_raw (
-  indicator_raw_id text PRIMARY KEY NOT NULL,
-  indicator_raw_label text NOT NULL,
-  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP
+-- A sum's members: the FK can only reach an indicator with has_rows, so a
+-- sum names Uploaded and DHIS2 element indicators and nothing else, and
+-- retyping a member out of those is refused while a sum names it. Members
+-- come back ordered by member id; there is no position column.
+CREATE TABLE indicator_sum_members (
+  sum_id text NOT NULL
+    CONSTRAINT indicator_sum_members_sum_id_fkey
+    REFERENCES indicators(indicator_common_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  member_id text NOT NULL,
+  -- Always TRUE; exists so the FK can pin members to indicators with has_rows.
+  member_has_rows boolean NOT NULL DEFAULT TRUE
+    CONSTRAINT indicator_sum_members_member_has_rows_check CHECK (member_has_rows),
+  CONSTRAINT indicator_sum_members_pkey PRIMARY KEY (sum_id, member_id),
+  -- NO ACTION (the default), not RESTRICT: deleteIndicators removes a sum
+  -- and its members in one statement, and RESTRICT checks each row before
+  -- the sum's cascade has removed the junction row.
+  CONSTRAINT indicator_sum_members_member_fkey
+    FOREIGN KEY (member_id, member_has_rows)
+    REFERENCES indicators(indicator_common_id, has_rows)
+    ON UPDATE CASCADE
 );
-
-CREATE TABLE indicator_mappings (
-  indicator_raw_id text NOT NULL,
-  indicator_common_id text NOT NULL,
-  updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (indicator_raw_id, indicator_common_id),
-  FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
-  FOREIGN KEY (indicator_common_id) REFERENCES indicators(indicator_common_id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_indicator_mappings_common_id ON indicator_mappings(indicator_common_id);
-CREATE INDEX idx_indicator_mappings_raw_id ON indicator_mappings(indicator_raw_id);
-CREATE INDEX idx_indicator_mappings_updated_at ON indicator_mappings(updated_at DESC);
-CREATE INDEX idx_indicator_mappings_raw_common ON indicator_mappings(indicator_raw_id, indicator_common_id);
 
 -- The population store (PLAN_1b ruling 1): annual figures per admin area ×
 -- year × type, at the level the row was uploaded for. Names match the HMIS
@@ -531,42 +565,54 @@ CREATE TABLE dataset_hmis_versions (
 
 CREATE TABLE dataset_hmis (
   facility_id text NOT NULL,
-  indicator_raw_id text NOT NULL,
+  data_id text NOT NULL,
   period_id integer NOT NULL 
     CHECK (period_id >= 190001 AND period_id <= 205012 AND period_id % 100 BETWEEN 1 AND 12),
   count integer NOT NULL CHECK (count >= 0),
   version_id integer NOT NULL,
-  PRIMARY KEY (facility_id, indicator_raw_id, period_id),
+  PRIMARY KEY (facility_id, data_id, period_id),
   -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
-  -- replace_all now refuses (via assertNoBlockingReferencesForReplace) when a
-  -- dataset still references these facilities, so the old deferred SET CONSTRAINTS
-  -- delete is gone; the FK is left DEFERRABLE but its name is no longer used by code.
+  -- Structure integration refuses (assertAbsentFacilitiesUnreferenced) before
+  -- deleting any facility this table still references, so the old deferred
+  -- SET CONSTRAINTS delete is gone; the FK is left DEFERRABLE but its name is
+  -- no longer used by code.
   CONSTRAINT dataset_hmis_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hmis(facility_id) DEFERRABLE,
-  FOREIGN KEY (indicator_raw_id) REFERENCES indicators_raw(indicator_raw_id) ON DELETE RESTRICT DEFERRABLE,
+  -- Every data row is keyed by what DHIS2 or the file called its series
+  -- (PLAN_A5 §2), which some indicator holds as its data id; deleting that
+  -- indicator, or changing its data id while rows exist, is refused by the
+  -- app's pre-check before this FK would. Named because instance migration
+  -- 086 adds it under this name.
+  CONSTRAINT dataset_hmis_data_id_fkey FOREIGN KEY (data_id) REFERENCES indicators(data_id) ON DELETE RESTRICT DEFERRABLE,
   FOREIGN KEY (version_id) REFERENCES dataset_hmis_versions(id) ON DELETE RESTRICT
 );
 
-CREATE INDEX idx_dataset_hmis_indicator_period ON dataset_hmis(indicator_raw_id, period_id);
-CREATE INDEX idx_dataset_hmis_period_indicator ON dataset_hmis(period_id, indicator_raw_id);
+CREATE INDEX idx_dataset_hmis_data_id_period ON dataset_hmis(data_id, period_id);
+CREATE INDEX idx_dataset_hmis_period_data_id ON dataset_hmis(period_id, data_id);
 CREATE INDEX idx_dataset_hmis_version_id ON dataset_hmis(version_id);
 CREATE INDEX idx_dataset_hmis_facility_period ON dataset_hmis(facility_id, period_id);
-CREATE INDEX idx_dataset_hmis_indicator_id ON dataset_hmis(indicator_raw_id);
+CREATE INDEX idx_dataset_hmis_data_id ON dataset_hmis(data_id);
 CREATE INDEX idx_dataset_hmis_period_id ON dataset_hmis(period_id);
 
--- Import ledger: latest import state per (raw indicator, month). Written
--- inside every integration and deletion transaction, so it can never disagree
--- with dataset_hmis (see server/db/instance/dataset_hmis_import_ledger.ts).
+-- Import ledger: latest import state per (data id, month). Written inside
+-- every integration and deletion transaction, so it can never disagree with
+-- dataset_hmis (see server/db/instance/dataset_hmis_import_ledger.ts).
+-- skipped_values counts the DHIS2 facility values left out of the pair at its
+-- last import as not non-negative integers; skipped_values_sample is a JSON
+-- array of at most 10 { facilityId, value }.
 CREATE TABLE dataset_hmis_import_ledger (
-  indicator_raw_id text NOT NULL REFERENCES indicators_raw(indicator_raw_id) ON DELETE CASCADE,
+  data_id text NOT NULL,
   period_id integer NOT NULL,
   n_records integer NOT NULL,
   sum_count bigint NOT NULL,
-  source text NOT NULL CHECK (source IN ('dhis2', 'csv', 'backfill')),
+  skipped_values integer NOT NULL DEFAULT 0,
+  skipped_values_sample text NOT NULL DEFAULT '[]',
+  route text NOT NULL CHECK (route IN ('dhis2', 'csv', 'backfill')),
   status text NOT NULL CHECK (status IN ('ready', 'error')),
   error text,
   imported_at timestamptz,
   version_id integer REFERENCES dataset_hmis_versions(id),
-  PRIMARY KEY (indicator_raw_id, period_id)
+  PRIMARY KEY (data_id, period_id),
+  CONSTRAINT dataset_hmis_import_ledger_data_id_fkey FOREIGN KEY (data_id) REFERENCES indicators(data_id) ON DELETE CASCADE
 );
 
 -- HMIS import runs: one row per import — DHIS2 (per-pair fetch+integrate) or
@@ -574,13 +620,13 @@ CREATE TABLE dataset_hmis_import_ledger (
 -- server/db/instance/dataset_hmis_import_runs.ts. Per-pair outcomes live
 -- in dataset_hmis_import_ledger; run_stats holds per-run instrumentation
 -- (DHIS2) or the CSV staging diagnostics. dhis2_url/selection are DHIS2-only;
--- csv_config ({ fileName, filePin, mappings } JSON) is CSV-only — the
+-- csv_config ({ fileName, filePin, columns, mapping } JSON) is CSV-only — the
 -- pairing is enforced in code at the write boundary.
 CREATE TABLE dataset_hmis_import_runs (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   trigger text NOT NULL CHECK (trigger IN ('manual', 'schedule')),
   triggered_by text,
-  source text NOT NULL CHECK (source IN ('dhis2', 'csv')),
+  route text NOT NULL CHECK (route IN ('dhis2', 'csv')),
   dhis2_url text,
   selection text,
   csv_config text,
@@ -619,8 +665,8 @@ CREATE TABLE instance_dhis2_credentials (
 -- Scheduled DHIS2 imports (PLAN_DHIS2_IMPORTER Phase 4, C4): one-shot +
 -- recurring rows fired by the ~60 s scheduler tick
 -- (see server/worker_routines/import_hmis_data_dhis2/scheduler.ts).
--- selection is a rolling window JSON ({ rawIndicatorIds, monthsBack })
--- resolved at fire time; last_fired_at is the last HANDLED occurrence — the
+-- selection is JSON over indicator ids (a rolling window { indicatorIds,
+-- monthsBack } resolved at fire time, or an explicit range); last_fired_at is the last HANDLED occurrence — the
 -- tick's compare-and-set idempotency token.
 CREATE TABLE dataset_hmis_scheduled_imports (
   id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -689,9 +735,10 @@ CREATE TABLE hfa_data (
   value TEXT NOT NULL,
   PRIMARY KEY (facility_id, time_point, var_name),
   -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
-  -- replace_all now refuses (via assertNoBlockingReferencesForReplace) when a
-  -- dataset still references these facilities, so the old deferred SET CONSTRAINTS
-  -- delete is gone; the FK is left DEFERRABLE but its name is no longer used by code.
+  -- Structure integration refuses (assertAbsentFacilitiesUnreferenced) before
+  -- deleting any facility this table still references, so the old deferred
+  -- SET CONSTRAINTS delete is gone; the FK is left DEFERRABLE but its name is
+  -- no longer used by code.
   CONSTRAINT hfa_data_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) DEFERRABLE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE

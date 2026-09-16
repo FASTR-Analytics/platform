@@ -5,6 +5,7 @@
 
 import type {
   AnyRow,
+  FilterConfig,
   ProcessedData,
   SortConfig,
   TableColumn,
@@ -89,6 +90,43 @@ export function groupData<T extends AnyRow>(
     })),
     allItems: data,
   };
+}
+
+export function getFilterValue<T extends AnyRow>(
+  item: T,
+  column: TableColumn<T>,
+): string {
+  return column.filterValue?.(item) ?? String(item[column.key] ?? "");
+}
+
+export function distinctFilterValues<T extends AnyRow>(
+  data: T[],
+  column: TableColumn<T>,
+): string[] {
+  const values = new Set<string>();
+  for (const item of data) {
+    values.add(getFilterValue(item, column));
+  }
+  return [...values].sort(compareValues);
+}
+
+export function filterData<T extends AnyRow>(
+  data: T[],
+  filters: FilterConfig,
+  columns: TableColumn<T>[],
+): T[] {
+  const active = columns.flatMap((column) => {
+    const excluded = filters.get(column.key);
+    return column.filterable && excluded && excluded.size > 0
+      ? [{ column, excluded }]
+      : [];
+  });
+  if (active.length === 0) return data;
+  return data.filter((item) =>
+    active.every(({ column, excluded }) =>
+      !excluded.has(getFilterValue(item, column))
+    )
+  );
 }
 
 export function getCellAlignment(alignH?: string): string {

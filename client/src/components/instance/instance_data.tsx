@@ -443,15 +443,15 @@ export function InstanceData(p: Props) {
                       </div>
                       <Show
                         when={
-                          instanceState.indicators.commonIndicators > 0 &&
-                          instanceState.indicators.commonIndicators
+                          instanceState.indicators.hmisIndicators > 0 &&
+                          instanceState.indicators.hmisIndicators
                         }
                         fallback={
                           <div class="text-danger text-xs">
                             {t3({
-                              en: "No common indicators",
-                              fr: "Aucun indicateur commun",
-                              pt: "Nenhum indicador comum",
+                              en: "No indicators",
+                              fr: "Aucun indicateur",
+                              pt: "Nenhum indicador",
                             })}
                           </div>
                         }
@@ -462,43 +462,9 @@ export function InstanceData(p: Props) {
                             <div class="ui-gap flex justify-between">
                               <span>
                                 {t3({
-                                  en: "Common indicators",
-                                  fr: "Indicateurs communs",
-                                  pt: "Indicadores comuns",
-                                })}
-                                :
-                              </span>
-                              <span class="font-mono">
-                                {toNum0(keyedNumber)}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </Show>
-                      <Show
-                        when={
-                          instanceState.indicators.rawIndicators > 0 &&
-                          instanceState.indicators.rawIndicators
-                        }
-                        fallback={
-                          <div class="text-danger text-xs">
-                            {t3({
-                              en: "No DHIS2 indicators",
-                              fr: "Aucun indicateur DHIS2",
-                              pt: "Nenhum indicador DHIS2",
-                            })}
-                          </div>
-                        }
-                        keyed
-                      >
-                        {(keyedNumber) => (
-                          <div class="ui-spy-sm text-success text-xs">
-                            <div class="ui-gap flex justify-between">
-                              <span>
-                                {t3({
-                                  en: "DHIS2 indicators",
-                                  fr: "Indicateurs DHIS2",
-                                  pt: "Indicadores DHIS2",
+                                  en: "Indicators",
+                                  fr: "Indicateurs",
+                                  pt: "Indicadores",
                                 })}
                                 :
                               </span>

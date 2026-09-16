@@ -103,7 +103,7 @@ reconnect. Stale data stays visible while reconnecting.
 | Pinned package        | `pinnedRunId` (bare id, `null` = nothing pinned; unfiltered, every client)                                                                 | `pinned_run_updated`         | none                                    |
 | Structure summary     | `structure` (counts), `structureLastUpdated`                                                                                               | `structure_updated`          | `structureLastUpdated`                  |
 | HFA weights           | `hfaWeights`                                                                                                                               | `structure_updated`          | none                                    |
-| Indicator summary     | `indicators` (counts), `indicatorMappingsVersion`, `baseIndicatorMappingsVersion`, `hfaIndicatorsVersion`                                  | `indicators_updated`         | all three version fields                |
+| Indicator summary     | `indicators` (counts), `indicatorsVersion`, `baseIndicatorsVersion`, `hfaIndicatorsVersion`                                  | `indicators_updated`         | all three version fields                |
 | HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + structure hash |
 | HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                 | `datasets_updated`           | `hfaCacheHash`                          |
 | ICEH dataset summary  | `icehCacheHash`                                                                                                                            | `datasets_updated`           | `icehCacheHash`                         |
@@ -146,7 +146,7 @@ other fields are identical across clients.
 | Attached package      | `attachedRunId`, `attachedRun` (the run's catalogue row; immutable once ready)                        | `run_attached` (+ the run-derived catalog below)           | `attachedRunId` → `runVersionKey`  |
 | Project datasets      | `projectDatasets`                                                                                     | `datasets_updated`                                         | none                               |
 | Installed modules     | `projectModules`                                                                                      | `modules_updated`                                          | none                               |
-| Metrics / indicators  | `metrics`, `commonIndicators`, `icehIndicators`                                                       | `modules_updated` (derived)                                | none                               |
+| Metrics / indicators  | `metrics`, `hmisIndicators`, `icehIndicators`                                                         | `modules_updated` (derived)                                | none                               |
 | HFA taxonomy          | `hfaTaxonomy`                                                                                         | `starting` only (no update event)                          | none                               |
 | Visualizations        | `visualizations`, `visualizationFolders`                                                              | `visualizations_updated` / `visualization_folders_updated` | none                               |
 | Dashboards            | `dashboards`                                                                                          | `dashboards_updated`                                       | none                               |
@@ -245,11 +245,11 @@ All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
 
 | Data                               | File                        | Version key(s)                                                       |
 | ---------------------------------- | --------------------------- | -------------------------------------------------------------------- |
-| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `baseIndicatorMappingsVersion` (base rows only, a derived edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys)  |
+| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `baseIndicatorsVersion` (base rows only, a derived edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys)  |
 | HFA display items (data rows)      | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
 | ICEH display items (data rows)     | `instance/t2_datasets.ts`   | `icehCacheHash`                                                      |
 | HFA dictionary (variable metadata) | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
-| Indicator full list (mappings)     | `instance/t2_indicators.ts` | `indicatorMappingsVersion` (the FULL stamp: every common indicator row, whatever its type)  |
+| Indicator full list                | `instance/t2_indicators.ts` | `indicatorsVersion` (the FULL stamp: every indicator row, whatever its type)         |
 | HFA indicator full list            | `instance/t2_indicators.ts` | `hfaIndicatorsVersion`                                               |
 | Structure items (facility/admin)   | `instance/t2_structure.ts`  | `family` + `structureLastUpdated` + `hashStructureSchema(family)`    |
 | GeoJSON map data                   | `instance/t2_geojson.ts`    | `uploadedAt` per (family, admin level)                               |

@@ -56,8 +56,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   structureLastUpdated: undefined,
   hfaWeights: [],
   indicators: {
-    commonIndicators: 0,
-    rawIndicators: 0,
+    hmisIndicators: 0,
     hfaIndicators: 0,
   },
   datasetsWithData: [],
@@ -73,8 +72,8 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   populationRowCount: 0,
   populationCoverage: [],
   populationLastUpdated: undefined,
-  indicatorMappingsVersion: "",
-  baseIndicatorMappingsVersion: "",
+  indicatorsVersion: "",
+  countIndicatorsVersion: "",
   hfaIndicatorsVersion: "",
   currentUserEmail: "",
   currentUserApproved: false,
@@ -295,10 +294,10 @@ export function updateInstanceIndicators(
   data: InstanceIndicatorsSummary,
 ): void {
   setInstanceState("indicators", reconcile(data.indicators));
-  setInstanceState("indicatorMappingsVersion", data.indicatorMappingsVersion);
+  setInstanceState("indicatorsVersion", data.indicatorsVersion);
   setInstanceState(
-    "baseIndicatorMappingsVersion",
-    data.baseIndicatorMappingsVersion,
+    "countIndicatorsVersion",
+    data.countIndicatorsVersion,
   );
   setInstanceState("hfaIndicatorsVersion", data.hfaIndicatorsVersion);
 }

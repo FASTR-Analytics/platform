@@ -292,7 +292,7 @@ server has verified-current schema and stored-JSON shapes. The sequence:
 
 1. **Fresh-instance bootstrap.** Connect to the `postgres` admin DB; if `main`
    doesn't exist, create it, load `_main_database.sql`, and seed it (H_USERS
-   admin rows, default `instance_config` rows, the common-indicator dictionary).
+   admin rows, default `instance_config` rows, the HMIS indicator dictionary).
 2. **Instance migrations.** `runInstanceMigrations`
    (`server/db/migrations/runner.ts`): lexicographically-ordered `NNN_*.sql`
    and `NNN_*.ts` files from `migrations/instance/`, applied-set tracked in a

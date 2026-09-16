@@ -4,7 +4,7 @@ import {
 } from "@timroberton/panther";
 import { Sql } from "postgres";
 import type {
-  DatasetHmisWindowingRaw,
+  DatasetHmisWindowing,
   StructureSchema,
 } from "lib";
 import {
@@ -17,7 +17,6 @@ import {
   throwIfErrWithData,
   type DatasetHmisVersion,
   type DatasetStagingResult,
-  type IndicatorType,
   type ItemsHolderDatasetHmisDisplay,
 } from "lib";
 import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
@@ -110,7 +109,7 @@ export async function getVersionsForDatasetHmis(
 
 export async function deleteAllDatasetHmisData(
   mainDb: Sql,
-  windowing: DatasetHmisWindowingRaw
+  windowing: DatasetHmisWindowing
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // A delete minting a version id while an integration is mid-transaction
@@ -130,15 +129,18 @@ export async function deleteAllDatasetHmisData(
     conditions.push(`period_id >= ${windowing.start}`);
     conditions.push(`period_id <= ${windowing.end}`);
 
-    // Indicator filtering
+    // Indicator filtering (PLAN_A4 ruling 9): the window selects
+    // indicators; the rows deleted are those under their data ids.
     if (
       !windowing.takeAllIndicators &&
-      windowing.rawIndicatorsToInclude.length > 0
+      windowing.indicatorsToInclude.length > 0
     ) {
-      const indicatorList = windowing.rawIndicatorsToInclude
-        .map((ind) => `'${escapeSqlString(ind)}'`)
+      const indicatorList = windowing.indicatorsToInclude
+        .map((id) => `'${escapeSqlString(id)}'`)
         .join(", ");
-      conditions.push(`indicator_raw_id IN (${indicatorList})`);
+      conditions.push(
+        `data_id IN (SELECT data_id FROM indicators WHERE indicator_common_id IN (${indicatorList}) AND data_id IS NOT NULL)`,
+      );
     }
 
     // Build admin area facility subquery: AA3 takes priority over AA2
@@ -171,16 +173,16 @@ export async function deleteAllDatasetHmisData(
 
     await mainDb.begin(async (sql) => {
       // Captured before the DELETE so the ledger reconcile below knows which
-      // (indicator, period) pairs to re-count: a facility-scoped deletion
-      // can leave a pair partially populated.
+      // (data id, period) pairs to re-count: a facility-scoped deletion can
+      // leave a pair partially populated.
       const affectedPairs = (
-        await sql.unsafe<{ indicator_raw_id: string; period_id: number }[]>(`
-          SELECT DISTINCT indicator_raw_id, period_id
+        await sql.unsafe<{ data_id: string; period_id: number }[]>(`
+          SELECT DISTINCT data_id, period_id
           FROM dataset_hmis
           WHERE ${whereClause}
         `)
       ).map((r) => ({
-        indicatorRawId: r.indicator_raw_id,
+        dataId: r.data_id,
         periodId: r.period_id,
       }));
 
@@ -193,14 +195,14 @@ export async function deleteAllDatasetHmisData(
         ? []
         : (
             await sql.unsafe<
-              { indicator_raw_id: string; period_id: number }[]
+              { data_id: string; period_id: number }[]
             >(`
-              SELECT indicator_raw_id, period_id
+              SELECT data_id, period_id
               FROM dataset_hmis_import_ledger
               WHERE ${conditions.join(" AND ")}
             `)
           ).map((r) => ({
-            indicatorRawId: r.indicator_raw_id,
+            dataId: r.data_id,
             periodId: r.period_id,
           }));
 
@@ -242,7 +244,7 @@ export async function deleteAllDatasetHmisData(
           ${-deleteCount},
           0,
           ${JSON.stringify({
-            sourceType: "deletion",
+            kind: "deletion",
             windowing: windowing,
             rowsDeleted: deleteCount,
             dateImported: new Date().toISOString(),
@@ -290,13 +292,12 @@ type SharedDataForDisplay = {
 export async function getDatasetHmisItemsForDisplay(
   mainDb: Sql,
   versionId: number | undefined,
-  indicatorMappingsVersion: string | undefined,
-  rawOrCommonIndicators: IndicatorType,
+  indicatorsVersion: string | undefined,
   structureSchema: StructureSchema
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
-    // Query common data used by both raw and common functions. The windowing
-    // tree is HMIS data's own registry tree: HFA areas are structurally gone.
+    // The windowing tree is HMIS data's own registry tree: HFA areas are
+    // structurally gone.
     const adminArea2s = (
       await mainDb<
         { admin_area_2: string }[]
@@ -345,29 +346,20 @@ export async function getDatasetHmisItemsForDisplay(
       facilityOwnership,
     };
 
-    const result =
-      rawOrCommonIndicators === "raw"
-        ? await getDatasetHmisItemsForDisplayRaw(
-            mainDb,
-            versionId,
-            indicatorMappingsVersion,
-            sharedData
-          )
-        : await getDatasetHmisItemsForDisplayCommon(
-            mainDb,
-            versionId,
-            indicatorMappingsVersion,
-            sharedData
-          );
-
-    return result;
+    return await getDatasetHmisItemsForDisplayByIndicator(
+      mainDb,
+      versionId,
+      indicatorsVersion,
+      sharedData
+    );
   });
 }
 
-async function getDatasetHmisItemsForDisplayRaw(
+
+async function getDatasetHmisItemsForDisplayByIndicator(
   mainDb: Sql,
   versionId: number | undefined,
-  indicatorMappingsVersion: string | undefined,
+  indicatorsVersion: string | undefined,
   sharedData: SharedDataForDisplay
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
@@ -376,106 +368,26 @@ async function getDatasetHmisItemsForDisplayRaw(
     // inside every integration/deletion transaction, so it always agrees.
     // n_records > 0 keeps display behavior identical: zero-count "checked,
     // empty" and error-only pairs are checklist information, not data cells.
+    // One view, by the indicators that have rows (PLAN_A4 ruling 8): the
+    // ledger's data ids labelled through the dictionary, under the
+    // indicator's id (`indicator_common_id`, the datatable's series). Sums
+    // have no rows and do not appear.
     const vizItems = await mainDb<Record<string, string>[]>`
-  SELECT n_records::bigint AS count, sum_count AS sum, indicator_raw_id AS indicator_id, period_id
-  FROM dataset_hmis_import_ledger
-  WHERE n_records > 0
-`;
-
-    const indicators = await mainDb<
-      { indicator_raw_id: string; common_ids: string | null }[]
-    >`
-  SELECT
-    dh.indicator_raw_id,
-    STRING_AGG(im.indicator_common_id, ', ' ORDER BY im.indicator_common_id) as common_ids
-  FROM (
-    SELECT DISTINCT indicator_raw_id
-    FROM dataset_hmis_import_ledger
-    WHERE n_records > 0
-  ) dh
-  LEFT JOIN indicator_mappings im ON dh.indicator_raw_id = im.indicator_raw_id
-  GROUP BY dh.indicator_raw_id
-  ORDER BY dh.indicator_raw_id
-`.then((results) =>
-      results.map<{ value: string; label: string }>((row) => ({
-        value: row.indicator_raw_id,
-        label: row.common_ids
-          ? `${row.indicator_raw_id} (${row.common_ids})`
-          : row.indicator_raw_id,
-      }))
-    );
-
-    const indicatorLabelReplacements: Record<string, string> = {};
-    for (const ind of indicators) {
-      indicatorLabelReplacements[ind.value] = ind.label;
-    }
-
-    // Get period bounds
-    const periodBoundsResult = await mainDb<
-      { min_period: number; max_period: number }[]
-    >`SELECT
-        MIN(period_id) as min_period,
-        MAX(period_id) as max_period
-      FROM dataset_hmis_import_ledger
-      WHERE n_records > 0`;
-
-    const periodBounds: PeriodBounds = {
-      min:
-        periodBoundsResult[0]?.min_period ??
-        _GLOBAL_MIN_YEAR_FOR_PERIODS * 100 + 1,
-      max:
-        periodBoundsResult[0]?.max_period ??
-        _GLOBAL_MAX_YEAR_FOR_PERIODS * 100 + 12,
-    };
-
-    const ih: ItemsHolderDatasetHmisDisplay = {
-      rawOrCommonIndicators: "raw",
-      structureSchema: sharedData.structureSchema,
-      versionId,
-      indicatorMappingsVersion,
-      vizItems,
-      indicatorLabelReplacements,
-      indicators,
-      adminArea2s: sharedData.adminArea2s,
-      adminArea3s: sharedData.adminArea3s,
-      periodBounds,
-      facilityTypes: sharedData.facilityTypes,
-      facilityOwnership: sharedData.facilityOwnership,
-    };
-
-    return { success: true, data: ih };
-  });
-}
-
-async function getDatasetHmisItemsForDisplayCommon(
-  mainDb: Sql,
-  versionId: number | undefined,
-  indicatorMappingsVersion: string | undefined,
-  sharedData: SharedDataForDisplay
-): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
-  return await tryCatchDatabaseAsync(async () => {
-    // Ledger + mappings join instead of scanning dataset_hmis (see the raw
-    // variant above). `count` is the summed raw record count per (common,
-    // period): a facility reporting two raw indicators mapped to the same
-    // common id counts twice, where the old per-facility aggregation counted
-    // it once (PLAN_DHIS2_IMPORTER §6 ruled the join+SUM read).
-    const vizItems = await mainDb<Record<string, string>[]>`
-      SELECT SUM(l.n_records) AS count, SUM(l.sum_count) AS sum, im.indicator_common_id AS indicator_id, l.period_id
+      SELECT l.n_records::bigint AS count, l.sum_count AS sum,
+        i.indicator_common_id, l.period_id
       FROM dataset_hmis_import_ledger l
-      INNER JOIN indicator_mappings im ON l.indicator_raw_id = im.indicator_raw_id
+      INNER JOIN indicators i ON i.data_id = l.data_id
       WHERE l.n_records > 0
-      GROUP BY im.indicator_common_id, l.period_id
     `;
 
     const indicators = await mainDb<
       { indicator_common_id: string; indicator_common_label: string }[]
     >`
-      SELECT DISTINCT im.indicator_common_id, i.indicator_common_label
+      SELECT DISTINCT i.indicator_common_id, i.indicator_common_label
       FROM dataset_hmis_import_ledger l
-      INNER JOIN indicator_mappings im ON l.indicator_raw_id = im.indicator_raw_id
-      INNER JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
+      INNER JOIN indicators i ON i.data_id = l.data_id
       WHERE l.n_records > 0
-      ORDER BY im.indicator_common_id
+      ORDER BY i.indicator_common_id
     `.then((results) =>
       results.map<{ value: string; label: string }>((row) => ({
         value: row.indicator_common_id,
@@ -495,11 +407,7 @@ async function getDatasetHmisItemsForDisplayCommon(
         MIN(period_id) as min_period,
         MAX(period_id) as max_period
       FROM dataset_hmis_import_ledger l
-      WHERE l.n_records > 0
-        AND EXISTS (
-          SELECT 1 FROM indicator_mappings im
-          WHERE l.indicator_raw_id = im.indicator_raw_id
-        )`;
+      WHERE l.n_records > 0`;
 
     const periodBounds: PeriodBounds = {
       min:
@@ -511,10 +419,9 @@ async function getDatasetHmisItemsForDisplayCommon(
     };
 
     const ih: ItemsHolderDatasetHmisDisplay = {
-      rawOrCommonIndicators: "common",
       structureSchema: sharedData.structureSchema,
       versionId,
-      indicatorMappingsVersion,
+      indicatorsVersion,
       vizItems,
       indicatorLabelReplacements,
       indicators,

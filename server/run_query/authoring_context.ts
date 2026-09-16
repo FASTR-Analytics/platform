@@ -24,7 +24,7 @@ export async function buildRunAuthoringContext(
     modules: getModuleSummariesFromManifest(manifest),
     metrics: getMetricsWithStatusFromManifest(manifest),
     datasets: getRunDatasetsFromManifest(manifest),
-    commonIndicators: manifest.commonIndicators,
+    hmisIndicators: manifest.hmisIndicators,
     icehIndicators,
     hfaTaxonomy,
     presets: deriveVirtualDefaults(manifest),

@@ -3,28 +3,32 @@ import { dirname } from "@std/path";
 import { assertNotUndefined } from "@timroberton/panther";
 import { Sql } from "postgres";
 import {
+  analysedIdsWithData,
+  analysedIndicatorIds,
   APIResponseWithData,
-  CommonIndicatorCatalogError,
-  type CommonIndicatorCatalogRow,
+  hasRows,
+  type HmisIndicator,
+  HmisIndicatorCatalogError,
+  type HmisIndicatorCatalogRow,
   getEnabledOptionalFacilityColumns,
   StructureSchema,
   isValidPeriodId,
-  resolveCommonIndicatorCatalog,
+  resolveHmisIndicatorCatalog,
   throwIfErrWithData,
   type RunDatasetHmisInfo,
   POPULATION_TYPE_IDS,
 } from "lib";
-import { getCommonIndicators } from "../../db/instance/indicators.ts";
+import { getHmisIndicators } from "../../db/instance/indicators.ts";
 import {
   getStructureSchema,
 } from "../../db/instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../../db/instance/dataset_hmis.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../../db/instance/dataset_hmis_import_runs.ts";
 import {
-  getBaseIndicatorMappingsVersion,
-  getIndicatorMappingsVersion,
+  getCountIndicatorsVersion,
+  getIndicatorsVersion,
 } from "../../db/instance/instance.ts";
-import { tryCatchDatabaseAsync } from "../../db/utils.ts";
+import { escapeSqlString, tryCatchDatabaseAsync } from "../../db/utils.ts";
 
 // Where a dataset capture writes its extract CSV: the Postgres server executes
 // `COPY … TO postgresPath` (a path inside the Postgres container), and
@@ -92,10 +96,10 @@ export type RunFacilityRow = {
 export type DatasetHmisRunCapture = {
   info: RunDatasetHmisInfo;
   lastUpdated: string;
-  // The v2 `indicators.json` mirror: the WHOLE common dictionary, resolved.
-  // (v1 carried only the commons that had mappings, and a separate calculated
+  // The v2 `indicators.json` mirror: the WHOLE HMIS dictionary, resolved.
+  // (v1 carried only the indicators that had data, and a separate calculated
   // snapshot beside it.)
-  indicators: CommonIndicatorCatalogRow[];
+  indicators: HmisIndicatorCatalogRow[];
   facilities: RunFacilityRow[];
   // The extract's month range and the structure's finest admin level: what
   // the person-years expansion (prepare_inputs) needs to know which months
@@ -164,8 +168,15 @@ export async function computeDatasetHmisRunCapture(
 
     await ensureDatasetCsvTargetDir(csvTarget);
 
+    // The analysed set (PLAN_A4 ruling 3) decides what the extract carries;
+    // the catalog below is built from the same list and the same set.
+    const hmisIndicators = await getHmisIndicators(mainDb);
+    const analysed = analysedIndicatorIds(hmisIndicators, POPULATION_TYPE_IDS);
+
     const exportStatement = getDatasetHmisExportStatement(
-      resStructureSchema.data
+      resStructureSchema.data,
+      hmisIndicators,
+      analysed,
     );
 
     if (onProgress) await onProgress(0.3, "Counting rows to export...");
@@ -187,16 +198,15 @@ export async function computeDatasetHmisRunCapture(
       ? JSON.parse(structureLastUpdatedRow.config_json_value)
       : undefined;
 
-    const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
-    const baseIndicatorMappingsVersion =
-      await getBaseIndicatorMappingsVersion(mainDb);
+    const indicatorsVersion = await getIndicatorsVersion(mainDb);
+    const countIndicatorsVersion = await getCountIndicatorsVersion(mainDb);
 
     const info: RunDatasetHmisInfo = {
       version,
       totalRows,
       structureLastUpdated,
-      indicatorMappingsVersion,
-      baseIndicatorMappingsVersion,
+      indicatorsVersion,
+      countIndicatorsVersion,
     };
 
     if (onProgress) await onProgress(0.5, "Exporting data to CSV...");
@@ -205,32 +215,33 @@ export async function computeDatasetHmisRunCapture(
 COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
 `);
 
-    // The mirror carries the WHOLE dictionary: a derived indicator's own row
-    // is what makes the package standalone. The extract, by contrast, is base
-    // rows only, so the base commons with mappings are exactly the ingredients
-    // any expression may draw on.
-    const commonIndicators = await getCommonIndicators(mainDb);
-    const baseIdsInData = new Set(
+    // The mirror carries the analysed set: every analysed count, and every
+    // calculated with its checkbox on, resolved: a calculated indicator's own row
+    // is what makes the package standalone. The extract is the analysed
+    // counts, so those with rows (by data id, PLAN_A5 ruling 10) are
+    // exactly the ingredients any expression may draw on.
+    const dataIdsWithRows = new Set(
       (
-        await mainDb<{ indicator_common_id: string }[]>`
-          SELECT DISTINCT i.indicator_common_id
-          FROM indicators i
-          INNER JOIN indicator_mappings im
-            ON im.indicator_common_id = i.indicator_common_id
-          WHERE i.definition_type = 'base'
+        await mainDb<{ data_id: string }[]>`
+          SELECT DISTINCT data_id FROM dataset_hmis
         `
-      ).map((r) => r.indicator_common_id),
+      ).map((r) => r.data_id),
+    );
+    const idsWithData = analysedIdsWithData(
+      hmisIndicators,
+      analysed,
+      dataIdsWithRows,
     );
 
-    let indicators: CommonIndicatorCatalogRow[];
+    let indicators: HmisIndicatorCatalogRow[];
     try {
-      indicators = resolveCommonIndicatorCatalog(
-        commonIndicators,
-        baseIdsInData,
+      indicators = resolveHmisIndicatorCatalog(
+        hmisIndicators,
+        idsWithData,
         POPULATION_TYPE_IDS,
       );
     } catch (e) {
-      if (!(e instanceof CommonIndicatorCatalogError)) throw e;
+      if (!(e instanceof HmisIndicatorCatalogError)) throw e;
       return {
         success: false,
         err:
@@ -258,8 +269,15 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
   });
 }
 
+// The extract (PLAN_A4 ruling 4, PLAN_A5 ruling 10): every analysed
+// Uploaded or DHIS2 element from the rows under its data id, and every
+// analysed sum as SUM(count) over the rows under its members' data ids, per
+// facility x month, all emitted under indicator_common_id. Everything else
+// is a formula over these, computed downstream.
 function getDatasetHmisExportStatement(
-  structureSchema: StructureSchema
+  structureSchema: StructureSchema,
+  indicators: HmisIndicator[],
+  analysed: Set<string>,
 ): string {
   // Admin columns up to the HMIS registry's own depth: never a global max
   const adminAreaColumns = [];
@@ -270,24 +288,49 @@ function getDatasetHmisExportStatement(
   // Add enabled optional columns
   const optionalColumns = getEnabledOptionalFacilityColumns(structureSchema);
 
-  // Use CTEs for clarity - explicitly showing the aggregation from raw to common IDs
+  const sqlList = (ids: string[]) =>
+    ids.length === 0
+      ? "(SELECT NULL::text WHERE false)"
+      : `(VALUES ${ids.map((id) => `('${escapeSqlString(id)}')`).join(", ")})`;
+  const analysedWithRows = indicators
+    .filter((c) => hasRows(c.definition.type) && analysed.has(c.indicator_common_id))
+    .map((c) => c.indicator_common_id);
+  const analysedSums = indicators
+    .filter((c) => c.definition.type === "sum" && analysed.has(c.indicator_common_id))
+    .map((c) => c.indicator_common_id);
+
   const statement = `
-WITH aggregated AS (
-  -- Step 1: Aggregate raw indicators to common IDs. BASE commons only —
-  -- everything else is a formula over these, computed downstream.
+WITH analysed_with_rows(indicator_common_id) AS (
+  ${sqlList(analysedWithRows)}
+),
+analysed_sums(indicator_common_id) AS (
+  ${sqlList(analysedSums)}
+),
+aggregated AS (
+  -- Step 1a: every analysed Uploaded or DHIS2 element from the rows under
+  -- its data id.
   SELECT
     d.facility_id,
-    im.indicator_common_id,
+    i.indicator_common_id,
     d.period_id,
-    SUM(d.count) as count
-  FROM dataset_hmis d
-  INNER JOIN indicator_mappings im ON d.indicator_raw_id = im.indicator_raw_id
-  INNER JOIN indicators i
-    ON i.indicator_common_id = im.indicator_common_id
-   AND i.definition_type = 'base'
+    d.count::bigint AS count
+  FROM analysed_with_rows a
+  INNER JOIN indicators i ON i.indicator_common_id = a.indicator_common_id
+  INNER JOIN dataset_hmis d ON d.data_id = i.data_id
+  UNION ALL
+  -- Step 1b: every analysed sum over the rows under its members' data ids.
+  SELECT
+    d.facility_id,
+    m.sum_id AS indicator_common_id,
+    d.period_id,
+    SUM(d.count)::bigint AS count
+  FROM analysed_sums s
+  INNER JOIN indicator_sum_members m ON m.sum_id = s.indicator_common_id
+  INNER JOIN indicators mi ON mi.indicator_common_id = m.member_id
+  INNER JOIN dataset_hmis d ON d.data_id = mi.data_id
   GROUP BY
     d.facility_id,
-    im.indicator_common_id,
+    m.sum_id,
     d.period_id
 )
 -- Step 2: Final output with facility and period details

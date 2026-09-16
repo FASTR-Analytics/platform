@@ -307,7 +307,7 @@ export function RunCatalogDetailPane(p: {
 
   return (
     <div
-      class="ui-pad ui-spy h-full overflow-auto"
+      class="ui-pad ui-spy h-full overflow-y-scroll"
       data-tour="instance-results-packages-card"
     >
       <Switch>

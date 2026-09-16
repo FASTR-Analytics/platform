@@ -174,7 +174,9 @@ these routes carry no guards, so all 13 health endpoints are public by design
 12. `POST /pg_stat_statements_reset`: the only write (and only READ_AND_WRITE
     connection) on the health surface; requires a `status-api-key` header
     matching `_STATUS_API_KEY` (401 otherwise).
-13. `/dhis2-indicators-export`: full indicator dictionary + mappings.
+13. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with
+    the indicator that carries it (`id` = the dhis2_id, `label`, `mappedTo` =
+    the indicator id; wire keys the Admin-Website reads, so they stay).
 
 **Central export: RETIRED** (ruled, PLAN_RESULTS_RUNS work item 6):
 `export_central.ts`, its `main.ts` mount, and the unused `CENTRAL_SERVER_SECRET`

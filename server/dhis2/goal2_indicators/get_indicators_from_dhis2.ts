@@ -6,7 +6,6 @@
  * - Fetch indicators
  * - Search for indicators by name/code
  * - Get indicator groups and group sets
- * - Map indicators to internal common indicators
  */
 
 import type {
@@ -16,12 +15,10 @@ import type {
   DHIS2Indicator,
   DHIS2IndicatorGroup,
   DHIS2PagedResponse,
-  TranslatableString,
 } from "lib";
 import {
   getDHIS2,
   FetchOptions,
-  validateDhis2Connection,
 } from "../common/base_fetcher.ts";
 
 // ============================================================================
@@ -39,6 +36,7 @@ const DEFAULT_DATA_ELEMENT_FIELDS = [
   "valueType",
   "categoryCombo[id,name,isDefault,categoryOptionCombos[id,name,displayName]]",
   "dataElementGroups[id,name]",
+  "dataSetElements[dataSet[id,periodType]]",
   "created",
   "lastUpdated",
 ];
@@ -316,74 +314,4 @@ export async function searchAllIndicatorsAndDataElements(
   }
 
   return { dataElements, indicators };
-}
-
-// ============================================================================
-// Test Connection Function
-// ============================================================================
-
-export async function testIndicatorsConnection(options: FetchOptions): Promise<{
-  success: boolean;
-  message: TranslatableString;
-  details?: {
-    dataElementCount?: number;
-    indicatorCount?: number;
-    dataElementGroups?: number;
-    indicatorGroups?: number;
-  };
-}> {
-  const validation = await validateDhis2Connection(options.dhis2Credentials);
-  if (!validation.valid) {
-    return { success: false, message: validation.message };
-  }
-
-  try {
-    const deParams = new URLSearchParams();
-    deParams.set("fields", "id");
-    deParams.set("pageSize", "1");
-    deParams.set("paging", "true");
-
-    const dataElements = await getDHIS2<DHIS2PagedResponse>(
-      "/api/dataElements.json",
-      options,
-      deParams
-    );
-
-    // Test indicators endpoint
-    const indParams = new URLSearchParams();
-    indParams.set("fields", "id");
-    indParams.set("pageSize", "1");
-    indParams.set("paging", "true");
-
-    const indicators = await getDHIS2<DHIS2PagedResponse>(
-      "/api/indicators.json",
-      options,
-      indParams
-    );
-
-    // Get counts for groups
-    const deGroups = await getDataElementGroupsFromDHIS2(options);
-    const indGroups = await getIndicatorGroupsFromDHIS2(options);
-
-    return {
-      success: true,
-      message: { en: "Successfully connected to DHIS2 indicators API", fr: "Connexion à l'API des indicateurs DHIS2 réussie", pt: "Ligação à API de indicadores DHIS2 estabelecida com sucesso" },
-      details: {
-        dataElementCount: dataElements.pager?.total,
-        indicatorCount: indicators.pager?.total,
-        dataElementGroups: deGroups.length,
-        indicatorGroups: indGroups.length,
-      },
-    };
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    return {
-      success: false,
-      message: {
-        en: `Failed to connect to DHIS2 indicators API: ${detail}`,
-        fr: `Échec de la connexion à l'API des indicateurs DHIS2 : ${detail}`,
-        pt: `Falha na ligação à API de indicadores DHIS2: ${detail}`,
-      },
-    };
-  }
 }

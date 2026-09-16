@@ -23,7 +23,7 @@ import type { DisaggregationPossibleValuesStatus } from "./types/presentation_ob
 // - `formatAs: "indicator"`: the values ARE the displayed indicator's own
 //   quantity, so format AND rule are per-value facts carried by the indicator
 //   catalog (IndicatorMetadata.format_as / .thresholds). True of every
-//   indicator family: HFA (getHfaIndicatorMeasure), common indicators, ICEH.
+//   indicator family: HFA (getHfaIndicatorMeasure), HMIS indicators, ICEH.
 //
 // `EffectiveIndicatorFacts` therefore exposes per-value sources and collapsed
 // answers, and which one a caller wants is decided by what it is doing, never
@@ -163,7 +163,7 @@ function indicatorFacts(
   const axisFormat = unanimousFormat(displayed, lookup);
   // First id that DECLARES the fact: not the first id that happens to be in
   // the catalog. The catalog deliberately carries label-only entries (HFA
-  // categories and variant items, ICEH strat codes, raw common indicators),
+  // categories and variant items, ICEH strat codes, HMIS indicators),
   // so stopping at the first entry found would let a fact-less column header
   // mask the indicator beside it.
   const declaredFormatForValue = (ids: (string | undefined)[]) =>
@@ -259,7 +259,7 @@ function unanimousFormat(
 
 // The indicator-dimension values a figure actually puts on display. Candidates
 // come ONLY from indicator dimensions (INDICATOR_DISAGGREGATION_OPTIONS): a
-// derived indicator named `anc1` must not collide with a `source_indicator`
+// calculated indicator named `anc1` must not collide with a `source_indicator`
 // value that happens to share the id.
 //
 // `undefined` means an indicator dimension is on display but could not be

@@ -28,7 +28,11 @@ export function ViewLogs(
         run_id: p.runId,
         module_id: p.moduleId,
       }),
-    t3({ en: "Loading logs...", fr: "Chargement des journaux...", pt: "A carregar registos..." }),
+    t3({
+      en: "Loading logs...",
+      fr: "Chargement des journaux...",
+      pt: "A carregar registos...",
+    }),
   );
 
   return (
@@ -37,13 +41,14 @@ export function ViewLogs(
         <HeadingBar
           onBack={() => p.close(undefined)}
           heading={`${t3({ en: "Logs for", fr: "Journaux pour", pt: "Registos de" })} ${p.moduleLabel}`}
+          tonal
         />
       }
     >
       <StateHolderWrapper state={rLogs.state()}>
         {(keyedLogs) => {
           return (
-            <div class="ui-pad whitespace-pre font-mono text-xs">
+            <div class="ui-pad font-mono text-xs whitespace-pre">
               {keyedLogs.logs}
             </div>
           );

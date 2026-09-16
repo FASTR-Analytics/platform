@@ -188,20 +188,6 @@ export type DBReportVersion = {
   body_authors: string | null;
 };
 
-// Structure
-
-export type DBIndicatorRaw = {
-  indicator_raw_id: string;
-  indicator_raw_label: string;
-  updated_at: string;
-};
-
-export type DBIndicatorMapping = {
-  indicator_raw_id: string;
-  indicator_common_id: string;
-  updated_at: string;
-};
-
 // Upload attempts
 
 export type DBStructureUploadAttempt = {
@@ -223,7 +209,7 @@ export type DBDatasetHmisImportRun = {
   id: number;
   trigger: "manual" | "schedule";
   triggered_by: string | null;
-  source: "dhis2" | "csv";
+  route: "dhis2" | "csv";
   dhis2_url: string | null;
   selection: string | null;
   csv_config: string | null;

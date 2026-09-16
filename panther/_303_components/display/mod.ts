@@ -7,3 +7,4 @@ export * from "./badge.tsx";
 export * from "./callout.tsx";
 export * from "./card.tsx";
 export * from "./empty_state.tsx";
+export * from "./stable_weight_text.tsx";

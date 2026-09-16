@@ -1,5 +1,6 @@
 import type { RunListingItem } from "./run_generation.ts";
 import type { RunDataset } from "./run_datasets.ts";
+import type { RunHmisIndicator } from "./run_manifest.ts";
 import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import { ProjectUser } from "./instance.ts";
 import { type MetricWithStatus, type InstalledModuleSummary } from "./modules.ts";
@@ -51,7 +52,7 @@ export type ProjectDetail = {
   projectDatasets: RunDataset[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
-  commonIndicators: { id: string; label: string }[];
+  hmisIndicators: RunHmisIndicator[];
   icehIndicators: { id: string; label: string; category: string }[];
   hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];

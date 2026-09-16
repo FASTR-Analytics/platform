@@ -1,15 +1,13 @@
-import { t3, type FacilityFamily, type StructureDhis2ConnectionSnapshot } from "lib";
 import {
-  Button,
-  StateHolderFormError,
-  StateHolderWrapper,
-  createFormAction,
-  createQuery,
-  openComponent,
-} from "panther";
+  NO_STORED_DHIS2_CONNECTION,
+  t3,
+  type FacilityFamily,
+  type StructureDhis2ConnectionSnapshot,
+} from "lib";
+import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
+import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
   step1Result: StructureDhis2ConnectionSnapshot | undefined;
@@ -18,29 +16,9 @@ type Props = {
 };
 
 // Structure import is saved-only for DHIS2 (PLAN_DHIS2_CREDENTIAL_STORE_
-// CONSOLIDATION Phase 2): no credential editor here: the instance-wide
-// stored connection is confirmed in place, or replaced via the shared
-// manage-connection modal.
+// CONSOLIDATION Phase 2): step 1 confirms the instance-wide stored
+// connection, which is set only in the Data page's DHIS2 connection card.
 export function Step1_Dhis2(p: Props) {
-  const infoQuery = createQuery(
-    () => serverActions.getInstanceDhis2CredentialsInfo({}),
-    t3({
-      en: "Loading DHIS2 connection...",
-      fr: "Chargement de la connexion DHIS2...",
-      pt: "A carregar a ligação DHIS2...",
-    }),
-  );
-
-  async function openManageConnection() {
-    await openComponent({ element: Dhis2ManageConnection, props: {} });
-    await infoQuery.silentFetch();
-  }
-
-  function hasStoredCredentials(): boolean {
-    const s = infoQuery.state();
-    return s.status === "ready" && !!s.data.storedCredentials;
-  }
-
   const confirm = createFormAction(
     async () =>
       await serverActions.structureStep1Dhis2_ConfirmConnection({
@@ -58,45 +36,22 @@ export function Step1_Dhis2(p: Props) {
           {t3({ en: "DHIS2 Connection", fr: "Connexion DHIS2", pt: "Ligação DHIS2" })}
         </div>
         <div class="ui-spy rounded border p-4">
-          <StateHolderWrapper state={infoQuery.state()} noPad>
-            {(info) => (
-              <div class="ui-spy-sm">
-                <Show
-                  when={info.storedCredentials}
-                  fallback={
-                    <div class="text-danger">
-                      {t3({
-                        en: "No DHIS2 connection stored for this instance.",
-                        fr: "Aucune connexion DHIS2 enregistrée pour cette instance.",
-                        pt: "Nenhuma ligação DHIS2 guardada para esta instância.",
-                      })}
-                    </div>
-                  }
-                  keyed
-                >
-                  {(stored) => (
-                    <div class="text-sm">
-                      {t3({
-                        en: "Use stored connection:",
-                        fr: "Utiliser la connexion enregistrée :",
-                        pt: "Utilizar a ligação guardada:",
-                      })}{" "}
-                      <span class="font-700">{stored.url}</span>
-                    </div>
-                  )}
-                </Show>
-                <div>
-                  <Button onClick={openManageConnection} outline iconName="settings">
-                    {t3({
-                      en: "Manage DHIS2 connection",
-                      fr: "Gérer la connexion DHIS2",
-                      pt: "Gerir a ligação DHIS2",
-                    })}
-                  </Button>
-                </div>
+          <Show
+            when={instanceState.dhis2ConnectionUrl}
+            fallback={<div class="text-danger">{t3(NO_STORED_DHIS2_CONNECTION)}</div>}
+            keyed
+          >
+            {(url) => (
+              <div class="text-sm">
+                {t3({
+                  en: "Use stored connection:",
+                  fr: "Utiliser la connexion enregistrée :",
+                  pt: "Utilizar a ligação guardada:",
+                })}{" "}
+                <span class="font-700">{url}</span>
               </div>
             )}
-          </StateHolderWrapper>
+          </Show>
           <Show when={p.step1Result} keyed>
             {(step1Result) => (
               <div class="text-success flex items-center gap-2">
@@ -120,7 +75,7 @@ export function Step1_Dhis2(p: Props) {
           onClick={confirm.click}
           intent="success"
           state={confirm.state()}
-          disabled={!hasStoredCredentials()}
+          disabled={!instanceState.dhis2ConnectionUrl}
           iconName="save"
         >
           {t3({ en: "Confirm and continue", fr: "Confirmer et continuer", pt: "Confirmar e continuar" })}

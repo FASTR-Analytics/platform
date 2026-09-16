@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, Show } from "solid-js";
+import { StableWeightText } from "../../display/stable_weight_text.tsx";
 import type { Stepper } from "./get_stepper.ts";
 
 type StepperChipsWithTitlesProps = {
@@ -54,7 +55,7 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
       case "current":
         return `${base} border-primary bg-primary text-primary-content`;
       case "completed":
-        return `${base} bg-base-200 text-base-content`;
+        return `${base} bg-base-300 text-base-content`;
       case "available":
         return `${base} border-primary bg-base-100 text-primary`;
       case "locked":
@@ -77,16 +78,18 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
 
   const rowClasses = (step: number) => {
     const status = p.stepper.getStepStatus(step);
-    const base = "flex items-center gap-2";
-    if (status === "completed" || status === "available") {
-      return `${base} ui-hoverable-base-100 rounded`;
-    }
-    if (status === "locked") return base;
-    return base;
+    const pad = labelFor(step) ? "-mx-3 -my-2 px-3 py-2" : "-m-2 p-2";
+    const base = `ui-focusable flex items-center gap-2 rounded ${pad}`;
+    return status === "completed" || status === "available"
+      ? `${base} ui-hoverable-base-100`
+      : base;
   };
 
   return (
-    <nav class="flex flex-wrap items-center gap-x-6 gap-y-2">
+    <nav
+      class="flex flex-wrap items-center gap-x-6 gap-y-2"
+      aria-label="Progress"
+    >
       <For each={p.visibleSteps ?? p.stepper.getAllSteps()}>
         {(step) => {
           const stepIndex = step - p.stepper.minStep + 1;
@@ -102,7 +105,9 @@ export function StepperChipsWithTitles(p: StepperChipsWithTitlesProps) {
             >
               <span class={chipClasses(step)}>{stepIndex}</span>
               <Show when={labelFor(step)}>
-                {(label) => <span class={labelClasses(step)}>{label()}</span>}
+                {(label) => (
+                  <StableWeightText class={labelClasses(step)} text={label()} />
+                )}
               </Show>
             </button>
           );

@@ -53,7 +53,7 @@ ORDER BY label LIMIT 1
     assertEquals(context.modules, detail.projectModules);
     assertEquals(context.metrics, detail.metrics);
     assertEquals(context.datasets, detail.projectDatasets);
-    assertEquals(context.commonIndicators, detail.commonIndicators);
+    assertEquals(context.hmisIndicators, detail.hmisIndicators);
     assertEquals(context.icehIndicators, detail.icehIndicators);
     assertEquals(context.hfaTaxonomy, taxonomy);
   } finally {

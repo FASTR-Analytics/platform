@@ -3,8 +3,6 @@ import {
   getAbcQualScale,
   getCalendar,
   t3,
-  type IndicatorType,
-  type StructureSchema,
 } from "lib";
 import {
   FigureInputs,
@@ -14,129 +12,49 @@ import {
   RadioGroup,
   StateHolder,
   StateHolderWrapper,
-  getSelectOptionsWithFirstCapital,
   toNum0,
   type CustomFigureStyleOptions,
+  FrameTop,
+  ButtonGroup,
 } from "panther";
-import {
-  Show,
-  createEffect,
-  createMemo,
-  createSignal,
-  type Setter,
-} from "solid-js";
-import { createStore } from "solid-js/store";
-import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
-import { instanceState } from "~/state/instance/t1_store";
+import { Show, createMemo } from "solid-js";
+import type { SetStoreFunction } from "solid-js/store";
+import { PresenceHeatMap, type HeatMapAxis } from "./_presence_heat_map";
+
+export type VizConfig = {
+  value: "count" | "sum";
+  figureType: "line" | "heat_map";
+  indicators: string[];
+  heatMapAxis: HeatMapAxis;
+};
 
 type Props = {
-  versionId: number;
-  baseIndicatorMappingsVersion: string;
-  structureSchema: StructureSchema;
-};
-
-export function DatasetItemsHolder(p: Props) {
-  const [rawOrCommon, setRawOrCommon] = createSignal<IndicatorType>("common");
-
-  const [itemsHolder, setItemsHolder] = createSignal<
-    StateHolder<ItemsHolderDatasetHmisDisplay>
-  >({
-    status: "loading",
-    msg: t3({
-      en: "Fetching data...",
-      fr: "Récupération des données...",
-      pt: "A obter dados...",
-    }),
-  });
-
-  async function attemptGetDatatable(
-    rawOrCommonIndicators: IndicatorType,
-    versionId: number,
-    baseIndicatorMappingsVersion: string,
-  ) {
-    setItemsHolder({
-      status: "loading",
-      msg: t3({
-        en: "Fetching data...",
-        fr: "Récupération des données...",
-        pt: "A obter dados...",
-      }),
-    });
-    const res = await getDatasetHmisDisplayInfoFromCacheOrFetch(
-      rawOrCommonIndicators,
-      versionId,
-      baseIndicatorMappingsVersion,
-      p.structureSchema,
-      instanceState.structureLastUpdated,
-      instanceState.hmisImportRunActive,
-    );
-    if (res.success === false) {
-      setItemsHolder({ status: "error", err: res.err });
-      return;
-    }
-    // if (res.data.vizItems.length === 0) {
-    //   setItemsHolder({
-    //     status: "error",
-    //     err: "There is no data to display. Import some data.",
-    //   });
-    //   return;
-    // }
-    setItemsHolder({
-      status: "ready",
-      data: res.data,
-    });
-  }
-
-  createEffect(() => {
-    attemptGetDatatable(rawOrCommon(), p.versionId, p.baseIndicatorMappingsVersion);
-  });
-
-  return (
-    <StateHolderWrapper state={itemsHolder()}>
-      {(keyedDatasetItems) => {
-        return (
-          <DatasetDisplayPresentation
-            displayItems={keyedDatasetItems}
-            rawOrCommon={rawOrCommon()}
-            setRawOrCommon={setRawOrCommon}
-          />
-        );
-      }}
-    </StateHolderWrapper>
-  );
-}
-
-type DatasetDisplayPresentationProps = {
   displayItems: ItemsHolderDatasetHmisDisplay;
-  rawOrCommon: IndicatorType;
-  setRawOrCommon: Setter<IndicatorType>;
+  vizConfig: VizConfig;
+  setVizConfig: SetStoreFunction<VizConfig>;
 };
 
-function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
-  const [vizConfig, setVizConfig] = createStore({
-    value: "count" as "count" | "sum",
-    figureType: "chart" as "table" | "chart",
-    indicators: p.displayItems.indicators.map((ind) => ind.value),
-  });
-
+// One view, by the indicators that have rows (PLAN_A4 ruling 8): sums have
+// no rows and do not appear; their totals are in packages. The page owns
+// the fetch and the store (PLAN_A8 ruling 10); this is the render over them.
+export function DatasetDisplayPresentation(p: Props) {
   const filteredVizItems = createMemo(() => {
-    const indicatorsToVizualize = vizConfig.indicators;
+    const indicatorsToVizualize = p.vizConfig.indicators;
     if (p.displayItems.indicators.length === indicatorsToVizualize.length) {
       return p.displayItems.vizItems;
     }
-    return p.displayItems.vizItems.filter((row) => {
-      return indicatorsToVizualize?.includes(row["indicator_id"]) ?? true;
-    });
+    return p.displayItems.vizItems.filter((row) =>
+      indicatorsToVizualize.includes(row["indicator_common_id"]),
+    );
   });
 
   const figureInputs = createMemo<StateHolder<FigureInputs>>(() => {
     const jsonArray = filteredVizItems();
 
-    const value = vizConfig.value;
-    const figureType = vizConfig.figureType;
+    const value = p.vizConfig.value;
 
     const showLegend =
-      vizConfig.indicators.length > 0 && vizConfig.indicators.length < 6;
+      p.vizConfig.indicators.length > 0 && p.vizConfig.indicators.length < 6;
 
     const style: CustomFigureStyleOptions = {
       surrounds: {
@@ -160,136 +78,144 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             color: showLegend ? 666 : { key: "base300" },
           },
         },
-        tableCells: {
-          textFormatter: (info) => toNum0(info.value),
-        },
       },
     };
 
-    const figureData: FigureInputs =
-      figureType === "chart"
-        ? {
-            figureType: "timeseries",
-            data: {
-              jsonArray,
-              jsonDataConfig: {
-                valueProps: [value],
-                periodProp: "period_id",
-                periodType: "year-month",
-                seriesProp: "indicator_id",
-                labelReplacements: p.displayItems.indicatorLabelReplacements,
-                yScaleAxisLabel:
-                  value === "count"
-                    ? t3({
-                        en: "Number of records",
-                        fr: "Nombre d'enregistrements",
-                        pt: "Número de registos",
-                      })
-                    : t3({
-                        en: "Number of service counts",
-                        fr: "Nombre de prestations de services",
-                        pt: "Número de prestações de serviços",
-                      }),
-              },
-            },
-            style,
-          }
-        : {
-            figureType: "table",
-            data: {
-              jsonArray,
-              jsonDataConfig: {
-                valueProps: [value],
-                colProp: "indicator_id",
-                rowProp: "period_id",
-                sort: { col: "by-label", row: "by-label" },
-                labelReplacements: p.displayItems.indicatorLabelReplacements,
-              },
-            },
-            style,
-          };
-    return { status: "ready", data: figureData };
-  });
-
-  return (
-    <FrameLeftResizable
-      startingWidth={300}
-      maxWidth={800}
-      panelChildren={
-        <div class="ui-pad ui-spy h-full w-full">
-          <RadioGroup
-            label={t3({
-              en: "Common or DHIS2 indicators",
-              fr: "Indicateurs communs ou DHIS2",
-              pt: "Indicadores comuns ou DHIS2",
-            })}
-            options={[
-              {
-                value: "common",
-                label: t3({
-                  en: "Common indicators",
-                  fr: "Indicateurs communs",
-                  pt: "Indicadores comuns",
-                }),
-              },
-              {
-                value: "raw",
-                label: t3({
-                  en: "DHIS2 indicators",
-                  fr: "Indicateurs DHIS2",
-                  pt: "Indicadores DHIS2",
-                }),
-              },
-            ]}
-            value={p.rawOrCommon}
-            onChange={(v) => p.setRawOrCommon(v as IndicatorType)}
-          />
-          <RadioGroup
-            label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
-            options={[
-              {
-                value: "count",
-                label: t3({
+    const figureData: FigureInputs = {
+      figureType: "timeseries",
+      data: {
+        jsonArray,
+        jsonDataConfig: {
+          valueProps: [value],
+          periodProp: "period_id",
+          periodType: "year-month",
+          seriesProp: "indicator_common_id",
+          labelReplacements: p.displayItems.indicatorLabelReplacements,
+          yScaleAxisLabel:
+            value === "count"
+              ? t3({
                   en: "Number of records",
                   fr: "Nombre d'enregistrements",
                   pt: "Número de registos",
-                }),
-              },
-              {
-                value: "sum",
-                label: t3({
+                })
+              : t3({
                   en: "Number of service counts",
                   fr: "Nombre de prestations de services",
                   pt: "Número de prestações de serviços",
                 }),
-              },
-            ]}
-            value={vizConfig.value}
-            onChange={(v) => setVizConfig("value", v as "count" | "sum")}
-          />
-          <RadioGroup
-            label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
-            options={getSelectOptionsWithFirstCapital(["chart", "table"])}
-            value={vizConfig.figureType}
-            onChange={(v) => setVizConfig("figureType", v as "table" | "chart")}
-          />
-          <MultiSelectSearch
-            label={t3({
-              en: "Indicators",
-              fr: "Indicateurs",
-              pt: "Indicadores",
-            })}
-            options={p.displayItems.indicators}
-            values={vizConfig.indicators}
-            onChange={(v) => setVizConfig("indicators", v)}
-            fullWidth
-          />
+        },
+      },
+      style,
+    };
+    return { status: "ready", data: figureData };
+  });
+
+  const isLine = () => p.vizConfig.figureType === "line";
+
+  return (
+    <FrameTop
+      // startingWidth={300}
+      // maxWidth={800}
+      panelChildren={
+        <div class="ui-pad ui-gap flex h-full w-full flex-wrap items-end">
+          <div class="max-w-[600px] min-w-[300px] flex-1">
+            <MultiSelectSearch
+              label={t3({
+                en: "Indicators",
+                fr: "Indicateurs",
+                pt: "Indicadores",
+              })}
+              options={p.displayItems.indicators}
+              values={p.vizConfig.indicators}
+              onChange={(v) => p.setVizConfig("indicators", v)}
+              fullWidth
+            />
+          </div>
+          <div class="ui-gap flex">
+            <ButtonGroup
+              label={t3({ en: "Figure", fr: "Figure", pt: "Figura" })}
+              items={[
+                {
+                  id: "line",
+                  label: t3({
+                    en: "Line graph",
+                    fr: "Graphique linéaire",
+                    pt: "Gráfico de linhas",
+                  }),
+                },
+                {
+                  id: "heat_map",
+                  label: t3({
+                    en: "Heat map",
+                    fr: "Carte de chaleur",
+                    pt: "Mapa de calor",
+                  }),
+                },
+              ]}
+              value={p.vizConfig.figureType}
+              onChange={(v) =>
+                p.setVizConfig("figureType", v as VizConfig["figureType"])
+              }
+            />
+            <Show when={isLine()}>
+              <ButtonGroup
+                label={t3({ en: "Value", fr: "Valeur", pt: "Valor" })}
+                items={[
+                  {
+                    id: "count",
+                    label: t3({
+                      en: "Records",
+                      fr: "Enregistrements",
+                      pt: "Registos",
+                    }),
+                  },
+                  {
+                    id: "sum",
+                    label: t3({
+                      en: "Service counts",
+                      fr: "Prestations de services",
+                      pt: "Prestações de serviços",
+                    }),
+                  },
+                ]}
+                value={p.vizConfig.value}
+                onChange={(v) => p.setVizConfig("value", v as "count" | "sum")}
+              />
+            </Show>
+            <Show when={!isLine()}>
+              <ButtonGroup
+                label={t3({ en: "Periods", fr: "Périodes", pt: "Períodos" })}
+                items={[
+                  {
+                    id: "month",
+                    label: t3({
+                      en: "By month",
+                      fr: "Par mois",
+                      pt: "Por mês",
+                    }),
+                  },
+                  {
+                    id: "year",
+                    label: t3({
+                      en: "By year",
+                      fr: "Par année",
+                      pt: "Por ano",
+                    }),
+                  },
+                ]}
+                value={p.vizConfig.heatMapAxis}
+                onChange={(v) =>
+                  p.setVizConfig("heatMapAxis", v as HeatMapAxis)
+                }
+              />
+            </Show>
+          </div>
         </div>
       }
     >
       <div class="ui-pad h-full w-full overflow-auto">
         <Show
-          when={vizConfig.indicators.length > 0}
+          when={p.vizConfig.indicators.length > 0}
           fallback={
             <span class="text-sm">
               {t3({
@@ -300,18 +226,28 @@ function DatasetDisplayPresentation(p: DatasetDisplayPresentationProps) {
             </span>
           }
         >
-          <StateHolderWrapper state={figureInputs()}>
-            {(keyedInputs) => {
-              return (
-                <FigureHolder
-                  figureInputs={keyedInputs}
-                  height={vizConfig.figureType === "chart" ? "flex" : "ideal"}
-                />
-              );
-            }}
-          </StateHolderWrapper>
+          <Show
+            when={isLine()}
+            fallback={
+              <PresenceHeatMap
+                vizItems={filteredVizItems()}
+                indicators={p.displayItems.indicators
+                  .map((ind) => ind.value)
+                  .filter((id) => p.vizConfig.indicators.includes(id))}
+                labelReplacements={p.displayItems.indicatorLabelReplacements}
+                periodBounds={p.displayItems.periodBounds}
+                axis={p.vizConfig.heatMapAxis}
+              />
+            }
+          >
+            <StateHolderWrapper state={figureInputs()}>
+              {(keyedInputs) => (
+                <FigureHolder figureInputs={keyedInputs} height="flex" />
+              )}
+            </StateHolderWrapper>
+          </Show>
         </Show>
       </div>
-    </FrameLeftResizable>
+    </FrameTop>
   );
 }

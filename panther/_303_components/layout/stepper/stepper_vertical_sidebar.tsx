@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, Show } from "solid-js";
+import { StableWeightText } from "../../display/stable_weight_text.tsx";
 import type { Stepper } from "./get_stepper.ts";
 
 type StepperVerticalSidebarProps = {
@@ -131,9 +132,10 @@ export function StepperVerticalSidebar(p: StepperVerticalSidebarProps) {
                   </span>
                   <Show when={!p.collapsed}>
                     <span class="flex-1">
-                      <span class={titleClasses(step)}>
-                        {labelFor(step)}
-                      </span>
+                      <StableWeightText
+                        class={titleClasses(step)}
+                        text={labelFor(step)}
+                      />
                       <Show when={descriptionFor(step)}>
                         <span class={`block ${descriptionClasses}`}>
                           {descriptionFor(step)}
