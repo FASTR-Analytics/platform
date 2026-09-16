@@ -2,9 +2,9 @@
 // SHARED FIGURE-BLOCK TRANSFORMS (P2: bundle backfill)
 // =============================================================================
 //
-// A figure block stored in three surfaces: slides.config (layout tree),
-// dashboard_items.figure_block, and reports.figures: is converted from the
-// old shape { type:"figure", figureInputs?, source? } to the new bundle shape
+// A figure block stored in two surfaces, slides.config (layout tree) and
+// reports.figures, is converted from the old shape
+// { type:"figure", figureInputs?, source? } to the new bundle shape
 // { type:"figure", bundle? }. The surface-specific sweeps call
 // transformFigureBlockToBundle() after running any remaining pre-P2 migrations.
 //
@@ -62,9 +62,16 @@ export type FigureLocalizationForTransform = {
   countryIso3: string;
 };
 
+// The (package, scope) pair of the product that stores the figure block: what
+// a bundle records as the run and scope it was resolved under.
+export type FigurePairForTransform = {
+  runId: string;
+  adminArea2: string | null;
+};
+
 // Slide-layout walk: shared by the slide_config boot transform and the
-// pre-deploy dry-run (validate_figure_bundle_backfill.ts) so the two traverse
-// slide layouts identically and cannot drift. Containers are "rows"/"cols";
+// consolidation planner (consolidation/plan.ts) so the two traverse slide
+// layouts identically and cannot drift. Containers are "rows"/"cols";
 // figures live on "item" nodes' `.data`.
 export type SlideLayoutNodeLike = {
   type: string;
@@ -327,9 +334,8 @@ export function transformFigureBlock(block: FigureBlockMut): void {
   }
 
   // Block: provenance became the run identity (PLAN_RESULTS_RUNS ruling 4).
-  // A bundle carrying the old freshness pair was captured before the runs
-  // model; the run it came from is unknowable, so provenance is null: never
-  // invented.
+  // A bundle carrying the old freshness pair drops it and keeps the run id
+  // the consolidation stamped beside it.
   if (
     bundle &&
     bundle.provenance &&
@@ -337,7 +343,8 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     ("moduleLastRun" in bundle.provenance ||
       "datasetsVersion" in bundle.provenance)
   ) {
-    bundle.provenance = { runId: null };
+    const { runId } = bundle.provenance as { runId?: unknown };
+    bundle.provenance = { runId };
   }
 }
 
@@ -345,12 +352,10 @@ export function transformFigureBlock(block: FigureBlockMut): void {
 
 // Convert an old FigureBlock (figureInputs+source) to the new bundle shape.
 // Mutates in place. Callers MUST run transformFigureBlock first.
-// `geoData`: for dashboard items the stored geo_data column value (may be null);
-//            for slides/reports pass null (geo will be a level reference).
 export function transformFigureBlockToBundle(
   block: FigureBlockMut,
   localization: FigureLocalizationForTransform,
-  geoData: unknown,
+  pair: FigurePairForTransform,
 ): void {
   if (block.type !== "figure") return;
 
@@ -400,7 +405,7 @@ export function transformFigureBlockToBundle(
       source.snapshotAt ?? new Date().toISOString(),
       indicatorMetadata,
       localization,
-      geoData,
+      pair,
     );
   }
 
@@ -420,7 +425,7 @@ function buildBundleFromFigureInputs(
   snapshotAt: string,
   indicatorMetadata: Record<string, unknown>[],
   localization: FigureLocalizationForTransform,
-  geoData: unknown,
+  pair: FigurePairForTransform,
 ): Record<string, unknown> | undefined {
   const base = {
     config,
@@ -428,9 +433,8 @@ function buildBundleFromFigureInputs(
     metricId,
     snapshotAt,
     indicatorMetadata,
-    // A pre-bundle figure predates the runs model: its run is unknowable and
-    // is never invented (the snapshot time is not the run time).
-    provenance: { runId: null },
+    scope: { adminArea2: pair.adminArea2 },
+    provenance: { runId: pair.runId },
   };
 
   // chart/table/map: extract items from jsonArray
@@ -451,7 +455,7 @@ function buildBundleFromFigureInputs(
     const valueProps = Array.isArray(jdc.valueProps)
       ? (jdc.valueProps as string[])
       : [];
-    const geo = resolveGeo(config, geoData);
+    const geo = resolveGeo(config);
 
     // Normalize all values to strings: stored jsonArrays may carry numeric
     // year/value columns (postgres returns integers as JS numbers), but the
@@ -487,7 +491,7 @@ function buildBundleFromFigureInputs(
       const valueProps = Array.isArray(jdc.valueProps)
         ? (jdc.valueProps as string[])
         : [];
-      const geo = resolveGeo(config, geoData);
+      const geo = resolveGeo(config);
 
       // Derive dateRange from stored timeMin/nTimePoints before validating,
       // so any round-trip mismatch is the only reason to throw.
@@ -892,20 +896,12 @@ function inferFormatAs(
 
 function resolveGeo(
   config: ReturnType<typeof presentationObjectConfigSchema.parse>,
-  geoData: unknown,
-):
-  | { kind: "data"; data: unknown }
-  | { kind: "level"; level: number }
-  | undefined {
+): { kind: "level"; level: number } | undefined {
   if (config.d.type !== "map") return undefined;
 
-  // If caller provided stored geoData (dashboard geo_data column), use it.
-  if (geoData !== null && geoData !== undefined) {
-    return { kind: "data", data: geoData };
-  }
-
-  // For slides/reports, geo was stripped; store the level so buildFigureInputs
-  // can re-derive the GeoJSON from the sync cache at render time.
+  // Geo was stripped from stored slides and reports; store the level so
+  // buildFigureInputs can re-derive the GeoJSON from the sync cache at render
+  // time.
   const mapAdminArea = (config.d as Record<string, unknown>).adminArea;
   const level = typeof mapAdminArea === "number" ? mapAdminArea : undefined;
   if (level !== undefined) {

@@ -1,8 +1,7 @@
-// Harness for PLAN_PRODUCTS_RESTRUCTURE step 4's stale predicate: the four
-// combinations of matching and mismatching (package, scope) pair, plus the
-// transitional missing-field cases, which read as not stale until step 9b
-// stamps every stored bundle. The client module has type-only imports, so it
-// loads under Deno as it is.
+// Harness for the stale predicate: the four combinations of matching and
+// mismatching (package, scope) pair, and the two walks over slide layouts and
+// report registries. The client module has type-only imports, so it loads
+// under Deno as it is.
 //
 //   deno test -A --env-file server/tests/figure_staleness_test.ts
 
@@ -19,7 +18,7 @@ const RUN_B = "00000000-0000-4000-8000-00000000000b";
 
 // The predicate reads only `scope` and `provenance`; the rest of the bundle
 // is irrelevant to it, so the fixture carries only those two fields.
-function bundle(runId: string | null, scope: { adminArea2: string | null } | undefined): FigureBundle {
+function bundle(runId: string, scope: { adminArea2: string | null }): FigureBundle {
   return { provenance: { runId }, scope } as FigureBundle;
 }
 
@@ -40,15 +39,6 @@ Deno.test("stale: matching run with mismatching scope is stale", () => {
 
 Deno.test("stale: mismatching run and mismatching scope is stale", () => {
   assertEquals(isFigureBundleStale(bundle(RUN_B, { adminArea2: null }), CONTAINER), true);
-});
-
-Deno.test("stale: a missing field reads as not stale on that half", () => {
-  assertEquals(isFigureBundleStale(bundle(null, undefined), CONTAINER), false);
-  assertEquals(isFigureBundleStale(bundle(RUN_A, undefined), CONTAINER), false);
-  assertEquals(isFigureBundleStale(bundle(null, { adminArea2: "Kano" }), CONTAINER), false);
-  // The other half still counts.
-  assertEquals(isFigureBundleStale(bundle(RUN_B, undefined), CONTAINER), true);
-  assertEquals(isFigureBundleStale(bundle(null, { adminArea2: null }), CONTAINER), true);
 });
 
 Deno.test("stale: the layout walk reports figure blocks with a bundle, in layout order", () => {

@@ -38,9 +38,18 @@ export async function migrateReports(
   const localization = getTransformLocalization(countryIso3);
 
   const rows = await tx<
-    { id: string; config: string | null; figures: string; images: string }[]
+    {
+      id: string;
+      config: string | null;
+      figures: string;
+      images: string;
+      run_id: string;
+      admin_area_2: string | null;
+    }[]
   >`
-    SELECT id, config, figures, images FROM reports
+    SELECT r.id, r.config, r.figures, r.images, p.run_id, p.admin_area_2
+    FROM reports r
+    JOIN products p ON p.id = r.id
   `;
   const now = new Date().toISOString();
   let rowsTransformed = 0;
@@ -69,7 +78,7 @@ export async function migrateReports(
       images: JSON.stringify(images),
     };
 
-    // Block 1: Figure-block transforms shared with slides/dashboards: embedded
+    // Block 1: Figure-block transforms shared with slides: embedded
     // PO config, source.type rename, figureInputs normalization. Repairs a
     // report figure whose embedded config drifted under a po_config change.
     // (figureInputs drift is caught by the skip gate above via
@@ -77,7 +86,10 @@ export async function migrateReports(
     if (figures && typeof figures === "object") {
       for (const block of Object.values(figures)) {
         transformFigureBlock(block as FigureBlockMut);
-        transformFigureBlockToBundle(block as FigureBlockMut, localization, null);
+        transformFigureBlockToBundle(block as FigureBlockMut, localization, {
+          runId: row.run_id,
+          adminArea2: row.admin_area_2,
+        });
       }
     }
 

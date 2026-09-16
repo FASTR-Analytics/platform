@@ -79,13 +79,7 @@ function describePackageIssue(issue: FigurePackageIssue, runId: string): string 
 
 // What a bundle says it came from, for the badge and the header caption.
 function bundleOriginLabel(bundle: FigureBundle): string {
-  const pkg = bundle.provenance.runId === null
-    ? t3({ en: "an unknown package", fr: "un package inconnu", pt: "um pacote desconhecido" })
-    : packageLabel(bundle.provenance.runId);
-  const scope = bundle.scope === undefined
-    ? t3({ en: "unknown scope", fr: "portée inconnue", pt: "âmbito desconhecido" })
-    : scopeLabel(bundle.scope.adminArea2);
-  return `${pkg} · ${scope}`;
+  return `${packageLabel(bundle.provenance.runId)} · ${scopeLabel(bundle.scope.adminArea2)}`;
 }
 
 type BadgeProps = {

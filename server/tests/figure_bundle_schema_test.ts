@@ -1,7 +1,6 @@
-// Schema pin for PLAN_PRODUCTS_RESTRUCTURE step 4: a stored FigureBundle
-// parses without the D4 pair (`scope`, `provenance.runId`) and with it. The
-// pair is optional until step 9b stamps every stored bundle; this test is
-// the one that must change when 9b makes it required.
+// Schema pin for the (package, scope) pair a stored FigureBundle records:
+// `scope` and `provenance.runId` are required, national is an explicit null,
+// and an unknown key inside the pair is rejected.
 //
 //   deno test -A --env-file server/tests/figure_bundle_schema_test.ts
 
@@ -35,10 +34,17 @@ const BASE = {
   snapshotAt: "2026-09-08T00:00:00.000Z",
 };
 
-Deno.test("figure bundle: a bundle stored before step 4 parses (no scope, null runId)", () => {
-  const parsed = figureBundleSchema.parse({ ...BASE, provenance: { runId: null } });
-  assertEquals(parsed.scope, undefined);
-  assertEquals(parsed.provenance.runId, null);
+Deno.test("figure bundle: a bundle without the pair is rejected", () => {
+  const RUN = "00000000-0000-4000-8000-000000000000";
+  assertEquals(figureBundleSchema.safeParse({ ...BASE, provenance: { runId: RUN } }).success, false);
+  assertEquals(
+    figureBundleSchema.safeParse({ ...BASE, scope: { adminArea2: null }, provenance: { runId: null } }).success,
+    false,
+  );
+  assertEquals(
+    figureBundleSchema.safeParse({ ...BASE, scope: { adminArea2: null }, provenance: {} }).success,
+    false,
+  );
 });
 
 Deno.test("figure bundle: a bundle captured under a pair parses with both fields", () => {
@@ -61,7 +67,7 @@ Deno.test("figure bundle: national scope is an explicit null, and an unknown sco
   const rejected = figureBundleSchema.safeParse({
     ...BASE,
     scope: { adminArea2: null, runId: "x" },
-    provenance: { runId: null },
+    provenance: { runId: "00000000-0000-4000-8000-000000000000" },
   });
   assertEquals(rejected.success, false);
 });

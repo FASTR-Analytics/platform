@@ -37,8 +37,6 @@ import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels
 
 // The scope a bundle was resolved under, threaded through the data-config
 // builders for one reason: the roll-up row's label (getRollupRowLabel).
-// undefined = a bundle stored before step 4 captured it.
-type RollupScope = FigureScope | undefined;
 
 function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?: any[]): Record<string, string> {
   if (countryIso3 === CountryCodes.Nigeria && jsonArray) {
@@ -77,7 +75,7 @@ function buildLabelReplacements(
   indicatorLabelReplacements: Record<string, string>,
   dateLabelReplacements: Record<string, string>,
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
-  scope: RollupScope,
+  scope: FigureScope,
   jsonArray?: any[],
 ): Record<string, string> {
   const base = {
@@ -109,7 +107,7 @@ function getRollupRowLabel(
   config: PresentationObjectConfig,
   language: Language,
   countryIso3: string | undefined,
-  scope: RollupScope,
+  scope: FigureScope,
 ): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "pinned" && ctx.value) {
@@ -123,12 +121,10 @@ function getRollupRowLabel(
   // area: render the pinned form instead. Display-only; the scope is never
   // pushed into the config (that would reach the fetch config and cache hash).
   //
-  // Read from the bundle, never a global store (D4): a stored figure carries
-  // the scope it was resolved under, so an export, a thumbnail or a version
-  // preview labels the row correctly outside any authoring shell. A bundle
-  // that predates the captured scope reads as national, the same way it
-  // reads as not stale; that case dies when step 9b makes the field required.
-  if (scope !== undefined && scope.adminArea2 !== null) {
+  // Read from the bundle, never a global store: a stored figure carries the
+  // scope it was resolved under, so an export, a thumbnail or a version
+  // preview labels the row correctly outside any authoring shell.
+  if (scope.adminArea2 !== null) {
     return `${resolveAdminAreaLabel(scope.adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
   }
   return pickLang(language, TC.national);
@@ -294,7 +290,7 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   indicatorSortOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
-  scope: RollupScope,
+  scope: FigureScope,
   jsonArray?: any[],
 ): TimeseriesJsonDataConfig {
   if (config.d.type !== "timeseries") {
@@ -344,7 +340,7 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   indicatorSortOrder: string[],
   localization: FigureLocalization,
-  scope: RollupScope,
+  scope: FigureScope,
   jsonArray?: any[],
 ): TableJsonDataConfig {
   if (config.d.type !== "table") {
@@ -408,7 +404,7 @@ function getChartJsonDataConfig(
   indicatorLabelReplacements: Record<string, string>,
   indicatorSortOrder: string[],
   localization: FigureLocalization,
-  scope: RollupScope,
+  scope: FigureScope,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   if (config.d.type !== "chart") {
@@ -467,7 +463,7 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   indicatorSortOrder: string[],
   localization: FigureLocalization,
-  scope: RollupScope,
+  scope: FigureScope,
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   return {
@@ -498,7 +494,7 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   indicatorSortOrder: string[],
   localization: Pick<FigureLocalization, "language" | "countryIso3">,
-  scope: RollupScope,
+  scope: FigureScope,
   effectiveFormatAs: IndicatorFormat,
   jsonArray?: any[],
 ): PieJsonDataConfig {
@@ -553,7 +549,7 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   indicatorLabelReplacements: Record<string, string>,
   indicatorSortOrder: string[],
   localization: FigureLocalization,
-  scope: RollupScope,
+  scope: FigureScope,
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
   return {

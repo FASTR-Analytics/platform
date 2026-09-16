@@ -1,27 +1,19 @@
 import type { ContentBlock, ContentSlide, FigureBlock, FigureBundle, PackageScope } from "lib";
 
-// Staleness (PLAN_PRODUCTS_RESTRUCTURE D4): a per-figure comparison of the
-// pair a bundle was resolved under against the pair its container serves
-// from. Nothing rewrites stored bundles behind the user's back, so a
-// mixed-package document is a visible, intentional state, and the badge is
-// the whole mechanism: reattach and scope change never block. Pure: no
-// fetches, no stores, no components. The update action lives in
-// components/figure_editor/stale_figure_badge.tsx.
-//
-// Transitional until step 9b stamps every stored bundle: a bundle with no
-// `scope`, or a null `provenance.runId`, cannot be judged on that half and
-// that half reads as not stale. Type-only imports, so the server test can
-// load this file under Deno.
+// Staleness: a per-figure comparison of the pair a bundle was resolved under
+// against the pair its container serves from. Nothing rewrites stored bundles
+// behind the user's back, so a mixed-package document is a visible,
+// intentional state, and the badge is the whole mechanism: reattach and scope
+// change never block. Pure: no fetches, no stores, no components. The update
+// action lives in components/figure_editor/stale_figure_badge.tsx. Type-only
+// imports, so the server test can load this file under Deno.
 
 export function isFigureBundleStale(
   bundle: FigureBundle,
   containerScope: PackageScope,
 ): boolean {
-  const runStale = bundle.provenance.runId !== null &&
-    bundle.provenance.runId !== containerScope.runId;
-  const scopeStale = bundle.scope !== undefined &&
+  return bundle.provenance.runId !== containerScope.runId ||
     bundle.scope.adminArea2 !== containerScope.adminArea2;
-  return runStale || scopeStale;
 }
 
 // The stale figures of a slide layout, in layout order. `blockId` is the

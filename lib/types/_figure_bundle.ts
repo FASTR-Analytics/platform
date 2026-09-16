@@ -131,23 +131,20 @@ export const figureBundleSchema = z.strictObject({
   localization: figureLocalizationSchema,
   metricId: z.string(),
   // `scope` and `provenance.runId` are the (package, scope) pair the bundle
-  // was RESOLVED under (PLAN_PRODUCTS_RESTRUCTURE D4): compared against the
-  // container's pair for staleness and read by getRollupRowLabel. They live
-  // here and not in `config` so they stay out of the fetch hash (SYSTEM_09).
-  // Transitional until step 9b stamps every stored bundle: `scope` may be
-  // absent and `runId` null on bundles captured earlier, and each missing
-  // half reads as "not stale" (client/src/generate_visualization/
-  // figure_staleness.ts).
+  // was RESOLVED under: compared against the container's pair for staleness
+  // (client/src/generate_visualization/figure_staleness.ts) and read by
+  // getRollupRowLabel. They live here and not in `config` so they stay out of
+  // the fetch hash (SYSTEM_09).
   scope: z.strictObject({
     adminArea2: z.string().nullable(),
-  }).optional(),
+  }),
   snapshotAt: z.string(),
   provenance: z.strictObject({
-    runId: z.string().nullable(),
+    runId: z.string(),
   }),
 });
 
-export type FigureScope = NonNullable<FigureBundle["scope"]>;
+export type FigureScope = FigureBundle["scope"];
 
 export type FigureBundle = z.infer<typeof figureBundleSchema>;
 

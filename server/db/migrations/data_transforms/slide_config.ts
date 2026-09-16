@@ -36,6 +36,7 @@ import type { TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import {
   type FigureLocalizationForTransform,
+  type FigurePairForTransform,
   type SlideLayoutNodeLike,
   rawJsonNeedsFigureBlockTransform,
   transformFigureBlock,
@@ -111,17 +112,23 @@ function getFigureInputsInConfig(
   return out;
 }
 
-function transformLayoutNode(node: LayoutNode, localization: FigureLocalizationForTransform): void {
-  // Recursion is shared with the dry-run via walkSlideLayoutNodes so the two
-  // cannot drift; this wrapper only supplies the per-node work.
+function transformLayoutNode(
+  node: LayoutNode,
+  localization: FigureLocalizationForTransform,
+  pair: FigurePairForTransform,
+): void {
+  // Recursion is shared with the consolidation planner via
+  // walkSlideLayoutNodes so the two cannot drift; this wrapper only supplies
+  // the per-node work.
   walkSlideLayoutNodes(node as SlideLayoutNodeLike, (n) =>
-    transformOneLayoutNode(n as LayoutNode, localization),
+    transformOneLayoutNode(n as LayoutNode, localization, pair),
   );
 }
 
 function transformOneLayoutNode(
   node: LayoutNode,
   localization: FigureLocalizationForTransform,
+  pair: FigurePairForTransform,
 ): void {
   // Block 3: Convert span from string → number (or delete if invalid)
   const nodeAny = node as Record<string, unknown>;
@@ -146,10 +153,10 @@ function transformOneLayoutNode(
     }
     // Blocks 4/5/9/10/12: figure-block transforms (source rename + snapshotAt,
     // embedded PO config, figureInputs normalization): shared with the
-    // dashboard/report sweeps via _figure_block.ts.
+    // report sweep via _figure_block.ts.
     if (node.data.type === "figure") {
       transformFigureBlock(node.data);
-      transformFigureBlockToBundle(node.data, localization, null);
+      transformFigureBlockToBundle(node.data, localization, pair);
     }
     // Block 11: Convert text block style.textSize number → semantic key
     if (node.data.type === "text") {
@@ -172,8 +179,18 @@ export async function migrateSlideConfigs(
   // relabelling + admin replicant labels at render).
   const localization = getTransformLocalization(countryIso3);
 
-  const rows = await tx<{ id: string; slide_deck_id: string; config: string }[]>`
-    SELECT id, slide_deck_id, config FROM slides
+  const rows = await tx<
+    {
+      id: string;
+      slide_deck_id: string;
+      config: string;
+      run_id: string;
+      admin_area_2: string | null;
+    }[]
+  >`
+    SELECT s.id, s.slide_deck_id, s.config, p.run_id, p.admin_area_2
+    FROM slides s
+    JOIN products p ON p.id = s.slide_deck_id
   `;
   const now = new Date().toISOString();
   let rowsTransformed = 0;
@@ -211,7 +228,10 @@ export async function migrateSlideConfigs(
 
     // Block 3+: Transform embedded PO configs in content slides
     if (config.type === "content" && config.layout) {
-      transformLayoutNode(config.layout as LayoutNode, localization);
+      transformLayoutNode(config.layout as LayoutNode, localization, {
+        runId: row.run_id,
+        adminArea2: row.admin_area_2,
+      });
     }
 
     // Block 8: Remove per-slide logo fields (now deck-level)
