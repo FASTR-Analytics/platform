@@ -29,9 +29,8 @@ globs:
 > the manifest and their executor from DuckDB over the run's parquet. Caches
 > are run-keyed. The constants in `server/routes/caches/visualizations.ts`
 > are the authority for the live keying (`PO_CACHE_VERSION` is "23",
-> `po_detail_v13`); SYSTEM_03's cache catalog describes the mechanism, but its
-> numbers are stale. Calendar threads via `QueryContext`, not `getCalendar()`
-> at the call sites.
+> `po_detail_v13`); SYSTEM_03's cache catalog restates them. Calendar threads
+> via `QueryContext`, not `getCalendar()` at the call sites.
 
 PO config → fetch-config contract → DuckDB SQL over the results package the
 caller names → run-keyed cached payloads, on both tiers. **This system does
@@ -507,20 +506,20 @@ Four rules that are each load-bearing:
   `buildQueryContextFromManifest` from the manifest's column-type stamps).
   Results-column types are authored per module, so the
   same option is not the same type everywhere: `time_point` is `integer` in one
-  instance here and `text` in another. The fold emits `btrim()` and returns a
+  instance here and `text` in another. The fold emits two-arg `trim()` and returns a
   text sentinel from the `CASE`; Postgres rejects both on a numeric column, so a
   name-only gate turns working visualizations into a hard SQL error.
 - **The fold detects blankness but returns the value UNTRIMMED.** Folding to
-  `btrim(col)` would rewrite non-blank values too, collapsing `' x'` and `'x'`
+  `trim(col, …)` would rewrite non-blank values too, collapsing `' x'` and `'x'`
   into one group that `UPPER(col) IN (…)`, comparing the raw column, could
   only half-match. That is the original defect in a new form.
 - **`blankPredicate` is self-parenthesising.** It contains an `OR` and callers
   `AND` it with other statements; unparenthesised,
-  `a = 1 AND col IS NULL OR
-  btrim(col) = ''` parses as
-  `(a = 1 AND col IS NULL) OR btrim(col) = ''` and the blank test swallows the
-  rest of the WHERE clause.
-- **`btrim`'s charset is spelled out** (`E' \t\r\n'`). Its default is ASCII
+  `a = 1 AND col IS NULL OR trim(col, …) = ''` parses as
+  `(a = 1 AND col IS NULL) OR trim(col, …) = ''` and the blank test swallows
+  the rest of the WHERE clause.
+- **`trim`'s charset is spelled out** (`E' \t\r\n'`), two-arg `trim()`
+  rather than `btrim()` because DuckDB has no `btrim`. The default is ASCII
   space only, so a tab-only cell would stay unfolded here while JS `.trim()`
   still stripped it from the options list.
 

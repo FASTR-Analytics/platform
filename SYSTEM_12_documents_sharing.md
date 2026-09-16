@@ -70,7 +70,7 @@ two menu builders, the folder and move modals, the type registry
 since PLAN_PRODUCTS_RESTRUCTURE step 7a take `{ productId }` and read label,
 package and scope live from the T1 products row. Lib: slide/report types,
 the dashboard types until 9b (`lib/types/{dashboard,_dashboard_config}.ts`,
-`buildPublicDashboardBundle` and `buildReportPreview`, plus the product
+`buildPublicDashboardBundle` and `buildReportPreview`), plus the product
 contracts (`lib/types/products.ts`: `ProductType`, `Folder`, `ProductBase`,
 `ProductSummary`; `lib/types/scope.ts`: `PackageScope`, `scopeToken`) that
 describe the products registry below. Custody wrinkle: the
@@ -112,12 +112,12 @@ deck reaches recipients as an emailed PDF (cross-cutting audit SYSTEMS.md
 `090_products.sql`): `folders` (nested through a nullable `parent_id`
 self-reference), `products` (id, `type` in {`slide_deck`, `report`}, label,
 `folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
-`admin_area_2`, `created_by`, `created_at`, `last_updated`), and per-type
-detail tables keyed by the same id with `ON DELETE CASCADE` (`slide_decks`
-plus `slides` plus `slide_deck_versions`; `reports` plus `report_versions`).
-Each detail table carries a fixed `type` column and a composite FK on
-`(id, type)` against `products`, so a detail row can exist only in the
-table its registry type names; whether the detail row exists at all is a
+`admin_area_2`, `created_by`, `created_at`, `last_updated`), and one
+detail table per type keyed by the same id, `slide_decks` and `reports`,
+with `slides`, `slide_deck_versions` and `report_versions` hanging off
+them, all `ON DELETE CASCADE`. The two detail tables carry a fixed `type`
+column and a composite FK on `(id, type)` against `products`, so a detail
+row can exist only in the table its registry type names; whether the detail row exists at all is a
 writer rule (one transaction per product create), not a constraint. Row
 types are `DBFolder`, `DBProduct`, `DBSlideDeck`, `DBSlide`,
 `DBSlideDeckVersion`, `DBReport` and `DBReportVersion` in

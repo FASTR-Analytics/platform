@@ -272,12 +272,14 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
 - **`escapeSqlString`** (`server/db/utils.ts`, `s.replace(/'/g, "''")`) is the
   **only** sanctioned manual escaper for Postgres-bound SQL, used for
   hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
-  run input capture, S9 filter values). No call site may inline its own
-  `''`-doubling.
+  run input capture, S9 filter values). Two DuckDB-bound call sites use it
+  too (`run_query/run_read.ts`, `runs/package_compatibility.ts`), which is
+  safe because both engines escape a quote by doubling it. No call site may
+  inline its own `''`-doubling.
   `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
   twin.
 - **`.unsafe()`** runs raw SQL with no parameterization. There are roughly a
-  hundred call sites outside tests, all trusted-internal, in four groups: (1)
+  hundred call sites outside tests, all trusted-internal, in five groups: (1)
   the **bulk ingest and run input capture paths** (`instance/dataset_hmis.ts`,
   `instance/structure.ts`, the staging workers,
   `runs/capture_inputs/{hfa,hmis,iceh}.ts`) building large `INSERT`/DDL
@@ -285,8 +287,10 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   **`detectHasAnyRows` probe** (`db/utils.ts`) and `generateUniqueIdForTable`
   (`utils/id_generation.ts`) interpolating table names that are internal
   constants / closed unions; (3) the **migration runner** executing
-  repo-authored `.sql` files; (4) the **restore body** interpolating an internal project UUID into
-  `DROP/CREATE DATABASE` and `pg_terminate_backend`. **`.unsafe()` with any
+  repo-authored `.sql` files; (4) the **restore body** interpolating an
+  internal project UUID into `DROP/CREATE DATABASE` and
+  `pg_terminate_backend`; (5) the **fresh-database seed** in `db_startup.ts`
+  (default instance config and initial users). **`.unsafe()` with any
   user-influenced string is forbidden.**
 
 ## Boot & the schema lifecycle
@@ -318,12 +322,13 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    marked likewise.
 4. **Instance data transforms.** Per-type JSON transforms (`instance_config`),
    each in its own transaction; any failure exits.
-5. **Per-project pass.** For each row in `projects`: project SQL migrations (`migrations/project/`,
-   same runner), then the six project data transforms in fixed order
-   (`po_config`, `slide_deck_config`, `slide_config`, `reports`,
-   `dashboard_config`, `dashboard_items`), each in its own transaction,
-   fail-stop; plus the explicitly-`TEMPORARY` dashboard-slug backfill that
-   self-identifies in the file. No boot step touches results in the project
+5. **Per-project pass.** For each row in `projects`: the
+   explicitly-`TEMPORARY` dashboard-slug backfill, which must run before the
+   project migrations because 023 drops the column it copies; then project SQL
+   migrations (`migrations/project/`, same runner); then the six project data
+   transforms in fixed order (`po_config`, `slide_deck_config`,
+   `slide_config`, `reports`, `dashboard_config`, `dashboard_items`), each in
+   its own transaction, fail-stop. No boot step touches results in the project
    DB: that plane was dropped by migration 041. The runs-catalog sweep and the
    run-manifest transform that run after this pass are S8's (SYSTEM_08).
 
@@ -351,8 +356,9 @@ the migration transaction, opening each source project pool fresh with
 `getPgConnection` and ending it once the plan is applied. The three
 migrations it belongs to (`000_legacy_project_shell.sql`,
 `091_consolidate_projects.ts`, `092_drop_project_layer.sql`) are staged
-under `consolidation/staged/`, which neither the runner nor the validate
-scripts scan, until step 9b moves them into `instance/`.
+under `consolidation/staged/`, which neither the runner nor
+`validate_migrations` / `validate_migrations_replay` scan, until step 9b
+moves them into `instance/`.
 `./validate_consolidation_replay` (repo root, logic in
 `validate_consolidation_replay.ts`) executes them end to end in the
 throwaway container through the real runner: a seeded live instance with two

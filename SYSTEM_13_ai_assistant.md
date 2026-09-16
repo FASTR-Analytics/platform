@@ -99,9 +99,8 @@ the query pipeline the data tools call is **S9**.
    plus, per indicator in the Dimension Summary, the same facts
    (`describeIndicatorFacts`: direction on its own line item whatever the
    rule's shape, thresholds in display units mirroring the scorecard's
-   inclusive cutoff rule, target); `buildInstanceContextSections` states the
-   instance calendar and `buildPackageGroundingSections` the package's
-   period coverage (finest physical time column; `/mcp` only, since the SPA
+   inclusive cutoff rule, target); `buildPackageGroundingSections` states the
+   package's calendar and period coverage (finest physical time column; `/mcp` only, since the SPA
    holds no manifest). Nothing about modules, provenance, or unavailable
    metrics goes into the AI context: it does not help read a metric (ruled).
    A separate indicator-dictionary tool was considered and dropped as
@@ -505,7 +504,7 @@ date header + instance/terminology section (country, admin-area labels, data
 sources) + results-package section (the package label and generation time, the
 scope, the package's datasets and indicator lists) + the instance-level
 `ai_context` +
-reference-doc catalog (`INFO_TOPICS`) + base instructions (read-data-first, no
+reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions (read-data-first, no
 fabrication, indicator directionality) + the tool catalog. The accessor takes
 no view argument, so the prompt is **byte-stable across navigation within one
 package** and its prompt-cache breakpoint keeps hitting: the per-view
@@ -577,7 +576,8 @@ parts S13 relies on, verified this cycle:
   retired model ids and caps at init.
 - **Turn logic** ([turn_logic.ts](panther/_110_ai_types/turn_logic.ts)):
   stop_reason → done / halt (refusal, truncation, context-exceeded) / pause_turn
-  resume / tool loop / caps, recursion bounded by `MAX_TURN_CONTINUATIONS = 24`.
+  resume / tool loop / caps, recursion bounded by `MAX_TURN_CONTINUATIONS = 24`
+  (`panther/_305_ai/_components/_create_ai_chat.ts`).
   Both capped **and halted** turns synthesize cancelled tool_results, so
   persisted history never ends in unresolved `tool_use` (which would 400 every
   later send); a cap-pause trim that empties an assistant message persists a
@@ -598,7 +598,8 @@ parts S13 relies on, verified this cycle:
 `client/src/components/indicator_manager_hfa/ai/` is a second, fully isolated
 assistant: same panther engine, own conversation scope (`hfa-indicators`), own
 SDK client pointed at `/ai-instance` (no `Project-Id`; duplicates the
-429-localizing fetch wrapper), same model config shape, **no built-in web
+429-localizing fetch wrapper), its own `modelConfig` (`max_tokens: 4096`,
+where the copilot omits it), **no built-in web
 tools**. Structural differences from the copilot: no view registry, so every write
 goes straight to serverActions. Its six write tools declare `approval.propose`
 with `presentation: "modal"` (panther owns the propose → modal diff → commit

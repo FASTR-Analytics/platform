@@ -252,7 +252,7 @@ pre-transaction.
 the version key for the whole structure world: S6's HMIS/HFA captures
 record it in the run's dataset info, and the client facilities/weights
 caches key on it. Bumped
-by: step-4 integrate, both facility-delete endpoints, all weights
+by: step-4 integrate, `deleteFamilyFacilities` (one endpoint, per family), all weights
 mutations, and HFA time-point rename/delete (whose weight cascades were
 previously invisible to the weights UI).
 

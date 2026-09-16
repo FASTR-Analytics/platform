@@ -9,7 +9,6 @@ globs:
   - client/src/components/whats_new_modal.tsx
   - client/src/components/instance/index.tsx
   - client/src/components/organisation_modal.tsx
-  - client/src/components/whats_new_modal.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
   - client/src/routes/**
@@ -20,7 +19,6 @@ globs:
   - lib/types/whats_new.ts
   - server/routes/instance/whats_new.ts
   - lib/translate/**
-  - server/routes/instance/whats_new.ts
   - server/routes/instance/onboarding.ts
 docs_absorbed:
 ---

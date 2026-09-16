@@ -121,8 +121,7 @@ roles model. Gates: boot-seeded as admins into every new main DB
 (`db_startup.ts`); `unlimitedAi`; **exclusive** access to `is_central_reporting`
 projects (even global admins are denied); full-access grant on any project;
 unfiltered project listings; the `setProjectCentralReportingStatus`,
-`setUserUnlimitedAi`, and `setUserContactPerson` routes; the central-export
-endpoints; and client UI sections (`currentUserIsHUser`). The same file carries
+`setUserUnlimitedAi`, and `setUserContactPerson` routes; and client UI sections (`currentUserIsHUser`). The same file carries
 `_FEEDBACK_EMAIL_RECIPIENTS` for the S12 feedback route.
 
 ## Backups
@@ -301,10 +300,7 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   has no `iceh` entry.
 - **Hardcoded personal emails** in shipped code: health_check's exclusion list,
   the resize-alert recipients, all fleet-config candidates.
-- **Dead API fields**: `addProject` ignores `projectEditors`/`projectViewers`
-  which the registry body still requires; unused local `mainDb` in copyProject's
-  `.then`; `getProjectDetail` hardcodes `thisUserRole:
-  "viewer"`.
+- **Dead API field**: `getProjectDetail` hardcodes `thisUserRole: "viewer"`.
 - **Client/server guard mismatch**: bulk admin-toggle buttons show for
   `can_configure_users` but the route requires full admin (403 at click).
 - **Orphaned UUID project DBs accumulate on prod**: consider a sweep autonomic

@@ -367,11 +367,11 @@ dimension onto the attached run):
    immutable `runId` (which run the data came from) and the `scopeToken`.
    Data never changes under a run, only the pointer swaps.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"19"`, bump history in the adjacent comment) is a manually-bumped semantic
+   `"23"`, bump history in the adjacent comment) is a manually-bumped semantic
    version folded into the `versionHash` of the three query-shaped caches; bump
    it when the _generated SQL or payload semantics_ change so old entries miss
    without a prefix migration.
-3. **Prefix bump**, `po_detail` → `po_detail_v10`: for payload _shape_ changes
+3. **Prefix bump**, `po_detail` → `po_detail_v13`: for payload _shape_ changes
    on the config cache; consumers additionally re-run
    `presentationObjectConfigSchema.parse` on every hit to adapt cross-deploy
    payloads.
@@ -381,13 +381,13 @@ dimension onto the attached run):
 `server/routes/caches/dataset.ts`). The three data caches are run-scoped, not
 project-scoped: two projects attached to the same run share entries.
 
-| Singleton                        | prefix           | uniquenessHash                                  | versionHash                            |
-| -------------------------------- | ---------------- | ----------------------------------------------- | -------------------------------------- |
-| `_PO_DETAIL_CACHE`               | `po_detail_v10`  | `projectId\|poId`                               | `presentationObjectLastUpdated\|runId` |
-| `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION`                     |
-| `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId`                               | `PO_CACHE_VERSION`                     |
-| `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION`                     |
-| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)      | `computeHfaCacheHash(hfa_time_points)` |
+| Singleton                        | prefix           | uniquenessHash                                              | versionHash                                        |
+| -------------------------------- | ---------------- | ----------------------------------------------------------- | -------------------------------------------------- |
+| `_PO_DETAIL_CACHE`               | `po_detail_v13`  | `projectId\|poId`                                           | `presentationObjectLastUpdated\|runId\|scopeToken` |
+| `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)\|scopeToken`   | `PO_CACHE_VERSION`                                 |
+| `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId::scopeToken`                               | `PO_CACHE_VERSION`                                 |
+| `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)::scopeToken` | `PO_CACHE_VERSION`                                 |
+| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)                  | `computeHfaCacheHash(hfa_time_points)`             |
 
 Two key separators are live: `\|` (po family) and `::` (metric_info,
 replicant_opts). A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,

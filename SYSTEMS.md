@@ -50,7 +50,7 @@ list.)
 | File                                                                    | Owner | Mandatory readers | Seam                                                  |
 |-------------------------------------------------------------------------|-------|-------------------|-------------------------------------------------------|
 | `server/db/project/projects.ts`                                         | S15   | S2, S1, S8        | four systems in 1,108 lines                           |
-| `server/routes/project/project.ts`                                      | S15   | S6, S8            | 18 routes, three systems                              |
+| `server/routes/project/project.ts`                                      | S15   | S6, S8            | 15 routes, three systems                              |
 | `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3, S16      | queries / CRUD / cache / live-room chokepoint         |
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
