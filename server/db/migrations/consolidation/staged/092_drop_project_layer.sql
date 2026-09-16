@@ -2,7 +2,7 @@
 -- DROP THE PROJECT LAYER (PLAN_PRODUCTS_RESTRUCTURE D9)
 -- ============================================================================
 --
--- Runs after 088 has copied every project's products into the products
+-- Runs after 091 has copied every project's products into the products
 -- tables.
 --
 -- Never `DELETE FROM projects`: user_logs, ai_usage_logs and

@@ -7,7 +7,7 @@
 // it against the whole fleet before the rollout deploy; zero FAIL is the gate.
 //
 // It shares its planning code with the migration: `planConsolidation()` in
-// server/db/migrations/consolidation/plan.ts is exactly what 088 executes, and
+// server/db/migrations/consolidation/plan.ts is exactly what 091 executes, and
 // the skip and hard-stop rules come from execute.ts, so the thing gated here
 // is the thing that runs there. This script only REPORTS the plan: it opens no
 // write transaction, issues no INSERT, UPDATE, DELETE or ALTER, and never
@@ -287,9 +287,9 @@ export async function dryRunInstance(instance: Instance): Promise<InstanceReport
       report.pinnedRunLabel = pinned[0]?.label ?? null;
     }
 
-    // Projects by status and the two D11 lists. Ordered by id, as 088 orders
+    // Projects by status and the two D11 lists. Ordered by id, as 091 orders
     // them, so the ids that collide, and how many, are the migration's own.
-    // The replacements are minted at random when 088 runs, so they are not
+    // The replacements are minted at random when 091 runs, so they are not
     // reported.
     const projects = await readProjects(mainDb);
     for (const project of projects) {
@@ -562,7 +562,7 @@ function printInstanceReport(report: InstanceReport): void {
   console.log(`  id remaps:       ${counts.remaps}`);
   for (const plan of report.plans) {
     for (const remap of plan.remaps) {
-      console.log(`      ${remap.entity} ${remap.from} (re-minted by 088)`);
+      console.log(`      ${remap.entity} ${remap.from} (re-minted by 091)`);
     }
   }
 

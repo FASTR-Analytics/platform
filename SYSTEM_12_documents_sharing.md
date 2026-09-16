@@ -108,7 +108,7 @@ deck reaches recipients as an emailed PDF (cross-cutting audit SYSTEMS.md
 
 `main` carries a products block beside the project layer
 (`_main_database.sql`, created on existing instances by
-`087_products.sql`): `folders` (nested through a nullable `parent_id`
+`090_products.sql`): `folders` (nested through a nullable `parent_id`
 self-reference), `products` (id, `type` in {`slide_deck`, `report`}, label,
 `folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
 `admin_area_2`, `created_by`, `created_at`, `last_updated`), and per-type

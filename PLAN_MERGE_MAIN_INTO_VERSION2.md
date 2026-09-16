@@ -4,7 +4,7 @@ Bring main's indicator restructure (PLAN_A3 to A8, deploys 1.72.0 to 1.73.1)
 into `version2`, which carries the products restructure through step 9a.
 The result is one merge commit on `version2` whose tree passes every gate.
 
-**Next step: Do 1.** Values are `Do N`, `Review N`, `Fix N`. After step 5's
+**Next step: Review 1.** Values are `Do N`, `Review N`, `Fix N`. After step 5's
 review passes, delete this file in the same commit.
 
 **Nothing ships.** No step runs `./deploy_testing` or `./deploy`. The
@@ -374,3 +374,5 @@ rows, not floor gates (D8).
 | --- | --- |
 | Plan written | From an independent dry-run merge of `main` (7f62d424) into `version2` (3b087642), 16 Sept 2026. |
 | Plan consolidated | A second, independently written plan for the same merge was compared against this one; its SYSTEM prose sweep (Step 4), the nothing-ships rule and rollback point, and the §9-row treatment of the products plan were folded in, and it was deleted. Its pre-merge-package harness was not adopted (§1: the transform chain is main's and main tests it). |
+| Step 1 built | `git mv` of `087_products.sql`, `staged/088_consolidate_projects.ts` and `staged/089_drop_project_layer.sql` to 090, 091 and 092; every reference followed (the Step 1 grep is empty over the tree; `validate_consolidation_replay`'s stale "000, 085, 086" header now reads "000, 091, 092"); one §9 row in `PLAN_PRODUCTS_RESTRUCTURE.md`. Gates: `deno task typecheck` PASS, `./validate_migrations` PASS, `./validate_migrations_replay` PASS, `./validate_consolidation_replay` PASS, `./validate_queries` PASS, `./validate_protocols` PASS. `deno task test`: 34 passed, 4 failed, none of them touching this step's surface: `products_routes_test` and `m012_expression_parity_test` are the two failures the products plan's 9a review already recorded as pre-existing (the first now fails on "table products does not exist", see the D1 row below); `mcp_context_cache_test` and `run_authoring_context_parity_test` fail because the runs the dev database points at exist only under `../wb-fastr/_example_instance_dir/runs/`, not this worktree's. `deno task build:help-buttons` does not leave `git status` clean: `../wb-fastr-site` has moved on with main (the indicators docs now describe calculated indicators; key `ind-common` goes, `ind-dhis2-import`, `ind-include` and `ind-list` arrive), which Step 2 already assigns to the merge commit. The generated file was restored to HEAD and is not in this commit. |
+| D1 corrected for dev | The dev database does not carry `087_products`: its `schema_migrations` ends with main's `084_population_reserved_words` to `089_indicator_type_calculated` and it has no `products` table, so it was restored from a fleet dump after the products plan's 9a work. On dev, `090_products` applies fresh at the first version2 boot after the merge, with no dead row. The testing database was not checked from here, so D1's cost note may still hold there. |

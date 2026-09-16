@@ -8,25 +8,25 @@
 //   (a) A live instance (base plus every instance migration recorded, two
 //       project databases that are byte-identical WITH TEMPLATE copies, a
 //       pending_deletion copy and a `copying` row without a database) taken
-//       through 000, 088 and 089 by the real runner ends with: folders
+//       through 000, 091 and 092 by the real runner ends with: folders
 //       nested per D10, every id collision re-minted with the full reference
 //       surface rewritten, every figure bundle on all four surfaces stamped
 //       with the owning project's run and scope, the ai_context blobs
-//       concatenated, and a schema byte-identical to the base plus 089.
+//       concatenated, and a schema byte-identical to the base plus 092.
 //   (b) A database whose users carry the default_project_* flags, whose logs
 //       carry project_id and whose aggregate rows differ only by project_id
-//       comes out of 089 with users and logs preserved and the aggregates
+//       comes out of 092 with users and logs preserved and the aggregates
 //       merged.
 //   (c) The two negative controls from the plan's Appendix A: on the
 //       post-restructure base, 000 without the user_logs_aggregate ALTER
 //       fails at 035, and 000 without any log ALTER fails at 016.
 //   (d) The fresh path: the post-restructure base plus 000, every instance
-//       migration, 088 and 089, applied by the runner in one pass, converges
+//       migration, 091 and 092, applied by the runner in one pass, converges
 //       on the same schema as (a).
 //
 // Before (a) runs the migrations, the read-only dry-run
 // (validate_consolidation.ts) plans the same seeded instance; its FAIL,
-// REVIEW and planned counts are checked against what 088 then inserts, which
+// REVIEW and planned counts are checked against what 091 then inserts, which
 // is the mechanism the step 10 post-check reuses.
 
 import { dirname, fromFileUrl, join } from "@std/path";
@@ -37,7 +37,7 @@ import {
   runMigrationsInDir,
   type TsMigration,
 } from "./server/db/migrations/runner.ts";
-import { consolidateProjects } from "./server/db/migrations/consolidation/staged/088_consolidate_projects.ts";
+import { consolidateProjects } from "./server/db/migrations/consolidation/staged/091_consolidate_projects.ts";
 import { dryRunInstance, plannedCounts } from "./validate_consolidation.ts";
 
 const ROOT = dirname(fromFileUrl(import.meta.url));
@@ -54,7 +54,7 @@ if (CONTAINER === undefined) {
 }
 
 const TS_MIGRATIONS: Record<string, TsMigration> = {
-  "088_consolidate_projects": consolidateProjects,
+  "091_consolidate_projects": consolidateProjects,
 };
 
 const P1 = "0a000000-0000-4000-8000-000000000001";
@@ -139,7 +139,7 @@ async function stageMigrationDir(
   }
   await Deno.writeTextFile(join(dir, "000_legacy_project_shell.sql"), shell);
   if (withConsolidation) {
-    for (const name of ["088_consolidate_projects.ts", "089_drop_project_layer.sql"]) {
+    for (const name of ["091_consolidate_projects.ts", "092_drop_project_layer.sql"]) {
       await Deno.copyFile(join(STAGED_DIR, name), join(dir, name));
     }
   }
@@ -487,8 +487,8 @@ async function assertConsolidated(db: Sql): Promise<void> {
 
   const applied = await db<{ migration_id: string }[]>`
     SELECT migration_id FROM schema_migrations
-    WHERE migration_id IN ('000_legacy_project_shell', '088_consolidate_projects', '089_drop_project_layer')`;
-  check(applied.length === 3, "000, 088 and 089 recorded in schema_migrations");
+    WHERE migration_id IN ('000_legacy_project_shell', '091_consolidate_projects', '092_drop_project_layer')`;
+  check(applied.length === 3, "000, 091 and 092 recorded in schema_migrations");
 }
 
 async function replayLiveInstance(): Promise<void> {
@@ -553,27 +553,27 @@ async function replayLiveInstance(): Promise<void> {
     };
     check(
       JSON.stringify(actual) === JSON.stringify(planned) && planned.remaps === 11,
-      `the dry-run's planned counts match what 088 inserted (${JSON.stringify(planned)})`,
+      `the dry-run's planned counts match what 091 inserted (${JSON.stringify(planned)})`,
     );
   });
 }
 
-// ── The reference schema: base plus 089 ──────────────────────────────────────
+// ── The reference schema: base plus 092 ──────────────────────────────────────
 
 async function buildReference(): Promise<void> {
-  console.log("\n=== Reference schema: fresh base plus 089 ===");
+  console.log("\n=== Reference schema: fresh base plus 092 ===");
   await createDatabase("main_reference");
   await withDb("main_reference", async (db) => {
     await loadFile(db, MAIN_BASE);
-    await loadFile(db, join(STAGED_DIR, "089_drop_project_layer.sql"));
+    await loadFile(db, join(STAGED_DIR, "092_drop_project_layer.sql"));
   });
-  await schemasMatch("main", "main_reference", "(a) migrated schema is byte-identical to fresh base plus 089");
+  await schemasMatch("main", "main_reference", "(a) migrated schema is byte-identical to fresh base plus 092");
 }
 
-// ── (b) Users, logs and aggregates through 089 ───────────────────────────────
+// ── (b) Users, logs and aggregates through 092 ───────────────────────────────
 
 async function replayLogsMerge(): Promise<void> {
-  console.log("\n=== (b) Users, logs and aggregate rows through 089 ===");
+  console.log("\n=== (b) Users, logs and aggregate rows through 092 ===");
   await createDatabase("main_logs");
   await withDb("main_logs", async (db) => {
     await loadFile(db, MAIN_BASE);
@@ -588,7 +588,7 @@ async function replayLogsMerge(): Promise<void> {
       ('a@example.org', '/x', 'ok', ${P2}, '2026-01-05', 7),
       ('a@example.org', '/x', 'ok', NULL, '2026-01-05', 1),
       ('a@example.org', '/y', 'ok', ${P1}, '2026-01-05', 2)`;
-    await loadFile(db, join(STAGED_DIR, "089_drop_project_layer.sql"));
+    await loadFile(db, join(STAGED_DIR, "092_drop_project_layer.sql"));
 
     check(await count(db, "users") === 2, "users preserved");
     check(await count(db, "user_logs") === 2, "user_logs preserved");
@@ -642,7 +642,7 @@ async function replayNegativeControls(): Promise<void> {
 }
 
 async function replayFreshPath(): Promise<void> {
-  console.log("\n=== (d) Fresh path: post-restructure base plus 000 to 089 in one pass ===");
+  console.log("\n=== (d) Fresh path: post-restructure base plus 000 to 092 in one pass ===");
   await createDatabase("main_fresh", "main_reference");
   const dir = await stageMigrationDir("full", true);
   const expected = (await listSqlFiles(INSTANCE_DIR)).length + 3;
@@ -650,9 +650,9 @@ async function replayFreshPath(): Promise<void> {
     await runMigrationsInDir(db, dir, TS_MIGRATIONS, "fresh");
     const applied = await count(db, "schema_migrations");
     check(applied === expected, `${expected} migrations recorded on the fresh path (got ${applied})`);
-    check(await count(db, "products") === 0, "088 on a database with no projects inserts nothing");
+    check(await count(db, "products") === 0, "091 on a database with no projects inserts nothing");
   });
-  await schemasMatch("main_fresh", "main_reference", "(d) fresh-path schema is byte-identical to fresh base plus 089");
+  await schemasMatch("main_fresh", "main_reference", "(d) fresh-path schema is byte-identical to fresh base plus 092");
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────

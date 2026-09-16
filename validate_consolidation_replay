@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Executes the staged project consolidation (000, 085, 086 under
+# Executes the staged project consolidation (000, 091, 092 under
 # server/db/migrations/consolidation/staged/) end to end in a throwaway
 # postgres:15 container, through the real migration runner, against seeded
 # legacy data. ./validate_migrations only proves SQL idempotency; a .ts
