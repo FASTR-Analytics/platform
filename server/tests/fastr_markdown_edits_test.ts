@@ -150,14 +150,16 @@ Deno.test("a role wraps the selection and re-selects the phrase", () => {
 
 Deno.test("picking a different role rewrites in place, not around", () => {
   const doc = "Coverage [fell 12 points]{.danger} this quarter.";
-  const r = setInlineRoleEdit(doc, 12, 20, "warning");
+  // 10..24 is the label: a selection of the WHOLE phrase (or a caret in it)
+  // patches the mark it is in, where a partial one splits that mark instead.
+  const r = setInlineRoleEdit(doc, 10, 24, "warning");
   assertWellFormed(r);
   assertEquals(apply(doc, r), "Coverage [fell 12 points]{.warning} this quarter.");
 });
 
 Deno.test("clearing a role removes both brackets and the attribute", () => {
   const doc = "Coverage [fell 12 points]{.danger} this quarter.";
-  const r = setInlineRoleEdit(doc, 12, 20, undefined);
+  const r = setInlineRoleEdit(doc, 10, 24, undefined);
   assertWellFormed(r);
   assertEquals(apply(doc, r), "Coverage fell 12 points this quarter.");
 });
@@ -170,21 +172,21 @@ Deno.test("a literal colour and a role are one choice", () => {
   // A role replaces the colour, a colour replaces the role; size survives both.
   const coloured = "Coverage [fell 12 points]{color=#c62828 size=14} this quarter.";
   assertEquals(
-    apply(coloured, setInlineRoleEdit(coloured, 12, 20, "danger")),
+    apply(coloured, setInlineRoleEdit(coloured, 10, 24, "danger")),
     "Coverage [fell 12 points]{.danger size=14} this quarter.",
   );
   const roled = "Coverage [fell 12 points]{.danger size=14} this quarter.";
   assertEquals(
-    apply(roled, setInlineColorEdit(roled, 12, 20, "#123456")),
+    apply(roled, setInlineColorEdit(roled, 10, 24, "#123456")),
     "Coverage [fell 12 points]{color=#123456 size=14} this quarter.",
   );
   // Clearing either clears both; a size-less mark unwraps entirely.
   assertEquals(
-    apply(coloured, setInlineRoleEdit(coloured, 12, 20, undefined)),
+    apply(coloured, setInlineRoleEdit(coloured, 10, 24, undefined)),
     "Coverage [fell 12 points]{size=14} this quarter.",
   );
   const only = "Coverage [fell 12 points]{color=#c62828} this quarter.";
-  assertEquals(apply(only, setInlineColorEdit(only, 12, 20, undefined)), doc);
+  assertEquals(apply(only, setInlineColorEdit(only, 10, 24, undefined)), doc);
   // The state reads it back for the toolbar.
   assertEquals(inlineMarkStateAt(only, 14, 14).color, "#c62828");
   assertEquals(inlineMarkStateAt(only, 14, 14).role, undefined);
@@ -218,14 +220,14 @@ Deno.test("a size with no selection wraps the word under the caret", () => {
 
 Deno.test("role and size share one wrapper: setting either preserves the other", () => {
   const doc = "Coverage [fell 12 points]{size=18} this quarter.";
-  const r = setInlineRoleEdit(doc, 12, 20, "danger");
+  const r = setInlineRoleEdit(doc, 10, 24, "danger");
   assertWellFormed(r);
   assertEquals(
     apply(doc, r),
     "Coverage [fell 12 points]{.danger size=18} this quarter.",
   );
   const doc2 = "Coverage [fell 12 points]{.danger} this quarter.";
-  const r2 = setInlineSizeEdit(doc2, 12, 20, 10.5);
+  const r2 = setInlineSizeEdit(doc2, 10, 24, 10.5);
   assertWellFormed(r2);
   assertEquals(
     apply(doc2, r2),
@@ -235,10 +237,10 @@ Deno.test("role and size share one wrapper: setting either preserves the other",
 
 Deno.test("clearing one attribute keeps the wrapper while the other remains", () => {
   const doc = "Coverage [fell 12 points]{.danger size=18} this quarter.";
-  const r = setInlineSizeEdit(doc, 12, 20, undefined);
+  const r = setInlineSizeEdit(doc, 10, 24, undefined);
   assertWellFormed(r);
   assertEquals(apply(doc, r), "Coverage [fell 12 points]{.danger} this quarter.");
-  const r2 = setInlineRoleEdit(doc, 12, 20, undefined);
+  const r2 = setInlineRoleEdit(doc, 10, 24, undefined);
   assertWellFormed(r2);
   assertEquals(apply(doc, r2), "Coverage [fell 12 points]{size=18} this quarter.");
 });
@@ -269,7 +271,7 @@ Deno.test("underline toggles on the shared wrapper and keeps its neighbours", ()
 
 Deno.test("clearing the last attribute unwraps the mark entirely", () => {
   const doc = "Coverage [fell 12 points]{size=18} this quarter.";
-  const r = setInlineSizeEdit(doc, 12, 20, undefined);
+  const r = setInlineSizeEdit(doc, 10, 24, undefined);
   assertWellFormed(r);
   assertEquals(apply(doc, r), "Coverage fell 12 points this quarter.");
 });
@@ -282,13 +284,54 @@ Deno.test("sizing across an existing size mark flattens, never nests", () => {
   assertEquals(apply(doc, r), "[abcdefg]{size=12}");
 });
 
-Deno.test("a mark the selection cuts into is absorbed whole", () => {
+Deno.test("a mark the selection cuts into is split, not swallowed", () => {
   const doc = "ab[cd]{size=10}efg";
-  // Selection ends inside the mark's label: the whole mark is absorbed (a
-  // mark cannot be half-resized), but the unselected tail stays untouched.
+  // The selection ends inside the mark's label: the mark is rewritten whole
+  // (half a `[x]{...}` is not a document), but only the covered half takes
+  // the new size. Styling the rest of a phrase nobody selected is the bug
+  // this splits to avoid.
   const r = setInlineSizeEdit(doc, 0, 4, 12);
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "[abcd]{size=12}efg");
+  assertEquals(apply(doc, r), "[abc]{size=12}[d]{size=10}efg");
+});
+
+Deno.test("underlining a word inside a sized phrase leaves the phrase alone", () => {
+  // The reported bug: the selection sits inside a `{size=13}` span, and the
+  // underline landed on the whole span instead of the selected word.
+  const doc = "The first four months of 2025 sit lower.";
+  const sized = apply(doc, setInlineSizeEdit(doc, 0, doc.length - 1, 13));
+  assertEquals(sized, "[The first four months of 2025 sit lower]{size=13}.");
+  const at = sized.indexOf("months");
+  const on = setInlineUnderlineEdit(sized, at, at + "months".length, true);
+  assertWellFormed(on);
+  const marked = apply(sized, on);
+  assertEquals(
+    marked,
+    "[The first four ]{size=13}[months]{size=13 underline}[ of 2025 sit lower]{size=13}.",
+  );
+  // The new mark is left selected, so the next click on the button is an
+  // undo rather than a second, wider underline.
+  const sel = on.selection!;
+  assertEquals(marked.slice(sel.anchor, sel.head), "[months]{size=13 underline}");
+  const off = setInlineUnderlineEdit(marked, sel.anchor, sel.head!, false);
+  assertWellFormed(off);
+  assertEquals(
+    apply(marked, off),
+    "[The first four ]{size=13}[months]{size=13}[ of 2025 sit lower]{size=13}.",
+  );
+});
+
+Deno.test("a split rewrites only the stretch that differs", () => {
+  // The untouched text of a label must not be deleted and reinserted: the
+  // collab merge and the who-wrote-this attribution follow the characters.
+  const doc = "[one two three]{size=13}";
+  const r = setInlineUnderlineEdit(doc, 5, 8, true);
+  assertWellFormed(r);
+  assertEquals(apply(doc, r), "[one ]{size=13}[two]{size=13 underline}[ three]{size=13}");
+  for (const c of r.changes) {
+    assert(c.from >= 5, "the leading text is untouched");
+    assert(c.to <= 8, "the trailing text is untouched");
+  }
 });
 
 Deno.test("a role inside a size sweep survives as its own flat segment", () => {
@@ -515,17 +558,17 @@ Deno.test("a highlight is a stripe that survives the other mark attributes", () 
   // Unlike a role and a colour, a highlight coexists with them.
   const roled = "Coverage [fell 12 points]{.danger size=14} this quarter.";
   assertEquals(
-    apply(roled, setInlineHighlightEdit(roled, 12, 20, "yellow")),
+    apply(roled, setInlineHighlightEdit(roled, 10, 24, "yellow")),
     "Coverage [fell 12 points]{.danger highlight=yellow size=14} this quarter.",
   );
   // Clearing it leaves the rest of the mark alone, and unwraps when alone.
   const both = "Coverage [fell 12 points]{.danger highlight=yellow} this quarter.";
   assertEquals(
-    apply(both, setInlineHighlightEdit(both, 12, 20, undefined)),
+    apply(both, setInlineHighlightEdit(both, 10, 24, undefined)),
     "Coverage [fell 12 points]{.danger} this quarter.",
   );
   const only = "Coverage [fell 12 points]{highlight=yellow} this quarter.";
-  assertEquals(apply(only, setInlineHighlightEdit(only, 12, 20, undefined)), doc);
+  assertEquals(apply(only, setInlineHighlightEdit(only, 10, 24, undefined)), doc);
   assertEquals(inlineMarkStateAt(only, 14, 14).highlight, "yellow");
   // An unsafe colour is not a mark at all.
   assertEquals(apply(doc, setInlineHighlightEdit(doc, 9, 23, "url(x)")), doc);
