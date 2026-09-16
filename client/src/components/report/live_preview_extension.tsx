@@ -82,12 +82,14 @@ import {
   isDarkCssColor,
   isFastrEmbedLine,
   isFastrLeafBlock,
+  listMarkerOf,
   parseContainerFence,
   parseFastrMarkAttrs,
   readFastrDocumentSettings,
   renderFastrMarkdownToHtml,
   safeCssColor,
   scanContainerLines,
+  splitTextIsland,
   t3,
   TILES_MAX_COLS,
   renderFastrTocHtml,
@@ -992,20 +994,23 @@ export function attachStatEditors(
 // In-place editing for a rendered TEXT element (p, li, headings inside
 // blocks): on press, the element's content swaps to the RAW source of its
 // line(s) — inline markdown stays authorable — while the surrounding block
-// keeps its rendered form. Enter/blur commits (a changed text is one
-// dispatch; the widget re-renders), Escape restores the rendered content.
+// keeps its rendered form. Blur commits (a changed text is one dispatch; the
+// widget re-renders), Enter splits the island into two paragraphs the way it
+// does anywhere else, Escape restores the rendered content.
 // Set by a paged-mode island action that closes the island and moves the
 // CodeMirror selection on purpose (Enter splitting a paragraph, Backspace
 // removing an empty one): the paged surface reads it at its next swap and
-// reopens the island at that selection.
-export const pagedCaretIntent = { pending: false };
+// reopens the island at that selection, selecting what it wrote when that is
+// a placeholder to type over.
+export const pagedCaretIntent = { pending: false, selectAll: false };
 
 export type TextIslandOptions = {
   // The paged surface (paged_edit_surface.ts): no widget rebuilds, the
   // island's source is read from the LIVE doc on activation (the frame may
-  // be a beat behind a remote edit), Enter splits the paragraph and
-  // Backspace on an empty one removes it — the paragraph-level editing a
-  // page needs when every line is an island.
+  // be a beat behind a remote edit), an Enter split reopens the island from
+  // the CM selection after the next layout rather than here, and Backspace
+  // on an empty paragraph removes it, which a page needs when every line is
+  // an island.
   paged?: boolean;
 };
 
@@ -1331,10 +1336,18 @@ export function attachTextEditor(
     }
     return { text, at };
   };
-  // Paged editing: Enter splits the island at the caret into two paragraphs
-  // (a list item gets a sibling item with the same marker), and the caret is
-  // placed at the start of the new one — the surface re-lays the page out
-  // and opens that island from the CM selection.
+  // Enter splits the island at the caret into two paragraphs (a list item
+  // gets a sibling item with the same marker) and the caret lands in the new
+  // one, which is what Enter does everywhere else in the document. On the
+  // paged surface the CM selection carries it: the surface re-lays the page
+  // out and opens the island standing there. In the live preview the widget
+  // rebuilds inside this dispatch, so the new island is opened right here.
+  //
+  // A new paragraph with nothing in it renders NOTHING, so there would be no
+  // island to type in and the author would lose the caret they just pressed
+  // Enter to move: it gets a placeholder instead, selected, the way a new
+  // step does. An empty list ITEM renders (and stays clickable), so it does
+  // not need one.
   const splitParagraph = () => {
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
@@ -1344,22 +1357,41 @@ export function attachTextEditor(
       return;
     }
     const { text, at } = caretOffset();
-    const before = text.slice(0, at).trimEnd();
-    const after = text.slice(at).trimStart();
-    const marker = el.tagName === "LI"
-      ? (/^(\s*(?:[-*+]|\d+\.)\s+)/.exec(text)?.[1] ?? "- ")
-      : undefined;
-    const joiner = marker !== undefined ? `\n${marker}` : "\n\n";
-    const insert = `${before}${joiner}${after}`;
+    const { insert, at: newAt, rel: relDown, placeholder } = splitTextIsland(
+      text,
+      at,
+      el.tagName === "LI" ? listMarkerOf(text) : undefined,
+      t3({ en: "New paragraph", fr: "Nouveau paragraphe", pt: "Novo parágrafo" }),
+    );
     stopMirror();
     el.contentEditable = "false";
-    pagedCaretIntent.pending = true;
+    if (opts?.paged) {
+      pagedCaretIntent.pending = true;
+      pagedCaretIntent.selectAll = placeholder;
+    }
     const from = doc.line(line1).from;
     committed = insert;
     view.dispatch({
       changes: { from, to: doc.line(endLine1).to, insert },
-      selection: { anchor: from + before.length + joiner.length },
+      selection: { anchor: from + newAt },
     });
+    if (opts?.paged) return;
+    // The rebuilt widget holds both halves now: open the new one (activation
+    // parks the caret at its end, so a split mid-paragraph puts it back at
+    // the start, and a placeholder is selected for typing over).
+    const newRel = rel + relDown;
+    const host = view.contentDOM.querySelector(
+      `[data-region-line="${regionStartLine}"]`,
+    );
+    const target = host === null ? undefined : [
+      ...host.querySelectorAll<HTMLElement>(`[data-line="${newRel}"]`),
+    ].find((n) => (n as unknown as { _fmActivate?: () => void })._fmActivate);
+    if (target === undefined) return;
+    (target as unknown as { _fmActivate?: () => void })._fmActivate?.();
+    const next = winOf(el).getSelection();
+    if (!next) return;
+    if (placeholder) next.selectAllChildren(target);
+    else next.collapse(target, 0);
   };
   // Paged editing: Backspace in an EMPTY island removes the line (and the
   // blank line above it), leaving the caret at the end of what came before.
@@ -1382,7 +1414,7 @@ export function attachTextEditor(
       e.preventDefault();
       if (el.tagName === "P" && el.parentElement?.classList.contains("fm-steps")) {
         splitStep();
-      } else if (opts?.paged && /^(P|LI|H[1-6])$/.test(el.tagName)) {
+      } else if (/^(P|LI|H[1-6])$/.test(el.tagName)) {
         splitParagraph();
       } else {
         el.blur();
