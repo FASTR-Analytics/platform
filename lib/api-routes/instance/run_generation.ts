@@ -31,7 +31,7 @@ import { route } from "../route-utils.ts";
 
 // A run's outputs dir holds one module's generated script, execution log and
 // raw CSVs. These reads are run-keyed and mounted ONCE (Tim's ruling
-// 2026-08-18, superseding the 2026-07-30 per-project mount): a package is
+// 2026-08-18): a package is
 // instance-level data, so what it contains is gated on the instance data
 // bits: `can_view_data` for detail/script/files/download, `can_view_logs`
 // for logs, wherever it is explored (the catalogue, the AI tools, MCP). Reader: server/runs/package_internals.ts.

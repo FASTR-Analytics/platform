@@ -9,11 +9,11 @@
 // that is gated is the thing that runs: execute.ts applies the plan inside
 // the 091 migration transaction; validate_consolidation.ts only reports it.
 //
-// FROZEN TYPES: the legacy project-DB row types are copied below from
-// server/db/project/_project_database_types.ts (plus the crdt columns the
-// live types omit), and the nanoid alphabet from server/utils/id_generation.ts.
-// Those describe a schema that will exist nowhere else in the repo, so they
-// are frozen here rather than imported from files 9b deletes. The slide
+// FROZEN TYPES: the legacy project-DB row types below describe a schema that
+// exists nowhere else in the repo (they were copied from the deleted
+// server/db/project/_project_database_types.ts, plus the crdt columns those
+// omitted), and the nanoid alphabet is frozen beside them rather than imported
+// from server/utils/id_generation.ts. The slide
 // layout walker and ProductType survive the restructure and are imported.
 //
 // ID COLLISIONS (D9 item 6, D14): project DBs were created WITH TEMPLATE, so

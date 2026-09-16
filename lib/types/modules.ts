@@ -85,8 +85,8 @@ export type MetricWithStatus = ResultsValue & {
   vizPresets?: VizPreset[];
 };
 
-// The attached run's module catalog entry as the client sees it (built from
-// the run manifest: no live project-DB state).
+// A package's module catalog entry as the client sees it (built from the run
+// manifest).
 //
 // `id` is a plain string, on the READ PLANE rule (PLAN_1a §0 clause 3): a
 // package's module ids come from its own manifest and are read as text.
@@ -149,32 +149,6 @@ export function getMergedModuleConfigSelections(
 export type ModuleConfigSelections = {
   parameterDefinitions: ModuleParameter[];
   parameterSelections: Record<string, string>;
-};
-
-export type CompareProjectsModuleParameter = {
-  replacementString: string;
-  description: string;
-  value: string;
-};
-
-// Sourced from each project's attached results package manifest: a package
-// records one generation, at one module git ref.
-export type CompareProjectsModule = {
-  id: string;
-  label: string;
-  lastRunAt: string;
-  lastRunGitRef?: string;
-  parameters: CompareProjectsModuleParameter[];
-};
-
-export type CompareProjectsData = {
-  projects: {
-    id: string;
-    label: string;
-    // The attached package's manifest label; null = no package, or unreadable.
-    packageLabel: string | null;
-    modules: CompareProjectsModule[];
-  }[];
 };
 
 export function get_PERIOD_OPTION_MAP(): Record<PeriodOption, string> {

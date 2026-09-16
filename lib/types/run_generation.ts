@@ -12,12 +12,12 @@ import type { RunProvenance, RunSummary } from "./run_manifest.ts";
 // persisted server-side before that) and the run pipeline (execution state
 // lives on the runs catalog row: runs.status + runs.progress). The wizard is
 // entered from the instance shell: generation is an instance-level act, and
-// a run attaches to projects rather than belonging to one.
+// products point at a run rather than a run belonging to one.
 
 // Step 1, choose data: plain family-inclusion checkboxes. Generation always
 // captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION ruling
-// 2026-08-03): subsetting is a per-project attach-time concern, never a
-// generation-time one.
+// 2026-08-03): a product narrows by its scope at read time, never at
+// generation.
 export const runGenerationStep1ResultSchema = z.object({
   hmis: z.boolean(),
   hfa: z.boolean(),
@@ -130,10 +130,8 @@ export type RunDetail = {
   }[];
 };
 
-// One module's raw output files inside a package. Named rather than inlined
-// because the same listing is served by two mounts under two permission
-// models: the instance catalogue by runId, a project by its own attached
-// package (see server/runs/package_internals.ts).
+// One module's raw output files inside a package (see
+// server/runs/package_internals.ts).
 export type RunModuleFileListing = {
   files: { name: string; sizeBytes: number }[];
 };

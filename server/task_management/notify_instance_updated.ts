@@ -105,8 +105,7 @@ export function notifyInstanceFoldersUpdated(folders: Folder[]) {
 
 // The instance channel's row-level stamp: `slides` only. A product's own
 // stamp rides its products_upserted summary, so emitting it here too would
-// version the same read twice. The project channel's notifyLastUpdated is
-// untouched until 9b.
+// version the same read twice.
 export function notifyInstanceLastUpdated(
   tableName: LastUpdateTableName,
   ids: string[],
@@ -153,14 +152,12 @@ export function notifyInstancePopulationUpdated(
   notifyInstanceUpdate({ type: "population_updated", data });
 }
 
-// The catalogue's T1 signal (the projects_last_updated pattern): a data-free
-// signal broadcast: each entitled client refetches via listRunCatalog,
+// The catalogue's T1 signal: a data-free broadcast: each entitled client refetches via listRunCatalog,
 // whose guard is evaluated per request, so nothing sensitive rides the wire
 // and no per-connection filtering is needed. Fired by every in-process
 // catalogue mutation: launch (incl. its row-created-then-failed path),
-// delete, worker finalize/fail/crash, attach/repoint, and the
-// projects.run_id/label movers (project force-delete, copy completion,
-// rename).
+// delete, worker finalize/fail/crash, pin and unpin, and the products.run_id
+// movers (product package change, duplicate, delete).
 //
 // The value is a NONCE, not a timestamp: two mutations in the same
 // millisecond minted identical ISO strings, and the client store's equality
@@ -175,17 +172,17 @@ export function notifyInstanceRunsCatalogUpdated() {
   });
 }
 
-// The pinned package moved or was cleared (SYSTEM_08 "The pinned package
-// + followers"). Plain unfiltered broadcast: a bare run id is not
-// sensitive, and it is the one field every Pinned badge derives from.
-// Callers ALSO re-nonce the catalogue (a pin-move moves attachedProjects).
+// The pinned package moved or was cleared (SYSTEM_08 "The pinned package").
+// Plain unfiltered broadcast: a bare run id is not sensitive, and it is the
+// one field every Pinned badge derives from. Callers ALSO re-nonce the
+// catalogue, whose rows carry the pinned flag.
 export function notifyInstancePinnedRunUpdated(pinnedRunId: string | null) {
   notifyInstanceUpdate({ type: "pinned_run_updated", data: { pinnedRunId } });
 }
 
 // Results-package generation telemetry, for the instance catalogue (Q-B):
-// the ONLY channel it rides: a project is attached only once a run is
-// ready, so no project channel has a live view to feed. routesInstanceSSE
+// the ONLY channel it rides: a product points only at a ready run, so
+// nothing else has a live view to feed. routesInstanceSSE
 // drops both messages for callers without can_configure_data (live filter).
 export function notifyInstanceRunProgress(runId: string, progress: RunProgress) {
   notifyInstanceUpdate({ type: "run_progress", data: { runId, progress } });

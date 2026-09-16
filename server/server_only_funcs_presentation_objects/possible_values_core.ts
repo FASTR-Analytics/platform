@@ -211,7 +211,7 @@ export async function getPossibleValuesCore(
         queryContext.datasetFamily,
       );
 
-      // Check if the disaggregation option column exists in project facilities table
+      // Check if the disaggregation option column exists in the facilities table
       if (columnPrefixes.has(disaggregationOption)) {
         const columnExists = await deps.columnExists(
           facilitiesTable,
@@ -220,7 +220,7 @@ export async function getPossibleValuesCore(
         if (!columnExists) {
           return {
             success: false,
-            err: `Column ${disaggregationOption} does not exist in project facilities table`,
+            err: `Column ${disaggregationOption} does not exist in the facilities table`,
           };
         }
       }

@@ -29,7 +29,7 @@ const KEEP_REASON_LABEL: Record<KeepReason, { en: string; fr: string; pt: string
 
 // Bulk guarded delete (PLAN_PRUNE): the plan is snapshotted from T1 at
 // confirm, then each package goes through the SAME single delete the detail
-// pane uses, in turn. A guard refusal (a project attached between confirm
+// pane uses, in turn. A guard refusal (a product attached between confirm
 // and that package's turn) is an outcome by label, never an abort. Nothing
 // is refetched: every delete pushes runs_catalog_updated and the sidebar
 // shrinks live. No cancel while running: every completed step was a whole

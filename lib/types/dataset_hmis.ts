@@ -19,8 +19,7 @@ export type DatasetHmisVersion = {
 // ============================================================================
 
 // Authoritative windowing schemas: the instance delete-data route body
-// validates against these; kept in lib for per-project data subsetting
-// (PLAN_1_PROJECT_AA2_SCOPE). Generation no longer windows.
+// validates against these. Generation no longer windows.
 const datasetHmisWindowingBaseSchema = z.object({
   start: z.number(),
   end: z.number(),

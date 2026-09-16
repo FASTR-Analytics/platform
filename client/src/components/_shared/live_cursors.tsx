@@ -79,9 +79,8 @@ export type PointerAwarenessState = {
         x: number;
         y: number;
       }
-    // (There is no "page" surface: list-page cursors rode the project-level
-    // page-awareness relay, which went with the project tier, D8. Every
-    // remaining surface belongs to a document session.)
+    // (There is no "page" surface: every surface belongs to a document
+    // session.)
     // A named CHROME region of any surface family ([data-cursor-zone]
     // element: header bars, side panels, the area around a canvas). Zones
     // are per-user resizable/collapsible, so each is its own coordinate

@@ -16,7 +16,8 @@ import { runDirPath } from "./run_paths.ts";
 // reclaims a run's disk.
 //
 // Order matters: the catalog row goes FIRST, inside its own guard (refused
-// while any project points at the run or it is still generating), because
+// while any product points at the run, while it is pinned, or while it is
+// still generating), because
 // the row is what makes a run reachable. If the directory removal then
 // fails, the loss is disk, not correctness; a half-deleted run that was
 // still listed would be an attachable package with no files.

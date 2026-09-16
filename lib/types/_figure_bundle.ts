@@ -3,8 +3,8 @@
 // =============================================================================
 //
 // A FigureBundle freezes everything `buildFigureInputs` needs: config, queried
-// items, resultsValue projection, metadata, localization, and provenance. After
-// P2 cutover, slides/dashboards/reports store this instead of FigureInputs.
+// items, resultsValue projection, metadata, localization, and provenance.
+// Slides and reports store this instead of FigureInputs.
 //
 // Phase 2 (current): stored schemas use this bundle shape; boot-time backfill
 // converts old figureInputs/source rows; sentinel layer deleted.
@@ -77,7 +77,7 @@ const _rv: Required<ResultsValueForVisualization> = {
 resultsValueForVisualizationSchema.parse(_rv);
 
 // Discriminated union: live editor passes level (derives GeoJSON from sync
-// cache); stored bundles (dashboards/slides/reports) embed the full GeoJSON.
+// cache); a bundle may instead embed the full GeoJSON.
 // family selects the registry's map; optional and additive: stored
 // {kind:"level"} bundles without it default to hmis at resolution (same
 // ruling as ResultsValue.datasetFamily absence), no force block needed.

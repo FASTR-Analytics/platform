@@ -156,8 +156,8 @@ function validateDefinition(
   // this is the one place that can guarantee no definition VERSION produces a
   // stale declaration. Without it the version-gated manifest repair is
   // unreachable for the packages that need it most: a run generated from an
-  // un-flipped definition (the mandated deploy order, or a project pinned to
-  // an older gitRef) stamps the CURRENT schema version onto a manifest
+  // un-flipped definition (the mandated deploy order, or a generation pinned
+  // to an older gitRef) stamps the CURRENT schema version onto a manifest
   // carrying the old value, and block 2 never runs again.
   for (const metric of result.data.metrics) {
     if (INDICATOR_FORMAT_METRIC_IDS.includes(metric.id)) {

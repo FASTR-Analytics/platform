@@ -15,8 +15,7 @@ export type SqlRowsExecutor = (
 ) => Promise<Record<string, unknown>[]>;
 
 // The run identity every data payload carries (PLAN_RESULTS_RUNS ruling 4):
-// the immutable run it was served from and the project scope it was computed
-// under. Cache keys and the client's response guard compare exactly these.
+// the immutable run it was served from and the scope it was computed under. Cache keys and the client's response guard compare exactly these.
 export type RunVersionInfo = {
   runId: string;
   scopeToken: string;

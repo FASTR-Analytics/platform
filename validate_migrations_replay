@@ -120,7 +120,7 @@ if ! (cd "$SCRIPT_DIR" && PG_HOST=localhost PG_PORT="$DB_PORT" PG_PASSWORD="$DB_
 fi
 
 MIGRATION_COUNT=$(docker exec "$CONTAINER_NAME" psql -U "$DB_USER" -d main -tAc "SELECT count(*) FROM schema_migrations")
-FILE_COUNT=$(ls "$MIGRATION_DIR"/*.sql | grep -v "/_" | wc -l | tr -d ' ')
+FILE_COUNT=$(ls "$MIGRATION_DIR"/*.sql "$MIGRATION_DIR"/*.ts | grep -v "/_" | wc -l | tr -d ' ')
 if [[ "$MIGRATION_COUNT" != "$FILE_COUNT" ]]; then
     fail "Fresh boot recorded $MIGRATION_COUNT migrations, expected $FILE_COUNT."
     exit 1

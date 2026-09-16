@@ -11,8 +11,8 @@ import {
 // The run manifest (PLAN_RESULTS_RUNS §2.2): written once by the finalize
 // step of a generation, the ONLY thing readers consult at query time. Precomputed, never probed: every fact the
 // read path used to discover via per-request column probes is stamped here.
-// Identity is in the artifact: runId required, and no projectId or any other
-// instance FK inside run files (§9 layer rule).
+// Identity is in the artifact: runId required, and no instance FK inside run
+// files (§9 layer rule).
 
 // 3: gained `indicators`, the per-module resolved indicator catalog, so the
 // read path stops re-deriving it from the input mirrors on every request.
@@ -86,8 +86,7 @@ export const runResultsObjectSchema = z.object({
 export type RunResultsObject = z.infer<typeof runResultsObjectSchema>;
 
 // Module catalog entry: the installed definition verbatim (raw JSON string,
-// exactly as the project-DB modules table stores it, so existing parsers
-// apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
+// exactly as installed, so existing parsers apply unchanged). inputKey/outputFileHashes are the §3.7 memoization
 // fields: schema-present from the first manifest, computed by generation;
 // packages synthesized during the 2026-08 fleet cutover carry null and are
 // never reuse sources.
@@ -195,8 +194,8 @@ export const runModuleIndicatorsSchema = z.object({
 export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
 
 // The package's HMIS indicator dictionary as a reader needs it: the AI
-// copilot's grounding (lib/ai_tools/build_system_prompt.ts) and the project
-// state that carries it there. Stamped at finalize from the run's own
+// copilot's grounding (lib/ai_tools/build_system_prompt.ts) and the authoring
+// context that carries it there. Stamped at finalize from the run's own
 // indicators mirror, and by manifest transform block 4 for older packages.
 // Before v6 the read path re-opened that mirror on every request; this field
 // is that derivation moved to where every other package fact already lives:

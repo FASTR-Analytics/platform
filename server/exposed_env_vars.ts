@@ -168,7 +168,7 @@ if (Number.isNaN(_PORT)) {
 
 /** Browser origins allowed to call this API with credentials (CLIENT_ORIGIN,
  *  comma-separated). Shared by the HTTP CORS middleware and the collab
- *  WebSocket's Origin allowlist (project-collab.ts): WS handshakes are not
+ *  WebSocket's Origin allowlist (routes/instance/collab.ts): WS handshakes are not
  *  subject to CORS, so the socket enforces this list itself. */
 export const _CLIENT_ORIGINS = Deno.env.get("CLIENT_ORIGIN")?.split(",") || [
   "http://localhost:3000",

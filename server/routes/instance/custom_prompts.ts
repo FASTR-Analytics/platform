@@ -11,7 +11,7 @@ import { defineRoute } from "../route-helpers.ts";
 export const routesCustomPrompts = new Hono();
 
 // requireGlobalPermission() with no permissions only authenticates: it never
-// checks `approved` (unlike requireProjectPermission). Prompts are a
+// checks `approved` (unlike requireApprovedUser()). Prompts are a
 // prompt-injection surface (country-scoped ones are offered to every user's
 // copilot), so every handler rejects unapproved users, and publishing or
 // re-scoping to "country" is admin-only.

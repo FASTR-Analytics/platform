@@ -117,10 +117,10 @@ export type CollabClientMessage =
 // handler touches it (routes/instance/collab.ts). Handlers dereference msg.data
 // directly, so without this a malformed frame threw into the process-level
 // error backstop; the length bounds also cap the amplification surface:
-// presence fields are re-serialized to every project connection on every
-// presence change, and awareness frames relay to whole rooms.
+// presence fields are re-serialized to every connection in the product on
+// every presence change, and awareness frames relay to whole rooms.
 
-/** Document ids: slide and product ids are short nanoids, POs are UUIDs. */
+/** Document ids: slide and product ids are short nanoids. */
 const collabIdSchema = z.string().min(1).max(64);
 /** Yjs state vectors are a few bytes per client that ever wrote to the doc. */
 const stateVectorSchema = z.string().max(128 * 1024);

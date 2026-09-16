@@ -33,8 +33,8 @@ import type { ResolvedRunModule } from "./resolve_modules.ts";
 // ReuseSourceMissingError and the pipeline falls back to a real run (fails
 // closed).
 //
-// A generation writes ONLY into the run: no project-DB table is touched.
-// Rollback is a hosting-level volume restore.
+// A generation writes ONLY into the run. Rollback is a hosting-level volume
+// restore.
 
 export class ReuseSourceMissingError extends Error {}
 
@@ -54,9 +54,9 @@ export async function executeRunModule(args: {
   const { module: mod } = args;
   const moduleId = mod.moduleId;
   // The live R line goes to the instance catalogue only (Q-B/(e)):
-  // generation is an instance act and a project is attached only once the
-  // run is ready, so no project channel has a live view to feed. The full
-  // log is captured in the run either way.
+  // generation is an instance act and a product points only at a ready run,
+  // so nothing else has a live view to feed. The full log is captured in the
+  // run either way.
   const notifyRScript = (line: string) => {
     notifyInstanceRScript(args.runId, moduleId, line);
   };

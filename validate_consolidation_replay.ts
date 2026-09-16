@@ -175,11 +175,11 @@ async function negativeControlMigrationDir(variant: ShellVariant): Promise<strin
   let shell = await Deno.readTextFile(join(INSTANCE_DIR, "000_legacy_project_shell.sql"));
   if (variant === "no_aggregate_alter") {
     shell = shell.replace(
-      "ALTER TABLE user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;",
+      "ALTER TABLE IF EXISTS user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;",
       "",
     );
   } else if (variant === "no_log_alters") {
-    shell = shell.replaceAll(/ALTER TABLE \w+ ADD COLUMN IF NOT EXISTS project_id text;/g, "");
+    shell = shell.replaceAll(/ALTER TABLE IF EXISTS \w+ ADD COLUMN IF NOT EXISTS project_id text;/g, "");
   }
   await Deno.writeTextFile(join(dir, "000_legacy_project_shell.sql"), shell);
   return dir;

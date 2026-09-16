@@ -19,7 +19,9 @@
 -- their project_id column even though their CREATE TABLE IF NOT EXISTS
 -- no-ops. Verified by ./validate_consolidation_replay: without the
 -- user_logs_aggregate ALTER a fresh boot fails at 035, without any of the
--- three at 016.
+-- three at 016. They are IF EXISTS because a base older than a log table
+-- (./validate_migrations_replay's fleet shapes) gets that table, with its
+-- project_id column, from the later migration that creates it.
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -65,6 +67,6 @@ CREATE TABLE IF NOT EXISTS project_user_roles (
 CREATE INDEX IF NOT EXISTS idx_project_user_roles_email ON project_user_roles(email);
 CREATE INDEX IF NOT EXISTS idx_project_user_roles_project_id ON project_user_roles(project_id);
 
-ALTER TABLE user_logs ADD COLUMN IF NOT EXISTS project_id text;
-ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS project_id text;
-ALTER TABLE user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;
+ALTER TABLE IF EXISTS user_logs ADD COLUMN IF NOT EXISTS project_id text;
+ALTER TABLE IF EXISTS ai_usage_logs ADD COLUMN IF NOT EXISTS project_id text;
+ALTER TABLE IF EXISTS user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;

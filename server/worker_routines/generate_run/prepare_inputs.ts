@@ -45,13 +45,11 @@ import { sha256HexOfFile } from "./input_key.ts";
 import type { HfaSentinelRow } from "../../server_only_funcs/get_script_with_parameters_hfa.ts";
 
 // Stage 1 of the run pipeline: prepare inputs (PLAN_RESULTS_RUNS item 2;
-// COPY TO re-targeted by item 7, binding decision 4; project-DB writes
-// deleted by the Phase 3 re-cut, ruling 5). The dataset CAPTURE functions do
-// every instance-DB read plus the `COPY … TO` that writes each extract
-// DIRECTLY into the run's inputs/datasets/ (the Postgres container writes
-// through the runs volume via the _POSTGRES_INTERNAL namespace). Nothing is
-// written to any project database: the captured rows become this run's own
-// input mirrors (JSON + facilities parquet) and its manifest datasets info,
+// COPY TO re-targeted by item 7, binding decision 4). The dataset CAPTURE
+// functions do every instance-DB read plus the `COPY … TO` that writes each
+// extract DIRECTLY into the run's inputs/datasets/ (the Postgres container
+// writes through the runs volume via the _POSTGRES_INTERNAL namespace). The
+// captured rows become this run's own input mirrors (JSON + facilities parquet) and its manifest datasets info,
 // and they feed script generation. A family not selected in step 1 simply
 // has no extract and no manifest entry.
 
@@ -73,13 +71,11 @@ export type PreparedRunInputs = {
   population: RunPopulation | null;
   // Relative paths (from the run dir root) for the manifest's inputFiles.
   extraInputFiles: string[];
-  // Manifest `datasets` entries, built from the captures (the project
-  // `datasets` table is never written or read on this path).
+  // Manifest `datasets` entries, built from the captures.
   datasets: RunManifestDataset[];
   // Facilities tables captured into the run, with their parquet columns.
   facilitiesTables: { tableName: string; columns: ExportedColumn[] }[];
-  // Everything script generation needs (previously re-read from the project
-  // snapshot tables the dual-write had just populated).
+  // Everything script generation needs.
   scriptInputs: {
     knownDatasetVariables: Set<string>;
     hfaIndicators: HfaIndicator[];
@@ -96,7 +92,7 @@ export type PreparedRunInputs = {
   };
 };
 
-// The project facilities tables are all-text; the run parquet declares the
+// The captured facilities columns are all-text; the run parquet declares the
 // same (§2.3 declared types, never inferred).
 const FACILITY_PARQUET_COLUMNS: ExportedColumn[] =
   RUN_FACILITY_COLUMN_NAMES.map((name) => ({
@@ -222,10 +218,10 @@ export async function prepareRunInputs(
     scriptInputs.knownDatasetVariables = new Set(
       capture.indicatorsHfa.map((r) => r.var_name),
     );
-    // Script generation consumed these through the project snapshot reader,
-    // which ordered by category → sub-category → indicator sort order. The
-    // order reaches the generated R script (hence the module inputKey), so
-    // it is reproduced here rather than inherited from the instance query.
+    // Script generation takes these in category → sub-category → indicator
+    // sort order. The order reaches the generated R script (hence the module
+    // inputKey), so it is fixed here rather than inherited from the instance
+    // query.
     const categoryOrder = new Map(
       capture.categories.map((c) => [c.id, c.sort_order]),
     );

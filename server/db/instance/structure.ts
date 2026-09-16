@@ -94,7 +94,7 @@ export function facilitiesTableForFacilityFamily(
   return family === "hmis" ? "facilities_hmis" : "facilities_hfa";
 }
 
-// Project AA2 identity is registry-agnostic, so this picker unions both
+// A product's AA2 scope is registry-agnostic, so this picker unions both
 // families' level-2 trees (UNION dedupes exact matches).
 export async function listAdminArea2s(
   mainDb: Sql

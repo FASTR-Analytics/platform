@@ -8,7 +8,6 @@ import { icehRouteRegistry } from "./instance/iceh.ts";
 import { indicatorRouteRegistry } from "./instance/indicators.ts";
 import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
-import { instanceModuleRouteRegistry } from "./instance/modules.ts";
 import { populationRouteRegistry } from "./instance/population.ts";
 import { runGenerationRouteRegistry } from "./instance/run_generation.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
@@ -37,7 +36,6 @@ export const routeRegistryIndividualCount =
   Object.keys(indicatorRouteRegistry).length +
   Object.keys(indicatorsDhis2RouteRegistry).length +
   Object.keys(instanceRouteRegistry).length +
-  Object.keys(instanceModuleRouteRegistry).length +
   Object.keys(populationRouteRegistry).length +
   Object.keys(runGenerationRouteRegistry).length +
   Object.keys(structureRouteRegistry).length +
@@ -64,7 +62,6 @@ export const routeRegistry = {
   ...indicatorRouteRegistry,
   ...indicatorsDhis2RouteRegistry,
   ...instanceRouteRegistry,
-  ...instanceModuleRouteRegistry,
   ...populationRouteRegistry,
   ...runGenerationRouteRegistry,
   ...structureRouteRegistry,

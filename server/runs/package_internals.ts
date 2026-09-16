@@ -16,18 +16,9 @@ import { isRunIdShape, runDirPath } from "./run_paths.ts";
 // Reading a package's INTERNALS: the generated R script, the execution log,
 // and the raw output files under runs/{runId}/outputs/{moduleId}.
 //
-// This module is the single implementation, deliberately, because the same
-// bytes are served through two mounts with two different permission models
-// (PLAN_RESULTS_RUNS, Tim's ruling 2026-07-30):
-//   - the INSTANCE catalogue (routes/instance/run_generation.ts) takes a runId
-//     and is `can_configure_data`, an admin browsing packages, including ones
-//     attached to no project at all;
-//   - a PROJECT (routes/project/results_package.ts) never names a runId. It
-//     resolves the run from `projects.run_id` and gates each kind of content on
-//     the per-project bit built for it: `can_view_script_code` for the script,
-//     `can_view_logs` for the log, `can_view_data` for the raw files.
-// What a package contains does not depend on who is asking; only the chrome
-// and the guard do. Hence: one reader, two guards.
+// The readers are mounted once, run-keyed, on the instance routes
+// (routes/instance/run_generation.ts): `can_view_data` for the script and the
+// raw files, `can_view_logs` for the log.
 //
 // Path safety is enforced HERE rather than at each route, because these
 // (with the run-lens read context, run_query/run_read.ts) are the only

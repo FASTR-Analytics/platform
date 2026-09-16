@@ -384,7 +384,7 @@ export async function getIcehIndicatorsFromManifestInputs(
 // The HFA taxonomy, from the run's captured indicator/category mirrors. Time
 // points are not run content (HFA survey rounds are instance-wide T1 state),
 // so they are absent here and composed in by each consumer that needs the
-// full HfaTaxonomyForAI (getProjectDetail, server/mcp/context_cache.ts).
+// full HfaTaxonomyForAI (server/mcp/context_cache.ts).
 export async function getHfaTaxonomyFromManifestInputs(
   ctx: RunInputSource,
 ): Promise<RunAuthoringContextHfaTaxonomy> {
@@ -592,8 +592,7 @@ export function resolveMetricFromRun(
 
 // ── The run-derived catalog as the client sees it (T1 store) ─────────────────
 
-// The manifest module catalog → InstalledModuleSummary[], sorted by id, the
-// project's modules ARE the attached run's modules (no live project-DB state).
+// The manifest module catalog → InstalledModuleSummary[], sorted by id.
 export function getModuleSummariesFromManifest(
   manifest: RunManifest,
 ): InstalledModuleSummary[] {

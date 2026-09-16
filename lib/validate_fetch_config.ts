@@ -113,8 +113,8 @@ export function isValidIntegerFilterValue(v: string | number): boolean {
 }
 
 // The route-boundary schema for a fetch config, co-located with the
-// imperative validateFetchConfig below so the two halves can't drift (both
-// mounts of the data reads, project and run-keyed, validate with this).
+// imperative validateFetchConfig below so the two halves can't drift (the
+// run-keyed data reads validate with this).
 // SQL injection guards: these fields are interpolated into unsafe SQL.
 // groupBys / filters[].disOpt / replicateBy → closed enum (period options are
 // a subset); values[].prop → bare SQL identifier; postAggregationExpression →

@@ -32,11 +32,10 @@ import {
   type RunReadContext,
 } from "./run_read.ts";
 
-// The three package-data reads a route serves, written once over a
-// RunReadContext and mounted twice: the run-keyed instance routes
+// The three package-data reads the run-keyed instance routes serve
 // (routes/instance/run_generation.ts, the caller supplying the (runId,
-// adminArea2) pair its product carries) and, until step 9b, the project lens
-// (routes/project/presentation_objects.ts). Cache check before the queue (a
+// adminArea2) pair its product carries), written once over a RunReadContext.
+// Cache check before the queue (a
 // duplicate must not consume a slot), then the expensive query under the
 // shared concurrency limit. The queues are module-level on purpose: the limit
 // is per process, not per mount.

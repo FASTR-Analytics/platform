@@ -37,7 +37,7 @@ export function escapeSqlString(s: string): string {
 
 /**
  * Check if a table has any rows
- * @param db - The project database connection
+ * @param db - The database connection
  * @param tableName - The name of the table to check
  * @returns true if table has rows, false if empty or doesn't exist
  */

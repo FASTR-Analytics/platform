@@ -276,7 +276,7 @@ const PINNED_RUN_ADVISORY_LOCK_KEY = 727402;
 // (`runs_one_pinned`) per row as an UPDATE proceeds, so `SET pinned = (id =
 // $1) WHERE pinned OR id = $1` trips it whenever the new row is visited
 // before the old. The ready gate is IN the pinning UPDATE exactly as in
-// setProjectAttachedRun: a run that failed or was deleted between the click
+// setProductRun: a run that failed or was deleted between the click
 // and the write cannot become pinned, and a zero-row second UPDATE throws
 // to roll the unpin back, so a bad target leaves the current pin untouched.
 // The re-read then says why.

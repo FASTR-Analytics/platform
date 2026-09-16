@@ -37,7 +37,6 @@ import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
 import { routesGeoJsonMaps } from "./server/routes/instance/geojson_maps.ts";
 import { routesPopulation } from "./server/routes/instance/population.ts";
-import { routesInstanceModules } from "./server/routes/instance/modules.ts";
 import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 
 import { routesCollab } from "./server/routes/instance/collab.ts";
@@ -166,7 +165,6 @@ app.route("/", routesHfaTimePoints);
 app.route("/", routesIceh);
 app.route("/", routesIndicators);
 app.route("/", routesIndicatorsDhis2);
-app.route("/", routesInstanceModules);
 app.route("/", routesEmails);
 app.route("/", routesProducts);
 app.route("/", routesFolders);
