@@ -634,6 +634,60 @@ function markSpans(lineText: string): MarkSpan[] {
   return out;
 }
 
+// ── Splitting a text island ──────────────────────────────────────────────────
+
+export type IslandSplit = {
+  // What the island's source lines become: the two blocks, and the blank
+  // line or list marker that separates them.
+  insert: string;
+  // Where the new block starts inside `insert`.
+  at: number;
+  // Lines from the island's first line down to the new block.
+  rel: number;
+  // The new block is the placeholder, for the caller to select so the first
+  // keystroke replaces it.
+  placeholder: boolean;
+};
+
+// Enter inside a rendered block's text (live_preview_extension's islands):
+// the island's own source, split at the caret into two blocks. A list item
+// gets a sibling item with the same marker; anything else gets a second
+// paragraph under a blank line.
+//
+// Two rules the source imposes, neither of them obvious from the caret:
+// a new paragraph with NOTHING in it renders nothing at all, so there would
+// be no island for the author to type in (the focus they pressed Enter to
+// move), hence the placeholder; and an item's source carries its own marker,
+// so a caret inside that marker would leave a blank line where the item was
+// and break the list in two, hence the cut never lands before the text.
+export function splitTextIsland(
+  text: string,
+  caret: number,
+  // The list item's marker, `- ` or `3. ` with its indent, or undefined for
+  // a paragraph or a heading.
+  marker: string | undefined,
+  placeholderLabel: string,
+): IslandSplit {
+  const cut = Math.max(caret, marker?.length ?? 0);
+  const before = text.slice(0, cut).trimEnd();
+  const rest = text.slice(cut).trimStart();
+  const placeholder = rest.length === 0 && marker === undefined;
+  const joiner = marker !== undefined ? `\n${marker}` : "\n\n";
+  const after = placeholder ? placeholderLabel : rest;
+  return {
+    insert: `${before}${joiner}${after}`,
+    at: before.length + joiner.length,
+    rel: before.split("\n").length + (marker === undefined ? 1 : 0),
+    placeholder,
+  };
+}
+
+// The marker of a list item's source line, for splitTextIsland: a bullet or
+// a number with its indent and trailing space.
+export function listMarkerOf(text: string): string {
+  return /^(\s*(?:[-*+]|\d+\.)\s+)/.exec(text)?.[1] ?? "- ";
+}
+
 // ── Line-level actions ───────────────────────────────────────────────────────
 
 const HEADING_RE = /^(\s*)(#{1,6})\s+/;
