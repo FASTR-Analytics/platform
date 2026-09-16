@@ -250,7 +250,15 @@ function setMarkAttrsEdit(
   apply: (current: FastrMarkAttrs) => FastrMarkAttrs,
 ): EditResult {
   const existing = findEnclosingMark(doc, from, to);
-  if (existing) {
+  // A caret inside a mark, or a selection that takes its whole label, acts on
+  // the MARK itself: that is the toggle, and it is what the second click on a
+  // just-marked phrase sees (the first click leaves the whole mark selected).
+  // A selection of PART of a label falls through to the segment rewrite below,
+  // which splits the mark in three rather than styling the rest of a phrase
+  // the author never selected.
+  const whole = existing !== undefined &&
+    (from === to || (from <= existing.from + 1 && to >= existing.textEnd));
+  if (existing && whole) {
     const next = apply(existing.attrs);
     if (isEmptyFastrMarkAttrs(next)) {
       return {
@@ -261,14 +269,12 @@ function setMarkAttrsEdit(
         selection: { anchor: existing.from, head: existing.textEnd - 1 },
       };
     }
+    const tail = `]${serializeFastrMarkAttrs(next)}`;
+    // Setting what the mark already carries changes nothing, and dispatching
+    // it would churn the undo history and everyone else's session for free.
+    if (tail === doc.slice(existing.textEnd, existing.to)) return NONE;
     return {
-      changes: [
-        {
-          from: existing.textEnd,
-          to: existing.to,
-          insert: `]${serializeFastrMarkAttrs(next)}`,
-        },
-      ],
+      changes: [{ from: existing.textEnd, to: existing.to, insert: tail }],
     };
   }
   // No selection: act on the word under the caret. A selection: act on each
@@ -281,43 +287,61 @@ function setMarkAttrsEdit(
     ? (word ? [word] : [])
     : selectionLineSlices(doc, from, to);
   const changes: TextEdit[] = [];
-  let only: TextEdit | undefined;
+  let only: MarkRewrite | undefined;
   let lastEnd = -1;
   for (const slice of slices) {
     const edit = rewriteRangeMarks(doc, slice.from, slice.to, apply);
     if (!edit) continue;
     // Two slices can absorb the SAME mark (a pipe inside a mark's label sits
     // in two pipe-split slices) — the second rewrite would overlap the first,
-    // so it is dropped rather than dispatched as an invalid changeset.
+    // so it is dropped rather than dispatched as an invalid changeset. The
+    // test is the stretch the rewrite OWNS, not the trimmed change it emits:
+    // two trimmed changes inside one mark do not overlap and would land as a
+    // pair of half-rewrites.
     if (edit.from < lastEnd) continue;
     lastEnd = edit.to;
-    changes.push(edit);
+    changes.push(edit.change);
     only = changes.length === 1 ? edit : undefined;
   }
   if (changes.length === 0) return NONE;
   return {
     changes,
-    // Single slice: keep the rewritten stretch selected, so a second click
+    // Single slice: keep the marked stretch selected, so a second click
     // patches or unwraps it (a full-span selection counts as enclosed).
     // Multiple slices: let the editor map the old selection through.
     selection: only === undefined
       ? undefined
-      : { anchor: only.from, head: only.from + only.insert.length },
+      : { anchor: only.patched.from, head: only.patched.to },
   };
 }
 
-// One line-local range rebuilt as FLAT mark segments: existing marks the
-// range cuts into are absorbed whole, each segment (plain text or a mark's
-// label) gets `apply` over its own current attrs, and neighbours that end up
-// with identical attrs merge. This is what makes "size the whole phrase" over
-// a partly-sized phrase produce ONE mark — and lets a mark keep its role while
-// a size sweeps across it, as flat adjacent marks rather than nesting.
+type MarkRewrite = {
+  // The stretch the rewrite OWNS: the caller's range grown to whole marks.
+  from: number;
+  to: number;
+  // The minimal edit inside that stretch: what actually differs.
+  change: TextEdit;
+  // What `apply` touched, in post-edit positions, for the caller to leave
+  // selected: the phrase the author acted on, not the marks flanking it.
+  patched: { from: number; to: number };
+};
+
+// One line-local range rebuilt as FLAT mark segments: a mark the range
+// overlaps is rewritten whole (half a `[x]{…}` is not a document), but each
+// piece gets `apply` over its OWN current attrs and only where the range
+// covers it (the part of a label inside the range, the parts outside it, the
+// plain text between marks), and neighbours that end up with identical attrs
+// merge again. This is what makes "size the whole phrase" over a partly-sized
+// phrase produce ONE mark, lets a mark keep its role while a size sweeps
+// across it as flat adjacent marks rather than nesting, and underlines HALF a
+// sized phrase by splitting that phrase in three rather than styling the rest
+// of a sentence nobody selected.
 function rewriteRangeMarks(
   doc: string,
   from: number,
   to: number,
   apply: (current: FastrMarkAttrs) => FastrMarkAttrs,
-): TextEdit | undefined {
+): MarkRewrite | undefined {
   const line = lineAt(doc, from);
   const spans = markSpans(line.text).map((s) => ({
     attrs: s.attrs,
@@ -325,47 +349,102 @@ function rewriteRangeMarks(
     textEnd: line.from + s.textEnd,
     to: line.from + s.to,
   }));
-  let a = from;
-  let b = Math.min(to, line.to);
+  // The range `apply` acts on stays the caller's; the range rewritten around
+  // it grows over every mark that range cuts into.
+  const actFrom = from;
+  const actTo = Math.min(to, line.to);
+  let a = actFrom;
+  let b = actTo;
   for (const s of spans) {
     if (s.from < b && s.to > a) {
       a = Math.min(a, s.from);
       b = Math.max(b, s.to);
     }
   }
-  type Segment = { label: string; attrs: FastrMarkAttrs };
+  type Segment = { label: string; attrs: FastrMarkAttrs; acted: boolean };
   const segments: Segment[] = [];
+  const push = (
+    labelFrom: number,
+    labelTo: number,
+    attrs: FastrMarkAttrs,
+    acted: boolean,
+  ) => {
+    if (labelTo <= labelFrom) return;
+    segments.push({ label: doc.slice(labelFrom, labelTo), attrs, acted });
+  };
   let pos = a;
   for (const s of spans) {
     if (s.from >= b || s.to <= a) continue;
-    if (s.from > pos) {
-      segments.push({ label: doc.slice(pos, s.from), attrs: apply({}) });
+    // Plain text between the marks: all of it lies inside the caller's range,
+    // since the growth above only ever swallows a mark covering an END of it.
+    if (s.from > pos) push(pos, s.from, apply({}), true);
+    const labelFrom = s.from + 1;
+    const hitFrom = Math.max(labelFrom, actFrom);
+    const hitTo = Math.min(s.textEnd, actTo);
+    if (hitFrom >= hitTo) {
+      // The range reaches the mark but not its label: only its `{…}` tail.
+      push(labelFrom, s.textEnd, s.attrs, false);
+    } else {
+      push(labelFrom, hitFrom, s.attrs, false);
+      push(hitFrom, hitTo, apply(s.attrs), true);
+      push(hitTo, s.textEnd, s.attrs, false);
     }
-    segments.push({
-      label: doc.slice(s.from + 1, s.textEnd),
-      attrs: apply(s.attrs),
-    });
     pos = s.to;
   }
-  if (pos < b) segments.push({ label: doc.slice(pos, b), attrs: apply({}) });
+  if (pos < b) push(pos, b, apply({}), true);
   const merged: Segment[] = [];
   for (const seg of segments) {
-    if (seg.label.length === 0) continue;
     const prev = merged[merged.length - 1];
     if (prev !== undefined && sameFastrMarkAttrs(prev.attrs, seg.attrs)) {
       prev.label += seg.label;
+      prev.acted = prev.acted || seg.acted;
     } else {
-      merged.push({ label: seg.label, attrs: seg.attrs });
+      merged.push({ ...seg });
     }
   }
-  const insert = merged.map((seg) =>
-    isEmptyFastrMarkAttrs(seg.attrs)
+  let insert = "";
+  let actedFrom = -1;
+  let actedTo = 0;
+  for (const seg of merged) {
+    const text = isEmptyFastrMarkAttrs(seg.attrs)
       ? seg.label
-      : `[${seg.label}]${serializeFastrMarkAttrs(seg.attrs)}`
-  ).join("");
+      : `[${seg.label}]${serializeFastrMarkAttrs(seg.attrs)}`;
+    if (seg.acted) {
+      if (actedFrom < 0) actedFrom = insert.length;
+      actedTo = insert.length + text.length;
+    }
+    insert += text;
+  }
+  const old = doc.slice(a, b);
   // A rewrite that changes nothing must not dispatch — it would churn the
   // undo history and emit Y.Text ops into everyone else's session.
-  return insert === doc.slice(a, b) ? undefined : { from: a, to: b, insert };
+  if (insert === old) return undefined;
+  const patched = actedFrom < 0
+    ? { from: a, to: a + insert.length }
+    : { from: a + actedFrom, to: a + actedTo };
+  // Dispatch only the stretch that actually differs: a label's untouched text
+  // must not be deleted and reinserted around a splice, or the collab merge
+  // and the who-wrote-this attribution would hand that text to whoever
+  // clicked the toolbar.
+  let head = 0;
+  while (
+    head < old.length && head < insert.length && old[head] === insert[head]
+  ) head++;
+  let tail = 0;
+  while (
+    tail < old.length - head && tail < insert.length - head &&
+    old[old.length - 1 - tail] === insert[insert.length - 1 - tail]
+  ) tail++;
+  return {
+    from: a,
+    to: b,
+    change: {
+      from: a + head,
+      to: b - tail,
+      insert: insert.slice(head, insert.length - tail),
+    },
+    patched,
+  };
 }
 
 // The per-line pieces of a selection an inline action may touch: each line's
