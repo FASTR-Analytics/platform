@@ -476,8 +476,8 @@ gate is history, not tooling.
   The aggregation is not complete and nothing enforces it:
   `db/products/mod.ts` is absent from `db/mod.ts` and its callers deep-import
   it, `instance/mod.ts` omits `dataset_iceh.ts`, `run_generation.ts` and
-  `user_logs.ts`, and `project/mod.ts` omits `visualization_folders.ts`
-  (Open item).
+  `user_logs.ts`, and `project/mod.ts` omits `visualization_folders.ts` and
+  `_project_database_types.ts` (Open item).
 - **`generateUnique*Id`** (`server/utils/id_generation.ts`): short nanoid
   (4-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`; existing 3-char ids
   stay), retry-until-unique (10 attempts) against a specific table: one
@@ -517,7 +517,7 @@ gate is history, not tooling.
 - The restore body's fresh `getPgConnection(projectId)` pool is never
   `.end()`ed, one leaked pool per restore.
 - The `mod.ts` barrels are incomplete: `db/products/mod.ts` is not re-exported
-  by `db/mod.ts` at all, so every products caller deep-imports it, and four
+  by `db/mod.ts` at all, so every products caller deep-imports it, and five
   more siblings are missing from the instance and project barrels (named in
   the Conventions section above).
 - Standardize the PascalCase DB-function stragglers to camelCase.
