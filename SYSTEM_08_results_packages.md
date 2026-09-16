@@ -24,6 +24,7 @@ globs:
   - server/task_management/mod.ts
   - server/tests/m012_expression_parity_test.ts
   - server/tests/run_input_transform_test.ts
+  - server/tests/run_manifest_transform_test.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
   - server/worker_routines/worker_contract.ts
@@ -636,8 +637,13 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `10`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v10 = the indicators mirror's `derived` rows
+**`manifestSchemaVersion` gates every read**, currently `11`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v11 = `datasets[].info` holds exactly the keys
+`lib/types/run_datasets.ts` types for its family: the pre-1.72 HMIS stamp pair
+renamed `indicatorsVersion` / `countIndicatorsVersion`, and the keys nothing
+reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
+`calculatedIndicatorsVersion`, the HFA `_legacy` and `facilityColumnsHash`
+markers) dropped, transform block 9; v10 = the indicators mirror's `derived` rows
 read `calculated`, input block 1; the manifest's own shape is unchanged and
 transform block 8 only stamps; v9 = `hmisIndicators` entries carry the
 indicator's format, direction, target, thresholds and, for a calculated

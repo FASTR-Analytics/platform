@@ -5,8 +5,8 @@ import {
   hashFetchConfig,
   type ItemsHolderPresentationObject,
   type PresentationObjectDetail,
-  type RunReplicantOptions,
   type ResultsValueInfoForPresentationObject,
+  type RunReplicantOptions,
 } from "lib";
 import { TimCacheC } from "../../valkey/cache_class_C.ts";
 
@@ -90,7 +90,9 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "22" (2026-09-15): manifest schema v10 (the indicators mirror's `derived`
 // rows read `calculated`). No cached payload carries the mirror row's type;
 // the bump is the same per-block rule.
-const PO_CACHE_VERSION = "22";
+// "23" (2026-09-16): manifest schema v11 (datasets[].info holds only its
+// typed keys). No cached payload carries dataset info; same per-block rule.
+const PO_CACHE_VERSION = "23";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches: two projects
@@ -117,30 +119,32 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
     scopeToken: string;
   },
   APIResponseWithData<PresentationObjectDetail>
-  // Prefix is versioned: bump it whenever the cached payload SHAPE or
-  // SOURCING changes (the version hash only tracks the row's last_updated +
-  // runId, so a deploy that adds a field or re-sources the payload would
-  // otherwise keep serving old entries for unmodified rows). v2: resultsValue
-  // gained hasFacilityLevelRows. v3 was minted twice on divergent branches
-  // (main: resultsValue.datasetFamily; results-runs: manifest sourcing), so
-  // the merge takes v4: both of those at once. v5: the post-merge semantic
-  // batch populated datasetFamily on the RUN path after v4 was minted:
-  // v4 entries from that window lack the field. v6: manifest schema v3: this
-  // cache carries no code dimension, and a transform rewrites a manifest in
-  // place under the SAME runId, so the prefix is the only thing that can
-  // retire entries sourced from the pre-transform manifest. v7: manifest
-  // schema v4 (declared format): payloads embed resultsValue.formatAs, which
-  // the v4 rewrite flips for the 8 pre-declaration metrics. v9: manifest
-  // schema v6 (PLAN_1a): resultsValue gained catalogExpressionEvaluation,
-  // which decides how the client compiles the fetch config, and v8 entries
-  // carry it as absent. v10: the PO config's `cfMode` enum gained
-  // "indicator" and lost `specialScorecardTable` (PLAN_1d): a v9 payload
-  // embeds the pre-transform config. v11: manifest schema v9 (hmisIndicators
-  // entries carry the interpretation facts); the payload does not embed that
-  // list, the bump is the protocol's per-block rule. v12: manifest schema v10
-  // (the indicators mirror's `derived` rows read `calculated`); the payload
-  // does not carry the mirror row's type, same per-block rule.
->("po_detail_v12", {
+> // Prefix is versioned: bump it whenever the cached payload SHAPE or
+// SOURCING changes (the version hash only tracks the row's last_updated +
+// runId, so a deploy that adds a field or re-sources the payload would
+// otherwise keep serving old entries for unmodified rows). v2: resultsValue
+// gained hasFacilityLevelRows. v3 was minted twice on divergent branches
+// (main: resultsValue.datasetFamily; results-runs: manifest sourcing), so
+// the merge takes v4: both of those at once. v5: the post-merge semantic
+// batch populated datasetFamily on the RUN path after v4 was minted:
+// v4 entries from that window lack the field. v6: manifest schema v3: this
+// cache carries no code dimension, and a transform rewrites a manifest in
+// place under the SAME runId, so the prefix is the only thing that can
+// retire entries sourced from the pre-transform manifest. v7: manifest
+// schema v4 (declared format): payloads embed resultsValue.formatAs, which
+// the v4 rewrite flips for the 8 pre-declaration metrics. v9: manifest
+// schema v6 (PLAN_1a): resultsValue gained catalogExpressionEvaluation,
+// which decides how the client compiles the fetch config, and v8 entries
+// carry it as absent. v10: the PO config's `cfMode` enum gained
+// "indicator" and lost `specialScorecardTable` (PLAN_1d): a v9 payload
+// embeds the pre-transform config. v11: manifest schema v9 (hmisIndicators
+// entries carry the interpretation facts); the payload does not embed that
+// list, the bump is the protocol's per-block rule. v12: manifest schema v10
+// (the indicators mirror's `derived` rows read `calculated`); the payload
+// does not carry the mirror row's type, same per-block rule. v13: manifest
+// schema v11 (datasets[].info holds only its typed keys); the payload does
+// not carry dataset info, same per-block rule.
+("po_detail_v13", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

@@ -49,7 +49,10 @@ import {
 // 10: the indicators mirror's `derived` rows read `calculated` (input block
 // 1, server/runs/input_transform.ts); the manifest's own shape is unchanged
 // and block 8 only stamps.
-export const RUN_MANIFEST_SCHEMA_VERSION = 10;
+// 11: datasets[].info carries only the keys lib/types/run_datasets.ts names:
+// the pre-1.72 HMIS stamp pair renamed `indicatorsVersion` /
+// `countIndicatorsVersion`, the keys nothing reads dropped. Block 9.
+export const RUN_MANIFEST_SCHEMA_VERSION = 11;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([

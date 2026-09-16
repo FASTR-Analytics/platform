@@ -44,6 +44,10 @@
 //      input block 1 (input_transform.ts) rewrites the mirror before block 1
 //      runs, and blocks 1 and 4 recompute from it, so this block only
 //      stamps.
+//   9. datasets[].info carries only the keys its family's RunDataset*Info
+//      type names (schema v11): the pre-1.72 stamp pair renamed
+//      `indicatorsVersion` / `countIndicatorsVersion`, and the keys nothing
+//      reads dropped. Key rename and delete, no recompute.
 //
 // The input mirrors' own blocks are listed in input_transform.ts
 // (INPUT TRANSFORM BLOCKS); they run behind this file's version gate.
@@ -237,6 +241,39 @@ async function transformRunManifest(
   //    own shape is unchanged and the stamp is the whole block.
   m.manifestSchemaVersion = 10;
 
+  // 9. datasets[].info is exactly what lib/types/run_datasets.ts types. The
+  //    HMIS stamp pair captured before 1.72 (`indicatorMappingsVersion`,
+  //    `baseIndicatorMappingsVersion`) moves under the names capture writes
+  //    now, the value untouched; the keys no reader has ever consumed
+  //    (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
+  //    `calculatedIndicatorsVersion`, and the HFA `_legacy` and
+  //    `facilityColumnsHash` markers) are dropped. Idempotent: a rename runs
+  //    only while the old key is present and the new one absent.
+  if (Array.isArray(m.datasets)) {
+    for (const dataset of m.datasets as Record<string, unknown>[]) {
+      const info = dataset.info;
+      if (info === null || typeof info !== "object") continue;
+      const i = info as Record<string, unknown>;
+      if (dataset.datasetType === "hmis") {
+        renameKey(i, "indicatorMappingsVersion", "indicatorsVersion");
+        renameKey(i, "baseIndicatorMappingsVersion", "countIndicatorsVersion");
+        for (
+          const key of [
+            "windowing",
+            "facilityColumnsConfig",
+            "maxAdminArea",
+            "calculatedIndicatorsVersion",
+          ]
+        ) delete i[key];
+      }
+      if (dataset.datasetType === "hfa") {
+        delete i._legacy;
+        delete i.facilityColumnsHash;
+      }
+    }
+  }
+  m.manifestSchemaVersion = 11;
+
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a
   // manifest from a newer server can be detected rather than rejected as
@@ -354,6 +391,15 @@ export async function transformRunManifestFile(
     transformed: true,
     rewrittenInputs,
   };
+}
+
+function renameKey(
+  obj: Record<string, unknown>,
+  from: string,
+  to: string,
+): void {
+  if (from in obj && !(to in obj)) obj[to] = obj[from];
+  delete obj[from];
 }
 
 // Must stay byte-identical to how buildRunPackageIntoTmp writes it, otherwise
