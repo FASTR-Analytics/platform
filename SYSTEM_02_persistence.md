@@ -469,9 +469,14 @@ gate is history, not tooling.
   (`DBPresentationObject`, `DBUser`, …) describing raw table rows. These are
   _not_ Zod schemas (the `_*.ts` stored-schema convention is in
   [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)).
-- **`mod.ts` barrels**: `db/mod.ts`, `db/instance/mod.ts`, `db/project/mod.ts`,
-  `db/products/mod.ts` aggregate and re-export every non-helper sibling so
-  callers never deep-import.
+- **`mod.ts` barrels**: `db/mod.ts` re-exports `postgres/mod.ts`, `utils.ts`,
+  `instance/mod.ts` and `project/mod.ts`, each of which aggregates most of its
+  siblings, so a caller imports from the barrel instead of deep-importing.
+  The aggregation is not complete and nothing enforces it:
+  `db/products/mod.ts` is absent from `db/mod.ts` and its callers deep-import
+  it, `instance/mod.ts` omits `dataset_iceh.ts`, `run_generation.ts` and
+  `user_logs.ts`, and `project/mod.ts` omits `visualization_folders.ts`
+  (Open item).
 - **`generateUnique*Id`** (`server/utils/id_generation.ts`): short nanoid
   (4-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`; existing 3-char ids
   stay), retry-until-unique (10 attempts) against a specific table: one
@@ -510,6 +515,10 @@ gate is history, not tooling.
   dump's stored-JSON shapes stay stale until the next server restart.
 - The restore body's fresh `getPgConnection(projectId)` pool is never
   `.end()`ed, one leaked pool per restore.
+- The `mod.ts` barrels are incomplete: `db/products/mod.ts` is not re-exported
+  by `db/mod.ts` at all, so every products caller deep-imports it, and three
+  more siblings are missing from the instance and project barrels (named in
+  the Conventions section above).
 - Standardize the PascalCase DB-function stragglers to camelCase.
 - Lint ideas (from the absorbed doc): flag `.unsafe()` call sites for
   trusted-input review; flag DB functions that throw or return non-envelope

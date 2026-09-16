@@ -351,7 +351,7 @@ rather than a direct-reference scan: it re-resolves every surviving
 definition against the post-delete dictionary, so an id used only deep
 inside a chain blocks the delete too. Creates are all-or-nothing (one
 transaction; the failing item is named in the error). Pinned by
-`server/tests/indicator_schema_test.ts` (the constraints, nineteen cases),
+`server/tests/indicator_schema_test.ts` (the constraints, eighteen cases),
 `server/tests/indicator_rename_test.ts` (the rename, the data id rule, the
 type switches) and `server/tests/indicator_data_key_test.ts` (the key:
 required, generated, unique, never accepted from a client, kept across

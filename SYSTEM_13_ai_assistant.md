@@ -153,7 +153,7 @@ One shared handler,
 [anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts)
 (governance, usage logging, and beta policy live there so the two mounts cannot
 drift), behind two thin raw Hono routes (deliberately outside the S1 route
-registry), mounted in [main.ts:237-239](main.ts#L237-L239):
+registry), mounted in [main.ts:237-238](main.ts#L237-L238):
 
 |                        | Copilot proxy                                                                                                                     | Instance proxy                                                                                                  |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -728,7 +728,8 @@ From the read-only audit that hunted the bug _class_ behind the
 slide-figure replicant bug. Every item below is one shape:
 
 > The AI's **read-projections** (`simplifySlideForAI`, `get_report_editor`, the
-> `lib/ai_tools/format_*_for_ai.ts` formatters) and its **write-schemas**
+> `format_*_for_ai.ts` formatters in `lib/ai_tools/` and in the copilot's
+> `ai_tools/tools/_internal/`) and its **write-schemas**
 > (`lib/types/ai_input.ts` `Ai*Schema`) were each designed around a minimal
 > title/text/figure-data mental model, while the stored shapes (`Slide` /
 > `ContentBlock` / `FigureBundle` / `PresentationObjectConfig`) are far richer.

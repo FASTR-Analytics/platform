@@ -73,7 +73,7 @@ abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the
 user-log pipeline as `tour_<event>:<tourId>` rows (details carry page,
 trigger, and for aborts the step reached and the reason, skip vs missing
 target); per-step events are not sent. Seen-state in the modal reads the
-Solid manager's reactive `hasSeen()`. Plus stewardship of the ~250-file `t3` call-site surface. Reviewed
+Solid manager's reactive `hasSeen()`. Plus stewardship of the 241-file `t3` call-site surface. Reviewed
 against code (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 

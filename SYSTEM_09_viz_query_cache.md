@@ -27,9 +27,11 @@ globs:
 > is gone. `server/run_query/run_read.ts` is the only read path; the SQL cores
 > in `server_only_funcs_presentation_objects/` take their `QueryContext` from
 > the manifest and their executor from DuckDB over the run's parquet. Caches
-> are run-keyed. SYSTEM_03's cache catalog is authoritative for the live
-> keying (`PO_CACHE_VERSION` is "23", `po_detail_v13`); calendar threads via
-> `QueryContext`, not `getCalendar()` at the call sites.
+> are run-keyed. The constants in `server/routes/caches/visualizations.ts`
+> are the authority for the live keying (`PO_CACHE_VERSION` is "23",
+> `po_detail_v13`); SYSTEM_03's cache catalog describes the mechanism, but its
+> numbers are stale. Calendar threads via `QueryContext`, not `getCalendar()`
+> at the call sites.
 
 PO config → fetch-config contract → DuckDB SQL over the results package the
 caller names → run-keyed cached payloads, on both tiers. **This system does
@@ -624,8 +626,9 @@ fr/pt use the app's established "établissement" / "estabelecimento"). The same
 context drives the editor checkbox text, so row and checkbox can't tell
 different stories. One display-side override (S10's `getRollupRowLabel`): under
 a project AA2 scope the injected filter is server-side and never in the config,
-so the context still reads national while the SQL totals one area:
-`projectState.adminArea2` set + national context renders the pinned form
+so the context still reads national while the SQL totals one area: a bundle
+whose stored scope carries an `adminArea2`, read with a national context,
+renders the pinned form
 ("{Area} — All areas") instead. Display-only; the scope is never pushed into
 the config (that would reach the fetch config and the cache hash).
 
@@ -755,11 +758,12 @@ coalesce. The items, value-info and replicant-options handler bodies (cache
 check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
 `server/run_query/run_data_reads.ts` and are mounted twice: the run-keyed
 instance routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo`
-/ `getRunReplicantOptions`, plus `getRunResultsObjectItems` and the
-manifest-only `getRunAuthoringContext`, all under
+/ `getRunReplicantOptions`, plus `getRunResultsObjectItems`, all under
 `routes/instance/run_generation.ts`, the caller supplying `(run_id,
 adminArea2)`, `runs.status = 'ready'` required, guarded
-`requireApprovedUser()`) and, until 9b, the project routes here. The replicant read is keyed by
+`requireApprovedUser()`; the manifest-only `getRunAuthoringContext` sits
+beside them under the same guard but takes no scope and no ready gate) and,
+until 9b, the project routes here. The replicant read is keyed by
 results object (the cache identity); the run-keyed route narrows its
 `metricId` first, and the project route stamps `projectId` onto the shared
 `RunReplicantOptions` payload on the way out. The client caches

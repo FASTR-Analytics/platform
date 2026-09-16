@@ -40,8 +40,8 @@ compile path, `GLOBAL_STYLE_OPTIONS`);
 `state/products/t2_images.ts`; the two schema and predicate pins under
 `server/tests/` (`figure_bundle_schema_test.ts`, `figure_staleness_test.ts`).
 Non-lint assets reviewed here:
-`client/src/font-map.json` and `client/public/fonts/` (103 font files plus
-`fonts.css`).
+`client/src/font-map.json` and `client/public/fonts/` (102 font files plus
+`fonts.css`, `font-preload.html` and `font-map.json`).
 
 ## Contract
 
@@ -706,7 +706,7 @@ picker, `resolveColorThemeToPreset`, the deck-config schema, and the S2
 `slide_deck_config` transform's legacy-hex repair.
 [lib/key_colors.ts](lib/key_colors.ts) is installed into panther at boot
 (`setKeyColors(_KEY_COLORS)`, `client/src/index.tsx`) and carries the CF
-traffic-light palette + qualitative scales (16 consumer files, including the
+traffic-light palette + qualitative scales (15 consumer files, including the
 style builders and the CF editor).
 
 ## The export engine (client/src/exports)

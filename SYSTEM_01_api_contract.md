@@ -632,9 +632,11 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   also drifted (humanized key vs raw key) and the global-permission side shares
   no core with `resolveProjectUserAccess`.
 - **Zero-perm `requireGlobalPermission()` skips the `approved` check**: any
-  Clerk-authenticated email (even with no `users` row) passes; `approved` is
-  only enforced on the project path (e.g. the send-email route's instance-side
-  guard).
+  Clerk-authenticated email (even with no `users` row) passes. The live
+  examples are `sendHelpEmail` (`routes/instance/emails.ts`) and
+  `recordTourEvent` (`routes/instance/onboarding.ts`). A route that needs the
+  flag takes `requireApprovedUser()` instead, which is where every product and
+  package read now sits.
 - Lint idea (from the absorbed doc): flag handlers that read a project id from
   `body`/`params` for a write while a `Project-Id`-scoped `ppk` is in context
   (the IDOR pattern).

@@ -202,12 +202,14 @@ duplicate included, runs its touch, its shift-UPDATE, its INSERTs and its
 `reSequence` inside one `mainDb.begin`.
 
 **Validation at write.** Deck config is validated at both the route body
-(`slideDeckConfigSchema`) and the DB layer; slide bodies are **`z.unknown()`
-at the route**, blocked on a real gap: panther's `PatternType` includes
-`"none"` but the split-fill Zod enum doesn't
-([lib/api-routes/products/slides.ts](lib/api-routes/products/slides.ts)),
-with `slideConfigSchema.parse` as the DB-layer backstop. The layout tree is
-a recursive Zod union embedding the strict `figureBlockSchema`; layout item
+(`slideDeckConfigSchema`) and the DB layer, and so are slide bodies:
+`createSlide` and `updateSlide` both take `slide: slideConfigSchema`
+([lib/api-routes/products/slides.ts](lib/api-routes/products/slides.ts)), so a
+malformed slide is a 400 at the boundary, with `slideConfigSchema.parse` as
+the DB-layer backstop. The split-fill enum mirrors panther's `PatternType`
+exactly, `"none"` included, so the gap that once held this back is closed.
+The layout tree is a recursive Zod union embedding the strict
+`figureBlockSchema`; layout item
 `style` is `z.record(z.unknown())`. Duplicates copy stored config text
 without re-validation.
 
@@ -251,8 +253,9 @@ result resolves through `resolveFigureBundleInteractively` under the
 product's current pair, so editing a stale figure also brings it up to date.
 Local edits notify the AI (`edited_slide_locally`) and the editor registers
 the `editing_slide` view's mutator context on the AI view controller (S13);
-the copilot itself mounts once on the Products page (`ProductCopilotHost`,
-D15), so every editor opened from it shares that one instance.
+the copilot host wraps whichever editor the Products page opens
+(`ProductCopilotHost`, D15: one mount site, one copilot per open product), so
+a slide editor opened inside a deck shares the deck's copilot.
 
 **The per-slide save loop** (the no-room/offline path: while a collab
 session is live the editor never explicit-saves; the room checkpoints
@@ -433,10 +436,10 @@ that **store** bundles and the export paths that **render** them.
   `hydrateFigureInputsForPublicRendering` special-casing was deleted.
 - **The sentinel layer is gone.** Bundles carry no `undefined` values, so
   the `@@__UNDEFINED__@@` encode/decode wrappers were deleted along with
-  `lib/json_slide_serialize.ts` itself. Follow-on status: the **reports**
-  route bodies are tightened (`reportFiguresSchema`/`reportImagesSchema`);
-  the **slides** bodies remain `z.unknown()` pending the PatternType
-  `"none"` schema gap (see Slide decks above).
+  `lib/json_slide_serialize.ts` itself. Follow-on status: done on both
+  surfaces, the **reports** bodies through
+  `reportFiguresSchema`/`reportImagesSchema` and the **slides** bodies
+  through `slideConfigSchema` (see Slide decks above).
 
 ## Caches & the notify triangle
 
