@@ -545,15 +545,13 @@ project table is written.
 
 - select_multiple missingness resolved (see Staging); data staged
   before the change keeps the old explicit-`0` rows until re-imported.
-- DHIS2 credentials (password) remain plaintext at rest in `step_1_result` (API
-  projection is redacted; at-rest encryption is a pending ruling, same item in
-  SYSTEM_05).
 - HFA: the final staging table is LOGGED while the dict tables are UNLOGGED
   (mixed crash durability); duplicate CSV columns die on a cryptic PK error.
 - `getCsvDetails` (both CSV families' header parse) reads the whole file into memory for
   headers; the streaming variant's header read is one 64 KB `file.read()` (wide
   XLSForm exports / short reads → confusing failure).
-- Ethiopian-calendar period math in `step_2_dhis2.tsx` assumes 12 months (no
+- Ethiopian-calendar period math in the DHIS2 wizard
+  (`imports/_wizard/index.tsx`, `getCurrentPeriodId`) assumes 12 months (no
   Pagume); untranslated strings in the delete flows and Period/TimeIndex
   selectors; `facilityOwnwershipsToInclude` typo is the persisted canonical
   field (fixing it = stored-JSON migration).

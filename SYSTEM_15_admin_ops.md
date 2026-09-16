@@ -34,13 +34,13 @@ The `globs:` frontmatter above is the lint-enforced manifest
 S14, `instance_assets.tsx` → S4, `instance_data.tsx` → S6,
 `ai_context_form.tsx` → S13); the projects home, the project settings page
 and the project-permission forms went with the project shell in
-PLAN_PRODUCTS_RESTRUCTURE step 9a. Server: `routes/project/project.ts` (18 routes: lifecycle +
+PLAN_PRODUCTS_RESTRUCTURE step 9a. Server: `routes/project/project.ts` (15 routes: lifecycle +
 roles), `routes/instance/{health,backups}.ts`, `db/project/projects.ts` (the
 4-system custody file: S15 owner; S2/S1/S8 readers), `utils/disk_space.ts`
 (`db/instance/user_logs.ts` → S17); cron jobs in `main.ts` (S1-owned, S15
 reader); `routes/instance/instance.ts` is S5-owned with S15 reading its
 meta/projects/disk slice; the feedback email handler lives in S12's
-`routes/project/emails.ts`. Repo: `./run`, `./deploy`, `Dockerfile`. External:
+`routes/instance/emails.ts`. Repo: `./run`, `./deploy`, `Dockerfile`. External:
 status-api, SendGrid, the ~40-instance production topology (below). The operator
 connection recipes live in the **gitignored** `PROTOCOL_ACCESS_DBS.md`.
 
@@ -51,9 +51,9 @@ special modes live in [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)).
 S15 files are the sole creator/destroyer of project databases: `projects.ts`
 (create/copy/purge) plus the restore body in `backups.ts` (S2-co-reviewed).
 Health is deliberately unauthenticated (and includes one unauthenticated POST
-write, see the exposure inventory); health + central-export use bare Hono
-routes, so they are invisible to the route registry: the sanctioned escapes
-from S1's registry-as-contract. Disk autonomics fire out-of-band side effects
+write, see the exposure inventory); health uses bare Hono routes, so it is
+invisible to the route registry: the sanctioned escape from S1's
+registry-as-contract. Disk autonomics fire out-of-band side effects
 (volume resize, alert emails) invisible to the registry.
 
 ## Project lifecycle
@@ -66,16 +66,15 @@ header. Hiding is client-side (disabled "Copying..." card; pending deletions
 split into their own list).
 
 - **Create** (`addProject`,
-  [db/project/projects.ts:318-473](server/db/project/projects.ts#L318-L473)):
+  [db/project/projects.ts:246-347](server/db/project/projects.ts#L246-L347)):
   `crypto.randomUUID()` is both project id and DB name; collision-checked
   against `pg_database`; schema from `_project_database.sql` then
   `runProjectMigrations` (run only to stamp `schema_migrations`); one
   `mainDb.begin` inserts the registry row, the creator as `'editor'` with all 17
   flags true, and every non-admin user with ≥1 `default_project_*` flag as
-  `'viewer'` with those defaults; then datasets are enabled and
-  `modulesToEnable` is expanded through prerequisite resolution before
-  `installModule`. Route: `requireGlobalPermission("can_create_projects")`,
-  disk-gated first.
+  `'viewer'` with those defaults. A new project starts empty: no datasets, no
+  modules, no run attached. Route:
+  `requireGlobalPermission("can_create_projects")`, disk-gated first.
 - **Copy** is registry-first, then background: `copyProjectSync` inserts the new
   row with `status='copying'` and copies all role rows; the route then fires
   `copyProjectInBackground` unawaited (registry `timeoutMs` 600s):
@@ -145,14 +144,14 @@ un-ended migration pool) are **documented in
 [SYSTEM_02](SYSTEM_02_persistence.md) §Backup/restore**. S2 owns that prose;
 this file pointers. Guard note: `getAllProjectsBackups` is
 `requireProjectPermission("can_configure_settings")`, project-scoped like its
-sibling backup routes (the client's settings-page backups panel sends
-`Project-Id`).
+sibling backup routes. No client caller remains: the settings-page backups
+panel went with the project shell in step 9a.
 
 ## Health & central export: the exposure inventory
 
-Both files use **bare Hono routes, not `defineRoute`**, with zero entries in
+`health.ts` uses **bare Hono routes, not `defineRoute`**, with zero entries in
 `route-tracker.ts`, so `validateAllRoutesDefined()` cannot see them: the
-registry blind spot (16 endpoints total). `authMiddleware` is
+registry blind spot (13 endpoints). `authMiddleware` is
 `clerkMiddleware()`, which populates session state and **never rejects**, and
 these routes carry no guards, so all 13 health endpoints are public by design
 (external status dashboard). What each leaks must stay a deliberate decision
@@ -175,8 +174,9 @@ these routes carry no guards, so all 13 health endpoints are public by design
     connection) on the health surface; requires a `status-api-key` header
     matching `_STATUS_API_KEY` (401 otherwise).
 13. `/dhis2-indicators-export`: every DHIS2 element in the dictionary with
-    the indicator that carries it (`id` = the dhis2_id, `label`, `mappedTo` =
-    the indicator id; wire keys the Admin-Website reads, so they stay).
+    the indicator that carries it (`id` = the element's `data_id`, `label`,
+    `mappedTo` = the indicator id; wire keys the Admin-Website reads, so they
+    stay).
 
 **Central export: RETIRED** (ruled, PLAN_RESULTS_RUNS work item 6):
 `export_central.ts`, its `main.ts` mount, and the unused `CENTRAL_SERVER_SECRET`
@@ -188,7 +188,7 @@ was WIP and gated nothing. A future central hub streams run files instead of
 
 Owned by S17 ([SYSTEM_17_logging.md](SYSTEM_17_logging.md)): write path,
 retention cron, and the forever-retained `getCurrentUser` exemption live
-there. S15's stake: the health endpoints below read the tables directly,
+there. S15's stake: the health endpoints above read the tables directly,
 `getAllUserLogs` backs the Users tab's log view / "Last active" column,
 per-project `last_activity_at` in the project listing, and the dead
 `getProjectLogs` chain (Open item).
@@ -267,9 +267,10 @@ Two production facts live here:
   connection and drops without FORCE, so a connection appearing after the
   check fails the drop rather than being killed.
 - **Two schema generations** exist in production project DBs: current
-  (`presentation_objects.metric_id` → `metrics` table) vs legacy
-  (`presentation_objects.results_object_id`, no `metrics` table). Detect with
-  `to_regclass('public.metrics')`.
+  (`presentation_objects.metric_id`; metrics are manifest-resolved and project
+  migration 041 dropped the `metrics` table) vs legacy
+  (`presentation_objects.results_object_id`). Detect by which of the two
+  columns `presentation_objects` carries.
 
 SSH/credential/tunnel/psql recipes stay in the **gitignored**
 `PROTOCOL_ACCESS_DBS.md` (read-only-by-default rules; the Postgres ports are
@@ -308,5 +309,5 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   `can_configure_users` but the route requires full admin (403 at click).
 - **Orphaned UUID project DBs accumulate on prod**: consider a sweep autonomic
   (see Production topology).
-- Cruft: empty `server/scripts/` dir; dead `BackupInfo` type and
+- Cruft: empty `server/scripts/` dir; dead `ProjectBackupInfo` type and
   `showCommingSoon` prop; untranslated central-reporting strings.

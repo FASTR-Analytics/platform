@@ -24,7 +24,6 @@ globs:
   - server/routes/instance/ai_proxy.ts
   - server/routes/instance/copilot_ai_proxy.ts
   - server/routes/project/ai_proxy.ts
-  - server/routes/project/ai_tools.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_tools_source_header_test.ts
 ---
@@ -154,7 +153,7 @@ One shared handler,
 [anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts)
 (governance, usage logging, and beta policy live there so the two mounts cannot
 drift), behind two thin raw Hono routes (deliberately outside the S1 route
-registry), mounted in [main.ts:238-240](main.ts#L238-L240):
+registry), mounted in [main.ts:237-239](main.ts#L237-L239):
 
 |                        | Copilot proxy                                                                                                                     | Instance proxy                                                                                                  |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -215,9 +214,9 @@ Limit hits = `ai_limit_hits`, PK `(user_email, limit_type,
 hit_date)` so
 `ON CONFLICT DO NOTHING` dedupes to one row per day. `unlimitedAi` = `H_USERS`
 membership or `users.unlimited_ai`
-([project_auth.ts:204](server/project_auth.ts#L204)). `_DAILY_TOKEN_LIMIT` /
+([global_user.ts:110](server/auth/global_user.ts#L110)). `_DAILY_TOKEN_LIMIT` /
 `_WEEKLY_TOKEN_LIMIT` are `parseInt`-or-`null`, with a boot-time throw on an
-unparseable value ([exposed_env_vars.ts:142](server/exposed_env_vars.ts#L142));
+unparseable value ([exposed_env_vars.ts:210-223](server/exposed_env_vars.ts#L210-L223));
 `null` = disabled. All logging and increments are `.catch(() => {})`
 fire-and-forget. Accounting is best-effort, not transactional, and the limits
 are check-before / increment-after, so concurrent requests can overshoot: a
@@ -226,15 +225,15 @@ courtesy bound, not a hard one.
 **The error contract, as built.** Three deliberate non-envelope shapes: the 429
 rate-limit object, the upstream-status error string, and anything _thrown_ in
 the handler (malformed request JSON, upstream fetch network failure), which the
-shared handler catches and returns as an Anthropic-shaped 500
-([anthropic_messages_proxy.ts:51-66](server/routes/anthropic_messages_proxy.ts#L51-L66))
+shared handler catches and returns as an Anthropic-shaped 502
+([anthropic_messages_proxy.ts:51-64](server/routes/anthropic_messages_proxy.ts#L51-L64))
 rather than letting it fall to `app.onError`'s envelope-at-HTTP-200. The one
 envelope shape on the surface: guard rejections are `{success:false, err}` at
 401/403.
 
 **Health surfacing (S15).** `GET /ai_usage` (full `SELECT *`, optional `since`),
 `/ai_weekly_usage`, `/ai_limit_hits`
-([health.ts:168-186](server/routes/instance/health.ts#L168-L186)). Health
+([health.ts:176-194](server/routes/instance/health.ts#L176-L194)). Health
 routes are public by design, but `/ai_usage` returns per-user emails and
 per-call behavior, unbounded (Open items).
 
@@ -268,25 +267,24 @@ tools, the pattern the HFA indicator manager already uses. Each mount builds
 one panther `AIChatProvider` config, validated in dev by panther's no-mount
 construction check: both assistants call `validateAIChatConfig(config)` under
 `import.meta.env.DEV` at config assembly (HFA
-[ai/index.tsx:37-39](client/src/components/indicator_manager_hfa/ai/index.tsx#L37-L39)):
+[ai/index.tsx:39-41](client/src/components/indicator_manager_hfa/ai/index.tsx#L39-L41)):
 
 - **sdkClient**
   ([defaults.ts](client/src/components/copilot/ai_configs/defaults.ts)):
   Anthropic browser SDK, `baseURL {host}/ai`, `apiKey: "not-needed"`, no
   default headers, plus a fetch wrapper that rewrites the ISO reset timestamp
   inside 429 bodies to the user's locale.
-- **modelConfig** = `DEFAULT_MODEL_CONFIG`: `DEFAULT_ANTHROPIC_MODEL`
-  (`claude-sonnet-4-6`, [consts.ts:152](lib/consts.ts#L152)),
-  `max_tokens: 32000` (fits every allowed model's output cap; a report rewrite
-  is one tool_use block that must fit inside max_tokens),
-  `output_config: {effort: "high"}` (re-resolved per model by panther; dropped
-  where unsupported). Panther clones the consumer's modelConfig into
-  per-instance state, so the shared module-level default is never mutated. The
-  settings panel exposes model + max_tokens (`adjustable`; `allowedModels`:
-  opus-4-8, opus-4-6, sonnet-4-6, haiku-4-5,
-  [chat_pane.tsx](client/src/components/copilot/chat_pane.tsx)); the
-  allowlist is client-side only. The proxy forwards any `model` verbatim (Open
-  items).
+- **modelConfig**: omitted, so panther's `DEFAULT_MODEL_CONFIG` applies
+  (`claude-sonnet-5`, `max_tokens: 32_000`, `output_config: {effort: "high"}`,
+  [anthropic_consts.ts:236](panther/_110_ai_types/anthropic_consts.ts#L236);
+  effort is re-resolved per model by panther and dropped where unsupported;
+  max_tokens fits every listed model's output cap, and a report rewrite is
+  one tool_use block that must fit inside it). Panther resolves the config
+  into per-instance state, so the shared default is never mutated. The
+  settings panel exposes model + max_tokens (`adjustable`,
+  [chat_pane.tsx](client/src/components/copilot/chat_pane.tsx)); the model
+  list is panther's `MODEL_OPTIONS`, client-side only. The proxy forwards any
+  `model` verbatim (Open items).
 - **builtInTools** = `{webSearch: true, webFetch: true}`: Anthropic server-side
   tools, resolved per model by panther (dynamic `_20260209` variants on 4.6+,
   basic + beta header otherwise). Currently unrestricted: no `max_uses` /
@@ -436,7 +434,7 @@ The architecture half of the schema story (the authoring recipe is
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md)):
 
 - **AI schemas derive from storage schemas.** `configDStrict`
-  ([lib/types/_metric_installed.ts:160](lib/types/_metric_installed.ts#L160), a
+  ([lib/types/_metric_installed.ts:161](lib/types/_metric_installed.ts#L161), a
   strip-mode `z.object` despite the name; `filterBy[].values` and `valuesFilter`
   carry `.min(1)`) is the source of truth. Two derived surfaces exist, both in
   [ai_input.ts](lib/types/ai_input.ts): `AiMetricQuerySchema`
@@ -449,14 +447,14 @@ The architecture half of the schema story (the authoring recipe is
   where an omitted max stores `from_month` "to present".
 - **Layer-1 enforcement lives in panther**: `createAITool` re-parses input
   inside `run()` and converts a ZodError to `AIToolFailure`
-  ([tool_helpers.ts:434-446](panther/_305_ai/_core/tool_helpers.ts#L434-L446));
+  ([tool_helpers.ts:590-602](panther/_112_ai_tool_core/tool_helpers.ts#L590-L602));
   the engine catches any throw and returns `is_error: true` so the model
   self-corrects
   ([tool_engine.ts:333-343](panther/_305_ai/_core/tool_engine.ts#L333-L343)).
   **The failure channel** (authority: DOC_AI_CHAT.md "Failure channel", panther
   repo root): handlers throw `AIToolFailure` for ANY anticipated failure (bad
   id, missing referent, failed server call) with the message as the complete
-  user-presentable record (clean display, no stack; ~92 sites across the copilot
+  user-presentable record (clean display, no stack; ~64 sites across the copilot
   tools); plain `Error` is reserved for genuine bugs (full-stack display).
   Handlers must throw, never return error strings.
 - **Layer-2 (data-dependent) validation** lives in
@@ -557,10 +555,6 @@ handler rejects unapproved users itself, and creating or re-scoping a prompt to
 admin-only. `created_by` is FK-cascade on user delete, so deleting a user
 silently deletes their country-scoped prompts too.
 
-`ai_tools.ts` ([routes/project/ai_tools.ts](server/routes/project/ai_tools.ts))
-is the one registry-based route in this system: `getVisualizationsListForAI`.
-No copilot tool calls it any more; it dies with the project route tree in 9b.
-
 ## The panther engine (what this app depends on)
 
 First synced at commits 62ed6c03/ca3ae868 (SDK 0.71 → 0.110) and repeatedly
@@ -574,9 +568,10 @@ contract doc is DOC_AI_CHAT.md at the panther repo root (not vendored). The
 parts S13 relies on, verified this cycle:
 
 - **Request shaping**
-  ([request_shaping.ts](panther/_110_ai_types/request_shaping.ts)): ≤2
-  prompt-cache breakpoints placed per send (system + last user message; stored
-  state never carries `cache_control`); per-model resolution of
+  ([request_shaping.ts](panther/_110_ai_types/request_shaping.ts)): ≤3
+  prompt-cache breakpoints placed per send (system, last user message, last
+  document block of the last document-carrying user message; stored state
+  never carries `cache_control`); per-model resolution of
   thinking/effort/temperature (prevents 400s across the whole allowed-models
   list, including adaptive-only Opus 4.8); persisted settings sanitized against
   retired model ids and caps at init.
@@ -609,7 +604,7 @@ goes straight to serverActions. Its six write tools declare `approval.propose`
 with `presentation: "modal"` (panther owns the propose → modal diff → commit
 lifecycle; the old hand-rolled `confirmChain` serializer is deleted), and the
 config sets `approvalPolicy: { requireForKind: "write", requireKind: true }`
-([ai/index.tsx:34](client/src/components/indicator_manager_hfa/ai/index.tsx#L34)).
+([ai/index.tsx:36](client/src/components/indicator_manager_hfa/ai/index.tsx#L36)).
 A write tool without approval, or any tool without a `kind`, fails at
 construction. Every anticipated failure throws `AIToolFailure` (zero
 plain-`Error` throws in
@@ -733,7 +728,7 @@ From the read-only audit that hunted the bug _class_ behind the
 slide-figure replicant bug. Every item below is one shape:
 
 > The AI's **read-projections** (`simplifySlideForAI`, `get_report_editor`, the
-> `_internal/format_*_for_ai.ts` formatters) and its **write-schemas**
+> `lib/ai_tools/format_*_for_ai.ts` formatters) and its **write-schemas**
 > (`lib/types/ai_input.ts` `Ai*Schema`) were each designed around a minimal
 > title/text/figure-data mental model, while the stored shapes (`Slide` /
 > `ContentBlock` / `FigureBundle` / `PresentationObjectConfig`) are far richer.
@@ -807,15 +802,15 @@ embed count is surfaced in the proposal summary). Remaining:
   applied uniformly, no flags). Still split: two functions do "config → fetch
   items → capture geo → assemble FigureBundle" with different item-fetch
   mechanics: `resolveFigureBundleFromMetric` (caller precomputes the
-  fetchConfig) and `resolveFigureBundleFromVizConfig` (items fetch auto-defaults
+  fetchConfig) and `resolveFigureBundleInteractively` (items fetch auto-defaults
   the replicant), plus a third assembler, `makeFigureBundleFromFetchedData`.
   Goal: one `resolveFigureBundle(source, config)` used by every
   create/edit/render path, with the metric-vs-PO difference reduced to how the
   source is produced. The friction to design around is the two item-fetch routes
   (`_PO_ITEMS_CACHE` with a precomputed fetchConfig vs
   `getPresentationObjectItemsFromCacheOrFetch`, which runs
-  `resolveDefaultReplicant`). Higher blast radius (dashboards, public and
-  reports all render through the PO core), so it wants its own scoped refactor
+  `resolveDefaultReplicant`). Higher blast radius (the figure editor, slide
+  decks and reports all render through the PO core), so it wants its own scoped refactor
   and review pass, not improvisation.
 
 This inventory is also the **spine of a SYSTEM_13 restructuring**: organize this

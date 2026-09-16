@@ -23,14 +23,14 @@ docs_absorbed:
 
 Pure transforms from data+config to pixels and files: a stored **FigureBundle**
 rebuilt to panther `FigureInputs` by one `buildFigureInputs` transform,
-slide→page rendering, PDF/PPTX/XLSX/DOCX export.
+slide→page rendering, PDF/PPTX/DOCX export.
 
 ## Scope
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `client/src/generate_visualization/**` (`buildFigureInputs`, the bundle
-resolvers `resolve_figure_from_{metric,visualization}.ts` +
+resolver `resolve_figure_from_metric.ts` +
 `resolve_bundle_from_metric_and_config.ts`, the stale predicate
 `figure_staleness.ts`, special chart modes, the conditional-formatting
 compile path, `GLOBAL_STYLE_OPTIONS`);
@@ -40,7 +40,7 @@ compile path, `GLOBAL_STYLE_OPTIONS`);
 `state/products/t2_images.ts`; the two schema and predicate pins under
 `server/tests/` (`figure_bundle_schema_test.ts`, `figure_staleness_test.ts`).
 Non-lint assets reviewed here:
-`client/src/font-map.json` and `client/public/fonts/` (102 font files plus
+`client/src/font-map.json` and `client/public/fonts/` (103 font files plus
 `fonts.css`).
 
 ## Contract
@@ -139,7 +139,7 @@ FigureBundle = {
                                            // `thresholds` by the _figure_block sweep
   dateRange?: PeriodBounds;                // {min,max}: DATE_RANGE caption text + earliest/latest point
   geo?: GeoRef;                            // maps only: {kind:"level"} | {kind:"data"} (see Geo)
-  localization: { language; calendar; countryIso3 }; // REQUIRED, frozen, see Localization
+  localization: { language; calendar; countryIso3; fiscalYear }; // REQUIRED, frozen, see Localization
   metricId: string;                        // re-query pointer for the update action ONLY (never render)
   scope?: { adminArea2: string | null };   // the scope the bundle was resolved under; null = national
   snapshotAt: string;
@@ -222,14 +222,14 @@ deck-level theme; slides pass it, the others omit it.
 
 The principle, in Tim's words: **capture locale into the bundle and use the
 bundle's locale for ALL rendering: every surface, never an ambient read.**
-`localization = {language, calendar, countryIso3}` is frozen in the bundle
+`localization = {language, calendar, countryIso3, fiscalYear}` is frozen in the bundle
 exactly like `config` and `items`, and `buildFigureInputs` resolves **all**
 figure text/dates from `bundle.localization` only. It must **never** read or
 write the global `t3`/`getCalendar`/`getLanguage` singletons.
 
 - **What is captured = the INSTANCE locale**, not the per-user UI toggle:
   `getSnapshotInstanceLocalization()` (`client/src/state/instance/t1_store.ts`) returns
-  `{instanceLanguage, instanceCalendar, countryIso3}`. Figures are
+  `{language, calendar, countryIso3, fiscalYear}` read from the instance state. Figures are
   instance-language artifacts.
 - **The threaded reads** (all app-side; panther unchanged): the ~21
   `t3({en,fr})` calls in the build path became explicit
@@ -400,7 +400,7 @@ remains.
 
 **The override contract (spans S10/S11).** The UI half lives in the style panel
 (S11 custody,
-`components/visualization/presentation_object_editor_panel_style/`): the panel
+`components/figure_editor/presentation_object_editor_panel_style/`): the panel
 gates each mode's toggle by `canUse*` (an active-but-no-longer-allowed mode is
 still listed so the user can switch away), and `setMode()` in `_timeseries.tsx`
 forces the hidden properties to safe defaults on every mode switch (e.g.
@@ -531,7 +531,7 @@ indicator to a rate figure and the same stored `0.0005` box switches from
 moves; the mitigation is that the active unit is VISIBLE on the control
 (PercentSelect shows `%`, the number input shows a "per 10k" marker when the
 axis is a rate, bare otherwise), so a unit switch is something the user sees
-rather than discovers by mis-typing. `scaleForInput` also rounds the displayed
+rather than discovers by mis-typing. `scaleValueForFormat` also rounds the displayed
 value to 6 decimals: ×10,000 on a stored fraction otherwise redisplays the
 "3" the user just typed as `2.9999999999999996`.
 
@@ -620,7 +620,7 @@ unbounded in both directions.
 
 Two files:
 [convert_slide_to_page_inputs.ts](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts)
-(579 LOC) and `get_overlay_image.ts` (49 LOC). One transform,
+(578 LOC) and `get_overlay_image.ts` (49 LOC). One transform,
 `convertSlideToPageInputs(slide, slideIndex, config) →
 APIResponse<PageInputs>`,
 serves all its call sites: screen (`slide_editor/index.tsx`,
@@ -629,7 +629,7 @@ previews (`DraftSlidePreview.tsx`, `ai_tools/tools/drafts.tsx`), and the
 three deck exports, so a slide renders byte-identically everywhere. Every
 surface uses the
 same frame: `PAGE_WIDTH_DU` 1400 × `PAGE_HEIGHT_DU` 788
-(`lib/consts.ts:171-173`).
+(`lib/consts.ts:167-169`).
 
 The `Slide` union (`cover | section | content`, `lib/types/slides.ts`) maps to
 panther `PageInputs` discriminants `cover | section | freeform`.
@@ -690,7 +690,7 @@ backoff (capped 60s), in-flight promise dedupe. Exactly three consumers:
 share it; report exports fetch directly.
 
 **Fonts**: two disjoint paths. Screen text uses hand-written `@font-face` rules
-in `client/src/app.css` (woff2). Export PDFs embed TTFs: the four PDF exporters
+in `client/src/app.css` (woff2). Export PDFs embed TTFs: the three PDF exporters
 pass `{basePath: "/fonts", fontMap: fontMap.ttf}` from
 `client/src/font-map.json` to panther `createPdfRenderContextWithFontsBrowser`,
 which fetches and `addFont`s each file into jsPDF. `SLIDE_FONTS`
@@ -706,23 +706,22 @@ picker, `resolveColorThemeToPreset`, the deck-config schema, and the S2
 `slide_deck_config` transform's legacy-hex repair.
 [lib/key_colors.ts](lib/key_colors.ts) is installed into panther at boot
 (`setKeyColors(_KEY_COLORS)`, `client/src/index.tsx`) and carries the CF
-traffic-light palette + qualitative scales (15 consumer files, including the
+traffic-light palette + qualitative scales (16 consumer files, including the
 style builders and the CF editor).
 
 ## The export engine (client/src/exports)
 
-13 files, ~1.1k LOC, no barrel (callers import files directly). Every heavy
+8 files, ~580 LOC, no barrel (callers import files directly). Every heavy
 engine is panther-side: `PageRenderer`,
 `createPdfRenderContextWithFontsBrowser`, `pagesToPptxBrowser`,
 `markdownToPdfBrowser` / `markdownToWordBrowser`. The app files are
 orchestrators: fetch detail → build model/PageInputs → panther → `saveAs`. All
-eight entries return `APIResponse` envelopes (never throw), take a
+five entries return `APIResponse` envelopes (never throw), take a
 `progress(pct)` callback, and yield to the UI between items.
 
 | Artifact   | Formats                                   | Pipeline                                                                                                                                                                                                                                                                                             |
 | ---------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Slide deck | PDF (download), PDF-base64 (email), PPTX  | `(productId, progress)`: fetch deck detail + per-slide `getSlideFromCacheOrFetch` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                       |
-| Dashboard  | PDF, PPTX, XLSX, single-figure PNG        | fetch-free: `buildDashboardExportModel(PublicDashboardBundle)` flattens groups to per-member figures → `prepareFigures` render-validates each at 200px + white-bakes → per-figure pages (PDF 1200-wide, ideal-height, portrait/landscape flip; PPTX 1200×675) or one XLSX sheet per **table** figure |
 | Report     | PDF, Word                                 | `(productId, progress)`: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers)                                                                                                                               |
 | Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`visualization_editor_inner.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
 
@@ -746,8 +745,7 @@ formatter is a rebuilt closure.
 media tokens in place for the localized
 placeholder. Slide decks degrade per-block upstream in
 `convertSlideToPageInputs`, but a failed slide fetch or convert **aborts the
-whole deck export**. XLSX silently skips non-table figures by design and catches
-per-sheet.
+whole deck export**.
 
 **UI entry points:** `DownloadSlideDeck` + `ShareSlideDeck` (deck page),
 `DownloadReport` (report page), and the figure editor's download modal.
@@ -779,14 +777,14 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
   e.message : ""`); the report exporter uses `String(e)`.
 - Slide `textSize` is dead at render: the `TEXT_SIZE_REL` multiplier is
   commented out in `convertBlockToPageContentItem` while the editor still writes
-  the key, the schema validates it, and `lib/consts.ts:175-179` claims the
+  the key, the schema validates it, and `lib/consts.ts:171-175` claims the
   renderer maps it. Wire it back or delete the knob.
 - `config.showPageNumbers` is unwired: `PageInputs.pageNumber` is never set
   anywhere (the `slideIndex` param is unread; the style block computes a
   page-number color for text that never renders). `headerSize` is likewise a
   dead stored knob.
 - Stale contract comments in the S2 migration transforms
-  (`slide_config.ts:26,84,188`; `reports.ts:56,75`) still describe
+  (`slide_config.ts:26,85,189`; `reports.ts:57,77`) still describe
   `figureInputsSchema`/`zFigureInputs` validation that no longer exists.
 - The image cache never invalidates (version = URL): replacing a logo/image
   asset at the same server path serves the stale image until site data is

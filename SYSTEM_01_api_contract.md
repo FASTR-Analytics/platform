@@ -62,7 +62,7 @@ rules, not the examples). Server-side **push** (SSE/ BroadcastChannel) is
 functions handlers call, and the error funnel that produces their envelopes, are
 **S2** ([SYSTEM_02_persistence.md](SYSTEM_02_persistence.md)). The Anthropic
 proxy internals are **S13**; TUS upload is **S4**; the collaboration WebSocket
-(`GET /project_collab/:project_id`) is **S16**
+(`GET /collab` and `GET /project_collab/:project_id`) is **S16**
 ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)), where S1 owns only
 its seat in the off-registry inventory below; the public dashboard route is
 **S12**; health is **S15**, which also _writes_ the `users` /
@@ -75,8 +75,8 @@ in SYSTEMS.md §4.1 (`main.ts` owned here, S2/S15/S12 readers;
 
 ## Contract
 
-265 registry routes (re-counted at the results-runs merge: the module
-install/update surface left, the run-generation registry arrived), zero direct
+283 registry routes (re-counted after main's indicator restructure merged
+into the products branch), zero direct
 client↔server imports; expected failures travel as HTTP 200 +
 `{ success: false, err }`, and only guards and validation emit real 4xx/5xx; the
 `Project-Id` header (not the body) selects the per-project DB handle. This
@@ -87,7 +87,7 @@ must stay deliberate and enumerated (see below).
 ## The registry contract (`lib/api-routes/`)
 
 Each feature file exports a `*RouteRegistry` object of `route({...})` calls
-(`route-utils.ts`); `combined.ts` spreads all 29 into `routeRegistry`, the one
+(`route-utils.ts`); `combined.ts` spreads all 32 into `routeRegistry`, the one
 object both `server/routes/route-helpers.ts` and
 `lib/server_actions/create_server_action.ts` import. Add an entry → the client
 gets a typed action and the server gets a typed handler signature for free;
@@ -108,7 +108,11 @@ export const productReportRouteRegistry = {
     path: "/products/:product_id/report/body",
     method: "PUT",
     params: productIdParamsSchema,
-    body: z.object({ body: z.string(), expectedLastUpdated: z.string() }),
+    body: z.object({
+      body: z.string(),
+      expectedLastUpdated: z.string().optional(),
+      overwrite: z.boolean().optional(),
+    }),
     response: {} as { lastUpdated: string; conflicted: boolean },
     access: "edit",
   }),
@@ -143,8 +147,9 @@ snake_case throughout. Pairing is by registry key, never by filename.
 optional, so `response: {} as X | undefined` silently infers as `X`: the
 contract then claims `data` is always present. For a sometimes-absent payload
 declare `X | null` (survives inference, and `null` is wire-honest where
-`undefined` is dropped by JSON anyway); precedent: `getDatasetIcehUploadAttempt`
-/ `getDatasetIcehUploadStatus`.
+`undefined` is dropped by JSON anyway). The former precedent
+(`getDatasetIcehUploadAttempt` / `getDatasetIcehUploadStatus`) left when ICEH
+imports became runs; no current route declares a top-level nullable response.
 
 ## Implementing a route: `defineRoute` (server)
 
@@ -241,9 +246,8 @@ Wire format (`StreamWriter`), one JSON object per line: progress
 wraps the handler in try/catch: an uncaught throw becomes `writer.error(...)`,
 so the stream always terminates cleanly. The client `consumeStream` mirrors it
 exactly: `progress === 1` or `=== -1` returns `message.result`; anything else
-fires `onProgress`. Three routes use it today: one in
-`server/routes/project/project.ts`, two in
-`server/routes/instance/structure.ts`.
+fires `onProgress`. Two routes use it today, both in
+`server/routes/instance/structure.ts` (the step-3 CSV and DHIS2 staging).
 
 ## The `log()` middleware
 
@@ -275,8 +279,8 @@ here uses the registry.
 | `routes/instance/instance-sse.ts`, `routes/project/project-sse-v2.ts` | S3    | SSE long-lived streams, not request/response                                                                                                                                                                                                                                     |
 | `routes/instance/collab.ts`                                           | S16   | WebSocket upgrade (`GET /collab`), the instance-wide collab transport for slide and report rooms, mounted raw in `main.ts` behind the global `authMiddleware`; admission = origin + Clerk + `approved`, resolved pre-upgrade; every document frame names its product |
 | `routes/project/project-collab.ts`                                    | S16   | WebSocket upgrade (`GET /project_collab/:project_id`), the project socket that keeps only the visualization (PO) rooms until step 9b; no client connects to it since step 7a |
-| `routes/project/ai_proxy.ts`, `routes/instance/ai_proxy.ts`           | S13   | Anthropic passthrough (mounted `/ai` and `/ai-instance`, both thin wrappers over `routes/anthropic_messages_proxy.ts`). Returns Anthropic-shaped bodies, not `APIResponse`                                                                                                      |
-| `routes/project/ai_files.ts`                                          | S13   | Anthropic Files API passthrough                                                                                                                                                                                                                                                  |
+| `routes/instance/copilot_ai_proxy.ts`, `routes/instance/ai_proxy.ts`  | S13   | Anthropic passthrough (mounted `/ai` behind `requireApprovedUser()` and `/ai-instance` behind `can_configure_data`, both thin wrappers over `routes/anthropic_messages_proxy.ts`). Returns Anthropic-shaped bodies, not `APIResponse`. `routes/project/ai_proxy.ts` still exists but is mounted nowhere |
+| `routes/instance/ai_files.ts`                                         | S13   | Anthropic Files API passthrough, mounted `/ai` beside the copilot proxy, same guard                                                                                                                                                                                              |
 | `routes/instance/upload.ts`                                           | S4    | Hand-rolled TUS resumable-upload protocol (custom headers/handshake)                                                                                                                                                                                                             |
 | `routes/public/dashboard.ts`                                          | S12   | Public/anonymous, mounted before the global `authMiddleware`                                                                                                                                                                                                                     |
 | `routes/instance/health.ts`                                           | S15   | Diagnostics; 13 routes, bare JSON, deliberately unauthenticated for external monitoring (exposure inventory is S15's contract)                                                                                                                                                   |
@@ -492,8 +496,11 @@ anything else rethrows to `app.onError`.
 (`server/middleware/userPermission.ts`): signed in (else 401) AND
 `globalUser.approved` (else 403 "awaiting approval"); sets `c.var.globalUser`
 and `c.var.mainDb`. It guards the run-keyed figure-data reads, the authoring
-context and the ready-package list, and will guard the copilot proxies and
-the collab socket when those move (PLAN_PRODUCTS_RESTRUCTURE D2, D7). Unlike
+context, the ready-package list, the product email send, and the copilot
+proxy and its Files route on `/ai` (PLAN_PRODUCTS_RESTRUCTURE D2, D15). The
+instance collab socket (`routes/instance/collab.ts`) applies the same
+signed-in-and-approved test inline before the upgrade rather than through
+this middleware, because its denials must travel as a post-upgrade close. Unlike
 the zero-permission `requireGlobalPermission()`, it checks `approved`.
 
 **`requireProductAccess(level)`**: the guard for every product and folder
@@ -544,8 +551,8 @@ access must call it, never re-query `project_user_roles`. (The old soft-failing
 
 `requireProjectPermission()` with **zero** permission keys still authenticates,
 resolves the project, and sets `ppk`: "any project member may act". Real call
-sites: the AI proxy/files routes, `getProjectDetail`, a few module reads.
-Deliberately weak; be deliberate about using it.
+sites: `getProjectDetail`, `getResultsObjectItems`, and the unmounted
+`routes/project/ai_proxy.ts`. Deliberately weak; be deliberate about using it.
 
 ### Permission source of truth: `lib/types/permissions.ts`
 

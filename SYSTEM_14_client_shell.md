@@ -119,7 +119,7 @@ for boot.
 file), which:
 
 - holds the module-level Clerk singleton (`new Clerk(publishableKey)` from
-  `VITE_CLERK_PUBLISHABLE_KEY`), and a `_BYPASS_AUTH` dev path that skips Clerk
+  `VITE_CLERK_PUBLISHABLE_KEY`), and a `bypassAuth` dev path (`VITE_BYPASS_AUTH`, non-production builds only) that skips Clerk
   entirely and synthesizes a dev user (`"en"`/`"gregorian"`);
 - resolves **language**: `localStorage[LANGUAGE_STORAGE_KEY]`
   (`"fastrLanguage"`) if present, else the instance's configured language
@@ -190,7 +190,7 @@ primitives:
   `resolveTS` from panther.
 
 There is no translation build step and no string-key table: translations are
-**inline `{ en, fr, pt? }` literals at the call site** (~252 client files call
+**inline `{ en, fr, pt? }` literals at the call site** (241 client files call
 `t3`), plus `TC`. There is deliberately no `isFrench()` helper; conditional
 language logic uses `getLanguage()`.
 
@@ -209,7 +209,7 @@ language logic uses `getLanguage()`.
   UI; for domain terms (admin area, indicator, slide deck) copy the established
   translation from existing `t3` calls, don't invent.
 
-Whether every literal is well-formed across the 252-file surface is the standing
+Whether every literal is well-formed across the 241-file surface is the standing
 §4.3.6 audit (SYSTEMS.md), not re-checked per cycle.
 
 ## UI preferences (`state/t4_ui.ts`)
@@ -234,7 +234,7 @@ lesson, SYSTEM_09).
 
 No polling, no heartbeat: `navigator.onLine` + `online`/`offline` window events
 feed `isOnline`; a failure counter fed by the server-action wrapper
-(`try_catch_server.ts` calls `reportNetworkFailure`/`reportNetworkSuccess`)
+(`try_catch_server.ts` fires the transport's `onNetworkFailure`/`onNetworkSuccess` hooks, which `LoggedInWrapper.tsx` binds to `reportNetworkFailure`/`reportNetworkSuccess`)
 flips `connectionIssues` at ≥2 failures with a 30 s decay.
 `ConnectionStatus.tsx` renders the offline banner but is **mounted nowhere,
 dead UI** (Open items); the monitor itself is live.
@@ -287,7 +287,7 @@ via `mediaSize`. Types + `compareDottedVersions` live in
 Docs-site-backed contextual help: content is authored as invisible
 `<!-- help#id -->` tags in the EN+FR markdown of the sibling `wb-fastr-site`
 repo; `deno task build:help-buttons` walks the site and generates
-`lib/help/help_targets.generated.ts` (41 entries: page slug, per-language
+`lib/help/help_targets.generated.ts` (43 entries: page slug, per-language
 anchors, titles, ~200-char summaries), failing on duplicate or one-language-only
 ids. `<HelpButton id />` is fully self-contained: `id` is typed as the
 generated `HelpId` union (a dangling button is a compile error), the modal
@@ -296,7 +296,7 @@ deep-links via `getHelpUrl` (site URL, `/fr` prefix when
 `getLanguage() === "fr"`, the language's own anchor). The recipe and its traps
 are [PROTOCOL_APP_HELP_BUTTONS.md](PROTOCOL_APP_HELP_BUTTONS.md). Coverage
 today: **EN/FR only** (a `pt` user gets English content and the English site),
-and exactly **one** of the 41 targets has a button in the UI (`viz-data-tab`, in
+and exactly **one** of the 43 targets has a button in the UI (`viz-data-tab`, in
 the PO editor's data panel).
 
 ## Open items

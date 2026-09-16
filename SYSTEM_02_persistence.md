@@ -86,7 +86,7 @@ await runProjectMigrations(projectDb); // then migrations, so base + migrations 
 The products block on `main` (`folders`, `products`, `slide_decks`,
 `slides`, `reports`, `report_versions`, `slide_deck_versions`) is in the base
 schema and, for existing instances, in `090_products.sql` in `IF NOT EXISTS`
-form. Nothing reads or writes it yet
+form. `server/db/products/**` reads and writes it
 ([SYSTEM_12](SYSTEM_12_documents_sharing.md)).
 
 The connection id (`"postgres"`, `"main"`, or the project UUID) is the same
@@ -116,9 +116,11 @@ const db = getPgConnectionFromCacheOrNew(id, "READ_AND_WRITE"); // "main" or pro
   process shutdown in `main.ts` (SIGINT/SIGTERM), and per-project teardown
   before a project delete or a backup restore drops its database.
 - `getPgConnection(databaseId, { max?, readonly? })` creates a **fresh,
-  uncached** pool: caller must `.end()`. Two call sites, both in the restore
-  body of `routes/instance/backups.ts`. (`options.readonly` is dead, as
-  described below.)
+  uncached** pool: caller must `.end()`. Call sites: the restore body of
+  `routes/instance/backups.ts` (two), the per-project sweep in
+  `db/instance/rename_user_email.ts`, the consolidation planner's source
+  pools in `db/migrations/consolidation/execute.ts`, and the test harnesses.
+  (`options.readonly` is dead, as described below.)
 
 ### 2. Dedicated worker connections (background jobs)
 
@@ -196,9 +198,11 @@ Rules of the shape:
 
 - internal sentinel strings (`ERROR_CATEGORY.MODULE_NOT_RUN`, `DATA_NOT_FOUND`,
   `VALIDATION_ERROR`, …) → friendly messages;
-- Postgres message patterns: `relation "ro_…" does not exist` →
-  `DATA_NOT_FOUND` ("module may need to be run"), `column … does not exist` →
-  `CONFIGURATION_ERROR`, `permission denied` → `PERMISSION_DENIED`;
+- Postgres message patterns: `relation "…" does not exist` →
+  `DATA_NOT_FOUND`, `column … does not exist` → `CONFIGURATION_ERROR`,
+  `permission denied` → `PERMISSION_DENIED`; the DuckDB twins on the run
+  path likewise, with `Catalog Error: Table with name ro_… does not exist` →
+  `DATA_NOT_FOUND` ("module may need to be run");
 - network error codes (`CONNECTION_ENDED`, `ECONNREFUSED`, …) → `NETWORK_ERROR`.
 
 It returns a
@@ -227,8 +231,9 @@ connection-level `undefined → null` transform means a missing field becomes SQ
 ### Transactions & optimistic concurrency
 
 - **Multi-statement atomic writes use `db.begin(async (tx) => …)`**
-  (`presentation_objects.ts`, `modules.ts`, `slides.ts`, `projects.ts`,
-  `move_slides.ts`, `dashboards.ts`, the `datasets_in_project_*.ts` family, …).
+  (`presentation_objects.ts`, `projects.ts`, `dashboards.ts`, the
+  `db/products/*` family (`slides.ts`, `move_slides.ts`, `versions.ts`, …),
+  the instance dataset and structure files, …).
 - **Optimistic concurrency** uses a `last_updated` round-trip: the caller passes
   `expectedLastUpdated`; if it differs from the stored value, the function
   reports `conflicted: true` (e.g. `updateReportBody`,
@@ -260,27 +265,27 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
 - **Values**: always interpolate with the tagged template, as in
   `` projectDb`… WHERE id = ${id}` ``. Never string-concatenate a value.
 - **Identifiers**: dynamic table/column names go through the helper, as in
-  `` projectDb`SELECT * FROM ${projectDb(tableName)}` `` (see
-  `results_objects.ts`). postgres.js quotes them safely. There are **no
+  `` mainDb`SELECT count(*) FROM ${mainDb(facilitiesTable)}` `` (see
+  `instance/structure.ts`). postgres.js quotes them safely. There are **no
   parameterized table names**: a table name from config must be validated
   against a closed set before it reaches SQL.
 - **`escapeSqlString`** (`server/db/utils.ts`, `s.replace(/'/g, "''")`) is the
   **only** sanctioned manual escaper for Postgres-bound SQL, used for
   hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
-  `db_startup`, S9 filter values). No call site may inline its own
+  run input capture, S9 filter values). No call site may inline its own
   `''`-doubling.
   `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
   twin.
-- **`.unsafe()`** runs raw SQL with no parameterization. There are ~20 call
-  sites, all trusted-internal, in four groups: (1) the **bulk ingest paths**
-  (S6-owned: `datasets_in_project_{hfa,hmis,iceh}.ts`,
-  `instance/dataset_{hfa,hmis}.ts`,
-  `instance/structure.ts`, staging workers) building large `INSERT`/DDL strings
-  whose values go through `''`-doubling escaping; (2) the three **`detect*`
-  probes** (`detectColumnExists`, `detectHasPeriodId`, `detectHasAnyRows` in
-  `db/utils.ts`) interpolating table/column names that are internal constants /
-  closed unions; (3) the **migration runner** executing repo-authored `.sql`
-  files; (4) the **restore body** interpolating an internal project UUID into
+- **`.unsafe()`** runs raw SQL with no parameterization. There are roughly a
+  hundred call sites outside tests, all trusted-internal, in four groups: (1)
+  the **bulk ingest and run input capture paths** (`instance/dataset_hmis.ts`,
+  `instance/structure.ts`, the staging workers,
+  `runs/capture_inputs/{hfa,hmis,iceh}.ts`) building large `INSERT`/DDL
+  strings whose values go through `''`-doubling escaping; (2) the
+  **`detectHasAnyRows` probe** (`db/utils.ts`) and `generateUniqueIdForTable`
+  (`utils/id_generation.ts`) interpolating table names that are internal
+  constants / closed unions; (3) the **migration runner** executing
+  repo-authored `.sql` files; (4) the **restore body** interpolating an internal project UUID into
   `DROP/CREATE DATABASE` and `pg_terminate_backend`. **`.unsafe()` with any
   user-influenced string is forbidden.**
 
@@ -292,7 +297,8 @@ server has verified-current schema and stored-JSON shapes. The sequence:
 
 1. **Fresh-instance bootstrap.** Connect to the `postgres` admin DB; if `main`
    doesn't exist, create it, load `_main_database.sql`, and seed it (H_USERS
-   admin rows, default `instance_config` rows, the HMIS indicator dictionary).
+   admin rows and default `instance_config` rows; the indicator dictionary
+   starts empty).
 2. **Instance migrations.** `runInstanceMigrations`
    (`server/db/migrations/runner.ts`): lexicographically-ordered `NNN_*.sql`
    and `NNN_*.ts` files from `migrations/instance/`, applied-set tracked in a
@@ -303,10 +309,13 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    `deno check main.ts` covers it, and an unregistered one makes the runner
    throw rather than skip. `runMigrationsInDir` is the same loop over any
    directory, throwing `MigrationFailure` instead of exiting, for harnesses.
-3. **Wedged-state resets.** Upload attempts stuck at an in-flight `status_type`
-   (`staging`/`integrating`/`importing`) with no live worker are flipped to
-   `error` (a restart mid-import would otherwise block all future imports via
-   the concurrency guards); stale mid-run DHIS2 import runs are marked likewise.
+   Then `dropOrphanProjectDatabases` (`db/project/projects.ts`) drops any
+   UUID-named database no `projects` row points at.
+3. **Wedged-state resets.** Structure upload attempts stuck at
+   `status_type = 'importing'` with no live worker are flipped to `error` (a
+   restart mid-import would otherwise block all future imports via the
+   concurrency guards); stale mid-run HMIS, HFA and ICEH import runs are
+   marked likewise.
 4. **Instance data transforms.** Per-type JSON transforms (`instance_config`),
    each in its own transaction; any failure exits.
 5. **Per-project pass.** For each row in `projects`: project SQL migrations (`migrations/project/`,
@@ -314,8 +323,9 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    (`po_config`, `slide_deck_config`, `slide_config`, `reports`,
    `dashboard_config`, `dashboard_items`), each in its own transaction,
    fail-stop; plus the explicitly-`TEMPORARY` dashboard-slug backfill that
-   self-identifies in the file. No boot step touches results: the project-DB
-   results plane was dropped by migration 041 (SYSTEM_08).
+   self-identifies in the file. No boot step touches results in the project
+   DB: that plane was dropped by migration 041. The runs-catalog sweep and the
+   run-manifest transform that run after this pass are S8's (SYSTEM_08).
 
 SQL migrations must be idempotent because the base schema files
 (`_main_database.sql`, `_project_database.sql`) represent current state and new
@@ -337,8 +347,9 @@ table that older migrations touch"; applied to nine project migrations).
 and returns every row 091 would insert, the id remaps, the nested folder
 plan, the bundle stamps and the dropped-row counts, and issues no write;
 `execute.ts` is `consolidateProjects(tx)`, which applies that plan through
-the migration transaction, opening each source project pool fresh and
-read-only. The three migrations it belongs to (`000_legacy_project_shell.sql`,
+the migration transaction, opening each source project pool fresh with
+`getPgConnection` and ending it once the plan is applied. The three
+migrations it belongs to (`000_legacy_project_shell.sql`,
 `091_consolidate_projects.ts`, `092_drop_project_layer.sql`) are staged
 under `consolidation/staged/`, which neither the runner nor the validate
 scripts scan, until step 9b moves them into `instance/`.
@@ -382,8 +393,8 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 
 - **Where.**
   [server/db/migrations/data_transforms/_figure_block.ts](server/db/migrations/data_transforms/_figure_block.ts)
-  holds the shared conversion; the four per-surface sweeps (`slide_config.ts`,
-  `dashboard_config.ts`, `dashboard_items.ts`, `reports.ts`) call
+  holds the shared conversion; the three per-surface sweeps (`slide_config.ts`,
+  `dashboard_items.ts`, `reports.ts`) call
   `transformFigureBlock` then `transformFigureBlockToBundle` on each block. The
   strict `figureBlockSchema` final-parse aborts boot if any row is still legacy
   after transform (the skip-gate gotcha made safe by strictness).
@@ -414,8 +425,9 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   rather than producing a silent blank (which would masquerade as "empty" past
   `figureBlockSchema`), so the dry-run surfaces it by id.
 - **Shared traversal.** `walkSlideLayoutNodes` (exported from
-  `_figure_block.ts`) is used by both the `slide_config` boot sweep and the
-  dry-run, so the two cannot drift in how they walk a slide layout.
+  `_figure_block.ts`) is used by the `slide_config` boot sweep, the
+  consolidation planner and `db/products/versions.ts`, so they cannot drift
+  in how they walk a slide layout.
 - **`resultsValue.formatAs` is INFERRED here, and nowhere else.** A stored
   bundle carries no metric definition, so `inferFormatAs` supplies the field:
   `"indicator"` for the eight ids in `INDICATOR_FORMAT_METRIC_IDS`
@@ -429,7 +441,8 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   DIMENSION: a legacy figure displaying no indicator dimension would resolve
   `"number"` and freeze a percent metric's values as raw fractions, and this
   write is permanent. The flip needs a **forced** skip-gate
-  (`rawJsonNeedsIndicatorFormatFlip`), because a bundle whose stored `formatAs`
+  (`rawJsonNeedsFigureBlockTransform` string-scans the raw row for a listed
+  metric id), because a bundle whose stored `formatAs`
   still says `"number"` for a listed metric parses cleanly under the three-way
   schema and a parse-only gate would skip it forever
   ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), "Skip-Gate
@@ -456,13 +469,14 @@ gate is history, not tooling.
   (`DBPresentationObject`, `DBUser`, …) describing raw table rows. These are
   _not_ Zod schemas (the `_*.ts` stored-schema convention is in
   [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)).
-- **`mod.ts` barrels**: `db/mod.ts`, `db/instance/mod.ts`, `db/project/mod.ts`
-  aggregate and re-export every non-helper sibling so callers never deep-import.
+- **`mod.ts` barrels**: `db/mod.ts`, `db/instance/mod.ts`, `db/project/mod.ts`,
+  `db/products/mod.ts` aggregate and re-export every non-helper sibling so
+  callers never deep-import.
 - **`generateUnique*Id`** (`server/utils/id_generation.ts`): short nanoid
-  (3-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`), retry-until-unique (10
-  attempts) against a specific table: one internal core over a closed
-  `IdTable` union, seven thin named wrappers
-  (deck/slide/report/presentation-object/dashboard/dashboard-item/
+  (4-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`; existing 3-char ids
+  stay), retry-until-unique (10 attempts) against a specific table: one
+  internal core over a closed `IdTable` union, eight thin named wrappers
+  (product/deck/slide/report/presentation-object/dashboard/dashboard-item/
   dashboard-item-group). (Projects/folders/tokens use `crypto.randomUUID()`
   instead.)
 - **PascalCase stragglers.** The DB-function convention is camelCase, but the

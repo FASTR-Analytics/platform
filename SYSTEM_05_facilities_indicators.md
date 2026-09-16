@@ -72,9 +72,9 @@ pipeline that joins facilities/geojson at render time, and applies each
 indicator's catalog expression after aggregation, is **S9**. Indicator
 DEFINITIONS (an Uploaded or DHIS2 element's data id, a sum's members, calculated expressions,
 population rates) are S5's dictionary, snapshotted into each package at
-capture. Projects never
-read this system live. Everything crosses into project DBs via attach-time snapshots
-(S6's seam).
+capture. Nothing downstream
+reads this system live. Everything crosses into a results package at run
+capture (S6's run-capture seam).
 
 ## Structure ELT (facility/admin import)
 
@@ -249,8 +249,9 @@ facility ids, duplicates, and non-positive weights reject the whole file
 pre-transaction.
 
 **`structure_last_updated`** (JSON ISO timestamp in `instance_config`) is
-the version key for the whole structure world: S6's HMIS/HFA staleness
-gates read it, and the client facilities/weights caches key on it. Bumped
+the version key for the whole structure world: S6's HMIS/HFA captures
+record it in the run's dataset info, and the client facilities/weights
+caches key on it. Bumped
 by: step-4 integrate, both facility-delete endpoints, all weights
 mutations, and HFA time-point rename/delete (whose weight cascades were
 previously invisible to the weights UI).
@@ -328,8 +329,8 @@ the author's text otherwise kept, the new id written as the grammar
 requires; 086's `fastr_rename_identifier` is the same segment rule for
 its one rename, a calculated special to its suffix form, and substitutes
 the new id raw) and every schedule's `indicatorIds`; run and version
-rows are history and keep their pairs, which are data ids; figure configs
-in project databases are not rewritten. Renaming a special is allowed and
+rows are history and keep their pairs, which are data ids; stored figure
+configs are not rewritten. Renaming a special is allowed and
 takes the id out of the module scripts' inputs, as deleting it does.
 Refused: renaming to a reserved, taken or special-when-calculated id.
 Retyping never changes the key, except Uploaded to DHIS2 element, which
@@ -350,7 +351,7 @@ rather than a direct-reference scan: it re-resolves every surviving
 definition against the post-delete dictionary, so an id used only deep
 inside a chain blocks the delete too. Creates are all-or-nothing (one
 transaction; the failing item is named in the error). Pinned by
-`server/tests/indicator_schema_test.ts` (the constraints, fourteen cases),
+`server/tests/indicator_schema_test.ts` (the constraints, nineteen cases),
 `server/tests/indicator_rename_test.ts` (the rename, the data id rule, the
 type switches) and `server/tests/indicator_data_key_test.ts` (the key:
 required, generated, unique, never accepted from a client, kept across
@@ -526,8 +527,8 @@ into R is metadata-driven only. Item ids therefore carry the strict
 `^[a-z][a-z0-9_]{0,63}$` grammar. Group/item edits do not touch any
 `updated_at`, so they are folded directly into `getHfaIndicatorsVersion`'s
 hash the way the category label tables are. Without that, variant
-authoring is invisible to the SSE→cache triangle and to the project
-staleness stamp.
+authoring is invisible to the SSE→cache triangle and to the run's
+`hfaIndicatorsVersion` stamp.
 
 **HFA R-code analysis has ONE home**:
 `lib/hfa_r_code_analysis.ts` (function whitelist, escaped-quote-safe
@@ -538,14 +539,15 @@ The previous drift (two whitelists, server not stripping comments) made
 editor-green code hard-fail whole module runs. lib compiles into both
 runtimes: keep it pure (no Deno/UI imports). The editor's persisted
 `has_syntax_error`/`code_consistent` flags are display-only advisory
-metadata: they are NOT copied into project snapshots (the snapshot reader
-hardcodes them), and bulk validation updates deliberately do NOT bump
-`updated_at` (a bump would spuriously flag every project's HFA dataset
-stale). Warnings (lone `=`) are a distinct severity and never persist as
-errors. The R-code lifecycle: instance edits → project HFA-data refresh
-snapshots indicators+taxonomy+code → S8's module run builds a
-cross-indicator dependency graph (topological sort, cycles rejected) and
-splices each round's code into `case_when` branches;
+metadata: the run's `hfa_indicators_snapshot.json` carries them and its
+reader (`hfaIndicatorRow`, `server/run_query/run_read.ts`) drops them,
+and bulk validation updates deliberately do NOT bump `updated_at` (a bump
+would move `hfaIndicatorsVersion`, the run's HFA staleness stamp, for a
+display-only edit). Warnings (lone `=`) are a distinct severity and never
+persist as errors. The R-code lifecycle: instance edits → run capture
+(S6's run-capture seam) snapshots indicators+taxonomy+code → S8's module
+run builds a cross-indicator dependency graph (topological sort, cycles
+rejected) and splices each round's code into `case_when` branches;
 `STOP_IF_INDICATOR_FAILS` (default TRUE) makes one invalid indicator kill
 the run.
 
@@ -712,9 +714,10 @@ pointers only. Consequences that follow from it and are ruled with it:
   its row schema: older mirrors lack them and are never rewritten);
   `direction` and `target` go on to `IndicatorMetadata` as optional facts
   any family may declare (HMIS declares them today; HFA and ICEH declare
-  neither), the manifest catalog and the stored figure bundle (cache
-  prefix "20"). `expected_low_counts` stops at the mirror: it is a
-  generation input, not a display fact, and no module reads it yet.
+  neither), the manifest catalog and the stored figure bundle (the "20"
+  bump of `PO_CACHE_VERSION`, `server/routes/caches/visualizations.ts`).
+  `expected_low_counts` stops at the mirror: it is a generation input, not
+  a display fact, and no module reads it yet.
 - DHIS2 percent indicators are never imported as values. The importer
   decomposes `numerator`/`denominator` (already on `DHIS2Indicator`) into
   data-element operands → DHIS2 elements carrying them as `data_id`, and
@@ -927,22 +930,23 @@ a clean token rather than passed through. It was an editable instance setting;
 migration 074 deletes the dead `country_iso3` row.
 
 Every config mutation re-reads all configs and pushes one consolidated
-`config_updated` SSE (`notifyConfigUpdated`). No Valkey at this layer.
+`config_updated` SSE (`notifyInstanceConfigUpdatedFromDb`). No Valkey at
+this layer.
 
 ## Client state & wizard
 
 - T2 caches: facilities keyed
   `family + structureLastUpdated + hashStructureSchema(family schema)`;
   indicators keyed on the T1 version stamps (cache name
-  `instance_indicators_v6`, bumped when the definition took the four types
-  and `data_id`). There are TWO indicator stamps, both MD5 over
-  MAX(updated_at)+count of `indicators` rows: `indicatorsVersion` covers
+  `instance_indicators_v7`, bumped when `direction`, `target` and
+  `expected_low_counts` joined the payload). There are TWO indicator
+  stamps, both MD5 over MAX(updated_at)+count of `indicators` rows: `indicatorsVersion` covers
   EVERY row and keys the indicator manager, while `countIndicatorsVersion`
   counts only the analysed counts (`is_count AND include_in_analysis`) and
   is what the HMIS datatable keys on, so editing a calculated definition costs
-  that cache nothing. Both are stored in the project's `datasets.info` JSON
-  at capture (project migration 042 renamed the keys; old manifests keep
-  the earlier name in `datasets[].info`, which nothing reads).
+  that cache nothing. Both are stored in the run manifest's `datasets[].info` at
+  capture (`RunDatasetHmisInfo`, `lib/types/run_datasets.ts`; manifest
+  transform block 9 renames the pre-1.72 keys in stored manifests).
   `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
 - The indicator editor's expression palette (ruled;
   storage unchanged, the identifier inserted is the stored id): two
@@ -1000,16 +1004,14 @@ Every config mutation re-reads all configs and pushes one consolidated
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
   Calculated, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
   element, the members, the formula, nothing for an Uploaded indicator;
-  `definedByText`, shared with the import picker), a Format column (a
-  calculated indicator's Number, Percent or Rate per 10,000; blank for a
-  count, which is always a number; `formatText`), a read-only
+  `definedByText`, shared with the import picker), a read-only
   include-in-analysis tick (the flag is edited in the modal only) and the
   Special badge. The two facts the type implies (a count is adjusted by the
   data quality modules, `isCount`; an Uploaded or DHIS2 element holds rows
   of its own, `hasRows`) are not columns: the Indicator types button opens
-  a modal that states each type's source, adjustment and rows
+  a modal that states each type's source, adjustment, rows and format
   (`IndicatorTypesModal`, `_type_facts.tsx`), and the editor shows the same
-  three lines under the type selector (`TypeFactsList`). The editor offers
+  four lines under the type selector (`TypeFactsList`). The editor offers
   the four types and branches on the type: a DHIS2 element has the DHIS2 id
   input (locked while the ledger reports rows under it or has not loaded;
   set, DHIS2-shaped and no other indicator's data id, whatever its type),
@@ -1072,14 +1074,11 @@ Every config mutation re-reads all configs and pushes one consolidated
   cast `::int` must be coerced before strict comparison. Known uncasted
   sites: `getStructureItems.totalCount`, staging `adminAreasPreview`
   counts, several dictionary usage checks.
-- **`structure_last_updated` comparison semantics differ by family**: the
-  HMIS staleness gate compares with `>`, HFA with strict inequality. Both
-  read the same stamp.
 - A CSV-origin facility with a DHIS2-UID-shaped id falls inside S6's
   DHIS2 scoped-delete scope: there is no per-row origin marker on
   facilities (also flagged in SYSTEM_06).
 - `hfa_indicator_code` is not independently hashed: code changes are
-  visible to project staleness only because `saveHfaIndicatorFull` bumps
+  visible to `hfaIndicatorsVersion` only because `saveHfaIndicatorFull` bumps
   the indicator row. Any new code-mutation path must do the same.
 - The named FK constraints from migration 048 are no longer used by any
   `SET CONSTRAINTS` call. The migration comments overstate; verify before

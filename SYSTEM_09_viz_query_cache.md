@@ -28,10 +28,8 @@ globs:
 > in `server_only_funcs_presentation_objects/` take their `QueryContext` from
 > the manifest and their executor from DuckDB over the run's parquet. Caches
 > are run-keyed. SYSTEM_03's cache catalog is authoritative for the live
-> keying (`PO_CACHE_VERSION` is "19", `po_detail_v10`), including over the
-> stale `po_detail_v2` / `PO_CACHE_VERSION "5"` table and paragraph further
-> down this file; calendar threads via `QueryContext`, not `getCalendar()` at
-> the call sites.
+> keying (`PO_CACHE_VERSION` is "23", `po_detail_v13`); calendar threads via
+> `QueryContext`, not `getCalendar()` at the call sites.
 
 PO config → fetch-config contract → DuckDB SQL over the results package the
 caller names → run-keyed cached payloads, on both tiers. **This system does
@@ -88,7 +86,7 @@ Valkey po_items (server) / IndexedDB po_items (client)  →  buildFigureInputs (
 ## The fetch-config contract
 
 `GenericLongFormFetchConfig`
-([presentation_objects.ts:399](lib/types/presentation_objects.ts#L399)) is THE
+([presentation_objects.ts:629](lib/types/presentation_objects.ts#L629)) is THE
 client→server query contract: `values` (`{prop, func}` pairs or PAE
 ingredients), `groupBys`, `filters`, `periodFilter`,
 `postAggregationExpression`, `rollupDim` (presence = roll-up on).
@@ -100,7 +98,7 @@ Built only by `getFetchConfigFromPresentationObjectConfig`
 timeseries config lacks it); `values` = the PAE's `ingredientValues` when the
 metric has a post-aggregation expression, else filtered `valueProps` ×
 `valueFunc`; roll-up dimension baked in via `getEffectiveRollupDimension`.
-(Target model, ruled in S5's "additivity principle": derived
+(Target model, ruled in S5's "additivity principle": calculated
 HMIS indicators are evaluated by THIS mechanism with row-restricted
 ingredients (`SUM(col) FILTER (WHERE indicator_common_id = …)`) and a
 catalog-supplied expression, on qualifying fetches. Qualification is
@@ -116,14 +114,15 @@ pane's data); every **options** query passes `{excludeReplicantFilter: true}`,
 which omits only the appended pin while keeping the user's own `filterBy`,
 including a filter on the replicant column itself, which the server honors, so a
 replicant filtered to a subset lists exactly that subset. All four options
-callers (`resolveDefaultReplicant`, `ReplicateByOptions` ×2, dashboards'
-`resolve_replicant_structure`, `assert_replicant_valid` for AI figures) build
-the pin-excluded config the same way and therefore share one `replicant_options`
-cache entry. Reusing a pin-excluded config for the items fetch would merge all
-replicant panes into one figure. Keep the two configs split.
+callers (`resolveDefaultReplicant`, `ReplicateByOptions` ×2,
+`assert_replicant_valid` for AI figures, the copilot's
+`format_figure_config_for_ai`) build the pin-excluded config the same way and
+therefore share one `replicant_options` cache entry. Reusing a pin-excluded
+config for the items fetch would merge all replicant panes into one figure.
+Keep the two configs split.
 
 `hashFetchConfig`
-([get_fetch_config_from_po.ts:247](lib/get_fetch_config_from_po.ts#L247)) is the
+([get_fetch_config_from_po.ts:328](lib/get_fetch_config_from_po.ts#L328)) is the
 cache-uniqueness function on both tiers: values sorted by prop+func, groupBys
 sorted, filter values sorted and JSON-encoded (a bare `,`-join could collide on
 comma-holding values), periodFilter discriminated by type with only its own
@@ -133,9 +132,10 @@ dimension. `periodFilterExactBounds` and display preferences (roll-up position)
 are deliberately absent.
 
 **Wire boundary = SQL-injection boundary.** Every field below is interpolated
-into `projectDb.unsafe` SQL, and the route body is attacker-controllable, so
-type shape alone is not enough. `genericLongFormFetchConfigSchema` rejects at
-the route boundary (400) on BOTH mounts (run-keyed
+into the raw SQL the DuckDB executor runs, and the route body is
+attacker-controllable, so type shape alone is not enough.
+`genericLongFormFetchConfigSchema` rejects at the route boundary (400) on BOTH
+mounts (run-keyed
 `getRunPresentationObjectItems` / `getRunReplicantOptions`, project
 `getPresentationObjectItems` / `getReplicantOptions`); the imperative
 `validateFetchConfig` re-guards in the shared handler body. Both
@@ -335,7 +335,7 @@ Relative types (`last_n_months`, `last_calendar_year/quarter`,
 `last_n_calendar_years/quarters`) carry only `nMonths`/`nYears`/`nQuarters`;
 bounded types (`custom`, `from_month`) carry `min`/`max`.
 `getPeriodFilterExactBounds`
-([get_fetch_config_from_po.ts:112](lib/get_fetch_config_from_po.ts#L112))
+([get_fetch_config_from_po.ts:158](lib/get_fetch_config_from_po.ts#L158))
 resolves them server-side against the live data bounds: `custom` passes through;
 `from_month` re-anchors a drifted stored `min` to the live data's format
 (`reAnchorToFormat`) and takes `max` from the data so the range tracks new data;
@@ -501,8 +501,9 @@ Four rules that are each load-bearing:
 
 - **The gate is semantic AND type-based.** `usesBlankSentinel` excludes integer
   columns, period-derived text (`month`), and multi-membership. On top of that,
-  the column must actually be TEXT (`QueryContext.textColumns`, from
-  `getTextColumnNames`). Results-column types are authored per module, so the
+  the column must actually be TEXT (`QueryContext.textColumns`, built by
+  `buildQueryContextFromManifest` from the manifest's column-type stamps).
+  Results-column types are authored per module, so the
   same option is not the same type everywhere: `time_point` is `integer` in one
   instance here and `text` in another. The fold emits `btrim()` and returns a
   text sentinel from the `CASE`; Postgres rejects both on a numeric column, so a
@@ -701,7 +702,7 @@ inversion in Open items):
 
 | Cache            | Uniqueness                                                              | Version hash                        |
 | ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
-| `po_detail_v10`  | project + po id                                                         | `poLastUpdated\|runId\|scopeToken`  |
+| `po_detail_v13`  | project + po id                                                         | `poLastUpdated\|runId\|scopeToken`  |
 | `po_items`       | runId + resultsObject + `hashFetchConfig` + scopeToken                  | `PO_CACHE_VERSION`                  |
 | `metric_info`    | runId + metric + scopeToken                                             | `PO_CACHE_VERSION`                  |
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken    | `PO_CACHE_VERSION`                  |
@@ -727,11 +728,13 @@ mismatch silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
 Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently
-"19") is folded into the version hash: bump it when a code change alters the
-_meaning_ of a cached payload without any data change (full history in the
-comment block above the constant; "19" is the payload shape without the
-write-only freshness pair: `runId` + `scopeToken` are the whole identity).
-**The key prefix** (`po_detail` → `po_detail_v10`): bump it when the payload
+"23") is folded into the version hash: bump it when a code change alters the
+_meaning_ of a cached payload without any data change, and once per manifest
+transform block (full history in the comment block above the constant; "19"
+is the payload shape without the write-only freshness pair: `runId` +
+`scopeToken` are the whole identity; "20" to "23" track the indicator
+restructure's payload and manifest-schema changes).
+**The key prefix** (`po_detail` → `po_detail_v13`): bump it when the payload
 _shape_ changes (the version hash only tracks row `last_updated` + run +
 scope, so a deploy adding a field would keep serving old-shape payloads for
 unmodified rows). The `po_detail` hit path additionally
@@ -756,8 +759,7 @@ instance routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo`
 manifest-only `getRunAuthoringContext`, all under
 `routes/instance/run_generation.ts`, the caller supplying `(run_id,
 adminArea2)`, `runs.status = 'ready'` required, guarded
-`requireGlobalPermission()` until step 5 swaps in `requireApprovedUser()`)
-and, until 9b, the project routes here. The replicant read is keyed by
+`requireApprovedUser()`) and, until 9b, the project routes here. The replicant read is keyed by
 results object (the cache identity); the run-keyed route narrows its
 `metricId` first, and the project route stamps `projectId` onto the shared
 `RunReplicantOptions` payload on the way out. The client caches
@@ -830,8 +832,9 @@ bundle freezes:
 - **A FigureBundle is exactly "a Visualization render, frozen"** = `config` +
   the live-queried items (post replicant-resolution) + the metric projection.
   The live path builds a transient bundle each tick
-  (`getPOFigureInputsFromCacheOrFetch_AsyncGenerator` → `buildFigureInputs`), so
-  live and stored figures run identical code.
+  (`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator` →
+  `makeFigureBundleFromFetchedData` → `buildFigureInputs`), so live and stored
+  figures run identical code.
 - **The `resultsValue` projection is an S9 type**: the bundle stores
   `ResultsValueForVisualization`
   (`{formatAs, valueProps,
@@ -907,9 +910,10 @@ bundle freezes:
 - **Stale configs fail silent**: a stored config referencing a
   no-longer-available disOpt (e.g. facility column turned off) renders with it
   silently omitted; no error surface exists.
-- **module re-run → PO invalidation is indirect**: `set_module_clean` UPDATEs
-  every dependent PO's `last_updated` and notifies; if that chain is touched,
-  every `po_detail` client entry stops invalidating.
+- **A new run never touches a PO row**: runs are immutable, so `po_detail`
+  invalidates on a run switch only because `runId` is folded into its version
+  hash; drop it from `versionHashFromParams` and every `po_detail` entry
+  stops invalidating.
 
 ## Open items
 
@@ -919,7 +923,7 @@ F2/F8b and dropped F4 are stated as facts in the prose where relevant):
 
 - **F8a [LOW, parked]**: Ethiopian last-full-quarter ternary has identical
   branches
-  ([get_fetch_config_from_po.ts:224](lib/get_fetch_config_from_po.ts#L224));
+  ([get_fetch_config_from_po.ts:299](lib/get_fetch_config_from_po.ts#L299));
   harness-verified fix is `maxMonth === 1 ? maxYear - 1 : maxYear`, but a domain
   owner must confirm the Ethiopian fiscal-quarter definition (and
   Pagume/month-13) before patching.
@@ -932,7 +936,7 @@ Standing decoupling items (from the systems review):
   the §4.1 custody table).
 - **Relocate the cache instances out of `routes/caches/`**: they are not
   routes, and migration `data_transforms` importing from `routes/`
-  (po_config.ts:53, metric.ts:45) is a layering inversion; `server/caches/`
+  (po_config.ts:61) is a layering inversion; `server/caches/`
   would make the dependency direction honest.
 - **Separate display-language from data-calendar.** `getCalendar()` is data
   semantics, since it changes generated SQL (`getQuarterIdExpression`) and
