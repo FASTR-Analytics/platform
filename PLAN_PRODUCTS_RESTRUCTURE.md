@@ -1878,7 +1878,8 @@ deletion (10).
 `validate_consolidation_replay` green with the files in their final places.
 A fresh-postgres boot (000 through 092 plus transforms) exits 0. The dev DB
 consolidated by `./run`: the products, folders, slides and versions counts
-match the step 2 `--local` plan exactly; a report and a deck version restore
+match a `./validate_consolidation.ts --local` run taken immediately before
+the consolidation; a report and a deck version restore
 on a migrated product; a migrated AA2 product's export labels its roll-up
 row by the bundle's scope. §5 greps 1 to 4 at zero. `./mcp_probe` output
 unchanged from step 3's baseline.
@@ -1950,8 +1951,8 @@ step that first reaches zero is named, and every later step keeps it there.
 6. `validate_consolidation_replay` green (step 2; re-run in 9b).
 7. `validate_consolidation.ts` zero FAIL fleet-wide, counts reviewed (D2,
    D3, D11). Step 2 onward; a precondition of the runbook, not of any step.
-8. 091 executed against the dev DB with counts matching the `--local` plan
-   (9b).
+8. 091 executed against the dev DB with counts matching a `--local` run
+   taken immediately before it (9b).
 9. Fresh-postgres boot exit 0 (1, 2, 9b).
 10. `./mcp_probe` output byte-identical to the pre-step-3 baseline (3, 9b).
 
@@ -2353,6 +2354,7 @@ this section before its step.
 | 2026-09-11 | plan | Tim's ruling: migrations renumbered ahead of the tim-branch merge, which brings `084_population_reserved_words`, `085_ledger_skipped_values` and `086_indicator_sources` (deployed fleet-wide through 084; 085 and 086 on the dev database). `084_products.sql` is `087_products.sql`; the staged `085_consolidate_projects.ts` and `086_drop_project_layer.sql` are `088_consolidate_projects.ts` and `089_drop_project_layer.sql`; `000` stays. Every 084, 085 and 086 in this plan's text reads 087, 088 and 089. No fleet instance had `084_products` recorded (read-only sweep); the dev database's `084_products` ledger row was deleted so the next version2 boot records `087_products` (an `IF NOT EXISTS` no-op). Gates: `./validate_migrations`, `./validate_consolidation_replay`, `deno task typecheck`. |
 | 2026-09-16 | plan | Migrations renumbered again, ahead of the merge of main (1.73.1) into version2 (PLAN_MERGE_MAIN_INTO_VERSION2 step 1, D1): main now carries instance migrations 084 to 089, so `087_products.sql` is `090_products.sql`, and the staged `088_consolidate_projects.ts` and `089_drop_project_layer.sql` are `091_consolidate_projects.ts` and `092_drop_project_layer.sql`; `000` stays. Every 087, 088 and 089 in this plan's text reads 090, 091 and 092. Neither the dev nor the testing database records `087_products` (dev was restored from a fleet dump, testing never ran it), so `090_products` applies fresh on both and no dead row exists. No other instance has seen either number. |
 | 2026-09-16 | plan | Tim's ruling: the `/mcp` door matches D7. `resolvePackageContext` in `server/mcp/context_cache.ts` checked `can_view_data` while every run-keyed route it dispatches to requires only an approved user, so `/mcp` was stricter than the SPA. It now checks `approved`, with the comments in `server/mcp/env.ts`, `mcp_tools.ts`, the context-cache test, SYSTEM_13 and PROTOCOL_APP_DEVELOPMENT following. D2 and §3.2 are edited to say so. |
+| 2026-09-16 | plan | The dev DB changed after step 2: it now holds 5 projects (52 slide decks, 5 reports), so step 2's `--local` counts no longer describe it. Step 9b's gate and §5 gate 8 now compare against a `--local` run taken immediately before the consolidation. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 
