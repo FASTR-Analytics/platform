@@ -200,7 +200,7 @@ Target: `testing-tim` (app port 9151, Postgres 19151),
 instance is the correct answer, not a bug. It means the only claim that target
 supports is "the new bytes boot and serve." Before treating an instance as a
 verification rung, confirm it carries a PINNED package with known data, and a
-user (with instance `can_view_data`) whose primary email matches the credential
+approved user whose primary email matches the credential
 you connect with.
 
 **Verify with disposable fixtures**: create what you need, use it, delete it.
@@ -234,8 +234,8 @@ SPA-only by design and must stay out.
 
 So MCP exercises: the route registry and `APIResponse` envelope, server actions,
 the run-keyed metric reads (items, value info), the query/formatting layer,
-`get_overview` and prompt assembly, the pin resolution, and the instance
-`can_view_data` gate. It does **not**
+`get_overview` and prompt assembly, the pin resolution, and the approved-user
+gate. It does **not**
 exercise ingestion, module execution, viz or slide authoring, exports, client
 rendering, project access, or SSE. Drive those with Playwright
 against testing-tim.

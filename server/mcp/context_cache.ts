@@ -249,14 +249,13 @@ export async function resolvePackageContext(
   const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
-  // The door check: stricter than the run-keyed routes, which require only an
-  // approved user (D7), so an MCP principal also needs can_view_data.
+  // The door check: the run-keyed routes require an approved user (D7) on
+  // every dispatch regardless; judging it here gives the model one clean
+  // failure instead of a denial on each tool.
   const globalUser = await resolveGlobalUser(principal);
-  if (
-    !globalUser.isGlobalAdmin && !globalUser.thisUserPermissions.can_view_data
-  ) {
+  if (!globalUser.approved) {
     throw new AIToolFailure(
-      "Your account lacks the instance permission can_view_data, which the results-package reads require. Ask an instance admin to grant it.",
+      "Your account is awaiting approval, which the results-package reads require. Ask an instance admin to approve it.",
     );
   }
 

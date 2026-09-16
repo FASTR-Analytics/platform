@@ -116,8 +116,8 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
 
   // The 2 package tools, bound: the outer tool is the boot-time template
   // (static schema); resolve() runs per call, reads the pin, and hands back
-  // the inner tool from that package's context, authorization (instance
-  // can_view_data) runs inside resolvePackageContext on every cold resolve,
+  // the inner tool from that package's context, authorization (an approved
+  // user) runs inside resolvePackageContext on every cold resolve,
   // and every data access runs through the headless middleware chain
   // regardless.
   const boundPackageTools = TEMPLATE_TOOLS.map((template) =>

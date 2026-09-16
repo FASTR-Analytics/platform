@@ -8,7 +8,7 @@ import type { AIToolEnv, ServerActionsType } from "lib";
 // getter is the run-keyed instance route it fronts (D7), dispatched
 // in-process through the headless middleware chain (the transport's
 // fetchImpl), so the caller's credential is re-judged on every read; the
-// `can_view_data` bit this surface requires is judged at the door
+// approval this surface requires is also judged at the door
 // (context_cache.ts).
 export function createMcpAIToolEnv(
   serverActions: ServerActionsType,

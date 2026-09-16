@@ -243,11 +243,9 @@ flags (`can_configure_users`, `can_view_users`, `can_view_logs`,
 `can_create_projects` dropped) keep guarding exactly the surfaces they guard
 today; package internals (`getRunDetail`, script, logs and files viewers, the
 `/:run_id/outputs/*` mount, the catalogue, generation, pin) keep
-`can_view_data` / `can_configure_data`; the `/mcp` door keeps its
-`can_view_data` check in `server/mcp/context_cache.ts`, and the comment
-above that check, which today says the run-keyed routes enforce
-`can_view_data`, is rewritten to say that this check is now the only place
-it is enforced. Every approved user is a full editor of every product and
+`can_view_data` / `can_configure_data`; the `/mcp` door in
+`server/mcp/context_cache.ts` checks what the run-keyed routes behind it
+check, an approved user (Tim's ruling, 2026-09-16: `/mcp` matches D7). Every approved user is a full editor of every product and
 folder. `products.created_by` and `folders.created_by` are recorded as
 provenance only: they are NOT ownership, and the later owner role comes
 from an ACL table, never from these columns (migrated rows have them NULL).
@@ -894,7 +892,7 @@ Rules of the shape:
   `listAttachableResultsPackages`, Explore: `requireApprovedUser()`. Package
   internals: `can_view_data`
   (`can_view_logs` for logs). Catalogue, generation, pin: `can_configure_data`.
-  Users: unchanged. `/mcp` door: `can_view_data`.
+  Users: unchanged. `/mcp` door: approved user.
 - Collab WS admission = origin plus Clerk plus approved; each subscribe
   names its product id, and `RoomConn.canEdit` (kept, TRUE) is where a
   per-product check slots in; the six per-family flags and the lock are
@@ -2354,6 +2352,7 @@ this section before its step.
 | 2026-09-11 | 9a | Step 9a reviewed: pass. |
 | 2026-09-11 | plan | Tim's ruling: migrations renumbered ahead of the tim-branch merge, which brings `084_population_reserved_words`, `085_ledger_skipped_values` and `086_indicator_sources` (deployed fleet-wide through 084; 085 and 086 on the dev database). `084_products.sql` is `087_products.sql`; the staged `085_consolidate_projects.ts` and `086_drop_project_layer.sql` are `088_consolidate_projects.ts` and `089_drop_project_layer.sql`; `000` stays. Every 084, 085 and 086 in this plan's text reads 087, 088 and 089. No fleet instance had `084_products` recorded (read-only sweep); the dev database's `084_products` ledger row was deleted so the next version2 boot records `087_products` (an `IF NOT EXISTS` no-op). Gates: `./validate_migrations`, `./validate_consolidation_replay`, `deno task typecheck`. |
 | 2026-09-16 | plan | Migrations renumbered again, ahead of the merge of main (1.73.1) into version2 (PLAN_MERGE_MAIN_INTO_VERSION2 step 1, D1): main now carries instance migrations 084 to 089, so `087_products.sql` is `090_products.sql`, and the staged `088_consolidate_projects.ts` and `089_drop_project_layer.sql` are `091_consolidate_projects.ts` and `092_drop_project_layer.sql`; `000` stays. Every 087, 088 and 089 in this plan's text reads 090, 091 and 092. Neither the dev nor the testing database records `087_products` (dev was restored from a fleet dump, testing never ran it), so `090_products` applies fresh on both and no dead row exists. No other instance has seen either number. |
+| 2026-09-16 | plan | Tim's ruling: the `/mcp` door matches D7. `resolvePackageContext` in `server/mcp/context_cache.ts` checked `can_view_data` while every run-keyed route it dispatches to requires only an approved user, so `/mcp` was stricter than the SPA. It now checks `approved`, with the comments in `server/mcp/env.ts`, `mcp_tools.ts`, the context-cache test, SYSTEM_13 and PROTOCOL_APP_DEVELOPMENT following. D2 and §3.2 are edited to say so. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 

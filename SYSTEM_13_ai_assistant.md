@@ -87,7 +87,7 @@ the query pipeline the data tools call is **S9**.
    internals ×4 (`/mcp` is for seeing results, ruled), the editors and the
    draft preview. `/mcp`
    binds the instance's **pinned** results package (national scope, run-keyed
-   instance routes, gate = instance `can_view_data`) and exposes only the shared
+   instance routes, gate = an approved user) and exposes only the shared
    tools + `get_overview`: 6 read-only tools, no writes.
    **Interpretation context rides the grounding and the shared reads, not
    extra tools**: `buildPackageGroundingSections` lists every HMIS indicator

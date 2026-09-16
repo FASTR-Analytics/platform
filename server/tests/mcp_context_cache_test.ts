@@ -36,7 +36,7 @@ Deno.test("/mcp context cache: keyed by (token, runId) — same user, two PATs, 
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 
-  // A global admin: the can_view_data door check admits admins outright.
+  // A users row makes the caller approved, which the door check requires.
   await mainDb`
     INSERT INTO users (email, is_admin) VALUES (${TEST_EMAIL}, TRUE)
     ON CONFLICT (email) DO UPDATE SET is_admin = TRUE
