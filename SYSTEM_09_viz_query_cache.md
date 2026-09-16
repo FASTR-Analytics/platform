@@ -628,8 +628,7 @@ different stories. One display-side override (S10's `getRollupRowLabel`): under
 a project AA2 scope the injected filter is server-side and never in the config,
 so the context still reads national while the SQL totals one area: a bundle
 whose stored scope carries an `adminArea2`, read with a national context,
-renders the pinned form
-("{Area} — All areas") instead. Display-only; the scope is never pushed into
+renders the pinned form ("{Area} — All areas") instead. Display-only; the scope is never pushed into
 the config (that would reach the fetch config and the cache hash).
 
 **Position is display-only.** The entry's `rollupPosition` ("top"/"bottom", read

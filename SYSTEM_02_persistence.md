@@ -469,9 +469,10 @@ gate is history, not tooling.
   (`DBPresentationObject`, `DBUser`, …) describing raw table rows. These are
   _not_ Zod schemas (the `_*.ts` stored-schema convention is in
   [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)).
-- **`mod.ts` barrels**: `db/mod.ts` re-exports `postgres/mod.ts`, `utils.ts`,
-  `instance/mod.ts` and `project/mod.ts`, each of which aggregates most of its
-  siblings, so a caller imports from the barrel instead of deep-importing.
+- **`mod.ts` barrels**: `db/mod.ts` re-exports the leaf `utils.ts` and the
+  barrels `postgres/mod.ts`, `instance/mod.ts` and `project/mod.ts`, each of
+  which aggregates most of its siblings, so a caller imports from the barrel
+  instead of deep-importing.
   The aggregation is not complete and nothing enforces it:
   `db/products/mod.ts` is absent from `db/mod.ts` and its callers deep-import
   it, `instance/mod.ts` omits `dataset_iceh.ts`, `run_generation.ts` and
@@ -516,7 +517,7 @@ gate is history, not tooling.
 - The restore body's fresh `getPgConnection(projectId)` pool is never
   `.end()`ed, one leaked pool per restore.
 - The `mod.ts` barrels are incomplete: `db/products/mod.ts` is not re-exported
-  by `db/mod.ts` at all, so every products caller deep-imports it, and three
+  by `db/mod.ts` at all, so every products caller deep-imports it, and four
   more siblings are missing from the instance and project barrels (named in
   the Conventions section above).
 - Standardize the PascalCase DB-function stragglers to camelCase.

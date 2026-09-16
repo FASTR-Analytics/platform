@@ -427,9 +427,9 @@ have a published partial dir). The manifest lens
 the package-internals reads, which do not share one guard:
 `getRunModuleWithConfigSelections` carries `can_view_data`, the same exposure
 as `getRunDetail`, while `getRunAuthoringContext` carries the broader
-`requireApprovedUser()` (D7). The project
-lens (`getRunReadContext(mainDb, projectId)`) resolves both halves from the
-project row and dies with the project routes in 9b. Everything below the
+`requireApprovedUser()` (D7). The project lens
+(`getRunReadContext(mainDb, projectId)`) resolves both halves from the project
+row and dies with the project routes in 9b. Everything below the
 context is shared: the items / value-info / replicant handler bodies live
 once in `run_query/run_data_reads.ts` (cache-before-queue, shared queues)
 and are mounted on `getRunPresentationObjectItems` / `getRunResultsValueInfo`
@@ -441,9 +441,8 @@ are keyed `runId + scopeToken` with the run id leading, so the run mount and
 national projects share entries and `PO_CACHE_VERSION` did not move for that
 change (it has moved since, for the manifest schema bumps). "Both" (a project
 route also accepting a runId) is ruled out: redundant when it equals the
-attached run,
-a hole (project auth over any package, bypassing the instance bit and AA2)
-when it does not.
+attached run, a hole (project auth over any package, bypassing the instance
+bit and AA2) when it does not.
 
 **No product-side package tab.** A product's package and scope are one
 `product_settings.tsx` surface (S12) over the ready-package list in instance

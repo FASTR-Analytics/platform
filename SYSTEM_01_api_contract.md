@@ -635,8 +635,8 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   Clerk-authenticated email (even with no `users` row) passes. The live
   examples are `sendHelpEmail` (`routes/instance/emails.ts`) and
   `recordTourEvent` (`routes/instance/onboarding.ts`). A route that needs the
-  flag takes `requireApprovedUser()` instead, which is where every product and
-  package read now sits.
+  flag takes `requireApprovedUser()` (the set named above) or
+  `requireProductAccess(level)`, whose policy checks it.
 - Lint idea (from the absorbed doc): flag handlers that read a project id from
   `body`/`params` for a write while a `Project-Id`-scoped `ppk` is in context
   (the IDOR pattern).
