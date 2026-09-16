@@ -8,7 +8,7 @@ import {
 } from "./types/_metric_installed.ts";
 import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 
-// Every field below is interpolated into SQL run via projectDb.unsafe (see
+// Every field below is interpolated into the SQL the DuckDB executor runs (see
 // server_only_funcs_presentation_objects/query_helpers.ts and
 // possible_values_core.ts). The app client only ever sends closed-vocabulary
 // values, but the route body is attacker-controllable, so these are the SQL
@@ -43,7 +43,7 @@ const PAE_ALLOWED_FUNCS: ReadonlySet<string> = new Set([
 
 /**
  * Validates a post-aggregation expression before it is interpolated into
- * projectDb.unsafe SQL. The charset (SAFE_EXPRESSION) can't tell `numerator /
+ * executor SQL. The charset (SAFE_EXPRESSION) can't tell `numerator /
  * denominator` from `(select secret from t)` or `pg_sleep(60)`, so on top of it
  * we enforce two structural invariants that every legitimate (arithmetic) PAE
  * holds but injections break:

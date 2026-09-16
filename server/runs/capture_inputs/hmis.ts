@@ -96,9 +96,8 @@ export type RunFacilityRow = {
 export type DatasetHmisRunCapture = {
   info: RunDatasetHmisInfo;
   lastUpdated: string;
-  // The v2 `indicators.json` mirror: the WHOLE HMIS dictionary, resolved.
-  // (v1 carried only the indicators that had data, and a separate calculated
-  // snapshot beside it.)
+  // The v2 `indicators.json` mirror: the analysed set, resolved
+  // (resolveHmisIndicatorCatalog).
   indicators: HmisIndicatorCatalogRow[];
   facilities: RunFacilityRow[];
   // The extract's month range and the structure's finest admin level: what

@@ -26,7 +26,7 @@ export const HEADLESS_ALLOWED_ROUTE_NAMES = [
   "getCurrentUser",
   // The run-keyed metric reads (S8 "one core, two lenses"; Tim's ruling
   // 2026-08-18: what a package contains is a function of the runId alone,
-  // gated on instance can_view_data). A leaked credential reaches exactly
+  // gated on an approved user, D7). A leaked credential reaches exactly
   // what its user's own instance bits already reach in the UI; the /mcp
   // tools resolve the runId from the instance's pin at call time, never from
   // the model. The module reads (script/logs/settings) are SPA-only tools

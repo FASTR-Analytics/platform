@@ -249,9 +249,8 @@ export async function resolvePackageContext(
   const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
-  // The door check: the run-keyed routes enforce can_view_data on every
-  // dispatch regardless; judging it here gives the model one clean failure
-  // instead of a permission error on each tool.
+  // The door check: stricter than the run-keyed routes, which require only an
+  // approved user (D7), so an MCP principal also needs can_view_data.
   const globalUser = await resolveGlobalUser(principal);
   if (
     !globalUser.isGlobalAdmin && !globalUser.thisUserPermissions.can_view_data
