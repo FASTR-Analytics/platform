@@ -9,8 +9,6 @@ globs:
   - server/db/migrations/**
   - server/db/mod.ts
   - server/db/postgres/**
-  - server/db/project/_project_database_types.ts
-  - server/db/project/mod.ts
   - server/db/utils.ts
   - server/db_startup.ts
 docs_absorbed:
@@ -18,14 +16,13 @@ docs_absorbed:
 
 # S2: Persistence Core & Schema Lifecycle
 
-The Postgres layer everything else stands on: the multi-database model (one
-`main` plus one bare-UUID database per project), the two sanctioned connection
-factories and their pools, the canonical `Sql`-first DB-function shape with its
-single error funnel, the **SQL-safety boundary** (this file is the normative
-owner of that rule), and the schema lifecycle: fail-stop boot running SQL
-migrations then JSON data transforms, plus backup/restore mechanics. Reviewed
-against code (first review cycle, review-only; absorbs
-DOC_DB_ACCESS_LAYER).
+The Postgres layer everything else stands on: the database model (one `main`
+database per instance), the two sanctioned connection factories and their
+pools, the canonical `Sql`-first DB-function shape with its single error
+funnel, the **SQL-safety boundary** (this file is the normative owner of that
+rule), and the schema lifecycle: fail-stop boot running migrations then JSON
+data transforms. Reviewed against code (first review cycle, review-only;
+absorbs DOC_DB_ACCESS_LAYER).
 
 Boundaries: the migration/schema-change **recipe** (transform blocks, skip-gate
 gotcha, idempotency patterns, the write-time/read-time validation boundary) is
@@ -44,54 +41,39 @@ worker connections is
 the bulk-import SQL does is **S6**
 ([SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md)). Operator access to the
 databases from outside the app (DOC_ACCESS_DBS) is S15's cycle. Sub-file custody
-exceptions are in SYSTEMS.md §4.1: `db/project/projects.ts` and
-`routes/instance/backups.ts` are owned by S15 with S2 a mandatory reader: the
-slices reviewed here are project-DB create/drop and the restore body; `main.ts`
-is owned by S1 (S2 reader, the boot call order).
+exceptions are in SYSTEMS.md §4.1; `main.ts` is owned by S1 (S2 reader, the
+boot call order).
 
 ## Contract
 
-Project DBs named by bare UUID; pooled cached connections acquired only through
-the two factories (the `READ_ONLY` flag is _nominal_, never enforced); every DB
-function takes an `Sql` first and returns an `APIResponse` through one error
-funnel; values parameterized, identifiers whitelisted; boot is fail-stop (SQL
-migrations, then per-type data transforms, `Deno.exit(1)` on any failure);
-stored-JSON evolution via transforms with skip-gates. Trap: boot success is
-bound to panther schema versions via `_figure_block.ts`.
+One `main` database; pooled cached connections acquired only through the two
+factories (the `READ_ONLY` flag is _nominal_, never enforced); every DB function
+takes an `Sql` first and returns an `APIResponse` through one error funnel;
+values parameterized, identifiers whitelisted; boot is fail-stop (migrations,
+then per-type data transforms, `Deno.exit(1)` on any failure); stored-JSON
+evolution via transforms with skip-gates. Trap: boot success is bound to panther
+schema versions via `_figure_block.ts`.
 
-## The multi-database model
+## The database model
 
 ```text
 Postgres server
-├── postgres            ← the server's own admin db (create/drop/terminate run here)
-├── main                ← reserved name. Users, projects metadata, instance config,
-│                          shared structure (indicators/facilities/admin areas), datasets,
-│                          the products registry and its per-type detail tables (S12)
-├── <uuid-A>            ← one database per project, named by a BARE crypto.randomUUID()
-├── <uuid-B>            │   (NOT "project_<uuid>")
-└── …                   ┘
+├── postgres   ← the server's own admin db (CREATE DATABASE main runs here)
+└── main       ← reserved name. Users, instance config, shared structure
+                  (indicators/facilities/admin areas), datasets, the runs
+                  catalogue, the products registry and its per-type detail
+                  tables (S12)
 ```
 
-A project database is created with the **bare UUID** as the database name
-([server/db/project/projects.ts](server/db/project/projects.ts)):
-
-```ts
-const newProjectId = crypto.randomUUID();
-await mainDb`create database ${mainDb(newProjectId)}`; // identifier via db() helper
-const projectDb = getPgConnectionFromCacheOrNew(newProjectId, "READ_AND_WRITE");
-await projectDb.file("./server/db/project/_project_database.sql"); // base schema
-await runProjectMigrations(projectDb); // then migrations, so base + migrations converge
-```
-
-The products block on `main` (`folders`, `products`, `slide_decks`,
-`slides`, `reports`, `report_versions`, `slide_deck_versions`) is in the base
-schema and, for existing instances, in `090_products.sql` in `IF NOT EXISTS`
-form. `server/db/products/**` reads and writes it
+The products block on `main` (`folders`, `products`, `slide_decks`, `slides`,
+`reports`, `report_versions`, `slide_deck_versions`) is in the base schema and,
+for existing instances, in `090_products.sql` in `IF NOT EXISTS` form.
+`server/db/products/**` reads and writes it
 ([SYSTEM_12](SYSTEM_12_documents_sharing.md)).
 
-The connection id (`"postgres"`, `"main"`, or the project UUID) is the same
-string used everywhere: as the connection-cache key, in
-`getPgConnectionFromCacheOrNew`, and threaded through `c.var.ppk.projectId`.
+The connection id (`"postgres"` or `"main"`) is the connection-cache key and the
+database name passed to `getPgConnectionFromCacheOrNew`. Request handlers
+receive the `main` pool as `c.var.mainDb`, set by the permission middleware.
 
 ## Connection strategies
 
@@ -102,7 +84,7 @@ Two acquisition paths; pick by **who owns the lifecycle**.
 `server/db/postgres/connection_manager.ts`:
 
 ```ts
-const db = getPgConnectionFromCacheOrNew(id, "READ_AND_WRITE"); // "main" or project UUID
+const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 ```
 
 - Cached in `_CACHED_CONNECTIONS`, keyed `` `${id}_${permissions}` ``.
@@ -112,14 +94,13 @@ const db = getPgConnectionFromCacheOrNew(id, "READ_AND_WRITE"); // "main" or pro
 - **Lifecycle is owned by postgres.js `idle_timeout`**: there is deliberately
   **no manual cleanup** (manual `end()` on pools with in-flight queries crashed
   the server; see the comment in the file).
-- `closePgConnection` / `closeAllConnections` exist only for explicit teardown:
-  process shutdown in `main.ts` (SIGINT/SIGTERM), and per-project teardown
-  before a project delete or a backup restore drops its database.
+- `closeAllConnections` exists only for explicit teardown: process shutdown in
+  `main.ts` (SIGINT/SIGTERM), and the end of scripts and test harnesses.
+  `closePgConnection` is exported and has no caller.
 - `getPgConnection(databaseId, { max?, readonly? })` creates a **fresh,
-  uncached** pool: caller must `.end()`. Call sites: the restore body of
-  `routes/instance/backups.ts` (two), the per-project sweep in
-  `db/instance/rename_user_email.ts`, the consolidation planner's source
-  pools in `db/migrations/consolidation/execute.ts`, and the test harnesses.
+  uncached** pool: caller must `.end()`. Call sites: the consolidation's
+  source pools in `db/migrations/consolidation/execute.ts`,
+  `validate_consolidation_replay.ts`, and the test harnesses.
   (`options.readonly` is dead, as described below.)
 
 ### 2. Dedicated worker connections (background jobs)
@@ -138,7 +119,7 @@ importers. **These are not cached, so every worker exit path must `.end()`
 them** (teardown contract:
 [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md)).
 
-### The `READ_ONLY` flag is cosmetic ⚠️
+### The `READ_ONLY` flag is cosmetic
 
 `getPgConnectionFromCacheOrNew(id, "READ_ONLY" | "READ_AND_WRITE")` uses
 `permissions` **only to namespace the cache key**. It calls `getPgConnection`
@@ -153,38 +134,34 @@ namespacing-only, because making it real would break legitimate writes on
 
 ## The canonical DB-function shape
 
-Abridged from `server/db/project/presentation_objects.ts`
-(`addPresentationObject`):
+From `server/db/products/slide_decks.ts` (`updateSlideDeckConfig`):
 
 ```ts
-export async function addPresentationObject(
-  params: AddPresentationObjectParams,
-): Promise<
-  APIResponseWithData<{ newPresentationObjectId: string; lastUpdated: string }>
-> {
+export async function updateSlideDeckConfig(
+  mainDb: Sql,
+  productId: string,
+  config: SlideDeckConfig,
+): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const id = await generateUniquePresentationObjectId(projectDb);
     const lastUpdated = new Date().toISOString();
-    await projectDb`
-      INSERT INTO presentation_objects (id, …, config, last_updated, folder_id)
-      VALUES (${id}, …, ${
-      JSON.stringify(presentationObjectConfigSchema.parse(config))
-    },
-              ${lastUpdated}, ${folderId ?? null})
-    `;
-    return {
-      success: true,
-      data: { newPresentationObjectId: id, lastUpdated },
-    };
+    await mainDb.begin(async (sql) => {
+      await touchProduct(sql, productId, "slide_deck", lastUpdated, config.label);
+      await sql`
+        UPDATE slide_decks
+        SET config = ${JSON.stringify(slideDeckConfigSchema.parse(config))}
+        WHERE id = ${productId}
+      `;
+    });
+    return { success: true, data: { lastUpdated } };
   });
 }
 ```
 
 Rules of the shape:
 
-- **First parameter is the `Sql` connection** (`db` / `projectDb` / `mainDb`),
-  passed in by the route from `c.var.ppk.projectDb` or `c.var.mainDb`. DB
-  functions don't acquire their own connection.
+- **First parameter is the `Sql` connection** (`mainDb`, or `tx`/`sql` for a
+  helper that runs inside a caller's transaction), passed in by the route from
+  `c.var.mainDb`. DB functions don't acquire their own connection.
 - **Body wrapped in `tryCatchDatabaseAsync`**: converts any throw (including a
   Zod `.parse` failure) into `{ success: false, err }`.
 - **Returns `APIResponseWithData<T>` or `APIResponseNoData`**: never raw rows,
@@ -215,11 +192,11 @@ SQL error.
 
 ### JSON column round-tripping
 
-| Direction    | Pattern                                                                                                   |
-| ------------ | --------------------------------------------------------------------------------------------------------- |
-| **Read**     | `JSON.parse(raw)` or a domain parser (`parsePresentationObjectConfig`, `parseJsonOrThrow`). Trust the DB |
-| **Write**    | `JSON.stringify(schema.parse(value))` **inline in the SQL template**. Zod-validate before write          |
-| **Nullable** | `${value ?? null}`                                                                                        |
+| Direction    | Pattern                                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------------------------------- |
+| **Read**     | `JSON.parse(raw)` or a domain parser (`parseInstalledModuleDefinition`, `parseJsonOrThrow`). Trust the DB  |
+| **Write**    | `JSON.stringify(schema.parse(value))` **inline in the SQL template**. Zod-validate before write           |
+| **Nullable** | `${value ?? null}`                                                                                         |
 
 The validation boundary (which schema, where) is owned by
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md); this file documents
@@ -230,14 +207,13 @@ connection-level `undefined → null` transform means a missing field becomes SQ
 
 ### Transactions & optimistic concurrency
 
-- **Multi-statement atomic writes use `db.begin(async (tx) => …)`**
-  (`presentation_objects.ts`, `projects.ts`, `dashboards.ts`, the
+- **Multi-statement atomic writes use `db.begin(async (tx) => …)`** (the
   `db/products/*` family (`slides.ts`, `move_slides.ts`, `versions.ts`, …),
-  the instance dataset and structure files, …).
+  the instance dataset, structure, users and run-generation files, …).
 - **Optimistic concurrency** uses a `last_updated` round-trip: the caller passes
   `expectedLastUpdated`; if it differs from the stored value, the function
-  reports `conflicted: true` (e.g. `updateReportBody`,
-  `updatePresentationObjectConfig`, `updateSlide`) rather than clobbering. The
+  refuses to clobber: `updateReportBody` reports `conflicted: true`, and
+  `updateSlide` returns a `CONFLICT` envelope carrying the current stamp. The
   bumped `last_updated` is also the SSE/cache version key. See
   [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md). When a live
   collab room exists for the row, the mutating route offers the save to the
@@ -256,14 +232,14 @@ than restating it.
 
 ```text
 VALUES           → tagged template ${value}            (always parameterized, safe)
-IDENTIFIERS      → db(identifier) / projectDb(name)    (whitelisted by postgres.js)
+IDENTIFIERS      → db(identifier)                      (whitelisted by postgres.js)
 DYNAMIC VALUES   → escapeSqlString(s)  ('' doubling)   (ONE sanctioned manual escaper)
 RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module-def
                                                         constants / repo-authored SQL)
 ```
 
 - **Values**: always interpolate with the tagged template, as in
-  `` projectDb`… WHERE id = ${id}` ``. Never string-concatenate a value.
+  `` mainDb`… WHERE id = ${id}` ``. Never string-concatenate a value.
 - **Identifiers**: dynamic table/column names go through the helper, as in
   `` mainDb`SELECT count(*) FROM ${mainDb(facilitiesTable)}` `` (see
   `instance/structure.ts`). postgres.js quotes them safely. There are **no
@@ -272,14 +248,13 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
 - **`escapeSqlString`** (`server/db/utils.ts`, `s.replace(/'/g, "''")`) is the
   **only** sanctioned manual escaper for Postgres-bound SQL, used for
   hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
-  run input capture, S9 filter values). Two DuckDB-bound call sites use it
-  too (`run_query/run_read.ts`, `runs/package_compatibility.ts`), which is
-  safe because both engines escape a quote by doubling it. No call site may
-  inline its own `''`-doubling.
+  run input capture, S9 filter values). One DuckDB-bound call site uses it
+  too (`run_query/run_read.ts`), which is safe because both engines escape a
+  quote by doubling it. No call site may inline its own `''`-doubling.
   `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
   twin.
 - **`.unsafe()`** runs raw SQL with no parameterization. There are roughly a
-  hundred call sites outside tests, all trusted-internal, in five groups: (1)
+  hundred call sites outside tests, all trusted-internal, in four groups: (1)
   the **bulk ingest and run input capture paths** (`instance/dataset_hmis.ts`,
   `instance/structure.ts`, the staging workers,
   `runs/capture_inputs/{hfa,hmis,iceh}.ts`) building large `INSERT`/DDL
@@ -287,11 +262,10 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   **`detectHasAnyRows` probe** (`db/utils.ts`) and `generateUniqueIdForTable`
   (`utils/id_generation.ts`) interpolating table names that are internal
   constants / closed unions; (3) the **migration runner** executing
-  repo-authored `.sql` files; (4) the **restore body** interpolating an
-  internal project UUID into `DROP/CREATE DATABASE` and
-  `pg_terminate_backend`; (5) the **fresh-database seed** in `db_startup.ts`
-  (default instance config and initial users). **`.unsafe()` with any
-  user-influenced string is forbidden.**
+  repo-authored `.sql` files and setting the transaction-local instance
+  language; (4) the **fresh-database seed** in `db_startup.ts` (default
+  instance config and initial users). **`.unsafe()` with any user-influenced
+  string is forbidden.**
 
 ## Boot & the schema lifecycle
 
@@ -305,89 +279,105 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    starts empty).
 2. **Instance migrations.** `runInstanceMigrations`
    (`server/db/migrations/runner.ts`): lexicographically-ordered `NNN_*.sql`
-   and `NNN_*.ts` files from `migrations/instance/`, applied-set tracked in a
-   `schema_migrations` table per database, each file in its own transaction
+   and `NNN_*.ts` files from `migrations/instance/`, applied-set tracked in the
+   `schema_migrations` table, each file in its own transaction
    (`tx.unsafe(fileContents)` for SQL; the registered `(tx) => Promise<void>`
    for TypeScript, which throws and never exits); any failure exits. A `.ts`
    file runs only through the literal-keyed `TS_MIGRATIONS` map, so
    `deno check main.ts` covers it, and an unregistered one makes the runner
    throw rather than skip. `runMigrationsInDir` is the same loop over any
    directory, throwing `MigrationFailure` instead of exiting, for harnesses.
-   Then `dropOrphanProjectDatabases` (`db/project/projects.ts`) drops any
-   UUID-named database no `projects` row points at.
 3. **Wedged-state resets.** Structure upload attempts stuck at
    `status_type = 'importing'` with no live worker are flipped to `error` (a
    restart mid-import would otherwise block all future imports via the
    concurrency guards); stale mid-run HMIS, HFA and ICEH import runs are
    marked likewise.
-4. **Instance data transforms.** Per-type JSON transforms (`instance_config`),
-   each in its own transaction; any failure exits.
-5. **Per-project pass.** For each row in `projects`: the
-   explicitly-`TEMPORARY` dashboard-slug backfill, which must run before the
-   project migrations because 023 drops the column it copies; then project SQL
-   migrations (`migrations/project/`, same runner); then the six project data
-   transforms in fixed order (`po_config`, `slide_deck_config`,
-   `slide_config`, `reports`, `dashboard_config`, `dashboard_items`), each in
-   its own transaction, fail-stop. No boot step touches results in the project
-   DB: that plane was dropped by migration 041. The runs-catalog sweep and the
-   run-manifest transform that run after this pass are S8's (SYSTEM_08).
+4. **Instance data transforms.** `INSTANCE_DATA_TRANSFORMS`, each a
+   `(tx, countryIso3) => Promise<MigrationStats>` run in its own transaction,
+   in this order: `instance_config`, `runs_summary`, `slide_deck_config`,
+   `slide_config`, `reports`; any failure exits. `countryIso3` is
+   `_INSTANCE_COUNTRY_ISO3`, which the figure-block sweeps need and a boot
+   sweep cannot read from the live instance store. `runs_summary` strips the
+   `backfillSourceProjectId` and `attachTargetProjectIds` keys from
+   `runs.summary`, gated by a raw key scan because `RunSummary` has no schema.
+   The three product transforms bump the owning `products.last_updated` on
+   every row they rewrite (`slide_config` also bumps `slides.last_updated`),
+   and their figure-block conversions stamp each bundle with the owning
+   product's `(run_id, admin_area_2)` pair.
+5. **Runs.** The tmp-dir sweep, the DuckDB spill reset, the interrupted
+   generation flip and the run-manifest transform run last; they are S8's
+   ([SYSTEM_08](SYSTEM_08_results_packages.md)).
 
-SQL migrations must be idempotent because the base schema files
-(`_main_database.sql`, `_project_database.sql`) represent current state and new
-databases get base + all migrations. Patterns and the golden rule are in
+SQL migrations must be idempotent because the base schema file
+(`_main_database.sql`) represents current state and a new database gets base +
+all migrations. Patterns and the golden rule are in
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md).
-`./validate_migrations` (repo root) verifies the two paths converge by diffing
-schemas in a throwaway `postgres:15` Docker container; run it after touching any
-SQL migration. `./validate_migrations_replay` (repo root) covers the shapes
-the fleet actually has: it loads the `_main_database.sql` of seven historical
-deploy commits into that container, one database each, applies every current
-instance migration to each, and then runs `dbStartUp()` against the empty
-server. A statement error on any base, or a non-zero boot exit, fails it. The
-one sanctioned edit of an applied migration is the table-existence guard that
-lets a base-owned table leave the base schema (the protocol's "Dropping a
-table that older migrations touch"; applied to nine project migrations).
+`./validate_migrations` (repo root) verifies the two paths converge by loading
+`_main_database.sql` into a throwaway `postgres:15` Docker container, applying
+every `*.sql` file in `migrations/instance/`, and diffing the schema before and
+after; run it after touching any SQL migration. `./validate_migrations_replay`
+(repo root) covers the shapes the fleet actually has: it loads the
+`_main_database.sql` of seven historical deploy commits into that container,
+one database each, applies every current `*.sql` instance migration to each,
+and then runs `dbStartUp()` against the empty server, which must record one
+`schema_migrations` row per `.sql` and `.ts` file. A statement error on any
+base, a non-zero boot exit, or a count mismatch fails it. The one sanctioned
+edit of an applied migration is the table-existence guard that lets a
+base-owned table leave the base schema (the protocol's "Dropping a table that
+older migrations touch").
 
-`server/db/migrations/consolidation/` is the project consolidation
-(PLAN_PRODUCTS_RESTRUCTURE D9): `plan.ts` reads one legacy project database
-and returns every row 091 would insert, the id remaps, the nested folder
-plan, the bundle stamps and the dropped-row counts, and issues no write;
-`execute.ts` is `consolidateProjects(tx)`, which applies that plan through
-the migration transaction, opening each source project pool fresh with
-`getPgConnection` and ending it once the plan is applied. The three
-migrations it belongs to (`000_legacy_project_shell.sql`,
-`091_consolidate_projects.ts`, `092_drop_project_layer.sql`) are staged
-under `consolidation/staged/`, which neither the runner nor
-`validate_migrations` / `validate_migrations_replay` scan, until step 9b
-moves them into `instance/`.
+### The project consolidation: 000, 091 and 092
+
+The base schema has no project layer, but migrations 001 to 090 were written
+against a base that had one: several alter `projects`, `project_user_roles` or
+the `project_id` columns of the log tables, or index those columns. Three
+instance migrations bridge that:
+
+- **`000_legacy_project_shell.sql`** sorts first. It creates `projects` and
+  `project_user_roles` with `IF NOT EXISTS` and adds `project_id` to
+  `user_logs`, `ai_usage_logs` and `user_logs_aggregate`. On a live instance
+  every object already exists and the file is a no-op; on a fresh database it
+  gives 001 to 090 the shape they expect. The three `ADD COLUMN` lines are
+  load-bearing: Postgres resolves an index expression before the
+  `IF NOT EXISTS` name check, so the index statements in 016 and 035 fail
+  without the column even though their `CREATE TABLE IF NOT EXISTS` no-ops.
+  They are `ALTER TABLE IF EXISTS` because a fleet base older than a log table
+  gets that table, with its `project_id` column, from the later migration that
+  creates it.
+- **`091_consolidate_projects.ts`** is registered in `TS_MIGRATIONS`; the file
+  re-exports `consolidateProjects` from `consolidation/execute.ts`. For every
+  `ready` project whose database exists, it plans with
+  `consolidation/plan.ts` and inserts the plan through the migration
+  transaction, opening each source project pool fresh with `getPgConnection`
+  and ending it in a `finally`. `plan.ts` reads one project database and
+  returns every row to insert, the id remaps, the nested folder plan, the
+  bundle stamps and the dropped-row counts, and issues no write. A source
+  database not at `041_drop_frozen_results_plane`, or a project with no
+  `run_id` on an instance with no pinned run, throws. With no projects it
+  returns at once.
+- **`092_drop_project_layer.sql`** merges `user_logs_aggregate` rows that
+  differ only by `project_id`, drops the `project_id` columns (which severs the
+  cascade foreign keys, so the logs survive), rebuilds
+  `idx_user_logs_aggregate_unique` on
+  `(user_email, endpoint, endpoint_result, week_start)`, drops
+  `dashboard_slugs`, `project_user_roles` and `projects`, and drops the
+  `can_create_projects` and `default_project_*` columns from `users`.
+
 `./validate_consolidation_replay` (repo root, logic in
-`validate_consolidation_replay.ts`) executes them end to end in the
-throwaway container through the real runner: a seeded live instance with two
-template-identical project databases, the users-and-logs path through 092,
-the two negative controls that show 000's `ADD COLUMN` lines are
-load-bearing, and the fresh path from the post-restructure base; the
-migrated and fresh schemas must both dump byte-identical to the base plus
-092. `./validate_consolidation.ts` (repo root) is the read-only fleet
-dry-run (D13): per instance, over an ssh tunnel per PROTOCOL_ACCESS_DBS or
-`--local` against the dev database, it runs the same planner and reports
-the FAILs that would abort 091 and the REVIEW counts that are irreversible
-once it runs; `--json` writes the planned per-instance counts the rollout
-post-check compares against. The replay harness runs it against its seeded
-instance and checks the planned counts against what 091 inserted.
-
-### Backup / restore mechanics
-
-The restore body of `routes/instance/backups.ts` (S15-owned file, this slice
-reviewed here): terminate the project DB's backends, `DROP`/`CREATE` the
-database via a fresh uncached admin pool, pipe the decompressed dump into `psql`
-via `docker exec` on the postgres container, then `runProjectMigrations` on the
-restored DB so an older dump is brought up to current schema immediately. The
-JSON data transforms do **not** run until the next server restart, and the fresh
-pool opened for the migration re-run is never `.end()`ed (both Open items).
-Backups are pure pg dumps: a restore never touches `projects.run_id` and never
-brings a results package back: a project whose package is absent on this
-instance shows the typed "results run unavailable" state until an editor
-attaches another package or an admin regenerates (ruled;
-[SYSTEM_08](SYSTEM_08_results_packages.md) "Backups and packages").
+`validate_consolidation_replay.ts`) executes the three end to end in the
+throwaway container through the real runner over the real instance directory.
+It reads the legacy main base, the project base schema and the project
+migrations from `LEGACY_COMMIT` with `git show`. It proves (a) a seeded live
+instance with two template-identical project databases, (b) the users-and-logs
+path through 092, (c) the two negative controls that show 000's `ADD COLUMN`
+lines are load-bearing, and (d) the fresh path; the migrated and fresh schemas
+must both dump byte-identical to the base. `./validate_consolidation.ts` (repo
+root) is the read-only fleet dry-run: per instance, over an ssh tunnel per
+PROTOCOL_ACCESS_DBS or `--local` against the dev database, it runs the same
+planner and reports the FAILs that would abort 091 and the REVIEW counts that
+are irreversible once it runs; `--json` writes the planned per-instance counts
+the rollout post-check compares against. The replay harness runs it against
+its seeded instance and checks the planned counts against what 091 inserted.
 
 ## FigureBundle backfill: the boot-time cutover
 
@@ -399,11 +389,11 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 
 - **Where.**
   [server/db/migrations/data_transforms/_figure_block.ts](server/db/migrations/data_transforms/_figure_block.ts)
-  holds the shared conversion; the three per-surface sweeps (`slide_config.ts`,
-  `dashboard_items.ts`, `reports.ts`) call
-  `transformFigureBlock` then `transformFigureBlockToBundle` on each block. The
-  strict `figureBlockSchema` final-parse aborts boot if any row is still legacy
-  after transform (the skip-gate gotcha made safe by strictness).
+  holds the shared conversion; the two per-surface sweeps (`slide_config.ts`,
+  `reports.ts`) call `transformFigureBlock` then `transformFigureBlockToBundle`
+  on each block. The strict `figureBlockSchema` final-parse aborts boot if any
+  row is still legacy after transform (the skip-gate gotcha made safe by
+  strictness).
 - **chart / table / map → in-place.** The raw rows already sit in the blob
   (`figureInputs.{tableData|chartData|chartOHData|mapData}.jsonArray`, never
   stripped). Reshape to `items` (+ `valueProps` from the stored
@@ -417,19 +407,19 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   lookup for every stored cell and **throws** if any value isn't recoverable
   (fail-fast → aborts boot). It reconstructs the original rollup-aware sort and
   `dateRange` (from `timeMin`/`nTimePoints`) so a mismatch is the only reason to
-  fail. **Orphans dissolve**: a timeseries whose metric is uninstalled
-  in-project converts from its own grid exactly like any other: no re-query, no
-  `mainDb`, no blank placeholders.
+  fail. A timeseries converts from its own grid whether or not its metric
+  still exists: no re-query, no blank placeholders.
 - **Localization synthesis.** `getTransformLocalization(countryIso3)` builds the
   frozen `localization`, all three fields from the instance env
   (`_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`/`_INSTANCE_COUNTRY_ISO3`), threaded
-  through every project sweep, so backfilled figures carry the real country
-  (drives admin-area relabelling at render). `provenance` is
-  `{ runId: null }`: a pre-bundle figure predates the runs model, so its run
-  is unknowable and never invented (the snapshot time is not the run time).
+  through both figure sweeps, so backfilled figures carry the real country
+  (drives admin-area relabelling at render).
+- **The (package, scope) pair.** `scope` is `{ adminArea2 }` and `provenance`
+  is `{ runId }`, both taken from the owning product row
+  (`FigurePairForTransform`). Both are required by `figureBundleSchema`.
 - **Invalid config fails fast.** A missing/invalid `source.config` **throws**
   rather than producing a silent blank (which would masquerade as "empty" past
-  `figureBlockSchema`), so the dry-run surfaces it by id.
+  `figureBlockSchema`), so the failing boot names it.
 - **Shared traversal.** `walkSlideLayoutNodes` (exported from
   `_figure_block.ts`) is used by the `slide_config` boot sweep, the
   consolidation planner and `db/products/versions.ts`, so they cannot drift
@@ -452,11 +442,9 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   still says `"number"` for a listed metric parses cleanly under the three-way
   schema and a parse-only gate would skip it forever
   ([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md), "Skip-Gate
-  Gotcha"). The same frozen list drives project migration **039**
-  (`039_metric_format_as_indicator.sql`, which relaxes the `metrics.format_as`
-  CHECK to admit `'indicator'`, then flips the eight installed rows; a SQL
-  literal, the one copy that cannot import the lib constant) and
-  `manifest_transform` block 2 for run manifests. The declaration itself is
+  Gotcha"). The same frozen list drives `manifest_transform` block 2 for run
+  manifests and the definition normalization in
+  `server/module_loader/load_module.ts`. The declaration itself is
   [SYSTEM_10](SYSTEM_10_figure_render_export.md)'s.
 
 ### The pre-deploy dry-run gate (passed; tool retired)
@@ -469,28 +457,24 @@ gate is history, not tooling.
 
 ## File & naming conventions
 
-- **`_*.sql`**: base schema files (`_main_database.sql`,
-  `_project_database.sql`), loaded via `db.file(...)`.
+- **`_*.sql`**: the base schema file (`_main_database.sql`), loaded via
+  `db.file(...)`.
 - **`_*_database_types.ts`**: hand-written `DB*` row types
-  (`DBPresentationObject`, `DBUser`, …) describing raw table rows. These are
+  (`DBFolder`, `DBUser`, …) describing raw table rows. These are
   _not_ Zod schemas (the `_*.ts` stored-schema convention is in
   [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)).
 - **`mod.ts` barrels**: `db/mod.ts` re-exports the leaf `utils.ts` and the
-  barrels `postgres/mod.ts`, `instance/mod.ts` and `project/mod.ts`, each of
+  barrels `postgres/mod.ts`, `instance/mod.ts` and `products/mod.ts`, each of
   which aggregates most of its siblings, so a caller imports from the barrel
   instead of deep-importing.
-  The aggregation is not complete and nothing enforces it:
-  `db/products/mod.ts` is absent from `db/mod.ts` and its callers deep-import
-  it, `instance/mod.ts` omits `dataset_iceh.ts`, `run_generation.ts` and
-  `user_logs.ts`, and `project/mod.ts` omits `visualization_folders.ts` and
-  `_project_database_types.ts` (Open item).
+  The aggregation is not complete and nothing enforces it: `instance/mod.ts`
+  omits `dataset_iceh.ts`, `run_generation.ts` and `user_logs.ts` (Open item).
 - **`generateUnique*Id`** (`server/utils/id_generation.ts`): short nanoid
   (4-char, alphabet `23456789abcdefghjkmnpqrstuvwxyz`; existing 3-char ids
   stay), retry-until-unique (10 attempts) against a specific table: one
-  internal core over a closed `IdTable` union, eight thin named wrappers
-  (product/deck/slide/report/presentation-object/dashboard/dashboard-item/
-  dashboard-item-group). (Projects/folders/tokens use `crypto.randomUUID()`
-  instead.)
+  internal core over the closed `IdTable` union (`"products" | "slides"`), two
+  thin named wrappers (`generateUniqueProductId`, `generateUniqueSlideId`).
+  Folders and runs use `crypto.randomUUID()` instead.
 - **PascalCase stragglers.** The DB-function convention is camelCase, but the
   log/usage families predate it (`AddLog`, `GetLogs`, `SetUserUnlimitedAi`,
   `DeleteOldLogs`, the `ai_usage_logs.ts` set, …). Don't copy them.
@@ -518,14 +502,8 @@ gate is history, not tooling.
 
 - `ai_usage_logs.ts` (and some log/user functions) bypass the envelope: no
   `tryCatchDatabaseAsync`, raw rows/scalars returned, throws reach the caller.
-- Restore runs SQL migrations but **not** the JSON data transforms: a restored
-  dump's stored-JSON shapes stay stale until the next server restart.
-- The restore body's fresh `getPgConnection(projectId)` pool is never
-  `.end()`ed, one leaked pool per restore.
-- The `mod.ts` barrels are incomplete: `db/products/mod.ts` is not re-exported
-  by `db/mod.ts` at all, so every products caller deep-imports it, and five
-  more siblings are missing from the instance and project barrels (named in
-  the Conventions section above).
+- The `mod.ts` barrels are incomplete: `instance/mod.ts` omits three siblings
+  (named in the Conventions section above), whose callers deep-import them.
 - Standardize the PascalCase DB-function stragglers to camelCase.
 - Lint ideas (from the absorbed doc): flag `.unsafe()` call sites for
   trusted-input review; flag DB functions that throw or return non-envelope

@@ -140,8 +140,7 @@ The URL surface is deliberately minimal, two routes in `app.tsx`:
 `/access-tokens` (the unlisted Clerk-gated PAT panel,
 `routes/access_tokens.tsx`, reached only by knowing the URL) and `/*` (the
 logged-in app). Note `/mcp` is the server's headless MCP endpoint and never
-reaches the SPA, and the server still serves the SPA HTML for `/d/:slug`
-until step 9b, where the app renders its logged-in shell. Within the app one
+reaches the SPA. Within the app one
 URL parameter matters: **`?product=<id>`** (`_PRODUCT_QUERY_PARAM` in
 `t4_ui.ts`) is the product deep link: the Products page consumes it into
 `pendingEditorOpen`, clears it from the URL and opens that product's editor

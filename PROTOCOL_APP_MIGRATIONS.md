@@ -67,17 +67,16 @@ Boot completes (or fails if any validation fails)
 
 ```text
 server/db/migrations/
-├── instance/              # SQL and TypeScript migrations - main DB
-├── project/               # SQL migrations - project DBs
-├── consolidation/         # the project consolidation: planner, executor, staged migrations
+├── runner.ts              # the migration runner and TS_MIGRATIONS
+├── instance/              # SQL and TypeScript migrations - the main DB
+├── consolidation/         # plan.ts + execute.ts: the body of migration 091
 └── data_transforms/       # JSON data transforms - one file per type
-    ├── po_config.ts
+    ├── instance_config.ts
+    ├── runs_summary.ts
     ├── slide_deck_config.ts
     ├── slide_config.ts
-    ├── dashboard_config.ts
-    ├── dashboard_items.ts
-    ├── instance_config.ts
     ├── reports.ts
+    ├── po_config.ts       # figure-config transform library, no table of its own
     └── _figure_block.ts   # shared: re-validates stored FigureBlock snapshots
 ```
 
@@ -93,6 +92,20 @@ Each stored data type has one migration function. At startup:
 4. If any row fails validation after transforms: transaction rolls back, boot fails
 
 No `schema_migrations` tracking needed. The validation check itself determines if work is needed.
+
+The functions are wired into `INSTANCE_DATA_TRANSFORMS` in
+`server/db_startup.ts` and run in its order: `instance_config`,
+`runs_summary`, `slide_deck_config`, `slide_config`, `reports`. Each has the
+signature `(tx: Sql, countryIso3: string) => Promise<MigrationStats>`; a
+function that does not need the country may declare `tx` alone. `tx` is the
+function's own transaction on `main`. `countryIso3` is the instance country,
+which the figure-block sweeps stamp into backfilled bundles.
+
+A transform for product JSON (a deck config, a slide, a report column) goes
+in the product's existing function: `slide_deck_config.ts`, `slide_config.ts`
+or `reports.ts`. A new product type or a new stored column that no function
+reads gets its own function, appended to `INSTANCE_DATA_TRANSFORMS` after the
+functions whose output it reads.
 
 ### Writing a Migration Function
 
@@ -112,7 +125,10 @@ Transform blocks are historical: they handle old data shapes from before a schem
 - One function per data type
 - Transform blocks are idempotent, safe to re-run
 - Always validates against **current** strict schema
-- **Update `last_updated`**: invalidates Valkey cache entries automatically
+- **Update `last_updated`**: invalidates Valkey cache entries automatically.
+  The product transforms bump the owning `products.last_updated` on every row
+  they rewrite (`slide_config` also bumps `slides.last_updated`), and skip the
+  write when the output is byte-identical to the stored row
 
 ### Transform Block Ordering
 
@@ -165,8 +181,8 @@ block never runs, and every runtime read silently strips the user's setting.
 When a transform block renames or deletes a key, the sweep gate must force the
 transform for rows still carrying the old key. See
 `configNeedsForcedTransform` / `rawJsonNeedsForcedTransform` in
-`data_transforms/po_config.ts` (used by the po_config, dashboard_items,
-reports and slide_config sweeps, first for the `includeNational*` →
+`data_transforms/po_config.ts` (used by the reports and slide_config sweeps,
+first for the `includeNational*` →
 `adminAreaRollup*` rename, then for the
 `includeAdminAreaRollup`/`adminAreaRollupPosition` → per-entry
 `rollup`/`rollupPosition` move, then for the `specialScorecardTable` →
@@ -310,10 +326,9 @@ The two **version** rows are principle 4 unchanged. The **absent / unreadable**
 rows, manifest or input mirror, must not fail boot, and the reason is
 concrete: backups are pg dumps, so a restore
 brings `runs` catalogue rows back while the package directories are still
-absent. The existing degrade paths are deliberate and stay: `getRunReadContext`
-returns a typed "Results run unavailable", and `projects.ts` degrades the
-project shell to empty lists on purpose so authored decks, reports and
-dashboards stay reachable. Do not "fix" that catch. Consequence to accept: on
+absent. The existing degrade path is deliberate and stays:
+`getReadyRunReadContext` and `getRunReadContextForRun` return a typed "Results
+run unavailable". Do not "fix" that catch. Consequence to accept: on
 the **load** path a shape-drift defect also lands in that catch, so it is
 visible only in the log.
 
@@ -334,9 +349,8 @@ main-realm: no Web Worker reads a manifest. Re-check if one ever does.
 `runs.summary` is **not** touched. `RunSummary.manifestSchemaVersion` is
 display-only provenance of how the package was originally written and is read by
 nothing. A naive "refresh" would rebuild the summary from the manifest and wipe
-three fields deliberately not in it: `attachTargetProjectIds` (read
-structurally by the launch concurrency guard), `backfillSourceProjectId`, and
-`diskSizeBytes`.
+`diskSizeBytes`, which is deliberately not in it. The summary's own shape
+changes go through the `runs_summary` data transform.
 
 ### Checklist for adding a block
 
@@ -346,11 +360,9 @@ structurally by the launch concurrency guard), `backfillSourceProjectId`, and
       version to the history in `lib/types/run_manifest.ts` and to the
       `manifestSchemaVersion` paragraph in `SYSTEM_08_results_packages.md`
 - [ ] Recompute only: check every field you touch against the list in 1
-- [ ] Bump `PO_CACHE_VERSION` and the `_PO_DETAIL_CACHE` key prefix in
-      `server/routes/caches/visualizations.ts`. The first three PO caches key on
-      `PO_CACHE_VERSION` (a code dimension, which the manifest now is); the
-      detail cache keys on `presentationObjectLastUpdated|runId` with no code
-      dimension, so it needs the prefix bump instead
+- [ ] Bump `PO_CACHE_VERSION` in `server/routes/caches/visualizations.ts`.
+      The three run-keyed PO caches key on it (a code dimension, which the
+      manifest now is)
 - [ ] Audit the **fourth** persistence layer: a manifest field can additionally
       be snapshotted into stored `FigureBundle`s, which needs its own data
       transform with a forced skip-gate
@@ -433,7 +445,7 @@ readers do, after the stage.
 - [ ] Update the strict row schema in `indicator_catalog.ts` and its enum in
       `lib` to the new vocabulary in the same commit; never add the old value
       to a reader
-- [ ] Bump `PO_CACHE_VERSION` and the `_PO_DETAIL_CACHE` key prefix
+- [ ] Bump `PO_CACHE_VERSION`
 - [ ] Audit the fourth persistence layer (stored `FigureBundle`s) for the
       renamed value
 - [ ] Extend `server/tests/run_input_transform_test.ts` with a mirror carrying
@@ -462,16 +474,15 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 
 **Catalog of write paths:**
 
-| Table.Column                  | File                                        | Functions                                                                                                     | Schema                            |
-|-------------------------------|---------------------------------------------|---------------------------------------------------------------------------------------------------------------|-----------------------------------|
-| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `addPresentationObject`, `updatePresentationObjectConfig`, `batchUpdatePresentationObjectsPeriodFilter`       | `presentationObjectConfigSchema`  |
-| `presentation_objects.config` | `server/db/project/presentation_objects.ts` | `duplicatePresentationObject`                                                                                 | (copies validated row)            |
-| `slide_decks.config`          | `server/db/products/slide_decks.ts`         | `insertNewSlideDeckDetail`, `duplicateSlideDeckDetail`, `updateSlideDeckConfig`                               | `slideDeckConfigSchema`           |
-| `slides.config`               | `server/db/products/slides.ts`              | `createSlide`, `updateSlide`                                                                                  | `slideConfigSchema`               |
-| `slides.config`               | `server/db/products/slides.ts`              | `saveSlideCheckpoint`                                                                                         | (parsed by the room checkpoint)   |
-| `instance_config.*`           | `server/db/instance/config.ts`              | `setStructureSchema`, `updateAdminAreaLabelsConfig`                                                           | Type-specific schemas             |
-
-**Note:** `slideDeckConfigSchema` and `slideConfigSchema` are currently `z.unknown()` stubs. Validation is wired up but accepts anything until real schemas are defined.
+| Table.Column                               | File                                | Functions                                                                                          | Schema                                                             |
+|--------------------------------------------|-------------------------------------|----------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
+| `slide_decks.config`                       | `server/db/products/slide_decks.ts` | `insertNewSlideDeckDetail`, `duplicateSlideDeckDetail`, `updateSlideDeckConfig`                    | `slideDeckConfigSchema`                                            |
+| `slides.config`                            | `server/db/products/slides.ts`      | `createSlide`, `updateSlide`                                                                       | `slideConfigSchema`                                                |
+| `slides.config`                            | `server/db/products/slides.ts`      | `saveSlideCheckpoint`                                                                              | (parsed by the room checkpoint)                                    |
+| `reports.config` / `figures` / `images`    | `server/db/products/reports.ts`     | `insertNewReportDetail`, `updateReportConfig`, `updateReportFigures`, `updateReportImages`         | `reportConfigSchema`, `reportFiguresSchema`, `reportImagesSchema`  |
+| `slide_decks.config`, `slides.config`      | `server/db/products/versions.ts`    | `restoreSlideDeckStructure`, `copySlideDeckFromVersion`                                            | `slideDeckConfigSchema`, `slideConfigSchema`                       |
+| `reports.figures` / `images`               | `server/db/products/versions.ts`    | `restoreReportContent`, `copyReportFromVersion`                                                    | `reportFiguresSchema`, `reportImagesSchema`                        |
+| `instance_config.*`                        | `server/db/instance/config.ts`      | `setStructureSchema`, `updateAdminAreaLabelsConfig`, `updateRunGenerationDefaultsConfig`           | Type-specific schemas                                              |
 
 ### Read-Time
 
@@ -492,7 +503,7 @@ External input is validated at the point it enters the system:
 | Boundary                    | Location                              | Schema                           | Notes                                                     |
 |-----------------------------|---------------------------------------|----------------------------------|-----------------------------------------------------------|
 | GitHub module definitions   | `server/module_loader/load_module.ts` | `moduleDefinitionGithubSchema`   | Validated at fetch time, throws on invalid                |
-| User form input (PO config) | Routes → DB functions                 | `presentationObjectConfigSchema` | DB functions validate before write                        |
+| User form input (products)  | Routes → DB functions                 | Product schemas (table above)    | DB functions validate before write                        |
 | API request bodies          | Routes → DB functions                 | Various                          | All stored schema writes validate in DB layer             |
 | DHIS2 imports               | `server/dhis2/`                       | N/A                              | Imports structure/analytics data, not stored JSON schemas |
 | CSV uploads                 | `server/worker_routines/stage_*`      | Row validation                   | Stages raw data, not stored JSON schemas                  |
@@ -507,14 +518,14 @@ External input is validated at the point it enters the system:
 
 For table/column structure changes.
 
-Location: `server/db/migrations/instance/` and `server/db/migrations/project/`
+Location: `server/db/migrations/instance/`, applied to the `main` database
 
 Naming: `NNN_description.sql`, or `NNN_description.ts` for a TypeScript
 migration (below)
 
 ### The Golden Rule: Idempotency
 
-**Every migration must be idempotent.** Running the same migration twice must produce the same result as running it once. The base schema (`_main_database.sql`, `_project_database.sql`) represents the current state, and migrations run on top of it, so they must handle the case where their changes already exist.
+**Every migration must be idempotent.** Running the same migration twice must produce the same result as running it once. The base schema (`_main_database.sql`) represents the current state, and migrations run on top of it, so they must handle the case where their changes already exist.
 
 Common patterns:
 
@@ -557,7 +568,7 @@ END $$;
 
 ### Other Rules
 
-- Update live schema files too (`_main_database.sql`, `_project_database.sql`)
+- Update the base schema file too (`_main_database.sql`)
 - Don't rewrite old migrations, fix forward (one exception, below)
 - **Always run `./validate_migrations` after adding or modifying SQL migrations**
 - SQL-safety (parameterize values, whitelist identifiers, `.unsafe()` on trusted-internal input only) is owned by [SYSTEM_02_persistence.md](SYSTEM_02_persistence.md). Migration files are repo-authored SQL run via `.unsafe()`, so never build them from runtime input
@@ -577,9 +588,22 @@ table_schema = 'public' AND table_name = '…') THEN … END IF; END $$;`, so
 the fresh replay never creates the plane and the drop is a no-op there.
 This is the one sanctioned edit of an applied migration: every instance has
 already applied those files and the runner never re-fires them, so
-production behaviour is unchanged. Precedent:
-`041_drop_frozen_results_plane.sql` (2026-09-04) and the guards it added to
-`002`, `005`, `006`, `009` (both), `010`, `012`, `013`, `039`.
+production behaviour is unchanged. `079` and `086` guard their statements on
+`indicators_raw` this way.
+
+When too many older migrations touch the dropped layer to guard each one, a
+shell migration that sorts first recreates just enough of it instead:
+`000_legacy_project_shell.sql` creates `projects` and `project_user_roles`
+and adds the log tables' `project_id` columns so that 001 to 090 resolve on a
+fresh database, and `092_drop_project_layer.sql` drops them again. Every
+object in a shell uses `IF NOT EXISTS`, so it is a no-op on a live instance.
+Keep a column add even when a `CREATE TABLE IF NOT EXISTS` for the same table
+would no-op: Postgres resolves an index expression before the
+`IF NOT EXISTS` name check, so a later index over the column fails without
+it. Write the add as `ALTER TABLE IF EXISTS`, because an older fleet base may
+not have the table yet and gets it, column included, from a later migration.
+`./validate_consolidation_replay` proves the adds are load-bearing with two
+negative controls.
 
 **Use SQL migrations for:** Adding columns, creating tables, adding indexes, constraints.
 
@@ -609,7 +633,8 @@ The rules that make it safe:
   `getPgConnection(id, { max: 2 })` after a `pg_database` existence check
   through `tx`, read only by discipline, and `.end()` it in a `finally`.
 - **`./validate_migrations` ignores `.ts` files by construction** (it globs
-  `*.sql`). A `.ts` migration changes data, not schema, so the schema
+  `*.sql`, as does the per-shape replay in `./validate_migrations_replay`,
+  whose fresh boot does run and count them). A `.ts` migration changes data, not schema, so the schema
   idempotency check has nothing to say about it. Prove it by executing it
   against a throwaway Postgres seeded with realistic legacy data, and diff
   the resulting schema against the base so a migrated instance and a fresh
@@ -619,11 +644,6 @@ The rules that make it safe:
   pure function the migration executes and the gate only reports
   (`server/db/migrations/consolidation/plan.ts`). What is gated is then
   the thing that runs.
-
-**Staged migrations.** A migration authored ahead of the step that activates
-it lives under `server/db/migrations/consolidation/staged/`, which the runner
-and both validate scripts never scan. Activating it means moving the file
-into `instance/` and, for a `.ts` file, adding its `TS_MIGRATIONS` entry.
 
 ---
 
@@ -641,19 +661,16 @@ Non-prefixed type files contain plain TypeScript types that are not stored/valid
 
 ### Locations
 
-| Data                          | Schema Location                             | Table                               |
-|-------------------------------|---------------------------------------------|-------------------------------------|
-| Presentation object config    | `lib/types/_presentation_object_config.ts`  | `presentation_objects.config`       |
-| Module definition (installed) | `lib/types/_module_definition_installed.ts` | `modules.module_definition`         |
-| Metric (full row)             | `lib/types/_metric_installed.ts`            | `metrics.*`                         |
-| Metric AI description         | `lib/types/_metric_installed.ts`            | `metrics.ai_description`            |
-| Metric viz presets            | `lib/types/_metric_installed.ts`            | `metrics.viz_presets`               |
-| Viz config (d/s schemas)      | `lib/types/_metric_installed.ts`            | (embedded in above + PO config)     |
-| Slide deck config             | `lib/types/_slide_deck_config.ts`           | `slide_decks.config`                |
-| Slide config                  | `lib/types/_slide_config.ts`                | `slides.config`                     |
-| Dashboard config              | `lib/types/_dashboard_config.ts`            | `dashboards.config`                 |
-| Report config                 | `lib/types/reports.ts`                      | `reports.config`                    |
-| Instance configs              | `lib/types/instance.ts`                     | `instance_config.config_json_value` |
+| Data                          | Schema Location                             | Stored in                                               |
+|-------------------------------|---------------------------------------------|---------------------------------------------------------|
+| Figure config                 | `lib/types/_presentation_object_config.ts`  | figure bundles in `slides.config` and `reports.figures` |
+| Figure bundle                 | `lib/types/_figure_bundle.ts`               | figure blocks in `slides.config` and `reports.figures`  |
+| Module definition (installed) | `lib/types/_module_definition_installed.ts` | run manifest `modules[].moduleDefinition`               |
+| Viz config (d/s schemas)      | `lib/types/_metric_installed.ts`            | (embedded in figure config)                             |
+| Slide deck config             | `lib/types/_slide_deck_config.ts`           | `slide_decks.config`                                    |
+| Slide config                  | `lib/types/_slide_config.ts`                | `slides.config`                                         |
+| Report config                 | `lib/types/reports.ts`                      | `reports.config`                                        |
+| Instance configs              | `lib/types/instance.ts`                     | `instance_config.config_json_value`                     |
 
 (`instance.ts` is the kernel grab-bag: the instance-config Zod schemas live there by symbol, not in a dedicated `_instance_config.ts`.)
 
@@ -674,7 +691,7 @@ Authored `definition.json` files must match the current shape exactly. Invalid f
 1. **Define the Zod schema** in `lib/types/`
 2. **Add parse helper** (just JSON.parse + cast)
 3. **Create migration function** in `server/db/migrations/data_transforms/`
-4. **Wire into startup** in `server/db_startup.ts`
+4. **Wire into startup**: append it to `INSTANCE_DATA_TRANSFORMS` in `server/db_startup.ts`
 5. **Use schema for writes**: validate before INSERT/UPDATE
 
 ---
@@ -725,7 +742,7 @@ This will happen when you deploy a schema change and existing data doesn't match
 3. **Add a transform block** to the relevant file in `server/db/migrations/data_transforms/`
 4. **Redeploy**: the transform runs, fixes the data, boot succeeds
 
-Example: if `po_config.ts` fails because old rows have `filterType: "all"` but new schema expects `filterType: "none"`:
+Example: if the `slide_config` sweep fails because old figure configs have `filterType: "all"` but new schema expects `filterType: "none"`:
 
 ```ts
 // In server/db/migrations/data_transforms/po_config.ts

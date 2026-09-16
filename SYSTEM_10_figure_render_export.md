@@ -112,11 +112,10 @@ pipeline _and_ the sentinel layer are gone.
 | **FigureInputs**                                    | Panther's transient render-input type. **Never persisted** under this design.                  | In-memory |
 | **`buildFigureInputs(bundle, deckStyle?)`**         | The one transform inputs → `FigureInputs`.                                                     | none      |
 
-The rename of _presentation object_ → _Visualization_ end-to-end (the
-`presentation_objects` table, `/presentation_objects` routes,
-`PresentationObjectConfig`) is deliberately **not** part of this work. It is a
-separable mechanical pass (Phase 5, see the followups doc). PO names persist in
-code for now.
+The rename of _presentation object_ → _Visualization_ end-to-end
+(`PresentationObjectConfig` and its kin) is deliberately **not** part of this
+work. It is a separable mechanical pass (Phase 5, see the followups doc). PO
+names persist in code for now.
 
 ### The bundle shape
 
@@ -153,10 +152,8 @@ them from its container's `PackageScope` (the product's live pair, read from
 the T1 products row by the deck and report editors): the metric-keyed
 resolvers, `makeFigureBundleFromFetchedData` and the live editor's transient
 bundle. The pair lives on the bundle and never in
-`config`, so it stays out of the fetch hash (S9). Transitional state, closed
-by step 9b: `scope` is optional and `runId` nullable, because stored bundles
-predate the capture; 9b stamps every stored bundle from its owning project
-row and makes both required. The pin is
+`config`, so it stays out of the fetch hash (S9). Both are required, with
+national as an explicit `adminArea2: null`. The pin is
 `server/tests/figure_bundle_schema_test.ts`.
 
 **Why `resultsValue` is a projection, not the whole metric (proven, not
@@ -316,11 +313,8 @@ a scoped container's roll-up row would read "National" while totalling one
 area. The scope is read from the bundle, never from a global store, so an
 export, a thumbnail or a version preview labels the row correctly outside
 any authoring shell; `buildFigureInputs` threads `bundle.scope` through the
-data-config builders for this one reason. A bundle stored before the scope
-was captured has no `scope`, and only then does the label fall back to the
-container's scope; that fallback dies when step 9b makes the field
-required. Full ruling in SYSTEM_09 "Roll-up"; the scope
-itself in SYSTEM_08.
+data-config builders for this one reason. Full ruling in SYSTEM_09
+"Roll-up"; the scope itself in SYSTEM_08.
 
 ### The captured pair and staleness
 
@@ -328,8 +322,7 @@ A figure is stale when the pair its bundle records differs from the pair its
 container serves from: `isFigureBundleStale(bundle, containerScope)` in
 [figure_staleness.ts](client/src/generate_visualization/figure_staleness.ts)
 compares `provenance.runId` and `scope.adminArea2` against the container's
-`PackageScope`, and while the transitional state lasts a missing half
-(`scope` absent, `runId` null) reads as not stale on that half. It is pure
+`PackageScope`; a difference in either half makes it stale. It is pure
 (type-only imports, so `server/tests/figure_staleness_test.ts` loads it under
 Deno). `findStaleFiguresInLayout` and `findStaleFiguresInReport` walk a slide
 layout and a report's figure registry with it. Nothing rewrites a stored
@@ -565,10 +558,9 @@ bug; do not "fix" it back.
 list of every metric that must read `"indicator"`. Most predate the three-way
 `formatAs` and have stored data to repair; m10-03-01/02 were authored
 `"indicator"` from day one and sit there defensively, for normalization only.
-It never grows. A metric authored now says `"indicator"` itself. It has two jobs: REPAIR of data written before the
-declaration (project migration 039 for the metrics table, a SQL literal, the
-one copy that cannot import it; `manifest_transform` block 2 for run manifests;
-the figure-block sweep for stored bundles, see
+It never grows. A metric authored now says `"indicator"` itself. It has two
+jobs: REPAIR of data written before the declaration (`manifest_transform`
+block 2 for run manifests; the figure-block sweep for stored bundles, see
 [SYSTEM_02](SYSTEM_02_persistence.md) and
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)), and NORMALIZATION at
 the fetch boundary in `validateDefinition`
@@ -826,9 +818,9 @@ in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
 [S2](SYSTEM_02_persistence.md). One slice is still deferred:
 
 - **The Visualization rename** (Phase 5, optional). Rename presentation object →
-  Visualization end-to-end: the `presentation_objects` table,
-  `/presentation_objects` routes, `PresentationObjectConfig`,
-  `ItemsHolderPresentationObject`, and the dozens of files using those names. No
+  Visualization end-to-end: `PresentationObjectConfig`,
+  `ItemsHolderPresentationObject`, `server_only_funcs_presentation_objects/`,
+  and the dozens of files using those names. No
   behavior change: a large mechanical sweep, so its own focused PR (like the
   snapshot-naming pass), never bundled with feature work. The FigureBundle
   refactor deliberately kept the PO names to keep this separable.

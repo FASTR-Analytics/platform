@@ -14,11 +14,8 @@ globs:
   - lib/validate_fetch_config.ts
   - server/routes/caches/dataset.ts
   - server/routes/caches/visualizations.ts
-  - server/routes/project/cache_status.ts
-  - server/routes/project/presentation_objects.ts
   - server/run_query/**
   - server/server_only_funcs_presentation_objects/**
-  - server/tests/run_authoring_context_parity_test.ts
 ---
 
 # S9: Visualization Query & Cache Service
@@ -28,8 +25,8 @@ globs:
 > in `server_only_funcs_presentation_objects/` take their `QueryContext` from
 > the manifest and their executor from DuckDB over the run's parquet. Caches
 > are run-keyed. The constants in `server/routes/caches/visualizations.ts`
-> are the authority for the live keying (`PO_CACHE_VERSION` is "23",
-> `po_detail_v13`); SYSTEM_03's cache catalog restates them. Calendar threads
+> are the authority for the live keying (`PO_CACHE_VERSION` is "23");
+> SYSTEM_03's cache catalog restates them. Calendar threads
 > via `QueryContext`, not `getCalendar()` at the call sites.
 
 PO config → fetch-config contract → DuckDB SQL over the results package the
@@ -59,9 +56,7 @@ Boundaries: the Valkey `TimCacheC` class, SSE, and the
 everything after `FigureInputs` is **S10**; the editor UI is **S11**; the
 results package this system queries (parquet, manifest and metric catalog) is
 produced by **S8**; `facilities_hmis`/`facilities_hfa` and the instance
-facility-columns config are **S5**. Sub-file custody:
-`routes/project/presentation_objects.ts` is S9-owned with S11/S3/S16 as
-readers (SYSTEMS.md §4.1).
+facility-columns config are **S5**.
 
 ## The pipeline
 
@@ -71,7 +66,7 @@ PresentationObjectConfig + ResultsValue                       (client, lib)
     ▼
 GenericLongFormFetchConfig  ──hashFetchConfig──►  cache identity (both tiers)
     │ POST /run_generation/run/:run_id/presentation_object_items  { …, adminArea2 }
-    │   (Zod schema + validateFetchConfig; the project mount until 9b)
+    │   (Zod schema + validateFetchConfig)
     ▼
 readRunItems → getPresentationObjectItemsFromRun              (server)
     │ getReadyRunReadContext(runId, adminArea2) → RunReadContext
@@ -135,10 +130,8 @@ are deliberately absent.
 **Wire boundary = SQL-injection boundary.** Every field below is interpolated
 into the raw SQL the DuckDB executor runs, and the route body is
 attacker-controllable, so type shape alone is not enough.
-`genericLongFormFetchConfigSchema` rejects at the route boundary (400) on BOTH
-mounts (run-keyed
-`getRunPresentationObjectItems` / `getRunReplicantOptions`, project
-`getPresentationObjectItems` / `getReplicantOptions`); the imperative
+`genericLongFormFetchConfigSchema` rejects at the route boundary (400) on
+`getRunPresentationObjectItems` and `getRunReplicantOptions`; the imperative
 `validateFetchConfig` re-guards in the shared handler body. Both
 live in [validate_fetch_config.ts](lib/validate_fetch_config.ts) (the schema
 moved there, co-located with the guard) and share the same
@@ -624,7 +617,7 @@ word for all seven columns, so no per-column or per-instance naming is needed;
 fr/pt use the app's established "établissement" / "estabelecimento"). The same
 context drives the editor checkbox text, so row and checkbox can't tell
 different stories. One display-side override (S10's `getRollupRowLabel`): under
-a project AA2 scope the injected filter is server-side and never in the config,
+a product AA2 scope the injected filter is server-side and never in the config,
 so the context still reads national while the SQL totals one area: a bundle
 whose stored scope carries an `adminArea2`, read with a national context,
 renders the pinned form ("{Area} — All areas") instead. Display-only; the
@@ -646,16 +639,14 @@ exclude the roll-up row (double-counting hazard).
 ## AA2 scope injection (PLAN_1_PROJECT_AA2_SCOPE §3)
 
 The scope is the caller's: it arrives over the wire beside the run id on the
-run-keyed reads (`adminArea2`, null = national; PLAN_PRODUCTS_RESTRUCTURE
-D7), and until 9b the project lens still resolves it from
-`projects.admin_area_2`. It is enforced **wrapper-level, above the Cores**,
-so the shared Cores are untouched. `getReadyRunReadContext` shape-checks the
-run id and derives `scopeToken`; `computeScopeFilters(ctx, ro)`
-(run_read.ts) decides per-RO from the manifest column stamps at runtime,
-never from a baked list, because a new module output can change the split.
-`./validate_queries` pins every branch below with scope as a case axis
-(`adminArea2` on a case; the runner also asserts the echoed fetchConfig and
-the holder's (run, scope) identity on every items case):
+run-keyed reads (`adminArea2`, null = national; PLAN_PRODUCTS_RESTRUCTURE D7).
+It is enforced **wrapper-level, above the Cores**, so the shared Cores are
+untouched. `getReadyRunReadContext` shape-checks the run id and derives
+`scopeToken`; `computeScopeFilters(ctx, ro)` (run_read.ts) decides per-RO from
+the manifest column stamps at runtime, never from a baked list, because a new
+module output can change the split. `./validate_queries` pins every branch below
+with scope as a case axis (`adminArea2` on a case; the runner also asserts the
+echoed fetchConfig and the holder's (run, scope) identity on every items case):
 
 - RO has `admin_area_2` → `[{disOpt: "admin_area_2", values: [aa2]}]`,
   appended to the caller's filters. Compares case-insensitively and escapes
@@ -697,36 +688,31 @@ this basis.
 
 ## Caching
 
-**Server (Valkey, S3's `TimCacheC`).** Four instances in
+**Server (Valkey, S3's `TimCacheC`).** Three instances in
 [routes/caches/visualizations.ts](server/routes/caches/visualizations.ts),
-consumed by the query routes and by migration data-transforms (the layering
-inversion in Open items):
+consumed by the shared read handlers (`run_query/run_data_reads.ts`) and the
+run delete (`runs/delete_run.ts`):
 
 | Cache            | Uniqueness                                                              | Version hash                        |
 | ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
-| `po_detail_v13`  | project + po id                                                         | `poLastUpdated\|runId\|scopeToken`  |
 | `po_items`       | runId + resultsObject + `hashFetchConfig` + scopeToken                  | `PO_CACHE_VERSION`                  |
 | `metric_info`    | runId + metric + scopeToken                                             | `PO_CACHE_VERSION`                  |
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken    | `PO_CACHE_VERSION`                  |
 
-The three data caches key on the immutable run, not on any caller (two
-callers on one run share entries), plus the **scopeToken** (`scopeToken`,
-`lib/types/scope.ts`, PLAN_1_PROJECT_AA2_SCOPE §4): payloads are computed
-under the caller's AA2 scope, so sharing requires BOTH run and scope to
-match. The run id leads and the token trails on every key, which is why the
-run-keyed mount needed no `PO_CACHE_VERSION` bump: a national read produces
-the same key from either mount. scopeToken is **required** on the uniqueness-param types (an optional
-would compile and silently mis-key: the `cache_status.ts` exists-probe was
-the site this was designed to force) and rides as the **trailing** segment so
-the `${runId}|`/`${runId}::` prefix scans in `delete_run.ts` and
-`cache_status.ts` (roId parsed at segment index 1) keep working. Both are
-REQUIRED on every data payload (`RunVersionInfo`). The run id is also the
-figure's provenance.
+The three caches key on the immutable run, not on any caller (two callers on one
+run share entries), plus the **scopeToken** (`scopeToken`, `lib/types/scope.ts`,
+PLAN_1_PROJECT_AA2_SCOPE §4): payloads are computed under the caller's AA2
+scope, so sharing requires BOTH run and scope to match. The run id leads and the
+token trails on every key. scopeToken is **required** on the uniqueness-param
+types (an optional would compile and silently mis-key) and rides as the
+**trailing** segment so the `${runId}|`/`${runId}::` prefix scans in
+`delete_run.ts` keep working. Both are REQUIRED on every data payload
+(`RunVersionInfo`). The run id is also the figure's provenance.
 
-Payloads carry the key ingredients (`runId`, `scopeToken`, and for po_detail
-`lastUpdated`) so `parseData` can reproduce the version hash byte-identically
-to `versionHashFromParams`. That pairing is the `TimCacheC` contract; a
-mismatch silently no-ops the cache. Error envelopes are never stored
+Payloads carry the key ingredients (`runId`, `scopeToken`) so `parseData` can
+reproduce the uniqueness hash byte-identically to `uniquenessHashFromParams`;
+the version hash on both sides is the constant. That pairing is the `TimCacheC`
+contract; a mismatch silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
 Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently
@@ -735,13 +721,10 @@ _meaning_ of a cached payload without any data change, and once per manifest
 transform block (full history in the comment block above the constant; "19"
 is the payload shape without the write-only freshness pair: `runId` +
 `scopeToken` are the whole identity; "20" to "23" track the indicator
-restructure's payload and manifest-schema changes).
-**The key prefix** (`po_detail` → `po_detail_v13`): bump it when the payload
-_shape_ changes (the version hash only tracks row `last_updated` + run +
-scope, so a deploy adding a field would keep serving old-shape payloads for
-unmodified rows). The `po_detail` hit path additionally
-re-parses `config` through `presentationObjectConfigSchema` so pre-deploy Valkey
-entries get legacy-shape adaptation the DB read path would have applied.
+restructure's payload and manifest-schema changes). A payload _shape_ change
+is also a meaning change for these keys, so it takes the same bump (the
+version hash carries no data dimension that would otherwise orphan old-shape
+entries).
 
 The instance **facility-columns config** is not a cache dimension and needs
 none: the manifest freezes the per-family structure schema
@@ -755,23 +738,20 @@ work against the 20-connection pool; the cache check happens _before_ queueing;
 `setPromise` registers the in-flight promise so concurrent identical requests
 coalesce. The items, value-info and replicant-options handler bodies (cache
 check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
-`server/run_query/run_data_reads.ts` and are mounted twice: the run-keyed
-instance routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo`
-/ `getRunReplicantOptions`, plus `getRunResultsObjectItems`, all under
+`server/run_query/run_data_reads.ts` and are mounted on the run-keyed instance
+routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo` /
+`getRunReplicantOptions`, plus `getRunResultsObjectItems`, all under
 `routes/instance/run_generation.ts`, the caller supplying `(run_id,
-adminArea2)`, `runs.status = 'ready'` required, guarded
-`requireApprovedUser()`; the manifest-only `getRunAuthoringContext` sits
-beside them under the same guard but takes no scope and no ready gate) and,
-until 9b, the project routes here. The replicant read is keyed by
-results object (the cache identity); the run-keyed route narrows its
-`metricId` first, and the project route stamps `projectId` onto the shared
-`RunReplicantOptions` payload on the way out. The client caches
-`getRunAuthoringContext` in
+adminArea2)`, `runs.status = 'ready'` required, guarded `requireApprovedUser()`;
+the manifest-only `getRunAuthoringContext` sits beside them under the same guard
+but takes no scope and no ready gate). The replicant read is keyed by results
+object (the cache identity); the route narrows its `metricId` first. The client
+caches `getRunAuthoringContext` in
 [t2_run_authoring_context.ts](client/src/state/instance/t2_run_authoring_context.ts),
-keyed by `runId` with a constant version key (the `t2_runs.ts` idiom: a
-ready run dir never changes, so nothing invalidates an entry); the deck and
-report editors read it by their container's live `runId` and the D4 update
-action takes its metric from it.
+keyed by `runId` with a constant version key (the `t2_runs.ts` idiom: a ready
+run dir never changes, so nothing invalidates an entry); the deck and report
+editors read it by their container's live `runId` and the D4 update action takes
+its metric from it.
 
 **HFA dataset display cache**
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a
@@ -804,12 +784,6 @@ Consumers: the embedded figure editor and the slide and report editors'
 post-insert reads (S11, S12), and the insert-figure wizard's preset previews
 (S11); the results explorer joins them when it lands.
 
-**Cache observability**: `getCacheStatus`
-([routes/project/cache_status.ts](server/routes/project/cache_status.ts),
-admin-only) reports Valkey connectivity and per-PO cached/count state by
-scanning uniqueness prefixes. Its client page went with the project shell in
-step 9a; the route goes in 9b.
-
 ## Client query flow
 
 The async generator in `t2_figure_data.ts`
@@ -829,9 +803,6 @@ S9's slice of the FigureBundle architecture; the bundle shape,
 [SYSTEM_10](SYSTEM_10_figure_render_export.md). S9 owns the _upstream_ the
 bundle freezes:
 
-- **The live Visualization is already the upstream model**:
-  `presentation_objects` stores only `config` + `metric_id` and re-queries each
-  render; there is nothing to "bundle" at the storage level.
 - **A FigureBundle is exactly "a Visualization render, frozen"** = `config` +
   the live-queried items (post replicant-resolution) + the metric projection.
   The live path builds a transient bundle each tick
@@ -843,10 +814,10 @@ bundle freezes:
   (`{formatAs, valueProps,
   valueLabelReplacements?}`) verbatim; the build is
   type-proven to read no fourth metric field (gate in S10).
-- **Provenance is free**: `runId` rides in every `ItemsHolder`, so the bundle
-  captures it at zero cost (`provenance: { runId }`), the basis for a stale
-  badge that compares it to the project's attached run without per-figure
-  re-query (S10 open item).
+- **The pair is free**: the fetch already names its `PackageScope`, so the
+  bundle stamps it at zero cost (`provenance: { runId }` and `scope: {
+  adminArea2 }`, both required), the basis for the stale badge that compares
+  it to the container product's pair without per-figure re-query (S10).
 
 ## Traps
 
@@ -907,16 +878,12 @@ bundle freezes:
   app.
 - **Options query vs items query use different fetch configs** (pin excluded vs
   kept). Collapsing them merges all panes into one figure.
-- **Version-hash byte-identity**: `versionHashFromParams` and `parseData` (and
-  their client `versionKey` twins) must produce identical strings from params
-  and from the payload, which is why holders carry `runId` + `scopeToken`.
+- **Hash byte-identity**: `uniquenessHashFromParams` and `parseData` must
+  produce identical strings from params and from the payload, which is why
+  holders carry `runId` + `scopeToken`.
 - **Stale configs fail silent**: a stored config referencing a
   no-longer-available disOpt (e.g. facility column turned off) renders with it
   silently omitted; no error surface exists.
-- **A new run never touches a PO row**: runs are immutable, so `po_detail`
-  invalidates on a run switch only because `runId` is folded into its version
-  hash; drop it from `versionHashFromParams` and every `po_detail` entry
-  stops invalidating.
 
 ## Open items
 
@@ -935,12 +902,10 @@ F2/F8b and dropped F4 are stated as facts in the prose where relevant):
   persistence layers).
 Standing decoupling items (from the systems review):
 
-- **Split the `presentation_objects.ts` route** (query endpoints vs CRUD; see
-  the §4.1 custody table).
 - **Relocate the cache instances out of `routes/caches/`**: they are not
-  routes, and migration `data_transforms` importing from `routes/`
-  (po_config.ts:61) is a layering inversion; `server/caches/`
-  would make the dependency direction honest.
+  routes, and neither are their importers (`run_query/run_data_reads.ts`,
+  `runs/delete_run.ts`); `server/caches/` would make the dependency direction
+  honest.
 - **Separate display-language from data-calendar.** `getCalendar()` is data
   semantics, since it changes generated SQL (`getQuarterIdExpression`) and
   filter bounds, yet it lives in the i18n module (`lib/translate/t-func.ts`,

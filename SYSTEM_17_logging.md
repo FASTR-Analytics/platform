@@ -32,8 +32,8 @@ handler (so only authorized requests write rows). Mechanics:
   headers minus `authorization`/`cookie`, and the body, with a two-rung
   64 KiB truncation ladder (first the body collapses to
   `{ _truncated, bytes }`, then the whole details blob).
-- User email resolves `globalUser → projectUser → "unknown"`; `project_id`
-  from `c.var.ppk`. Users with `approved === false` are skipped.
+- User email resolves `globalUser → "unknown"`. Users with
+  `approved === false` are skipped.
 - Fire-and-forget (`.catch(() => {})`) and the whole middleware body is
   wrapped in try/catch: logging must never break a response.
 
@@ -49,10 +49,11 @@ Admin-Website document-activity views.
 ## Storage & retention
 
 [server/db/instance/user_logs.ts](server/db/instance/user_logs.ts).
-`DeleteOldLogs` (boot + 24 h cron, wired in `db_startup.ts`) transactionally
+`DeleteOldLogs` (boot + 24 h cron, wired in `main.ts`) transactionally
 rolls rows older than 7 days into `user_logs_aggregate`, keyed
-`(user_email, endpoint, endpoint_result, COALESCE(project_id,''), week_start)`
-with additive `ON CONFLICT` counts, then deletes the raw rows. **Exception:
+`(user_email, endpoint, endpoint_result, week_start)` (the
+`idx_user_logs_aggregate_unique` index) with additive `ON CONFLICT` counts,
+then deletes the raw rows. **Exception:
 `getCurrentUser` rows are never aggregated and never deleted**. They are the
 forever-retained sign-in trail behind "last active", the health endpoints,
 and every Admin-Website activity chart. Never remove that exemption and never
@@ -64,8 +65,8 @@ de-log the `getCurrentUser` route.
   "Last active" column (`instance_users.tsx`).
 - S15's unauthenticated health endpoints (`server/routes/instance/health.ts`):
   `/user_logs` (getCurrentUser trail), `/user_logs_all`,
-  `/user_logs_aggregate`, plus `/health_check`, `/project_activity`,
-  `/user_activity` derived views. S15 owns the file; S17 is a mandatory
+  `/user_logs_aggregate`, plus `/health_check` and `/user_activity` derived
+  views. S15 owns the file; S17 is a mandatory
   reader of the queries.
 - Admin-Website (separate repo) fetches the health endpoints per instance
   (and via its `/all/:endpoint` aggregate proxy) for sign-in heatmaps,
@@ -75,32 +76,29 @@ de-log the `getCurrentUser` route.
 
 ## Coverage conventions
 
-`log()` is **not** applied to every route (~180 of 267): coverage is a
+`log()` is **not** applied to every route (~190 of 221): coverage is a
 deliberate audit-value judgment, re-baselined against fleet-wide volume data
 (all-history aggregate across 35 instances):
 
-- **Logged**: instance-level admin/config/data mutations, project lifecycle,
-  dataset import steps, user/permission changes, and audit-worthy document
-  events (create/delete/duplicate of reports, decks, slides, POs; version
-  restore/copy).
-- **Deliberately unlogged**: project-level reads (`getAllReports`,
-  `getSlides`, …), high-frequency editor autosaves (`updateSlide`,
-  `updateReportBody`, …: edit activity comes from the S16 session rows
-  instead), and folder/move/reorder churn.
+- **Logged**: instance-level admin/config/data mutations, dataset import
+  steps, user/permission changes, and audit-worthy product events (product
+  create/duplicate/delete/rename, package and scope changes, folder
+  create/update/delete and moves, slide create/move/delete/duplicate/copy,
+  deck and report config updates, version restore/copy).
+- **Deliberately unlogged**: product reads (`getSlides`, `getReportDetail`,
+  version lists, …) and high-frequency editor autosaves (`updateSlide`,
+  `updateReportBody`, `updateSlideDeckPlan`, …: edit activity comes from the
+  S16 session rows instead).
 - **Never log a client poll loop or per-render fetch.** That audit
   found 85% of all rows ever written came from a handful of these
   (`getDatasetUploadStatus` alone was 44%); logging was removed from
-  `getDatasetUploadStatus`, `getDatasetHmisDetail`, `getReplicantOptions`,
+  `getDatasetUploadStatus`, `getDatasetHmisDetail`,
   `getDatasetHmisImportRuns`, `getGeoJsonForLevel`, `getDatasetUpload`,
   `getDatasetHfaUploadStatus`. When adding a status/poll route, do not attach
   `log()`.
 
 ## Open items
 
-- Log labels that drift from registry keys: `log("getModuleLogs")` /
-  `log("getModuleScript")` vs registry `getLogs` / `getScript`. Filtering by
-  route name silently misses them.
 - Logged routes with zero rows ever across the fleet (client never calls
   them): `getInstanceDetail`, `getGeoJsonMaps`, `searchDhis2Indicators`,
-  `searchDhis2DataElements`, `getProjectLogs` (the dead chain S15 also
-  flags). Candidates for route removal, not just log removal.
+  `searchDhis2DataElements`. Candidates for route removal, not just log removal.

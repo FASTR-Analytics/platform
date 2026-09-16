@@ -17,21 +17,15 @@ globs:
   - client/src/state/products/t2_report_detail.ts
   - client/src/state/products/t2_slide_deck_detail.ts
   - client/src/state/products/t2_slides.ts
-  - lib/types/_dashboard_config.ts
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
-  - lib/types/dashboard.ts
   - lib/types/products.ts
   - lib/types/reports.ts
   - lib/types/scope.ts
   - lib/types/slides.ts
-  - server/db/instance/dashboard_slugs.ts
   - server/db/products/**
-  - server/db/project/dashboards.ts
   - server/routes/instance/emails.ts
-  - server/routes/project/dashboards.ts
   - server/routes/products/**
-  - server/routes/public/dashboard.ts
   - server/tests/consolidated_products_test.ts
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
@@ -42,43 +36,44 @@ docs_absorbed:
 
 The two product types (slide decks and markdown reports), their folders,
 and the SendGrid email egress. The render/export engines themselves are
-S10's; S12 owns the artifacts, their storage, and the export *triggers*. The
-dashboard tables, routes and public viewer route are server residue with no
-client since PLAN_PRODUCTS_RESTRUCTURE step 9a; step 9b deletes them.
+S10's; S12 owns the artifacts, their storage, and the export *triggers*.
 
 ## Scope
 
 The `globs:` frontmatter above is the lint-enforced manifest
-(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-Client: `components/slide_deck/**` minus `slide_ai/` (S13), `layout_editor/`
-(one file, imported only by the slide editor), `components/report/**`,
+(`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
+`components/slide_deck/**` minus `slide_ai/` (S13), `layout_editor/` (one file,
+imported only by the slide editor), `components/report/**`,
 `state/products/{t2_slides,t2_slide_deck_detail,t2_report_detail}.ts`
-(`t2_images.ts` is S10's).
-Server: CRUD for both product families + folders, `routes/instance/emails.ts`,
-`server/utils/id_generation.ts` (one 4-char generator, table-aware), and,
-until 9b deletes them, the dashboard residue: `db/project/dashboards.ts`,
-`routes/project/dashboards.ts`, `db/instance/dashboard_slugs.ts`,
-`routes/public/dashboard.ts` **and** the `/api/d/*` CORS + populate-only-Clerk
-mounts plus the `/d/:slug` SPA-HTML in root `main.ts`. The product plane:
-`server/db/products/**`, `server/routes/products/**` and their harness
-`server/tests/products_routes_test.ts` (the registries are S1's
-`lib/api-routes/products/*`); on the client, the Products page and its
+(`t2_images.ts` is S10's). Server: CRUD for both product families + folders,
+`routes/instance/emails.ts`, `server/utils/id_generation.ts` (one 4-char
+generator, table-aware). The product plane: `server/db/products/**`,
+`server/routes/products/**` and their two harnesses (below; the registries are
+S1's `lib/api-routes/products/*`); on the client, the Products page and its
 surfaces (`client/src/components/products/**`: the explorer page, the pure
-`folder_tree.ts` derivations and their harness, the card and list views, the
-two menu builders, the folder and move modals, the type registry
-`product_types.ts`, `product_settings.tsx`, the duplicate modal,
-`package_label.ts`) and the two editors (`slide_deck/**`, `report/**`), which
-since PLAN_PRODUCTS_RESTRUCTURE step 7a take `{ productId }` and read label,
-package and scope live from the T1 products row. Lib: slide/report types,
-the dashboard types until 9b (`lib/types/{dashboard,_dashboard_config}.ts`,
-`buildPublicDashboardBundle` and `buildReportPreview`), plus the product
-contracts (`lib/types/products.ts`: `ProductType`, `Folder`, `ProductBase`,
-`ProductSummary`; `lib/types/scope.ts`: `PackageScope`, `scopeToken`) that
-describe the products registry below. Custody wrinkle: the
-`_shared/**` glob also carries `dhis2_credentials/` (its one consumer is
-S6's Data page card, documented in SYSTEM_07) and `sort_control.tsx`
-(shell furniture, flagged in SYSTEM_14); the three logo files are genuinely
-S12's (Open item: settle the manifest).
+`folder_tree.ts` derivations and their harness, the card and list views, the two
+menu builders, the folder and move modals, the type registry `product_types.ts`,
+`product_settings.tsx`, the duplicate modal, `package_label.ts`) and the two
+editors (`slide_deck/**`, `report/**`), which take `{ productId }` and read
+label, package and scope live from the T1 products row. Lib: slide/report types,
+plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
+`ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `PackageScope`,
+`scopeToken`) that describe the products registry below. Custody wrinkle: the
+`_shared/**` glob also carries `dhis2_credentials/` (its one consumer is S6's
+Data page card, documented in SYSTEM_07) and `sort_control.tsx` (shell
+furniture, flagged in SYSTEM_14); the three logo files are genuinely S12's (Open
+item: settle the manifest).
+
+Two harnesses cover the product plane, both against the dev database.
+`server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
+slide and report routes through the real registry, access guard and DB layer.
+`server/tests/consolidated_products_test.ts` proves the products that migration
+091 consolidated, and skips when none exist (they are the ones with no
+`created_by`): every stored figure bundle on the four surfaces (slides, report
+figures, and the two version tables read through the same figure-block upgrade
+the restore paths run) parses under the strict schema, so each carries its
+package and scope, and a report version and a deck version restore through the
+real routes, on copies.
 
 ## Contract
 
@@ -102,29 +97,27 @@ product route declares its `access` level and is guarded by
 `requireProductAccess` (S1; every approved user passes every level today,
 D2); on the client the one gate is `canEditProduct(productId)` in
 `state/instance/product_access.ts`. There is no unauthenticated product
-surface: the public dashboard viewer went with the client in step 9a, and a
-deck reaches recipients as an emailed PDF (cross-cutting audit SYSTEMS.md
-§4.3.9; the server's `/d/:slug` route lingers until 9b).
+surface: a deck reaches recipients as an emailed PDF (cross-cutting audit
+SYSTEMS.md §4.3.9).
 
 ## The products registry on `main`
 
-`main` carries a products block beside the project layer
-(`_main_database.sql`, created on existing instances by
-`090_products.sql`): `folders` (nested through a nullable `parent_id`
-self-reference), `products` (id, `type` in {`slide_deck`, `report`}, label,
-`folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
-`admin_area_2`, `created_by`, `created_at`, `last_updated`), and one
-detail table per type keyed by the same id, `slide_decks` and `reports`,
-with `slides`, `slide_deck_versions` and `report_versions` hanging off
-them, all `ON DELETE CASCADE`. The two detail tables carry a fixed `type`
-column and a composite FK on `(id, type)` against `products`, so a detail
-row can exist only in the table its registry type names; whether the detail row exists at all is a
-writer rule (one transaction per product create), not a constraint. Row
-types are `DBFolder`, `DBProduct`, `DBSlideDeck`, `DBSlide`,
-`DBSlideDeckVersion`, `DBReport` and `DBReportVersion` in
-`server/db/instance/_main_database_types.ts`; the project barrel no longer
-star-exports its own row types, so the two sets coexist by direct import.
-The shared contracts are `lib/types/products.ts` and `lib/types/scope.ts`.
+`main` carries the products block (`_main_database.sql`, created on existing
+instances by `090_products.sql`): `folders` (nested through a nullable
+`parent_id` self-reference), `products` (id, `type` in {`slide_deck`, `report`},
+label, `folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
+`admin_area_2`, `created_by`, `created_at`, `last_updated`), and one detail
+table per type keyed by the same id, `slide_decks` and `reports`, with `slides`,
+`slide_deck_versions` and `report_versions` hanging off them, all `ON DELETE
+CASCADE`. The two detail tables carry a fixed `type` column and a composite FK
+on `(id, type)` against `products`, so a detail row can exist only in the table
+its registry type names; whether the detail row exists at all is a writer rule
+(one transaction per product create), not a constraint. Row types are
+`DBFolder`, `DBProduct`, `DBSlideDeck`, `DBSlide`, `DBSlideDeckVersion`,
+`DBReport` and `DBReportVersion` in
+`server/db/instance/_main_database_types.ts`; the layer's barrel
+`server/db/products/mod.ts` is star-exported from `server/db/mod.ts`. The shared
+contracts are `lib/types/products.ts` and `lib/types/scope.ts`.
 
 **The layer** (`server/db/products/**`, PLAN_PRODUCTS_RESTRUCTURE step 5):
 every function takes `mainDb` and keys off the registry. `products.ts`
@@ -146,8 +139,8 @@ parent inside the same transaction (`FOLDER_CYCLE`, through the envelope);
 `freedProductIds`. `slide_decks.ts`, `slides.ts`, `move_slides.ts`,
 `copy_slides.ts` (`copySlidesToSlideDeck`, the cross-deck reuse path:
 configs copied verbatim, scoped by the source product), `reports.ts` and
-`versions.ts` are the project counterparts rekeyed: every slide read and
-write is scoped by `product_id` AND `slide_id`, the label lives on
+`versions.ts` hold the per-type detail: every slide read and write is
+scoped by `product_id` AND `slide_id`, the label lives on
 `products` and the detail reads join it, and the version functions carry
 the `SlideDeck` stem on the `slide_deck_versions` table
 (`insertSlideDeckVersion`, `latestSlideDeckVersionHash`,
@@ -389,26 +382,6 @@ On accept, figures persist FIRST and roll back client-side if the save fails
 (the AI is told the edit was not applied), then the body applies through the
 editor API with the local-edit echo suppressed.
 
-## Dashboards (server residue until 9b)
-
-No client reads or writes a dashboard since step 9a: the editor, the list
-tab, the public viewer and the three dashboard exports were deleted, not
-ported (PLAN_PRODUCTS_RESTRUCTURE D3), and fleet-wide dashboards are deleted
-by the consolidation, not converted. What remains until step 9b is the
-storage and the routes: `dashboards` + `dashboard_items` +
-`dashboard_item_groups` in each project database, the slug indirection in
-the **main** DB (`dashboard_slugs`, slug PK → `{projectId, dashboardId}`),
-the 13 project-mounted entry routes, and the public route
-([routes/public/dashboard.ts](server/routes/public/dashboard.ts)) that
-resolves a slug on main (READ_ONLY) → project connection → detail and
-answers `buildPublicDashboardBundle(detail, countryIso3)`
-([lib/types/dashboard.ts](lib/types/dashboard.ts)), with `isPublic: false`
-requiring any Clerk session and all four failure modes returning the same
-404. Root [main.ts](main.ts) still mounts `/api/d/*` (CORS + populate-only
-Clerk) and `routesPublicDashboard` before the global auth middleware, and
-serves the SPA HTML for `/d/:slug`; the SPA has no route for it and renders
-the logged-in app.
-
 ## FigureBundle: the two storage surfaces
 
 This is S12's slice of the FigureBundle refactor; the full architecture
@@ -427,10 +400,12 @@ that **store** bundles and the export paths that **render** them.
   force-run safe.
 - **Capture-on-write.** Each surface assembles a bundle from the live build
   inputs: `config` + frozen `items` + the `resultsValue` projection +
-  `indicatorMetadata` + `dateRange` + `geo` + **`localization` = the
-  instance locale** (NOT the session toggle) + `metricId`/`snapshotAt` +
-  free `provenance`. The bundle is undefined-free pure JSON, so it persists
-  with no stripping.
+  `indicatorMetadata` + `dateRange` + `geo` + **`localization` = the instance
+  locale** (NOT the session toggle) + `metricId`/`snapshotAt` + the (package,
+  scope) pair the bundle was resolved under, `provenance.runId` and `scope`,
+  both required, so staleness (`isFigureBundleStale`) compares both halves with
+  no missing-field branch. The bundle is undefined-free pure JSON, so it
+  persists with no stripping.
 - **Build-on-render: every surface.** On-screen render and exports all call
   `buildFigureInputs(bundle, deckStyle?)`. The export path "just works"
   because the bundle carries its own `localization`. The old
@@ -482,13 +457,6 @@ deliveries returns `success: false` (the form shows the error instead of
   (or human + AI `applyFigureUpdate`) clobber each other. Narrowed by S16:
   while a collab room is live these route through the room and merge; the
   race remains for the no-room path.
-- **Notify coverage gaps (dashboard residue)**: `updateDashboardItem/ItemGroup`
-  and `moveDashboardItems` skip the list re-broadcast.
-- **Dashboards**: zero optimistic concurrency; no dashboard-specific
-  permission flags (rides the slide-deck pair): document as contract or
-  add flags; group member update silently no-ops for vanished replicant
-  values; every mutation route re-runs `getAllDashboards` (project + main
-  DB) just to broadcast, N× for batch deletes.
 - **`sendHelpEmail` approved-user question**: the guard never checks
   `approved`, so unapproved (Clerk-authenticated but not-added) users can
   send feedback. Possibly intended: an unapproved user may legitimately
@@ -499,13 +467,10 @@ deliveries returns `success: false` (the form shows the error instead of
   S6's Data page card and documented by S7; `sort_control.tsx` is shell
   furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1 exception
   row.
-- **Type casts on mutation bodies**: `body as any` ×5 in the dashboards
-  routes, `body.slide as Slide`, `body.config as SlideDeckConfig`: the
+- **Type casts on mutation bodies**: `body.slide as Slide`,
+  `body.config as SlideDeckConfig`: the
   Zod-validated body is discarded typewise; ties into the tighten-to-schema
   follow-on.
-- **Dead code**: `PasswordGate.tsx` (zero importers, EN-only);
-  `buildReportPreview`, `ReportSummary`, `ReportPreview`, `ReportFolder` and
-  `ReportGroupingMode` in `lib/types/reports.ts` have no consumer since the
-  product summary replaced the report list.
+- **Dead code**: `PasswordGate.tsx` (zero importers, EN-only).
 - **Barrel bypass**: `slide_list.tsx` imports the vendored SortableJS
   wrapper via a deep `../../../../panther/...` path instead of `"panther"`.

@@ -29,10 +29,6 @@ globs:
   - lib/types/disaggregation_options.ts
   - lib/types/presentation_object_defaults.ts
   - lib/types/presentation_objects.ts
-  - lib/types/visualization_folders.ts
-  - server/db/project/presentation_objects.ts
-  - server/db/project/visualization_folders.ts
-  - server/routes/project/visualization_folders.ts
 docs_absorbed:
 ---
 
@@ -61,13 +57,10 @@ explorer plan fills it, D6). `_editor_snapshot.ts` (`snapshotForSlideEditor`,
 the one thing the slide editor freezes at open), `NotAvailableBox`, the
 forms_editors figure modals (download, results-file viewer, custom series
 styles; `conflict_resolution_modal.tsx` is consumed by S12's slide editor and
-`confirm_update.tsx` by nothing). Server PO/folder CRUD
-(`db/project/{presentation_objects,visualization_folders}.ts` + the
-`visualization_folders` route file) is residue with no client importer since
-9a; step 9b deletes it. Lib config semantics (`normalize_po_config.ts`,
-`convert_visualization_type.ts`, the PO config type families, the
-conditional-formatting family). `withReplicant` lives in kernel-owned
-`lib/utils.ts` (S00).
+`confirm_update.tsx` by nothing). Lib config semantics
+(`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
+families, the conditional-formatting family). `withReplicant` lives in
+kernel-owned `lib/utils.ts` (S00).
 
 ## Contract
 
@@ -304,10 +297,8 @@ something.
   turns on whether re-adding a dimension later should silently recover its old
   order (keep) or start clean (prune).
 - **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`;
-  `lib/types/dimension_definitions.ts` (barrel-exported, zero uses);
-  `VisualizationGroupingMode` and the rest of `lib/types/visualization_folders.ts`
-  (9b); the `allReplicants` download branch; the server PO/folder CRUD and its
-  `getVisualizationsListForAI` (9b).
+  `lib/types/dimension_definitions.ts` (barrel-exported, zero uses); the
+  `allReplicants` download branch.
 - **Stale white-fill comment**: the download path claims `getFigureAsCanvas`
   fills white pending a panther flag. Current panther no longer fills; verify
   transparent PNG end-to-end and update or delete.

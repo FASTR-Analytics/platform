@@ -23,7 +23,6 @@ globs:
   - server/routes/instance/ai_files.ts
   - server/routes/instance/ai_proxy.ts
   - server/routes/instance/copilot_ai_proxy.ts
-  - server/routes/project/ai_proxy.ts
   - server/tests/mcp_context_cache_test.ts
   - server/tests/mcp_tools_source_header_test.ts
 ---
@@ -152,17 +151,13 @@ One shared handler,
 [anthropic_messages_proxy.ts](server/routes/anthropic_messages_proxy.ts)
 (governance, usage logging, and beta policy live there so the two mounts cannot
 drift), behind two thin raw Hono routes (deliberately outside the S1 route
-registry), mounted in [main.ts:237-238](main.ts#L237-L238):
+registry), mounted in [main.ts:174-175](main.ts#L174-L175):
 
 |                        | Copilot proxy                                                                                                                     | Instance proxy                                                                                                  |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Route                  | `POST /ai/v1/messages` ([copilot_ai_proxy.ts](server/routes/instance/copilot_ai_proxy.ts))                                        | `POST /ai-instance/v1/messages` ([ai_proxy.ts](server/routes/instance/ai_proxy.ts))                             |
 | Guard                  | `requireApprovedUser()` and nothing finer: every approved user is a full editor of every product (D2)                             | `requireGlobalPermission("can_configure_data")`                                                                 |
-| Usage log `project_id` | `null`                                                                                                                            | `null`                                                                                                          |
-| Client                 | the copilot ([defaults.ts](client/src/components/copilot/ai_configs/defaults.ts), no `Project-Id` header)                         | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/indicator_manager_hfa/ai/sdk_client.ts)) |
-
-`server/routes/project/ai_proxy.ts` is still on disk, unmounted, until step 9b
-deletes the project route tree; `ai_usage_logs.project_id` goes with it.
+| Client                 | the copilot ([defaults.ts](client/src/components/copilot/ai_configs/defaults.ts))                                                 | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/indicator_manager_hfa/ai/sdk_client.ts)) |
 
 The shared flow:
 
@@ -208,7 +203,7 @@ compares the stored date to today in JS UTC, the write uses Postgres
 `CURRENT_DATE`, identical only while the DB session runs UTC. Weekly counter =
 `instance_weekly_token_usage` upserted on `date_trunc('week', CURRENT_DATE)`
 ([ai_usage_logs.ts:4-20](server/db/instance/ai_usage_logs.ts#L4-L20)). Per-call
-rows = `ai_usage_logs` (email, nullable project_id, model, 4 token counts).
+rows = `ai_usage_logs` (email, model, 4 token counts).
 Limit hits = `ai_limit_hits`, PK `(user_email, limit_type,
 hit_date)` so
 `ON CONFLICT DO NOTHING` dedupes to one row per day. `unlimitedAi` = `H_USERS`
@@ -524,8 +519,7 @@ The instance `ai_context` is one `instance_config` row (`ai_context`), edited
 from a card on the Data page behind `can_configure_settings`
 ([ai_context_form.tsx](client/src/components/instance/ai_context_form.tsx),
 `updateAiContextConfig`), and rides `InstanceState` with the rest of the config
-so the prompt reads it from T1 with no fetch. It replaced the per-project
-`projects.ai_context`.
+so the prompt reads it from T1 with no fetch.
 
 **Documents.** `useAIDocuments` keeps `{assetFilename, anthropicFileId}` pairs
 in IndexedDB, one instance-wide upload registry shared by every product's
@@ -597,14 +591,14 @@ parts S13 relies on, verified this cycle:
 
 `client/src/components/indicator_manager_hfa/ai/` is a second, fully isolated
 assistant: same panther engine, own conversation scope (`hfa-indicators`), own
-SDK client pointed at `/ai-instance` (no `Project-Id`; duplicates the
-429-localizing fetch wrapper), its own `modelConfig` (`max_tokens: 4096`,
-where the copilot omits it), **no built-in web
-tools**. Structural differences from the copilot: no view registry, so every write
-goes straight to serverActions. Its six write tools declare `approval.propose`
-with `presentation: "modal"` (panther owns the propose → modal diff → commit
-lifecycle; the old hand-rolled `confirmChain` serializer is deleted), and the
-config sets `approvalPolicy: { requireForKind: "write", requireKind: true }`
+SDK client pointed at `/ai-instance` (duplicates the 429-localizing fetch
+wrapper), its own `modelConfig` (`max_tokens: 4096`, where the copilot omits
+it), **no built-in web tools**. Structural differences from the copilot: no view
+registry, so every write goes straight to serverActions. Its six write tools
+declare `approval.propose` with `presentation: "modal"` (panther owns the
+propose → modal diff → commit lifecycle; the old hand-rolled `confirmChain`
+serializer is deleted), and the config sets `approvalPolicy: { requireForKind:
+"write", requireKind: true }`
 ([ai/index.tsx:36](client/src/components/indicator_manager_hfa/ai/index.tsx#L36)).
 A write tool without approval, or any tool without a `kind`, fails at
 construction. Every anticipated failure throws `AIToolFailure` (zero
@@ -614,10 +608,10 @@ failure-channel ruling above). The system prompt deliberately embeds no live
 state (the model reads through tools, avoiding staleness with its own edits).
 Write commits do whole-object load → propose → save, last write wins: the
 app-wide concurrency model, deliberate (a re-read-after-confirm refactor was
-rejected as an inconsistent outlier). Its hand-written schemas comply
-with the S13 conventions (storage field names, throw-don't-catch, no
-strictObject / strict:true). S13 convention changes must be checked against this
-directory; its tool semantics are S5's.
+rejected as an inconsistent outlier). Its hand-written schemas comply with the
+S13 conventions (storage field names, throw-don't-catch, no strictObject /
+strict:true). S13 convention changes must be checked against this directory; its
+tool semantics are S5's.
 
 ## Traps
 

@@ -49,7 +49,7 @@ globs:
 
 The stage→integrate machinery for the three dataset families, HMIS (CSV +
 DHIS2), HFA (CSV + XLSForm), and ICEH (zip), plus their wizards, the import-run
-state machines, and the per-project attach/snapshot seam. Every family is
+state machines, and the run-capture seam. Every family is
 import runs (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phases A–C); only the
 structure family (S5) still uses upload attempts. Reviewed against code
 (fixes in `80a9996e`, `958132fd`, `b012ad3d`).
@@ -519,18 +519,14 @@ tmp dir (`DatasetCsvTarget` names the SAME file by its Postgres-container
 path and its Deno path), and returns the rows the run mirrors into its inputs
 plus the dataset version stamps the manifest records (`RunDataset`,
 `lib/types/run_datasets.ts`; read back by `getRunDatasetsFromManifest`).
-The facilities parquet is built from `RUN_FACILITY_COLUMN_NAMES` rows. No
-project table is written.
+The facilities parquet is built from `RUN_FACILITY_COLUMN_NAMES` rows.
 
 - The run's input mirrors are the metadata twins of the CSVs:
   `hfa_*_snapshot.json` (HFA, service-category-scoped),
   `iceh_indicators_snapshot.json`, and `indicators.json` (the analysed
   indicator set, resolved at capture). Modules read `../datasets/{type}.csv`; PO
   metadata reads the manifest's indicator catalog, built from the mirrors at
-  finalize. The project-DB `calculated_indicators_snapshot` table was dropped
-  by migration 041.
-- **Project-level attach/staleness UI is gone**: the dirty cascade and the
-  per-dataset staleness indicators died with the Data tab.
+  finalize.
 
 ## Traps
 

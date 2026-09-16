@@ -226,7 +226,7 @@ independent and are never reconciled (migration 076; the legacy shared
 `admin_areas_1..4` tables and the global `max_admin_area` /
 `facility_columns` config rows were kept frozen and readerless as the
 rollback path, then dropped by instance migration 081 once a rollback
-across 076 was ruled out). Project AA2 scope is deliberately
+across 076 was ruled out). A product's AA2 scope is deliberately
 registry-agnostic: the name is matched against whichever registry each
 results object belongs to, at read time.
 
@@ -727,9 +727,8 @@ pointers only. Consequences that follow from it and are ruled with it:
   hand). Expressions it cannot decompose (`R{}`, `OUG{}`, `C{}`, program
   indicators, `d2:` functions) are refused, not approximated.
 - The scorecard is a table preset on `m12-01-01`; it is not a module of its
-  own (`m007` and `m008` are dropped, and visualizations over their four
-  metric ids are deleted by project migration 040, a user-visible loss that
-  is OWNED: a configured scorecard is rebuilt from the preset in one click).
+  own (`m007` and `m008` are dropped: a configured scorecard is rebuilt from
+  the preset in one click).
 
 **ICEH** stratifiers (`lib/types/iceh_strats.ts`) are a hardcoded
 compile-time dictionary mapping raw survey stratum labels to normalized

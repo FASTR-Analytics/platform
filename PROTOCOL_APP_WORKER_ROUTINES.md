@@ -3,8 +3,9 @@
 > **App-specific authoring protocol** (not panther's cross-project
 > `PROTOCOL_*`). This is the _recipe_. Read it when **adding or changing a
 > background worker routine**. The machinery's ownership and architecture belong
-> to the SYSTEM files: the running-tasks map, dirty machine, and `task_ended`
-> semantics are **S8** (`SYSTEM_08_results_packages.md`); what the dataset workers
+> to the SYSTEM files: the generation host, its `GENERATING_BY_RUN` map and
+> the `run_generation_ended` semantics are **S8**
+> (`SYSTEM_08_results_packages.md`); what the dataset workers
 > _do_ (stage→integrate) is **S6**; workers reach the main thread's SSE via the
 > in-process BroadcastChannel fan-out documented in **S3**; worker DB
 > connections are S2's `SYSTEM_02_persistence.md`.
@@ -33,7 +34,7 @@ instantiateXxxWorker(payload)
                                                     .end() every connection
       host terminates the worker on its
       terminal signal (COMPLETED / error /
-      task_ended → removeRunningModule)
+      run_generation_ended)
 ```
 
 ## The recipe
@@ -88,8 +89,9 @@ Each routine is a folder under `server/worker_routines/` with two files:
   }
   ```
 
-Extra files are fine when they earn their place: `run_module/` has
-`run_module_iterator.ts` (the R streaming generator) and `container_name.ts`;
+Extra files are fine when they earn their place: `generate_run/` has
+`launch.ts` (the host side), `pipeline.ts` and its stages (`prepare_inputs.ts`,
+`resolve_modules.ts`, `execute_module.ts`, …) and `container_name.ts`;
 `import_hmis_data_dhis2/` has `dispatch.ts` (pure dispatcher logic importable
 outside a worker context) and `scheduler.ts` (the 60 s scheduled-import tick).
 
@@ -111,17 +113,18 @@ lost. Don't reason from one to the other.
 Without it, `reportError` propagates as an unhandled rejection and exits the
 whole server process (verified on Deno 2.5.3 and 2.6.4). The listener records
 the error completion, clears the tracker, and terminates the worker. Spawn sites
-today: `task_management/trigger_runnable_tasks.ts` (module runs),
-`db/instance/dataset_hfa_import_runs.ts` (HFA import runs), and
-`db/instance/dataset_hmis_import_runs.ts` (`spawnRunWorker` /
-`spawnCsvRunWorker`, HMIS import runs).
+today: `worker_routines/generate_run/launch.ts` (`launchRunGeneration`,
+results-package generation), `db/instance/dataset_hfa_import_runs.ts`
+(`spawnHfaRunWorker`), `db/instance/dataset_iceh_import_runs.ts`
+(`spawnIcehRunWorker`), and `db/instance/dataset_hmis_import_runs.ts`
+(`spawnRunWorker` / `spawnCsvRunWorker`, HMIS import runs).
 The dataset shape:
 
 ```ts
 setWorker("hmis", worker); // per-family worker slot
 worker.addEventListener("error", async (e) => {
   e.preventDefault(); // don't crash the server
-  await mainDb`UPDATE …upload_attempts SET status_type='error', status=…`;
+  await mainDb`UPDATE …_import_runs SET status='error', … WHERE status='running'`;
   clearWorker("hmis", worker); // compare-and-delete
   worker.terminate(); // host owns termination
 });
@@ -147,14 +150,17 @@ since the isolate dies with its sockets.
 
 ### 5. Pick the report-back mechanism
 
-- **(A) `task_ended` broadcast**, when completion should chain dependent work.
-  The module worker posts an `EndingTaskData`
-  (`{ projectId, moduleId, runToken, successOrError }`) to
-  `BroadcastChannel("task_ended")`; a decoupled listener in
-  `set_module_clean.ts` flips the DB row, clears the map entry, terminates, and
-  re-triggers dependents. Crashes reach the same handler via the spawn site's
-  `error` listener with `successOrError: "error"`: the worker's catch does
-  `reportError` only, no broadcast. S8 owns these semantics.
+- **(A) Completion broadcast**, when the host holds per-run teardown state.
+  The generate_run worker writes the run's terminal state itself
+  (`publishReadyRun` or `markRunGenerationFailed`), fires the catalogue notify,
+  then posts a `GenerateRunEndedData` (`{ runId, successOrError }`) to
+  `BroadcastChannel("run_generation_ended")`; the listener in `launch.ts`
+  terminates the worker and deletes its `GENERATING_BY_RUN` entry. A crash
+  reaches the spawn site's `error` listener instead
+  (`handleGenerateRunWorkerCrash`): it terminates the worker, removes the
+  module containers by deterministic name in production, publishes the
+  partial workspace, marks the run failed, and notifies. S8 owns these
+  semantics.
 - **(B) `postMessage("COMPLETED")` + status row**, for a single tracked job the
   caller awaits. The worker writes progress/terminal state into its run/ attempt
   row (`status` JSON + denormalized `status_type` enum) for client polling, and
@@ -168,16 +174,19 @@ enum; the results-package catalogue reacts to instance-SSE
 ### 6. Register a tracker, and clear it on every terminal path
 
 - **`worker_store.ts`**: at most one live worker per import family:
-  `Map<WorkerKey, Worker>` with `WorkerKey = "hmis" | "hfa" | "hmis_dhis2_run"`
+  `Map<WorkerKey, Worker>` with
+  `WorkerKey = "hmis" | "hfa" | "iceh" | "hmis_dhis2_run"`
   (extend the union when adding a family), `setWorker` / `getWorker` /
   `clearWorker`. `clearWorker` is compare-and-delete (deletes only if the stored
   worker IS this worker), so a stale worker's late error/COMPLETED event cannot
   clobber a successor under the same key. The caller checks `getWorker(key)`
   before starting and refuses if one is in flight.
-- **The running-tasks map** (module runs): keyed `projectId` + `moduleId` with
-  a per-run `runToken`; claim → attach → guaranteed
-  `removeRunningModule`/`releaseClaimedModule`. Owned by S8: new module-run
-  completion paths go through `handleModuleTaskEnded`, nothing else.
+- **`GENERATING_BY_RUN`** (results-package generation, `launch.ts`): keyed
+  `runId`, each entry `{ moduleIds, worker }`. The entry is set before the
+  catalogue row is created and deleted on the completion broadcast, on the
+  crash path, or when the launch itself throws; `moduleIds` is what the crash
+  path needs to name the containers. Generations run concurrently, so there
+  is no in-flight check. Owned by S8.
 
 An unterminated completed worker leaks its isolate and threads for the life of
 the process; a worker that dies without clearing its tracker blocks future work.
@@ -186,7 +195,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
 
 | Folder                   | Payload                                            | Report-back                                              | Tracker                           |
 | ------------------------ | -------------------------------------------------- | -------------------------------------------------------- | --------------------------------- |
-| `run_module`             | `{ projectId, moduleId, runToken }`                | `task_ended` broadcast (success) / `reportError` (crash) | running-tasks map                 |
+| `generate_run`           | `{ runId, label, step1Result, step2Result }`       | `run_generation_ended` broadcast / `reportError` (crash) | `GENERATING_BY_RUN`               |
 | `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)           |
 | `import_hmis_data_dhis2` | `{ runId, selection }`                             | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
 | `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row       | `worker_store` (`hfa`)            |
@@ -233,7 +242,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
       listeners, mandatory for both report-back models
 - [ ] `createWorkerReadConnection` / `createBulkImportConnection`; `.end()` on
       every exit path (a `finally` may hold `.end()` calls only)
-- [ ] Report-back matches the need: `task_ended` (chains work) or
+- [ ] Report-back matches the need: a completion broadcast (host teardown state) or
       `postMessage("COMPLETED")` + status row (tracked job)
 - [ ] Tracker registered and cleared + worker terminated on every terminal path
 - [ ] Inside any run transaction, the run-row write is the last statement

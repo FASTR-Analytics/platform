@@ -9,15 +9,15 @@ globs:
   - lib/types/collab.ts
   - lib/types/versions.ts
   - server/routes/instance/collab.ts
-  - server/routes/project/project-collab.ts
 ---
 
 # S16: Realtime Collaboration & Version History
 
-_Google-Docs-style real-time co-editing for slide decks, reports, and
-visualizations (WebSocket transport, server-authoritative Yjs rooms, presence,
-live cursors), plus the version-history layer built on top: editing-session
-capture, per-character / per-slide / per-element attribution, and restore._
+_Google-Docs-style real-time co-editing for slide decks and reports, including
+the figures embedded in them (WebSocket transport, server-authoritative Yjs
+rooms, presence, live cursors), plus the version-history layer built on top:
+editing-session capture, per-character / per-slide / per-element attribution,
+and restore._
 Reviewed against code (absorbs DOC_SLIDE_COLLAB,
 DOC_SLIDE_COLLAB_FEATURES, DOC_VIZ_COLLAB, DOC_VERSION_HISTORY).
 
@@ -29,31 +29,19 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 - **Transport & rooms**: `server/routes/instance/collab.ts` (the one
   instance-wide WS endpoint, `GET /collab`), `server/collab/doc_rooms.ts`
   (the generic master-copy room core: seed, relay, debounced checkpoint,
-  chokepoint), the per-document-type bindings `slide_rooms.ts` /
-  `report_rooms.ts` (product-keyed) and `po_rooms.ts` (project-keyed, on the
-  project socket `server/routes/project/project-collab.ts`, which keeps only
-  the visualization rooms until step 9b deletes it), and
-  `server/collab/presence_registry.ts`.
+  chokepoint), the two product-keyed bindings `slide_rooms.ts` /
+  `report_rooms.ts`, and `server/collab/presence_registry.ts`.
 - **CRDT model**: `lib/collab/{crdt_util,report_crdt,slide_crdt}.ts`,
   `lib/types/collab.ts` (the WS message protocol), client
   `state/instance/collab.ts` (one WS manager per signed-in approved user, the
   T1-adjacent store, PROTOCOL_APP_STATE.md).
-- **Visualization co-editing**: `lib/collab/figure_config_crdt.ts` (the shared
+- **Figure co-editing**: `lib/collab/figure_config_crdt.ts` (the
   `PresentationObjectConfig ⇄ Y.Map` bridge: per-field LWW for the `d`/`s`
-  form config, `Y.Text` for the three captions), `server/collab/po_rooms.ts`
-  (a third room type `"po"` for the standalone visualization editor, with its
-  own `po_*` message family + `crdt_state` columns on `presentation_objects`).
-  Embedded figures inside slides/reports are the SAME bridge applied to a
-  `figConfig` Y.Map nested in the host doc's figure node (the heavy bundle data
-  rides beside it as an opaque `figData`); the figure editor modal binds to it
-  live via a `collabBinding`. Chokepoints in `server/routes/project/
-  presentation_objects.ts` route REST config writes through the live PO room.
-  Since PLAN_PRODUCTS_RESTRUCTURE step 7a no client connects to the project
-  socket, and since 9a no client opens a PO session: the standalone editor and
-  the page-cursor consumer of the project-level awareness are gone, the
-  client store's `po_*` session half is unreachable code until 9b deletes
-  the wire family, and the client no longer creates a project-level
-  awareness at all.
+  form config, `Y.Text` for the three captions) binds the `figConfig` Y.Map
+  nested in a slide or report doc's figure node (the heavy bundle data rides
+  beside it as an opaque `figData`). Figures have no room type of their own:
+  the figure editor modal binds to the host doc's map live via a
+  `collabBinding`.
 - **Version history**: `server/collab/{version_tracker,version_capture}.ts`,
   the attribution ledgers `authorship.ts` (per-character report bodies, with
   tombstones) + `deck_session_ledger.ts` (per-slide / per-element decks),
@@ -63,11 +51,11 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 - **Shared custody.** The server chokepoint branches, checkpoint functions, and
   version routes ride **S12**'s files (`server/db/products/{reports,slides,
   slide_decks,versions}.ts`, `server/routes/products/{reports,slide_decks,
-  slides}.ts`, SYSTEMS.md §4.1), and the PO chokepoint rides **S9**'s
-  `presentation_objects.ts`. The collab client UI (`_shared/live_cursors.tsx`,
-  `_shared/cursors/`, `_shared/presence_toasts.tsx`,
-  `_shared/connection_banner.tsx`, `_shared/collab_markdown_editor.tsx`, the
-  presence avatars and editor overlays) lives inside S12's manifest globs.
+  slides}.ts`, SYSTEMS.md §4.1). The collab client UI
+  (`_shared/live_cursors.tsx`, `_shared/cursors/`,
+  `_shared/presence_toasts.tsx`, `_shared/connection_banner.tsx`,
+  `_shared/collab_markdown_editor.tsx`, the presence avatars and editor
+  overlays) lives inside S12's manifest globs.
   S12 owns those files; this system documents the collab behavior in them.
 
 ## Contract
@@ -96,27 +84,24 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 
 ## What users get
 
-Presence avatars in the deck and report editor headers and on per-slide
-cards (`+N` overflow chip past five people); idle dimming (`opacity-40
-grayscale` after 3 min without input, lit again on the next input, never while
-editing); a pulsing "editing now" badge, whose only mount is the visualization
-card stack, which draws no peers since 7a and goes with the tab in 9a, so the
-badge currently renders nowhere; join/leave
-toasts (top-right, below the header) keyed per person with a short grace
-window so refreshes/reconnects stay silent and switching documents yourself
-never announces the people already there. Live co-editing: character-merged
-text with remote carets/selections and per-user undo (Ctrl+Z never undoes a
-collaborator); layout, figure, and style changes propagate live; "who is
-editing what" borders on the slide canvas and around report embeds.
-Figma-style live cursors with name tags, click ripples, and `/`-triggered
-cursor chat on the slide canvas, the viz editor (preview + settings panel),
-and the report editor (both panes; typing hides your own pointer). Continuous
-autosave with no
-Save button; graceful single-user fallback when the WS can't connect (explicit
-save with conflict dialog); reconnect-forever with two-way catch-up; view-only
-users see everything live with read-only editors; deterministic per-user
-identity color (hashed from email, server-stamped, unspoofable: only the
-avatar URL is self-reported).
+Presence avatars in the deck and report editor headers and on per-slide cards
+(`+N` overflow chip past five people); idle dimming (`opacity-40 grayscale`
+after 3 min without input, lit again on the next input, never while editing); a
+pulsing "editing now" badge (`showEditingPulse` on `PresenceAvatars`, which no
+caller enables); join/leave toasts (top-right, below the header) keyed per
+person with a short grace window so refreshes/reconnects stay silent and
+switching documents yourself never announces the people already there. Live
+co-editing: character-merged text with remote carets/selections and per-user
+undo (Ctrl+Z never undoes a collaborator); layout, figure, and style changes
+propagate live; "who is editing what" borders on the slide canvas and around
+report embeds. Figma-style live cursors with name tags, click ripples, and
+`/`-triggered cursor chat on the slide canvas, the figure editor (preview +
+settings panel), and the report editor (both panes; typing hides your own
+pointer). Continuous autosave with no Save button; graceful single-user fallback
+when the WS can't connect (explicit save with conflict dialog);
+reconnect-forever with two-way catch-up; view-only users see everything live
+with read-only editors; deterministic per-user identity color (hashed from
+email, server-stamped, unspoofable: only the avatar URL is self-reported).
 
 ## Transport: one WebSocket per instance
 
@@ -127,14 +112,12 @@ avatar URL is self-reported).
   (PLAN_PRODUCTS_RESTRUCTURE D2, D8), resolved **before** the upgrade so no
   message can precede the check. Every document message names its product
   (`productId`; a report's equals its `reportId`), rooms are keyed
-  `productId::docType::docId` (`doc_rooms.ts` keys by owner id, the product
-  for slide and report rooms and the project for the PO rooms that remain on
-  the project socket), and presence is keyed by product, so a per-subscribe
-  permission check has its subject without a lookup. Today every approved
-  user is a full editor of every product: `RoomConn.canEdit` is TRUE for
-  every admitted connection and kept as the seam a later permission model
-  fills per subscribe. `PresenceEntry` carries identity plus opaque document
-  ids, never labels or content.
+  `productId::docType::docId`, and presence is keyed by product, so a
+  per-subscribe permission check has its subject without a lookup. Today
+  every approved user is a full editor of every product: `RoomConn.canEdit`
+  is TRUE for every admitted connection and kept as the seam a later
+  permission model fills per subscribe. `PresenceEntry` carries identity plus
+  opaque document ids, never labels or content.
   Authorization refusals are delivered as a **post-upgrade close** with
   `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
   browser cannot read a refused handshake (it surfaces as an unreadable 1006,
@@ -152,15 +135,12 @@ avatar URL is self-reported).
   - client → server: `presence_update`, `{slide,report}_subscribe` /
     `_update` / `_unsubscribe` (each carrying `productId`),
     `awareness_update`, `report_awareness_update`, and `ping` (liveness
-    probe, below). The `po_*` family and `project_awareness_update` stay in
-    the schema for the project socket and fall through this endpoint's
-    switch unhandled.
+    probe, below).
   - server → client: `hello` (connectionId), `presence_state` (full peer
     list), `{slide,report}_sync` / `_update` / `_error`, `awareness` /
-    `report_awareness`, `doc_save_state` (room checkpoint health), `pong`,
-    and a connection-level `error` (oversized or invalid frame); the `po_*`
-    and `project_awareness` server messages belong to the project socket.
-    The `*_error` messages carry an optional
+    `report_awareness`, `doc_save_state` (room checkpoint health; `docType`
+    is `"slide"` or `"report"`), `pong`, and a connection-level `error`
+    (oversized or invalid frame). The `*_error` messages carry an optional
     `fatal` flag: fatal ⇔ the document/room is gone (deleted, replaced, not
     found) and the session must stop editing; non-fatal = per-operation
     rejection.
@@ -212,9 +192,8 @@ avatar URL is self-reported).
   reload re-runs the mount check, busting the IndexedDB caches off the same
   trigger.
 - Ops requirement: reverse proxies must forward WebSocket upgrade headers on
-  `/collab` (and `/project_collab` until step 9b); the server-cli site
-  template becomes path-agnostic before the rollout (PLAN_PRODUCTS_RESTRUCTURE
-  §6).
+  `/collab`; the server-cli site template becomes path-agnostic before the
+  rollout (PLAN_PRODUCTS_RESTRUCTURE §6).
 
 ## Presence: who is where
 
@@ -310,8 +289,8 @@ avatar URL is self-reported).
   every re-open. Reachable before the guard: a peer's "Remove visualization"
   deletes `figConfig` while your modal is open, then the modal's close pushes a
   fresh bundle with that block id still in the skip set. This shape change is
-  why migration 037 clears stored slide + report `crdt_state` (rooms re-seed
-  from the unchanged stored content).
+  why a change to the figure shape in the doc must clear stored slide + report
+  `crdt_state` (rooms re-seed from the unchanged stored content).
 - Entry points: `seedSlideDoc(doc, slide)` (build), `materializeSlide(doc)`
   (read back), `syncSlideToDoc(doc, slide)` (idempotent 2-way diff used for
   every local push, a no-op when the doc already matches, which is what makes
@@ -338,20 +317,18 @@ the doc (separate routes/UI).
 
 [lib/collab/figure_config_crdt.ts](lib/collab/figure_config_crdt.ts): one
 co-editable config Y.Map: scalars per-field LWW, the three captions as
-Y.Text. Used by the standalone PO rooms (`po_rooms.ts`, persistence in
-`presentation_objects.crdt_state`) and by embedded figures in slide/report
-docs (the nested `figConfig`). Per-user undo comes from a local-origin
-`Y.UndoManager`; POs have **no version history**.
+Y.Text. It binds only the `figConfig` map nested in a slide or report doc's
+figure node, so a figure persists and is versioned with its host document.
+Per-user undo comes from a local-origin `Y.UndoManager`.
 
 ## Server rooms: authoritative doc, relay, checkpoint
 
 The room mechanics are generic
 ([server/collab/doc_rooms.ts](server/collab/doc_rooms.ts), parameterized by a
-`DocRoomAdapter` + injected `DocRoomDeps`) and shared by the three thin
-bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
-[report_rooms.ts](server/collab/report_rooms.ts),
-[po_rooms.ts](server/collab/po_rooms.ts). One room per
-`(projectId, docType, docId)`; described here in slide terms:
+`DocRoomAdapter` + injected `DocRoomDeps`) and shared by the two thin
+bindings [slide_rooms.ts](server/collab/slide_rooms.ts) and
+[report_rooms.ts](server/collab/report_rooms.ts). One room per
+`(productId, docType, docId)`; described here in slide terms:
 
 - **Open**: first `slide_subscribe` creates the room. It restores the exact
   prior Y.Doc from `slides.crdt_state` when that state is _current_
@@ -359,8 +336,7 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   else seeds from `slides.config`; a corrupt stored state is caught and falls
   back to seeding. Every subscriber sends its state vector and receives a
   `slide_sync` containing exactly what it's missing, plus the room's own state
-  vector (a malformed client SV degrades to a full sync). `depsForPo` refuses
-  rooms for default visualizations.
+  vector (a malformed client SV degrades to a full sync).
 - **Relay**: `slide_update` (base64 Yjs update) is permission-checked
   (`canEdit`, enforced in `applyDocUpdate`) and applied to the room doc with
   the sender connection as origin; the doc's update handler forwards it to
@@ -389,7 +365,7 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   CLASSIFIED by the save closure (`DocSaveResult`): TRANSIENT (DB trouble)
   retries on a 10 s timer; PERMANENT (schema validation: the same doc state
   fails identically forever) retries only on the next edit, never on a timer
-  (a wedged PO room once burned ~6k log lines/day hot-retrying an input that
+  (a wedged room once burned ~6k log lines/day hot-retrying an input that
   could never save). Failure logs are throttled to the first
   attempt and every 30th.
 - **Close**: when the last connection unsubscribes (or its socket dies),
@@ -406,9 +382,10 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts),
   leaking with a phantom member. On shutdown, `main.ts` starts an 8 s
   force-exit timer, then awaits `flushAllRooms()` before `flushAllVersions()`
   before closing the pools.
-- **External writes** (`applySlideToLiveRoom` in `slide_rooms.ts`,
-  `applyReportToLiveRoom` in `report_rooms.ts`, `applyPoToLiveRoom` in
-  `po_rooms.ts`, all over the generic `applyToLiveRoom` in `doc_rooms.ts`):
+- **External writes** (`applySlideToLiveRoom` in `slide_rooms.ts` and
+  `applyReportToLiveRoom` in `report_rooms.ts`, both over the generic
+  `applyToLiveRoom` in `doc_rooms.ts`):
+
   the plain update routes first offer the save to a live room. If one exists,
   the payload is synced _into_ the authoritative doc (relayed live to all
   editors) and checkpointed immediately. The chokepoint forces the room
@@ -478,7 +455,7 @@ for the same slide):
   scopes undo to local edits. `plain` prop disables markdown highlighting for
   title fields. Read-only (`EditorState.readOnly` +
   `EditorView.editable(false)`) for users without the family's configure
-  permission or on locked projects.
+  permission.
 - [collab_text_field.tsx](client/src/components/slide_deck/slide_editor/collab_text_field.tsx)
   wraps one root text field: binds the field's Y.Text (`findRootTextField`)
   when collab is ready, falls back to panther `TextArea` otherwise; both paths
@@ -506,24 +483,30 @@ best-effort REST flush of the doc state; live → the room finalizes). AI edits
 need no busy-guard: they apply through the proposing user's own live session
 and merge via CRDT.
 
-### Visualization editor
+### Figure editor
 
 [visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx)
-opens a `po` session over the same machinery: the `d`/`s` config co-edits
-per-field, captions per-character; per-user undo via a local-origin
-`Y.UndoManager`; presence gains `poId`/`editingFigureId`; the Data /
-Presentation / Text panel tabs show per-tab peer avatars via the `vizTab`
-awareness field (internal keys `"data" | "style" | "text"`). REST config
-writes route through the live room via the chokepoints in
-`server/routes/project/presentation_objects.ts` (config save + the batch
-period-filter update), skipping the optimistic lock while a room is live.
-Accepted trade-off: the live push is deliberately unnormalized, so a latent
-roll-up flag (the per-entry `rollup`/`rollupPosition` fields on
-`disaggregateBy`, valid optional schema fields whose gate is transiently
-closed) can persist through a live-session checkpoint; the next standard save
-strips it via `normalizePOConfigForStorage`.
+co-edits a figure inside its host slide or report session. The host passes a
+`VizFigureCollabBinding`
+([figure_editor/index.tsx](client/src/components/figure_editor/index.tsx)):
+the figure's `figConfig` Y.Map, the host session's awareness, `isLive`,
+`canEdit`, a local origin, the host doc identity (so the editor reads
+`doc_save_state` for that doc), and `onCoherentBundle`, which pushes the
+edited config plus freshly fetched items back into the host doc so canvas
+peers render config and data in step. The `d`/`s` config co-edits per-field,
+captions per-character; per-user undo via a local-origin `Y.UndoManager`;
+presence carries `editingFigureId`; the Data / Presentation / Text panel tabs
+show per-tab peer avatars via the `vizTab` awareness field (internal keys
+`"data" | "style" | "text"`). Without a live binding the editor keeps the
+classic Apply/Cancel flow. Accepted trade-off: the live push is deliberately
+unnormalized, so a latent roll-up flag (the per-entry
+`rollup`/`rollupPosition` fields on `disaggregateBy`, valid optional schema
+fields whose gate is transiently closed) can persist through a live-session
+checkpoint; the next save from the figure editor strips it via
+`normalizePOConfigForStorage`.
 Schema-INVALID transients are instead dropped from the stored config at
-checkpoint via `dropStorageInvalidTransients`, without touching the doc: the
+checkpoint via `dropStorageInvalidTransientsInSlide` /
+`dropStorageInvalidTransientsInFigures`, without touching the doc: the
 strict parse used to throw on them, permanently wedging the room's checkpoint
 (observed in production). Covered: a filter chip with all values
 un-ticked, an emptied `valuesFilter` (both min(1) in storage), and a bounded
@@ -562,7 +545,7 @@ The rendering engine is
 [live_cursors.tsx](client/src/components/_shared/live_cursors.tsx);
 per-surface glue (coordinate mapping + scope gate) lives one file per surface
 in [\_shared/cursors/](client/src/components/_shared/cursors/) (slide / viz /
-report / page).
+report).
 
 **Awareness field registry** (one shared Awareness per session, do not
 collide): `cursor` = yCollab text caret (nulled on every CM blur); `user` =
@@ -579,12 +562,12 @@ message (`{ text } | null`, streamed live while typing, attached to the
 pointer bubble: `/` opens it, Enter keeps it up a few seconds, Escape
 discards); `vizTab` = which viz-editor panel tab the peer is on
 (`{ scope, tab } | null`). New machinery must claim a NEW field, never reuse
-these. The SAME field names ride two more awareness instances: the report
-session (report-code / report-preview pointer surfaces) and the PROJECT-level
-awareness (below). Cursor name tags fade after ~4 s of stillness (hover near a
-cursor to reveal its name), idle cursors disappear after 30 s, and a cursor
-leaving the surface vanishes for everyone; the report editor sets
-`hideWhileTyping` so typing hides your pointer until the mouse moves.
+these. The SAME field names ride the report session's awareness too
+(report-code / report-preview pointer surfaces). Cursor name tags fade after
+~4 s of stillness (hover near a cursor to reveal its name), idle cursors
+disappear after 30 s, and a cursor leaving the surface vanishes for everyone;
+the report editor sets `hideWhileTyping` so typing hides your pointer until
+the mouse moves.
 
 **One cursor per person, enforced not assumed.** Awareness is keyed per
 CONNECTION and a user legitimately holds several (second tab, a reconnect
@@ -603,13 +586,6 @@ side backs this up: `visibilitychange` to hidden, window `blur` (a tab stays
 and `pointerleave` each clear the pointer outright, so an unfocused tab holds
 no cursor at all; focus/visible re-broadcasts the resting position without
 waiting for a mouse move.
-
-**No project-level awareness on the client.** The list pages show no
-cursors: the project tab pages that rode a PROJECT-scoped Awareness
-(`project_awareness_update` / `project_awareness`) went in step 9a with their
-`page_cursors.tsx` consumer, and `connectCollab` no longer creates one. The
-server relay (`relayProjectAwareness`) and the two message types stay in the
-wire protocol until 9b deletes them; nothing sends them.
 
 **Chrome zones** (`data-cursor-zone`, shared by every surface family): header
 bars, side panels, tab navs and canvas surroundings are per-user
@@ -648,27 +624,27 @@ peer border appears only once text exists.
 
 ## Persistence & migrations
 
-- Columns (all mirrored in `_project_database.sql`): `crdt_state` (base64 full
-  Yjs state) + `crdt_state_last_updated` on `slides` (migration `030`),
-  `reports` (`032`), and `presentation_objects` (`036`);
-  `reports.body_authors` + `report_versions.body_authors` (`034`);
-  `deck_versions.slide_editors` (`035`); the `report_versions` /
-  `deck_versions` tables (`033`).
+- Columns on the main DB (migration `090_products.sql`, mirrored in
+  `_main_database.sql`): `crdt_state` (base64 full Yjs state) +
+  `crdt_state_last_updated` on `slides` and `reports`;
+  `reports.body_authors` + `report_versions.body_authors`;
+  `slide_deck_versions.slide_editors`; the `report_versions` /
+  `slide_deck_versions` tables.
 - **Staleness rule**: the CRDT state is only trusted when
   `crdt_state_last_updated === last_updated`. The checkpoint stamps them
   equal; any non-collab write bumps `last_updated` alone, invalidating the
   state so the next room open re-seeds from content. (With the
   `apply*ToLiveRoom` chokepoints, non-collab writes during a live room go
-  through the room anyway.) All three checkpoints additionally stamp the
+  through the room anyway.) Both checkpoints additionally stamp the
   state untrusted (NULL) whenever the doc does NOT materialize to exactly the
   stored content (dropped schema-invalid transients, parse-stripped keys).
   Restoring such a doc would make every editor open adopt a state that
   disagrees with the row, visibly "flipping" the document ~1s after open
   (observed on a viz). Trusted state therefore always materializes
   to the row content, by construction. The validate/normalize/trust policy
-  lives in the per-type save closures in `project-collab.ts`; the db
-  checkpoint functions are plain writes.
-  All three closures ask that question through **`storedMatchesDoc`**
+  lives in the per-type save closures (`depsForSlide` / `depsForReport` in
+  `routes/instance/collab.ts`); the db checkpoint functions are plain writes.
+  Both closures ask that question through **`storedMatchesDoc`**
   ([crdt_util.ts](lib/collab/crdt_util.ts)), not a bare `canonicalJson`
   equality: `canonicalJson` is `JSON.stringify`-based, so it describes
   `JSON.parse(JSON.stringify(x))` rather than `x`. A doc holding a value JSON
@@ -682,8 +658,8 @@ peer border appears only once text exists.
   hashes are unchanged (`hashVersionData` shares `canonicalJson`).
 - **Model changes**: changing the doc schema breaks restore of old states.
   Ship a migration that nulls `crdt_state`; rooms re-seed from content, which
-  is always safe. Precedents: `031` (slide titles became Y.Text), `037`
-  (figure decomposition, clears both slides and reports).
+  is always safe. Past cases: slide titles becoming Y.Text, and the figure
+  decomposition (which cleared both slides and reports).
 - Bundling constraint: exactly one yjs. Yjs breaks (`instanceof` failures,
   "Yjs was already imported") if two copies are bundled.
   [client/vite.config.ts](client/vite.config.ts) pins `resolve.dedupe` for
@@ -791,17 +767,14 @@ error, which the room path never produces).
 deps call the same `notifyInstanceLastUpdated("slides", [ids], lastUpdated)`
 and `notifyInstanceProductsUpserted(mainDb, [productId])` from S3's notify
 catalog: a product's summary is one row, so a checkpoint re-broadcasts it
-per product on the 1.5 s cadence with no list rebroadcast to throttle. The
-project socket's viz-list rebroadcast (`scheduleVizListRebroadcast` in
-`project-collab.ts`) survives with the PO rooms until step 9b.
+per product on the 1.5 s cadence with no list rebroadcast to throttle.
 
 **Postgres: different function, same table, same stamping.** The classic path
 uses the per-column `update*` functions; the collab path uses the checkpoint
 functions (`saveReportCheckpoint`: one superset `UPDATE` writing body +
 figures + images + `crdt_state` + `crdt_state_last_updated` + `body_authors`;
-`saveSlideCheckpoint`: one transaction updating the slide + bumping the deck;
-`savePresentationObjectCheckpoint`: one `UPDATE`, gated
-`is_default_visualization = FALSE`). What matters is that **both stamp
+`saveSlideCheckpoint`: one transaction updating the slide + bumping the
+owning product). What matters is that **both stamp
 `last_updated = new Date().toISOString()` identically**. That is precisely
 what keeps S3's `last_updated → SSE → cache` triangle working the same way
 regardless of which path wrote the row.
@@ -838,13 +811,14 @@ per CRDT operation.
 
 ### Storage
 
-Two project-DB tables (migration `033`, mirrored in `_project_database.sql`):
-`report_versions` and `deck_versions`. Each row is a full content snapshot.
-Report: `label, body, figures, images`; deck: `label, deck_config, slides`
-(JSON `[{id, sortOrder, config}]`, where original slide ids are kept so
-restore preserves identity), plus `editors` (JSON `[{email, name}]`, everyone
-who edited in the session window), `content_hash`, `created_at`, and nullable
-`restored_from_version_id` (set only by the restore routes).
+Two main-DB tables (migration `090_products.sql`, mirrored in
+`_main_database.sql`): `report_versions` and `slide_deck_versions`. Each row is
+a full content snapshot. Report: `label, body, figures, images`; deck: `label,
+slide_deck_config, slides` (JSON `[{id, sortOrder, config}]`, where original
+slide ids are kept so restore preserves identity), plus `editors` (JSON
+`[{email, name}]`, everyone who edited in the session window), `content_hash`,
+`created_at`, and nullable `restored_from_version_id` (set only by the restore
+routes).
 
 - **Label is snapshotted explicitly** in both tables (`updateSlideDeckLabel`
   writes only the label column, so the deck config alone is not
@@ -880,7 +854,7 @@ who edited in the session window), `content_hash`, `created_at`, and nullable
 
 [version_tracker.ts](server/collab/version_tracker.ts) is a pure factory
 (`createVersionTracker(deps, opts)`) with injected clock and storage. It keeps
-one in-memory accumulator per `(projectId, kind, docId)` holding the
+one in-memory accumulator per `(kind, docId)` holding the
 contributor set and timing. A session flushes to ONE version when any of:
 document idle 10 min, session length 45 min (long sessions split), or collab
 room emptied and quiet for 2 min. A 30 s sweeper drives flushes
@@ -912,7 +886,7 @@ through the HTTP routes, including client-side AI tools):
 - **Room-routed HTTP writes** (AI accepts, fallback saves):
   `applySlideToLiveRoom` / `applyReportToLiveRoom` take an optional `editor`
   param → same `onEdit` hook.
-- **Direct route writes**: `recordVersionEdit(projectId, kind, docId, editor)`
+- **Direct route writes**: `recordVersionEdit(kind, docId, editor)`
   after success, identity from `c.var.globalUser`. Slides:
   create/delete/duplicate/move + the updateSlide fallback (the DB fn returns
   `deckId` for attribution); decks: config + label; reports:
@@ -975,8 +949,8 @@ Per-slide attribution comes from
 analog of the report body ledger: every slide-level write path (room edits via
 the slide-room deps closure, create/duplicate/delete/move/update routes, deck
 settings/label) records WHO touched WHICH slide; the map freezes into
-`deck_versions.slide_editors` when the version is written, and drains into the
-safety version on restore. Bounded per entry (`SLIDE_CAP=500`,
+`slide_deck_versions.slide_editors` when the version is written, and drains
+into the safety version on restore. Bounded per entry (`SLIDE_CAP=500`,
 `ELEMENTS_PER_SLIDE_CAP=100`). Unlike report bodies this ledger is in-memory
 only (accepted restart window; there is no deck-level checkpoint row to
 persist it to).
@@ -1096,6 +1070,22 @@ ledgers AND its pending element touches. Both are keyed by slide id alone,
 so left behind they would drain into whichever later session first records a
 reused id.
 
+**Email rename**: `renameUserEmailLocally`
+([server/routes/instance/users.ts](server/routes/instance/users.ts)) flips the
+users row, then runs the collab sweep: `closeConnectionsForEmail` closes every
+socket authenticated as the old email (4403), `renameVersionEditorEmail`
+re-keys open tracker sessions, and `renameDeckLedgerEmails` /
+`renameAuthorEmails` rewrite the in-memory deck and report ledgers. Only then
+does the main-DB product attribution sweep run: `renameUserEmailInProducts`
+([rename_user_email.ts](server/db/instance/rename_user_email.ts)) rewrites
+`products.created_by`, `folders.created_by`, `reports.body_authors`
+(compare-and-set on `products.last_updated` and the crdt stamp) and the
+editors and authors on `report_versions` / `slide_deck_versions`, in one
+transaction. The order means a checkpoint that flushes mid-rename already
+writes the new email, so losing the `body_authors` compare-and-set is
+harmless. A failed sweep fails the rename; a retry skips the flipped users row
+and re-runs the sweep.
+
 ### UI
 
 [client/src/components/version_history/](client/src/components/version_history/)
@@ -1171,7 +1161,7 @@ heading bar; "Version history" in the deck overflow menu.
 
 ## Open items
 
-- **Roll-up toggles now merge at whole-array granularity in PO co-editing**
+- **Roll-up toggles merge at whole-array granularity in figure co-editing**
   (from the facility roll-up adversarial review). The roll-up flag
   moved from d-level scalars into `disaggregateBy` entries, and the CRDT
   bridge (`lib/collab/figure_config_crdt.ts`) treats `disaggregateBy` as
@@ -1182,26 +1172,27 @@ heading bar; "Version history" in the deck overflow menu.
   merge for `disaggregateBy`.
 - **Canonical roll-up form holds only on the explicit save path.**
   `normalizePOConfigForStorage` strips `rollup`/`rollupPosition` from every
-  non-gate-selected `disaggregateBy` entry, but the PO checkpoint applies only
-  `dropStorageInvalidTransients`, so collab-saved rows persist latent flags on
-  gated-off entries. Accepted deliberately, because both repair options are
-  worse: an effective-gate strip at checkpoint needs `RollupEligibilityInputs`
-  loaded server-side, where a stale/weaker `hasFacilityLevelRows` would strip an
-  _active_ AVG-over-facility-rows flag (silently turning roll-up off); a
-  config-shape-only strip (`getRollupDimension`) diverges the stored row from
-  the live doc for the whole session whenever a latent flag exists, making
-  `trusted` false on every checkpoint and forcing a re-seed on every open.
-  Consequences are benign: a latent flag can resurrect roll-up across sessions
-  when a later edit reopens the gate (extends the in-session keep-the-flag
-  design), and two latently flagged entries that both become candidates make
-  `getRollupDimension` return `undefined` (roll-up silently off, display
-  gates inert: contrived edit sequence, no bad data). The schema comment on
-  `rollup` in `_metric_installed.ts` points here. Revisit if per-entry keyed
-  merge for `disaggregateBy` (previous item) is taken up.
+  non-gate-selected `disaggregateBy` entry, but the collab checkpoints apply
+  only `dropStorageInvalidTransients*`, so collab-saved rows persist latent
+  flags on gated-off entries. Accepted deliberately, because both repair options
+  are worse: an effective-gate strip at checkpoint needs
+  `RollupEligibilityInputs` loaded server-side, where a stale/weaker
+  `hasFacilityLevelRows` would strip an _active_ AVG-over-facility-rows flag
+  (silently turning roll-up off); a config-shape-only strip
+  (`getRollupDimension`) diverges the stored row from the live doc for the whole
+  session whenever a latent flag exists, making `trusted` false on every
+  checkpoint and forcing a re-seed on every open. Consequences are benign: a
+  latent flag can resurrect roll-up across sessions when a later edit reopens
+  the gate (extends the in-session keep-the-flag design), and two latently
+  flagged entries that both become candidates make `getRollupDimension` return
+  `undefined` (roll-up silently off, display gates inert: contrived edit
+  sequence, no bad data). The schema comment on `rollup` in
+  `_metric_installed.ts` points here. Revisit if per-entry keyed merge for
+  `disaggregateBy` (previous item) is taken up.
 - ~~**No heartbeat/ping-pong or idle-connection reaper on the collab WS**~~
-  RESOLVED. Both halves of dead-peer detection now exist and are described
-  under Transport: the server side is Deno's protocol ping with `idleTimeout:
-  30` pinned explicitly at the upgrade call (project-collab.ts), which fires
+  RESOLVED. Both halves of dead-peer detection now exist and are described under
+  Transport: the server side is Deno's protocol ping with `idleTimeout: 30`
+  pinned explicitly at the upgrade call (routes/instance/collab.ts), which fires
   the same `onClose` that runs `removeConnection`/`handleConnGone`; the client
   side is the app-level ping/pong watchdog in collab.ts (25 s ping, 10 s
   no-traffic deadline, then force-close into the normal reconnect path). The
@@ -1222,7 +1213,8 @@ heading bar; "Version history" in the deck overflow menu.
   timer (dirty room, no retry, no log line until the last client left), and one
   in the latter would have skipped `rooms.delete` / `doc.destroy()` /
   `onDocClosed` and leaked a zombie room.
-- **The PO/embedded-figure wedge guard rests on client-side widgets, not on
+- **The embedded-figure wedge guard rests on client-side widgets, not on
+
   the server.** `dropStorageInvalidTransients` covers the three states the
   editor is known to produce (all-values-unticked filter chip, emptied
   `valuesFilter`, and any `periodFilter` that `periodFilterSchema` rejects:

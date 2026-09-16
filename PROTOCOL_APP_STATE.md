@@ -37,7 +37,7 @@ files by definition. T4 vs T5: T4 state must survive component unmount
 ```text
 client/src/state/
   instance/                ← instance-scoped T1 + T2
-  project/                 ← project-scoped T1 + T2 + T4
+  products/                ← product-scoped T2 + T4
   _infra/                  ← cache infrastructure (reactive_cache, indexeddb_cache, request_queue)
   t4_ui.ts                 ← cross-cutting T4 (UI prefs; also moduleLatestCommits, see T4)
   t4_connection_monitor.ts ← cross-cutting T4
@@ -46,44 +46,38 @@ client/src/state/
 
 ## T1: SSE store
 
-Two stores, same architecture, five files per level:
+One store, five files:
 
-| Concern                          | Instance                                            | Project                                       |
-| -------------------------------- | --------------------------------------------------- | --------------------------------------------- |
-| Types (state shape, SSE events)  | `lib/types/instance_sse.ts`                         | `lib/types/project_sse.ts`                    |
-| Server notifications             | `server/task_management/notify_instance_updated.ts` | `server/task_management/notify_project_v2.ts` |
-| Server SSE endpoint              | `server/routes/instance/instance-sse.ts`            | `server/routes/project/project-sse-v2.ts`     |
-| Client store + getters           | `client/src/state/instance/t1_store.ts`             | (deleted in step 9a)                          |
-| Client SSE connection + boundary | `client/src/state/instance/t1_sse.tsx`              | (deleted in step 9a)                          |
+| Concern                          | File                                                |
+| -------------------------------- | --------------------------------------------------- |
+| Types (state shape, SSE events)  | `lib/types/instance_sse.ts`                         |
+| Server notifications             | `server/task_management/notify_instance_updated.ts` |
+| Server SSE endpoint              | `server/routes/instance/instance-sse.ts`            |
+| Client store + getters           | `client/src/state/instance/t1_store.ts`             |
+| Client SSE connection + boundary | `client/src/state/instance/t1_sse.tsx`              |
 
 **Write path: SSE only. NEVER write T1 state from components.** Component calls
-mutation API → server route handler mutates → calls `notifyInstanceUpdate(...)`
-/ `notifyLastUpdated(...)` → BroadcastChannel → SSE endpoint → client handler in
-`t1_sse` → store setter. The setters in each `t1_store` are called by the SSE
-handler only.
+mutation API → server route handler mutates → calls a `notifyInstance*(...)`
+function → BroadcastChannel → SSE endpoint → client handler in `t1_sse` → store
+setter. The setters in `t1_store` are called by the SSE handler only.
 
-**T1 read mechanics.** Importing the store directly (`instanceState`,
-`projectState`) in JSX / `createEffect` / `createMemo` is a **live read**:
+**T1 read mechanics.** Importing the store directly (`instanceState`) in
+JSX / `createEffect` / `createMemo` is a **live read**:
 Solid tracks field-level dependencies. The exported getter functions call
 `unwrap()` internally and are **snapshot reads**: use them in async code, cache
 version-key callbacks, and event handlers. Snapshot-read getters are named
-`getSnapshot*` (`getSnapshotProjectState()`,
-`getSnapshotInstanceLocalization()`, `getSnapshotInstanceCountryIso3()`) so the
-read mode is visible at the call site. Generic live/snapshot semantics:
+`getSnapshot*` (`getSnapshotInstanceState()`,
+`getSnapshotInstanceLocalization()`) so the read mode is visible at the call
+site. Generic live/snapshot semantics:
 PROTOCOL_UI_STATE "Read Modes". (The codebase also uses "snapshot" for _stored_
 snapshots, e.g. `FigureBundle.snapshotAt`, viz data persisted onto a slide.
 Same concept, persisted.)
 
-**Boundary components.** `InstanceSSEBoundary` / `ProjectSSEBoundary` own the
-connection lifecycle (`onMount` connect, `onCleanup` disconnect) and gate
-children on `isReady`. Children import state directly: no Context, no hooks, no
-prop threading; each `t1_store` exports every access pattern (reactive store,
-snapshot getters, derived lookups) from the one file.
-
-**Project store resets on project switch.** `disconnectProjectSSE()` →
-`resetProjectState()` → `reconcile(EMPTY_PROJECT_STATE)`; nothing leaks between
-projects. `isReady` resets on project _switch_ but NOT on same-project
-reconnect. Stale data stays visible while reconnecting.
+**Boundary component.** `InstanceSSEBoundary` owns the connection lifecycle
+(`onMount` connect, `onCleanup` disconnect) and gates children on `isReady`.
+Children import state directly: no Context, no hooks, no prop threading;
+`t1_store` exports every access pattern (reactive store, snapshot getters,
+derived lookups) from the one file.
 
 ### Instance T1 fields
 
@@ -91,7 +85,6 @@ reconnect. Stale data stays visible while reconnecting.
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | --------------------------------------- |
 | Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear`, `countryIso3` (all env-sourced)                              | `starting` only              | none                                    |
 | Instance config       | `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`                                                       | `config_updated`             | none                                    |
-| Projects              | `projects`, `projectsLastUpdated`                                                                                                          | `projects_last_updated`      | none                                    |
 | Products              | `products` (full `ProductSummary[]`, maintained PER ROW: `products_upserted` carries only the changed rows, `products_deleted` the ids)     | `products_upserted` / `products_deleted` | `lastUpdated.products[id]` (the row's own stamp, written from the summary) |
 | Folders               | `folders` (full `Folder[]`)                                                                                                                | `folders_updated`            | none                                    |
 | Ready packages        | `readyPackages` (`ReadyPackage[]`, approved users; the `runsCatalog` idiom: `starting` fill plus a refetch on the catalogue nonce)         | `runs_catalog_updated`       | none                                    |
@@ -111,10 +104,8 @@ reconnect. Stale data stays visible while reconnecting.
 | Current user          | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions`                                            | `users_updated` (re-derived) | none                                    |
 
 **Per-connection fields:** `currentUser*` are per-user, re-derived by finding
-the current user in the broadcast list on `users_updated`. `projects` /
-`projectsLastUpdated` are per-user; on `projects_last_updated` the client
-fetches `/my_projects` (a broadcast can't carry every user's project list).
-`runsCatalog` is per-user by the same signal-plus-own-fetch shape: run labels
+the current user in the broadcast list on `users_updated`. `runsCatalog` is
+per-user by a signal-plus-own-fetch shape: run labels
 must not fan out (Q-B), so `runs_catalog_updated` carries only a data-free
 NONCE (`crypto.randomUUID()`, not a timestamp: two same-millisecond
 mutations minted identical ISO strings and the store's equality guard
@@ -124,50 +115,27 @@ cross-worker counter coordination) and each entitled client
 per-request guard; the boundary's effect also tracks the user's OWN
 entitlement, so a mid-session grant fetches the catalogue and a revocation
 clears it to `[]`, live, with no connection-captured gating. The starting
-payload fills it per user like `projects`, AND stamps a fresh nonce, so the
+payload fills it per user, AND stamps a fresh nonce, so the
 boundary refetches after every `starting`. RULED DELIBERATE (2026-08-15),
 not waste: that refetch is what makes reconnect self-healing (backfill runs
 and any missed signal surface there); the payload fill exists to prevent an
 empty flash while it resolves, and `defer: true` only skips the mount-time
 no-op run. A failed boundary catalogue fetch only console-errors, keeping
-stale rows visible: accepted, same shape as the projects fetch. The
+stale rows visible: accepted. The
 ephemeral `run_progress`/`r_script` filter on the instance channel is also
 live (re-derived from each `users_updated` in the forward loop). See
 SYSTEM_03 †. `users` is `[]` for an UNAPPROVED connection (starting payload
 and every `users_updated`, until a roster names them. SYSTEM_03 †). All
 other fields are identical across clients.
 
-### Project T1 fields
-
-| Data                  | Fields on `ProjectState`                                                                              | SSE event                                                  | Version key for T2                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------- |
-| Project identity      | `id`                                                                                                  | `starting` only                                            | none                               |
-| Project config        | `label`, `isLocked`, `isCentralReporting`, `aiContext`, `followPinned`                                | `project_config_updated`                                   | none                               |
-| Attached package      | `attachedRunId`, `attachedRun` (the run's catalogue row; immutable once ready)                        | `run_attached` (+ the run-derived catalog below)           | `attachedRunId` → `runVersionKey`  |
-| Project datasets      | `projectDatasets`                                                                                     | `datasets_updated`                                         | none                               |
-| Installed modules     | `projectModules`                                                                                      | `modules_updated`                                          | none                               |
-| Metrics / indicators  | `metrics`, `hmisIndicators`, `icehIndicators`                                                         | `modules_updated` (derived)                                | none                               |
-| HFA taxonomy          | `hfaTaxonomy`                                                                                         | `starting` only (no update event)                          | none                               |
-| Visualizations        | `visualizations`, `visualizationFolders`                                                              | `visualizations_updated` / `visualization_folders_updated` | none                               |
-| Dashboards            | `dashboards`                                                                                          | `dashboards_updated`                                       | none                               |
-| Project users         | `projectUsers`                                                                                        | `project_users_updated`                                    | none                               |
-| Per-entity timestamps | `lastUpdated`, a nested `Record<LastUpdateTableName, Record<string, string>>`                         | `last_updated`                                             | `lastUpdated[tableName][entityId]` |
-| Current user          | `currentUserEmail` (`starting` only), `thisUserRole` (deprecated), `thisUserPermissions` (re-derived) | `project_users_updated`                                    | none                               |
-
-The table-name list for `lastUpdated` has one source of truth:
+The table-name list for `lastUpdated` (a nested
+`Record<LastUpdateTableName, Record<string, string>>`) has one source of truth:
 `LastUpdateTableName` in `lib/types/last_updated_tables.ts`.
-
-**`aiContext` quirk:** only the `updateProject` route sends `aiContext` in
-`project_config_updated`; routes that change just `isLocked` /
-`isCentralReporting` omit it (optional in the payload). `followPinned`
-follows the same optional-field shape: sent only by the two writers that
-change it: the follow toggle route and `attachRunToProject`'s auto-clear
-(a manual attach to a non-pinned package ends the subscription; SYSTEM_08).
 
 ### The collab WS store: T1-adjacent
 
 `state/instance/collab.ts` (S16) is the one deliberate sibling of the T1
-stores outside the `t1_*` naming: the instance-wide collaboration WebSocket
+store outside the `t1_*` naming: the instance-wide collaboration WebSocket
 manager, holding a Solid store of presence peers plus the per-document Yjs
 session handles (each opened with its product id). It follows T1 discipline:
 server-pushed only (the WS `presence_state`/awareness handlers are the sole
@@ -185,13 +153,13 @@ Medium-to-heavy data too large for SSE, cached in memory + IndexedDB via
 `createReactiveCache` (`client/src/state/_infra/reactive_cache.ts`), version-
 keyed by T1 fields. Live consumption is panther's createEffect+StateHolder
 pattern with one app-specific binding: **the tracked read is a T1 version key**
-(`projectState.lastUpdated.X[id]`, `instanceState.*Version`), never a locally
+(`instanceState.lastUpdated.X[id]`, `instanceState.*Version`), never a locally
 flipped version signal.
 
 **App override of the panther base pattern: never refetch after a mutation.**
 Panther's canonical actions pass `query.silentFetch` as a success callback; this
 app forbids post-mutation `silentFetch()` / `fetch()` / manual `refresh()`
-absolutely. Server route handlers already call `notifyLastUpdated(...)`; SSE
+absolutely. Server route handlers already call `notifyInstance*(...)`; SSE
 flips the version key; the watching `createEffect` re-runs; the cache misses. A
 manual refetch duplicates work and races SSE. If you want to "refresh" a
 `createQuery` after a mutation, that view is long-lived enough that it must
@@ -212,9 +180,8 @@ Two invalidation shapes with different loading-state semantics:
   replacing stale data on a failed refetch is the accepted trade-off.
 
 Assignments: instance T2 = Variant A (exception: the ICEH display consumer uses
-the Variant B no-flash pattern); project per-entity caches = Variant B;
-run-keyed caches (PO items, metric info, replicant options; `runVersionKey`) =
-Variant A, since attaching another package changes all their payloads at once.
+the Variant B no-flash pattern); product per-entity caches = Variant B;
+run-keyed caches are immutable by identity (the products inventory below).
 
 **Mandatory stale-response guard for Variant B** (not in panther): a rapid SSE
 burst (two version flips before the first fetch resolves) lets the older
@@ -222,12 +189,12 @@ response overwrite the fresher. Guard every Variant B effect:
 
 ```tsx
 createEffect(() => {
-  const _v = projectState.lastUpdated.dashboards[id]; // reactive read for tracking
+  const _v = instanceState.lastUpdated.products[productId]; // reactive read for tracking
   const controller = new AbortController();
   onCleanup(() => controller.abort());
   async function load() {
     // No setData({ status: "loading" }): Variant B leaves stale data visible.
-    const res = await getDashboardDetailFromCacheOrFetch(projectId, id);
+    const res = await getReportDetailFromCacheOrFetch(productId);
     if (controller.signal.aborted) return; // discard if superseded
     setData(
       res.success
@@ -241,7 +208,7 @@ createEffect(() => {
 
 ### Cache inventory: instance
 
-All use `createReactiveCache` with `pdsNotRequired: true`, except GeoJSON.
+All use `createReactiveCache`, except GeoJSON.
 
 | Data                               | File                        | Version key(s)                                                       |
 | ---------------------------------- | --------------------------- | -------------------------------------------------------------------- |
@@ -278,44 +245,27 @@ Version keys read `InstanceState` through `instanceVersionKey(params, ins)`
 | Run authoring context         | `instance/t2_run_authoring_context.ts` | `[runId]` + constant `"immutable"`                     | A       |
 | Image blobs                   | `products/t2_images.ts`              | URL-keyed (`TimCacheD`, immutable, with failure backoff) | none    |
 
-### Cache inventory: project (until step 9a)
-
-| Data                          | File                                 | Version key(s)                                           | Variant |
-| ----------------------------- | ------------------------------------ | -------------------------------------------------------- | ------- |
-| Dashboard detail (with items) | `project/t2_dashboards.ts`           | `lastUpdated.dashboards[dashboardId]`                    | B       |
-| PO detail (config, metadata)  | `project/t2_presentation_objects.ts` | `lastUpdated.presentation_objects[poId]` + run key       | B       |
-| PO items (data rows)          | `project/t2_presentation_objects.ts` | `runVersionKey` (`attachedRunId~scopeToken`)             | A       |
-| Metric info                   | `project/t2_presentation_objects.ts` | `runVersionKey`                                          | A       |
-| Replicant options             | `project/t2_replicant_options.ts`    | `runVersionKey`                                          | A       |
-
 `t2_images.ts` is not a reactive cache: it uses `TimCacheD`
 (`_infra/indexeddb_cache.ts`) with the URL as both key and version, never reads
-`ProjectState`, and is not SSE-invalidated. Correct because image URLs are
+the T1 store, and is not SSE-invalidated. Correct because image URLs are
 immutable.
 
 `instance/t2_runs.ts` is the second immutable-by-identity cache, built on
 `createReactiveCache` with a constant version key: a results package's detail
-never changes once the run is ready, so nothing invalidates it and both hosts
-(the catalogue pane and a project's package tab) hit the same entry. Bump the
+never changes once the run is ready, so nothing invalidates it. Bump the
 cache name when `RunDetail` changes shape.
 
-### Sentinel versions
+### Sentinel version
 
-Two special version strings mark "not ready"; `setPromise` refuses to persist
-under either (exact match):
+The version string `"unknown"` marks "not ready": `versionKey` callbacks
+return it when the entity's version input doesn't exist yet, e.g.
+`ins.lastUpdated.slides[slideId] ?? "unknown"`, and `setPromise` refuses to
+persist under it.
 
-- `"pds_not_ready"`: produced by `reactive_cache.ts` itself when the project
-  store isn't ready (`!pds.isReady` without `pdsNotRequired`).
-- `"unknown"`: produced by `versionKey` callbacks when the entity's version
-  input doesn't exist yet, e.g.
-  `pds.lastUpdated.slide_decks[newDeckId] ?? "unknown"`.
-
-Caveat: the guard is exact-match only. Composite keys embedding the token (e.g.
-`` `unknown|<runVersionKey>` `` from the po_detail cache) ARE cached. Benign:
-when the entity's `last_updated` later arrives, the version flips and the
-entry is never read again. But any new composite key must keep that
-self-correcting
-property.
+Caveat: the guard is exact-match only. A composite key embedding the token IS
+cached. That is benign only while the entry self-corrects: when the entity's
+`last_updated` later arrives, the version flips and the entry is never read
+again. Any composite key must keep that property.
 
 ### Heavy entity detail: always through a cache
 
@@ -340,8 +290,7 @@ markers:
 - The editor does not subscribe to `lastUpdated` for that entity.
 
 Correct for: viz editor, report editor, slide settings editor, deck style
-editor. Wrong for: dashboards (live multi-user editing), slide lists (SSE keeps
-ordering fresh).
+editor. Wrong for: slide lists (SSE keeps ordering fresh).
 
 ### Imperative listener side-channel
 
@@ -372,7 +321,7 @@ the shell's `createSignal<StateHolder>` + `createEffect` on the tab signal
 plus a local `ledgerVersion` bumped by the shell's `refresh()`; SYSTEM_06), HFA
 import runs (`instance_dataset_hfa/imports/`), ICEH import runs
 (`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
-compare-projects modal, HFA indicator R code
+HFA indicator R code
 (`indicator_manager_hfa/hfa_indicator_code_editor.tsx`), user-permission
 editors, instance meta modal, profile refresh, the results-package wizard's
 module options + defaults
@@ -380,19 +329,16 @@ module options + defaults
 client-local until launch), and the `LoggedInWrapper.tsx` bootstrap fetches
 (GlobalUser, InstanceMeta, needed before SSE connects).
 
-Project-level: module config selections (`settings_generic.tsx`), the
-results-package picker's option list (`project_results_package.tsx`, once per
-mount, editors only), backup creation trigger (`create_backup_form.tsx`).
-Run-keyed, either level: a package's script / log bytes and a failed run's
+Run-keyed: a package's script / log bytes and a failed run's
 file listing (`_shared/results_package/view_{script,logs,files}.tsx`).
 
 ## T4: client-persistent
 
-| Data                              | File                         | Storage                 |
-| --------------------------------- | ---------------------------- | ----------------------- |
-| AI documents (Anthropic file IDs) | `project/t4_ai_documents.ts` | IndexedDB (per project) |
-| UI prefs                          | `t4_ui.ts`                   | localStorage + signals  |
-| Connection monitor                | `t4_connection_monitor.ts`   | module-level signals    |
+| Data                              | File                          | Storage                                                     |
+| --------------------------------- | ----------------------------- | ----------------------------------------------------------- |
+| AI documents (Anthropic file IDs) | `products/t4_ai_documents.ts` | IndexedDB (uploads instance-wide, pending per conversation) |
+| UI prefs                          | `t4_ui.ts`                    | localStorage + signals                                      |
+| Connection monitor                | `t4_connection_monitor.ts`    | module-level signals                                        |
 
 `moduleLatestCommits` (in `t4_ui.ts`) is server data fetched once per session
 and never SSE-updated, a "session-cached server data" variant that doesn't fit
@@ -404,8 +350,3 @@ credentials moved server-side).
 `createSignal()` inside a component: search text, selected tabs, loading flags,
 form inputs, AI chat drafts. Dies on unmount; no files.
 
-## Open items
-
-- `lib/types/project_sse.ts:30`: `thisUserRole` is deprecated ("kept with
-  hardcoding bug intact") but still ships on every `starting` payload. Remove
-  the field or fix the derivation.

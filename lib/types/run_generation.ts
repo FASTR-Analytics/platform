@@ -87,7 +87,7 @@ export type RunCatalogStatus = "generating" | "ready" | "failed" | "retired";
 
 // Runs-catalog listing row, rendered wherever a package is listed. Which
 // package is PINNED is not a listing column: it is one instance T1 fact,
-// `pinnedRunId` (SYSTEM_08 "The pinned package + followers"), so every
+// `pinnedRunId` (SYSTEM_08 "The pinned package"), so every
 // surface derives the badge from the same field.
 export type RunListingItem = {
   id: string;

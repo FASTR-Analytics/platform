@@ -42,7 +42,7 @@ import {
 } from "../exposed_env_vars.ts";
 
 // The /mcp endpoint reads the instance's PINNED results package (S8 "The
-// pinned package + followers"): every tool call resolves the pin, and this
+// pinned package"): every tool call resolves the pin, and this
 // cache is PURELY performance: correctness never depends on it. The pin is
 // read from the DB on EVERY call (never from the 30 s InstanceState copy), so
 // a pin-move is visible on the next call; the context behind a given

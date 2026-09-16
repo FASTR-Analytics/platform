@@ -17,16 +17,20 @@
 ### 1. Declare the route in the registry
 
 Add a `route({...})` entry to the right `lib/api-routes/*` feature registry
-(`instance/`, `products/` or `project/`; new feature file → spread it into
-`combined.ts`).
+(`instance/` or `products/`; new feature file → spread it into `combined.ts`
+and add it to `routeRegistryIndividualCount`).
 
 ```ts
-createReport: route({
-  path: "/reports",
+createFolder: route({
+  path: "/folders",
   method: "POST",
-  body: z.object({ label: z.string(), ...folderBodyFields }),
-  response: {} as { reportId: string; lastUpdated: string },
-  requiresProject: true,
+  body: z.object({
+    label: z.string(),
+    color: z.string().nullable(),
+    parentId: z.uuid().nullable(),
+  }),
+  response: {} as { folderId: string; lastUpdated: string },
+  access: "edit",
 }),
 ```
 
@@ -36,8 +40,6 @@ createReport: route({
 - `response` is a compile-time phantom (`{} as T`); omit it for a no-data route.
   For a sometimes-absent payload use `X | null`, never `X | undefined`
   (optional-parameter inference silently strips the `undefined`).
-- Set `requiresProject: true` on every project route. That is what makes the
-  client emit the `Project-Id` header the project guard reads.
 - Set `access: "view" | "edit" | "own"` on every product and folder route
   (`lib/api-routes/products/*`; the file's closing `satisfies` refuses an
   entry without it). Every product-scoped path lives under
@@ -55,30 +57,19 @@ filename):
 
 ```ts
 defineRoute(
-  routesReports,
-  "createReport",
-  requireProjectPermission(
-    { preventAccessToLockedProjects: true },
-    "can_configure_reports",
-  ),
-  async (c, { params, body }) => {
-    const res = await createReport(
-      c.var.ppk.projectDb,
-      body.label,
-      body.folderId,
-    );
-    if (!res.success) return c.json(res);
-    notifyLastUpdated(
-      c.var.ppk.projectId,
-      "reports",
-      [res.data.reportId],
-      res.data.lastUpdated,
-    );
-    const list = await getAllReports(c.var.ppk.projectDb);
-    if (list.success) {
-      notifyProjectReportsUpdated(c.var.ppk.projectId, list.data);
+  routesFolders,
+  "createFolder",
+  log("createFolder"),
+  async (c, { body }) => {
+    const res = await createFolder(c.var.mainDb, {
+      ...body,
+      createdBy: c.var.globalUser.email,
+    });
+    if (!res.success) {
+      return respond(c, res);
     }
-    return c.json(res);
+    await notifyFolders(c.var.mainDb);
+    return respond(c, res);
   },
 );
 ```
@@ -89,9 +80,12 @@ The thin-handler shape is invariant: **call one DB fn returning an `APIResponse`
 (that's the DB layer, S2); never hand-build `{ success: true, data }` when the
 DB function already returns an envelope; never cast the return to `any`. A type
 error at the `defineRoute` call means the registry and implementation disagree.
+Product-plane handlers answer through `respond`
+(`server/routes/products/_respond.ts`), which turns a not-found envelope into a
+404; instance handlers use `c.json`.
 `server/routes/products/reports.ts` is the canonical example file; the notify
-recipe (row-level `last_updated` + whole-list broadcast) is S3's mutation
-recipe.
+recipe (row-level `last_updated`, per-row product summaries, whole-list
+folders) is S3's mutation recipe.
 
 ### 3. Pick the guard
 
@@ -107,15 +101,12 @@ Every `defineRoute` gets one. A route with no guard is public-by-accident
   inside the handler; the policy lives in `server/auth/product_access.ts`. A
   handler that receives a `slide_id` or `version_id` still scopes its query
   by `product_id` as well, so an id from another product is a 404.
-- Project route → `requireProjectPermission(...ProjectPermission)`, and scope
-  ALL DB work to `c.var.ppk.projectDb` / `c.var.ppk.projectId`, never a project
-  id from the body/params (confused-deputy/IDOR).
 - Permission keys come from `lib/types/permissions.ts` only. Adding a key? Add
-  it there (type + array + `build*FromRow`), plus the DB column migration.
-- Admin-only → `{ requireAdmin: true }`. Editing routes that must respect locked
-  projects → `{ preventAccessToLockedProjects: true }` (opt-in, not global).
-- Zero permission keys = "any authenticated (project) member": real but weak;
-  be deliberate.
+  it there (type + array + `buildUserPermissionsFromRow`), plus the DB column
+  migration.
+- Admin-only → `requireGlobalPermission({ requireAdmin: true })`.
+- Zero permission keys = "any authenticated caller", without the `approved`
+  check: real but weak; be deliberate.
 - Prefer a granular permission or `requireAdmin` over any new
   `H_USERS.includes()` check.
 
@@ -128,8 +119,7 @@ Every `defineRoute` gets one. A route with no guard is public-by-accident
 - Boot the server: `validateAllRoutesDefined()` exits(1) on a
   missing/extra/duplicate route. Confirm
   `✅ All N routes correctly implemented`.
-- The client action now exists: `args` = path params + `projectId` (if
-  required) + body keys.
+- The client action now exists: `args` = path params + body keys.
 
 ## Streaming variant
 
@@ -145,7 +135,7 @@ timeout.
 ## Off-registry escape hatch
 
 There is none. Raw `.get`/`.post` on a `Hono()` is allowed only for the
-enumerated inventory in SYSTEM_01 (SSE, Anthropic passthrough, TUS, public
-dashboard, health, export_central, the two CSV exports). A new endpoint that
-"can't fit the registry" is a design smell. Bring it to the inventory
-discussion, don't just add it.
+enumerated inventory in SYSTEM_01 (SSE, the collab WebSocket, Anthropic
+passthrough, TUS, health, the CSV exports, OAuth discovery, `/mcp`). A new
+endpoint that "can't fit the registry" is a design smell. Bring it to the
+inventory discussion, don't just add it.

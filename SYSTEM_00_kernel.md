@@ -44,9 +44,10 @@ holds, side by side: the `APIResponse` envelope types +
 `InstanceMeta`/`InstanceDetail` and the instance-config zod schemas:
 admin-area labels and the per-family `structureSchemaSchema` /
 `structureColumnsSchema` with `getEnabledOptionalFacilityColumns`,
-`structureColumnsFromSchema` + `hashStructureSchema` (S5's config surface); `GlobalUser`/`ProjectUser`/`OtherUser`/user-log types + the dev-mode
-user factories (S1/S15); generic table-column and CSV-import wizard types for
-S5/S6 (`CsvDetails`, `Mappings`, `Conflicts`); and the `ItemsHolder*` payload
+`structureColumnsFromSchema` + `hashStructureSchema` (S5's config surface);
+`GlobalUser`/`OtherUser`/user-log types + the dev-mode user factory (S1/S15);
+generic table-column and CSV-import wizard types for S5/S6 (`CsvDetails`,
+`Mappings`, `Conflicts`); and the `ItemsHolder*` payload
 types, including `ItemsHolderPresentationObject` whose `runId` + `scopeToken`
 are the cache identity (S9) and the figure's provenance (S10).
 
@@ -97,14 +98,10 @@ the `@timroberton/panther` / `"panther"` specifiers, never deep paths. Anything
   `_BYPASS_AUTH` use `!!Deno.env.get(...)`. Any non-empty value is true, so
   `OPEN_ACCESS=false` in an env file ENABLES open access. Parse the value
   (`=== "true"`) or fail on unexpected values.
-- **Decoupling: two deep panther imports bypass the `mod.ui.ts` barrel.**
-  `slide_deck/slide_list.tsx` and `dashboards/dashboard_item_grid.tsx` both
-  reach into
+- **Decoupling: a deep panther import bypasses the `mod.ui.ts` barrel.**
+  `slide_deck/slide_list.tsx` reaches into
   `panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx`. Route
-  them through the barrel.
+  it through the barrel.
 - **Dead code (zero importers):** `_IMAGE_DIMENSIONS` in `lib/consts.ts`.
-- **Cruft in `lib/types/instance.ts`:** `ProjectUser.role` is marked "delete
-  after implementing new system". The permission flags shipped but the legacy
-  field still has live server consumers (`projects.ts`, `users.ts`, …) until
-  step 9b deletes the project layer; also the
-  commented-out `ItemsHolderDatasetAA2sAndIndicators` block.
+- **Cruft in `lib/types/instance.ts`:** the commented-out
+  `ItemsHolderDatasetAA2sAndIndicators` block.

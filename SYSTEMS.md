@@ -18,7 +18,7 @@ observability (17).
 | #                                        | System                                   | One line                                                                                   |
 |------------------------------------------|------------------------------------------|--------------------------------------------------------------------------------------------|
 | [S1](SYSTEM_01_api_contract.md)          | API Contract, Transport & Access Control | typed RPC registry both tiers generate from + the two permission guards                    |
-| [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | multi-DB Postgres, migrations + data transforms, fail-stop boot, backup/restore            |
+| [S2](SYSTEM_02_persistence.md)           | Persistence Core & Schema Lifecycle      | one Postgres main DB, migrations + data transforms, fail-stop boot                         |
 | [S3](SYSTEM_03_realtime_cache.md)        | Realtime Sync & Cache Invalidation       | the last_updated → SSE → version-hash triangle (notify hub, Valkey, client stores)         |
 | [S4](SYSTEM_04_assets_upload.md)         | Assets & Upload                          | the TUS file-upload front door + asset storage/metadata                                    |
 | [S5](SYSTEM_05_facilities_indicators.md) | Facilities & Indicators                  | facilities, admin areas, weights, geojson, indicator dictionaries, instance config         |
@@ -31,7 +31,7 @@ observability (17).
 | [S12](SYSTEM_12_documents_sharing.md)    | Documents & Sharing                      | slide decks + reports + folders + exports                                                  |
 | [S13](SYSTEM_13_ai_assistant.md)         | AI Copilot & Usage Governance            | Anthropic proxy + governance + ~40 browser tools via the AIContext contract                |
 | [S14](SYSTEM_14_client_shell.md)         | Client Shell & Session                   | SPA boot, page maps, language/calendar singletons, UI prefs, help chrome                   |
-| [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users/roles, project lifecycle, health, backups, disk autonomics, deploy                   |
+| [S15](SYSTEM_15_admin_ops.md)            | Instance Administration & Ops            | users and permissions, health, disk autonomics, deploy                                     |
 | [S16](SYSTEM_16_collaboration.md)        | Realtime Collaboration & Version History | live Yjs co-editing over one instance WS; rooms checkpoint into S12 tables + S3 notifies   |
 | [S17](SYSTEM_17_logging.md)              | Activity Logging & Audit Trail           | `log()` middleware → user_logs raw + weekly aggregate → Users tab, health, Admin-Website   |
 | [S00](SYSTEM_00_kernel.md)               | Kernel (read but don't own)              | lib mega-barrel, multi-domain grab-bags, the env nexus, everyone's dependency              |
@@ -49,20 +49,14 @@ list.)
 
 | File                                                                    | Owner | Mandatory readers | Seam                                                  |
 |-------------------------------------------------------------------------|-------|-------------------|-------------------------------------------------------|
-| `server/db/project/projects.ts`                                         | S15   | S2, S1, S8        | four systems in 1,108 lines                           |
-| `server/routes/project/project.ts`                                      | S15   | S6, S8            | 15 routes, three systems                              |
-| `server/routes/project/presentation_objects.ts`                         | S9    | S11, S3, S16      | queries / CRUD / cache / live-room chokepoint         |
 | `server/routes/caches/visualizations.ts`                                | S9    | S3, S2            | cache instances + PO_CACHE_VERSION                    |
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                |
 | `server/runs/capture_inputs/**`                                         | S6    | S8, S5            | ingestion code inside the generation pipeline         |
-| `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / `/d/:slug`)           |
+| `main.ts`                                                               | S1    | S2, S15           | composition root (boot / cron / mounts)               |
 | `client/src/components/LoggedInWrapper.tsx`                             | S1    | S3, S14           | Clerk singleton + version flush + shell               |
-| `server/routes/instance/backups.ts`                                     | S15   | S2                | restore body (DROP/CREATE + re-migrate)               |
 | `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (17 lines, two systems)            |
-| `server/task_management/mod.ts`                                         | S8    | S3                | barrel re-exports the notify hub                      |
 | `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance        |
-| `server/server_only_types/mod.ts`                                       | S8    | S1, S3, S9        | 20 lines, three systems, physical-split candidate     |
-| `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/projects/disk + dataset versions |
+| `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/disk + dataset versions          |
 | `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                              |
 | `client/src/components/_shared/results_package/**`                      | S8    | S12               | S8 content under S12's `_shared/**` glob              |
 | `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers             |
