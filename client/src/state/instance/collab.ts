@@ -4,16 +4,13 @@ import {
   type CollabClientMessage,
   type CollabServerMessage,
   parseJsonOrThrow,
-  PO_CONFIG_MAP_KEY,
   type PresenceEntry,
-  type PresentationObjectConfig,
   type PresenceView,
   type ReportDocContent,
   type Slide,
   slideDocRoot,
   type SyncReportOpts,
   type SyncSlideOpts,
-  syncFigureConfigToMap,
   syncReportRegistries,
   syncReportToDoc,
   syncSlideToDoc,
@@ -41,11 +38,7 @@ import { notifyCollabConnection } from "~/components/_shared/connection_banner";
 // reconnect that never gives up, and a reactive store consumers read from.
 // The `peers` list is per CONNECTION and includes self; UI reads it through
 // otherPeers(), which collapses it to one entry per person, or
-// peersInProduct(id), since presence is keyed by PRODUCT (D8).
-//
-// The visualization (po_*) sessions have no server behind them since
-// PLAN_PRODUCTS_RESTRUCTURE step 7a and no client caller since 9a: they go
-// with the po_* wire protocol in step 9b.
+// peersInProduct(id), since presence is keyed by PRODUCT.
 
 type CollabState = {
   connectionId: string | null;
@@ -160,7 +153,7 @@ function setDocSaveFailing(
 /** Reactive: true while the server room for this document reports failing
  *  checkpoint saves (edits relay live but nothing persists until recovery). */
 export function docSaveFailing(
-  docType: "slide" | "report" | "po",
+  docType: "slide" | "report",
   docId: string,
 ): boolean {
   return saveFailingKeys().has(`${docType}::${docId}`);
@@ -632,211 +625,6 @@ export function closeReportSession(reportId: string): void {
   destroyReportSession(s);
 }
 
-// ── Visualization (presentation object) CRDT sessions ────────────────────────
-// Mirrors the report sessions over the po_* message family. The editor binds its
-// form to the config Y.Map via the figure-config bridge; caption Y.Texts are
-// bound with yCollab CodeMirrors. Local edits transact with `localOrigin` so a
-// per-editor Y.UndoManager can track only this user's changes.
-
-type InternalPoSession = {
-  poId: string;
-  doc: Y.Doc;
-  awareness: Awareness;
-  localOrigin: object;
-  ready: boolean;
-  onRemote: () => void;
-  /** See InternalSlideSession.onError. */
-  onError?: (message: string, fatal?: boolean) => void;
-};
-
-const poSessions = new Map<string, InternalPoSession>();
-
-/** Handle to a live visualization config document, returned by openPoSession. */
-export type PoSession = {
-  doc: Y.Doc;
-  /** The config root Y.Map: bind the editor form + caption CodeMirrors here. */
-  configMap: Y.Map<unknown>;
-  /** Yjs awareness for this visualization: local + remote carets/selection. */
-  awareness: Awareness;
-  /** Transaction origin for this client's local writes: pass to Y.UndoManager
-   *  `trackedOrigins` so undo/redo only affects this user's edits. */
-  localOrigin: object;
-  isReady: () => boolean;
-  /** Ready AND the socket is currently open: see SlideSession.isLive. */
-  isLive: () => boolean;
-  /** Diff the editor's working config onto the shared doc (mergeable ops). */
-  pushLocal: (config: PresentationObjectConfig) => void;
-  close: () => void;
-};
-
-function subscribePoOnSocket(s: InternalPoSession): void {
-  sendCollab({
-    type: "po_subscribe",
-    data: { poId: s.poId, stateVector: bytesToBase64(Y.encodeStateVector(s.doc)) },
-  });
-}
-
-function destroyPoSession(s: InternalPoSession): void {
-  poSessions.delete(s.poId);
-  setDocSaveFailing("po", s.poId, false);
-  try {
-    removeAwarenessStates(s.awareness, [s.awareness.clientID], "local");
-    s.awareness.destroy();
-  } catch (err) {
-    console.error("Collab: po awareness destroy failed", err);
-  }
-  try {
-    s.doc.destroy();
-  } catch (err) {
-    console.error("Collab: po doc destroy failed", err);
-  }
-}
-
-export function openPoSession(
-  poId: string,
-  onRemote: () => void,
-  onError?: (message: string, fatal?: boolean) => void,
-): PoSession {
-  const prior = poSessions.get(poId);
-  if (prior) {
-    destroyPoSession(prior);
-  }
-
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  applySessionUser(awareness);
-  const s: InternalPoSession = {
-    poId,
-    doc,
-    awareness,
-    localOrigin: {},
-    ready: false,
-    onRemote,
-    onError,
-  };
-  poSessions.set(poId, s);
-
-  doc.on("update", (update: Uint8Array, origin: unknown) => {
-    // Updates applied from the server must not be shipped back.
-    if (origin === SLIDE_REMOTE_ORIGIN) {
-      return;
-    }
-    sendCollab({
-      type: "po_update",
-      data: { poId, update: bytesToBase64(update) },
-    });
-  });
-
-  awareness.on(
-    "update",
-    (
-      changes: { added: number[]; updated: number[]; removed: number[] },
-      origin: unknown,
-    ) => {
-      if (origin === AWARENESS_REMOTE_ORIGIN) {
-        return;
-      }
-      const changed = [
-        ...changes.added,
-        ...changes.updated,
-        ...changes.removed,
-      ];
-      const update = encodeAwarenessUpdate(awareness, changed);
-      sendCollab({
-        type: "po_awareness_update",
-        data: { poId, update: bytesToBase64(update) },
-      });
-    },
-  );
-
-  subscribePoOnSocket(s);
-
-  return {
-    doc,
-    configMap: doc.getMap<unknown>(PO_CONFIG_MAP_KEY),
-    awareness,
-    localOrigin: s.localOrigin,
-    isReady: () => s.ready,
-    isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
-    pushLocal: (config: PresentationObjectConfig) => {
-      if (!s.ready) {
-        return;
-      }
-      doc.transact(
-        () => syncFigureConfigToMap(doc.getMap<unknown>(PO_CONFIG_MAP_KEY), config),
-        s.localOrigin,
-      );
-    },
-    close: () => closePoSession(poId),
-  };
-}
-
-export function closePoSession(poId: string): void {
-  const s = poSessions.get(poId);
-  if (!s) {
-    return;
-  }
-  sendCollab({ type: "po_unsubscribe", data: { poId } });
-  destroyPoSession(s);
-}
-
-function handlePoServerMessage(msg: CollabServerMessage): boolean {
-  if (msg.type === "po_sync") {
-    const s = poSessions.get(msg.data.poId);
-    if (s) {
-      // Sync resets save health; the server re-sends failing state right after
-      // when the room is still failing.
-      setDocSaveFailing("po", msg.data.poId, false);
-      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
-      s.ready = true;
-      // Two-way sync: push anything the server is missing (guarded: a
-      // missing/malformed stateVector must not break onRemote).
-      try {
-        if (msg.data.stateVector) {
-          const diff = Y.encodeStateAsUpdate(
-            s.doc,
-            base64ToBytes(msg.data.stateVector),
-          );
-          if (diff.length > 2) {
-            sendCollab({
-              type: "po_update",
-              data: { poId: msg.data.poId, update: bytesToBase64(diff) },
-            });
-          }
-        }
-      } catch {
-        // Skip the catch-up; the next local edit's push re-syncs anyway.
-      }
-      s.onRemote();
-    }
-    return true;
-  }
-  if (msg.type === "po_update") {
-    const s = poSessions.get(msg.data.poId);
-    if (s) {
-      Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
-      s.onRemote();
-    }
-    return true;
-  }
-  if (msg.type === "po_error") {
-    poSessions.get(msg.data.poId)?.onError?.(msg.data.message, msg.data.fatal);
-    return true;
-  }
-  if (msg.type === "po_awareness") {
-    const s = poSessions.get(msg.data.poId);
-    if (s) {
-      applyAwarenessUpdate(
-        s.awareness,
-        base64ToBytes(msg.data.update),
-        AWARENESS_REMOTE_ORIGIN,
-      );
-    }
-    return true;
-  }
-  return false;
-}
-
 function handleReportServerMessage(msg: CollabServerMessage): boolean {
   if (msg.type === "report_sync") {
     const s = reportSessions.get(msg.data.reportId);
@@ -1053,9 +841,6 @@ function openSocket(): void {
     for (const s of reportSessions.values()) {
       subscribeReportOnSocket(s);
     }
-    for (const s of poSessions.values()) {
-      subscribePoOnSocket(s);
-    }
   };
 
   socket.onmessage = (event) => {
@@ -1086,9 +871,6 @@ function openSocket(): void {
       for (const s of reportSessions.values()) {
         applySessionUser(s.awareness);
       }
-      for (const s of poSessions.values()) {
-        applySessionUser(s.awareness);
-      }
       // "Alice joined this deck" toasts: scoped to the doc I'm currently in.
       notifyPresenceToasts(msg.data.peers, collabStore.connectionId, view);
     } else if (msg.type === "doc_save_state") {
@@ -1097,10 +879,8 @@ function openSocket(): void {
       setDocSaveFailing(msg.data.docType, msg.data.docId, msg.data.failing);
     } else if (msg.type === "pong") {
       // Liveness only: receipt was already recorded above.
-    } else if (
-      !handleSlideServerMessage(msg) && !handleReportServerMessage(msg)
-    ) {
-      handlePoServerMessage(msg);
+    } else if (!handleSlideServerMessage(msg)) {
+      handleReportServerMessage(msg);
     }
   };
 
@@ -1334,9 +1114,6 @@ export function disconnectCollab(): void {
   }
   for (const s of [...reportSessions.values()]) {
     destroyReportSession(s);
-  }
-  for (const s of [...poSessions.values()]) {
-    destroyPoSession(s);
   }
   hardClose();
   resetPresenceToasts();

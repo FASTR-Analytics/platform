@@ -410,8 +410,6 @@ routesCollab.get(
           ws.send(JSON.stringify(parseErr));
           return;
         }
-        // The po_* family and project_awareness_update belong to the project
-        // socket and are not handled here: they fall through the switch.
         switch (msg.type) {
           case "ping": {
             // Client-side liveness probe (see lib/types/collab.ts). The reply

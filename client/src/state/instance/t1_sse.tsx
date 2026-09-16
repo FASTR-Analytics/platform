@@ -1,6 +1,6 @@
 import type {
   InstanceSseMessage,
-  ProductLastUpdateTableName,
+  LastUpdateTableName,
   RunProgress,
 } from "lib";
 import { t3 } from "lib";
@@ -15,7 +15,6 @@ import {
   updateInstanceConfig,
   updateInstanceFolders,
   updateInstanceLastUpdated,
-  updateInstanceProjects,
   updateInstanceReadyPackages,
   upsertInstanceProducts,
   removeInstanceProducts,
@@ -31,7 +30,6 @@ import {
   updateInstanceDatasets,
   updateInstancePopulation,
   updateCurrentUser,
-  updateProjectsLastUpdated,
 } from "./t1_store";
 import { connectCollab, disconnectCollab } from "./collab";
 
@@ -75,7 +73,7 @@ export function addInstanceRScriptListener(
 // and the per-row `products_upserted` summary, whose own `lastUpdated` IS the
 // products table's stamp.
 type LastUpdatedListener = (
-  tableName: ProductLastUpdateTableName,
+  tableName: LastUpdateTableName,
   ids: string[],
   timestamp: string,
 ) => void;
@@ -88,7 +86,7 @@ export function addLastUpdatedListener(listener: LastUpdatedListener): () => voi
 }
 
 function fireLastUpdatedListeners(
-  tableName: ProductLastUpdateTableName,
+  tableName: LastUpdateTableName,
   ids: string[],
   timestamp: string,
 ): void {
@@ -189,8 +187,6 @@ export function connectInstanceSSE(): void {
         case "config_updated":
           updateInstanceConfig(msg.data);
           break;
-        case "projects_last_updated":
-          updateProjectsLastUpdated(msg.data);
           break;
         case "products_upserted":
           upsertInstanceProducts(msg.data.products);
@@ -366,30 +362,9 @@ export function InstanceSSEBoundary(p: { children: JSX.Element }) {
     { defer: true }
   ));
 
-  // Refetch projects when version changes
-  // defer: true skips initial run (starting message already has correct projects)
-  // AbortController tracks staleness - tryCatchServer doesn't support external abort,
-  // but we check aborted flag before updating state to ignore stale responses
-  createEffect(on(
-    () => instanceState.projectsLastUpdated,
-    () => {
-      const controller = new AbortController();
-      onCleanup(() => controller.abort());
-
-      serverActions.getMyProjects({}).then((res) => {
-        if (controller.signal.aborted) return;
-        if (res.success) {
-          updateInstanceProjects(res.data);
-        } else {
-          console.error("Failed to fetch projects:", res.err);
-        }
-      });
-    },
-    { defer: true }
-  ));
-
-  // Runs catalogue: same shape as the projects fetch above (the broadcast is
-  // a data-free nonce: run labels must not fan out, Q-B). Also tracks
+  // Runs catalogue: the broadcast is a data-free nonce (run labels must not
+  // fan out, Q-B). The AbortController ignores a response that lands after
+  // the effect re-ran (tryCatchServer supports no external abort). Also tracks
   // the user's OWN entitlement, so a mid-session grant fetches the catalogue
   // and a revocation clears it: no reconnect needed. defer: true skips only
   // the mount-time run; the server stamps a FRESH nonce in every `starting`

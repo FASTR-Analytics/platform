@@ -11,24 +11,6 @@ export type DBUser = {
   can_configure_settings: boolean;
   can_configure_data: boolean;
   can_view_data: boolean;
-  can_create_projects: boolean;
-  default_project_can_configure_settings: boolean;
-  default_project_can_create_backups: boolean;
-  default_project_can_restore_backups: boolean;
-  default_project_can_configure_modules: boolean;
-  default_project_can_run_modules: boolean;
-  default_project_can_configure_users: boolean;
-  default_project_can_configure_visualizations: boolean;
-  default_project_can_view_visualizations: boolean;
-  default_project_can_configure_reports: boolean;
-  default_project_can_view_reports: boolean;
-  default_project_can_configure_slide_decks: boolean;
-  default_project_can_view_slide_decks: boolean;
-  default_project_can_configure_data: boolean;
-  default_project_can_view_data: boolean;
-  default_project_can_view_metrics: boolean;
-  default_project_can_view_logs: boolean;
-  default_project_can_view_script_code: boolean;
   daily_token_usage: number;
   daily_token_usage_date: Date;
   unlimited_ai: boolean;
@@ -42,14 +24,12 @@ export type UserLog = {
   endpoint: string;
   endpoint_result: string;
   details?: string;
-  project_id?: string;
 };
 
 export type AiUsageLog = {
   id: number;
   timestamp: Date;
   user_email: string;
-  project_id: string | null;
   model: string;
   input_tokens: number;
   output_tokens: number;
@@ -62,7 +42,6 @@ export type UserLogAggregate = {
   user_email: string;
   endpoint: string;
   endpoint_result: string;
-  project_id: string | null;
   week_start: Date;
   count: number;
 };
@@ -70,42 +49,6 @@ export type UserLogAggregate = {
 export type DBInstanceConfig = {
   config_key: string;
   config_json_value: string;
-};
-
-export type DBProject = {
-  id: string;
-  label: string;
-  ai_context: string;
-  is_locked: boolean;
-  is_central_reporting: boolean;
-  status: string;
-  deletion_scheduled_at: Date | null;
-  run_id: string | null;
-  admin_area_2: string | null;
-  follow_pinned: boolean;
-};
-
-export type DBProjectUserRole = {
-  email: string;
-  project_id: string;
-  role: string;
-  can_configure_settings: boolean;
-  can_create_backups: boolean;
-  can_restore_backups: boolean;
-  can_configure_modules: boolean;
-  can_run_modules: boolean;
-  can_configure_users: boolean;
-  can_configure_visualizations: boolean;
-  can_view_visualizations: boolean;
-  can_configure_reports: boolean;
-  can_view_reports: boolean;
-  can_configure_slide_decks: boolean;
-  can_view_slide_decks: boolean;
-  can_configure_data: boolean;
-  can_view_data: boolean;
-  can_view_metrics: boolean;
-  can_view_logs: boolean;
-  can_view_script_code: boolean;
 };
 
 // Products and folders
@@ -291,22 +234,4 @@ export type DBIcehImportRun = {
   n_rows_integrated: number | null;
   started_at: string | Date;
   ended_at: string | Date | null;
-};
-
-// Audit logging
-
-export type DBAuditLog = {
-  id: number;
-  timestamp: Date;
-  user_email: string;
-  project_id: string | null;
-  action: string;
-  resource_type: string | null;
-  resource_id: string | null;
-  method: string | null;
-  path: string | null;
-  details: string | null;
-  success: boolean;
-  error_message: string | null;
-  session_id: string | null;
 };

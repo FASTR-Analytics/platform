@@ -45,7 +45,7 @@ export const log = (routeName: string) =>
         }
 
         try {
-            const userEmail = c.var.globalUser?.email ?? c.var.projectUser?.email ?? "unknown";
+            const userEmail = c.var.globalUser?.email ?? "unknown";
 
             const mainDb = c.var.mainDb ?? getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
 
@@ -72,9 +72,8 @@ export const log = (routeName: string) =>
                 details = JSON.stringify({ _truncated: true, bytes: details.length });
             }
 
-            const projectId = c.var.ppk?.projectId as string | undefined;
             if (c.var.globalUser?.approved !== false) {
-                AddLog(mainDb, userEmail, routeName, status, details, projectId).catch(() => {});
+                AddLog(mainDb, userEmail, routeName, status, details).catch(() => {});
             }
         } catch {
             // Don't let logging errors break the response

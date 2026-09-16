@@ -36,7 +36,7 @@ export async function buildInstanceStateWithoutProducts(
   mainDb: Sql,
   globalUser: GlobalUser,
 ): Promise<BuildResult> {
-  const res = await getInstanceDetail(mainDb, globalUser);
+  const res = await getInstanceDetail(mainDb);
   if (!res.success) {
     return { success: false, err: res.err };
   }
@@ -53,8 +53,7 @@ export async function buildInstanceStateWithoutProducts(
   // no roster consumer, and the first `users_updated` naming them flows whole.
   const rosterForCaller = me === undefined ? [] : users;
 
-  // Per-user fill, the `projects` pattern (Q-B: run labels must not fan
-  // out): entitled callers get the catalogue in the starting payload, a
+  // Per-user fill (Q-B: run labels must not fan out): entitled callers get the catalogue in the starting payload, a
   // fresh-auth point-in-time response, like every field here, and everyone
   // else gets []. After connect, runs_catalog_updated broadcasts only a
   // timestamp and entitled clients refetch via listRunCatalog (per-request
@@ -94,8 +93,6 @@ export async function buildInstanceStateWithoutProducts(
     adminAreaLabels: res.data.adminAreaLabels,
     dhis2ConnectionUrl: res.data.dhis2ConnectionUrl,
     aiContext: res.data.aiContext,
-    projects: res.data.projects,
-    projectsLastUpdated: new Date().toISOString(),
     products: [],
     folders: [],
     readyPackages: [],
@@ -126,7 +123,6 @@ export async function buildInstanceStateWithoutProducts(
         can_configure_settings: me.can_configure_settings,
         can_configure_data: me.can_configure_data,
         can_view_data: me.can_view_data,
-        can_create_projects: me.can_create_projects,
       }
       : {
         can_configure_users: false,
@@ -135,7 +131,6 @@ export async function buildInstanceStateWithoutProducts(
         can_configure_settings: false,
         can_configure_data: false,
         can_view_data: false,
-        can_create_projects: false,
       },
   };
 

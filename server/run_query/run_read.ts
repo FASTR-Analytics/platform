@@ -32,7 +32,6 @@ import {
   type MetricWithStatus,
   type PeriodBounds,
   type PeriodOption,
-  type PresentationObjectDetail,
   type ResultsValue,
   type ResultsValueInfoForPresentationObject,
   type RunAuthoringContextHfaTaxonomy,
@@ -78,10 +77,6 @@ import {
   getCatalogEvaluationForResultsObject,
 } from "./catalog_expression_items.ts";
 import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
-import {
-  findVirtualDefault,
-  VIRTUAL_DEFAULT_LAST_UPDATED,
-} from "./virtual_defaults.ts";
 
 // The run read path: every function here consults ONLY the attached immutable
 // run: manifest for metadata (no probes), parquet for data. The SQL builders
@@ -92,9 +87,8 @@ export type RunReadContext = {
   runId: string;
   runDir: string;
   manifest: RunManifest;
-  // The caller's admin-area-2 identity (a product's admin_area_2, or the
-  // project's through the project lens); null = national. Scopes every read
-  // through the FromRun wrappers (PLAN_1_PROJECT_AA2_SCOPE §3).
+  // The caller's admin-area-2 identity (a product's admin_area_2); null =
+  // national. Scopes every read through the FromRun wrappers.
   adminArea2: string | null;
   scopeToken: string;
 };
@@ -102,11 +96,9 @@ export type RunReadContext = {
 // The lenses onto one read core. A read context is (run, scope). The DATA
 // lens (getReadyRunReadContext) takes both halves from the caller, the
 // (runId, adminArea2) pair a product carries, and gates on a ready package:
-// every run-keyed figure-data route uses it (PLAN_PRODUCTS_RESTRUCTURE D7).
-// The manifest lens (getRunReadContextForRun) takes the run id at national
-// scope with no ready gate, for the package-internals reads. The PROJECT
-// lens (getRunReadContext) resolves both halves from the project row and
-// dies with the project routes in step 9b. Everything below the context is
+// every run-keyed figure-data route uses it. The manifest lens
+// (getRunReadContextForRun) takes the run id at national scope with no ready
+// gate, for the package-internals reads. Everything below the context is
 // shared.
 
 async function buildRunReadContext(
@@ -123,46 +115,6 @@ async function buildRunReadContext(
   };
 }
 
-// Resolves the project's attached run via projects.run_id, the one and only
-// serving pointer. No run attached is a typed, expected state (projects await
-// their backfill synthesis or first wizard generation); a non-null pointer to
-// an unreadable run is an operational error surfaced loudly.
-export async function getRunReadContext(
-  mainDb: Sql,
-  projectId: string,
-): Promise<APIResponseWithData<RunReadContext>> {
-  try {
-    const row = (
-      await mainDb<{ run_id: string | null; admin_area_2: string | null }[]>`
-SELECT run_id, admin_area_2 FROM projects WHERE id = ${projectId}
-`
-    ).at(0);
-    if (row === undefined) {
-      return { success: false, err: "Project not found" };
-    }
-    if (row.run_id === null) {
-      return {
-        success: false,
-        err: "No results package attached to this project",
-      };
-    }
-    return {
-      success: true,
-      data: await buildRunReadContext(row.run_id, row.admin_area_2),
-    };
-  } catch (e) {
-    return {
-      success: false,
-      err: `Results run unavailable: ${e instanceof Error ? e.message : e}`,
-    };
-  }
-}
-
-// The manifest lens: an explicit run id at national scope. Accepts any run
-// id the caller is authorized to read (the instance data bits), an
-// unreadable or unknown run surfaces as the manifest read failing. The id is
-// CALLER supplied (a URL param) and becomes a path, so it is shape-checked
-// first.
 export async function getRunReadContextForRun(
   runId: string,
 ): Promise<APIResponseWithData<RunReadContext>> {
@@ -745,72 +697,7 @@ export function moduleHasRun(ctx: RunReadContext, moduleId: string): boolean {
   return findModule(ctx.manifest, moduleId)?.lastRunAt != null;
 }
 
-// PO row (authored content) stays on the project DB; only the resultsValue
-// resolution comes from the run. No row → the id may be a virtual default
-// (item 5b): a manifest preset projection, derived here with the run as its
-// whole identity.
-export async function getPresentationObjectDetailFromRun(
-  ctx: RunReadContext,
-  projectId: string,
-  projectDb: Sql,
-  presentationObjectId: string,
-): Promise<APIResponseWithData<PresentationObjectDetail>> {
-  return await tryCatchDatabaseAsync(async () => {
-    const rawPresObj = (
-      await projectDb<
-        {
-          id: string;
-          metric_id: string;
-          last_updated: string;
-          label: string;
-          config: string;
-          is_default_visualization: boolean;
-          folder_id: string | null;
-        }[]
-      >`
-SELECT * FROM presentation_objects WHERE id = ${presentationObjectId}
-`
-    ).at(0);
-    if (rawPresObj === undefined) {
-      const virtual = findVirtualDefault(ctx.manifest, presentationObjectId);
-      if (virtual === undefined) {
-        throw new Error("No presentation object with this id");
-      }
-      const resVirtualValue = resolveMetricFromRun(ctx, virtual.metricId);
-      throwIfErrWithData(resVirtualValue);
-      const virtualDetail: PresentationObjectDetail = {
-        id: virtual.id,
-        projectId,
-        resultsValue: resVirtualValue.data.resultsValue,
-        lastUpdated: VIRTUAL_DEFAULT_LAST_UPDATED,
-        label: virtual.label,
-        config: virtual.config,
-        isDefault: true,
-        folderId: null,
-        runId: ctx.runId,
-        scopeToken: ctx.scopeToken,
-      };
-      return { success: true, data: virtualDetail };
-    }
-    const resResultsValue = resolveMetricFromRun(ctx, rawPresObj.metric_id);
-    throwIfErrWithData(resResultsValue);
-    const presObj: PresentationObjectDetail = {
-      id: rawPresObj.id,
-      projectId,
-      resultsValue: resResultsValue.data.resultsValue,
-      lastUpdated: rawPresObj.last_updated,
-      label: rawPresObj.label,
-      config: parsePresentationObjectConfig(rawPresObj.config),
-      isDefault: rawPresObj.is_default_visualization,
-      folderId: rawPresObj.folder_id,
-      runId: ctx.runId,
-      scopeToken: ctx.scopeToken,
-    };
-    return { success: true, data: presObj };
-  });
-}
-
-// ── Project scope (PLAN_1_PROJECT_AA2_SCOPE §3) ──────────────────────────────
+// ── Scope ───────────────────────────────────────────────────────────────────
 
 // Derived child values are immutable per run, so they memo like manifests:
 // FIFO cap for memory, evicted only when the run is deleted.
@@ -840,7 +727,7 @@ const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
 // CLOSED, never unfiltered: the family is undeclarable for a module whose
 // dataSources are all upstream results objects (m004/m005/m006), and those
 // same modules drop admin_area_2 from their admin3 outputs, so the pair would
-// otherwise show every area in the country inside a scoped project. Blank is
+// otherwise show every area in the country inside a scoped product. Blank is
 // wrong visibly; national data under a regional heading is wrong silently.
 // The durable fix is those scripts emitting admin_area_2 (which puts them on
 // the direct-filter path and retires the derivation entirely), tracked in

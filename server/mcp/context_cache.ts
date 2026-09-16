@@ -22,7 +22,7 @@ import {
   getPinnedRunId,
   getRunListingItem,
 } from "../db/instance/run_generation.ts";
-import { buildGlobalUserFromDb } from "../project_auth.ts";
+import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import { buildInstanceStateWithoutProducts } from "../task_management/build_instance_state.ts";
 import { headlessAppFetch } from "../headless_app.ts";
 import { getRunManifestCached } from "../runs/manifest_cache.ts";

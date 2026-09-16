@@ -2,7 +2,7 @@
 // DATA TRANSFORM: slide_decks.config
 // =============================================================================
 //
-// Table:    slide_decks
+// Table:    slide_decks (bumps the owning products.last_updated)
 // Column:   config (JSON)
 // Schema:   lib/types/_slide_deck_config.ts
 //           → slideDeckConfigSchema
@@ -107,7 +107,6 @@ export type { MigrationStats };
 
 export async function migrateSlideDeckConfigs(
   tx: Sql,
-  _projectId: string,
 ): Promise<MigrationStats> {
   const rows = await tx<{ id: string; config: string | null }[]>`
     SELECT id, config FROM slide_decks
@@ -268,10 +267,10 @@ export async function migrateSlideDeckConfigs(
     const validated = slideDeckConfigSchema.parse(config);
 
     await tx`
-      UPDATE slide_decks
-      SET config = ${JSON.stringify(validated)}, last_updated = ${now}
+      UPDATE slide_decks SET config = ${JSON.stringify(validated)}
       WHERE id = ${row.id}
     `;
+    await tx`UPDATE products SET last_updated = ${now} WHERE id = ${row.id}`;
     rowsTransformed++;
   }
 

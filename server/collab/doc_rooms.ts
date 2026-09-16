@@ -2,8 +2,7 @@
 // Collaborative document rooms (server-authoritative Yjs relay): generic core
 // =============================================================================
 //
-// One room per co-edited document (slides and reports on the instance socket,
-// visualizations on the project socket until 9b). The server holds the
+// One room per co-edited document (slides and reports). The server holds the
 // authoritative Y.Doc and a set of connected clients. It:
 //   - seeds the doc from persisted content on first open (or restores the
 //     exact prior Yjs state so co-editing survives a server restart),
@@ -18,23 +17,22 @@
 // This module is document-type agnostic: everything type-specific (seed/
 // materialize, wire message shapes) comes in via a DocRoomAdapter, and DB
 // access is injected per room (DocRoomDeps) so the module stays pure and
-// testable. Thin wrappers (slide_rooms.ts, report_rooms.ts, po_rooms.ts)
-// bind the adapters. The hardened behaviors here are load-bearing: preserve them when
+// testable. Thin wrappers (slide_rooms.ts, report_rooms.ts) bind the
+// adapters. The hardened behaviors here are load-bearing: preserve them when
 // editing: finalize re-checks for late subscribers and retries a failed final
 // checkpoint (the doc is the sole copy of the session tail), a TRANSIENT-failed
 // checkpoint keeps the room dirty and schedules a timer retry while a
 // PERMANENT (validation) failure retries only on the next edit: the same doc
 // state fails identically forever, and a timer would spin for the life of the
-// process (observed 2026-07-23: a wedged PO room burned ~6k log lines/day), and
+// process (observed 2026-07-23: a wedged room burned ~6k log lines/day), and
 // checkpoints are SERIALIZED per room (a straggler save must never commit over
 // a newer one: flushRoomForDoc's callers snapshot the DB right after it
 // resolves), and first-subscribes re-check the registry, the connection's
 // liveness and the cancellation tombstones after the async load.
 //
-// Rooms are keyed `ownerId::docType::docId`, where the owner is the PRODUCT
-// for slide and report rooms (PLAN_PRODUCTS_RESTRUCTURE D8: the subscribe
-// names it, so a per-subscribe permission check has its subject without a
-// lookup) and the project for the visualization rooms that remain until 9b.
+// Rooms are keyed `productId::docType::docId`: the subscribe names the
+// product, so a per-subscribe permission check has its subject without a
+// lookup.
 
 import * as Y from "yjs";
 import {

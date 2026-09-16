@@ -25,7 +25,6 @@ defineRoute(routesOnboarding, "recordTourEvent", requireGlobalPermission(), asyn
       `tour_${body.event}:${body.tourId}`,
       "200",
       JSON.stringify(details),
-      body.projectId,
     ).catch(() => {});
   }
   return c.json({ success: true });

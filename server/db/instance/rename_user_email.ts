@@ -1,5 +1,6 @@
 import { Sql } from "postgres";
 import {
+  type APIResponseNoData,
   type APIResponseWithData,
   type AuthorRun,
   type SlideDeckSlideEditors,
@@ -7,12 +8,11 @@ import {
   type VersionEditor,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
-import { getPgConnection } from "../postgres/connection_manager.ts";
-import { DBUser } from "./_main_database_types.ts";
-import {
-  DBDeckVersion,
+import type {
   DBReportVersion,
-} from "../project/_project_database_types.ts";
+  DBSlideDeckVersion,
+  DBUser,
+} from "./_main_database_types.ts";
 
 // =============================================================================
 // User email rename
@@ -26,9 +26,9 @@ import {
 // (whose cascade then has nothing left to take). A plain UPDATE would violate
 // the FKs; delete-then-re-add would cascade permissions and history away.
 //
-// Attribution in the per-project databases (dashboards, live report authorship,
-// version editors/author runs) stores emails as plain strings with no FK, so a
-// separate sweep rewrites those. Both halves are idempotent: renaming an email
+// Product attribution (products and folders `created_by`, live report
+// authorship, version editors and author runs) stores emails as plain strings
+// with no FK, so a separate sweep rewrites those. Both halves are idempotent: renaming an email
 // that is no longer present touches nothing, so a partially-failed fleet run
 // can simply be retried.
 
@@ -41,7 +41,6 @@ import {
 // updating this list fails the rename loudly instead of letting the delete
 // cascade rows away silently.
 const USERS_FK_CHILDREN = [
-  { table: "project_user_roles", column: "email" },
   { table: "user_logs", column: "user_email" },
   { table: "user_logs_aggregate", column: "user_email" },
   { table: "ai_usage_logs", column: "user_email" },
@@ -68,9 +67,7 @@ export async function renameUserEmailInMainDb(
   oldEmail: string,
   newEmail: string,
   actor: string,
-): Promise<
-  APIResponseWithData<{ changed: boolean; affectedRoleProjectIds: string[] }>
-> {
+): Promise<APIResponseWithData<{ changed: boolean }>> {
   return await tryCatchDatabaseAsync(async () => {
     const oldRow = (
       await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${oldEmail}`
@@ -93,18 +90,11 @@ export async function renameUserEmailInMainDb(
     if (!oldRow) {
       // Already renamed (e.g. a retried fleet run): succeed without touching
       // the users row; the caller still runs the attribution sweeps.
-      return { success: true, data: { changed: false, affectedRoleProjectIds: [] } };
+      return { success: true, data: { changed: false } };
     }
 
-    const affectedRoleProjectIds: string[] = [];
     await mainDb.begin(async (sql) => {
       await sql`INSERT INTO users ${sql({ ...oldRow, email: newEmail })}`;
-      const roleRows = await sql<{ project_id: string }[]>`
-        UPDATE project_user_roles SET email = ${newEmail}
-        WHERE email = ${oldEmail}
-        RETURNING project_id
-      `;
-      affectedRoleProjectIds.push(...roleRows.map((r) => r.project_id));
       await sql`UPDATE user_logs SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
       await sql`UPDATE user_logs_aggregate SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
       await sql`UPDATE ai_usage_logs SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
@@ -148,53 +138,34 @@ export async function renameUserEmailInMainDb(
       `;
     });
 
-    return { success: true, data: { changed: true, affectedRoleProjectIds } };
+    return { success: true, data: { changed: true } };
   });
 }
 
 // ---------------------------------------------------------------------------
-// Project DBs (attribution sweep)
+// Product attribution sweep
 // ---------------------------------------------------------------------------
 
-/** Rewrite the email in every project database's attribution columns. Never
- *  throws: each project is isolated (one transaction per project DB) and
- *  failures are reported by id so the caller can surface a retryable result. */
-export async function renameUserEmailInProjects(
+/** Rewrite the email in every product attribution column, in one transaction. */
+export async function renameUserEmailInProducts(
   mainDb: Sql,
   oldEmail: string,
   newEmail: string,
-): Promise<{ projectsUpdated: number; projectsFailed: string[] }> {
-  const projects = await mainDb<{ id: string }[]>`SELECT id FROM projects`;
-  let projectsUpdated = 0;
-  const projectsFailed: string[] = [];
-  for (const project of projects) {
-    // A dedicated short-lived pool, NOT getPgConnectionFromCacheOrNew: the
-    // cache keeps every pool forever, and a fleet sweep must not permanently
-    // add one 20-connection pool per project.
-    const projectDb = getPgConnection(project.id);
-    try {
-      await projectDb.begin(async (sql) => {
-        await sql`UPDATE dashboards SET created_by_email = ${newEmail} WHERE created_by_email = ${oldEmail}`;
-        await renameEmailInLiveReportAuthors(sql, oldEmail, newEmail);
-        await renameEmailInVersionRows(sql, oldEmail, newEmail);
-      });
-      projectsUpdated++;
-    } catch (error) {
-      console.error(
-        `Email rename failed for project ${project.id}:`,
-        error instanceof Error ? error.message : error,
-      );
-      projectsFailed.push(project.id);
-    } finally {
-      await projectDb.end();
-    }
-  }
-  return { projectsUpdated, projectsFailed };
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      await sql`UPDATE products SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
+      await sql`UPDATE folders SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
+      await renameEmailInLiveReportAuthors(sql, oldEmail, newEmail);
+      await renameEmailInVersionRows(sql, oldEmail, newEmail);
+    });
+    return { success: true };
+  });
 }
 
 /** reports.body_authors is live collab state written by checkpoints, so the
  *  rewrite is a stamp-guarded compare-and-set (same contract as
- *  stripPersistedBodyAuthorTombstones in ../project/reports.ts). Losing the
+ *  stripPersistedBodyAuthorTombstones in ../products/reports.ts). Losing the
  *  race is fine: the in-memory ledger is renamed before this sweep runs, so a
  *  concurrent checkpoint already persisted the new email. */
 async function renameEmailInLiveReportAuthors(
@@ -210,9 +181,10 @@ async function renameEmailInLiveReportAuthors(
       last_updated: string;
     }[]
   >`
-    SELECT id, body_authors, crdt_state_last_updated, last_updated
-    FROM reports
-    WHERE body_authors LIKE ${"%" + oldEmail + "%"}
+    SELECT r.id, r.body_authors, r.crdt_state_last_updated, p.last_updated
+    FROM reports r
+    JOIN products p ON p.id = r.id
+    WHERE r.body_authors LIKE ${"%" + oldEmail + "%"}
   `;
   for (const row of rows) {
     const res = renameEmailInAuthorRuns(
@@ -224,10 +196,12 @@ async function renameEmailInLiveReportAuthors(
       continue;
     }
     await sql`
-      UPDATE reports SET body_authors = ${JSON.stringify(res.runs)}
-      WHERE id = ${row.id}
-        AND last_updated = ${row.last_updated}
-        AND crdt_state_last_updated IS NOT DISTINCT FROM ${row.crdt_state_last_updated}
+      UPDATE reports r SET body_authors = ${JSON.stringify(res.runs)}
+      FROM products p
+      WHERE r.id = ${row.id}
+        AND p.id = r.id
+        AND p.last_updated = ${row.last_updated}
+        AND r.crdt_state_last_updated IS NOT DISTINCT FROM ${row.crdt_state_last_updated}
     `;
   }
 }
@@ -270,9 +244,9 @@ async function renameEmailInVersionRows(
   }
 
   const deckRows = await sql<
-    Pick<DBDeckVersion, "id" | "editors" | "slide_editors">[]
+    Pick<DBSlideDeckVersion, "id" | "editors" | "slide_editors">[]
   >`
-    SELECT id, editors, slide_editors FROM deck_versions
+    SELECT id, editors, slide_editors FROM slide_deck_versions
     WHERE editors LIKE ${pattern} OR slide_editors LIKE ${pattern}
   `;
   for (const row of deckRows) {
@@ -292,7 +266,7 @@ async function renameEmailInVersionRows(
       continue;
     }
     await sql`
-      UPDATE deck_versions
+      UPDATE slide_deck_versions
       SET editors = ${JSON.stringify(editors.editors)},
           slide_editors = ${slideEditors ? JSON.stringify(slideEditors.dse) : null}
       WHERE id = ${row.id}

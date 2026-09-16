@@ -43,7 +43,7 @@ function keepReason(
     case "not_in_use":
       if (run.status === "generating") return "generating";
       if (run.id === pinnedRunId) return "pinned";
-      if (run.attachedProjects.length > 0) return "in_use";
+      if (run.attachedProducts.length > 0) return "in_use";
       return null;
   }
 }

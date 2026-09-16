@@ -10,7 +10,7 @@ import type {
   InstanceSseMessage,
   InstanceStructureSummary,
   OtherUser,
-  ProductLastUpdateTableName,
+  LastUpdateTableName,
   ProductSummary,
   RunProgress,
 } from "lib";
@@ -60,12 +60,8 @@ export async function notifyInstanceConfigUpdatedFromDb(mainDb: Sql) {
   notifyInstanceConfigUpdated(config);
 }
 
-export function notifyInstanceProjectsLastUpdated(lastUpdated: string) {
-  notifyInstanceUpdate({ type: "projects_last_updated", data: lastUpdated });
-}
-
 // The one re-read-and-broadcast path for products_upserted, the ONLY
-// product-list message (PLAN_PRODUCTS_RESTRUCTURE D8): a route that has
+// product-list message: a route that has
 // written a product hands over the ids it touched and this fetches the
 // summaries the wire needs. Per row, never whole-list, so a checkpoint on
 // one deck never re-sends every card. The write has already committed, so a
@@ -112,7 +108,7 @@ export function notifyInstanceFoldersUpdated(folders: Folder[]) {
 // version the same read twice. The project channel's notifyLastUpdated is
 // untouched until 9b.
 export function notifyInstanceLastUpdated(
-  tableName: ProductLastUpdateTableName,
+  tableName: LastUpdateTableName,
   ids: string[],
   lastUpdated: string,
 ) {

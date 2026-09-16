@@ -1,6 +1,7 @@
 import { dirname, join } from "@std/path";
 import { Sql } from "postgres";
 import { _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
+import { consolidateProjects } from "./instance/091_consolidate_projects.ts";
 
 // A TypeScript migration runs inside the migration transaction and throws on
 // failure, never Deno.exit, so this runner stays the single rollback and
@@ -10,11 +11,10 @@ export type TsMigration = (tx: Sql) => Promise<void>;
 
 // Literal-keyed so `deno check main.ts` covers every migration module. The
 // key is the migration id (filename minus extension) and sorts with the .sql
-// filenames. Empty until the consolidation migration leaves
-// consolidation/staged/ (PLAN_PRODUCTS_RESTRUCTURE step 9b).
-const TS_MIGRATIONS: Record<string, TsMigration> = {};
-
-type MigrationType = "instance" | "project";
+// filenames.
+export const TS_MIGRATIONS: Record<string, TsMigration> = {
+  "091_consolidate_projects": consolidateProjects,
+};
 
 interface MigrationFile {
   id: string;
@@ -29,27 +29,18 @@ export class MigrationFailure extends Error {
   }
 }
 
-// Get the directory of this file, which is server/db/migrations/
-const MIGRATIONS_BASE_DIR = dirname(new URL(import.meta.url).pathname);
+const INSTANCE_MIGRATIONS_DIR = join(
+  dirname(new URL(import.meta.url).pathname),
+  "instance"
+);
 
 export async function runInstanceMigrations(sql: Sql): Promise<void> {
-  await runMigrationsForDatabase(sql, "instance");
-}
-
-export async function runProjectMigrations(sql: Sql): Promise<void> {
-  await runMigrationsForDatabase(sql, "project");
-}
-
-async function runMigrationsForDatabase(
-  sql: Sql,
-  type: MigrationType
-): Promise<void> {
   try {
     await runMigrationsInDir(
       sql,
-      join(MIGRATIONS_BASE_DIR, type),
+      INSTANCE_MIGRATIONS_DIR,
       TS_MIGRATIONS,
-      type
+      "instance"
     );
   } catch (error) {
     const filename = error instanceof MigrationFailure ? error.filename : "?";
@@ -64,7 +55,7 @@ async function runMigrationsForDatabase(
 // Applies every pending migration in `dir` in filename order, .sql and .ts
 // together. Throws MigrationFailure at the first failure, with the earlier
 // migrations left applied. Exported so ./validate_consolidation_replay can
-// drive it over a throwaway directory that includes the staged migrations.
+// drive it over throwaway directories.
 export async function runMigrationsInDir(
   sql: Sql,
   dir: string,

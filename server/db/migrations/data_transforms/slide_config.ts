@@ -2,7 +2,7 @@
 // DATA TRANSFORM: slides.config
 // =============================================================================
 //
-// Table:    slides
+// Table:    slides (bumps the slide's and its deck's last_updated)
 // Column:   config (JSON)
 // Schema:   lib/types/_slide_config.ts
 //           → slideConfigSchema
@@ -165,7 +165,6 @@ function transformOneLayoutNode(
 
 export async function migrateSlideConfigs(
   tx: Sql,
-  _projectId: string,
   countryIso3: string,
 ): Promise<MigrationStats> {
   // countryIso3 is read once at startup from the main DB (db_startup) and threaded
@@ -173,8 +172,8 @@ export async function migrateSlideConfigs(
   // relabelling + admin replicant labels at render).
   const localization = getTransformLocalization(countryIso3);
 
-  const rows = await tx<{ id: string; config: string }[]>`
-    SELECT id, config FROM slides
+  const rows = await tx<{ id: string; slide_deck_id: string; config: string }[]>`
+    SELECT id, slide_deck_id, config FROM slides
   `;
   const now = new Date().toISOString();
   let rowsTransformed = 0;
@@ -243,6 +242,7 @@ export async function migrateSlideConfigs(
       SET config = ${out}, last_updated = ${now}
       WHERE id = ${row.id}
     `;
+    await tx`UPDATE products SET last_updated = ${now} WHERE id = ${row.slide_deck_id}`;
     rowsTransformed++;
   }
 

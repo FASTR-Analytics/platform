@@ -6,14 +6,13 @@ import type {
   IndicatorMetadata,
   IndicatorMetadataDisplay,
 } from "./indicators.ts";
-import type { ProjectUserPermissions, UserPermissions } from "./permissions.ts";
+import type { UserPermissions } from "./permissions.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 import type { JsonArrayItem } from "./_figure_bundle.ts";
 import {
   GenericLongFormFetchConfig,
   PeriodBounds,
 } from "./presentation_objects.ts";
-import { ProjectSummary, ProjectUserRoleType } from "./projects.ts";
 import type { Language } from "@timroberton/panther";
 
 // ============================================================================
@@ -126,7 +125,6 @@ export type InstanceDetail = {
     hmis?: number;
     hfa?: number;
   };
-  projects: ProjectSummary[];
   users: OtherUser[];
 };
 
@@ -270,14 +268,6 @@ export type GlobalUser = {
   unlimitedAi: boolean;
 };
 
-export type ProjectUser = {
-  email: string;
-  role: ProjectUserRoleType; // delete after implementing new system
-  isGlobalAdmin: boolean;
-  firstName?: string;
-  lastName?: string;
-} & ProjectUserPermissions;
-
 export type OtherUser = {
   email: string;
   isGlobalAdmin: boolean;
@@ -292,8 +282,6 @@ export type OtherUser = {
 export type RenameEmailInstanceResult = {
   id: string;
   status: "pending" | "updated" | "conflict" | "failed" | "unreachable";
-  projectsUpdated?: number;
-  projectsFailed?: string[];
   error?: string;
 };
 
@@ -311,7 +299,6 @@ export type UserLog = {
   endpoint: string;
   endpoint_result: string;
   details?: string;
-  project_id?: string;
 };
 
 export type UserLogAggregate = {
@@ -319,7 +306,6 @@ export type UserLogAggregate = {
   user_email: string;
   endpoint: string;
   endpoint_result: string;
-  project_id: string | null;
   week_start: Date;
   count: number;
 };
@@ -352,42 +338,10 @@ export function createDevGlobalUser(
       can_configure_settings: true,
       can_configure_data: true,
       can_view_data: true,
-      can_create_projects: true,
     },
     unlimitedAi: false,
   };
 }
-
-export function createDevProjectUser(): ProjectUser {
-  return {
-    email: "dev@offline.local",
-    role: "editor", // deprecated
-    isGlobalAdmin: false,
-    can_configure_settings: true,
-    can_create_backups: true,
-    can_restore_backups: true,
-    can_configure_modules: true,
-    can_run_modules: true,
-    can_configure_users: true,
-    can_configure_visualizations: true,
-    can_view_visualizations: true,
-    can_configure_reports: true,
-    can_view_reports: true,
-    can_configure_slide_decks: true,
-    can_view_slide_decks: true,
-    can_configure_data: true,
-    can_view_data: true,
-    can_view_metrics: true,
-    can_view_logs: true,
-    can_view_script_code: true,
-  };
-}
-
-export type ProjectUserRole = {
-  projectId: string;
-  projectLabel: string;
-  role: ProjectUserRoleType;
-};
 
 export type BatchUser = {
   email: string;
@@ -500,8 +454,8 @@ export type ItemsHolderPresentationObject =
     // The immutable run this payload was served from: the cache identity
     // (PLAN_RESULTS_RUNS §2.5) and the figure's provenance (ruling 4).
     runId: string;
-    // The project scope the payload was computed under (projectScopeToken):
-    // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
+    // The scope the payload was computed under (scopeToken): folded into
+    // cache versions beside runId.
     scopeToken: string;
     dateRange: PeriodBounds | undefined;
   }

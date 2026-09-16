@@ -1,6 +1,5 @@
 import { assetRouteRegistry } from "./instance/assets.ts";
 import { geojsonMapRouteRegistry } from "./instance/geojson_maps.ts";
-import { backupRouteRegistry } from "./instance/backups.ts";
 import { datasetRouteRegistry } from "./instance/datasets.ts";
 import { dhis2CredentialsRouteRegistry } from "./instance/dhis2_credentials.ts";
 import { hfaIndicatorRouteRegistry } from "./instance/hfa_indicators.ts";
@@ -14,13 +13,6 @@ import { populationRouteRegistry } from "./instance/population.ts";
 import { runGenerationRouteRegistry } from "./instance/run_generation.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
-import { moduleRouteRegistry } from "./project/modules.ts";
-import { presentationObjectRouteRegistry } from "./project/presentation-objects.ts";
-import { projectResultsPackageRouteRegistry } from "./project/results-package.ts";
-import { projectRouteRegistry } from "./project/projects.ts";
-import { dashboardRouteRegistry } from "./project/dashboards.ts";
-import { visualizationFolderRouteRegistry } from "./project/visualization-folders.ts";
-import { cacheStatusRouteRegistry } from "./project/cache-status.ts";
 import { emailRouteRegistry } from "./instance/emails.ts";
 import { productRouteRegistry } from "./products/products.ts";
 import { folderRouteRegistry } from "./products/folders.ts";
@@ -37,7 +29,6 @@ import { onboardingRouteRegistry } from "./instance/onboarding.ts";
 export const routeRegistryIndividualCount =
   Object.keys(assetRouteRegistry).length +
   Object.keys(geojsonMapRouteRegistry).length +
-  Object.keys(backupRouteRegistry).length +
   Object.keys(datasetRouteRegistry).length +
   Object.keys(dhis2CredentialsRouteRegistry).length +
   Object.keys(hfaIndicatorRouteRegistry).length +
@@ -48,17 +39,10 @@ export const routeRegistryIndividualCount =
   Object.keys(instanceRouteRegistry).length +
   Object.keys(instanceModuleRouteRegistry).length +
   Object.keys(populationRouteRegistry).length +
-  Object.keys(moduleRouteRegistry).length +
   Object.keys(runGenerationRouteRegistry).length +
   Object.keys(structureRouteRegistry).length +
   Object.keys(userRouteRegistry).length +
-  Object.keys(projectRouteRegistry).length +
-  Object.keys(presentationObjectRouteRegistry).length +
-  Object.keys(projectResultsPackageRouteRegistry).length +
-  Object.keys(dashboardRouteRegistry).length +
-  Object.keys(visualizationFolderRouteRegistry).length +
   Object.keys(emailRouteRegistry).length +
-  Object.keys(cacheStatusRouteRegistry).length +
   Object.keys(productRouteRegistry).length +
   Object.keys(folderRouteRegistry).length +
   Object.keys(productSlideDeckRouteRegistry).length +
@@ -72,7 +56,6 @@ export const routeRegistryIndividualCount =
 export const routeRegistry = {
   ...assetRouteRegistry,
   ...geojsonMapRouteRegistry,
-  ...backupRouteRegistry,
   ...datasetRouteRegistry,
   ...dhis2CredentialsRouteRegistry,
   ...hfaIndicatorRouteRegistry,
@@ -83,17 +66,10 @@ export const routeRegistry = {
   ...instanceRouteRegistry,
   ...instanceModuleRouteRegistry,
   ...populationRouteRegistry,
-  ...moduleRouteRegistry,
   ...runGenerationRouteRegistry,
   ...structureRouteRegistry,
   ...userRouteRegistry,
-  ...projectRouteRegistry,
-  ...presentationObjectRouteRegistry,
-  ...projectResultsPackageRouteRegistry,
-  ...dashboardRouteRegistry,
-  ...visualizationFolderRouteRegistry,
   ...emailRouteRegistry,
-  ...cacheStatusRouteRegistry,
   ...productRouteRegistry,
   ...folderRouteRegistry,
   ...productSlideDeckRouteRegistry,

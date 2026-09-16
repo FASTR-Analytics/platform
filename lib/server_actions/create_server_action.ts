@@ -10,8 +10,7 @@ import { getServerActionTransport } from "./transport.ts";
 import { tryCatchServer } from "./try_catch_server.ts";
 
 // The optional explicit transport (PLAN_112 D4) binds this action set to one
-// caller's credentials: the /mcp endpoint builds one per (PAT, project)
-// context. Omitted = the process-global singleton, resolved per call exactly
+// caller's credentials: the /mcp endpoint builds one per PAT context. Omitted = the process-global singleton, resolved per call exactly
 // as before (the SPA registers it at boot, after this module initializes).
 export function createAllServerActions(
   transport?: ServerActionTransport,
@@ -21,7 +20,6 @@ export function createAllServerActions(
     actions[functionName] = createServerAction(
       route.path as any,
       route.method as any,
-      (route as any).requiresProject,
       (route as any).isStreaming,
       (route as any).timeoutMs,
       transport,
@@ -33,28 +31,21 @@ export function createAllServerActions(
 function createServerAction(
   path: string,
   method: string,
-  requiresProject?: boolean,
   isStreaming?: boolean,
   timeoutMs?: number,
   explicitTransport?: ServerActionTransport,
 ) {
   return async (args: any, onProgress?: ProgressCallback): Promise<any> => {
     const transport = explicitTransport ?? getServerActionTransport();
-    const { url, hasBody, bodyData, headers } = buildRequestParams(
-      path,
-      args,
-      requiresProject,
-    );
+    const { url, hasBody, bodyData } = buildRequestParams(path, args);
     const methodUpper = method.toUpperCase();
     const canHaveBody = methodUpper !== "GET" && methodUpper !== "HEAD";
-    const mergedHeaders = { ...transport.getHeaders(), ...headers };
+    const headers = transport.getHeaders();
     const init: RequestInit = {
       method,
       body: hasBody && canHaveBody ? JSON.stringify(bodyData) : undefined,
       credentials: transport.credentials,
-      headers: Object.keys(mergedHeaders).length > 0
-        ? mergedHeaders
-        : undefined,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
     };
     if (!isStreaming) {
       return await tryCatchServer(
@@ -75,13 +66,8 @@ function createServerAction(
   };
 }
 
-function buildRequestParams(
-  path: string,
-  args: any,
-  requiresProject?: boolean,
-) {
+function buildRequestParams(path: string, args: any) {
   let url = path;
-  let projectId: string | undefined;
 
   const paramMatches = url.match(/:(\w+)/g);
   const paramNames = new Set(paramMatches?.map((p) => p.substring(1)) || []);
@@ -95,30 +81,18 @@ function buildRequestParams(
     });
   }
 
-  if (requiresProject) {
-    if (!args || !args.projectId) {
-      throw new Error(`Route ${path} requires projectId but none was provided`);
-    }
-    projectId = args.projectId;
-  }
-
   const bodyData = {} as any;
   let hasBody = false;
   if (args && typeof args === "object") {
     for (const key in args) {
-      if (!paramNames.has(key) && (key !== "projectId" || !requiresProject)) {
+      if (!paramNames.has(key)) {
         bodyData[key] = args[key];
         hasBody = true;
       }
     }
   }
 
-  const headers: any = {};
-  if (projectId && requiresProject) {
-    headers["Project-Id"] = projectId;
-  }
-
-  return { url, hasBody, bodyData, headers };
+  return { url, hasBody, bodyData };
 }
 
 async function consumeStream<T = void>(

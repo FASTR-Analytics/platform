@@ -8,12 +8,8 @@
 // slide_* and report_*, kept as separate message sets so each family's wire
 // format stays byte-stable across deploys. Every document message names the
 // PRODUCT the document belongs to: rooms are keyed `productId::docType::docId`
-// and presence is keyed by product (PLAN_PRODUCTS_RESTRUCTURE D8), so a
-// per-subscribe permission check has its subject without a lookup.
-//
-// The po_* family and project_awareness_update belong to the project socket
-// at GET /project_collab/:project_id (server/routes/project/project-collab.ts),
-// which keeps only its visualization rooms until step 9b deletes it.
+// and presence is keyed by product, so a per-subscribe permission check has
+// its subject without a lookup.
 
 import { z } from "zod";
 
@@ -106,17 +102,6 @@ export type CollabClientMessage =
     type: "report_awareness_update";
     data: { productId: string; reportId: string; update: string };
   }
-  // Presentation-object (standalone visualization) CRDT sync: a third parallel
-  // family, same rationale as report_* (keeps slide/report messages byte-stable).
-  | { type: "po_subscribe"; data: { poId: string; stateVector: string } }
-  | { type: "po_update"; data: { poId: string; update: string } }
-  | { type: "po_unsubscribe"; data: { poId: string } }
-  | { type: "po_awareness_update"; data: { poId: string; update: string } }
-  // PROJECT-scoped Yjs awareness (no doc id): page-level live cursors on the
-  // project tab pages, which have no doc room. Opaque relay to every other
-  // admitted connection in the project: presence-class visibility, never
-  // persisted, never applied to any server doc.
-  | { type: "project_awareness_update"; data: { update: string } }
   // Client-side liveness probe. The SERVER side of dead-peer detection is
   // Deno's built-in protocol ping (idleTimeout: see routes/instance/collab.ts), but
   // browsers can neither see protocol pings nor send their own, so a client
@@ -236,26 +221,6 @@ export const collabClientMessageSchema: z.ZodType<CollabClientMessage> = z
         update: awarenessUpdateSchema,
       }),
     }),
-    z.object({
-      type: z.literal("po_subscribe"),
-      data: z.object({ poId: collabIdSchema, stateVector: stateVectorSchema }),
-    }),
-    z.object({
-      type: z.literal("po_update"),
-      data: z.object({ poId: collabIdSchema, update: docUpdateSchema }),
-    }),
-    z.object({
-      type: z.literal("po_unsubscribe"),
-      data: z.object({ poId: collabIdSchema }),
-    }),
-    z.object({
-      type: z.literal("po_awareness_update"),
-      data: z.object({ poId: collabIdSchema, update: awarenessUpdateSchema }),
-    }),
-    z.object({
-      type: z.literal("project_awareness_update"),
-      data: z.object({ update: awarenessUpdateSchema }),
-    }),
     z.object({ type: z.literal("ping") }),
   ]);
 
@@ -306,27 +271,16 @@ export type CollabServerMessage =
     data: { reportId: string; message: string; fatal?: boolean };
   }
   | { type: "report_awareness"; data: { reportId: string; update: string } }
-  // Presentation-object CRDT sync (parallel family: see the client message note).
-  | {
-    type: "po_sync";
-    data: { poId: string; update: string; stateVector: string };
-  }
-  | { type: "po_update"; data: { poId: string; update: string } }
-  | { type: "po_error"; data: { poId: string; message: string; fatal?: boolean } }
-  | { type: "po_awareness"; data: { poId: string; update: string } }
   // Checkpoint health for a live room: `failing: true` when the room's
   // persistence saves are erroring (edits live only in the room doc until it
   // recovers), `failing: false` on recovery. Sent to every room member on each
   // transition, and to late joiners of a currently-failing room after their
-  // sync. Generic across the three families: docType is the room's family
-  // ("slide" | "report" | "po").
+  // sync. Generic across the families: docType is the room's family
+  // ("slide" | "report").
   | {
     type: "doc_save_state";
     data: { docType: string; docId: string; failing: boolean };
   }
-  // Project-scoped awareness relayed from another connection (see the client
-  // message counterpart above).
-  | { type: "project_awareness"; data: { update: string } }
   // Reply to a client `ping` (liveness probe: see the client message note).
   // Carries no data: ANY received traffic proves the link, this just
   // guarantees there is some.

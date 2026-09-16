@@ -101,7 +101,7 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
   return true;
 }
 
-const MIN_FREE_BYTES_FOR_NEW_PROJECT = 500 * 1024 * 1024; // 500 MB
+const MIN_FREE_BYTES_REPORTED_OK = 500 * 1024 * 1024; // 500 MB
 const MIN_FREE_BYTES_FOR_MODULE_RUN = 200 * 1024 * 1024; // 200 MB
 
 const DATASET_TABLE_NAMES: Record<string, string> = {
@@ -109,7 +109,7 @@ const DATASET_TABLE_NAMES: Record<string, string> = {
   hfa: "dataset_hfa",
 };
 
-export async function checkSpaceForNewProject(): Promise<{
+export async function checkFreeDiskSpace(): Promise<{
   ok: boolean;
   availableGB?: number;
   resizeTriggered?: boolean;
@@ -117,7 +117,7 @@ export async function checkSpaceForNewProject(): Promise<{
   const stats = await getDiskStats();
   if (stats === null) return { ok: true };
   const resizeTriggered = maybeRequestVolumeResize(stats);
-  if (stats.availBytes < MIN_FREE_BYTES_FOR_NEW_PROJECT) {
+  if (stats.availBytes < MIN_FREE_BYTES_REPORTED_OK) {
     return { ok: false, availableGB: toGB(stats.availBytes), resizeTriggered };
   }
   return { ok: true };
@@ -163,35 +163,6 @@ export async function checkSpaceForDataset(
     return {
       ok: false,
       requiredGB: toGB(required),
-      availableGB: toGB(stats.availBytes),
-      resizeTriggered,
-    };
-  }
-  return { ok: true };
-}
-
-export async function checkSpaceForCopyProject(
-  mainDb: Sql,
-  projectId: string,
-): Promise<{ ok: boolean; requiredGB?: number; availableGB?: number; resizeTriggered?: boolean }> {
-  const stats = await getDiskStats();
-  if (stats === null) return { ok: true };
-  const resizeTriggered = maybeRequestVolumeResize(stats);
-
-  let dbBytes = 0;
-  try {
-    const rows = await mainDb<[{ size: bigint }]>`
-      SELECT pg_database_size(${projectId}) AS size
-    `;
-    dbBytes = Number(rows[0]?.size ?? 0);
-  } catch {
-    // fail open
-  }
-
-  if (dbBytes > 0 && dbBytes >= stats.availBytes) {
-    return {
-      ok: false,
-      requiredGB: toGB(dbBytes),
       availableGB: toGB(stats.availBytes),
       resizeTriggered,
     };

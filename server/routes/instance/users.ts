@@ -10,27 +10,23 @@ import { GetLogs } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
   batchUploadUsers,
-  bulkUpdateUserDefaultProjectPermissions,
   bulkUpdateUserPermissions,
   createPersonalAccessToken,
   deleteUser,
   getInstanceUsers,
   GetInstanceWeeklyTokenUsage,
   getOtherUser,
-  getProjectUsers,
   GetUserDailyTokenUsage,
-  getUserDefaultProjectPermissions,
   getUserEmailPresence,
   getUserPermissions,
   listPersonalAccessTokens,
   renameUserEmailInMainDb,
-  renameUserEmailInProjects,
+  renameUserEmailInProducts,
   revokePersonalAccessToken,
   setUserContactPerson,
   SetUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
-  updateUserDefaultProjectPermissions,
   updateUserPermissions,
 } from "../../db/mod.ts";
 import {
@@ -47,8 +43,7 @@ import {
   requireGlobalPermissionOrStatusKey,
 } from "../../middleware/userPermission.ts";
 import { getClerkSessionAuth } from "../../middleware/auth.ts";
-import { notifyInstanceUsersUpdated, notifyInstanceProjectsLastUpdated } from "../../task_management/notify_instance_updated.ts";
-import { notifyProjectUsersUpdated } from "../../task_management/notify_project_v2.ts";
+import { notifyInstanceUsersUpdated } from "../../task_management/notify_instance_updated.ts";
 import { COLLAB_CLOSE_UNAUTHORIZED } from "./collab.ts";
 import { defineRoute } from "../route-helpers.ts";
 
@@ -68,65 +63,6 @@ defineRoute(
     syncUserName(c.var.mainDb, email, firstName || null, lastName || null)
       .catch(() => {});
     return c.json({ success: true, data: c.var.globalUser });
-  },
-);
-
-defineRoute(
-  routesUsers,
-  "getProjectsForUser",
-  requireGlobalPermission(),
-  log("getProjectsForUser"),
-  async (c) => {
-    const globalUser = c.var.globalUser;
-    const mainDb = c.var.mainDb;
-    type RawProjectRow = {
-      id: string;
-      label: string;
-      is_locked: boolean;
-      is_central_reporting: boolean;
-    };
-    const rawProjects: RawProjectRow[] = await mainDb<
-      RawProjectRow[]
-    >`SELECT id, label, is_locked, is_central_reporting FROM projects ORDER BY label`;
-    const isHUser = H_USERS.includes(globalUser.email);
-    // Same access rules as resolveProjectUserAccess, applied list-wise:
-    // central-reporting projects only for H_USERS; admins/H_USERS get the
-    // rest; everyone else needs a role row with >=1 true can_* flag.
-    if (globalUser.isGlobalAdmin || isHUser) {
-      const data = rawProjects
-        .filter((p) => !p.is_central_reporting || isHUser)
-        .map((p) => ({
-          id: p.id,
-          label: p.label,
-          role: "admin",
-          isLocked: p.is_locked,
-        }));
-      return c.json({ success: true, data });
-    }
-    const roleRows = await mainDb<
-      Record<string, unknown>[]
-    >`SELECT * FROM project_user_roles WHERE email = ${globalUser.email}`;
-    const roleByProject = new Map<string, string>();
-    for (const row of roleRows) {
-      const hasAccess = Object.entries(row).some(
-        ([key, value]) => key.startsWith("can_") && value === true,
-      );
-      if (hasAccess) {
-        roleByProject.set(
-          String(row.project_id),
-          row.role === "editor" ? "editor" : "viewer",
-        );
-      }
-    }
-    const data = rawProjects
-      .filter((p) => !p.is_central_reporting && roleByProject.has(p.id))
-      .map((p) => ({
-        id: p.id,
-        label: p.label,
-        role: roleByProject.get(p.id)!,
-        isLocked: p.is_locked,
-      }));
-    return c.json({ success: true, data });
   },
 );
 
@@ -223,7 +159,6 @@ defineRoute(
     );
     if (resUser.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
-      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(resUser);
   },
@@ -272,7 +207,6 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
-      notifyInstanceProjectsLastUpdated(new Date().toISOString());
     }
     return c.json(res);
   },
@@ -341,35 +275,6 @@ defineRoute(
 
 defineRoute(
   routesUsers,
-  "getUserDefaultProjectPermissions",
-  requireGlobalPermission("can_configure_users"),
-  log("getUserDefaultProjectPermissions"),
-  async (c, { params }) => {
-    const res = await getUserDefaultProjectPermissions(
-      c.var.mainDb,
-      params.email,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
-  "updateUserDefaultProjectPermissions",
-  requireGlobalPermission("can_configure_users"),
-  log("updateUserDefaultProjectPermissions"),
-  async (c, { body }) => {
-    const res = await updateUserDefaultProjectPermissions(
-      c.var.mainDb,
-      body.email,
-      body.permissions,
-    );
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesUsers,
   "bulkUpdateUserPermissions",
   requireGlobalPermission("can_configure_users"),
   log("bulkUpdateUserPermissions"),
@@ -386,21 +291,6 @@ defineRoute(
   },
 );
 
-defineRoute(
-  routesUsers,
-  "bulkUpdateUserDefaultProjectPermissions",
-  requireGlobalPermission("can_configure_users"),
-  log("bulkUpdateUserDefaultProjectPermissions"),
-  async (c, { body }) => {
-    const res = await bulkUpdateUserDefaultProjectPermissions(
-      c.var.mainDb,
-      body.emails,
-      body.permissions,
-    );
-    return c.json(res);
-  },
-);
-
 // ---------------------------------------------------------------------------
 // Email rename
 // ---------------------------------------------------------------------------
@@ -410,15 +300,14 @@ const FLEET_DOMAIN = "fastr-analytics.org";
 
 type LocalRenameResult = {
   changed: boolean;
-  projectsUpdated: number;
-  projectsFailed: string[];
   warnings: string[];
 };
 
-/** The full single-instance rename: main-DB flip, then the in-memory collab
- *  sweep, then the project-DB attribution sweep: in that order, so any collab
+/** The full single-instance rename: users-row flip, then the in-memory collab
+ *  sweep, then the product attribution sweep: in that order, so any collab
  *  checkpoint that flushes mid-rename already writes the new email and the
- *  sweep only has historical rows to fix. Fires all the notifies. */
+ *  sweep only has historical rows to fix. A failed sweep fails the rename;
+ *  a retry skips the already-flipped users row and re-runs the sweep. */
 async function renameUserEmailLocally(
   mainDb: Sql,
   oldEmail: string,
@@ -433,7 +322,11 @@ async function renameUserEmailLocally(
   renameVersionEditorEmail(oldEmail, newEmail);
   renameDeckLedgerEmails(oldEmail, newEmail);
   renameAuthorEmails(oldEmail, newEmail);
-  const proj = await renameUserEmailInProjects(mainDb, oldEmail, newEmail);
+  const productsRes = await renameUserEmailInProducts(mainDb, oldEmail, newEmail);
+  notifyInstanceUsersUpdated(await getInstanceUsers(mainDb));
+  if (!productsRes.success) {
+    return productsRes;
+  }
   const warnings: string[] = [];
   if (H_USERS.includes(oldEmail)) {
     warnings.push(
@@ -445,24 +338,9 @@ async function renameUserEmailLocally(
       "Open-access instance: logging in under the old email re-creates it until the Clerk account carries the new address",
     );
   }
-  notifyInstanceUsersUpdated(await getInstanceUsers(mainDb));
-  if (mainRes.data.changed) {
-    notifyInstanceProjectsLastUpdated(new Date().toISOString());
-    for (const projectId of mainRes.data.affectedRoleProjectIds) {
-      const usersRes = await getProjectUsers(mainDb, projectId);
-      if (usersRes.success) {
-        notifyProjectUsersUpdated(projectId, usersRes.data);
-      }
-    }
-  }
   return {
     success: true,
-    data: {
-      changed: mainRes.data.changed,
-      projectsUpdated: proj.projectsUpdated,
-      projectsFailed: proj.projectsFailed,
-      warnings,
-    },
+    data: { changed: mainRes.data.changed, warnings },
   };
 }
 
@@ -606,12 +484,7 @@ async function renameOnPeer(
       return { row: { id, status: "failed", error: res.err }, warnings: [] };
     }
     return {
-      row: {
-        id,
-        status: "updated",
-        projectsUpdated: res.data.projectsUpdated,
-        projectsFailed: res.data.projectsFailed,
-      },
+      row: { id, status: "updated" },
       warnings: res.data.warnings.map((w) => `${id}: ${w}`),
     };
   } catch (error) {
@@ -728,12 +601,7 @@ defineRoute(
         sessionEmail,
       );
       if (res.success) {
-        instances.push({
-          id: _INSTANCE_ID,
-          status: "updated",
-          projectsUpdated: res.data.projectsUpdated,
-          projectsFailed: res.data.projectsFailed,
-        });
+        instances.push({ id: _INSTANCE_ID, status: "updated" });
         warnings.push(...res.data.warnings);
       } else {
         instances.push({ id: _INSTANCE_ID, status: "failed", error: res.err });

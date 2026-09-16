@@ -1,28 +1,33 @@
-// The consolidation replay (PLAN_PRODUCTS_RESTRUCTURE step 2 gates). Driven
-// by ./validate_consolidation_replay, which owns the throwaway Postgres
-// container and points PG_HOST, PG_PORT, PG_PASSWORD and REPLAY_CONTAINER at
-// it. Everything here runs against that server and nothing else.
+// The consolidation replay (migrations 000, 091 and 092). Driven by
+// ./validate_consolidation_replay, which owns the throwaway Postgres container
+// and points PG_HOST, PG_PORT, PG_PASSWORD and REPLAY_CONTAINER at it.
+// Everything here runs against that server and nothing else.
+//
+// The legacy shapes the consolidation starts from (the main base schema with
+// the project layer, the project base schema and the project migrations) no
+// longer exist in the tree. They are read from LEGACY_COMMIT, the last commit
+// that carried them.
 //
 // What it proves, in order:
 //
-//   (a) A live instance (base plus every instance migration recorded, two
-//       project databases that are byte-identical WITH TEMPLATE copies, a
-//       pending_deletion copy and a `copying` row without a database) taken
-//       through 000, 091 and 092 by the real runner ends with: folders
-//       nested per D10, every id collision re-minted with the full reference
-//       surface rewritten, every figure bundle on all four surfaces stamped
-//       with the owning project's run and scope, the ai_context blobs
-//       concatenated, and a schema byte-identical to the base plus 092.
-//   (b) A database whose users carry the default_project_* flags, whose logs
-//       carry project_id and whose aggregate rows differ only by project_id
-//       comes out of 092 with users and logs preserved and the aggregates
-//       merged.
-//   (c) The two negative controls from the plan's Appendix A: on the
-//       post-restructure base, 000 without the user_logs_aggregate ALTER
-//       fails at 035, and 000 without any log ALTER fails at 016.
-//   (d) The fresh path: the post-restructure base plus 000, every instance
-//       migration, 091 and 092, applied by the runner in one pass, converges
-//       on the same schema as (a).
+//   (a) A live instance (the legacy base plus every instance migration up to
+//       090 recorded, two project databases that are byte-identical WITH
+//       TEMPLATE copies, a pending_deletion copy and a `copying` row without
+//       a database) taken through 000, 091 and 092 by the real runner over
+//       the real instance directory ends with: folders nested per D10, every
+//       id collision re-minted with the full reference surface rewritten,
+//       every figure bundle on all four surfaces stamped with the owning
+//       project's run and scope, the ai_context blobs concatenated, and a
+//       schema byte-identical to the base.
+//   (b) A legacy database whose users carry the default_project_* flags,
+//       whose logs carry project_id and whose aggregate rows differ only by
+//       project_id comes out of 092 with users and logs preserved and the
+//       aggregates merged.
+//   (c) The two negative controls from the plan's Appendix A: on the base,
+//       000 without the user_logs_aggregate ALTER fails at 035, and 000
+//       without any log ALTER fails at 016.
+//   (d) The fresh path: the base plus the whole instance directory, applied
+//       by the runner in one pass, converges on the same schema as (a).
 //
 // Before (a) runs the migrations, the read-only dry-run
 // (validate_consolidation.ts) plans the same seeded instance; its FAIL,
@@ -35,27 +40,30 @@ import { getPgConnection } from "./server/db/postgres/connection_manager.ts";
 import {
   MigrationFailure,
   runMigrationsInDir,
-  type TsMigration,
+  TS_MIGRATIONS,
 } from "./server/db/migrations/runner.ts";
-import { consolidateProjects } from "./server/db/migrations/consolidation/staged/091_consolidate_projects.ts";
 import { dryRunInstance, plannedCounts } from "./validate_consolidation.ts";
 
 const ROOT = dirname(fromFileUrl(import.meta.url));
 const INSTANCE_DIR = join(ROOT, "server/db/migrations/instance");
-const PROJECT_DIR = join(ROOT, "server/db/migrations/project");
-const STAGED_DIR = join(ROOT, "server/db/migrations/consolidation/staged");
 const MAIN_BASE = join(ROOT, "server/db/instance/_main_database.sql");
-const PROJECT_BASE = join(ROOT, "server/db/project/_project_database.sql");
+
+const LEGACY_COMMIT = "87a5db02697ffeb440be8def440bf5644a76d97f";
+const LEGACY_MAIN_BASE = "server/db/instance/_main_database.sql";
+const LEGACY_PROJECT_BASE = "server/db/project/_project_database.sql";
+const LEGACY_PROJECT_MIGRATIONS = "server/db/migrations/project";
+
+const CONSOLIDATION_FILES = [
+  "000_legacy_project_shell.sql",
+  "091_consolidate_projects.ts",
+  "092_drop_project_layer.sql",
+];
 
 const CONTAINER = Deno.env.get("REPLAY_CONTAINER");
 if (CONTAINER === undefined) {
   console.error("REPLAY_CONTAINER is not set; run this through ./validate_consolidation_replay.");
   Deno.exit(2);
 }
-
-const TS_MIGRATIONS: Record<string, TsMigration> = {
-  "091_consolidate_projects": consolidateProjects,
-};
 
 const P1 = "0a000000-0000-4000-8000-000000000001";
 const P2 = "0a000000-0000-4000-8000-000000000002";
@@ -100,6 +108,37 @@ async function loadFile(db: Sql, path: string): Promise<void> {
   await db.unsafe(await Deno.readTextFile(path));
 }
 
+async function gitShow(path: string): Promise<string> {
+  const result = await new Deno.Command("git", {
+    args: ["-C", ROOT, "show", `${LEGACY_COMMIT}:${path}`],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  if (!result.success) {
+    throw new Error(`git show ${LEGACY_COMMIT}:${path} failed: ${new TextDecoder().decode(result.stderr)}`);
+  }
+  return new TextDecoder().decode(result.stdout);
+}
+
+async function loadLegacyFile(db: Sql, path: string): Promise<void> {
+  await db.unsafe(await gitShow(path));
+}
+
+// The legacy project migrations, written to a throwaway directory the runner
+// can scan.
+async function legacyProjectMigrationDir(): Promise<string> {
+  const dir = await Deno.makeTempDir({ prefix: "wb-fastr-legacy-project-migrations-" });
+  const listing = await new Deno.Command("git", {
+    args: ["-C", ROOT, "ls-tree", "--name-only", LEGACY_COMMIT, `${LEGACY_PROJECT_MIGRATIONS}/`],
+    stdout: "piped",
+  }).output();
+  const paths = new TextDecoder().decode(listing.stdout).split("\n").filter((p) => p.endsWith(".sql"));
+  for (const path of paths) {
+    await Deno.writeTextFile(join(dir, path.split("/").at(-1)!), await gitShow(path));
+  }
+  return dir;
+}
+
 async function count(db: Sql, table: string): Promise<number> {
   const rows = await db<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM ${db(table)}`;
   return rows[0].n;
@@ -115,20 +154,25 @@ async function listSqlFiles(dir: string): Promise<string[]> {
   return names.sort();
 }
 
-type ShellVariant = "full" | "no_aggregate_alter" | "no_log_alters";
+type ShellVariant = "no_aggregate_alter" | "no_log_alters";
 
-// The runner scans one directory, so the replay assembles a throwaway one:
-// the instance migrations as they are, plus the staged files, with 000
-// optionally weakened for the negative controls.
-async function stageMigrationDir(
-  variant: ShellVariant,
-  withConsolidation: boolean,
-): Promise<string> {
+// The instance migrations without the consolidation, the state every live
+// instance was in before 000, 091 and 092 shipped.
+async function preConsolidationMigrationDir(): Promise<string> {
   const dir = await Deno.makeTempDir({ prefix: "wb-fastr-consolidation-replay-" });
   for (const name of await listSqlFiles(INSTANCE_DIR)) {
-    await Deno.copyFile(join(INSTANCE_DIR, name), join(dir, name));
+    if (!CONSOLIDATION_FILES.includes(name)) {
+      await Deno.copyFile(join(INSTANCE_DIR, name), join(dir, name));
+    }
   }
-  let shell = await Deno.readTextFile(join(STAGED_DIR, "000_legacy_project_shell.sql"));
+  return dir;
+}
+
+// The instance migrations with 000 weakened for a negative control and 091
+// and 092 left out.
+async function negativeControlMigrationDir(variant: ShellVariant): Promise<string> {
+  const dir = await preConsolidationMigrationDir();
+  let shell = await Deno.readTextFile(join(INSTANCE_DIR, "000_legacy_project_shell.sql"));
   if (variant === "no_aggregate_alter") {
     shell = shell.replace(
       "ALTER TABLE user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;",
@@ -138,11 +182,6 @@ async function stageMigrationDir(
     shell = shell.replaceAll(/ALTER TABLE \w+ ADD COLUMN IF NOT EXISTS project_id text;/g, "");
   }
   await Deno.writeTextFile(join(dir, "000_legacy_project_shell.sql"), shell);
-  if (withConsolidation) {
-    for (const name of ["091_consolidate_projects.ts", "092_drop_project_layer.sql"]) {
-      await Deno.copyFile(join(STAGED_DIR, name), join(dir, name));
-    }
-  }
   return dir;
 }
 
@@ -495,15 +534,15 @@ async function replayLiveInstance(): Promise<void> {
   console.log("\n=== (a) Live instance: base, migrations, two template-identical projects ===");
   await createDatabase("main");
   await withDb("main", async (db) => {
-    await loadFile(db, MAIN_BASE);
-    await runMigrationsInDir(db, INSTANCE_DIR, {}, "instance");
+    await loadLegacyFile(db, LEGACY_MAIN_BASE);
+    await runMigrationsInDir(db, await preConsolidationMigrationDir(), {}, "instance");
     await seedLegacyMain(db);
   });
 
   await createDatabase(P1);
   await withDb(P1, async (db) => {
-    await loadFile(db, PROJECT_BASE);
-    await runMigrationsInDir(db, PROJECT_DIR, {}, "project");
+    await loadLegacyFile(db, LEGACY_PROJECT_BASE);
+    await runMigrationsInDir(db, await legacyProjectMigrationDir(), {}, "project");
     const at041 = await db<{ one: number }[]>`
       SELECT 1 AS one FROM schema_migrations WHERE migration_id = '041_drop_frozen_results_plane'`;
     check(at041.length === 1, "the seeded project database is at 041_drop_frozen_results_plane");
@@ -537,9 +576,8 @@ async function replayLiveInstance(): Promise<void> {
   );
   const planned = plannedCounts(dryRun);
 
-  const stagedDir = await stageMigrationDir("full", true);
   await withDb("main", async (db) => {
-    await runMigrationsInDir(db, stagedDir, TS_MIGRATIONS, "replay");
+    await runMigrationsInDir(db, INSTANCE_DIR, TS_MIGRATIONS, "replay");
     await assertConsolidated(db);
     const actual = {
       products: await count(db, "products"),
@@ -558,16 +596,15 @@ async function replayLiveInstance(): Promise<void> {
   });
 }
 
-// ── The reference schema: base plus 092 ──────────────────────────────────────
+// ── The reference schema: the base ──────────────────────────────────────────
 
 async function buildReference(): Promise<void> {
-  console.log("\n=== Reference schema: fresh base plus 092 ===");
+  console.log("\n=== Reference schema: the base ===");
   await createDatabase("main_reference");
   await withDb("main_reference", async (db) => {
     await loadFile(db, MAIN_BASE);
-    await loadFile(db, join(STAGED_DIR, "092_drop_project_layer.sql"));
   });
-  await schemasMatch("main", "main_reference", "(a) migrated schema is byte-identical to fresh base plus 092");
+  await schemasMatch("main", "main_reference", "(a) migrated schema is byte-identical to the base");
 }
 
 // ── (b) Users, logs and aggregates through 092 ───────────────────────────────
@@ -576,7 +613,7 @@ async function replayLogsMerge(): Promise<void> {
   console.log("\n=== (b) Users, logs and aggregate rows through 092 ===");
   await createDatabase("main_logs");
   await withDb("main_logs", async (db) => {
-    await loadFile(db, MAIN_BASE);
+    await loadLegacyFile(db, LEGACY_MAIN_BASE);
     await db`INSERT INTO users (email, is_admin, can_create_projects, default_project_can_view_data) VALUES
       ('a@example.org', FALSE, TRUE, TRUE), ('b@example.org', TRUE, TRUE, FALSE)`;
     await db`INSERT INTO projects (id, label, ai_context) VALUES (${P1}, 'One', ''), (${P2}, 'Two', '')`;
@@ -588,7 +625,7 @@ async function replayLogsMerge(): Promise<void> {
       ('a@example.org', '/x', 'ok', ${P2}, '2026-01-05', 7),
       ('a@example.org', '/x', 'ok', NULL, '2026-01-05', 1),
       ('a@example.org', '/y', 'ok', ${P1}, '2026-01-05', 2)`;
-    await loadFile(db, join(STAGED_DIR, "092_drop_project_layer.sql"));
+    await loadFile(db, join(INSTANCE_DIR, "092_drop_project_layer.sql"));
 
     check(await count(db, "users") === 2, "users preserved");
     check(await count(db, "user_logs") === 2, "user_logs preserved");
@@ -612,7 +649,7 @@ async function replayLogsMerge(): Promise<void> {
   });
 }
 
-// ── (c) and (d): the post-restructure base ───────────────────────────────────
+// ── (c) and (d): the base ───────────────────────────────────────────────────
 
 async function expectFailureAt(
   variant: ShellVariant,
@@ -620,7 +657,7 @@ async function expectFailureAt(
   expectedPrefix: string,
 ): Promise<void> {
   await createDatabase(database, "main_reference");
-  const dir = await stageMigrationDir(variant, false);
+  const dir = await negativeControlMigrationDir(variant);
   let failedAt: string | null = null;
   await withDb(database, async (db) => {
     try {
@@ -631,28 +668,27 @@ async function expectFailureAt(
   });
   check(
     failedAt !== null && (failedAt as string).startsWith(expectedPrefix),
-    `000 (${variant}) fails at ${expectedPrefix} on the post-restructure base (failed at ${failedAt ?? "nothing"})`,
+    `000 (${variant}) fails at ${expectedPrefix} on the base (failed at ${failedAt ?? "nothing"})`,
   );
 }
 
 async function replayNegativeControls(): Promise<void> {
-  console.log("\n=== (c) Negative controls on the post-restructure base ===");
+  console.log("\n=== (c) Negative controls on the base ===");
   await expectFailureAt("no_aggregate_alter", "main_negative_035", "035_");
   await expectFailureAt("no_log_alters", "main_negative_016", "016_");
 }
 
 async function replayFreshPath(): Promise<void> {
-  console.log("\n=== (d) Fresh path: post-restructure base plus 000 to 092 in one pass ===");
+  console.log("\n=== (d) Fresh path: the base plus the whole instance directory in one pass ===");
   await createDatabase("main_fresh", "main_reference");
-  const dir = await stageMigrationDir("full", true);
-  const expected = (await listSqlFiles(INSTANCE_DIR)).length + 3;
+  const expected = (await listSqlFiles(INSTANCE_DIR)).length + Object.keys(TS_MIGRATIONS).length;
   await withDb("main_fresh", async (db) => {
-    await runMigrationsInDir(db, dir, TS_MIGRATIONS, "fresh");
+    await runMigrationsInDir(db, INSTANCE_DIR, TS_MIGRATIONS, "fresh");
     const applied = await count(db, "schema_migrations");
     check(applied === expected, `${expected} migrations recorded on the fresh path (got ${applied})`);
     check(await count(db, "products") === 0, "091 on a database with no projects inserts nothing");
   });
-  await schemasMatch("main_fresh", "main_reference", "(d) fresh-path schema is byte-identical to fresh base plus 092");
+  await schemasMatch("main_fresh", "main_reference", "(d) fresh-path schema is byte-identical to the base");
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────

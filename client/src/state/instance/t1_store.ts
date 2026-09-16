@@ -13,8 +13,7 @@ import type {
   AssetInfo,
   GeoJsonMapSummary,
   OtherUser,
-  ProductLastUpdateTableName,
-  ProjectSummary,
+  LastUpdateTableName,
   FigureLocalization,
   ReadyPackage,
   RunCatalogItem,
@@ -40,8 +39,6 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   dhis2ConnectionUrl: null,
   adminAreaLabels: {},
   aiContext: "",
-  projects: [],
-  projectsLastUpdated: "",
   products: [],
   folders: [],
   readyPackages: [],
@@ -85,7 +82,6 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
     can_configure_settings: false,
     can_configure_data: false,
     can_view_data: false,
-    can_create_projects: false,
   },
 };
 
@@ -178,10 +174,6 @@ export function structureSchemaForFamily(family: FacilityFamily): StructureSchem
   return schema ?? FALLBACK_STRUCTURE_SCHEMA;
 }
 
-export function updateInstanceProjects(projects: ProjectSummary[]): void {
-  setInstanceState("projects", reconcile(projects));
-}
-
 // ============================================================================
 // Products, folders, ready packages (PLAN_PRODUCTS_RESTRUCTURE D8)
 // ============================================================================
@@ -231,7 +223,7 @@ export function updateInstanceReadyPackages(packages: ReadyPackage[]): void {
 // message carries `slides` only: a product's own stamp arrives on its
 // `products_upserted` summary and is written by upsertInstanceProducts.
 export function updateInstanceLastUpdated(
-  tableName: ProductLastUpdateTableName,
+  tableName: LastUpdateTableName,
   ids: string[],
   lastUpdated: string,
 ): void {
@@ -246,10 +238,6 @@ export function updateInstanceLastUpdated(
 // context together and lights the stale badges.
 export function productById(id: string): ProductSummary | undefined {
   return instanceState.products.find((p) => p.id === id);
-}
-
-export function updateProjectsLastUpdated(lastUpdated: string): void {
-  setInstanceState("projectsLastUpdated", lastUpdated);
 }
 
 export function updateInstanceUsers(users: OtherUser[]): void {
@@ -344,7 +332,6 @@ export function updateCurrentUser(me: OtherUser | undefined): void {
             can_configure_settings: me.can_configure_settings,
             can_configure_data: me.can_configure_data,
             can_view_data: me.can_view_data,
-            can_create_projects: me.can_create_projects,
           }
         : {
             can_configure_users: false,
@@ -353,7 +340,6 @@ export function updateCurrentUser(me: OtherUser | undefined): void {
             can_configure_settings: false,
             can_configure_data: false,
             can_view_data: false,
-            can_create_projects: false,
           },
     ),
   );

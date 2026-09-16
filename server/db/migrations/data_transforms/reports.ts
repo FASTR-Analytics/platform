@@ -2,7 +2,7 @@
 // DATA TRANSFORM: reports.config / reports.figures / reports.images
 // =============================================================================
 //
-// Table:    reports
+// Table:    reports (bumps the owning products.last_updated)
 // Columns:  config, figures, images (JSON)
 // Schemas:  lib/types/reports.ts
 //           → reportConfigSchema, reportFiguresSchema, reportImagesSchema
@@ -33,7 +33,6 @@ import {
 
 export async function migrateReports(
   tx: Sql,
-  _projectId: string,
   countryIso3: string,
 ): Promise<MigrationStats> {
   const localization = getTransformLocalization(countryIso3);
@@ -105,10 +104,10 @@ export async function migrateReports(
       UPDATE reports
       SET config = ${validated.config},
           figures = ${validated.figures},
-          images = ${validated.images},
-          last_updated = ${now}
+          images = ${validated.images}
       WHERE id = ${row.id}
     `;
+    await tx`UPDATE products SET last_updated = ${now} WHERE id = ${row.id}`;
     rowsTransformed++;
   }
 

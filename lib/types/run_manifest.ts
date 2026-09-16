@@ -294,17 +294,7 @@ export const runManifestSchema = z.object({
 });
 export type RunManifest = z.infer<typeof runManifestSchema>;
 
-// Stored in the instance-DB runs catalog row (runs.summary) for listing:
-// DB-side, so project references are fine here (the layer rule only forbids
-// instance FKs inside run FILES).
-//
-// Run identity (Q-A ruling): an instance-generated run has no source
-// project, so there is no sourceProjectId. `backfillSourceProjectId` is
-// stored vocabulary: packages synthesized during the 2026-08 fleet cutover
-// carry the project they were synthesized from; generation writes null.
-// `attachTargetProjectIds` is the wizard's launch-time attach selection: the
-// projects the publish transaction repoints, and the key the launch
-// concurrency guard uses.
+// Stored in the instance-DB runs catalog row (runs.summary) for listing.
 // `diskSizeBytes` is the package's total file size, summed by the shared
 // builder over the finished tmp dir: both writers stamp it, so every run
 // minted from Phase 3 item 3 onwards carries one. Null is a run written
@@ -314,8 +304,6 @@ export type RunManifest = z.infer<typeof runManifestSchema>;
 export type RunSummary = {
   manifestSchemaVersion: number;
   provenance: RunProvenance;
-  backfillSourceProjectId: string | null;
-  attachTargetProjectIds: string[];
   moduleIds: string[];
   metricCount: number;
   totalRowCount: number;

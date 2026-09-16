@@ -1,18 +1,13 @@
 // =============================================================================
-// DATA TRANSFORM: presentation_objects.config
+// DATA TRANSFORM LIBRARY: figure config (PresentationObjectConfig)
 // =============================================================================
 //
-// Table:    presentation_objects
-// Column:   config (JSON)
 // Schema:   lib/types/_presentation_object_config.ts
 //           → presentationObjectConfigSchema
 //
-// HOW THIS WORKS:
-// - Runs at startup in a transaction
-// - For each row: validate against current schema
-// - If valid: skip (no work needed)
-// - If invalid: apply transform blocks, validate, write
-// - If any row fails validation after transforms: rollback, boot fails
+// The config transform blocks the figure-block sweeps in _figure_block.ts
+// (slides and reports) run through transformPOConfigData. No table is swept
+// here.
 //
 // TRANSFORM BLOCKS:
 // 1. periodOpt → timeseriesGrouping
@@ -55,10 +50,7 @@ import {
   type ConditionalFormattingScale,
   flattenCf,
   LEGACY_CF_PRESETS,
-  presentationObjectConfigSchema,
 } from "lib";
-import type { Sql } from "postgres";
-import { _PO_DETAIL_CACHE } from "../../../routes/caches/visualizations.ts";
 
 const RELATIVE_FILTER_TYPES = new Set([
   "last_n_months",
@@ -118,8 +110,7 @@ export type MigrationStats = {
   rowsTransformed: number;
 };
 
-// ─── Reusable transform functions ───────────────────────────────────────────
-// Exported for use by metric.ts (viz presets) and module_definition.ts (defaultPresentationObjects)
+// ─── Transform functions ────────────────────────────────────────────────────
 
 export function transformConfigD(d: Record<string, unknown>): void {
   // Block 1: periodOpt → timeseriesGrouping
@@ -422,44 +413,17 @@ export function transformConfigS(
   }
 }
 
-// ─── Full PO config transform ───────────────────────────────────────────────
-// Exported for use by slide_config.ts and module_definition.ts
+// ─── Full config transform ──────────────────────────────────────────────────
 
 // Legacy keys that zod's strip mode silently swallows: a config whose ONLY
 // drift is these keys passes safeParse, so a skip-on-valid gate would never
 // run the rename and runtime reads would silently drop the user's setting.
-// Every sweep gate must consult this alongside safeParse.
-export function configNeedsForcedTransform(
-  config: Record<string, unknown>,
-): boolean {
-  const d = (config.d ?? {}) as Record<string, unknown>;
-  const s = (config.s ?? {}) as Record<string, unknown>;
-  // Block 26's target also passes safeParse (timeseriesGrouping is optional in
-  // the schema); force only when the fill would actually apply (hint present),
-  // so an unfixable row doesn't trigger a rewrite every boot.
-  const pfPeriodOption = (d.periodFilter as Record<string, unknown> | undefined)
-    ?.periodOption;
-  const needsTimeseriesGroupingFill = d.type === "timeseries" &&
-    (d.timeseriesGrouping === undefined || d.timeseriesGrouping === null) &&
-    (pfPeriodOption === "period_id" || pfPeriodOption === "quarter_id" ||
-      pfPeriodOption === "year");
-  return (
-    needsTimeseriesGroupingFill ||
-    "includeNationalForAdminArea2" in d ||
-    "includeNationalPosition" in d ||
-    "includeAdminAreaRollup" in d ||
-    "adminAreaRollupPosition" in d ||
-    "specialScorecardTable" in s
-  );
-}
-
-// Same check for sweeps over rows that EMBED PO configs at arbitrary depth
-// (dashboard figure blocks, report figures, slide configs, viz presets): a
-// cheap raw-JSON scan for the legacy keys in their JSON-key form (quoted, so
-// prose mentioning the name in captions/notes doesn't trigger a force).
-// Callers must also skip the write when the transformed output equals the
-// stored row, so any residual false positive costs a no-op per boot, never a
-// rewrite loop.
+// Sweeps over rows that EMBED configs at arbitrary depth (report figures,
+// slide configs) scan the raw JSON for the legacy keys in their JSON-key form
+// (quoted, so prose mentioning the name in captions or notes doesn't trigger
+// a force). Callers must also skip the write when the transformed output
+// equals the stored row, so any residual false positive costs a no-op per
+// boot, never a rewrite loop.
 export function rawJsonNeedsForcedTransform(raw: string): boolean {
   return (
     raw.includes('"includeNationalForAdminArea2"') ||
@@ -491,47 +455,4 @@ export function transformPOConfigData(
   c.t = t;
 
   return c;
-}
-
-export async function migratePOConfigs(
-  tx: Sql,
-  projectId: string,
-): Promise<MigrationStats> {
-  const rows = await tx<{ id: string; config: string }[]>`
-    SELECT id, config FROM presentation_objects
-  `;
-  const now = new Date().toISOString();
-  let rowsTransformed = 0;
-
-  for (const row of rows) {
-    const config = JSON.parse(row.config);
-
-    // Already valid? Skip: unless legacy keys (which safeParse silently
-    // strips) still need the rename.
-    if (
-      presentationObjectConfigSchema.safeParse(config).success &&
-      !configNeedsForcedTransform(config)
-    ) {
-      continue;
-    }
-
-    const transformed = transformPOConfigData(config);
-
-    // Validate against current schema: throws if invalid
-    const validated = presentationObjectConfigSchema.parse(transformed);
-
-    // Write + update last_updated (invalidates cache)
-    await tx`
-      UPDATE presentation_objects
-      SET config = ${JSON.stringify(validated)}, last_updated = ${now}
-      WHERE id = ${row.id}
-    `;
-
-    // Clear Valkey cache for this specific PO
-    _PO_DETAIL_CACHE.clear({ projectId, presentationObjectId: row.id });
-
-    rowsTransformed++;
-  }
-
-  return { rowsChecked: rows.length, rowsTransformed };
 }

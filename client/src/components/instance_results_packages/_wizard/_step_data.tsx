@@ -10,7 +10,7 @@ type Props = {
 
 // Step 1: choose data: plain family-inclusion checkboxes. Generation always
 // captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION);
-// per-project subsetting happens at attach time, never here.
+// a product narrows by its scope at read time, never here.
 export function StepData(p: Props) {
   const notAvailableNote = t3({
     en: "No data of this type has been uploaded to this instance",

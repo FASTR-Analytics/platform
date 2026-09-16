@@ -8,7 +8,6 @@ import {
   type RunModule,
   type RunProgress,
 } from "lib";
-import { createWorkerReadConnection } from "../../db/mod.ts";
 import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
 import { prepareModuleDefinitionForStorage } from "../../runs/module_config.ts";
 import {
@@ -16,9 +15,7 @@ import {
   updateRunProgress,
 } from "../../db/instance/run_generation.ts";
 import {
-  buildRunAttachedManifestPayload,
   buildRunPackageIntoTmp,
-  notifyRunAttachedForProject,
   runDirPath,
   runTmpDirPath,
 } from "../../runs/mod.ts";
@@ -40,7 +37,7 @@ import type { GenerateRunStartData } from "./types.ts";
 
 // The run pipeline (PLAN_RESULTS_RUNS items 2 + 3): prepare inputs → resolve
 // → reuse plan → execute/reuse in dependency order → ONE finalize → atomic
-// rename → ready + repoint in one transaction → SSE. Whole-DAG with
+// rename → ready → SSE. Whole-DAG with
 // abort-on-any-fail: no mid-run file is ever in a serving location, and a
 // failed generation never replaces the serving run.
 //
@@ -153,7 +150,7 @@ export async function runGenerationPipeline(
   // ONE finalize (§3.8): wholesale manifest + inputs capture via the package
   // builder. The catalog is handed to the builder from THIS generation's
   // resolved definitions and the input mirrors were written by prepare.
-  const { manifest, summary } = await buildRunPackageIntoTmp(
+  const { summary } = await buildRunPackageIntoTmp(
     mainDb,
     std.runId,
     tmpDir,
@@ -164,7 +161,6 @@ export async function runGenerationPipeline(
       datasets: prepared.datasets,
       facilitiesTables: prepared.facilitiesTables,
       population: prepared.population,
-      attachTargetProjectIds: std.attachTargetProjectIds,
       extraInputFiles: prepared.extraInputFiles,
     },
   );
@@ -172,45 +168,18 @@ export async function runGenerationPipeline(
   await Deno.rename(tmpDir, runDirPath(std.runId));
   await publishReadyRun(mainDb, {
     runId: std.runId,
-    attachTargetProjectIds: std.attachTargetProjectIds,
     summary,
     progress,
   });
 
-  // Repoint events, one per attach target: the full catalog, every field
-  // derived from the run just published (the legacy project plane is no
-  // longer written, so it is never read here either). A run launched with no
-  // targets publishes silently and is attached later from a project's
-  // picker.
-  // Final progress first: it is what tells the catalogue that this
-  // generation is over, so it must not be gated on the per-target catalog
-  // reads below (a run with no targets does none of them). Attach targets
-  // learn of the publish through `run_attached` alone: a project has no
-  // live view of a generation (it is attached only once the run is ready).
-  // The run IS published from here on: a notify failure must never fail the
-  // generation (worker.ts's catch would flip a published, attached run to
-  // 'failed'). Same class of post-write catch as attachRunToProject: log,
-  // continue; the read plane reports a broken payload properly on its own.
+  // The final progress tells the catalogue that this generation is over. The
+  // run IS published from here on: a notify failure must never fail the
+  // generation (worker.ts's catch would flip a published run to 'failed').
   try {
     notifyInstanceRunProgress(std.runId, progress);
-
-    if (std.attachTargetProjectIds.length > 0) {
-      const payload = await buildRunAttachedManifestPayload(mainDb, {
-        runId: std.runId,
-        manifest,
-      });
-      for (const projectId of std.attachTargetProjectIds) {
-        const projectDb = createWorkerReadConnection(projectId);
-        try {
-          await notifyRunAttachedForProject(mainDb, projectId, projectDb, payload);
-        } finally {
-          await projectDb.end();
-        }
-      }
-    }
   } catch (e) {
     console.error(
-      `[generate_run] run ${std.runId} published but its post-publish events could not be built: ${
+      `[generate_run] run ${std.runId} published but its final progress could not be pushed: ${
         e instanceof Error ? e.message : e
       }`,
     );

@@ -5,7 +5,6 @@ import {
   updateRunGenerationDefaultsConfig,
 } from "../../db/instance/config.ts";
 import {
-  listFollowPinnedProjects,
   listReadyPackages,
   listRunCatalog,
 } from "../../db/instance/run_generation.ts";
@@ -16,7 +15,7 @@ import {
   deleteRun,
   getRunGenerationModuleOptions,
   listRunModuleFiles,
-  pinRunAndRepointFollowers,
+  pinRun,
   readRunDetail,
   readRunModuleLogs,
   readRunModuleScript,
@@ -46,8 +45,7 @@ import { defineRoute } from "../route-helpers.ts";
 // which sit under the instance data bits (see below). The wizard is an ephemeral modal: nothing is
 // persisted server-side before launch, which takes the whole configuration
 // in its body and hands the run to the generate_run worker; further state
-// arrives over instance SSE (the catalogue) and project SSE (each attach
-// target).
+// arrives over instance SSE (the catalogue).
 
 export const routesRunGeneration = new Hono();
 
@@ -112,15 +110,15 @@ defineRoute(
   },
 );
 
-// Pin/unpin own their notifies (pin state + catalogue nonce, ordered around
-// the follower loop): see server/runs/pin_run.ts.
+// Pin/unpin own their notifies (pin state + catalogue nonce): see
+// server/runs/pin_run.ts.
 defineRoute(
   routesRunGeneration,
   "pinResultsPackage",
   requireGlobalPermission("can_configure_data"),
   log("pinResultsPackage"),
   async (c, { params }) => {
-    const res = await pinRunAndRepointFollowers(c.var.mainDb, params.run_id);
+    const res = await pinRun(c.var.mainDb, params.run_id);
     return c.json(res);
   },
 );
@@ -132,16 +130,6 @@ defineRoute(
   log("unpinResultsPackage"),
   async (c, { params }) => {
     const res = await unpinRun(c.var.mainDb, params.run_id);
-    return c.json(res);
-  },
-);
-
-defineRoute(
-  routesRunGeneration,
-  "listFollowPinnedProjects",
-  requireGlobalPermission("can_configure_data"),
-  async (c) => {
-    const res = await listFollowPinnedProjects(c.var.mainDb);
     return c.json(res);
   },
 );
@@ -169,7 +157,7 @@ defineRoute(
 // 2026-08-18): a package is instance-level data, so `can_view_data` reads
 // its script/files/detail (and the outputs download mount in
 // middleware/static.ts) and `can_view_logs` reads its logs: the same guard
-// whether the caller is the catalogue, a project's tab, an AI tool or MCP.
+// whether the caller is the catalogue, an AI tool or MCP.
 
 defineRoute(
   routesRunGeneration,
@@ -234,7 +222,7 @@ defineRoute(
 );
 
 ///////////////////////////////////////////////////////////////////////////////
-// The figure-data mount (PLAN_PRODUCTS_RESTRUCTURE D7)
+// The figure-data mount
 ///////////////////////////////////////////////////////////////////////////////
 
 // The caller supplies the (runId, adminArea2) pair its product carries, and
@@ -243,7 +231,7 @@ defineRoute(
 // registry schema bounds adminArea2 and the read path escapes it. /mcp
 // reaches the first two at national scope through the headless allowlist.
 // Guard: requireApprovedUser(), so package data is an instance-level
-// resource any approved user can read at any scope (D7).
+// resource any approved user can read at any scope.
 
 defineRoute(
   routesRunGeneration,

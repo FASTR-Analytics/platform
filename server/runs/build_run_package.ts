@@ -63,8 +63,6 @@ export type RunBuildOptions = {
   facilitiesTables: RunFacilitiesTable[];
   // The person-years file the caller wrote (null without an HMIS capture).
   population: RunPopulation | null;
-  // Run identity in the catalog summary: the launch-time attach targets.
-  attachTargetProjectIds: string[];
   // Relative paths (from the run dir root) of input files the caller already
   // placed in the tmp dir (dataset extracts, twins, mirrors).
   extraInputFiles: string[];
@@ -288,8 +286,6 @@ export async function buildRunPackageIntoTmp(
   const summary: RunSummary = {
     manifestSchemaVersion: RUN_MANIFEST_SCHEMA_VERSION,
     provenance: "wizard",
-    backfillSourceProjectId: null,
-    attachTargetProjectIds: opts.attachTargetProjectIds,
     moduleIds: runModules.map((m) => m.id),
     metricCount: runMetrics.length,
     totalRowCount: runResultsObjects.reduce((sum, ro) => sum + ro.rowCount, 0),

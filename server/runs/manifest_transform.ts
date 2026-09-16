@@ -90,7 +90,7 @@ export type RunManifestOutcome =
   | { kind: "unreadable"; reason: string }
   | { kind: "future"; version: number };
 
-// The forced skip-gate (po_config.ts's configNeedsForcedTransform, reading a
+// The forced skip-gate (po_config.ts's rawJsonNeedsForcedTransform, reading a
 // version field instead of scanning for legacy keys). A parse-only gate is
 // wrong here: a manifest from a NEWER server parses under this schema with its
 // additions silently stripped, so parse success alone cannot discriminate

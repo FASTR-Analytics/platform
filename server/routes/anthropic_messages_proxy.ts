@@ -14,10 +14,9 @@ import {
   _WEEKLY_TOKEN_LIMIT,
 } from "../exposed_env_vars.ts";
 
-// The ONE Anthropic /v1/messages passthrough, shared by the project proxy
-// (mounted at /ai, per-project usage attribution) and the instance proxy
-// (mounted at /ai-instance, null project_id; powers the HFA Indicator
-// Manager assistant). Governance (daily-user + weekly-instance token
+// The ONE Anthropic /v1/messages passthrough, shared by the copilot proxy
+// (mounted at /ai) and the instance proxy (mounted at /ai-instance; powers the
+// HFA Indicator Manager assistant). Governance (daily-user + weekly-instance token
 // limits), usage logging, and the beta-header policy live here so the two
 // mounts cannot drift.
 //
@@ -44,7 +43,6 @@ type ProxyArgs = {
   clientBetaHeader: string | undefined;
   userEmail: string;
   unlimitedAi: boolean;
-  projectId: string | null;
   mainDb: Sql;
 };
 
@@ -65,7 +63,7 @@ export async function proxyAnthropicMessages(
 }
 
 async function runProxy(args: ProxyArgs): Promise<Response> {
-  const { clientBetaHeader, userEmail, unlimitedAi, projectId, mainDb } = args;
+  const { clientBetaHeader, userEmail, unlimitedAi, mainDb } = args;
   const { stream = false, ...rest } = await args.parseBody();
   const model = typeof rest.model === "string" ? rest.model : "unknown";
 
@@ -172,7 +170,6 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
       AddAiUsageLog(
         mainDb,
         userEmail,
-        projectId,
         model,
         inputTokens,
         outputTokens,
@@ -261,7 +258,6 @@ async function runProxy(args: ProxyArgs): Promise<Response> {
   AddAiUsageLog(
     mainDb,
     userEmail,
-    projectId,
     model,
     inputTokens,
     outputTokens,

@@ -6,11 +6,9 @@ import {
   runGenerationStep2ResultSchema,
 } from "../../types/mod.ts";
 import type {
-  FollowPinnedProject,
   InstalledModuleWithConfigSelections,
   ItemsHolderPresentationObject,
   ItemsHolderResultsObject,
-  PinResultsPackageResult,
   ReadyPackage,
   ResultsValueInfoForPresentationObject,
   RunAuthoringContext,
@@ -29,30 +27,28 @@ import { route } from "../route-utils.ts";
 // instance shell, instance-admin gated (can_configure_data) except the
 // package reads below: the wizard
 // is an ephemeral modal that persists nothing before launch, and a
-// generation belongs to no project: it attaches to the projects chosen at
-// launch.
+// generation repoints nothing: products point at a package afterwards.
 
 // A run's outputs dir holds one module's generated script, execution log and
 // raw CSVs. These reads are run-keyed and mounted ONCE (Tim's ruling
 // 2026-08-18, superseding the 2026-07-30 per-project mount): a package is
 // instance-level data, so what it contains is gated on the instance data
 // bits: `can_view_data` for detail/script/files/download, `can_view_logs`
-// for logs, wherever it is explored (the catalogue, a project's tab, the AI
-// tools, MCP). Reader: server/runs/package_internals.ts.
+// for logs, wherever it is explored (the catalogue, the AI tools, MCP). Reader: server/runs/package_internals.ts.
 const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
 });
 
 // The scope half of a figure read: null is national, and an empty string is
-// neither national nor a real area (the shape projects.admin_area_2 has
-// always been written under).
+// neither national nor a real area (the shape products.admin_area_2 is
+// written under).
 const adminArea2Schema = z.string().min(1).nullable();
 
 export const runGenerationRouteRegistry = {
   // The instance catalogue (item 3): every run, newest first, with the
-  // projects currently attached to each. This is instance-T1's fetch half
-  // (the `projects` pattern): `runs_catalog_updated` broadcasts a data-free
+  // products currently attached to each. This is instance-T1's fetch half:
+  // `runs_catalog_updated` broadcasts a data-free
   // timestamp, and each entitled client pulls the listing here: the guard
   // is evaluated per request, so run labels never ride the broadcast and
   // permission changes take effect live.
@@ -62,37 +58,27 @@ export const runGenerationRouteRegistry = {
     response: {} as RunCatalogItem[],
   }),
   // Guarded hard delete (Q1 ruling): catalog row + run dir + the runId-keyed
-  // cache entries, in ONE act. Refused while any project points at the run
-  // or it is still generating.
+  // cache entries, in ONE act. Refused while any product points at the run,
+  // while it is pinned, or while it is still generating.
   deleteRun: route({
     path: "/run_generation/run/:run_id",
     method: "DELETE",
     params: z.object({ run_id: z.string() }),
   }),
-  // The instance's pinned package (SYSTEM_08 "The pinned package
-  // + followers"): an explicit act on a ready run that also physically
-  // repoints every follow-pinned project; the response says which followers
-  // moved, were skipped (locked) or failed. Unpin is run-keyed: it clears
-  // the pin only if this run IS the pin, and moves nothing. The follower
-  // listing feeds the pin confirm, so an admin sees who will move.
+  // The instance's pinned package (SYSTEM_08 "The pinned package"): an
+  // explicit act on a ready run that moves no product. Unpin is run-keyed: it
+  // clears the pin only if this run IS the pin.
   pinResultsPackage: route({
     path: "/run_generation/run/:run_id/pin",
     method: "POST",
     params: z.object({ run_id: z.string() }),
-    response: {} as PinResultsPackageResult,
   }),
   unpinResultsPackage: route({
     path: "/run_generation/run/:run_id/pin",
     method: "DELETE",
     params: z.object({ run_id: z.string() }),
   }),
-  listFollowPinnedProjects: route({
-    path: "/run_generation/pin/followers",
-    method: "GET",
-    response: {} as FollowPinnedProject[],
-  }),
-  // The product package picker's options (PLAN_PRODUCTS_RESTRUCTURE §3.4):
-  // every ready package as a bare ReadyPackage, approved-user data. Follows
+  // The product package picker's options: every ready package as a bare ReadyPackage, approved-user data. Follows
   // the runsCatalog idiom: filled in `starting`, refetched on the
   // runs_catalog_updated nonce.
   listReadyPackages: route({
@@ -127,7 +113,7 @@ export const runGenerationRouteRegistry = {
     params: runModuleParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
   }),
-  // The figure-data mount (S9; PLAN_PRODUCTS_RESTRUCTURE D7): the caller
+  // The figure-data mount (S9): the caller
   // supplies the (runId, adminArea2) pair its product carries, and `null`
   // adminArea2 means national. The reads require runs.status = 'ready';
   // adminArea2 is shape-validated here and escaped server-side. /mcp reaches
@@ -224,14 +210,12 @@ export const runGenerationRouteRegistry = {
   // ephemeral modal: nothing is persisted before this call); the route
   // mints the runs catalog row (status 'generating') and spawns the
   // generate_run worker. The run owns its whole lifecycle from this point:
-  // progress arrives over instance SSE (the catalogue) and project SSE
-  // (run_progress / run_attached) for each attach target.
+  // progress arrives over instance SSE (the catalogue).
   launchRunGeneration: route({
     path: "/run_generation/launch",
     method: "POST",
     body: z.object({
       label: z.string().min(1).max(200),
-      attachTargetProjectIds: z.array(z.uuid()),
       step1Result: runGenerationStep1ResultSchema,
       step2Result: runGenerationStep2ResultSchema,
     }),

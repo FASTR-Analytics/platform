@@ -2,11 +2,6 @@ import { type Context, Hono } from "hono";
 import { dbStartUp } from "./server/db_startup.ts";
 import { getPgConnectionFromCacheOrNew } from "./server/db/mod.ts";
 import { DeleteOldLogs } from "./server/db/instance/user_logs.ts";
-import { purgeExpiredProjects } from "./server/db/mod.ts";
-import {
-  notifyInstanceProjectsLastUpdated,
-  notifyInstanceRunsCatalogUpdated,
-} from "./server/task_management/notify_instance_updated.ts";
 import { connectValkey, disconnectValkey } from "./server/valkey/connection.ts";
 import { startDhis2ImportScheduler } from "./server/worker_routines/import_hmis_data_dhis2/scheduler.ts";
 import { closeAllConnections } from "./server/db/postgres/connection_manager.ts";
@@ -40,30 +35,19 @@ import { routesRunGeneration } from "./server/routes/instance/run_generation.ts"
 import { routesStructure } from "./server/routes/instance/structure.ts";
 import { routesUpload } from "./server/routes/instance/upload.ts";
 import { routesUsers } from "./server/routes/instance/users.ts";
-import { routesBackups } from "./server/routes/instance/backups.ts";
 import { routesGeoJsonMaps } from "./server/routes/instance/geojson_maps.ts";
 import { routesPopulation } from "./server/routes/instance/population.ts";
 import { routesInstanceModules } from "./server/routes/instance/modules.ts";
 import { routesInstanceSSE } from "./server/routes/instance/instance-sse.ts";
 
-// Project routes
-import { routesProject } from "./server/routes/project/project.ts";
-import { routesProjectSSEV2 } from "./server/routes/project/project-sse-v2.ts";
-import { routesProjectCollab } from "./server/routes/project/project-collab.ts";
 import { routesCollab } from "./server/routes/instance/collab.ts";
-import { routesModules } from "./server/routes/project/modules.ts";
-import { routesProjectResultsPackage } from "./server/routes/project/results_package.ts";
-import { routesPresentationObjects } from "./server/routes/project/presentation_objects.ts";
 import { routesInstanceAiProxy } from "./server/routes/instance/ai_proxy.ts";
 import { routesCopilotAiProxy } from "./server/routes/instance/copilot_ai_proxy.ts";
 import { routesAiFiles } from "./server/routes/instance/ai_files.ts";
-import { routesVisualizationFolders } from "./server/routes/project/visualization_folders.ts";
-import { routesDashboards } from "./server/routes/project/dashboards.ts";
 import { routesEmails } from "./server/routes/instance/emails.ts";
-import { routesCacheStatus } from "./server/routes/project/cache_status.ts";
 
-// Product routes (PLAN_PRODUCTS_RESTRUCTURE step 5; guarded by each registry
-// entry's `access`, installed by defineRoute)
+// Product routes (guarded by each registry entry's `access`, installed by
+// defineRoute)
 import { routesProducts } from "./server/routes/products/products.ts";
 import { routesFolders } from "./server/routes/products/folders.ts";
 import { routesProductSlideDecks } from "./server/routes/products/slide_decks.ts";
@@ -71,7 +55,6 @@ import { routesProductSlides } from "./server/routes/products/slides.ts";
 import { routesProductReports } from "./server/routes/products/reports.ts";
 
 // Public routes (no auth)
-import { routesPublicDashboard } from "./server/routes/public/dashboard.ts";
 import { routesOAuthMetadata } from "./server/routes/public/oauth_metadata.ts";
 
 import { routesCustomPrompts } from "./server/routes/instance/custom_prompts.ts";
@@ -88,25 +71,6 @@ const runLogCleanup = () => {
 runLogCleanup();
 setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 
-const runProjectPurge = () => {
-  const db = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-  purgeExpiredProjects(db)
-    .then((purgedCount) => {
-      // The purge drops projects.run_id pointers: the catalogue's
-      // attachedProjects and delete-guard facts, so connected clients must
-      // be signalled (forceDeleteProject's route fires the same pair). The
-      // boot-time invocation notifies harmlessly: no clients are connected
-      // yet.
-      if (purgedCount > 0) {
-        notifyInstanceProjectsLastUpdated(new Date().toISOString());
-        notifyInstanceRunsCatalogUpdated();
-      }
-    })
-    .catch((e) => console.error("Project purge failed:", e));
-};
-runProjectPurge();
-setInterval(runProjectPurge, 24 * 60 * 60 * 1000);
-
 // DHIS2 auto-pull (PLAN_DHIS2_IMPORTER Phase 4): ~60 s tick draining queued
 // runs FIFO and firing due schedules: a minute-level tick, NOT one of the
 // boot-anchored 24 h jobs above (a daily tick would usually miss a 01:15
@@ -120,41 +84,26 @@ await connectValkey();
 
 const app = new Hono();
 
-// CORS for public routes
-app.use("/api/d/*", corsMiddleware);
-
-// Dashboards are readable anonymously only when public; not-public dashboards
-// require an authenticated user. Run Clerk here so the route can READ the
-// session: clerkMiddleware populates auth without rejecting anonymous requests.
-//@ts-ignore - Clerk middleware types not fully compatible with Hono
-app.use("/api/d/*", authMiddleware);
-
-// Public routes (no auth required) - must be before authMiddleware
-app.route("/", routesPublicDashboard);
-
 // OAuth discovery for /mcp (PLAN_MCP_OAUTH). These are what a connector reads
 // BEFORE it has any credential, so they must sit ahead of the global Clerk
 // middleware: behind it they 401 and the Connect button spins forever.
 app.route("/", routesOAuthMetadata);
 
-// Serve SPA HTML for public dashboard routes (before auth)
+// The unlisted /access-tokens SPA route (PAT panel) needs a pre-auth HTML
+// serve: there is NO general SPA fallback (unknown paths 302 to "/"), and the
+// Clerk middleware would 401 a logged-out navigation. The page itself is the
+// public SPA bundle; LoggedInWrapper gates it client-side and every PAT route
+// stays server-gated.
 try {
   const indexHtml = Deno.readTextFileSync("./client_dist/index.html");
-  // These two shell serves are registered ahead of cacheMiddleware, so they
-  // never reach its no-cache branch for HTML: they set it themselves. Same
+  // Registered ahead of cacheMiddleware, so it never reaches that
+  // middleware's no-cache branch for HTML: it sets the header itself. Same
   // reason as there: a heuristically cached shell pins the browser to the
   // previous build's immutable bundles.
-  const serveShell = (c: Context) => {
+  app.get("/access-tokens", (c: Context) => {
     c.header("Cache-Control", "no-cache, must-revalidate");
     return c.html(indexHtml);
-  };
-  app.get("/d/:slug", serveShell);
-  // The unlisted /access-tokens SPA route (PAT panel) needs the same
-  // pre-auth HTML serve: there is NO general SPA fallback (unknown paths
-  // 302 to "/"), and the Clerk middleware would 401 a logged-out
-  // navigation. The page itself is the public SPA bundle; LoggedInWrapper
-  // gates it client-side and every PAT route stays server-gated.
-  app.get("/access-tokens", serveShell);
+  });
 } catch {
   // In development, handled by Vite dev server
 }
@@ -203,13 +152,9 @@ app.route("/", routesHealth);
 app.route("/", routesInstance);
 app.route("/", routesInstanceSSE);
 app.route("/", routesUsers);
-app.route("/", routesProject);
-app.route("/", routesProjectSSEV2);
-app.route("/", routesProjectCollab);
 app.route("/", routesCollab);
 app.route("/", routesStructure);
 app.route("/", routesRunGeneration);
-app.route("/", routesBackups);
 app.route("/", routesAssets);
 app.route("/", routesGeoJsonMaps);
 app.route("/", routesPopulation);
@@ -222,13 +167,7 @@ app.route("/", routesIceh);
 app.route("/", routesIndicators);
 app.route("/", routesIndicatorsDhis2);
 app.route("/", routesInstanceModules);
-app.route("/", routesModules);
-app.route("/", routesProjectResultsPackage);
-app.route("/", routesDashboards);
-app.route("/", routesPresentationObjects);
-app.route("/", routesVisualizationFolders);
 app.route("/", routesEmails);
-app.route("/", routesCacheStatus);
 app.route("/", routesProducts);
 app.route("/", routesFolders);
 app.route("/", routesProductSlideDecks);
@@ -297,7 +236,7 @@ if (_IS_DEV) {
 // frame, or any other un-awaited async path, must never take down this
 // multi-tenant server. The known Yjs crash vectors are guarded at their source
 // (server/collab/doc_rooms.ts); these handlers are defense-in-depth so an
-// unforeseen throw degrades one request instead of every project. Both log
+// unforeseen throw degrades one request instead of every user. Both log
 // loudly so nothing is silently swallowed. Registered AFTER startup so a failed
 // dbStartUp/valkey/route-validation still crashes fast rather than limping on.
 globalThis.addEventListener("unhandledrejection", (e) => {

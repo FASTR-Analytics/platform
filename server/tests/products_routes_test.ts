@@ -114,7 +114,6 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
       can_configure_settings: false,
       can_configure_data: false,
       can_view_data: false,
-      can_create_projects: false,
     },
     unlimitedAi: false,
   };

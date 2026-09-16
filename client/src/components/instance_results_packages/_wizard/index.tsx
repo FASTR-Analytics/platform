@@ -43,8 +43,8 @@ const HEADING = {
 // pattern): choose data, configure modules, confirm + launch. All state is
 // client-local until launch sends the whole configuration in one body;
 // nothing persists server-side before that, so abandoning the modal is a
-// no-op by construction. Generation is an instance-level act, so the wizard
-// has no project context. On launch the run owns its whole lifecycle and
+// no-op by construction. Generation is an instance-level act that repoints
+// no product. On launch the run owns its whole lifecycle and
 // progress arrives over instance SSE on the Results packages surface.
 export function ResultsPackageWizard(
   p: AlertComponentProps<Record<never, never>, string>,
@@ -202,9 +202,6 @@ function WizardInner(p: InnerProps) {
       pt: "Pacote de resultados",
     })} ${new Date().toISOString().slice(0, 10)}`,
   );
-  const [attachTargets, setAttachTargets] = createStore<
-    Record<string, boolean>
-  >({});
 
   const stepperData = createMemo(() => ({
     dataValid: families.hmis || families.hfa || families.iceh,
@@ -250,13 +247,9 @@ function WizardInner(p: InnerProps) {
           }),
         };
       }
-      const targets = unwrap(attachTargets);
       const values = unwrap(paramValues);
       return await serverActions.launchRunGeneration({
         label: trimmed,
-        attachTargetProjectIds: instanceState.projects
-          .filter((project) => targets[project.id] === true)
-          .map((project) => project.id),
         step1Result: { ...unwrap(families) },
         step2Result: {
           gitRef: p.options.gitRef,
@@ -343,8 +336,6 @@ function WizardInner(p: InnerProps) {
             chosenModuleIds={chosen().map((o) => o.id)}
             label={label()}
             setLabel={setLabel}
-            attachTargets={attachTargets}
-            setAttachTarget={(id, v) => setAttachTargets(id, v)}
           />
           <StateHolderFormError state={launch.state()} />
         </Show>

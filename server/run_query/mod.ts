@@ -10,13 +10,7 @@ export {
   duckDbTypeForDeclaredColumnType,
   writeNormalizedResultsObjectParquet,
 } from "./write_results_object_parquet.ts";
-export {
-  deriveVirtualDefaults,
-  findVirtualDefault,
-  getAllPresentationObjectsWithVirtualDefaults,
-  getAttachedManifestOrNull,
-  VIRTUAL_DEFAULT_LAST_UPDATED,
-} from "./virtual_defaults.ts";
+export { deriveVirtualDefaults } from "./virtual_defaults.ts";
 export { buildRunAuthoringContext } from "./authoring_context.ts";
 export {
   readRunItems,
@@ -37,13 +31,11 @@ export {
   getModuleSummariesFromManifest,
   getModuleWithConfigSelectionsFromManifest,
   getPossibleValuesFromRun,
-  getPresentationObjectDetailFromRun,
   getPresentationObjectItemsFromRun,
   getRawPeriodBoundsFromRun,
   getReadyRunReadContext,
   getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
-  getRunReadContext,
   getRunReadContextForRun,
   getRunVersionInfo,
   moduleHasRun,

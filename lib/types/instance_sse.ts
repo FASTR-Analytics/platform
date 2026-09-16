@@ -5,8 +5,7 @@ import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
 import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceFiscalYear, OtherUser, StructureFamilyCounts, StructureSchema } from "./instance.ts";
-import type { ProjectSummary } from "./projects.ts";
-import type { ProductLastUpdateTableName } from "./last_updated_tables.ts";
+import type { LastUpdateTableName } from "./last_updated_tables.ts";
 import type { Folder, ProductSummary } from "./products.ts";
 import type {
   InstancePopulationSummary,
@@ -47,9 +46,7 @@ export type InstanceState = {
   aiContext: string;
 
   // Lists (sent as full arrays on change)
-  projects: ProjectSummary[];
-  projectsLastUpdated: string;
-  // The product plane (PLAN_PRODUCTS_RESTRUCTURE D8), withheld from an
+  // The product plane, withheld from an
   // unapproved connection by the same roster rule as `users`. `products` is
   // maintained PER ROW (`products_upserted` / `products_deleted`), never as
   // a whole-list broadcast; `folders` rides whole on `folders_updated`;
@@ -61,15 +58,14 @@ export type InstanceState = {
   products: ProductSummary[];
   folders: Folder[];
   readyPackages: ReadyPackage[];
-  lastUpdated: Record<ProductLastUpdateTableName, Record<string, string>>;
+  lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
   // [] for an unapproved connection (its user absent from the roster), in
   // the starting payload and every users_updated, until a roster names them
   //: routesInstanceSSE / buildInstanceState.
   users: OtherUser[];
   assets: AssetInfo[];
   geojsonMaps: GeoJsonMapSummary[];
-  // Per-user, the `projects` pattern (Q-B: run labels must not fan out).
-  // Filled at build for can_configure_data / global-admin callers ([] for
+  // Per-user (Q-B: run labels must not fan out). Filled at build for can_configure_data / global-admin callers ([] for
   // everyone else); after that, `runs_catalog_updated` broadcasts only a
   // data-free nonce and each entitled client refetches via listRunCatalog,
   // whose route guard is evaluated per request: so grants/revocations take
@@ -82,12 +78,11 @@ export type InstanceState = {
   runsCatalog: RunCatalogItem[];
   runsCatalogSignal: string;
   // The at-most-one package the instance blesses (SYSTEM_08 "The pinned
-  // package + followers"); null = nothing pinned. The ONE field every
-  // Pinned badge derives from (catalogue, project card, picker). Broadcast
-  // to EVERY client (unlike runsCatalog): a bare run id is not sensitive,
-  // a project member already sees the id of the package their project
-  // serves from, and the project tab needs it for editors without
-  // can_configure_data.
+  // package"); null = nothing pinned. The ONE field every Pinned badge
+  // derives from (catalogue, product settings). Broadcast to EVERY client
+  // (unlike runsCatalog): a bare run id is not sensitive, every approved user
+  // already sees the ids of the packages products serve from, and creating a
+  // product needs it without can_configure_data.
   pinnedRunId: string | null;
 
   // Summaries (lightweight aggregates)
@@ -152,9 +147,8 @@ export type InstanceConfig = {
   structureSchemaHfa: StructureSchema | null;
   adminAreaLabels: InstanceConfigAdminAreaLabels;
   dhis2ConnectionUrl: string | null;
-  // The one instance-level copilot grounding blob (PLAN_PRODUCTS_RESTRUCTURE
-  // D15), edited on the settings page behind can_configure_settings. "" when
-  // unset; it replaced the per-project ai_context.
+  // The one instance-level copilot grounding blob, edited on the settings
+  // page behind can_configure_settings. "" when unset.
   aiContext: string;
 };
 
@@ -204,13 +198,12 @@ export type InstanceDatasetsSummary = {
 // from each `users_updated` passing through the forward loop, so grants and
 // revocations take effect without a reconnect. Per-message filtering is
 // acceptable ONLY because these are ephemeral telemetry: durable per-user
-// state (`runsCatalog`, `projects`) instead broadcasts a data-free signal
+// state (`runsCatalog`) instead broadcasts a data-free signal
 // and lets each client fetch its own view through a per-request-guarded
 // route. `pinned_run_updated` is neither: a plain unfiltered broadcast of a
 // bare run id (see `pinnedRunId`), the same class as `config_updated`.
-// This is the ONLY channel generation telemetry rides: a project is
-// attached only once a run is ready, so it has no live view to feed (C2
-// ruling, 2026-08-16: the per-attach-target project copies were deleted).
+// This is the ONLY channel generation telemetry rides: a product points only
+// at a ready run, so it has no live view to feed.
 export type InstanceSseMessage =
   | { type: "starting"; data: InstanceState }
   | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
@@ -219,11 +212,9 @@ export type InstanceSseMessage =
       data: { runId: string; moduleId: string; text: string };
     }
   | { type: "config_updated"; data: InstanceConfig }
-  | { type: "projects_last_updated"; data: string }
-  // The product plane (D8), dropped for unapproved connections like the
-  // roster. `products_upserted` is the ONLY product-list message: per row,
-  // emitted by every product mutation route (and, from 7a, every collab
-  // checkpoint). `last_updated` carries `slides` only; a product's own stamp
+  // The product plane, dropped for unapproved connections like the roster.
+  // `products_upserted` is the ONLY product-list message: per row, emitted by
+  // every product mutation route and every collab checkpoint. `last_updated` carries `slides` only; a product's own stamp
   // rides its summary.
   | { type: "products_upserted"; data: { products: ProductSummary[] } }
   | { type: "products_deleted"; data: { ids: string[] } }
@@ -231,7 +222,7 @@ export type InstanceSseMessage =
   | {
       type: "last_updated";
       data: {
-        tableName: ProductLastUpdateTableName;
+        tableName: LastUpdateTableName;
         ids: string[];
         lastUpdated: string;
       };

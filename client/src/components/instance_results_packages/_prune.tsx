@@ -199,7 +199,7 @@ function ConfirmBody(p: { plan: PrunePlan }) {
             note:
               reason === "in_use"
                 ? `${t3(KEEP_REASON_LABEL.in_use)} ${
-                    run.attachedProjects.map((pr) => pr.label).join(", ")
+                    run.attachedProducts.map((pr) => pr.label).join(", ")
                   }`
                 : t3(KEEP_REASON_LABEL[reason]),
           }))}

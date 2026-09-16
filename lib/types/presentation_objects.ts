@@ -36,55 +36,6 @@ export function isDisaggregationOption(s: string): s is DisaggregationOption {
   return (ALL_DISAGGREGATION_OPTIONS as readonly string[]).includes(s);
 }
 
-export type PresentationObjectSummary = {
-  id: string;
-  metricId: string;
-  label: string;
-  isDefault: boolean;
-  replicateBy: DisaggregationOption | undefined;
-  isFiltered: boolean;
-  type: PresentationOption;
-  disaggregateBy: DisaggregationOption[];
-  filterBy: { disOpt: DisaggregationOption; values: (string | number)[] }[];
-  createdByAI: boolean;
-  folderId: string | null;
-  sortOrder: number;
-  lastUpdated: string;
-};
-
-export type PresentationObjectInReportInfo = {
-  id: string;
-  metricId: string;
-  isDefault: boolean;
-  replicateBy: DisaggregationOption | undefined;
-  selectedReplicantValue: string;
-};
-
-// The authored row plus its resolved resultsValue: what the visualization
-// editor and its panels work on. The create/ephemeral editors synthesize one
-// with no run behind it, which is why it carries no run identity.
-export type PresentationObjectEditorDetail = {
-  id: string;
-  projectId: string;
-  lastUpdated: string;
-  label: string;
-  resultsValue: ResultsValue;
-  config: PresentationObjectConfig;
-  isDefault: boolean;
-  folderId: string | null;
-};
-
-// The served detail: the editor detail plus the run identity it was resolved
-// under.
-export type PresentationObjectDetail = PresentationObjectEditorDetail & {
-  // The run resultsValue was resolved from: folded into the po_detail cache
-  // version (PLAN_RESULTS_RUNS §2.5).
-  runId: string;
-  // The project scope the payload was computed under (projectScopeToken):
-  // folded into cache versions beside runId (PLAN_1_PROJECT_AA2_SCOPE §4).
-  scopeToken: string;
-};
-
 export type PeriodBounds = {
   min: number;
   max: number;
@@ -121,7 +72,7 @@ export type ResultsValueInfoForPresentationObject = {
   datasetFamily?: DatasetType;
   // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
   runId: string;
-  // See PresentationObjectDetail.scopeToken.
+  // See ItemsHolderPresentationObject.scopeToken.
   scopeToken: string;
   periodBounds?: PeriodBounds;
   disaggregationPossibleValues: {
@@ -151,7 +102,7 @@ export type RunReplicantOptions =
     fetchConfig: GenericLongFormFetchConfig;
     // See ItemsHolderPresentationObject.runId (PLAN_RESULTS_RUNS §2.5).
     runId: string;
-    // See PresentationObjectDetail.scopeToken.
+    // See ItemsHolderPresentationObject.scopeToken.
     scopeToken: string;
   }
   & (
@@ -170,11 +121,6 @@ export type RunReplicantOptions =
       message: string;
     }
   );
-
-// The project lens's response: the same payload stamped with the project id.
-export type ReplicantOptionsForPresentationObject =
-  & { projectId: string }
-  & RunReplicantOptions;
 
 export const VIZ_TYPE_CONFIG: Record<
   PresentationOption,
@@ -482,12 +428,6 @@ export type {
   CustomSeriesStyle,
   PresentationObjectConfig,
 } from "./_presentation_object_config.ts";
-
-export type CreateModeVisualizationData = {
-  label: string;
-  resultsValue: PresentationObjectDetail["resultsValue"];
-  config: PresentationObjectConfig;
-};
 
 const TIME_DISAGGREGATIONS: DisaggregationOption[] = [
   "period_id",

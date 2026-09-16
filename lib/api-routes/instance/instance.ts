@@ -3,11 +3,7 @@ import {
   instanceConfigAdminAreaLabelsSchema,
   structureSchemaSchema,
 } from "../../types/mod.ts";
-import type {
-  InstanceDetail,
-  InstanceMeta,
-  ProjectSummary,
-} from "../../types/mod.ts";
+import type { InstanceDetail, InstanceMeta } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 export const instanceRouteRegistry = {
@@ -20,11 +16,6 @@ export const instanceRouteRegistry = {
     path: "/instance",
     method: "GET",
     response: {} as InstanceDetail,
-  }),
-  getMyProjects: route({
-    path: "/my_projects",
-    method: "GET",
-    response: {} as ProjectSummary[],
   }),
   updateStructureSchema: route({
     path: "/update_structure_schema",

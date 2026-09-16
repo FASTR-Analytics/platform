@@ -54,10 +54,7 @@ export async function deleteRun(
 // Disk reclamation, not correctness (Q-D ruling): TimCacheC entries carry a
 // 15–30 day TTL and `get` compares version hashes, so a dead run's entries
 // are never served either way. The three caches below fold runId into their
-// UNIQUENESS hash, so they can be scanned by prefix; `po_detail` folds it
-// into its VERSION hash instead and is deliberately left to expire: its
-// entries are version-dead the moment the run goes, and re-keying it purely
-// to reclaim them would cost a cache-prefix bump.
+// UNIQUENESS hash, so they can be scanned by prefix.
 async function purgeRunCaches(runId: string): Promise<void> {
   const [poItems, metricInfo, replicantOpts] = await Promise.all([
     _PO_ITEMS_CACHE.scanUniquenessHashes(`${runId}|`),
