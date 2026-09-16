@@ -1858,7 +1858,13 @@ deleted; `ProductLastUpdateTableName` becomes the only union, renamed
 comments, `anthropic_messages_proxy.ts` and `ai_usage_logs.ts` without
 projectId, `lib/types/collab.ts` (`po_*` and `project_awareness_update`),
 `server/collab/po_rooms.ts`, `server/collab/presence_registry.ts`
-(`relayProjectAwareness`), `project-collab.ts`. D4 closed:
+(`relayProjectAwareness`), `project-collab.ts`, `server/routes/project/ai_proxy.ts`
+(imported nowhere), the dead report-list symbols in `lib/types/reports.ts`
+(`ReportGroupingMode`, `ReportFolder`, `ReportPreviewLine`, `ReportPreview`,
+`ReportSummary`, `buildReportPreview`), and the `mod.ts` barrels
+(`server/db/mod.ts` star-exports `db/products/mod.ts` once the project
+layer's colliding names are gone; the other gaps are SYSTEM_02's Open item).
+D4 closed:
 `scope` and `provenance.runId` required; the `getRollupRowLabel` fallback
 and the staleness missing-field branch removed. SYSTEM_00, SYSTEM_01,
 SYSTEM_02, SYSTEM_03, SYSTEM_05, SYSTEM_08, SYSTEM_15, SYSTEM_16, SYSTEM_17
