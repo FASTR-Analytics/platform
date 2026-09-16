@@ -209,7 +209,7 @@ REFERENCES products(id, type)`, so a row can exist only in the detail table
 its registry type names (Tim's ruling, 2026-09-08). Existence of the detail
 row is not schema-enforced; it is the one-transaction rule on every writer
 that creates a product (`createProduct`, `duplicateProduct`, the two
-`copy*Version` routes, 085). Rejected:
+`copy*Version` routes, 091). Rejected:
 two independent tables each carrying folder, run and scope (every cross-type
 operation becomes a UNION); a hidden "workspace" project DB; flat folders
 (the first attempt ruled flat, built nested a day later, and the nested model
@@ -440,17 +440,16 @@ helper it calls, goes through the migration `tx`. Source project pools are
 opened fresh and read-only (`getPgConnection(uuid, {max: 2})`, `.end()` in
 `finally`, the `rename_user_email.ts` precedent) after a `pg_database`
 existence check through `tx`. `validate_migrations` globs `*.sql` and
-ignores `.ts` files by construction. Instance migrations 079 to 083 are
-shipped, so the numbers below assume 084 is the next free one when step 1
-lands; if another migration lands first, take the next free number and
-record it in §9.
+ignores `.ts` files by construction. The numbers below are the current
+ones: main's instance migrations run through 089, so the products migration
+is 090 and the staged pair 091 and 092 (§9 records the two renumbers).
 
-- `084_products.sql` (step 1): the §3.1 DDL in `CREATE ... IF NOT EXISTS`
+- `090_products.sql` (step 1): the §3.1 DDL in `CREATE ... IF NOT EXISTS`
   form, additive, including `folders.parent_id`. Nothing reads these tables
   until step 5. Safe to ship on its own.
 - `000_legacy_project_shell.sql` (authored in step 2, activated in 9b):
   `CREATE TABLE IF NOT EXISTS` for `projects` (the full pre-restructure DDL;
-  085 SELECTs these columns and runs on a fresh DB too) and
+  091 SELECTs these columns and runs on a fresh DB too) and
   `project_user_roles` (plus its two indexes), PLUS `ALTER TABLE ... ADD
   COLUMN IF NOT EXISTS project_id text` on `user_logs`, `ai_usage_logs`,
   `user_logs_aggregate` (no FK). The base no longer has those columns, but
@@ -458,7 +457,7 @@ record it in §9.
   `CREATE TABLE IF NOT EXISTS` does nothing on an existing table, Postgres
   still resolves the index expression, so the column must be present
   (verified, Appendix A).
-- **`085_consolidate_projects.ts`** (authored in step 2, activated in 9b).
+- **`091_consolidate_projects.ts`** (authored in step 2, activated in 9b).
   For each `main.projects` row with `status = 'ready'` (skip `copying`; skip
   rows whose DB is absent; D11 for `pending_deletion`) it does the following,
   in one main transaction:
@@ -486,7 +485,7 @@ record it in §9.
   `dashboard_items` and `dashboard_item_groups` are not read. They are
   deleted with the project DBs; the dry-run reports their counts before the
   deploy, so the loss is quantified in advance.
-- `086_drop_project_layer.sql` (authored in step 2, activated in 9b): never
+- `092_drop_project_layer.sql` (authored in step 2, activated in 9b): never
   `DELETE FROM projects` (its
   `ON DELETE CASCADE` children would wipe the logs); `DROP COLUMN IF EXISTS
   project_id` on the three log tables; rebuild `idx_user_logs_aggregate_unique`
@@ -609,7 +608,7 @@ repeated here.
   after settling.
 
 **D13: Gate the consolidation with a read-only fleet dry-run** that shares
-the planning code with 085: `planConsolidation(...)` produces the inserts
+the planning code with 091: `planConsolidation(...)` produces the inserts
 and remaps; the migration executes them and the dry-run only reports them.
 Per instance it reports:
 
@@ -759,7 +758,7 @@ last commit (the CLAUDE.md rule that a finished plan is deleted).
 
 ### 3.1 Data model (main DB; base schema `_main_database.sql` = final state)
 
-The products block, as `084_products.sql` creates it (in `IF NOT EXISTS`
+The products block, as `090_products.sql` creates it (in `IF NOT EXISTS`
 form) and as the base schema carries it. This is the reference branch's
 final DDL with nesting folded in; the two version tables keep their current
 shape with FKs repointed.
@@ -1126,8 +1125,8 @@ adminArea2: string | null }` and `provenance.runId: string` (optional from
 step 4, required from step 9b; D4). Every assembly site
 (`resolve_figure_from_metric.ts`, `resolve_bundle_from_metric_and_config.ts`,
 the T2 figure-data cache) captures the two fields on write from the
-product's PackageScope, or, until 7a, the project's. 085 stamps them into
-live AND version tables from the owning project row; anything 085 misses is
+product's PackageScope, or, until 7a, the project's. 091 stamps them into
+live AND version tables from the owning project row; anything 091 misses is
 caught later by the normal missing-key parse failure, so no separate
 skip-gate is needed. The stale predicate and the update action live in
 `generate_visualization/figure_staleness.ts` (pure:
@@ -1139,19 +1138,19 @@ roll-up label. Bundles are stored, not cached, so no Valkey prefix moves.
 
 - `server/db/migrations/runner.ts`: `.ts` migrations via a literal-keyed
   static import map (step 2); project mode deleted (step 9b).
-- `server/db/migrations/instance/084_products.sql` (step 1);
-  `000_legacy_project_shell.sql`, `085_consolidate_projects.ts`,
-  `086_drop_project_layer.sql` (authored in step 2 under
+- `server/db/migrations/instance/090_products.sql` (step 1);
+  `000_legacy_project_shell.sql`, `091_consolidate_projects.ts`,
+  `092_drop_project_layer.sql` (authored in step 2 under
   `server/db/migrations/consolidation/staged/`, which the runner does not
   scan; moved into `instance/` and registered in 9b).
 - `server/db/migrations/consolidation/plan.ts` (step 2): the shared planning
   core (reads a project DB, produces the insert set, id remap, folder plan,
-  bundle stamps, ai_context concatenation and the dropped-row counts); 085
+  bundle stamps, ai_context concatenation and the dropped-row counts); 091
   executes it, the dry-run reports it. It carries a frozen copy of the
   project-DB row types it reads, copied from `version2`'s
   `_project_database_types.ts`, not the reference's.
 - `server/db/migrations/consolidation/execute.ts` (step 2):
-  `consolidateProjects(tx)`, the function 085 registers; opens each source
+  `consolidateProjects(tx)`, the function 091 registers; opens each source
   pool read-only, asserts the source migration id, calls the planner and
   applies the plan through `tx`. The reference's worked answer is the body
   of its `080_consolidate_projects.ts`.
@@ -1228,7 +1227,7 @@ parallel.
 
 | Step | Name | Depends on | Ships alone? | The one thing it proves |
 | --- | --- | --- | --- | --- |
-| 1 | Additive products schema | none | yes | 084 applies on every fleet shape |
+| 1 | Additive products schema | none | yes | 090 applies on every fleet shape |
 | 2 | Consolidation planner, fleet dry-run, `.ts` runner | 1 | yes | the fleet's blast radius is known |
 | 3 | Run-keyed reads with scope, and the authoring context | none | no | scope is a parameter on each read, with no project wrapper required |
 | 4 | FigureBundle scope and runId, staleness, the update action | 3 | no | every stored figure records its own run and scope |
@@ -1238,7 +1237,7 @@ parallel.
 | 7b | The product explorer | 7a | no | the Products page navigates nested folders |
 | 8 | Copilot remount | 7b | no | one mount per open product, env fixed to it |
 | 9a | Client strip | 8 | no | the client has no project |
-| 9b | Server strip and consolidation | 9a, 2 | no | the server has no project; 085 runs on dev |
+| 9b | Server strip and consolidation | 9a, 2 | no | the server has no project; 091 runs on dev |
 | 10 | Ops scripts, docs read-through, close | 9b | no | the repo reads as written today |
 
 Format of each step below: **Surface** (the files and areas it may touch;
@@ -1271,7 +1270,7 @@ early.
 
 ### Step 1: Additive products schema
 
-**Surface.** `server/db/migrations/instance/084_products.sql`;
+**Surface.** `server/db/migrations/instance/090_products.sql`;
 `server/db/instance/_main_database.sql` (products block added, nothing
 removed); `server/db/instance/_main_database_types.ts` (row types for the
 new tables); `lib/types/products.ts` (`ProductType`, `PRODUCT_TYPES`,
@@ -1284,16 +1283,15 @@ globs and prose for the new tables and types.
 **Deliverable.** The §3.1 DDL, additive, `IF NOT EXISTS` throughout,
 including `folders.parent_id`, `folders.created_by`, `folders.created_at`
 and every index. The migration number is the
-next free one; if it is not 084, record it in §9 and use the recorded
-number everywhere this plan says 084.
+next free one at the time of shipping.
 
 **Not in this step.** Anything that reads or writes the new tables. The
 runner's `.ts` support (step 2). Any change to `projects` or its columns.
 
 **Gates.** `./validate_migrations`. A fresh-postgres boot (`db_startup`
 against an empty database) exits 0. The historical-shape replay described
-in Appendix A, re-run for 084 alone: the seven fleet-shape bases plus their
-migrations plus 084 apply with zero statement errors.
+in Appendix A, re-run for 090 alone: the seven fleet-shape bases plus their
+migrations plus 090 apply with zero statement errors.
 
 **Reference.** Commits 1c5acebc, caaa2666. Files:
 `server/db/migrations/instance/079_products.sql`,
@@ -1313,7 +1311,7 @@ empty until 9b); `server/db/migrations/consolidation/plan.ts`
 source is at `041_drop_frozen_results_plane`, calls the planner, applies the
 plan through `tx`); the three staged migration files under
 `server/db/migrations/consolidation/staged/` (`000_legacy_project_shell.sql`,
-`085_consolidate_projects.ts`, `086_drop_project_layer.sql`), which the
+`091_consolidate_projects.ts`, `092_drop_project_layer.sql`), which the
 runner does not scan and step 9b moves into `instance/`;
 `validate_consolidation.ts` at the repo root (`--local` against the dev DB,
 fleet mode through the `PROTOCOL_ACCESS_DBS` path, `--json` output for the
@@ -1322,24 +1320,24 @@ throwaway-postgres harness, mirroring `validate_migrations`);
 PROTOCOL_APP_MIGRATIONS (the `.ts` migration rules); SYSTEM_02 globs and
 prose.
 
-**Deliverable.** Everything D9 and D13 describe for 085, the planner and the
+**Deliverable.** Everything D9 and D13 describe for 091, the planner and the
 dry-run, executable end to end in a throwaway database, with the live
 migration files staged but not active. The planner's frozen row types are
 copied from `version2`'s `_project_database_types.ts`. The folder plan is
 D10's nested shape. The dry-run report per instance lists what D13 names.
 
 **Not in this step.** Placing any file in `migrations/instance/` other than
-084. Any change to `db_startup.ts`. Any product read or write in the app.
+090. Any change to `db_startup.ts`. Any product read or write in the app.
 
 **Gates.** `deno check server/db/migrations/consolidation/**/*.ts` on top of
 the typecheck. `validate_consolidation_replay` green, which means three
 things. (a) A throwaway postgres is seeded with the pre-restructure base,
 all current instance migrations, and two project databases seeded
 byte-identically (the `WITH TEMPLATE` case), each holding at least one
-figure in a live table and one in a version snapshot. Run through 000, 084,
-085 and 086, it ends with: folders nested per D10; every id collision
+figure in a live table and one in a version snapshot. Run through 000, 090,
+091 and 092, it ends with: folders nested per D10; every id collision
 re-minted and the full reference surface rewritten; all four figure surfaces
-stamped; and a schema dump byte-identical to "fresh base plus 084 plus 086".
+stamped; and a schema dump byte-identical to "fresh base plus 090 plus 092".
 (b) A second database seeded with users carrying `default_project_*` flags,
 logs with `project_id`, and aggregate rows that differ only by `project_id`
 comes out with logs and users preserved and the aggregate rows merged. (c)
@@ -1831,7 +1829,7 @@ products; tours; copy sweep).
 ### Step 9b: Server strip and consolidation
 
 **Surface.** The D12 step 9b list. The staged migrations moved from
-`migrations/consolidation/staged/` into `migrations/instance/` and 085
+`migrations/consolidation/staged/` into `migrations/instance/` and 091
 registered in `TS_MIGRATIONS`. `_main_database.sql` final (projects,
 `project_user_roles`, `dashboard_slugs`, the 18 user columns, the three
 `project_id` columns and their indexes removed; `idx_user_logs_aggregate_unique`
@@ -1874,7 +1872,7 @@ deletion (10).
 
 **Gates.** `./validate_migrations` (main only). `./validate_queries`.
 `validate_consolidation_replay` green with the files in their final places.
-A fresh-postgres boot (000 through 086 plus transforms) exits 0. The dev DB
+A fresh-postgres boot (000 through 092 plus transforms) exits 0. The dev DB
 consolidated by `./run`: the products, folders, slides and versions counts
 match the step 2 `--local` plan exactly; a report and a deck version restore
 on a migrated product; a migrated AA2 product's export labels its roll-up
@@ -1940,7 +1938,7 @@ step that first reaches zero is named, and every later step keeps it there.
    (excluding "projection"). 9a.
 4. `grep -rni "project" client/src lib server main.ts client/public/info |
    grep -vi "projection"` reviewed to zero outside `server/db/migrations/**`
-   (000, 085, 086 and `consolidation/plan.ts` necessarily say it). Known
+   (000, 091, 092 and `consolidation/plan.ts` necessarily say it). Known
    residue excluded: `lib/help/help_targets.generated.ts` until the docs
    site rewrite. 9b.
 5. `git ls-files | grep -i "project\|dashboard"` at zero excluding
@@ -1948,7 +1946,7 @@ step that first reaches zero is named, and every later step keeps it there.
 6. `validate_consolidation_replay` green (step 2; re-run in 9b).
 7. `validate_consolidation.ts` zero FAIL fleet-wide, counts reviewed (D2,
    D3, D11). Step 2 onward; a precondition of the runbook, not of any step.
-8. 085 executed against the dev DB with counts matching the `--local` plan
+8. 091 executed against the dev DB with counts matching the `--local` plan
    (9b).
 9. Fresh-postgres boot exit 0 (1, 2, 9b).
 10. `./mcp_probe` output byte-identical to the pre-step-3 baseline (3, 9b).
@@ -1960,7 +1958,7 @@ step that first reaches zero is named, and every later step keeps it there.
 Everything here needs real infrastructure and is Tim's to trigger. Steps 1
 and 2 of the plan ship early; everything else ships once, after step 10.
 
-1. **After plan steps 1 and 2:** ship 084, the runner support and the
+1. **After plan steps 1 and 2:** ship 090, the runner support and the
    dry-run tooling on a normal release. Run `validate_consolidation.ts`
    fleet-wide; fix and repeat until zero FAIL. Act on the `pending_deletion`
    and central-reporting lists (D11). Read the dropped-visualization,
@@ -1972,7 +1970,7 @@ and 2 of the plan ship early; everything else ships once, after step 10.
 3. Coordinate the status-api field changes (§7) before the fleet deploy.
 4. Take a named status-api backup of every instance immediately before
    rollout (`main` dump plus previous image = rollback; the previous image
-   cannot boot after 086 without that dump). Rehearse `restore_main` on
+   cannot boot after 092 without that dump). Rehearse `restore_main` on
    testing-tim.
 5. `./deploy_testing` to testing-tim from `version2` after step 10 (it
    ships the working tree; check `git status`); verify products, folders and
@@ -1985,12 +1983,12 @@ and 2 of the plan ship early; everything else ships once, after step 10.
 7. After the purge: delete `validate_consolidation.ts`,
    `validate_consolidation_replay`, `rollout_products`, `purge_legacy_dbs`
    (and `restore_main` unless kept as general ops tooling) in one commit.
-   `000`, `085`, `consolidation/plan.ts` and the runner's `.ts` support
+   `000`, `091`, `consolidation/plan.ts` and the runner's `.ts` support
    remain as migration history until the next base squash.
 8. External follow-ups (§7), at the points §7 marks.
 
 Rollback = `restore_main` from runbook item 4 plus the previous image;
-project DBs are still on disk, untouched by 085.
+project DBs are still on disk, untouched by 091.
 
 ---
 
@@ -2051,7 +2049,7 @@ project DBs are still on disk, untouched by 085.
 - A dead-glob check in `lint_systems.ts`.
 - Folding `./validate_queries` into `deno task typecheck` now that it runs
   in seconds.
-- The next base squash that retires `000`, `085` and the `.ts` runner.
+- The next base squash that retires `000`, `091` and the `.ts` runner.
 - Reworking the other `PLAN_*.md` files for the product world.
 
 ---
@@ -2349,7 +2347,7 @@ this section before its step.
 | 2026-09-11 | 9a | Review 9a, third pass. Session start: `client/package-lock.json` modified exactly as the 9a build log row records (npm's `"peer": true` flags), left untouched and uncommitted. Commit 1ca75f51 read against the second review's finding 1, with the gates run by the reviewer: `deno task typecheck` (server, client, `lint:systems` with every one of 814 tracked files claimed once), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the §5 greps 1 to 3 restricted per the step (zero outside the residue the build log records), `deno task test` 36 passed and the same 2 pre-existing failures (`products_routes_test`, `m012_expression_parity_test`), dev boot on port 8010 through DB startup, 286 routes and 3 headless mounts to the same abort at `runServerTestSuiteOrExit`; the browser gates are Tim's. Surface: `onboarding/{catalogue,index}.ts`, `state/t4_ui.ts` (accepted by the second review) and SYSTEM_14. Finding 1 verified by reading the code: the four `page: "products"` rows read `isEditingView()`, one exported definition over `copilotViewController.current()` (a signal), shared by the manager's page predicate (`onboarding/index.ts:80`) and the modal's `available()` / `unavailableReason()` props (`tour_catalogue_modal.tsx:93-94`, tracked JSX); both editors clear the view on cleanup (`slide_deck/index.tsx:95-97`, `report/index.tsx:941-942`) and the shell unmounts the Products page on a tab switch (`Switch`/`Match`), so the predicate cannot read a dead editor; the other five tab rows navigate away from the editor and their page predicates do not read the view. No findings. |
 | 2026-09-11 | 9a | Step 9a reviewed: pass. |
 | 2026-09-11 | plan | Tim's ruling: migrations renumbered ahead of the tim-branch merge, which brings `084_population_reserved_words`, `085_ledger_skipped_values` and `086_indicator_sources` (deployed fleet-wide through 084; 085 and 086 on the dev database). `084_products.sql` is `087_products.sql`; the staged `085_consolidate_projects.ts` and `086_drop_project_layer.sql` are `088_consolidate_projects.ts` and `089_drop_project_layer.sql`; `000` stays. Every 084, 085 and 086 in this plan's text reads 087, 088 and 089. No fleet instance had `084_products` recorded (read-only sweep); the dev database's `084_products` ledger row was deleted so the next version2 boot records `087_products` (an `IF NOT EXISTS` no-op). Gates: `./validate_migrations`, `./validate_consolidation_replay`, `deno task typecheck`. |
-| 2026-09-16 | plan | Migrations renumbered again, ahead of the merge of main (1.73.1) into version2 (PLAN_MERGE_MAIN_INTO_VERSION2 step 1, D1): main now carries instance migrations 084 to 089, so `087_products.sql` is `090_products.sql`, and the staged `088_consolidate_projects.ts` and `089_drop_project_layer.sql` are `091_consolidate_projects.ts` and `092_drop_project_layer.sql`; `000` stays. Every 087, 088 and 089 in this plan's text reads 090, 091 and 092. The dev and testing databases already record `087_products`; `090_products` re-runs there as an `IF NOT EXISTS` no-op and the dead row stays. No other instance has seen either number. |
+| 2026-09-16 | plan | Migrations renumbered again, ahead of the merge of main (1.73.1) into version2 (PLAN_MERGE_MAIN_INTO_VERSION2 step 1, D1): main now carries instance migrations 084 to 089, so `087_products.sql` is `090_products.sql`, and the staged `088_consolidate_projects.ts` and `089_drop_project_layer.sql` are `091_consolidate_projects.ts` and `092_drop_project_layer.sql`; `000` stays. Every 087, 088 and 089 in this plan's text reads 090, 091 and 092. Neither the dev nor the testing database records `087_products` (dev was restored from a fleet dump, testing never ran it), so `090_products` applies fresh on both and no dead row exists. No other instance has seen either number. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 
@@ -2404,7 +2402,7 @@ ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS project_id text;
 ALTER TABLE user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;
 ```
 
-`086_drop_project_layer.sql`, verbatim (was 081):
+`092_drop_project_layer.sql`, verbatim (was 081):
 
 ```sql
 DO $$
