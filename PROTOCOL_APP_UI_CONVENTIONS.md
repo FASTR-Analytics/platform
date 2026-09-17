@@ -46,10 +46,10 @@ Today's app-level additions:
   aligned numeric columns.
 
 A third, runtime layer sits above both while the reskin is being chosen: the
-Theme modal (`client/src/state/t4_theme.ts`, S14) writes palette, radius,
+Theme modal (`client/src/state/t4_theme.ts`, S14) writes brand color, radius,
 density and text-scale tokens as inline properties on `<html>`. Its default
-writes nothing, so the two CSS files remain the source of truth for the shipped
-look.
+reproduces the shipped look, except that ramps pin their hover and active
+states; the two CSS files remain the source of truth for what ships.
 
 ## Dark mode
 

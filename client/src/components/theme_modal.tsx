@@ -12,29 +12,78 @@ import {
   theme,
   THEME_RADII,
   type Theme,
+  type ThemeDarkPrimary,
   type ThemeDensity,
-  type ThemePalette,
+  type ThemeInk,
+  type ThemePrimary,
+  type ThemeRamp,
+  type ThemeStatus,
   type ThemeTextScale,
 } from "~/state/t4_theme";
 
-const PALETTE_ITEMS: { id: ThemePalette; label: string }[] = [
-  { id: "fastr", label: "FASTR" },
-  { id: "neutral", label: "Neutral" },
-  { id: "warm", label: "Warm" },
-  { id: "nord", label: "Nord" },
-  { id: "corporate", label: "Corporate" },
-  { id: "forest", label: "Forest" },
-];
+type Item<T extends string> = { id: T; label: string };
+
+function labelOf<T extends string>(items: Item<T>[], id: T): string {
+  return items.find((i) => i.id === id)?.label ?? id;
+}
 
 // Every change applies immediately, so the page behind the modal is the
 // preview. Done only closes; Reset returns every knob to the shipped look.
+// The summary line names the current combination so a reviewer can quote it.
 export function ThemeModal(p: AlertComponentProps<object, undefined>) {
   function update<K extends keyof Theme>(key: K, value: Theme[K] | undefined) {
     if (value === undefined) return;
     setTheme({ ...theme(), [key]: value });
   }
 
-  const densityItems: { id: ThemeDensity; label: string }[] = [
+  const rampItems: Item<ThemeRamp>[] = [
+    { id: "neutral", label: t3({ en: "Neutral", fr: "Neutre", pt: "Neutro" }) },
+    { id: "tone", label: "Tone" },
+    { id: "cool", label: t3({ en: "Cool", fr: "Froid", pt: "Frio" }) },
+  ];
+  const primaryItems: Item<ThemePrimary>[] = [
+    { id: "current", label: t3({ en: "Current", fr: "Actuel", pt: "Atual" }) },
+    {
+      id: "deep-green",
+      label: t3({ en: "Deep green", fr: "Vert profond", pt: "Verde profundo" }),
+    },
+    {
+      id: "logo-green",
+      label: t3({
+        en: "Logo green",
+        fr: "Vert du logo",
+        pt: "Verde do logótipo",
+      }),
+    },
+    { id: "blue", label: t3({ en: "Blue", fr: "Bleu", pt: "Azul" }) },
+    { id: "navy", label: t3({ en: "Navy", fr: "Marine", pt: "Azul-marinho" }) },
+  ];
+  const inkItems: Item<ThemeInk>[] = [
+    { id: "neutral", label: t3({ en: "Neutral", fr: "Neutre", pt: "Neutro" }) },
+    {
+      id: "deep-green",
+      label: t3({ en: "Deep green", fr: "Vert profond", pt: "Verde profundo" }),
+    },
+  ];
+  const statusItems: Item<ThemeStatus>[] = [
+    { id: "kit", label: t3({ en: "Default", fr: "Par défaut", pt: "Padrão" }) },
+    {
+      id: "brand-danger",
+      label: t3({
+        en: "Maroon danger",
+        fr: "Danger bordeaux",
+        pt: "Perigo bordô",
+      }),
+    },
+  ];
+  const darkPrimaryItems: Item<ThemeDarkPrimary>[] = [
+    {
+      id: "teal",
+      label: t3({ en: "Teal", fr: "Sarcelle", pt: "Verde-azulado" }),
+    },
+    { id: "sky", label: t3({ en: "Sky", fr: "Ciel", pt: "Céu" }) },
+  ];
+  const densityItems: Item<ThemeDensity>[] = [
     {
       id: "compact",
       label: t3({ en: "Compact", fr: "Compact", pt: "Compacto" }),
@@ -48,8 +97,7 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
       label: t3({ en: "Comfortable", fr: "Confortable", pt: "Confortável" }),
     },
   ];
-
-  const textScaleItems: { id: ThemeTextScale; label: string }[] = [
+  const textScaleItems: Item<ThemeTextScale>[] = [
     { id: "small", label: t3({ en: "Small", fr: "Petit", pt: "Pequeno" }) },
     {
       id: "default",
@@ -57,6 +105,18 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
     },
     { id: "large", label: t3({ en: "Large", fr: "Grand", pt: "Grande" }) },
   ];
+
+  const summary = () =>
+    [
+      labelOf(rampItems, theme().ramp),
+      labelOf(primaryItems, theme().primary),
+      labelOf(inkItems, theme().ink),
+      labelOf(statusItems, theme().status),
+      labelOf(darkPrimaryItems, theme().darkPrimary),
+      `${theme().radius} px`,
+      labelOf(densityItems, theme().density),
+      labelOf(textScaleItems, theme().textScale),
+    ].join(" / ");
 
   return (
     <ModalContainer
@@ -80,10 +140,47 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
     >
       <div class="ui-spy">
         <ButtonGroup
-          label={t3({ en: "Palette", fr: "Palette", pt: "Paleta" })}
-          items={PALETTE_ITEMS}
-          value={theme().palette}
-          onChange={(v) => update("palette", v)}
+          label={t3({
+            en: "Surface ramp",
+            fr: "Gamme de surfaces",
+            pt: "Gama de superfícies",
+          })}
+          items={rampItems}
+          value={theme().ramp}
+          onChange={(v) => update("ramp", v)}
+          fullWidth
+        />
+        <ButtonGroup
+          label={t3({
+            en: "Primary",
+            fr: "Couleur principale",
+            pt: "Cor principal",
+          })}
+          items={primaryItems}
+          value={theme().primary}
+          onChange={(v) => update("primary", v)}
+          fullWidth
+        />
+        <ButtonGroup
+          label={t3({
+            en: "Text ink",
+            fr: "Encre du texte",
+            pt: "Tinta do texto",
+          })}
+          items={inkItems}
+          value={theme().ink}
+          onChange={(v) => update("ink", v)}
+          fullWidth
+        />
+        <ButtonGroup
+          label={t3({
+            en: "Status colors",
+            fr: "Couleurs d'état",
+            pt: "Cores de estado",
+          })}
+          items={statusItems}
+          value={theme().status}
+          onChange={(v) => update("status", v)}
           fullWidth
         />
         <ButtonGroup
@@ -108,6 +205,17 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
           ]}
           value={schemePref()}
           onChange={(v) => v && setScheme(v)}
+          fullWidth
+        />
+        <ButtonGroup
+          label={t3({
+            en: "Dark mode primary",
+            fr: "Couleur principale en mode sombre",
+            pt: "Cor principal no modo escuro",
+          })}
+          items={darkPrimaryItems}
+          value={theme().darkPrimary}
+          onChange={(v) => update("darkPrimary", v)}
           fullWidth
         />
         <ButtonGroup
@@ -144,6 +252,7 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
           onChange={(v) => update("textScale", v)}
           fullWidth
         />
+        <div class="text-base-content-muted text-sm">{summary()}</div>
       </div>
     </ModalContainer>
   );

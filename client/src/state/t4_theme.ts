@@ -1,24 +1,32 @@
 import { createSignal } from "solid-js";
-import {
-  generateKeyColorsFromPrimary,
-  KEY_COLOR_THEMES,
-  type KeyColors,
-} from "panther";
 
 // Reskin prototype: a per-device look applied as inline custom properties on
-// <html>, which beat every stylesheet rule. The default theme sets nothing, so
-// the app renders exactly as app.css and panther's _fixed.css declare it.
+// <html>, which beat every stylesheet rule. Colors are always written, as
+// light-dark() pairs built from the GFF brand guidelines
+// (ENG_Branding Guidelines_Secretariat.pdf); rounding, density and text scale
+// write nothing at their default step, so those stay what _fixed.css declares.
 // Canvas figures keep their fixed key colors; only the HTML UI follows.
 
-export const THEME_PALETTES = [
-  "fastr",
-  "neutral",
-  "warm",
-  "nord",
-  "corporate",
-  "forest",
+export const THEME_RAMPS = ["neutral", "tone", "cool"] as const;
+export type ThemeRamp = (typeof THEME_RAMPS)[number];
+
+export const THEME_PRIMARIES = [
+  "current",
+  "deep-green",
+  "logo-green",
+  "blue",
+  "navy",
 ] as const;
-export type ThemePalette = (typeof THEME_PALETTES)[number];
+export type ThemePrimary = (typeof THEME_PRIMARIES)[number];
+
+export const THEME_INKS = ["neutral", "deep-green"] as const;
+export type ThemeInk = (typeof THEME_INKS)[number];
+
+export const THEME_STATUSES = ["kit", "brand-danger"] as const;
+export type ThemeStatus = (typeof THEME_STATUSES)[number];
+
+export const THEME_DARK_PRIMARIES = ["teal", "sky"] as const;
+export type ThemeDarkPrimary = (typeof THEME_DARK_PRIMARIES)[number];
 
 export const THEME_RADII = [0, 2, 4, 8, 12] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
@@ -30,68 +38,192 @@ export const THEME_TEXT_SCALES = ["small", "default", "large"] as const;
 export type ThemeTextScale = (typeof THEME_TEXT_SCALES)[number];
 
 export type Theme = {
-  palette: ThemePalette;
+  ramp: ThemeRamp;
+  primary: ThemePrimary;
+  ink: ThemeInk;
+  status: ThemeStatus;
+  darkPrimary: ThemeDarkPrimary;
   radius: ThemeRadius;
   density: ThemeDensity;
   textScale: ThemeTextScale;
 };
 
 export const DEFAULT_THEME: Theme = {
-  palette: "fastr",
+  ramp: "neutral",
+  primary: "current",
+  ink: "neutral",
+  status: "kit",
+  darkPrimary: "teal",
   radius: 4,
   density: "default",
   textScale: "default",
 };
 
-// Panther's paired themes supply both halves; the light-only ones get a dark
-// half derived from their primary. "fastr" is the kit default and sets no
-// color vars at all.
-type PalettePair = { light: KeyColors; dark: KeyColors };
-const PALETTE_PAIRS: Record<Exclude<ThemePalette, "fastr">, PalettePair> = {
+// Every ramp pins its hover and active states as literals rather than
+// trusting the kit's formula (a mix toward the ink), which already makes a
+// pressed base-100 darker than a resting base-200 and greys a tinted ramp.
+// Generated once in oklab (hover halfway to the next level, active 80% of
+// the way, base-300 toward the border) and verified for lightness ordering
+// and contrast; edit any value by eye.
+type RampHalf = {
+  base100: string;
+  base200: string;
+  base300: string;
+  border: string;
+  base100Hover: string;
+  base100Active: string;
+  base200Hover: string;
+  base200Active: string;
+  base300Hover: string;
+  base300Active: string;
+};
+type Halves<T> = { light: T; dark: T };
+
+const RAMPS: Record<ThemeRamp, Halves<RampHalf>> = {
   neutral: {
-    light: KEY_COLOR_THEMES["neutral-light"].colors,
-    dark: KEY_COLOR_THEMES["neutral-dark"].colors,
+    light: {
+      base100: "#ffffff",
+      base200: "#f2f2f2",
+      base300: "#e4e4e4",
+      border: "#cacaca",
+      base100Hover: "#f8f8f8",
+      base100Active: "#f5f5f5",
+      base200Hover: "#ebebeb",
+      base200Active: "#e7e7e7",
+      base300Hover: "#d7d7d7",
+      base300Active: "#cfcfcf",
+    },
+    dark: {
+      base100: "#18181b",
+      base200: "#27272a",
+      base300: "#3f3f46",
+      border: "#52525b",
+      base100Hover: "#1f1f22",
+      base100Active: "#242427",
+      base200Hover: "#333338",
+      base200Active: "#3a3a40",
+      base300Hover: "#484850",
+      base300Active: "#4e4e57",
+    },
   },
-  warm: {
-    light: KEY_COLOR_THEMES["warm-light"].colors,
-    dark: KEY_COLOR_THEMES["warm-dark"].colors,
+  // GFF Tone as the page, two warmer creams below it.
+  tone: {
+    light: {
+      base100: "#fef7f1",
+      base200: "#f6ebe1",
+      base300: "#ebddd1",
+      border: "#dbccc0",
+      base100Hover: "#faf1e9",
+      base100Active: "#f8ede4",
+      base200Hover: "#f0e4d9",
+      base200Active: "#ede0d4",
+      base300Hover: "#e3d4c8",
+      base300Active: "#decfc3",
+    },
+    dark: {
+      base100: "#1c1917",
+      base200: "#292524",
+      base300: "#44403c",
+      border: "#57534e",
+      base100Hover: "#221f1d",
+      base100Active: "#262321",
+      base200Hover: "#363230",
+      base200Active: "#3e3a37",
+      base300Hover: "#4d4945",
+      base300Active: "#534f4a",
+    },
   },
-  nord: {
-    light: KEY_COLOR_THEMES["nord-light"].colors,
-    dark: KEY_COLOR_THEMES["nord-dark"].colors,
-  },
-  corporate: {
-    light: KEY_COLOR_THEMES.corporate.colors,
-    dark: generateKeyColorsFromPrimary(
-      KEY_COLOR_THEMES.corporate.colors.primary,
-      "dark",
-    ),
-  },
-  forest: {
-    light: KEY_COLOR_THEMES.forest.colors,
-    dark: generateKeyColorsFromPrimary(
-      KEY_COLOR_THEMES.forest.colors.primary,
-      "dark",
-    ),
+  // White tinted toward GFF Deep Green; near-black green in the dark.
+  cool: {
+    light: {
+      base100: "#ffffff",
+      base200: "#f2f5f4",
+      base300: "#e2e8e7",
+      border: "#c6d2d0",
+      base100Hover: "#f8faf9",
+      base100Active: "#f5f7f6",
+      base200Hover: "#eaeeed",
+      base200Active: "#e5ebea",
+      base300Hover: "#d4dddb",
+      base300Active: "#ccd6d5",
+    },
+    dark: {
+      base100: "#0f1f1d",
+      base200: "#182c29",
+      base300: "#243f39",
+      border: "#365650",
+      base100Hover: "#132523",
+      base100Active: "#162927",
+      base200Hover: "#1e3531",
+      base200Active: "#223b36",
+      base300Hover: "#2d4a44",
+      base300Active: "#32514b",
+    },
   },
 };
 
-const COLOR_TOKENS: [keyof KeyColors, string][] = [
+const RAMP_TOKENS: [keyof RampHalf, string][] = [
   ["base100", "base-100"],
   ["base200", "base-200"],
   ["base300", "base-300"],
-  ["baseContent", "base-content"],
-  ["primary", "primary"],
-  ["primaryContent", "primary-content"],
-  ["neutral", "neutral"],
-  ["neutralContent", "neutral-content"],
-  ["success", "success"],
-  ["successContent", "success-content"],
-  ["warning", "warning"],
-  ["warningContent", "warning-content"],
-  ["danger", "danger"],
-  ["dangerContent", "danger-content"],
+  ["border", "border"],
+  ["base100Hover", "base-100-hover"],
+  ["base100Active", "base-100-active"],
+  ["base200Hover", "base-200-hover"],
+  ["base200Active", "base-200-active"],
+  ["base300Hover", "base-300-hover"],
+  ["base300Active", "base-300-active"],
 ];
+
+const INKS: Record<ThemeInk, Halves<string>> = {
+  neutral: { light: "#2a2a2a", dark: "#fafafa" },
+  "deep-green": { light: "#00413c", dark: "#fef7f1" },
+};
+
+type Fill = { color: string; content: string };
+
+// Light-mode primaries. "current" is the shipped, off-brand teal-green kept
+// for comparison. GFF Teal is excluded here: white on it reaches only 3.1:1.
+const PRIMARIES: Record<ThemePrimary, Fill> = {
+  current: { color: "#0e706c", content: "#ffffff" },
+  "deep-green": { color: "#00413c", content: "#ffffff" },
+  "logo-green": { color: "#0a544f", content: "#ffffff" },
+  blue: { color: "#21568c", content: "#ffffff" },
+  navy: { color: "#2d2c63", content: "#ffffff" },
+};
+
+const DARK_PRIMARIES: Record<ThemeDarkPrimary, Fill> = {
+  teal: { color: "#1fa29c", content: "#0f1f1d" },
+  sky: { color: "#91c2e8", content: "#0f1f1d" },
+};
+
+type StatusSet = { success: Fill; warning: Fill; danger: Fill };
+const KIT_STATUS: Halves<StatusSet> = {
+  light: {
+    success: { color: "#009f70", content: "#ffffff" },
+    warning: { color: "#d97706", content: "#ffffff" },
+    danger: { color: "#f04d44", content: "#ffffff" },
+  },
+  dark: {
+    success: { color: "#4ade80", content: "#052e16" },
+    warning: { color: "#facc15", content: "#422006" },
+    danger: { color: "#f87171", content: "#450a0a" },
+  },
+};
+// GFF Maroon as danger; the dark half is Maroon lifted toward white.
+const STATUSES: Record<ThemeStatus, Halves<StatusSet>> = {
+  kit: KIT_STATUS,
+  "brand-danger": {
+    light: {
+      ...KIT_STATUS.light,
+      danger: { color: "#68152b", content: "#ffffff" },
+    },
+    dark: {
+      ...KIT_STATUS.dark,
+      danger: { color: "#ab767d", content: "#2b0a12" },
+    },
+  },
+};
 
 // Base values in rem, mirroring _fixed.css (and app.css for --text-5xl). A
 // factor of 1 sets nothing, so the kit's own defaults always win at default;
@@ -139,6 +271,34 @@ const TEXT_FACTOR: Record<ThemeTextScale, number> = {
 
 type ThemeVars = Record<string, string | null>;
 
+const pair = (light: string, dark: string) => `light-dark(${light}, ${dark})`;
+
+function colorVars(t: Theme): ThemeVars {
+  const vars: ThemeVars = {};
+  const ramp = RAMPS[t.ramp];
+  for (const [key, token] of RAMP_TOKENS) {
+    vars[`--color-${token}`] = pair(ramp.light[key], ramp.dark[key]);
+  }
+  const ink = INKS[t.ink];
+  vars["--color-base-content"] = pair(ink.light, ink.dark);
+  const primary = PRIMARIES[t.primary];
+  const darkPrimary = DARK_PRIMARIES[t.darkPrimary];
+  vars["--color-primary"] = pair(primary.color, darkPrimary.color);
+  vars["--color-primary-content"] = pair(primary.content, darkPrimary.content);
+  const status = STATUSES[t.status];
+  for (const intent of ["success", "warning", "danger"] as const) {
+    vars[`--color-${intent}`] = pair(
+      status.light[intent].color,
+      status.dark[intent].color,
+    );
+    vars[`--color-${intent}-content`] = pair(
+      status.light[intent].content,
+      status.dark[intent].content,
+    );
+  }
+  return vars;
+}
+
 function scaledRem(
   vars: ThemeVars,
   base: Record<string, number>,
@@ -151,17 +311,7 @@ function scaledRem(
 }
 
 function themeVars(t: Theme): ThemeVars {
-  const vars: ThemeVars = {};
-  const pair = t.palette === "fastr" ? null : PALETTE_PAIRS[t.palette];
-  for (const [key, token] of COLOR_TOKENS) {
-    vars[`--color-${token}`] = pair
-      ? `light-dark(${pair.light[key]}, ${pair.dark[key]})`
-      : null;
-  }
-  // The TS palettes carry no border; base300 is the parity test's mapping.
-  vars["--color-border"] = pair
-    ? `light-dark(${pair.light.base300}, ${pair.dark.base300})`
-    : null;
+  const vars = colorVars(t);
   vars["--radius"] = t.radius === DEFAULT_THEME.radius ? null : `${t.radius}px`;
   scaledRem(vars, DENSITY_BASE_REM, DENSITY_FACTOR[t.density]);
   scaledRem(vars, TEXT_BASE_REM, TEXT_FACTOR[t.textScale]);
@@ -193,7 +343,15 @@ function readStoredTheme(): Theme {
     if (!raw) return DEFAULT_THEME;
     const v = JSON.parse(raw) as Partial<Record<keyof Theme, unknown>>;
     return {
-      palette: pick(THEME_PALETTES, v.palette, DEFAULT_THEME.palette),
+      ramp: pick(THEME_RAMPS, v.ramp, DEFAULT_THEME.ramp),
+      primary: pick(THEME_PRIMARIES, v.primary, DEFAULT_THEME.primary),
+      ink: pick(THEME_INKS, v.ink, DEFAULT_THEME.ink),
+      status: pick(THEME_STATUSES, v.status, DEFAULT_THEME.status),
+      darkPrimary: pick(
+        THEME_DARK_PRIMARIES,
+        v.darkPrimary,
+        DEFAULT_THEME.darkPrimary,
+      ),
       radius: pick(THEME_RADII, v.radius, DEFAULT_THEME.radius),
       density: pick(THEME_DENSITIES, v.density, DEFAULT_THEME.density),
       textScale: pick(THEME_TEXT_SCALES, v.textScale, DEFAULT_THEME.textScale),
