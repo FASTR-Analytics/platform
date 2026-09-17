@@ -1573,12 +1573,22 @@ ${d}.fm-page-gutter__foot {
   color: var(--fm-ink-muted);
   font-variant-numeric: tabular-nums;
 }
-/* The gap between two sheets: app chrome, with the sheets' edges shadowed. */
+/* The gap between two sheets: the ground the paper sits on. Its colour is
+   mixed from the DOCUMENT's own ink and page rather than taken from the
+   app's chrome token, which was a fixed light grey: a step of a few percent
+   away from white it barely showed, and on a dark theme it was a hole cut in
+   the page. Mixed, it is always the same visible step away from the paper,
+   whatever the theme is made of. The sheets' cut edges are a hairline of the
+   same ink, and the sheet above casts into the gap: one shadow, from the top,
+   rather than the bevel a symmetrical pair of them made. */
 ${d}.fm-page-gutter__band {
   display: block;
-  height: 28px;
-  background: var(--color-base-200, #e5e7eb);
-  box-shadow: inset 0 8px 8px -8px rgba(0, 0, 0, 0.35), inset 0 -8px 8px -8px rgba(0, 0, 0, 0.35);
+  height: 30px;
+  background: color-mix(in srgb, var(--fm-ink) 12%, var(--fm-page-ground, var(--fm-page)));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
+    inset 0 7px 6px -7px color-mix(in srgb, var(--fm-ink) 45%, transparent);
 }
 /* The next page's top margin. Before the document's first line too, when
    page 1 is not a cover (a cover has no margins). */
