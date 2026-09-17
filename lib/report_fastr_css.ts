@@ -1573,18 +1573,18 @@ ${d}.fm-page-gutter__foot {
   color: var(--fm-ink-muted);
   font-variant-numeric: tabular-nums;
 }
-/* The gap between two sheets: the ground the paper sits on. Its colour is
-   mixed from the DOCUMENT's own ink and page rather than taken from the
-   app's chrome token, which was a fixed light grey: a step of a few percent
-   away from white it barely showed, and on a dark theme it was a hole cut in
-   the page. Mixed, it is always the same visible step away from the paper,
-   whatever the theme is made of. The sheets' cut edges are a hairline of the
-   same ink, and the sheet above casts into the gap: one shadow, from the top,
-   rather than the bevel a symmetrical pair of them made. */
+/* The gap between two sheets: the app's own ground, seen between them. It is
+   the surface the sheet is laid on (the pane either side of it is the same
+   token), so the gap follows the app into dark mode with everything else
+   rather than staying a light slab cut through a dark screen. What marks the
+   break is the paper, not the gap: each sheet's cut edge is a hairline of the
+   DOCUMENT's ink, and the sheet above casts into the gap from its edge, so
+   the seam reads on a ground of any colour, including one the same white as
+   the paper. */
 ${d}.fm-page-gutter__band {
   display: block;
   height: 30px;
-  background: color-mix(in srgb, var(--fm-ink) 12%, var(--fm-page-ground, var(--fm-page)));
+  background: var(--color-base-100, #ffffff);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
