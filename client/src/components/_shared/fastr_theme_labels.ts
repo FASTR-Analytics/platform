@@ -30,16 +30,6 @@ export function fastrThemeLabel(theme: FastrReportTheme): string {
       return t3({ en: "Bauhaus", fr: "Bauhaus", pt: "Bauhaus" });
     case "broadsheet":
       return t3({ en: "Broadsheet", fr: "Grand format", pt: "Formato grande" });
-    case "risograph":
-      return t3({ en: "Risograph", fr: "Risographie", pt: "Risografia" });
-    case "artdeco":
-      return t3({ en: "Art Deco", fr: "Art déco", pt: "Art déco" });
-    case "japanese":
-      return t3({ en: "Japanese", fr: "Japonais", pt: "Japonês" });
-    case "terminal":
-      return t3({ en: "Terminal", fr: "Terminal", pt: "Terminal" });
-    case "brutalist":
-      return t3({ en: "Brutalist", fr: "Brutaliste", pt: "Brutalista" });
   }
 }
 
@@ -116,36 +106,6 @@ export function fastrThemeCaption(theme: FastrReportTheme): string {
         en: "Newspaper serif, centred masthead",
         fr: "Serif de presse, bandeau centré",
         pt: "Serifa de jornal, cabeçalho centrado",
-      });
-    case "risograph":
-      return t3({
-        en: "Offset print, blue and pink",
-        fr: "Impression offset, bleu et rose",
-        pt: "Impressão offset, azul e rosa",
-      });
-    case "artdeco":
-      return t3({
-        en: "Gold rules, wide caps, centred",
-        fr: "Filets dorés, capitales espacées, centré",
-        pt: "Filetes dourados, maiúsculas espaçadas, centrado",
-      });
-    case "japanese":
-      return t3({
-        en: "Airy, mincho headings, narrow column",
-        fr: "Aéré, titres mincho, colonne étroite",
-        pt: "Arejado, títulos mincho, coluna estreita",
-      });
-    case "terminal":
-      return t3({
-        en: "Dark page, green monospace",
-        fr: "Page sombre, chasse fixe verte",
-        pt: "Página escura, monoespaçada verde",
-      });
-    case "brutalist":
-      return t3({
-        en: "System type, hard borders, yellow",
-        fr: "Typo système, bordures dures, jaune",
-        pt: "Tipografia do sistema, bordas duras, amarelo",
       });
   }
 }

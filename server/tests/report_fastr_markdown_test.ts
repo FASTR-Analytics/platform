@@ -820,8 +820,8 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
   assert(lumOf(custom.cells.good) < lumOf(fastrChartPalette("ministry").cells.good), "cell tints follow the page");
   assertEquals(custom.good, FASTR_THEME_TOKENS.ministry.chart.good);
   // An accent the theme already has is not doubled.
-  const same = fastrChartPalette("risograph", { accent: "#C26F93" });
-  assertEquals(same.series, FASTR_THEME_TOKENS.risograph.chart.series.map((c) => c.toLowerCase() === "#c26f93" ? "#c26f93" : c));
+  const same = fastrChartPalette("bauhaus", { accent: "#B6433A" });
+  assertEquals(same.series, FASTR_THEME_TOKENS.bauhaus.chart.series.map((c) => c.toLowerCase() === "#b6433a" ? "#b6433a" : c));
   // A page that is not a 6-digit hex cannot be mixed: the faint tone falls
   // back to the neutral rather than a broken colour.
   assertEquals(fastrChartPalette("default", { page: "white" }).faint, FASTR_THEME_TOKENS.default.chart.neutral);
@@ -834,7 +834,7 @@ Deno.test("a themed report re-tints every stock traffic-light preset; chosen col
     stock.add(getAdjustedColor(b, { darken: 0.25 }).toLowerCase());
     stock.add(getAdjustedColor(b, { brighten: 0.5 }).toLowerCase());
   }
-  const palette = fastrChartPalette("artdeco");
+  const palette = fastrChartPalette("broadsheet");
   for (const [id, preset] of Object.entries(LEGACY_CF_PRESETS)) {
     const themed = themeConditionalFormatting(preset.value, palette);
     assert(themed.type === "thresholds", id);
@@ -1197,12 +1197,20 @@ Deno.test("every rule that darkens the ground re-points the semantic colours", (
   assertStringIncludes(lightBlock, "--fm-danger: var(--fm-danger-light);");
 });
 
-Deno.test("all 17 themes build, and every html style name has one bar retired themes", async () => {
-  assertEquals(FASTR_REPORT_THEMES.length, 17);
+Deno.test("all 12 themes build, and the html styles with no theme are the retired ones", async () => {
+  assertEquals(FASTR_REPORT_THEMES.length, 12);
   const { REPORT_HTML_STYLES } = await import("../../lib/types/reports.ts");
   const themes = new Set<string>(FASTR_REPORT_THEMES);
-  // blueprint retired 2026-09-03 (fastr theme removed; the html style stays).
-  assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), ["blueprint"]);
+  // A retired theme keeps its html style: an html report written in one still
+  // renders. blueprint went 2026-09-03; the five loud ones 2026-09-17.
+  assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), [
+    "blueprint",
+    "risograph",
+    "artdeco",
+    "japanese",
+    "terminal",
+    "brutalist",
+  ]);
 });
 
 // The scope rewriter runs line-by-line over each theme's extraCss. A comment
@@ -1278,11 +1286,12 @@ Deno.test("the warm and cool tones are the semantic colours, in every theme", ()
 });
 
 // A tone paints a ground, so it must outrank any background a THEME sets on the
-// same element. Brutalist paints `.fm-callout` white; at equal specificity its
-// rule (loaded later) beat the tone and the callout went white on
-// white. Every tone rule that sets a background doubles its class to win.
+// same element. A theme that paints `.fm-callout` (the brutalist theme painted
+// it white) beat the tone at equal specificity, its rule being loaded later,
+// and the callout went white on white. Every tone rule that sets a background
+// doubles its class to win.
 Deno.test("a tone outranks a theme's own background", () => {
-  const css = buildFastrReportCss("brutalist");
+  const css = buildFastrReportCss("bauhaus");
   for (const [, selector, block] of css.matchAll(/^(\.fm-tone[\w.-]*) \{([^}]*)\}/gm)) {
     if (!/(^|;|\s)background\s*:/.test(block)) continue;
     // Two class tokens = specificity 0,2,0, which beats a theme's single-class
@@ -1554,7 +1563,7 @@ Deno.test("every role has a rule reading the right token, in every theme", () =>
 Deno.test("a hue mark on a ground that IS that hue returns to the ground's ink", () => {
   // Otherwise `[x]{.danger}` inside `tone=warm` is pale red on red, the
   // same class of bug the accent-on-accent fixes closed.
-  const css = buildFastrReportCss("brutalist");
+  const css = buildFastrReportCss("bauhaus");
   const grounds = ["fm-tone--accent", "fm-tone--warm", "fm-tone--cool"];
   for (const ground of grounds) {
     for (const role of ["danger", "warning", "success", "info"]) {

@@ -21,14 +21,9 @@ export const FASTR_REPORT_THEMES = [
   "editorial",
   "swiss",
   "monochrome",
-  // The artistic set, matching the html style briefs of the same names.
+  // The artistic pair, matching the html style briefs of the same names.
   "bauhaus",
   "broadsheet",
-  "risograph",
-  "artdeco",
-  "japanese",
-  "terminal",
-  "brutalist",
 ] as const;
 export type FastrReportTheme = (typeof FASTR_REPORT_THEMES)[number];
 
@@ -154,10 +149,18 @@ function googleFonts(spec: string): string {
 const FASTR_THEME_SPECS: Record<FastrReportTheme, FastrThemeSpec> = {
   default: {
     scheme: "light",
-    palette: { paper: "#fcfcfb", ink: "#24292e", accent: "#4e6f94", warm: "#a3584c", cool: "#5f8b6d" },
-    fontImport: "",
-    fontBody: SYSTEM_SANS,
-    fontHeading: SYSTEM_SANS,
+    palette: { paper: "#fcfcfb", ink: "#24292e", accent: "#4e6f94", warm: "#b0503f", cool: "#3f8570" },
+    // Inter, not the system stack this theme used to name. A system font is
+    // whatever the MACHINE has, and the PDF is printed by a headless Chrome
+    // on the instance host whose only face is Liberation: the author's page
+    // was set in Segoe UI or SF and the PDF came back in something else, with
+    // every line wrapping at a different word. Inter is inlined into the
+    // printed document like every other theme's face (inline_theme_fonts.ts),
+    // so both sides set the same type. It is also what the app itself uses,
+    // and the nearest free relative of the UI faces this theme used to borrow.
+    fontImport: googleFonts("family=Inter:wght@400;500;600;700"),
+    fontBody: `Inter, ${SYSTEM_SANS}`,
+    fontHeading: `Inter, ${SYSTEM_SANS}`,
     radius: "6px",
     borderWidth: "1px",
     headingWeight: "700",
@@ -175,7 +178,7 @@ thead th { background: var(--fm-surface-alt); }
   },
   minimal: {
     scheme: "light",
-    palette: { paper: "#fafaf8", ink: "#2b2b2b", accent: "#6b7280", warm: "#9c6659", cool: "#6f8f7d" },
+    palette: { paper: "#fafaf8", ink: "#2b2b2b", accent: "#6b7280", warm: "#9a6a61", cool: "#6f8b7f" },
     fontImport: googleFonts("family=Inter:wght@400;500;600;700"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -205,7 +208,7 @@ thead th { border-bottom-width: 1px; font-weight: 600; }
   },
   corporate: {
     scheme: "light",
-    palette: { paper: "#f7f8fa", ink: "#1f2a37", accent: "#3d5a80", warm: "#9a5a4c", cool: "#56826e" },
+    palette: { paper: "#f7f8fa", ink: "#1f2a37", accent: "#3d5a80", warm: "#a34a44", cool: "#3f7f6c" },
     fontImport: googleFonts("family=Inter:wght@400;600;700;800"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -232,7 +235,7 @@ th, td { padding: 0.6em 0.8em; }
   },
   ministry: {
     scheme: "light",
-    palette: { paper: "#f7f6f1", ink: "#22302a", accent: "#3e6b58", warm: "#a05e4b", cool: "#7f9c6a" },
+    palette: { paper: "#f7f6f1", ink: "#22302a", accent: "#3e6b58", warm: "#8f4a44", cool: "#6f8f4e" },
     fontImport: googleFonts(
       "family=Merriweather:wght@700;900&family=Source+Sans+3:wght@400;600",
     ),
@@ -260,7 +263,7 @@ thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
   },
   classic: {
     scheme: "light",
-    palette: { paper: "#f9f6ef", ink: "#2b2620", accent: "#8c6a3f", warm: "#9e5a4c", cool: "#5c7d6f" },
+    palette: { paper: "#f9f6ef", ink: "#2b2620", accent: "#8c6a3f", warm: "#8e4034", cool: "#4a7059" },
     fontImport: googleFonts("family=Lora:wght@400;600;700"),
     fontBody: `Lora, Georgia, "Times New Roman", serif`,
     fontHeading: `Lora, Georgia, "Times New Roman", serif`,
@@ -284,7 +287,7 @@ thead th { border-bottom-width: 1px; font-variant: small-caps; letter-spacing: 0
   },
   executive: {
     scheme: "light",
-    palette: { paper: "#f6f7f9", ink: "#1e232b", accent: "#4b5d78", warm: "#9b6457", cool: "#667f72" },
+    palette: { paper: "#f6f7f9", ink: "#1e232b", accent: "#4b5d78", warm: "#a15a4c", cool: "#5a8272" },
     fontImport: googleFonts(
       "family=Playfair+Display:wght@700;900&family=Inter:wght@400;600",
     ),
@@ -314,7 +317,7 @@ thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font
   },
   clinical: {
     scheme: "light",
-    palette: { paper: "#f9fbfb", ink: "#1f2d33", accent: "#3f7c86", warm: "#a6665a", cool: "#6a9070" },
+    palette: { paper: "#f9fbfb", ink: "#1f2d33", accent: "#3f7c86", warm: "#b45a4e", cool: "#4f9273" },
     fontImport: googleFonts("family=IBM+Plex+Sans:wght@400;500;600;700"),
     fontBody: `"IBM Plex Sans", ${SYSTEM_SANS}`,
     fontHeading: `"IBM Plex Sans", ${SYSTEM_SANS}`,
@@ -340,7 +343,7 @@ tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
   },
   editorial: {
     scheme: "light",
-    palette: { paper: "#fbf9f5", ink: "#262421", accent: "#b0774d", warm: "#9d4f45", cool: "#5f7f6e" },
+    palette: { paper: "#fbf9f5", ink: "#262421", accent: "#b0774d", warm: "#a2453c", cool: "#537d5c" },
     fontImport: googleFonts(
       "family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600",
     ),
@@ -371,7 +374,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85em;
   },
   swiss: {
     scheme: "light",
-    palette: { paper: "#f9f9f9", ink: "#141414", accent: "#b5493e", warm: "#8f4636", cool: "#5a8266" },
+    palette: { paper: "#f9f9f9", ink: "#141414", accent: "#b5493e", warm: "#8f3b2f", cool: "#2e6f5b" },
     fontImport: googleFonts("family=Inter:wght@400;500;700;900"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -403,7 +406,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; 
   },
   monochrome: {
     scheme: "light",
-    palette: { paper: "#f4f4f2", ink: "#262626", accent: "#5c5c5a", warm: "#8c6858", cool: "#667470" },
+    palette: { paper: "#f4f4f2", ink: "#262626", accent: "#5c5c5a", warm: "#8a5a52", cool: "#5f7a72" },
     fontImport: googleFonts("family=Inter:wght@400;600;800"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -429,7 +432,7 @@ thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none
   },
   bauhaus: {
     scheme: "light",
-    palette: { paper: "#f3efe6", ink: "#1c1c1c", accent: "#b6433a", warm: "#8a3a33", cool: "#4e8a5a" },
+    palette: { paper: "#f3efe6", ink: "#1c1c1c", accent: "#b6433a", warm: "#8d342b", cool: "#3f7d4f" },
     fontImport: googleFonts(
       "family=Archivo:wght@700;900&family=Space+Grotesk:wght@400;500;700",
     ),
@@ -461,7 +464,7 @@ th, td { border: 2px solid var(--fm-ink); }
   },
   broadsheet: {
     scheme: "light",
-    palette: { paper: "#f7f4ee", ink: "#1c1c1c", accent: "#6e3b36", warm: "#9e5a4a", cool: "#557568" },
+    palette: { paper: "#f7f4ee", ink: "#1c1c1c", accent: "#6e3b36", warm: "#9c3f33", cool: "#527254" },
     fontImport: googleFonts(
       "family=Playfair+Display:wght@700;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600",
     ),
@@ -493,190 +496,6 @@ h2 { text-align: center; border-bottom: 3px double var(--fm-ink); padding-bottom
 thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
 .fm-cover { text-align: center; }
 .fm-kicker { letter-spacing: 0.35em; }
-`,
-  },
-  risograph: {
-    scheme: "light",
-    palette: { paper: "#f6f1e7", ink: "#2a2440", accent: "#c26f93", warm: "#b2564a", cool: "#4f8f7a" },
-    fontImport: googleFonts("family=Space+Grotesk:wght@400;500;700"),
-    fontBody: `"Space Grotesk", ${SYSTEM_SANS}`,
-    fontHeading: `"Space Grotesk", ${SYSTEM_SANS}`,
-    radius: "2px",
-    borderWidth: "2px",
-    headingWeight: "700",
-    headingTracking: "-0.01em",
-    headingCase: "none",
-    measure: "50rem",
-    extraCss: `
-h1, h2 { color: var(--fm-cool); text-shadow: 3px 3px 0 var(--fm-accent); }
-.fm-card { box-shadow: 4px 4px 0 color-mix(in srgb, var(--fm-cool) 25%, transparent); }
-/* Misregistered offset printing: everything sits slightly off its shadow. */
-.fm-stat { border: 2px solid var(--fm-cool); box-shadow: 4px 4px 0 var(--fm-accent); border-radius: 2px; }
-.fm-figure { border: 2px solid var(--fm-cool); box-shadow: 5px 5px 0 var(--fm-accent); padding: 0.9em; background: var(--fm-page); }
-.fm-figure__caption { color: var(--fm-cool); font-weight: 700; }
-.fm-callout { border: 2px solid var(--fm-cool); border-left-width: 8px; box-shadow: 4px 4px 0 var(--fm-accent); }
-.fm-quote { border: 2px solid var(--fm-accent); border-left-width: 8px; box-shadow: 4px 4px 0 color-mix(in srgb, var(--fm-cool) 35%, transparent); padding: 1em 1.2em; color: var(--fm-ink); }
-.fm-steps { border: 2px solid var(--fm-cool); box-shadow: 5px 5px 0 var(--fm-accent); }
-.fm-steps > *::before { color: var(--fm-cool); }
-thead th { background: var(--fm-cool); color: var(--fm-paper); }
-`,
-  },
-  artdeco: {
-    scheme: "light",
-    palette: { paper: "#f6f1e4", ink: "#26221c", accent: "#a58a4c", warm: "#9a5a4a", cool: "#4f6f66" },
-    fontImport: googleFonts(
-      "family=Marcellus&family=Cormorant+Garamond:wght@400;600;700",
-    ),
-    fontBody: `"Cormorant Garamond", Georgia, serif`,
-    fontHeading: `Marcellus, Georgia, serif`,
-    radius: "0px",
-    borderWidth: "1px",
-    headingWeight: "400",
-    headingTracking: "0.18em",
-    headingCase: "uppercase",
-    measure: "48rem",
-    extraCss: `
-body { font-size: 1.06em; }
-h1 { text-align: center; }
-.fm-band { border-block: 1px solid var(--fm-accent); }
-/* Doubled gold rules and wide capitals, everything on the centre line. */
-h2 { text-align: center; border-bottom: 3px double var(--fm-accent); padding-bottom: 0.3em; }
-.fm-stat { background: none; border: 1px solid var(--fm-accent); border-radius: 0; text-align: center; padding-left: 0; }
-.fm-stat__value { font-family: var(--fm-font-heading); }
-.fm-stat__label { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.72em; }
-.fm-figure { border: 1px solid var(--fm-accent); padding: 1em; }
-.fm-figure__caption { text-align: center; text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.72em; }
-.fm-quote { border: none; border-top: 3px double var(--fm-accent); border-bottom: 3px double var(--fm-accent); padding: 1em 0; text-align: center; font-family: var(--fm-font-heading); font-size: 1.3em; letter-spacing: 0.04em; color: var(--fm-ink); }
-.fm-steps { border-color: var(--fm-accent); background: none; }
-.fm-steps > * { border-bottom-color: var(--fm-accent); }
-.fm-steps > *::before { font-family: var(--fm-font-heading); color: var(--fm-accent-text); }
-thead th { border-bottom: 3px double var(--fm-accent); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.8em; }
-.fm-cover { text-align: center; }
-.fm-kicker { letter-spacing: 0.45em; }
-`,
-  },
-  japanese: {
-    scheme: "light",
-    palette: { paper: "#f8f5f0", ink: "#2b2b2b", accent: "#b25a4c", warm: "#8f4a40", cool: "#5c7d6a" },
-    fontImport: googleFonts(
-      "family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500",
-    ),
-    fontBody: `"Zen Kaku Gothic New", ${SYSTEM_SANS}`,
-    fontHeading: `"Shippori Mincho", Georgia, serif`,
-    radius: "0px",
-    borderWidth: "1px",
-    headingWeight: "700",
-    headingTracking: "0.02em",
-    headingCase: "none",
-    measure: "46rem",
-    extraCss: `
-body { line-height: 1.85; }
-h1, h2, h3 { margin-top: 2.4em; }
-/* Space is the device: hairlines, no fills, generous rhythm. */
-h2 { border-bottom: 1px solid var(--fm-border); padding-bottom: 0.5em; }
-.fm-card, .fm-callout { border-radius: 0; }
-.fm-stat { background: none; border-top: 1px solid var(--fm-ink); border-radius: 0; padding: 1.2em 0 0; }
-.fm-stat__label { color: var(--fm-ink-muted); letter-spacing: 0.06em; }
-.fm-figure { margin: 2.6em 0; --fm-mt: 2.6em; --fm-mb: 2.6em; }
-.fm-figure__caption { margin-top: 1em; letter-spacing: 0.04em; }
-.fm-callout { background: none; border-left-width: 1px; padding: 0.4em 0 0.4em 1.6em; }
-.fm-quote { border: none; padding: 0.6em 0 0.6em 2em; font-size: 1.15em; color: var(--fm-ink); }
-.fm-steps { border: none; background: none; }
-.fm-steps > * { border-bottom: 1px solid var(--fm-border); padding: 1.4em 0 1.4em 3.6em; }
-.fm-steps > *::before { left: 0; color: var(--fm-ink-muted); }
-thead th { border-bottom-width: 1px; }
-`,
-  },
-  terminal: {
-    scheme: "dark",
-    palette: { paper: "#0f1311", ink: "#a9b9ad", accent: "#6fbf88", warm: "#c4756b", cool: "#66a89a" },
-    fontImport: googleFonts("family=JetBrains+Mono:wght@400;700"),
-    fontBody: `"JetBrains Mono", ui-monospace, monospace`,
-    fontHeading: `"JetBrains Mono", ui-monospace, monospace`,
-    radius: "0px",
-    borderWidth: "1px",
-    headingWeight: "700",
-    headingTracking: "0",
-    headingCase: "none",
-    measure: "54rem",
-    extraCss: `
-h1::before, h2::before { content: "> "; color: var(--fm-accent); }
-h1, h2, h3 { color: var(--fm-accent); }
-/* A session transcript: bracket tags, dashed rules, screenshot panels. */
-.fm-stat { border: 1px solid var(--fm-border); background: none; border-radius: 0; }
-.fm-stat__label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72em; }
-.fm-figure { border: 1px solid var(--fm-border); padding: 0.9em; background: var(--fm-surface-alt); }
-.fm-figure__caption::before { content: "// "; }
-.fm-callout { border: 1px solid var(--fm-callout-color); border-left-width: 4px; background: var(--fm-surface-alt); }
-.fm-callout__title::before { content: "[ "; }
-.fm-callout__title::after { content: " ]"; }
-.fm-quote { border: 1px dashed var(--fm-border); padding: 1em 1.2em; color: var(--fm-ink); }
-.fm-steps { border: 1px solid var(--fm-border); background: var(--fm-surface-alt); }
-.fm-steps > * { border-bottom: 1px dashed var(--fm-border); padding-left: 4.4em; }
-.fm-steps > *::before { content: "[" counter(fm-step, decimal-leading-zero) "]"; color: var(--fm-accent); }
-th, td { border-bottom: 1px dashed var(--fm-border); }
-thead th { border-bottom: 1px solid var(--fm-accent); color: var(--fm-accent); }
-`,
-  },
-  brutalist: {
-    scheme: "light",
-    palette: { paper: "#ededeb", ink: "#111111", accent: "#3a3a3a", warm: "#b25a3f", cool: "#587b6f" },
-    fontImport: "",
-    fontBody: `Arial, Helvetica, ${SYSTEM_SANS}`,
-    fontHeading: `Arial, Helvetica, ${SYSTEM_SANS}`,
-    radius: "0px",
-    borderWidth: "3px",
-    headingWeight: "700",
-    headingTracking: "-0.02em",
-    headingCase: "uppercase",
-    measure: "54rem",
-    extraCss: `
-h1 { background: var(--fm-accent); display: inline-block; padding: 0 0.15em; }
-h2 { border-bottom: 6px solid var(--fm-ink); padding-bottom: 0.2em; letter-spacing: 0.12em; }
-h3 { letter-spacing: 0.14em; }
-.fm-card { box-shadow: 5px 5px 0 var(--fm-ink); border-width: 5px; }
-.fm-callout {
-  border: 5px solid var(--fm-ink);
-  border-left-width: 14px;
-  border-radius: 0;
-  background: var(--fm-surface);
-}
-.fm-callout__title { letter-spacing: 0.14em; text-transform: uppercase; }
-.fm-stat { border: 5px solid var(--fm-ink); }
-.fm-stat__value { letter-spacing: -0.04em; }
-.fm-stat__label { text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; }
-.fm-stat__delta { border-radius: 0; border: 2px solid currentColor; }
-/* A figure is a specimen: framed hard, captioned like a filename. */
-.fm-figure { border: 5px solid var(--fm-ink); padding: 14px; background: var(--fm-surface); }
-.fm-figure__caption {
-  font-family: "Courier New", ui-monospace, monospace;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--fm-ink);
-}
-.fm-steps { border-width: 5px; }
-.fm-steps > * { border-bottom-width: 3px; padding-left: 4.6em; }
-.fm-steps > *::before {
-  background: var(--fm-ink);
-  color: var(--fm-accent);
-  padding: 0.1em 0.5em;
-  left: 1em;
-}
-.fm-quote {
-  border: 3px solid var(--fm-ink);
-  border-left: 14px solid var(--fm-ink);
-  padding: 1.1em 1.3em;
-  color: var(--fm-ink);
-  background: var(--fm-surface);
-}
-/* Default HTML tables were never ugly enough to hide. */
-table { border: 5px solid var(--fm-ink); }
-th, td { border: 2px solid var(--fm-ink); }
-thead th { background: var(--fm-accent); text-transform: uppercase; letter-spacing: 0.1em; }
-.fm-kicker { letter-spacing: 0.4em; color: var(--fm-ink); }
-.fm-dek { border-top-width: 4px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fm-ink); }
-.fm-band .fm-kicker, .fm-band .fm-dek { color: inherit; }
-a { text-decoration: underline; text-underline-offset: 3px; }
 `,
   },
 };

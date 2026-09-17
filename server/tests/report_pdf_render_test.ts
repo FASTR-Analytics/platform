@@ -222,7 +222,7 @@ async function fixtures(): Promise<{ name: string; body: string }[]> {
 
 // The full sweep: the kitchen sink on every theme; every fixture on a light,
 // a dark and a loud theme. Screenshots for that second set only.
-const SCREENSHOT_THEMES: FastrReportTheme[] = ["default", "ministry", "terminal"];
+const SCREENSHOT_THEMES: FastrReportTheme[] = ["default", "ministry", "bauhaus"];
 
 Deno.test({
   name: "fixture reports paginate by the rules on every theme, and print",

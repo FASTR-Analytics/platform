@@ -223,7 +223,12 @@ presets (default, minimal, corporate, ministry, classic, executive, clinical,
 editorial, swiss, monochrome, bauhaus, blueprint, broadsheet, risograph,
 artdeco, japanese, terminal, brutalist; also fixed at creation,
 also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI authoring
-brief, never the render path. Creation is a two-step wizard (panther has ONE
+brief, never the render path. Six of those names have no FASTR theme any more
+(blueprint retired 2026-09-03; risograph, artdeco, japanese, terminal and
+brutalist 2026-09-17, as too loud for the reports people actually send): the
+html style stays so an html report written in one still renders, and a fastr
+report stored on a retired theme opens on the default, `getFastrReportTheme`
+being total. Creation is a two-step wizard (panther has ONE
 alert slot, so the steps can't stack — `attemptAddReport` in
 [project_reports.tsx](client/src/components/project/project_reports.tsx) owns
 the loop): the form creates markdown directly but closes with a draft carrying
@@ -348,9 +353,11 @@ per-theme token block — **18 presets, one per `REPORT_HTML_STYLES` name**, so 
 report can be moved between formats without losing its look. A theme is ~700
 chars of tokens plus 0-195 chars of its own rules against a shared 12k sheet,
 which is why every block, tone and background added since landed on all of them
-at once. Two are DARK pages (blueprint, terminal), and that is what forced the
-callout/delta colours out of the sheet: they carry MEANING so they cannot come
-from the palette, but a fixed light-page set is unreadable on a dark ground.
+at once. Two WERE dark pages (blueprint, terminal, both retired), and that is
+what forced the callout/delta colours out of the sheet: they carry MEANING so
+they cannot come from the palette, but a fixed light-page set is unreadable on
+a dark ground. The machinery stays: a custom style's colours can still make a
+page dark, and every theme left is light.
 Each theme declares `scheme: "light" | "dark"`, which picks which of its two
 status sets the page reads, and every rule that establishes a ground of the
 other darkness (a tone the theme paints dark, `fm-ink--light`) re-points the
@@ -1149,11 +1156,12 @@ colours the callout kinds and stat deltas carry for danger and success, so
 "this is the bad news" is one colour wherever it is said, and a hue mark
 inside one of the three hue grounds returns to the ground's ink. Every tone
 rule doubles its class (`.fm-tone.fm-tone--ink`, specificity 0,2,0) so it
-outranks any background a THEME sets on the same element — brutalist paints
-`.fm-callout` white, which at equal specificity beat the tone and left white
-type on a white callout. And a theme that paints a heading WITH the accent —
-brutalist's highlighter `h1` — renders it invisible on a ground that is
-already a hue, so the three hue grounds clear the heading background.
+outranks any background a THEME sets on the same element: the retired
+brutalist theme painted `.fm-callout` white, which at equal specificity beat
+the tone and left white type on a white callout. And a theme that paints a
+heading WITH the accent (that theme's highlighter `h1`) renders it invisible on
+a ground that is already a hue, so the three hue grounds clear the heading
+background. Both rules stay: a custom style can do either.
 
 **Editor** ([report/index.tsx](client/src/components/report/index.tsx), ~1,700
 LOC): CodeMirror 6 (`lang-markdown` or `lang-html` per format) with an
