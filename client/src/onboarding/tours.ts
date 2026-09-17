@@ -1,6 +1,7 @@
 import { tourTarget } from "@njwse/roadtrip";
 import type { TourDefinition, TourLabels, TourStep } from "@njwse/roadtrip";
 import { t3 } from "lib";
+import { setDataSection } from "~/state/t4_ui";
 
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
@@ -1046,6 +1047,7 @@ export function buildInstanceDataTour(): TourDefinition {
       {
         id: "hmis",
         target: tourTarget("instance-data-hmis"),
+        beforeEnter: () => setDataSection("hmis"),
         title: t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" }),
         body: t3({
           en: "The facility list, monthly routine service data, and the indicator dictionary that defines what's being counted. Click a card to inspect what has been uploaded or to import a new dataset.",
@@ -1057,6 +1059,7 @@ export function buildInstanceDataTour(): TourDefinition {
       {
         id: "hfa",
         target: tourTarget("instance-data-hfa"),
+        beforeEnter: () => setDataSection("hfa"),
         title: t3({
           en: "Health facility assessments",
           fr: "Enquêtes auprès des établissements",
@@ -1072,6 +1075,7 @@ export function buildInstanceDataTour(): TourDefinition {
       {
         id: "iceh",
         target: tourTarget("instance-data-iceh"),
+        beforeEnter: () => setDataSection("iceh"),
         title: t3({
           en: "Equity data (ICEH)",
           fr: "Données d'équité (ICEH)",

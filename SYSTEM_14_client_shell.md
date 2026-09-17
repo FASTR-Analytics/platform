@@ -230,7 +230,8 @@ Whether every literal is well-formed across the 241-file surface is the standing
 ## UI preferences (`state/t4_ui.ts`)
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
-then the signal: the rail's `navCollapsed`; the product explorer's four (`productsOpenFolder`, the
+then the signal: the rail's `navCollapsed`; the Data page's section tab
+`dataSection` (General / HMIS / HFA / ICEH); the product explorer's four (`productsOpenFolder`, the
 location, null = the root; `productsViewMode`; `productsSortMode`, `SortMode
 = "name" | "recent"` from `lib/types/sort.ts`, one vocabulary for every list;
 `productsTypeFilter`, null = every type). They are unvalidated on read: they

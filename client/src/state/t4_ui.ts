@@ -23,6 +23,20 @@ export function setNavCollapsed(collapsed: boolean) {
   setNavCollapsedInternal(collapsed);
 }
 
+// The Data page's section tab, persisted like the explorer's preferences so
+// it survives leaving the tab and a reload.
+export type DataSection = "general" | "hmis" | "hfa" | "iceh";
+const storedDataSection = localStorage.getItem(
+  "dataSection",
+) as DataSection | null;
+export const [dataSection, setDataSectionInternal] = createSignal<DataSection>(
+  storedDataSection ?? "hmis",
+);
+export function setDataSection(section: DataSection) {
+  localStorage.setItem("dataSection", section);
+  setDataSectionInternal(section);
+}
+
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole
 // frame (header, rail and tab page), so a view opened through
 // `openShellEditor` covers all of it and its Back is the only way out; the
