@@ -439,6 +439,14 @@
     font-variant-ligatures: no-common-ligatures; */
   }
 
+  /* Unclassed text (table cells, plain divs) otherwise inherits the UA's
+     16px and ignores the --text-* tokens. On body, not html: rem units
+     resolve against html, so a scaled root would scale every rem spacing
+     too. */
+  body {
+    @apply text-base;
+  }
+
   #SLIDE_EDITOR_CANVAS {
     @apply border;
   }
