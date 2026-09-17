@@ -746,8 +746,9 @@ indicator id renames through the junction's cascade plus explicit
 rewrites, above). Deletion cascades data/variables/weights in a single
 transactional DELETE (the cascades are the implementation: no explicit
 child deletes) but is RESTRICTed by indicator code, with a friendly
-pre-check. Creating a time point auto-carries indicator R code forward
-from the previous latest round. Time-point routes notify the **datasets**
+pre-check. Creating a time point auto-carries indicator R code and variant
+R code forward from the previous latest round. Time-point routes notify the
+**datasets**
 SSE channel (they are upload-gating state), and rename/delete additionally
 bump `structure_last_updated` + notify structure because of the weights
 cascades.

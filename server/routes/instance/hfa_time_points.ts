@@ -44,11 +44,24 @@ defineRoute(
             NULL
           )
         `;
-        // Carry indicator code forward from the latest existing time point
+        // Carry indicator and variant code forward from the latest existing
+        // time point, so a new round starts from the previous round's scripts.
         await sql`
           INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
           SELECT var_name, ${label}, r_code, r_filter_code
           FROM hfa_indicator_code
+          WHERE time_point = (
+            SELECT tp.label FROM hfa_time_points tp
+            WHERE tp.label != ${label}
+            ORDER BY tp.sort_order DESC
+            LIMIT 1
+          )
+          ON CONFLICT DO NOTHING
+        `;
+        await sql`
+          INSERT INTO hfa_indicator_variant_code (var_name, time_point, item_id, r_code)
+          SELECT var_name, ${label}, item_id, r_code
+          FROM hfa_indicator_variant_code
           WHERE time_point = (
             SELECT tp.label FROM hfa_time_points tp
             WHERE tp.label != ${label}
