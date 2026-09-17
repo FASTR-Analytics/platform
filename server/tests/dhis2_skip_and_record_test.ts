@@ -33,7 +33,7 @@ const operandPair: DvsCoveredPair = {
 
 function value(
   orgUnit: string,
-  raw: string,
+  raw: string | null | undefined,
   coc = COC_A,
   deleted = false,
 ): DHIS2DataValue {
@@ -44,6 +44,7 @@ function value(
     categoryOptionCombo: coc,
     attributeOptionCombo: "AocAaaaaaa1",
     value: raw,
+    lastUpdated: undefined,
     deleted,
   };
 }
@@ -66,7 +67,9 @@ Deno.test("parseNonNegativeInteger accepts integers, including NUMBER-typed '12.
   assertEquals(parseNonNegativeInteger("0"), 0);
 });
 
-Deno.test("parseNonNegativeInteger refuses fractional, negative, blank and non-numeric", () => {
+Deno.test("parseNonNegativeInteger refuses fractional, negative, blank, null, missing and non-numeric", () => {
+  assertEquals(parseNonNegativeInteger(null), undefined);
+  assertEquals(parseNonNegativeInteger(undefined), undefined);
   assertEquals(parseNonNegativeInteger("12.5"), undefined);
   assertEquals(parseNonNegativeInteger("-3"), undefined);
   assertEquals(parseNonNegativeInteger("-0.5"), undefined);
@@ -77,22 +80,24 @@ Deno.test("parseNonNegativeInteger refuses fractional, negative, blank and non-n
   assertEquals(parseNonNegativeInteger("Infinity"), undefined);
 });
 
-Deno.test("a fractional and a negative value are skipped, counted and sampled; the pair integrates", () => {
+Deno.test("a fractional, a negative and a null value are skipped, counted and sampled; the pair integrates", () => {
   const reductions = reduceDvsValues(
     [
       value("FacAaaaaaa1", "10"),
       value("FacBbbbbbb1", "2.5"),
       value("FacCcccccc1", "-4"),
+      value("FacCcccccc1", null),
     ],
     [barePair],
     scope,
   );
   const reduction = reductions.get(pairKey(barePair))!;
   assertEquals(reduction.rows, [{ facilityId: "FacAaaaaaa1", count: 10 }]);
-  assertEquals(reduction.skippedValues, 2);
+  assertEquals(reduction.skippedValues, 3);
   assertEquals(reduction.skippedValuesSample, [
     { facilityId: "FacBbbbbbb1", value: "2.5" },
     { facilityId: "FacCcccccc1", value: "-4" },
+    { facilityId: "FacCcccccc1", value: "" },
   ]);
 });
 

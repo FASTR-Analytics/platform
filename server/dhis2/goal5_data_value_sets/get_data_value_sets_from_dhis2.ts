@@ -1,18 +1,20 @@
 import { FetchOptions, getDHIS2 } from "../common/base_fetcher.ts";
 
+// Unvalidated JSON from an external server: every field may be missing or
+// null, whatever the DHIS2 docs promise.
 export type DHIS2DataValue = {
-  dataElement: string;
-  period: string;
-  orgUnit: string;
-  categoryOptionCombo: string;
-  attributeOptionCombo: string;
-  value: string;
-  lastUpdated?: string;
-  deleted?: boolean;
+  dataElement: string | null | undefined;
+  period: string | null | undefined;
+  orgUnit: string | null | undefined;
+  categoryOptionCombo: string | null | undefined;
+  attributeOptionCombo: string | null | undefined;
+  value: string | null | undefined;
+  lastUpdated: string | null | undefined;
+  deleted: boolean | null | undefined;
 };
 
 export type DHIS2DataValueSetsResponse = {
-  dataValues?: DHIS2DataValue[];
+  dataValues: DHIS2DataValue[] | null | undefined;
 };
 
 // One country-scale pull per base data element (PLAN_DHIS2_IMPORTER §2.4):
