@@ -278,7 +278,10 @@ back to the root is **derived**, never stored, by
 `folder_tree.ts` (`childFolders`, `ancestors`, `folderPathLabels`,
 `descendantIds`, `folderPathOptions`: pure, type-import-only, every walk
 carrying a visited set so a corrupted cycle terminates, pinned by
-`server/tests/folder_tree_test.ts`). The breadcrumb keeps the root and the
+`server/tests/folder_tree_test.ts`). The breadcrumb sits in a location row
+under the heading bar beside an Up button (up one folder, or clear the
+search while searching): the bar's own Back is reserved for leaving a
+full-page view. It keeps the root and the
 current folder and collapses the middle into a menu past two ancestors. A
 location that no longer exists (another session deleted the folder) resets to
 the root through an effect gated on `isReady`, so the persisted location

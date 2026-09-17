@@ -129,8 +129,9 @@ Pattern specifics, from the live pages:
   panel: `HeadingBar` carries `searchText`/`setSearchText`, a `centerChildren`
   with the type-filter `ButtonGroup`, `SortControl`
   (`components/_shared/sort_control.tsx`) and the view-mode `ButtonGroup`, and
-  the Create buttons; open folder / view mode / sort / type-filter state lives
-  in `t4_ui` signals (PROTOCOL_APP_STATE).
+  the Create buttons, over a location row (Up button plus breadcrumb) in the
+  same `FrameTop` panel; open folder / view mode / sort / type-filter state
+  lives in `t4_ui` signals (PROTOCOL_APP_STATE).
 - **D (editors):** opened full page, never routed. A view reached from a
   frame page (a product editor, module defaults, a Data sub-page, the user
   detail) opens through `openShellEditor` (`state/t4_ui.ts`), the shell's one

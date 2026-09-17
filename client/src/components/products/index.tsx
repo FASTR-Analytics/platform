@@ -481,17 +481,24 @@ export function Products() {
   const currentFolder = () =>
     instanceState.folders.find((f) => f.id === location());
 
-  const heading = (): string | JSX.Element => {
+  // The location row under the bar: where the explorer is, or what the
+  // search found. The bar's own Back is reserved for leaving a full-page
+  // view, so going up a folder is this row's button.
+  const locationLabel = (): JSX.Element => {
     if (isSearching()) {
-      return t3({
-        en: "Search results",
-        fr: "Résultats de recherche",
-        pt: "Resultados da pesquisa",
-      });
+      return (
+        <div class="truncate">
+          {t3({
+            en: `Search results: ${matchCount()}`,
+            fr: `Résultats de recherche : ${matchCount()}`,
+            pt: `Resultados da pesquisa: ${matchCount()}`,
+          })}
+        </div>
+      );
     }
     const folder = currentFolder();
     if (folder === undefined) {
-      return productsLabel();
+      return <div>{productsLabel()}</div>;
     }
     const trail = ancestors(instanceState.folders, folder.id);
     const collapsed = trail.length > _MAX_UNCOLLAPSED_ANCESTORS;
@@ -637,101 +644,102 @@ export function Products() {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar
-          data-tour="products-header"
-          heading={heading()}
-          subheading={
-            isSearching()
-              ? t3({
-                  en: `${matchCount()} results`,
-                  fr: `${matchCount()} résultats`,
-                  pt: `${matchCount()} resultados`,
-                })
-              : undefined
-          }
-          onBack={
-            isSearching()
-              ? () => setSearchText("")
-              : location() !== null
-                ? goToParent
-                : undefined
-          }
-          searchText={searchText()}
-          setSearchText={setSearchText}
-          centerChildren={
-            <div class="ui-gap-sm flex items-center">
-              <ButtonGroup
-                data-tour="products-type-filter"
-                value={productsTypeFilter() ?? _ALL_TYPES}
-                onChange={(v) =>
-                  setProductsTypeFilter(
-                    v === undefined || v === _ALL_TYPES
-                      ? null
-                      : (v as ProductType),
-                  )
-                }
-                items={typeFilterItems()}
-              />
-              <SortControl
-                data-tour="products-sort"
-                value={productsSortMode()}
-                onChange={setProductsSortMode}
-              />
-              <ButtonGroup
-                data-tour="products-view-mode"
-                value={productsViewMode()}
-                onChange={(v) =>
-                  setProductsViewMode(v === "list" ? "list" : "grid")
-                }
-                items={[
-                  {
-                    id: "grid",
-                    label: "",
-                    iconName: "layoutGrid",
-                    labelText: t3({
-                      en: "Grid view",
-                      fr: "Vue en grille",
-                      pt: "Vista em grelha",
-                    }),
-                  },
-                  {
-                    id: "list",
-                    label: "",
-                    iconName: "clearAll",
-                    labelText: t3({
-                      en: "List view",
-                      fr: "Vue en liste",
-                      pt: "Vista em lista",
-                    }),
-                  },
-                ]}
-              />
-            </div>
-          }
-        >
-          <Show when={canEdit()}>
-            <div class="ui-gap-sm flex items-center">
-              <Button
-                data-tour="products-new-folder"
-                iconName="plus"
-                outline
-                onClick={() =>
-                  void openComponent({
-                    element: EditFolderModal,
-                    props: { folder: undefined, parentId: location() },
-                  })
-                }
-              >
-                {t3({
-                  en: "New folder",
-                  fr: "Nouveau dossier",
-                  pt: "Nova pasta",
-                })}
-              </Button>
-              {createButtons}
-            </div>
-          </Show>
-        </HeadingBar>
+        <div>
+          <HeadingBar
+            data-tour="products-header"
+            heading={productsLabel()}
+            searchText={searchText()}
+            setSearchText={setSearchText}
+            centerChildren={
+              <div class="ui-gap-sm flex items-center">
+                <ButtonGroup
+                  data-tour="products-type-filter"
+                  value={productsTypeFilter() ?? _ALL_TYPES}
+                  onChange={(v) =>
+                    setProductsTypeFilter(
+                      v === undefined || v === _ALL_TYPES
+                        ? null
+                        : (v as ProductType),
+                    )
+                  }
+                  items={typeFilterItems()}
+                />
+                <SortControl
+                  data-tour="products-sort"
+                  value={productsSortMode()}
+                  onChange={setProductsSortMode}
+                />
+                <ButtonGroup
+                  data-tour="products-view-mode"
+                  value={productsViewMode()}
+                  onChange={(v) =>
+                    setProductsViewMode(v === "list" ? "list" : "grid")
+                  }
+                  items={[
+                    {
+                      id: "grid",
+                      label: "",
+                      iconName: "layoutGrid",
+                      labelText: t3({
+                        en: "Grid view",
+                        fr: "Vue en grille",
+                        pt: "Vista em grelha",
+                      }),
+                    },
+                    {
+                      id: "list",
+                      label: "",
+                      iconName: "clearAll",
+                      labelText: t3({
+                        en: "List view",
+                        fr: "Vue en liste",
+                        pt: "Vista em lista",
+                      }),
+                    },
+                  ]}
+                />
+              </div>
+            }
+          >
+            <Show when={canEdit()}>
+              <div class="ui-gap-sm flex items-center">
+                <Button
+                  data-tour="products-new-folder"
+                  iconName="plus"
+                  outline
+                  onClick={() =>
+                    void openComponent({
+                      element: EditFolderModal,
+                      props: { folder: undefined, parentId: location() },
+                    })
+                  }
+                >
+                  {t3({
+                    en: "New folder",
+                    fr: "Nouveau dossier",
+                    pt: "Nova pasta",
+                  })}
+                </Button>
+                {createButtons}
+              </div>
+            </Show>
+          </HeadingBar>
+          <div class="ui-pad-x ui-pad-y-sm ui-gap flex items-center border-b">
+            <Button
+              iconName="arrowUp"
+              outline
+              size="sm"
+              ariaLabel={t3({
+                en: "Up one level",
+                fr: "Niveau supérieur",
+                pt: "Nível acima",
+              })}
+              disabled={!isSearching() && location() === null}
+              onClick={() => (isSearching() ? setSearchText("") : goToParent())}
+            />
+            {locationLabel()}
+          </div>
+        </div>
       }
     >
       <Switch>
