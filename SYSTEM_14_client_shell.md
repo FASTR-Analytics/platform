@@ -243,8 +243,10 @@ In-memory only (deliberately not persisted): `fitWithin`, `showAi`,
 `headerOrContent`, `policyHeaderOrContent`, the three request signals the
 tours and the deep link use (`pendingEditorOpen`, `pendingSlideOpen`,
 `pendingTourReplay`), and the shell's full-page wrapper (`openShellEditor`,
-`ShellEditorWrapper`: one module-level `getEditorWrapper()` so the frame
-pages that open views share the instance the shell renders). The rule these encode: **display-only preferences stay
+`ShellEditorWrapper`: a module-level `getEditorWrapper()` so the frame pages
+that open views share the instance the shell renders, recreated on each
+shell mount so a same-tab user switch without a reload cannot resurface the
+previous user's open view). The rule these encode: **display-only preferences stay
 in T4: they never enter fetch configs or cache hashes** (the roll-up sentinel
 lesson, SYSTEM_09).
 
