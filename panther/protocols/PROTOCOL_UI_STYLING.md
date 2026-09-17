@@ -53,13 +53,14 @@ the full token catalog, and the theming mechanics, see
 16. **Theme with plain `@theme`**: never `@theme inline`, never re-wipe
     `--color-*` app-side.
 17. **Sentence case**: all UI text, always.
-18. **Dark mode is `data-scheme`, and opted-in apps override tokens as pairs**:
-    opt in by setting `data-scheme="system|light|dark"` on `<html>` (via
-    `setSchemePreference`). Once opted in, every color token the app overrides
-    must be a `light-dark()` pair in an un-layered `:root[data-scheme]` block
-    inside `@supports (color: light-dark(#fff, #000))`, after the kit import. A
-    single-value override means "same color in both schemes". `data-theme` stays
-    reserved for palette swaps: never use it for scheme.
+18. **Dark mode is `data-scheme`, and color overrides are `light-dark()`
+    pairs**: every kit color token is a pair, so an app overrides a token in
+    plain `@theme` as a pair too:
+    `--color-primary: light-dark(#6f2e30, #d98a8c)`. A single value means "same
+    color in both schemes". Offer dark mode by setting
+    `data-scheme="system|light|dark"` on `<html>` (via `setSchemePreference`);
+    no attribute renders light. `data-theme` stays reserved for palette swaps:
+    never use it for scheme.
 19. **Document surfaces wear `ui-scheme-light`**: slide canvases, page previews,
     print/export HTML pin `color-scheme` with the utility, never `bg-white`.
     Canvas twin: `<FigureHolder scheme="light">`.
@@ -320,9 +321,9 @@ bolding.
 @theme {
   /* No --color-*: initial: the kit already wiped the palette, and an
      app-side wipe also nukes the kit's derived state tokens. */
-  --color-primary: #6f2e30;
-  --color-base-200: #ebebec;
-  --color-border: #d6d7d9; /* pin explicitly if you used to theme borders via base-300 */
+  --color-primary: light-dark(#6f2e30, #d98a8c);
+  --color-base-200: light-dark(#ebebec, #2a2a2e);
+  --color-border: #d6d7d9; /* same in both schemes; pin explicitly if you used to theme borders via base-300 */
   --radius: 3px;
 }
 ```
