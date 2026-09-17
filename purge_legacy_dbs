@@ -38,11 +38,13 @@ set -u -o pipefail
 
 SSH_HOST="wb-server"
 
+# -n: no call here feeds stdin, and without it ssh would read the file behind
+# a `while read` loop and end the loop after its first line.
 SSH_OPTS=(-o ConnectTimeout=15 -o ControlMaster=auto -o "ControlPath=$HOME/.ssh/cm-%r@%h:%p" -o ControlPersist=15m)
 sshx() {
     local attempt rc
     for attempt in 1 2 3; do
-        command ssh "${SSH_OPTS[@]}" "$@"
+        command ssh -n "${SSH_OPTS[@]}" "$@"
         rc=$?
         [ "$rc" -ne 255 ] && return "$rc"
         echo "  (ssh connection failed, retry $attempt/3 in 15s)" >&2
