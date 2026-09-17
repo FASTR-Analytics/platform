@@ -4995,11 +4995,15 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         });
         this.resize.observe(view.contentDOM);
       }
+      this.markPaged(view.state);
       this.measure();
     }
     destroy() {
       this.resize?.disconnect();
       this.oracle.dispose();
+      // The live-preview extensions leave with the mode (Edit -> Split): the
+      // flowing surface takes its scroll-past-end pad back.
+      this.view.contentDOM.classList.remove("cm-fm-paged");
     }
     update(u: ViewUpdate) {
       const landed = u.transactions.some((tr) =>
@@ -5008,6 +5012,15 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       if (landed || u.docChanged || u.viewportChanged || u.geometryChanged) {
         this.measure();
       }
+      if (landed || u.docChanged) this.markPaged(u.state);
+    }
+    // While pages are DRAWN the sheet ends at the last page's foot: the
+    // flowing surface's scroll-past-end pad would leave a strip of paper
+    // below the last page's bottom edge, and the document would look like it
+    // ran on past its own end (report_fastr_css.ts, .cm-fm-paged).
+    markPaged(state: EditorState) {
+      const total = state.field(paginationField, false)?.pagination?.result.total ?? 0;
+      this.view.contentDOM.classList.toggle("cm-fm-paged", total > 0);
     }
     measure() {
       this.view.requestMeasure<BoxMeasure | undefined>({
