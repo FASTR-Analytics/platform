@@ -40,7 +40,7 @@ export type ThemeDarkPrimary = (typeof THEME_DARK_PRIMARIES)[number];
 // Fine steps, denser below the default: the reskin is expected to tighten
 // rather than loosen. Density and text scale are factors over the kit's rem
 // tables; 1 writes nothing.
-export const THEME_RADII = [0, 1, 2, 3, 4, 6, 8, "full"] as const;
+export const THEME_RADII = [0, 1, 2, 3, 4, 6, 8, 12, 20] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
 
 export const THEME_DENSITIES = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3] as const;
@@ -317,12 +317,7 @@ function scaledRem(
 
 function themeVars(t: Theme): ThemeVars {
   const vars = colorVars(t);
-  vars["--radius"] =
-    t.radius === DEFAULT_THEME.radius
-      ? null
-      : t.radius === "full"
-        ? "9999px"
-        : `${t.radius}px`;
+  vars["--radius"] = t.radius === DEFAULT_THEME.radius ? null : `${t.radius}px`;
   scaledRem(vars, DENSITY_BASE_REM, t.density);
   scaledRem(vars, TEXT_BASE_REM, t.textScale);
   return vars;

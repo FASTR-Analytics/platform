@@ -106,10 +106,7 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
     { id: "sky", label: t3({ en: "Sky", fr: "Ciel", pt: "Céu" }) },
   ];
 
-  const radiusLabel = (r: Theme["radius"]) =>
-    r === "full"
-      ? t3({ en: "Full", fr: "Complet", pt: "Completo" })
-      : `${r} px`;
+  const radiusLabel = (r: Theme["radius"]) => `${r} px`;
 
   const summary = () =>
     [
