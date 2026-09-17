@@ -514,10 +514,16 @@ ${d}.fm-columns--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 ${d}.fm-col > :last-child { margin-bottom: 0; }
 /* A toned or painted column is a panel: text flush with a coloured edge reads
    as a mistake, so it takes the same inset a toned grid does, and its first
-   block sits at the top of the panel rather than under its own margin. */
+   block sits at the top of the panel rather than under its own margin.
+   Panels in one row are also read as a SET (the two sides of a comparison,
+   which is what the brief asks a toned columns pair to be), so each takes
+   the row's full height however its text wraps: two panels an inch apart
+   read as a mistake where two columns of plain text simply end where they
+   end, which is why the row itself still aligns to the start. */
 ${d}.fm-col.fm-tone, ${d}.fm-col.fm-has-bg {
   padding: 1em 1.2em;
   border-radius: var(--fm-radius);
+  align-self: stretch;
 }
 ${d}.fm-col.fm-tone > :first-child, ${d}.fm-col.fm-has-bg > :first-child { margin-top: 0; }
 ${d}.fm-col--span2 { grid-column: span 2; }
@@ -1509,12 +1515,6 @@ ${d}.cm-fm-chrome { cursor: pointer; }
 ${d}.cm-fm-text-edit { cursor: text; }
 ${d}.cm-fm-text-edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 ${d}.cm-fm-text-edit:focus { outline: 1px dashed var(--fm-accent-text); outline-offset: 2px; text-decoration: none; }
-/* While an island is OPEN it shows its paragraph's source, newlines and all:
-   pre-wrap so a line break the author just made is a line break on screen and
-   not the space a normal white-space collapses it to. The rendered form, with
-   its <br>, takes over when the island closes. */
-${d}.cm-fm-text-edit[contenteditable="plaintext-only"],
-${d}.cm-fm-text-edit[contenteditable="true"] { white-space: pre-wrap; }
 /* No ring on the active region: blocks look exactly as View renders them even
    with the caret inside (the class still drives ghost placeholders). */
 /* Click-to-edit labels in chrome: a text cursor and a quiet dotted underline

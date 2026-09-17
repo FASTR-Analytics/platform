@@ -37,7 +37,6 @@ import {
   chromeAttrRows,
   pagedCaretIntent,
   type PresenceDeps,
-  setIslandCaret,
   textIslandEndRel,
 } from "./live_preview_extension";
 
@@ -79,12 +78,6 @@ html { background: #e5e7eb !important; overflow-y: scroll; }
 .cm-fm-text-edit { cursor: text; }
 .cm-fm-text-edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 .cm-fm-text-edit:focus { outline: 1px dashed var(--fm-accent-text); outline-offset: 2px; text-decoration: none; }
-/* While an island is OPEN it shows its paragraph's source, newlines and all:
-   pre-wrap so a line break the author just made is a line break on screen and
-   not the space a normal white-space collapses it to. The rendered form, with
-   its <br>, takes over when the island closes. */
-.cm-fm-text-edit[contenteditable="plaintext-only"],
-.cm-fm-text-edit[contenteditable="true"] { white-space: pre-wrap; }
 .cm-fm-attr { cursor: text; }
 .cm-fm-attr:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 .cm-fm-attr:focus { outline: none; text-decoration: underline dotted; text-underline-offset: 3px; }
@@ -132,6 +125,38 @@ function firstClass(el: Element): string {
 
 function pageOf(el: Element): Element | null {
   return el.closest(".pagedjs_page");
+}
+
+// Place the caret at a source offset inside an island: every text node
+// counts, hidden syntax spans included, because the island's textContent IS
+// the source and the offset comes from the CodeMirror selection.
+function setCaretAt(el: HTMLElement, offset: number): void {
+  const doc = el.ownerDocument;
+  const win = doc.defaultView;
+  if (!win) return;
+  const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let node: Text | null;
+  let remaining = offset;
+  let last: Text | null = null;
+  const range = doc.createRange();
+  while ((node = walker.nextNode() as Text | null)) {
+    last = node;
+    if (remaining <= node.length) {
+      range.setStart(node, remaining);
+      range.collapse(true);
+      const sel = win.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      return;
+    }
+    remaining -= node.length;
+  }
+  if (last) range.setStart(last, last.length);
+  else range.setStart(el, 0);
+  range.collapse(true);
+  const sel = win.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
 }
 
 export function createPagedEditSurface(
@@ -426,7 +451,7 @@ export function createPagedEditSurface(
     let offset = 0;
     for (let l = bestRel; l < lineIdx; l++) offset += (lines[l]?.length ?? 0) + 1;
     offset += sel.head - line.from;
-    setIslandCaret(best, offset);
+    setCaretAt(best, offset);
     best.scrollIntoView({ block: "nearest" });
   }
 
