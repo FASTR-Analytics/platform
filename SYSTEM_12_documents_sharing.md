@@ -1511,7 +1511,7 @@ a TABLE segment that appears only while the caret is in a table
 (`ReportBlockContext.table`, the same `applyTableCellAction` the cell
 right-click menu uses, so rows and columns are reachable without knowing
 about right-click). Applying a list kind now REPLACES whatever list marker is
-there rather than stacking one; a quote still wraps a list. Islands COMMIT AS THEY ARE TYPED (text islands, the chrome attr editors and
+there rather than stacking one; a quote still wraps a list. EVERY BLOCK DELETES from its own right-click (`attachBlockContextMenu` on the region and leaf widgets, `deleteFastrBlockEdit` in lib taking the region's lines plus the blank line beside them): the menu's first row names what will go, since a right-click inside a nested block is claimed by that block's own menu (a card, a step, a table cell) and only reaches the region when it lands on the block itself. Without it a cover, a band or a page break had no way out of the document at all. Islands COMMIT AS THEY ARE TYPED (text islands, the chrome attr editors and
 table cells alike): every keystroke is a normal doc change, so under collab a
 peer sees the cover title change letter by letter and nothing depends on a
 blur that a widget rebuild may swallow. The island's own commits carry the

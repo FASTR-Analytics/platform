@@ -5,6 +5,7 @@ import {
   cardTilesSnippet,
   columnsSnippet,
   applyTableCellAction,
+  deleteFastrBlockEdit,
   type EditResult,
   inlineMarkStateAt,
   insertLinkEdit,
@@ -378,6 +379,45 @@ Deno.test("a size selection skips fences and delimiter rows it crosses", () => {
 });
 
 // ── Headings ─────────────────────────────────────────────────────────────────
+
+Deno.test("deleting a block takes its lines and one blank line with it", () => {
+  const doc = [
+    "Intro paragraph.",
+    "",
+    ":::cover{tone=ink}",
+    "# Quarterly review",
+    ":::",
+    "",
+    "After the cover.",
+  ].join("\n");
+  // The cover is lines 2..4; the blank line UNDER it goes too, so the two
+  // paragraphs are left exactly one blank line apart.
+  const r = deleteFastrBlockEdit(doc, 2, 4);
+  assertWellFormed(r);
+  assertEquals(apply(doc, r), "Intro paragraph.\n\nAfter the cover.");
+  // The caret lands where the block stood.
+  assertEquals(r.selection?.anchor, "Intro paragraph.\n\n".length);
+});
+
+Deno.test("deleting the document's last block takes the blank line above it", () => {
+  const doc = ["Intro paragraph.", "", ":::pagebreak", ""].join("\n");
+  assertEquals(apply(doc, deleteFastrBlockEdit(doc, 2, 2)), "Intro paragraph.\n");
+  // And with nothing after it at all.
+  const tight = ["Intro paragraph.", "", ":::pagebreak"].join("\n");
+  assertEquals(apply(tight, deleteFastrBlockEdit(tight, 2, 2)), "Intro paragraph.");
+});
+
+Deno.test("deleting the only block leaves an empty document", () => {
+  const doc = ":::cover{tone=ink}\n# Title\n:::";
+  assertEquals(apply(doc, deleteFastrBlockEdit(doc, 0, 2)), "");
+});
+
+Deno.test("a delete outside the document is a no-op, not a dispatch", () => {
+  const doc = "One line.";
+  assertEquals(deleteFastrBlockEdit(doc, 0, 5).changes.length, 0);
+  assertEquals(deleteFastrBlockEdit(doc, -1, 0).changes.length, 0);
+  assertEquals(deleteFastrBlockEdit(doc, 2, 1).changes.length, 0);
+});
 
 Deno.test("a heading level applies to every selected line and replaces the old one", () => {
   const doc = "One\n## Two\n### Three";

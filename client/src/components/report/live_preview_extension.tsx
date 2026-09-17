@@ -82,6 +82,8 @@ import {
   isDarkCssColor,
   isFastrEmbedLine,
   isFastrLeafBlock,
+  deleteFastrBlockEdit,
+  type FastrBlockName,
   parseContainerFence,
   parseFastrMarkAttrs,
   readFastrDocumentSettings,
@@ -103,6 +105,7 @@ import {
   materializeReportBackgrounds,
   sanitizeReportHtml,
 } from "./report_html";
+import { fastrBlockLabel } from "~/components/_shared/fastr_block_labels";
 import type { EmbedResolver } from "./figure_widget_extension";
 import { ReportFigureEmbed } from "./ReportFigureEmbed";
 
@@ -123,6 +126,77 @@ function docOf(el: Node): Document {
 function winOf(el: Node): Window {
   return docOf(el).defaultView ?? window;
 }
+// What a block is CALLED in the menu that deletes it: the vocabulary's own
+// name for a fence, and the plain word for the two regions that have no fence
+// (a markdown table, a lone figure or image line).
+function fastrRegionLabel(
+  kind: FastrLiveRegion["kind"],
+  source: string,
+  startLine: number,
+): string {
+  const fence = fastrOpenFenceOnLine(source.split("\n")[0] ?? "", startLine + 1);
+  if (fence && (FASTR_BLOCK_NAMES as readonly string[]).includes(fence.name)) {
+    return fastrBlockLabel(fence.name as FastrBlockName);
+  }
+  if (kind === "table") return t3({ en: "Table", fr: "Tableau", pt: "Tabela" });
+  if (kind === "embed") {
+    return /\(image:/.test(source)
+      ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
+      : t3({ en: "Figure", fr: "Figure", pt: "Figura" });
+  }
+  return t3({ en: "Block", fr: "Bloc", pt: "Bloco" });
+}
+
+// Right-click a block: the one thing a whole block needs that nothing else in
+// Edit offers, which is getting rid of it. A cover, a band, a table, a figure
+// and a page break all delete the same way (deleteFastrBlockEdit takes the
+// region's lines and the blank line beside them), and the first row NAMES what
+// will go: a right-click inside a nested block is claimed by that block's own
+// menu, so the author has to be able to see which one this is.
+//
+// `region` is read at click time, not closed over: a widget's element outlives
+// the widget when the region is re-rendered in place (updateDOM).
+function attachBlockContextMenu(
+  el: HTMLElement,
+  view: EditorView,
+  region: () => { startLine: number; endLine: number; label: string },
+) {
+  el.addEventListener("contextmenu", (e) => {
+    // A view-only reader gets the browser's own menu: the one item this menu
+    // has is an edit, and CodeMirror would refuse it.
+    if (view.state.readOnly) return;
+    const { startLine, endLine, label } = region();
+    if (startLine < 0 || endLine >= view.state.doc.lines) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showMenu({
+      anchor: menuAnchor(e),
+      items: [
+        { label, disabled: true, onClick: () => {} },
+        { type: "divider" },
+        {
+          label: t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" }),
+          intent: "danger",
+          onClick: () => {
+            const r = deleteFastrBlockEdit(
+              view.state.doc.toString(),
+              startLine,
+              endLine,
+            );
+            if (r.changes.length === 0) return;
+            view.dispatch({
+              changes: r.changes,
+              selection: r.selection,
+              scrollIntoView: true,
+            });
+            view.focus();
+          },
+        },
+      ],
+    });
+  });
+}
+
 function menuAnchor(e: MouseEvent): { x: number; y: number; width: number; height: number } {
   const target = e.target as Node | null;
   const frame = target?.ownerDocument?.defaultView?.frameElement;
@@ -274,6 +348,11 @@ class RegionWidget extends WidgetType {
       });
       view.focus();
     });
+    attachBlockContextMenu(dom, view, () => ({
+      startLine: self().startLine,
+      endLine: self().endLine,
+      label: fastrRegionLabel(self().kind, self().source, self().startLine),
+    }));
     dom.addEventListener("click", (e) => {
       const embed = (e.target as HTMLElement).closest<HTMLElement>(
         "[data-embed-id]",
@@ -1956,6 +2035,11 @@ class LeafRenderWidget extends WidgetType {
     dom.classList.add("cm-fm-leaf");
     dom.style.setProperty("--fm-gap-top", `${this.gapTop}px`);
     dom.setAttribute("data-region-line", String(this.line1 - 1));
+    attachBlockContextMenu(dom, view, () => ({
+      startLine: this.line1 - 1,
+      endLine: this.line1 - 1,
+      label: fastrRegionLabel("leaf", this.source, this.line1 - 1),
+    }));
     const fence = fastrOpenFenceOnLine(this.source, this.line1);
     if (fence?.name === "contents") {
       // The renderer's own markup, from the same builder — but fed the live
