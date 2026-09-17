@@ -33,7 +33,10 @@ const percent = (v: number) => `${Math.round(v * 100)}%`;
 function numericItems(steps: readonly number[], label: (v: number) => string) {
   return steps.map((v) => ({ id: String(v), label: label(v) }));
 }
-function stepOf<T extends number>(steps: readonly T[], id: string | undefined) {
+function stepOf<T extends number | string>(
+  steps: readonly T[],
+  id: string | undefined,
+) {
   return steps.find((v) => String(v) === id);
 }
 
@@ -103,6 +106,11 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
     { id: "sky", label: t3({ en: "Sky", fr: "Ciel", pt: "Céu" }) },
   ];
 
+  const radiusLabel = (r: Theme["radius"]) =>
+    r === "full"
+      ? t3({ en: "Full", fr: "Complet", pt: "Completo" })
+      : `${r} px`;
+
   const summary = () =>
     [
       labelOf(rampItems, theme().ramp),
@@ -110,7 +118,7 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
       labelOf(inkItems, theme().ink),
       labelOf(statusItems, theme().status),
       labelOf(darkPrimaryItems, theme().darkPrimary),
-      `${theme().radius} px`,
+      radiusLabel(theme().radius),
       percent(theme().density),
       percent(theme().textScale),
     ].join(" / ");
@@ -221,7 +229,10 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
             fr: "Arrondi des coins",
             pt: "Arredondamento dos cantos",
           })}
-          items={numericItems(THEME_RADII, (v) => `${v} px`)}
+          items={THEME_RADII.map((r) => ({
+            id: String(r),
+            label: radiusLabel(r),
+          }))}
           value={String(theme().radius)}
           onChange={(v) => update("radius", stepOf(THEME_RADII, v))}
           fullWidth
