@@ -1,6 +1,11 @@
 import { fetchFromDHIS2, buildUrl } from "../common/base_fetcher.ts";
 import type { Dhis2Credentials } from "lib";
-import type { GeoJsonFeatureCollection } from "./types.ts";
+import type { GeoJsonFeature, GeoJsonFeatureCollection } from "./types.ts";
+
+type GeoJsonFeatureCollectionWire = {
+  type: string | null | undefined;
+  features: GeoJsonFeature[] | null | undefined;
+};
 
 // The heavy fetch: full-resolution boundaries for every org unit at a level,
 // ~20 MB / up to ~43 s for a 200-district country. Callers pass the timeout,
@@ -18,7 +23,7 @@ export async function fetchOrgUnitsGeoJsonForLevel(
     { level: String(dhis2Level) },
   );
 
-  const result = await fetchFromDHIS2<GeoJsonFeatureCollection>(url, {
+  const result = await fetchFromDHIS2<GeoJsonFeatureCollectionWire>(url, {
     dhis2Credentials: credentials,
     timeout: options.timeoutMs,
     maxResponseBytes: options.maxResponseBytes,
@@ -32,5 +37,5 @@ export async function fetchOrgUnitsGeoJsonForLevel(
     throw new Error("Invalid GeoJSON response from DHIS2: expected a FeatureCollection");
   }
 
-  return result;
+  return { type: "FeatureCollection", features: result.features };
 }
