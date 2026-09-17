@@ -19,7 +19,8 @@ docs_absorbed:
 # S15: Instance Administration & Ops
 
 User and permission management, instance settings UI, plus the operational
-side-channel: health endpoints, disk autonomics, scheduled jobs, deploy. Small server surface, highest privilege.
+side-channel: health endpoints, disk autonomics, scheduled jobs, deploy.
+Small server surface, highest privilege.
 
 ## Scope
 
@@ -73,8 +74,8 @@ one returns a warning that the status is lost. The same file carries
 
 The app has no backup or restore code. Instance backups are a status-api and
 volume concern, handled off-instance. Run directories are never backed up
-([SYSTEM_08](SYSTEM_08_results_packages.md) "Database restores and packages" owns the
-consequences).
+([SYSTEM_08](SYSTEM_08_results_packages.md) "Database restores and packages"
+owns the consequences).
 
 ## Health & central export: the exposure inventory
 

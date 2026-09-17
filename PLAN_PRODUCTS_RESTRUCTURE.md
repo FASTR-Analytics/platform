@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 9b.** Each session sets this line in its final commit. Its
+**Next step: Review 9b.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2394,6 +2394,10 @@ this section before its step.
 | 2026-09-17 | 9b | Review 9b, finding 9 (code, consequence of the finding 1 fix): 091 still carries each report's `body_authors` (`consolidation/plan.ts:473,625`, `consolidation/execute.ts:192-195`), but the authorship ledger is trusted only while `crdt_state_last_updated` equals the product's `last_updated` (`db/products/reports.ts:223-226`) and handed to a room only alongside a current `crdt_state` (`routes/instance/collab.ts:286-295`, "a re-seeded doc starts with unknown authorship"). With both CRDT columns now NULL, no reader can ever use the carried value and the first checkpoint overwrites it, so it is dead data, and every migrated report's live authorship attribution resets at the consolidation. That reset is recorded nowhere: not in the Fix 9b row, the `plan.ts` CO-EDITING STATE header, SYSTEM_02's 091 paragraph or `validate_consolidation_replay.ts`. Version snapshots keep their own ledgers (`report_versions.body_authors`, `plan.ts:685`) and are unaffected. The fix drops `body_authors` from the live report read, plan and insert, states the reset in the header and SYSTEM_02, and extends the replay's co-editing check to `reports.body_authors IS NULL`. |
 | 2026-09-17 | 9b | Review 9b, finding 10 (formatting): lines the Fix 9b rewrap left past the surrounding width: `consolidation/plan.ts:14` (116 characters, the FROZEN TYPES header), `SYSTEM_02_persistence.md:254` and `:357`, `SYSTEM_08_results_packages.md:957`, `SYSTEM_15_admin_ops.md:22` and `:76`. |
 | 2026-09-17 | 9b | Step 9b reviewed: 2 findings. |
+| 2026-09-17 | plan | Tim asked the reviewer to make the fixes in the review session, as the 2026-09-17 ruling allowed for the first Fix 9b. Tim accepted the authorship reset on migrated reports rather than rewriting the stored Yjs state. The next Review 9b is a fresh agent. |
+| 2026-09-17 | 9b | Fix 9b, finding 9: 091 no longer reads, plans or inserts a live report's `body_authors` (`consolidation/plan.ts` row type, SELECT and planned row; `consolidation/execute.ts` insert). Version snapshots still carry theirs. The `plan.ts` CO-EDITING STATE header and SYSTEM_02's 091 paragraph say migrated reports start with unknown authorship. `validate_consolidation_replay.ts` seeds a ledger on the report with trusted state and checks that `reports.body_authors` is empty after the consolidation. The check passes with the fix and fails when the replay runs against the planner and executor at 71d507c9. Amended in place, since 091 has shipped nowhere. Finding 10: the six lines are rewrapped. |
+| 2026-09-17 | 9b | Fix 9b gates: `deno task typecheck` (server, client, `lint:systems`), `deno task test` 166 passed 0 failed, `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), `./validate_migrations`, `./validate_migrations_replay` (fresh boot exit 0), `./validate_queries`, `./validate_consolidation_replay`, and `deno check validate_consolidation.ts validate_consolidation_replay.ts server/db/migrations/consolidation/*.ts`. The dev DB is already consolidated, so 091 is not re-run there. |
+| 2026-09-17 | 9b | Step 9b fixed. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 

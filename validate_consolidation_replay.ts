@@ -277,9 +277,9 @@ async function seedProjectDatabase(db: Sql): Promise<void> {
     ('s1', 'd1', 0, ${layoutWithFigure()}, ${T}, 'AAA=', ${T}),
     ('s2', 'd1', 1, ${layoutWithPlaceholder()}, ${T}, NULL, NULL),
     ('s3', 'd2', 0, ${layoutWithFigure()}, ${T}, NULL, NULL)`;
-  await db`INSERT INTO reports (id, label, body, figures, images, last_updated, folder_id, crdt_state, crdt_state_last_updated) VALUES
-    ('r1', 'Report A', '<p>a</p>', ${figures}, '{}', ${T}, 'rf1', 'AAA=', ${T}),
-    ('r2', 'Report B', '', '{}', '{}', ${T}, NULL, NULL, NULL)`;
+  await db`INSERT INTO reports (id, label, body, figures, images, last_updated, folder_id, crdt_state, crdt_state_last_updated, body_authors) VALUES
+    ('r1', 'Report A', '<p>a</p>', ${figures}, '{}', ${T}, 'rf1', 'AAA=', ${T}, '[{"email":"editor@example.org","length":8}]'),
+    ('r2', 'Report B', '', '{}', '{}', ${T}, NULL, NULL, NULL, NULL)`;
   const versionSlides = JSON.stringify([{ id: "s1", config: JSON.parse(layoutWithFigure()) }]);
   const slideEditors = JSON.stringify({ slides: { s1: [{ email: "editor@example.org" }] } });
   await db`INSERT INTO deck_versions
@@ -479,11 +479,12 @@ async function assertConsolidated(db: Sql): Promise<void> {
     const expected = scopeOf.get(productId)!;
     return sightings.every((s) => s.runId === expected.runId && s.adminArea2 === expected.adminArea2);
   };
-  const reports = await db<{ id: string; figures: string; crdt_state: string | null }[]>`
-    SELECT id, figures, crdt_state FROM reports`;
+  const reports = await db<{ id: string; figures: string; crdt_state: string | null; body_authors: string | null }[]>`
+    SELECT id, figures, crdt_state, body_authors FROM reports`;
   check(
-    slides.every((s) => s.crdt_state === null) && reports.every((r) => r.crdt_state === null),
-    "no legacy co-editing state is carried, so rooms re-seed from the stamped JSON",
+    slides.every((s) => s.crdt_state === null) &&
+      reports.every((r) => r.crdt_state === null && r.body_authors === null),
+    "no legacy co-editing state or live authorship ledger is carried, so rooms re-seed from the stamped JSON",
   );
   const liveSlideBundles = slides.flatMap((s) => bundlesInSlideConfig(s.config));
   const liveReportBundles = reports.flatMap((r) => bundlesInFiguresMap(r.figures));

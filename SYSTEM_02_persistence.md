@@ -251,7 +251,8 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   run input capture). Two DuckDB-bound call sites use it too
   (`run_query/run_read.ts` and the S9 filter values in
   `server_only_funcs_presentation_objects/query_helpers.ts`), which is safe
-  because both engines escape a quote by doubling it. No call site may inline its own `''`-doubling.
+  because both engines escape a quote by doubling it. No call site may
+  inline its own `''`-doubling.
   `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
   twin.
 - **`.unsafe()`** runs raw SQL with no parameterization. There are roughly a
@@ -354,8 +355,10 @@ instance migrations bridge that:
   returns every row to insert, the id remaps, the nested folder plan, the
   bundle stamps and the dropped-row counts, and issues no write. It does not
   carry `crdt_state`: a legacy co-editing state holds figures saved without a
-  scope or run id, so every migrated room re-seeds from the stamped JSON. A source
-  database not at `041_drop_frozen_results_plane`, or a project with no
+  scope or run id, so every migrated room re-seeds from the stamped JSON. Nor
+  does it carry a live report's `body_authors`, which is trusted only beside
+  a current `crdt_state`, so migrated reports start with unknown authorship;
+  version snapshots keep their ledgers. A source database not at `041_drop_frozen_results_plane`, or a project with no
   `run_id` on an instance with no pinned run, throws. With no projects it
   returns at once.
 - **`092_drop_project_layer.sql`** merges `user_logs_aggregate` rows that

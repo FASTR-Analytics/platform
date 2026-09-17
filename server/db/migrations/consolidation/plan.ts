@@ -11,9 +11,10 @@
 //
 // FROZEN TYPES: the legacy project-DB row types below describe a schema that
 // exists nowhere else in the repo (they were copied from the deleted
-// server/db/project/_project_database_types.ts), and the nanoid alphabet is frozen beside them rather than imported
-// from server/utils/id_generation.ts. The slide
-// layout walker and ProductType survive the restructure and are imported.
+// server/db/project/_project_database_types.ts), and the nanoid alphabet is
+// frozen beside them rather than imported from server/utils/id_generation.ts.
+// The slide layout walker and ProductType survive the restructure and are
+// imported.
 //
 // ID COLLISIONS (D9 item 6, D14): project DBs were created WITH TEMPLATE, so
 // ids, uuids included, are byte-identical across projects copied from one
@@ -41,7 +42,10 @@
 // holds its figures as saved before bundles had a scope and a runId, and the
 // room would restore those over the stamped JSON. Rooms re-seed from the
 // stamped content instead (project migrations 030 and 037 cleared the same
-// state for the same reason).
+// state for the same reason). A live report's body_authors is not carried
+// either: the ledger is trusted only beside a current crdt_state, so a
+// re-seeded report starts with unknown authorship. Version snapshots keep
+// their own ledgers.
 //
 // NOT READ (D3): presentation_objects, visualization_folders, dashboards,
 // dashboard_items, dashboard_item_groups. Deleted with the project DBs; only
@@ -103,7 +107,6 @@ type LegacyReportRow = {
   figures: string;
   images: string;
   config: string | null;
-  body_authors: string | null;
   last_updated: string;
   folder_id: string | null;
 };
@@ -181,7 +184,6 @@ export type PlannedReport = {
   figures: string;
   images: string;
   config: string | null;
-  bodyAuthors: string | null;
 };
 
 export type PlannedReportVersion = {
@@ -470,8 +472,7 @@ export async function planConsolidation(args: {
     FROM slides ORDER BY slide_deck_id, sort_order, id
   `;
   const reportRows = await projectDb<LegacyReportRow[]>`
-    SELECT id, label, body, figures, images, config, body_authors,
-           last_updated, folder_id
+    SELECT id, label, body, figures, images, config, last_updated, folder_id
     FROM reports ORDER BY id
   `;
   const reportVersionRows = await projectDb<LegacyReportVersionRow[]>`
@@ -622,7 +623,6 @@ export async function planConsolidation(args: {
       figures: stampFiguresMapJson(report.figures, runId, adminArea2),
       images: report.images,
       config: report.config,
-      bodyAuthors: report.body_authors,
     });
   }
 

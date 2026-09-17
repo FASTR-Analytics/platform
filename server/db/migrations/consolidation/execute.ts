@@ -189,10 +189,10 @@ async function executePlan(tx: Sql, plan: ConsolidationPlan): Promise<void> {
   for (const report of plan.reports) {
     await tx`
       INSERT INTO reports
-        (id, body, figures, images, config, body_authors)
+        (id, body, figures, images, config)
       VALUES
         (${report.id}, ${report.body}, ${report.figures}, ${report.images},
-         ${report.config}, ${report.bodyAuthors})
+         ${report.config})
     `;
   }
 

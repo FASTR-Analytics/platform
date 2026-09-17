@@ -954,8 +954,9 @@ and m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or
 filter there (`deriveAvailableDisaggregationOptions` reads the columns
 present). A figure that groups or filters m012 by a level the package lacks
 cannot be updated to it: pressing the figure's Update reports
-`dimensions_not_in_package` (`lib/figure_package_issue.ts`). The script's "deeper than the data" stop
-stays as a defensive check behind the capture refusal.
+`dimensions_not_in_package` (`lib/figure_package_issue.ts`). The script's
+"deeper than the data" stop stays as a defensive check behind the capture
+refusal.
 
 **The math** (`lib/population_person_years.ts`, pure): an annual population
 count is a STOCK anchored at mid-year; a month's population is read at its own
