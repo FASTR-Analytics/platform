@@ -106,18 +106,16 @@ these routes carry no guards, so all 11 health endpoints are public by design
     `mappedTo` = the indicator id; wire keys the Admin-Website reads, so they
     stay).
 
-**Central export: RETIRED** (ruled, PLAN_RESULTS_RUNS work item 6):
-`export_central.ts`, its `main.ts` mount, and the unused `CENTRAL_SERVER_SECRET`
-env var were deleted with the runs re-architecture; the central reporting hub
-was WIP and gated nothing. A future central hub streams run files instead of
-`ro_*` COPY.
+**Central export: none** (ruled, PLAN_RESULTS_RUNS work item 6): there is no
+`export_central.ts`, no `main.ts` mount for one, and no `CENTRAL_SERVER_SECRET`
+env var. A future central hub streams run files instead of `ro_*` COPY.
 
 ## user_logs
 
 Owned by S17 ([SYSTEM_17_logging.md](SYSTEM_17_logging.md)): write path,
 retention cron, and the forever-retained `getCurrentUser` exemption live
 there. S15's stake: the health endpoints above read the tables directly, and
-`getAllUserLogs` backs the Users tab's log view / "Last active" column.
+`getAllUserLogs` backs the Users tab's "Last active" column.
 
 ## Disk autonomics
 
@@ -144,15 +142,19 @@ failures surface as user-facing route errors with GB figures.
   `Deno.serve`; SIGINT/SIGTERM shutdown with an 8s forced-exit timer.
 - **`./run`**: backgrounds the Deno server + Vite client with prefixed output,
   killing both on INT/TERM.
-- **`./deploy`** (in order): typecheck gate (includes `lint:systems`) → optional
-  `./validate_migrations` → minor/patch VERSION bump prompts → client build
-  baked into `client_dist/` (with backup/rollback trap) →
+- **`./deploy`** (in order): typecheck gate (includes `lint:systems`) →
+  `./validate_protocols` (a failure prompts to continue) → optional
+  `./validate_migrations` → optional `./validate_queries` → minor/patch
+  VERSION bump prompts → client build baked into `client_dist/` (with
+  backup/rollback trap) →
   `docker build --platform linux/amd64 -t
   timroberton/comb:wb-fastr-server-v$VERSION`
-  → push → git commit (auto-rebasing over the CHANGELOG bot commit) → push.
-  Ad-hoc tag mode skips the version bump.
-- **Dockerfile**: `denoland/deno:ubuntu`, and `apt install docker.io`, putting the
-  Docker CLI **inside** the server container, required by module runs (S8).
+  → push (`crane` when installed, else `docker push`) → git commit
+  (auto-rebasing over the CHANGELOG bot commit) → push. Ad-hoc tag mode skips
+  the version bump.
+- **Dockerfile**: `denoland/deno:ubuntu-2.5.3`, and `apt install docker.io`,
+  putting the Docker CLI **inside** the server container, required by module
+  runs (S8).
 
 ## Admin UI
 
@@ -168,8 +170,9 @@ failures surface as user-facing route errors with GB figures.
 - **Self-profile** (`profile.tsx`): AI usage bars; organisation + `emailOptIn`
   are written **directly to Clerk `unsafeMetadata`**, a second persistence
   plane outside serverActions/Postgres. Change-email wizard
-  (`change_email_modal.tsx`): Clerk-side add/verify/set-primary via Clerk's
-  account UI, then S1's `renameUserEmailEverywhere` fleet rename.
+  (`change_email_modal.tsx`): adds and code-verifies the address through the
+  Clerk JS SDK, runs S1's `renameUserEmailEverywhere` fleet rename, then flips
+  the Clerk primary and refreshes the session token.
 - **Feedback form** → S12's `sendHelpEmail` route (`requireGlobalPermission()`):
   SendGrid confirmation to the user + copies to `_FEEDBACK_EMAIL_RECIPIENTS`,
   `replyTo` the user.
@@ -191,8 +194,9 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
 
 - **`getInstanceMeta` is deliberately unguarded**: it is fetched pre-auth by
   the sign-in screen (`LoggedInWrapper.tsx` ClerkNewLogin) so a guard would
-  break login, and every field it exposes is already public by design on
-  `/health_check`. Open question: trim the payload
+  break login, and every field it exposes except `instanceFiscalYear` and
+  `openAccess` is already public by design on `/health_check`. Open question:
+  trim the payload
   (environment/databaseFolder/versions) to what the login screen needs, or
   accept as part of the deliberate health exposure inventory
   (PLAN_HARDEN_SECURITY).

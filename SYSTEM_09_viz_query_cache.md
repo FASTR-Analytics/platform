@@ -20,8 +20,8 @@ globs:
 
 # S9: Visualization Query & Cache Service
 
-> **PLAN_RESULTS_RUNS Phase 4 step C:** the Postgres read path
-> is gone. `server/run_query/run_read.ts` is the only read path; the SQL cores
+> **One read path.** `server/run_query/run_read.ts` is the only read path
+> (PLAN_RESULTS_RUNS Phase 4 step C); the SQL cores
 > in `server_only_funcs_presentation_objects/` take their `QueryContext` from
 > the manifest and their executor from DuckDB over the run's parquet. Caches
 > are run-keyed. The constants in `server/routes/caches/visualizations.ts`
@@ -636,7 +636,7 @@ clearing on transient gate closures.
 canonical off-state is both entry fields absent. AI data payloads deliberately
 exclude the roll-up row (double-counting hazard).
 
-## AA2 scope injection (PLAN_1_PROJECT_AA2_SCOPE §3)
+## AA2 scope injection
 
 The scope is the caller's: it arrives over the wire beside the run id on the
 run-keyed reads (`adminArea2`, null = national; PLAN_PRODUCTS_RESTRUCTURE D7).
@@ -700,8 +700,8 @@ run delete (`runs/delete_run.ts`):
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken    | `PO_CACHE_VERSION`                  |
 
 The three caches key on the immutable run, not on any caller (two callers on one
-run share entries), plus the **scopeToken** (`scopeToken`, `lib/types/scope.ts`,
-PLAN_1_PROJECT_AA2_SCOPE §4): payloads are computed under the caller's AA2
+run share entries), plus the **scopeToken** (`scopeToken`,
+`lib/types/scope.ts`): payloads are computed under the caller's AA2
 scope, so sharing requires BOTH run and scope to match. The run id leads and the
 token trails on every key. scopeToken is **required** on the uniqueness-param
 types (an optional would compile and silently mis-key) and rides as the
@@ -757,10 +757,10 @@ its metric from it.
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a
 singleton versioned on the server-computed HFA `cacheHash` (the in-memory
 `VersionParams.hash` vs payload `cacheHash` naming divergence is F8c: the
-payload field is persisted, do not rename it). The HMIS counterpart
-(`ds_hmis`/`ds_hmis_v2`) was deleted: once vizItems moved to the
-import ledger the read became a few ms, so `getDatasetHmisDisplayInfo` computes
-live and only the client T2 IndexedDB cache remains (see
+payload field is persisted, do not rename it). There is no HMIS counterpart:
+with vizItems in the import ledger the read takes a few ms, so
+`getDatasetHmisDisplayInfo` computes live and only the client T2 IndexedDB
+cache exists (see
 [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 
 **Client (IndexedDB, `createReactiveCache`).**
@@ -782,7 +782,7 @@ same `resolveDefaultReplicant` policy (first valid value, fresh config copy,
 never mutate) and the same aliasing contract on the yielded config apply.
 Consumers: the embedded figure editor and the slide and report editors'
 post-insert reads (S11, S12), and the insert-figure wizard's preset previews
-(S11); the results explorer joins them when it lands.
+(S11).
 
 ## Client query flow
 
@@ -911,5 +911,3 @@ Standing decoupling items (from the systems review):
   filter bounds, yet it lives in the i18n module (`lib/translate/t-func.ts`,
   S14-owned). A `lib/calendar.ts` would name the truth (at minimum, audit
   §4.3.5).
-- **Three parallel sources of the disOpt list** (TS union, runtime array, Zod
-  enum): derive two from one.

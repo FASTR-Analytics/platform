@@ -26,8 +26,8 @@ traversing all of it:
 3. **Clerk sign-in + consent**, matched to a FASTR user on **primary email**
 4. A **deployed instance** over TLS, serving the built client and real config
 5. **Per-call credential verification**: every tool call, not once at connect
-6. **Project-access and permission resolution** for that identity
-7. A **tool returning real project data**
+6. **Approved-user and permission resolution** for that identity
+7. A **tool returning real package data**
 
 Each rung below is defined by **which links it skips**. A rung is not "less
 thorough"; it is blind to specific links, and you have to know which.
@@ -97,9 +97,10 @@ deno task dev   # server on :8000, /mcp mounted exactly as in production
 cd client && npm run dev   # SPA on :3000, hot-reloads
 ```
 
-Boot is ~15s cold (migrations sweep every project DB) and ~3s warm. Two
-dev-only self-checks fail-stop the boot: the route validation and the
-headless mount check. The server test suite does not run at boot; run
+Boot is ~15s cold (schema migrations, the JSON data-transform sweeps and the
+run-manifest sweep all run against the main DB) and ~3s warm. Two self-checks
+fail-stop the boot: the route validation and, in dev only, the headless mount
+check. The server test suite does not run at boot; run
 `deno task test` yourself (it is part of the verification floor).
 
 ### 1a. The JSON-RPC probe: `./mcp_probe`
@@ -228,16 +229,16 @@ returns 200 and says so; anywhere else a non-401 is a real finding.
 
 **The exposed surface is the AI assistant's *shared* tools over the pinned
 package**: 6 reads, no writes (S13 principle 2). Module internals (script,
-logs, settings), project content and the browser-only editor tools
-(visualizations, decks, reports, live editing, navigation, ask-the-user) are
-SPA-only by design and must stay out.
+logs, settings) and the browser-only editor tools (slide-deck, slide and
+report editing, figure updates, draft previews, ask-the-user) are SPA-only by
+design and must stay out.
 
 So MCP exercises: the route registry and `APIResponse` envelope, server actions,
 the run-keyed metric reads (items, value info), the query/formatting layer,
 `get_overview` and prompt assembly, the pin resolution, and the approved-user
 gate. It does **not**
 exercise ingestion, module execution, viz or slide authoring, exports, client
-rendering, project access, or SSE. Drive those with Playwright
+rendering, product access, or SSE. Drive those with Playwright
 against testing-tim.
 
 **Writes.** `approvalMode: "delegate"` means the gate is the client's own
@@ -266,10 +267,10 @@ grep -rn "getRunModule" server/middleware/headless_allowlist.ts          # the a
 
 ## Rung 3: read-only DB access
 
-Connection recipes, credentials, the live-vs-orphaned project rule and the two
-schema generations live in [PROTOCOL_ACCESS_DBS.md](PROTOCOL_ACCESS_DBS.md).
-That document is written for production instances; the same commands work
-against any `testing*` instance by swapping the container name.
+Connection recipes and credentials live in
+[PROTOCOL_ACCESS_DBS.md](PROTOCOL_ACCESS_DBS.md). That document is written for
+production instances; the same commands work against any `testing*` instance
+by swapping the container name.
 
 **Read-only, always**: `SELECT` and `information_schema` only, on testing
 instances as much as on production. A `psql` session finds out what is stored;
@@ -283,7 +284,7 @@ connection per table will trip the host's connection limits and start returning
 Locally the equivalent is free and needs no SSH, so prefer it:
 
 ```bash
-docker exec pg psql -U postgres -d main -c 'SELECT id, label, status FROM projects;'
+docker exec pg psql -U postgres -d main -c 'SELECT id, type, label, run_id FROM products;'
 ./pg_connect   # interactive psql on the local main DB
 ```
 
@@ -304,7 +305,8 @@ docker exec pg psql -U postgres -d main -c 'SELECT id, label, status FROM projec
 
 A change touching persistence needs **all three** persistence layers enumerated
 before it is done: DB JSON (migration), Valkey (cache prefix), and stored
-`FigureInputs` (slide_config sweep). See `PROTOCOL_APP_MIGRATIONS.md`.
+`FigureBundle`s (the slide_config and reports sweeps). See
+`PROTOCOL_APP_MIGRATIONS.md`.
 
 ---
 

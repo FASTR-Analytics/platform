@@ -47,59 +47,54 @@ Today's app-level additions:
 
 ## Dark mode
 
-A per-device preference: `localStorage["darkMode"]`, owned by
-`client/src/state/t4_ui.ts` (`darkMode` signal + `setDarkMode`), toggled in the
-profile modal's Appearance section
-(`client/src/components/instance/profile.tsx`). `applyThemeToDocument` runs at
-module scope in `t4_ui.ts`, so `data-theme="dark"` lands on `<html>` before
-first paint. (A TEMP `Shift+N` dev toggle also lives there, marked
-remove-before-release; the mechanism as a whole is slated to be replaced by the
-panther repo's PLAN_DARK_MODE.)
+A per-device preference: `localStorage["scheme"]` (`system` | `light` |
+`dark`), owned by `client/src/state/t4_ui.ts` (`schemePref` signal +
+`setScheme`; `darkMode()` is the resolved scheme for JS consumers), chosen in
+the profile modal's Appearance section
+(`client/src/components/instance/profile.tsx`, a `ButtonGroup`).
+`setSchemePreference` runs at module scope in `t4_ui.ts`, so `data-scheme`
+lands on `<html>` before first paint.
 
-- **Token override.** An **unlayered** `:root[data-theme="dark"]` block in
-  `client/src/app.css` re-declares the `--color-*` variables (bases from
-  panther's `KEY_COLOR_THEMES["neutral-dark"]`, `primary` swapped to the app's
-  teal accent, plus `--color-border` and `color-scheme`), unlayered so it beats
-  Tailwind's layered `@theme` defaults. **When adding a `--color-*` token, add
-  its dark counterpart to this block too.**
-- **Documents stay light.** Panther's key colors are static (`setKeyColors` in
-  `client/src/index.tsx` is one-shot), so slides, thumbnails, and every export
-  keep light document styling.
-- **On-screen figures are dark-adapted at display time** via
-  `adaptFigureStyleForDarkMode` (`components/_shared/dark_mode_figures.ts`): a
-  no-op in light mode, else an overlay merged into `FigureInputs.style` (light
-  text/axes, dimmed grid/table lines, dark table header bands, near-black data
-  colors flipped to light in seriesColorFunc/lines/legend; chromatic palette
-  colors pass through). It wraps the inputs at **every on-screen `FigureHolder`
-  call site, and only there**, so exports and persisted figure data are
-  untouched. **Any new on-screen `FigureHolder` must wrap its inputs in it.**
-- **Supporting `app.css` rules** (all `data-theme="dark"`-scoped): a
-  `@custom-variant dark` for one-off `dark:` overrides (classes that read as
-  "strong dark" in light mode but glare in dark); the inverted-ribbon rule:
-  surfaces pairing `bg-base-content` with `text-base-100` get the two base vars
-  re-inverted so they stay dark, **prefer that class pair for any new inverted
-  surface**; a `.cm-editor` block retheming CodeMirror's light internals from
-  tokens. Markdown _syntax token_ colors can't be themed from CSS, so editors
-  with markdown highlighting must also spread `darkMarkdownExtensions()` (from
+- **Token override.** Every panther `--color-*` token is a `light-dark()` pair
+  (PROTOCOL_UI_STYLING rule 18), so `client/src/app.css` adds or overrides a
+  token in plain `@theme` as a pair too. `--color-running` /
+  `--color-running-stripe` are single-valued on purpose (mid-tone fills that
+  hold on both bases). **When adding a `--color-*` token, write it as a
+  `light-dark()` pair.**
+- **Documents stay light.** `setKeyColors` in `client/src/index.tsx` sets the
+  light foundation plus panther's default dark companion
+  (`remapNearBlackOnDark: true` flips module-authored near-black literals on
+  dark bases); slides, thumbnails, and every export keep light document
+  styling.
+- **On-screen figures follow the scheme at display time** inside panther's
+  `FigureHolder` (`scheme="follow"`, the default, resolves the dark key colors
+  per render), so exports and persisted figure data are untouched.
+  `scheme="light"` is the canvas twin of `ui-scheme-light` for document
+  surfaces (PROTOCOL_UI_STYLING rule 19).
+- **Supporting `app.css` rules**: a `:root .cm-editor` block retheming
+  CodeMirror's light internals from tokens (one rule serves both schemes,
+  since the tokens resolve per scheme), plus a dark-only wash over
+  `.cm-ySelection` so peers' selection highlights show on dark. Markdown
+  _syntax token_ colors can't be themed from CSS, so editors with markdown
+  highlighting must also spread `darkMarkdownExtensions()` (from
   `_shared/collab_markdown_editor.tsx`) into their extension list inside a
-  tracked scope so a theme toggle rebuilds the view; and a
-  `select option { color: CanvasText; background-color: Canvas }` rule.
-- **HTML-rendered markdown** (AI chat renderers, `MarkdownPresentationJsx`)
-  colors text from inline `--md-*` vars derived from the light document style:
-  near-black on dark surfaces. Wrap the mount in `.md-dark-adapt`, which
-  re-points those vars to tokens (used by the AI chat panes, public-viewer
-  summary/about, and the report View-pane / version-history previews).
-- **Inverted chrome is app-owned.** `HeadingBarMainRibbon`
-  (`components/_shared/heading_bar_main_ribbon.tsx`) is deliberately not a
-  panther component: the kit no longer ships inverted surfaces, and the
-  re-invert rule above keys on its `bg-base-content`/`text-base-100` pair.
+  tracked scope so a scheme toggle rebuilds the view. The roadtrip tour vars
+  (`--roadtrip-*`) on `:root` are `light-dark()` pairs.
+- **HTML-rendered markdown that passes a document style** (the report preview
+  panes with `REPORT_MARKDOWN_STYLE`) colors text from inline `--md-*` vars
+  derived from the light document style: near-black on dark surfaces. Wrap
+  the mount in `.md-dark-adapt`, which re-points those vars to tokens under
+  `data-scheme="dark"` (and `system` while the OS is dark); used by the report
+  View pane and the version-history report preview. Markdown with no style
+  (AI chat) needs no wrapper.
+- **No inverted chrome.** Every header is a flush or tonal `HeadingBar` that
+  follows the scheme; no surface in this app pins its `color-scheme`.
 - **No `text-white` / `bg-white`**: they are not tokens and break the dark
   palette. Document surfaces (slide canvases, thumbnails, previews) wear
   `ui-scheme-light`; constant contrast over media/data is an inline style
   beside its inline background (PROTOCOL_UI_STYLING rule 19 + checklist).
-- The `data-theme="dark"` mechanism above predates PROTOCOL_UI_STYLING rule 18
-  (`data-scheme` + `light-dark()` pairs); that rule is the target state, landing
-  with the panther repo's PLAN_DARK_MODE.
+- The mechanism above is PROTOCOL_UI_STYLING rule 18 (`data-scheme` +
+  `light-dark()` pairs); `data-theme` stays reserved for palette swaps.
 
 ## Page layout patterns
 
@@ -107,33 +102,34 @@ Every page is full-height; scrolling happens inside content areas, never the
 page body. Pick the pattern; don't invent new frames. (All `Frame*` components
 are panther exports.)
 
-| Pattern                | Frame structure                                      | Live example                       |
-| ---------------------- | ---------------------------------------------------- | ---------------------------------- |
-| A: simple content      | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`      | `project/project_data.tsx`         |
-| B: sidebar navigation  | `FrameTop` + `FrameLeft` + vertical `TabsNavigation` | `project/index.tsx`                |
-| C: list with grouping  | `FrameTop` + `HeadingBar` + `FrameLeftResizable`     | `project/project_decks.tsx`        |
-| D: full editor         | `FrameTop` toolbar + `FrameLeftResizable` + canvas   | `visualization_editor_inner.tsx`   |
-| E: split columns       | `div.flex` halves with `w-1/2` + `border-r`          | `indicator_manager_hfa/*` managers |
+| Pattern               | Frame structure                                    | Live example                                   |
+| --------------------- | -------------------------------------------------- | ---------------------------------------------- |
+| A: simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`    | `slide_deck/slide_deck_settings.tsx`           |
+| B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `instance_population/_population_grid.tsx`     |
+| C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `instance_results_packages/index.tsx`          |
+| D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `figure_editor/visualization_editor_inner.tsx` |
+| E: split columns      | `div.flex` halves with `w-1/2` + `border-r`        | `indicator_manager_hfa/*` managers             |
 
 Pattern specifics, from the live pages:
 
-- **B (project page):** the header is the inverted pair
-  (`bg-base-content text-base-100`) with a `chevronLeft` back button;
-  `TabsNavigation` is `vertical collapsible`, collapsed state persisted via
-  `t4_ui.navCollapsed`.
+- **B (population page):** `TabsNavigation` is `vertical` inside `FrameLeft`'s
+  panel; the selected tab is a plain signal in the page.
 - **C (list pages):**
-  `FrameLeftResizable startingWidth={180} minWidth={170}
-  maxWidth={300}`;
-  `HeadingBar` carries `searchText`/`setSearchText`, a
-  `centerChildren={<SortControl …/>}` (`components/_shared/sort_control.tsx`),
-  and the Create button; grouping / selected-group / sort state lives in `t4_ui`
-  signals (PROTOCOL_APP_STATE).
+  `FrameLeftResizable startingWidth={300} minWidth={150}
+  maxWidth={400}` around a `SelectList`. The product explorer
+  (`products/index.tsx`) is the search-and-sort variant without the side
+  panel: `HeadingBar` carries `searchText`/`setSearchText`, a `centerChildren`
+  with the type-filter `ButtonGroup`, `SortControl`
+  (`components/_shared/sort_control.tsx`) and the view-mode `ButtonGroup`, and
+  the Create buttons; open folder / view mode / sort / type-filter state lives
+  in `t4_ui` signals (PROTOCOL_APP_STATE).
 - **D (editors):** opened full-screen via `getEditorWrapper()` → `openEditor`
   (never routed); panel widths in use: viz editor `384/300/600`, slide editor
-  `startingWidth={400}`; canvas area is `FigureHolder`/`PageHolder`.
-- **Instance page:** Pattern A frame with a centered `ButtonGroup` tab selector,
-  responsive at the app's one breakpoint `xl`: `flex xl:hidden` icon-only
-  (`itemWidth="50px"`) vs `hidden xl:flex` labeled (`115px` en, `140px` fr/pt).
+  `400/300/600`; canvas area is `FigureHolder`/`PageHolder`.
+- **Instance page:** `FrameTop` with a custom panel and a centered
+  `ButtonGroup` tab selector, responsive at the app's one breakpoint `xl`:
+  `flex xl:hidden` icon-only (`compactNavItems`, empty `label` plus
+  `labelText`) vs `hidden xl:flex` labeled (`wideNavItems`).
 
 ## Recurring scaffolds
 
@@ -142,8 +138,8 @@ skeleton; the color/state classes in them follow PROTOCOL_UI_STYLING and will
 change with it.
 
 **Card grid** (`15rem` is the standard card width; `18rem` for larger cards like
-dashboards/metrics). Cards are panther `Card`, which owns the frame, hover,
-selected state and keyboard wiring:
+the HMIS indicator manager's). Cards are panther `Card`, which owns the frame,
+hover, selected state and keyboard wiring:
 
 ```tsx
 <div class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto">
@@ -214,31 +210,28 @@ Icon names are the panther `IconName` union
 (`panther/_303_components/icons/icon_types.ts`). The app's established
 mappings:
 
-| Icon                                                    | Usage                                              |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| `plus` / `pencil` / `trash` / `copy`                    | create / edit / delete / duplicate                 |
-| `save`                                                  | save actions (very common)                         |
-| `x` / `check`                                           | close-dismiss / confirm                            |
-| `search` / `refresh`                                    | search inputs / reload                             |
-| `upload` / `download` / `databaseImport`                | file up / export / data import                     |
-| `chevronLeft/Right/Up/Down`                             | back, expand/collapse                              |
-| `report` / `presentation` / `layoutDashboard` / `chart` | reports / decks / dashboards / visualizations tabs |
-| `code` / `database` / `settings`                        | modules / data / settings tabs                     |
-| `sparkles`                                              | AI features                                        |
-| `moreVertical`                                          | overflow menu trigger                              |
-| `info` / `questionMark` / `help`                        | hints, help chrome                                 |
-| `lock` / `unlock` / `eye`                               | locking, visibility                                |
+| Icon                                     | Usage                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------ |
+| `plus` / `pencil` / `trash` / `copy`     | create / edit / delete / duplicate                                       |
+| `save`                                   | save actions (very common)                                               |
+| `x` / `check`                            | close-dismiss / confirm                                                  |
+| `search` / `refresh`                     | search inputs / reload                                                   |
+| `upload` / `download` / `databaseImport` | file up / export / data import                                           |
+| `chevronLeft/Right/Up/Down`              | back, expand/collapse                                                    |
+| `presentation` / `report` / `chart`      | slide decks and the Products tab / reports / the Explore tab and figures |
+| `code` / `database` / `settings`         | system-prompt view / the Data tab, data import / settings actions        |
+| `sparkles`                               | AI features                                                              |
+| `moreVertical`                           | overflow menu trigger                                                    |
+| `info` / `questionMark` / `help`         | hints, help chrome                                                       |
+| `eye` / `eyeOff`                         | show / hide toggles                                                      |
 
 ## What NOT to do
 
 App-specific only. The general styling prohibitions are in PROTOCOL_UI_STYLING.
 
 - Don't restate a panther fact here. Point at the protocol instead.
-- Don't add an on-screen `FigureHolder` without `adaptFigureStyleForDarkMode`.
-- Don't add a `--color-*` token without its `:root[data-theme="dark"]`
-  counterpart.
-- Don't build a new inverted surface without the `bg-base-content` /
-  `text-base-100` pair the re-invert rule keys on.
+- Don't add a `--color-*` token as a single value unless it is meant to read
+  the same in both schemes; write a `light-dark()` pair.
 - Don't hand-roll cards, selection circles, context menus, delete
   confirmations, or the running-stripe animation. `Card` (with
   `selected`/`onSelectToggle`), `showMenu`, `createDeleteAction` and

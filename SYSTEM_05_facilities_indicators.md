@@ -106,9 +106,9 @@ never release the winner's claim via the error handler;
 `handleStagingSuccess`/`handleStagingError` write conditionally on still
 holding the claim. Step-0/1/2 setters refuse while importing and null
 `step_3_result` (plus all downstream results), so stale staging can never
-be integrated after a re-upload/remap. An earlier `pg_advisory_lock`
-approach was removed because acquire/release landed on different pooled
-connections and wedged.
+be integrated after a re-upload/remap. No `pg_advisory_lock` guards the
+slot: acquire and release can land on different pooled connections and
+wedge.
 
 **Staging.** Fixed-name `UNLOGGED` table `temp_structure_staging_{family}`
 (per-family so HMIS/HFA can run concurrently), `rowid SERIAL` as the dedup
@@ -125,8 +125,8 @@ still exists, so the numbers reflect finalize time, not staging time.
 **ODK label resolution (HFA CSV path).** Step 1 optionally accepts an ODK
 questionnaire (XLSForm) alongside the CSV, mirroring HFA ingestion's
 two-file step 1 (`survey`+`choices` sheets validated on save;
-`step_1_result` is `StructureCsvStep1Result` `{csv, xlsForm?}`. Legacy
-bare-`CsvDetails` rows are normalized on read by `parseCsvStep1Result`).
+`step_1_result` is `StructureCsvStep1Result` `{csv, xlsForm?}`. A bare
+`CsvDetails` row is normalized on read by `parseCsvStep1Result`).
 At staging, each mapped column except `facility_id` (admin areas
 included) is matched to a select_one question by the HFA header
 convention (exact name, else the header's post-last-`/` segment), and
@@ -152,7 +152,8 @@ facility columns **minus `facility_name`**, whose distinct values ≈ row count
 `getStructureStagedRecodeRows`, and `setStructureRecodes`.
 
 Recodes are scoped to one attempt and die with the staging they describe:
-`recodes = NULL` rides along at all **seven** writes that null `step_3_result`,
+`recodes = NULL` rides along at every write that nulls or replaces
+`step_3_result` (seven, `handleStagingSuccess` included),
 and the save is a conditional UPDATE requiring `step_3_result->>'stagingNonce'`
 to still match the nonce the client authored against, so a save composed
 before a re-stage is rejected, never silently applied to different rows.
@@ -222,11 +223,10 @@ name-keyed and **per facility registry**: `admin_areas_{hmis,hfa}_1..4`
 rows are names, and the name is the join key everywhere (S9 maps, geojson
 `area_id`). Duplicate names within a level are therefore ambiguous. The
 wizard warns but cannot fix. The two registries' name-spaces are
-independent and are never reconciled (migration 076; the legacy shared
-`admin_areas_1..4` tables and the global `max_admin_area` /
-`facility_columns` config rows were kept frozen and readerless as the
-rollback path, then dropped by instance migration 081 once a rollback
-across 076 was ruled out). A product's AA2 scope is deliberately
+independent and are never reconciled (migration 076; instance migration
+081 drops the shared `admin_areas_1..4` tables and the global
+`max_admin_area` / `facility_columns` config rows that 076 left in place
+as its rollback path). A product's AA2 scope is deliberately
 registry-agnostic: the name is matched against whichever registry each
 results object belongs to, at read time.
 
@@ -234,7 +234,7 @@ FK topology: `facilities_{family} → admin_areas_{family}_4` CASCADE;
 `dataset_hmis`/`hfa_data → facilities_*` are RESTRICT-behaving NO ACTION
 DEFERRABLE with **named constraints** (migration 048). Note the migration
 comments claim the names are load-bearing for a `SET CONSTRAINTS` call
-that **no longer exists** in server code; integration pre-checks per
+that **does not exist** in server code; integration pre-checks per
 facility and refuses instead. `hfa_facility_weights → facilities_hfa` is
 CASCADE-on-delete, which is why `deleteFamilyFacilities` refuses while any
 weights exist and `replace_all` refuses when an absent facility has them.
@@ -244,17 +244,18 @@ by the structure-import UI's weights wizard, never by HFA data ingestion.
 Import is long-format (two user-mapped columns: facility id + weight), one
 time point per import, wholesale replace for that time point, positive
 weights only; a blank cell = not-in-sample (absence is the
-representation). The export is wide (one column per time point). Unknown
-facility ids, duplicates, and non-positive weights reject the whole file
-pre-transaction.
+representation). The export is wide (one column per time point).
+Duplicates and non-positive weights reject the whole file before the
+transaction; unknown facility ids reject it inside the transaction, before
+any write.
 
 **`structure_last_updated`** (JSON ISO timestamp in `instance_config`) is
 the version key for the whole structure world: S6's HMIS/HFA captures
 record it in the run's dataset info, and the client facilities/weights
 caches key on it. Bumped
 by: step-4 integrate, `deleteFamilyFacilities` (one endpoint, per family), all weights
-mutations, and HFA time-point rename/delete (whose weight cascades were
-previously invisible to the weights UI).
+mutations, and HFA time-point rename/delete (whose cascades reach the
+weights).
 
 ## The four indicator dictionaries
 
@@ -359,9 +360,9 @@ retypes).
 
 An import never creates an indicator (PLAN_A6 §2): the dictionary is
 authored in the manager, the Add indicator form for one and the DHIS2
-select form ("Add indicators from DHIS2", the manager's button and the
-form's heading; distinct from the data import, "Import HMIS data from
-DHIS2") for many. The DHIS2 select form goes through the **naming
+select form (heading "Add indicators from DHIS2", opened by the
+manager's "Add from DHIS2" button; distinct from the data import, "Import
+HMIS data from DHIS2") for many. The DHIS2 select form goes through the **naming
 step** (`applyIndicatorNaming`, PLAN_A6 ruling 7). A DHIS2 element or
 operand becomes a new DHIS2 element under the chosen id (proposed by
 `generateIndicatorId`, editable) carrying the UID as its data id; an
@@ -396,13 +397,12 @@ members, expression, include_in_analysis, format_as, thresholds,
 direction, target, expected_low_counts`; `type` in the four code names,
 `dhis2_id` written for a DHIS2 element and blank for every other type,
 `members` semicolon-separated, `target` in stored units), a download
-format only: nothing reads it back (PLAN_A6 ruling 8 removed the batch
-upload).
+format only: nothing reads it back (PLAN_A6 ruling 8).
 
 Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1,
 11, 12 and 13) gives every Uploaded row a key: a row whose `data_id` was
 NULL takes a generated `u_` key and its `updated_at` moves; a row that
-already held a file code keeps it as its key, no longer matched against
+already held a file code keeps it as its key, not matched against
 anything (where such an indicator's id differs from its old file code, its
 country re-maps that value by hand each import, the accepted cost of
 ruling 3, measured per instance before rollout). The CHECK then requires
@@ -412,7 +412,7 @@ a key on every Uploaded row. The CSV staging result's `validation` loses
 run_stats -> 'csvStagingResult'`, each UPDATE gated on the old key), and
 every queued or held CSV run is cancelled with a stated reason, a held
 run's surviving staging table dropped, since their configs have no mapping
-and the hold's third action no longer exists.
+and a hold has no third action.
 
 Instance migration 086 (`086_indicators_one_table.sql`, PLAN_A5 ruling 8)
 makes the switch on every instance in one transaction, with nothing
@@ -535,7 +535,7 @@ authoring is invisible to the SSE→cache triangle and to the run's
 string/comment stripping, identifier extraction), shared by the client
 editor validator and the server dependency analyzer
 (`server_only_funcs/hfa_dependency_analyzer.ts`). Never re-fork these.
-The previous drift (two whitelists, server not stripping comments) made
+A fork (two whitelists, or a server that does not strip comments) makes
 editor-green code hard-fail whole module runs. lib compiles into both
 runtimes: keep it pure (no Deno/UI imports). The editor's persisted
 `has_syntax_error`/`code_consistent` flags are display-only advisory
@@ -563,7 +563,7 @@ indicator (`DONT_KNOW_TREATMENT` applies to binary indicators only). `%in%`
 returns FALSE rather than NA for a missing input, so it is rebound inside the
 same `with()`. Filter-variable missingness stays an explicit branch, because
 `!(NA)` matches nothing in `case_when`. Consequence: the value object and
-`M10_hfa_response_status.csv` no longer share a denominator: a facility can
+`M10_hfa_response_status.csv` do not share a denominator: a facility can
 hold a determinate 0 while its per-variable status reads `missing`.
 
 **Calculated indicators** are defined by an expression over other indicators and
@@ -620,12 +620,12 @@ of it (a sum's members are the one strict dependency): a calculated indicator
 that cannot be computed yet is a normal state while a country is still
 filling its counts.
 
-**Ruling: the additivity principle (the target model, not yet
-built).** *The pipeline only ever stores, adjusts, and aggregates
-additive facility-month counts. Anything non-additive is an expression over
-those counts, evaluated after aggregation. Nothing non-additive is ever
-stored as data.* This is the ONE authoritative statement; S6/S8/S9 carry
-pointers only. Consequences that follow from it and are ruled with it:
+**Ruling: the additivity principle.** *The pipeline only ever stores,
+adjusts, and aggregates additive facility-month counts. Anything
+non-additive is an expression over those counts, evaluated after
+aggregation. Nothing non-additive is ever stored as data.* This is the
+ONE authoritative statement; S6/S8/S9 carry pointers only. Consequences
+that follow from it and are ruled with it:
 
 - Every indicator has a `type`:
   - `uploaded` and `dhis2_element`: the rows under their data id at
@@ -693,10 +693,11 @@ pointers only. Consequences that follow from it and are ruled with it:
   `indicators_count_format_check`; the API refuses a rule on a count, the
   editor hides the control). The instance editor edits it with
   the same `ThresholdsPanel` the figure CF editor uses, in display units
-  (S10 owns how a figure consumes it as the `indicator` CF source). Legacy
-  packages' `calculated_indicators_snapshot.json` traffic-light pairs are
-  converted into rules at derive time by `lib/traffic_light_rule.ts`, the
-  same conversion migration 079 ran on the dictionary.
+  (S10 owns how a figure consumes it as the `indicator` CF source). A
+  package whose `calculated_indicators_snapshot.json` carries traffic-light
+  pairs has them converted into rules at derive time by
+  `lib/traffic_light_rule.ts`, the same conversion migration 079 ran on the
+  dictionary.
 - Three more facts sit beside them (migration 088). `direction` is THE
   direction of the indicator, on any type: `higher-is-better` (the
   default) or `lower-is-better` (`indicators_direction_check`). The rule's own `direction` key is written
@@ -714,8 +715,8 @@ pointers only. Consequences that follow from it and are ruled with it:
   its row schema: older mirrors lack them and are never rewritten);
   `direction` and `target` go on to `IndicatorMetadata` as optional facts
   any family may declare (HMIS declares them today; HFA and ICEH declare
-  neither), the manifest catalog and the stored figure bundle (the "20"
-  bump of `PO_CACHE_VERSION`, `server/routes/caches/visualizations.ts`).
+  neither), the manifest catalog and the stored figure bundle (keyed by
+  `PO_CACHE_VERSION`, `server/routes/caches/visualizations.ts`).
   `expected_low_counts` stops at the mirror: it is a generation input, not
   a display fact, and no module reads it yet.
 - DHIS2 percent indicators are never imported as values. The importer
@@ -774,9 +775,9 @@ STOCKS per admin area × year × population type, in the main DB table
 `admin_area_level` 2–4, the full `admin_area_1..4` name path with `''`
 below the level, year, count ≥ 0; PK over all of them). Names match the
 HMIS structure tables but are deliberately NOT FK'd: a structure re-import
-must not silently delete population. A row whose area is no longer in the
-structure is STALE: counted and shown, never part of completeness. There is
-no per-project copy and no dataset family. Population accompanies the HMIS
+must not silently delete population. A row whose area is not in the
+structure is STALE: counted and shown, never part of completeness. It has
+no dataset family. Population accompanies the HMIS
 family into a results package (S8 "population.csv").
 
 **The population level** (ruled). An explicit instance setting, `population_level` in
@@ -850,12 +851,14 @@ the population level as per-area anchors for the person-years expansion
 
 ## Geojson boundaries
 
-Storage: one row per admin level in `geojson_maps` (`admin_area_level` PK,
-CHECK 2|3|4; level 1 = country has none), `geojson text`, `uploaded_at`.
+Storage: one row per facility registry × admin level in `geojson_maps`
+(PK `(facility_family, admin_area_level)`, level CHECK 2|3|4; level 1 =
+country has none), `geojson text`, `uploaded_at`: a map is boundaries
+matching one registry's naming at one level.
 The stored FeatureCollection is processed: each feature keeps only
 `geometry` plus exactly two properties: `area_id` (the admin-area NAME at
 that level; `""` if unmatched) and `source_name` (the original match-prop
-value; legacy rows may have `dhis2_name`, which the edit modal still
+value; a row may carry `dhis2_name` instead, which the edit modal also
 reads). Unmatched features are KEPT with `area_id: ""` and can be mapped
 later via the edit modal (`remapGeoJson` does a read-modify-write of the
 stored JSON; `__source__`-prefixed keys target unmatched features; `""` is
@@ -868,7 +871,7 @@ pick level + match property → case-insensitive auto-map values to admin
 names → fix the rest → `saveGeoJsonMap` re-reads the asset server-side and
 rewrites features via the `areaMapping`, whose wire shape is
 `Record<geoJsonValue, adminAreaName>` (many-to-one capable: do not invert
-it; the pre-fix inverted shape silently dropped mappings). The DHIS2 flow
+it; an inverted shape silently drops mappings). The DHIS2 flow
 splits analyze from geometry: `dhis2AnalyzeGeoJson` fetches org-unit
 METADATA only (`id,name,code,parent[id,name]`, ~KBs) plus an exact
 with-geometry count via `filter=geometry:!null` (`featureType` is absent
@@ -885,13 +888,14 @@ completion. Note the `.geojson` endpoint OMITS boundary-less units rather
 than returning null geometries, so "units without boundaries" = metadata
 total − geometry count.
 
-Client caching: summaries (level + uploadedAt) live in the T1 SSE store;
-payloads live in a T2 two-layer cache (module Map + IDB `geojson:{level}`)
-keyed by `uploadedAt`, the `uploaded_at → geojson_maps_updated SSE →
-preloadGeoJson` triangle, plus `evictDeletedGeoJsonLevels` for levels
-absent from a push. Consumers read via the deliberately non-reactive
-`getGeoJsonSync(level)`; figure bundles snapshot geojson as
-`{kind:"data"}` when available.
+Client caching: summaries (family + level + uploadedAt) live in the T1 SSE
+store; payloads live in a T2 two-layer cache (module Map + IDB
+`geojson:{family}:{level}`) keyed by `uploadedAt`, the `uploaded_at →
+geojson_maps_updated SSE → preloadGeoJson` triangle, plus
+`evictDeletedGeoJsonLevels` for maps absent from a push. Consumers read
+via `getGeoJsonSync(family, level)`, which reads a version signal so a
+tracked computation that ran before a map loaded re-runs once it arrives;
+figure bundles snapshot geojson as `{kind:"data"}` when available.
 
 ## Instance config
 
@@ -908,8 +912,8 @@ absent from a push. Consumers read via the deliberately non-reactive
   include-flags only, so renaming a label cannot bust a data cache).
   Written by `setStructureSchema`, which refuses a depth change while that
   family's facilities table is non-empty or while that family has a geojson
-  map above the new depth (the admin_areas-emptiness half of the old guard
-  was dropped: per family it is implied by the cleanup invariant). The rows
+  map above the new depth (admin-area emptiness is not checked: per family
+  it is implied by the cleanup invariant). The rows
   are seeded at instance creation and survive both delete paths, so flags,
   labels and depth persist across a delete + re-import cycle.
 - `admin_area_labels`: display-only label overrides carrying an `(AAn)`
@@ -925,8 +929,8 @@ country-less is not a legitimate instance state (ruled). The
 accepted values are an ISO3 code or `SOMALILAND`, the one territory FASTR
 reports on that has no ISO3 code. The value is substituted into R module scripts
 as `COUNTRY_ISO3` and into caption/localization, which is why it is validated as
-a clean token rather than passed through. It was an editable instance setting;
-migration 074 deletes the dead `country_iso3` row.
+a clean token rather than passed through. Migration 074 deletes the dead
+`country_iso3` config row.
 
 Every config mutation re-reads all configs and pushes one consolidated
 `config_updated` SSE (`notifyInstanceConfigUpdatedFromDb`). No Valkey at
@@ -946,7 +950,7 @@ this layer.
   that cache nothing. Both are stored in the run manifest's `datasets[].info` at
   capture (`RunDatasetHmisInfo`, `lib/types/run_datasets.ts`; manifest
   transform block 9 renames the pre-1.72 keys in stored manifests).
-  `hfaIndicatorsVersion` and `hfaCacheHash` are unchanged.
+  HFA's stamps are `hfaIndicatorsVersion` and `hfaCacheHash`.
 - The indicator editor's expression palette (ruled;
   storage unchanged, the identifier inserted is the stored id): two
   "Insert …" pickers above the
@@ -1062,10 +1066,12 @@ this layer.
   the Data page's DHIS2 connection card, the only place a connection is
   set, replaced or deleted. A successful integrate also reports geojson `area_id`s orphaned
   by the import in the step-4 summary.
-- Permissions: reads are `can_view_data` (incl. the CSV exports);
-  mutations `can_configure_data`; config mutations
-  `can_configure_settings`. Several manager UIs still gate their write
-  buttons on `currentUserIsGlobalAdmin` instead (Open items).
+- Permissions: structure, weights and population reads are
+  `can_view_data` (incl. the CSV exports); geojson reads need only an
+  approved user; the HMIS and HFA dictionary reads and every mutation are
+  `can_configure_data`; config mutations `can_configure_settings`.
+  Several manager UIs still gate their write buttons on
+  `currentUserIsGlobalAdmin` instead (Open items).
 
 ## Traps
 
@@ -1079,19 +1085,19 @@ this layer.
 - `hfa_indicator_code` is not independently hashed: code changes are
   visible to `hfaIndicatorsVersion` only because `saveHfaIndicatorFull` bumps
   the indicator row. Any new code-mutation path must do the same.
-- The named FK constraints from migration 048 are no longer used by any
+- The named FK constraints from migration 048 are not used by any
   `SET CONSTRAINTS` call. The migration comments overstate; verify before
   relying on (or renaming) them.
 - `lib/hfa_r_code_analysis.ts` compiles into both the Deno server and the
   Vite client. Keep it dependency-free.
-- Legacy HFA varNames that violate the new regex would 400 on save (dev
+- A stored HFA varName that violates the regex would 400 on save (dev
   DB verified clean, 232/232; a violating varName would already be
   breaking R generation, but check before assuming on other instances).
 
 ## Open items
 
 - **Decision needed:** the M10 value object and
-  `M10_hfa_response_status.csv` no longer share a denominator: a facility
+  `M10_hfa_response_status.csv` do not share a denominator: a facility
   can hold a determinate 0 for an indicator while its per-variable status
   reads `missing` or `dont_know`, so a dashboard can show "22% have X
   (n=9)" beside "55% missing" for the same indicator. Either the status

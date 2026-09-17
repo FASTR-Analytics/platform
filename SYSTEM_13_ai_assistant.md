@@ -178,8 +178,10 @@ The shared flow:
    can't enable cost-changing betas under the same token limits.
 5. `fetch(_ANTHROPIC_API_URL)`, `anthropic-version: 2023-06-01`. The SDK's
    `?beta=true` query is ignored by the route matcher.
-6. `!ok` → `{error: "Anthropic API error: <status> - <text>"}` at the upstream
-   status.
+6. `!ok` → Anthropic's error body forwarded unchanged at the upstream
+   status (type and message intact, so the SDK's `err.type` classification
+   works); a non-JSON upstream body is wrapped as an Anthropic-shaped
+   `api_error` carrying the text.
 7. **Streaming**: a `TransformStream` tees SSE lines. `message_start` seeds
    input/cache token counts; `message_delta.usage` is **cumulative** for the
    whole response and overrides every non-null field (server-tool turns run
@@ -217,8 +219,9 @@ are check-before / increment-after, so concurrent requests can overshoot: a
 courtesy bound, not a hard one.
 
 **The error contract, as built.** Three deliberate non-envelope shapes: the 429
-rate-limit object, the upstream-status error string, and anything _thrown_ in
-the handler (malformed request JSON, upstream fetch network failure), which the
+rate-limit object, the upstream error body at its status, and anything
+_thrown_ in the handler (malformed request JSON, upstream fetch network
+failure), which the
 shared handler catches and returns as an Anthropic-shaped 502
 ([anthropic_messages_proxy.ts:51-64](server/routes/anthropic_messages_proxy.ts#L51-L64))
 rather than letting it fall to `app.onError`'s envelope-at-HTTP-200. The one
@@ -240,9 +243,9 @@ header. It is **not** a client-upload passthrough: the body is
 `{assetFilename}`, the server reads that file from the instance assets dir on
 disk (traversal-guarded via `resolveAssetFilePath`) and multiparts it to
 Anthropic, hardcoded as `application/pdf` regardless of actual type. Uploaded
-files are referenced as `document` blocks in later `/v1/messages` calls. (The
-GET and DELETE passthroughs by file id were deleted on 2026-08-28 with the
-attachments rework; nothing calls the Files API by id any more.)
+files are referenced as `document` blocks in later `/v1/messages` calls.
+Nothing calls the Files API by file id, so there is no GET or DELETE
+passthrough.
 
 ## The client copilot
 
@@ -325,8 +328,8 @@ tab-to-view map: the only sync sites are each editor's mount (`setView`) and
 teardown (`restoreCopilotView(returnToContext)`, the nested-editor stack from
 deck editor to slide editor, else `clearView()`).
 
-Per-view `instructions` (default ephemeral delivery) carry what used to be the
-per-mode prompt switch plus the live bits the old mode string exposed: entity
+Per-view `instructions` (default ephemeral delivery) carry the per-view
+prompt plus the live bits of the view: entity
 ids (deckId/slideId/reportId), the deck's selected slide ids, and the report
 editor's CodeMirror selection preview. The engine delivers them as typed
 ephemeral sections stored on the turn (view label, view instructions,
@@ -411,9 +414,11 @@ slots, field liveness, roll-up structure, pre-write collision) →
 per-field leave-one-out change report in the success message), _before_ any
 store write, so a throw provably means "nothing changed". Pure config checks
 live beside the pipeline in `client/src/generate_visualization/` (S10's glob,
-deliberately: they are S13 machinery); fetched-data checks stay in
-`validators/content_validators.ts`. The accepted-but-inert-patch rule (Type 1 /
-Type 2) is stated once, in [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
+deliberately: they are S13 machinery); the fetched-data check
+(`validateMetricInputs`) is shared with `/mcp` and lives in
+`lib/ai_tools/content_validators.ts`. The accepted-but-inert-patch rule
+(Type 1 / Type 2) is stated once, in
+[PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
 **Tools are built once per mount over fixed values.** Panther registers
 `config.tools` into its `ToolRegistry` once at chat construction and never
@@ -451,10 +456,15 @@ The architecture half of the schema story (the authoring recipe is
   user-presentable record (clean display, no stack; ~64 sites across the copilot
   tools); plain `Error` is reserved for genuine bugs (full-stack display).
   Handlers must throw, never return error strings.
-- **Layer-2 (data-dependent) validation** lives in
+- **Layer-2 (data-dependent) validation** splits by surface. The metric-query
+  validators both surfaces run (dimension availability per metric, date
+  format/ordering, filter values and period bounds against live data:
+  `validateAiMetricQuery`, `validateMetricInputs`) live in
+  [lib/ai_tools/content_validators.ts](lib/ai_tools/content_validators.ts).
+  The SPA-only slide/report content checks live in
   [content_validators.ts](client/src/components/copilot/ai_tools/validators/content_validators.ts)
-  (dimension availability per metric, date format/ordering, preset overrides,
-  filter values and period bounds against live data) and
+  (`validatePresetOverrides` composing lib's filter and date-range
+  primitives, block count, word count, markdown tables) and
   [report_validators.ts](client/src/components/copilot/ai_tools/validators/report_validators.ts)
   (token resolution, body caps).
 
@@ -678,9 +688,7 @@ Remaining:
 - **[MED] Public `/ai_usage`** returns per-user emails + per-call behavior,
   unbounded full-table scan; the other health routes expose aggregates. Decide
   the exception or add guard/limit.
-- **[LOW]** The Files upload hardcodes `application/pdf` for all assets. (The
-  unscoped GET/DELETE-by-id finding is closed: those two routes no longer
-  exist.)
+- **[LOW]** The Files upload hardcodes `application/pdf` for all assets.
 
 **Client copilot**
 
@@ -784,10 +792,7 @@ embed count is surfaced in the proposal summary). Remaining:
   `validateFigureConfigEdit` reject/annotate edits a custom order would
   override.
 - **[LOW]** Complex (non-3×3) layouts read back as `structure: null`, so only
-  `replace_slide` (destructive rebuild) can edit them. **[LOW]** (SPA-only
-  module tools) `get_available_modules` reduces `dirty:"error"` to the bare
-  word "Error" with no message while still showing `metricCount`, and
-  remediation needs a `get_module_log` call the list doesn't hint at.
+  `replace_slide` (destructive rebuild) can edit them.
   **[LOW]** `get_module_settings` formats only `parameterSelections`,
   omitting other `ModuleConfigSelections` fields its description implies.
   **[LOW]**

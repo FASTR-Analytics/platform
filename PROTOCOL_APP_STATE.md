@@ -39,7 +39,7 @@ client/src/state/
   instance/                ← instance-scoped T1 + T2
   products/                ← product-scoped T2 + T4
   _infra/                  ← cache infrastructure (reactive_cache, indexeddb_cache, request_queue)
-  t4_ui.ts                 ← cross-cutting T4 (UI prefs; also moduleLatestCommits, see T4)
+  t4_ui.ts                 ← cross-cutting T4 (UI prefs)
   t4_connection_monitor.ts ← cross-cutting T4
   clear_caches.ts          ← utility
 ```
@@ -83,8 +83,8 @@ derived lookups) from the one file.
 
 | Data                  | Fields on `InstanceState`                                                                                                                  | SSE event                    | Version key for T2                      |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | --------------------------------------- |
-| Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear`, `countryIso3` (all env-sourced)                              | `starting` only              | none                                    |
-| Instance config       | `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`                                                       | `config_updated`             | none                                    |
+| Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear` (all env-sourced)                                             | `starting` only              | none                                    |
+| Instance config       | `countryIso3`, `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`, `aiContext`                           | `config_updated`             | none                                    |
 | Products              | `products` (full `ProductSummary[]`, maintained PER ROW: `products_upserted` carries only the changed rows, `products_deleted` the ids)     | `products_upserted` / `products_deleted` | `lastUpdated.products[id]` (the row's own stamp, written from the summary) |
 | Folders               | `folders` (full `Folder[]`)                                                                                                                | `folders_updated`            | none                                    |
 | Ready packages        | `readyPackages` (`ReadyPackage[]`, approved users; the `runsCatalog` idiom: `starting` fill plus a refetch on the catalogue nonce)         | `runs_catalog_updated`       | none                                    |
@@ -96,7 +96,7 @@ derived lookups) from the one file.
 | Pinned package        | `pinnedRunId` (bare id, `null` = nothing pinned; unfiltered, every client)                                                                 | `pinned_run_updated`         | none                                    |
 | Structure summary     | `structure` (counts), `structureLastUpdated`                                                                                               | `structure_updated`          | `structureLastUpdated`                  |
 | HFA weights           | `hfaWeights`                                                                                                                               | `structure_updated`          | none                                    |
-| Indicator summary     | `indicators` (counts), `indicatorsVersion`, `baseIndicatorsVersion`, `hfaIndicatorsVersion`                                  | `indicators_updated`         | all three version fields                |
+| Indicator summary     | `indicators` (counts), `indicatorsVersion`, `countIndicatorsVersion`, `hfaIndicatorsVersion`                                 | `indicators_updated`         | all three version fields                |
 | HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + structure hash |
 | HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                 | `datasets_updated`           | `hfaCacheHash`                          |
 | ICEH dataset summary  | `icehCacheHash`                                                                                                                            | `datasets_updated`           | `icehCacheHash`                         |
@@ -212,7 +212,7 @@ All use `createReactiveCache`, except GeoJSON.
 
 | Data                               | File                        | Version key(s)                                                       |
 | ---------------------------------- | --------------------------- | -------------------------------------------------------------------- |
-| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `baseIndicatorsVersion` (base rows only, a derived edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys)  |
+| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `countIndicatorsVersion` (the analysed count rows only, a calculated-definition edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys)  |
 | HFA display items (data rows)      | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
 | ICEH display items (data rows)     | `instance/t2_datasets.ts`   | `icehCacheHash`                                                      |
 | HFA dictionary (variable metadata) | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
@@ -228,12 +228,12 @@ All use `createReactiveCache`, except GeoJSON.
   does not hold during a live DHIS2 run.
 - **GeoJSON is bespoke:** a preloaded memory-Map + idb-keyval cache (preloaded
   on `starting` / `geojson_maps_updated`), with non-reactive sync reads via
-  `getGeoJsonSync(level)`, not `createReactiveCache`.
+  `getGeoJsonSync(family, level)`, not `createReactiveCache`.
 
 ### Cache inventory: products
 
-Version keys read `InstanceState` through `instanceVersionKey(params, ins)`
-(no readiness gate; an absent stamp yields the `"unknown"` sentinel).
+Version keys read `InstanceState` through the cache's `versionKey(params, ins)`
+callback (no readiness gate; an absent stamp yields the `"unknown"` sentinel).
 
 | Data                          | File                                 | Version key(s)                                           | Variant |
 | ----------------------------- | ------------------------------------ | -------------------------------------------------------- | ------- |
@@ -282,15 +282,15 @@ editing, explicit save (or autosave with optimistic concurrency via a
 overwrite the user's work. These are NOT live-read violations. Canonical
 markers:
 
-- Entity loaded once on open (`createQuery` in the viz editor, `onMount` fetch
-  in the report editor, either is fine).
+- Entity loaded once on open (`createQuery` in the figure editor, `onMount`
+  fetch in the report editor, either is fine).
 - The component holds its own draft signal/store (not the T2 cache or T1 store).
 - Save sends the draft; the server bumps `lastUpdated`; SSE propagates to
   _other_ views.
 - The editor does not subscribe to `lastUpdated` for that entity.
 
-Correct for: viz editor, report editor, slide settings editor, deck style
-editor. Wrong for: slide lists (SSE keeps ordering fresh).
+Correct for: figure editor, report editor, slide deck settings editor, deck
+style editor. Wrong for: slide lists (SSE keeps ordering fresh).
 
 ### Imperative listener side-channel
 
@@ -301,7 +301,8 @@ event notification without subscribing to the store:
   fires with `(tableName, ids, timestamp)` for the `last_updated` message
   (`slides`) and for every row of `products_upserted` (`products`, the
   product's own stamp). Used by the slide and report editors to keep their
-  optimistic-save timestamp fresh under collab checkpoints.
+  optimistic-save timestamp fresh under collab checkpoints, and by the copilot
+  to notice slide edits and changes to its product.
 
 Returns a cleanup function; register in `onMount`, clean up in `onCleanup`.
 The instance channel also has the pair for generation telemetry
@@ -315,10 +316,12 @@ component-local**: transient per-user workflow state (signal + polling), not
 shared.
 
 Instance-level: structure upload attempts (in the structure dataset
-component), HMIS import runs + ledger (`instance_dataset_hmis/imports/`: the
-ledger is a full-table read fetched only while its tab is showing, so it is
-the shell's `createSignal<StateHolder>` + `createEffect` on the tab signal
-plus a local `ledgerVersion` bumped by the shell's `refresh()`; SYSTEM_06), HFA
+component), HMIS import runs (`instance_dataset_hmis/imports/`: the shell's
+`createQuery` reads for runs, scheduling and indicator labels; the runs poll
+and both runs and scheduling refresh on the SSE summary flags) and the
+HMIS import ledger (`instance_dataset_hmis/index.tsx`: a full-table read into
+the page's `createSignal<StateHolder>`, refetched by a `createEffect` on
+`datasetVersions.hmis` and `hmisImportRunActive`; SYSTEM_06), HFA
 import runs (`instance_dataset_hfa/imports/`), ICEH import runs
 (`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
 HFA indicator R code
@@ -340,10 +343,7 @@ file listing (`_shared/results_package/view_{script,logs,files}.tsx`).
 | UI prefs                          | `t4_ui.ts`                    | localStorage + signals                                      |
 | Connection monitor                | `t4_connection_monitor.ts`    | module-level signals                                        |
 
-`moduleLatestCommits` (in `t4_ui.ts`) is server data fetched once per session
-and never SSE-updated, a "session-cached server data" variant that doesn't fit
-T1–T5 cleanly; treat as T4. There is currently no instance-scoped T4 file (DHIS2
-credentials moved server-side).
+There is no instance-scoped T4 file (DHIS2 credentials are held server-side).
 
 ## T5: component-local
 

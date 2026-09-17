@@ -72,7 +72,9 @@ endDate: z.number().optional(),
   runtime state. Is this disOpt available for THIS metric? do these filter
   values exist? is the range within real data bounds? Lives in
   `client/src/components/copilot/ai_tools/validators/content_validators.ts`
-  (and `report_validators.ts` for report bodies), called from handlers.
+  (and `report_validators.ts` for report bodies), called from handlers; the
+  metric-query validators both surfaces run (the copilot and the `/mcp`
+  endpoint) live in `lib/ai_tools/content_validators.ts`.
 
 Rule: if validation needs data, it's Layer 2; if it's types and structure,
 derive it (Layer 1). Every write tool must run its Layer-2 checks **before**

@@ -107,7 +107,8 @@ never enter fetch configs or cache hashes. Every user-visible string is a
 
 `client/src/index.tsx` runs exactly three panther setters before
 `render(<App />)`: `setKeyColors(_KEY_COLORS)`, `setBaseText`,
-`setGlobalStyle(GLOBAL_STYLE_OPTIONS)`. The latter two are **deep-imported from
+`setGlobalStyle(GLOBAL_STYLE_OPTIONS)`. The option objects of the latter two
+(`BASE_TEXT_OPTIONS`, `GLOBAL_STYLE_OPTIONS`) are **deep-imported from
 `generate_visualization/get_style_from_po/_0_common`** (S10-owned files), so
 figure styling and app chrome share one source; that deep import is load-bearing
 for boot.
@@ -144,8 +145,8 @@ reaches the SPA. Within the app one
 URL parameter matters: **`?product=<id>`** (`_PRODUCT_QUERY_PARAM` in
 `t4_ui.ts`) is the product deep link: the Products page consumes it into
 `pendingEditorOpen`, clears it from the URL and opens that product's editor
-once the store has hydrated (S12). It replaces the old `?p=` and `?d=`, with
-no shim.
+once the store has hydrated (S12). No other product parameter (`?p=`, `?d=`)
+is recognised.
 
 Everything else is a **signal-driven switchboard**, never the URL:
 `components/instance/index.tsx` holds a local `_tab` signal filtered through
@@ -161,8 +162,8 @@ onboarding-modal effect (below).
 
 ## Language, calendar & translation
 
-Three languages: `en`, `fr`, and `pt` (European Portuguese, being rolled out
-across the inline literals). Language is per-browser
+Three languages: `en`, `fr`, and `pt` (European Portuguese). Language is
+per-browser
 (`localStorage.fastrLanguage`), defaulting to the instance language; the
 language menu writes localStorage and calls `window.location.reload()`.
 **Language and calendar apply by full reload, nothing re-renders reactively**.
@@ -219,7 +220,8 @@ location, null = the root; `productsViewMode`; `productsSortMode`, `SortMode
 only feed comparisons, and a value from a build that spelled one differently
 degrades to "no match" rather than throwing. Plus the scheme preference
 (`scheme`, tri-state on panther's data-scheme contract, applied at module
-scope before first paint, with the legacy `darkMode` key migrated once).
+scope before first paint; a stored `darkMode` boolean is mapped on read when
+no `scheme` key is stored).
 In-memory only (deliberately not persisted): `fitWithin`, `showAi`,
 `headerOrContent`, `policyHeaderOrContent`, and the three request signals the
 tours and the deep link use (`pendingEditorOpen`, `pendingSlideOpen`,
@@ -229,12 +231,15 @@ lesson, SYSTEM_09).
 
 ## Connection monitoring (`state/t4_connection_monitor.ts`)
 
-No polling, no heartbeat: `navigator.onLine` + `online`/`offline` window events
-feed `isOnline`; a failure counter fed by the server-action wrapper
+No polling, no heartbeat: `navigator.onLine` seeds `isOnline`, and the
+`online`/`offline` window listeners that update it are attached only by
+`useConnectionMonitor()`, which only `ConnectionStatus.tsx` calls; a failure
+counter fed by the server-action wrapper
 (`try_catch_server.ts` fires the transport's `onNetworkFailure`/`onNetworkSuccess` hooks, which `LoggedInWrapper.tsx` binds to `reportNetworkFailure`/`reportNetworkSuccess`)
 flips `connectionIssues` at ≥2 failures with a 30 s decay.
 `ConnectionStatus.tsx` renders the offline banner but is **mounted nowhere,
-dead UI** (Open items); the monitor itself is live.
+dead UI** (Open items); the failure counter is live, the window listeners are
+never attached.
 
 ## Onboarding modals
 
@@ -257,8 +262,8 @@ carrying the superseded high-water `whatsNewSeenVersion` are migrated once by
 marking every post at or below it read. Brand-new users (detected as
 `!emailOptInAsked` before the opt-in modal writes it) are baselined with
 everything marked read, so they get neither popup nor dot. The fetched posts
-also power a header bell (between the language switcher and the feedback
-button; hidden when there are no posts) with a warning-coloured unread dot and
+also power a header bell (between the language switcher and the Help menu;
+hidden when there are no posts) with a warning-coloured unread dot and
 a `WhatsNewFeedModal` history feed. The dot persists until every missed post
 has been opened. The feed does NOT bulk-acknowledge; it marks each post read
 as it is opened and flags the still-unread rows. The login popup
@@ -302,8 +307,9 @@ the PO editor's data panel).
   are; `setLanguage`/`setCalendar` run mid-render in `routes/index.tsx`. Decide:
   hoist resolution ahead of `render()` (kills any pre-language flash) or bless
   the current order as the contract.
-- `ConnectionStatus.tsx` is dead UI: the monitor feeds signals nobody renders.
-  Mount it or delete it.
+- `ConnectionStatus.tsx` is dead UI: the monitor feeds signals nobody renders,
+  and its `online`/`offline` listeners are never attached. Mount it or delete
+  it.
 - Help system has no `pt`: the generator and `getHelpUrl` are EN/FR-only, so
   Portuguese users silently get English summaries and the English site. Needs a
   site-side `pt` tree before the app side can follow.

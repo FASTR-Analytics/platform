@@ -68,13 +68,14 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
 - **Rides two neighbouring systems, replaces neither.** Checkpoints persist by
   calling **S12**'s document tables (`saveReportCheckpoint` /
   `saveSlideCheckpoint` in `server/db/products/{reports,slides}.ts`, onto
-  additive `crdt_state` / `body_authors` / `slide_editors` columns) and then
+  additive `crdt_state` / `crdt_state_last_updated` / `body_authors`
+  columns) and then
   ring **S3**'s notify hub (`notifyInstanceLastUpdated` for the slide stamp,
   `notifyInstanceProductsUpserted` for the product summary). See the boundary
   section below. This is the load-bearing integration contract.
 - **Attribution is honest.** Exact per-character / per-slide / per-element
-  "who" only accrues for edits made through live collab rooms after deploy;
-  everything else falls back to session-level "one of: …" wording. Ledgers
+  "who" only accrues for edits made through live collab rooms; everything
+  else falls back to session-level "one of: …" wording. Ledgers
   self-poison rather than show wrong names.
 - **Version capture is session-based** (10 min idle / 45 min max / 2 min
   room-empty), hash-deduped, retained newest-100-per-document, restore writes a
@@ -99,8 +100,9 @@ report embeds. Figma-style live cursors with name tags, click ripples, and
 settings panel), and the report editor (both panes; typing hides your own
 pointer). Continuous autosave with no Save button; graceful single-user fallback
 when the WS can't connect (explicit save with conflict dialog);
-reconnect-forever with two-way catch-up; view-only users see everything live
-with read-only editors; deterministic per-user identity color (hashed from
+reconnect-forever with two-way catch-up; a read-only editor rendering kept as
+the seam for a later permission model (every approved user is a full editor
+today); deterministic per-user identity color (hashed from
 email, server-stamped, unspoofable: only the avatar URL is self-reported).
 
 ## Transport: one WebSocket per instance
@@ -193,7 +195,7 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
   trigger.
 - Ops requirement: reverse proxies must forward WebSocket upgrade headers on
   `/collab`; the server-cli site template becomes path-agnostic before the
-  rollout (PLAN_PRODUCTS_RESTRUCTURE §6).
+  rollout (PLAN_PRODUCTS_RESTRUCTURE D8).
 
 ## Presence: who is where
 
@@ -278,8 +280,8 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
   `FigureBundle` into `figConfig` (a nested Y.Map via the
   `figure_config_crdt.ts` bridge: the visualization config co-edits
   field-by-field, captions per character) + `figData` (the opaque remainder:
-  items, geo, provenance). `materialize` recomposes the bundle; legacy docs
-  that stored the whole bundle under `bundle` are read and converted on the
+  items, geo, provenance). `materialize` recomposes the bundle; a doc that
+  stores the whole bundle under a `bundle` key is read and converted on the
   next sync. `syncSlideToDoc(doc, slide, { skipFigureConfigForBlockIds })`
   lets a host with an open figure-editor modal exclude that figure's config
   from its push (the modal owns it live). The skip applies ONLY when a
@@ -395,10 +397,9 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts) and
   `no_room`) does the route write the DB directly. On `save_failed` (room
   applied it, checkpoint failed) routes return an error WITHOUT a direct-write
   fallback: the room retains the change and owns persistence; a direct write
-  would be clobbered by the room's next successful checkpoint. (Previously
-  both outcomes were a single `null`, so routes double-wrote the DB while a
-  wedged room kept serving its divergent doc.) This is what prevents the
-  room's next checkpoint from silently reverting AI/manual saves, and why
+  would be clobbered by the room's next successful checkpoint. This is what
+  prevents the room's next checkpoint from silently reverting AI/manual
+  saves, and why
   those saves appear live in open editors.
   `closeRoomsForDoc` is the opposite primitive: discard a live room WITHOUT
   checkpointing and error its clients fatally (used when the row is deleted or
@@ -416,8 +417,8 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts) and
 [slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx)
 keeps the pre-collab editing model (a local `tempSlide` Solid store driving
 the canvas) and bridges it to a per-slide session doc from
-`openSlideSession(slideId, onRemote)` (which first destroys any prior session
-for the same slide):
+`openSlideSession(productId, slideId, onRemote)` (which first destroys any
+prior session for the same slide):
 
 - **Local → doc**: one tracking effect (`trackStore(tempSlide)`) runs on every
   store change and calls `session.pushLocal(unwrap(tempSlide))` →
@@ -507,9 +508,9 @@ checkpoint; the next save from the figure editor strips it via
 `normalizePOConfigForStorage`.
 Schema-INVALID transients are instead dropped from the stored config at
 checkpoint via `dropStorageInvalidTransientsInSlide` /
-`dropStorageInvalidTransientsInFigures`, without touching the doc: the
-strict parse used to throw on them, permanently wedging the room's checkpoint
-(observed in production). Covered: a filter chip with all values
+`dropStorageInvalidTransientsInFigures`, without touching the doc: without
+that step the strict parse throws on them and wedges the room's checkpoint
+permanently (observed in production). Covered: a filter chip with all values
 un-ticked, an emptied `valuesFilter` (both min(1) in storage), and a bounded
 `periodFilter` (`custom`/`from_month`) whose min/max don't self-identify the
 same period format or aren't ordered (`periodFilterSchema`'s refine).
@@ -615,7 +616,7 @@ directions ship only diffs; an in-sync exchange applies as a pure no-op.
 | AI edits a slide someone has open                | Refused with a named warning (busy guard).                                                                                                                                                     |
 | Non-collab save while a room is live             | Routed through the room: merged, relayed live, checkpointed (no clobber in either direction).                                                                                                  |
 | Deploy skew (old server / new client)            | `slide_sync` without `stateVector` is tolerated (catch-up skipped, sync still completes).                                                                                                      |
-| View-only user opens the editor                  | Sees everything live; editors read-only; server rejects any forged ops per-message.                                                                                                            |
+| View-only user opens the editor                  | No such role today: `canEditProduct` is `currentUserApproved`, an unapproved user gets the 4403 close, and `RoomConn.canEdit` is TRUE on every admitted connection, so the read-only editor path and the per-message `COLLAB_NO_EDIT_PERMISSION` rejection are seams nothing flips. |
 
 Known limits: carets render only in the side-panel editors, not on the canvas
 itself (panther's canvas is non-DOM, so the canvas shows the peer border
@@ -659,8 +660,7 @@ peer border appears only once text exists.
   hashes are unchanged (`hashVersionData` shares `canonicalJson`).
 - **Model changes**: changing the doc schema breaks restore of old states.
   Ship a migration that nulls `crdt_state`; rooms re-seed from content, which
-  is always safe. Past cases: slide titles becoming Y.Text, and the figure
-  decomposition (which cleared both slides and reports).
+  is always safe.
 - Bundling constraint: exactly one yjs. Yjs breaks (`instanceof` failures,
   "Yjs was already imported") if two copies are bundled.
   [client/vite.config.ts](client/vite.config.ts) pins `resolve.dedupe` for
@@ -686,14 +686,13 @@ peer border appears only once text exists.
 ## Collab (WebSocket) ⇄ SSE boundary
 
 How this system sits on top of **S3 (Realtime Sync & Cache Invalidation)**
-without replacing any of it. The question it answers: "did adding live
-co-editing change how saves and refetches worked before?". Answer: no, it
-extended them.
+without replacing any of it. The question it answers: "does live co-editing
+change how saves and refetches work?". Answer: no, it extends them.
 
 **Principle: WebSockets are strictly additive.** They add a fast, fine-grained
 live layer _inside_ the existing instance SSE boundary; they do not take
 over any responsibility SSE already had. Delete all of this system's code and
-the original save-then-refetch flow still works end to end. You would only
+the direct save-then-refetch flow still works end to end. You would only
 lose live co-editing and fall back to save-then-refetch.
 
 ```text
@@ -712,44 +711,44 @@ lose live co-editing and fall back to save-then-refetch.
        The WS checkpoint FEEDS the SSE bus. It never bypasses it.
 ```
 
-### 1. The old system is untouched: extended, not replaced
+### 1. The direct path is untouched: extended, not replaced
 
-- **The classic DB write functions are unchanged.** `updateReportBody`,
-  `updateReportFigures`, `updateReportImages`, `updateSlide`, etc. still exist
-  and still do exactly what they did (one column + `last_updated`). The collab
-  checkpoints are **new, separate** functions sitting alongside them.
-- **The REST routes got a branch prepended; the original path is the
-  fall-through.** Each mutating route now starts with a live-room check; if no
-  room is live it runs the original code unchanged (see the `updateReportBody`
+- **The classic DB write functions are independent of collab.**
+  `updateReportBody`, `updateReportFigures`, `updateReportImages`,
+  `updateSlide`, etc. each do exactly one thing (one column + `last_updated`).
+  The collab checkpoints are **separate** functions sitting alongside them.
+- **The REST routes start with a room branch; the direct path is the
+  fall-through.** Each mutating route starts with a live-room check; if no
+  room is live it runs the direct-write code (see the `updateReportBody`
   route in [server/routes/products/reports.ts](server/routes/products/reports.ts):
-  the room branch returns early, otherwise it falls through to the same
-  `updateReportBody` + `notifyInstanceProductsUpserted` it always did).
-- **The schema change is purely additive.** All new columns are nullable and
-  ignored by the old read paths. Old rows and non-collab reads behave
-  identically. Zero `notify*` calls were removed from the pre-existing
-  routes. The collab path only adds notifies on top.
+  the room branch returns early, otherwise it falls through to
+  `updateReportBody` + `notifyInstanceProductsUpserted`).
+- **The collab columns are purely additive.** They are nullable and ignored
+  by the non-collab read paths, which behave identically with or without
+  them. Every direct route keeps its `notify*` calls; the collab path only
+  adds notifies on top.
 
-### 2. How the flow changes
+### 2. The two flows
 
-**Old flow (still the fallback):** client edits → REST `PUT` → DB `UPDATE`
-(one column + `last_updated`) → `notifyInstanceLastUpdated` for the slide
-and `notifyInstanceProductsUpserted` for the product → SSE → other clients
-see the stamp bump and refetch. Last-write-wins, no live merge.
+**Direct flow (the fallback when no room is live):** client edits → REST
+`PUT` → DB `UPDATE` (one column + `last_updated`) → `notifyInstanceLastUpdated`
+for the slide and `notifyInstanceProductsUpserted` for the product → SSE →
+other clients see the stamp bump and refetch. Last-write-wins, no live merge.
 
-**New flow (when a collab room is live):**
+**Room flow (when a collab room is live):**
 
 1. Client edits go over the **WebSocket** as Yjs deltas → applied to the
    server's authoritative master Y.Doc (`applySlideUpdate` /
    `applyReportUpdate`, defined in `slide_rooms.ts` / `report_rooms.ts`,
    invoked from `routes/instance/collab.ts`).
 2. The master doc **relays** the delta to the other subscribers immediately
-   (sub-second, no refetch: this is the genuinely new capability).
+   (sub-second, no refetch).
 3. A **1.5 s debounced checkpoint** materializes the doc and calls the
    checkpoint function → the same DB row, same `last_updated` discipline.
 4. That checkpoint then rings the **same SSE bell** (the slide stamp plus the
    product summary re-broadcast, `products_upserted`) so everything _outside_
    the room (product cards, users not currently in the document) invalidates
-   and refetches as before.
+   and refetches.
 
 **The crucial glue (the "chokepoint"):** when a REST save arrives _while a
 room is live_, it does not write the DB directly (that would clobber the
@@ -772,10 +771,11 @@ per product on the 1.5 s cadence with no list rebroadcast to throttle.
 
 **Postgres: different function, same table, same stamping.** The classic path
 uses the per-column `update*` functions; the collab path uses the checkpoint
-functions (`saveReportCheckpoint`: one superset `UPDATE` writing body +
-figures + images + `crdt_state` + `crdt_state_last_updated` + `body_authors`;
-`saveSlideCheckpoint`: one transaction updating the slide + bumping the
-owning product). What matters is that **both stamp
+functions (`saveReportCheckpoint`: one transaction writing body + figures +
+images + `crdt_state` + `crdt_state_last_updated` + `body_authors` on the
+report row and bumping the owning product; `saveSlideCheckpoint`: one
+transaction updating the slide + bumping the owning product). What matters
+is that **both stamp
 `last_updated = new Date().toISOString()` identically**. That is precisely
 what keeps S3's `last_updated → SSE → cache` triangle working the same way
 regardless of which path wrote the row.
@@ -821,8 +821,8 @@ slide ids are kept so restore preserves identity), plus `editors` (JSON
 `created_at`, and nullable `restored_from_version_id` (set only by the restore
 routes).
 
-- **Label is snapshotted explicitly** in both tables (`updateSlideDeckLabel`
-  writes only the label column, so the deck config alone is not
+- **Label is snapshotted explicitly** in both tables (`updateProductLabel`
+  writes only the `products` label column, so the deck config alone is not
   label-authoritative). **Not versioned (v1)**: report `config` (display
   prefs) and deck `plan` (AI planning text), not document content.
 - **Dedup**: `content_hash` = md5 of `canonicalJson` of the snapshot data
@@ -883,15 +883,16 @@ through the HTTP routes, including client-side AI tools):
 - **Collab edits**: `RoomConn.identity` ({email, name}, stamped by the WS
   route) → `DocRoomDeps.onEdit(editor)` fires in `applyDocUpdate`; `onEmpty()`
   fires when the room finalizes. Slide rooms record against the **deck** id
-  (whole-deck versions) via the deps closure's captured `deckId`.
+  (whole-deck versions) via the deps closure's captured `productId`.
 - **Room-routed HTTP writes** (AI accepts, fallback saves):
   `applySlideToLiveRoom` / `applyReportToLiveRoom` take an optional `editor`
   param → same `onEdit` hook.
 - **Direct route writes**: `recordVersionEdit(kind, docId, editor)`
   after success, identity from `c.var.globalUser`. Slides:
-  create/delete/duplicate/move + the updateSlide fallback (the DB fn returns
-  `deckId` for attribution); decks: config + label; reports:
-  body/figures/images fallbacks + label.
+  create/delete/duplicate/move + the updateSlide fallback; decks: config;
+  reports: body/figures/images fallbacks. The shared `updateProductLabel`
+  route records nothing, so a label-only change is captured by the next
+  session that does.
 - **Restore routes do NOT record**: they write versions explicitly (below).
 
 ### Per-character authorship (report bodies)
@@ -949,7 +950,7 @@ Per-slide attribution comes from
 [deck_session_ledger.ts](server/collab/deck_session_ledger.ts), the deck
 analog of the report body ledger: every slide-level write path (room edits via
 the slide-room deps closure, create/duplicate/delete/move/update routes, deck
-settings/label) records WHO touched WHICH slide; the map freezes into
+settings) records WHO touched WHICH slide; the map freezes into
 `slide_deck_versions.slide_editors` when the version is written, and drains
 into the safety version on restore. Bounded per entry (`SLIDE_CAP=500`,
 `ELEMENTS_PER_SLIDE_CAP=100`). Unlike report bodies this ledger is in-memory
@@ -1028,7 +1029,8 @@ Step ② by kind:
   (partial restore is reported, never masked). No room ⇒
   `restoreReportContent`, one UPDATE whose `last_updated` bump
   auto-invalidates stored `crdt_state`.
-- **Deck**: `planDeckRestore(currentIds, snapshotSlides)` (pure) partitions
+- **Deck**: `planSlideDeckRestore(currentIds, snapshotSlides)` (pure)
+  partitions
   into `toDelete` / `toInsert` / `toUpdate`; then `remapCollidingSlideIds`
   replaces any `toInsert` id that a slide in ANOTHER deck now holds (3-char
   ids are only unique against live rows, so re-inserting verbatim would abort on
@@ -1036,7 +1038,7 @@ Step ② by kind:
   via `closeSlideRoom` (a stale room would fail checkpoints forever on a
   deleted row, or clobber a re-created one; remapping first means another
   deck's live room is never touched). Then ONE transaction
-  (`restoreDeckStructure`): delete rows, re-insert with snapshot ids +
+  (`restoreSlideDeckStructure`): delete rows, re-insert with snapshot ids +
   snapshot order, restore every survivor's sort_order, deck label + config,
   `reSequence`. Then each `toUpdate` slide's config applies through
   `applySlideToLiveRoom` (or a direct update when no room); failures are
@@ -1052,17 +1054,19 @@ Step ② by kind:
   unknown-deleter tombstones that must not leak into the next session's
   version.
 
-**Restore-as-copy**: `copyReportFromVersion` / `copyDeckFromVersion` create a
-brand-new document from the snapshot (decks get FRESH slide ids, since the
-originals may still exist). Zero-risk path; no room interaction. Deck copy
-validates every config first and inserts deck + slides in ONE transaction.
+**Restore-as-copy**: `copyReportFromVersion` / `copySlideDeckFromVersion`
+create a brand-new document from the snapshot (decks get FRESH slide ids,
+since the originals may still exist). Zero-risk path; no room interaction.
+Deck copy validates every config first and inserts deck + slides in ONE
+transaction.
 
 **Room hygiene on delete**: the delete routes discard live rooms via the
 binding wrappers `closeSlideRoom` / `closeReportRoom` (over
-`closeRoomsForDoc`). Without them, `deleteSlides` / `deleteSlideDeck` /
-`deleteReport` would leave zombie rooms retrying failed checkpoints forever.
-`deleteSlideDeck` aborts if the pre-delete slide-id fetch fails (deleting
-anyway would leave every live room a zombie). `deleteSlides` closes rooms and
+`closeRoomsForDoc`). Without them, `deleteSlides` / `deleteProducts` would
+leave zombie rooms retrying failed checkpoints forever. `deleteProducts` reads
+each deleted deck's slide ids inside the delete transaction and returns them
+with every deleted row's type, so each slide room and report room is closed
+once and the open tracker session drained. `deleteSlides` closes rooms and
 records `removed` attribution only for the ids the DB ACTUALLY deleted
 (`RETURNING id`: the delete is deck-scoped, and a requested 3-char id that
 now belongs to another deck must not have that deck's live room discarded or a
@@ -1190,30 +1194,6 @@ heading bar; "Version history" in the deck overflow menu.
   sequence, no bad data). The schema comment on `rollup` in
   `_metric_installed.ts` points here. Revisit if per-entry keyed merge for
   `disaggregateBy` (previous item) is taken up.
-- ~~**No heartbeat/ping-pong or idle-connection reaper on the collab WS**~~
-  RESOLVED. Both halves of dead-peer detection now exist and are described under
-  Transport: the server side is Deno's protocol ping with `idleTimeout: 30`
-  pinned explicitly at the upgrade call (routes/instance/collab.ts), which fires
-  the same `onClose` that runs `removeConnection`/`handleConnGone`; the client
-  side is the app-level ping/pong watchdog in collab.ts (25 s ping, 10 s
-  no-traffic deadline, then force-close into the normal reconnect path). The
-  ON-HOLD note contradicted the Transport section of this same file and the
-  code; retired.
-- ~~**Unguarded per-send broadcasts in `doc_rooms.ts`**~~ Mostly resolved, and
-  the escalation it described is not reachable. The update fan-out, the
-  awareness relay and `subscribeDoc`'s two sync sends all carry the per-send
-  try/catch now, so a throwing peer can no longer unwind into
-  `applyDocUpdate`'s catch: a valid update is still applied, attributed, and
-  marked dirty (verified by executing the described interleaving). Separately,
-  a server-side `WebSocket.send()` in Deno does not throw on a dead peer at
-  all: the only mandated throw is `readyState === CONNECTING`, unreachable
-  after the upgrade (verified empirically).
-  The last two unguarded loops (`broadcastSaveState`, the error loop in
-  `closeRoomsForDoc`) were closed for symmetry: a throw in the
-  former aborted `noteSaveFailure` before it armed the `CHECKPOINT_RETRY_MS`
-  timer (dirty room, no retry, no log line until the last client left), and one
-  in the latter would have skipped `rooms.delete` / `doc.destroy()` /
-  `onDocClosed` and leaked a zombie room.
 - **The embedded-figure wedge guard rests on client-side widgets, not on
 
   the server.** `dropStorageInvalidTransients` covers the three states the
@@ -1233,9 +1213,9 @@ heading bar; "Version history" in the deck overflow menu.
   `dropStorageInvalidTransients*` are S16 changes in everything but the lint.
 
 - **[URGENT] Report registry edits are outside undo entirely, and collab is why.**
-  Absorbed from PLAN_REPORT_UNDO_REDO.md, since deleted. Its design was
-  written before the collab merge landed, and that design no longer works. Recorded here rather than re-planned because the fix
-  belongs to this system.
+  Absorbed from the deleted PLAN_REPORT_UNDO_REDO.md, whose design assumed
+  CodeMirror history owns undo; it does not. Recorded here rather than
+  re-planned because the fix belongs to this system.
 
   **The state.** A report's body text is undoable; its figure and image
   registries are not. `setFigures`/`setImages` + `persistFigures`/`persistImages`
@@ -1245,7 +1225,7 @@ heading bar; "Version history" in the deck overflow menu.
   (`handleDelete` is already token-only, so undoing a _delete_ does restore a
   working embed; it is the other writes that are stranded.)
 
-  **Why the obvious fix is dead.** The retired plan routed registry writes into
+  **Why the obvious fix is dead.** The deleted plan routed registry writes into
   CodeMirror transactions as `StateEffect`s and let `invertedEffects` +
   CM's own history undo "doc change + registry change" atomically. That only
   works where CM history is the authority, and it isn't:
@@ -1269,6 +1249,6 @@ heading bar; "Version history" in the deck overflow menu.
   migrating existing checkpoints. It is a real piece of S16 design work, not a
   drop-in, which is why it is an open item and not a plan.
 
-  Whatever lands must also cover the AI `undo`/`redo` tools the retired plan
+  Whatever lands must also cover the AI `undo`/`redo` tools the deleted plan
   specced (mode-guarded, calling into the editor API). A reversal path for the
   no-modal `update_report_figure` was the plan's original motivation.

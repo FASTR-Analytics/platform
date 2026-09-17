@@ -35,20 +35,11 @@ Docker/R execution → finalize (parquet + manifest) → publish. Products then
 point at a ready package. There is no second write plane: results live only
 in package directories, never in Postgres.
 
-Renamed from "Module System": modules are now an INPUT to this
-system rather than its subject. What it owns, and what the old name hid, is the
-package: its format, its one writer, its catalogue, and which product serves
-from which one. The **run-directory format and manifest contract** are specified
-below ("The results package format") and that section is authoritative: S9 reads
-the manifest but does not define it.
-Original prose reviewed against code (first review cycle; absorbs
-DOC_TASK_EXECUTION_DIRTY_STATE + DOC_WORKER_ROUTINES + DOC_MODULE_EXECUTION +
-DOC_MODULE_UPDATES + DOC_POPULATION_CSV). Then the PLAN_RESULTS_RUNS merge
-replaced the execution model, and Phase 3's user-model core
-(items 0–5) replaced the entry points and deleted the
-dual-write; the sections below were reconciled to that tree, and Phase 4
-removed the last Postgres results-plane remnants and renamed
-the sandbox directory to runs.
+Modules are an INPUT to this system rather than its subject. What it owns
+is the package: its format, its one writer, its catalogue, and which product
+serves from which one. The **run-directory format and manifest contract** are
+specified below ("The results package format") and that section is
+authoritative: S9 reads the manifest but does not define it.
 
 Boundaries: the write-a-worker **recipe** (folder pairing, READY handshake,
 preamble, spawn-site listeners, teardown rules, report-back mechanisms) is
@@ -81,8 +72,7 @@ reads: detail/script/logs/files, run-keyed under the instance data bits);
 lib module + run
 types + `module_registry.ts`; client: `instance_results_packages/**` (the
 catalogue), the launch wizard `instance_results_packages/_wizard/**` (an
-ephemeral modal, the Upload-CSV pattern; the last consumer of the old
-`_import_wizard/` descriptor shell, deleted with it), and the T2 run-detail
+ephemeral modal, the Upload-CSV pattern), and the T2 run-detail
 cache `state/instance/t2_runs.ts`. Shared-custody: `_shared/results_package/**`,
 what a package CONTAINS, rendered identically wherever a package is
 explored (`package_view.tsx` = `ResultsPackageView`, `status.tsx`,
@@ -101,18 +91,13 @@ one scope, `products.run_id` and `products.admin_area_2`, and is a pure
 authoring space; S9–S13). Results are never
 ingested into Postgres: the viz layer runs its SQL through DuckDB over the
 package's parquet, so repointing a product is a pointer write and every cache
-keys on the run id with no data-version dimension left to go stale. This
-replaced per-project mutable `ro_*` tables plus the dirty-state/stamp cascade
-that policed their freshness. Measured payoff at cutover: Nigeria's legacy
-per-project CSV plane was ~1.4T; the packages replacing it total ~10G;
-national-scale item queries went from 8–16 s (pg seq-scan) to sub-second.
+keys on the run id with no data-version dimension left to go stale.
 
 Definitions zod-validated at every fetch; compute/presentation git-ref split;
 whole-DAG generation into an immutable run dir (PLAN_RESULTS_RUNS), entered
 ONLY from the instance shell, with §3.7 memoized reuse resolved by a
-catalog-wide inputKey search. The run dir is the only write plane. The
-dirty-state machine, per-module rerun, and module-card surfaces were deleted by
-the wizard deploy: module status is the run manifest's availability stamps.
+catalog-wide inputKey search. The run dir is the only write plane. Module
+status is the run manifest's availability stamps.
 Rollback is a hosting-level volume restore (Phase 3 ruling 5), not a second
 data plane.
 
@@ -172,10 +157,9 @@ commit field (legacy definitions carrying one parse fine, the field is
 ignored). sha256 is the integrity check and the cache key.
 `getModuleDefinitionDetail(id, language, pinnedGitRef)` translates
 label/metrics/`configRequirements` via `resolveTS` and returns
-`ModuleDefinitionDetail & { gitRef }`. (Default visualizations are no longer
-derived or stored here. They are virtual projections of the manifest presets
-of the run a product points at, PLAN_RESULTS_RUNS item 5b,
-`lib/derive_default_visualizations.ts`.)
+`ModuleDefinitionDetail & { gitRef }`. (Default visualizations are not
+derived or stored here: they are virtual projections of the manifest presets
+of the run a product points at, `lib/derive_default_visualizations.ts`.)
 
 ## Module settings and the run-keyed mounts
 
@@ -456,8 +440,8 @@ the format, the invariants and the schema version live here. Types:
     datasets/<type>.parquet           COPY TO straight into the run + twins
     facilities_hmis.parquet         ← the join side of facility-column queries
     facilities_hfa.parquet
-    indicators.json                 ← dictionary/snapshot content (what used to
-    hfa_*_snapshot.json                   live in 12 project mirror tables)
+    indicators.json                 ← dictionary/snapshot content
+    hfa_*_snapshot.json
     iceh_indicators_snapshot.json
     population.csv                  ← monthly person-years per population type
                                       (every HMIS capture; see "population.csv")
@@ -634,9 +618,9 @@ to the permanence rule above, since whatever a block reads can never be dropped.
 
 **Two shapes of package exist, and the difference is visible.** A `wizard`
 package was generated by a real run: it has `inputs/datasets/`, scripts, logs
-and raw CSVs. A `synthetic-backfill` package was synthesized from a project's
-pre-cutover Postgres state by the backfill synthesizer (cutover tooling,
-since deleted): it carries the query parquet,
+and raw CSVs. A `synthetic-backfill` package was synthesized from pre-cutover
+Postgres state by cutover tooling that is not in the tree: it carries the
+query parquet,
 the facilities parquet and the snapshot JSONs, but **no script, no log and no
 raw CSVs**, so the viewers answer "no script in this results package for this
 module", which is a typed state and not an error. Backfill packages also carry
@@ -651,11 +635,10 @@ wizard as instance defaults > definition defaults
 `getMergedModuleConfigSelections`).
 Its **sole writer** is the
 module-defaults editor (`instance_results_packages/module_defaults.tsx`, opened
-from the Results packages surface); the wizard only reads it. Step 3's old
-"save as instance defaults" button was deleted with that editor (ruled):
-it rebuilt the whole blob from only the modules selected for
-that generation, so saving after a narrow run silently dropped curated
-defaults for every other module. The editor lives on the Results surface
+from the Results packages surface); the wizard only reads it and has no
+"save as instance defaults" action (ruled): a save built from only the
+modules selected for one generation would silently drop curated defaults
+for every other module. The editor lives on the Results surface
 rather than instance Settings because both routes are `can_configure_data`
 while Settings is `can_configure_settings`: the other placement would render
 UI backed by 403ing routes.
@@ -734,8 +717,9 @@ value is single-line**, and must stay so: `replaceAll` rewrites the token
 wherever it appears INCLUDING inside a comment, and a multi-line value would
 put its later lines outside that comment and break the parse. The
 4-input-type block is **duplicated** across the generators, and both wrap
-values in single quotes **without escaping**: these strings execute as real
-R; hardening + factoring is an Open item below.
+`text` and string-valued `select` values in single quotes **without
+escaping**: these strings execute as real R; hardening + factoring is an Open
+item below.
 
 **HFA variant emission** (authoring plane in S5). Indicators
 assigned a variant group emit one extra wide column per (indicator, item),
@@ -770,14 +754,13 @@ a bad snippet skips THAT ITEM only, and its warning must not be extracted by
 the parent's `^Indicator "` skip regex.
 
 **Results ingestion** (`run_query/write_results_object_parquet.ts`, called from
-finalize). ONE ingest since item 0 deleted the `ro_*` COPY: the raw R CSV
+finalize). ONE ingest: the raw R CSV
 becomes the run's `{roId}.parquet` under four semantic normalizations: `'NA'` →
 NULL (unquoted only), schema = CSV headers ∩ declared columns **with the
 DECLARED types and a hard error on any undeclared header** (R output cannot
 smuggle columns; don't relax this), redundant period + enabled facility helper
 columns dropped, and physical `quarter_id` normalized 6-digit → 5-digit. The
-deleted Postgres COPY applied the same four, which is what makes the frozen
-`ro_*` rows a valid parity oracle; the parquet is the only serving plane.
+parquet is the only serving plane.
 
 **Module outputs must derive their admin columns from the input CSV, never
 hardcode them**: the input carries admin columns only up to the family's
@@ -800,12 +783,8 @@ Postgres container (the `COPY TO` path is resolved inside Postgres); an env
 rename without both mounts boots green and then loses every package or fails
 every generation at the first `COPY`. Beside the packages live only `.tmp-{runId}`
 (in-flight generation; `sweepAbandonedTmpRunDirs`'s only filter),
-`.duckdb-spill`, and loose scratch files (ICEH xlsx, and restore dumps the
-retired in-app restore left). It was
-the module-execution sandbox until Phase 4 renamed it and ops
-deleted the legacy `{projectId}` dirs; the app neither creates nor reads
-those. Nothing enumerates the directory as a homogeneous set: every consumer
-addresses a named entry.
+`.duckdb-spill`, and loose scratch files (ICEH xlsx). Nothing enumerates the
+directory as a homogeneous set: every consumer addresses a named entry.
 
 ## m012: indicator values
 
@@ -934,9 +913,8 @@ unset, and a referenced type with no rows for any structure area at that
 level. The third is a population level deeper than the HMIS `adminDepth`
 (the depth was lowered after the import, which empties the deeper structure
 table), refused at capture naming the Population page. Anything short of
-that generates, including an indicator that ends up with zero usable cells.
-This reverses the earlier ruling that any shortfall failed the run: a
-country with recent population data only must still generate.
+that generates, including an indicator that ends up with zero usable cells:
+a country with recent population data only must still generate.
 
 **Everything left out is recorded.** The manifest's `population` stamp
 (`runPopulationSchema`) carries `active`, the file's level (m012's grain),
@@ -991,11 +969,11 @@ refuses any run a product points at.
 ## Open items
 
 - **Harden the R-source interpolation.** The default and HFA script generators
-  wrap config `text`/`select`/`number` values in single quotes with no
-  escaping. Nothing validates or escapes these values anywhere (the retired
-  calculated-indicators generator was the only path that validated its
-  identifiers; m012's ingredient literal escapes its ids, but the parameter
-  channel does not), and the 4-input-type substitution block is triplicated.
+  wrap config `text` and string-valued `select` values in single quotes
+  with no escaping and substitute `number` values bare. Nothing validates or
+  escapes these values anywhere (m012's ingredient literal escapes its ids,
+  but the parameter channel does not), and the 4-input-type substitution
+  block is duplicated.
   Validate-by-type or escape every value, and factor the block so quoting
   can't drift (`server/server_only_funcs/get_script_with_parameters*.ts`).
 - **Naming drift:** the worker preambles differ in their `console.error`

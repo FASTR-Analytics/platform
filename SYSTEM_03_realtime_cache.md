@@ -52,7 +52,7 @@ system a reader).
 
 Every mutation must stamp `last_updated` and notify, but that obligation lives
 in ~27 files owned by other systems. This system's _machinery_ is reviewed here;
-its _convention_ is a standing audit (SYSTEMS.md §4.3.1).
+its _convention_ is a standing audit (SYSTEMS.md §4.3, audit 1).
 
 ## SSE: the producer side
 
@@ -323,12 +323,11 @@ products on the same run and scope share entries.
 | `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)                  | `computeHfaCacheHash(hfa_time_points)` |
 
 Two key separators are live: `\|` (po_items) and `::` (metric_info,
-replicant_opts). An HMIS cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
-`ds_hmis`/`ds_hmis_v2`) was deleted (tombstone comment in
-`dataset.ts`): once the HMIS display route's vizItems moved to the import
-ledger, the read shrank to ~1.4k rows and the cache's value no longer paid for
-its liabilities (mid-run bypass dance, prefix-bump obligation). The route
-computes live; client-side T2 caching remains.
+replicant_opts). There is no HMIS display cache (`ds_hmis`/`ds_hmis_v2`);
+the tombstone comment in `dataset.ts` records why: with vizItems in the
+import ledger the read takes a few milliseconds, and a cache only adds
+liabilities (mid-run bypass dance, prefix-bump obligation).
+`getDatasetHmisDisplayInfo` computes live; client-side T2 caching remains.
 
 **Purge on run deletion** (`server/runs/delete_run.ts`, PLAN_RESULTS_RUNS Q-D) is
 the one place that deliberately deletes entries rather than out-versioning them,
@@ -354,14 +353,16 @@ in-flight dedup and no failure caching) in `createReactiveCache`
 (`client/src/state/_infra/reactive_cache.ts`), the factory behind every
 `t2_*` cache. Config: `name` (IndexedDB key prefix), `uniquenessKeys(params)`
 (auto-hashed with `|`), `versionKey(params, instanceState)` (reads the one T1
-store, the instance store, as a non-reactive snapshot) and optional `maxSize`
-(memory LRU, default 100). Cache key: `<name>/<uniquenessHash>::<versionHash>`.
+store, the instance store, as a non-reactive snapshot), optional `maxSize`
+(memory LRU, default 100) and optional `shouldStore(data)` (a payload-side
+guard: a successful response it refuses is served but not stored). Cache
+key: `<name>/<uniquenessHash>::<versionHash>`.
 Version is part of the key, so a version flip is an automatic miss. Two tiers:
 memory LRU map, then IndexedDB (`idb-keyval`); an in-flight `_unresolved` map
 dedups concurrent identical fetches; failures are never cached; the sentinel
 version `"unknown"` (a `lastUpdated` field the store has not received yet) is
 refused by `setPromise`. Consumer semantics and the composite-key caveat are
-in PROTOCOL_APP_STATE "Sentinel versions". `clearEntry` clears all versions of
+in PROTOCOL_APP_STATE "Sentinel version". `clearEntry` clears all versions of
 one uniqueness key; `clearEntriesWithPrefix` requires a STRICT prefix of the
 uniqueness keys (a complete key list matches nothing: full keys are followed
 by `::`, not `|`).
@@ -370,12 +371,13 @@ Two version idioms exist. Product documents version on the SSE-pushed
 `lastUpdated` maps (`slide`, `slide_deck_detail`, `report_detail`). Package
 data (`state/products/t2_figure_data.ts`, `t2_replicant_options.ts`,
 `state/instance/t2_runs.ts`, `t2_run_authoring_context.ts`) versions on the
-constant `"immutable"` with the identity (`runId`, `scopeToken`) leading the
-UNIQUENESS key: a ready package never changes, so nothing invalidates an
-entry and a late response cannot land under another package's key. There is
-no response-side identity guard any more; the key already names the package
-and the scope. Old IndexedDB entries become unreachable via the version flip
-and age out: no purge.
+constant `"immutable"` with the identity leading the UNIQUENESS key (`runId`
+in all four; the two `state/products/` caches add `scopeToken` beside it):
+a ready package never changes, so nothing invalidates an entry and a late
+response cannot land under another package's key. There is no response-side
+identity guard; the key already names the package and the scope. Old
+IndexedDB entries become unreachable via the version flip and age out: no
+purge.
 
 Around it:
 
@@ -409,7 +411,7 @@ bump.
 - **Decoupling: make the notify/stamp convention structural.** The
   `last_updated → notify` triangle is enforced by hand in ~27 files. A
   write-helper that does mutate + stamp + notify together (or a dev assertion
-  flagging mutations without a notify) would make audit §4.3.1 mechanical.
+  flagging mutations without a notify) would make §4.3 audit 1 mechanical.
 - A shared channel-name constant for `"instance_updates"`, currently a
   duplicated string literal between producer and consumer.
 - Failed post-write re-read strands clients: define the handling (log it,
@@ -418,9 +420,10 @@ bump.
   (scoped to the SSE channel; `RUN_GENERATION_ENDED_CHANNEL` is S8's and
   exempt).
 - `ds_hfa` version lockstep spans files: `versionHashFromParams` uses the
-  route-computed `computeHfaCacheHash` while `parseData` trusts
-  `res.data.cacheHash` from the producer: the dup-logic class item 9 exists to
-  kill, here spanning route and lib.
+  hash the route computes with `computeHfaCacheHash` while `parseData` trusts
+  `res.data.cacheHash` from the producer (`server/db/instance/dataset_hfa.ts`):
+  two computations of one key, the duplication the "Rules" lockstep line
+  exists to kill, here spanning route and db.
 - Cross-deploy payload-shape handling is per-cache and partial:
   `PO_CACHE_VERSION` covers the three run-keyed caches, `ds_hfa` has none.
   Fold a deploy/build version into `versionHash` generically, or document the

@@ -125,7 +125,7 @@ export const productReportRouteRegistry = {
 | `timeoutMs`       | client fetch timeout override (default 5 min; streaming routes have none) | real number                                                  |
 | `access`          | product/folder access level (`view`, `edit`, `own`); installs the guard   | real value, product registries only                          |
 
-`params`/`body` as phantom `{} as T` is retired: `route()` requires real Zod
+`params`/`body` are never phantom: `route()` requires real Zod
 schemas for both, so a handler can trust they match their `z.infer<T>` types.
 `response` alone stays a phantom: the server is the trusted producer, and the
 only response check is the compile-time `TypedResponse` constraint on the
@@ -141,9 +141,8 @@ snake_case throughout. Pairing is by registry key, never by filename.
 optional, so `response: {} as X | undefined` silently infers as `X`: the
 contract then claims `data` is always present. For a sometimes-absent payload
 declare `X | null` (survives inference, and `null` is wire-honest where
-`undefined` is dropped by JSON anyway). The former precedent
-(`getDatasetIcehUploadAttempt` / `getDatasetIcehUploadStatus`) left when ICEH
-imports became runs; no current route declares a top-level nullable response.
+`undefined` is dropped by JSON anyway). No current route declares a top-level
+nullable response.
 
 ## Implementing a route: `defineRoute` (server)
 
@@ -178,10 +177,11 @@ the DB function already returns an envelope. `server/routes/products/reports.ts`
 is the canonical, fully-consistent implementation file.
 
 Two deliberate validation holes remain, both documented: `response` (above), and
-fields schema'd as `z.unknown()`, the sentinel-encoded `slide`/`figures`
-passthroughs, validated in the DB layer after decode
-([PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)). Don't add new
-`z.unknown()` body fields to dodge writing a schema.
+the `geo.data` field of a figure bundle, schema'd as `z.unknown()` because
+GeoJSON is an external stable spec (`lib/types/_figure_bundle.ts`); the
+`slide`/`figures` bodies themselves parse against `slideConfigSchema` /
+`reportFiguresSchema`. Don't add new `z.unknown()` body fields to dodge
+writing a schema.
 
 ## Consuming a route: generated server actions (client)
 
@@ -277,6 +277,7 @@ here uses the registry.
 | `routes/instance/population.ts` (2 routes only)                      | S5    | CSV download `Response`s (population export, import template) inside an otherwise-registry file, guarded and logged, but raw                                                                                                                                         |
 | `routes/public/oauth_metadata.ts`                                    | S1    | OAuth discovery documents for `/mcp` clients (three `GET`s), public by protocol                                                                                                                                                                                      |
 | `main.ts` `app.all("/mcp")`                                          | S13   | The remote MCP endpoint: answers the CORS preflight before auth, then hands the request to the MCP adapter                                                                                                                                                           |
+| `main.ts` `app.get("/access-tokens")`                                | S1    | Serves the SPA shell for the unlisted token panel with `no-cache`, registered ahead of the cache middleware and the global auth mount (the page itself signs in)                                                                                                     |
 
 ## Access control
 
@@ -291,15 +292,14 @@ caller. Mount order matters: the OAuth discovery well-knowns and the
 before it), and the global mount skips `/mcp`, which authenticates inside its
 adapter.
 
-**The cookie mount takes session tokens ONLY.** Under `@hono/clerk-auth` v3 this
-is no longer automatic: v3's `clerkMiddleware` calls `authenticateRequest` with
-`acceptsToken: "any"`, so a machine token (API key, M2M, or an OAuth access
-token) presented as a Bearer header to an ordinary `/api` route now produces an
-_authenticated_ machine auth object, one carrying a `userId` but no
-`sessionClaims`. `getClerkSessionAuth()` is the single accessor for this and
-guards on `tokenType === "session_token"`, restoring v2's behaviour exactly.
-Never read `c.var.clerkAuth` directly: in v3 it is the auth **function**
-`getAuth()` invokes, not the auth object (v2 stored the object).
+**The cookie mount takes session tokens ONLY.** `@hono/clerk-auth` v3's
+`clerkMiddleware` calls `authenticateRequest` with `acceptsToken: "any"`, so a
+machine token (API key, M2M, or an OAuth access token) presented as a Bearer
+header to an ordinary cookie-mount route produces an _authenticated_ machine
+auth object, one carrying a `userId` but no `sessionClaims`.
+`getClerkSessionAuth()` is the single accessor for this and guards on
+`tokenType === "session_token"`. Never read `c.var.clerkAuth` directly: in v3
+it is the auth **function** `getAuth()` invokes, not the auth object.
 
 ### The headless credential seam
 
@@ -364,13 +364,12 @@ calls. Only successes are cached: a bad token can never occupy a slot.
 > grant; confirm during live verification and, if it is JWT, either accept the
 > longer window or configure the application for opaque tokens.
 
-**Naming.** These were all `pat*` before OAuth existed and the names became
-lies: `patOnlyMiddleware`/`patAuthMiddleware` → `headlessAuthMiddleware`,
-`patAuthEmail` → `headlessAuthEmail`, `pat_app.ts`/`patApp`/`patAppFetch` →
-`headless_app.ts`/`headlessApp`/`headlessAppFetch`, `pat_allowlist.ts`/
-`patRouteAllowlist` → `headless_allowlist.ts`/`headlessRouteAllowlist`.
-`PAT_PREFIX`, `resolvePersonalAccessTokenEmail` and mint/revoke keep their
-names: they are genuinely PAT-specific.
+**Naming.** Everything that judges both credential types is named `headless`:
+`headlessAuthMiddleware`, `headlessAuthEmail`,
+`headless_app.ts`/`headlessApp`/`headlessAppFetch`, and
+`headless_allowlist.ts`/`headlessRouteAllowlist`. `PAT_PREFIX`,
+`resolvePersonalAccessTokenEmail` and mint/revoke keep PAT names: they are
+genuinely PAT-specific.
 
 ### OAuth discovery (`server/routes/public/oauth_metadata.ts`)
 
@@ -413,8 +412,8 @@ wherever they run.
 prohibition that matters stands verbatim: **no server code ever calls
 `setServerActionTransport`.** A process-global registration would make the app
 server issue authenticated calls under whichever identity was registered last,
-a confused-deputy shape with no per-request isolation. What is now sanctioned is
-the opposite shape: an **explicit per-context transport**, passed as an argument
+a confused-deputy shape with no per-request isolation. The sanctioned shape is
+the opposite: an **explicit per-context transport**, passed as an argument
 and never registered anywhere. `createAllServerActions(transport?)` takes one,
 and `ServerActionTransport.fetchImpl?` lets it dispatch **in-process** rather
 than over the network. The `/mcp` endpoint builds one per (token, pinned
@@ -423,11 +422,11 @@ headlessAppFetch`, so every action runs the real headless middleware chain
 (verify + `last_used_at` stamp, deny-by-default allowlist, zod validation,
 `requireApprovedUser()` on the run-keyed package reads, logging) with no
 loopback HTTP and no shared state.
-Per-request isolation is exactly what the explicit form restores; both defaults
-are unchanged, so SPA callers (`createAllServerActions()`, global fetch) behave
-byte-identically. Pinned by `server/tests/pat_identity_parity_test.ts`, which
-drives the same route through the raw PAT app, an explicit transport, and a
-defaulted caller and asserts all three agree. The headless app's mount list
+Per-request isolation is exactly what the explicit form provides; SPA callers
+take both defaults (`createAllServerActions()`, global fetch). Pinned by
+`server/tests/pat_identity_parity_test.ts`, which drives the same route
+through the raw PAT app, an explicit transport, and a defaulted caller and
+asserts all three agree. The headless app's mount list
 and the allowlist are two hand-kept lists; `validateHeadlessMounts()`
 (`headless_app.ts`) runs at every DEV boot (`main.ts`, gated on `_IS_DEV`)
 beside `validateAllRoutesDefined()`: a structural check of Hono's route
@@ -524,7 +523,7 @@ token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 
 Six instance permissions: `can_configure_users`, `can_view_users`,
 `can_view_logs`, `can_configure_settings`, `can_configure_data`,
-`can_view_data` (`can_configure_assets` was dropped, migration 046). There are
+`can_view_data` (migration 046 removes `can_configure_assets`). There are
 no per-product permissions: product access is `productAccessPolicy` above.
 Display labels are `INSTANCE_PERMISSION_LABELS`
 (`lib/types/permission_labels.ts`). Add a key in `permissions.ts` (so the
@@ -570,9 +569,9 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
 ## Open items
 
 - **Decoupling: protect the registry seam.** Zero client↔server import edges is
-  the codebase's cleanest property; the off-registry inventory (now including
-  the mixed `structure.ts` CSV pair) is the erosion surface. Keep it deliberate
-  and small.
+  the codebase's cleanest property; the off-registry inventory (including the
+  mixed `structure.ts` and `population.ts` CSV pairs) is the erosion surface.
+  Keep it deliberate and small.
 - **Decoupling: `lib/h_users.ts` ships access-policy emails in the client
   bundle.** Semantically server-side access-control data; move it server-side
   (client gets a boolean where needed). Bridge-pass move.
@@ -580,17 +579,17 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   boot-time (or type-level) check that every `defineRoute` carries a guard or an
   explicit public marker was audited and rejected: the full registry has exactly
   one unguarded route (`getInstanceMeta`, deliberately public), so the rule
-  stays convention + review. Do not re-propose without a new hole. (The old
-  health.ts-guards item is closed: the read surface is public-by-design
-  (SYSTEM_15's exposure inventory), and the mutating reset endpoint now
-  requires the status-api key.)
+  stays convention + review. Do not re-propose without a new hole. (Health.ts
+  needs no guards: the read surface is public-by-design (SYSTEM_15's exposure
+  inventory), and the mutating reset endpoint requires the status-api key.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
   it; the client only reads it on 401): either bless that as the contract or
   extend it to 403s deliberately.
 - **Zero-perm `requireGlobalPermission()` skips the `approved` check**: any
-  Clerk-authenticated email (even with no `users` row) passes. The live
-  examples are `sendHelpEmail` (`routes/instance/emails.ts`) and
-  `recordTourEvent` (`routes/instance/onboarding.ts`). A route that needs the
+  Clerk-authenticated email (even with no `users` row) passes. Live examples
+  include `getCurrentUser` (`routes/instance/users.ts`), `sendHelpEmail`
+  (`routes/instance/emails.ts`) and `recordTourEvent`
+  (`routes/instance/onboarding.ts`). A route that needs the
   flag takes `requireApprovedUser()` (the set named above) or
   `requireProductAccess(level)`, whose policy checks it.
 - Audit `H_USERS.includes()` call sites; document per site why `requireAdmin` /

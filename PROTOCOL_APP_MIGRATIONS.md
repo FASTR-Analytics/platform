@@ -256,9 +256,10 @@ A DB transform only reshuffles fields inside the row it was handed, so it
 - **Whatever a block reads becomes a permanent part of the package format.** An
   input file a transform recomputes from can never be dropped.
 - A recompute is a pure function of (package files × **app code**), not of the
-  files alone, e.g. `getIndicatorMetadataFromRun` branches on
-  `scriptGenerationType`. That is intended (see 2), but it means recomputed
-  fields are not byte-stable across app versions.
+  files alone, e.g. `buildRunIndicatorCatalog`
+  (`server/runs/indicator_catalog.ts`) branches on `scriptGenerationType`.
+  That is intended (see 2), but it means recomputed fields are not
+  byte-stable across app versions.
 
 **2. The forced gate is the version integer, and blocks run only behind it.**
 
@@ -296,8 +297,8 @@ exactly that.)
 
 The runs volume is heterogeneous: package dirs, published-failed dirs,
 `.tmp-` dirs, `.duckdb-spill`, loose scratch files (`iceh_indicators_*.xlsx`,
-and `restore_*.sql.gz` left by the retired in-app restore). Catalogue enumeration
-excludes all of them by construction and preserves the ruling that justified
+and `restore_*.sql.gz` dumps on some hosts). Catalogue enumeration excludes
+all of them by construction and preserves the ruling that justified
 sharing the directory: *every consumer addresses a NAMED entry.* Statuses
 `generating` and `failed` are excluded too: those definitionally have no
 manifest, so sweeping them would warn on every boot about a state working as
@@ -481,6 +482,7 @@ Before INSERT/UPDATE, validate against Zod schema. Invalid data cannot enter the
 | `slides.config`                            | `server/db/products/slides.ts`      | `createSlide`, `updateSlide`                                                                       | `slideConfigSchema`                                                |
 | `slides.config`                            | `server/db/products/slides.ts`      | `saveSlideCheckpoint`                                                                              | (parsed by the room checkpoint)                                    |
 | `reports.config` / `figures` / `images`    | `server/db/products/reports.ts`     | `insertNewReportDetail`, `updateReportConfig`, `updateReportFigures`, `updateReportImages`         | `reportConfigSchema`, `reportFiguresSchema`, `reportImagesSchema`  |
+| `reports.figures` / `images`               | `server/db/products/reports.ts`     | `saveReportCheckpoint`                                                                             | (parsed by the room checkpoint)                                    |
 | `slide_decks.config`, `slides.config`      | `server/db/products/versions.ts`    | `restoreSlideDeckStructure`, `copySlideDeckFromVersion`                                            | `slideDeckConfigSchema`, `slideConfigSchema`                       |
 | `reports.figures` / `images`               | `server/db/products/versions.ts`    | `restoreReportContent`, `copyReportFromVersion`                                                    | `reportFiguresSchema`, `reportImagesSchema`                        |
 | `instance_config.*`                        | `server/db/instance/config.ts`      | `setStructureSchema`, `updateAdminAreaLabelsConfig`, `updateRunGenerationDefaultsConfig`           | Type-specific schemas                                              |
@@ -507,7 +509,7 @@ External input is validated at the point it enters the system:
 | User form input (products)  | Routes → DB functions                 | Product schemas (table above)    | DB functions validate before write                        |
 | API request bodies          | Routes → DB functions                 | Various                          | All stored schema writes validate in DB layer             |
 | DHIS2 imports               | `server/dhis2/`                       | N/A                              | Imports structure/analytics data, not stored JSON schemas |
-| CSV uploads                 | `server/worker_routines/stage_*`      | Row validation                   | Stages raw data, not stored JSON schemas                  |
+| CSV uploads                 | `server/worker_routines/import_*_csv/stage_csv.ts` | Row validation                   | Stages raw data, not stored JSON schemas                  |
 
 **Note:** Routes don't need separate validation because all writes to stored schemas go through DB functions that validate before INSERT/UPDATE.
 
@@ -683,7 +685,15 @@ Location: `lib/types/_module_definition_github.ts`
 
 Authored `definition.json` files must match the current shape exactly. Invalid files fail at fetch time with clear error paths. No silent normalization.
 
-**"No silent normalization" bans coercion, not breadth.** The rule is about the schema quietly changing what it parsed (`.transform()`, `z.preprocess()`, defaulting a missing field), so that the value a caller receives is not the value the file contained. Declaring a union because the boundary genuinely accepts two shapes is not a violation: the schema still states exactly what is valid, and nothing is rewritten behind the caller's back. When two accepted shapes must converge on one internal form, the narrowing belongs in a named, exported function that consumers call explicitly (see `getAssetName` for `assetsToImport`), never inside the schema.
+**"No silent normalization" bans coercion, not breadth.** The rule is about the
+schema quietly changing what it parsed (`.transform()`, `z.preprocess()`,
+defaulting a missing field), so that the value a caller receives is not the
+value the file contained. Declaring a union because the boundary genuinely
+accepts two shapes is not a violation: the schema still states exactly what is
+valid, and nothing is rewritten behind the caller's back. When two accepted
+shapes must converge on one internal form, the narrowing belongs in a named,
+exported function that consumers call explicitly (see `getAssetToImportName` for
+`assetsToImport`), never inside the schema.
 
 ---
 
@@ -718,16 +728,16 @@ When changing a stored schema:
 4. **Add a transform block** that converts old shape → new shape
 5. **Deploy**: transform runs on existing data, schema validates new writes
 
-Example: adding a required field `sortOrder` to presentation objects:
+Example: adding a required field `showDataLabelsLineCharts` to the figure
+config's `s` block (block 13 of `po_config.ts`):
 
 ```ts
 // 1. Update lib/types/_presentation_object_config.ts
-sortOrder: z.number().int(),
+showDataLabelsLineCharts: z.boolean(),
 
 // 2. Add transform in server/db/migrations/data_transforms/po_config.ts
-if (config.sortOrder === undefined) {
-  config.sortOrder = 0; // default for existing rows
-}
+//    (transformConfigS; `s` is the config's `s` block)
+if (!("showDataLabelsLineCharts" in s)) s.showDataLabelsLineCharts = false;
 ```
 
 **Tip:** The transform only needs to handle data shapes that exist in production. Check actual data before writing transforms.
@@ -743,12 +753,16 @@ This will happen when you deploy a schema change and existing data doesn't match
 3. **Add a transform block** to the relevant file in `server/db/migrations/data_transforms/`
 4. **Redeploy**: the transform runs, fixes the data, boot succeeds
 
-Example: if the `slide_config` sweep fails because old figure configs have `filterType: "all"` but new schema expects `filterType: "none"`:
+Example: if the `slide_config` sweep fails because old figure configs have
+`filterType: "last_12_months"` but the schema expects `"last_n_months"`
+(block 2 of `po_config.ts`):
 
 ```ts
-// In server/db/migrations/data_transforms/po_config.ts
-if (config.d.periodFilter?.filterType === "all") {
-  config.d.periodFilter.filterType = "none";
+// In server/db/migrations/data_transforms/po_config.ts (transformConfigD)
+const pf = d.periodFilter as Record<string, unknown> | undefined;
+if (pf?.filterType === "last_12_months") {
+  pf.filterType = "last_n_months";
+  pf.nMonths = 12;
 }
 ```
 

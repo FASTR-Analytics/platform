@@ -16,8 +16,9 @@ base fetcher owning auth/timeout/retry, four `goalN_` endpoint groups
 (org units, indicators, geojson, data value sets + metadata id-existence
 for the S6 import dispatcher), two-phase connection
 validation with a never-throw user boundary, and the client credentials
-UX. No DB access anywhere in the system. It fetches and shapes; callers
-persist. Reviewed against code (first review cycle,
+UX. No DB access in the adapter (`server/dhis2/**`); the route file
+reaches the DB only through S5 and S6 functions. It fetches and shapes;
+callers persist. Reviewed against code (first review cycle,
 review-only; absorbs DOC_DHIS2_INTEGRATION).
 
 Boundaries: what happens to fetched data is the consumer's system:
@@ -28,10 +29,9 @@ Valkey. See
 [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) for when to use which. The
 instance-wide stored DHIS2 credentials (encrypted at rest, one row for
 every DHIS2 flow: structure, indicators, geojson, HMIS data) live in
-**S6** (`server/db/instance/instance_dhis2_credentials.ts`, see
-PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION); this system only ever
-receives an already-resolved `Dhis2Credentials` and never touches
-storage. Sub-file custody exceptions are in SYSTEMS.md §4.1 (none
+**S6** (`server/db/instance/instance_dhis2_credentials.ts`); this
+system only ever receives an already-resolved `Dhis2Credentials` and
+never touches storage. Sub-file custody exceptions are in SYSTEMS.md §4.1 (none
 currently touch this system).
 
 ## The base fetcher (`server/dhis2/common/base_fetcher.ts`)
@@ -150,8 +150,10 @@ refusal with the token it stopped at). A blacklist would miss the next
 form DHIS2 adds. The accepted result's `expression` is written in the
 app's own grammar through `writeIndicatorExpression`, fully
 parenthesised as `((numerator) / (denominator))`, with each operand as
-the bracket-quoted identifier `[data_id]` (`[uid]` or `[uid.coc]`),
-so it re-parses with `parseIndicatorExpression` and the naming step can
+the identifier `data_id`, bracket-quoted (`[uid]`, `[uid.coc]`) unless
+the uid matches `BARE_IDENTIFIER_PATTERN` (`^[a-z][a-z0-9_]*$`), in
+which case `writeIdentifier` writes it bare;
+it re-parses with `parseIndicatorExpression` and the naming step can
 rename those identifiers to the indicator ids the elements land in with
 `renameIdentifiers`. Operands are deduped by `data_id` in first-
 appearance order across numerator then denominator.
@@ -276,9 +278,11 @@ this system carry en/fr/pt.
   offer it yet).
 - **S5 geojson wizard**: validation, `getOrgUnitMetadata` (level list),
   the metadata/count/heavy fetchers and both session caches.
-- **S5 HMIS indicator manager**: the four `indicators_dhis2` routes.
-- **S6 HMIS dataset import**: `launchDatasetHmisDhis2Run` validates the
-  connection, then the import run worker's dispatcher uses goal 5
+- **S5 HMIS indicator manager**: the combined search and create routes
+  of `indicators_dhis2` (`searchDhis2All`, `createIndicatorsFromDhis2`).
+- **S6 HMIS dataset import**: `launchDatasetHmisDhis2Run` checks that a
+  connection is stored (`getStoredDhis2CredentialsInfo`) without
+  validating it, then the import run worker's dispatcher uses goal 5
   (`getDataValueSetsFromDHIS2`, `getExistingMetadataIds`,
   `getOrgUnitIdsAtLevel`) for classification + country pulls. The
   worker's semantics (dispatcher classification, per-pair integration,
@@ -291,7 +295,7 @@ this system carry en/fr/pt.
   401, which validation and retry would misread.
 - **Retry classifies on `error.message` substrings**, not
   `error.status`; and after exhaustion the thrown error is a plain
-  `Error`: `status`/`responseBody` are gone. Don't branch on
+  `Error` with no `status`/`responseBody`. Don't branch on
   `DHIS2FetchError` fields downstream of `withRetry` without checking
   the exhaustion path.
 - **The timeout timer spans the body read on purpose.** Don't "fix" it
@@ -314,9 +318,8 @@ this system carry en/fr/pt.
 - **Decoupling: split-brained DHIS2 wire types.** `DHIS2PagedResponse`
   is defined twice with different shapes (generic
   `goal1_org_units_v2/types.ts` vs pager-only `lib/types/indicators.ts`,
-  which goal 2 uses). (`Dhis2Credentials` now
-  has one home (`lib/types/dhis2.ts`), resolved by PLAN_DHIS2_
-  CREDENTIAL_STORE_CONSOLIDATION.)
+  which goal 2 uses). (`Dhis2Credentials` has one home,
+  `lib/types/dhis2.ts`.)
 - Classify retries off `DHIS2FetchError.status` instead of message
   substrings, and decide whether the exhaustion error should preserve
   the structured fields.

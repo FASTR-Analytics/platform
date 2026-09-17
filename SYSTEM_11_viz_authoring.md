@@ -70,10 +70,9 @@ host's live `PackageScope`. It never persists: Apply closes with a
 when the host passes a live `collabBinding`, edits stream into the host doc
 and the editor closes with the same normalized config for a final coherent
 rebuild. Reactivity is deep-tracked at both sites, the refetch effect
-(`trackStore(tempConfig.d)`) and the figureInputs memo (`JSON.stringify` over
-`tempConfig.s`/`.t`), so new config fields need no wiring at either; the
-hand-enumerated dependency lists that used to live there (and regressed twice
-in one day) were deliberately removed. Do not add one back.
+(`trackStore(tempConfig.d)`) and the figureInputs memo (`trackStore` over
+`tempConfig.s` and `.t`), so new config fields need no wiring at either.
+Neither carries a hand-enumerated dependency list; do not add one.
 
 ## The embedded figure editor
 
@@ -112,8 +111,9 @@ pair is deliberately NOT snapshotted (D16).
   reattach or rescope mid-edit re-previews under the new package. Superseded
   fetches are dropped via a monotonic `itemsFetchRunId`.
 - **The figureInputs memo** deep-tracks ALL of `tempConfig.s` and `.t` via
-  `void JSON.stringify(...)` (recursive reads subscribe to every nested
-  property, including in-place-reconciled collaborator edits). Net contract:
+  `trackStore(tempConfig.s)` / `trackStore(tempConfig.t)` (subscribes to every
+  nested property, including in-place-reconciled collaborator edits). Net
+  contract:
   `d.*` changes refetch; `s.*`/`t.*` changes re-render locally only.
 - The items generator auto-resolves an unset/invalid replicant to the first
   valid option (`resolveDefaultReplicant`) on a **fresh config copy** (it never
@@ -149,8 +149,9 @@ canonical frame supersampled to `FIGURE_EXPORT_WIDTH_PX` 1920 (not the
 on-screen reflow canvas); formatted table CSV via S10's `getTableExportAoa`
 with BOM; underlying-data CSV (re-queries items); a JSON definition (the draft
 config plus the pair it resolves under; a figure has no id of its own); a
-results-file viewer. The multi-replicant branch is disabled (`allReplicants`
-hard-coded false, Open item).
+results-file viewer. Multi-replicant export is parked: the download modal
+hard-codes `allReplicants: false` and the editor has no branch for it (Open
+item).
 
 ## The insert-figure wizard
 
@@ -285,8 +286,8 @@ something.
 ## Open items
 
 - **`ReplicateByOptionsSelect` has no consumer.** Delete it, or keep it for the
-  results explorer's replicant picker; either way, the ~45-line fetch effect is
-  duplicated between the two `ReplicateByOptions*` components.
+  results explorer's replicant picker; both variants share the
+  `createReplicantOptions` loader.
 - **Custom value orders are never pruned: ruling pending.**
   `normalizePOConfigForStorage` canonicalizes roll-up flags at apply but does not
   touch `s.customValueOrder`, so entries survive for dimensions that were
@@ -298,10 +299,9 @@ something.
   order (keep) or start clean (prune).
 - **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`;
   `lib/types/dimension_definitions.ts` (barrel-exported, zero uses); the
-  `allReplicants` download branch.
+  download modal's `allReplicants` result field (hard-coded false).
 - **Stale white-fill comment**: the download path claims `getFigureAsCanvas`
   fills white pending a panther flag. Current panther no longer fills; verify
   transparent PNG end-to-end and update or delete.
 - **i18n gaps**: `window.alert` in `custom_series_styles.tsx`.
-- Commented-out remnants: font-size sliders (`panel_text.tsx`), disaggregation
-  chips (`metric_card.tsx`).
+- Commented-out remnants: disaggregation chips (`metric_card.tsx`).

@@ -154,7 +154,7 @@ a 404. `updateFolder` and `deleteFolder` throw `FOLDER_NOT_FOUND` the same
 way. `setProductRun`, the products half of the
 run delete guard and `listReadyPackages` live in
 `db/instance/run_generation.ts`. Ids mint at four characters
-(`generateUniqueProductId`, `generateUniqueSlideId`; the legacy 3-char ids
+(`generateUniqueProductId`, `generateUniqueSlideId`; existing 3-char ids
 stay valid).
 
 **The routes** (`server/routes/products/**` over
@@ -191,9 +191,11 @@ reuse path.
 (`touchProduct`, which also asserts the row's type) with the same timestamp in
 the same transaction, and that touch is what drives the SSE push and t2 cache
 versioning. `slide_decks` carries no timestamp of its own: the product row is
-the deck's version. Every slide writer, `duplicateSlides` and the deck
-duplicate included, runs its touch, its shift-UPDATE, its INSERTs and its
-`reSequence` inside one `mainDb.begin`.
+the deck's version. Every slide writer, `duplicateSlides` included, runs its
+touch, its shift-UPDATE, its INSERTs and its `reSequence` inside one
+`mainDb.begin`; the deck duplicate copies the slide rows, sort orders
+verbatim, inside `duplicateProduct`'s transaction, where the fresh
+`products` row already carries the stamp.
 
 **Validation at write.** Deck config is validated at both the route body
 (`slideDeckConfigSchema`) and the DB layer, and so are slide bodies:
@@ -201,11 +203,11 @@ duplicate included, runs its touch, its shift-UPDATE, its INSERTs and its
 ([lib/api-routes/products/slides.ts](lib/api-routes/products/slides.ts)), so a
 malformed slide is a 400 at the boundary, with `slideConfigSchema.parse` as
 the DB-layer backstop. The split-fill enum mirrors panther's `PatternType`
-exactly, `"none"` included, so the gap that once held this back is closed.
+exactly, `"none"` included.
 The layout tree is a recursive Zod union embedding the strict
-`figureBlockSchema`; layout item
-`style` is `z.record(z.unknown())`. Duplicates copy stored config text
-without re-validation.
+`figureBlockSchema`; layout item `style` is
+`z.record(z.string(), z.unknown()).optional()`. Duplicates copy stored
+config text without re-validation.
 
 **The deck editor** (`SlideDeckEditor` in
 [slide_deck/index.tsx](client/src/components/slide_deck/index.tsx)) takes
@@ -375,7 +377,7 @@ whole-registry PUTs with **no concurrency guard**, the known MED
 lost-update race on the registries (Open item).
 
 **AI-diff view**: the `editing_report` view context registers `proposeEdit`
-and `applyFigureUpdate`. `proposeEdit` is now the propose phase of the report
+and `applyFigureUpdate`. `proposeEdit` is the propose phase of the report
 tools' approval lifecycle (S13), whose `customProposalUI` opens a
 `@codemirror/merge` MergeView modal (accept/reject).
 On accept, figures persist FIRST and roll back client-side if the save fails
@@ -396,8 +398,7 @@ that **store** bundles and the export paths that **render** them.
   ([_slide_config.ts](lib/types/_slide_config.ts)); reports in the
   `figures` registry ([reports.ts](lib/types/reports.ts), one shared block
   schema). The strict schema is what lets the migration
-  skip-gate catch legacy blocks (S2) and what made deleting the old
-  force-run safe.
+  skip-gate catch legacy blocks (S2).
 - **Capture-on-write.** Each surface assembles a bundle from the live build
   inputs: `config` + frozen `items` + the `resultsValue` projection +
   `indicatorMetadata` + `dateRange` + `geo` + **`localization` = the instance
@@ -408,12 +409,10 @@ that **store** bundles and the export paths that **render** them.
   persists with no stripping.
 - **Build-on-render: every surface.** On-screen render and exports all call
   `buildFigureInputs(bundle, deckStyle?)`. The export path "just works"
-  because the bundle carries its own `localization`. The old
-  `hydrateFigureInputsForPublicRendering` special-casing was deleted.
-- **The sentinel layer is gone.** Bundles carry no `undefined` values, so
-  the `@@__UNDEFINED__@@` encode/decode wrappers were deleted along with
-  `lib/json_slide_serialize.ts` itself. Follow-on status: done on both
-  surfaces, the **reports** bodies through
+  because the bundle carries its own `localization`.
+- **No sentinel layer.** Bundles carry no `undefined` values, so no
+  encode/decode wrapper sits between a bundle and its JSON column on either
+  surface: the **reports** registries validate through
   `reportFiguresSchema`/`reportImagesSchema` and the **slides** bodies
   through `slideConfigSchema` (see Slide decks above).
 

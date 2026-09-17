@@ -44,11 +44,14 @@ createFolder: route({
   (`lib/api-routes/products/*`; the file's closing `satisfies` refuses an
   entry without it). Every product-scoped path lives under
   `/products/:product_id/...`, the param is always `product_id`, child ids
-  (`slide_id`, `version_id`) follow it, and batch targets ride the body as
-  `productIds`. The guard reads its targets from exactly those fields.
+  (`slide_id`, `version_id`) follow it, folder paths use `folder_id`, and
+  body targets are `productIds` and `targetProductId` (products), `folderId`
+  and `parentId` (folders). The guard reads its targets from exactly those
+  fields.
 - Don't add `z.unknown()` body fields to dodge writing a schema; the only
-  sanctioned uses are the sentinel-encoded passthroughs
-  (PROTOCOL_APP_MIGRATIONS.md).
+  sanctioned uses are external-spec blobs (GeoJSON `geo.data` in
+  `lib/types/_figure_bundle.ts`, the per-item `style` record in
+  `lib/types/_slide_config.ts`).
 
 ### 2. Implement with `defineRoute`
 
@@ -113,7 +116,8 @@ Every `defineRoute` gets one. A route with no guard is public-by-accident
 ### 4. Wire and verify
 
 - New route file → mount the router in `main.ts` (most at `/`), **after**
-  `app.use("*", authMiddleware)`.
+  the global `authMiddleware` mount (the `app.use("*", ...)` that skips
+  `/mcp`).
 - Add `log("<key>")` middleware if the route should be audited (mutating routes
   generally should be).
 - Boot the server: `validateAllRoutesDefined()` exits(1) on a
@@ -127,7 +131,8 @@ For long-running request/response work (NOT push, that's SSE, S3): set
 `isStreaming: true` in the registry and return
 `streamResponse(c, async (writer) => { … })` from `server/routes/streaming.ts`.
 Report with `writer.progress(0..1, msg)`; terminate with
-`writer.complete({ result })` or `writer.error(msg)`. Never write raw chunks.
+`writer.complete(data)` (`writer.complete()` for a no-data route) or
+`writer.error(msg)`. Never write raw chunks.
 Uncaught throws become `writer.error`. Client-side the generated action takes
 `onProgress` and returns the terminal `APIResponse`; streaming calls have no
 timeout.

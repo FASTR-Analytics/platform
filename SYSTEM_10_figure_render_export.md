@@ -49,48 +49,23 @@ One renderer per artifact class shared by screen and export; stored snapshots
 are pure-JSON FigureBundles rebuilt to transient `FigureInputs` at render by
 `buildFigureInputs`. Render never re-queries. `figureBundleSchema` (strict Zod,
 [lib/types/_figure_bundle.ts](lib/types/_figure_bundle.ts)) binds every stored
-figure block across all three document surfaces; the legacy-block repair arm is
+figure block across both document surfaces; the legacy-block repair arm is
 S2's `_figure_block.ts` transform (co-reviewed).
 
 ## FigureBundle architecture
 
-This is the authoritative record of the FigureBundle refactor. The two planning
-docs that drove it (`PLAN_FIGURE_BUNDLE.md` = vision,
-`PLAN_FIGURE_BUNDLE_IMPL.md` = executable plan) were deleted on completion; this
-section replaces them. Sibling slices live in S9 (the upstream capture side),
-S12 (the three storage surfaces), and S2 (the boot-time backfill). The stale
+This section is the authoritative description of the FigureBundle. Sibling
+slices live in S9 (the upstream capture side),
+S12 (the two storage surfaces), and S2 (the boot-time backfill). The stale
 badge is built (see "The captured pair and staleness" below); the deferred
 Visualization rename is in Open items.
 
 ### The idea
 
-The snapshot surfaces (slides and reports) used to persist a
-**dehydrated `FigureInputs`**: panther's post-transform render artifact. That
-was costly in four ways:
-
-1. **Schema-invisible drift.** Stored `figureInputs` was `z.unknown()` in every
-   document schema, so the migration skip-gate could not see it. Each panther
-   internal-shape change meant hand-migrating frozen blobs (the
-   `yScaleAxisData→scaleAxisLimits`, `string[]→HeaderItem[]`, recompute-limits
-   blocks, all gated on `isTransformed`, which only timeseries set).
-2. **A serializability hazard.** `FigureInputs.style` is full of **functions**
-   (`seriesColorFunc`, `valuesColorFunc`, `TableCellInfoFunc`, …) that cannot go
-   into Postgres JSON / IndexedDB. That was the entire reason for the
-   `stripFigureInputsForStorage` / `hydrateFigureInputsForRendering` pipeline:
-   strip `style` (+`geoData`) on write, rebuild it on read.
-3. **A half-live inconsistency.** `style`/`formatAs`/`geo` were already
-   re-derived live at render while `caption`/labels/sort/data stayed frozen. A
-   metric `formatAs` flip could render a "percent" style over a frozen "number"
-   caption.
-4. **A second serialization patch: the undefined sentinel.** Gap cells and
-   optional `*Prop` fields are legitimately `undefined`, and `JSON.stringify`
-   drops `undefined` (shifting array indices, losing keys). Slides/reports
-   papered over this with a _second_ encode/decode layer (`@@__UNDEFINED__@@`
-   swap on the client wire path; the server stored the sentinel form verbatim).
-
-The fix: **stop storing the post-transform artifact. Store the upstream inputs
-as a pure-JSON `FigureBundle`, and build `FigureInputs` at render**, with the
-same transform the live editor already runs each reactive tick.
+The snapshot surfaces (slides and reports) store the **upstream inputs** of
+a figure as a pure-JSON `FigureBundle` and build `FigureInputs`, panther's
+post-transform render artifact, at render time, with the same transform the
+live editor runs each reactive tick.
 
 ```text
 FigureBundle  ──buildFigureInputs()──▶  FigureInputs  ──panther──▶  pixels
@@ -98,15 +73,35 @@ FigureBundle  ──buildFigureInputs()──▶  FigureInputs  ──panther─
  or transient for the live viz)          never persisted)
 ```
 
+Storing `FigureInputs` instead is ruled out for four reasons, each a property
+of that type:
+
+1. **Schema-invisible drift.** `FigureInputs` is panther's internal shape;
+   stored copies would sit behind `z.unknown()` in every document schema,
+   invisible to the migration skip-gate, and every panther shape change would
+   mean hand-migrating frozen blobs.
+2. **A serializability hazard.** `FigureInputs.style` is full of **functions**
+   (`seriesColorFunc`, `valuesColorFunc`, `TableCellInfoFunc`, …) that cannot
+   go into Postgres JSON / IndexedDB, so a stored copy would need a
+   strip-on-write, rebuild-on-read pipeline.
+3. **A half-live inconsistency.** `style`, `formatAs` and `geo` are re-derived
+   live at render; freezing `caption`, labels, sort and data beside them lets a
+   metric `formatAs` flip render a "percent" style over a frozen "number"
+   caption.
+4. **The undefined sentinel.** Gap cells and optional `*Prop` fields in the
+   transformed grid are legitimately `undefined`, and `JSON.stringify` drops
+   `undefined` (shifting array indices, losing keys), so a stored grid would
+   need an encode/decode layer on every wire path.
+
 Because the bundle is pure JSON (frozen `items` are plain query rows; no
-transformed grid; no functions), it needs **neither** patch: the strip/hydrate
-pipeline _and_ the sentinel layer are gone.
+transformed grid; no functions), it needs none of that: there is no
+strip/hydrate pipeline and no sentinel layer.
 
 ### Vocabulary
 
 | Term                                                | Meaning                                                                                        | Lifetime  |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------- |
-| **Visualization** (a.k.a. presentation object / PO) | The live, editable object. Stored as `config` + `metric_id`; re-queries data each render.      | Live      |
+| **Visualization** (a.k.a. presentation object / PO) | The live, editable object in the figure editor: `{ metricId, config }`; re-queries data each render. | Live      |
 | **Figure**                                          | A visualization **captured into a document** (slide / report), a frozen snapshot.              | Snapshot  |
 | **FigureBundle**                                    | The **stored shape** of a Figure: pure-JSON inputs sufficient to rebuild the render.           | Stored    |
 | **FigureInputs**                                    | Panther's transient render-input type. **Never persisted** under this design.                  | In-memory |
@@ -114,7 +109,7 @@ pipeline _and_ the sentinel layer are gone.
 
 The rename of _presentation object_ → _Visualization_ end-to-end
 (`PresentationObjectConfig` and its kin) is deliberately **not** part of this
-work. It is a separable mechanical pass (Phase 5, see the followups doc). PO
+work. It is a separable mechanical pass (Phase 5, see Open items). PO
 names persist in code for now.
 
 ### The bundle shape
@@ -142,7 +137,7 @@ FigureBundle = {
   metricId: string;                        // re-query pointer for the update action ONLY (never render)
   scope?: { adminArea2: string | null };   // the scope the bundle was resolved under; null = national
   snapshotAt: string;
-  provenance: { runId: string | null };     // the results package the bundle was resolved under
+  provenance: { runId: string };            // the results package the bundle was resolved under
 };
 ```
 
@@ -172,10 +167,10 @@ past the skip-gate).
 ### `buildFigureInputs`: one transform, two item sources
 
 [client/src/generate_visualization/build_figure_inputs.ts](client/src/generate_visualization/build_figure_inputs.ts).
-Signature `buildFigureInputs(bundle, deckStyle?): FigureInputs`. It folds what
-used to be three steps into one: the data transform
+Signature `buildFigureInputs(bundle, deckStyle?): FigureInputs`. It does three
+things in one pass: the data transform
 (`getTimeseriesDataTransformed` + the `get*JsonDataConfig` builders), style
-derivation (the old `hydrate*`), and geo resolution. It then branches on
+derivation, and geo resolution. It then branches on
 `effectiveConfig.d.type` (timeseries / table / chart / map / pie). It **throws**
 on bad input (callers catch).
 Timeseries and pie transform their data eagerly (`get*DataTransformed`) so
@@ -195,7 +190,7 @@ The elegant consequence the whole design turns on:
 
 | Caller                                                                                                                          | Surface                    | Items               | Localization source                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------- | ---------------------------------------------------------------------- |
-| `visualization_editor_inner.tsx` (the live FigureInputs memo)                                                                   | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
+| `visualization_editor_inner.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`                               | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
 | `convert_slide_to_page_inputs.ts`, `ReportFigureEmbed.tsx`, `exports/**`, AI previews                                           | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
 
 So the live editor and every stored figure run **identical code**, and a
@@ -228,10 +223,10 @@ write the global `t3`/`getCalendar`/`getLanguage` singletons.
   `getSnapshotInstanceLocalization()` (`client/src/state/instance/t1_store.ts`) returns
   `{language, calendar, countryIso3, fiscalYear}` read from the instance state. Figures are
   instance-language artifacts.
-- **The threaded reads** (all app-side; panther unchanged): the ~21
-  `t3({en,fr})` calls in the build path became explicit
+- **The threaded reads** (all app-side; panther unchanged): every language
+  read in the build path is an explicit
   `pickLang(bundle.localization.language,
-  …)` (`lib/translate/t-func.ts`);
+  …)` (`lib/translate/t-func.ts`), never `t3`;
   `withReplicant` takes `bundle.localization.countryIso3`; chart/table calendar
   comes from `bundle.localization.calendar`.
 - **Timeseries period axis** is the one string panther formats itself, and it
@@ -254,23 +249,23 @@ write the global `t3`/`getCalendar`/`getLanguage` singletons.
   gregorian-only); the server also refuses fiscal-year + Ethiopian at boot
   ([exposed_env_vars.ts](server/exposed_env_vars.ts)), and this function is the
   second line of defence that protects already-stored bundles.
-- **Deliberate behavior change (a bugfix).** Previously those `t3` calls
-  followed the session toggle, so a Senegal figure showed English legends if the
-  author had toggled English. Now figures are **always** instance-language; the
-  EN/FR UI toggle is **chrome-only** (menus/buttons). The live editor preview
-  uses instance language too (WYSIWYG: preview == capture == what every viewer
-  sees).
-- **Why frozen-in-bundle and not "pass current env":** anonymous public/export
-  surfaces have _no_ ambient env to read, so the bundle must carry its own.
+- **Figures are always instance-language.** A Senegal figure carries French
+  legends whatever the author's session language; the EN/FR UI toggle is
+  **chrome-only** (menus/buttons). The live editor preview uses instance
+  language too (WYSIWYG: preview == capture == what every viewer sees).
+- **Why frozen-in-bundle and not "pass current env":** export surfaces (PDF,
+  PPTX, emailed decks) have _no_ ambient env to read, so the bundle must carry
+  its own.
   Making it always-frozen (rather than per-surface A/B) is the simpler, single
   rule, and it deletes the old `hydrateFigureInputsForPublicRendering`
   special-casing.
 
 ### Geo
 
-`GeoRef` is a discriminated union. `{kind:"level", level}` is the in-app case:
-`buildFigureInputs` re-derives the GeoJSON from the sync cache
-(`getGeoJsonSync`) at render, storing no geometry. `{kind:"data", data}` is the
+`GeoRef` is a discriminated union. `{kind:"level", level, family?}` is the
+in-app case: `buildFigureInputs` re-derives the GeoJSON from the sync cache
+(`getGeoJsonSync`) at render, storing no geometry; `family` picks the `hmis`
+or `hfa` registry, absent meaning `hmis`. `{kind:"data", data}` is the
 baked case (export): the full GeoJSON travels in the bundle. Same split the
 old public-render path had.
 
@@ -295,8 +290,8 @@ snapshot-a-figure-into-FigureBlock core consumed by the report editor
 `buildFigureInputs` derives every figure's `style` through one dispatcher,
 `getStyleFromPresentationObject`
 ([get_style_from_po.ts](client/src/generate_visualization/get_style_from_po.ts)),
-which delegates to six per-mode builders (`get_style_from_po/_1_standard.ts` …
-`_6_disruptions_v2.ts`). Each builder returns a **complete**
+which delegates to five per-mode builders (`get_style_from_po/_1_standard.ts`
+… `_6_disruptions_v2.ts`). Each builder returns a **complete**
 `CustomFigureStyleOptions`: mode-specific values hardcoded, shared layout
 deliberately duplicated for explicitness; common helpers (text style, table
 layout/cells, map regions, pie slices, the standard series/map color funcs) live
@@ -483,10 +478,10 @@ consumer wants is decided by WHAT it is doing, never by a flag:
   clamp, the pie completion envelope, the scale legend. The collapse is lossy
   by nature and must never reach an individual value.
 
-Surfaces that legitimately take `axisFormat` alone: the five special chart
+Surfaces that legitimately take `axisFormat` alone: the four special chart
 modes (`_2_coverage.ts`, `_3_percent_change.ts`, `_4_disruptions.ts`,
-`_6_disruptions_v2.ts`, and the percent-change bars), because every metric
-gated into them (m3/m4/m6/m11) is constant-format, so `axisFormat` equals the
+`_6_disruptions_v2.ts`), because every metric gated into them (m3/m4/m6/m11)
+is constant-format, so `axisFormat` equals the
 declaration. Pie slice labels are
 also not per-value (a slice label is `label share%`, a fraction of the pie's
 denominator, never a raw value), and the doughnut centre label is formatted
@@ -571,10 +566,11 @@ could then reach.
 
 The figure-block sweep is the one place that INFERS rather than reads a
 declaration: a stored bundle carries no metric definition, so `inferFormatAs`
-returns `"indicator"` for the eight listed ids and otherwise keeps the original
-backfill heuristic (percent iff every stored indicator that declares a format
-declares percent). It deliberately does NOT run the live resolution rule: that
-one counts only values on an indicator DIMENSION, so a legacy figure displaying
+returns `"indicator"` for the eight listed ids, `"number"` for m9-02-01, and
+otherwise keeps the original backfill heuristic (percent iff the bundle has
+indicators and every one declares percent). It deliberately does NOT run the
+live resolution rule: that one counts only values on an indicator DIMENSION,
+so a legacy figure displaying
 no indicator dimension would resolve `"number"` and freeze a percent metric's
 values as raw fractions, permanently.
 
@@ -699,7 +695,7 @@ picker, `resolveColorThemeToPreset`, the deck-config schema, and the S2
 [lib/key_colors.ts](lib/key_colors.ts) is installed into panther at boot
 (`setKeyColors(_KEY_COLORS)`, `client/src/index.tsx`) and carries the CF
 traffic-light palette + qualitative scales (15 consumer files, including the
-style builders and the CF editor).
+style builders and the legend builder `conditional_formatting.ts`).
 
 ## The export engine (client/src/exports)
 
@@ -793,7 +789,9 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
 - Deck PDF loads only the deck family's font variants: a figure styled with
   another family hits "Font not found in map".
 - The figure editor's multi-replicant download is disabled (`allReplicants`
-  hard-coded false, `downloadMultiple` commented out). Revive or delete.
+  hard-coded false in `forms_editors/download_presentation_object.tsx`, its
+  selector commented out, and the editor has no multi-replicant branch).
+  Revive or delete.
 - The editor PNG honors transparency only in the no-padding branch
   (`getFigureAsCanvas` fills white); blocked on a panther transparent flag.
 - `buildReportFigureMap` is `async` with zero awaits.

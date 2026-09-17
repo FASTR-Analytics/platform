@@ -161,14 +161,14 @@ since the isolate dies with its sockets.
   module containers by deterministic name in production, publishes the
   partial workspace, marks the run failed, and notifies. S8 owns these
   semantics.
-- **(B) `postMessage("COMPLETED")` + status row**, for a single tracked job the
-  caller awaits. The worker writes progress/terminal state into its run/ attempt
-  row (`status` JSON + denormalized `status_type` enum) for client polling, and
+- **(B) `postMessage("COMPLETED")` + status row**, for a single tracked job.
+  The worker writes progress/terminal state into its run row
+  (`status` enum + `progress` JSON) for client polling, and
   finishes with `self.postMessage("COMPLETED")`; the caller-attached listeners
   clear the tracker and terminate.
 
-The consumers are not interchangeable: dataset clients poll the `status_type`
-enum; the results-package catalogue reacts to instance-SSE
+The consumers are not interchangeable: dataset clients poll the run row's
+`status`; the results-package catalogue reacts to instance-SSE
 `run_progress`/`r_script`. Wire the matching one.
 
 ### 6. Register a tracker, and clear it on every terminal path
@@ -209,7 +209,7 @@ the process; a worker that dies without clearing its tracker blocks future work.
   `run` self-closes. Don't rely on one worker handling multiple payloads.
 - **Don't diverge the preamble.** It's copy-pasted per routine; subtle drift
   (READY string, error semantics) is a latent bug. Today only the
-  `console.error` prefix varies. Keep it that way until item 8 factors it.
+  `console.error` prefix varies. Keep it that way.
 - **The progress writer is a second connection, and a run transaction must
   never wait on it while holding the run row.** `createThrottledProgressWriter`
   updates the run row (`… WHERE id AND status='running'`) on the worker's

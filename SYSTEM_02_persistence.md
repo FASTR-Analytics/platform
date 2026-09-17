@@ -40,9 +40,9 @@ worker connections is
 [PROTOCOL_APP_WORKER_ROUTINES.md](PROTOCOL_APP_WORKER_ROUTINES.md) (S8); what
 the bulk-import SQL does is **S6**
 ([SYSTEM_06_ingestion.md](SYSTEM_06_ingestion.md)). Operator access to the
-databases from outside the app (DOC_ACCESS_DBS) is S15's cycle. Sub-file custody
-exceptions are in SYSTEMS.md §4.1; `main.ts` is owned by S1 (S2 reader, the
-boot call order).
+databases from outside the app (PROTOCOL_ACCESS_DBS.md) is S15's cycle.
+Sub-file custody exceptions are in SYSTEMS.md §4.1; `main.ts` is owned by S1
+(S2 reader, the boot call order).
 
 ## Contract
 
@@ -259,8 +259,9 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
   hundred call sites outside tests, all trusted-internal, in four groups: (1)
   the **bulk ingest and run input capture paths** (`instance/dataset_hmis.ts`,
   `instance/structure.ts`, the staging workers,
-  `runs/capture_inputs/{hfa,hmis,iceh}.ts`) building large `INSERT`/DDL
-  strings whose values go through `''`-doubling escaping; (2) the
+  `runs/capture_inputs/{hfa,hmis,iceh}.ts`) building large `INSERT`, DDL
+  and `COPY` strings whose values go through `''`-doubling escaping or are
+  internal file paths; (2) the
   **`detectHasAnyRows` probe** (`db/utils.ts`) and `generateUniqueIdForTable`
   (`utils/id_generation.ts`) interpolating table names that are internal
   constants / closed unions; (3) the **migration runner** executing
@@ -436,8 +437,9 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   ([lib/indicator_format_metrics.ts](lib/indicator_format_metrics.ts)),
   `"number"` for m9-02-01 (frozen: its CIX/SII values are derived measures over
   percent indicators), otherwise the original backfill heuristic: percent iff
-  **every** stored indicator entry declares `format_as: "percent"`, so a
-  label-only entry counts as disagreement. That strictness is the point: the
+  there is at least one stored indicator entry and **every** one declares
+  `format_as: "percent"`, so a label-only entry counts as disagreement. That
+  strictness is the point: the
   function repairs history and must not improve on it. It deliberately does NOT
   run the live resolution rule, which counts only values on an indicator
   DIMENSION: a legacy figure displaying no indicator dimension would resolve
