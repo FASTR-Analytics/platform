@@ -995,8 +995,9 @@ export function attachStatEditors(
 // blocks): on press, the element's content swaps to the RAW source of its
 // line(s) — inline markdown stays authorable — while the surrounding block
 // keeps its rendered form. Blur commits (a changed text is one dispatch; the
-// widget re-renders), Enter splits the island into two paragraphs the way it
-// does anywhere else, Escape restores the rendered content.
+// widget re-renders), Enter breaks the line inside the paragraph being typed
+// in (a list item or a heading, which cannot hold a break, starts the next
+// block instead), Escape restores the rendered content.
 // Set by a paged-mode island action that closes the island and moves the
 // CodeMirror selection on purpose (Enter splitting a paragraph, Backspace
 // removing an empty one): the paged surface reads it at its next swap and
@@ -1004,13 +1005,17 @@ export function attachStatEditors(
 // a placeholder to type over.
 export const pagedCaretIntent = { pending: false, selectAll: false };
 
+// The zero-width character an island parks behind a line break it made at
+// its very end (see breakLine): editing DOM only, never document text.
+const ISLAND_TAIL = "\u200b";
+
 export type TextIslandOptions = {
   // The paged surface (paged_edit_surface.ts): no widget rebuilds, the
   // island's source is read from the LIVE doc on activation (the frame may
-  // be a beat behind a remote edit), an Enter split reopens the island from
-  // the CM selection after the next layout rather than here, and Backspace
-  // on an empty paragraph removes it, which a page needs when every line is
-  // an island.
+  // be a beat behind a remote edit), a block Enter starts (a new item, a new
+  // paragraph under a heading) reopens its island from the CM selection
+  // after the next layout rather than here, and Backspace on an empty
+  // paragraph removes it, which a page needs when every line is an island.
   paged?: boolean;
 };
 
@@ -1033,6 +1038,36 @@ export function textIslandEndRel(
   return endRel;
 }
 
+// The caret `offset` SOURCE characters into an island: its text nodes carry
+// the source (the hidden syntax spans included), which is what every offset
+// in here counts. Past the end parks it at the end.
+export function setIslandCaret(el: HTMLElement, offset: number): void {
+  if (offset < 0) return;
+  const doc = docOf(el);
+  const win = winOf(el);
+  const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = doc.createRange();
+  let remaining = offset;
+  let last: Text | null = null;
+  let node: Text | null;
+  while ((node = walker.nextNode() as Text | null) !== null) {
+    last = node;
+    if (remaining <= node.length) {
+      range.setStart(node, remaining);
+      break;
+    }
+    remaining -= node.length;
+  }
+  if (node === null) {
+    if (last) range.setStart(last, last.length);
+    else range.setStart(el, 0);
+  }
+  range.collapse(true);
+  const sel = win.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+}
+
 export function attachTextEditor(
   el: HTMLElement,
   view: EditorView,
@@ -1051,11 +1086,16 @@ export function attachTextEditor(
   let committed = original;
   const committedEndLine1 = () =>
     regionStartLine + rel + committed.split("\n").length;
-  const commitLive = () => {
+  // `keepShape` holds the widget for a line the document cannot render yet:
+  // a break at the island's END leaves a trailing blank line, and rebuilding
+  // on it would drop that line from the island's source (a paragraph stops
+  // at a blank) and take the caret off it. The widget catches up on the next
+  // keystroke, which makes the line real.
+  const commitLive = (keepShape = false) => {
     // A detached island (the widget was rebuilt under it) is stale DOM: the
     // document already holds everything it committed while it was live.
     if (!el.isContentEditable || !el.isConnected) return;
-    const next = (el.textContent ?? "").replace(/\r/g, "");
+    const next = (el.textContent ?? "").replace(/\r/g, "").replaceAll(ISLAND_TAIL, "");
     if (next === committed) return;
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
@@ -1063,8 +1103,14 @@ export function attachTextEditor(
     if (endLine1 > doc.lines) return;
     // A change of LINE COUNT moves every island below this one, so the
     // widget must rebuild; the island is then re-opened on the rebuilt
-    // element, caret at the end (Shift+Enter is the only way here).
-    const sameShape = next.split("\n").length === committed.split("\n").length;
+    // element with the caret where it stood. A widget held back by the last
+    // commit is one line behind the document, so this one must rebuild
+    // whatever its own shape.
+    const held = committed.endsWith("\n");
+    const sameShape = keepShape ||
+      (!held && next.split("\n").length === committed.split("\n").length);
+    // Read before the dispatch: the rebuild throws this DOM away.
+    const caret = sameShape ? -1 : caretOffset().at;
     committed = next;
     view.dispatch({
       changes: { from: doc.line(line1).from, to: doc.line(endLine1).to, insert: next },
@@ -1078,9 +1124,29 @@ export function attachTextEditor(
       // it stays open and mirrored; the surface re-lays the page out later.
       if (!host) return;
       stopMirror();
-      const target = [...host.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`)]
-        .find((n) => n.tagName === el.tagName);
-      (target as unknown as { _fmActivate?: () => void } | undefined)?._fmActivate?.();
+      // Which island the caret is in now: two breaks in a row put a blank
+      // line under it, which is a block boundary, so the caret can have left
+      // this island for one the rebuild has just made.
+      const lines = next.split("\n");
+      const caretLine = rel + next.slice(0, Math.max(caret, 0)).split("\n").length - 1;
+      let target: HTMLElement | undefined;
+      let targetRel = -1;
+      for (const cand of host.querySelectorAll<HTMLElement>("[data-line]")) {
+        const at = Number(cand.getAttribute("data-line"));
+        if (!Number.isFinite(at) || at > caretLine || at <= targetRel) continue;
+        if ((cand as unknown as { _fmActivate?: () => void })._fmActivate === undefined) {
+          continue;
+        }
+        target = cand;
+        targetRel = at;
+      }
+      if (target === undefined) return;
+      (target as unknown as { _fmActivate?: () => void })._fmActivate?.();
+      if (targetRel < rel) return;
+      // The caret's offset inside THAT island: the lines this one gave up.
+      let dropped = 0;
+      for (let i = 0; i < targetRel - rel; i++) dropped += (lines[i]?.length ?? 0) + 1;
+      setIslandCaret(target, caret - dropped);
     }
   };
   el.classList.add("cm-fm-text-edit");
@@ -1203,7 +1269,7 @@ export function attachTextEditor(
       ._fmActivate?.();
   });
   el.addEventListener("click", (e) => e.stopPropagation());
-  el.addEventListener("input", commitLive);
+  el.addEventListener("input", () => commitLive());
   // Mirror the island's DOM selection into the CM selection while editing:
   // the toolbar's text actions (role colour, bold, italic) read the CM
   // selection, and without the mirror they would act on wherever the caret
@@ -1393,6 +1459,35 @@ export function attachTextEditor(
     if (placeholder) next.selectAllChildren(target);
     else next.collapse(target, 0);
   };
+  // Enter inside a paragraph: a line break in the paragraph the author is
+  // typing in, not a new one. The source's next line IS the break (the
+  // renderer's breaks:true renders it as <br>), so the island simply grows a
+  // line; commitLive reopens it with the caret after the break, or keeps the
+  // widget when the break lands at the very end, where the document has no
+  // line to render yet.
+  const breakLine = () => {
+    const sel = winOf(el).getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.startContainer)) return;
+    range.deleteContents();
+    const lf = docOf(el).createTextNode("\n");
+    range.insertNode(lf);
+    range.setStartAfter(lf);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const trailing = (el.textContent ?? "").replaceAll(ISLAND_TAIL, "").endsWith("\n");
+    // A newline at the very END of a block closes no line box of its own, so
+    // the browser holds no caret position on it and drops it back out of the
+    // text at the next keystroke. A zero-width character behind it makes the
+    // line real; ISLAND_TAIL never reaches the document (commitLive strips
+    // it) and goes with the DOM when the island closes.
+    if (trailing && !(el.textContent ?? "").endsWith(ISLAND_TAIL)) {
+      el.append(docOf(el).createTextNode(ISLAND_TAIL));
+    }
+    commitLive(trailing);
+  };
   // Paged editing: Backspace in an EMPTY island removes the line (and the
   // blank line above it), leaving the caret at the end of what came before.
   const removeEmptyLine = () => {
@@ -1413,8 +1508,15 @@ export function attachTextEditor(
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (el.tagName === "P" && el.parentElement?.classList.contains("fm-steps")) {
+        // A step is a block of its own, the way a list item is: Enter starts
+        // the next one rather than breaking the line.
         splitStep();
-      } else if (/^(P|LI|H[1-6])$/.test(el.tagName)) {
+      } else if (el.tagName === "P") {
+        breakLine();
+      } else if (/^(LI|H[1-6])$/.test(el.tagName)) {
+        // Neither can hold a break: an item's next line is a continuation of
+        // the list, a heading's is not a heading at all. Enter starts the
+        // next block instead, which is what it does in a word processor.
         splitParagraph();
       } else {
         el.blur();
