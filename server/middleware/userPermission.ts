@@ -47,9 +47,12 @@ function admit(c: Context, globalUser: GlobalUser): void {
 /**
  * The approved-user guard: signed in AND `globalUser.approved`
  * (PLAN_PRODUCTS_RESTRUCTURE D2). It guards the run-keyed figure-data reads,
- * the authoring context, the ready-package list, the copilot proxies and the
- * collab socket. `requireGlobalPermission()` is not this: its zero-permission
- * form never checks `approved`, and its call sites keep their semantics.
+ * the authoring context, the ready-package list and the copilot proxies. The
+ * collab socket applies the same two checks inline in
+ * `routes/instance/collab.ts`, because a WebSocket upgrade must answer with a
+ * close code, not a JSON 401. `requireGlobalPermission()` is not this: its
+ * zero-permission form never checks `approved`, and its call sites keep their
+ * semantics.
  */
 export function requireApprovedUser() {
   return createMiddleware<{ Variables: GuardVariables }>(
