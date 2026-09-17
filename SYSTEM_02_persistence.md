@@ -358,9 +358,9 @@ instance migrations bridge that:
   scope or run id, so every migrated room re-seeds from the stamped JSON. Nor
   does it carry a live report's `body_authors`, which is trusted only beside
   a current `crdt_state`, so migrated reports start with unknown authorship;
-  version snapshots keep their ledgers. A source database not at `041_drop_frozen_results_plane`, or a project with no
-  `run_id` on an instance with no pinned run, throws. With no projects it
-  returns at once.
+  version snapshots keep their ledgers. A source database not at
+  `041_drop_frozen_results_plane`, or a project with no `run_id` on an
+  instance with no pinned run, throws. With no projects it returns at once.
 - **`092_drop_project_layer.sql`** merges `user_logs_aggregate` rows that
   differ only by `project_id`, drops the `project_id` columns (which severs the
   cascade foreign keys, so the logs survive), rebuilds

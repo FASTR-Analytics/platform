@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 9b.** Each session sets this line in its final commit. Its
+**Next step: Do 10.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
 file is deleted instead of advanced.
 
@@ -2401,6 +2401,9 @@ this section before its step.
 | 2026-09-17 | 9b | Review 9b (after the second Fix 9b). Commit 567e24d1 read against findings 9 and 10, all inside files the step's earlier commits touched, with the gates run by the reviewer: `deno task typecheck` (server, client, `lint:systems` with every tracked file claimed once), `deno task test` 166 passed 0 failed, `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), `./validate_migrations`, `./validate_consolidation_replay` (the co-editing and ledger check ok), `./validate_migrations_replay` (fresh boot exit 0), `./validate_queries` (76 cases); dev boot on port 8010: data transforms 414 checked 0 transformed, 221 routes, 3 headless mounts, `/health_check` 200. Finding 9 verified by reading the code: `plan.ts` reads, plans and inserts `body_authors` only for version snapshots (`:480`, `:685`, `execute.ts:226`); `reports.body_authors` is nullable with no default (`_main_database.sql:176`), so every migrated report reads no ledger (`db/products/reports.ts:223-226`); the replay seeds a ledger on `r1` (`validate_consolidation_replay.ts:280-282`) and checks it is NULL (`:482-488`). Finding 10's six lines are within width. |
 | 2026-09-17 | 9b | Review 9b, finding 11 (formatting, docs): the Fix 9b rewrap of SYSTEM_02's 091 paragraph left `SYSTEM_02_persistence.md:361` at 118 characters ("version snapshots keep their ledgers. A source database not at ..."), the defect finding 10 named. |
 | 2026-09-17 | 9b | Step 9b reviewed: 1 finding. |
+| 2026-09-17 | plan | Tim asked the reviewer to rewrap the line in the review session and move the plan to Do 10, since finding 11 changes no code. |
+| 2026-09-17 | 9b | Fix 9b, finding 11: the SYSTEM_02 091 paragraph is rewrapped within width. `deno task typecheck` green (`lint:systems` reads the manifest front matter, which is unchanged). |
+| 2026-09-17 | 9b | Step 9b fixed. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 
