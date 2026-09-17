@@ -176,11 +176,13 @@ push state over SSE (S3); routes never hand-build `{ success: true, data }` when
 the DB function already returns an envelope. `server/routes/products/reports.ts`
 is the canonical, fully-consistent implementation file.
 
-Two deliberate validation holes remain, both documented: `response` (above), and
-the `geo.data` field of a figure bundle, schema'd as `z.unknown()` because
-GeoJSON is an external stable spec (`lib/types/_figure_bundle.ts`); the
-`slide`/`figures` bodies themselves parse against `slideConfigSchema` /
-`reportFiguresSchema`. Don't add new `z.unknown()` body fields to dodge
+Three deliberate validation holes remain, all documented: `response`
+(above); the `geo.data` field of a figure bundle, schema'd as `z.unknown()`
+because GeoJSON is an external stable spec (`lib/types/_figure_bundle.ts`);
+and the per-node `style` record of a slide layout, `z.record(z.string(),
+z.unknown())` in `lib/types/_slide_config.ts`, whose values are panther's
+CSS-in-JS. The `slide`/`figures` bodies themselves parse against
+`slideConfigSchema` / `reportFiguresSchema`. Don't add new `z.unknown()` body fields to dodge
 writing a schema.
 
 ## Consuming a route: generated server actions (client)

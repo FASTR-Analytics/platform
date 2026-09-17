@@ -109,8 +109,8 @@ strip/hydrate pipeline and no sentinel layer.
 
 The rename of _presentation object_ → _Visualization_ end-to-end
 (`PresentationObjectConfig` and its kin) is deliberately **not** part of this
-work. It is a separable mechanical pass (Phase 5, see Open items). PO
-names persist in code for now.
+work. It is a separable mechanical pass (Phase 5, see Open items), so the
+PO names stay in code.
 
 ### The bundle shape
 
@@ -257,28 +257,22 @@ write the global `t3`/`getCalendar`/`getLanguage` singletons.
   PPTX, emailed decks) have _no_ ambient env to read, so the bundle must carry
   its own.
   Making it always-frozen (rather than per-surface A/B) is the simpler, single
-  rule, and it deletes the old `hydrateFigureInputsForPublicRendering`
-  special-casing.
+  rule.
 
 ### Geo
 
-`GeoRef` is a discriminated union. `{kind:"level", level, family?}` is the
-in-app case: `buildFigureInputs` re-derives the GeoJSON from the sync cache
-(`getGeoJsonSync`) at render, storing no geometry; `family` picks the `hmis`
-or `hfa` registry, absent meaning `hmis`. `{kind:"data", data}` is the
-baked case (export): the full GeoJSON travels in the bundle. Same split the
-old public-render path had.
+`GeoRef` is a discriminated union. `{kind:"data", data}` carries the full
+GeoJSON in the bundle. `{kind:"level", level, family?}` carries no geometry:
+`buildFigureInputs` re-derives it from the sync cache (`getGeoJsonSync`) at
+render, and `family` picks the `hmis` or `hfa` registry, absent meaning
+`hmis`. Both in-app bundle builders
+(`resolve_bundle_from_metric_and_config.ts`, `resolve_figure_from_metric.ts`)
+write `data` whenever the sync cache holds the geometry and fall back to
+`level` only when it does not, so the split is cache-warm against
+cache-cold, not in-app against export; a `level` bundle renders only where
+the sync cache is populated.
 
-### What this deleted
-
-Gone: `FigureSource` (the `from_data | custom` union, where `custom` was
-vestigial dead code, 0 figures in prod); the `stripFigureInputsForStorage` /
-`hydrateFigureInputsForRendering*` pipeline (its comment-only tombstone
-`strip_figure_inputs.ts` deleted too); the stored `figureInputs` field; the
-`lib/json_slide_serialize.ts` sentinel layer and the old ambient-localization
-build path (`get_figure_inputs_from_po.ts`), both files deleted.
-
-The `resolve_figure_from_metric` resolver is live machinery, not residue:
+The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
 `resolve_bundle_from_metric_and_config.ts`) is the shared
 snapshot-a-figure-into-FigureBlock core consumed by the report editor
@@ -543,7 +537,7 @@ the decimal-places control when `axisFormat === "rate_per_10k"`; on a MIXED
 "indicator" table it stays visible, since it genuinely works on the percent
 cells (the pie panel also keeps it: slice labels are percent shares whatever
 the metric's format). A related acceptance: the scale legend's boundary
-decimals are now per-value, so a rate boundary list prints `0 / 0.25 / 0.5 /
+decimals are per-value, so a rate boundary list prints `0 / 0.25 / 0.5 /
 0.75 / 1` rather than a shared decimal count (`0.00 / 0.25 / 0.50 / …`), the
 direct consequence of the one-rule decision that fixed the duplicated-label
 bug; do not "fix" it back.
@@ -772,8 +766,8 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
   page-number color for text that never renders). `headerSize` is likewise a
   dead stored knob.
 - Stale contract comments in the S2 migration transforms
-  (`slide_config.ts:26,85,189`; `reports.ts:57,77`) still describe
-  `figureInputsSchema`/`zFigureInputs` validation that no longer exists.
+  (`slide_config.ts:26,86,205`; `reports.ts:65,85`) describe a
+  `figureInputsSchema`/`zFigureInputs` gate the transforms do not run.
 - The image cache never invalidates (version = URL): replacing a logo/image
   asset at the same server path serves the stale image until site data is
   cleared.
@@ -809,11 +803,11 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
   (good/bad/neutral, survey/projected) are intentionally NOT theme-routed:
   they carry meaning.
 
-### FigureBundle deferred phases (from the retired follow-ons plan)
+### FigureBundle deferred phases
 
-The P1+P2 refactor has shipped; the architecture is documented above and
+The architecture is documented above and
 in [S9](SYSTEM_09_viz_query_cache.md), [S12](SYSTEM_12_documents_sharing.md),
-[S2](SYSTEM_02_persistence.md). One slice is still deferred:
+[S2](SYSTEM_02_persistence.md). One slice is deferred:
 
 - **The Visualization rename** (Phase 5, optional). Rename presentation object →
   Visualization end-to-end: `PresentationObjectConfig`,

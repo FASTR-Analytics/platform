@@ -151,8 +151,9 @@ form DHIS2 adds. The accepted result's `expression` is written in the
 app's own grammar through `writeIndicatorExpression`, fully
 parenthesised as `((numerator) / (denominator))`, with each operand as
 the identifier `data_id`, bracket-quoted (`[uid]`, `[uid.coc]`) unless
-the uid matches `BARE_IDENTIFIER_PATTERN` (`^[a-z][a-z0-9_]*$`), in
-which case `writeIdentifier` writes it bare;
+the uid matches `BARE_IDENTIFIER_PATTERN` (`^[a-z][a-z0-9_]*$`) and is
+not a function name (`isFunctionName`), in which case `writeIdentifier`
+writes it bare;
 it re-parses with `parseIndicatorExpression` and the naming step can
 rename those identifiers to the indicator ids the elements land in with
 `renameIdentifiers`. Operands are deduped by `data_id` in first-
@@ -202,9 +203,8 @@ count.
 
 **Session caches** (`goal4_geojson/session_cache.ts`): two deliberately
 separate process-local `Map` caches for the geojson wizard, keyed by
-SHA-256 over `url|username|password|dhis2Level` (`getCredsCacheKey`; the
-previous 32-bit string hash over plaintext-concatenated credentials was
-trivially collidable). Metadata cache: 10 entries. Heavy cache: 2
+SHA-256 over `url|username|password|dhis2Level` (`getCredsCacheKey`, so a
+key never holds the plaintext credentials). Metadata cache: 10 entries. Heavy cache: 2
 entries. It exists only so a fix-the-mapping-and-re-save loop doesn't
 re-download 20 MB. Both: 15-min TTL, expired entries evicted on every
 get/set, oldest-first eviction when full. S5's save route deletes both

@@ -22,7 +22,7 @@ shared by every feature that ingests a file. Written fresh from code
 Boundaries: **serving** the stored bytes back out is S1's static middleware
 (`server/middleware/static.ts`, three extension-scoped tiers; downloads hit
 `GET /<fileName>` at root): image extensions are public unauthenticated
-(dashboard logos), data-file extensions (`.csv`/`.xlsx`/`.xls`/`.zip`:
+(logos and images placed in decks and reports), data-file extensions (`.csv`/`.xlsx`/`.xls`/`.zip`:
 import-wizard inputs live here, raw facility-level health data) require
 `can_view_data` OR `can_configure_data` (the assets page's own gate; admins
 pass), and everything else is behind bare `requireGlobalPermission()`. Asset

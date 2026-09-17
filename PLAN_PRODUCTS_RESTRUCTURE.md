@@ -6,7 +6,7 @@ database, one realtime channel, one copilot. An Explore tab replaces the
 project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
-**Next step: Fix 10.** Each session sets this line in its final commit. Its
+**Next step: Review 10.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N` for steps 1 to 10, and `Step N`
 for Tim's deploy steps 11 to 14. Step 14 deletes the file.
 
@@ -2435,6 +2435,11 @@ this section before its step.
 | 2026-09-17 | 10 | Review 10, finding 8 (docs): the Do 10 row says the sweep removed history framing, and it remains in the read-through's files: `SYSTEM_10_figure_render_export.md:260-262` ("deletes the old `hydrateFigureInputsForPublicRendering`") and `:272-279` (a "What this deleted" section naming `FigureSource`, `stripFigureInputsForStorage`, `strip_figure_inputs.ts`, `lib/json_slide_serialize.ts` and `get_figure_inputs_from_po.ts`, none in the tree), `:113`, `:269-270`, `:546`, `:776`, `:812`; `SYSTEM_08_results_packages.md:489`, `:499-502`, `:566`, `:673`, `:688`, `:950-953`; `SYSTEM_09_viz_query_cache.md:38`, `:440`, `:890-891`; `SYSTEM_06_ingestion.md:189`, `:559`; `SYSTEM_07_dhis2.md:206`; `SYSTEM_05_facilities_indicators.md:1121-1123`; `SYSTEM_11_viz_authoring.md:304`. |
 | 2026-09-17 | 10 | Review 10, finding 9 (formatting, docs): prose lines past 100 characters outside tables and code, all predating step 10 and left by the read-through: `SYSTEM_05_facilities_indicators.md:291,703,711,848`, `SYSTEM_02_persistence.md:398`, `SYSTEM_06_ingestion.md:186`, `SYSTEM_08_results_packages.md:84,294,464,516,582,661,674`, `SYSTEM_09_viz_query_cache.md:793`, `SYSTEM_11_viz_authoring.md:229`, `SYSTEM_14_client_shell.md:74,121,238`. The SYSTEM_12 lines the Fix 5 review named are wrapped. |
 | 2026-09-17 | 10 | Step 10 reviewed: 9 findings. |
+| 2026-09-17 | plan | Tim asked the reviewer to make the fixes in the review session, as for 9b. The next Review 10 is a fresh agent. |
+| 2026-09-17 | 10 | Fix 10, finding 1: the `sshx` wrapper in `purge_legacy_dbs` and `rollout_products` passes `-n`, with the reason above it; no call through either wrapper feeds stdin (both health polls bypass the wrapper and pipe a heredoc). `restore_main` keeps its wrapper as is, since step 3 pipes the dump through it. `bash -n` clean on all three; none was run. |
+| 2026-09-17 | 10 | Fix 10, findings 2 to 9 (docs): the SYSTEM_05 permissions bullet names `listAdminArea2s`, the population template and the geojson reads as zero-permission; SYSTEM_13 and the client validators comment say `/mcp` runs `validateMetricInputsAgainstValueInfo` and the SPA reaches it through `validateMetricInputs`; SYSTEM_15 counts `adminVersion` and `isHealthy` among the fields absent from `/health_check`; the SYSTEM_10 geo paragraph describes the cache-warm/cache-cold split and its "What this deleted" section is gone; SYSTEM_07 adds the `isFunctionName` condition; the SYSTEM_10 comment citations are `slide_config.ts:26,86,205` and `reports.ts:65,85`; SYSTEM_01 counts three `z.unknown()` body fields; PROTOCOL_APP_UI_CONVENTIONS names the two `light-dark()` roadtrip vars; PROTOCOL_APP_STATE moves `countryIso3` to the env-sourced row; SYSTEM_04 gives the code's reason for the public image tier. Every finding-8 line is rewritten to present state (SYSTEM_05, 06, 07, 08, 09, 10, 11) and every finding-9 line is wrapped; the rewraps were checked to leave no line past 100 characters. History framing of the same class outside the finding's lines (SYSTEM_05:65,1131,1183, SYSTEM_13:715, SYSTEM_02:458) is left, being outside the work list. |
+| 2026-09-17 | 10 | Fix 10 gates: `deno task typecheck` (server, client, `lint:systems` with every tracked file claimed once), `deno task test` 166 passed 0 failed, `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), `bash -n` on the three scripts. |
+| 2026-09-17 | 10 | Step 10 fixed. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 

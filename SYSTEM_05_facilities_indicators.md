@@ -288,7 +288,8 @@ id" (`dhis2IdLabel`), an Uploaded indicator's key is never shown (PLAN_A6
 ruling 1: the HMIS Data page's Ledger table, its detail header, the
 manager's Defined-by column and the DHIS2 wizard's picker show the DHIS2 id
 for an element and nothing for an Uploaded indicator), and "data id"
-appears only in server error strings, which the client renders verbatim. Two generated columns nothing may write hold the two
+appears only in server error strings, which the client renders verbatim.
+Two generated columns nothing may write hold the two
 facts read off the type: `has_rows` (Uploaded or DHIS2 element) and
 `is_count` (those plus Sum), the same predicates as lib's `hasRows` and
 `isCount`. `data_id` is `UNIQUE` (`indicators_data_id_key`) and required
@@ -700,7 +701,8 @@ that follow from it and are ruled with it:
   dictionary.
 - Three more facts sit beside them (migration 088). `direction` is THE
   direction of the indicator, on any type: `higher-is-better` (the
-  default) or `lower-is-better` (`indicators_direction_check`). The rule's own `direction` key is written
+  default) or `lower-is-better` (`indicators_direction_check`). The rule's
+  own `direction` key is written
   from it on every save (`thresholdsToDb`; the server overwrites whatever
   a client posts, and the instance editor's `ThresholdsPanel` hides the
   direction control, `showDirection`), so the two cannot disagree; 088
@@ -708,7 +710,8 @@ that follow from it and are ruled with it:
   rule. `target` is a number in STORED units
   on a calculated indicator only, NULL for none (`indicators_count_target_check`;
   the editor takes it in display units; the manager list shows none of the
-  three, the editor and the download do). `expected_low_counts` marks a count whose facility-month values
+  three, the editor and the download do). `expected_low_counts` marks a
+  count whose facility-month values
   are expected to be small, for the adjustment modules; FALSE on every
   calculated indicator (`indicators_calculated_low_counts_check`). The three
   reach the catalog row and the v2 `indicators.json` mirror (optional in
@@ -845,10 +848,10 @@ rows come from `getPopulationTypeStore` (`POST /population/type_store`,
 areas appended and flagged) through the T2 cache keyed on BOTH the
 population and structure stamps; stale areas, when any, get a second table
 under the main one. The indicator editor's population picker and legend
-list `POPULATION_TYPES` with the coverage from T1. Export is CSV in the import format, area columns to the
-population level. At generation, `getPopulationAnchors` reads one type at
-the population level as per-area anchors for the person-years expansion
-(S8).
+list `POPULATION_TYPES` with the coverage from T1. Export is CSV in the
+import format, area columns to the population level. At generation,
+`getPopulationAnchors` reads one type at the population level as per-area
+anchors for the person-years expansion (S8).
 
 ## Geojson boundaries
 
@@ -1068,9 +1071,12 @@ this layer.
   set, replaced or deleted. A successful integrate also reports geojson `area_id`s orphaned
   by the import in the step-4 summary.
 - Permissions: structure, weights and population reads are
-  `can_view_data` (incl. the CSV exports); geojson reads need only an
-  approved user; the HMIS and HFA dictionary reads and every mutation are
-  `can_configure_data`; config mutations `can_configure_settings`.
+  `can_view_data`, including the population CSV export, except
+  `listAdminArea2s` (zero-permission `requireGlobalPermission()`, any
+  signed-in user, for the scope picker) and the population import template
+  (`can_configure_data`); geojson reads are zero-permission too; the HMIS
+  and HFA dictionary reads and every mutation are `can_configure_data`;
+  config mutations `can_configure_settings`.
   Several manager UIs still gate their write buttons on
   `currentUserIsGlobalAdmin` instead (Open items).
 
@@ -1112,15 +1118,13 @@ this layer.
 - Server-produced wizard/staging/integration error strings are
   English-only and rendered verbatim by the client, and need a mechanism
   (error codes or translatable errs), not per-string patching.
-- Geojson hardening remainder (the retired near-term plan's WS7-P2, mostly
+- Geojson hardening remainder (mostly
   closed: 100 MB pre-parse cap `14790e39`, SHA-256 session-cache
   keys `805f6b15`): `sampleValues` still returns ALL distinct values
   unbounded; the served payload is whole and double-encoded (also
   PLAN_3_GEOJSON_SNAPSHOT WS-EFFICIENCY); no deeper geometry validation
-  (lon/lat range, polygonal types, non-unique match values). (The
-  plaintext-sessionStorage credentials item is resolved: the
-  sessionStorage cache was deleted by PLAN_DHIS2_CREDENTIAL_STORE_
-  CONSOLIDATION; geojson now uses only the encrypted stored connection.)
+  (lon/lat range, polygonal types, non-unique match values). Geojson
+  reads credentials only from the encrypted stored connection.
 - `pt` is missing across most of this system's t3 literals (indicator
   managers, structure viewers, wizards), part of the batch-by-batch PT
   rollout.

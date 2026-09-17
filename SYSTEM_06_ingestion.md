@@ -183,11 +183,12 @@ in `dataset_hmis_import_runs`; there is no second lifecycle. Shape:
   in the indicator configuration, which decomposes it into data elements,
   and its existing data stays), or a data id that matches no data element
   or operand at all. The run detail lists both sets
-  (`classification.unknownIds` and `dhis2IndicatorIds`). A response containing any period other than the
-  requested one fails the pull loudly (permanent). The evidence base
+  (`classification.unknownIds` and `dhis2IndicatorIds`). A response
+  containing any period other than the requested one fails the pull loudly
+  (permanent). The evidence base
   (verdicts E1–E13, incl. the calendar finding and the sizing fact that DVS
-  deep-history backfill ≈ 10 MB per dense element-month) lives in the retired
-  lab repo `~/projects/apps/wb-fastr-dhis2-lab` (RESULTS.md; DHIS2 caches
+  deep-history backfill ≈ 10 MB per dense element-month) lives outside this
+  repo in `~/projects/apps/wb-fastr-dhis2-lab` (RESULTS.md; DHIS2 caches
   analytics responses, so never time a repeated identical request).
 - Each pair integrates in its own small transaction: scoped delete (against an
   UNLOGGED facility-scope snapshot table captured at run start) → insert →
@@ -556,7 +557,7 @@ The facilities parquet is built from `RUN_FACILITY_COLUMN_NAMES` rows.
   consuming panther's `_100_csv`/`_232_csv` (panther's modules are whole-string
   today. Adoption would mean adding streaming there first).
 
-### HFA follow-on work (from the retired HFA plans)
+### HFA follow-on work
 
 - **Sierra Leone R1 re-import (operational, not code).** Re-upload the
   corrected 365-row weights file (`HFA_SL_R1_weigths_NEW.csv`; `id_fac_txt`

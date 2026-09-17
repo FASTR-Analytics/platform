@@ -194,8 +194,9 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
 
 - **`getInstanceMeta` is deliberately unguarded**: it is fetched pre-auth by
   the sign-in screen (`LoggedInWrapper.tsx` ClerkNewLogin) so a guard would
-  break login, and every field it exposes except `instanceFiscalYear` and
-  `openAccess` is already public by design on `/health_check`. Open question:
+  break login, and every field it exposes except `instanceFiscalYear`,
+  `openAccess` and the two constants `adminVersion` and `isHealthy` is
+  already public by design on `/health_check`. Open question:
   trim the payload
   (environment/databaseFolder/versions) to what the login screen needs, or
   accept as part of the deliberate health exposure inventory

@@ -73,7 +73,8 @@ abort to `recordTourEvent` (`server/routes/instance/onboarding.ts`) → the
 user-log pipeline as `tour_<event>:<tourId>` rows (details carry page,
 trigger, and for aborts the step reached and the reason, skip vs missing
 target); per-step events are not sent. Seen-state in the modal reads the
-Solid manager's reactive `hasSeen()`. Plus stewardship of the 241-file `t3` call-site surface. Reviewed
+Solid manager's reactive `hasSeen()`. Plus stewardship of the 241-file `t3`
+call-site surface. Reviewed
 against code (first review cycle, review-only; absorbs
 DOC_TRANSLATION + DOC_HELP_BUTTONS).
 
@@ -120,7 +121,8 @@ for boot.
 file), which:
 
 - holds the module-level Clerk singleton (`new Clerk(publishableKey)` from
-  `VITE_CLERK_PUBLISHABLE_KEY`), and a `bypassAuth` dev path (`VITE_BYPASS_AUTH`, non-production builds only) that skips Clerk
+  `VITE_CLERK_PUBLISHABLE_KEY`), and a `bypassAuth` dev path
+  (`VITE_BYPASS_AUTH`, non-production builds only) that skips Clerk
   entirely and synthesizes a dev user (`"en"`/`"gregorian"`);
 - resolves **language**: `localStorage[LANGUAGE_STORAGE_KEY]`
   (`"fastrLanguage"`) if present, else the instance's configured language
@@ -231,8 +233,6 @@ tours and the deep link use (`pendingEditorOpen`, `pendingSlideOpen`,
 in T4: they never enter fetch configs or cache hashes** (the roll-up sentinel
 lesson, SYSTEM_09).
 
-## Connection monitoring (`state/t4_connection_monitor.ts`)
-
 ## Theme prototype (`state/t4_theme.ts`, `components/theme_modal.tsx`)
 
 The reskin preview: a `Theme` of palette, corner radius, density and text scale,
@@ -248,11 +248,15 @@ Theme button in the instance top bar opens `ThemeModal`, where every change
 applies immediately and the scheme toggle from the profile modal is repeated.
 Canvas figures keep their fixed key colors.
 
+## Connection monitoring (`state/t4_connection_monitor.ts`)
+
 No polling, no heartbeat: `navigator.onLine` seeds `isOnline`, and the
 `online`/`offline` window listeners that update it are attached only by
 `useConnectionMonitor()`, which only `ConnectionStatus.tsx` calls; a failure
 counter fed by the server-action wrapper
-(`try_catch_server.ts` fires the transport's `onNetworkFailure`/`onNetworkSuccess` hooks, which `LoggedInWrapper.tsx` binds to `reportNetworkFailure`/`reportNetworkSuccess`)
+(`try_catch_server.ts` fires the transport's `onNetworkFailure` /
+`onNetworkSuccess` hooks, which `LoggedInWrapper.tsx` binds to
+`reportNetworkFailure` / `reportNetworkSuccess`)
 flips `connectionIssues` at ≥2 failures with a 30 s decay.
 `ConnectionStatus.tsx` renders the offline banner but is **mounted nowhere,
 dead UI** (Open items); the failure counter is live, the window listeners are

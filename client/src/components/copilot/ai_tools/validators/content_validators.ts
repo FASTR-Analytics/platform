@@ -11,7 +11,8 @@ import {
 
 // Slide/report content validators: SPA-only (the copilot's authoring tools).
 // The metric-query validators both surfaces run stay in lib/ai_tools
-// (validateAiMetricQuery, validateMetricInputs); validatePresetOverrides
+// (validateAiMetricQuery, validateMetricInputsAgainstValueInfo, which the SPA
+// reaches through validateMetricInputs); validatePresetOverrides
 // composes lib's two primitives so there is one filter validator and one
 // date-range validator for every startDate/endDate surface.
 

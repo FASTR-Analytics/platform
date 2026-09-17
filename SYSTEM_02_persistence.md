@@ -395,7 +395,7 @@ side live in [SYSTEM_10](SYSTEM_10_figure_render_export.md). S2 owns the
 PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 
 - **Where.**
-  [server/db/migrations/data_transforms/_figure_block.ts](server/db/migrations/data_transforms/_figure_block.ts)
+  [_figure_block.ts](server/db/migrations/data_transforms/_figure_block.ts)
   holds the shared conversion; the two per-surface sweeps (`slide_config.ts`,
   `reports.ts`) call `transformFigureBlock` then `transformFigureBlockToBundle`
   on each block. The strict `figureBlockSchema` final-parse aborts boot if any

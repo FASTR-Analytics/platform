@@ -34,9 +34,8 @@ caller names → run-keyed cached payloads, on both tiers. **This system does
 not define the package it reads**: the run-directory layout, the manifest
 contract and its schema version are S8's
 ([SYSTEM_08_results_packages.md](SYSTEM_08_results_packages.md), "The results
-package format"). Reviewed against code (first review cycle; absorbed
-and deleted DOC_PRESENTATION_OBJECT_QUERY_PIPELINE, DOC_period_column_handling,
-DOC_DISAGGREGATION_OPTIONS_HANDLING, DOC_ROLLUP_ROWS). The adversarial review's
+package format"). Reviewed against code (first review cycle). The
+adversarial review's
 fix batch landed (commits `ce33e3f7…`: period-CTE unification, PAE
 `=` guard, month/integer filter handling, replicant relative-filter resolution,
 error statuses, cache hash hardening, race guards); what remains is in Open
@@ -437,8 +436,7 @@ value nor tip a dimension holding exactly 500 into `too_many_values`.
 
 The server honors **all** filters it is passed, including one on the queried
 column itself (no self-strip: a replicant filtered to a subset returns exactly
-that subset; the removal of the old self-strip is why `PO_CACHE_VERSION` is
-"3"). Who passes what: the filter-checkbox path (`getResultsValueInfo…`) passes
+that subset). Who passes what: the filter-checkbox path (`getResultsValueInfo…`) passes
 **no** filters (full per-column value sets); the replicant-options route passes
 the user's `filterBy` with the auto-pin already excluded, plus
 `periodFilterExactBounds` resolved from the config's period filter exactly like
@@ -790,10 +788,10 @@ The async generator in `t2_figure_data.ts`
 (`getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(scope, metric,
 config)`) yields `loading → ready | error` states: it resolves the metric's
 `resultsValueInfo` under the pair, builds the fetch config, runs
-`resolveDefaultReplicant`, then consults `_PO_ITEMS_CACHE`. The auto-selected replicant lives on a **copy**
-yielded to the caller, never a mutation of the passed-in config (the editor's
-unwrapped live store; a raw write would bypass subscribers and turn the user's
-next identical click into a silent no-op). Promise-shaped wrappers
+`resolveDefaultReplicant`, then consults `_PO_ITEMS_CACHE`. The auto-selected
+replicant lives on a **copy** yielded to the caller, never a mutation of the
+passed-in config (the editor's unwrapped live store; a raw write would bypass
+subscribers and turn the user's next identical click into a silent no-op). Promise-shaped wrappers
 (`getApiResponseFromGenerator`) serve non-streaming callers.
 
 ## FigureBundle: the capture side
@@ -887,9 +885,8 @@ bundle freezes:
 
 ## Open items
 
-Remaining after the fix batch (the adversarial review record was
-PLAN_S9_QUERY_CACHE_FIXES.md, deleted when its fixes landed; refuted findings
-F2/F8b and dropped F4 are stated as facts in the prose where relevant):
+Parked findings from the adversarial review, numbered as that review did
+(its refuted and dropped findings are stated as facts in the prose above):
 
 - **F8a [LOW, parked]**: Ethiopian last-full-quarter ternary has identical
   branches

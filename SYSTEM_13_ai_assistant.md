@@ -415,9 +415,10 @@ per-field leave-one-out change report in the success message), _before_ any
 store write, so a throw provably means "nothing changed". Pure config checks
 live beside the pipeline in `client/src/generate_visualization/` (S10's glob,
 deliberately: they are S13 machinery); the fetched-data check
-(`validateMetricInputs`) is shared with `/mcp` and lives in
-`lib/ai_tools/content_validators.ts`. The accepted-but-inert-patch rule
-(Type 1 / Type 2) is stated once, in
+(`validateMetricInputs`, the SPA's fetching wrapper around
+`validateMetricInputsAgainstValueInfo`, the check `/mcp` runs inside
+`getMetricDataForAI`) lives in `lib/ai_tools/content_validators.ts`. The
+accepted-but-inert-patch rule (Type 1 / Type 2) is stated once, in
 [PROTOCOL_APP_AI_TOOLS.md](PROTOCOL_APP_AI_TOOLS.md).
 
 **Tools are built once per mount over fixed values.** Panther registers
@@ -459,8 +460,11 @@ The architecture half of the schema story (the authoring recipe is
 - **Layer-2 (data-dependent) validation** splits by surface. The metric-query
   validators both surfaces run (dimension availability per metric, date
   format/ordering, filter values and period bounds against live data:
-  `validateAiMetricQuery`, `validateMetricInputs`) live in
-  [lib/ai_tools/content_validators.ts](lib/ai_tools/content_validators.ts).
+  `validateAiMetricQuery`, `validateMetricInputsAgainstValueInfo`) live in
+  [lib/ai_tools/content_validators.ts](lib/ai_tools/content_validators.ts);
+  the SPA reaches the second through `validateMetricInputs`, which fetches
+  the value info from `env` first, while `/mcp` calls it directly from the
+  `get_metric_data` read that already holds the value info.
   The SPA-only slide/report content checks live in
   [content_validators.ts](client/src/components/copilot/ai_tools/validators/content_validators.ts)
   (`validatePresetOverrides` composing lib's filter and date-range

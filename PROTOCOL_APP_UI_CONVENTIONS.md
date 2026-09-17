@@ -84,8 +84,10 @@ lands on `<html>` before first paint.
   _syntax token_ colors can't be themed from CSS, so editors with markdown
   highlighting must also spread `darkMarkdownExtensions()` (from
   `_shared/collab_markdown_editor.tsx`) into their extension list inside a
-  tracked scope so a scheme toggle rebuilds the view. The roadtrip tour vars
-  (`--roadtrip-*`) on `:root` are `light-dark()` pairs.
+  tracked scope so a scheme toggle rebuilds the view. Of the roadtrip tour
+  vars (`--roadtrip-*`) on `:root`, `--roadtrip-bg` and
+  `--roadtrip-scrim-color` are `light-dark()` pairs; the rest are a z-index
+  and two token references.
 - **HTML-rendered markdown that passes a document style** (the report preview
   panes with `REPORT_MARKDOWN_STYLE`) colors text from inline `--md-*` vars
   derived from the light document style: near-black on dark surfaces. Wrap

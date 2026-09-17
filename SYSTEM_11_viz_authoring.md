@@ -226,7 +226,8 @@ explorer will be the third caller when it lands.
   unlike map's, do not reset it (resets apply on switching TO a type and would
   wipe the sort on every entry). Both the `series` and
   `indicator` axes route through the `getAxisSort` dispatcher, which gives
-  `indicator_common_id` the dictionary order on whichever axis it occupies. Four optional `s` fields: `pieInnerRadiusRatio`
+  `indicator_common_id` the dictionary order on whichever axis it occupies.
+  Four optional `s` fields: `pieInnerRadiusRatio`
   (0/absent = pie, `0.55` = doughnut; read `?? 0`), `pieGroupSmallSlices`
   (global-share fraction; 0/absent = off; maps to panther `groupSmallSlices`
   with a localized "Other" slice, id `--other`, sorted last),
@@ -301,7 +302,7 @@ something.
   `lib/types/dimension_definitions.ts` (barrel-exported, zero uses); the
   download modal's `allReplicants` result field (hard-coded false).
 - **Stale white-fill comment**: the download path claims `getFigureAsCanvas`
-  fills white pending a panther flag. Current panther no longer fills; verify
+  fills white pending a panther flag. Panther does not fill; verify
   transparent PNG end-to-end and update or delete.
 - **i18n gaps**: `window.alert` in `custom_series_styles.tsx`.
 - Commented-out remnants: disaggregation chips (`metric_card.tsx`).

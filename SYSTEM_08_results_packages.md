@@ -81,7 +81,7 @@ records S8 as its owner. External: wb-fastr-modules repo, Docker images.
 
 ## Contract
 
-**Architecture (the reached end-state of VISION_RESULTS_RUNS).** The app is three planes with one-way data flow: the
+**Architecture.** The app is three planes with one-way data flow: the
 **instance plane** (data in: ingestion, structure master, config; S4–S7,
 live and mutable), the **results plane** (compute: the wizard generates a
 **results package**, one immutable, file-based directory keyed by a run id
@@ -291,10 +291,10 @@ package's products (`setProductPackage`, `deleteProducts`, `duplicateProduct`).
 product to a package and send no nonce, so an open catalogue's "in use by"
 list lags until its next refetch. The delete guard reads the database, so it
 stays correct.
-A visitor arriving mid-generation sees launch-time progress chips until the next per-module push: the
-`run_progress` listeners are page-local and `updateRunProgress` deliberately
-does not signal the catalogue: per-module signal spam is worse than a
-bounded-stale chip row (ruled). The detail pane is the ONLY
+A visitor arriving mid-generation sees launch-time progress chips until the
+next per-module push: the `run_progress` listeners are page-local and
+`updateRunProgress` deliberately does not signal the catalogue: per-module
+signal spam is worse than a bounded-stale chip row (ruled). The detail pane is the ONLY
 surface that renders a non-ready run. Its generating/failed branches
 (progress chips + live R line; `FailedErrorDetail` + per-started-module
 Script/Logs/Files viewers, the last via `ViewFiles` since a failed run has no
@@ -459,12 +459,13 @@ Four invariants, in the order they matter:
    renames at finalize, so a crashed generation leaves no readable package and
    no published file is ever rewritten. Immutability covers outputs: scripts,
    logs, raw CSVs, parquet and assets. The manifest and the input mirrors are
-   descriptors and are transformed forward (below). A handled FAILURE also renames the
-   partial workspace into `runs/<runId>`, deliberately without a
-   `manifest.json`, so it is never a readable package (ruled): the catalog row (`failed` + `errorDetail`) is the error
-   record, the ready-only gates (the ready-package list, `setProductRun`'s
-   UPDATE, the reuse search) never see it, and the module script/log/file
-   viewers work on it unchanged so failures stay diagnosable. Reclaimed only by the guarded
+   descriptors and are transformed forward (below). A handled FAILURE also
+   renames the partial workspace into `runs/<runId>`, deliberately without a
+   `manifest.json`, so it is never a readable package (ruled): the catalog
+   row (`failed` + `errorDetail`) is the error record, the ready-only gates
+   (the ready-package list, `setProductRun`'s UPDATE, the reuse search) never
+   see it, and the module script/log/file viewers work on it unchanged so
+   failures stay diagnosable. Reclaimed only by the guarded
    hard delete (no GC, by ruling); only a server-process death still leaves bare
    `.tmp-` debris, swept at boot. Every cache in the app depends on this:
    the manifest cache parses once per runId with no invalidation path, the
@@ -486,9 +487,9 @@ Four invariants, in the order they matter:
    strips the two project keys older summaries carry
    (`backfillSourceProjectId`, `attachTargetProjectIds`).
 4. **Precomputed, never probed.** The manifest is written once at finalize and
-   answers every metadata question at read time. What the old read path
-   discovered with ~20 `SELECT … LIMIT 1` column probes per metric per request is
-   stamped: per results object the post-normalization columns + DuckDB types,
+   answers every metadata question at read time; no request probes a
+   package's columns. Stamped: per results object the post-normalization
+   columns + DuckDB types,
    `hasFacilityId`, physical time column, available disaggregation options, row
    count and period bounds; per metric an availability stamp
    (`available | unavailable` + reason) that readers must not re-derive; and per
@@ -496,10 +497,10 @@ Four invariants, in the order they matter:
    format, thresholds, sort order), composed at finalize by
    [indicator_catalog.ts](server/runs/indicator_catalog.ts) from the input
    mirrors its dataset family uses. `getIndicatorMetadataFromRun` is a lookup
-   over that array, not a derivation: the read path no longer opens a mirror
-   to answer "what indicators does this module have?", and the tolerance for a
-   mirror absent from an older package now lives at transform time, where a
-   migration belongs, instead of in a per-request read.
+   over that array, not a derivation: the read path opens no mirror to
+   answer "what indicators does this module have?", and the tolerance for a
+   mirror absent from an older package lives at transform time, where a
+   migration belongs, not in a per-request read.
 
 Beyond the query read path, the manifest's module catalog also serves
 `getRunDetail` (the instance catalogue's detail pane): each entry's
@@ -513,9 +514,10 @@ read from here rather than from the environment: `calendar`, `countryIso3`, and
 the per-family `structureSchemaHmis` / `structureSchemaHfa` slots (each null
 when that family's facilities are not in the package; flags + labels only,
 never `adminDepth`, which nothing on the read path consumes); the dataset
-version stamps the generation consumed; the module and metric catalogs as the installed definitions verbatim
-(so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
-memoization fields (`inputKey` per module, content hashes per output file).
+version stamps the generation consumed; the module and metric catalogs as
+the installed definitions verbatim (so existing parsers apply unchanged);
+pinned asset names + hashes; and the §3.7 memoization fields (`inputKey` per
+module, content hashes per output file).
 
 **`manifestSchemaVersion` gates every read**, currently `11`
 (`RUN_MANIFEST_SCHEMA_VERSION`; v11 = `datasets[].info` holds exactly the keys
@@ -562,8 +564,8 @@ clauses, never case-by-case):
    lookup list for frozen figures: inert data, never code paths.
 3. **The module registry is generation-plane only.** The read plane (server
    AND client) reads module identity from the manifest as plain strings;
-   `ModuleId` is a generation-plane type. A package generated by a module the
-   registry no longer knows is still browsable.
+   `ModuleId` is a generation-plane type. A package generated by a module
+   absent from the registry is still browsable.
 4. **All dispatch is on declared types** (`scriptGenerationType`, a metric's
    declared `catalogExpressionEvaluation`). Nothing is inferred from request
    shape, data shape, or vintage: the prior design's request-shape inference
@@ -579,10 +581,11 @@ name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package generated
 before PLAN_A5 carries `base` for every count, which `indicatorRowV2` and
 the manifest's `runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`)
 and nothing maps or reads (the display projection strips `type`), and no
-package file is rewritten for it. `server/runs/indicator_catalog.ts` is the only reader of either, at
-finalize and transform time only, and discriminates on the `type` field that
-only v2 rows have (the v1 schema REJECTS a row carrying `type`, so a drifted
-v2 row fail-stops instead of silently dropping its expressions). The read
+package file is rewritten for it. `server/runs/indicator_catalog.ts` is the
+only reader of either, at finalize and transform time only, and
+discriminates on the `type` field that only v2 rows have (the v1 schema
+REJECTS a row carrying `type`, so a drifted v2 row fail-stops instead of
+silently dropping its expressions). The read
 path never opens the indicators mirror. The ICEH and HFA snapshot readers
 still open theirs per request (see the mirror-tolerance open item below).
 Invariant 1's immutability covers package
@@ -658,9 +661,10 @@ pass through verbatim: the store tolerates unknowns by design. The editor
 enforces neither DAG closure nor data availability: the wizard sanitizes at
 read time (step 1 re-masks families by what is uploaded; the launched module
 set is the closure-completed, offerability-masked derivation of what is
-ticked, so a stored default whose family is absent simply never launches). Both writers gate their save on one
-shared check, `getModuleParameterInvalidMsg`, which also drives the inputs'
-inline invalid messages.
+ticked, so a stored default whose family is absent simply never launches).
+Both writers gate their save on one shared check,
+`getModuleParameterInvalidMsg`, which also drives the inputs' inline invalid
+messages.
 
 ## Generation (`server/worker_routines/generate_run/`)
 
@@ -669,9 +673,9 @@ publish (`publishReadyRun`, one UPDATE of status, summary and progress). A
 generation repoints nothing: products point at the package afterwards. Launch
 takes
 the wizard's whole configuration in its body (the wizard is an ephemeral
-modal, so nothing persists server-side before launch (ruled); the per-admin
-`run_generation_attempts` record was dropped by migration 078),
-validates it, inserts a `runs` row `generating`, and spawns the worker; progress and the live R line stream on the INSTANCE channel only
+modal, so nothing persists server-side before launch, ruled), validates it,
+inserts a `runs` row `generating`, and spawns the worker; progress and the
+live R line stream on the INSTANCE channel only
 (`notifyInstanceRunProgress` / `notifyInstanceRScript`, the catalogue;
 `can_configure_data`-filtered live in the endpoint). A product points only
 at a ready run, so it never has a live view of a generation (C2 ruling).
@@ -684,9 +688,8 @@ capture is always the FULL dataset per family: entire period range, all
 indicators/admin areas/facility types/ownerships, every HFA service category
 (ruled: the R scripts need the full dataset to compute
 correctly, and narrowing to one area is a read-time filter on the product's
-scope, never a generation input). The `windowing` key
-legacy manifests carried in their datasets info was dropped by transform
-block 9, v11);
+scope, never a generation input; transform block 9 strips the `windowing`
+key from any manifest's datasets info);
 resolve (definitions re-fetched at the wizard's pinned gitRefs, DAG validated
 and Kahn-ordered); execute per module (Docker container
 `fastr-genrun-{runId}-{moduleId}`, §3.7 memoized reuse via content-addressed
@@ -947,10 +950,8 @@ numerator over a month's person-years reads as a per-year rate, as stated in
 the editor caption and `m12-01-01`'s AI text). Mid-year anchoring is a
 deliberate change from m008's January-1 anchoring.
 
-The retired per-instance `population.csv` **asset** (m008's input, no
-validation, contents per country unknown) was NOT imported by migration 080
-(ruled): instances re-enter population data through the validated page,
-and the old files die with m008 in PLAN_1e.
+No `population.csv` **asset** feeds generation: population data enters an
+instance only through the validated page (ruled).
 
 ## Database restores and packages
 
