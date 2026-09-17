@@ -1184,9 +1184,10 @@ ${d}.cm-content {
 /* With page boxes drawn the sheet ENDS at the last page's foot. The pad above
    is a flowing surface's room to scroll past its last line; under page boxes
    it is a strip of paper below the last page's bottom edge, which reads as
-   the document running on past its own end. The class is on the content
-   while a pagination has pages (pageBoxPlugin). */
-${d}.cm-content.cm-fm-paged { padding-bottom: 0; }
+   the document running on past its own end. The class is on the SCROLLER
+   while a pagination has pages (pageBoxPlugin, which explains why it may not
+   be on the content). */
+${d}.cm-scroller.cm-fm-paged .cm-content { padding-bottom: 0; }
 /* No line insets: the base theme's 6px/2px would narrow the text by 8px
    against print, and against the rendered blocks beside it. */
 ${d}.cm-line { padding-left: 0; padding-right: 0; }

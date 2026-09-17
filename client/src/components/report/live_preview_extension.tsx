@@ -5003,7 +5003,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       this.oracle.dispose();
       // The live-preview extensions leave with the mode (Edit -> Split): the
       // flowing surface takes its scroll-past-end pad back.
-      this.view.contentDOM.classList.remove("cm-fm-paged");
+      this.view.scrollDOM.classList.remove("cm-fm-paged");
     }
     update(u: ViewUpdate) {
       const landed = u.transactions.some((tr) =>
@@ -5018,9 +5018,19 @@ function pageBoxPlugin(resolver: EmbedResolver) {
     // flowing surface's scroll-past-end pad would leave a strip of paper
     // below the last page's bottom edge, and the document would look like it
     // ran on past its own end (report_fastr_css.ts, .cm-fm-paged).
+    //
+    // The class goes on the SCROLLER, never on the content: CodeMirror's DOM
+    // observer watches the content element for attributes as well as nodes
+    // (it is how a browser rewriting the editor's DOM is caught), reads a
+    // class of our own there as the browser having changed the document, and
+    // answers it with EditorView.update([]) from its next forced flush,
+    // which lands inside whatever update is running and throws "Calls to
+    // EditorView.update are not allowed while an update is in progress".
+    // CodeMirror also OWNS that class attribute (updateAttrs rewrites it
+    // from its own facets), so the class would not have survived anyway.
     markPaged(state: EditorState) {
       const total = state.field(paginationField, false)?.pagination?.result.total ?? 0;
-      this.view.contentDOM.classList.toggle("cm-fm-paged", total > 0);
+      this.view.scrollDOM.classList.toggle("cm-fm-paged", total > 0);
     }
     measure() {
       this.view.requestMeasure<BoxMeasure | undefined>({
