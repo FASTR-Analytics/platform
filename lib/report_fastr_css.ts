@@ -1509,6 +1509,12 @@ ${d}.cm-fm-chrome { cursor: pointer; }
 ${d}.cm-fm-text-edit { cursor: text; }
 ${d}.cm-fm-text-edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 ${d}.cm-fm-text-edit:focus { outline: 1px dashed var(--fm-accent-text); outline-offset: 2px; text-decoration: none; }
+/* While an island is OPEN it shows its paragraph's source, newlines and all:
+   pre-wrap so a line break the author just made is a line break on screen and
+   not the space a normal white-space collapses it to. The rendered form, with
+   its <br>, takes over when the island closes. */
+${d}.cm-fm-text-edit[contenteditable="plaintext-only"],
+${d}.cm-fm-text-edit[contenteditable="true"] { white-space: pre-wrap; }
 /* No ring on the active region: blocks look exactly as View renders them even
    with the caret inside (the class still drives ghost placeholders). */
 /* Click-to-edit labels in chrome: a text cursor and a quiet dotted underline
