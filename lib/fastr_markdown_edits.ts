@@ -634,6 +634,51 @@ function markSpans(lineText: string): MarkSpan[] {
   return out;
 }
 
+// ── Whole blocks ─────────────────────────────────────────────────────────────
+
+// Delete a block: the region's own lines (fence to fence, a table's rows, an
+// embed's line) and ONE blank line beside it, so what is left of the document
+// keeps the single blank line between blocks rather than closing up or
+// leaving a run of empty lines where the block stood. The blank line BELOW
+// goes with it while anything still follows the block, since that is the one
+// the block's own insert put there; the one above when nothing does, so no
+// blank line is left dangling at the end of the document.
+//
+// Lines are 0-based and inclusive, the way fastrLiveRegions counts them: this
+// is what the editor's right-click delete dispatches (live_preview_extension),
+// and it is deliberately blind to what the block IS, which is why a cover, a
+// table and a figure all come out the same way.
+export function deleteFastrBlockEdit(
+  doc: string,
+  startLine: number,
+  endLine: number,
+): EditResult {
+  const lines = doc.split("\n");
+  if (startLine < 0 || endLine < startLine || endLine >= lines.length) {
+    return NONE;
+  }
+  let from = startLine;
+  let to = endLine;
+  const moreBelow = lines.slice(endLine + 1).some((l) => l.trim().length > 0);
+  if (moreBelow && lines[to + 1]?.trim().length === 0) to++;
+  else if (from > 0 && lines[from - 1].trim().length === 0) from--;
+  let start = 0;
+  for (let i = 0; i < from; i++) start += lines[i].length + 1;
+  let end = start;
+  for (let i = from; i <= to; i++) end += lines[i].length + 1;
+  // Nothing after the block: it ends at the document, not at a newline, and
+  // the newline that JOINED it to the line above goes too, or the document
+  // would end on a blank line the block left behind.
+  if (to >= lines.length - 1) {
+    end = doc.length;
+    if (from > 0) start--;
+  }
+  return {
+    changes: [{ from: start, to: end, insert: "" }],
+    selection: { anchor: start },
+  };
+}
+
 // ── Line-level actions ───────────────────────────────────────────────────────
 
 const HEADING_RE = /^(\s*)(#{1,6})\s+/;
