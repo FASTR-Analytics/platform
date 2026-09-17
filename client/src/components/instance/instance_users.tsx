@@ -18,7 +18,7 @@ import {
   createQuery,
 } from "panther";
 import { HeadingBar } from "panther";
-import { Match, Show, Switch, createMemo, createSignal } from "solid-js";
+import { Show, createMemo, createSignal } from "solid-js";
 import { AddUserForm } from "./add_users";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
@@ -27,6 +27,7 @@ import { Table, TableColumn, BulkAction } from "panther";
 import { serverActions } from "~/server_actions";
 import type { UserLog } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
+import { openShellEditor } from "~/state/t4_ui";
 
 type Props = {
   thisLoggedInUserEmail: string;
@@ -35,9 +36,6 @@ type Props = {
 export function InstanceUsers(p: Props) {
   const userLogs = createQuery(() => serverActions.getAllUserLogs({}));
 
-  const [selectedUser, setSelectedUser] = createSignal<string | undefined>(
-    undefined,
-  );
   const [showHUsers, setShowHUsers] = createSignal(false);
 
   const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
@@ -81,108 +79,98 @@ export function InstanceUsers(p: Props) {
   }
 
   return (
-    <Switch>
-      <Match
-        when={instanceState.users.find((u) => u.email === selectedUser())}
-        keyed
-      >
-        {(keyedUser) => {
-          return (
-            <User
-              user={keyedUser}
-              thisLoggedInUserEmail={p.thisLoggedInUserEmail}
-              close={() => setSelectedUser(undefined)}
-            />
-          );
-        }}
-      </Match>
-      <Match when={true}>
-        <FrameTop
-          panelChildren={
-            <div class="h-full w-full">
-              <HeadingBar
-                data-tour="instance-users-header"
-                tonal
-                heading={t3({
-                  en: "Users",
-                  fr: "Utilisateurs",
-                  pt: "Utilizadores",
-                })}
+    <FrameTop
+      panelChildren={
+        <div class="h-full w-full">
+          <HeadingBar
+            data-tour="instance-users-header"
+            tonal
+            heading={t3({
+              en: "Users",
+              fr: "Utilisateurs",
+              pt: "Utilizadores",
+            })}
+          >
+            <div class="ui-gap-sm flex items-center">
+              <Show when={currentUserIsHUser()}>
+                <Button
+                  onClick={() => setShowHUsers((v) => !v)}
+                  iconName={showHUsers() ? "eyeOff" : "eye"}
+                  outline
+                  onBackground="base-200"
+                >
+                  {showHUsers()
+                    ? t3({
+                        en: "Hide system users",
+                        fr: "Masquer les utilisateurs système",
+                        pt: "Ocultar utilizadores do sistema",
+                      })
+                    : t3({
+                        en: "Show system users",
+                        fr: "Afficher les utilisateurs système",
+                        pt: "Mostrar utilizadores do sistema",
+                      })}
+                </Button>
+              </Show>
+              <div class="ui-gap-sm flex items-center">
+                <Button
+                  data-tour="instance-users-bulk"
+                  onClick={downloadUsersCSV}
+                  iconName="download"
+                >
+                  {t3({
+                    en: "Download users",
+                    fr: "Télécharger les utilisateurs",
+                    pt: "Transferir utilizadores",
+                  })}
+                </Button>
+                <Button onClick={attemptBatchUploadUsers} iconName="upload">
+                  {t3({
+                    en: "Batch import from CSV",
+                    fr: "Importation groupée depuis CSV",
+                    pt: "Importação em lote a partir de CSV",
+                  })}
+                </Button>
+              </div>
+              <Button
+                data-tour="instance-users-add"
+                onClick={attemptAddUser}
+                iconName="plus"
               >
-                <div class="ui-gap-sm flex items-center">
-                  <Show when={currentUserIsHUser()}>
-                    <Button
-                      onClick={() => setShowHUsers((v) => !v)}
-                      iconName={showHUsers() ? "eyeOff" : "eye"}
-                      outline
-                      onBackground="base-200"
-                    >
-                      {showHUsers()
-                        ? t3({
-                            en: "Hide system users",
-                            fr: "Masquer les utilisateurs système",
-                            pt: "Ocultar utilizadores do sistema",
-                          })
-                        : t3({
-                            en: "Show system users",
-                            fr: "Afficher les utilisateurs système",
-                            pt: "Mostrar utilizadores do sistema",
-                          })}
-                    </Button>
-                  </Show>
-                  <div class="ui-gap-sm flex items-center">
-                    <Button
-                      data-tour="instance-users-bulk"
-                      onClick={downloadUsersCSV}
-                      iconName="download"
-                    >
-                      {t3({
-                        en: "Download users",
-                        fr: "Télécharger les utilisateurs",
-                        pt: "Transferir utilizadores",
-                      })}
-                    </Button>
-                    <Button onClick={attemptBatchUploadUsers} iconName="upload">
-                      {t3({
-                        en: "Batch import from CSV",
-                        fr: "Importation groupée depuis CSV",
-                        pt: "Importação em lote a partir de CSV",
-                      })}
-                    </Button>
-                  </div>
-                  <Button
-                    data-tour="instance-users-add"
-                    onClick={attemptAddUser}
-                    iconName="plus"
-                  >
-                    {t3({
-                      en: "Add users",
-                      fr: "Ajouter des utilisateurs",
-                      pt: "Adicionar utilizadores",
-                    })}
-                  </Button>
-                </div>
-              </HeadingBar>
+                {t3({
+                  en: "Add users",
+                  fr: "Ajouter des utilisateurs",
+                  pt: "Adicionar utilizadores",
+                })}
+              </Button>
             </div>
-          }
-        >
-          <div class="ui-pad flex h-full w-full flex-col gap-4">
-            <div class="min-h-0 flex-1" data-tour="instance-users-table">
-              <UserTable
-                users={instanceState.users}
-                logs={(() => {
-                  const s = userLogs.state();
-                  return s.status === "ready" ? s.data : undefined;
-                })()}
-                onUserClick={(user) => setSelectedUser(user.email)}
-                showCommingSoon={showCommingSoon}
-                showHUsers={showHUsers}
-              />
-            </div>
-          </div>
-        </FrameTop>
-      </Match>
-    </Switch>
+          </HeadingBar>
+        </div>
+      }
+    >
+      <div class="ui-pad flex h-full w-full flex-col gap-4">
+        <div class="min-h-0 flex-1" data-tour="instance-users-table">
+          <UserTable
+            users={instanceState.users}
+            logs={(() => {
+              const s = userLogs.state();
+              return s.status === "ready" ? s.data : undefined;
+            })()}
+            onUserClick={(user) =>
+              void openShellEditor({
+                element: User,
+                props: {
+                  email: user.email,
+                  thisLoggedInUserEmail: p.thisLoggedInUserEmail,
+                },
+              })
+            }
+            showCommingSoon={showCommingSoon}
+            showHUsers={showHUsers}
+          />
+        </div>
+      </div>
+    </FrameTop>
   );
 }
 

@@ -9,7 +9,7 @@ a Back button opens through one shell-level editor wrapper that covers the
 header and the rail. Every heading bar in the app becomes flush; `tonal`
 disappears from the client.
 
-**Next step: Review 1**
+**Next step: Review 2**
 
 Branch: `version2`.
 
@@ -343,3 +343,10 @@ reverse order; no data, cache or schema changes are involved, and the
 | 2026-09-17 | 1 | The header carries `border-b` (Tim, mid-step). |
 | 2026-09-17 | 1 | `./run` was not started a second time: the dev server and Vite were already up on 8000 and 3000. Vite transformed every changed module without error. |
 | 2026-09-17 | 1 | Step 1 built. |
+| 2026-09-17 | 2 | The hub opens its cards through one `openSubPage(element, props)` helper with a `const` type parameter: without it a `{ family: "hmis" }` literal widens to `string` during inference and the sub-page's props type rejects it. |
+| 2026-09-17 | 2 | `User` is now a thin live-row component (memo over `instanceState.users`, close-when-gone effect, `Show`) around `UserDetail`, the previous body unchanged. The explicit close after a delete stays: the SSE echo that removes the row can lag. |
+| 2026-09-17 | 2 | The close-when-gone effect reads the row before the guard, as `./validate_protocols` SolidJS rule 3 asks. |
+| 2026-09-17 | 2 | SYSTEM_06 and SYSTEM_15 hold no prose on the hub's in-place switch or the keyed user detail; nothing to rewrite there. SYSTEM_14's shell paragraph (step 1) already names both as full-page views. |
+| 2026-09-17 | 2 | `./run` again not restarted: the dev server and Vite were already up. Vite transformed every changed module without error. |
+| 2026-09-17 | 2 | Outside the plan, in its own commit at Tim's request mid-session: the Theme modal's "Full" radius (9999px broke cards) is replaced by 12 and 20 px steps. |
+| 2026-09-17 | 2 | Step 2 built. |

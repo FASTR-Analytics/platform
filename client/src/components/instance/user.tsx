@@ -17,11 +17,49 @@ import {
   createButtonAction,
   createDeleteAction,
 } from "panther";
-import { For, Match, Show, Switch, createSignal } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
+  email: string;
+  thisLoggedInUserEmail: string;
+  close: (v: undefined) => void;
+};
+
+// The row is read live from T1 rather than snapshotted through the wrapper,
+// so an admin toggle or a permission change shows without a remount, and the
+// page closes itself when the row is removed.
+export function User(p: Props) {
+  const user = createMemo(() =>
+    instanceState.users.find((u) => u.email === p.email),
+  );
+  createEffect(() => {
+    const row = user();
+    if (row === undefined) p.close(undefined);
+  });
+  return (
+    <Show when={user()}>
+      {(user) => (
+        <UserDetail
+          user={user()}
+          thisLoggedInUserEmail={p.thisLoggedInUserEmail}
+          close={() => p.close(undefined)}
+        />
+      )}
+    </Show>
+  );
+}
+
+type DetailProps = {
   user: OtherUser;
   thisLoggedInUserEmail: string;
   close: () => void;
@@ -34,7 +72,7 @@ function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
   >;
 }
 
-export function User(p: Props) {
+function UserDetail(p: DetailProps) {
   const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
 
   const [permissions, setPermissions] = createSignal<Record<
