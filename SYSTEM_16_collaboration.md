@@ -890,9 +890,9 @@ through the HTTP routes, including client-side AI tools):
 - **Direct route writes**: `recordVersionEdit(kind, docId, editor)`
   after success, identity from `c.var.globalUser`. Slides:
   create/delete/duplicate/move + the updateSlide fallback; decks: config;
-  reports: body/figures/images fallbacks. The shared `updateProductLabel`
-  route records nothing, so a label-only change is captured by the next
-  session that does.
+  reports: body/figures/images fallbacks; both: the shared
+  `updateProductLabel` route, keyed by the row's `type`, since the label is
+  part of every snapshot.
 - **Restore routes do NOT record**: they write versions explicitly (below).
 
 ### Per-character authorship (report bodies)

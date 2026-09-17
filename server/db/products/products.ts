@@ -205,19 +205,21 @@ export async function updateProductLabel(
   mainDb: Sql,
   productId: string,
   label: string,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+): Promise<
+  APIResponseWithData<{ lastUpdated: string; type: ProductType }>
+> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const rows = await mainDb`
+    const rows = await mainDb<{ type: ProductType }[]>`
       UPDATE products
       SET label = ${label.trim()}, last_updated = ${lastUpdated}
       WHERE id = ${productId}
-      RETURNING id
+      RETURNING type
     `;
     if (rows.length === 0) {
       throw new Error(PRODUCT_NOT_FOUND);
     }
-    return { success: true, data: { lastUpdated } };
+    return { success: true, data: { lastUpdated, type: rows[0].type } };
   });
 }
 

@@ -11,7 +11,11 @@ import {
 import { setProductRun } from "../../db/instance/run_generation.ts";
 import { closeReportRoom } from "../../collab/report_rooms.ts";
 import { closeSlideRoom } from "../../collab/slide_rooms.ts";
-import { drainVersionEditors } from "../../collab/version_capture.ts";
+import {
+  drainVersionEditors,
+  editorFromGlobalUser,
+  recordVersionEdit,
+} from "../../collab/version_capture.ts";
 import { type VersionKind } from "../../collab/version_tracker.ts";
 import { log } from "../../middleware/logging.ts";
 import {
@@ -79,8 +83,18 @@ defineRoute(
     if (!res.success) {
       return respond(c, res);
     }
+    // The label is part of every version snapshot, so a rename is an edit of
+    // the product's document like any other.
+    recordVersionEdit(
+      PRODUCT_VERSION_KIND[res.data.type],
+      params.product_id,
+      editorFromGlobalUser(c.var.globalUser),
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
-    return respond(c, res);
+    return respond(c, {
+      success: true,
+      data: { lastUpdated: res.data.lastUpdated },
+    });
   },
 );
 
