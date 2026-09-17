@@ -14,7 +14,7 @@ import { DeleteData } from "./_delete_data";
 import { DatasetIcehImports } from "./imports";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 export function InstanceDatasetIceh(p: Props) {
@@ -62,7 +62,7 @@ export function InstanceDatasetIceh(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={t3({
               en: "DATASET",
               fr: "JEU DE DONNÉES",

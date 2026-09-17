@@ -29,7 +29,7 @@ import { serverActions, _SERVER_HOST } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 export function HfaWeights(p: Props) {
@@ -61,7 +61,7 @@ export function HfaWeights(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={t3({
               en: "HFA facility sampling weights",
               fr: "Pondérations d'échantillonnage des établissements Enquêtes FOSA",

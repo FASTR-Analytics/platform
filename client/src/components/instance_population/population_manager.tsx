@@ -23,7 +23,7 @@ import { PopulationImportForm } from "./_import_form";
 import { PopulationGrid } from "./_population_grid";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 export function PopulationManager(p: Props) {
@@ -65,7 +65,7 @@ export function PopulationManager(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={t3({
               en: "Population",
               fr: "Population",

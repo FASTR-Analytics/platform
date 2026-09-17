@@ -12,7 +12,7 @@ import { serverActions } from "~/server_actions";
 import { instanceState, maxDepth } from "~/state/instance/t1_store";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 // The `(AAn)` suffix is a display convention carried in the stored value, not
@@ -59,7 +59,7 @@ export function AdminAreaLabels(p: Props) {
       panelChildren={
         <HeadingBar
           tonal
-          onBack={p.backToInstance}
+          onBack={() => p.close(undefined)}
           heading={t3({
             en: "Admin area labels",
             fr: "Libellés des unités administratives",

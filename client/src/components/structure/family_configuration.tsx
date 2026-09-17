@@ -21,7 +21,7 @@ import { structureSchemaForFamily } from "~/state/instance/t1_store";
 
 type Props = {
   family: FacilityFamily;
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 // Depth and the facility columns save INDEPENDENTLY. The server refuses a
@@ -187,7 +187,7 @@ export function FamilyConfiguration(p: Props) {
       panelChildren={
         <HeadingBar
           tonal
-          onBack={p.backToInstance}
+          onBack={() => p.close(undefined)}
           heading={
             p.family === "hmis"
               ? t3({

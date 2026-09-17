@@ -54,7 +54,7 @@ import {
 import { HfaIndicatorAiWrapper } from "./ai";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 export function HfaIndicatorsManager(p: Props) {
@@ -999,7 +999,7 @@ export function HfaIndicatorsManager(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA", pt: "INDICADORES HFA" })}
           >
             <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>

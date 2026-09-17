@@ -22,7 +22,7 @@ import { GeoJsonEditModal } from "./geojson_edit_modal";
 
 type Props = {
   family: FacilityFamily;
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 function familyHeading(family: FacilityFamily): string {
@@ -134,7 +134,7 @@ export function GeoJsonManager(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={familyHeading(p.family)}
           >
             <Show when={instanceState.currentUserIsGlobalAdmin}>

@@ -18,7 +18,7 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 export function InstanceHfaTimePoints(p: Props) {
@@ -27,7 +27,7 @@ export function InstanceHfaTimePoints(p: Props) {
       panelChildren={
         <HeadingBar
           tonal
-          onBack={p.backToInstance}
+          onBack={() => p.close(undefined)}
           heading={t3({ en: "HFA time points", fr: "Points temporels HFA", pt: "Pontos temporais HFA" })}
         />
       }

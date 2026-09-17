@@ -14,7 +14,7 @@ import { DatasetItemsHolder } from "./dataset_items_holder";
 import { DatasetHfaImports } from "./imports";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 export function InstanceDatasetHfa(p: Props) {
@@ -48,7 +48,7 @@ export function InstanceDatasetHfa(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={t3({
               en: "DATASET",
               fr: "JEU DE DONNÉES",

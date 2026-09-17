@@ -70,7 +70,7 @@ import { WrapOnUnderscore } from "./_wrap_on_underscore";
 import { IndicatorTypesModal } from "./_type_facts";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 // The dictionary as one list (PLAN_A4 §2): every row is an indicator, the
@@ -193,7 +193,7 @@ export function IndicatorsManager(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={t3({
               en: "HMIS INDICATORS",
               fr: "INDICATEURS",

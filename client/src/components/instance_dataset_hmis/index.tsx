@@ -55,7 +55,7 @@ import {
 } from "./dataset_items_holder";
 
 type Props = {
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 type TabId = "visualization" | "ledger";
@@ -274,7 +274,7 @@ export function InstanceDatasetHmis(p: Props) {
         panelChildren={
           <HeadingBar
             tonal
-            onBack={p.backToInstance}
+            onBack={() => p.close(undefined)}
             heading={t3({
               en: "DATASET",
               fr: "JEU DE DONNÉES",

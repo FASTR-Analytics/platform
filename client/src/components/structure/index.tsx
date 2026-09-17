@@ -25,7 +25,7 @@ import { StructureWithCsv } from "./with_csv";
 
 type Props = {
   family: FacilityFamily;
-  backToInstance: () => void;
+  close: (v: undefined) => void;
 };
 
 function familyLabel(family: FacilityFamily) {
@@ -157,7 +157,7 @@ export function Facilities(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBar tonal onBack={p.backToInstance} heading={familyLabel(p.family)}>
+          <HeadingBar tonal onBack={() => p.close(undefined)} heading={familyLabel(p.family)}>
             <Show when={csvDataIsReady()}>
               <Button
                 iconName="download"
