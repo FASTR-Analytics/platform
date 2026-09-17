@@ -101,9 +101,9 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 
 (`goal1`'s `_v2` suffix is vestigial: no v1 survives.)
 
-**Query idioms.** `fields=` comma-lists with `DEFAULT_DATA_ELEMENT_FIELDS`
-/ `DEFAULT_INDICATOR_FIELDS` defaults; repeated `filter=` params;
-`paging`/`pageSize`; `rootJunction: "OR"` for ilike OR-search over
+**Query idioms.** `fields=` comma-lists (`DATA_ELEMENT_FIELDS` /
+`INDICATOR_FIELDS`, fixed so the mappers know what they read); repeated
+`filter=` params; `paging`; `rootJunction: "OR"` for ilike OR-search over
 name/code/id. `searchAllIndicatorsAndDataElements` splits the query on
 comma/semicolon/newline, searches every term in parallel across both
 endpoints, and merges deduped by id. The data-element field list carries

@@ -103,9 +103,7 @@ defineRoute(
       const dataElements = await searchDataElementsFromDHIS2(
         { dhis2Credentials: resolved.credentials },
         body.query,
-        {
-          filter: body.additionalFilters,
-        },
+        body.additionalFilters,
       );
 
       return c.json({

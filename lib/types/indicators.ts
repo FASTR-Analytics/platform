@@ -330,43 +330,6 @@ export interface DHIS2Indicator {
   lastUpdated?: string;
 }
 
-export interface DHIS2DataElementGroup {
-  id: string;
-  name: string;
-  displayName: string;
-  code?: string;
-  dataElements?: Array<{
-    id: string;
-    name: string;
-  }>;
-}
-
-export interface DHIS2IndicatorGroup {
-  id: string;
-  name: string;
-  displayName: string;
-  code?: string;
-  indicators?: Array<{
-    id: string;
-    name: string;
-  }>;
-}
-
-export interface DHIS2CategoryCombo {
-  id: string;
-  name: string;
-  displayName: string;
-  code?: string;
-  categories?: Array<{
-    id: string;
-    name: string;
-  }>;
-  categoryOptionCombos?: Array<{
-    id: string;
-    name: string;
-  }>;
-}
-
 // ============================================================================
 // Element eligibility and indicator decomposition (PLAN_A3 rulings 6 and 8)
 // ============================================================================
@@ -554,15 +517,6 @@ export type IndicatorNamingInput = {
   elements: IndicatorNamingElement[];
   calculated: IndicatorNamingCalculated[];
 };
-
-export interface DHIS2PagedResponse {
-  pager?: {
-    page: number;
-    pageCount: number;
-    total: number;
-    pageSize: number;
-  };
-}
 
 // ============================================================================
 // Indicator Metadata (for presentation objects)
