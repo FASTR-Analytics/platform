@@ -14,7 +14,6 @@ export function TimePointsView(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={() => p.close(undefined)}
           heading={t3({ en: "Time Points", fr: "Points temporels", pt: "Pontos temporais" })}
         />

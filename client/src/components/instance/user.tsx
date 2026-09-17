@@ -189,7 +189,6 @@ function UserDetail(p: DetailProps) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={p.close}
           heading={`${t3({ en: "User profile for", fr: "Profil utilisateur de", pt: "Perfil de utilizador de" })} ${p.user.email}`}
         />

@@ -153,7 +153,6 @@ export function Dhis2RunDetail(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={() => p.close(undefined)}
           heading={
             <>

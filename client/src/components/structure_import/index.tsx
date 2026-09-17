@@ -178,7 +178,6 @@ export function StructureUploadAttemptForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           heading={
             p.family === "hmis"
               ? t3({

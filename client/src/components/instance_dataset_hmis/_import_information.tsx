@@ -62,7 +62,6 @@ export function ImportInformation(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={() => p.close(undefined)}
           heading={t3({ en: "Import information", fr: "Informations sur l'importation", pt: "Informações sobre a importação" })}
         />

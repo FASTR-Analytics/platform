@@ -84,7 +84,6 @@ export function InstanceUsers(p: Props) {
         <div class="h-full w-full">
           <HeadingBar
             data-tour="instance-users-header"
-            tonal
             heading={t3({
               en: "Users",
               fr: "Utilisateurs",
@@ -97,7 +96,6 @@ export function InstanceUsers(p: Props) {
                   onClick={() => setShowHUsers((v) => !v)}
                   iconName={showHUsers() ? "eyeOff" : "eye"}
                   outline
-                  onBackground="base-200"
                 >
                   {showHUsers()
                     ? t3({

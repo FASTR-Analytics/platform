@@ -109,7 +109,6 @@ export function HfaIndicatorCodeEditor(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           leftChildren={
             <div class="ui-gap flex items-center">
               <Show
@@ -147,7 +146,7 @@ export function HfaIndicatorCodeEditor(
           subheading={p.indicator.definition}
         >
           <Show when={!p.showAi()}>
-            <Button iconName="chevronLeft" outline onBackground="base-200" onClick={p.openAi}>
+            <Button iconName="chevronLeft" outline onClick={p.openAi}>
               {t3({ en: "AI", fr: "IA", pt: "IA" })}
             </Button>
           </Show>

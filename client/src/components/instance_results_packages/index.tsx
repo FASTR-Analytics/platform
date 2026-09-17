@@ -138,7 +138,6 @@ export function InstanceResultsPackages() {
         <div class="h-full w-full">
           <HeadingBar
             data-tour="instance-results-packages-header"
-            tonal
             heading={t3({
               en: "Results packages",
               fr: "Paquets de résultats",
@@ -150,7 +149,6 @@ export function InstanceResultsPackages() {
                 data-tour="instance-results-packages-defaults"
                 onClick={openModuleDefaults}
                 outline
-                onBackground="base-200"
                 iconName="settings"
               >
                 {t3({
@@ -163,7 +161,6 @@ export function InstanceResultsPackages() {
                 data-tour="instance-results-packages-prune"
                 onClick={openPrune}
                 outline
-                onBackground="base-200"
                 iconName="trash"
                 disabled={instanceState.runsCatalog.length === 0}
               >

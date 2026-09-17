@@ -39,7 +39,6 @@ export function ViewResultsObject(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={() => p.close(undefined)}
           heading={t3({ en: "RESULTS FILE", fr: "FICHIER DE RÉSULTATS", pt: "FICHEIRO DE RESULTADOS" })}
           subheading={p.resultsObjectId}

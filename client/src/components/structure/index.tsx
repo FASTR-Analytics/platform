@@ -157,7 +157,7 @@ export function Facilities(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBar tonal onBack={() => p.close(undefined)} heading={familyLabel(p.family)}>
+          <HeadingBar onBack={() => p.close(undefined)} heading={familyLabel(p.family)}>
             <Show when={csvDataIsReady()}>
               <Button
                 iconName="download"

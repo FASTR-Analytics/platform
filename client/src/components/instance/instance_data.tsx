@@ -89,7 +89,6 @@ export function InstanceData(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
         >
         </HeadingBar>

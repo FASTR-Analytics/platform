@@ -95,8 +95,8 @@ lands on `<html>` before first paint.
   `data-scheme="dark"` (and `system` while the OS is dark); used by the report
   View pane and the version-history report preview. Markdown with no style
   (AI chat) needs no wrapper.
-- **No inverted chrome.** Every header is a flush or tonal `HeadingBar` that
-  follows the scheme; no surface in this app pins its `color-scheme`.
+- **No inverted chrome.** Every header is a flush `HeadingBar` that follows
+  the scheme; no surface in this app pins its `color-scheme`.
 - **No `text-white` / `bg-white`**: they are not tokens and break the dark
   palette. Document surfaces (slide canvases, thumbnails, previews) wear
   `ui-scheme-light`; constant contrast over media/data is an inline style

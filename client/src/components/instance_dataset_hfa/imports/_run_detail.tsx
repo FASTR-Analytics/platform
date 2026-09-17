@@ -22,7 +22,6 @@ export function HfaRunDetail(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={() => p.close(undefined)}
           heading={
             <>

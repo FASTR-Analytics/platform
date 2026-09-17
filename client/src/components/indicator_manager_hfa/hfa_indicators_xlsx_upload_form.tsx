@@ -102,7 +102,6 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           heading={
             p.source.kind === "default"
               ? t3({
@@ -119,7 +118,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
           onBack={() => p.close(undefined)}
         >
           <Show when={!p.showAi()}>
-            <Button iconName="chevronLeft" outline onBackground="base-200" onClick={p.openAi}>
+            <Button iconName="chevronLeft" outline onClick={p.openAi}>
               {t3({ en: "AI", fr: "IA", pt: "IA" })}
             </Button>
           </Show>

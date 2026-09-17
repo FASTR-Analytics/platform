@@ -77,7 +77,6 @@ export function BatchUploadUsersForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           heading={t3({
             en: "Batch import users",
             fr: "Importation groupée d'utilisateurs",

@@ -252,7 +252,6 @@ export function DatasetHmisImports(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            tonal
             onBack={() => p.close(undefined)}
             heading={t3({
               en: "Imports",
@@ -271,12 +270,7 @@ export function DatasetHmisImports(p: Props) {
                   pt: "Nova importação DHIS2",
                 })}
               </Button>
-              <Button
-                onClick={openCsvWizard}
-                iconName="upload"
-                outline
-                onBackground="base-200"
-              >
+              <Button onClick={openCsvWizard} iconName="upload" outline>
                 {t3({
                   en: "Upload CSV file",
                   fr: "Téléverser un fichier CSV",

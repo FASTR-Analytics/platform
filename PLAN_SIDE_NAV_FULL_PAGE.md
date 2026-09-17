@@ -9,7 +9,7 @@ a Back button opens through one shell-level editor wrapper that covers the
 header and the rail. Every heading bar in the app becomes flush; `tonal`
 disappears from the client.
 
-**Next step: Review 2**
+**Next step: Review 3**
 
 Branch: `version2`.
 
@@ -350,3 +350,6 @@ reverse order; no data, cache or schema changes are involved, and the
 | 2026-09-17 | 2 | `./run` again not restarted: the dev server and Vite were already up. Vite transformed every changed module without error. |
 | 2026-09-17 | 2 | Outside the plan, in its own commit at Tim's request mid-session: the Theme modal's "Full" radius (9999px broke cards) is replaced by 12 and 20 px steps. |
 | 2026-09-17 | 2 | Step 2 built. |
+| 2026-09-17 | 3 | 42 `tonal` removed across 41 files (`structure/index.tsx` carried it inline); nine `onBackground="base-200"` removed from buttons inside formerly tonal bars; `report/index.tsx:1388` kept, it sits on a `base-200` panel. |
+| 2026-09-17 | 3 | `./run` again not restarted: the dev server and Vite were already up. Vite transformed the changed modules without error. |
+| 2026-09-17 | 3 | Step 3 built. |

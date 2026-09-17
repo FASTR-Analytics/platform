@@ -95,7 +95,6 @@ export function DeleteData(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={() => p.close(undefined)}
           heading={t3(TC.delete)}
         />

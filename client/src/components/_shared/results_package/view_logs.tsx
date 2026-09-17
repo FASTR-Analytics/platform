@@ -41,7 +41,6 @@ export function ViewLogs(
         <HeadingBar
           onBack={() => p.close(undefined)}
           heading={`${t3({ en: "Logs for", fr: "Journaux pour", pt: "Registos de" })} ${p.moduleLabel}`}
-          tonal
         />
       }
     >

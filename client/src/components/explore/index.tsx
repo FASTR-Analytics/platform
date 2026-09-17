@@ -10,7 +10,6 @@ export function Explore() {
       panelChildren={
         <div class="h-full w-full">
           <HeadingBar
-            tonal
             heading={t3({ en: "Explore", fr: "Explorer", pt: "Explorar" })}
           />
         </div>

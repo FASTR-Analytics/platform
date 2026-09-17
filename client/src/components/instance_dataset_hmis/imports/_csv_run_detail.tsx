@@ -53,7 +53,6 @@ export function CsvRunDetail(
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={() => p.close(undefined)}
           heading={
             <>

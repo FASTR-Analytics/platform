@@ -60,7 +60,6 @@ export function HfaWeights(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            tonal
             onBack={() => p.close(undefined)}
             heading={t3({
               en: "HFA facility sampling weights",
@@ -205,7 +204,6 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           onBack={wizard().step !== "upload"
             ? () => setWizard({ step: "upload" })
             : undefined}

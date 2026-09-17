@@ -108,7 +108,6 @@ export function DatasetIcehImports(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            tonal
             onBack={() => p.close(undefined)}
             heading={t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
           >

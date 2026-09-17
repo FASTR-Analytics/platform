@@ -29,7 +29,7 @@
    follows the OS with no JS in the styling path). Tokens, canvas key colors
    (setKeyColors dark companion) and panther components resolve per scheme on
    their own. There is no inverted chrome anywhere: every header is a flush
-   or tonal HeadingBar that follows the scheme, so no surface in this app pins
+   HeadingBar that follows the scheme, so no surface in this app pins
    its color-scheme. Dark-only values below are light-dark() pairs too, so one
    rule serves both schemes; the exception is .md-dark-adapt, whose light
    value is an inline var a pair cannot name.

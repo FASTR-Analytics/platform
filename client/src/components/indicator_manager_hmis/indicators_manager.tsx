@@ -192,7 +192,6 @@ export function IndicatorsManager(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
-            tonal
             onBack={() => p.close(undefined)}
             heading={t3({
               en: "HMIS INDICATORS",
@@ -205,7 +204,6 @@ export function IndicatorsManager(p: Props) {
                 iconName="info"
                 onClick={handleTypes}
                 outline
-                onBackground="base-200"
               >
                 {t3({
                   en: "Indicator types",
@@ -217,7 +215,6 @@ export function IndicatorsManager(p: Props) {
                 iconName="info"
                 onClick={handleReference}
                 outline
-                onBackground="base-200"
               >
                 {t3({
                   en: "Special indicators and reserved words",

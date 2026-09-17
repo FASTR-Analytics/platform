@@ -41,7 +41,6 @@ export function ViewScript(
         <HeadingBar
           onBack={() => p.close(undefined)}
           heading={`${t3({ en: "Script for", fr: "Script pour", pt: "Script para" })} ${p.moduleLabel}`}
-          tonal
         />
       }
     >

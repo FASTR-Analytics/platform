@@ -394,7 +394,6 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          tonal
           heading={phase() === "select"
             ? t3({
               en: "Add indicators from DHIS2",

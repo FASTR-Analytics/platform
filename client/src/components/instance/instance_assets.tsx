@@ -90,7 +90,6 @@ export function InstanceAssets() {
         <div class="h-full w-full">
           <HeadingBar
             data-tour="instance-assets-header"
-            tonal
             heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
           >
             <Button id="select-file-button" iconName="upload">
