@@ -715,7 +715,7 @@ export function Products() {
               row's button. */}
           <Show when={currentFolder()} keyed>
             {(folder) => (
-              <div class="ui-pad-x ui-pad-y-sm ui-gap flex items-center border-b">
+              <div class="ui-pad ui-gap flex items-center border-b">
                 <Button
                   iconName="arrowUp"
                   outline
