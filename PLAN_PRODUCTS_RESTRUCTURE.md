@@ -7,8 +7,8 @@ project Metrics tab and the standalone visualization library; this plan
 creates the tab, and its page, the results explorer, is a later plan.
 
 **Next step: Do 10.** Each session sets this line in its final commit. Its
-values are `Do N`, `Review N` and `Fix N`; after step 10's review passes the
-file is deleted instead of advanced.
+values are `Do N`, `Review N` and `Fix N` for steps 1 to 10, and `Step N`
+for Tim's deploy steps 11 to 14. Step 14 deletes the file.
 
 All work is on `version2`. A first attempt, preserved as
 `version2-reference`, is a worked example read through `git show` and never
@@ -58,8 +58,8 @@ step should have produced (deviations, facts found wrong, defects found by
 running the app). Each finding is one row in §9 with the file and line,
 followed by the closing row. The review ends with the **Next step** line set
 to `Do N+1` if there are no findings that change code, or `Fix N` if there
-are. After step 10's review passes, the reviewer deletes this file in its
-last commit instead of setting the line. Then it stops.
+are. After step 10's review passes, the reviewer sets the line to `Step
+11`. Then it stops.
 
 **A Fix session** is a Do session whose work list is the review's findings
 in §9 and nothing else. It ends with its closing row and the line set to
@@ -71,8 +71,10 @@ it has shown to be wrong; it records the disagreement in §9, and the code
 wins. The edit to this file rides the session's last commit, so the tree and
 the plan always agree. If a session cannot finish, it leaves the tree green
 at the last good commit, records in §9 exactly what is done and what is not,
-leaves the **Next step** line unchanged, and says so. The deletion of this
-file after step 10's review is the one exception to the two-things rule.
+leaves the **Next step** line unchanged, and says so.
+
+**Steps 11 to 14 are Tim's deploy steps**, with no Do or Review session.
+Each is done when its list is done, and the line moves to the next step.
 
 Rules that bind every step:
 
@@ -108,8 +110,7 @@ Rules that bind every step:
   reason. The next agent reads the log first.
 - **One thing per session.** Commit with a message that says why. Where a
   step says "several commits", each one is green on its own.
-- **Do not ship.** `./deploy_testing` ships the working tree; only steps 1
-  and 2 are safe to deploy on their own, and the runbook in §6 says when.
+- **Do not ship.** Nothing ships before step 11.
 
 Vocabulary: **product** = a slide deck or a report; **folder** = a node in
 the products tree (folders nest through `parent_id`; the root is `NULL`);
@@ -512,7 +513,7 @@ one child (lossless). Rejected: dropping the sub-folders; a data-conditional
 
 **D11: `pending_deletion` projects are not migrated; central-reporting
 projects are migrated as ordinary folders.** The dry-run (D13) lists both
-classes per instance; the runbook step before rollout is "restore any
+classes per instance; before steps 11 and 13 the rule is "restore any
 pending-deletion project that must survive; delete or empty any
 central-reporting project that must not become visible to every approved
 user". Products themselves have hard delete, no trash, with a
@@ -747,8 +748,8 @@ SYSTEM prose and globs change in the step that changes the contract (§0);
 step 10 is a read-through, not the rewrite. SYSTEMS.md custody rows, the
 PROTOCOL_APP files, CLAUDE.md and USER_GUIDE_MCP follow the same rule. Other
 `PLAN_*.md` files are Tim's to rework after this plan lands; no step edits
-them. When step 10's review passes, the reviewer deletes this file in its
-last commit (the CLAUDE.md rule that a finished plan is deleted).
+them. Step 14 deletes this file, after the fleet rollout, because steps 11
+to 14 are its only record.
 
 ---
 
@@ -1170,12 +1171,12 @@ roll-up label. Bundles are stored, not cached, so no Valkey prefix moves.
   post-check product and folder counts against the dry-run's `--json` plan),
   `restore_main` (stop container, `docker exec psql -d postgres` DROP DATABASE
   main WITH (FORCE) / CREATE, pipe the named status-api dump, start the
-  previous image; rehearsed once on testing-tim before the fleet),
+  previous image),
   `purge_legacy_dbs` (ssh plus `docker exec psql -d postgres`: `DROP DATABASE
   ... WITH (FORCE)` for every UUID-named datname not in {main, postgres,
   template*}; rm `sandbox/<uuid>` dirs whose name is not in `runs.id`; never
-  `.tmp-*`, `.duckdb-spill`, `restore_*`). All three are deleted after the
-  purge (§6, item 7).
+  `.tmp-*`, `.duckdb-spill`, `restore_*`). All three are deleted in step
+  14.
 
 ### 3.10 What survives from `server/db/project/**` (relocation list)
 
@@ -1236,7 +1237,11 @@ parallel.
 | 8 | Copilot remount | 7b | no | one mount per open product, env fixed to it |
 | 9a | Client strip | 8 | no | the client has no project |
 | 9b | Server strip and consolidation | 9a, 2 | no | the server has no project; 091 runs on dev |
-| 10 | Ops scripts, docs read-through, close | 9b | no | the repo reads as written today |
+| 10 | Ops scripts, docs read-through | 9b | no | the repo reads as written today |
+| 11 | Deploy to the three v2 testing instances | 10 | yes | version 2 works on real country data |
+| 12 | Prepare the fleet deploy | 11 | no | every instance will migrate |
+| 13 | Deploy to the fleet | 12 | yes | the fleet runs version 2 |
+| 14 | Purge and close | 13 | yes | nothing of projects is left |
 
 Format of each step below: **Surface** (the files and areas it may touch;
 anything else is out of bounds), **Deliverable**, **Not in this step**,
@@ -1894,7 +1899,7 @@ unchanged from step 3's baseline.
 follower model; ops surfaces; project DB layer and routes; migrations and
 `db_startup`; D4 closed. The app runs on migrated data.
 
-### Step 10: Ops scripts, docs read-through, close
+### Step 10: Ops scripts, docs read-through
 
 **Surface.** `rollout_products`, `restore_main`, `purge_legacy_dbs` (repo
 root; §3.9). `.github/scripts/sync-docs.sh` (terminology line and image
@@ -1907,14 +1912,14 @@ WORKER_ROUTINES,AI_TOOLS}, CLAUDE.md, USER_GUIDE_MCP ("per-project" lines),
 `PROTOCOL_ACCESS_DBS.md` (git-ignored, rewritten locally).
 `validate_protocols_baseline.json` reviewed entry by entry. `lib/help/
 help_targets.generated.ts` left as is until the docs site is rewritten.
-This file is deleted by step 10's reviewer, not by the Do session.
+This file is not deleted in step 10.
 
 **Deliverable.** The repo reads as if written today. The rollout tooling
 exists and `rollout_products` consumes the step 2 dry-run's `--json`.
 
 **Gates.** Every gate in §5. `git ls-files | grep -i "project\|dashboard"`
 at zero excluding `server/db/migrations/**`, `panther/**` and
-`_archive_*/**`. `restore_main` is rehearsed in the runbook, not here.
+`_archive_*/**`. `restore_main` is not run here.
 
 **Reference.** Commits 3c93b798 (the three scripts), 941c7f1e, 514a11ce,
 587ca8a6 (docs). Files: `rollout_products`, `restore_main`,
@@ -1922,7 +1927,42 @@ at zero excluding `server/db/migrations/**`, `panther/**` and
 checked against this tree's code before a sentence is reused.
 
 **Ends with.** One or two commits and the line set to `Review 10`. The
-review that passes deletes this file.
+review that passes sets it to `Step 11`.
+
+### Step 11: Deploy to the three v2 testing instances
+
+1. `./validate_consolidation.ts nigeria-v2-testing guinee-v2-testing
+   ghana-v2-testing`. Fix any FAIL. Read the REVIEW counts.
+2. Deploy `version2` to the three.
+3. Refine there: commit fixes to `version2` and redeploy. 091 runs once
+   per instance, so redeploys skip it.
+
+Until step 13, a migration added on `main` is numbered after 092.
+
+Done when the team and the client are happy with version 2.
+
+### Step 12: Prepare the fleet deploy
+
+1. Merge `main` into `version2`.
+2. status-api tolerates the fields version 2 removes (§7).
+3. `./validate_consolidation.ts --json` across the fleet. Fix every FAIL
+   (usually: pin a package on the instance). Read the REVIEW counts.
+
+### Step 13: Deploy to the fleet
+
+1. Merge `version2` into `main`.
+2. Deploy with `rollout_products`, which checks each instance's product and
+   folder counts against step 12's `--json`.
+
+### Step 14: Purge and close
+
+Once no instance will be rolled back:
+
+1. `purge_legacy_dbs` on each instance.
+2. In one commit, delete `validate_consolidation.ts`,
+   `validate_consolidation_replay`, `validate_consolidation_replay.ts`,
+   `rollout_products`, `purge_legacy_dbs`, `restore_main` (unless kept),
+   the doc lines that name them, and this file.
 
 ---
 
@@ -1950,7 +1990,7 @@ step that first reaches zero is named, and every later step keeps it there.
    `server/db/migrations/**`, `panther/**`, `_archive_*/**`. 10.
 6. `validate_consolidation_replay` green (step 2; re-run in 9b).
 7. `validate_consolidation.ts` zero FAIL fleet-wide, counts reviewed (D2,
-   D3, D11). Step 2 onward; a precondition of the runbook, not of any step.
+   D3, D11). Run in steps 11 and 12.
 8. 091 executed against the dev DB with counts matching a `--local` run
    taken immediately before it (9b).
 9. Fresh-postgres boot exit 0 (1, 2, 9b).
@@ -1958,42 +1998,11 @@ step that first reaches zero is named, and every later step keeps it there.
 
 ---
 
-## 6. Rollout runbook and rollback
+## 6. Rollout and rollback
 
-Everything here needs real infrastructure and is Tim's to trigger. Steps 1
-and 2 of the plan ship early; everything else ships once, after step 10.
-
-1. **After plan steps 1 and 2:** ship 090, the runner support and the
-   dry-run tooling on a normal release. Run `validate_consolidation.ts`
-   fleet-wide; fix and repeat until zero FAIL. Act on the `pending_deletion`
-   and central-reporting lists (D11). Read the dropped-visualization,
-   dropped-dashboard and viewer-only-user counts per instance: this is the
-   last moment to change D2 or D3, and it comes before any product code is
-   written.
-2. Server-cli: path-agnostic nginx WS-upgrade template, re-emit fleet sites
-   (harmless to the old `/project_collab` path; no window).
-3. Coordinate the status-api field changes (§7) before the fleet deploy.
-4. Take a named status-api backup of every instance immediately before
-   rollout (`main` dump plus previous image = rollback; the previous image
-   cannot boot after 092 without that dump). Rehearse `restore_main` on
-   testing-tim.
-5. `./deploy_testing` to testing-tim from `version2` after step 10 (it
-   ships the working tree; check `git status`); verify products, folders and
-   counts against the dry-run plan. Then merge `version2` into `main` and
-   run `rollout_products` across the fleet with the per-instance post-check,
-   one multi-product instance before the rest.
-6. Wait at least a week with the fleet running on migrated data, then run
-   `purge_legacy_dbs` per instance, which also retires the long-standing
-   orphaned-UUID-DB open item and the legacy sandbox dirs.
-7. After the purge: delete `validate_consolidation.ts`,
-   `validate_consolidation_replay`, `rollout_products`, `purge_legacy_dbs`
-   (and `restore_main` unless kept as general ops tooling) in one commit.
-   `000`, `091`, `consolidation/plan.ts` and the runner's `.ts` support
-   remain as migration history until the next base squash.
-8. External follow-ups (§7), at the points §7 marks.
-
-Rollback = `restore_main` from runbook item 4 plus the previous image;
-project DBs are still on disk, untouched by 091.
+The rollout is steps 11 to 14. To roll back an instance before step 14,
+run `restore_main` with its pre-deploy main dump and start the previous
+image; 091 leaves the project databases untouched.
 
 ---
 
@@ -2404,6 +2413,7 @@ this section before its step.
 | 2026-09-17 | plan | Tim asked the reviewer to rewrap the line in the review session and move the plan to Do 10, since finding 11 changes no code. |
 | 2026-09-17 | 9b | Fix 9b, finding 11: the SYSTEM_02 091 paragraph is rewrapped within width. `deno task typecheck` green (`lint:systems` reads the manifest front matter, which is unchanged). |
 | 2026-09-17 | 9b | Step 9b fixed. |
+| 2026-09-17 | plan | Tim's ruling: the rollout is written as deploy steps 11 to 14 (the three v2 testing instances, fleet preparation, fleet deploy, purge and close), replacing the §6 runbook. Step 10's review no longer deletes this file; step 14 does. |
 
 ## Appendix A: the migration replay of 2026-08-19, and what still stands
 
