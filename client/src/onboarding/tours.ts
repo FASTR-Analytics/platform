@@ -981,7 +981,7 @@ export function buildInstanceWelcomeTour(): TourDefinition {
           fr: "Voici l'accueil de votre instance. Produits regroupe les présentations et les rapports que vous créez, Explorer sert à consulter les chiffres, et les autres onglets couvrent les données de l'instance, les paquets de résultats, les ressources partagées et les utilisateurs — selon vos permissions.",
           pt: "Esta é a página inicial da sua instância. Produtos reúne as apresentações e os relatórios que cria, Explorar serve para ver os números, e os restantes separadores abrangem os dados da instância, os pacotes de resultados, os recursos partilhados e os utilizadores — consoante as suas permissões.",
         }),
-        placement: "bottom",
+        placement: "right",
       },
       {
         id: "language",

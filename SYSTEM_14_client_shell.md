@@ -59,10 +59,7 @@ finds nothing arms no replay) it arms `pendingTourReplay` with the tour id and
 the product the tour's page lives in. The order matters: the manager's replay
 effect runs synchronously on that write, starts the tour once its page
 predicate is true, drops a tab-page replay whose page is not active (the
-switch was synchronous, so the tab is denied; the four Products-page rows are
-unavailable while an editor covers that page, with a reason to close it
-first, since the topbar's tours menu stays reachable above the editor
-overlay), and drops a product replay
+switch was synchronous, so the tab is denied), and drops a product replay
 only once T1 is ready and no longer holds the product (a dead id, the
 Products page's own rule for the open request). It reads nothing transient,
 so the Products page clearing the open request just before it mounts the
@@ -159,10 +156,26 @@ Results / Assets / Users, in that nav order; Products (S12's
 `components/products/`) is first and the default, and Explore (S11's
 `components/explore/`, empty until the results explorer plan) needs approval
 only, which the whole nav already requires. The tab id union is `InstanceTab`
-in `onboarding/catalogue.ts` and the shell imports it. The product editors
-are overlays the Products page opens (`getEditorWrapper`), so the tab stays
-on Products while one is open. This file also hosts the language menu and the
-onboarding-modal effect (below).
+in `onboarding/catalogue.ts` and the shell imports it.
+
+The shell is `ShellEditorWrapper` around a `FrameTop` whose panel is the
+header (instance name, logo, and the right-hand cluster: Theme, language,
+bell, Help, versions, profile) and whose content is, once the user is
+approved, a `FrameLeft` whose panel is the rail: a vertical, collapsible
+`TabsNavigation` over `navItems()`, one gated ordered list, with its
+collapsed state persisted in `t4_ui`'s `navCollapsed` (default collapsed).
+The approval `Show` wraps the `FrameLeft` rather than sitting inside its
+panel, because a `Show` passed as a prop is a truthy accessor even when it
+renders nothing and `FrameLeft` would draw an empty rail. `ShellEditorWrapper`
+and `openShellEditor` are the one `getEditorWrapper()` the app has at shell
+level, created in `t4_ui.ts`; every view a user reaches through a Back button
+(the product editors, module defaults, the package viewers, the Data hub's
+sub-pages, the user detail) opens through it and covers the header and the
+rail, so its Back is the only way out and the rail cannot switch tabs under
+an open editor. The tab stays on Products while a product editor is open.
+Views those full-page views open through their own wrappers (the slide editor,
+an import run detail) are already full page. This file also hosts the
+language menu and the onboarding-modal effect (below).
 
 ## Language, calendar & translation
 
@@ -217,7 +230,7 @@ Whether every literal is well-formed across the 241-file surface is the standing
 ## UI preferences (`state/t4_ui.ts`)
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
-then the signal: the product explorer's four (`productsOpenFolder`, the
+then the signal: the rail's `navCollapsed`; the product explorer's four (`productsOpenFolder`, the
 location, null = the root; `productsViewMode`; `productsSortMode`, `SortMode
 = "name" | "recent"` from `lib/types/sort.ts`, one vocabulary for every list;
 `productsTypeFilter`, null = every type). They are unvalidated on read: they
@@ -227,9 +240,11 @@ degrades to "no match" rather than throwing. Plus the scheme preference
 scope before first paint; a stored `darkMode` boolean is mapped on read when
 no `scheme` key is stored).
 In-memory only (deliberately not persisted): `fitWithin`, `showAi`,
-`headerOrContent`, `policyHeaderOrContent`, and the three request signals the
+`headerOrContent`, `policyHeaderOrContent`, the three request signals the
 tours and the deep link use (`pendingEditorOpen`, `pendingSlideOpen`,
-`pendingTourReplay`). The rule these encode: **display-only preferences stay
+`pendingTourReplay`), and the shell's full-page wrapper (`openShellEditor`,
+`ShellEditorWrapper`: one module-level `getEditorWrapper()` so the frame
+pages that open views share the instance the shell renders). The rule these encode: **display-only preferences stay
 in T4: they never enter fetch configs or cache hashes** (the roll-up sentinel
 lesson, SYSTEM_09).
 

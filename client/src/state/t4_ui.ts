@@ -1,10 +1,35 @@
 import { createSignal } from "solid-js";
 import {
   effectiveScheme,
+  getEditorWrapper,
   type SchemePreference,
   setSchemePreference,
 } from "panther";
 import type { ProductType, SlideType, SortMode } from "lib";
+
+// ============================================================================
+// Instance shell
+// ============================================================================
+
+// The rail's collapsed state. Collapsed by default: each frame page's heading
+// bar names the page, so the labels are not needed to orient.
+const storedNavCollapsed = localStorage.getItem("navCollapsed");
+export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
+  storedNavCollapsed !== "false",
+);
+export function setNavCollapsed(collapsed: boolean) {
+  localStorage.setItem("navCollapsed", String(collapsed));
+  setNavCollapsedInternal(collapsed);
+}
+
+// The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole
+// frame (header, rail and tab page), so a view opened through
+// `openShellEditor` covers all of it and its Back is the only way out; the
+// rail cannot switch tabs under an open editor. Module level so the frame
+// pages that open views share the instance the shell renders.
+const shellEditor = getEditorWrapper();
+export const openShellEditor = shellEditor.openEditor;
+export const ShellEditorWrapper = shellEditor.EditorWrapper;
 
 // ============================================================================
 // Products page

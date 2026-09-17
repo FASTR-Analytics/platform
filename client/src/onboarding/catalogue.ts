@@ -31,8 +31,9 @@ export type TourCatalogueEntry = {
   /** State-only over T1 and the copilot view controller. Do NOT probe the
    *  DOM here: the tour's page is usually unmounted when this is evaluated. */
   available: () => boolean;
-  /** Shown in place of the Play button when `available()` is false. */
-  unavailableReason: () => string;
+  /** Shown in place of the Play button when `available()` is false; absent
+   *  on an entry that is always available. */
+  unavailableReason?: () => string;
   /** Tab switch, plus the editor/slide open requests for the deeper tours.
    *  The tab setter comes from the shell, which owns the tab signal. Resolves
    *  with the product the tour's page lives in (none for a tab page), or null
@@ -51,10 +52,9 @@ const decks = () =>
 const reports = () => instanceState.products.filter((p) => p.type === "report");
 const hasPackage = () => instanceState.readyPackages.length > 0;
 const hasProducts = () => instanceState.products.length > 0;
-// The editors are overlays inside the Products page, and the tours menu in the
-// shell's topbar stays reachable above them, so a Products-page tour played
-// then would wait on a page that is not visible; the manager's page predicate
-// excludes the editing views for the same reason.
+// The editors are full-page views that cover the shell, tab still on
+// Products; the manager's Products-page predicate excludes them so a list
+// tour never fires behind an editor.
 export const isEditingView = () =>
   copilotViewController.current().id.startsWith("editing_");
 const firstDeckHasSlides = () => {
@@ -71,12 +71,6 @@ const reasonNoPageAccess = () =>
     en: "You don't have permission to view this page",
     fr: "Vous n'avez pas la permission de voir cette page",
     pt: "Não tem permissão para ver esta página",
-  });
-const reasonCloseEditor = () =>
-  t3({
-    en: "Close the open editor first",
-    fr: "Fermez d'abord l'éditeur ouvert",
-    pt: "Feche primeiro o editor aberto",
   });
 const reasonNeedApproval = () =>
   t3({
@@ -259,8 +253,7 @@ export function getTourCatalogue(
         fr: "La page Produits : recherche, filtre par type, tri et dossiers.",
         pt: "A página Produtos: pesquisa, filtro por tipo, ordenação e pastas.",
       }),
-      available: () => !isEditingView(),
-      unavailableReason: reasonCloseEditor,
+      available: () => true,
       navigate: openTabOnly("products"),
     },
     {
@@ -276,9 +269,8 @@ export function getTourCatalogue(
         fr: "Démarrer un nouveau produit et organiser les produits en dossiers.",
         pt: "Começar um novo produto e organizar os produtos em pastas.",
       }),
-      available: () => instanceState.currentUserApproved && !isEditingView(),
-      unavailableReason: () =>
-        isEditingView() ? reasonCloseEditor() : reasonNeedApproval(),
+      available: () => instanceState.currentUserApproved,
+      unavailableReason: reasonNeedApproval,
       navigate: openTabOnly("products"),
     },
     {
@@ -294,9 +286,8 @@ export function getTourCatalogue(
         fr: "Ce que montre une carte de produit et les actions accessibles par clic droit.",
         pt: "O que mostra um cartão de produto e as ações acessíveis com o botão direito.",
       }),
-      available: () => hasProducts() && !isEditingView(),
-      unavailableReason: () =>
-        isEditingView() ? reasonCloseEditor() : reasonNeedProduct(),
+      available: () => hasProducts(),
+      unavailableReason: reasonNeedProduct,
       navigate: openTabOnly("products"),
     },
     // ── Slide decks ──────────────────────────────────────────────────────
@@ -514,8 +505,7 @@ export function getTourCatalogue(
         fr: "L'instance elle-même : navigation, langue, nouveautés et où trouver de l'aide.",
         pt: "A própria instância: navegação, idioma, novidades e onde encontrar ajuda.",
       }),
-      available: () => !isEditingView(),
-      unavailableReason: reasonCloseEditor,
+      available: () => true,
       navigate: openTabOnly("products"),
     },
     {

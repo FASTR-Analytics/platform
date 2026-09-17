@@ -91,7 +91,7 @@ export function TourCatalogueModal(
               description={entry.description}
               seen={seen(entry.id)}
               available={entry.available()}
-              reason={entry.unavailableReason()}
+              reason={entry.unavailableReason?.() ?? ""}
               onPlay={() => void play(entry)}
             />
           )}

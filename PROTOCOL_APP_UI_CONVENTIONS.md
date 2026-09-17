@@ -131,13 +131,18 @@ Pattern specifics, from the live pages:
   (`components/_shared/sort_control.tsx`) and the view-mode `ButtonGroup`, and
   the Create buttons; open folder / view mode / sort / type-filter state lives
   in `t4_ui` signals (PROTOCOL_APP_STATE).
-- **D (editors):** opened full-screen via `getEditorWrapper()` → `openEditor`
-  (never routed); panel widths in use: viz editor `384/300/600`, slide editor
+- **D (editors):** opened full page, never routed. A view reached from a
+  frame page (a product editor, module defaults, a Data sub-page, the user
+  detail) opens through `openShellEditor` (`state/t4_ui.ts`), the shell's one
+  `getEditorWrapper()`, and covers the header and the rail; a view a full-page
+  view opens itself (the slide editor, an import run detail) uses that view's
+  own `getEditorWrapper()`; panel widths in use: viz editor `384/300/600`, slide editor
   `400/300/600`; canvas area is `FigureHolder`/`PageHolder`.
-- **Instance page:** `FrameTop` with a custom panel and a centered
-  `ButtonGroup` tab selector, responsive at the app's one breakpoint `xl`:
-  `flex xl:hidden` icon-only (`compactNavItems`, empty `label` plus
-  `labelText`) vs `hidden xl:flex` labeled (`wideNavItems`).
+- **Instance page:** `ShellEditorWrapper` around a `FrameTop` whose panel is
+  the header (instance name, logo, right-hand cluster) and whose content is a
+  `FrameLeft` with the rail: pattern B, a vertical collapsible
+  `TabsNavigation` over `navItems()`, collapsed state in `t4_ui`'s
+  `navCollapsed`. Nothing in the shell is responsive.
 
 ## Recurring scaffolds
 

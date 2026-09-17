@@ -8,7 +8,6 @@ import {
   HeadingBar,
   Icon,
   SelectList,
-  getEditorWrapper,
   openComponent,
 } from "panther";
 import {
@@ -30,6 +29,7 @@ import {
   addInstanceRunProgressListener,
 } from "~/state/instance/t1_sse";
 import { instanceState } from "~/state/instance/t1_store";
+import { openShellEditor } from "~/state/t4_ui";
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
@@ -41,8 +41,6 @@ import { instanceState } from "~/state/instance/t1_store";
 // product settings. This surface owns the only act that ever reclaims a
 // package's disk.
 export function InstanceResultsPackages() {
-  const { openEditor, EditorWrapper } = getEditorWrapper();
-
   // A launched run is pinned before it reaches the listing: the SSE refetch
   // lands it moments later and the selection is already waiting for it.
   async function openWizard(): Promise<void> {
@@ -62,7 +60,7 @@ export function InstanceResultsPackages() {
   }
 
   async function openModuleDefaults(): Promise<void> {
-    await openEditor({
+    await openShellEditor({
       element: ModuleDefaultsEditor,
       props: {},
     });
@@ -135,122 +133,120 @@ export function InstanceResultsPackages() {
     });
 
   return (
-    <EditorWrapper>
-      <FrameTop
+    <FrameTop
+      panelChildren={
+        <div class="h-full w-full">
+          <HeadingBar
+            data-tour="instance-results-packages-header"
+            tonal
+            heading={t3({
+              en: "Results packages",
+              fr: "Paquets de résultats",
+              pt: "Pacotes de resultados",
+            })}
+          >
+            <div class="ui-gap-sm flex items-center">
+              <Button
+                data-tour="instance-results-packages-defaults"
+                onClick={openModuleDefaults}
+                outline
+                onBackground="base-200"
+                iconName="settings"
+              >
+                {t3({
+                  en: "Module defaults",
+                  fr: "Paramètres par défaut des modules",
+                  pt: "Predefinições dos módulos",
+                })}
+              </Button>
+              <Button
+                data-tour="instance-results-packages-prune"
+                onClick={openPrune}
+                outline
+                onBackground="base-200"
+                iconName="trash"
+                disabled={instanceState.runsCatalog.length === 0}
+              >
+                {t3({ en: "Prune", fr: "Élaguer", pt: "Limpar" })}
+              </Button>
+              <Button
+                data-tour="instance-results-packages-generate"
+                onClick={openWizard}
+                iconName="package"
+              >
+                {t3({
+                  en: "Generate new results package",
+                  fr: "Générer un nouveau paquet de résultats",
+                  pt: "Gerar novo pacote de resultados",
+                })}
+              </Button>
+            </div>
+          </HeadingBar>
+        </div>
+      }
+    >
+      <FrameLeftResizable
+        startingWidth={300}
+        minWidth={150}
+        maxWidth={400}
         panelChildren={
-          <div class="h-full w-full">
-            <HeadingBar
-              data-tour="instance-results-packages-header"
-              tonal
-              heading={t3({
-                en: "Results packages",
-                fr: "Paquets de résultats",
-                pt: "Pacotes de resultados",
-              })}
-            >
-              <div class="ui-gap-sm flex items-center">
-                <Button
-                  data-tour="instance-results-packages-defaults"
-                  onClick={openModuleDefaults}
-                  outline
-                  onBackground="base-200"
-                  iconName="settings"
-                >
-                  {t3({
-                    en: "Module defaults",
-                    fr: "Paramètres par défaut des modules",
-                    pt: "Predefinições dos módulos",
-                  })}
-                </Button>
-                <Button
-                  data-tour="instance-results-packages-prune"
-                  onClick={openPrune}
-                  outline
-                  onBackground="base-200"
-                  iconName="trash"
-                  disabled={instanceState.runsCatalog.length === 0}
-                >
-                  {t3({ en: "Prune", fr: "Élaguer", pt: "Limpar" })}
-                </Button>
-                <Button
-                  data-tour="instance-results-packages-generate"
-                  onClick={openWizard}
-                  iconName="package"
-                >
-                  {t3({
-                    en: "Generate new results package",
-                    fr: "Générer un nouveau paquet de résultats",
-                    pt: "Gerar novo pacote de resultados",
-                  })}
-                </Button>
-              </div>
-            </HeadingBar>
+          <div class="ui-pad h-full overflow-auto">
+            <SelectList<string, RunCatalogItem>
+              items={sortedRuns().map((r) => ({
+                id: r.id,
+                label: r.label,
+                meta: r,
+              }))}
+              value={selectedRun()?.id}
+              onChange={setSelectedId}
+              fullWidth
+              emptyMessage={emptyMessage()}
+              renderItem={(item) => (
+                <Show when={item.meta} keyed fallback={item.label}>
+                  {(run) => (
+                    <div class="my-0.5">
+                      <div class="ui-gap-sm flex items-center overflow-hidden">
+                        <div class="min-w-16 flex-1 truncate">
+                          {run.label}
+                        </div>
+                        <Show when={run.status === "failed"}>
+                          <Badge intent="danger" variant="solid">
+                            <Icon iconName="alertCircle" />
+                          </Badge>
+                        </Show>
+                        <Show when={run.id === instanceState.pinnedRunId}>
+                          <PinnedBadge />
+                        </Show>
+                        <Show when={run.attachedProducts.length > 0}>
+                          <Badge>{run.attachedProducts.length}</Badge>
+                        </Show>
+                      </div>
+                      <div class="ui-text-caption">
+                        {new Date(run.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  )}
+                </Show>
+              )}
+            />
           </div>
         }
       >
-        <FrameLeftResizable
-          startingWidth={300}
-          minWidth={150}
-          maxWidth={400}
-          panelChildren={
-            <div class="ui-pad h-full overflow-auto">
-              <SelectList<string, RunCatalogItem>
-                items={sortedRuns().map((r) => ({
-                  id: r.id,
-                  label: r.label,
-                  meta: r,
-                }))}
-                value={selectedRun()?.id}
-                onChange={setSelectedId}
-                fullWidth
-                emptyMessage={emptyMessage()}
-                renderItem={(item) => (
-                  <Show when={item.meta} keyed fallback={item.label}>
-                    {(run) => (
-                      <div class="my-0.5">
-                        <div class="ui-gap-sm flex items-center overflow-hidden">
-                          <div class="min-w-16 flex-1 truncate">
-                            {run.label}
-                          </div>
-                          <Show when={run.status === "failed"}>
-                            <Badge intent="danger" variant="solid">
-                              <Icon iconName="alertCircle" />
-                            </Badge>
-                          </Show>
-                          <Show when={run.id === instanceState.pinnedRunId}>
-                            <PinnedBadge />
-                          </Show>
-                          <Show when={run.attachedProducts.length > 0}>
-                            <Badge>{run.attachedProducts.length}</Badge>
-                          </Show>
-                        </div>
-                        <div class="ui-text-caption">
-                          {new Date(run.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    )}
-                  </Show>
-                )}
-              />
-            </div>
-          }
+        <Show
+          when={selectedRun()}
+          keyed
+          fallback={<EmptyState iconName="package" title={emptyMessage()} />}
         >
-          <Show
-            when={selectedRun()}
-            keyed
-            fallback={<EmptyState iconName="package" title={emptyMessage()} />}
-          >
-            {(run) => (
-              <RunCatalogDetailPane
-                run={run}
-                liveProgress={liveProgress()[run.id]}
-                latestRLine={(moduleId) => rLogs[`${run.id}|${moduleId}`]}
-                openEditor={openEditor}
-              />
-            )}
-          </Show>
-        </FrameLeftResizable>
-      </FrameTop>
-    </EditorWrapper>
+          {(run) => (
+            <RunCatalogDetailPane
+              run={run}
+              liveProgress={liveProgress()[run.id]}
+              latestRLine={(moduleId) => rLogs[`${run.id}|${moduleId}`]}
+              openEditor={openShellEditor}
+            />
+          )}
+        </Show>
+      </FrameLeftResizable>
+    </FrameTop>
   );
 }

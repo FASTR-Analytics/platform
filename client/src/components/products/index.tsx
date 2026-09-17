@@ -14,7 +14,6 @@ import {
   createButtonAction,
   createDeleteAction,
   createSelectionController,
-  getEditorWrapper,
   getFirstString,
   openAlert,
   openComponent,
@@ -39,6 +38,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import {
   _PRODUCT_QUERY_PARAM,
+  openShellEditor,
   pendingEditorOpen,
   productsOpenFolder,
   productsSortMode,
@@ -78,8 +78,6 @@ const _MAX_UNCOLLAPSED_ANCESTORS = 2;
 // folder's sub-folders and products and nothing else, and the path back to the
 // root is derived by walking `parentId`.
 export function Products() {
-  const { openEditor: openProductEditor, EditorWrapper: ProductEditorWrapper } =
-    getEditorWrapper();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchText, setSearchText] = createSignal("");
 
@@ -87,7 +85,7 @@ export function Products() {
     // The editors take the product id and read label, package and scope LIVE
     // from the T1 row (D16); nothing about the pair is snapshotted here. The
     // copilot host is the one mount site (D15): one copilot per open product.
-    await openProductEditor({
+    await openShellEditor({
       element: ProductCopilotHost,
       props: {
         productId: product.id,
@@ -637,173 +635,171 @@ export function Products() {
   }
 
   return (
-    <ProductEditorWrapper>
-      <FrameTop
-        panelChildren={
-          <HeadingBar
-            data-tour="products-header"
-            heading={heading()}
-            subheading={
-              isSearching()
-                ? t3({
-                    en: `${matchCount()} results`,
-                    fr: `${matchCount()} résultats`,
-                    pt: `${matchCount()} resultados`,
-                  })
+    <FrameTop
+      panelChildren={
+        <HeadingBar
+          data-tour="products-header"
+          heading={heading()}
+          subheading={
+            isSearching()
+              ? t3({
+                  en: `${matchCount()} results`,
+                  fr: `${matchCount()} résultats`,
+                  pt: `${matchCount()} resultados`,
+                })
+              : undefined
+          }
+          onBack={
+            isSearching()
+              ? () => setSearchText("")
+              : location() !== null
+                ? goToParent
                 : undefined
-            }
-            onBack={
-              isSearching()
-                ? () => setSearchText("")
-                : location() !== null
-                  ? goToParent
-                  : undefined
-            }
-            searchText={searchText()}
-            setSearchText={setSearchText}
-            centerChildren={
-              <div class="ui-gap-sm flex items-center">
-                <ButtonGroup
-                  data-tour="products-type-filter"
-                  value={productsTypeFilter() ?? _ALL_TYPES}
-                  onChange={(v) =>
-                    setProductsTypeFilter(
-                      v === undefined || v === _ALL_TYPES
-                        ? null
-                        : (v as ProductType),
-                    )
-                  }
-                  items={typeFilterItems()}
-                />
-                <SortControl
-                  data-tour="products-sort"
-                  value={productsSortMode()}
-                  onChange={setProductsSortMode}
-                />
-                <ButtonGroup
-                  data-tour="products-view-mode"
-                  value={productsViewMode()}
-                  onChange={(v) =>
-                    setProductsViewMode(v === "list" ? "list" : "grid")
-                  }
-                  items={[
-                    {
-                      id: "grid",
-                      label: "",
-                      iconName: "layoutGrid",
-                      labelText: t3({
-                        en: "Grid view",
-                        fr: "Vue en grille",
-                        pt: "Vista em grelha",
-                      }),
-                    },
-                    {
-                      id: "list",
-                      label: "",
-                      iconName: "clearAll",
-                      labelText: t3({
-                        en: "List view",
-                        fr: "Vue en liste",
-                        pt: "Vista em lista",
-                      }),
-                    },
-                  ]}
-                />
-              </div>
-            }
-          >
-            <Show when={canEdit()}>
-              <div class="ui-gap-sm flex items-center">
-                <Button
-                  data-tour="products-new-folder"
-                  iconName="plus"
-                  outline
-                  onClick={() =>
-                    void openComponent({
-                      element: EditFolderModal,
-                      props: { folder: undefined, parentId: location() },
-                    })
-                  }
-                >
-                  {t3({
-                    en: "New folder",
-                    fr: "Nouveau dossier",
-                    pt: "Nova pasta",
-                  })}
-                </Button>
-                {createButtons}
-              </div>
-            </Show>
-          </HeadingBar>
-        }
-      >
-        <Switch>
-          <Match when={productsViewMode() === "grid"}>
-            <div
-              class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-              data-tour="products-items"
-              onClick={() => selection.clear()}
-            >
-              <For each={visibleFolders()}>
-                {(folder) => (
-                  <FolderCard
-                    folder={folder}
-                    folderCount={countsForFolder(folder.id).folderCount}
-                    productCount={countsForFolder(folder.id).productCount}
-                    searchPath={folderSearchPath(folder)}
-                    onOpen={() => openFolder(folder.id)}
-                    onMenu={(e) => handleFolderMenu(e, folder)}
-                  />
-                )}
-              </For>
-              <For each={visibleProducts()} fallback={emptyState()}>
-                {(product) => (
-                  <ProductCard
-                    product={product}
-                    selected={selection.isSelected(product.id)}
-                    searchPath={productSearchPath(product)}
-                    onSelectToggle={(e) => selection.handleClick(product.id, e)}
-                    onOpen={(e) => {
-                      e?.stopPropagation();
-                      selection.handleClick(product.id, e, () =>
-                        openProduct(product),
-                      );
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      handleProductMenu(e, product);
-                    }}
-                  />
-                )}
-              </For>
+          }
+          searchText={searchText()}
+          setSearchText={setSearchText}
+          centerChildren={
+            <div class="ui-gap-sm flex items-center">
+              <ButtonGroup
+                data-tour="products-type-filter"
+                value={productsTypeFilter() ?? _ALL_TYPES}
+                onChange={(v) =>
+                  setProductsTypeFilter(
+                    v === undefined || v === _ALL_TYPES
+                      ? null
+                      : (v as ProductType),
+                  )
+                }
+                items={typeFilterItems()}
+              />
+              <SortControl
+                data-tour="products-sort"
+                value={productsSortMode()}
+                onChange={setProductsSortMode}
+              />
+              <ButtonGroup
+                data-tour="products-view-mode"
+                value={productsViewMode()}
+                onChange={(v) =>
+                  setProductsViewMode(v === "list" ? "list" : "grid")
+                }
+                items={[
+                  {
+                    id: "grid",
+                    label: "",
+                    iconName: "layoutGrid",
+                    labelText: t3({
+                      en: "Grid view",
+                      fr: "Vue en grille",
+                      pt: "Vista em grelha",
+                    }),
+                  },
+                  {
+                    id: "list",
+                    label: "",
+                    iconName: "clearAll",
+                    labelText: t3({
+                      en: "List view",
+                      fr: "Vue en liste",
+                      pt: "Vista em lista",
+                    }),
+                  },
+                ]}
+              />
             </div>
-          </Match>
-          <Match when={productsViewMode() === "list"}>
-            <ListView
-              folders={visibleFolders()}
-              products={visibleProducts()}
-              searching={isSearching()}
-              pathLabels={pathLabels()}
-              sortMode={productsSortMode()}
-              onSortMode={setProductsSortMode}
-              isSelected={(id) => selection.isSelected(id)}
-              onToggleSelect={(id) => selection.toggle(id)}
-              onRowClick={(product, e) => {
-                selection.handleClick(product.id, e, () =>
-                  openProduct(product),
-                );
-              }}
-              onRowOpen={(product) => void openProduct(product)}
-              onOpenFolder={openFolder}
-              onProductMenu={handleProductMenu}
-              onFolderMenu={handleFolderMenu}
-              folderCounts={countsForFolder}
-              onBackgroundClick={() => selection.clear()}
-              fallback={emptyState()}
-            />
-          </Match>
-        </Switch>
-      </FrameTop>
-    </ProductEditorWrapper>
+          }
+        >
+          <Show when={canEdit()}>
+            <div class="ui-gap-sm flex items-center">
+              <Button
+                data-tour="products-new-folder"
+                iconName="plus"
+                outline
+                onClick={() =>
+                  void openComponent({
+                    element: EditFolderModal,
+                    props: { folder: undefined, parentId: location() },
+                  })
+                }
+              >
+                {t3({
+                  en: "New folder",
+                  fr: "Nouveau dossier",
+                  pt: "Nova pasta",
+                })}
+              </Button>
+              {createButtons}
+            </div>
+          </Show>
+        </HeadingBar>
+      }
+    >
+      <Switch>
+        <Match when={productsViewMode() === "grid"}>
+          <div
+            class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
+            data-tour="products-items"
+            onClick={() => selection.clear()}
+          >
+            <For each={visibleFolders()}>
+              {(folder) => (
+                <FolderCard
+                  folder={folder}
+                  folderCount={countsForFolder(folder.id).folderCount}
+                  productCount={countsForFolder(folder.id).productCount}
+                  searchPath={folderSearchPath(folder)}
+                  onOpen={() => openFolder(folder.id)}
+                  onMenu={(e) => handleFolderMenu(e, folder)}
+                />
+              )}
+            </For>
+            <For each={visibleProducts()} fallback={emptyState()}>
+              {(product) => (
+                <ProductCard
+                  product={product}
+                  selected={selection.isSelected(product.id)}
+                  searchPath={productSearchPath(product)}
+                  onSelectToggle={(e) => selection.handleClick(product.id, e)}
+                  onOpen={(e) => {
+                    e?.stopPropagation();
+                    selection.handleClick(product.id, e, () =>
+                      openProduct(product),
+                    );
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    handleProductMenu(e, product);
+                  }}
+                />
+              )}
+            </For>
+          </div>
+        </Match>
+        <Match when={productsViewMode() === "list"}>
+          <ListView
+            folders={visibleFolders()}
+            products={visibleProducts()}
+            searching={isSearching()}
+            pathLabels={pathLabels()}
+            sortMode={productsSortMode()}
+            onSortMode={setProductsSortMode}
+            isSelected={(id) => selection.isSelected(id)}
+            onToggleSelect={(id) => selection.toggle(id)}
+            onRowClick={(product, e) => {
+              selection.handleClick(product.id, e, () =>
+                openProduct(product),
+              );
+            }}
+            onRowOpen={(product) => void openProduct(product)}
+            onOpenFolder={openFolder}
+            onProductMenu={handleProductMenu}
+            onFolderMenu={handleFolderMenu}
+            folderCounts={countsForFolder}
+            onBackgroundClick={() => selection.clear()}
+            fallback={emptyState()}
+          />
+        </Match>
+      </Switch>
+    </FrameTop>
   );
 }

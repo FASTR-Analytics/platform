@@ -1,6 +1,6 @@
 # PLAN: side-rail navigation, full-page Back views, flush heading bars
 
-Status: OPEN. Rulings agreed (Tim, 2026-09-17). Not started.
+Status: OPEN. Rulings agreed (Tim, 2026-09-17). In progress.
 
 The instance shell's top `ButtonGroup` nav becomes a collapsible side rail
 (`FrameLeft` + vertical `TabsNavigation`), the header keeps only the instance
@@ -9,7 +9,7 @@ a Back button opens through one shell-level editor wrapper that covers the
 header and the rail. Every heading bar in the app becomes flush; `tonal`
 disappears from the client.
 
-**Next step: Do 1**
+**Next step: Review 1**
 
 Branch: `version2`.
 
@@ -339,3 +339,7 @@ reverse order; no data, cache or schema changes are involved, and the
 | When | Step | Row |
 | --- | --- | --- |
 | 2026-09-17 | 0 | Plan written. Ruling 4 is proposed, not heard. |
+| 2026-09-17 | 1 | `TourCatalogueEntry.unavailableReason` is now optional: the two rows whose only reason was `reasonCloseEditor` (products-intro, instance-welcome) are always available and carry none. `tour_catalogue_modal.tsx` reads it with `?.`, the one prop change the step allowed. |
+| 2026-09-17 | 1 | The header carries `border-b` (Tim, mid-step). |
+| 2026-09-17 | 1 | `./run` was not started a second time: the dev server and Vite were already up on 8000 and 3000. Vite transformed every changed module without error. |
+| 2026-09-17 | 1 | Step 1 built. |

@@ -12,14 +12,14 @@ import type { WhatsNewPost } from "lib";
 import {
   AlertProvider,
   Button,
-  ButtonGroup,
+  FrameLeft,
   FrameTop,
   Icon,
   MenuTriggerWrapper,
   PopoverMenuProvider,
+  TabsNavigation,
   TooltipProvider,
   openComponent,
-  type IconName,
   type ListItem,
   type MenuItem,
 } from "panther";
@@ -37,6 +37,11 @@ import { Products } from "~/components/products";
 import { InstanceResultsPackages } from "~/components/instance_results_packages";
 import { InstanceUsers } from "~/components/instance/instance_users";
 import { instanceState } from "~/state/instance/t1_store";
+import {
+  ShellEditorWrapper,
+  navCollapsed,
+  setNavCollapsed,
+} from "~/state/t4_ui";
 import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
 import { ProfileForm } from "./profile";
@@ -53,14 +58,10 @@ function canConfigureData(): boolean {
   );
 }
 
-// One gated, ordered list; the compact (icon-only) nav is a projection of it
-// so order and permission gates cannot drift between the two widths.
-function wideNavItems(): {
-  id: InstanceTab;
-  label: string;
-  iconName: IconName;
-}[] {
-  const items: { id: InstanceTab; label: string; iconName: IconName }[] = [
+// One gated, ordered list for the rail; the tab derivation below applies the
+// same gates.
+function navItems(): ListItem<InstanceTab>[] {
+  const items: ListItem<InstanceTab>[] = [
     // First and default (PLAN_PRODUCTS_RESTRUCTURE D17).
     {
       id: "products",
@@ -114,15 +115,6 @@ function wideNavItems(): {
     });
   }
   return items;
-}
-
-function compactNavItems(): ListItem<InstanceTab>[] {
-  return wideNavItems().map((item) => ({
-    id: item.id,
-    label: "",
-    labelText: item.label,
-    iconName: item.iconName,
-  }));
 }
 
 type Props = {
@@ -210,211 +202,216 @@ export default function Instance(p: Props) {
 
   return (
     <>
-      <FrameTop
-        panelChildren={
-          <div class="ui-pad ui-gap bg-base-100 text-base-content flex items-center">
-            <div class="flex flex-0 items-center">
-              <div class="font-700 border-r pr-4 text-2xl text-nowrap antialiased">
-                {instanceState.instanceName}
-              </div>
-              <div class="w-24 flex-none pl-4">
-                <img src="/images/logo.png" class="h-4 w-24 object-contain" />
-              </div>
-            </div>
-            <Show when={instanceState.currentUserApproved}>
-              <div class="flex flex-1 justify-center xl:hidden">
-                <ButtonGroup
-                  data-tour="instance-nav"
-                  value={tab()}
-                  onChange={setTab}
-                  items={compactNavItems()}
-                />
-              </div>
-              <div class="hidden flex-1 justify-center xl:flex">
-                <ButtonGroup
-                  data-tour="instance-nav"
-                  value={tab()}
-                  onChange={setTab}
-                  items={wideNavItems()}
-                />
-              </div>
-            </Show>
-            <div class="ui-gap-sm flex flex-0 items-center justify-end">
-              <Button intent="base-100" onClick={openTheme}>
-                {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
-              </Button>
-              <MenuTriggerWrapper
-                data-tour="instance-topbar-language"
-                items={
-                  [
-                    {
-                      label: "English",
-                      onClick: () => {
-                        localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                        if (getLanguage() === "en") return;
-                        window.location.reload();
-                      },
-                    },
-                    {
-                      label: "Français",
-                      onClick: () => {
-                        localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                        if (getLanguage() === "fr") return;
-                        window.location.reload();
-                      },
-                    },
-                    {
-                      label: "Português",
-                      onClick: () => {
-                        localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
-                        if (getLanguage() === "pt") return;
-                        window.location.reload();
-                      },
-                    },
-                  ] satisfies MenuItem[]
-                }
-                position="bottom-end"
-              >
-                <Button intent="base-100">
-                  {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
-                </Button>
-              </MenuTriggerWrapper>
-              <Show
-                when={
-                  instanceState.currentUserApproved &&
-                  whatsNewPostsForCurrentUser().length > 0
-                }
-              >
-                <div class="relative" data-tour="instance-topbar-whats-new">
-                  <Button
-                    onClick={openWhatsNewFeed}
-                    iconName="bell"
-                    intent="base-100"
-                  />
-                  <Show when={whatsNewHasUnread()}>
-                    <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
-                  </Show>
+      <ShellEditorWrapper>
+        <FrameTop
+          panelChildren={
+            <div class="ui-pad ui-gap bg-base-100 text-base-content flex items-center justify-between border-b">
+              <div class="flex flex-0 items-center">
+                <div class="font-700 border-r pr-4 text-2xl text-nowrap antialiased">
+                  {instanceState.instanceName}
                 </div>
-              </Show>
-              <Show when={instanceState.currentUserApproved}>
+                <div class="w-24 flex-none pl-4">
+                  <img src="/images/logo.png" class="h-4 w-24 object-contain" />
+                </div>
+              </div>
+              <div class="ui-gap-sm flex flex-0 items-center justify-end">
+                <Button intent="base-100" onClick={openTheme}>
+                  {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
+                </Button>
                 <MenuTriggerWrapper
-                  data-tour="instance-topbar-help"
-                  items={() => {
-                    const items: MenuItem[] = [];
-                    items.push({
-                      label: t3({
-                        en: "Guided tours",
-                        fr: "Visites guidées",
-                        pt: "Visitas guiadas",
-                      }),
-                      icon: "slideshow",
-                      onClick: () => void openTours(),
-                    });
-                    items.push({
-                      label: t3({
-                        en: "Ask for help",
-                        fr: "Demander de l'aide",
-                        pt: "Pedir ajuda",
-                      }),
-                      icon: "lifebuoy",
-                      onClick: () => void openFeedback("help"),
-                    });
-                    items.push({
-                      label: t3({
-                        en: "Send feedback",
-                        fr: "Envoyer un commentaire",
-                        pt: "Enviar comentários",
-                      }),
-                      icon: "pencil",
-                      onClick: () => void openFeedback(),
-                    });
-                    items.push({
-                      label: t3({
-                        en: "Documentation",
-                        fr: "Documentation",
-                        pt: "Documentação",
-                      }),
-                      icon: "document",
-                      onClick: () =>
-                        window.open("https://fastr-analytics.org", "_blank"),
-                    });
-                    return items;
-                  }}
+                  data-tour="instance-topbar-language"
+                  items={
+                    [
+                      {
+                        label: "English",
+                        onClick: () => {
+                          localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
+                          if (getLanguage() === "en") return;
+                          window.location.reload();
+                        },
+                      },
+                      {
+                        label: "Français",
+                        onClick: () => {
+                          localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
+                          if (getLanguage() === "fr") return;
+                          window.location.reload();
+                        },
+                      },
+                      {
+                        label: "Português",
+                        onClick: () => {
+                          localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
+                          if (getLanguage() === "pt") return;
+                          window.location.reload();
+                        },
+                      },
+                    ] satisfies MenuItem[]
+                  }
                   position="bottom-end"
                 >
                   <Button intent="base-100">
-                    {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                    {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
                   </Button>
                 </MenuTriggerWrapper>
-                <Button
-                  onClick={openInstanceMeta}
-                  iconName="versions"
-                  intent="base-100"
-                />
-              </Show>
-              <div
-                class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
-                data-tour="instance-topbar-profile"
-                onClick={openProfile}
-              >
-                <span class="text-primary inline-block w-5">
-                  <Icon iconName="userCircle" />
-                </span>
+                <Show
+                  when={
+                    instanceState.currentUserApproved &&
+                    whatsNewPostsForCurrentUser().length > 0
+                  }
+                >
+                  <div class="relative" data-tour="instance-topbar-whats-new">
+                    <Button
+                      onClick={openWhatsNewFeed}
+                      iconName="bell"
+                      intent="base-100"
+                    />
+                    <Show when={whatsNewHasUnread()}>
+                      <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
+                    </Show>
+                  </div>
+                </Show>
+                <Show when={instanceState.currentUserApproved}>
+                  <MenuTriggerWrapper
+                    data-tour="instance-topbar-help"
+                    items={() => {
+                      const items: MenuItem[] = [];
+                      items.push({
+                        label: t3({
+                          en: "Guided tours",
+                          fr: "Visites guidées",
+                          pt: "Visitas guiadas",
+                        }),
+                        icon: "slideshow",
+                        onClick: () => void openTours(),
+                      });
+                      items.push({
+                        label: t3({
+                          en: "Ask for help",
+                          fr: "Demander de l'aide",
+                          pt: "Pedir ajuda",
+                        }),
+                        icon: "lifebuoy",
+                        onClick: () => void openFeedback("help"),
+                      });
+                      items.push({
+                        label: t3({
+                          en: "Send feedback",
+                          fr: "Envoyer un commentaire",
+                          pt: "Enviar comentários",
+                        }),
+                        icon: "pencil",
+                        onClick: () => void openFeedback(),
+                      });
+                      items.push({
+                        label: t3({
+                          en: "Documentation",
+                          fr: "Documentation",
+                          pt: "Documentação",
+                        }),
+                        icon: "document",
+                        onClick: () =>
+                          window.open("https://fastr-analytics.org", "_blank"),
+                      });
+                      return items;
+                    }}
+                    position="bottom-end"
+                  >
+                    <Button intent="base-100">
+                      {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                    </Button>
+                  </MenuTriggerWrapper>
+                  <Button
+                    onClick={openInstanceMeta}
+                    iconName="versions"
+                    intent="base-100"
+                  />
+                </Show>
+                <div
+                  class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
+                  data-tour="instance-topbar-profile"
+                  onClick={openProfile}
+                >
+                  <span class="text-primary inline-block w-5">
+                    <Icon iconName="userCircle" />
+                  </span>
+                </div>
               </div>
-            </div>
-          </div>
-        }
-      >
-        <Show
-          when={instanceState.currentUserApproved}
-          fallback={
-            <div class="ui-pad">
-              {t3({
-                en: "You are not yet approved. Wait for an administrator to add you to the platform.",
-                fr: "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
-                pt: "Ainda não foi aprovado. Aguarde que um administrador o adicione à plataforma.",
-              })}
             </div>
           }
         >
-          <Switch>
-            <Match when={tab() === "products"}>
-              <Products />
-            </Match>
-            <Match when={tab() === "explore"}>
-              <Explore />
-            </Match>
-            <Match
-              when={
-                tab() === "data" &&
-                (instanceState.currentUserIsGlobalAdmin ||
-                  instanceState.currentUserPermissions.can_view_data ||
-                  instanceState.currentUserPermissions.can_configure_data)
+          <Show
+            when={instanceState.currentUserApproved}
+            fallback={
+              <div class="ui-pad">
+                {t3({
+                  en: "You are not yet approved. Wait for an administrator to add you to the platform.",
+                  fr: "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
+                  pt: "Ainda não foi aprovado. Aguarde que um administrador o adicione à plataforma.",
+                })}
+              </div>
+            }
+          >
+            {/* The approval Show sits around FrameLeft, not inside its panel:
+              a Show passed as a prop is a truthy accessor even when it
+              renders nothing, so FrameLeft would draw an empty rail. */}
+            <FrameLeft
+              panelChildren={
+                <TabsNavigation
+                  data-tour="instance-nav"
+                  vertical
+                  collapsible
+                  collapsed={navCollapsed()}
+                  onCollapsedChange={setNavCollapsed}
+                  items={navItems()}
+                  value={tab()}
+                  onChange={setTab}
+                />
               }
             >
-              <InstanceData />
-            </Match>
-            <Match when={tab() === "results_packages" && canConfigureData()}>
-              <InstanceResultsPackages />
-            </Match>
-            <Match when={tab() === "assets"}>
-              <InstanceAssets />
-            </Match>
-            <Match
-              when={
-                (instanceState.currentUserIsGlobalAdmin ||
-                  instanceState.currentUserPermissions.can_configure_users ||
-                  instanceState.currentUserPermissions.can_view_users) &&
-                tab() === "users"
-              }
-            >
-              <InstanceUsers
-                thisLoggedInUserEmail={instanceState.currentUserEmail}
-              />
-            </Match>
-          </Switch>
-        </Show>
-      </FrameTop>
+              <Switch>
+                <Match when={tab() === "products"}>
+                  <Products />
+                </Match>
+                <Match when={tab() === "explore"}>
+                  <Explore />
+                </Match>
+                <Match
+                  when={
+                    tab() === "data" &&
+                    (instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions.can_view_data ||
+                      instanceState.currentUserPermissions.can_configure_data)
+                  }
+                >
+                  <InstanceData />
+                </Match>
+                <Match
+                  when={tab() === "results_packages" && canConfigureData()}
+                >
+                  <InstanceResultsPackages />
+                </Match>
+                <Match when={tab() === "assets"}>
+                  <InstanceAssets />
+                </Match>
+                <Match
+                  when={
+                    (instanceState.currentUserIsGlobalAdmin ||
+                      instanceState.currentUserPermissions
+                        .can_configure_users ||
+                      instanceState.currentUserPermissions.can_view_users) &&
+                    tab() === "users"
+                  }
+                >
+                  <InstanceUsers
+                    thisLoggedInUserEmail={instanceState.currentUserEmail}
+                  />
+                </Match>
+              </Switch>
+            </FrameLeft>
+          </Show>
+        </FrameTop>
+      </ShellEditorWrapper>
       <AlertProvider />
       <PopoverMenuProvider />
       <TooltipProvider />
