@@ -10,21 +10,31 @@ import {
   DEFAULT_THEME,
   setTheme,
   theme,
+  THEME_DENSITIES,
   THEME_RADII,
+  THEME_TEXT_SCALES,
   type Theme,
   type ThemeDarkPrimary,
-  type ThemeDensity,
   type ThemeInk,
   type ThemePrimary,
   type ThemeRamp,
   type ThemeStatus,
-  type ThemeTextScale,
 } from "~/state/t4_theme";
 
 type Item<T extends string> = { id: T; label: string };
 
 function labelOf<T extends string>(items: Item<T>[], id: T): string {
   return items.find((i) => i.id === id)?.label ?? id;
+}
+
+// Numeric knobs ride the ButtonGroup's string ids: the label is the number
+// itself, and onChange maps the id back to the step.
+const percent = (v: number) => `${Math.round(v * 100)}%`;
+function numericItems(steps: readonly number[], label: (v: number) => string) {
+  return steps.map((v) => ({ id: String(v), label: label(v) }));
+}
+function stepOf<T extends number>(steps: readonly T[], id: string | undefined) {
+  return steps.find((v) => String(v) === id);
 }
 
 // Every change applies immediately, so the page behind the modal is the
@@ -59,10 +69,19 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
     { id: "navy", label: t3({ en: "Navy", fr: "Marine", pt: "Azul-marinho" }) },
   ];
   const inkItems: Item<ThemeInk>[] = [
-    { id: "neutral", label: t3({ en: "Neutral", fr: "Neutre", pt: "Neutro" }) },
+    { id: "black", label: t3({ en: "Black", fr: "Noir", pt: "Preto" }) },
     {
-      id: "deep-green",
-      label: t3({ en: "Deep green", fr: "Vert profond", pt: "Verde profundo" }),
+      id: "near-black",
+      label: t3({ en: "Near black", fr: "Presque noir", pt: "Quase preto" }),
+    },
+    {
+      id: "charcoal",
+      label: t3({ en: "Charcoal", fr: "Anthracite", pt: "Carvão" }),
+    },
+    { id: "soft", label: t3({ en: "Soft", fr: "Doux", pt: "Suave" }) },
+    {
+      id: "green-tinted",
+      label: t3({ en: "Green-tinted", fr: "Teinté vert", pt: "Esverdeado" }),
     },
   ];
   const statusItems: Item<ThemeStatus>[] = [
@@ -83,28 +102,6 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
     },
     { id: "sky", label: t3({ en: "Sky", fr: "Ciel", pt: "Céu" }) },
   ];
-  const densityItems: Item<ThemeDensity>[] = [
-    {
-      id: "compact",
-      label: t3({ en: "Compact", fr: "Compact", pt: "Compacto" }),
-    },
-    {
-      id: "default",
-      label: t3({ en: "Default", fr: "Par défaut", pt: "Padrão" }),
-    },
-    {
-      id: "comfortable",
-      label: t3({ en: "Comfortable", fr: "Confortable", pt: "Confortável" }),
-    },
-  ];
-  const textScaleItems: Item<ThemeTextScale>[] = [
-    { id: "small", label: t3({ en: "Small", fr: "Petit", pt: "Pequeno" }) },
-    {
-      id: "default",
-      label: t3({ en: "Default", fr: "Par défaut", pt: "Padrão" }),
-    },
-    { id: "large", label: t3({ en: "Large", fr: "Grand", pt: "Grande" }) },
-  ];
 
   const summary = () =>
     [
@@ -114,8 +111,8 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
       labelOf(statusItems, theme().status),
       labelOf(darkPrimaryItems, theme().darkPrimary),
       `${theme().radius} px`,
-      labelOf(densityItems, theme().density),
-      labelOf(textScaleItems, theme().textScale),
+      percent(theme().density),
+      percent(theme().textScale),
     ].join(" / ");
 
   return (
@@ -139,6 +136,30 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
       }
     >
       <div class="ui-spy">
+        <ButtonGroup
+          label={t3({
+            en: "Light or dark",
+            fr: "Clair ou sombre",
+            pt: "Claro ou escuro",
+          })}
+          items={[
+            {
+              id: "system" as const,
+              label: t3({ en: "System", fr: "Système", pt: "Sistema" }),
+            },
+            {
+              id: "light" as const,
+              label: t3({ en: "Light", fr: "Clair", pt: "Claro" }),
+            },
+            {
+              id: "dark" as const,
+              label: t3({ en: "Dark", fr: "Sombre", pt: "Escuro" }),
+            },
+          ]}
+          value={schemePref()}
+          onChange={(v) => v && setScheme(v)}
+          fullWidth
+        />
         <ButtonGroup
           label={t3({
             en: "Surface ramp",
@@ -185,30 +206,6 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
         />
         <ButtonGroup
           label={t3({
-            en: "Light or dark",
-            fr: "Clair ou sombre",
-            pt: "Claro ou escuro",
-          })}
-          items={[
-            {
-              id: "system" as const,
-              label: t3({ en: "System", fr: "Système", pt: "Sistema" }),
-            },
-            {
-              id: "light" as const,
-              label: t3({ en: "Light", fr: "Clair", pt: "Claro" }),
-            },
-            {
-              id: "dark" as const,
-              label: t3({ en: "Dark", fr: "Sombre", pt: "Escuro" }),
-            },
-          ]}
-          value={schemePref()}
-          onChange={(v) => v && setScheme(v)}
-          fullWidth
-        />
-        <ButtonGroup
-          label={t3({
             en: "Dark mode primary",
             fr: "Couleur principale en mode sombre",
             pt: "Cor principal no modo escuro",
@@ -224,21 +221,16 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
             fr: "Arrondi des coins",
             pt: "Arredondamento dos cantos",
           })}
-          items={THEME_RADII.map((r) => ({ id: String(r), label: `${r} px` }))}
+          items={numericItems(THEME_RADII, (v) => `${v} px`)}
           value={String(theme().radius)}
-          onChange={(v) =>
-            update(
-              "radius",
-              THEME_RADII.find((r) => String(r) === v),
-            )
-          }
+          onChange={(v) => update("radius", stepOf(THEME_RADII, v))}
           fullWidth
         />
         <ButtonGroup
           label={t3({ en: "Density", fr: "Densité", pt: "Densidade" })}
-          items={densityItems}
-          value={theme().density}
-          onChange={(v) => update("density", v)}
+          items={numericItems(THEME_DENSITIES, percent)}
+          value={String(theme().density)}
+          onChange={(v) => update("density", stepOf(THEME_DENSITIES, v))}
           fullWidth
         />
         <ButtonGroup
@@ -247,9 +239,9 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
             fr: "Taille du texte",
             pt: "Tamanho do texto",
           })}
-          items={textScaleItems}
-          value={theme().textScale}
-          onChange={(v) => update("textScale", v)}
+          items={numericItems(THEME_TEXT_SCALES, percent)}
+          value={String(theme().textScale)}
+          onChange={(v) => update("textScale", stepOf(THEME_TEXT_SCALES, v))}
           fullWidth
         />
         <div class="text-base-content-muted text-sm">{summary()}</div>

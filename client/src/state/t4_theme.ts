@@ -1,11 +1,12 @@
 import { createSignal } from "solid-js";
 
 // Reskin prototype: a per-device look applied as inline custom properties on
-// <html>, which beat every stylesheet rule. Colors are always written, as
-// light-dark() pairs built from the GFF brand guidelines
-// (ENG_Branding Guidelines_Secretariat.pdf); rounding, density and text scale
-// write nothing at their default step, so those stay what _fixed.css declares.
-// Canvas figures keep their fixed key colors; only the HTML UI follows.
+// <html>, which beat every stylesheet rule. Every knob is a short gradient of
+// sensible values, not a catalogue of contrasts: colors are light-dark() pairs
+// drawn only from the GFF brand guidelines (ENG_Branding
+// Guidelines_Secretariat.pdf); rounding, density and text scale write nothing
+// at their default step, so those stay what _fixed.css declares. Canvas
+// figures keep their fixed key colors; only the HTML UI follows.
 
 export const THEME_RAMPS = ["neutral", "tone", "cool"] as const;
 export type ThemeRamp = (typeof THEME_RAMPS)[number];
@@ -19,7 +20,15 @@ export const THEME_PRIMARIES = [
 ] as const;
 export type ThemePrimary = (typeof THEME_PRIMARIES)[number];
 
-export const THEME_INKS = ["neutral", "deep-green"] as const;
+// Body-text ink, darkest to softest, then the brand-tinted near-black. Dark
+// halves mirror the gradient in white.
+export const THEME_INKS = [
+  "black",
+  "near-black",
+  "charcoal",
+  "soft",
+  "green-tinted",
+] as const;
 export type ThemeInk = (typeof THEME_INKS)[number];
 
 export const THEME_STATUSES = ["kit", "brand-danger"] as const;
@@ -28,13 +37,16 @@ export type ThemeStatus = (typeof THEME_STATUSES)[number];
 export const THEME_DARK_PRIMARIES = ["teal", "sky"] as const;
 export type ThemeDarkPrimary = (typeof THEME_DARK_PRIMARIES)[number];
 
-export const THEME_RADII = [0, 2, 4, 8, 12] as const;
+// Fine steps, denser below the default: the reskin is expected to tighten
+// rather than loosen. Density and text scale are factors over the kit's rem
+// tables; 1 writes nothing.
+export const THEME_RADII = [0, 1, 2, 3, 4, 6, 8] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
 
-export const THEME_DENSITIES = ["compact", "default", "comfortable"] as const;
+export const THEME_DENSITIES = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3] as const;
 export type ThemeDensity = (typeof THEME_DENSITIES)[number];
 
-export const THEME_TEXT_SCALES = ["small", "default", "large"] as const;
+export const THEME_TEXT_SCALES = [0.85, 0.9, 0.95, 1, 1.05, 1.1] as const;
 export type ThemeTextScale = (typeof THEME_TEXT_SCALES)[number];
 
 export type Theme = {
@@ -51,12 +63,12 @@ export type Theme = {
 export const DEFAULT_THEME: Theme = {
   ramp: "neutral",
   primary: "current",
-  ink: "neutral",
+  ink: "charcoal",
   status: "kit",
   darkPrimary: "teal",
   radius: 4,
-  density: "default",
-  textScale: "default",
+  density: 1,
+  textScale: 1,
 };
 
 // Every ramp pins its hover and active states as literals rather than
@@ -176,8 +188,11 @@ const RAMP_TOKENS: [keyof RampHalf, string][] = [
 ];
 
 const INKS: Record<ThemeInk, Halves<string>> = {
-  neutral: { light: "#2a2a2a", dark: "#fafafa" },
-  "deep-green": { light: "#00413c", dark: "#fef7f1" },
+  black: { light: "#111111", dark: "#ffffff" },
+  "near-black": { light: "#1f1f1f", dark: "#fafafa" },
+  charcoal: { light: "#2a2a2a", dark: "#f4f4f4" },
+  soft: { light: "#383838", dark: "#ebebeb" },
+  "green-tinted": { light: "#1c2d2a", dark: "#fef7f1" },
 };
 
 type Fill = { color: string; content: string };
@@ -247,11 +262,6 @@ const DENSITY_BASE_REM: Record<string, number> = {
   "--ui-form-pad-sm-x": 0.5,
   "--ui-form-pad-sm-y": 0.25,
 };
-const DENSITY_FACTOR: Record<ThemeDensity, number> = {
-  compact: 0.75,
-  default: 1,
-  comfortable: 1.25,
-};
 
 const TEXT_BASE_REM: Record<string, number> = {
   "--text-xs": 0.75,
@@ -262,11 +272,6 @@ const TEXT_BASE_REM: Record<string, number> = {
   "--text-2xl": 1.5,
   "--text-3xl": 1.875,
   "--text-5xl": 3,
-};
-const TEXT_FACTOR: Record<ThemeTextScale, number> = {
-  small: 0.9,
-  default: 1,
-  large: 1.1,
 };
 
 type ThemeVars = Record<string, string | null>;
@@ -313,8 +318,8 @@ function scaledRem(
 function themeVars(t: Theme): ThemeVars {
   const vars = colorVars(t);
   vars["--radius"] = t.radius === DEFAULT_THEME.radius ? null : `${t.radius}px`;
-  scaledRem(vars, DENSITY_BASE_REM, DENSITY_FACTOR[t.density]);
-  scaledRem(vars, TEXT_BASE_REM, TEXT_FACTOR[t.textScale]);
+  scaledRem(vars, DENSITY_BASE_REM, t.density);
+  scaledRem(vars, TEXT_BASE_REM, t.textScale);
   return vars;
 }
 

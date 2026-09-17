@@ -236,8 +236,8 @@ lesson, SYSTEM_09).
 ## Theme prototype (`state/t4_theme.ts`, `components/theme_modal.tsx`)
 
 The reskin preview: a `Theme` of five color knobs (surface ramp, primary, text
-ink, status colors, dark-mode primary) plus corner radius, density and text
-scale, stored as JSON under `localStorage["theme"]` and applied at module scope
+ink, status colors, dark-mode primary) plus corner radius, density and text scale,
+each a short gradient of sensible steps denser below the default, stored as JSON under `localStorage["theme"]` and applied at module scope
 as inline custom properties on `<html>`, which beat every stylesheet rule. The
 color knobs draw only from the GFF brand guidelines (the PDF at the repo root;
 GFF Teal is excluded as a light primary because white on it reaches only
@@ -245,14 +245,15 @@ GFF Teal is excluded as a light primary because white on it reaches only
 its six hover and active tokens as literals rather than trusting the kit's
 mix-toward-ink formula, which already makes a pressed base-100 darker than a
 resting base-200. The literals were generated in oklab and verified for
-lightness ordering and contrast across every combination. Radius, density and
-text scale write nothing at their default step, so those stay what `_fixed.css`
-declares; density and text scale are one factor over the kit's rem tables,
+lightness ordering and contrast across every combination. Text ink is a gradient of near-blacks (black to soft, plus a green-tinted one),
+mirrored in white for the dark halves. Radius, density and text scale write
+nothing at their default step, so those stay what `_fixed.css` declares;
+density and text scale are percentage factors over the kit's rem tables,
 mirrored in the module. Unlike the other T4 prefs the stored value is validated
 on read, because it feeds CSS rather than a comparison. The Theme button in the
 instance top bar opens `ThemeModal`, where every change applies immediately,
-the scheme toggle from the profile modal is repeated, and a summary line names
-the current combination. Canvas figures keep their fixed key colors.
+the scheme toggle from the profile modal sits at the top as the mode rather
+than a theme knob, and a summary line names the current combination. Canvas figures keep their fixed key colors.
 
 ## Connection monitoring (`state/t4_connection_monitor.ts`)
 
