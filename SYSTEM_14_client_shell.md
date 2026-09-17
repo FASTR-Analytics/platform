@@ -151,8 +151,8 @@ is recognised.
 
 Everything else is a **signal-driven switchboard**, never the URL:
 `components/instance/index.tsx` holds a local `_tab` signal filtered through
-a permission-guarded derivation that selects Products / Explore / Data /
-Results / Assets / Users, in that nav order; Products (S12's
+a permission-guarded derivation that selects Products / Explore / Results /
+Data / Assets / Users, in that nav order; Products (S12's
 `components/products/`) is first and the default, and Explore (S11's
 `components/explore/`, empty until the results explorer plan) needs approval
 only, which the whole nav already requires. The tab id union is `InstanceTab`

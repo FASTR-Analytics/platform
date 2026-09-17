@@ -76,17 +76,6 @@ function navItems(): ListItem<InstanceTab>[] {
       iconName: "chart",
     },
   ];
-  if (
-    instanceState.currentUserIsGlobalAdmin ||
-    instanceState.currentUserPermissions.can_view_data ||
-    instanceState.currentUserPermissions.can_configure_data
-  ) {
-    items.push({
-      id: "data",
-      label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-      iconName: "database",
-    });
-  }
   if (canConfigureData()) {
     items.push({
       id: "results_packages",
@@ -96,6 +85,17 @@ function navItems(): ListItem<InstanceTab>[] {
         pt: "Resultados",
       }),
       iconName: "package",
+    });
+  }
+  if (
+    instanceState.currentUserIsGlobalAdmin ||
+    instanceState.currentUserPermissions.can_view_data ||
+    instanceState.currentUserPermissions.can_configure_data
+  ) {
+    items.push({
+      id: "data",
+      label: t3({ en: "Data", fr: "Données", pt: "Dados" }),
+      iconName: "database",
     });
   }
   items.push({
