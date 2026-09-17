@@ -23,43 +23,31 @@
   --color-running-stripe: #1e4a66;
 }
 
-/* Dark mode — the token layer lives in panther now. _fixed.css re-declares
-   every color token as a light-dark() pair, gated on the data-scheme
+/* Dark mode: the token layer lives in panther. Every _fixed.css color token
+   is a light-dark() pair; which half renders follows the data-scheme
    attribute state/t4_ui.ts sets on <html> (system | light | dark; "system"
-   follows the OS with no JS in the styling path). The old
-   :root[data-theme="dark"] override block, the dark: custom variant, the
-   .bg-base-content.text-base-100 re-inversion hack, the select-option pin
-   (panther ships it, gated on data-scheme), and the JS style overlay for
-   canvas figures (dark_mode_figures.ts) are all gone — tokens, canvas key
-   colors (setKeyColors dark companion) and panther components resolve per
-   scheme on their own. There is no inverted chrome anywhere: every header is
-   a flush or tonal HeadingBar that follows the scheme, so no surface in this
-   app pins its color-scheme.
+   follows the OS with no JS in the styling path). Tokens, canvas key colors
+   (setKeyColors dark companion) and panther components resolve per scheme on
+   their own. There is no inverted chrome anywhere: every header is a flush
+   or tonal HeadingBar that follows the scheme, so no surface in this app pins
+   its color-scheme. Dark-only values below are light-dark() pairs too, so one
+   rule serves both schemes; the exception is .md-dark-adapt, whose light
+   value is an inline var a pair cannot name.
 
    --color-running / --color-running-stripe (in @theme above) stay
-   single-valued on purpose: mid-tone fills that hold on both bases — the
+   single-valued on purpose: mid-tone fills that hold on both bases; the
    shipped dark prototype never varied them. */
 
-/* Roadtrip onboarding tours — z below panther's AlertProvider modals (z-50)
+/* Roadtrip onboarding tours: z below panther's AlertProvider modals (z-50)
    so alerts always stack above an active tour. Popover text rides the app
-   tokens, which resolve per scheme. The dark-only overrides (a base-200
-   popover lifted off the dark base, a heavier scrim) take the same dual gate
-   as .cm-ySelection below. */
+   tokens, which resolve per scheme. On dark the popover is base-200, lifted
+   off the dark base, and the scrim is heavier than roadtrip's 50% default. */
 :root {
   --roadtrip-z: 40;
   --roadtrip-accent: var(--color-primary);
-  --roadtrip-bg: var(--color-base-100);
+  --roadtrip-bg: light-dark(var(--color-base-100), var(--color-base-200));
   --roadtrip-fg: var(--color-base-content);
-}
-:root[data-scheme="dark"] {
-  --roadtrip-bg: var(--color-base-200);
-  --roadtrip-scrim-color: rgb(0 0 0 / 0.65);
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-scheme="system"] {
-    --roadtrip-bg: var(--color-base-200);
-    --roadtrip-scrim-color: rgb(0 0 0 / 0.65);
-  }
+  --roadtrip-scrim-color: light-dark(rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.65));
 }
 
 /* CodeMirror editors (slide text fields, report editor, version diffs) ship
@@ -98,29 +86,19 @@
   background-color: transparent;
 }
 /* Remote collaborators' selection highlights arrive as the PEER's colorLight
-   (their presence color at ~20% alpha, state/instance/collab.ts) — chosen for
+   (their presence color at ~20% alpha, state/instance/collab.ts), chosen for
    light surfaces and nearly invisible over dark ones. The inline
-   background-color can't be re-alphaed from CSS, so layer a translucent
-   light wash on top (background-image stacks above background-color); the
-   identity hue still shows through. Genuinely dark-only compensation, so it
-   needs the dual gate: pinned dark, or system while the OS is dark. */
-:root[data-scheme="dark"] .cm-editor .cm-ySelection {
+   background-color can't be re-alphaed from CSS, so on dark a translucent
+   light wash is layered on top (background-image stacks above
+   background-color); the identity hue still shows through. The wash is
+   transparent on light. */
+:root .cm-editor .cm-ySelection {
   background-image: linear-gradient(
-    rgb(250 250 250 / 0.22),
-    rgb(250 250 250 / 0.22)
+    light-dark(transparent, rgb(250 250 250 / 0.22)),
+    light-dark(transparent, rgb(250 250 250 / 0.22))
   );
-  box-shadow: inset 0 0 0 1px rgb(250 250 250 / 0.45);
+  box-shadow: inset 0 0 0 1px light-dark(transparent, rgb(250 250 250 / 0.45));
   border-radius: 2px;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-scheme="system"] .cm-editor .cm-ySelection {
-    background-image: linear-gradient(
-      rgb(250 250 250 / 0.22),
-      rgb(250 250 250 / 0.22)
-    );
-    box-shadow: inset 0 0 0 1px rgb(250 250 250 / 0.45);
-    border-radius: 2px;
-  }
 }
 
 /* Markdown that passes a DOCUMENT style (the report preview panes with
@@ -129,8 +107,10 @@
    .md-dark-adapt re-points the color vars on descendants (an element's own
    var value beats an ancestor's inline one) while keeping the document
    typography. Markdown with NO style (AI chat) needs no
-   wrapper — its --md-* defaults chain to the app tokens already. Dark-only,
-   dual-gated like .cm-ySelection above. */
+   wrapper: its --md-* defaults chain to the app tokens already. Dark-only,
+   and the light value is the inline var itself, which a light-dark() pair
+   cannot name, so this keeps the dual gate: pinned dark, or system while the
+   OS is dark. */
 :root[data-scheme="dark"] .md-dark-adapt * {
   --md-p-color: var(--color-base-content);
   --md-h1-color: var(--color-base-content);
