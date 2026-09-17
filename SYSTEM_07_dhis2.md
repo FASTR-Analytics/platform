@@ -94,7 +94,7 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | Folder | Goal | Key functions |
 | --- | --- | --- |
 | `common/` | fetcher + retry + validation | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection` |
-| `goal1_org_units_v2/` | org-unit hierarchy metadata | `getOrgUnitMetadata` (levels + counts + roots, parallel), `testDHIS2Connection` |
+| `goal1_org_units_v2/` | org-unit hierarchy metadata and paged units | `getOrgUnitMetadata` (levels + counts + roots, parallel), `getOrgUnitNamesAtLevel`, `pageOrgUnitPathsAtLevel` (one page of units with paths per yield), `testDHIS2Connection` |
 | `goal2_indicators/` | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
 | `goal4_geojson/` | boundary import for maps | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches |
 | `goal5_data_value_sets/` | reported values + metadata id-existence | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel` |
@@ -270,10 +270,10 @@ this system carry en/fr/pt.
 
 - **S5 structure import**: step-1 test connection
   (`testDHIS2Connection`), org-unit level metadata (`getOrgUnitMetadata`),
-  then bulk staging via `stageStructureFromDhis2V2`, which pages
-  `/api/organisationUnits.json` with raw `getDHIS2` calls inline instead
-  of a goal-1 fetcher (the known wart; goal 1 has no paging fetcher to
-  offer it yet).
+  then bulk staging via `stageStructureFromDhis2V2`: parent names from
+  `getOrgUnitNamesAtLevel`, facilities from `pageOrgUnitPathsAtLevel`,
+  whose per-page `dropped` count (units with no id or no path) the stager
+  adds to its invalid-row count.
 - **S5 geojson wizard**: validation, `getOrgUnitMetadata` (level list),
   the metadata/count/heavy fetchers and both session caches.
 - **S5 HMIS indicator manager**: the four `indicators_dhis2` routes.
@@ -311,18 +311,7 @@ this system carry en/fr/pt.
 
 ## Open items
 
-- **Decoupling: split-brained DHIS2 wire types.** `DHIS2PagedResponse`
-  is defined twice with different shapes (generic
-  `goal1_org_units_v2/types.ts` vs pager-only `lib/types/indicators.ts`,
-  which goal 2 uses). (`Dhis2Credentials` now
-  has one home (`lib/types/dhis2.ts`), resolved by PLAN_DHIS2_
-  CREDENTIAL_STORE_CONSOLIDATION.)
 - Classify retries off `DHIS2FetchError.status` instead of message
   substrings, and decide whether the exhaustion error should preserve
   the structured fields.
-- The structure stager's inline org-unit paging (S5 file,
-  `stage_structure_from_dhis2.ts`) belongs behind a goal-1 paging
-  fetcher that doesn't exist yet.
-- Cruft: retire the `goal1_..._v2` suffix (no v1 exists); dead types in
-  `goal1_org_units_v2/types.ts` (`OrgUnitHierarchy`, `ProgressCallback`,
-  `BatchProcessor`, `DHIS2ErrorResponse` have no consumers).
+- Cruft: retire the `goal1_..._v2` suffix (no v1 exists).
