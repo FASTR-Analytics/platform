@@ -192,8 +192,7 @@ export function setupTours(opts: {
   // it tracks, including the Products page clearing `pendingEditorOpen` just
   // before it mounts the editor, so the drop rule reads nothing transient: a
   // replay on a tab page is dropped if the page is not active (the switch was
-  // synchronous, so the tab is denied; the Products-page rows are unavailable
-  // while an editor covers that page), and a replay on a product is dropped
+  // synchronous, so the tab is denied), and a replay on a product is dropped
   // only once T1 is ready and no longer holds that product (a dead id, the
   // Products page's own rule for the open request).
   const pageForTour = new Map(tours.map((t) => [t.tour.id, t.page]));

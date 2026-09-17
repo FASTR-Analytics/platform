@@ -1,7 +1,8 @@
-import { createSignal } from "solid-js";
+import { createSignal, type JSX } from "solid-js";
 import {
   effectiveScheme,
   getEditorWrapper,
+  type OpenEditorProps,
   type SchemePreference,
   setSchemePreference,
 } from "panther";
@@ -26,10 +27,19 @@ export function setNavCollapsed(collapsed: boolean) {
 // frame (header, rail and tab page), so a view opened through
 // `openShellEditor` covers all of it and its Back is the only way out; the
 // rail cannot switch tabs under an open editor. Module level so the frame
-// pages that open views share the instance the shell renders.
-const shellEditor = getEditorWrapper();
-export const openShellEditor = shellEditor.openEditor;
-export const ShellEditorWrapper = shellEditor.EditorWrapper;
+// pages that open views share the instance the shell renders; recreated on
+// each shell mount so a same-tab user switch without a reload cannot
+// resurface the previous user's open view.
+let shellEditor = getEditorWrapper();
+export function openShellEditor<TProps, TReturn>(
+  v: OpenEditorProps<TProps, TReturn>,
+): Promise<TReturn | undefined> {
+  return shellEditor.openEditor(v);
+}
+export function ShellEditorWrapper(p: { children: JSX.Element }) {
+  shellEditor = getEditorWrapper();
+  return shellEditor.EditorWrapper(p);
+}
 
 // ============================================================================
 // Products page
@@ -185,8 +195,8 @@ export const [pendingSlideOpen, setPendingSlideOpen] =
 // page lives in: the manager drops the replay when T1 is ready and no longer
 // holds it (a dead id), the same rule the Products page applies to the open
 // request itself. A replay with no product is dropped as soon as its page is
-// not active: a tab switch is synchronous, and the catalogue offers no
-// Products-page tour while an editor covers that page.
+// not active: a tab switch is synchronous, and the catalogue cannot be opened
+// while a full-page view covers the shell.
 export type PendingTourReplay = { tourId: string; productId?: string };
 export const [pendingTourReplay, setPendingTourReplay] =
   createSignal<PendingTourReplay | null>(null);
