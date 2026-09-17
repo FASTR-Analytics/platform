@@ -11,7 +11,6 @@ import {
   ButtonGroup,
   FrameTop,
   HeadingBar,
-  Icon,
   createButtonAction,
   createDeleteAction,
   createSelectionController,
@@ -482,9 +481,9 @@ export function Products() {
   const currentFolder = () =>
     instanceState.folders.find((f) => f.id === location());
 
-  // The trail for the location row, shown only inside a folder. The root is
-  // an icon rather than the word "Products": the bar above already says it,
-  // and the crumb's job is the one-click jump to the root.
+  // The trail for the location row, shown only inside a folder: the
+  // ancestors, then the current folder. No root crumb: the bar above already
+  // names the page, and the Up button beside the trail reaches the root.
   const breadcrumb = (folder: Folder): JSX.Element => {
     const trail = ancestors(instanceState.folders, folder.id);
     const collapsed = trail.length > _MAX_UNCOLLAPSED_ANCESTORS;
@@ -493,29 +492,19 @@ export function Products() {
         class="ui-gap-sm flex min-w-0 items-center"
         data-tour="products-breadcrumb"
       >
-        <button
-          type="button"
-          class="ui-focusable text-base-content-muted hover:text-base-content inline-block w-4 cursor-pointer"
-          title={productsLabel()}
-          aria-label={productsLabel()}
-          onClick={() => openFolder(null)}
-        >
-          <Icon iconName="presentation" />
-        </button>
         <Show
           when={collapsed}
           fallback={
             <For each={trail}>
               {(ancestor) => (
                 <>
-                  {crumbSeparator()}
                   {crumbButton(ancestor)}
+                  {crumbSeparator()}
                 </>
               )}
             </For>
           }
         >
-          {crumbSeparator()}
           {crumbButton(trail[0])}
           {crumbSeparator()}
           <button
@@ -527,8 +516,8 @@ export function Products() {
           </button>
           {crumbSeparator()}
           {crumbButton(trail[trail.length - 1])}
+          {crumbSeparator()}
         </Show>
-        {crumbSeparator()}
         <div class="ui-gap-sm flex min-w-0 items-center" title={folder.label}>
           <div
             class="h-2.5 w-2.5 flex-none rounded-full"
