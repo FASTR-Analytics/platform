@@ -379,20 +379,11 @@ export function createPagedEditSurface(
   // ── Swapping frames, keeping the caret ────────────────────────────────────
 
   function captureFocus(doc: Document | null | undefined): FocusMemo | undefined {
-    // An island action closed its own island before dispatching (a split, a
-    // removed empty line), so there is nothing focused to read: it left the
-    // intent behind instead, and says whether what it wrote is a placeholder
-    // to be typed over.
-    const intended = pagedCaretIntent.pending;
-    const intendedSelectAll = pagedCaretIntent.selectAll;
-    pagedCaretIntent.pending = false;
-    pagedCaretIntent.selectAll = false;
     const a = doc?.activeElement as ActivatableEl | null | undefined;
     if (!a || !a.isContentEditable) {
-      const intent = intended || pendingSelectAll;
-      return intent
-        ? { kind: "text", selectAll: pendingSelectAll || intendedSelectAll }
-        : undefined;
+      const intent = pagedCaretIntent.pending || pendingSelectAll;
+      pagedCaretIntent.pending = false;
+      return intent ? { kind: "text", selectAll: pendingSelectAll } : undefined;
     }
     if (a._fmCellActivate) {
       const row = a.closest("tr");

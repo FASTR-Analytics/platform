@@ -8,14 +8,12 @@ import {
   type EditResult,
   inlineMarkStateAt,
   insertLinkEdit,
-  listMarkerOf,
   setHeadingLevelEdit,
   setInlineColorEdit,
   setInlineHighlightEdit,
   setInlineRoleEdit,
   setInlineSizeEdit,
   setInlineUnderlineEdit,
-  splitTextIsland,
   statTilesSnippet,
   stepsChildInfo,
   stepsSnippet,
@@ -380,52 +378,6 @@ Deno.test("a size selection skips fences and delimiter rows it crosses", () => {
 });
 
 // ── Headings ─────────────────────────────────────────────────────────────────
-
-Deno.test("Enter inside a block splits the island at the caret", () => {
-  const text = "First paragraph of the callout.";
-  const r = splitTextIsland(text, 5, undefined, "New paragraph");
-  assertEquals(r.insert, "First\n\nparagraph of the callout.");
-  assertEquals(r.insert.slice(r.at), "paragraph of the callout.");
-  // One line down for the blank line, one for the block itself.
-  assertEquals(r.rel, 2);
-  assertEquals(r.placeholder, false);
-  // A paragraph of several source lines (soft breaks) counts them all.
-  const wrapped = splitTextIsland("one\ntwo\nthree", 8, undefined, "New paragraph");
-  assertEquals(wrapped.insert, "one\ntwo\n\nthree");
-  assertEquals(wrapped.rel, 3);
-});
-
-Deno.test("a new block with nothing in it gets a placeholder to type over", () => {
-  // An empty paragraph renders NOTHING, so there would be no island to type
-  // in: the author would press Enter and lose the caret.
-  const r = splitTextIsland("Done.", 5, undefined, "New paragraph");
-  assertEquals(r.insert, "Done.\n\nNew paragraph");
-  assertEquals(r.insert.slice(r.at), "New paragraph");
-  assertEquals(r.placeholder, true);
-  // An empty list ITEM renders, so it needs none.
-  const item = splitTextIsland("- one item", 10, "- ", "New paragraph");
-  assertEquals(item.insert, "- one item\n- ");
-  assertEquals(item.placeholder, false);
-  assertEquals(item.rel, 1);
-});
-
-Deno.test("a list item splits into a sibling item, never into a blank line", () => {
-  const text = "- one item";
-  const r = splitTextIsland(text, 5, "- ", "New paragraph");
-  assertEquals(r.insert, "- one\n- item");
-  assertEquals(r.insert.slice(r.at), "item");
-  // A caret inside the item's own marker (its source carries it) would
-  // otherwise leave a blank line where the item was and break the list in
-  // two: the cut never lands before the text.
-  assertEquals(splitTextIsland(text, 0, "- ", "x").insert, "-\n- one item");
-  assertEquals(splitTextIsland(text, 1, "- ", "x").insert, "-\n- one item");
-  // An ordered item keeps its own marker; the renderer numbers the list.
-  assertEquals(splitTextIsland("2. one", 6, listMarkerOf("2. one"), "x").insert, "2. one\n2. ");
-  // An indented item keeps its indent.
-  assertEquals(listMarkerOf("  * nested"), "  * ");
-  // A line with no marker at all still yields a bullet to carry the split.
-  assertEquals(listMarkerOf("plain"), "- ");
-});
 
 Deno.test("a heading level applies to every selected line and replaces the old one", () => {
   const doc = "One\n## Two\n### Three";
