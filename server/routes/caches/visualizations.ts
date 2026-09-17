@@ -100,7 +100,7 @@ const PO_CACHE_VERSION = "23";
 // when they share BOTH run and scope. Required on the uniqueness side so every
 // exists/read site is forced to supply it (an optional would compile and
 // silently mis-key); trailing segment so the `${runId}|`/`${runId}::` prefix
-// scans and their roId-at-index-1 parses keep working.
+// scans in `runs/delete_run.ts` keep working.
 export type PoDataVersionParams = {
   runId: string;
 };

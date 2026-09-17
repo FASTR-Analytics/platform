@@ -71,9 +71,9 @@ runLogCleanup();
 setInterval(runLogCleanup, 24 * 60 * 60 * 1000);
 
 // DHIS2 auto-pull (PLAN_DHIS2_IMPORTER Phase 4): ~60 s tick draining queued
-// runs FIFO and firing due schedules: a minute-level tick, NOT one of the
-// boot-anchored 24 h jobs above (a daily tick would usually miss a 01:15
-// Lagos window).
+// runs FIFO and firing due schedules: a minute-level tick, NOT a
+// boot-anchored 24 h job like the log cleanup above (a daily tick would
+// usually miss a 01:15 Lagos window).
 startDhis2ImportScheduler();
 
 // Version history: sweep editing-session accumulators into stored versions.

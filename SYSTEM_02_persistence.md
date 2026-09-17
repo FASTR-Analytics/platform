@@ -248,9 +248,10 @@ RAW .unsafe(sql) → trusted-internal input ONLY         (closed unions / module
 - **`escapeSqlString`** (`server/db/utils.ts`, `s.replace(/'/g, "''")`) is the
   **only** sanctioned manual escaper for Postgres-bound SQL, used for
   hand-built `VALUES` tuples in the bulk paths (HFA/HMIS/structure staging,
-  run input capture, S9 filter values). One DuckDB-bound call site uses it
-  too (`run_query/run_read.ts`), which is safe because both engines escape a
-  quote by doubling it. No call site may inline its own `''`-doubling.
+  run input capture). Two DuckDB-bound call sites use it too
+  (`run_query/run_read.ts` and the S9 filter values in
+  `server_only_funcs_presentation_objects/query_helpers.ts`), which is safe
+  because both engines escape a quote by doubling it. No call site may inline its own `''`-doubling.
   `escapeSqlLiteral` (`server/run_query/duckdb_executor.ts`) is its DuckDB-side
   twin.
 - **`.unsafe()`** runs raw SQL with no parameterization. There are roughly a
@@ -351,7 +352,9 @@ instance migrations bridge that:
   transaction, opening each source project pool fresh with `getPgConnection`
   and ending it in a `finally`. `plan.ts` reads one project database and
   returns every row to insert, the id remaps, the nested folder plan, the
-  bundle stamps and the dropped-row counts, and issues no write. A source
+  bundle stamps and the dropped-row counts, and issues no write. It does not
+  carry `crdt_state`: a legacy co-editing state holds figures saved without a
+  scope or run id, so every migrated room re-seeds from the stamped JSON. A source
   database not at `041_drop_frozen_results_plane`, or a project with no
   `run_id` on an instance with no pinned run, throws. With no projects it
   returns at once.

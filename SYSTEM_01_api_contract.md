@@ -66,7 +66,7 @@ its seat in the off-registry inventory below; health is **S15**, which also
 _writes_ the `users` rows the guards here evaluate: S1 owns the gate, S15 owns
 the admin surface behind it. Client-side consumption rules (tiers, caches) are
 [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). Sub-file custody exceptions are
-in SYSTEMS.md §4.1 (`main.ts` owned here, S2/S15/S12 readers;
+in SYSTEMS.md §4.1 (`main.ts` owned here, S2/S15 readers;
 `LoggedInWrapper.tsx` owned here, S3/S14 readers; `routes/instance/users.ts` +
 `db/instance/users.ts` owned here, S15/S13 readers).
 
@@ -452,7 +452,9 @@ scope). Mechanical enforcement, if ever wanted, means a separate dom-less
 `GlobalUser`: the dev bypass, a headless credential (already resolved to an
 email by `headlessAuthMiddleware`) and a Clerk session all converge on
 `buildGlobalUserFromDb`, which reads the `users` row and sets `approved =
-_OPEN_ACCESS || !!row`. Every guard below calls it first.
+_OPEN_ACCESS || !!row`. Every guard below calls it first, except that
+`requireGlobalPermissionOrStatusKey` lets a matching status-api key through
+before it.
 
 ### The guard factories
 

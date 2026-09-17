@@ -11,8 +11,7 @@
 //
 // FROZEN TYPES: the legacy project-DB row types below describe a schema that
 // exists nowhere else in the repo (they were copied from the deleted
-// server/db/project/_project_database_types.ts, plus the crdt columns those
-// omitted), and the nanoid alphabet is frozen beside them rather than imported
+// server/db/project/_project_database_types.ts), and the nanoid alphabet is frozen beside them rather than imported
 // from server/utils/id_generation.ts. The slide
 // layout walker and ProductType survive the restructure and are imported.
 //
@@ -37,6 +36,12 @@
 // `bundle.provenance.runId` from the owning project row. A block without a
 // bundle is an empty placeholder and is left alone. Stamping overwrites
 // unconditionally, so re-planning the same source is idempotent.
+//
+// CO-EDITING STATE is not carried: a legacy slide's or report's crdt_state
+// holds its figures as saved before bundles had a scope and a runId, and the
+// room would restore those over the stamped JSON. Rooms re-seed from the
+// stamped content instead (project migrations 030 and 037 cleared the same
+// state for the same reason).
 //
 // NOT READ (D3): presentation_objects, visualization_folders, dashboards,
 // dashboard_items, dashboard_item_groups. Deleted with the project DBs; only
@@ -89,8 +94,6 @@ type LegacySlideRow = {
   sort_order: number;
   config: string;
   last_updated: string;
-  crdt_state: string | null;
-  crdt_state_last_updated: string | null;
 };
 
 type LegacyReportRow = {
@@ -100,8 +103,6 @@ type LegacyReportRow = {
   figures: string;
   images: string;
   config: string | null;
-  crdt_state: string | null;
-  crdt_state_last_updated: string | null;
   body_authors: string | null;
   last_updated: string;
   folder_id: string | null;
@@ -172,8 +173,6 @@ export type PlannedSlide = {
   sortOrder: number;
   config: string;
   lastUpdated: string;
-  crdtState: string | null;
-  crdtStateLastUpdated: string | null;
 };
 
 export type PlannedReport = {
@@ -182,8 +181,6 @@ export type PlannedReport = {
   figures: string;
   images: string;
   config: string | null;
-  crdtState: string | null;
-  crdtStateLastUpdated: string | null;
   bodyAuthors: string | null;
 };
 
@@ -469,13 +466,12 @@ export async function planConsolidation(args: {
     FROM slide_decks ORDER BY id
   `;
   const slideRows = await projectDb<LegacySlideRow[]>`
-    SELECT id, slide_deck_id, sort_order, config, last_updated,
-           crdt_state, crdt_state_last_updated
+    SELECT id, slide_deck_id, sort_order, config, last_updated
     FROM slides ORDER BY slide_deck_id, sort_order, id
   `;
   const reportRows = await projectDb<LegacyReportRow[]>`
-    SELECT id, label, body, figures, images, config, crdt_state,
-           crdt_state_last_updated, body_authors, last_updated, folder_id
+    SELECT id, label, body, figures, images, config, body_authors,
+           last_updated, folder_id
     FROM reports ORDER BY id
   `;
   const reportVersionRows = await projectDb<LegacyReportVersionRow[]>`
@@ -626,8 +622,6 @@ export async function planConsolidation(args: {
       figures: stampFiguresMapJson(report.figures, runId, adminArea2),
       images: report.images,
       config: report.config,
-      crdtState: report.crdt_state,
-      crdtStateLastUpdated: report.crdt_state_last_updated,
       bodyAuthors: report.body_authors,
     });
   }
@@ -653,8 +647,6 @@ export async function planConsolidation(args: {
       sortOrder: slide.sort_order,
       config: stampSlideConfigJson(slide.config, runId, adminArea2),
       lastUpdated: slide.last_updated,
-      crdtState: slide.crdt_state,
-      crdtStateLastUpdated: slide.crdt_state_last_updated,
     });
   }
 

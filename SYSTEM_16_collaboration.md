@@ -240,8 +240,9 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
     edge; each
     update re-arms an 8 s quiet-period timer whose expiry broadcasts the clear.
     A typing burst costs two presence broadcasts total. A `presence_update`
-    preserves the flag (it is not client-settable). Rendered as the pulsing
-    badge on list-card avatars only (`showEditingPulse`).
+    preserves the flag (it is not client-settable). Read only by
+    `PresenceAvatars`' pulsing badge (`showEditingPulse`), which no caller
+    enables.
 
 ## The CRDT model
 
@@ -446,16 +447,16 @@ for the same slide):
 ### Text editors: CodeMirror + yCollab
 
 - [_shared/collab_markdown_editor.tsx](client/src/components/_shared/collab_markdown_editor.tsx)
-  (the slide_editor file of the same name is a thin wrapper injecting the
-  slide-deck permission; the viz editor reuses the shared component for
-  caption fields): CodeMirror 6 + `yCollab(yText, awareness)`
+  (the slide_editor file of the same name is a thin wrapper injecting
+  `canEditProduct`; the figure editor's caption fields use the shared
+  component directly, and the report editor imports its selection hover and
+  dark-mode extensions): CodeMirror 6 + `yCollab(yText, awareness)`
   (y-codemirror.next). Renders remote carets (colored bar, hover name tag) and
   selections (translucent `colorLight = color + "33"`); Yjs relative positions
   keep every caret stable through concurrent edits. `yUndoManagerKeymap`
   scopes undo to local edits. `plain` prop disables markdown highlighting for
   title fields. Read-only (`EditorState.readOnly` +
-  `EditorView.editable(false)`) for users without the family's configure
-  permission.
+  `EditorView.editable(false)`) when the caller's `canEdit` is false.
 - [collab_text_field.tsx](client/src/components/slide_deck/slide_editor/collab_text_field.tsx)
   wraps one root text field: binds the field's Y.Text (`findRootTextField`)
   when collab is ready, falls back to panther `TextArea` otherwise; both paths
@@ -753,7 +754,7 @@ see the stamp bump and refetch. Last-write-wins, no live merge.
 **The crucial glue (the "chokepoint"):** when a REST save arrives _while a
 room is live_, it does not write the DB directly (that would clobber the
 master copy on its next checkpoint). It is routed **through** the room via
-`applyReportToLiveRoom` / `applySlideToLiveRoom` / `applyPoToLiveRoom` (thin
+`applyReportToLiveRoom` / `applySlideToLiveRoom` (thin
 binding wrappers over `applyToLiveRoom` in
 [server/collab/doc_rooms.ts](server/collab/doc_rooms.ts)) so the master doc
 stays authoritative. Merging into the live doc _is_ the conflict resolution.

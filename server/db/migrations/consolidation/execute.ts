@@ -189,23 +189,20 @@ async function executePlan(tx: Sql, plan: ConsolidationPlan): Promise<void> {
   for (const report of plan.reports) {
     await tx`
       INSERT INTO reports
-        (id, body, figures, images, config, crdt_state,
-         crdt_state_last_updated, body_authors)
+        (id, body, figures, images, config, body_authors)
       VALUES
         (${report.id}, ${report.body}, ${report.figures}, ${report.images},
-         ${report.config}, ${report.crdtState}, ${report.crdtStateLastUpdated},
-         ${report.bodyAuthors})
+         ${report.config}, ${report.bodyAuthors})
     `;
   }
 
   for (const slide of plan.slides) {
     await tx`
       INSERT INTO slides
-        (id, slide_deck_id, sort_order, config, last_updated, crdt_state,
-         crdt_state_last_updated)
+        (id, slide_deck_id, sort_order, config, last_updated)
       VALUES
         (${slide.id}, ${slide.slideDeckId}, ${slide.sortOrder}, ${slide.config},
-         ${slide.lastUpdated}, ${slide.crdtState}, ${slide.crdtStateLastUpdated})
+         ${slide.lastUpdated})
     `;
   }
 

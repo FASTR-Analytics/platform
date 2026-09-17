@@ -14,9 +14,9 @@ import { darkMode } from "~/state/t4_ui";
 // y-codemirror.next. It renders remote collaborators' carets and selections
 // (from Yjs awareness) and preserves the local caret through remote edits:
 // things a plain <textarea> can't do. Shared by the slide editor (text-block
-// body + title/header fields) and the visualization editor (caption fields);
-// the caller supplies `canEdit` (each surface has its own configure permission),
-// so this component is decoupled from any one permission source.
+// body + title/header fields) and the figure editor (caption fields); the
+// caller supplies `canEdit`, so this component is decoupled from any one
+// permission source.
 
 // ── Selection hover name flag ────────────────────────────────────────────────
 // yCollab names a peer when you hover their CARET (its own CSS hover on

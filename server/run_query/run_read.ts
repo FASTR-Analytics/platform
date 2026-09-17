@@ -78,8 +78,8 @@ import {
 } from "./catalog_expression_items.ts";
 import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
 
-// The run read path: every function here consults ONLY the attached immutable
-// run: manifest for metadata (no probes), parquet for data. The SQL builders
+// The run read path: every function here consults ONLY the immutable run:
+// manifest for metadata (no probes), parquet for data. The SQL builders
 // and status logic live in server_only_funcs_presentation_objects/ and take
 // the query context and the executor from here.
 
@@ -115,6 +115,9 @@ async function buildRunReadContext(
   };
 }
 
+// The manifest lens. An unreadable or unknown run surfaces as the manifest
+// read failing. The run id arrives over the wire and becomes a path, so it is
+// shape-checked first.
 export async function getRunReadContextForRun(
   runId: string,
 ): Promise<APIResponseWithData<RunReadContext>> {

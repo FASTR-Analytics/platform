@@ -57,7 +57,7 @@ owns the run-generation half of that machinery (`generate_run/` and its
 `RUN_GENERATION_ENDED_CHANNEL` end-of-run plumbing); what the dataset workers
 _do_ is **S6** (SYSTEM_06_ingestion.md). **S3** owns why that channel is exempt
 from the notify catalog (it feeds no SSE endpoint). Cache invalidation is S3's
-triangle: under runs it keys on the attached `runId` (S9). Worker DB
+triangle: under runs it keys on the product's `runId` (S9). Worker DB
 connections and `sql.unsafe` safety are S2's (`SYSTEM_02_persistence.md`);
 period helper-column semantics are S9 (SYSTEM_09_viz_query_cache.md); the
 authored-definition schema change process is PROTOCOL_APP_MIGRATIONS.md. Module
@@ -214,10 +214,11 @@ the race with a concurrent delete. The options come from `listReadyPackages`
 (approved users: bare id, label and creation time, none of the catalogue's
 generation telemetry). A repoint never blocks and has no compatibility
 pre-flight (D4): an incompatible package is still attachable, and each figure
-that no longer resolves under it shows its own stale badge (S11). The rule
-behind that badge is `lib/figure_package_issue.ts`: metric absent, metric
-stamped unavailable, or a requested disaggregation the results object does
-not offer, reported in that order, with no data queries.
+whose captured package or scope differs from the product's shows its own
+stale badge (S11). Pressing Update re-resolves the figure, and when it cannot,
+`lib/figure_package_issue.ts` says why: metric absent, metric stamped
+unavailable, or a requested disaggregation the results object does not offer,
+reported in that order, with no data queries.
 `figurePackageIssueForMetrics` answers it from the authoring context the
 client holds. Virtual defaults are excluded by construction: they are
 projections of whichever package the product points at.
@@ -252,9 +253,9 @@ for that call. The SPA-only module tools (script/logs/settings:
 `client/src/components/copilot/ai_tools/tools/modules.ts`, getters on
 `ClientAIToolEnv`) read the run-keyed mount too
 (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
-`can_view_data`, so a user without the instance bit has no
-`get_module_settings` in the copilot, exactly as the package view hides
-settings from them). The headless allowlist admits exactly the
+`can_view_data` on the settings read, so for a user without the instance bit
+the copilot's `get_module_settings` fails at the route guard, as the package
+view hides settings from them). The headless allowlist admits exactly the
 run-keyed metric reads the `/mcp` tools need (`getRunPresentationObjectItems`,
 `getRunResultsValueInfo`; `/mcp` is for seeing results, so the module reads
 are deliberately absent): a leaked PAT reaches exactly what its user's own
@@ -300,10 +301,12 @@ refetches `listRunCatalog` into `InstanceState.runsCatalog` (per-request guard;
 SYSTEM_03 †). The nonce is signalled by the in-process catalogue mutations:
 launch (success and the row-created-then-failed path), guarded delete,
 pin/unpin, the generate-run worker's finalize-or-fail notify site plus the
-host's worker-crash handler, and the product routes that move a
-`products.run_id` (`setProductPackage`, `deleteProducts`, `duplicateProduct`).
-`attachedProducts` is both the "in use by" list and the delete-blocking
-column, so anything that moves a pointer moves the list.
+host's worker-crash handler, and three product routes that change a
+package's products (`setProductPackage`, `deleteProducts`, `duplicateProduct`).
+`createProduct`, `copyReportVersion` and `copySlideDeckVersion` also add a
+product to a package and send no nonce, so an open catalogue's "in use by"
+list lags until its next refetch. The delete guard reads the database, so it
+stays correct.
 A visitor arriving mid-generation sees launch-time progress chips until the next per-module push: the
 `run_progress` listeners are page-local and `updateRunProgress` deliberately
 does not signal the catalogue: per-module signal spam is worse than a
@@ -496,7 +499,8 @@ Four invariants, in the order they matter:
    many products, and what makes attachment a pointer (`products.run_id`)
    rather than ownership. The DB catalog row's `summary` (`RunSummary`) holds
    only facts about the package itself; the `runs_summary` data transform
-   strips any other key a stored summary still carries.
+   strips the two project keys older summaries carry
+   (`backfillSourceProjectId`, `attachTargetProjectIds`).
 4. **Precomputed, never probed.** The manifest is written once at finalize and
    answers every metadata question at read time. What the old read path
    discovered with ~20 `SELECT … LIMIT 1` column probes per metric per request is
@@ -796,7 +800,8 @@ Postgres container (the `COPY TO` path is resolved inside Postgres); an env
 rename without both mounts boots green and then loses every package or fails
 every generation at the first `COPY`. Beside the packages live only `.tmp-{runId}`
 (in-flight generation; `sweepAbandonedTmpRunDirs`'s only filter),
-`.duckdb-spill`, and loose scratch files (restore dumps, ICEH xlsx). It was
+`.duckdb-spill`, and loose scratch files (ICEH xlsx, and restore dumps the
+retired in-app restore left). It was
 the module-execution sandbox until Phase 4 renamed it and ops
 deleted the legacy `{projectId}` dirs; the app neither creates nor reads
 those. Nothing enumerates the directory as a homogeneous set: every consumer
@@ -948,8 +953,8 @@ for every indicator, including ones whose formula never names a population,
 and m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or
 filter there (`deriveAvailableDisaggregationOptions` reads the columns
 present). A figure that groups or filters m012 by a level the package lacks
-shows the per-figure stale badge (`dimensions_not_in_package`,
-`lib/figure_package_issue.ts`). The script's "deeper than the data" stop
+cannot be updated to it: pressing the figure's Update reports
+`dimensions_not_in_package` (`lib/figure_package_issue.ts`). The script's "deeper than the data" stop
 stays as a defensive check behind the capture refusal.
 
 **The math** (`lib/population_person_years.ts`, pure): an annual population

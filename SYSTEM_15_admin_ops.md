@@ -19,8 +19,7 @@ docs_absorbed:
 # S15: Instance Administration & Ops
 
 User and permission management, instance settings UI, plus the operational
-side-channel: health endpoints, disk autonomics, central export, scheduled
-jobs, deploy. Small server surface, highest privilege.
+side-channel: health endpoints, disk autonomics, scheduled jobs, deploy. Small server surface, highest privilege.
 
 ## Scope
 
@@ -39,7 +38,8 @@ connection recipes live in the **gitignored** `PROTOCOL_ACCESS_DBS.md`.
 
 ## Contract
 
-Writes the permission rows S1 evaluates (guard semantics, permission keys, and
+Owns the admin surface for the permission rows S1's `routes/instance/users.ts`
+writes and S1 evaluates (guard semantics, permission keys, and
 special modes live in [SYSTEM_01_api_contract.md](SYSTEM_01_api_contract.md)).
 Health is deliberately unauthenticated (and includes one unauthenticated POST
 write, see the exposure inventory); health uses bare Hono routes, so it is
@@ -73,7 +73,7 @@ one returns a warning that the status is lost. The same file carries
 
 The app has no backup or restore code. Instance backups are a status-api and
 volume concern, handled off-instance. Run directories are never backed up
-([SYSTEM_08](SYSTEM_08_results_packages.md) "Backups and packages" owns the
+([SYSTEM_08](SYSTEM_08_results_packages.md) "Database restores and packages" owns the
 consequences).
 
 ## Health & central export: the exposure inventory

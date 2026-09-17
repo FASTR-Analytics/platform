@@ -10,11 +10,6 @@ import { routeRegistry } from "lib";
 // headless-closed until opted in here. Token mint/list/revoke and user/admin
 // routes are deliberately absent: a headless caller can never mint or revoke
 // PATs.
-//
-// NEVER allowlist any backups route: server/routes/instance/backups.ts
-// forwards the raw incoming Authorization header off-instance (to
-// status-api.fastr-analytics.org), which would ship the user's credential to
-// an external service.
 // Exported for validateHeadlessMounts (headless_app.ts), the dev-boot check
 // that every name here is actually reachable through headlessApp (the
 // allowlist and the mount list are two lists; the check is what keeps them

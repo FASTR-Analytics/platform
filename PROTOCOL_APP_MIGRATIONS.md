@@ -109,7 +109,7 @@ functions whose output it reads.
 
 ### Writing a Migration Function
 
-See `server/db/migrations/data_transforms/po_config.ts` for a complete example.
+See `server/db/migrations/data_transforms/reports.ts` for a complete example.
 
 The pattern:
 
@@ -127,8 +127,9 @@ Transform blocks are historical: they handle old data shapes from before a schem
 - Always validates against **current** strict schema
 - **Update `last_updated`**: invalidates Valkey cache entries automatically.
   The product transforms bump the owning `products.last_updated` on every row
-  they rewrite (`slide_config` also bumps `slides.last_updated`), and skip the
-  write when the output is byte-identical to the stored row
+  they rewrite (`slide_config` also bumps `slides.last_updated`). `slide_config`
+  and `reports` also skip the write when the output is byte-identical to the
+  stored row; `slide_deck_config` writes every row its gate lets through
 
 ### Transform Block Ordering
 
@@ -180,7 +181,7 @@ block never runs, and every runtime read silently strips the user's setting.
 
 When a transform block renames or deletes a key, the sweep gate must force the
 transform for rows still carrying the old key. See
-`configNeedsForcedTransform` / `rawJsonNeedsForcedTransform` in
+`rawJsonNeedsForcedTransform` in
 `data_transforms/po_config.ts` (used by the reports and slide_config sweeps,
 first for the `includeNational*` →
 `adminAreaRollup*` rename, then for the
@@ -264,7 +265,7 @@ A DB transform only reshuffles fields inside the row it was handed, so it
 A parse-only gate is wrong here. A manifest from a *newer* server parses under
 the current schema with its additions silently stripped, so parse success cannot
 distinguish "current shape" from "newer shape we would serve wrong". This is the
-same **forced skip-gate** as `configNeedsForcedTransform`, reading a version
+same **forced skip-gate** as `rawJsonNeedsForcedTransform`, reading a version
 field instead of scanning for legacy keys:
 
 ```ts
@@ -294,8 +295,8 @@ exactly that.)
 **3. The boot sweep enumerates the `runs` catalogue, never the filesystem.**
 
 The runs volume is heterogeneous: package dirs, published-failed dirs,
-`.tmp-` dirs, `.duckdb-spill`, loose scratch files (`restore_*.sql.gz`,
-`iceh_indicators_*.xlsx`). Catalogue enumeration
+`.tmp-` dirs, `.duckdb-spill`, loose scratch files (`iceh_indicators_*.xlsx`,
+and `restore_*.sql.gz` left by the retired in-app restore). Catalogue enumeration
 excludes all of them by construction and preserves the ruling that justified
 sharing the directory: *every consumer addresses a NAMED entry.* Statuses
 `generating` and `failed` are excluded too: those definitionally have no
