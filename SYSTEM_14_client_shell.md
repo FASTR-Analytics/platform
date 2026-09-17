@@ -9,10 +9,12 @@ globs:
   - client/src/components/whats_new_modal.tsx
   - client/src/components/instance/index.tsx
   - client/src/components/organisation_modal.tsx
+  - client/src/components/theme_modal.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
   - client/src/routes/**
   - client/src/state/t4_connection_monitor.ts
+  - client/src/state/t4_theme.ts
   - client/src/state/t4_ui.ts
   - lib/help/**
   - lib/types/sort.ts
@@ -230,6 +232,21 @@ in T4: they never enter fetch configs or cache hashes** (the roll-up sentinel
 lesson, SYSTEM_09).
 
 ## Connection monitoring (`state/t4_connection_monitor.ts`)
+
+## Theme prototype (`state/t4_theme.ts`, `components/theme_modal.tsx`)
+
+The reskin preview: a `Theme` of palette, corner radius, density and text scale,
+stored as JSON under `localStorage["theme"]` and applied at module scope as
+inline custom properties on `<html>`, which beat every stylesheet rule. The
+default theme removes every property it owns, so the shipped look is exactly
+what `app.css` and `_fixed.css` declare. Palettes are `light-dark()` pairs built
+from panther's `KEY_COLOR_THEMES` (light-only themes get a dark half from
+`generateKeyColorsFromPrimary`); density and text scale are one factor over the
+kit's rem tables, mirrored in the module. Unlike the other T4 prefs the stored
+value is validated on read, because it feeds CSS rather than a comparison. The
+Theme button in the instance top bar opens `ThemeModal`, where every change
+applies immediately and the scheme toggle from the profile modal is repeated.
+Canvas figures keep their fixed key colors.
 
 No polling, no heartbeat: `navigator.onLine` seeds `isOnline`, and the
 `online`/`offline` window listeners that update it are attached only by

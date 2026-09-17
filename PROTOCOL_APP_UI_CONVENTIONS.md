@@ -45,6 +45,12 @@ Today's app-level additions:
   `bg-base-100 text-base-content`, `font-variant-numeric: tabular-nums` for
   aligned numeric columns.
 
+A third, runtime layer sits above both while the reskin is being chosen: the
+Theme modal (`client/src/state/t4_theme.ts`, S14) writes palette, radius,
+density and text-scale tokens as inline properties on `<html>`. Its default
+writes nothing, so the two CSS files remain the source of truth for the shipped
+look.
+
 ## Dark mode
 
 A per-device preference: `localStorage["scheme"]` (`system` | `light` |

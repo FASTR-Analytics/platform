@@ -27,6 +27,7 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/components/LoggedInWrapper";
 import { EmailOptInModal } from "~/components/email_opt_in_modal";
 import { OrganisationModal } from "~/components/organisation_modal";
+import { ThemeModal } from "~/components/theme_modal";
 import { WhatsNewFeedModal, WhatsNewModal } from "~/components/whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { Explore } from "~/components/explore";
@@ -178,6 +179,10 @@ export default function Instance(p: Props) {
     });
   }
 
+  async function openTheme() {
+    await openComponent({ element: ThemeModal, props: {} });
+  }
+
   async function openInstanceMeta() {
     await openComponent({
       element: InstanceMetaForm,
@@ -235,6 +240,9 @@ export default function Instance(p: Props) {
               </div>
             </Show>
             <div class="ui-gap-sm flex flex-0 items-center justify-end">
+              <Button intent="base-100" onClick={openTheme}>
+                {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
+              </Button>
               <MenuTriggerWrapper
                 data-tour="instance-topbar-language"
                 items={
