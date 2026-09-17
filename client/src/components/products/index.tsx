@@ -11,6 +11,7 @@ import {
   ButtonGroup,
   FrameTop,
   HeadingBar,
+  Icon,
   createButtonAction,
   createDeleteAction,
   createSelectionController,
@@ -481,25 +482,10 @@ export function Products() {
   const currentFolder = () =>
     instanceState.folders.find((f) => f.id === location());
 
-  // The location row under the bar: where the explorer is, or what the
-  // search found. The bar's own Back is reserved for leaving a full-page
-  // view, so going up a folder is this row's button.
-  const locationLabel = (): JSX.Element => {
-    if (isSearching()) {
-      return (
-        <div class="truncate">
-          {t3({
-            en: `Search results: ${matchCount()}`,
-            fr: `Résultats de recherche : ${matchCount()}`,
-            pt: `Resultados da pesquisa: ${matchCount()}`,
-          })}
-        </div>
-      );
-    }
-    const folder = currentFolder();
-    if (folder === undefined) {
-      return <div>{productsLabel()}</div>;
-    }
+  // The trail for the location row, shown only inside a folder. The root is
+  // an icon rather than the word "Products": the bar above already says it,
+  // and the crumb's job is the one-click jump to the root.
+  const breadcrumb = (folder: Folder): JSX.Element => {
     const trail = ancestors(instanceState.folders, folder.id);
     const collapsed = trail.length > _MAX_UNCOLLAPSED_ANCESTORS;
     return (
@@ -509,10 +495,12 @@ export function Products() {
       >
         <button
           type="button"
-          class="ui-focusable text-base-content-muted hover:text-base-content cursor-pointer"
+          class="ui-focusable text-base-content-muted hover:text-base-content inline-block w-4 cursor-pointer"
+          title={productsLabel()}
+          aria-label={productsLabel()}
           onClick={() => openFolder(null)}
         >
-          {productsLabel()}
+          <Icon iconName="presentation" />
         </button>
         <Show
           when={collapsed}
@@ -648,6 +636,15 @@ export function Products() {
           <HeadingBar
             data-tour="products-header"
             heading={productsLabel()}
+            subheading={
+              isSearching()
+                ? t3({
+                    en: `${matchCount()} results`,
+                    fr: `${matchCount()} résultats`,
+                    pt: `${matchCount()} resultados`,
+                  })
+                : undefined
+            }
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
@@ -724,21 +721,27 @@ export function Products() {
               </div>
             </Show>
           </HeadingBar>
-          <div class="ui-pad-x ui-pad-y-sm ui-gap flex items-center border-b">
-            <Button
-              iconName="arrowUp"
-              outline
-              size="sm"
-              ariaLabel={t3({
-                en: "Up one level",
-                fr: "Niveau supérieur",
-                pt: "Nível acima",
-              })}
-              disabled={!isSearching() && location() === null}
-              onClick={() => (isSearching() ? setSearchText("") : goToParent())}
-            />
-            {locationLabel()}
-          </div>
+          {/* Folder navigation only: absent at the root. The bar's own Back
+              is reserved for leaving a full-page view, so going up is this
+              row's button. */}
+          <Show when={currentFolder()} keyed>
+            {(folder) => (
+              <div class="ui-pad-x ui-pad-y-sm ui-gap flex items-center border-b">
+                <Button
+                  iconName="arrowUp"
+                  outline
+                  size="sm"
+                  ariaLabel={t3({
+                    en: "Up one level",
+                    fr: "Niveau supérieur",
+                    pt: "Nível acima",
+                  })}
+                  onClick={goToParent}
+                />
+                {breadcrumb(folder)}
+              </div>
+            )}
+          </Show>
         </div>
       }
     >

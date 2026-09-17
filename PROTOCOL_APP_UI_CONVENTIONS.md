@@ -130,7 +130,7 @@ Pattern specifics, from the live pages:
   with the type-filter `ButtonGroup`, `SortControl`
   (`components/_shared/sort_control.tsx`) and the view-mode `ButtonGroup`, and
   the Create buttons, over a location row (Up button plus breadcrumb) in the
-  same `FrameTop` panel; open folder / view mode / sort / type-filter state
+  same `FrameTop` panel that renders only inside a folder; open folder / view mode / sort / type-filter state
   lives in `t4_ui` signals (PROTOCOL_APP_STATE).
 - **D (editors):** opened full page, never routed. A view reached from a
   frame page (a product editor, module defaults, a Data sub-page, the user
