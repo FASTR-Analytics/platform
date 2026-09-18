@@ -430,7 +430,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     const members = expected.sums.get(c.id);
     if (members !== undefined) {
       if (i.type !== "sum") problems.push(`common ${c.id} should be a sum, is ${i.type}`);
-      else if (JSON.stringify(i.members) !== JSON.stringify(members)) {
+      else if (JSON.stringify([...i.members].sort()) !== JSON.stringify(members)) {
         problems.push(`sum ${c.id}: members ${JSON.stringify(i.members)}, expected ${JSON.stringify(members)}`);
       }
     } else if (c.type === "base") {
@@ -487,6 +487,9 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     ...analysedIndicatorIds(postCommons, POPULATION_TYPE_IDS),
     ...post.filter((i) => i.type === "calculated" && i.include_in_analysis).map((i) => i.id),
   ]);
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
   for (const id of expectedAnalysed) {
     if (!analysedAfter.has(id)) problems.push(`analysed set lost ${id}`);
   }
