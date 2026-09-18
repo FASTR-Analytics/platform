@@ -37,6 +37,7 @@ import {
   _BYPASS_AUTH,
   _DAILY_TOKEN_LIMIT,
   _INSTANCE_ID,
+  _IS_PRODUCTION,
   _OPEN_ACCESS,
   _STATUS_API_KEY,
   _WEEKLY_TOKEN_LIMIT,
@@ -61,11 +62,19 @@ defineRoute(
   log("getCurrentUser"),
   async (c) => {
     const { email, firstName, lastName } = c.var.globalUser;
-    // Sync name from Clerk on first login only: syncUserName is a no-op once
-    // the name is set. `|| null`, not `?? null`: GlobalUser coerces absent
-    // names to "" (the PAT branch always does), and writing "" would defeat
-    // the first_name IS NULL guard forever.
-    syncUserName(c.var.mainDb, email, firstName || null, lastName || null)
+    // Mirror the name from Clerk (contract on syncUserName). `|| null`, not
+    // `?? null`: GlobalUser coerces absent names to "" (the PAT branch always
+    // does), and "" must reach syncUserName as "no information", not a name.
+    // A change observed here is pushed to every peer, so a rename reaches
+    // instances the user never revisits.
+    const mainDb = c.var.mainDb;
+    syncUserName(mainDb, email, firstName || null, lastName || null)
+      .then(async (changed) => {
+        if (changed) {
+          notifyInstanceUsersUpdated(await getInstanceUsers(mainDb));
+          await pushUserNameToPeers(email, firstName || null, lastName || null);
+        }
+      })
       .catch(() => {});
     return c.json({ success: true, data: c.var.globalUser });
   },
@@ -402,6 +411,74 @@ defineRoute(
 );
 
 // ---------------------------------------------------------------------------
+// Fleet name sync
+// ---------------------------------------------------------------------------
+
+/** Pushes a name change observed on this instance to every peer. Best-effort
+ *  by design: a peer that is down, or runs an image without the route (404),
+ *  is skipped silently, and its own syncUserName on the user's next visit
+ *  there is the backstop. Production only, so a dev server holding a real
+ *  STATUS_API_KEY can never write names into the live fleet. */
+async function pushUserNameToPeers(
+  email: string,
+  firstName: string | null,
+  lastName: string | null,
+): Promise<void> {
+  if (!_IS_PRODUCTION || !_STATUS_API_KEY) return;
+  const queue = await fetchPeerIds();
+  await Promise.all(
+    Array.from({ length: Math.min(8, queue.length) }, async () => {
+      let id: string | undefined;
+      while ((id = queue.shift()) !== undefined) {
+        try {
+          const response = await fetch(
+            `https://${id}.${FLEET_DOMAIN}/user/sync-name`,
+            {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "status-api-key": _STATUS_API_KEY,
+              },
+              body: JSON.stringify({ email, firstName, lastName }),
+              signal: AbortSignal.timeout(10_000),
+            },
+          );
+          await response.body?.cancel();
+        } catch {
+          // Best-effort: see the contract above.
+        }
+      }
+    }),
+  );
+}
+
+// No log(): a machine call has no user row for the user_logs FK.
+defineRoute(
+  routesUsers,
+  "receiveUserNameSync",
+  requireGlobalPermissionOrStatusKey({ requireAdmin: true }),
+  async (c, { body }) => {
+    // No globalUser = fleet-internal machine call (status-api-key path), the
+    // only caller allowed: names come from Clerk, never from an admin.
+    if (c.var.globalUser) {
+      return c.json({ success: false, err: "Fleet-internal route" }, 403);
+    }
+    // No onward push: only the instance that observed the Clerk change fans
+    // out, so a sync can never echo around the fleet.
+    const changed = await syncUserName(
+      c.var.mainDb,
+      body.email,
+      body.firstName || null,
+      body.lastName || null,
+    );
+    if (changed) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
+    return c.json({ success: true, data: { changed } });
+  },
+);
+
+// ---------------------------------------------------------------------------
 // Email rename
 // ---------------------------------------------------------------------------
 
@@ -523,21 +600,28 @@ type PeerPresence = {
   hasNew: boolean;
 };
 
+/** Ids of every other instance in the fleet, from central's servers.json.
+ *  Throws when the list cannot be loaded. */
+async function fetchPeerIds(): Promise<string[]> {
+  const response = await fetch(`https://central.${FLEET_DOMAIN}/servers.json`, {
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) {
+    throw new Error(`status ${response.status}`);
+  }
+  const servers = (await response.json()) as { id: string }[];
+  return servers.map((s) => s.id).filter((id) => id !== _INSTANCE_ID);
+}
+
 /** Every other instance in the fleet and whether it knows either address,
  *  via servers.json + each instance's public /health_check user list. */
 async function discoverPeers(
   oldEmail: string,
   newEmail: string,
 ): Promise<{ peers: PeerPresence[] } | { err: string }> {
-  let servers: { id: string }[];
+  let queue: string[];
   try {
-    const response = await fetch(`https://central.${FLEET_DOMAIN}/servers.json`, {
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!response.ok) {
-      throw new Error(`status ${response.status}`);
-    }
-    servers = await response.json();
+    queue = await fetchPeerIds();
   } catch (error) {
     return {
       err: `Could not load the server list — try again later (${
@@ -545,7 +629,6 @@ async function discoverPeers(
       })`,
     };
   }
-  const queue = servers.map((s) => s.id).filter((id) => id !== _INSTANCE_ID);
   const peers: PeerPresence[] = [];
   await Promise.all(
     Array.from({ length: Math.min(8, queue.length) }, async () => {
