@@ -467,7 +467,7 @@ Deno.test("tone is understood by every block and names a role, not a colour", ()
   );
 });
 
-Deno.test("the older tone spellings still render, each as one of the five", () => {
+Deno.test("the retired tone spellings still render, each as one of the four", () => {
   for (
     const [old, now] of [
       ["muted", "paper"],
@@ -477,7 +477,10 @@ Deno.test("the older tone spellings still render, each as one of the five", () =
       ["gradient", "ink"],
       ["danger", "warm"],
       ["warning", "warm"],
-      ["success", "cool"],
+      // `cool` and `success` named the cool pole, retired 2026-09-18: the
+      // good news is the accent now, and an old body still renders.
+      ["cool", "accent"],
+      ["success", "accent"],
       ["info", "accent"],
     ] as const
   ) {
@@ -676,6 +679,18 @@ function hueOf(hex: string): number {
   const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return ((h * 60) + 360) % 360;
 }
+// The shorter way round the wheel between two hues, in degrees.
+function hueGapOf(a: number, b: number): number {
+  const d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+// Perceptual lightness (CIE L*), which separates two tones of one hue the way
+// an eye does; relative luminance compresses the dark end and calls a
+// near-black red and a bright one the same tone.
+function lStarOf(hex: string): number {
+  const y = lumOf(hex);
+  return 116 * (y > 0.008856 ? Math.cbrt(y) : 7.787 * y + 16 / 116) - 16;
+}
 function lumOf(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
   const ch = (v: number) => {
@@ -692,37 +707,38 @@ function satOf(hex: string): number {
   return max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
 }
 
-Deno.test("every theme is five muted colours, and everything else is mixed from them", () => {
+Deno.test("every theme is four muted colours, and everything else is mixed from them", () => {
   const HEX = /^#[0-9a-f]{6}$/i;
   for (const theme of FASTR_REPORT_THEMES) {
     const t = FASTR_THEME_TOKENS[theme];
-    const five = [t.palette.paper, t.palette.ink, t.palette.accent, t.palette.warm, t.palette.cool];
-    for (const c of five) assert(HEX.test(c), `${theme}: ${c}`);
-    assertEquals(new Set(five.map((c) => c.toLowerCase())).size, 5, `${theme} repeats a palette colour`);
-    // Muted: no colour is saturated (HSL saturation), and the three hues
+    const four = [t.palette.paper, t.palette.ink, t.palette.accent, t.palette.warm];
+    for (const c of four) assert(HEX.test(c), `${theme}: ${c}`);
+    assertEquals(new Set(four.map((c) => c.toLowerCase())).size, 4, `${theme} repeats a palette colour`);
+    assertEquals(Object.keys(t.palette).length, 4, `${theme} has ${Object.keys(t.palette).length} palette colours`);
+    // Muted: no colour is saturated (HSL saturation), and the two hues
     // are neither near-white nor near-black.
-    for (const c of [t.palette.accent, t.palette.warm, t.palette.cool]) {
+    for (const c of [t.palette.accent, t.palette.warm]) {
       assert(satOf(c) <= 0.55, `${theme} ${c} is too saturated (${satOf(c).toFixed(2)})`);
     }
-    // The roles are the five: the page is the paper, danger the warm,
-    // success the cool, info the accent, and the charts agree.
+    // The roles are the four: the page is the paper, danger the warm pole,
+    // success AND info the accent, and the charts agree.
     assertEquals(t.page, t.palette.paper);
     assertEquals(t.ink, t.palette.ink);
     assertEquals(t.accent, t.palette.accent);
     assertEquals(t.semantic.danger, t.palette.warm);
-    assertEquals(t.semantic.success, t.palette.cool);
+    assertEquals(t.semantic.success, t.palette.accent);
     assertEquals(t.semantic.info, t.palette.accent);
     assertEquals(t.chart.bad, t.palette.warm);
-    assertEquals(t.chart.good, t.palette.cool);
+    assertEquals(t.chart.good, t.palette.accent);
     assertEquals(t.chart.series[0], t.palette.accent);
-    // The five tones are the five as grounds, and the type on each stands
+    // The four tones are the four as grounds, and the type on each stands
     // clear of it. The paper ground carries a hint of ink, so a paper panel
     // shows on the page; the ink ground is the ink itself.
+    assertEquals(FASTR_GROUNDS.length, 4);
     assertEquals(t.grounds.ink.color, t.palette.ink);
     assertEquals(t.grounds.ink.ink, t.palette.paper);
     assertEquals(t.grounds.accent.color, t.palette.accent);
     assertEquals(t.grounds.warm.color, t.palette.warm);
-    assertEquals(t.grounds.cool.color, t.palette.cool);
     assertEquals(t.grounds.paper.ink, t.palette.ink);
     assert(t.grounds.paper.color !== t.palette.paper, `${theme}: a paper panel would vanish`);
     assert(
@@ -735,7 +751,7 @@ Deno.test("every theme is five muted colours, and everything else is mixed from 
       assert(ink === t.palette.paper || ink === t.palette.ink, `${theme} ${tone} ground ink ${ink}`);
       assert(Math.abs(lumOf(color) - lumOf(ink)) > 0.2, `${theme} ${tone}: ${ink} on ${color} does not read`);
     }
-    // A theme's extra rules name the five, never a colour of their own.
+    // A theme's extra rules name the four, never a colour of their own.
     assert(!/#[0-9a-f]{3,8}\b|rgba?\(|\b(white|black)\b/i.test(t.extraCss), `${theme} extraCss carries a literal colour`);
   }
 });
@@ -753,15 +769,42 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
     for (const c of [...chart.series, chart.neutral, chart.good, chart.bad, ...chart.ramp]) {
       assert(HEX.test(c), `${theme}: ${c}`);
     }
-    // Meaning survives the theme: good is a green, bad a red — even on the
-    // monochrome themes, where they are muted but still tell apart.
-    const goodHue = hueOf(chart.good);
-    assert(goodHue >= 70 && goodHue <= 170, `${theme} good ${chart.good} hue ${goodHue.toFixed(0)}`);
+    // Meaning survives the theme, but as TEMPERATURE, not as a stock traffic
+    // light: bad is the theme's warm pole and good its accent, wherever that
+    // theme's hue happens to sit. A rust and a slate blue carry what a red
+    // and a green did, and carry it through red-green colour blindness.
+    assertEquals(chart.good, chart.series[0], `${theme} good is not the accent`);
     const badHue = hueOf(chart.bad);
-    assert(badHue <= 25 || badHue >= 335, `${theme} bad ${chart.bad} hue ${badHue.toFixed(0)}`);
-    const warnHue = hueOf(chart.warn);
-    assert(warnHue >= 20 && warnHue <= 65, `${theme} warn ${chart.warn} hue ${warnHue.toFixed(0)}`);
+    assert(badHue >= 300 || badHue <= 70, `${theme} bad ${chart.bad} hue ${badHue.toFixed(0)} is not a warm colour`);
+    // Good and bad must be tellable apart. On the themes whose accent is
+    // itself cool that is a wide hue gap; on the ones whose accent is warm
+    // (Editorial's ochre, Swiss's and Bauhaus's red, Broadsheet's maroon,
+    // Classic's gold) the two are both warm and the gap is in DEPTH instead,
+    // which is the cost of a four-colour theme and is held to a number here
+    // so it cannot quietly close.
+    // Monochrome is the third case: its accent is a true neutral, so hue
+    // distance from it is noise and what separates the two is that one of
+    // them HAS a hue at all.
+    const goodHue = hueOf(chart.good);
+    const gap = hueGapOf(badHue, goodHue);
+    const dL = Math.abs(lStarOf(chart.good) - lStarOf(chart.bad));
+    const neutralVsTinted = satOf(chart.good) < 0.08 && satOf(chart.bad) >= 0.12;
+    assert(
+      gap >= 60 || dL >= 12 || neutralVsTinted,
+      `${theme} good ${chart.good} and bad ${chart.bad} are ${gap.toFixed(0)} degrees and ` +
+        `${dL.toFixed(0)} L* apart: too close to tell apart`,
+    );
+    // The caution tier is the theme's own gold, and a tier of its own: a
+    // warning that reads as the danger beside it is no warning.
     assert(HEX.test(chart.warn), `${theme}: ${chart.warn}`);
+    const warnHue = hueOf(chart.warn);
+    assert(warnHue >= 30 && warnHue <= 60, `${theme} warn ${chart.warn} hue ${warnHue.toFixed(0)} is not a gold`);
+    for (const [role, c] of [["bad", chart.bad], ["good", chart.good]] as const) {
+      assert(
+        hueGapOf(warnHue, hueOf(c)) >= 20 || Math.abs(lStarOf(chart.warn) - lStarOf(c)) >= 10,
+        `${theme} warn ${chart.warn} collides with ${role} ${c}`,
+      );
+    }
     // The neutral is a mid tone that reads on the page, not a series colour
     // in disguise: no strong hue, and away from both page and ink.
     assert(Math.abs(lumOf(chart.neutral) - lumOf(page)) > 0.12, `${theme} neutral vanishes on the page`);
@@ -796,21 +839,23 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
       assert(tl >= Math.min(cl, pl) - 1e-9 && tl <= Math.max(cl, pl) + 1e-9, `${theme} ${tier} cell ${tint} is not between colour and page`);
       assert(Math.abs(tl - pl) > 0.02, `${theme} ${tier} cell ${tint} vanishes on the page`);
       // Fading toward a warm or cool page pulls a pale tint's hue around (a
-      // near-grey has little hue to hold), so the check is the band, not the
-      // drift: the green cell stays a green, the amber an amber, the red a red.
-      const h = hueOf(tint);
-      const inBand = tier === "good"
-        ? h >= 60 && h <= 180
-        : tier === "warn"
-        ? h >= 20 && h <= 75
-        : h <= 40 || h >= 335;
-      assert(inBand, `${theme} ${tier} cell ${tint} hue ${h.toFixed(0)}° left its band`);
+      // near-grey has little hue to hold), so the check is that the cell
+      // still wears its OWN colour rather than a fixed band: a tier's tint
+      // keeps the hue of the tier, whatever hue the theme gave it. Themes
+      // whose colour is a near-neutral (Monochrome) have no hue to hold.
+      const drift = hueGapOf(hueOf(tint), hueOf(full));
+      assert(
+        drift <= 40 || satOf(full) < 0.08,
+        `${theme} ${tier} cell ${tint} drifted ${drift.toFixed(0)}° from ${full}`,
+      );
     }
     assertEquals(p.cells.none, page);
   }
-  // A custom style: its accent leads the series, its ink is the strong
-  // line, its page tunes the faint tone; the semantic colours stay the
-  // theme's (a custom accent says nothing about good and bad).
+  // A custom style: its accent leads the series, its ink is the strong line,
+  // its page tunes the faint tone. The good news IS the accent, so a custom
+  // accent carries it (the page's success colour is re-derived from the same
+  // override); the bad news is the warm pole, which a custom style does not
+  // name, so it stays the theme's.
   const custom = fastrChartPalette("ministry", { accent: "#ABCDEF", ink: "#123456", page: "#000000" });
   assertEquals(custom.series[0], "#abcdef");
   assertEquals(custom.series.length, FASTR_THEME_TOKENS.ministry.chart.series.length + 1);
@@ -818,7 +863,8 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
   assert(lumOf(custom.faint) < lumOf(fastrChartPalette("ministry").faint), "faint follows the page");
   assertEquals(custom.cells.none, "#000000");
   assert(lumOf(custom.cells.good) < lumOf(fastrChartPalette("ministry").cells.good), "cell tints follow the page");
-  assertEquals(custom.good, FASTR_THEME_TOKENS.ministry.chart.good);
+  assertEquals(custom.good, "#abcdef");
+  assertEquals(custom.bad, FASTR_THEME_TOKENS.ministry.chart.bad);
   // An accent the theme already has is not doubled.
   const same = fastrChartPalette("bauhaus", { accent: "#B6433A" });
   assertEquals(same.series, FASTR_THEME_TOKENS.bauhaus.chart.series.map((c) => c.toLowerCase() === "#b6433a" ? "#b6433a" : c));
@@ -1004,7 +1050,7 @@ Deno.test("a figure takes a width, and the attribute block is consumed", () => {
 
 // ── Themes carry the tone palette ───────────────────────────────────────────
 
-Deno.test("every theme emits the five grounds and a rule for each tone", () => {
+Deno.test("every theme emits the four grounds and a rule for each tone", () => {
   for (const theme of FASTR_REPORT_THEMES) {
     const tokens = FASTR_THEME_TOKENS[theme];
     const css = buildFastrReportCss(theme);
@@ -1184,7 +1230,6 @@ Deno.test("every rule that darkens the ground re-points the semantic colours", (
       "fm-tone--ink",
       "fm-tone--accent",
       "fm-tone--warm",
-      "fm-tone--cool",
       "fm-ink--light",
     ]
   ) {
@@ -1267,17 +1312,18 @@ Deno.test("any ground that re-scopes the accent re-scopes the accent TEXT too", 
   }
 });
 
-// The warm and cool tones ARE the meaning colours: a warm tile is the same
-// red the danger callout and the falling delta carry, in every theme, so
-// "this is the bad news" is one colour wherever it is said.
-Deno.test("the warm and cool tones are the semantic colours, in every theme", () => {
+// The warm and accent tones ARE the meaning colours: a warm tile is the same
+// colour the danger callout and the falling delta carry, in every theme, so
+// "this is the bad news" is one colour wherever it is said. Since the cool
+// pole went, the accent carries the good news as well as the note.
+Deno.test("the warm and accent tones are the semantic colours, in every theme", () => {
   for (const theme of FASTR_REPORT_THEMES) {
     const t = FASTR_THEME_TOKENS[theme];
     assertEquals(t.grounds.warm.color, t.semantic.danger);
-    assertEquals(t.grounds.cool.color, t.semantic.success);
+    assertEquals(t.grounds.accent.color, t.semantic.success);
     assertEquals(t.grounds.accent.color, t.semantic.info);
     assertEquals(t.grounds.warm.color, t.chart.bad);
-    assertEquals(t.grounds.cool.color, t.chart.good);
+    assertEquals(t.grounds.accent.color, t.chart.good);
   }
   assertStringIncludes(
     containerHtmlFor("stat", { tone: "warm" }).className,
@@ -1564,7 +1610,7 @@ Deno.test("a hue mark on a ground that IS that hue returns to the ground's ink",
   // Otherwise `[x]{.danger}` inside `tone=warm` is pale red on red, the
   // same class of bug the accent-on-accent fixes closed.
   const css = buildFastrReportCss("bauhaus");
-  const grounds = ["fm-tone--accent", "fm-tone--warm", "fm-tone--cool"];
+  const grounds = ["fm-tone--accent", "fm-tone--warm"];
   for (const ground of grounds) {
     for (const role of ["danger", "warning", "success", "info"]) {
       const sel = `.${ground} .fm-mark--${role}`;

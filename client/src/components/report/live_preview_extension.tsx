@@ -49,7 +49,7 @@ import {
   type Range,
   type Text as DocText,
 } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { render } from "solid-js/web";
 import { Show } from "solid-js";
 import type { Awareness } from "y-protocols/awareness";
@@ -2791,6 +2791,12 @@ function buildSurfaceLines(state: EditorState): DecorationSet {
 
 // ── Inline conceal ───────────────────────────────────────────────────────────
 
+// How long the conceal set may spend pushing the parser forward to the end of
+// what is on screen, per visible range. Generous: a 145KB report parses whole
+// in about 18ms and the parser keeps what it did, so this is paid once on the
+// way down a document rather than per scroll.
+const CONCEAL_PARSE_BUDGET_MS = 50;
+
 // `[label]{…}` — parseFastrMarkAttrs decides whether the braces make it a
 // mark (role, size, or both); anything else stays literal text.
 const MARK_RE = /\[([^\]]*)\]\{([^}]*)\}/g;
@@ -2851,7 +2857,18 @@ function buildConceal(
     selectionTouches(state, from, to);
 
   for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
+    // The tree, parsed as far as this range when it is not already. This is
+    // the reason a heading arrived wearing its `#`: CodeMirror parses about
+    // 3KB up front and the rest in a background pseudo-thread, so scrolling
+    // into a part of a long report the parser had not reached yet iterated an
+    // EMPTY tree here. No HeaderMark, no conceal, and every heading on screen
+    // showed its marker until something else rebuilt the set. Forcing the
+    // parse to the visible end is cheap (a 145KB report parses in about 18ms,
+    // once, and the parse is incremental after that), and the budget keeps a
+    // pathological document from blowing a frame: whatever it does not reach
+    // arrives through the tree-change check in ConcealPluginValue.update.
+    const tree = ensureSyntaxTree(state, to, CONCEAL_PARSE_BUDGET_MS) ?? syntaxTree(state);
+    tree.iterate({
       from,
       to,
       enter(node) {
@@ -2990,7 +3007,7 @@ function buildConceal(
       const end = start + m[0].length;
       // Inside code spans/fences the renderer keeps the syntax literal, so
       // the conceal must too.
-      const nodeAt = syntaxTree(state).resolveInner(start, 1);
+      const nodeAt = tree.resolveInner(start, 1);
       if (/Code/.test(nodeAt.name)) continue;
       add(start, start + 1, conceal);
       add(start + 1 + m[1].length, end, conceal);
@@ -3021,7 +3038,16 @@ class ConcealPluginValue {
     [this.decorations, this.atomic] = buildConcealSets(view);
   }
   update(u: ViewUpdate) {
-    if (u.docChanged || u.selectionSet || u.viewportChanged) {
+    // The tree comparison is not optional: background parsing reaches the
+    // view as `view.dispatch({})` (forceParsing in @codemirror/language), an
+    // update with no doc, selection or viewport change, so without this a
+    // conceal set built from a tree that fell short of the viewport was never
+    // rebuilt and the `#` stayed on screen until an unrelated update nudged
+    // it. Trees are immutable and shared, so the check is an identity test.
+    if (
+      u.docChanged || u.selectionSet || u.viewportChanged ||
+      syntaxTree(u.startState) !== syntaxTree(u.state)
+    ) {
       [this.decorations, this.atomic] = buildConcealSets(u.view);
     }
   }

@@ -1067,7 +1067,7 @@ export type FastrCoverPreset = { layout: FastrCoverLayout; tone: string };
 
 export const FASTR_COVER_PRESETS: readonly FastrCoverPreset[] = [
   { layout: "classic", tone: "ink" },
-  { layout: "centered", tone: "cool" },
+  { layout: "centered", tone: "accent" },
   { layout: "poster", tone: "accent" },
   { layout: "spine", tone: "paper" },
   { layout: "frame", tone: "default" },

@@ -143,7 +143,7 @@ export function fastrBlockCaption(name: FastrBlockName): string {
   }
 }
 
-// Tones are the theme's five colours as grounds. The labels name the colour's
+// Tones are the theme's four colours as grounds. The labels name the colour's
 // ROLE in the palette, not what it comes out as: that is the theme's
 // business and changes when it does.
 export function fastrToneLabel(tone: FastrTone): string {
@@ -158,8 +158,6 @@ export function fastrToneLabel(tone: FastrTone): string {
       return t3({ en: "Accent", fr: "Accent", pt: "Destaque" });
     case "warm":
       return t3({ en: "Warm", fr: "Chaud", pt: "Quente" });
-    case "cool":
-      return t3({ en: "Cool", fr: "Froid", pt: "Frio" });
   }
 }
 

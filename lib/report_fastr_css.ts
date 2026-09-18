@@ -53,7 +53,7 @@ function semanticVarsCss(ground: "light" | "dark"): string {
 // (--fm-accent-text, --fm-ink-muted) are re-scoped correctly by every one of
 // these grounds already, so they stay useful there.
 const MARK_HUE_ROLES = ["danger", "warning", "success", "info"] as const;
-const MARK_FLAT_GROUNDS = ["fm-tone--accent", "fm-tone--warm", "fm-tone--cool"];
+const MARK_FLAT_GROUNDS = ["fm-tone--accent", "fm-tone--warm"];
 
 function markOnFlatGroundCss(d: string): string {
   const rules = MARK_FLAT_GROUNDS.flatMap((ground) =>
@@ -176,7 +176,7 @@ export function buildFastrThemeVarsCss(
     `  --fm-${r}-light: ${c.semanticOnLight[r]};
   --fm-${r}-dark: ${c.semanticOnDark[r]};`
   ).join("\n");
-  // The five tones' panels and their type. Unlike --fm-ink and --fm-accent,
+  // The four tones' panels and their type. Unlike --fm-ink and --fm-accent,
   // which are the CURRENT ink and accent inside whatever ground, these never
   // re-scope, so a rule can name the accent ground from inside an ink band.
   const grounds = FASTR_GROUNDS.map((g) =>
@@ -187,7 +187,6 @@ export function buildFastrThemeVarsCss(
   --fm-page: ${page};
   --fm-paper: ${page};
   --fm-warm: ${tokens.palette.warm};
-  --fm-cool: ${tokens.palette.cool};
   --fm-light-ink: ${c.lightInk};
   --fm-dark-ink: ${c.darkInk};
   --fm-surface: ${c.surface};
@@ -572,10 +571,9 @@ ${d}.fm-tone.fm-tone { background: var(--fm-paper-ground); color: var(--fm-ink);
 /* The tone rules themselves are per theme: buildFastrToneCss. */
 /* A theme may paint a heading WITH the accent (a highlighter mark). On a ground
    that is already a hue, that renders the heading invisible or garish, so the
-   three hue grounds clear it. Discovered as a blank yellow cover. */
+   two hue grounds clear it. Discovered as a blank yellow cover. */
 ${d}.fm-tone--accent h1, ${d}.fm-tone--accent h2, ${d}.fm-tone--accent h3,
-${d}.fm-tone--warm h1, ${d}.fm-tone--warm h2, ${d}.fm-tone--warm h3,
-${d}.fm-tone--cool h1, ${d}.fm-tone--cool h2, ${d}.fm-tone--cool h3 {
+${d}.fm-tone--warm h1, ${d}.fm-tone--warm h2, ${d}.fm-tone--warm h3 {
   background: none;
   padding-inline: 0;
 }

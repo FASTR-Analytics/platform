@@ -27,40 +27,56 @@ export const FASTR_REPORT_THEMES = [
 ] as const;
 export type FastrReportTheme = (typeof FASTR_REPORT_THEMES)[number];
 
-// The FIVE colours a theme is. Everything else the stylesheet needs (surfaces,
+// The FOUR colours a theme is. Everything else the stylesheet needs (surfaces,
 // borders, the muted ink, the dark band, the chart cycle, the status colours)
 // is mixed from these by deriveFastrThemeColors, so a theme never has more
-// than five colours and a tint of one of them is still that colour.
+// than four colours and a tint of one of them is still that colour.
 //   paper  the page
 //   ink    the text
-//   accent the theme's own colour: headings' rules, info
-//   warm   the red family: danger, a chart's "bad", the falling delta
-//   cool   the green family: success, a chart's "good", the rising delta
-// Warning sits between warm and cool (their mix), as the middle traffic
-// light does. All are muted on purpose (Nick, 2026-09-09).
+//   accent the theme's own colour: headings' rules, info, success, the
+//          rising delta, a chart's "good"
+//   warm   the theme's warm pole: danger, a chart's "bad", the falling delta
+// There were five until the cool pole went (Nick, 2026-09-18). It had been a
+// green on every theme whatever else the theme was made of, and re-cutting it
+// as each theme's own cool colour only moved the problem: on the slate and
+// navy themes the cool pole and the accent were two blues doing one job. So
+// the accent does that job. A theme now has ONE hue plus its warm, and the
+// pair still says what it means by TEMPERATURE: the accent is the cooler of
+// the two and carries the good news, the warm pole the hotter and carries the
+// bad. Warning is neither: it is the theme's gold, derived from the warm pole
+// (see deriveFastrThemeColors), which is why the caution tier survives having
+// no colour of its own.
 //
-// The five are also the five TONES a block can take as its ground
+// The catch, kept in the open: on a theme whose accent IS warm (Editorial's
+// ochre, Swiss's and Bauhaus's red, Broadsheet's maroon, Classic's gold) the
+// good news and the bad news are two warm tones, told apart by depth rather
+// than by hue. Those themes lean on the lightness gap, which the theme tests
+// hold them to.
+//
+// The four are also the four TONES a block can take as its ground
 // (`tone=ink`, `tone=warm`): FASTR_GROUNDS, each with the type that reads on
-// it. Only five, so the picker shows five (Nick, 2026-09-09).
+// it. Only four, so the picker shows four (Nick, 2026-09-18). `cool` is a
+// retired spelling and renders as the accent (FASTR_TONE_ALIASES).
 export type FastrThemePalette = {
   paper: string;
   ink: string;
   accent: string;
   warm: string;
-  cool: string;
 };
 
 // Callout kinds, stat deltas and role marks carry MEANING. Their colours are
-// the theme's own (danger is its warm, success its cool, info its accent, the
-// warning their middle), so they read as what they mean ON THAT PAGE.
+// the theme's own (danger is its warm pole, success and info its accent, the
+// warning its gold), so they read as what they mean ON THAT PAGE. Success and
+// info share the accent: with four colours the theme's hue is both its note
+// and its good news, and the two callouts differ by their title and icon.
 export type FastrColorScheme = "light" | "dark";
 export type FastrThemeSemantic = { info: string; success: string; warning: string; danger: string };
 
-// What a theme lends to charts, all derived from the five: `series` is the
-// cycle (accent, warm, cool, a shade of the accent, then tints of the three)
-// behind the two discrete colour scales; good is the cool, bad the warm,
-// warn their middle, so they still read as what they mean ON THE THEME'S
-// OWN PAGE rather than borrowing the app's red and green.
+// What a theme lends to charts, all derived from the four: `series` is the
+// cycle (accent, warm, then shades and tints of the two) behind the two
+// discrete colour scales; good is the accent, bad the warm pole and warn the
+// theme's gold, so they read as what they mean ON THE THEME'S OWN PAGE
+// rather than borrowing the app's red and green.
 export type FastrThemeChart = {
   series: string[];
   // Reference / no-signal: the single-grey scale, a roll-up total series, an
@@ -78,7 +94,7 @@ export type FastrThemeChart = {
   ramp: [string, string];
 };
 
-// A theme as written: its five colours, its type and its extra rules.
+// A theme as written: its four colours, its type and its extra rules.
 export type FastrThemeSpec = {
   // Whether the PAGE is light or dark: which way the derived tints run.
   scheme: FastrColorScheme;
@@ -97,12 +113,12 @@ export type FastrThemeSpec = {
   // Body column width.
   measure: string;
   // Rules the token model cannot express. They may name the five as
-  // --fm-paper, --fm-ink, --fm-accent, --fm-warm and --fm-cool (and a
+  // --fm-paper, --fm-ink, --fm-accent and --fm-warm (and a
   // ground's type as --fm-<tone>-ground-ink), and never a literal colour.
   extraCss: string;
 };
 
-export const FASTR_GROUNDS = ["paper", "ink", "accent", "warm", "cool"] as const;
+export const FASTR_GROUNDS = ["paper", "ink", "accent", "warm"] as const;
 export type FastrGround = (typeof FASTR_GROUNDS)[number];
 // A palette colour as a GROUND: the panel colour and the type on it.
 export type FastrGroundColors = { color: string; ink: string };
@@ -118,7 +134,7 @@ export type FastrDerivedColors = {
   inkMuted: string;
   accent: string;
   border: string;
-  // The five tones: each palette colour as a ground, with the paper or the
+  // The four tones: each palette colour as a ground, with the paper or the
   // ink as its type, whichever stands further from it. The paper ground
   // carries a hint of ink, or a paper panel on the paper page would be
   // invisible; the ink ground is the dark band on a light theme and the
@@ -149,7 +165,7 @@ function googleFonts(spec: string): string {
 const FASTR_THEME_SPECS: Record<FastrReportTheme, FastrThemeSpec> = {
   default: {
     scheme: "light",
-    palette: { paper: "#fcfcfb", ink: "#24292e", accent: "#4e6f94", warm: "#b0503f", cool: "#3f8570" },
+    palette: { paper: "#fcfcfb", ink: "#24292e", accent: "#4e6f94", warm: "#936653" },
     // Inter, not the system stack this theme used to name. A system font is
     // whatever the MACHINE has, and the PDF is printed by a headless Chrome
     // on the instance host whose only face is Liberation: the author's page
@@ -178,7 +194,7 @@ thead th { background: var(--fm-surface-alt); }
   },
   minimal: {
     scheme: "light",
-    palette: { paper: "#fafaf8", ink: "#2b2b2b", accent: "#6b7280", warm: "#9a6a61", cool: "#6f8b7f" },
+    palette: { paper: "#fafaf8", ink: "#2b2b2b", accent: "#6b7280", warm: "#8c6e63" },
     fontImport: googleFonts("family=Inter:wght@400;500;600;700"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -208,7 +224,7 @@ thead th { border-bottom-width: 1px; font-weight: 600; }
   },
   corporate: {
     scheme: "light",
-    palette: { paper: "#f7f8fa", ink: "#1f2a37", accent: "#3d5a80", warm: "#a34a44", cool: "#3f7f6c" },
+    palette: { paper: "#f7f8fa", ink: "#1f2a37", accent: "#3d5a80", warm: "#8e5f48" },
     fontImport: googleFonts("family=Inter:wght@400;600;700;800"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -235,7 +251,7 @@ th, td { padding: 0.6em 0.8em; }
   },
   ministry: {
     scheme: "light",
-    palette: { paper: "#f7f6f1", ink: "#22302a", accent: "#3e6b58", warm: "#8f4a44", cool: "#6f8f4e" },
+    palette: { paper: "#f7f6f1", ink: "#22302a", accent: "#3e6b58", warm: "#855847" },
     fontImport: googleFonts(
       "family=Merriweather:wght@700;900&family=Source+Sans+3:wght@400;600",
     ),
@@ -263,7 +279,7 @@ thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
   },
   classic: {
     scheme: "light",
-    palette: { paper: "#f9f6ef", ink: "#2b2620", accent: "#8c6a3f", warm: "#8e4034", cool: "#4a7059" },
+    palette: { paper: "#f9f6ef", ink: "#2b2620", accent: "#8c6a3f", warm: "#6d332c" },
     fontImport: googleFonts("family=Lora:wght@400;600;700"),
     fontBody: `Lora, Georgia, "Times New Roman", serif`,
     fontHeading: `Lora, Georgia, "Times New Roman", serif`,
@@ -287,7 +303,7 @@ thead th { border-bottom-width: 1px; font-variant: small-caps; letter-spacing: 0
   },
   executive: {
     scheme: "light",
-    palette: { paper: "#f6f7f9", ink: "#1e232b", accent: "#4b5d78", warm: "#a15a4c", cool: "#5a8272" },
+    palette: { paper: "#f6f7f9", ink: "#1e232b", accent: "#4b5d78", warm: "#85515c" },
     fontImport: googleFonts(
       "family=Playfair+Display:wght@700;900&family=Inter:wght@400;600",
     ),
@@ -317,7 +333,7 @@ thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font
   },
   clinical: {
     scheme: "light",
-    palette: { paper: "#f9fbfb", ink: "#1f2d33", accent: "#3f7c86", warm: "#b45a4e", cool: "#4f9273" },
+    palette: { paper: "#f9fbfb", ink: "#1f2d33", accent: "#3f7c86", warm: "#96614a" },
     fontImport: googleFonts("family=IBM+Plex+Sans:wght@400;500;600;700"),
     fontBody: `"IBM Plex Sans", ${SYSTEM_SANS}`,
     fontHeading: `"IBM Plex Sans", ${SYSTEM_SANS}`,
@@ -343,7 +359,7 @@ tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
   },
   editorial: {
     scheme: "light",
-    palette: { paper: "#fbf9f5", ink: "#262421", accent: "#b0774d", warm: "#a2453c", cool: "#537d5c" },
+    palette: { paper: "#fbf9f5", ink: "#262421", accent: "#b0774d", warm: "#7f4347" },
     fontImport: googleFonts(
       "family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600",
     ),
@@ -374,7 +390,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85em;
   },
   swiss: {
     scheme: "light",
-    palette: { paper: "#f9f9f9", ink: "#141414", accent: "#b5493e", warm: "#8f3b2f", cool: "#2e6f5b" },
+    palette: { paper: "#f9f9f9", ink: "#141414", accent: "#b5493e", warm: "#652e25" },
     fontImport: googleFonts("family=Inter:wght@400;500;700;900"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -406,7 +422,7 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; 
   },
   monochrome: {
     scheme: "light",
-    palette: { paper: "#f4f4f2", ink: "#262626", accent: "#5c5c5a", warm: "#8a5a52", cool: "#5f7a72" },
+    palette: { paper: "#f4f4f2", ink: "#262626", accent: "#5c5c5a", warm: "#7e6758" },
     fontImport: googleFonts("family=Inter:wght@400;600;800"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -432,7 +448,7 @@ thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none
   },
   bauhaus: {
     scheme: "light",
-    palette: { paper: "#f3efe6", ink: "#1c1c1c", accent: "#b6433a", warm: "#8d342b", cool: "#3f7d4f" },
+    palette: { paper: "#f3efe6", ink: "#1c1c1c", accent: "#b6433a", warm: "#6b2b24" },
     fontImport: googleFonts(
       "family=Archivo:wght@700;900&family=Space+Grotesk:wght@400;500;700",
     ),
@@ -464,7 +480,7 @@ th, td { border: 2px solid var(--fm-ink); }
   },
   broadsheet: {
     scheme: "light",
-    palette: { paper: "#f7f4ee", ink: "#1c1c1c", accent: "#6e3b36", warm: "#9c3f33", cool: "#527254" },
+    palette: { paper: "#f7f4ee", ink: "#1c1c1c", accent: "#6e3b36", warm: "#9b684b" },
     fontImport: googleFonts(
       "family=Playfair+Display:wght@700;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600",
     ),
@@ -519,6 +535,13 @@ export function hexLuminance(v: string): number | undefined {
   return 0.2126 * ch(c[0]) + 0.7152 * ch(c[1]) + 0.0722 * ch(c[2]);
 }
 
+// The hue a caution tier reads as, and the theme's own gold at it: the warm
+// pole's chroma and lightness carried to that hue, so Monochrome's warning is
+// a whisper of gold and Bauhaus's is a real yellow. A warm pole that is
+// already golden (Broadsheet's sepia) would collide, so the gold steps
+// lighter to stay a tier of its own.
+const CAUTION_HUE = 45;
+
 // Every colour the stylesheet reads, from the five. `scheme` says which way
 // the tints run: toward the paper is toward light on a light theme and
 // toward dark on a dark one, which is what each derived role wants.
@@ -533,8 +556,15 @@ export function deriveFastrThemeColors(
   const inkLum = hexLuminance(p.ink) ?? (light ? 0 : 1);
   // Text on a colour: the paper or the ink, whichever stands further from it.
   const on = (c: string) => Math.abs(lum(c) - paperLum) >= Math.abs(lum(c) - inkLum) ? p.paper : p.ink;
-  const warn = mix(p.warm, p.cool, 0.45);
-  const semantic: FastrThemeSemantic = { info: p.accent, success: p.cool, warning: warn, danger: p.warm };
+  // The caution tier is the theme's GOLD, no longer the mix of the other two.
+  // A mix only made an amber while the pair WAS a red and a green; now that
+  // they are the theme's poles it lands wherever the arithmetic falls, a grey
+  // for one theme and a magenta for the next. Amber is what a middle light
+  // reads as, so warn is built at the caution hue out of the warm pole's own
+  // chroma and lightness (the theme's gold, not a stock one) and is lifted
+  // clear of that pole when the theme's warm is itself golden.
+  const warn = cautionGold(p.warm, p.accent);
+  const semantic: FastrThemeSemantic = { info: p.accent, success: p.accent, warning: warn, danger: p.warm };
   const faded: FastrThemeSemantic = {
     info: mix(semantic.info, p.paper, 0.45),
     success: mix(semantic.success, p.paper, 0.45),
@@ -554,7 +584,6 @@ export function deriveFastrThemeColors(
       ink: { color: p.ink, ink: p.paper },
       accent: { color: p.accent, ink: on(p.accent) },
       warm: { color: p.warm, ink: on(p.warm) },
-      cool: { color: p.cool, ink: on(p.cool) },
     },
     semantic,
     semanticOnDark: light ? faded : semantic,
@@ -562,17 +591,21 @@ export function deriveFastrThemeColors(
     lightInk: paperLum >= inkLum ? p.paper : p.ink,
     darkInk: paperLum >= inkLum ? p.ink : p.paper,
     chart: {
+      // Two hues, so the cycle is built from their shades and tints: the
+      // third series colour used to be the cool pole and is now the gold the
+      // caution tier already uses, which keeps six distinct colours without a
+      // fifth palette entry.
       series: [
         p.accent,
         p.warm,
-        p.cool,
+        warn,
         mix(p.accent, p.ink, 0.5),
         mix(p.accent, p.paper, 0.45),
         mix(p.warm, p.paper, 0.45),
-        mix(p.cool, p.paper, 0.45),
+        mix(p.warm, p.ink, 0.45),
       ],
       neutral: mix(p.ink, p.paper, 0.38),
-      good: p.cool,
+      good: p.accent,
       bad: p.warm,
       warn,
       ramp: light
@@ -632,18 +665,70 @@ export function fastrChartPalette(
   const page = colors?.page ?? tokens.page;
   const ink = colors?.ink ?? tokens.ink;
   const tint = (c: string) => mixHex(c, page, 0.6) ?? c;
+  // The good news is the accent, so a custom style's accent carries it: the
+  // page's own success colour is re-derived from that accent (derivedFor in
+  // report_fastr_css), and a chart that kept the theme's would disagree with
+  // the callout beside it. The bad news is the warm pole, which a custom
+  // style does not name, so it stays the theme's.
+  const good = accent ?? chart.good;
   return {
     ...chart,
+    good,
     series,
     strong: ink,
     faint: tint(chart.neutral),
     cells: {
-      good: tint(chart.good),
+      good: tint(good),
       warn: tint(chart.warn),
       bad: tint(chart.bad),
       none: page,
     },
   };
+}
+
+function cautionGold(warm: string, accent: string): string {
+  const hsl = hexToHsl(warm);
+  if (!hsl) return warm;
+  const [h, s, l] = hsl;
+  const golden = (v: number) => {
+    const dh = Math.abs(v - CAUTION_HUE);
+    return Math.min(dh, 360 - dh) < 20;
+  };
+  // Clear of the warm pole first: Broadsheet's sepia is nearly this hue.
+  let lightness = Math.min(0.56, l + (golden(h) ? 0.1 : 0.02));
+  // Then clear of the accent, for a theme whose own colour is a gold
+  // (Classic). The hue cannot give way here, the caution hue being the whole
+  // point, so the gold steps DOWN into a bronze: type still reads on it,
+  // which it would not on a paler gold.
+  const a = hexToHsl(accent);
+  if (a && golden(a[0]) && Math.abs(lightness - a[2]) < 0.12) {
+    lightness = Math.max(0.24, a[2] - 0.14);
+  }
+  return hslToHex(CAUTION_HUE, s * 0.95, lightness);
+}
+
+// HSL of a #rrggbb colour as [hue 0-360, saturation 0-1, lightness 0-1];
+// undefined when it is not a 6-digit hex.
+function hexToHsl(v: string): [number, number, number] | undefined {
+  const c = parseHex6(v);
+  if (!c) return undefined;
+  const [r, g, b] = c.map((n) => n / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  let h = max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  if (h < 0) h += 360;
+  return [h, s, l];
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const a = s * Math.min(l, 1 - l);
+  const k = (n: number) => (n + h / 30) % 12;
+  const ch = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return "#" + [ch(0), ch(8), ch(4)]
+    .map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("");
 }
 
 // sRGB mix of two #rrggbb colours, `t` of the way from a to b; undefined when

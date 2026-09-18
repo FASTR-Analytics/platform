@@ -1448,12 +1448,12 @@ function roleClassOf(role: FastrInkRole | undefined): string {
   return role === undefined ? "" : `fm-mark fm-mark--${role}`;
 }
 
-// The combined ground panel: the theme's five TONES as preset swatches on
+// The combined ground panel: the theme's four TONES as preset swatches on
 // top (roles, so they re-theme with the document) above the literal colour
 // grid (the same "standard" set panther's ColorPicker showed) and a hex field
 // for anything else. Tone swatches paint the REAL scoped rule, so a swatch is
 // the ground the report will get; the "default" tone is the clear, drawn as a
-// struck-through chip so the row reads as five colours and a none. `onPick`
+// struck-through chip so the row reads as four colours and a none. `onPick`
 // fires after any swatch click so a popover caller can close; live hex typing
 // deliberately does not fire it.
 function GroundPanel(p: {
