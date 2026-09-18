@@ -18,6 +18,18 @@ type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   onChange: (value: T) => void;
   tabLabelFormatter?: (item: ListItem<T, M>) => string;
   vertical?: boolean;
+  // The three below are horizontal only. The strip is pure geometry: it
+  // paints no surface of its own and never puts space below the rail.
+  size?: "sm";
+  // By default the strip carries ui-pad-x so it can be a FrameTop panel or
+  // sit under a HeadingBar bare, with the first label at the content edge.
+  // noPad is for a strip inside padded content (a ui-pad / ui-spy stack, a
+  // modal body): the parent's padding is the inset and the stack's spacing is
+  // the room above the label, so the tabs keep only their bottom padding.
+  noPad?: boolean;
+  // Stops the rail at the strip's pad-x instead of running it to the panel
+  // edge. Nothing to do with noPad: the rail already ends there.
+  insetRail?: boolean;
 
   // Collapsible functionality (vertical only)
   collapsible?: boolean;
@@ -32,6 +44,8 @@ export function TabsNavigation<T extends string = string, M = never>(
   const isVertical = () => p.vertical === true;
   const isCollapsed = () => p.collapsed === true && isVertical();
   const isCollapsible = () => p.collapsible === true && isVertical();
+  const isSmall = () => p.size === "sm";
+  const hasPadX = () => p.noPad !== true;
 
   const isActive = (id: T) => id === p.value;
 
@@ -41,20 +55,29 @@ export function TabsNavigation<T extends string = string, M = never>(
 
   const getTabClasses = (id: T) => {
     if (!isVertical()) {
-      // Horizontal tabs render their own bottom border, which overlaps the
-      // container's continuous underline (see containerClasses + rowClasses
-      // below for the -mb-px trick). Active tab covers with primary; inactive
-      // tab is transparent so the container line shows through — producing a
-      // single clean rail across the whole tab strip. The inactive arm needs
-      // bg-clip-padding: the family's opaque rest bg would otherwise paint
-      // under the transparent border strip and hide the rail.
+      // A tab label is a text-only interactive: no hover surface, text colour
+      // carries the hover. The underline hugs the label (no horizontal
+      // padding; tabs are spaced by the strip's gap). It is an inset shadow,
+      // like the vertical mode's side accent, so it paints over the bottom of
+      // the padding instead of adding to it; -mb-px overlaps the tab's bottom
+      // pixel onto the rail so the underline sits on the line.
       const baseClasses =
-        "ui-focusable relative flex items-center justify-center ui-gap-sm ui-pad font-700 cursor-pointer select-none border-b-2";
+        "ui-focusable relative -mb-px flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none";
+      const padClasses = hasPadX()
+        ? isSmall() ? "ui-pad-y-sm" : "ui-pad-y"
+        : isSmall()
+        ? "ui-pad-b-sm"
+        : "ui-pad-b";
+      const sizeClasses = `${padClasses} ${isSmall() ? "text-sm" : ""}`;
 
       if (isActive(id)) {
-        return `${baseClasses} border-primary text-primary bg-base-100`;
+        return `${baseClasses} ${sizeClasses} text-primary ${
+          isSmall()
+            ? "shadow-[inset_0_-2px_0_0_var(--color-primary)]"
+            : "shadow-[inset_0_-3px_0_0_var(--color-primary)]"
+        }`;
       }
-      return `${baseClasses} ui-hoverable-base-100 bg-clip-padding border-transparent text-base-content hover:text-primary hover:border-primary/40`;
+      return `${baseClasses} ${sizeClasses} text-base-content hover:text-primary`;
     } else {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
@@ -78,16 +101,22 @@ export function TabsNavigation<T extends string = string, M = never>(
   const formatter = (item: ListItem<T, M>) =>
     (p.tabLabelFormatter ?? labelString)(item);
 
+  // Horizontal: the rail is the border-b of the strip (running through its
+  // pad-x to the panel edge) or of the row (stopping at the pad-x); each
+  // tab's -mb-px pulls its underline down onto that line either way.
+  const railOnRow = () => hasPadX() && p.insetRail === true;
+
   const containerClasses = () =>
     !isVertical()
-      ? "bg-base-100 w-full border-b"
+      ? `w-full ${railOnRow() ? "" : "border-b"} ${hasPadX() ? "ui-pad-x" : ""}`
       : "bg-base-100 flex w-full flex-col h-full";
 
-  // Horizontal: -mb-px pulls the tab row up 1px so each tab's border-b-2
-  // sits on top of the container's border-b — continuous underline with
-  // the active tab's primary border overlaying it.
   const rowClasses = () =>
-    !isVertical() ? "-mb-px flex" : "flex-1 overflow-y-auto";
+    !isVertical()
+      ? `flex ${railOnRow() ? "border-b" : ""} ${
+        isSmall() ? "ui-gap" : "ui-gap-lg"
+      }`
+      : "flex-1 overflow-y-auto";
 
   const getDotClasses = (intent: Intent) => {
     const base = "h-2 w-2 rounded-full flex-none";

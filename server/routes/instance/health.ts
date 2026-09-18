@@ -268,26 +268,25 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
   return c.json({ reset: true, serverTime: new Date().toISOString() });
 });
 
+// Every DHIS2 element in the dictionary with the indicator that holds it.
+// The wire keys (id, label, mappedTo) predate PLAN_A3 and are read outside
+// this repo (SYSTEM_15), so they stay: id is the element's data id, mappedTo
+// the indicator's own id.
 routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
-  const indicators = await mainDb<
-    { indicator_raw_id: string; indicator_raw_label: string; mapped_to: string | null }[]
+  const elements = await mainDb<
+    { data_id: string; indicator_common_label: string; indicator_common_id: string }[]
   >`
-    SELECT
-      ir.indicator_raw_id,
-      ir.indicator_raw_label,
-      STRING_AGG(i.indicator_common_id, ', ' ORDER BY i.indicator_common_id) AS mapped_to
-    FROM indicators_raw ir
-    LEFT JOIN indicator_mappings im ON ir.indicator_raw_id = im.indicator_raw_id
-    LEFT JOIN indicators i ON im.indicator_common_id = i.indicator_common_id
-    GROUP BY ir.indicator_raw_id, ir.indicator_raw_label
-    ORDER BY LOWER(ir.indicator_raw_label)
+    SELECT data_id, indicator_common_label, indicator_common_id
+    FROM indicators
+    WHERE definition_type = 'dhis2_element'
+    ORDER BY LOWER(indicator_common_label)
   `;
   return c.json({
-    indicators: indicators.map((i) => ({
-      id: i.indicator_raw_id,
-      label: i.indicator_raw_label,
-      mappedTo: i.mapped_to ?? null,
+    indicators: elements.map((e) => ({
+      id: e.data_id,
+      label: e.indicator_common_label,
+      mappedTo: e.indicator_common_id,
     })),
   });
 });

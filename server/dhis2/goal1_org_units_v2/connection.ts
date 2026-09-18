@@ -1,11 +1,17 @@
 import {
-  getDHIS2,
   FetchOptions,
+  getDHIS2,
   validateDhis2Connection,
 } from "../common/base_fetcher.ts";
-import { DHIS2PagedResponse, DHIS2OrgUnit } from "./types.ts";
 import { getOrgUnitLevels } from "./get_metadata.ts";
 import type { TranslatableString } from "lib";
+
+// Unvalidated JSON from an external server: every field may be missing or
+// null.
+type SystemInfoResponse = { version: string | null | undefined };
+type OrgUnitCountResponse = {
+  pager: { total: number | null | undefined } | null | undefined;
+};
 
 export async function testDHIS2Connection(
   options: FetchOptions,
@@ -24,11 +30,10 @@ export async function testDHIS2Connection(
   }
 
   try {
-    const systemInfo = await getDHIS2<{
-      version?: string;
-      revision?: string;
-      systemName?: string;
-    }>("/api/system/info.json", options);
+    const systemInfo = await getDHIS2<SystemInfoResponse>(
+      "/api/system/info.json",
+      options,
+    );
 
     const testParams = new URLSearchParams();
     testParams.set("fields", "id");
@@ -36,7 +41,7 @@ export async function testDHIS2Connection(
     testParams.set("page", "1");
     testParams.set("paging", "true");
 
-    const testOrgUnits = await getDHIS2<DHIS2PagedResponse<DHIS2OrgUnit>>(
+    const testOrgUnits = await getDHIS2<OrgUnitCountResponse>(
       "/api/organisationUnits.json",
       options,
       testParams,
@@ -48,9 +53,9 @@ export async function testDHIS2Connection(
       success: true,
       message: { en: "Successfully connected to DHIS2", fr: "Connexion à DHIS2 réussie", pt: "Ligação ao DHIS2 estabelecida com sucesso" },
       details: {
-        orgUnitCount: testOrgUnits.pager?.total,
+        orgUnitCount: testOrgUnits.pager?.total ?? undefined,
         levels: levels.length,
-        version: systemInfo.version,
+        version: systemInfo.version ?? undefined,
       },
     };
   } catch (error) {

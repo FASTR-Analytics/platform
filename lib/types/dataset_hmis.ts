@@ -35,29 +35,13 @@ const datasetHmisWindowingBaseSchema = z.object({
   facilityTypesToInclude: z.array(z.string()).optional(),
 });
 
-export const datasetHmisWindowingRawSchema = datasetHmisWindowingBaseSchema
+// A windowing selects indicators (the delete-data route, PLAN_A4 ruling 9).
+export const datasetHmisWindowingSchema = datasetHmisWindowingBaseSchema
   .extend({
-    indicatorType: z.literal("raw"),
-    rawIndicatorsToInclude: z.array(z.string()),
+    indicatorsToInclude: z.array(z.string()),
   });
 
-export const datasetHmisWindowingCommonSchema = datasetHmisWindowingBaseSchema
-  .extend({
-    indicatorType: z.literal("common"),
-    commonIndicatorsToInclude: z.array(z.string()),
-  });
-
-export type DatasetHmisWindowingRaw = z.infer<
-  typeof datasetHmisWindowingRawSchema
->;
-
-export type DatasetHmisWindowingCommon = z.infer<
-  typeof datasetHmisWindowingCommonSchema
->;
-
-export type DatasetHmisWindowing =
-  | DatasetHmisWindowingRaw
-  | DatasetHmisWindowingCommon;
+export type DatasetHmisWindowing = z.infer<typeof datasetHmisWindowingSchema>;
 
 export const AA3_SEPARATOR = "|||";
 

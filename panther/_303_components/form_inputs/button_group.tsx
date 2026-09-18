@@ -31,7 +31,6 @@ function getButtonGroupItemClasses(size?: "sm") {
     "items-center",
     "justify-center",
     "gap-[0.5em]",
-    "flex-1",
     "border-y",
     "border-r",
 
@@ -72,7 +71,7 @@ export function ButtonGroup<T extends string, M = never>(
         <label class="ui-label block">{p.label}</label>
       </Show>
       <div
-        class="inline-flex data-[width=true]:w-full"
+        class="inline-grid auto-cols-fr grid-flow-col data-[width=true]:w-full"
         data-width={p.fullWidth}
       >
         <For each={p.items}>

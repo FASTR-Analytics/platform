@@ -34,9 +34,9 @@ export async function integrateStagedHmisCsvData(args: {
   }
 
   // The staging table and the recorded staging result are separate artifacts
-  // that can desynchronize (UNLOGGED table truncated by a Postgres crash, a
-  // killed re-stage). Integration only proceeds when the table holds exactly
-  // the rows the recorded result describes.
+  // that can desynchronize (an UNLOGGED table is truncated by a Postgres
+  // crash). Integration only proceeds when the table holds exactly the rows
+  // the recorded result describes.
   const stagingRowCount = await importDb<{ count: string | number }[]>`
     SELECT COUNT(*) as count FROM ${importDb(stagingTableName)}
   `;
@@ -45,7 +45,7 @@ export async function integrateStagedHmisCsvData(args: {
   if (actualRows !== recordedRows) {
     throw new Error(
       `Staging table holds ${actualRows} rows but the staging result recorded ${recordedRows}. ` +
-        `The staged data no longer matches what was reviewed (interrupted re-stage or database crash). ` +
+        `The staged data no longer matches what was reviewed (database crash). ` +
         `Start the import again.`,
     );
   }
@@ -119,7 +119,7 @@ export async function integrateStagedHmisCsvData(args: {
       FROM ${sql(stagingTableName)} agg
       WHERE
         dt.facility_id = agg.facility_id
-        AND dt.indicator_raw_id = agg.indicator_raw_id
+        AND dt.data_id = agg.data_id
         AND dt.period_id = agg.period_id
     `;
     rowsUpdated = updateResult.count;
@@ -130,7 +130,7 @@ export async function integrateStagedHmisCsvData(args: {
         SELECT 1
         FROM ${sql(datasetTableName)} dt
         WHERE dt.facility_id = agg.facility_id
-          AND dt.indicator_raw_id = agg.indicator_raw_id
+          AND dt.data_id = agg.data_id
           AND dt.period_id = agg.period_id
           AND dt.version_id = ${versionId}
       )
@@ -140,10 +140,10 @@ export async function integrateStagedHmisCsvData(args: {
 
     const insertResult = await sql`
       INSERT INTO ${sql(datasetTableName)}
-      (facility_id, indicator_raw_id, period_id, count, version_id)
+      (facility_id, data_id, period_id, count, version_id)
       SELECT
         facility_id,
-        indicator_raw_id,
+        data_id,
         period_id,
         count,
         ${versionId}::INTEGER as version_id
@@ -164,13 +164,13 @@ export async function integrateStagedHmisCsvData(args: {
     // Import ledger in the same transaction: the ledger can never disagree
     // with the data.
     const touchedPairs = (
-      await sql<{ indicator_raw_id: string; period_id: number }[]>`
-        SELECT DISTINCT indicator_raw_id, period_id
+      await sql<{ data_id: string; period_id: number }[]>`
+        SELECT DISTINCT data_id, period_id
         FROM ${sql(datasetTableName)}
         WHERE version_id = ${versionId}
       `
     ).map((r) => ({
-      indicatorRawId: r.indicator_raw_id,
+      dataId: r.data_id,
       periodId: r.period_id,
     }));
 

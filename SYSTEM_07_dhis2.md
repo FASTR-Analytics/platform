@@ -5,14 +5,16 @@ globs:
   - client/src/components/Dhis2CredentialsEditor.tsx
   - server/dhis2/**
   - server/routes/instance/indicators_dhis2.ts
+  - server/tests/dhis2_decompose_indicator_test.ts
+  - server/tests/dhis2_element_eligibility_test.ts
 docs_absorbed:
 ---
 # S7: DHIS2 Connector
 
 The self-contained typed HTTP adapter for external DHIS2 instances: one
-base fetcher owning auth/timeout/retry, five `goalN_` endpoint groups
-(org units, indicators, analytics, geojson, data value sets + metadata
-id-existence for the S6 import dispatcher), two-phase connection
+base fetcher owning auth/timeout/retry, four `goalN_` endpoint groups
+(org units, indicators, geojson, data value sets + metadata id-existence
+for the S6 import dispatcher), two-phase connection
 validation with a never-throw user boundary, and the client credentials
 UX. No DB access anywhere in the system. It fetches and shapes; callers
 persist. Reviewed against code (first review cycle,
@@ -20,9 +22,9 @@ review-only; absorbs DOC_DHIS2_INTEGRATION).
 
 Boundaries: what happens to fetched data is the consumer's system:
 structure/facility staging and geojson storage are **S5**, HMIS dataset
-staging is **S6**. Period (`YYYYMM`) formatting for analytics is **S9**
-(Period semantics). The in-memory geojson session cache here is the
-sanctioned process-local alternative to Valkey. See
+staging is **S6**. Period (`YYYYMM`) semantics are **S9**. The in-memory
+geojson session cache here is the sanctioned process-local alternative to
+Valkey. See
 [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md) for when to use which. The
 instance-wide stored DHIS2 credentials (encrypted at rest, one row for
 every DHIS2 flow: structure, indicators, geojson, HMIS data) live in
@@ -64,6 +66,31 @@ none). The heavy geojson fetch and S6's dataValueSets pulls pass it
 Logging happens **only** behind explicit `logRequest`/`logResponse`
 flags, and logs only method/URL/status, never credentials.
 
+## Wire types: what a response type may claim
+
+`getDHIS2<T>` returns `data as T`. Nothing validates the body, so a
+response type is a claim about an external server, not a guarantee, and
+DHIS2 does send `null` and omit keys where its docs promise a value (a
+dataValueSets row arrived with `value: null` in production, 1.73.1).
+The rule for every type that describes a fetched body:
+
+- **Every field is `T | null | undefined`**, never `?:`. Both forms
+  reach the wire (a serialised `null` and a missing key), and a required
+  nullable field makes every object literal spell the field out, so a
+  field added to the type is caught at each fixture.
+- **The wire type is private to its fetcher, which normalises.** The
+  fetcher maps each row into a clean app type and drops a row that lacks
+  its identity (no `id`, no `path`), counting the drop where a caller can
+  show it (`OrgUnitPathPage.dropped`). Consumers, routes and the client
+  never see the wire shape. goal 1, goal 2 and goal 4 all work this way.
+- **The exception is goal 5's dataValueSets row.** `DHIS2DataValue` is
+  exported nullable and guarded at the S6 reduce instead of copied,
+  because a country-month pull is up to 10 MB and the reduce already
+  walks every row once.
+
+The compiler enforces the first point; the second is discipline, so a
+new fetcher is reviewed against it.
+
 ## Retry (`server/dhis2/common/retry_utils.ts`)
 
 The whole fetch closure runs inside `withRetry(fn, options)`. Defaults:
@@ -78,10 +105,11 @@ items). On exhaustion, `withRetry` throws a **new plain `Error`**
 (`"Failed after N attempts. Last error: …"`). The structured
 `status`/`responseBody` fields do not survive to the caller.
 
-Callers can tune per call: the S6 HMIS analytics worker passes
-`maxAttempts: 10, maxDelayMs: 60000`; the heavy geojson fetch passes
-`maxAttempts: 1` because retrying a ~20 MB download re-pays the whole
-transfer per attempt.
+Callers can tune per call: the S6 HMIS import worker passes
+`maxAttempts: 3` and excludes size-cap and timeout errors from retry
+(it splits the pull by org-unit subtree instead); the heavy geojson fetch
+passes `maxAttempts: 1` because retrying a ~20 MB download re-pays the
+whole transfer per attempt.
 
 ## The `goalN_` convention
 
@@ -91,27 +119,92 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | Folder | Goal | Key functions |
 | --- | --- | --- |
 | `common/` | fetcher + retry + validation | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection` |
-| `goal1_org_units_v2/` | org-unit hierarchy metadata | `getOrgUnitMetadata` (levels + counts + roots, parallel), `testDHIS2Connection` |
-| `goal2_indicators/` | indicator / data-element discovery | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `testIndicatorsConnection` |
-| `goal3_analytics/` | analytics values | `getAnalyticsFromDHIS2` |
+| `goal1_org_units_v2/` | org-unit hierarchy metadata and paged units | `getOrgUnitMetadata` (levels + counts + roots, parallel), `getOrgUnitNamesAtLevel`, `pageOrgUnitPathsAtLevel` (one page of units with paths per yield), `testDHIS2Connection` |
+| `goal2_indicators/` | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
 | `goal4_geojson/` | boundary import for maps | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches |
+| `goal5_data_value_sets/` | reported values + metadata id-existence | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel` |
 
 (`goal1`'s `_v2` suffix is vestigial: no v1 survives.)
 
-**Query idioms.** `fields=` comma-lists with `DEFAULT_DATA_ELEMENT_FIELDS`
-/ `DEFAULT_INDICATOR_FIELDS` defaults; repeated `filter=` params;
-`paging`/`pageSize`; `rootJunction: "OR"` for ilike OR-search over
+**Query idioms.** `fields=` comma-lists (`DATA_ELEMENT_FIELDS` /
+`INDICATOR_FIELDS`, fixed so the mappers know what they read); repeated
+`filter=` params; `paging`; `rootJunction: "OR"` for ilike OR-search over
 name/code/id. `searchAllIndicatorsAndDataElements` splits the query on
 comma/semicolon/newline, searches every term in parallel across both
-endpoints, and merges deduped by id.
+endpoints, and merges deduped by id. The data-element field list carries
+`dataSetElements[dataSet[id,periodType]]` so the eligibility check below
+can see the element's period type.
 
-**Analytics.** `getAnalyticsFromDHIS2` requires at least one dx item
-(dataElements + indicators combined), one orgUnit, and one period. It
-throws otherwise. Dimension order is fixed `dx`, `pe`, `ou` for
-compatibility; passthrough params cover `aggregationType`, `skipMeta`,
-`skipData`, hierarchy flags, `displayProperty`, `outputIdScheme`. DHIS2
-URL limits force callers to batch large `ou` lists (S6 batches 100
-facilities per request with a 2048-char guard).
+**Element eligibility** (`goal2_indicators/element_eligibility.ts`, pure;
+PLAN_A3 ruling 6). A DHIS2 data element may fill a DHIS2 element indicator
+(be its data id) only when DHIS2's own metadata says it is an additive monthly
+count: `aggregationType` is `SUM`; `valueType` is `NUMBER` (the DHIS2
+editor's default, which most real count elements carry; integrality is
+enforced per value at import by S6's skip-and-record), `INTEGER`,
+`INTEGER_POSITIVE` or `INTEGER_ZERO_OR_POSITIVE` (`INTEGER_NEGATIVE` is
+refused, since every value of such an element would be skipped at
+import; `PERCENTAGE`, `UNIT_INTERVAL` and every non-numeric type are
+refused); and at least one of its data sets has period type `Monthly`
+(an element in no data set has no period and is refused; one monthly
+data set among several is enough, since the monthly values are what the
+dataValueSets pull reads). `getDhis2ElementVerdict(element)` returns
+`{ accepted: true }` or `{ accepted: false, refusal }` where the refusal
+names the failing field and the metadata value; an operand is checked
+through its element by `getDhis2OperandVerdict`, which adds
+`element_not_found` for an element the server no longer has. The verdict
+types live in `lib/types/indicators.ts` (S5).
+
+**Indicator decomposition** (`goal2_indicators/decompose_indicator.ts`,
+pure; PLAN_A3 ruling 8). A DHIS2 indicator is never imported as values;
+`parseDhis2Indicator({ numerator, denominator, annualized, factor })`
+turns it into operands and an expression, or refuses it. The formula is
+accepted by WHITELIST: `#{uid}` and `#{uid.coc}` terms (each part a
+DHIS2 UID), plain numeric literals (`[0-9]+(\.[0-9]+)?`), `+ - * /`,
+unary minus, parentheses and any whitespace; the indicator is not
+`annualized`; the factor is 1 (`number`), 100 (`percent`), 10000
+(`rate_per_10k`) or 1000 (`number`, the expression multiplied by 1000
+and a three-language `note` in the result, because there is no
+`rate_per_1k` format); and the distinct operand count is at most
+`MAX_INDICATOR_EXPRESSION_INGREDIENTS`. Everything else is refused with
+the offending construct as the user would recognise it in the formula:
+three-part and wildcard operands (`#{uid.coc.aoc}`, `#{uid.*.aoc}`),
+item modifiers (`.periodOffset(-1)`), `N{}` `D{}` `A{}` `I{}` `R{}`
+`OUG{}` `C{}`, `[days]`, operators outside the four (`^ % > == && ||`),
+functions (`if`, `isNull`, `d2:zing`), a malformed formula (a `syntax`
+refusal with the token it stopped at). A blacklist would miss the next
+form DHIS2 adds. The accepted result's `expression` is written in the
+app's own grammar through `writeIndicatorExpression`, fully
+parenthesised as `((numerator) / (denominator))`, with each operand as
+the bracket-quoted identifier `[data_id]` (`[uid]` or `[uid.coc]`),
+so it re-parses with `parseIndicatorExpression` and the naming step can
+rename those identifiers to the indicator ids the elements land in with
+`renameIdentifiers`. Operands are deduped by `data_id` in first-
+appearance order across numerator then denominator.
+
+**Search-result shaping** (`goal2_indicators/attach_verdicts.ts`).
+`withElementVerdicts(elements)` attaches a `verdict` to each data element.
+`withDecompositions(options, indicators, known?)` attaches a
+`decomposition` to each indicator: the parse, each operand with its own
+verdict judged through its element, and `accepted` = the parse accepted
+and every operand accepted. Operand elements not already in `known` are
+fetched by chunked `id:in:[...]` filters (100 per request) with the
+default field list, one round of requests for the whole result set. The
+three search routes return these shapes (`Dhis2DataElementSearchItem`,
+`Dhis2IndicatorSearchItem`); the combined search passes its own
+data-element results as `known`. Pinned by
+`server/tests/dhis2_element_eligibility_test.ts` and
+`server/tests/dhis2_decompose_indicator_test.ts`.
+
+**Data value sets.** `getDataValueSetsFromDHIS2` pulls one data element
+for one `period=` token (passed through untranslated: the DHIS2 server
+reads it in its own calendar) under the given org units with
+`children=true`, so one root pull covers a country and a level-2 pull
+covers one subtree. A body with no `dataValues` key is a legitimate empty
+month. `getExistingMetadataIds` answers which of a list of ids exist on
+`dataElements`, `indicators` or `categoryOptionCombos` (chunked `id:in`
+filters, 100 per request); `getOrgUnitIdsAtLevel` lists the ids at one
+hierarchy level. There is no analytics fetcher: the importer never asks
+DHIS2 to evaluate a formula.
 
 **Geojson: metadata-vs-heavy split.** Analyze-side,
 `fetchOrgUnitsMetadataForLevel` pulls geometry-less org-unit metadata
@@ -156,10 +249,9 @@ fetcher's 120 s):
    401/403/**302** → `bad_credentials` (the manual redirect is the
    point: a 302 here IS an auth failure); other non-OK → `server_error`.
 
-`testDHIS2Connection` (goal 1) and `testIndicatorsConnection` (goal 2)
-compose validation with sample queries and return
-`{ success, message: TranslatableString, details? }` (org-unit/level or
-element/group counts, DHIS2 version).
+`testDHIS2Connection` (goal 1) composes validation with sample queries and
+returns `{ success, message: TranslatableString, details? }` (org-unit/level
+counts, DHIS2 version).
 
 The layering:
 
@@ -169,55 +261,53 @@ public helpers (validateDhis2Connection, test fns)  → return { valid } / { suc
 routes                                              → catch → APIResponse envelope
 ```
 
-Validation runs on the user-triggered test/confirm/launch routes
-(structure test-connection, S6's `launchDatasetHmisDhis2Run`, geojson
-analyze + cache-miss save, indicator test), so bad credentials fail once
-with one localized message. The bulk paths themselves (HMIS import run
+Validation runs on the user-triggered save/confirm routes (S6's
+`saveInstanceDhis2Credentials`, structure confirm, geojson levels,
+analyze and cache-miss save), so bad credentials fail once with one
+localized message. The bulk paths themselves (HMIS import run
 worker, S5 structure stager) do NOT re-validate: a credential revoked
 between launch and run surfaces as retry exhaustion inside the job.
 
 ## The route file and client credentials UX
 
 `routes/instance/indicators_dhis2.ts` is the system's only route file:
-four POST routes (search indicators / search data elements / combined
-search / test connection), all guarded `can_configure_data`. Bodies
-carry a `credentialsSource: Dhis2RunCredentialsSource` (`{ kind:
-"stored" }` or `{ kind: "inline", credentials }`), resolved via
-S6's `resolveDhis2Credentials` at the top of each handler. This system
+three POST search routes (indicators / data elements / combined) plus the naming step's save
+(`/indicators-dhis2/create`, S5), all guarded `can_configure_data`. The
+three search routes return the shaped items above: every data element
+with its eligibility verdict, every indicator with its decomposition. Bodies
+carry no credentials: each handler reads the stored connection through
+S6's `getStoredDhis2CredentialsDecrypted`. This system
 never stores or reads the credentials table itself, only the resolved
 `Dhis2Credentials`. The geojson routes (`routes/instance/geojson_maps.ts`,
-owned by S5) follow the same `credentialsSource` shape; the session
-caches there hash the *resolved* credentials, so stored and inline runs
-against the same DHIS2 key identically.
+owned by S5) do the same; the session caches there hash the resolved
+credentials, so replacing the stored connection misses the cache.
 
-`Dhis2CredentialsEditor.tsx` is the shared credentials widget: plain
+`Dhis2CredentialsEditor.tsx` is the credentials widget: plain
 url/username/password inputs with a show/hide toggle, no persistence of
-its own. Callers default to `{ kind: "stored" }` when the instance has a
-saved connection (fetched via `getInstanceDhis2CredentialsInfo`) and
-fall back to the editor (wrapped by `dhis2_credentials_form.tsx` or the
-shared `_shared/dhis2_credentials/` components) only as a one-off,
-never-persisted override. Callers test the connection before treating
-inline credentials as usable. All user-facing strings in this system
-carry en/fr/pt.
+its own. Its one caller is the manage-connection modal
+(`_shared/dhis2_credentials/manage_connection.tsx`), opened only from the
+Data page's DHIS2 connection card: the one place a connection is set,
+replaced or deleted. Every other DHIS2 flow uses the stored connection
+and, when none is stored, points to that card. All user-facing strings in
+this system carry en/fr/pt.
 
 ## Consumers
 
 - **S5 structure import**: step-1 test connection
   (`testDHIS2Connection`), org-unit level metadata (`getOrgUnitMetadata`),
-  then bulk staging via `stageStructureFromDhis2V2`, which pages
-  `/api/organisationUnits.json` with raw `getDHIS2` calls inline instead
-  of a goal-1 fetcher (the known wart; goal 1 has no paging fetcher to
-  offer it yet).
+  then bulk staging via `stageStructureFromDhis2V2`: parent names from
+  `getOrgUnitNamesAtLevel`, facilities from `pageOrgUnitPathsAtLevel`,
+  whose per-page `dropped` count (units with no id or no path) the stager
+  adds to its invalid-row count.
 - **S5 geojson wizard**: validation, `getOrgUnitMetadata` (level list),
   the metadata/count/heavy fetchers and both session caches.
 - **S5 HMIS indicator manager**: the four `indicators_dhis2` routes.
 - **S6 HMIS dataset import**: `launchDatasetHmisDhis2Run` validates the
   connection, then the import run worker's dispatcher uses goal 5
   (`getDataValueSetsFromDHIS2`, `getExistingMetadataIds`,
-  `getOrgUnitIdsAtLevel`) for classification + country pulls and goal 3
-  (`getAnalyticsFromDHIS2`, maxAttempts 3) for computed indicators. The
-  worker's semantics (dispatcher routing, per-pair integration,
-  URL-length guard, missing-`rows` handling) are S6's documentation.
+  `getOrgUnitIdsAtLevel`) for classification + country pulls. The
+  worker's semantics (dispatcher classification, per-pair integration,
+  skip-and-record, the subtree split) are S6's documentation.
 
 ## Traps
 
@@ -246,18 +336,7 @@ carry en/fr/pt.
 
 ## Open items
 
-- **Decoupling: split-brained DHIS2 wire types.** `DHIS2PagedResponse`
-  is defined twice with different shapes (generic
-  `goal1_org_units_v2/types.ts` vs pager-only `lib/types/indicators.ts`,
-  which goal 2 uses). (`Dhis2Credentials`/`Dhis2RunCredentialsSource` now
-  have one home (`lib/types/dhis2.ts`), resolved by PLAN_DHIS2_
-  CREDENTIAL_STORE_CONSOLIDATION.)
 - Classify retries off `DHIS2FetchError.status` instead of message
   substrings, and decide whether the exhaustion error should preserve
   the structured fields.
-- The structure stager's inline org-unit paging (S5 file,
-  `stage_structure_from_dhis2.ts`) belongs behind a goal-1 paging
-  fetcher that doesn't exist yet.
-- Cruft: retire the `goal1_..._v2` suffix (no v1 exists); dead types in
-  `goal1_org_units_v2/types.ts` (`OrgUnitHierarchy`, `ProgressCallback`,
-  `BatchProcessor`, `DHIS2ErrorResponse` have no consumers).
+- Cruft: retire the `goal1_..._v2` suffix (no v1 exists).

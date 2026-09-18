@@ -203,6 +203,11 @@ export type AIChatConfig = {
 
   scope?: string;
 
+  // Key for the persisted chat settings (model, max_tokens). Defaults to
+  // `scope`; set it when an app keys conversations finer than its settings,
+  // e.g. one thread per document but one model choice for all of them.
+  settingsScope?: string;
+
   enablePersistence?: boolean;
 
   tools?: AnyAITool[];

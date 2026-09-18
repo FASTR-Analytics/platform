@@ -28,8 +28,8 @@ import-wizard inputs live here, raw facility-level health data) require
 pass), and everything else is behind bare `requireGlobalPermission()`. Asset
 *names* stay visible to all authenticated users (the SSE starting payload).
 Only the bytes are gated. What consumers **do** with an uploaded file is
-theirs: the dataset import wizards are S6; structure/geojson/HFA-weights/
-indicator batch uploads are S5; report images and embeds are S12; batch user
+theirs: the dataset import wizards are S6; structure/geojson/HFA-weights
+uploads are S5; report images and embeds are S12; batch user
 upload is S15; module runs read `assetsToImport` (e.g. `population.csv`) out of
 the assets dir at execution time (S8). S13's AI documents do **not** pass
 through here. They multipart-POST to the S13-owned `/ai/files` proxy. The

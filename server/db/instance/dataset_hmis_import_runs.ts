@@ -6,8 +6,10 @@ import {
 import {
   APIResponseNoData,
   APIResponseWithData,
+  expandIndicatorSelection,
   parseJsonOrThrow,
   parseJsonOrUndefined,
+  POPULATION_TYPE_IDS,
   type DatasetCsvStagingResult,
   type DatasetDhis2StagingResult,
   type DatasetHmisCsvRunConfig,
@@ -16,9 +18,10 @@ import {
   type DatasetHmisImportRunProgress,
   type DatasetHmisImportRunStats,
   type DatasetHmisImportRunSummary,
-  type Dhis2RunCredentialsSource,
+  type HmisCsvMapping,
   type Dhis2RunPair,
   type Dhis2RunSelection,
+  type Dhis2RunSelectionInput,
   type Dhis2RunSelectionSummary,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
@@ -26,6 +29,7 @@ import { instantiateImportHmisDataDhis2Worker } from "../../worker_routines/impo
 import { instantiateImportHmisDataCsvWorker } from "../../worker_routines/import_hmis_data_csv/instantiate_worker.ts";
 import { dropHmisCsvStagingTables } from "../../worker_routines/import_hmis_data_csv/stage_csv.ts";
 import { resolveAssetFileOrThrow } from "./assets.ts";
+import { getHmisIndicators } from "./indicators.ts";
 import {
   clearWorker,
   getWorker,
@@ -59,7 +63,7 @@ function toRunSummary(row: DBDatasetHmisImportRun): DatasetHmisImportRunSummary 
     id: row.id,
     trigger: row.trigger,
     triggeredBy: row.triggered_by ?? undefined,
-    source: row.source,
+    route: row.route,
     dhis2Url: row.dhis2_url ?? undefined,
     selection: row.selection
       ? toSelectionSummary(parseJsonOrThrow<Dhis2RunSelection>(row.selection))
@@ -84,7 +88,7 @@ export async function getDatasetHmisImportRunSummaries(
 ): Promise<APIResponseWithData<DatasetHmisImportRunSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<DBDatasetHmisImportRun[]>`
-      SELECT id, trigger, triggered_by, source, dhis2_url, selection,
+      SELECT id, trigger, triggered_by, route, dhis2_url, selection,
         csv_config, status, error,
         total_pairs, succeeded_pairs, failed_pairs, started_at, ended_at,
         version_id, progress
@@ -102,7 +106,7 @@ export async function getDatasetHmisImportRunDetail(
 ): Promise<APIResponseWithData<DatasetHmisImportRunDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<DBDatasetHmisImportRun[]>`
-      SELECT id, trigger, triggered_by, source, dhis2_url, selection,
+      SELECT id, trigger, triggered_by, route, dhis2_url, selection,
         csv_config, status, error,
         total_pairs, succeeded_pairs, failed_pairs, started_at, ended_at,
         version_id, progress, run_stats
@@ -113,10 +117,10 @@ export async function getDatasetHmisImportRunDetail(
     if (!row) {
       throw new Error(`Import run ${runId} not found.`);
     }
-    // run_stats is by-source: DHIS2 runs store DatasetHmisImportRunStats, CSV
+    // run_stats is by route: DHIS2 runs store DatasetHmisImportRunStats, CSV
     // runs store { csvStagingResult } (written at needs_review and at
     // complete, so the diagnostics survive the run's whole life).
-    if (row.source === "csv") {
+    if (row.route === "csv") {
       const parsed = row.run_stats
         ? parseJsonOrUndefined<{ csvStagingResult: DatasetCsvStagingResult }>(
             row.run_stats,
@@ -166,32 +170,75 @@ export async function assertNoRunningDatasetHmisImportRun(
   }
 }
 
-// Validates a selection + instance state shared by launch and enqueue: the
-// enumerated pairs, the indicators_raw FK pre-check, and the UID-shaped
-// facility requirement.
+// Validates a selection + instance state shared by launch, enqueue and the
+// scheduler's fire path, and expands a window's indicators to the data ids
+// the run fetches (PLAN_A4 ruling 5, PLAN_A5 ruling 9). The returned
+// selection is what gets stored on the run row and carried in the worker
+// message, so nothing downstream re-resolves: an element assigned after
+// enqueue is not in that run. A pairs selection names (data id, month)
+// pairs; each data id must belong to a DHIS2 element, and nothing is
+// resolved.
 async function validateRunSelection(
   mainDb: Sql,
-  selection: Dhis2RunSelection,
-): Promise<Dhis2RunPair[]> {
-  const pairs = enumerateRunPairs(selection);
-  if (pairs.length === 0) {
-    throw new Error("The selection contains no (indicator, month) pairs.");
+  input: Dhis2RunSelectionInput,
+): Promise<{ selection: Dhis2RunSelection; pairs: Dhis2RunPair[] }> {
+  let selection: Dhis2RunSelection;
+  if (input.kind === "window") {
+    const expansion = expandIndicatorSelection(
+      input.indicatorIds,
+      await getHmisIndicators(mainDb),
+      POPULATION_TYPE_IDS,
+    );
+    if (expansion.unknownIndicatorIds.length > 0) {
+      throw new Error(
+        `The following selected indicators do not exist: ${
+          expansion.unknownIndicatorIds.join(", ")
+        }.`,
+      );
+    }
+    if (expansion.unresolvable.length > 0) {
+      throw new Error(
+        `The following selected indicators cannot be resolved: ${
+          expansion.unresolvable.map((u) => `${u.id} (${u.problem})`).join("; ")
+        }.`,
+      );
+    }
+    selection = {
+      kind: "window",
+      indicatorIds: input.indicatorIds,
+      startPeriod: input.startPeriod,
+      endPeriod: input.endPeriod,
+      dataIds: expansion.dataIds,
+      populationTermsDropped: expansion.populationTermsDropped,
+      uploadedIndicatorsDropped: expansion.uploadedIndicatorsDropped,
+    };
+  } else {
+    const selectedDataIds = Array.from(
+      new Set(input.pairs.map((p) => p.dataId)),
+    );
+    const rows = await mainDb<{ data_id: string }[]>`
+      SELECT data_id FROM indicators
+      WHERE data_id = ANY(${selectedDataIds}) AND definition_type = 'dhis2_element'
+    `;
+    const elements = new Set(rows.map((r) => r.data_id));
+    const missing = selectedDataIds.filter((id) => !elements.has(id));
+    if (missing.length > 0) {
+      throw new Error(
+        `The following data ids are not DHIS2 elements in the dictionary: ${missing.join(", ")}.`,
+      );
+    }
+    selection = {
+      kind: "pairs",
+      pairs: input.pairs.map((p) => ({ dataId: p.dataId, periodId: p.periodId })),
+    };
   }
 
-  // Fail fast on indicators that don't exist: per-pair integration inserts
-  // against an indicators_raw FK.
-  const selectedIndicatorIds = Array.from(
-    new Set(pairs.map((p) => p.indicatorRawId)),
-  );
-  const existing = await mainDb<{ indicator_raw_id: string }[]>`
-    SELECT indicator_raw_id FROM indicators_raw
-    WHERE indicator_raw_id = ANY(${selectedIndicatorIds})
-  `;
-  if (existing.length < selectedIndicatorIds.length) {
-    const existingSet = new Set(existing.map((r) => r.indicator_raw_id));
-    const missing = selectedIndicatorIds.filter((id) => !existingSet.has(id));
+  const pairs = enumerateRunPairs(selection);
+  if (pairs.length === 0) {
     throw new Error(
-      `The following selected raw indicators do not exist: ${missing.join(", ")}.`,
+      selection.kind === "window" && selection.dataIds.length === 0
+        ? "The selected indicators have no DHIS2 elements to fetch."
+        : "The selection contains no (data id, month) pairs.",
     );
   }
 
@@ -204,7 +251,7 @@ async function validateRunSelection(
       "No DHIS2-shaped HMIS facilities found. Import HMIS facilities from DHIS2 before importing data.",
     );
   }
-  return pairs;
+  return { selection, pairs };
 }
 
 // Spawns the run worker for a row already claimed as 'running' and wires the
@@ -215,17 +262,15 @@ async function spawnRunWorker(
   mainDb: Sql,
   args: {
     runId: number;
-    credentialsSource: Dhis2RunCredentialsSource;
     selection: Dhis2RunSelection;
     onComplete?: () => void;
   },
 ): Promise<void> {
-  const { runId, credentialsSource, selection, onComplete } = args;
+  const { runId, selection, onComplete } = args;
   let worker: Worker;
   try {
     worker = instantiateImportHmisDataDhis2Worker({
       runId,
-      credentialsSource,
       selection,
     });
     setWorker("hmis_dhis2_run", worker);
@@ -280,21 +325,21 @@ async function spawnRunWorker(
 export async function launchDatasetHmisDhis2ImportRun(
   mainDb: Sql,
   args: {
-    credentialsSource: Dhis2RunCredentialsSource;
-    // The URL recorded on the run row. For inline credentials this is
-    // credentials.url; for stored, the stored url.
+    // The stored connection's URL, recorded on the run row.
     dhis2Url: string;
-    selection: Dhis2RunSelection;
+    selection: Dhis2RunSelectionInput;
     trigger: "manual" | "schedule";
     triggeredBy: string;
     onComplete?: () => void;
   },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const { credentialsSource, dhis2Url, selection, trigger, triggeredBy, onComplete } =
-      args;
+    const { dhis2Url, trigger, triggeredBy, onComplete } = args;
 
-    const pairs = await validateRunSelection(mainDb, selection);
+    const { selection, pairs } = await validateRunSelection(
+      mainDb,
+      args.selection,
+    );
 
     // Read-guards for friendly errors; the atomic claim is the INSERT below
     // (partial unique index: at most one status='running' row). CSV imports
@@ -309,7 +354,7 @@ export async function launchDatasetHmisDhis2ImportRun(
 
     const inserted = await mainDb<{ id: number }[]>`
       INSERT INTO dataset_hmis_import_runs
-        (trigger, triggered_by, source, dhis2_url, selection, status, total_pairs, progress)
+        (trigger, triggered_by, route, dhis2_url, selection, status, total_pairs, progress)
       VALUES
         (${trigger}, ${triggeredBy}, 'dhis2', ${dhis2Url}, ${JSON.stringify(selection)},
          'running', ${pairs.length},
@@ -318,9 +363,8 @@ export async function launchDatasetHmisDhis2ImportRun(
     `;
     const runId = inserted[0].id;
 
-    // Inline credentials travel only in the worker message: never stored on
-    // the run row; stored credentials are decrypted inside the worker (C3).
-    await spawnRunWorker(mainDb, { runId, credentialsSource, selection, onComplete });
+    // The stored credentials are decrypted inside the worker (C3).
+    await spawnRunWorker(mainDb, { runId, selection, onComplete });
 
     return { success: true, data: { runId } };
   });
@@ -329,20 +373,29 @@ export async function launchDatasetHmisDhis2ImportRun(
 // C6: queue, not concurrent execution: a queued row is inert (no claim, no
 // worker) until the ~60 s scheduler tick drains it FIFO through
 // launchQueuedDatasetHmisImportRun once the import slot is free. Queued fires
-// are unattended, so they require stored credentials (a prompted plaintext
-// credential must never be persisted to survive until the queue drains).
+// are unattended and, like every run, use the stored credentials.
 export async function enqueueDatasetHmisImportRun(
   mainDb: Sql,
-  args: { dhis2Url: string; selection: Dhis2RunSelection; triggeredBy: string },
+  args: {
+    dhis2Url: string;
+    selection: Dhis2RunSelectionInput;
+    triggeredBy: string;
+  },
 ): Promise<APIResponseWithData<{ runId: number }>> {
   return await tryCatchDatabaseAsync(async () => {
-    const pairs = await validateRunSelection(mainDb, args.selection);
+    // The expansion is recorded now, with total_pairs: the launch total must
+    // equal the worker's list, so a queued run reuses its enqueue-time
+    // elements.
+    const { selection, pairs } = await validateRunSelection(
+      mainDb,
+      args.selection,
+    );
     const inserted = await mainDb<{ id: number }[]>`
       INSERT INTO dataset_hmis_import_runs
-        (trigger, triggered_by, source, dhis2_url, selection, status, total_pairs)
+        (trigger, triggered_by, route, dhis2_url, selection, status, total_pairs)
       VALUES
         ('manual', ${args.triggeredBy}, 'dhis2', ${args.dhis2Url},
-         ${JSON.stringify(args.selection)}, 'queued', ${pairs.length})
+         ${JSON.stringify(selection)}, 'queued', ${pairs.length})
       RETURNING id
     `;
     return { success: true, data: { runId: inserted[0].id } };
@@ -351,12 +404,12 @@ export async function enqueueDatasetHmisImportRun(
 
 export type QueuedDatasetHmisImportRun =
   | {
-      source: "dhis2";
+      route: "dhis2";
       id: number;
       dhis2Url: string;
       selection: Dhis2RunSelection;
     }
-  | { source: "csv"; id: number; config: DatasetHmisCsvRunConfig };
+  | { route: "csv"; id: number; config: DatasetHmisCsvRunConfig };
 
 export async function getOldestQueuedDatasetHmisImportRun(
   mainDb: Sql,
@@ -364,13 +417,13 @@ export async function getOldestQueuedDatasetHmisImportRun(
   const rows = await mainDb<
     {
       id: number;
-      source: "dhis2" | "csv";
+      route: "dhis2" | "csv";
       dhis2_url: string | null;
       selection: string | null;
       csv_config: string | null;
     }[]
   >`
-    SELECT id, source, dhis2_url, selection, csv_config
+    SELECT id, route, dhis2_url, selection, csv_config
     FROM dataset_hmis_import_runs
     WHERE status = 'queued'
     ORDER BY id
@@ -380,15 +433,15 @@ export async function getOldestQueuedDatasetHmisImportRun(
   if (!row) {
     return null;
   }
-  if (row.source === "csv") {
+  if (row.route === "csv") {
     return {
-      source: "csv",
+      route: "csv",
       id: row.id,
       config: parseJsonOrThrow<DatasetHmisCsvRunConfig>(row.csv_config ?? ""),
     };
   }
   return {
-    source: "dhis2",
+    route: "dhis2",
     id: row.id,
     dhis2Url: row.dhis2_url ?? "",
     selection: parseJsonOrThrow<Dhis2RunSelection>(row.selection ?? ""),
@@ -457,7 +510,6 @@ export async function launchQueuedDatasetHmisImportRun(
 
   await spawnRunWorker(mainDb, {
     runId: args.runId,
-    credentialsSource: { kind: "stored" },
     selection: args.selection,
     onComplete: args.onComplete,
   });
@@ -468,24 +520,59 @@ export async function launchQueuedDatasetHmisImportRun(
 // CSV IMPORT RUNS (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
 
-// Validates the launch input and stamps the byte pin: the returned config is
-// what gets stored on the run row.
+// The mapping's server half (PLAN_A6 ruling 3): every target is the data
+// id of an indicator with rows, no two values map onto the same indicator,
+// and at least one value is mapped, since a run whose every value is
+// skipped would stage nothing.
+async function validateCsvMapping(
+  mainDb: Sql,
+  mapping: HmisCsvMapping,
+): Promise<void> {
+  const targets = Object.values(mapping).filter((t): t is string => t !== null);
+  if (targets.length === 0) {
+    throw new Error("Every value is skipped, so nothing would be imported.");
+  }
+  const seen = new Set<string>();
+  const twice = targets.filter((t) => seen.size === seen.add(t).size);
+  if (twice.length > 0) {
+    throw new Error(
+      `Two values are mapped onto the same indicator; one import maps one value onto an indicator: ${
+        [...new Set(twice)].join(", ")
+      }.`,
+    );
+  }
+  const rows = await mainDb<{ data_id: string }[]>`
+    SELECT data_id FROM indicators WHERE data_id = ANY(${targets}) AND has_rows
+  `;
+  const known = new Set(rows.map((r) => r.data_id));
+  const missing = targets.filter((t) => !known.has(t));
+  if (missing.length > 0) {
+    throw new Error(
+      `The mapping names indicators that do not exist or have no rows: ${missing.join(", ")}.`,
+    );
+  }
+}
+
+// Validates the launch input and pins the file: the pin the scan read must
+// still match the bytes, so the mapping describes the file that is staged
+// (ruling 4). The returned config is what gets stored on the run row.
 async function validateCsvRunConfig(
   mainDb: Sql,
   input: DatasetHmisCsvRunLaunchInput,
 ): Promise<DatasetHmisCsvRunConfig> {
-  const mappings = input.mappings;
+  const columns = input.columns;
   for (const key of [
     "facility_id",
-    "raw_indicator_id",
+    "data_id",
     "period_id",
     "count",
   ] as const) {
-    if (!mappings[key]) {
-      throw new Error(`Missing column mapping for ${key}.`);
+    if (!columns[key]) {
+      throw new Error(`No column chosen for ${key}.`);
     }
   }
-  const { pin } = await resolveAssetFileOrThrow(input.fileName, null);
+  const { pin } = await resolveAssetFileOrThrow(input.fileName, input.pin);
+  await validateCsvMapping(mainDb, input.mapping);
   const [{ count }] = await mainDb<{ count: number }[]>`
     SELECT COUNT(*)::int AS count FROM facilities_hmis
   `;
@@ -494,7 +581,12 @@ async function validateCsvRunConfig(
       "No HMIS facilities found. Import HMIS facilities before importing data.",
     );
   }
-  return { fileName: input.fileName, filePin: pin, mappings: input.mappings };
+  return {
+    fileName: input.fileName,
+    filePin: pin,
+    columns: input.columns,
+    mapping: input.mapping,
+  };
 }
 
 // Spawns the CSV run worker for a row already claimed as 'running'. Reads
@@ -647,7 +739,7 @@ export async function launchDatasetHmisCsvImportRun(
 
     const inserted = await mainDb<{ id: number }[]>`
       INSERT INTO dataset_hmis_import_runs
-        (trigger, triggered_by, source, csv_config, status, progress)
+        (trigger, triggered_by, route, csv_config, status, progress)
       VALUES
         ('manual', ${args.triggeredBy}, 'csv', ${JSON.stringify(config)},
          'running', ${JSON.stringify({ phase: "staging", percent: 0 })})
@@ -672,7 +764,7 @@ export async function enqueueDatasetHmisCsvImportRun(
     const config = await validateCsvRunConfig(mainDb, args.config);
     const inserted = await mainDb<{ id: number }[]>`
       INSERT INTO dataset_hmis_import_runs
-        (trigger, triggered_by, source, csv_config, status)
+        (trigger, triggered_by, route, csv_config, status)
       VALUES
         ('manual', ${args.triggeredBy}, 'csv', ${JSON.stringify(config)},
          'queued')
@@ -727,9 +819,10 @@ export async function launchQueuedDatasetHmisCsvImportRun(
   return true;
 }
 
-// needs_review resolution. "Integrate anyway" re-claims the slot (or queues
-// explicitly behind a running import, the §2 ruled change: a hold never
-// blocks the lane); "Discard" cancels and drops the surviving staging table.
+// needs_review resolution (PLAN_A6 ruling 6). "Integrate anyway" re-claims
+// the slot (or queues explicitly behind a running import: a hold never
+// blocks the lane) and integrates the surviving staging table; "Discard"
+// cancels and drops the surviving staging table.
 export async function resolveDatasetHmisCsvReview(
   mainDb: Sql,
   args: {
@@ -741,21 +834,18 @@ export async function resolveDatasetHmisCsvReview(
   return await tryCatchDatabaseAsync(async () => {
     const row = (
       await mainDb<
-        { status: string; source: string; csv_config: string | null }[]
+        { status: string; route: string; csv_config: string | null }[]
       >`
-        SELECT status, source, csv_config FROM dataset_hmis_import_runs
+        SELECT status, route, csv_config FROM dataset_hmis_import_runs
         WHERE id = ${args.runId}
       `
     ).at(0);
-    if (!row || row.source !== "csv") {
+    if (!row || row.route !== "csv") {
       throw new Error("This run is not a CSV import.");
     }
     if (row.status !== "needs_review") {
       throw new Error("This run is not waiting for review.");
     }
-    const config = parseJsonOrThrow<DatasetHmisCsvRunConfig>(
-      row.csv_config ?? "",
-    );
 
     if (args.action === "discard") {
       const updated = await mainDb`
@@ -771,9 +861,13 @@ export async function resolveDatasetHmisCsvReview(
       return { success: true };
     }
 
-    const resumeConfig: DatasetHmisCsvRunConfig = {
-      ...config,
+    const nextConfig: DatasetHmisCsvRunConfig = {
+      ...parseJsonOrThrow<DatasetHmisCsvRunConfig>(row.csv_config ?? ""),
       resumeFromStaging: true,
+    };
+    const progress: DatasetHmisImportRunProgress = {
+      phase: "integrating",
+      percent: 0,
     };
 
     // Try to re-claim the slot directly; a unique violation (another import
@@ -783,8 +877,8 @@ export async function resolveDatasetHmisCsvReview(
       const claimed = await mainDb`
         UPDATE dataset_hmis_import_runs
         SET status = 'running', started_at = now(),
-          csv_config = ${JSON.stringify(resumeConfig)},
-          progress = ${JSON.stringify({ phase: "integrating", percent: 0 })}
+          csv_config = ${JSON.stringify(nextConfig)},
+          progress = ${JSON.stringify(progress)}
         WHERE id = ${args.runId} AND status = 'needs_review'
       `;
       claimedCount = claimed.count;
@@ -805,7 +899,7 @@ export async function resolveDatasetHmisCsvReview(
       await mainDb`
         UPDATE dataset_hmis_import_runs
         SET status = 'queued', progress = NULL,
-          csv_config = ${JSON.stringify(resumeConfig)}
+          csv_config = ${JSON.stringify(nextConfig)}
         WHERE id = ${args.runId} AND status = 'needs_review'
       `;
       return { success: true };
@@ -825,8 +919,8 @@ export async function cancelDatasetHmisImportRun(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const runRow = (
-      await mainDb<{ source: "dhis2" | "csv" }[]>`
-        SELECT source FROM dataset_hmis_import_runs
+      await mainDb<{ route: "dhis2" | "csv" }[]>`
+        SELECT route FROM dataset_hmis_import_runs
         WHERE id = ${runId}
       `
     ).at(0);
@@ -841,7 +935,7 @@ export async function cancelDatasetHmisImportRun(
       WHERE id = ${runId} AND status = 'queued'
     `;
     if (removedFromQueue.count > 0) {
-      if (runRow.source === "csv") {
+      if (runRow.route === "csv") {
         await dropHmisCsvStagingTables(mainDb, runId, { keepFinal: false });
       }
       return { success: true };
@@ -852,7 +946,7 @@ export async function cancelDatasetHmisImportRun(
     const updated = await mainDb`
       UPDATE dataset_hmis_import_runs
       SET status = 'cancelled', ended_at = now(), progress = NULL,
-        error = ${runRow.source === "csv" ? "Cancelled by user. Nothing was integrated." : "Cancelled by user. Pairs completed before cancellation are preserved in the ledger."}
+        error = ${runRow.route === "csv" ? "Cancelled by user. Nothing was integrated." : "Cancelled by user. Pairs completed before cancellation are preserved in the ledger."}
       WHERE id = ${runId} AND status = 'running'
     `;
     if (updated.count === 0) {
@@ -864,13 +958,13 @@ export async function cancelDatasetHmisImportRun(
     // and the terminate the worker may still commit (counter increments are
     // deliberately unguarded: finalize recomputes from them) but can never
     // resurrect the run: progress and completion writes are status-guarded.
-    const workerKey = runRow.source === "csv" ? "hmis" : "hmis_dhis2_run";
+    const workerKey = runRow.route === "csv" ? "hmis" : "hmis_dhis2_run";
     const worker = getWorker(workerKey);
     if (worker) {
       worker.terminate();
       clearWorker(workerKey, worker);
     }
-    if (runRow.source === "csv") {
+    if (runRow.route === "csv") {
       await dropHmisCsvStagingTables(mainDb, runId, { keepFinal: false });
     } else {
       // DHIS2 only: a CSV run's version_id commits together with its
@@ -975,25 +1069,25 @@ async function reconcileRunVersionRow(
   );
   const ledgerRows = await mainDb<
     {
-      indicator_raw_id: string;
+      data_id: string;
       period_id: number;
       n_records: number;
       sum_count: string | number;
     }[]
   >`
-    SELECT indicator_raw_id, period_id, n_records, sum_count
+    SELECT data_id, period_id, n_records, sum_count
     FROM dataset_hmis_import_ledger
     WHERE version_id = ${versionId}
   `;
   const stagingResult: DatasetDhis2StagingResult = {
-    sourceType: "dhis2",
+    kind: "dhis2",
     dateImported: new Date(run.started_at).toISOString(),
     totalIndicatorPeriodCombos: run.total_pairs,
     successfulFetches: run.succeeded_pairs,
     failedFetches: [],
     periodIndicatorStats: ledgerRows.map((r) => ({
       periodId: r.period_id,
-      indicatorRawId: r.indicator_raw_id,
+      dataId: r.data_id,
       nRecords: r.n_records,
       totalCount: Number(r.sum_count),
     })),
@@ -1017,19 +1111,19 @@ export async function markStaleRunningDatasetHmisImportRuns(
   mainDb: Sql,
 ): Promise<number> {
   const swept = await mainDb<
-    { id: number; source: "dhis2" | "csv" }[]
+    { id: number; route: "dhis2" | "csv" }[]
   >`
     UPDATE dataset_hmis_import_runs
     SET status = 'error', ended_at = now(), progress = NULL,
-      error = CASE WHEN source = 'csv'
+      error = CASE WHEN route = 'csv'
         THEN 'Import run interrupted by a server restart. Nothing was integrated — start the import again.'
         ELSE 'Import run interrupted by a server restart. Pairs completed before the restart are preserved in the ledger.'
       END
     WHERE status = 'running'
-    RETURNING id, source
+    RETURNING id, route
   `;
   for (const row of swept) {
-    if (row.source === "csv") {
+    if (row.route === "csv") {
       await dropHmisCsvStagingTables(mainDb, row.id, { keepFinal: false });
     } else {
       await finalizeInterruptedDatasetHmisRunVersion(mainDb, row.id);
@@ -1038,9 +1132,10 @@ export async function markStaleRunningDatasetHmisImportRuns(
   return swept.length;
 }
 
-// Expands a run selection to its (indicator, month) pairs. Window enumeration
-// mirrors the run worker exactly: totals recorded at launch must equal the
-// worker's work list.
+// Expands a stored run selection to its (data id, month) pairs. A window's
+// data ids are the ones persisted at validation (never the dictionary as it
+// stands now), and the enumeration mirrors the run worker exactly: totals
+// recorded at launch must equal the worker's work list.
 export function enumerateRunPairs(
   selection: Dhis2RunSelection,
 ): Dhis2RunPair[] {
@@ -1048,7 +1143,7 @@ export function enumerateRunPairs(
     const seen = new Set<string>();
     const pairs: Dhis2RunPair[] = [];
     for (const p of selection.pairs) {
-      const key = `${p.indicatorRawId}|${p.periodId}`;
+      const key = `${p.dataId}|${p.periodId}`;
       if (!seen.has(key) && isValidPeriodId(p.periodId)) {
         seen.add(key);
         pairs.push(p);
@@ -1070,14 +1165,14 @@ export function enumerateRunPairs(
     );
   }
   const pairs: Dhis2RunPair[] = [];
-  for (const indicatorRawId of selection.rawIndicatorIds) {
+  for (const dataId of selection.dataIds) {
     for (
       let periodId = selection.startPeriod;
       periodId <= selection.endPeriod;
       periodId++
     ) {
       if (isValidPeriodId(periodId)) {
-        pairs.push({ indicatorRawId, periodId });
+        pairs.push({ dataId, periodId });
       }
     }
   }

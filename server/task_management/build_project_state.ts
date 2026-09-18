@@ -53,7 +53,7 @@ export async function buildProjectState(
     projectDatasets: detail.projectDatasets,
     projectModules: detail.projectModules,
     metrics: detail.metrics,
-    commonIndicators: detail.commonIndicators,
+    hmisIndicators: detail.hmisIndicators,
     icehIndicators: detail.icehIndicators,
     hfaTaxonomy: detail.hfaTaxonomy,
     visualizations: detail.visualizations,

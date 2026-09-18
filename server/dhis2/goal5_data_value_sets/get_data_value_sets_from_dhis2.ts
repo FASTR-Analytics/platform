@@ -1,19 +1,27 @@
 import { FetchOptions, getDHIS2 } from "../common/base_fetcher.ts";
 
+// Unvalidated JSON from an external server: every field may be missing or
+// null, whatever the DHIS2 docs promise.
 export type DHIS2DataValue = {
-  dataElement: string;
-  period: string;
-  orgUnit: string;
-  categoryOptionCombo: string;
-  attributeOptionCombo: string;
-  value: string;
-  lastUpdated?: string;
-  deleted?: boolean;
+  dataElement: string | null | undefined;
+  period: string | null | undefined;
+  orgUnit: string | null | undefined;
+  categoryOptionCombo: string | null | undefined;
+  attributeOptionCombo: string | null | undefined;
+  value: string | null | undefined;
+  lastUpdated: string | null | undefined;
+  deleted: boolean | null | undefined;
 };
 
 export type DHIS2DataValueSetsResponse = {
-  dataValues?: DHIS2DataValue[];
+  dataValues: DHIS2DataValue[] | null | undefined;
 };
+
+type IdRow = { id: string | null | undefined };
+
+function presentIds(rows: IdRow[] | null | undefined): string[] {
+  return (rows ?? []).flatMap((row) => (row.id == null ? [] : [row.id]));
+}
 
 // One country-scale pull per base data element (PLAN_DHIS2_IMPORTER §2.4):
 // ~1-2 s server think time + transfer, where the same data via the analytics
@@ -69,13 +77,13 @@ export async function getExistingMetadataIds(
     params.set("fields", "id");
     params.set("filter", `id:in:[${chunk.join(",")}]`);
     params.set("paging", "false");
-    const res = await getDHIS2<Record<string, Array<{ id: string }>>>(
+    const res = await getDHIS2<Record<string, IdRow[] | null | undefined>>(
       `/api/${endpoint}.json`,
       options,
       params,
     );
-    for (const item of res[endpoint] ?? []) {
-      existing.add(item.id);
+    for (const id of presentIds(res[endpoint])) {
+      existing.add(id);
     }
   }
   return existing;
@@ -92,10 +100,8 @@ export async function getOrgUnitIdsAtLevel(
   params.set("fields", "id");
   params.set("filter", `level:eq:${level}`);
   params.set("paging", "false");
-  const res = await getDHIS2<{ organisationUnits?: Array<{ id: string }> }>(
-    "/api/organisationUnits.json",
-    options,
-    params,
-  );
-  return (res.organisationUnits ?? []).map((o) => o.id);
+  const res = await getDHIS2<{
+    organisationUnits: IdRow[] | null | undefined;
+  }>("/api/organisationUnits.json", options, params);
+  return presentIds(res.organisationUnits);
 }

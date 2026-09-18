@@ -39,31 +39,43 @@ export function StepData(p: Props) {
 
   return (
     <div class="ui-spy">
-      <h3 class="ui-text-heading">
-        {t3({ en: "Choose data", fr: "Choisir les données", pt: "Escolher os dados" })}
-      </h3>
-      <div class="text-base-content-muted text-sm">
-        {t3({
-          en: "Choose which data families this results package is generated from. Each included family is captured in full.",
-          fr: "Choisissez les familles de données à partir desquelles ce paquet de résultats est généré. Chaque famille incluse est capturée dans son intégralité.",
-          pt: "Escolha as famílias de dados a partir das quais este pacote de resultados é gerado. Cada família incluída é capturada na íntegra.",
-        })}
+      <div class="ui-spy-sm">
+        <h3 class="ui-text-heading">
+          {t3({
+            en: "Choose data",
+            fr: "Choisir les données",
+            pt: "Escolher os dados",
+          })}
+        </h3>
+        <div class="text-base-content-muted text-sm">
+          {t3({
+            en: "Choose which data families this results package is generated from. Each included family is captured in full.",
+            fr: "Choisissez les familles de données à partir desquelles ce paquet de résultats est généré. Chaque famille incluse est capturée dans son intégralité.",
+            pt: "Escolha as famílias de dados a partir das quais este pacote de resultados é gerado. Cada família incluída é capturada na íntegra.",
+          })}
+        </div>
       </div>
-      <For each={rows}>
-        {(row) => (
-          <div class="ui-pad ui-spy rounded border">
+      <div class="ui-spy-sm">
+        <For each={rows}>
+          {(row) => (
             <Checkbox
-              label={row.label}
+              label={
+                <span>
+                  <span>{row.label}</span>
+                  <Show when={!p.available(row.family)}>
+                    <span class="text-base-content-faint ml-2 text-sm italic">
+                      {notAvailableNote}
+                    </span>
+                  </Show>
+                </span>
+              }
               checked={p.families[row.family]}
               onChange={(v) => p.setFamily(row.family, v)}
               disabled={!p.available(row.family)}
             />
-            <Show when={!p.available(row.family)}>
-              <div class="text-base-content-muted text-sm">{notAvailableNote}</div>
-            </Show>
-          </div>
-        )}
-      </For>
+          )}
+        </For>
+      </div>
     </div>
   );
 }

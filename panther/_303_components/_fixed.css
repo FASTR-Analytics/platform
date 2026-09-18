@@ -9,19 +9,23 @@
 
    In your app's own CSS, import this file and then add your own
    @theme block overriding any tokens you care about. Omitted tokens
-   keep the defaults below.
+   keep the defaults below. Every color token is a light-dark() pair;
+   a single-value override means the same color in both schemes.
 
        @import "./panther/_303_components/_fixed.css";
 
        @theme {
-         --color-primary: #6f2e30;       // brand color
+         --color-primary: light-dark(#6f2e30, #d98a8c); // brand, per scheme
+         --color-warning: #d97706;       // same in both schemes
          --font-sans: "MyFont", ...;     // custom font
          --ui-pad-lg-x: 2.5rem;          // wider page padding
        }
 
-   Every token below is also runtime-swappable from JS:
+   Which half renders is the element's color-scheme: light unless
+   <html> carries data-scheme (see the scheme block after @theme).
+   Every token below is also runtime-swappable from JS, pairs included:
 
-       document.documentElement.style.setProperty("--color-primary", "#ff0000");
+       document.documentElement.style.setProperty("--color-primary", "light-dark(#ff0000, #ff8080)");
 
    Utility classes (`ui-pad`, `ui-gap`, `ui-spy`, `ui-form-pad`, …)
    resolve through these vars, so a single override flows through
@@ -69,7 +73,20 @@
   /* Semantic color tokens. Each intent (primary, neutral, success,
      warning, danger) has a paired `-content` for text/icons placed
      on top of it. `base-*` is the app surface; `base-content` is the
-     default foreground on that surface. */
+     default foreground on that surface.
+
+     Every literal token is a light-dark() pair, used unconditionally:
+     light-dark() has shipped in every engine since early 2024, and the
+     kit already requires color-mix() and container-query units from
+     the year before, so a fallback path would serve almost nobody at
+     the cost of a second copy of the palette. Dark halves are
+     KEY_COLOR_THEMES["panther-default-dark"] (_001_color);
+     tests/dark_token_parity_test.ts holds the two sides together.
+     Custom-property substitution at :root inlines only the inner
+     var()s, so the pairs and the color-mix() ramps below travel down
+     unevaluated and resolve against the color-scheme of the element
+     that uses them. One declaration serves both schemes, and a
+     forced-scheme island (ui-scheme-light) needs no per-token work. */
 
   /* Only `transparent` survives the wipe — it is structural (reserved
      borders, ghost rests), not a color choice. There are no white/black
@@ -79,25 +96,25 @@
   --color-*: initial;
   --color-transparent: transparent;
 
-  --color-base-100: #ffffff;
-  --color-base-200: #f2f2f2;
-  --color-base-300: #e4e4e4;
-  --color-base-content: #2a2a2a;
+  --color-base-100: light-dark(#ffffff, #18181b);
+  --color-base-200: light-dark(#f2f2f2, #27272a);
+  --color-base-300: light-dark(#e4e4e4, #3f3f46);
+  --color-base-content: light-dark(#2a2a2a, #fafafa);
 
-  --color-primary: #0e706c;
-  --color-primary-content: #ffffff;
+  --color-primary: light-dark(#0e706c, #14b8a6);
+  --color-primary-content: light-dark(#ffffff, #052e2b);
 
-  --color-neutral: rgb(161, 161, 161);
-  --color-neutral-content: #ffffff;
+  --color-neutral: light-dark(rgb(161, 161, 161), #a1a1aa);
+  --color-neutral-content: light-dark(#ffffff, #18181b);
 
-  --color-success: #009f70;
-  --color-success-content: #ffffff;
+  --color-success: light-dark(#009f70, #4ade80);
+  --color-success-content: light-dark(#ffffff, #052e16);
 
-  --color-warning: #d97706;
-  --color-warning-content: #ffffff;
+  --color-warning: light-dark(#d97706, #facc15);
+  --color-warning-content: light-dark(#ffffff, #422006);
 
-  --color-danger: #f04d44;
-  --color-danger-content: #ffffff;
+  --color-danger: light-dark(#f04d44, #f87171);
+  --color-danger-content: light-dark(#ffffff, #450a0a);
 
   /* ============================================= */
   /* Derived state tokens (the designed core)      */
@@ -159,7 +176,16 @@
   /* Quiet-surface state pairs — hover/pressed surfaces of quiet
      interactives, per surface level (base-100/200/300 is a true
      three-step surface ramp; each level gets its pair). Mixing toward
-     base-content makes the defaults lighten on dark themes. */
+     base-content makes the defaults lighten on dark themes.
+
+     Advisory for tinted ramps: these defaults assume a neutral grey ramp.
+     On a warm or cool ramp, mixing toward base-content desaturates, so the
+     hover reads grey against its surface. Pin the six tokens in the app
+     theme instead, and keep two rules. Hover and active stay in the ramp's
+     hue: mix each level toward the next level (base-300 toward
+     --color-border), not toward base-content. And they stop short of that
+     next level — hover about halfway, active most of the way — so a hovered
+     element is never mistaken for the resting surface below it. */
   --color-base-100-hover: color-mix(in oklab, var(--color-base-100), var(--color-base-content) 6%);
   --color-base-100-active: color-mix(in oklab, var(--color-base-100), var(--color-base-content) 10%);
   --color-base-200-hover: color-mix(in oklab, var(--color-base-200), var(--color-base-content) 6%);
@@ -169,8 +195,8 @@
 
   /* Focus, border, scrim */
   --color-focus: var(--color-primary); /* the one focus-ring color */
-  --color-border: #cacaca; /* the one border color — standalone, detached from the surface ramp. Border-strength fills (dividers, ticks, scrollbar thumbs) use it too; surface-strength fills (tracks, chips) stay base-300 */
-  --color-scrim: rgb(0 0 0 / 0.3); /* modal backdrop — the one sanctioned alpha veil */
+  --color-border: light-dark(#cacaca, #3f3f46); /* the one border color — standalone, detached from the surface ramp. Border-strength fills (dividers, ticks, scrollbar thumbs) use it too; surface-strength fills (tracks, chips) stay base-300 */
+  --color-scrim: light-dark(rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.6)); /* modal backdrop — the one sanctioned alpha veil; a 30% veil is near-invisible over near-black surfaces */
 
   /* ============================================= */
   /* Rect radius */
@@ -279,6 +305,19 @@
 
   --ui-heading-bar-tonal-bg: var(--color-base-200);
   --ui-heading-bar-tonal-fg: var(--color-base-content);
+
+  /* ============================================= */
+  /* Modal sizing                                  */
+  /* ============================================= */
+  /* The dialog host (alert.tsx) is a size container and the modal
+     wrapper carries the gutter as margin on all sides, so the max sizes
+     measure the host's content box: inside its scrollbar, which vw/vh
+     would ignore. The gutter must not also be host padding: cq units
+     exclude padding, so it would be subtracted twice. */
+
+  --ui-modal-gutter: 3rem;
+  --ui-modal-max-w: calc(100cqw - 2 * var(--ui-modal-gutter));
+  --ui-modal-max-h: calc(100cqh - 2 * var(--ui-modal-gutter));
 
   /* ============================================= */
   /* App-level markdown (--md-*)                   */
@@ -428,68 +467,24 @@
 }
 
 /* =============================================================
-   Dark scheme (opt-in): light-dark() token pairs.
+   Scheme: which half of every light-dark() pair renders.
 
-   An app opts in by setting data-scheme="system|light|dark" on
-   <html> (usually via setSchemePreference()). "system" follows the
-   OS preference with zero JS in the styling path; "light"/"dark"
-   pin. No attribute -> this block never applies and the @theme
-   literals above stay in force, byte-identical to today.
-
-   Two load-bearing gates:
-   - @supports, not double declaration: custom property declarations
-     are not validated at parse time, so the classic `--x: fallback;
-     --x: light-dark(...)` trick would leave old browsers with
-     guaranteed-invalid tokens. @supports skips the whole block.
-   - :root[data-scheme], not bare :root: this block is un-layered
-     (must beat the @theme-emitted :root defaults), so unconditional
-     pairs would also beat every consuming app's layered @theme brand
-     overrides. Gating on the attribute keeps non-opted apps exact.
+   The color-scheme of the using element decides. The root is light
+   unless <html> carries data-scheme (usually set via
+   setSchemePreference()): "system" follows the OS preference with no
+   JS in the styling path; "light" and "dark" pin. An app that never
+   sets the attribute renders light throughout.
 
    The attribute is data-scheme, NOT data-theme: data-theme is the
    palette-swap idiom (arbitrary values), orthogonal to scheme and
    free to compose with it.
-
-   Light halves are the @theme literals above, verbatim. Dark halves
-   are KEY_COLOR_THEMES["panther-default-dark"] (_001_color). The
-   parity test in tests/dark_token_parity_test.ts enforces both.
-
-   Everything derived needs no pairs: custom-property substitution
-   at :root inlines only the inner var()s, so the color-mix() ramps
-   and these light-dark() pairs travel down unevaluated and resolve
-   against the color-scheme of the element that uses them. That is
-   also what makes forced-scheme islands work (see ui-scheme-light).
    ============================================================= */
-@supports (color: light-dark(#fff, #000)) {
-  :root[data-scheme] {
-    color-scheme: light dark;
-
-    --color-base-100: light-dark(#ffffff, #18181b);
-    --color-base-200: light-dark(#f2f2f2, #27272a);
-    --color-base-300: light-dark(#e4e4e4, #3f3f46);
-    --color-base-content: light-dark(#2a2a2a, #fafafa);
-
-    --color-primary: light-dark(#0e706c, #14b8a6);
-    --color-primary-content: light-dark(#ffffff, #052e2b);
-
-    --color-neutral: light-dark(rgb(161, 161, 161), #a1a1aa);
-    --color-neutral-content: light-dark(#ffffff, #18181b);
-
-    --color-success: light-dark(#009f70, #4ade80);
-    --color-success-content: light-dark(#ffffff, #052e16);
-
-    --color-warning: light-dark(#d97706, #facc15);
-    --color-warning-content: light-dark(#ffffff, #422006);
-
-    --color-danger: light-dark(#f04d44, #f87171);
-    --color-danger-content: light-dark(#ffffff, #450a0a);
-
-    --color-border: light-dark(#cacaca, #3f3f46);
-    /* A 30% black veil is near-invisible over near-black surfaces. */
-    --color-scrim: light-dark(rgb(0 0 0 / 0.3), rgb(0 0 0 / 0.6));
-  }
-  :root[data-scheme="light"] {
+@layer base {
+  :root {
     color-scheme: light;
+  }
+  :root[data-scheme="system"] {
+    color-scheme: light dark;
   }
   :root[data-scheme="dark"] {
     color-scheme: dark;
@@ -497,11 +492,11 @@
 
   /* Native <select> popup lists: <option> text inherits the select's
      OWN text color, but the UA draws the popup over its own
-     scheme-colored background — an option inside a forced-scheme
+     scheme-colored background, so an option inside a forced-scheme
      island can otherwise render white-on-white. Pin options to the
      popup scheme's system colors; Canvas/CanvasText track
-     color-scheme in both directions. Scoped to opted-in apps only. */
-  :root[data-scheme] select option {
+     color-scheme in both directions. */
+  select option {
     color: CanvasText;
     background-color: Canvas;
   }
@@ -575,6 +570,70 @@
 
 @utility ui-pad-x-lg { /* = px-8 */
   padding-inline: var(--ui-pad-lg-x);
+}
+
+/* ---- Pad — vertical only ---- */
+
+@utility ui-pad-y-sm { /* = py-2 */
+  padding-block: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-y { /* = py-4 */
+  padding-block: var(--ui-pad-y);
+}
+
+@utility ui-pad-y-lg { /* = py-6 */
+  padding-block: var(--ui-pad-lg-y);
+}
+
+/* ---- Pad — one side ---- */
+
+@utility ui-pad-t-sm { /* = pt-2 */
+  padding-block-start: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-t { /* = pt-4 */
+  padding-block-start: var(--ui-pad-y);
+}
+
+@utility ui-pad-t-lg { /* = pt-6 */
+  padding-block-start: var(--ui-pad-lg-y);
+}
+
+@utility ui-pad-b-sm { /* = pb-2 */
+  padding-block-end: var(--ui-pad-sm-y);
+}
+
+@utility ui-pad-b { /* = pb-4 */
+  padding-block-end: var(--ui-pad-y);
+}
+
+@utility ui-pad-b-lg { /* = pb-6 */
+  padding-block-end: var(--ui-pad-lg-y);
+}
+
+@utility ui-pad-l-sm { /* = pl-2 */
+  padding-inline-start: var(--ui-pad-sm-x);
+}
+
+@utility ui-pad-l { /* = pl-4 */
+  padding-inline-start: var(--ui-pad-x);
+}
+
+@utility ui-pad-l-lg { /* = pl-8 */
+  padding-inline-start: var(--ui-pad-lg-x);
+}
+
+@utility ui-pad-r-sm { /* = pr-2 */
+  padding-inline-end: var(--ui-pad-sm-x);
+}
+
+@utility ui-pad-r { /* = pr-4 */
+  padding-inline-end: var(--ui-pad-x);
+}
+
+@utility ui-pad-r-lg { /* = pr-8 */
+  padding-inline-end: var(--ui-pad-lg-x);
 }
 
 /* ---- Gap — symmetric x/y ---- */
@@ -666,8 +725,7 @@
    slide canvases, report page previews, print/export HTML. Every
    light-dark() token inside resolves light (the pairs travel down
    unevaluated and resolve against the using element's color-scheme), so
-   no pinned bg-white and no per-token exclusions. Inert when the app has
-   not opted in via data-scheme. */
+   no pinned bg-white and no per-token exclusions. */
 
 @utility ui-scheme-light {
   color-scheme: light;
@@ -829,6 +887,26 @@
      surfaces). Outlines track border-radius in modern browsers. */
   .ui-focusable {
     @apply outline-none focus:outline-none focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-focus focus-visible:outline-offset-2;
+  }
+
+  /* Text whose weight toggles with state — public. The child span and a
+     hidden bold copy share one grid cell, so the cell always has the bold
+     size and a weight change never reflows siblings or adds a wrap line.
+     Size, colour and weight classes go on the wrapper so the copy inherits
+     them. Rendered by StableWeightText, which keeps data-text in sync. */
+  .ui-stable-weight {
+    display: inline-grid;
+    user-select: none;
+  }
+  .ui-stable-weight > span,
+  .ui-stable-weight::after {
+    grid-area: 1 / 1;
+  }
+  .ui-stable-weight::after {
+    content: attr(data-text);
+    font-weight: 700;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   /* ============================================= */

@@ -2,13 +2,21 @@ import { getDHIS2 } from "../common/base_fetcher.ts";
 import type { Dhis2Credentials } from "lib";
 import type { Dhis2FeatureContext } from "./types.ts";
 
+// Unvalidated JSON from an external server: every field may be missing or
+// null. A unit with no id cannot be mapped and is dropped.
 type OrgUnitMetadataResponse = {
-  organisationUnits?: Array<{
-    id: string;
-    name?: string;
-    code?: string;
-    parent?: { id?: string; name?: string };
-  }>;
+  organisationUnits:
+    | Array<{
+      id: string | null | undefined;
+      name: string | null | undefined;
+      code: string | null | undefined;
+      parent:
+        | { id: string | null | undefined; name: string | null | undefined }
+        | null
+        | undefined;
+    }>
+    | null
+    | undefined;
 };
 
 // Geometry-less metadata for one level: the analyze-side replacement for the
@@ -32,13 +40,15 @@ export async function fetchOrgUnitsMetadataForLevel(
   if (!Array.isArray(response.organisationUnits)) {
     throw new Error("Invalid response from DHIS2: expected organisationUnits");
   }
-  return response.organisationUnits.map((ou) => ({
-    uid: ou.id,
-    name: typeof ou.name === "string" ? ou.name : "",
-    code: typeof ou.code === "string" && ou.code !== "" ? ou.code : null,
-    parentUid: ou.parent?.id ?? null,
-    parentName: ou.parent?.name ?? null,
-  }));
+  return response.organisationUnits.flatMap((ou) =>
+    ou.id == null ? [] : [{
+      uid: ou.id,
+      name: ou.name ?? "",
+      code: ou.code == null || ou.code === "" ? null : ou.code,
+      parentUid: ou.parent?.id ?? null,
+      parentName: ou.parent?.name ?? null,
+    }]
+  );
 }
 
 // Exact count of org units WITH stored geometry at a level, without
@@ -55,7 +65,9 @@ export async function fetchGeometryCountForLevel(
   params.append("filter", "geometry:!null");
   params.append("fields", "id");
   params.append("pageSize", "1");
-  const response = await getDHIS2<{ pager?: { total?: number } }>(
+  const response = await getDHIS2<{
+    pager: { total: number | null | undefined } | null | undefined;
+  }>(
     "/api/organisationUnits.json",
     { dhis2Credentials: credentials },
     params,

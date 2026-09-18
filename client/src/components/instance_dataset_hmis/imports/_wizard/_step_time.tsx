@@ -1,6 +1,5 @@
 import { t3, type Dhis2ScheduleRecurrence } from "lib";
 import {
-  Button,
   DateInput,
   MonthSelect,
   RadioGroup,
@@ -44,14 +43,6 @@ type Props = {
   setStartTime: (v: string) => void;
   timezone: () => string;
   setTimezone: (v: string) => void;
-  // Scheduling needs stored credentials (server's assertUnattendedReady).
-  // gateApplies mirrors the server's actual check scope: always for a new
-  // schedule, but for an EDIT only when the (possibly just-changed) kind is
-  // "later": updateDatasetHmisDhis2Schedule doesn't re-check an existing
-  // recurring schedule's edit (see _wizard/index.tsx computeTimeValid).
-  gateApplies: boolean;
-  hasStoredCredentials: boolean;
-  onBackToCredentials: () => void;
 };
 
 export function Dhis2StepTime(p: Props) {
@@ -103,9 +94,6 @@ export function Dhis2StepTime(p: Props) {
     p.firstRunDate() === ""
       ? undefined
       : dayOfWeekLabel(weekdayOfWallDate(p.firstRunDate()));
-
-  const needsUnattendedGate = () =>
-    (p.timeChoice() === "later" || p.timeChoice() === "recurring") && p.gateApplies;
 
   return (
     <div class="ui-spy">
@@ -224,19 +212,6 @@ export function Dhis2StepTime(p: Props) {
             </div>
           </Match>
         </Switch>
-
-        <Show when={needsUnattendedGate() && !p.hasStoredCredentials}>
-          <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border text-sm">
-            {t3({
-              en: "A future or recurring import needs stored DHIS2 credentials — save them in step 1 first.",
-              fr: "Une importation future ou récurrente nécessite des identifiants DHIS2 enregistrés — enregistrez-les d'abord à l'étape 1.",
-              pt: "Uma importação futura ou recorrente requer credenciais DHIS2 guardadas — guarde-as primeiro no passo 1.",
-            })}
-            <Button onClick={p.onBackToCredentials} intent="danger" size="sm">
-              {t3({ en: "Back to step 1", fr: "Retour à l'étape 1", pt: "Voltar ao passo 1" })}
-            </Button>
-          </div>
-        </Show>
       </Show>
     </div>
   );

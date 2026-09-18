@@ -26,8 +26,8 @@ export type DatasetHmisInfoInProject = {
   totalRows?: number;
   // Metadata snapshots for staleness detection
   structureLastUpdated?: string;
-  indicatorMappingsVersion?: string;
-  baseIndicatorMappingsVersion?: string;
+  indicatorsVersion?: string;
+  countIndicatorsVersion?: string;
 };
 
 export type DatasetHfaInfoInProject = {

@@ -19,7 +19,6 @@
 
 import { z } from "zod";
 import {
-  backfillCommonIndicatorSortOrder,
   composeHfaIndicatorLabel,
   getDatasetTypes,
   getHfaIndicatorMeasure,
@@ -27,6 +26,8 @@ import {
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
   type IndicatorMetadata,
+  PACKAGE_INDICATOR_TYPES,
+  type RunHmisIndicator,
   type RunModule,
   type RunModuleIndicators,
   thresholdsRuleSchema,
@@ -57,10 +58,68 @@ const icehIndicatorRow = z.object({
   sort_order: z.number(),
 });
 
+// The seed order of the 14 indicators every instance was created with before
+// the special-indicator list replaced that seed (PLAN_A3 ruling 5). FROZEN
+// here rather than read from the live list: the manifest transform backfills
+// immutable old packages from it, and the special list may change.
+const LEGACY_SEED_ORDER: readonly string[] = [
+  "new_fp",
+  "anc1",
+  "anc4",
+  "delivery",
+  "sba",
+  "pnc1_newborn",
+  "pnc1_mother",
+  "bcg",
+  "penta1",
+  "penta3",
+  "measles1",
+  "measles2",
+  "opd",
+  "ipd",
+];
+
+// The sort_order backfill rule for dictionaries that predate the column
+// (PLAN_1a §1.9): seeded indicators keep the seed order, remaining bases
+// follow alphabetically, and the migrated catalog rows keep their own order
+// at the end. Instance migration 079 applied the same rule to the live
+// dictionary; this applies it to a legacy package's input mirrors, whose
+// only order was the catalog snapshot's.
+//
+// A calculated id that is ALSO a base id keeps the base position: that is
+// the identity-alias case, and the merged catalog entry sits where the
+// indicator has always sat.
+//
+// Nothing on the READ path consults this: axis order comes from the
+// package's own catalog, never from a hardcoded list.
+function backfillHmisIndicatorSortOrder(args: {
+  baseIds: string[];
+  calculatedIdsInCatalogOrder: string[];
+}): Map<string, number> {
+  const seedPosition = new Map(LEGACY_SEED_ORDER.map((id, i) => [id, i]));
+  const orderedBase = [...new Set(args.baseIds)].sort(
+    (a, b) =>
+      (seedPosition.get(a) ?? Number.MAX_SAFE_INTEGER) -
+        (seedPosition.get(b) ?? Number.MAX_SAFE_INTEGER) ||
+      a.localeCompare(b),
+  );
+  const sortOrderById = new Map<string, number>();
+  let next = 0;
+  for (const id of orderedBase) {
+    sortOrderById.set(id, ++next);
+  }
+  for (const id of args.calculatedIdsInCatalogOrder) {
+    if (!sortOrderById.has(id)) {
+      sortOrderById.set(id, ++next);
+    }
+  }
+  return sortOrderById;
+}
+
 // indicators.json has TWO writer formats and ONE reader contract (PLAN_1a
 // §1.10). v1 (pre-restructure packages): id + label only, with a separate
 // calculated_indicators_snapshot.json beside it. v2 (this release onwards):
-// the whole common dictionary, resolved: type, flattened expression, slot
+// the whole HMIS dictionary, resolved: type, flattened expression, slot
 // map, presentation and sort. The discriminator is the `type` field, which
 // only v2 rows carry, and v1 REJECTS a row carrying it (the z.never()),
 // so a drifted v2 row fails the union and raises RunInputRowSchemaError
@@ -72,14 +131,23 @@ const indicatorRowV1 = z.object({
   type: z.never().optional(),
 });
 
+// `type` is the stored type under its code name; `base` is what packages
+// generated before PLAN_A5 carry, accepted and never mapped (ruling 10).
+// `direction`, `target` and `expected_low_counts` are absent from every
+// mirror written before they existed and are never backfilled: the input
+// stage (input_transform.ts) only renames values a row already carries, so
+// this schema names the current vocabulary and those three stay optional.
 const indicatorRowV2 = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
-  type: z.enum(["base", "derived"]),
+  type: z.enum(PACKAGE_INDICATOR_TYPES),
   expression: z.string().nullable(),
   slot_map: z.record(z.string(), z.string()).nullable(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   thresholds: thresholdsRuleSchema.nullable(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+  target: z.number().nullable().optional(),
+  expected_low_counts: z.boolean().optional(),
   sort_order: z.number(),
 });
 
@@ -130,16 +198,34 @@ export async function buildRunIndicatorCatalog(
   return catalog;
 }
 
-// The manifest's `commonIndicators` field (PLAN_1a §1.9): the instance's
-// common indicator dictionary as the project shell shows it. Derived HERE,
-// once: at finalize from a v2 mirror, and by manifest transform block 4 from
-// a legacy package's v1 mirror, so the read path never opens a mirror again.
-// Label-sorted, matching the per-request derivation it replaces.
-export async function buildRunCommonIndicators(
+// The manifest's `hmisIndicators` field (PLAN_1a §1.9; the shape is
+// documented once, on runHmisIndicatorSchema). Derived HERE, once: at
+// finalize from a v2 mirror, and by manifest transform block 4 from an
+// existing package's mirror, so the read path never opens a mirror again.
+export async function buildRunHmisIndicators(
   readRows: RunInputRowsReader,
-): Promise<{ id: string; label: string }[]> {
+): Promise<RunHmisIndicator[]> {
   const rows = await readRows("indicators.json", indicatorRow);
-  return rows
+  if (rows.length > 0 && "type" in rows[0]) {
+    return (rows as z.infer<typeof indicatorRowV2>[])
+      .toSorted(
+        (a, b) =>
+          a.sort_order - b.sort_order ||
+          a.indicator_common_id.localeCompare(b.indicator_common_id),
+      )
+      .map((row) => ({
+        id: row.indicator_common_id,
+        label: row.indicator_common_label,
+        format_as: row.format_as,
+        ...(row.direction === undefined ? {} : { direction: row.direction }),
+        ...(row.target == null ? {} : { target: row.target }),
+        ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
+        ...(row.type === "calculated" && row.expression !== null
+          ? { expression: row.expression }
+          : {}),
+      }));
+  }
+  return (rows as z.infer<typeof indicatorRowV1>[])
     .flatMap((row) =>
       row.indicator_common_id && row.indicator_common_label
         ? [{ id: row.indicator_common_id, label: row.indicator_common_label }]
@@ -241,6 +327,8 @@ async function deriveIndicatorMetadata(
         label: row.indicator_common_label,
         format_as: row.format_as,
         ...(row.thresholds === null ? {} : { thresholds: row.thresholds }),
+        ...(row.direction === undefined ? {} : { direction: row.direction }),
+        ...(row.target == null ? {} : { target: row.target }),
         sort_order: row.sort_order,
         type: row.type,
         ...(row.expression === null ? {} : { expression: row.expression }),
@@ -286,11 +374,14 @@ async function deriveIndicatorMetadata(
         ci.format_as,
         _INSTANCE_LANGUAGE,
       ),
+      direction: ci.threshold_direction === "lower_is_better"
+        ? "lower-is-better"
+        : "higher-is-better",
       group_label: ci.group_label,
       sort_order: ci.sort_order,
     });
   }
-  const sortOrderById = backfillCommonIndicatorSortOrder({
+  const sortOrderById = backfillHmisIndicatorSortOrder({
     baseIds: metadata.map((m) => m.id),
     calculatedIdsInCatalogOrder: snapshot.map((ci) =>
       ci.calculated_indicator_id
@@ -351,29 +442,44 @@ function describeIssues(issues: z.ZodIssue[]): string {
   return rest > 0 ? `${shown} (+${rest} more)` : shown;
 }
 
+// The one place a mirror's bytes are read and parsed as JSON, for the rows
+// reader below and for the input transform stage, so RunInputReadError is
+// raised from one place. Row validation is the caller's.
+export async function readRunInputJson(
+  runDir: string,
+  fileName: string,
+): Promise<{ bytes: string; json: unknown }> {
+  let bytes: string;
+  try {
+    bytes = await Deno.readTextFile(runInputFilePath(runDir, fileName));
+  } catch (e) {
+    throw new RunInputReadError(fileName, errorText(e));
+  }
+  try {
+    return { bytes, json: JSON.parse(bytes) };
+  } catch (e) {
+    throw new RunInputReadError(fileName, `not valid JSON: ${errorText(e)}`);
+  }
+}
+
 // A reader over a package directory on disk: the writer's tmp dir or an
 // existing package. `inputFiles` is the manifest's own list, so a mirror the
-// package does not carry is skipped without a stat.
+// package does not carry is skipped without a stat. `rewritten` is the
+// transform's overlay, keyed by file name: a mirror the input stage rewrote
+// is served from memory, because its bytes land only after the manifest
+// parses. Rows from either source pass the same schema.
 export function runDirInputRowsReader(
   runDir: string,
   inputFiles: string[],
+  rewritten: ReadonlyMap<string, unknown> = new Map(),
 ): RunInputRowsReader {
   return async <T>(fileName: string, rowSchema: z.ZodType<T>) => {
     if (!inputFiles.includes(`inputs/${fileName}`)) {
       return [] as T[];
     }
-    let raw: string;
-    try {
-      raw = await Deno.readTextFile(runInputFilePath(runDir, fileName));
-    } catch (e) {
-      throw new RunInputReadError(fileName, errorText(e));
-    }
-    let json: unknown;
-    try {
-      json = JSON.parse(raw);
-    } catch (e) {
-      throw new RunInputReadError(fileName, `not valid JSON: ${errorText(e)}`);
-    }
+    const json = rewritten.has(fileName)
+      ? rewritten.get(fileName)
+      : (await readRunInputJson(runDir, fileName)).json;
     const rows = z.array(rowSchema).safeParse(json);
     if (!rows.success) {
       throw new RunInputRowSchemaError(fileName, rows.error.issues);

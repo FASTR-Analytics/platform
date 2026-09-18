@@ -400,7 +400,7 @@ values are the metric's own quantity and the format is a constant everywhere
 (m10-02 don't-know RATES stay percent on count questions; m9-02-01 CIX/SII
 stays number). `"indicator"` means the values ARE the displayed indicator's own
 quantity, so format is a per-value fact carried by `IndicatorMetadata.format_as`:
-HFA per `getHfaIndicatorMeasure`, HMIS commons per each indicator's own
+HFA per `getHfaIndicatorMeasure`, HMIS indicators per each indicator's own
 `format_as`, ICEH alike. `INDICATOR_FORMAT_METRIC_IDS` (lib) is the frozen
 REPAIR list for metrics that predate the declaration: m7-01-01/02/03,
 m8-01-01, m10-01-01/02, m10-03-01/02. It keeps the m7/m8 ids although those
@@ -429,7 +429,7 @@ consumer wants is decided by WHAT it is doing, never by a flag:
   `getIndicatorIdsForMapRegion`, and
   the first id that DECLARES a format wins, not the first id found, because
   the catalog deliberately carries label-only entries (HFA categories and
-  variant items, ICEH strat codes, raw common indicators) that would otherwise
+  variant items, ICEH strat codes, HMIS indicators) that would otherwise
   mask the formatted indicator beside them. A cell's id list includes all FOUR
   table headers: `getStartingConfigForPresentationObject` assigns display
   options in order, so an indicator dimension routinely lands on `rowGroup` or

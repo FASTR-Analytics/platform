@@ -1,15 +1,16 @@
 import { Sql } from "postgres";
-import type {
-  Dhis2Credentials,
-  Dhis2RunCredentialsSource,
-  Dhis2StoredCredentialsInfo,
+import {
+  NO_STORED_DHIS2_CONNECTION,
+  type Dhis2Credentials,
+  type Dhis2StoredCredentialsInfo,
 } from "lib";
 import { _DHIS2_CREDENTIALS_ENCRYPTION_KEY } from "../../exposed_env_vars.ts";
 import type { DBInstanceDhis2Credentials } from "./_main_database_types.ts";
 
-// Single instance-wide stored DHIS2 credentials row, shared by every DHIS2
-// flow (structure import, indicators, geojson, HMIS data: PLAN_DHIS2_
-// CREDENTIAL_STORE_CONSOLIDATION). url + username are plaintext in the DB
+// Single instance-wide stored DHIS2 credentials row, the only credentials
+// any DHIS2 flow uses (structure import, indicators, geojson, HMIS data:
+// PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION). It is set, replaced and
+// deleted only through the Data page's DHIS2 connection card. url + username are plaintext in the DB
 // row, but only the URL ever leaves the server (the UI shows it so an admin
 // can see what is stored; the username stays server-side). The password is
 // AES-256-GCM encrypted with a key derived from the
@@ -81,7 +82,7 @@ export async function decryptDhis2Password(encrypted: string): Promise<string> {
     return new TextDecoder().decode(plainBytes);
   } catch {
     throw new Error(
-      "Could not decrypt the stored DHIS2 password — the encryption key has changed. Re-save the DHIS2 credentials.",
+      "Could not decrypt the stored DHIS2 password: the encryption key has changed. Save the connection again in the DHIS2 connection card on the Data page.",
     );
   }
 }
@@ -140,25 +141,11 @@ export async function getStoredDhis2CredentialsDecrypted(
   `;
   const row = rows.at(0);
   if (!row) {
-    throw new Error(
-      "No stored DHIS2 credentials — save credentials in the DHIS2 credentials editor first.",
-    );
+    throw new Error(NO_STORED_DHIS2_CONNECTION.en);
   }
   return {
     url: row.url,
     username: row.username,
     password: await decryptDhis2Password(row.password_encrypted),
   };
-}
-
-// Shared by every DHIS2 flow's fetch-time credential resolution: inline
-// (per-request/per-run, never persisted) passes through, stored decrypts
-// from the instance-wide row.
-export async function resolveDhis2Credentials(
-  mainDb: Sql,
-  source: Dhis2RunCredentialsSource,
-): Promise<Dhis2Credentials> {
-  return source.kind === "inline"
-    ? source.credentials
-    : await getStoredDhis2CredentialsDecrypted(mainDb);
 }

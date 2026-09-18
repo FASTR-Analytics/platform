@@ -1,4 +1,4 @@
-import { Match, Switch, createSignal } from "solid-js";
+import { Match, Show, Switch, createSignal } from "solid-js";
 import {
   t3,
   type FacilityFamily,
@@ -53,27 +53,29 @@ export function Step1_Csv(p: Props) {
         value={selectedFileName()}
         onChange={updateSelectedFileName}
       />
-      <h3 class="font-700 text-lg">
-        {t3({
-          en: "ODK questionnaire (XLSForm) — optional",
-          fr: "Questionnaire ODK (XLSForm) — facultatif",
-          pt: "Questionário ODK (XLSForm) — opcional",
-        })}
-      </h3>
-      <div class="text-base-content text-sm">
-        {t3({
-          en: "If your facility columns contain ODK select_one codes, provide the questionnaire and the codes will be replaced with their labels during import.",
-          fr: "Si vos colonnes d'établissement contiennent des codes select_one ODK, fournissez le questionnaire et les codes seront remplacés par leurs libellés lors de l'importation.",
-          pt: "Se as suas colunas de estabelecimento contêm códigos select_one do ODK, forneça o questionário e os códigos serão substituídos pelas respetivas etiquetas durante a importação.",
-        })}
-      </div>
-      <FileUploadSelector
-        buttonLabel={t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm", pt: "Carregar um novo ficheiro XLSForm" })}
-        selectLabel={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser", pt: "Ficheiro XLSForm existente a utilizar" })}
-        filter={(a) => a.isXlsx}
-        value={selectedXlsFormFileName()}
-        onChange={updateSelectedXlsFormFileName}
-      />
+      <Show when={p.family === "hfa"}>
+        <h3 class="font-700 text-lg">
+          {t3({
+            en: "ODK questionnaire (XLSForm) — optional",
+            fr: "Questionnaire ODK (XLSForm) — facultatif",
+            pt: "Questionário ODK (XLSForm) — opcional",
+          })}
+        </h3>
+        <div class="text-base-content text-sm">
+          {t3({
+            en: "If your facility columns contain ODK select_one codes, provide the questionnaire and the codes will be replaced with their labels during import.",
+            fr: "Si vos colonnes d'établissement contiennent des codes select_one ODK, fournissez le questionnaire et les codes seront remplacés par leurs libellés lors de l'importation.",
+            pt: "Se as suas colunas de estabelecimento contêm códigos select_one do ODK, forneça o questionário e os códigos serão substituídos pelas respetivas etiquetas durante a importação.",
+          })}
+        </div>
+        <FileUploadSelector
+          buttonLabel={t3({ en: "Upload new XLSForm file", fr: "Téléverser un nouveau fichier XLSForm", pt: "Carregar um novo ficheiro XLSForm" })}
+          selectLabel={t3({ en: "Existing XLSForm file to use", fr: "Fichier XLSForm existant à utiliser", pt: "Ficheiro XLSForm existente a utilizar" })}
+          filter={(a) => a.isXlsx}
+          value={selectedXlsFormFileName()}
+          onChange={updateSelectedXlsFormFileName}
+        />
+      </Show>
       <StateHolderFormError state={save.state()} />
       <div class="ui-gap-sm flex">
         <Switch>

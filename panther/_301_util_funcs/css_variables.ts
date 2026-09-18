@@ -24,10 +24,17 @@ type ColorVariable =
   | "danger"
   | "danger-content";
 
+// A custom property computes to its raw text, so reading --color-* off
+// :root returns the light-dark() pair itself. A probe element's `color`
+// resolves the pair (and any color-mix()) against the document's current
+// color-scheme.
 export function getCSSColor(colorName: ColorVariable): string {
-  const varName = `--color-${colorName}`;
-  const rootStyles = getComputedStyle(document.documentElement);
-  return rootStyles.getPropertyValue(varName).trim();
+  const probe = document.createElement("span");
+  probe.style.color = `var(--color-${colorName})`;
+  document.documentElement.append(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  return resolved;
 }
 
 export function getCSSVariable(variableName: string): string {

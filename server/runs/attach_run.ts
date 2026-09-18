@@ -65,7 +65,7 @@ export async function buildRunAttachedManifestPayload(
     projectModules: getModuleSummariesFromManifest(runCtx.manifest),
     metrics: getMetricsWithStatusFromManifest(runCtx.manifest),
     projectDatasets: getProjectDatasetsFromManifest(runCtx.manifest),
-    commonIndicators: runCtx.manifest.commonIndicators,
+    hmisIndicators: runCtx.manifest.hmisIndicators,
     icehIndicators: await getIcehIndicatorsFromManifestInputs(runCtx),
   };
 }

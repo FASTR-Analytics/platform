@@ -2,11 +2,11 @@
 // Indicator expression grammar: tokenizer, parser, AST
 // =============================================================================
 //
-// The grammar a derived common indicator's definition is written in
+// The grammar a calculated indicator's definition is written in
 // (PLAN_1a §1.3): `+ - * /`, parentheses, numeric literals, identifiers, and
 // the three calls `abs` / `coalesce` / `nullif`. An identifier names another
-// common indicator: bare when it matches BARE_IDENTIFIER_PATTERN, otherwise
-// written `[in brackets]` (common indicator ids may carry characters the bare
+// indicator: bare when it matches BARE_IDENTIFIER_PATTERN, otherwise
+// written `[in brackets]` (indicator ids may carry characters the bare
 // form cannot).
 //
 // Expressions are CATALOG DATA. They are parsed here, evaluated by
@@ -341,6 +341,33 @@ export function writeIndicatorExpression(node: ExpressionNode): string {
         node.args.map(writeIndicatorExpression).join(", ")
       })`;
   }
+}
+
+// One identifier renamed in an expression's TEXT, formatting kept: a bare
+// identifier stands alone between non-identifier characters, a bracketed
+// one is `[from]` exactly, and text inside other brackets is untouched.
+// Instance migration 086's fastr_rename_identifier is the same segment rule
+// for the one rename it makes (a special id to its bare suffix form), but
+// substitutes the new id raw; this one writes the replacement as the
+// grammar requires (`writeIdentifier`), since a renamed indicator's new id
+// may not be bare-shaped. An indicator rename rewrites every stored
+// expression with this, so the author's spacing and parentheses survive.
+export function renameIdentifierInExpression(
+  source: string,
+  from: string,
+  to: string,
+): string {
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const bare = new RegExp(`(?<![a-zA-Z0-9_])${escaped}(?![a-zA-Z0-9_])`, "g");
+  return source
+    .split(/(\[[^\]]*\])/)
+    .map((segment) => {
+      if (segment.startsWith("[")) {
+        return segment === `[${from}]` ? `[${to}]` : segment;
+      }
+      return segment.replace(bare, () => writeIdentifier(to));
+    })
+    .join("");
 }
 
 // The same AST with every identifier renamed through `mapping`. The catalog

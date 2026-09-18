@@ -1,33 +1,120 @@
 import type { AssetFilePin } from "./assets.ts";
 import type { Dhis2StoredCredentialsInfo } from "./dhis2.ts";
+import { definitionDataId, hasRows, type HmisIndicator } from "./indicators.ts";
 
 // ============================================================================
 // CSV Import Run Types (PLAN_DHIS2_IMPORTER_CONSOLIDATION Phase A)
 // ============================================================================
 
-export type HmisCsvMappingParams = {
+// The file's columns as the wizard names them. `data_id` is the indicator
+// column: the values it says are input to the wizard's mapping (below), not
+// ids the app resolves (PLAN_A6 §2).
+export type HmisCsvColumns = {
   facility_id: string;
-  raw_indicator_id: string;
+  data_id: string;
   period_id: string;
   count: string;
 };
 
-// What the wizard sends at launch: the input asset's fileName plus the
-// mappings. The server validates the asset exists and stamps the pin.
+// The wizard's mapping (PLAN_A6 ruling 3): every distinct value in the
+// file's indicator column, to the data id its rows land under, or to null
+// for a value the user skipped. Stored on the run row, never remembered
+// between imports: the next import maps again, seeded by auto-selection.
+export type HmisCsvMapping = Record<string, string | null>;
+
+// What the scan reads from the file before the mapping step: each distinct
+// value with its row count, sorted by descending row count, and the pin of
+// the bytes it read, which the launch passes back so a file swapped between
+// the scan and the launch is refused (ruling 4).
+export type HmisCsvIndicatorValue = { value: string; rowCount: number };
+
+export type HmisCsvIndicatorScan = {
+  pin: AssetFilePin;
+  values: HmisCsvIndicatorValue[];
+};
+
+// Above this many distinct values the scan refuses rather than truncating:
+// a mapping the user cannot complete is worse than a refusal, and that many
+// values almost always means the wrong column was chosen.
+export const HMIS_CSV_MAX_DISTINCT_INDICATOR_VALUES = 2000;
+
+// The one derivation of a mapping value from the file's indicator cell,
+// used by the scan and by the stage leg, so the mapping the wizard made is
+// complete by construction when the stage leg looks a value up.
+export function csvIndicatorValueFromCell(cell: string): string {
+  return cell.trim();
+}
+
+// Ruling 3's normalisation: lowercased, everything but letters and digits
+// stripped.
+export function normaliseIndicatorMatchKey(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+// Auto-selection (ruling 3): a value matches an indicator with rows when it
+// equals that indicator's id under normalisation, or, for a DHIS2 element
+// only, when it exactly equals its data id (the UID). Nothing matches an
+// Uploaded indicator's key. A value that matches two indicators selects
+// neither, and two values that match the same indicator select nothing,
+// since one import may map one value onto an indicator: the user decides.
+export function autoSelectHmisCsvMapping(
+  values: string[],
+  indicators: HmisIndicator[],
+): HmisCsvMapping {
+  const byNormalisedId = new Map<string, HmisIndicator[]>();
+  const elementsByUid = new Map<string, HmisIndicator>();
+  for (const indicator of indicators) {
+    if (!hasRows(indicator.definition.type)) continue;
+    const key = normaliseIndicatorMatchKey(indicator.indicator_common_id);
+    byNormalisedId.set(key, [...(byNormalisedId.get(key) ?? []), indicator]);
+    if (indicator.definition.type === "dhis2_element") {
+      elementsByUid.set(indicator.definition.data_id, indicator);
+    }
+  }
+  const chosen = new Map<string, string>();
+  for (const value of values) {
+    const candidates = new Set<string>();
+    for (const i of byNormalisedId.get(normaliseIndicatorMatchKey(value)) ?? []) {
+      candidates.add(definitionDataId(i.definition)!);
+    }
+    const element = elementsByUid.get(value);
+    if (element !== undefined) candidates.add(definitionDataId(element.definition)!);
+    if (candidates.size === 1) chosen.set(value, [...candidates][0]);
+  }
+  const uses = new Map<string, number>();
+  for (const target of chosen.values()) {
+    uses.set(target, (uses.get(target) ?? 0) + 1);
+  }
+  const mapping: HmisCsvMapping = {};
+  for (const value of values) {
+    const target = chosen.get(value);
+    mapping[value] = target !== undefined && uses.get(target) === 1 ? target : null;
+  }
+  return mapping;
+}
+
+// What the wizard sends at launch: the input asset's fileName, the pin the
+// scan read, the columns and the mapping. The server refuses a file whose
+// bytes no longer match the pin, and checks every mapped target is an
+// indicator with rows, named by at most one value.
 export type DatasetHmisCsvRunLaunchInput = {
   fileName: string;
-  mappings: HmisCsvMappingParams;
+  pin: AssetFilePin;
+  columns: HmisCsvColumns;
+  mapping: HmisCsvMapping;
 };
 
 // The CSV launch payload stored in dataset_hmis_import_runs.csv_config. The
-// file is an instance asset named by fileName, byte-pinned at launch
-// validation (see AssetFilePin). resumeFromStaging marks a needs_review run
-// resolved with "Integrate anyway": the worker skips the stage leg and
-// integrates the surviving per-run staging table.
+// file is an instance asset named by fileName, byte-pinned at the scan and
+// checked again at launch and at every deferred read (see AssetFilePin).
+// resumeFromStaging marks a needs_review run resolved with "Integrate
+// anyway": the worker skips the stage leg and integrates the surviving
+// per-run staging table.
 export type DatasetHmisCsvRunConfig = {
   fileName: string;
   filePin: AssetFilePin;
-  mappings: HmisCsvMappingParams;
+  columns: HmisCsvColumns;
+  mapping: HmisCsvMapping;
   resumeFromStaging?: boolean;
 };
 
@@ -35,18 +122,20 @@ export type DatasetHmisCsvRunConfig = {
 // Staging Result Types
 // ============================================================================
 
-export type PeriodIndicatorRawStat = {
+// Keyed by data id, the key of the rows; the client labels it through the
+// dictionary.
+export type PeriodIndicatorStat = {
   periodId: number;
-  indicatorRawId: string;
+  dataId: string;
   nRecords: number;
   totalCount: number;
 };
 
 export type DatasetCsvStagingResult = {
-  sourceType: "csv";
+  kind: "csv";
   dateImported: string;
   assetFileName: string;
-  periodIndicatorStats: PeriodIndicatorRawStat[];
+  periodIndicatorStats: PeriodIndicatorStat[];
   rawCsvRowCount: number;
   validCsvRowCount: number;
   dedupedRowCount: number;
@@ -71,12 +160,9 @@ export type DatasetCsvStagingResult = {
       }>;
       rowsDropped: number;
     };
-    unmappedIndicators: {
-      total: number;
-      sample: Array<{
-        indicator_raw_id: string;
-        row_count: number;
-      }>;
+    // Rows whose file value the mapping sends to null (PLAN_A6 ruling 5):
+    // reported, never gating, since the user chose it at wizard time.
+    skippedByMapping: {
       rowsDropped: number;
     };
   };
@@ -87,18 +173,17 @@ export type DatasetCsvStagingResult = {
 // health (5xx/timeout): a later re-run may succeed.
 export type Dhis2FetchErrorKind = "permanent" | "transient";
 
-// Per-(indicator, period) fetch instrumentation. The production counterpart
-// of the Phase 0 lab timing evidence, so future slowness reports arrive with
-// their own data (PLAN_DHIS2_IMPORTER A1). Lives in the run's run_stats blob.
-// One entry per pair that REACHED a fetch route: unknown-id pairs (rule 4)
-// never fetch and appear only in classification.unknownIds + the ledger.
-// For the "dvs" route one pull covers many pairs: each covered pair carries
-// the covering pull's request count and wall time (duplicated, not divided).
+// Per-(data id, period) fetch instrumentation, so slowness reports arrive
+// with their own data. Lives in the run's run_stats blob. One entry per pair
+// that reached a fetch: ids the dispatcher refused (classification.unknownIds
+// and dhis2IndicatorIds) never fetch and appear only there and in the ledger.
+// One dataValueSets pull covers every pair sharing its data element and
+// month: each covered pair carries the covering pull's request count and
+// wall time (duplicated, not divided).
 export type Dhis2PairFetchStat = {
-  indicatorRawId: string;
+  dataId: string;
   periodId: number;
   success: boolean;
-  route: "analytics" | "dvs";
   requests: number;
   retries: number;
   // Wall time including retry sleeps (retries are capped at 3, so bounded):
@@ -107,39 +192,42 @@ export type Dhis2PairFetchStat = {
   totalFetchMs: number;
   maxRequestMs: number;
   rowsFetched: number;
+  // Facility values skipped as not non-negative integers (the ledger row
+  // carries the sample).
+  skippedValues: number;
   errorKind?: Dhis2FetchErrorKind;
   error?: string;
 };
 
 // The staging_result stored on a DHIS2 run's version row, written once at run
-// end (slim: the version history UI needs only sourceType, dateImported,
+// end (slim: the version history UI needs only kind, dateImported,
 // failedFetches, dhis2RowsDeleted, and counts). Per-run instrumentation lives
 // in dataset_hmis_import_runs.run_stats, not here. The optional fields exist
 // only so version rows written by the pre-run (stage-then-integrate) code
 // still parse; the run worker never writes them.
 export type DatasetDhis2StagingResult = {
-  sourceType: "dhis2";
+  kind: "dhis2";
   dateImported: string;
   totalIndicatorPeriodCombos: number;
   successfulFetches: number;
   failedFetches: Array<{
-    indicatorRawId: string;
+    dataId: string;
     periodId: number;
     error: string;
     errorKind?: Dhis2FetchErrorKind;
   }>;
-  periodIndicatorStats: PeriodIndicatorRawStat[];
+  periodIndicatorStats: PeriodIndicatorStat[];
   finalStagingRowCount: number;
   // Rows removed by the per-pair scoped deletes across the whole run.
   dhis2RowsDeleted?: number;
   // The run that minted this version.
   runId?: number;
   // Legacy fields (pre-run version rows only).
-  succeededWorkItems?: Array<{ indicatorRawId: string; periodId: number }>;
+  succeededWorkItems?: Array<{ dataId: string; periodId: number }>;
   fetchedFacilityIds?: string[];
   pairFetchStats?: Dhis2PairFetchStat[];
   workItemHistory?: Array<{
-    indicatorId: string;
+    dataId: string;
     periodId: number;
     success: boolean;
     rowsStaged: number;
@@ -157,15 +245,23 @@ export type DatasetStagingResult =
 // Import Ledger Types
 // ============================================================================
 
-// One row per (raw indicator, month): the latest import state of that pair
+export type DatasetHmisLedgerSkippedValue = { facilityId: string; value: string };
+
+// One row per (data id, month): the latest import state of that pair
 // (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
 // counts untouched: the error describes the most recent failed attempt.
 export type DatasetHmisImportLedgerItem = {
-  indicatorRawId: string;
+  dataId: string;
   periodId: number;
   nRecords: number;
   sumCount: number;
-  source: "dhis2" | "csv" | "backfill";
+  // DHIS2 facility values left out of the pair at its last import because
+  // they were not non-negative integers, with a sample of at most
+  // SKIPPED_VALUES_SAMPLE_CAP (facility, value). CSV pairs record none: a
+  // bad CSV count is dropped and counted at staging.
+  skippedValues: number;
+  skippedValuesSample: DatasetHmisLedgerSkippedValue[];
+  route: "dhis2" | "csv" | "backfill";
   status: "ready" | "error";
   // Prefixed with the failure classification: "[permanent] …" (config error,
   // will fail again until fixed) or "[transient] …" (server health).
@@ -180,21 +276,60 @@ export type DatasetHmisImportLedgerItem = {
 // DHIS2 Import Run Types (PLAN_DHIS2_IMPORTER Phase 3: C1/C2 + dispatcher)
 // ============================================================================
 
-export type Dhis2RunPair = { indicatorRawId: string; periodId: number };
+// What a DHIS2 run fetches: a DHIS2 element's data id, the element or
+// operand DHIS2 knows it by, whose values are written under that same key
+// (PLAN_A5 ruling 9). Resolved once, where the selection is validated, and
+// persisted on the run row and in the worker message, so the worker never
+// re-resolves.
+export type Dhis2FetchTarget = { dataId: string };
 
+// A pair is one data id × one month: the unit the importer fetches and
+// integrates, and the grain of the ledger.
+export type Dhis2RunPair = Dhis2FetchTarget & { periodId: number };
+
+// What a launch, enqueue or schedule fire selects: INDICATORS over a month
+// window, or explicit (data id, month) pairs (retry failed, re-import from
+// the ledger, which is keyed by data id). The server checks each pair's
+// data id belongs to a DHIS2 element at validation and resolves nothing.
+export type Dhis2WindowSelectionInput = {
+  kind: "window";
+  indicatorIds: string[];
+  startPeriod: number;
+  endPeriod: number;
+};
+
+export type Dhis2RunPairInput = { dataId: string; periodId: number };
+
+export type Dhis2PairSelectionInput = {
+  kind: "pairs";
+  pairs: Dhis2RunPairInput[];
+};
+
+export type Dhis2RunSelectionInput =
+  | Dhis2WindowSelectionInput
+  | Dhis2PairSelectionInput;
+
+// The expansion of a window selection's indicators to what a DHIS2 run
+// fetches (`expandIndicatorSelection`, lib): a sum expands to its members,
+// a calculated flattens through the resolver to the counts it reaches, and the
+// DHIS2 elements among them contribute their data ids. Population terms and
+// Uploaded indicators are dropped and listed. Persisted on the run row and
+// carried in the worker message, so the worker and the history tab never
+// re-resolve: an element assigned after enqueue is not in that run.
+export type Dhis2SelectionExpansion = {
+  dataIds: string[];
+  populationTermsDropped: string[];
+  uploadedIndicatorsDropped: string[];
+};
+
+export type Dhis2WindowSelection =
+  & Dhis2WindowSelectionInput
+  & Dhis2SelectionExpansion;
+
+// The selection as stored on dataset_hmis_import_runs.selection.
 export type Dhis2RunSelection =
-  | {
-      kind: "window";
-      rawIndicatorIds: string[];
-      startPeriod: number;
-      endPeriod: number;
-    }
+  | Dhis2WindowSelection
   | { kind: "pairs"; pairs: Dhis2RunPair[] };
-
-// Dispatcher route per raw indicator (PLAN_DHIS2_IMPORTER §4.4): "dvs" =
-// dataValueSets (bare data elements and operands), "analytics" = the
-// analytics engine (computed DHIS2 indicators).
-export type Dhis2RunRoute = "dvs" | "analytics";
 
 // "queued" = waiting behind the running run; the ~60 s scheduler tick drains
 // queued rows FIFO once the import slot is free (PLAN_DHIS2_IMPORTER Phase 4,
@@ -215,34 +350,27 @@ export type DatasetHmisImportRunStatus =
 export type DatasetHmisImportRunProgress =
   | {
       phase: "classifying" | "fetching" | "finalizing";
-      activePairs: Array<{
-        indicatorRawId: string;
-        periodId: number;
-        route: Dhis2RunRoute;
-      }>;
+      activePairs: Dhis2RunPair[];
     }
   | {
       phase: "staging" | "integrating";
       percent: number;
     };
 
-// The summary projection of a run's selection: explicit pair lists collapse
-// to a count (a retry-failed selection can carry ~1,440 pairs: the runs
-// list is polled every 2 s and must stay small).
+// The summary projection of a run's selection: window selections pass
+// through unchanged (the history label shows the indicator count with the
+// data id count beside it); explicit pair lists collapse to a count (a
+// retry-failed selection can carry ~1,440 pairs: the runs list is polled
+// every 2 s and must stay small).
 export type Dhis2RunSelectionSummary =
-  | {
-      kind: "window";
-      rawIndicatorIds: string[];
-      startPeriod: number;
-      endPeriod: number;
-    }
+  | Dhis2WindowSelection
   | { kind: "pairs"; nPairs: number };
 
 export type DatasetHmisImportRunSummary = {
   id: number;
   trigger: "manual" | "schedule";
   triggeredBy?: string;
-  source: "dhis2" | "csv";
+  route: "dhis2" | "csv";
   // DHIS2 runs only.
   dhis2Url?: string;
   selection?: Dhis2RunSelectionSummary;
@@ -279,12 +407,13 @@ export type DatasetHmisImportRunStats = {
   classification: {
     dvsBareElements: number;
     dvsOperands: number;
-    computedIndicators: number;
-    // Raw indicator ids that exist in no DHIS2 metadata endpoint: recorded
-    // as permanent ledger errors without any fetch (dispatcher rule 4).
+    // data ids that are no data element or operand in DHIS2: permanent
+    // ledger errors without any fetch.
     unknownIds: string[];
-    // Removed 2026-07-15 (period= selection cannot return other periods):
-    // older stored run_stats blobs may carry a nonMonthlyElements key.
+    // data ids that are DHIS2 indicators (formulas): permanent ledger
+    // errors naming the decomposition importer, no fetch, existing data
+    // kept.
+    dhis2IndicatorIds: string[];
   };
   pairFetchStats: Dhis2PairFetchStat[];
   // Removed 2026-07-24: older stored run_stats blobs may carry a `shadow`
@@ -298,16 +427,17 @@ export type DatasetHmisImportRunStats = {
 // A schedule's selection: "last_n_months" is a rolling window resolved at
 // fire time (current instance-calendar month plus the previous monthsBack
 // months); "explicit_range" is a fixed start–end period range (one-shot
-// schedules only).
+// schedules only). Both select indicators; the fire path expands them like
+// a manual launch.
 export type Dhis2ScheduleSelection =
   | {
       kind: "last_n_months";
-      rawIndicatorIds: string[];
+      indicatorIds: string[];
       monthsBack: number;
     }
   | {
       kind: "explicit_range";
-      rawIndicatorIds: string[];
+      indicatorIds: string[];
       startPeriod: number;
       endPeriod: number;
     };
@@ -393,4 +523,3 @@ export type Dhis2ImportSchedulingInfo = {
   // credentials cannot be stored (and nothing can fire unattended).
   encryptionKeyConfigured: boolean;
 };
-

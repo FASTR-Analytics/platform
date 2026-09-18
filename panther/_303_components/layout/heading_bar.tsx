@@ -33,6 +33,11 @@ export function HeadingBar(p: Props) {
   // state changes.
   const hasCenter = () =>
     p.setSearchText !== undefined || p.centerChildren !== undefined;
+  // The title slot is a nested flex container; without min-w-0 its minimum
+  // width is the full unwrapped title, so a long subheading pushes the right
+  // slot out of the bar instead of truncating. The right slot only takes a
+  // half when there is a centre slot to keep centred; otherwise it hugs its
+  // buttons and the title gets the rest.
   // Called through, not passed through: a consumer whose onBack identity
   // changes (a conditional back button) would otherwise leave a stale handler
   // bound on the button element.
@@ -47,7 +52,7 @@ export function HeadingBar(p: Props) {
       class={`ui-pad w-full flex-none overflow-hidden ${surfaceClass()}`}
     >
       <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
-        <div class="ui-gap flex flex-1 basis-1 items-center">
+        <div class="ui-gap flex min-w-0 flex-1 basis-1 items-center">
           <Show when={p.onBack !== undefined}>
             <Button iconName="chevronLeft" onClick={handleBack} />
           </Show>
@@ -86,7 +91,11 @@ export function HeadingBar(p: Props) {
         <Show when={p.children} keyed>
           {(keyedRightChildren) => {
             return (
-              <div class="flex flex-1 basis-1 items-center justify-end">
+              <div
+                class={`flex items-center justify-end ${
+                  hasCenter() ? "flex-1 basis-1" : "flex-none"
+                }`}
+              >
                 <div class="flex-none">{keyedRightChildren}</div>
               </div>
             );

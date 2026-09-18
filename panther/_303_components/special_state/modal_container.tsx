@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { type JSX, Show } from "solid-js";
+import { children, type JSX, Show } from "solid-js";
 
 export type ModalContainerWidth =
   | "sm"
@@ -13,45 +13,85 @@ export type ModalContainerWidth =
   | "2xl"
   | "3xl"
   | "4xl";
+export type ModalContainerHeight = "sm" | "md" | "lg" | "xl";
 export type ModalContainerScroll = "content" | "page";
 
-type ModalContainerProps = {
-  children: JSX.Element;
-  width?: ModalContainerWidth;
-  scroll?: ModalContainerScroll;
-  title?: string;
-  topPanel?: JSX.Element;
-  leftButtons?: JSX.Element;
-  rightButtons?: JSX.Element;
-  noContentPadding?: boolean;
-};
+type ModalContainerProps =
+  & {
+    children: JSX.Element;
+    width?: ModalContainerWidth;
+    title?: string;
+    subtitle?: string;
+    topPanel?: JSX.Element;
+    leftButtons?: JSX.Element;
+    rightButtons?: JSX.Element;
+    noContentPadding?: boolean;
+  }
+  & (
+    | { scroll?: "content"; height?: ModalContainerHeight }
+    // A fixed height needs the content region to scroll; under page scroll
+    // tall content would overflow the container.
+    | { scroll: "page"; height?: never }
+  );
 
 const WIDTH_CLASSES: Record<ModalContainerWidth, string> = {
-  sm: "w-[min(400px,calc(100vw-6rem))]",
-  md: "w-[min(560px,calc(100vw-6rem))]",
-  lg: "w-[min(800px,calc(100vw-6rem))]",
-  xl: "w-[min(1000px,calc(100vw-6rem))]",
-  "2xl": "w-[min(1200px,calc(100vw-6rem))]",
-  "3xl": "w-[min(1400px,calc(100vw-6rem))]",
-  "4xl": "w-[min(1600px,calc(100vw-6rem))]",
+  sm: "w-[min(400px,var(--ui-modal-max-w))]",
+  md: "w-[min(560px,var(--ui-modal-max-w))]",
+  lg: "w-[min(800px,var(--ui-modal-max-w))]",
+  xl: "w-[min(1000px,var(--ui-modal-max-w))]",
+  "2xl": "w-[min(1200px,var(--ui-modal-max-w))]",
+  "3xl": "w-[min(1400px,var(--ui-modal-max-w))]",
+  "4xl": "w-[min(1600px,var(--ui-modal-max-w))]",
+};
+
+const HEIGHT_CLASSES: Record<ModalContainerHeight, string> = {
+  sm: "h-[min(480px,var(--ui-modal-max-h))]",
+  md: "h-[min(640px,var(--ui-modal-max-h))]",
+  lg: "h-[min(800px,var(--ui-modal-max-h))]",
+  xl: "h-(--ui-modal-max-h)",
 };
 
 export function ModalContainer(p: ModalContainerProps) {
   const widthClass = () => WIDTH_CLASSES[p.width ?? "md"];
+  const heightClass = () => p.height ? HEIGHT_CLASSES[p.height] : "";
   const scroll = () => p.scroll ?? "content";
+  // Resolved once: a JSX prop is a getter that builds fresh elements on
+  // every read.
+  const topPanel = children(() => p.topPanel);
+  const hasTopPanel = () => topPanel.toArray().length > 0;
   return (
     <div
-      class={`flex flex-col ${widthClass()}`}
-      classList={{ "max-h-[80vh]": scroll() === "content" }}
+      class={`flex flex-col ${widthClass()} ${heightClass()}`}
+      classList={{ "max-h-(--ui-modal-max-h)": scroll() === "content" }}
     >
-      <Show when={p.title || p.topPanel}>
+      <Show when={p.title || hasTopPanel()}>
+        {
+          /* A topPanel header is floored at a form control's height, as in
+            HeadingBar, so a header whose controls come and go (a stepper
+            that appears once loaded) does not jump. A title-only header
+            keeps its natural height. */
+        }
         <div class="border-b px-6 py-5 leading-none">
-          <Show
-            when={p.topPanel}
-            fallback={<h2 class="ui-text-heading leading-none">{p.title}</h2>}
+          <div
+            class="grid items-center"
+            classList={{ "min-h-(--ui-form-height)": hasTopPanel() }}
           >
-            {p.topPanel}
-          </Show>
+            <Show
+              when={hasTopPanel()}
+              fallback={
+                <div>
+                  <h2 class="ui-text-heading leading-none">{p.title}</h2>
+                  <Show when={p.subtitle}>
+                    <div class="text-base-content-muted mt-2 text-sm leading-tight">
+                      {p.subtitle}
+                    </div>
+                  </Show>
+                </div>
+              }
+            >
+              {topPanel()}
+            </Show>
+          </div>
         </div>
       </Show>
       <div

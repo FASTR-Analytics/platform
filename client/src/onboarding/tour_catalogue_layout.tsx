@@ -89,15 +89,11 @@ export function TourCatalogueFrame(p: {
     <ModalContainer
       width="xl"
       scroll="content"
-      topPanel={
-        <div class="font-700 text-base-content text-xl">
-          {t3({
-            en: "Guided tours",
-            fr: "Visites guidées",
-            pt: "Visitas guiadas",
-          })}
-        </div>
-      }
+      title={t3({
+        en: "Guided tours",
+        fr: "Visites guidées",
+        pt: "Visitas guiadas",
+      })}
       rightButtons={
         // eslint-disable-next-line jsx-key
         [

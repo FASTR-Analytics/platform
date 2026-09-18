@@ -24,7 +24,7 @@ const EMPTY_PROJECT_STATE: ProjectState = {
   projectDatasets: [],
   projectModules: [],
   metrics: [],
-  commonIndicators: [],
+  hmisIndicators: [],
   icehIndicators: [],
   hfaTaxonomy: {
     categories: [],
@@ -101,7 +101,7 @@ export function applyProjectSseMessage(msg: ProjectSseMessage): void {
       setProjectState("projectModules", reconcile(msg.data.projectModules));
       setProjectState("metrics", reconcile(msg.data.metrics));
       setProjectState("projectDatasets", reconcile(msg.data.projectDatasets));
-      setProjectState("commonIndicators", reconcile(msg.data.commonIndicators));
+      setProjectState("hmisIndicators", reconcile(msg.data.hmisIndicators));
       setProjectState("icehIndicators", reconcile(msg.data.icehIndicators));
       setProjectState("visualizations", reconcile(msg.data.visualizations));
       break;

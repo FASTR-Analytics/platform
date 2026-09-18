@@ -4,7 +4,6 @@ import {
   ItemsHolderDatasetHmisDisplay,
   type HfaDictionaryForValidation,
   type IcehDisplayData,
-  type IndicatorType,
   type StructureSchema,
 } from "lib";
 import type { ItemsHolderDatasetHfaDisplay } from "lib";
@@ -26,10 +25,9 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 
 const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   {
-    rawOrCommonIndicators: IndicatorType;
     structureSchema: StructureSchema;
     versionId: number;
-    baseIndicatorMappingsVersion: string;
+    countIndicatorsVersion: string;
     structureLastUpdated: string | undefined;
   },
   ItemsHolderDatasetHmisDisplay
@@ -39,22 +37,21 @@ const _DATASET_HMIS_DISPLAY_INFO_CACHE = createReactiveCache<
   // data cache
   uniquenessKeys: (params) => {
     const schemaHash = hashStructureSchema(params.structureSchema);
-    return [params.rawOrCommonIndicators, schemaHash];
+    return [schemaHash];
   },
   // structureLastUpdated closes the hole where a facility re-import changes
   // the admin tree without any other key moving; the undefined case (no
   // structure yet) is guarded with an explicit token
   versionKey: (params, _pds) =>
-    `${params.versionId}_${params.baseIndicatorMappingsVersion}_${
+    `${params.versionId}_${params.countIndicatorsVersion}_${
       params.structureLastUpdated ?? "no-structure"
     }`,
   pdsNotRequired: true,
 });
 
 export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
-  rawOrCommonIndicators: IndicatorType,
   versionId: number,
-  baseIndicatorMappingsVersion: string,
+  countIndicatorsVersion: string,
   structureSchema: StructureSchema,
   structureLastUpdated: string | undefined,
   hmisImportRunActive: boolean,
@@ -64,18 +61,16 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   // (mirrors the server's Valkey bypass; the token flips at run end).
   if (hmisImportRunActive) {
     return await serverActions.getDatasetHmisDisplayInfo({
-      rawOrCommonIndicators,
       versionId,
-      baseIndicatorMappingsVersion,
+      countIndicatorsVersion,
       structureSchema,
     });
   }
 
   const { data, version } = await _DATASET_HMIS_DISPLAY_INFO_CACHE.get({
-    rawOrCommonIndicators,
     structureSchema,
     versionId,
-    baseIndicatorMappingsVersion,
+    countIndicatorsVersion,
     structureLastUpdated,
   });
 
@@ -84,19 +79,17 @@ export async function getDatasetHmisDisplayInfoFromCacheOrFetch(
   }
 
   const newPromise = serverActions.getDatasetHmisDisplayInfo({
-    rawOrCommonIndicators,
     versionId,
-    baseIndicatorMappingsVersion,
+    countIndicatorsVersion,
     structureSchema,
   });
 
   _DATASET_HMIS_DISPLAY_INFO_CACHE.setPromise(
     newPromise,
     {
-      rawOrCommonIndicators,
       structureSchema,
       versionId,
-      baseIndicatorMappingsVersion,
+      countIndicatorsVersion,
       structureLastUpdated,
     },
     version,

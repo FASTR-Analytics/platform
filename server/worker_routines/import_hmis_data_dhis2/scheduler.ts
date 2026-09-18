@@ -11,6 +11,7 @@
 // ============================================================================
 
 import { _INSTANCE_CALENDAR } from "../../exposed_env_vars.ts";
+import { NO_STORED_DHIS2_CONNECTION } from "lib";
 import type { Sql } from "postgres";
 import {
   claimScheduledImportOccurrence,
@@ -31,7 +32,7 @@ import {
   type QueuedDatasetHmisImportRun,
 } from "../../db/mod.ts";
 import type {
-  Dhis2RunSelection,
+  Dhis2RunSelectionInput,
   Dhis2ScheduleRecurrence,
   Dhis2ScheduleSelection,
   InstanceCalendar,
@@ -364,13 +365,13 @@ export function minusMonthsPeriodId(periodId: number, months: number): number {
 }
 
 export function resolveRollingSelection(selection: {
-  rawIndicatorIds: string[];
+  indicatorIds: string[];
   monthsBack: number;
-}): Dhis2RunSelection {
+}): Dhis2RunSelectionInput {
   const endPeriod = currentPeriodIdForCalendar(_INSTANCE_CALENDAR, new Date());
   return {
     kind: "window",
-    rawIndicatorIds: selection.rawIndicatorIds,
+    indicatorIds: selection.indicatorIds,
     // monthsBack is inclusive of the current month (matches the viz editor's
     // last_n_months filter: min = max - (nMonths - 1)), monthsBack=12 means
     // 12 months total, not the current month plus 12 more.
@@ -379,13 +380,15 @@ export function resolveRollingSelection(selection: {
   };
 }
 
+// The fire path's selection input: the launch expands the indicators to
+// DHIS2 elements like a manual launch (PLAN_A3 ruling 7).
 export function resolveScheduleSelection(
   selection: Dhis2ScheduleSelection,
-): Dhis2RunSelection {
+): Dhis2RunSelectionInput {
   if (selection.kind === "explicit_range") {
     return {
       kind: "window",
-      rawIndicatorIds: selection.rawIndicatorIds,
+      indicatorIds: selection.indicatorIds,
       startPeriod: selection.startPeriod,
       endPeriod: selection.endPeriod,
     };
@@ -489,7 +492,7 @@ async function fireQueuedRun(
   // CSV fires need no stored-credential checks: the pinned asset (or the
   // surviving per-run staging table, for an integrate-anyway resume) is the
   // whole input.
-  if (queued.source === "csv") {
+  if (queued.route === "csv") {
     const launchedCsv = await launchQueuedDatasetHmisCsvImportRun(mainDb, {
       runId: queued.id,
       onComplete: async () => {
@@ -555,7 +558,7 @@ async function fireSchedule(
     await recordScheduledImportOutcome(mainDb, schedule.id, {
       outcome: "refused",
       error:
-        "No stored DHIS2 credentials. Save credentials in the DHIS2 imports view.",
+        NO_STORED_DHIS2_CONNECTION.en,
       disable,
     });
     await notifyDatasets(mainDb);
@@ -564,7 +567,6 @@ async function fireSchedule(
 
   const selection = resolveScheduleSelection(schedule.selection);
   const res = await launchDatasetHmisDhis2ImportRun(mainDb, {
-    credentialsSource: { kind: "stored" },
     dhis2Url: stored.url,
     selection,
     trigger: "schedule",

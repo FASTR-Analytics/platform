@@ -3,7 +3,10 @@ import { structureColumnsSchema } from "./instance.ts";
 import { disaggregationOption } from "./_metric_installed.ts";
 import { thresholdsRuleSchema } from "./conditional_formatting.ts";
 import type { DatasetType } from "./datasets.ts";
-import type { IndicatorMetadata } from "./indicators.ts";
+import {
+  type IndicatorMetadata,
+  PACKAGE_INDICATOR_TYPES,
+} from "./indicators.ts";
 
 // The run manifest (PLAN_RESULTS_RUNS §2.2): written once by the finalize
 // step of a generation, the ONLY thing readers consult at query time. Precomputed, never probed: every fact the
@@ -22,12 +25,12 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // consumes it), and there is no shared adminAreaLabels key (every admin-label
 // consumer reads live instance state). Pure copy in manifest_transform
 // block 3.
-// 6: the common-indicator restructure (PLAN_1a) + the population store
+// 6: the indicator restructure (PLAN_1a) + the population store
 // (PLAN_1b, PLAN_1c), one release. indicators[] catalog entries gained
 // sort_order plus the type/expression/slot_map evaluation fields (type is
-// base | derived; a population term is an ordinary `population:<type>`
+// one of PACKAGE_INDICATOR_TYPES; a population term is an ordinary `population:<type>`
 // ingredient in the slot map, never a field of its own), a new top-level
-// `commonIndicators` list replaced the read path's per-request read of the
+// `hmisIndicators` list replaced the read path's per-request read of the
 // indicators input mirror, and `population` stamps the person-years file a
 // wizard generation wrote (null for packages that carry none). A catalog
 // entry's traffic-light pair became a general `thresholds` rule (PLAN_1d,
@@ -36,7 +39,17 @@ import type { IndicatorMetadata } from "./indicators.ts";
 // list) and `coverage`, the per-type area and month coverage a generation
 // wrote into the person-years file (carried forward as null: a v6 capture
 // refused any shortfall and recorded nothing). Manifest transform block 5.
-export const RUN_MANIFEST_SCHEMA_VERSION = 7;
+// 8: the `commonIndicators` list is `hmisIndicators` (PLAN_A4 ruling 13), a
+// key rename and nothing else. Manifest transform block 6.
+// 9: `hmisIndicators` entries carry the indicator's interpretation facts
+// (format, direction, target, thresholds, a calculated indicator's flattened
+// expression) in dictionary order, so the AI copilot's grounding states what
+// each indicator measures and what a good value is. Block 4's recompute
+// produces the new shape; block 7 only stamps.
+// 10: the indicators mirror's `derived` rows read `calculated` (input block
+// 1, server/runs/input_transform.ts); the manifest's own shape is unchanged
+// and block 8 only stamps.
+export const RUN_MANIFEST_SCHEMA_VERSION = 10;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -162,9 +175,11 @@ export const runIndicatorMetadataSchema: z.ZodType<IndicatorMetadata> = z
     label: z.string(),
     format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
     thresholds: thresholdsRuleSchema.optional(),
+    direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+    target: z.number().optional(),
     group_label: z.string().optional(),
     sort_order: z.number().optional(),
-    type: z.enum(["base", "derived"]).optional(),
+    type: z.enum(PACKAGE_INDICATOR_TYPES).optional(),
     expression: z.string().optional(),
     slot_map: z.record(z.string(), z.string()).optional(),
   });
@@ -175,17 +190,33 @@ export const runModuleIndicatorsSchema = z.object({
 });
 export type RunModuleIndicators = z.infer<typeof runModuleIndicatorsSchema>;
 
-// The instance's common indicator dictionary as the project shell shows it
-// (id + label, label-sorted). Stamped at finalize from the run's own
+// The package's HMIS indicator dictionary as a reader needs it: the AI
+// copilot's grounding (lib/ai_tools/build_system_prompt.ts) and the project
+// state that carries it there. Stamped at finalize from the run's own
 // indicators mirror, and by manifest transform block 4 for older packages.
 // Before v6 the read path re-opened that mirror on every request; this field
 // is that derivation moved to where every other package fact already lives:
 // SYSTEM_08's "the read path parses the manifest only".
-export const runCommonIndicatorSchema = z.object({
+//
+// The facts are the indicator's own (HmisIndicator, lib/types/indicators.ts):
+// format, direction, target in stored units, the CF rule. `expression` is a
+// calculated indicator's FLATTENED formula over count ids and population type
+// ids, the catalog row's, carried because it says what the indicator
+// measures; a count has none. A package whose mirror predates a fact has no
+// key for it. Entries are in dictionary order (sort_order); a legacy v1
+// mirror has no order and its entries are label-sorted. The indicator's
+// type (Uploaded, DHIS2 element, Sum, Calculated) is deliberately absent: where
+// the rows came from is an implementation detail no reader needs.
+export const runHmisIndicatorSchema = z.object({
   id: z.string(),
   label: z.string(),
+  format_as: z.enum(["percent", "number", "rate_per_10k"]).optional(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]).optional(),
+  target: z.number().optional(),
+  thresholds: thresholdsRuleSchema.optional(),
+  expression: z.string().optional(),
 });
-export type RunCommonIndicator = z.infer<typeof runCommonIndicatorSchema>;
+export type RunHmisIndicator = z.infer<typeof runHmisIndicatorSchema>;
 
 // What a population type's person-years rows cover, out of the extract's
 // months and the structure areas at the file's level: a cell (area × month)
@@ -249,7 +280,7 @@ export const runManifestSchema = z.object({
   resultsObjects: z.array(runResultsObjectSchema),
   metricAvailability: z.array(runMetricAvailabilitySchema),
   indicators: z.array(runModuleIndicatorsSchema),
-  commonIndicators: z.array(runCommonIndicatorSchema),
+  hmisIndicators: z.array(runHmisIndicatorSchema),
   population: runPopulationSchema.nullable(),
 
   // Relative paths (from the run dir root) of every input file the run

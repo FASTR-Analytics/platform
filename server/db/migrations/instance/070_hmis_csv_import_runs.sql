@@ -4,10 +4,20 @@
 
 -- 1. source discriminator. Backfill via the default (every existing row is a
 --    DHIS2 run), then drop the default — inserts are explicit thereafter.
-ALTER TABLE dataset_hmis_import_runs
-  ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'dhis2'
-  CHECK (source IN ('dhis2', 'csv'));
-ALTER TABLE dataset_hmis_import_runs ALTER COLUMN source DROP DEFAULT;
+--    Guarded on the post-086 column name: on a fresh install the column
+--    already exists as `route`, so nothing is added.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'dataset_hmis_import_runs' AND column_name = 'route'
+  ) THEN
+    ALTER TABLE dataset_hmis_import_runs
+      ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'dhis2'
+      CHECK (source IN ('dhis2', 'csv'));
+    ALTER TABLE dataset_hmis_import_runs ALTER COLUMN source DROP DEFAULT;
+  END IF;
+END $$;
 
 -- 2. dhis2_url and selection are DHIS2-only (CSV runs have neither). The
 --    source→fields pairing is enforced in code at the write boundary.

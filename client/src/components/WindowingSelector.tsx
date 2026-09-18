@@ -6,7 +6,6 @@ import {
   makeAa3CompositeKey,
   t3,
   type DatasetHmisWindowing,
-  type DatasetHmisWindowingRaw,
   type StructureSchema,
   type TranslatableString,
 } from "lib";
@@ -34,7 +33,7 @@ import { PeriodSelector } from "./PeriodSelector";
 
 type Props<T extends DatasetHmisWindowing> = {
   hmisVersionId: number;
-  baseIndicatorMappingsVersion: string;
+  countIndicatorsVersion: string;
   tempWindowing: T;
   setTempWindowing: SetStoreFunction<T>;
   structureSchema: StructureSchema;
@@ -42,35 +41,20 @@ type Props<T extends DatasetHmisWindowing> = {
 };
 
 export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
-  const isRawIndicators = (
-    w: DatasetHmisWindowing,
-  ): w is DatasetHmisWindowingRaw => w.indicatorType === "raw";
-
-  const getIndicators = () => {
-    if (isRawIndicators(p.tempWindowing)) {
-      return p.tempWindowing.rawIndicatorsToInclude ?? [];
-    } else {
-      return p.tempWindowing.commonIndicatorsToInclude ?? [];
-    }
-  };
+  const getIndicators = () => p.tempWindowing.indicatorsToInclude ?? [];
 
   const setIndicators = (values: string[]) => {
-    if (isRawIndicators(p.tempWindowing)) {
-      (p.setTempWindowing as SetStoreFunction<DatasetHmisWindowingRaw>)(
-        "rawIndicatorsToInclude",
-        values,
-      );
-    } else {
-      (p.setTempWindowing as any)("commonIndicatorsToInclude", values);
-    }
+    (p.setTempWindowing as SetStoreFunction<DatasetHmisWindowing>)(
+      "indicatorsToInclude",
+      values,
+    );
   };
 
   const itemsHolder = createQuery(
     () =>
       getDatasetHmisDisplayInfoFromCacheOrFetch(
-        p.tempWindowing.indicatorType,
         p.hmisVersionId,
-        p.baseIndicatorMappingsVersion,
+        p.countIndicatorsVersion,
         p.structureSchema,
         instanceState.structureLastUpdated,
         instanceState.hmisImportRunActive,
@@ -229,7 +213,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
                           const inSelectedIndicators =
                             takeAll ||
-                            // TODO: prefer .id once we confirm `indicators` holds raw source ids
                             indicators.includes(pointInfo.seriesHeader.label);
 
                           const isGreen = inPeriodRange && inSelectedIndicators;
@@ -254,7 +237,6 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
 
                           const inSelectedIndicators =
                             takeAll ||
-                            // TODO: prefer .id once we confirm `indicators` holds raw source ids
                             indicators.includes(pointInfo.seriesHeader.label);
 
                           const isRed = inPeriodRange && inSelectedIndicators;
@@ -309,11 +291,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               />
             </div>
             <ToggledMultiSelect
-              heading={{
-                en: "Indicators",
-                fr: "Indicateurs",
-                pt: "Indicadores",
-              }}
+              heading={{ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }}
               toggleAllLabel={
                 isDelete
                   ? {

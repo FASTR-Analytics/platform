@@ -100,8 +100,10 @@ Complete form control library. Size via `size="sm"`, never ad-hoc classes.
 Frames: `FrameTop`, `FrameLeft`, `FrameRight`, `FrameBottom`, plus
 `FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Side
 frames own their panel/content divider (never add that edge's border yourself).
-Steppers: `StepperNavigation`, `StepperLabeledBreadcrumb`,
-`StepperChipsWithTitles`, and friends.
+Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it carries
+its own `ui-pad-x` and bottom border; no wrapper); inside padded content pass
+`noPad`; `size="sm"` is independent of placement. Steppers: `StepperNavigation`,
+`StepperLabeledBreadcrumb`, `StepperChipsWithTitles`, and friends.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
 `onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the
@@ -137,11 +139,19 @@ const { openEditor, EditorWrapper } = getEditorWrapper();
 Modals, editors, popover menus (`PopoverMenu`, `showMenu`), tooltips, and the
 async-state container. Never hand-roll an overlay.
 
+A popover that can open inside an `openAlert` or `openComponent` modal must stop
+Escape itself. `AlertProvider` closes the modal from a document-level `keydown`
+listener, which the popover's own close watcher does not stop. Solid's
+`onKeyDown` is no help: `keydown` is a delegated event, so that handler already
+runs at the document. Put a native `on:keydown` on the panel and on its trigger
+that calls `preventDefault` and `stopPropagation` on Escape, as the table column
+filter (`tables/display_table/column_filter.tsx`) does.
+
 ### Tables (`tables/`)
 
 ```tsx
 <Table
-  columns={columns}   // TableColumn<T>[]
+  columns={columns}   // TableColumn<T>[]: { key, header, sortable?, filterable? }
   data={data()}
   keyField="id"
   onRowClick={open}
@@ -153,8 +163,11 @@ async-state container. Never hand-roll an overlay.
 <TableFromCsv csv={csvData()} />
 ```
 
-Sorting via column config, grouping, controlled multi-select with bulk actions,
-and an `EmptyState` no-rows fallback.
+Sorting and per-column value filters via column config (`sortable`,
+`filterable`), grouping, controlled multi-select with bulk actions, and an
+`EmptyState` no-rows fallback. A filterable column gets a funnel button in its
+header that lists the column's distinct values as check rows; `defaultFilters`
+and `onFilterChange` persist the unchecked values.
 
 ## CSS Public API
 
@@ -162,8 +175,9 @@ and an `EmptyState` no-rows fallback.
 surface for app code:
 
 - **Spacing/density** — `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
-  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-gap`, `ui-gap-sm`, `ui-gap-lg`, `ui-spy`,
-  `ui-spy-sm`, `ui-spy-lg`
+  `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and
+  one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`,
+  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`
 - **Form density** — `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`

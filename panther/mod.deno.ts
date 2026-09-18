@@ -126,4 +126,5 @@ export * from "./_236_video/mod.ts";
 // @protocol PROTOCOL_ALL_STRUCTURE.md
 // @protocol PROTOCOL_ALL_SIZING.md
 // @protocol PROTOCOL_ALL_TRANSLATION.md
+// @protocol PROTOCOL_ALL_PLANS.md
 // @protocol PROTOCOL_DENO_API.md

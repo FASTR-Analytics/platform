@@ -48,8 +48,7 @@ Deno.test("/mcp context cache: keyed by (token, runId) — same user, two PATs, 
   `;
   const runId = runs.at(0)?.id;
   if (!runId) {
-    // An environment gap, not a regression: this suite runs at every dev boot
-    // (deno task test), and a fresh dev DB has no package yet.
+    // An environment gap, not a regression: a fresh dev DB has no package yet.
     console.warn(
       "SKIPPED /mcp context cache test: no ready results package in the dev database — generate one to exercise it.",
     );

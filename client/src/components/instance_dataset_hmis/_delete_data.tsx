@@ -3,7 +3,7 @@ import {
   DEFAULT_PERIOD_START,
   t3,
   TC,
-  type DatasetHmisWindowingRaw,
+  type DatasetHmisWindowing,
   type StructureSchema,
 } from "lib";
 import {
@@ -23,21 +23,20 @@ export function DeleteData(
   p: EditorComponentProps<
     {
       hmisVersionId: number;
-      baseIndicatorMappingsVersion: string;
+      countIndicatorsVersion: string;
       structureSchema: StructureSchema;
     },
     undefined
   >,
 ) {
   const [tempWindowing, setTempWindowing] =
-    createStore<DatasetHmisWindowingRaw>(
+    createStore<DatasetHmisWindowing>(
       structuredClone({
-        indicatorType: "raw",
         start: DEFAULT_PERIOD_START,
         end: DEFAULT_PERIOD_END,
         takeAllIndicators: true,
         takeAllAdminArea2s: true,
-        rawIndicatorsToInclude: [],
+        indicatorsToInclude: [],
         adminArea2sToInclude: [],
         takeAllAdminArea3s: true,
         adminArea3sToInclude: [],
@@ -50,15 +49,23 @@ export function DeleteData(
     const windowing = unwrap(tempWindowing);
 
     const deleteAction = createDeleteAction(
-      "Are you sure you want to delete this data?",
+      t3({
+        en: "Are you sure you want to delete this data?",
+        fr: "Voulez-vous vraiment supprimer ces données ?",
+        pt: "Tem a certeza de que pretende eliminar estes dados?",
+      }),
       async () => {
         if (
           !windowing.takeAllIndicators &&
-          windowing.rawIndicatorsToInclude.length === 0
+          windowing.indicatorsToInclude.length === 0
         ) {
           return {
             success: false,
-            err: "You must select at least one indicator",
+            err: t3({
+              en: "You must select at least one indicator",
+              fr: "Vous devez sélectionner au moins un indicateur",
+              pt: "Tem de selecionar pelo menos um indicador",
+            }),
           };
         }
 
@@ -68,7 +75,11 @@ export function DeleteData(
         ) {
           return {
             success: false,
-            err: "You must select at least one admin area",
+            err: t3({
+              en: "You must select at least one admin area",
+              fr: "Vous devez sélectionner au moins une zone administrative",
+              pt: "Tem de selecionar pelo menos uma área administrativa",
+            }),
           };
         }
 
@@ -94,7 +105,7 @@ export function DeleteData(
         <div class="">
           <WindowingSelector
             hmisVersionId={p.hmisVersionId}
-            baseIndicatorMappingsVersion={p.baseIndicatorMappingsVersion}
+            countIndicatorsVersion={p.countIndicatorsVersion}
             tempWindowing={tempWindowing}
             setTempWindowing={setTempWindowing}
             includeOrDelete="delete"

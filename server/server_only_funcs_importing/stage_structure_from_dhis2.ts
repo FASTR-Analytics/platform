@@ -8,8 +8,11 @@ import {
   getEnabledOptionalFacilityColumns,
   type FacilityFamily,
 } from "lib";
-import { type DHIS2OrgUnit } from "../dhis2/goal1_org_units_v2/mod.ts";
-import { getDHIS2 } from "../dhis2/common/base_fetcher.ts";
+import {
+  type Dhis2OrgUnitPath,
+  getOrgUnitNamesAtLevel,
+  pageOrgUnitPathsAtLevel,
+} from "../dhis2/goal1_org_units_v2/mod.ts";
 import { escapeSqlString } from "../db/utils.ts";
 import {
   getStructureSchema,
@@ -17,13 +20,11 @@ import {
 
 // Helper function to process a batch of org units during DHIS2 import
 async function processBatch(
-  batch: DHIS2OrgUnit[],
-  globalLookup: Map<string, DHIS2OrgUnit>,
+  batch: Dhis2OrgUnitPath[],
+  parentNames: Map<string, string>,
   maxAdminArea: number,
   optionalColumns: string[],
   rowBuffer: string[],
-  _mainDb: Sql,
-  _stagingTableName: string,
   BUFFER_SIZE: number,
   flushBuffer: () => Promise<void>,
   facilitiesFound: { count: number },
@@ -32,11 +33,11 @@ async function processBatch(
 ): Promise<void> {
   console.log(`Processing batch of ${batch.length} org units...`);
 
-  // Build a lookup map for parent resolution within the batch
-  const batchLookup = new Map<string, DHIS2OrgUnit>();
-  for (const orgUnit of batch) {
-    batchLookup.set(orgUnit.id, orgUnit);
-  }
+  // Parent resolution: the parent levels fetched up front, then this batch,
+  // then the id itself.
+  const batchNames = new Map(batch.map((u) => [u.id, u.name]));
+  const nameOf = (id: string): string =>
+    parentNames.get(id) ?? batchNames.get(id) ?? id;
 
   // Process each org unit in the batch
   for (const orgUnit of batch) {
@@ -58,23 +59,11 @@ async function processBatch(
       // Fill admin areas directly from path
       for (let i = 0; i < maxAdminArea; i++) {
         if (i < parentParts.length) {
-          // Try to resolve name from global lookup, fall back to batch lookup, then ID
-          const parentId = parentParts[i];
-          const parentOrgUnit =
-            globalLookup.get(parentId) || batchLookup.get(parentId);
-          const parentName = parentOrgUnit
-            ? parentOrgUnit.displayName || parentOrgUnit.name
-            : parentId;
-          allAdminValues.push(parentName);
+          allAdminValues.push(nameOf(parentParts[i]));
         } else {
           // Need to use prefixed version of penultimate element
           if (parentParts.length > 0) {
-            const penultimateId = parentParts[parentParts.length - 1];
-            const penultimateOrgUnit =
-              globalLookup.get(penultimateId) || batchLookup.get(penultimateId);
-            const penultimateName = penultimateOrgUnit
-              ? penultimateOrgUnit.displayName || penultimateOrgUnit.name
-              : penultimateId;
+            const penultimateName = nameOf(parentParts[parentParts.length - 1]);
             const facilityLevel = parentParts.length + 1; // +1 because facility is next level
             allAdminValues.push(
               `FACILITY AT LEVEL ${facilityLevel}: ${penultimateName}`
@@ -88,13 +77,7 @@ async function processBatch(
       // Case 2: Path length exceeds maxAdminArea
       // Take first maxAdminArea elements, ignore middle ones
       for (let i = 0; i < maxAdminArea; i++) {
-        const parentId = parentParts[i];
-        const parentOrgUnit =
-          globalLookup.get(parentId) || batchLookup.get(parentId);
-        const parentName = parentOrgUnit
-          ? parentOrgUnit.displayName || parentOrgUnit.name
-          : parentId;
-        allAdminValues.push(parentName);
+        allAdminValues.push(nameOf(parentParts[i]));
       }
     }
 
@@ -121,7 +104,7 @@ async function processBatch(
     const optionalValues: string[] = [];
     for (const column of optionalColumns) {
       if (column === "facility_name") {
-        optionalValues.push(orgUnit.displayName || orgUnit.name);
+        optionalValues.push(orgUnit.name);
       } else {
         // For other columns, we don't have data from DHIS2 org units
         optionalValues.push("");
@@ -186,7 +169,8 @@ export async function stageStructureFromDhis2V2(
       getEnabledOptionalFacilityColumns(resStructureSchema.data);
     // DHIS2 only supplies facility_name (from displayName). Never stage the other
     // metadata columns: integration writes exactly the staged columns, and a
-    // blank facility_type/ownership would wipe existing values.
+    // blank facility_type/ownership would wipe existing values under the two
+    // updating strategies (replace_all blanks unmapped columns by design).
     const dhis2OptionalColumns = enabledOptionalColumns.filter(
       (c) => c === "facility_name"
     );
@@ -241,8 +225,8 @@ export async function stageStructureFromDhis2V2(
       parentLevels.push(i);
     }
 
-    // Build a global lookup map for parent name resolution
-    const globalLookup = new Map<string, DHIS2OrgUnit>();
+    // Parent id to label, for admin area name resolution
+    const parentNames = new Map<string, string>();
 
     if (parentLevels.length > 0) {
       console.log(
@@ -251,40 +235,17 @@ export async function stageStructureFromDhis2V2(
         )} for name resolution...`
       );
 
-      // Fetch each level separately with minimal fields for better performance
       for (const level of parentLevels) {
         console.log(`Fetching level ${level} parent org units...`);
-
-        // Use minimal fields for parent lookup - only what we need for names
-        const params = new URLSearchParams();
-        params.set("fields", "id,name,displayName");
-        params.set("filter", `level:eq:${level}`);
-        params.set("paging", "false"); // Get all at once for each level
-
-        const response = await getDHIS2<{
-          organisationUnits: Array<{
-            id: string;
-            name: string;
-            displayName?: string;
-          }>;
-        }>("/api/organisationUnits.json", fetchOptions, params);
-
-        if (response.organisationUnits) {
-          for (const orgUnit of response.organisationUnits) {
-            globalLookup.set(orgUnit.id, {
-              id: orgUnit.id,
-              name: orgUnit.name,
-              displayName: orgUnit.displayName,
-            } as DHIS2OrgUnit);
-          }
-          console.log(
-            `Loaded ${response.organisationUnits.length} level ${level} org units`
-          );
+        const units = await getOrgUnitNamesAtLevel(level, fetchOptions);
+        for (const unit of units) {
+          parentNames.set(unit.id, unit.name);
         }
+        console.log(`Loaded ${units.length} level ${level} org units`);
       }
 
       console.log(
-        `Total loaded: ${globalLookup.size} parent org units for name resolution`
+        `Total loaded: ${parentNames.size} parent org units for name resolution`
       );
     }
 
@@ -347,55 +308,25 @@ export async function stageStructureFromDhis2V2(
       const levelProgress = 0.3 + (currentLevelIndex / totalLevels) * 0.5;
       if (onProgress) await onProgress(levelProgress, `Fetching level ${level} facilities...`);
 
-      let currentPage = 1;
       let levelProcessed = 0;
 
-      while (true) {
-        const params = new URLSearchParams();
-        params.set("fields", "id,name,displayName,path"); // Only essential fields for facilities
-        params.set("filter", `level:eq:${level}`);
-        params.set("pageSize", String(streamConfig.batchSize));
-        params.set("page", String(currentPage));
-        params.set("paging", "true");
+      for await (
+        const page of pageOrgUnitPathsAtLevel(
+          level,
+          streamConfig.batchSize,
+          fetchOptions,
+        )
+      ) {
+        // A unit with no id or no path cannot be staged: counted like the CSV
+        // path's invalid rows.
+        invalidRows.count += page.dropped;
 
-        const response = await getDHIS2<{
-          organisationUnits: Array<{
-            id: string;
-            name: string;
-            displayName?: string;
-            path: string;
-          }>;
-          pager?: { pageCount: number; total: number };
-        }>("/api/organisationUnits.json", fetchOptions, params);
-
-        if (
-          !response.organisationUnits ||
-          response.organisationUnits.length === 0
-        ) {
-          break;
-        }
-
-        // Convert to DHIS2OrgUnit format for processing
-        const batch: DHIS2OrgUnit[] = response.organisationUnits.map(
-          (ou) =>
-            ({
-              id: ou.id,
-              name: ou.name,
-              displayName: ou.displayName,
-              path: ou.path,
-              level, // Add the level we're fetching
-            } as DHIS2OrgUnit)
-        );
-
-        // Process this batch (existing logic)
         await processBatch(
-          batch,
-          globalLookup,
+          page.units,
+          parentNames,
           maxAdminArea,
           dhis2OptionalColumns,
           rowBuffer,
-          mainDb,
-          stagingTableName,
           BUFFER_SIZE,
           flushBuffer,
           facilitiesFound,
@@ -403,21 +334,11 @@ export async function stageStructureFromDhis2V2(
           invalidRows
         );
 
-        levelProcessed += batch.length;
-        totalProcessed += batch.length;
+        levelProcessed += page.units.length + page.dropped;
+        totalProcessed += page.units.length + page.dropped;
         console.log(
-          `Progress: ${totalProcessed}/${totalProcessed} - Processed ${levelProcessed} level ${level} org units`
+          `Progress: processed ${levelProcessed} level ${level} org units (${totalProcessed} total)`
         );
-
-        // Check if we're done with this level
-        if (!response.pager || currentPage >= response.pager.pageCount) {
-          break;
-        }
-
-        currentPage++;
-
-        // Small delay between batches
-        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       currentLevelIndex++;

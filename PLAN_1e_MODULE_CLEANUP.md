@@ -2,7 +2,7 @@
 
 Status: DIRECTION RULED 2026-08-30 (Tim); facts corrected same day after
 the code-verified review round. The indicator restructure it cleans up
-after (typed common indicators with derived expressions, the population
+after (typed common indicators with calculated expressions, the population
 store, population terms in expressions, indicator thresholds as a CF source
 — the m012 module, migrations 079/080, run-manifest v6) SHIPPED as app
 1.69.0–1.69.2 on 2026-09-03; its rulings live in

@@ -7,7 +7,7 @@ import { createMemo, createSignal, For, type JSX, Show } from "solid-js";
 import { t3 } from "../deps.ts";
 import { hideTooltip, showTooltip } from "../special_state/tooltip.tsx";
 import type { SelectOption } from "./types.ts";
-import { CheckSvg, IndeterminateSvg } from "./_internal/check_glyphs.tsx";
+import { CheckMark } from "./_internal/check_glyphs.tsx";
 import {
   ComboBoxFrame,
   createComboBoxPanel,
@@ -26,25 +26,6 @@ type MultiSelectSearchProps<T extends string> = {
   disabled?: boolean;
   invalidMsg?: string;
 };
-
-// Presentational check square for the option rows, built from Checkbox's
-// glyph internals but deliberately smaller — it reads as part of the larger
-// control, not a standalone form checkbox. Not the interactive Checkbox
-// component: the row is the click target here, and nesting a labeled input
-// inside a clickable row would double-fire and fight the panel's focus
-// handling.
-function CheckMark(p: { checked: boolean; indeterminate?: boolean }) {
-  return (
-    <span class="bg-base-100 relative h-4 w-4 flex-none rounded border">
-      <Show when={p.indeterminate}>
-        <IndeterminateSvg class="text-base-content pointer-events-none absolute inset-0 m-auto h-3 w-3" />
-      </Show>
-      <Show when={p.checked && !p.indeterminate}>
-        <CheckSvg class="text-base-content pointer-events-none absolute inset-0 m-auto h-3 w-3" />
-      </Show>
-    </span>
-  );
-}
 
 // Combo-box multi-select: shares the panel mechanism and chrome with
 // SelectSearch via ComboBoxFrame. What is specific to the multi case lives

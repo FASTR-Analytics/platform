@@ -116,6 +116,7 @@ export function ConditionalFormattingEditor(p: Props) {
           allowNegative={p.allowNegative}
           showLabels={false}
           showPresets={true}
+          showDirection={true}
         />
       </Show>
     </div>
@@ -316,6 +317,9 @@ export function ThresholdsPanel(p: {
   allowNegative?: boolean;
   showLabels: boolean;
   showPresets: boolean;
+  // Off where the rule's direction is not the rule's to choose: an HMIS
+  // indicator's rule takes it from the indicator (HmisIndicator.direction).
+  showDirection: boolean;
 }) {
   const matchedPreset = (): LegacyCfPresetId | undefined => {
     for (const id of LEGACY_CF_PRESET_IDS) {
@@ -419,22 +423,24 @@ export function ThresholdsPanel(p: {
           fullWidth
         />
       </Show>
-      <RadioGroup<ThresholdDirection>
-        label={t3({ en: "Direction", fr: "Direction", pt: "Direção" })}
-        options={[
-          {
-            value: "higher-is-better",
-            label: t3({ en: "Higher is better", fr: "Plus élevé = meilleur", pt: "Mais alto é melhor" }),
-          },
-          {
-            value: "lower-is-better",
-            label: t3({ en: "Lower is better", fr: "Plus bas = meilleur", pt: "Mais baixo é melhor" }),
-          },
-        ]}
-        value={direction()}
-        onChange={(v) => update({ direction: v as ThresholdDirection })}
-        horizontal
-      />
+      <Show when={p.showDirection}>
+        <RadioGroup<ThresholdDirection>
+          label={t3({ en: "Direction", fr: "Direction", pt: "Direção" })}
+          options={[
+            {
+              value: "higher-is-better",
+              label: t3({ en: "Higher is better", fr: "Plus élevé = meilleur", pt: "Mais alto é melhor" }),
+            },
+            {
+              value: "lower-is-better",
+              label: t3({ en: "Lower is better", fr: "Plus bas = meilleur", pt: "Mais baixo é melhor" }),
+            },
+          ]}
+          value={direction()}
+          onChange={(v) => update({ direction: v as ThresholdDirection })}
+          horizontal
+        />
+      </Show>
       <div class="flex flex-col gap-1.5">
         {/* Index, not For: every edit maps the buckets into new objects, and
             For keys rows by identity, so a keystroke in a label input would

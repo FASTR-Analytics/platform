@@ -77,39 +77,31 @@ export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   return result[0]?.version ?? "none";
 }
 
-// The full dictionary stamp: every common indicator row, whatever its type,
-// plus the raws and mappings. Keys the indicator manager's cache and rides the
-// SSE summary.
-export async function getIndicatorMappingsVersion(
+// The full dictionary stamp: every indicator row, whatever its type. Keys
+// the indicator manager's cache and rides the SSE summary.
+export async function getIndicatorsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
       COALESCE((SELECT MAX(updated_at) FROM indicators)::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM indicators)::text || '|' ||
-      (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
-      (SELECT COUNT(*) FROM indicator_mappings)::text
+      (SELECT COUNT(*) FROM indicators)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
 }
 
-// The base-only stamp: the rows an HMIS extract is actually built from
-// (PLAN_1a §1.13). Editing a derived definition does not move it, so the
+// The count stamp: the rows an HMIS extract is actually built from
+// (PLAN_1a §1.13), the analysed counts (`is_count AND include_in_analysis`,
+// PLAN_A5 ruling 12). Editing a calculated definition does not move it, so the
 // datatable caches it keys never churn on a formula edit.
-export async function getBaseIndicatorMappingsVersion(
+export async function getCountIndicatorsVersion(
   mainDb: Sql,
 ): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
     SELECT MD5(
-      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE definition_type = 'base')::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicators_raw)::text, '') || '|' ||
-      COALESCE((SELECT MAX(updated_at) FROM indicator_mappings)::text, '') || '|' ||
-      (SELECT COUNT(*) FROM indicators WHERE definition_type = 'base')::text || '|' ||
-      (SELECT COUNT(*) FROM indicators_raw)::text || '|' ||
-      (SELECT COUNT(*) FROM indicator_mappings)::text
+      COALESCE((SELECT MAX(updated_at) FROM indicators WHERE is_count AND include_in_analysis)::text, '') || '|' ||
+      (SELECT COUNT(*) FROM indicators WHERE is_count AND include_in_analysis)::text
     ) as version
   `;
   return result[0]?.version ?? "none";
@@ -134,17 +126,11 @@ export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
 export async function getInstanceIndicatorsSummary(
   mainDb: Sql,
 ): Promise<InstanceIndicatorsSummary> {
-  const commonIndicators =
+  const hmisIndicators =
     (
       await mainDb<
         { count: number }[]
       >`SELECT COUNT(*) as count FROM indicators`
-    )[0]?.count ?? 0;
-  const rawIndicators =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM indicators_raw`
     )[0]?.count ?? 0;
   const hfaIndicators =
     (
@@ -152,18 +138,16 @@ export async function getInstanceIndicatorsSummary(
         { count: number }[]
       >`SELECT COUNT(*) as count FROM hfa_indicators`
     )[0]?.count ?? 0;
-  const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
-  const baseIndicatorMappingsVersion =
-    await getBaseIndicatorMappingsVersion(mainDb);
+  const indicatorsVersion = await getIndicatorsVersion(mainDb);
+  const countIndicatorsVersion = await getCountIndicatorsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
   return {
     indicators: {
-      commonIndicators,
-      rawIndicators,
+      hmisIndicators,
       hfaIndicators,
     },
-    indicatorMappingsVersion,
-    baseIndicatorMappingsVersion,
+    indicatorsVersion,
+    countIndicatorsVersion,
     hfaIndicatorsVersion,
   };
 }
@@ -382,20 +366,11 @@ export async function getInstanceDetail(
     const structureSummary = await getInstanceStructureSummary(mainDb);
     const structure = structureSummary.structure;
 
-    // Get indicator counts (both common and raw)
-    const commonIndicatorsCount =
+    const hmisIndicatorsCount =
       (
         await mainDb<{ total_count: number }[]>`
-        SELECT count(*) AS total_count 
+        SELECT count(*) AS total_count
         FROM indicators
-      `
-      ).at(0)?.total_count ?? 0;
-
-    const rawIndicatorsCount =
-      (
-        await mainDb<{ total_count: number }[]>`
-        SELECT count(*) AS total_count 
-        FROM indicators_raw
       `
       ).at(0)?.total_count ?? 0;
 
@@ -435,7 +410,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
     const users = await getInstanceUsers(mainDb);
 
     // Get cache version for indicators (includes counts to detect deletions)
-    const indicatorMappingsVersion = await getIndicatorMappingsVersion(mainDb);
+    const indicatorsVersion = await getIndicatorsVersion(mainDb);
 
     const instanceDetails: InstanceDetail = {
       instanceId: _INSTANCE_ID,
@@ -448,8 +423,7 @@ const projectSummaries = await getProjectsForUser(mainDb, globalUser);
       structureLastUpdated: structureSummary.structureLastUpdated,
       hfaWeights: structureSummary.hfaWeights,
       indicators: {
-        commonIndicators: commonIndicatorsCount,
-        rawIndicators: rawIndicatorsCount,
+        hmisIndicators: hmisIndicatorsCount,
         hfaIndicators: hfaIndicatorsCount,
       },
       assets: resAssets.data,

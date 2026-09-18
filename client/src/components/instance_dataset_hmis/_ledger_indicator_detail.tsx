@@ -2,7 +2,8 @@ import {
   getCalendar,
   t3,
   type DatasetHmisImportLedgerItem,
-  type Dhis2RunPair,
+  type Dhis2RunPairInput,
+  type HmisIndicator,
 } from "lib";
 import {
   Button,
@@ -14,27 +15,39 @@ import {
   toNum0,
   type TableColumn,
 } from "panther";
-import { ledgerSourceLabel, type LedgerPeriodWindow } from "./_tab_by_indicator";
+import { indicatorNameText } from "~/components/indicator_manager_hmis/_indicator_display";
+import { importRouteLabel, type LedgerPeriodWindow } from "./_ledger_table";
 
 type MonthRow = {
   periodId: number;
   item: DatasetHmisImportLedgerItem | undefined;
 };
 
-// The per-indicator ledger surface: every month in the window with its
-// import status. Closes with a pair list when the user asks to re-import the
-// indicator; the shell feeds it to the wizard's presetPairs entry (same
-// contract as Dhis2RunDetail).
+// The per-data-id ledger surface: every month in the window with its
+// import status, headed by the indicator under that data id. Closes with a
+// pair list when the user asks to re-import it; the page feeds it to the
+// wizard's presetPairs entry (same contract as Dhis2RunDetail).
 export function ImportLedgerIndicatorDetail(
   p: EditorComponentProps<
     {
-      indicatorRawId: string;
+      dataId: string;
+      indicator: HmisIndicator | undefined;
       items: DatasetHmisImportLedgerItem[];
       window: LedgerPeriodWindow;
     },
-    Dhis2RunPair[] | undefined
+    Dhis2RunPairInput[] | undefined
   >,
 ) {
+  // The indicator under the key, with the UID beside it for a DHIS2
+  // element; an Uploaded indicator's key is opaque and not shown (PLAN_A6
+  // ruling 1). The bare key only where no indicator carries it.
+  const subheading = () => {
+    if (p.indicator === undefined) return p.dataId;
+    const name = indicatorNameText(p.indicator);
+    return p.indicator.definition.type === "dhis2_element"
+      ? `${name} · ${p.dataId}`
+      : name;
+  };
   const itemsByPeriod = new Map<number, DatasetHmisImportLedgerItem>();
   for (const item of p.items) {
     itemsByPeriod.set(item.periodId, item);
@@ -44,8 +57,8 @@ export function ImportLedgerIndicatorDetail(
   );
 
   function reimportIndicator() {
-    const pairs: Dhis2RunPair[] = enumerateMonthsDescending(p.window).map(
-      (periodId) => ({ indicatorRawId: p.indicatorRawId, periodId }),
+    const pairs: Dhis2RunPairInput[] = enumerateMonthsDescending(p.window).map(
+      (periodId) => ({ dataId: p.dataId, periodId }),
     );
     p.close(pairs);
   }
@@ -118,9 +131,9 @@ export function ImportLedgerIndicatorDetail(
       render: (row) => (row.item ? toNum0(row.item.sumCount) : ""),
     },
     {
-      key: "source",
-      header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
-      render: (row) => (row.item ? ledgerSourceLabel(row.item.source) : ""),
+      key: "route",
+      header: t3({ en: "Imported via", fr: "Importé via", pt: "Importado via" }),
+      render: (row) => (row.item ? importRouteLabel(row.item.route) : ""),
     },
     {
       key: "importedAt",
@@ -137,7 +150,7 @@ export function ImportLedgerIndicatorDetail(
           // Backfill rows predate tracking; anything else with no timestamp
           // has never successfully imported: leave the cell empty rather
           // than implying a pre-tracking import.
-          return row.item.source === "backfill" ? ledgerSourceLabel("backfill") : "";
+          return row.item.route === "backfill" ? importRouteLabel("backfill") : "";
         }
         return new Date(row.item.importedAt).toLocaleString();
       },
@@ -167,7 +180,7 @@ export function ImportLedgerIndicatorDetail(
             fr: "État des importations",
             pt: "Estado das importações",
           })}
-          subheading={p.indicatorRawId}
+          subheading={subheading()}
         >
           <div class="ui-gap-sm flex items-center">
             <Button iconName="databaseImport" onClick={reimportIndicator}>
