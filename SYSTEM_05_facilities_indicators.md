@@ -1014,10 +1014,10 @@ Every config mutation re-reads all configs and pushes one consolidated
   visible rows.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
   Calculated, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
-  element with the DHIS2 name under it when one is stored (`dhis2LabelOf`;
-  the editor shows the same name, read-only, under the DHIS2 id input while
-  the id stands), the members, the formula, nothing for an Uploaded indicator;
-  `definedByText`, shared with the import picker), a Format column (a
+  element, the members, the formula, nothing for an Uploaded indicator;
+  `definedByText`, shared with the import picker; the DHIS2 name is not a
+  column: the editor shows it read-only under the DHIS2 id input while the
+  id stands, `dhis2LabelOf`, and the download carries it), a Format column (a
   calculated indicator's Number, Percent or Rate per 10,000; blank for a
   count, which is always a number; `formatText`), a read-only
   include-in-analysis tick (the flag is edited in the modal only) and the
