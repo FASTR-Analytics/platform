@@ -1,3 +1,15 @@
+[TBD] [user] [added] - DHIS2 name now shown when editing a DHIS2 indicator
+[TBD] [user] [added] - DHIS2 name displayed in the indicator list's definition column
+[TBD] [user] [added] - DHIS2 name column included in the indicator dictionary download
+[TBD] [user] [changed] - Searching indicators now also matches by DHIS2 name
+[TBD] [admin] [added] - DHIS2 name now shown for DHIS2-linked indicators in the dictionary
+[TBD] [admin] [added] - Indicator search now matches against DHIS2 element names
+[TBD] [admin] [added] - DHIS2 name included in indicator dictionary CSV download
+[TBD] [admin] [changed] - DHIS2 name is preserved when editing indicator labels or renaming IDs
+[TBD] [admin] [changed] - DHIS2 name is cleared when an indicator's data element ID changes
+[TBD] [admin] [fixed] - DHIS2 data imports now gracefully handle missing or null values
+[TBD] [admin] [internal] - Improved resilience to unexpected responses from DHIS2 servers
+[TBD] [admin] [internal] - Streamlined org unit fetching during DHIS2 structure import
 [1.73.1] [user] [added] - Indicator count now shown next to the "Indicators" heading
 [1.73.1] [user] [added] - Indicator types now displayed as color-coded badges
 [1.73.1] [user] [added] - Long indicator IDs and labels now wrap neatly instead of overflowing
