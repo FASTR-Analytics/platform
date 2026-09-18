@@ -716,6 +716,13 @@ SET csv_config = (
   (csv_config::jsonb - 'mappings')
   || jsonb_build_object('columns', csv_config::jsonb -> 'mappings')
 )::text
+-- The retired `shadow` block (the first-run DVS-vs-analytics check, gone
+-- from the type since 2026-07-24, stripped by zod on every read) keys its
+-- mismatches by raw id; it is dropped rather than rewritten.
+UPDATE dataset_hmis_import_runs
+SET run_stats = (run_stats::jsonb - 'shadow')::text
+WHERE run_stats IS NOT NULL AND jsonb_typeof(run_stats::jsonb) = 'object' AND run_stats::jsonb ? 'shadow';
+
 WHERE csv_config IS NOT NULL
   AND jsonb_typeof(csv_config::jsonb) = 'object'
   AND csv_config::jsonb ? 'mappings';

@@ -438,7 +438,8 @@ stored run, version, schedule and CSV JSON is rewritten (pairs, progress
 and stats keyed `dataId`; window selections to `indicatorIds` plus the
 persisted `dataIds`; the run and ledger `source` columns to `route`, the
 staging result's `sourceType` to `kind`, the CSV config's `mappings` to
-`columns` with its indicator column `data_id`), the old default flag and
+`columns` with its indicator column `data_id`; the retired `shadow` block
+of a run's stats, keyed by raw id and read by nothing, is dropped), the old default flag and
 the two old tables go, and the id table (which indicator holds each raw id)
 is raised as NOTICEs the app's runner suppresses. The older migrations 003,
 056, 070 and 079 are guarded so a fresh replay after 086's schema is a
