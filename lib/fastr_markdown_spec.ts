@@ -152,17 +152,19 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
 
 Backgrounds — say the ROLE, not the colour:
 
-  tone = paper | ink | accent | warm | cool
+  tone = paper | ink | accent | warm
 
   Every block takes \`tone\`, and so does \`:::report\` (as \`background=\`).
-  A theme is five colours, and the five tones are those colours as grounds,
+  A theme is four colours, and the four tones are those colours as grounds,
   each with the type that reads on it: \`paper\` a pale panel, \`ink\` the
-  dark band (light on a dark theme), \`accent\` the theme's own colour,
-  \`warm\` its red, \`cool\` its green. A tone stays readable when the user
-  switches themes. Prefer a tone.
+  dark band (light on a dark theme), \`accent\` the theme's own colour, and
+  \`warm\` its warm pole, which is whatever that is ON THAT THEME: a rust, a
+  wine, a sepia, or on Monochrome a warm grey. A tone stays readable when the
+  user switches themes. Prefer a tone.
 
-  \`warm\` and \`cool\` also MEAN something: they are the colours the callout
-  kinds and the stat deltas use for the bad and the good, so \`tone=warm\` on
+  \`warm\` and \`accent\` also MEAN something: they are the colours the callout
+  kinds and the stat deltas use for the bad news and the good (the meaning
+  rides on the TEMPERATURE, not on a red and a green), so \`tone=warm\` on
   a tile that IS the bad news stays coherent across themes in a way
   \`bg="#c62828"\` cannot. Use them for meaning, not decoration.
 

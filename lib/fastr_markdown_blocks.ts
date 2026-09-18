@@ -132,19 +132,22 @@ export type FastrContainerHtml = {
   silent: boolean;
 };
 
-// Grounds by ROLE, not by colour: a theme is five colours, and the five tones
+// Grounds by ROLE, not by colour: a theme is four colours, and the four tones
 // are those colours as grounds, so `tone=ink` is deep green-grey in Ministry
 // and black in Swiss, and a re-theme keeps every band readable. A tone
 // re-scopes the `--fm-ink*`/`--fm-border` tokens on the block, so descendants
-// (headings, muted labels, rules) follow. `warm` and `cool` double as the
+// (headings, muted labels, rules) follow. `warm` and `accent` double as the
 // meaning grounds (the bad news, the good news): they are the colours the
 // callout kinds and stat deltas already carry.
 export const FASTR_TONES = ["default", ...FASTR_GROUNDS] as const;
 export type FastrTone = (typeof FASTR_TONES)[number];
 
 // The older, longer tone list (muted, solid, dark, the four status names and
-// more) folded into the five on 2026-09-09. Bodies written with those
-// spellings keep rendering: each is one of the five.
+// more) folded into the five on 2026-09-09, and `cool` joined them when the
+// cool pole went on 2026-09-18: the good news is the accent now, so that is
+// where `cool` and `success` land. Bodies written with any of these spellings
+// keep rendering, which is what a retired value gets instead of a rewrite of
+// every stored body.
 const FASTR_TONE_ALIASES: Record<string, FastrTone> = {
   muted: "paper",
   solid: "accent",
@@ -153,12 +156,13 @@ const FASTR_TONE_ALIASES: Record<string, FastrTone> = {
   gradient: "ink",
   danger: "warm",
   warning: "warm",
-  success: "cool",
+  cool: "accent",
+  success: "accent",
   info: "accent",
 };
 
-// The tone a value names, or undefined when it names none: the five and
-// `default`, spelt any case, plus the older spellings.
+// The tone a value names, or undefined when it names none: the four and
+// `default`, spelt any case, plus the retired spellings.
 export function fastrToneOf(value: unknown): FastrTone | undefined {
   if (typeof value !== "string") return undefined;
   const v = value.toLowerCase();
@@ -187,7 +191,7 @@ export function collapseFastrBlankRuns(body: string): string {
   return out.join("\n");
 }
 
-// The ground a fence's attributes resolve to, as one of the five, or
+// The ground a fence's attributes resolve to, as one of the four, or
 // undefined for no ground: `default` means none, the card's historical
 // `accent` flag is the accent tone, and an unknown tone degrades to paper,
 // the mildest, so the styling visibly took (a defect says what was wrong).
