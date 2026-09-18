@@ -44,7 +44,9 @@ import { tryCatchDatabaseAsync } from "./../utils.ts";
 // The stored shape of one indicator (PLAN_A5 ruling 1, PLAN_A6 ruling 1).
 // `expression` is a calculated indicator's formula, `data_id` the key an
 // Uploaded or DHIS2 element indicator's rows carry (a generated opaque key
-// or the UID); each NULL for the other types (the table's CHECK). `members` is aggregated from indicator_sum_members,
+// or the UID); each NULL for the other types (the table's CHECK).
+// `dhis2_label` is what DHIS2 calls a DHIS2 element's element or operand,
+// NULL on every other type and on an element it was never read for. `members` is aggregated from indicator_sum_members,
 // ordered by member id, empty for every other type. `thresholds` is the CF
 // rule as JSON text (every JSON column is text: JSON.parse on read,
 // JSON.stringify on write: SYSTEM_02), validated by the lib schema here.
@@ -54,6 +56,7 @@ export type DBIndicatorCommon = {
   definition_type: HmisIndicatorType;
   expression: string | null;
   data_id: string | null;
+  dhis2_label: string | null;
   members: string[];
   include_in_analysis: boolean;
   format_as: IndicatorFormat;
@@ -66,6 +69,7 @@ export type DBIndicatorCommon = {
 
 const INDICATOR_COLUMNS = `
   i.indicator_common_id, i.indicator_common_label, i.definition_type, i.expression, i.data_id,
+  i.dhis2_label,
   (SELECT COALESCE(array_agg(m.member_id ORDER BY m.member_id), ARRAY[]::text[])
      FROM indicator_sum_members m WHERE m.sum_id = i.indicator_common_id) AS members,
   i.include_in_analysis, i.format_as, i.thresholds, i.direction, i.target,
@@ -105,7 +109,7 @@ function dbRowToDefinition(row: DBIndicatorCommon): HmisIndicatorDefinition {
     case "uploaded":
       return { type: "uploaded", data_id: row.data_id! };
     case "dhis2_element":
-      return { type: "dhis2_element", data_id: row.data_id! };
+      return { type: "dhis2_element", data_id: row.data_id!, dhis2_label: row.dhis2_label };
     case "sum":
       return { type: "sum", members: row.members };
     case "calculated":
@@ -465,6 +469,11 @@ export type NewIndicator = {
   expected_low_counts: boolean;
 };
 
+// What an insert writes: a posted indicator plus the DHIS2 label, which no
+// client posts. The naming step supplies the server's reading of DHIS2's
+// name for each element it creates; every other create writes NULL.
+type IndicatorInsert = NewIndicator & { dhis2_label: string | null };
+
 // The pre-checks every create shares: each id through the validator (a
 // reserved word refused, a special id accepted for a count and refused for
 // a calculated), a DHIS2 element's data id DHIS2-shaped and held by no other
@@ -566,7 +575,7 @@ async function writeMembers(
 // decorates the error with the item that caused it.
 async function insertIndicators(
   sql: Sql,
-  indicators: NewIndicator[],
+  indicators: IndicatorInsert[],
 ): Promise<void> {
   let sortOrder = (
     await sql<{ next: number }[]>`
@@ -579,13 +588,14 @@ async function insertIndicators(
       await sql`
         INSERT INTO indicators (
           indicator_common_id, indicator_common_label,
-          definition_type, expression, data_id, include_in_analysis,
+          definition_type, expression, data_id, dhis2_label, include_in_analysis,
           format_as, thresholds, direction, target, expected_low_counts,
           sort_order, updated_at
         )
         VALUES (
           ${indicator.indicator_common_id}, ${indicator.indicator_common_label},
           ${d.definition_type}, ${d.expression}, ${d.data_id},
+          ${d.definition_type === "dhis2_element" ? indicator.dhis2_label : null},
           ${indicator.include_in_analysis},
           ${indicator.format_as},
           ${thresholdsToDb(indicator.thresholds, indicator.direction)},
@@ -615,7 +625,9 @@ export async function createIndicators(
     if (err) {
       return { success: false, err };
     }
-    await mainDb.begin((sql) => insertIndicators(sql, indicators));
+    await mainDb.begin((sql) =>
+      insertIndicators(sql, indicators.map((i) => ({ ...i, dhis2_label: null })))
+    );
     return { success: true, data: { created: indicators.length } };
   });
 }
@@ -625,8 +637,18 @@ export async function createIndicators(
 // =============================================================================
 
 type NamingPlan =
-  | { ok: true; indicators: NewIndicator[] }
+  | { ok: true; indicators: IndicatorInsert[] }
   | { ok: false; err: string };
+
+// The naming step as the server applies it: each element with the DHIS2
+// label the route read from live metadata (NULL when the element could not
+// be read, in which case its verdict refuses the save anyway).
+export type NamingElementInput = IndicatorNamingElement & { dhis2_label: string | null };
+
+export type NamingInput = {
+  elements: NamingElementInput[];
+  calculated: IndicatorNamingInput["calculated"];
+};
 
 // What the naming step's choices amount to. A DHIS2 element or operand
 // becomes a new DHIS2 element under the chosen id; an existing id is
@@ -635,7 +657,7 @@ type NamingPlan =
 // elements land in. Everything created is in the analysis.
 async function planIndicatorNaming(
   mainDb: Sql,
-  input: IndicatorNamingInput,
+  input: NamingInput,
 ): Promise<NamingPlan> {
   const existing = await getHmisIndicators(mainDb);
   const existingIds = new Set(existing.map((i) => i.indicator_common_id));
@@ -645,7 +667,7 @@ async function planIndicatorNaming(
     if (dataId !== null) ownerOfDataId.set(dataId, i.indicator_common_id);
   }
   const landing = new Map<string, string>();
-  const indicators: NewIndicator[] = [];
+  const indicators: IndicatorInsert[] = [];
   const newIds = new Set<string>();
 
   for (const element of input.elements) {
@@ -679,6 +701,7 @@ async function planIndicatorNaming(
       indicator_common_id: element.indicator_id,
       indicator_common_label: element.label,
       definition: { type: "dhis2_element", data_id: element.data_id },
+      dhis2_label: element.dhis2_label,
       include_in_analysis: true,
       format_as: "number",
       thresholds: null,
@@ -711,6 +734,7 @@ async function planIndicatorNaming(
       indicator_common_id: calculated.indicator_id,
       indicator_common_label: calculated.label,
       definition: { type: "calculated", expression },
+      dhis2_label: null,
       include_in_analysis: true,
       format_as: calculated.format_as,
       thresholds: null,
@@ -727,7 +751,7 @@ async function planIndicatorNaming(
 // applies, so either everything lands or nothing does.
 export async function applyIndicatorNaming(
   mainDb: Sql,
-  input: IndicatorNamingInput,
+  input: NamingInput,
 ): Promise<APIResponseWithData<{ created: number }>> {
   return await tryCatchDatabaseAsync(async () => {
     const plan = await planIndicatorNaming(mainDb, input);
@@ -743,7 +767,7 @@ export async function applyIndicatorNaming(
   });
 }
 
-export type Dhis2NamingElement = IndicatorNamingElement & {
+export type Dhis2NamingElement = NamingElementInput & {
   verdict: Dhis2ElementVerdict;
 };
 
@@ -882,8 +906,10 @@ export async function updateIndicator(
     }
 
     const current = (
-      await mainDb<{ definition_type: HmisIndicatorType; data_id: string | null }[]>`
-        SELECT definition_type, data_id FROM indicators
+      await mainDb<
+        { definition_type: HmisIndicatorType; data_id: string | null; dhis2_label: string | null }[]
+      >`
+        SELECT definition_type, data_id, dhis2_label FROM indicators
         WHERE indicator_common_id = ${oldIndicatorId}
       `
     ).at(0);
@@ -957,6 +983,12 @@ export async function updateIndicator(
       }
     }
 
+    // The DHIS2 label describes the data id it was read for: it stays while
+    // the indicator remains a DHIS2 element under the same id and goes
+    // otherwise, since no path re-reads it.
+    const dhis2Label = d.definition_type === "dhis2_element" && d.data_id === current.data_id
+      ? current.dhis2_label
+      : null;
     await mainDb.begin(async (sql) => {
       await sql`
         UPDATE indicators
@@ -966,6 +998,7 @@ export async function updateIndicator(
           definition_type = ${d.definition_type},
           expression = ${d.expression},
           data_id = ${d.data_id},
+          dhis2_label = ${dhis2Label},
           include_in_analysis = ${update.include_in_analysis},
           format_as = ${update.format_as},
           thresholds = ${thresholdsToDb(update.thresholds, update.direction)},

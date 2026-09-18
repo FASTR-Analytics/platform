@@ -327,7 +327,11 @@ CREATE INDEX idx_facilities_hfa_facility_ownership ON facilities_hfa(facility_ow
 -- still stored, and it is still usable as a member or in a formula.
 -- `thresholds` is a calculated indicator's own conditional-formatting rule as
 -- JSON text (lib thresholdsRuleSchema), NULL when it has none and always
--- NULL on a count, which is also always formatted as a number. The indicator id
+-- NULL on a count, which is also always formatted as a number. `dhis2_label`
+-- is what DHIS2 calls a DHIS2 element's element or operand, read from live
+-- metadata when the picker creates it and never edited; NULL on every other
+-- type (the CHECK), on an element created by typing a UID, and on an
+-- instance that ran migration 086 before the column existed. The indicator id
 -- is renamable (ON UPDATE CASCADE follows it into the junction); the data
 -- id is fixed once rows exist under it (the data FK has no update action).
 -- A new database has an empty dictionary.
@@ -338,6 +342,7 @@ CREATE TABLE indicators (
     CONSTRAINT indicators_definition_type_check
     CHECK (definition_type IN ('uploaded', 'dhis2_element', 'sum', 'calculated')),
   data_id text CONSTRAINT indicators_data_id_key UNIQUE,
+  dhis2_label text,
   expression text,
   include_in_analysis boolean NOT NULL DEFAULT TRUE,
   format_as text NOT NULL DEFAULT 'number'
@@ -366,6 +371,9 @@ CREATE TABLE indicators (
   CONSTRAINT indicators_element_shape_check CHECK (
     definition_type <> 'dhis2_element'
     OR data_id ~ '^[a-zA-Z][a-zA-Z0-9]{10}(\.[a-zA-Z][a-zA-Z0-9]{10})?$'
+  ),
+  CONSTRAINT indicators_dhis2_label_check CHECK (
+    dhis2_label IS NULL OR definition_type = 'dhis2_element'
   ),
   CONSTRAINT indicators_count_format_check CHECK (NOT is_count OR format_as = 'number'),
   CONSTRAINT indicators_count_thresholds_check CHECK (NOT is_count OR thresholds IS NULL),

@@ -193,6 +193,17 @@ Deno.test("9: deleting an element with rows is refused by RESTRICT", async () =>
   });
 });
 
+Deno.test("10b: a DHIS2 label on anything but a DHIS2 element is refused by CHECK", async () => {
+  await rolledBack(async (sql) => {
+    await sql`UPDATE indicators SET dhis2_label = 'Element name' WHERE indicator_common_id = 'elem'`;
+    await refused(
+      sql,
+      () => sql`UPDATE indicators SET dhis2_label = 'Total name' WHERE indicator_common_id = 'total'`,
+      "indicators_dhis2_label_check",
+    );
+  });
+});
+
 Deno.test("10: writing has_rows is refused, generated column", async () => {
   await rolledBack(async (sql) => {
     await refused(sql, () => sql`UPDATE indicators SET has_rows = FALSE WHERE indicator_common_id = 'elem'`, "can only be updated to DEFAULT");

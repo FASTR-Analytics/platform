@@ -15,7 +15,10 @@
 -- DHIS2-shaped and passes the validator, otherwise under an id generated
 -- from its label (PLAN_A3 ruling 10, restated in PL/pgSQL below;
 -- lib/indicator_id.ts is the authority and
--- server/tests/indicator_migration_test.ts pins the two spellings). A
+-- server/tests/indicator_migration_test.ts pins the two spellings). Every
+-- DHIS2 element so made keeps the raw's label as its dhis2_label, what
+-- DHIS2 called the series, beside the display label it already had (a
+-- folded common's own label; the raw label for a new indicator). A
 -- common whose raws did not fold becomes a sum over the indicators they
 -- became, its members in indicator_sum_members. A derived row under a
 -- special id is renamed to its suffix form and an Uploaded indicator with
@@ -34,6 +37,12 @@
 -- column add, rename and constraint is guarded, and every UPDATE matches no
 -- row. ./validate_indicator_migration replays it over real dumps and
 -- asserts that no data or ledger row changed.
+--
+-- dhis2_label was added to this file after 1.73.0 shipped it to Mozambique
+-- and three testing instances (Tim, 2026-09-18): the raw label lives only in
+-- this transaction, so no later migration could recover it, and every
+-- other instance had not yet run the file. Those four hold NULL there; 090
+-- gives them the column and the CHECK.
 -- ============================================================================
 
 -- ── The id generator, ruling 10 in PL/pgSQL ─────────────────────────────────
@@ -318,6 +327,7 @@ BEGIN
 END $$;
 
 ALTER TABLE indicators ADD COLUMN IF NOT EXISTS data_id text;
+ALTER TABLE indicators ADD COLUMN IF NOT EXISTS dhis2_label text;
 ALTER TABLE indicators ADD COLUMN IF NOT EXISTS include_in_analysis boolean NOT NULL DEFAULT TRUE;
 ALTER TABLE indicators DROP COLUMN IF EXISTS is_default;
 ALTER TABLE indicators ALTER COLUMN definition_type DROP DEFAULT;
@@ -422,6 +432,7 @@ BEGIN
     UPDATE indicators
     SET data_id = r.indicator_raw_id,
         definition_type = CASE WHEN r.indicator_raw_id ~ v_dhis2_shape THEN 'dhis2_element' ELSE 'uploaded' END,
+        dhis2_label = CASE WHEN r.indicator_raw_id ~ v_dhis2_shape THEN r.indicator_raw_label END,
         updated_at = CURRENT_TIMESTAMP
     WHERE indicator_common_id = r.indicator_common_id;
     INSERT INTO fastr_raw_to_indicator (raw_id, indicator_id, raw_label, folded)
@@ -450,12 +461,14 @@ BEGIN
     v_taken := v_taken || v_new_id;
     INSERT INTO indicators (
       indicator_common_id, indicator_common_label, definition_type, expression,
-      data_id, include_in_analysis,
+      data_id, dhis2_label, include_in_analysis,
       format_as, thresholds, sort_order, updated_at
     )
     SELECT v_new_id, r.indicator_raw_label,
            CASE WHEN r.indicator_raw_id ~ v_dhis2_shape THEN 'dhis2_element' ELSE 'uploaded' END,
-           NULL, r.indicator_raw_id, FALSE,
+           NULL, r.indicator_raw_id,
+           CASE WHEN r.indicator_raw_id ~ v_dhis2_shape THEN r.indicator_raw_label END,
+           FALSE,
            'number', NULL, COALESCE(MAX(sort_order), 0) + 1, CURRENT_TIMESTAMP
     FROM indicators;
     INSERT INTO fastr_raw_to_indicator (raw_id, indicator_id, raw_label, folded)
@@ -703,6 +716,13 @@ SET run_stats = (
 )::text
 WHERE run_stats IS NOT NULL AND jsonb_typeof(run_stats::jsonb) = 'object' AND NOT (run_stats::jsonb ? 'csvStagingResult');
 
+-- The retired `shadow` block (the first-run DVS-vs-analytics check, gone
+-- from the type since 2026-07-24, stripped by zod on every read) keys its
+-- mismatches by raw id; it is dropped rather than rewritten.
+UPDATE dataset_hmis_import_runs
+SET run_stats = (run_stats::jsonb - 'shadow')::text
+WHERE run_stats IS NOT NULL AND jsonb_typeof(run_stats::jsonb) = 'object' AND run_stats::jsonb ? 'shadow';
+
 -- CSV run stats: the staging diagnostics.
 UPDATE dataset_hmis_import_runs
 SET run_stats = jsonb_set(run_stats::jsonb, '{csvStagingResult}',
@@ -716,13 +736,6 @@ SET csv_config = (
   (csv_config::jsonb - 'mappings')
   || jsonb_build_object('columns', csv_config::jsonb -> 'mappings')
 )::text
--- The retired `shadow` block (the first-run DVS-vs-analytics check, gone
--- from the type since 2026-07-24, stripped by zod on every read) keys its
--- mismatches by raw id; it is dropped rather than rewritten.
-UPDATE dataset_hmis_import_runs
-SET run_stats = (run_stats::jsonb - 'shadow')::text
-WHERE run_stats IS NOT NULL AND jsonb_typeof(run_stats::jsonb) = 'object' AND run_stats::jsonb ? 'shadow';
-
 WHERE csv_config IS NOT NULL
   AND jsonb_typeof(csv_config::jsonb) = 'object'
   AND csv_config::jsonb ? 'mappings';

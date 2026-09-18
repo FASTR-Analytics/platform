@@ -48,6 +48,18 @@ export function definedByText(indicator: HmisIndicator): string {
   }
 }
 
+// What DHIS2 calls a DHIS2 element's element or operand; null for every
+// other type and for an element it was never read for.
+export function dhis2LabelOf(indicator: HmisIndicator): string | null {
+  return indicator.definition.type === "dhis2_element"
+    ? indicator.definition.dhis2_label
+    : null;
+}
+
+export function dhis2LabelHeading(): string {
+  return t3({ en: "DHIS2 name", fr: "Nom DHIS2", pt: "Nome DHIS2" });
+}
+
 export function indicatorFormatWord(format: IndicatorFormat): string {
   switch (format) {
     case "number":
@@ -64,8 +76,8 @@ export function indicatorFormatWord(format: IndicatorFormat): string {
 }
 
 // The search over an indicator list, shared by the manager and the import
-// picker: every typed word must appear in the id, label, type word or
-// definition, case-insensitive.
+// picker: every typed word must appear in the id, label, DHIS2 name, type
+// word or definition, case-insensitive.
 export function matchesIndicatorSearch(
   indicator: HmisIndicator,
   query: string,
@@ -75,6 +87,7 @@ export function matchesIndicatorSearch(
   const haystack = [
     indicator.indicator_common_id,
     indicator.indicator_common_label,
+    dhis2LabelOf(indicator) ?? "",
     indicatorTypeLabel(indicator),
     definedByText(indicator),
   ]

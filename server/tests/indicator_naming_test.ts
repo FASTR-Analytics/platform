@@ -23,6 +23,7 @@ import {
   type Dhis2NamingElement,
   getHmisIndicators,
   type NewIndicator,
+  updateIndicator,
 } from "../db/instance/indicators.ts";
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
 
@@ -60,13 +61,19 @@ async function reset(): Promise<void> {
   await db`DELETE FROM indicators`;
 }
 
+// The DHIS2 label is the route's reading of live metadata; here it is
+// derived from the UID so a test can assert it landed.
+function dhis2LabelFor(data_id: string): string {
+  return `DHIS2 name of ${data_id}`;
+}
+
 function element(
   data_id: string,
   indicator_id: string,
   label = `Label ${data_id}`,
   verdict: Dhis2ElementVerdict = ACCEPTED,
 ): Dhis2NamingElement {
-  return { data_id, indicator_id, label, verdict };
+  return { data_id, indicator_id, label, dhis2_label: dhis2LabelFor(data_id), verdict };
 }
 
 function decomposition(
@@ -151,12 +158,21 @@ Deno.test("dhis2: a decomposed indicator creates its elements and the calculated
   assertEquals(res.data, { created: 4 });
   const d = await dictionary();
   assertEquals([...d.keys()], ["anc4", "anc1", "anc1_repeat", "anc4_rate"]);
-  assertEquals(d.get("anc4")!.definition, { type: "dhis2_element", data_id: ANC4_ELEMENT });
+  assertEquals(d.get("anc4")!.definition, {
+    type: "dhis2_element",
+    data_id: ANC4_ELEMENT,
+    dhis2_label: dhis2LabelFor(ANC4_ELEMENT),
+  });
   assertEquals(d.get("anc4")!.indicator_common_label, "ANC 4");
-  assertEquals(d.get("anc1")!.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT });
+  assertEquals(d.get("anc1")!.definition, {
+    type: "dhis2_element",
+    data_id: ANC1_ELEMENT,
+    dhis2_label: dhis2LabelFor(ANC1_ELEMENT),
+  });
   assertEquals(d.get("anc1_repeat")!.definition, {
     type: "dhis2_element",
     data_id: ANC1_OPERAND,
+    dhis2_label: dhis2LabelFor(ANC1_OPERAND),
   });
   assertEquals(d.get("anc4_rate")!.definition, {
     type: "calculated",
@@ -297,16 +313,97 @@ Deno.test("dhis2: an operand already imported renames the expression to its indi
   assert(res.success, res.success ? "" : res.err);
   assertEquals(res.data, { created: 3 });
   const d = await dictionary();
-  assertEquals(d.get("anc1")!.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT });
+  assertEquals(d.get("anc1")!.definition, {
+    type: "dhis2_element",
+    data_id: ANC1_ELEMENT,
+    dhis2_label: dhis2LabelFor(ANC1_ELEMENT),
+  });
   assertEquals(d.get("first_visits")!.definition, {
     type: "dhis2_element",
     data_id: ANC1_OPERAND,
+    dhis2_label: null,
   });
   assertEquals(d.has("whatever"), false);
   assertEquals(d.get("anc4_rate")!.definition, {
     type: "calculated",
     expression: "(anc4 / (anc1 + first_visits))",
   });
+});
+
+function posted(
+  id: string,
+  definition: NewIndicator["definition"],
+  label = `Label ${id}`,
+): NewIndicator {
+  return {
+    indicator_common_id: id,
+    indicator_common_label: label,
+    definition,
+    include_in_analysis: true,
+    format_as: "number",
+    thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
+  };
+}
+
+Deno.test("dhis2: the DHIS2 label survives a relabel and a rename, and goes with the data id or the type", async () => {
+  await reset();
+  const created = await createIndicatorsFromDhis2(db, {
+    elements: [element(ANC1_ELEMENT, "anc1", "ANC 1")],
+    indicators: [],
+  });
+  assert(created.success, created.success ? "" : created.err);
+  const label = dhis2LabelFor(ANC1_ELEMENT);
+
+  const relabelled = await updateIndicator(
+    db,
+    "anc1",
+    posted("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT }, "First antenatal visit"),
+  );
+  assert(relabelled.success, relabelled.success ? "" : relabelled.err);
+  const afterRelabel = (await dictionary()).get("anc1")!;
+  assertEquals(afterRelabel.indicator_common_label, "First antenatal visit");
+  assertEquals(afterRelabel.definition, { type: "dhis2_element", data_id: ANC1_ELEMENT, dhis2_label: label });
+
+  const renamed = await updateIndicator(
+    db,
+    "anc1",
+    posted("anc_first", { type: "dhis2_element", data_id: ANC1_ELEMENT }),
+  );
+  assert(renamed.success, renamed.success ? "" : renamed.err);
+  assertEquals((await dictionary()).get("anc_first")!.definition, {
+    type: "dhis2_element",
+    data_id: ANC1_ELEMENT,
+    dhis2_label: label,
+  });
+
+  const rekeyed = await updateIndicator(
+    db,
+    "anc_first",
+    posted("anc_first", { type: "dhis2_element", data_id: ANC4_ELEMENT }),
+  );
+  assert(rekeyed.success, rekeyed.success ? "" : rekeyed.err);
+  assertEquals((await dictionary()).get("anc_first")!.definition, {
+    type: "dhis2_element",
+    data_id: ANC4_ELEMENT,
+    dhis2_label: null,
+  });
+
+  await reset();
+  const again = await createIndicatorsFromDhis2(db, {
+    elements: [element(ANC1_ELEMENT, "anc1", "ANC 1")],
+    indicators: [],
+  });
+  assert(again.success, again.success ? "" : again.err);
+  const retyped = await updateIndicator(db, "anc1", posted("anc1", { type: "uploaded" }));
+  assert(retyped.success, retyped.success ? "" : retyped.err);
+  assertEquals((await dictionary()).get("anc1")!.definition, { type: "uploaded", data_id: ANC1_ELEMENT });
+  const stored = await db<{ dhis2_label: string | null }[]>`
+    SELECT dhis2_label FROM indicators WHERE indicator_common_id = 'anc1'
+  `;
+  assertEquals(stored[0].dhis2_label, null);
 });
 
 Deno.test("naming: a taken id (an Uploaded, a DHIS2 element, a sum, a calculated) is refused; nothing is assigned to", async () => {
@@ -317,7 +414,7 @@ Deno.test("naming: a taken id (an Uploaded, a DHIS2 element, a sum, a calculated
   await seed("anc_all", { type: "sum", members: ["anc1"] });
   for (const taken of ["anc1", "anc1_file", "anc1_share", "anc_all"]) {
     const res = await applyIndicatorNaming(db, {
-      elements: [{ data_id: ANC4_ELEMENT, indicator_id: taken, label: "x" }],
+      elements: [{ data_id: ANC4_ELEMENT, indicator_id: taken, label: "x", dhis2_label: null }],
       calculated: [],
     });
     assert(!res.success, taken);
@@ -332,7 +429,7 @@ Deno.test("naming: a UID some indicator already holds is skipped and creates not
   await reset();
   await seed("anc1", { type: "dhis2_element", data_id: ANC1_ELEMENT });
   const res = await applyIndicatorNaming(db, {
-    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "anc1_again", label: "x" }],
+    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "anc1_again", label: "x", dhis2_label: null }],
     calculated: [],
   });
   assert(res.success, res.success ? "" : res.err);
@@ -343,13 +440,13 @@ Deno.test("naming: a UID some indicator already holds is skipped and creates not
 Deno.test("naming: a reserved new id is refused, a special id is a count like any other", async () => {
   await reset();
   const reserved = await applyIndicatorNaming(db, {
-    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "population_total", label: "x" }],
+    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "population_total", label: "x", dhis2_label: null }],
     calculated: [],
   });
   assert(!reserved.success);
   assertStringIncludes(reserved.err, "reserved word");
   const special = await applyIndicatorNaming(db, {
-    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "penta1", label: "Penta 1" }],
+    elements: [{ data_id: ANC1_ELEMENT, indicator_id: "penta1", label: "Penta 1", dhis2_label: null }],
     calculated: [],
   });
   assert(special.success, special.success ? "" : special.err);
@@ -359,7 +456,7 @@ Deno.test("naming: a reserved new id is refused, a special id is a count like an
 Deno.test("naming: a calculated naming a DHIS2 id that was not listed is refused", async () => {
   await reset();
   const res = await applyIndicatorNaming(db, {
-    elements: [{ data_id: ANC4_ELEMENT, indicator_id: "anc4", label: "ANC 4" }],
+    elements: [{ data_id: ANC4_ELEMENT, indicator_id: "anc4", label: "ANC 4", dhis2_label: null }],
     calculated: [{
       indicator_id: "anc4_rate",
       label: "ANC 4 rate",

@@ -59,6 +59,7 @@ import {
 import { EditIndicatorForm } from "./_edit_indicator";
 import {
   definedByText,
+  dhis2LabelOf,
   indicatorTypeLabel,
   matchesIndicatorSearch,
 } from "./_indicator_display";
@@ -139,6 +140,7 @@ export function IndicatorsManager(p: Props) {
       indicator.definition.type === "dhis2_element"
         ? indicator.definition.data_id
         : "",
+      dhis2LabelOf(indicator) ?? "",
       indicator.definition.type === "sum"
         ? indicator.definition.members.join(
             INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
@@ -460,8 +462,13 @@ function IndicatorsTable(p: {
       sortable: true,
       sortValue: definedByText,
       render: (indicator) => (
-        <div class="font-mono text-xs">
-          <WrapOnUnderscore text={definedByText(indicator)} />
+        <div class="text-xs">
+          <div class="font-mono">
+            <WrapOnUnderscore text={definedByText(indicator)} />
+          </div>
+          <Show when={dhis2LabelOf(indicator)}>
+            {(label) => <div class="text-base-content-muted">{label()}</div>}
+          </Show>
         </div>
       ),
     },

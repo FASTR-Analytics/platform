@@ -20,9 +20,9 @@ export type InstanceIndicatorDetails = {
 };
 
 // The dictionary download (PLAN_A6 ruling 8): one CSV for the whole list,
-// `type` in the four code names, `dhis2_id` for a DHIS2 element and blank
-// for every other type (an Uploaded indicator's key is opaque and means
-// nothing to a reader), `members` semicolon-separated for a sum,
+// `type` in the four code names, `dhis2_id` and `dhis2_label` for a DHIS2
+// element and blank for every other type (an Uploaded indicator's key is
+// opaque and means nothing to a reader), `members` semicolon-separated for a sum,
 // `expression` for a calculated, `include_in_analysis` true/false,
 // `thresholds` a calculated indicator's rule as JSON text and empty otherwise,
 // `direction` the direction code or empty, `target` in stored units or
@@ -33,6 +33,7 @@ export const INDICATOR_DOWNLOAD_FILE_COLUMNS = [
   "label",
   "type",
   "dhis2_id",
+  "dhis2_label",
   "members",
   "expression",
   "include_in_analysis",
@@ -164,7 +165,13 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 //                  that indicator's key. A count: format `number`.
 //   dhis2_element: an additive monthly series the DHIS2 import fetches. Its
 //                  rows carry its `data_id`, the data element UID or
-//                  `UID.COC` operand. A count; format `number`.
+//                  `UID.COC` operand. `dhis2_label` is what DHIS2 calls the
+//                  element or operand, read from live metadata when the
+//                  DHIS2 picker creates the indicator and never edited: the
+//                  display label is `indicator_common_label`. NULL when the
+//                  element was created by typing a UID, or on an instance
+//                  that ran migration 086 before the column existed.
+//                  A count; format `number`.
 //   sum          : a list of Uploaded or DHIS2 element ids, `members`,
 //                  summed from their rows at extract into one facility x
 //                  month series, adjusted by m001 and m002 like any count.
@@ -182,16 +189,20 @@ export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string 
 // is the key of the rows and is fixed once rows exist under it.
 export type HmisIndicatorDefinition =
   | { type: "uploaded"; data_id: string }
-  | { type: "dhis2_element"; data_id: string }
+  | { type: "dhis2_element"; data_id: string; dhis2_label: string | null }
   | { type: "sum"; members: string[] }
   | { type: "calculated"; expression: string };
 
 // What a client posts as a definition: the stored shape, except that an
-// Uploaded indicator carries no data id. Its key is generated at creation
-// and kept on update; no path accepts one from a client (PLAN_A6 ruling 1).
+// Uploaded indicator carries no data id (its key is generated at creation
+// and kept on update; no path accepts one from a client, PLAN_A6 ruling 1)
+// and a DHIS2 element carries no DHIS2 label (the server reads it from
+// DHIS2 when the picker creates the indicator, keeps it while the data id
+// stands, and clears it otherwise).
 export type HmisIndicatorDefinitionInput =
   | { type: "uploaded" }
-  | Exclude<HmisIndicatorDefinition, { type: "uploaded" }>;
+  | { type: "dhis2_element"; data_id: string }
+  | Extract<HmisIndicatorDefinition, { type: "sum" | "calculated" }>;
 
 export type HmisIndicatorType = HmisIndicatorDefinition["type"];
 
@@ -306,6 +317,21 @@ export interface DHIS2DataElement {
   }>;
   created?: string;
   lastUpdated?: string;
+}
+
+// What DHIS2 calls a data element or a `UID.COC` operand of it: the
+// element's name, joined to the category option combo's name for an
+// operand. An operand whose combo the element does not list keeps the
+// combo's UID in place of a name. One rule for the picker's rows and for
+// the DHIS2 label the server stores.
+export function dhis2ElementName(
+  element: Pick<DHIS2DataElement, "name" | "categoryCombo">,
+  dataId: string,
+): string {
+  const cocId = dataId.split(".")[1];
+  if (cocId === undefined) return element.name;
+  const coc = element.categoryCombo?.categoryOptionCombos?.find((c) => c.id === cocId);
+  return `${element.name} - ${coc === undefined ? cocId : coc.displayName || coc.name}`;
 }
 
 export interface DHIS2Indicator {

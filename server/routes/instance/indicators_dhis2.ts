@@ -11,7 +11,7 @@ import {
   withDecompositions,
   withElementVerdicts,
 } from "../../dhis2/mod.ts";
-import type { Dhis2Credentials } from "lib";
+import { type Dhis2Credentials, dhis2ElementName } from "lib";
 import {
   createIndicatorsFromDhis2,
   getInstanceIndicatorsSummary,
@@ -174,8 +174,9 @@ defineRoute(
         return c.json({ success: false, err: resolved.err });
       }
       const options: FetchOptions = { dhis2Credentials: resolved.credentials };
-      // The verdicts are the server's own reading of the live metadata: the
-      // client's search results may be stale or edited.
+      // The verdicts and the DHIS2 labels are the server's own reading of
+      // the live metadata: the client's search results may be stale or
+      // edited.
       const elements = await fetchByIds(
         body.elements.map((e) => dataElementIdOf(e.data_id)),
         (filter) =>
@@ -203,12 +204,14 @@ defineRoute(
       }
 
       const res = await createIndicatorsFromDhis2(c.var.mainDb, {
-        elements: body.elements.map((e) => ({
-          ...e,
-          verdict: getDhis2OperandVerdict(
-            elementsById.get(dataElementIdOf(e.data_id)),
-          ),
-        })),
+        elements: body.elements.map((e) => {
+          const element = elementsById.get(dataElementIdOf(e.data_id));
+          return {
+            ...e,
+            dhis2_label: element === undefined ? null : dhis2ElementName(element, e.data_id),
+            verdict: getDhis2OperandVerdict(element),
+          };
+        }),
         indicators: body.indicators.map((i) => ({
           ...i,
           decomposition: indicatorsById.get(i.uid)!.decomposition,

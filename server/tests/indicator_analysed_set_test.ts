@@ -37,10 +37,10 @@ function indicator(
 }
 
 const DICTIONARY: HmisIndicator[] = [
-  indicator("on_element", { type: "dhis2_element", data_id: "AbCdEfGhIj1" }, true),
-  indicator("off_element", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }, false),
+  indicator("on_element", { type: "dhis2_element", data_id: "AbCdEfGhIj1", dhis2_label: null }, true),
+  indicator("off_element", { type: "dhis2_element", data_id: "KlMnOpQrSt2", dhis2_label: null }, false),
   indicator("penta1", { type: "uploaded", data_id: "penta1_file" }, false),
-  indicator("member_a", { type: "dhis2_element", data_id: "UvWxYzAbCd3" }, false),
+  indicator("member_a", { type: "dhis2_element", data_id: "UvWxYzAbCd3", dhis2_label: null }, false),
   indicator("member_b", { type: "uploaded", data_id: "file_b" }, false),
   indicator("on_sum", { type: "sum", members: ["member_a", "member_b"] }, true),
   indicator("off_sum", { type: "sum", members: ["member_a"] }, false),

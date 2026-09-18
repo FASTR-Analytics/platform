@@ -68,6 +68,8 @@ import {
 } from "./_computability";
 import {
   dhis2IdLabel,
+  dhis2LabelHeading,
+  dhis2LabelOf,
   indicatorFormatWord,
   indicatorTypeWord,
 } from "./_indicator_display";
@@ -653,6 +655,16 @@ export function EditIndicatorForm(
     });
   };
 
+  // What DHIS2 called the element when the picker added it. The server
+  // keeps it while the data id stands and clears it otherwise, so it is
+  // shown only against the id it was read for.
+  const storedDhis2Label = (): string | null =>
+    existing !== undefined &&
+      existing.definition.type === "dhis2_element" &&
+      dataId().trim() === existing.definition.data_id
+      ? dhis2LabelOf(existing)
+      : null;
+
   const dhis2IdCaption = (): string =>
     dataIdLocked()
       ? t3({
@@ -756,6 +768,13 @@ export function EditIndicatorForm(
               fullWidth
             />
             <div class="ui-text-caption">{dhis2IdCaption()}</div>
+            <Show when={storedDhis2Label()}>
+              {(label) => (
+                <div class="ui-text-caption">
+                  <span class="font-700">{dhis2LabelHeading()}:</span> {label()}
+                </div>
+              )}
+            </Show>
           </Show>
 
           <Show when={type() === "sum"}>

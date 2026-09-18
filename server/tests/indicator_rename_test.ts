@@ -149,7 +149,11 @@ Deno.test("rename: members, expressions and schedule selections rewritten in one
   assert(res.success, res.success ? "" : res.err);
   const d = await dictionary();
   assertEquals(d.has("visits"), false);
-  assertEquals(d.get("first_visits")!.definition, { type: "dhis2_element", data_id: ELEMENT });
+  assertEquals(d.get("first_visits")!.definition, {
+    type: "dhis2_element",
+    data_id: ELEMENT,
+    dhis2_label: null,
+  });
   assertEquals(d.get("visits_all")!.definition, { type: "sum", members: ["first_visits", "visits_file"] });
   assertEquals(d.get("visits_share")!.definition, { type: "calculated", expression: "first_visits / visits_all" });
   assertEquals(d.get("chain")!.definition, { type: "calculated", expression: "[first_visits] * 2 + visits_share" });
