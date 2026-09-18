@@ -28,7 +28,11 @@ export function ViewScript(
         run_id: p.runId,
         module_id: p.moduleId,
       }),
-    t3({ en: "Loading script...", fr: "Chargement du script...", pt: "A carregar o script..." }),
+    t3({
+      en: "Loading script...",
+      fr: "Chargement du script...",
+      pt: "A carregar o script...",
+    }),
   );
 
   return (
@@ -37,13 +41,14 @@ export function ViewScript(
         <HeadingBar
           onBack={() => p.close(undefined)}
           heading={`${t3({ en: "Script for", fr: "Script pour", pt: "Script para" })} ${p.moduleLabel}`}
+          tonal
         />
       }
     >
       <StateHolderWrapper state={rScript.state()}>
         {(keyedScript) => {
           return (
-            <div class="ui-pad whitespace-pre font-mono text-xs">
+            <div class="ui-pad font-mono text-xs whitespace-pre">
               {keyedScript.script}
             </div>
           );

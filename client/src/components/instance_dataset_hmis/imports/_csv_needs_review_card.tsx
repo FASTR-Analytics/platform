@@ -17,8 +17,9 @@ type Props = {
 };
 
 // A CSV run holding in needs_review: staging dropped rows, so nothing was
-// merged. The user integrates the surviving rows anyway or discards. The hold
-// does NOT block other imports (the slot was released).
+// merged. The user integrates the surviving rows anyway or discards
+// (PLAN_A6 ruling 6). The hold does NOT block other imports (the slot was
+// released).
 export function CsvNeedsReviewCard(p: Props) {
   const detail = createQuery(
     () => serverActions.getDatasetHmisImportRunDetail({ run_id: p.run.id }),
@@ -92,7 +93,7 @@ export function CsvNeedsReviewCard(p: Props) {
           </Show>
         )}
       </StateHolderWrapper>
-      <div class="ui-gap-sm flex">
+      <div class="ui-gap-sm flex flex-wrap">
         <Button
           onClick={integrateAnyway.click}
           state={integrateAnyway.state()}

@@ -1,10 +1,12 @@
 export type { FetchOptions } from "../common/mod.ts";
 
+// Unvalidated JSON from an external server: every field may be missing or
+// null. The collection's `type` and `features` are checked by the fetcher;
+// each feature is checked where it is processed.
 export type GeoJsonFeature = {
-  type: "Feature";
-  id?: string;
-  geometry: Record<string, unknown> | null;
-  properties: Record<string, unknown>;
+  type: string | null | undefined;
+  geometry: Record<string, unknown> | null | undefined;
+  properties: Record<string, unknown> | null | undefined;
 };
 
 export type GeoJsonFeatureCollection = {

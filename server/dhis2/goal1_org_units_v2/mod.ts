@@ -1,24 +1,22 @@
-/**
- * DHIS2 Organization Units V2 - Streamlined for Levels Only
- * Focused on efficient metadata fetching and streaming import without groups
- */
-
-// Export types
 export type {
-  DHIS2OrgUnit,
-  DHIS2OrgUnitLevel,
+  Dhis2OrgUnitLevel,
+  Dhis2OrgUnitName,
+  Dhis2OrgUnitPath,
+  Dhis2RootOrgUnit,
   OrgUnitMetadata,
-  ProgressCallback,
-  BatchProcessor
 } from "./types.ts";
 
-// Export metadata functions
 export {
-  getOrgUnitLevels,
   getOrgUnitCountsByLevel,
+  getOrgUnitLevels,
+  getOrgUnitMetadata,
   getRootOrgUnits,
-  getOrgUnitMetadata
 } from "./get_metadata.ts";
 
-// Export connection functions
+export {
+  getOrgUnitNamesAtLevel,
+  type OrgUnitPathPage,
+  pageOrgUnitPathsAtLevel,
+} from "./fetch_org_units.ts";
+
 export { testDHIS2Connection } from "./connection.ts";

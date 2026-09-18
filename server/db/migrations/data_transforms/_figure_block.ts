@@ -189,6 +189,8 @@ const _INDICATOR_METADATA_KEYS = new Set([
   "label",
   "format_as",
   "thresholds",
+  "direction",
+  "target",
   "group_label",
   "sort_order",
 ]);

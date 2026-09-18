@@ -280,7 +280,7 @@ export async function resolvePackageContext(
   const grounding: PackageGrounding = {
     calendar: manifest.calendar,
     datasets: getProjectDatasetsFromManifest(manifest),
-    commonIndicators: manifest.commonIndicators,
+    hmisIndicators: manifest.hmisIndicators,
     icehIndicators,
     periodCoverage: packagePeriodCoverage(manifest),
   };

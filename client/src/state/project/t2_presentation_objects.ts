@@ -90,7 +90,8 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   // (PLAN_1a): stale items would sort alphabetically with no error.
   // v3: indicatorMetadata carries `thresholds` rules (PLAN_1d). v4: payload
   // dropped the moduleLastRun/datasetsVersion pair (PLAN_RESULTS_RUNS ruling 4).
-  name: "po_items_v4",
+  // v5: indicatorMetadata carries `direction` and `target`.
+  name: "po_items_v5",
   uniquenessKeys: (params) => [
     params.projectId,
     params.resultsObjectId,

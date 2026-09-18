@@ -1,7 +1,7 @@
 // Cross-flow DHIS2 credential types (PLAN_DHIS2_CREDENTIAL_STORE_
 // CONSOLIDATION). Every DHIS2 flow (structure import, indicators, geojson,
-// HMIS data) sources credentials the same way: stored (instance-wide,
-// encrypted at rest) or inline (transient, never persisted).
+// HMIS data) uses the one instance-wide stored connection, encrypted at rest
+// and set only in the Data page's DHIS2 connection card.
 
 export type Dhis2Credentials = {
   url: string;
@@ -9,12 +9,11 @@ export type Dhis2Credentials = {
   password: string;
 };
 
-// How a flow obtains credentials at fetch time. "inline" = supplied per
-// request/run (never persisted). "stored" = resolved from the encrypted
-// instance credentials, decrypted server-side at fetch time.
-export type Dhis2RunCredentialsSource =
-  | { kind: "inline"; credentials: Dhis2Credentials }
-  | { kind: "stored" };
+export const NO_STORED_DHIS2_CONNECTION = {
+  en: "No DHIS2 connection is stored. Set it in the DHIS2 connection card on the Data page.",
+  fr: "Aucune connexion DHIS2 n'est enregistrée. Définissez-la dans la carte Connexion DHIS2 de la page Données.",
+  pt: "Nenhuma ligação DHIS2 está guardada. Defina-a no cartão Ligação DHIS2 da página Dados.",
+};
 
 // The safe projection of the stored instance credentials: neither the
 // password nor the username ever leaves the server; the client only needs

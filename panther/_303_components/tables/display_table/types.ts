@@ -17,6 +17,8 @@ export type TableColumn<T> = {
   header: string;
   sortable?: boolean;
   sortValue?: (item: T) => unknown;
+  filterable?: boolean;
+  filterValue?: (item: T) => string;
   render?: (item: T) => JSX.Element;
   width?: string;
   alignH?: "left" | "center" | "right";
@@ -32,6 +34,11 @@ export type SortConfig = {
   key: string;
   direction: "asc" | "desc";
 };
+
+// Column key -> the filter values the user has unchecked. An empty set (or a
+// missing key) means the column is unfiltered, so values that first appear in
+// the data later are visible by default.
+export type FilterConfig = ReadonlyMap<string, ReadonlySet<string>>;
 
 export type BulkActionResult = void | boolean | "CLEAR_SELECTION";
 
@@ -59,6 +66,8 @@ export type TableProps<T, K extends keyof T = keyof T> = {
   fitTableToAvailableHeight?: boolean; // enables overflow-y: auto for scrollable table
   defaultSort?: SortConfig; // initial sort configuration
   onSortChange?: (config: SortConfig | null) => void; // callback when sort changes
+  defaultFilters?: FilterConfig; // initial per-column excluded values
+  onFilterChange?: (filters: FilterConfig) => void; // callback when a column filter changes
   selectedKeys?: Accessor<Set<T[K]>>; // controlled selection state
   setSelectedKeys?: (keys: Set<T[K]>) => void; // controlled selection setter
   paddingX?: TablePadding; // horizontal padding (default: "normal")

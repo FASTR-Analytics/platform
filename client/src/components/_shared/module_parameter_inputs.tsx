@@ -38,18 +38,7 @@ export function getModuleParameterInvalidMsg(
 export function ModuleParameterInputs(p: Props) {
   return (
     <div class="ui-gap grid grid-cols-12">
-      <For
-        each={p.parameters}
-        fallback={
-          <div class="text-base-content-muted col-span-12">
-            {t3({
-              en: "No parameters for this module",
-              fr: "Aucun paramètre pour ce module",
-              pt: "Nenhum parâmetro para este módulo",
-            })}
-          </div>
-        }
-      >
+      <For each={p.parameters}>
         {(inputParameter) => {
           const value = () => p.values[inputParameter.replacementString];
           const invalidMsg = () =>
@@ -57,7 +46,7 @@ export function ModuleParameterInputs(p: Props) {
           const onChange = (v: string) =>
             p.onChange(inputParameter.replacementString, v);
           return (
-            <div class="col-span-12 xl:col-span-3">
+            <div class="col-span-12 md:col-span-6 xl:col-span-3">
               <Switch
                 fallback={t3({
                   en: "Bad input type",
@@ -101,7 +90,11 @@ export function ModuleParameterInputs(p: Props) {
                   <div class="ui-spy-sm">
                     <div class="ui-label">{inputParameter.description}</div>
                     <Checkbox
-                      label={t3({ en: "Yes / No", fr: "Oui / Non", pt: "Sim / Não" })}
+                      label={t3({
+                        en: "Yes / No",
+                        fr: "Oui / Non",
+                        pt: "Sim / Não",
+                      })}
                       checked={value() === "TRUE"}
                       onChange={(v) => onChange(v ? "TRUE" : "FALSE")}
                     />

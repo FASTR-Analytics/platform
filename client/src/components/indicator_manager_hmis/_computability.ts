@@ -1,10 +1,10 @@
 // The manager list and the editor state the shared computability judgement
-// (`judgeDerivedIndicator` in lib) in the UI language. Display only: a
-// derived indicator that cannot be computed today is a normal state while a
-// country is still mapping raw indicators, so nothing here blocks a save.
+// (`judgeCalculatedIndicator` in lib) in the UI language. Display only: a
+// calculated indicator that cannot be computed today is a normal state while a
+// country is still importing data, so nothing here blocks a save.
 import {
-  type DerivedIndicatorComputability,
-  parsePopulationIngredientId,
+  type CalculatedIndicatorComputability,
+  isPopulationTypeId,
   type PopulationCoverage,
   populationTypeLabel,
   populationYearRangeLabel,
@@ -13,7 +13,7 @@ import {
 } from "lib";
 
 export function computabilityProblemText(
-  judgement: Exclude<DerivedIndicatorComputability, { kind: "computable" }>,
+  judgement: Exclude<CalculatedIndicatorComputability, { kind: "computable" }>,
 ): string {
   const prefix = t3({
     en: "Cannot be computed",
@@ -26,14 +26,14 @@ export function computabilityProblemText(
   const ids = judgement.missing.join(", ");
   const detail = judgement.missing.length === 1
     ? t3({
-      en: `${ids} has no mapped raw indicator`,
-      fr: `${ids} n'a aucun indicateur brut associé`,
-      pt: `${ids} não tem nenhum indicador bruto associado`,
+      en: `${ids} has no data`,
+      fr: `${ids} n'a aucune donnée`,
+      pt: `${ids} não tem dados`,
     })
     : t3({
-      en: `${ids} have no mapped raw indicators`,
-      fr: `${ids} n'ont aucun indicateur brut associé`,
-      pt: `${ids} não têm nenhum indicador bruto associado`,
+      en: `${ids} have no data`,
+      fr: `${ids} n'ont aucune donnée`,
+      pt: `${ids} não têm dados`,
     });
   return `${prefix}: ${detail}`;
 }
@@ -47,8 +47,7 @@ export function missingPopulationText(
   coverage: PopulationCoverage[],
 ): string | undefined {
   const emptyTypes = resolved.ingredientIds
-    .map(parsePopulationIngredientId)
-    .filter((type): type is string => type !== null)
+    .filter(isPopulationTypeId)
     .filter((type) => populationCoverageSummary(type, coverage).empty);
   if (emptyTypes.length === 0) return undefined;
   const labels = emptyTypes.map((type) => t3(populationTypeLabel(type))).join(

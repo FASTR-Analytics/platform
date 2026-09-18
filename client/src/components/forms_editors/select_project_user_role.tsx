@@ -78,18 +78,8 @@ export function SelectProjectUserRole(
   return (
     <ModalContainer
       width="md"
-      topPanel={
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="font-700 text-lg leading-6">
-              {t3({ en: "Update project permissions", fr: "Mettre à jour les droits du projet", pt: "Atualizar as permissões do projeto" })}
-            </div>
-            <div class="font-700 text-sm">
-              {p.users.map((u) => u.email).join(", ")}
-            </div>
-          </div>
-        </div>
-      }
+      title={t3({ en: "Update project permissions", fr: "Mettre à jour les droits du projet", pt: "Atualizar as permissões do projeto" })}
+      subtitle={p.users.map((u) => u.email).join(", ")}
       leftButtons={
         // eslint-disable-next-line jsx-key
         [

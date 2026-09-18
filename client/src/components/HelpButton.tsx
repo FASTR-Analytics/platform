@@ -24,9 +24,7 @@ function HelpModal(p: AlertComponentProps<{ id: HelpId }, void>) {
   return (
     <ModalContainer
       width="md"
-      topPanel={
-        <div class="font-700 text-base-content text-xl">{t3(target.title)}</div>
-      }
+      title={t3(target.title)}
       leftButtons={
         // eslint-disable-next-line jsx-key
         [

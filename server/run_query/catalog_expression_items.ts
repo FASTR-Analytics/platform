@@ -2,7 +2,7 @@
 // Catalog-expression evaluation: the read path's post-aggregation step
 // =============================================================================
 //
-// The engine aggregates a derived indicator's additive ingredients with SUM
+// The engine aggregates a calculated indicator's additive ingredients with SUM
 // and returns them as ing1..ingN columns. This turns each such row into the
 // single `value` the figure layer expects, by applying that indicator's OWN
 // expression from the run catalog (PLAN_1a §0: expression-over-sums, never
@@ -73,7 +73,7 @@ export const CATALOG_EXPRESSION_VALUE_PROP = "value";
 const INDICATOR_ID_COLUMN = "indicator_common_id";
 
 // Rewrites rows in place of the ingredient columns: one `value`, ingredients
-// dropped. A row whose indicator has no catalog expression (a base common the
+// dropped. A row whose indicator has no catalog expression (a base the
 // extract had no counts for) yields a null value, the same as any other
 // ingredient that is not there. A population term is an ordinary ingredient
 // here: its person-years travel in whichever slot the catalog assigned it.

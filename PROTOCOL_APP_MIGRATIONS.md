@@ -208,8 +208,9 @@ packages that arrive after boot, using the same function.
 
 Packages are immutable, so this is a deliberate amendment recorded in
 SYSTEM_08 (the `manifestSchemaVersion` paragraph of the format spec):
-**package outputs are immutable; the manifest is a derived descriptor and may
-be transformed forward.** Without it a schema change
+**package outputs are immutable; the manifest is a derived descriptor and an
+input mirror's vocabulary is the app's, and both may be transformed forward.**
+Without it a schema change
 orphans every existing package, and "regenerate" is not a real remedy. It mints
 a new `runId`, which marks every stored figure in the fleet stale.
 
@@ -218,7 +219,8 @@ Four things differ from a DB transform.
 **1. Recompute only, never invent provenance.**
 
 > A block may only RECOMPUTE from files already in the package. It may never
-> invent provenance.
+> invent provenance. Input mirrors are brought to the current vocabulary
+> before any block reads them (§ Run Input Transforms).
 
 A DB transform only reshuffles fields inside the row it was handed, so it
 *cannot* invent. A manifest block does file I/O, so it can. Therefore:
@@ -339,7 +341,9 @@ structurally by the launch concurrency guard), `backfillSourceProjectId`, and
 
 - [ ] Append the block at the end, numbered, idempotent, precondition-checked
 - [ ] Add it to the `TRANSFORM BLOCKS:` list in the file header
-- [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION` and update the Zod schema
+- [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION` and update the Zod schema; add the
+      version to the history in `lib/types/run_manifest.ts` and to the
+      `manifestSchemaVersion` paragraph in `SYSTEM_08_results_packages.md`
 - [ ] Recompute only: check every field you touch against the list in 1
 - [ ] Bump `PO_CACHE_VERSION` and the `_PO_DETAIL_CACHE` key prefix in
       `server/routes/caches/visualizations.ts`. The first three PO caches key on
@@ -349,6 +353,90 @@ structurally by the launch concurrency guard), `backfillSourceProjectId`, and
 - [ ] Audit the **fourth** persistence layer: a manifest field can additionally
       be snapshotted into stored `FigureBundle`s, which needs its own data
       transform with a forced skip-gate
+- [ ] A change to a value or key stored in an input mirror is an input block,
+      not a reader accommodation: see Run Input Transforms
+
+## Run Input Transforms
+
+`server/runs/input_transform.ts` applies the manifest pattern to a package's
+`inputs/*.json` mirrors. Same numbered blocks, appended at the end and never
+reordered, each idempotent and checking its own precondition, and the same
+no-op write guard on bytes. It runs inside `transformRunManifest` before
+manifest block 1, on a forced pass only, behind `RUN_MANIFEST_SCHEMA_VERSION`,
+so it reaches boot and the read path through the one entry point
+`transformRunManifestFile`, and a manifest block never reads a mirror the
+stage has not seen.
+
+It exists because the strict row schemas in `server/runs/indicator_catalog.ts`
+fail-stop boot on a value they no longer name, and without a forward transform
+renaming a stored vocabulary means either a legacy value accepted forever in
+the reader or a hand edit on every host. Input block 1 is the worked example:
+it rewrites every `derived` row of `inputs/indicators.json` to `calculated`,
+the formula indicator type's current code name.
+
+**The rule is the manifest's own: rename or recompute, never invent, and
+never read outside the package.** An input block is a pure function of the
+package's files and the app's code. It may rename a value or a key, or
+recompute a field from files already in the package. It may not add a fact
+those files do not hold, fill a null, drop a row, or read the database or live
+instance state. The boundary case is `base`: a v2 mirror written before PLAN_A5
+stamps `base` on every count, and the count's real type (`uploaded`,
+`dhis2_element`, `sum`) lives only in the live dictionary, so no input block
+may resolve it. `PACKAGE_INDICATOR_TYPES` keeps `base` and the display
+projection strips it.
+
+**Versioning.** There is no second version integer. An input block names the
+manifest version that first carries it; that version's manifest block is the
+stamp, and is allowed to be only a stamp (manifest blocks 7 and 8 are the
+precedents). The forced-gate corollary applies: a mirror fix requires a
+`RUN_MANIFEST_SCHEMA_VERSION` bump to reach existing packages.
+
+**Writing.** Transform in memory, parse, then persist, for both files. The
+stage returns pending writes and nothing lands until `runManifestSchema.parse`
+has passed; then the mirrors are written first and the manifest second. A
+crash between the two leaves a current mirror beside an old manifest, which
+the next forced pass repairs (the stage finds nothing to rename and the blocks
+complete); the reverse order would stamp the new version over a mirror still
+in the old vocabulary, and no later pass revisits a current manifest. A mirror
+is serialized exactly as `writeInputJson` in
+`server/worker_routines/generate_run/prepare_inputs.ts` writes it
+(`JSON.stringify(rows)`, no indent), skipped when the bytes are unchanged, and
+retained as `inputs/<name>.v{n}.json` with `n` the stored manifest version,
+through `persistPackageFile`, the one persist helper the manifest uses
+(retain, unique temp name, rename, `finally`). The manifest's own no-op guard
+gates the manifest write alone, never a pending mirror write. Retained copies
+are not in `inputFiles` and no reader opens them; they are the rollback path:
+restore `inputs/<name>.v{n}.json` over the mirror and `manifest.v{n}.json`
+over the manifest, then start the previous image. A rewrite is reported: the
+`ok` outcome names the mirrors rewritten in `rewrittenInputs`, and the boot
+sweep line in `db_startup.ts` counts them beside the manifests transformed.
+
+**Failure policy.** The stage raises the two classes of the table's
+input-mirror rows. Bytes unavailable or not JSON: `RunInputReadError` from
+`readRunInputJson`, the `unreadable` outcome, the package degrades and boot
+proceeds. A block that throws for any other reason is a code defect and fails
+boot. A mirror the stage leaves in a shape the row schema rejects is drift and
+fails boot through `RunInputRowSchemaError`: the stage does not validate, the
+readers do, after the stage.
+
+### Checklist for adding an input block
+
+- [ ] Append the block at the end of `input_transform.ts`, numbered,
+      idempotent, precondition-checked, renaming or recomputing from package
+      files only
+- [ ] Add it to the `INPUT TRANSFORM BLOCKS:` list in that file's header
+- [ ] Bump `RUN_MANIFEST_SCHEMA_VERSION`; add a manifest block that stamps it
+      (and does nothing else if the manifest's shape is unchanged); add the
+      version to the history in `lib/types/run_manifest.ts` and to the
+      `manifestSchemaVersion` paragraph in `SYSTEM_08_results_packages.md`
+- [ ] Update the strict row schema in `indicator_catalog.ts` and its enum in
+      `lib` to the new vocabulary in the same commit; never add the old value
+      to a reader
+- [ ] Bump `PO_CACHE_VERSION` and the `_PO_DETAIL_CACHE` key prefix
+- [ ] Audit the fourth persistence layer (stored `FigureBundle`s) for the
+      renamed value
+- [ ] Extend `server/tests/run_input_transform_test.ts` with a mirror carrying
+      the old value
 
 ---
 

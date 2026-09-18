@@ -36,11 +36,19 @@ export function HfaUnusedVariablesModal(
 
   return (
     <ModalContainer
-      title={t3({ en: "Unused variables", fr: "Variables inutilisées", pt: "Variáveis não utilizadas" })}
+      title={t3({
+        en: "Unused variables",
+        fr: "Variables inutilisées",
+        pt: "Variáveis não utilizadas",
+      })}
       width="lg"
       leftButtons={[
         // eslint-disable-next-line jsx-key
-        <Button onClick={() => p.close(undefined)} intent="neutral" iconName="x">
+        <Button
+          onClick={() => p.close(undefined)}
+          intent="neutral"
+          iconName="x"
+        >
           {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
         </Button>,
       ]}
@@ -49,11 +57,20 @@ export function HfaUnusedVariablesModal(
         when={p.timePoints.length > 0}
         fallback={
           <div class="text-base-content-muted">
-            {t3({ en: "No time points", fr: "Aucun point temporel", pt: "Nenhum ponto temporal" })}
+            {t3({
+              en: "No time points",
+              fr: "Aucun point temporel",
+              pt: "Nenhum ponto temporal",
+            })}
           </div>
         }
       >
-        <TabsNavigation items={tabItems()} value={selected()} onChange={setSelected} />
+        <TabsNavigation
+          noPad
+          items={tabItems()}
+          value={selected()}
+          onChange={setSelected}
+        />
         <div class="max-h-[50vh] overflow-y-auto pt-4">
           <Show
             when={activeUnused().length > 0}
@@ -73,7 +90,9 @@ export function HfaUnusedVariablesModal(
                   <div class="ui-gap-sm flex items-baseline border-b pb-2">
                     <span class="font-mono">{v.varName}</span>
                     <Show when={v.varLabel}>
-                      <span class="text-base-content-muted flex-1 truncate">{v.varLabel}</span>
+                      <span class="text-base-content-muted flex-1 truncate">
+                        {v.varLabel}
+                      </span>
                     </Show>
                   </div>
                 )}

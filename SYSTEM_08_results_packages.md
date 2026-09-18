@@ -27,6 +27,7 @@ globs:
   - server/server_only_types/**
   - server/task_management/mod.ts
   - server/tests/m012_expression_parity_test.ts
+  - server/tests/run_input_transform_test.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
   - server/worker_routines/worker_contract.ts
@@ -591,7 +592,9 @@ Four invariants, in the order they matter:
 
 1. **Immutable.** A generation builds in `runs/.tmp-<runId>/` and atomically
    renames at finalize, so a crashed generation leaves no readable package and
-   no published file is ever rewritten. A handled FAILURE also renames the
+   no published file is ever rewritten. Immutability covers outputs: scripts,
+   logs, raw CSVs, parquet and assets. The manifest and the input mirrors are
+   descriptors and are transformed forward (below). A handled FAILURE also renames the
    partial workspace into `runs/<runId>`, deliberately without a
    `manifest.json`, so it is never a readable package (ruled): the catalog row (`failed` + `errorDetail`) is the error
    record, the ready-only gates (attach picker + its UPDATE, the reuse
@@ -648,15 +651,23 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `7`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v7 = the `population` stamp gained `active`
+**`manifestSchemaVersion` gates every read**, currently `10`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v10 = the indicators mirror's `derived` rows
+read `calculated`, input block 1; the manifest's own shape is unchanged and
+transform block 8 only stamps; v9 = `hmisIndicators` entries carry the
+indicator's format, direction, target, thresholds and, for a calculated
+indicator, its flattened expression, in dictionary order, for the AI
+copilot's grounding; block 4's recompute writes the shape and transform
+block 7 only stamps; v8 = the `commonIndicators` list renamed
+`hmisIndicators` (PLAN_A4 ruling 13), a key rename, transform block 6;
+v7 = the `population` stamp gained `active`
 (recomputed from its own type list) and the per-type `coverage` m012's
 intersection rule records, carried forward as null, transform block 5;
-v6 = the common-indicator restructure:
+v6 = the indicator restructure:
 `indicators[]` catalog entries gained `sort_order` (backfilled for legacy
 packages, and the read path's axis order now comes from it) plus the
 `type`/`expression`/`slot_map` evaluation fields, a new top-level
-`commonIndicators` list replaced the read path's per-request read of the
+`hmisIndicators` list replaced the read path's per-request read of the
 indicators mirror, `metrics[].catalog_expression_evaluation` is carried
 forward as null, and the `population` stamp (the person-years file
 a wizard generation wrote: admin level, population types, month range) is
@@ -689,25 +700,38 @@ clauses, never case-by-case):
 
 **The indicators mirror has two writer formats and one reader contract.** v1
 (pre-restructure packages) carries id + label only, with a separate
-`calculated_indicators_snapshot.json` beside it; v2 carries the WHOLE common
-dictionary, resolved: type, flattened expression, slot map, presentation and
-sort. `server/runs/indicator_catalog.ts` is the only reader of either, at
+`calculated_indicators_snapshot.json` beside it; v2 carries the analysed
+indicator set (PLAN_A4 ruling 3: every analysed count and every calculated
+with its checkbox on), resolved: type, flattened expression, slot map,
+presentation and sort. The row's `type` is the stored type under its code
+name (`uploaded`, `dhis2_element`, `sum`, `calculated`); a package generated
+before PLAN_A5 carries `base` for every count, which `indicatorRowV2` and
+the manifest's `runIndicatorMetadataSchema` both accept (`PACKAGE_INDICATOR_TYPES`)
+and nothing maps or reads (the display projection strips `type`), and no
+package file is rewritten for it. `server/runs/indicator_catalog.ts` is the only reader of either, at
 finalize and transform time only, and discriminates on the `type` field that
 only v2 rows have (the v1 schema REJECTS a row carrying `type`, so a drifted
 v2 row fail-stops instead of silently dropping its expressions). The read
 path never opens the indicators mirror. The ICEH and HFA snapshot readers
 still open theirs per request (see the mirror-tolerance open item below).
 Invariant 1's immutability covers package
-**outputs**; the manifest is a derived descriptor and **is transformed forward
-in place** (`server/runs/manifest_transform.ts`), because a schema change would
+**outputs**. The manifest is a derived descriptor and **is transformed forward
+in place** (`server/runs/manifest_transform.ts`), and an input mirror's
+**vocabulary** is transformed forward by the input stage that runs before the
+manifest blocks (`server/runs/input_transform.ts`): a stored enum value or key
+name is a fact of the code that wrote it, so it follows the code; a row's facts
+are never invented or dropped. Both exist because a schema change would
 otherwise orphan every existing package and regenerating mints a new `runId`.
-Blocks may only recompute from files already in the package and may never invent
-provenance. The authoring rules, the failure policy and the add-a-block
-checklist are in
+Manifest blocks may only recompute from files already in the package and may
+never invent provenance; input blocks rename, or recompute from files already
+in the package, and never invent either. The authoring rules, the failure
+policy and the add-a-block checklists are in
 [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md) § "Run Manifest
-Transforms". Consequences for this format: whatever a block reads can never be
-dropped from the package, a transformed package additionally carries its
-pre-transform `manifest.v{n}.json`, and a package written by a _newer_ server is
+Transforms" and § "Run Input Transforms". Consequences for this format:
+whatever a block reads can never be dropped from the package, a transformed
+package additionally carries its pre-transform `manifest.v{n}.json`, a
+transformed mirror additionally carries its pre-transform
+`inputs/<name>.v{n}.json`, and a package written by a _newer_ server is
 refused as unavailable rather than served with its additions silently stripped.
 Input mirrors sit in that same failure table (two rows of their own, owned by
 PROTOCOL_APP_MIGRATIONS): unavailable BYTES are operational and degrade the
@@ -715,7 +739,7 @@ package, a row-schema mismatch is drift and fail-stops.
 
 The transform is also what lets the read path shrink. Target state:
 
-> **The read path parses the manifest only. Input mirrors are raw provenance.**
+> **The read path parses the manifest only. Input mirrors are provenance, never a read-path input.**
 
 Every catalog moved into the manifest removes a file from the read path's compat
 surface, which is the argument `run_manifest.ts`'s header already makes, subject
@@ -907,19 +931,19 @@ does not. Its other two inputs are tables, not dataSources and not files:
 the app substitutes them into `script.R` as R `tribble` literals in place of
 the `INDICATOR_INGREDIENTS` and `INDICATOR_EXPRESSIONS` tokens
 (`buildIndicatorIngredientsRLiteral` and `buildIndicatorExpressionsRLiteral`
-in `lib/common_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3`
-and every module parameter. The ingredient table says which base common (or
-`population:<type>` person-years row) fills which slot of which indicator.
+in `lib/hmis_indicator_catalog.ts`), the same channel as `COUNTRY_ISO3`
+and every module parameter. The ingredient table says which count (or
+population type's person-years row) fills which slot of which indicator.
 The expression table carries each indicator's flattened expression rewritten
 over the slot names `ing1..ing8`: the expression language's syntax is a
 subset of R's, so the text is R source as written. The R sums the selected
 count column across facilities to admin area × month × indicator at the
 person-years file's level (the population level when a formula names a
 population, the HMIS depth otherwise, see "population.csv"), binds the
-person-years rows in under the pseudo-indicator id `population:<type>` (the
-same id the ingredient table names wherever an expression's population term
-was assigned a slot, the two halves of one contract,
-`populationIngredientId` in `lib/types/population.ts`), joins the ingredient
+person-years rows in under the population type id (the same id the
+ingredient table names wherever an expression's population term was
+assigned a slot; the script never tells a population ingredient from a
+count one), joins the ingredient
 table, and pivots each indicator's ingredients into `ing1..ing8` of
 `M12_indicator_values.csv`.
 
@@ -941,21 +965,21 @@ An ingredient no facility in an area ever reports, a zero denominator, a
 `nullif` that fires, and a month or area the population store does not
 cover all leave no row, and an indicator with no surviving row is absent
 from every figure and every filter and disaggregation list, exactly as a
-base common nobody maps is. Keeping such rows would let a coarser grouping
+count with no rows is. Keeping such rows would let a coarser grouping
 sum a numerator over cells its denominator never covers. A `coalesce` in
 the expression is honoured, because the expression decides, not the mere
 presence of a slot.
 
-**An ingredient with no data is not an error.** A base common with no mapped
-raw indicators gets no slot map and no expression at capture and is in
-neither table, so it contributes no row. One whose rows are simply absent
+**An ingredient with no data is not an error.** A count with no rows
+gets no slot map and no expression at capture and is in neither table, so
+it contributes no row. One whose rows are simply absent
 from this dataset leaves `NA` after the pivot, and the rule above drops the
 rows that cannot be evaluated without it. Failing instead would abort
 generation on every instance that does not collect one of the 14 seeded
-default indicators. Capture refuses only a derived common whose flattened
-expression includes an unmapped base. That rule is `judgeDerivedIndicator`
+default indicators. Capture refuses only a calculated whose flattened
+expression includes a count with no rows. That rule is `judgeCalculatedIndicator`
 (S5), and the indicator manager shows the same judgement before a run is
-generated; it judges mappings, not data, so a "computable" indicator can
+generated; it judges definitions, not data, so a "computable" indicator can
 still be absent from a package whose data never lets it evaluate.
 
 **Memoization needs no declared input class for the tables.** The literals
@@ -978,9 +1002,9 @@ The run's `inputs/population.csv` is the population store (S5 "Population
 store") expanded stock→flow at capture. Written by `prepare_inputs.ts`
 (`writePopulationPersonYears`) on **every** HMIS capture: columns
 `admin_area_2..N`, `period_id`, `population_type`, `person_years`, for
-exactly the types the resolved catalog's slot maps reference under the
-`population:` prefix (`populationTypesReferencedByCatalog`: there is no
-column and no declaration, the expression IS the declaration). The header
+exactly the population type ids the resolved catalog's slot maps reference
+(`populationTypesReferencedByCatalog`: there is no column and no
+declaration, the expression IS the declaration). The header
 alone sets m012's grain (below). This is what lets m012 declare the file
 unconditionally: it is the `population` dataSource kind (github + installed
 schemas, `sourceType: "population"`), substituted as the quoted path and

@@ -47,7 +47,7 @@
 -- packages and stored figure snapshots; the two must agree.
 --
 -- sort_order backfill (the authority for the rule is
--- backfillCommonIndicatorSortOrder in lib/table_structures/indicators.ts,
+-- backfillCommonIndicatorSortOrder in server/runs/indicator_catalog.ts,
 -- which applies the same ordering to a legacy package's input mirrors): the
 -- seeded commons keep their seed order, remaining base commons follow
 -- alphabetically, and the migrated rows keep their catalog order at the end.
@@ -65,14 +65,22 @@ DO $$
 DECLARE
   v_bad TEXT[];
 BEGIN
-  SELECT COALESCE(array_agg(bad ORDER BY bad), ARRAY[]::TEXT[]) INTO v_bad
-  FROM (
-    SELECT 'indicators.' || indicator_common_id AS bad
-    FROM indicators WHERE indicator_common_id ~ '[\[\]]'
-    UNION ALL
-    SELECT 'indicators_raw.' || indicator_raw_id
-    FROM indicators_raw WHERE indicator_raw_id ~ '[\[\]]'
-  ) t;
+  SELECT COALESCE(array_agg('indicators.' || indicator_common_id ORDER BY indicator_common_id), ARRAY[]::TEXT[])
+  INTO v_bad
+  FROM indicators WHERE indicator_common_id ~ '[\[\]]';
+
+  -- indicators_raw is absent on fresh installs after migration 086 replaced
+  -- it with indicator_sources.
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'indicators_raw'
+  ) THEN
+    v_bad := v_bad || COALESCE(
+      (SELECT array_agg('indicators_raw.' || indicator_raw_id ORDER BY indicator_raw_id)
+       FROM indicators_raw WHERE indicator_raw_id ~ '[\[\]]'),
+      ARRAY[]::TEXT[]
+    );
+  END IF;
 
   IF EXISTS (
     SELECT 1 FROM information_schema.tables
@@ -109,8 +117,15 @@ BEGIN
       CHECK (definition_type IN ('base', 'derived'));
   END IF;
 
+  -- On a fresh install the type CHECK is already migration 086's, over the
+  -- four types, and the seeded rows are not `base`: this two-type CHECK is
+  -- only for a database that still has the two-type one.
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'indicators_definition_fields_check'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'indicators_definition_type_check'
+      AND pg_get_constraintdef(oid) LIKE '%''uploaded''%'
   ) THEN
     ALTER TABLE indicators ADD CONSTRAINT indicators_definition_fields_check CHECK (
       (definition_type = 'base' AND expression IS NULL)

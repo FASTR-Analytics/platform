@@ -1,9 +1,22 @@
-import { DatasetHmisVersion,
+import {
   DatasetCsvStagingResult,
-  DatasetDhis2StagingResult, t3 } from "lib";
-import { Button, EditorComponentProps, FrameTop, HeadingBar, toNum0 } from "panther";
-import { Show, For } from "solid-js";
-import { CollapsibleSection } from "panther";
+  DatasetDhis2StagingResult,
+  DatasetHmisVersion,
+  type HmisIndicator,
+  t3,
+} from "lib";
+import {
+  Button,
+  CollapsibleSection,
+  createQuery,
+  EditorComponentProps,
+  FrameTop,
+  HeadingBar,
+  toNum0,
+} from "panther";
+import { createMemo, For, Show } from "solid-js";
+import { serverActions } from "~/server_actions";
+import { indicatorsByDataId } from "~/components/indicator_manager_hmis/_indicator_display";
 
 export function ImportInformation(
   p: EditorComponentProps<
@@ -13,20 +26,37 @@ export function ImportInformation(
     undefined
   >,
 ) {
-  const sourceType = () => p.version.stagingResult?.sourceType;
-  const isCSV = () => sourceType() === "csv";
+  const kind = () => p.version.stagingResult?.kind;
+  const isCSV = () => kind() === "csv";
   const csvResult = () =>
-    p.version.stagingResult?.sourceType === "csv"
+    p.version.stagingResult?.kind === "csv"
       ? (p.version.stagingResult as DatasetCsvStagingResult)
       : null;
   const dhis2Result = () =>
-    p.version.stagingResult?.sourceType === "dhis2"
+    p.version.stagingResult?.kind === "dhis2"
       ? (p.version.stagingResult as DatasetDhis2StagingResult)
       : null;
   // Only present for versions integrated via the scoped delete-then-insert
   // path: legacy DHIS2 versions (merge-integrated) have real nRowsUpdated
   // counts instead, and must keep displaying them.
   const dhis2RowsDeleted = () => dhis2Result()?.dhis2RowsDeleted;
+
+  // The period stats are keyed by data id; each row is labelled through the
+  // dictionary and shows the key only under a DHIS2 element (PLAN_A6 ruling
+  // 1). A display-only enrichment: the bare key stands in until the
+  // dictionary arrives, and stays where no indicator carries the key.
+  const indicators = createQuery(() => serverActions.getIndicators({}));
+  const byDataId = createMemo((): Map<string, HmisIndicator> => {
+    const s = indicators.state();
+    return s.status === "ready" ? indicatorsByDataId(s.data.indicators) : new Map();
+  });
+  const statLabel = (dataId: string): string => {
+    const indicator = byDataId().get(dataId);
+    if (indicator === undefined) return dataId;
+    return indicator.definition.type === "dhis2_element"
+      ? `${indicator.indicator_common_id} · ${dataId}`
+      : indicator.indicator_common_id;
+  };
 
   return (
     <FrameTop
@@ -44,7 +74,7 @@ export function ImportInformation(
             <div class="ui-spy-sm ui-pad col-span-6 rounded border text-sm">
               <div class="font-700 text-base">{t3({ en: "Import summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}</div>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t3({ en: "Import source", fr: "Source de l'importation", pt: "Fonte da importação" })}</div>
+                <div class="w-56 flex-none">{t3({ en: "Imported from", fr: "Importé depuis", pt: "Importado de" })}</div>
                 <div class="flex-1">
                   {isCSV() ? t3({ en: "CSV Import", fr: "Importation CSV", pt: "Importação CSV" }) : t3({ en: "DHIS2 Import", fr: "Importation DHIS2", pt: "Importação DHIS2" })}
                 </div>
@@ -154,14 +184,7 @@ export function ImportInformation(
                     <div class="truncate">
                       {stat.periodId || `Period ${index() + 1}`}
                     </div>
-                    <div class="truncate">
-                      {/* Current staging writes indicatorRawId for both
-                          sources; versions staged by older CSV code stored
-                          indicatorCommonId instead. */}
-                      {stat.indicatorRawId ??
-                        (stat as { indicatorCommonId?: string })
-                          .indicatorCommonId}
-                    </div>
+                    <div class="truncate">{statLabel(stat.dataId)}</div>
                     <div class="truncate">{toNum0(stat.nRecords)}</div>
                     <div class="truncate">{toNum0(stat.totalCount)}</div>
                   </div>

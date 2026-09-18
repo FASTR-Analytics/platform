@@ -97,11 +97,10 @@ deno task dev   # server on :8000, /mcp mounted exactly as in production
 cd client && npm run dev   # SPA on :3000, hot-reloads
 ```
 
-Boot is ~15s cold (migrations sweep every project DB) and ~3s warm, plus
-~2s for the dev-only self-checks: the route validation, the headless mount
-check, and the whole server test suite (`deno task test`, run as a
-subprocess). A failing test fail-stops the boot, so a red test is never
-something you find later. `deno task test` alone runs the same suite.
+Boot is ~15s cold (migrations sweep every project DB) and ~3s warm. Two
+dev-only self-checks fail-stop the boot: the route validation and the
+headless mount check. The server test suite does not run at boot; run
+`deno task test` yourself (it is part of the verification floor).
 
 ### 1a. The JSON-RPC probe: `./mcp_probe`
 

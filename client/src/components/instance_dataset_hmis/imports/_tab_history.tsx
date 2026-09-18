@@ -25,23 +25,33 @@ export function statusLabel(status: DatasetHmisImportRunSummary["status"]): stri
   return t3({ en: "Error", fr: "Erreur", pt: "Erro" });
 }
 
-export function sourceLabel(run: DatasetHmisImportRunSummary): string {
-  return run.source === "csv" ? "CSV" : "DHIS2";
+export function importRouteLabel(run: DatasetHmisImportRunSummary): string {
+  return run.route === "csv" ? "CSV" : "DHIS2";
 }
 
 export function selectionLabel(run: DatasetHmisImportRunSummary): string {
-  if (run.source === "csv") {
+  if (run.route === "csv") {
     return run.csvFileName ?? "";
   }
   if (!run.selection) {
     return "";
   }
   if (run.selection.kind === "window") {
-    return `${toNum0(run.selection.rawIndicatorIds.length)} ${t3({
-      en: "indicators",
-      fr: "indicateurs",
-      pt: "indicadores",
-    })} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
+    const elements = `${toNum0(run.selection.dataIds.length)} ${t3({
+      en: "DHIS2 elements",
+      fr: "éléments DHIS2",
+      pt: "elementos DHIS2",
+    })}`;
+    // A run recorded before PLAN_A3 selected elements directly and has no
+    // indicator selection to show.
+    const label = run.selection.indicatorIds.length === 0
+      ? elements
+      : `${toNum0(run.selection.indicatorIds.length)} ${t3({
+        en: "indicators",
+        fr: "indicateurs",
+        pt: "indicadores",
+      })} (${elements})`;
+    return `${label} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
   }
   return `${toNum0(run.selection.nPairs)} ${t3({ en: "pairs", fr: "paires", pt: "pares" })}`;
 }
@@ -64,10 +74,11 @@ export function Dhis2TabHistory(p: Props) {
           : (run.triggeredBy ?? ""),
     },
     {
-      key: "source",
-      header: t3({ en: "Source", fr: "Source", pt: "Fonte" }),
+      key: "route",
+      header: t3({ en: "Imported via", fr: "Importé via", pt: "Importado via" }),
       sortable: true,
-      render: sourceLabel,
+      sortValue: importRouteLabel,
+      render: importRouteLabel,
     },
     {
       key: "selection",
@@ -79,7 +90,7 @@ export function Dhis2TabHistory(p: Props) {
       header: t3({ en: "Pairs (ok / failed / total)", fr: "Paires (ok / échec / total)", pt: "Pares (ok / falha / total)" }),
       alignH: "right",
       render: (run) =>
-        run.source === "csv" ? (
+        run.route === "csv" ? (
           ""
         ) : (
           <span>

@@ -19,7 +19,6 @@ import {
   type PopulationImportPreview,
   type PopulationImportPreviewType,
   type PopulationImportResult,
-  populationIngredientId,
   type AdminAreaLevel,
   type PopulationTypeStore,
 } from "lib";

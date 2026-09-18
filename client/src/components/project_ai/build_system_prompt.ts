@@ -31,7 +31,7 @@ export function buildSystemPromptForContext(
     ...buildPackageGroundingSections({
       calendar: instance.instanceCalendar,
       datasets: projectState.projectDatasets,
-      commonIndicators: projectState.commonIndicators,
+      hmisIndicators: projectState.hmisIndicators,
       icehIndicators: projectState.icehIndicators,
     }),
     ...buildDataCoverageSections(instance),

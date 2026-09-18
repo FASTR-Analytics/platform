@@ -3,35 +3,52 @@ import { thresholdsRuleSchema } from "../../types/conditional_formatting.ts";
 import type { InstanceIndicatorDetails } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
-// What a common indicator IS (PLAN_1a §1.2). The expression grammar itself is
-// checked server-side against the live dictionary and the population store:
-// the shape check here only says which fields each type carries. The
-// base→number format rule lives in the DB layer too, where the type is known.
-const commonIndicatorDefinitionSchema = z.union([
-  z.object({ type: z.literal("base") }),
-  z.object({ type: z.literal("derived"), expression: z.string() }),
+// What an indicator IS (PLAN_A5 §2). The expression grammar itself is
+// checked server-side against the live dictionary and the population store;
+// a sum's members are checked there against the live list: the shape check
+// here only says which fields each type carries. The count→number format
+// rule lives in the DB layer too, where the type is known. An Uploaded
+// indicator posts no data id: its key is generated at creation and kept on
+// update (PLAN_A6 ruling 1).
+const indicatorDefinitionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("uploaded") }),
+  z.object({ type: z.literal("dhis2_element"), data_id: z.string() }),
+  z.object({ type: z.literal("sum"), members: z.array(z.string()) }),
+  z.object({ type: z.literal("calculated"), expression: z.string() }),
 ]);
 
 // The rule's shape rules (ascending cutoffs, one more bucket than cutoffs,
 // stored units) are the schema's refinements; the route only narrows.
-const commonIndicatorItemSchema = z.object({
+const indicatorItemSchema = z.object({
   indicator_common_id: z.string(),
   indicator_common_label: z.string(),
-  mapped_raw_ids: z.array(z.string()),
-  definition: commonIndicatorDefinitionSchema,
+  definition: indicatorDefinitionSchema,
+  include_in_analysis: z.boolean(),
   format_as: z.enum(["percent", "number", "rate_per_10k"]),
   thresholds: thresholdsRuleSchema.nullable(),
+  direction: z.enum(["higher-is-better", "lower-is-better"]),
+  target: z.number().nullable(),
+  expected_low_counts: z.boolean(),
 });
 
-const rawIndicatorItemSchema = z.object({
-  indicator_raw_id: z.string(),
-  indicator_raw_label: z.string(),
-  mapped_common_ids: z.array(z.string()),
+// The naming step's input (PLAN_A6 ruling 7): the DHIS2 create route's
+// elements and the calculated indicators over them.
+export const indicatorNamingElementSchema = z.object({
+  data_id: z.string(),
+  indicator_id: z.string(),
+  label: z.string(),
 });
 
-const batchUploadBodySchema = z.object({
-  asset_file_name: z.string(),
-  replace_all_existing: z.boolean(),
+export const indicatorNamingInputSchema = z.object({
+  elements: z.array(indicatorNamingElementSchema),
+  calculated: z.array(
+    z.object({
+      indicator_id: z.string(),
+      label: z.string(),
+      expression: z.string(),
+      format_as: z.enum(["percent", "number", "rate_per_10k"]),
+    }),
+  ),
 });
 
 export const indicatorRouteRegistry = {
@@ -40,57 +57,35 @@ export const indicatorRouteRegistry = {
     method: "GET",
     response: {} as InstanceIndicatorDetails,
   }),
-  createCommonIndicators: route({
+  createIndicators: route({
     path: "/indicators",
     method: "POST",
-    body: z.object({ indicators: z.array(commonIndicatorItemSchema) }),
+    body: z.object({ indicators: z.array(indicatorItemSchema) }),
   }),
-  updateCommonIndicator: route({
+  updateIndicator: route({
     path: "/indicators/update",
     method: "POST",
     body: z.object({
       old_indicator_common_id: z.string(),
-      indicator: commonIndicatorItemSchema,
+      indicator: indicatorItemSchema,
     }),
   }),
-  deleteCommonIndicators: route({
+  deleteIndicators: route({
     path: "/indicators/delete",
     method: "POST",
     body: z.object({ indicator_common_ids: z.array(z.string()) }),
   }),
-  reorderCommonIndicators: route({
+  reorderIndicators: route({
     path: "/indicators/reorder",
     method: "POST",
     body: z.object({ order: z.array(z.string()) }),
   }),
-  createRawIndicators: route({
-    path: "/indicators-raw",
-    method: "POST",
-    body: z.object({ indicators: z.array(rawIndicatorItemSchema) }),
-  }),
-  updateRawIndicator: route({
-    path: "/indicators-raw/update",
+  setIndicatorsIncludeInAnalysis: route({
+    path: "/indicators/include-in-analysis",
     method: "POST",
     body: z.object({
-      old_indicator_raw_id: z.string(),
-      new_indicator_raw_id: z.string(),
-      indicator_raw_label: z.string(),
-      mapped_common_ids: z.array(z.string()),
+      indicator_common_ids: z.array(z.string()),
+      include_in_analysis: z.boolean(),
     }),
-  }),
-  deleteRawIndicators: route({
-    path: "/indicators-raw/delete",
-    method: "POST",
-    body: z.object({ indicator_raw_ids: z.array(z.string()) }),
-  }),
-  batchUploadIndicators: route({
-    path: "/indicators/batch",
-    method: "POST",
-    body: batchUploadBodySchema,
-  }),
-  batchUploadRawIndicators: route({
-    path: "/indicators/batch-raw",
-    method: "POST",
-    body: batchUploadBodySchema,
   }),
 } as const;

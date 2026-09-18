@@ -8,6 +8,7 @@ import type { LastUpdateTableName } from "./last_updated_tables.ts";
 import type { SlideDeckFolder, SlideDeckSummary } from "./slides.ts";
 import type { ReportFolder, ReportSummary } from "./reports.ts";
 import type { RunListingItem } from "./run_generation.ts";
+import type { RunHmisIndicator } from "./run_manifest.ts";
 import type { VisualizationFolder } from "./visualization_folders.ts";
 import type { DashboardSummary } from "./dashboard.ts";
 
@@ -49,7 +50,7 @@ export type ProjectState = {
   projectDatasets: DatasetInProject[];
   projectModules: InstalledModuleSummary[];
   metrics: MetricWithStatus[];
-  commonIndicators: { id: string; label: string }[];
+  hmisIndicators: RunHmisIndicator[];
   icehIndicators: { id: string; label: string; category: string }[];
   hfaTaxonomy: HfaTaxonomyForAI;
   visualizations: PresentationObjectSummary[];
@@ -92,7 +93,7 @@ export type ProjectSseMessage =
         projectModules: InstalledModuleSummary[];
         metrics: MetricWithStatus[];
         projectDatasets: DatasetInProject[];
-        commonIndicators: { id: string; label: string }[];
+        hmisIndicators: RunHmisIndicator[];
         icehIndicators: { id: string; label: string; category: string }[];
         // Default visualizations are projections of the attached run (item
         // 5b), so the visualizations list changes at repoint: server-built,
