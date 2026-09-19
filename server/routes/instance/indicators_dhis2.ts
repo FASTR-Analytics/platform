@@ -11,11 +11,13 @@ import {
   withDecompositions,
   withElementVerdicts,
 } from "../../dhis2/mod.ts";
-import type { Dhis2Credentials } from "lib";
+import { type Dhis2Credentials, dhis2ElementName } from "lib";
 import {
   createIndicatorsFromDhis2,
+  getDhis2ElementDataIds,
   getInstanceIndicatorsSummary,
   getStoredDhis2CredentialsDecrypted,
+  setDhis2Labels,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -58,6 +60,56 @@ async function resolveOrErr(
 }
 
 export const routesIndicatorsDhis2 = new Hono();
+
+// POST /indicators-dhis2/refresh-labels - Re-read every element's DHIS2 name
+defineRoute(
+  routesIndicatorsDhis2,
+  "refreshDhis2Labels",
+  requireGlobalPermission("can_configure_data"),
+  log("refreshDhis2Labels"),
+  async (c) => {
+    try {
+      const resolved = await resolveOrErr(c.var.mainDb);
+      if (!resolved.ok) {
+        return c.json({ success: false, err: resolved.err });
+      }
+      const options: FetchOptions = { dhis2Credentials: resolved.credentials };
+      const stored = await getDhis2ElementDataIds(c.var.mainDb);
+      const elements = await fetchByIds(
+        stored.map((s) => dataElementIdOf(s.data_id)),
+        (filter) =>
+          getDataElementsFromDHIS2(options, { filter: [filter], paging: false }),
+      );
+      const elementsById = new Map(elements.map((e) => [e.id, e]));
+      const labels = new Map<string, string>();
+      const notFound: string[] = [];
+      for (const s of stored) {
+        const element = elementsById.get(dataElementIdOf(s.data_id));
+        if (element === undefined) {
+          notFound.push(s.indicator_common_id);
+        } else {
+          labels.set(s.indicator_common_id, dhis2ElementName(element, s.data_id));
+        }
+      }
+      const refreshed = await setDhis2Labels(c.var.mainDb, labels);
+      if (refreshed > 0) {
+        notifyInstanceIndicatorsUpdated(
+          await getInstanceIndicatorsSummary(c.var.mainDb),
+        );
+      }
+      return c.json({
+        success: true,
+        data: { refreshed, unchanged: labels.size - refreshed, notFound },
+      });
+    } catch (error) {
+      console.error("Error refreshing DHIS2 labels:", error);
+      return c.json({
+        success: false,
+        err: error instanceof Error ? error.message : "Unknown error occurred",
+      });
+    }
+  },
+);
 
 // POST /indicators-dhis2/search - Search DHIS2 indicators
 defineRoute(
@@ -103,9 +155,7 @@ defineRoute(
       const dataElements = await searchDataElementsFromDHIS2(
         { dhis2Credentials: resolved.credentials },
         body.query,
-        {
-          filter: body.additionalFilters,
-        },
+        body.additionalFilters,
       );
 
       return c.json({
@@ -176,8 +226,9 @@ defineRoute(
         return c.json({ success: false, err: resolved.err });
       }
       const options: FetchOptions = { dhis2Credentials: resolved.credentials };
-      // The verdicts are the server's own reading of the live metadata: the
-      // client's search results may be stale or edited.
+      // The verdicts and the DHIS2 labels are the server's own reading of
+      // the live metadata: the client's search results may be stale or
+      // edited.
       const elements = await fetchByIds(
         body.elements.map((e) => dataElementIdOf(e.data_id)),
         (filter) =>
@@ -205,12 +256,14 @@ defineRoute(
       }
 
       const res = await createIndicatorsFromDhis2(c.var.mainDb, {
-        elements: body.elements.map((e) => ({
-          ...e,
-          verdict: getDhis2OperandVerdict(
-            elementsById.get(dataElementIdOf(e.data_id)),
-          ),
-        })),
+        elements: body.elements.map((e) => {
+          const element = elementsById.get(dataElementIdOf(e.data_id));
+          return {
+            ...e,
+            dhis2_label: element === undefined ? null : dhis2ElementName(element, e.data_id),
+            verdict: getDhis2OperandVerdict(element),
+          };
+        }),
         indicators: body.indicators.map((i) => ({
           ...i,
           decomposition: indicatorsById.get(i.uid)!.decomposition,

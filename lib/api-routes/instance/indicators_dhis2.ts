@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   Dhis2DataElementSearchItem,
   Dhis2IndicatorSearchItem,
+  Dhis2LabelRefresh,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 import { indicatorNamingElementSchema } from "./indicators.ts";
@@ -58,5 +59,13 @@ export const indicatorsDhis2RouteRegistry = {
       ),
     }),
     response: {} as { created: number },
+  }),
+  // Re-reads every DHIS2 element's name from live metadata and stores it as
+  // its dhis2_label. Display labels are untouched. An element DHIS2 no
+  // longer has is left as it is and counted.
+  refreshDhis2Labels: route({
+    path: "/indicators-dhis2/refresh-labels",
+    method: "POST",
+    response: {} as Dhis2LabelRefresh,
   }),
 } as const;

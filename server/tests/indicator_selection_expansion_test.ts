@@ -27,7 +27,7 @@ function element(id: string, dataId: string): HmisIndicator {
   return {
     indicator_common_id: id,
     indicator_common_label: `${id} label`,
-    definition: { type: "dhis2_element", data_id: dataId },
+    definition: { type: "dhis2_element", data_id: dataId, dhis2_label: null },
     include_in_analysis: true,
     format_as: "number",
     thresholds: null,

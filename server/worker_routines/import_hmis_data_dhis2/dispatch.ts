@@ -166,11 +166,13 @@ export type DvsPairReduction = {
 };
 
 // A stored count is a non-negative integer, so that is the only facility
-// value accepted; blank, non-numeric, fractional and negative values are
-// skipped. Numeric parsing (not a digit-only pattern) because NUMBER-typed
-// elements report integers as "12.0".
-export function parseNonNegativeInteger(raw: string): number | undefined {
-  const trimmed = raw.trim();
+// value accepted; missing, null, blank, non-numeric, fractional and negative
+// values are skipped. Numeric parsing (not a digit-only pattern) because
+// NUMBER-typed elements report integers as "12.0".
+export function parseNonNegativeInteger(
+  raw: string | null | undefined,
+): number | undefined {
+  const trimmed = raw?.trim() ?? "";
   if (trimmed === "") {
     return undefined;
   }
@@ -203,7 +205,7 @@ export function reduceDvsValues(
     });
   }
   for (const v of values) {
-    if (v.deleted || !facilitySet.has(v.orgUnit)) {
+    if (v.deleted || v.orgUnit == null || !facilitySet.has(v.orgUnit)) {
       continue;
     }
     const count = parseNonNegativeInteger(v.value);
@@ -218,7 +220,7 @@ export function reduceDvsValues(
         if (reduction.skippedValuesSample.length < SKIPPED_VALUES_SAMPLE_CAP) {
           reduction.skippedValuesSample.push({
             facilityId: v.orgUnit,
-            value: v.value,
+            value: v.value ?? "",
           });
         }
         continue;

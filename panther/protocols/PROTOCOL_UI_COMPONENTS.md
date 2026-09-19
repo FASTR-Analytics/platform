@@ -30,7 +30,7 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
    hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
 9. **`data-*` goes on the component, not a wrapper**: `Button`, `Card`,
    `HeadingBar`, `CollapsibleSection`, `Select`, `Input`, `Slider`,
-   `ButtonGroup`, `TabsNavigation`, `MenuTriggerWrapper` and
+   `ButtonGroup`, `TabsNavigation`, `MenuTriggerWrapper`, `ActionMenuButton` and
    `CopyToClipboardButton` forward `data-*` attributes to their root element;
    put tour anchors, test hooks and other DOM markers there instead of wrapping
    in a `<div data-*="...">`. `data-*` only: anything else (`class`, `style`,

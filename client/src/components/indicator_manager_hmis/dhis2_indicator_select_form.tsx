@@ -13,6 +13,7 @@ import {
   type Dhis2DataElementSearchItem,
   type Dhis2IndicatorSearchItem,
   type DHIS2CategoryOptionCombo,
+  dhis2ElementName,
   type HmisIndicator,
 } from "lib";
 import {
@@ -66,13 +67,6 @@ function cocName(coc: DHIS2CategoryOptionCombo): string {
   return coc.displayName || coc.name;
 }
 
-function operandLabel(
-  element: { name: string },
-  coc: DHIS2CategoryOptionCombo,
-): string {
-  return `${element.name} - ${cocName(coc)}`;
-}
-
 function itemId(item: SelectedItem): string {
   switch (item.kind) {
     case "element":
@@ -89,7 +83,7 @@ function itemName(item: SelectedItem): string {
     case "element":
       return item.element.name;
     case "operand":
-      return operandLabel(item.element, item.coc);
+      return dhis2ElementName(item.element, operandId(item.element.id, item.coc));
     case "indicator":
       return item.indicator.name;
   }
@@ -233,21 +227,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     }
     const labels = new Map<string, string>();
     for (const id of ids) {
-      const [elementId, cocId] = id.split(".");
-      const element = elements.get(elementId);
-      if (element === undefined) {
-        labels.set(id, id);
-        continue;
-      }
-      const coc = cocId === undefined
-        ? undefined
-        : element.categoryCombo?.categoryOptionCombos?.find((c) => c.id === cocId);
-      labels.set(
-        id,
-        coc === undefined
-          ? (cocId === undefined ? element.name : `${element.name} - ${cocId}`)
-          : operandLabel(element, coc),
-      );
+      const element = elements.get(id.split(".")[0]);
+      labels.set(id, element === undefined ? id : dhis2ElementName(element, id));
     }
     return labels;
   }

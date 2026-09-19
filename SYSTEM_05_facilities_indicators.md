@@ -277,7 +277,15 @@ never matched against a file value: the CSV wizard maps each value the
 file's indicator column says onto an indicator and staging writes the rows
 under that indicator's key, S6), `dhis2_element` (a series the DHIS2
 import fetches; `data_id` is the data element UID or `UID.COC` operand,
-DHIS2-shaped by CHECK), `sum` (its members in
+DHIS2-shaped by CHECK; `dhis2_label` is what DHIS2 calls the element or
+operand, the route's own reading of live metadata when the picker creates
+the indicator (`dhis2ElementName`, one rule for the picker's rows and the
+stored label), never posted by a client and never edited: `updateIndicator`
+keeps it while the indicator stays a DHIS2 element under the same data id
+and clears it otherwise; NULL on every other type by CHECK
+(`indicators_dhis2_label_check`), on an element created by typing a UID,
+and on the four instances that ran 086 before the column existed; the
+display label is `indicator_common_label` throughout), `sum` (its members in
 `indicator_sum_members`, summed from the rows under their data ids at
 extract into one facility × month series that m001 and m002 adjust like
 any count; no sum inside a sum), and `calculated` (`expression`, a formula
@@ -394,11 +402,27 @@ charset-checked (no `, ; : [ ]` because they corrupt the dictionary
 download's member list and the expression grammar); existing ids are
 grandfathered. The dictionary download is one CSV for the whole list
 (`INDICATOR_DOWNLOAD_FILE_COLUMNS`: `indicator_id, label, type, dhis2_id,
-members, expression, include_in_analysis, format_as, thresholds,
+dhis2_label, members, expression, include_in_analysis, format_as, thresholds,
 direction, target, expected_low_counts`; `type` in the four code names,
-`dhis2_id` written for a DHIS2 element and blank for every other type,
+`dhis2_id` and `dhis2_label` written for a DHIS2 element and blank for every other type,
 `members` semicolon-separated, `target` in stored units), a download
 format only: nothing reads it back (PLAN_A6 ruling 8).
+
+The DHIS2 names are refreshed on demand, never on a schedule:
+`refreshDhis2Labels` (`POST /indicators-dhis2/refresh-labels`) re-reads
+every DHIS2 element by UID from live metadata with the same chunked fetch
+and the same `dhis2ElementName` rule as the create route, and
+`setDhis2Labels` writes the names that differ (DHIS2 elements only, by
+indicator id, `updated_at` moving on those rows so the dictionary stamp
+changes), reporting refreshed, unchanged and not-found counts; an element
+DHIS2 no longer has keeps its stored name. Display labels are never
+touched. The client runs it from `RefreshDhis2LabelsModal`: the
+explanation and the count of elements to read, the Refresh button waiting
+on the one request with its spinner, then the counts in its place. The manager's toolbar keeps the daily actions as buttons (Sort,
+Add from DHIS2, Create new) and puts the occasional ones, the dictionary
+download and Refresh DHIS2 names, in an overflow menu (panther's
+`ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated on a stored
+DHIS2 connection like Add from DHIS2.
 
 Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1,
 11, 12 and 13) gives every Uploaded row a key: a row whose `data_id` was
@@ -427,6 +451,11 @@ data id, by the same shape rule (a DHIS2-shaped raw under an id generated
 from its label by the PL/pgSQL restatement of `generateIndicatorId`,
 pinned to the lib by `server/tests/indicator_migration_test.ts`; another
 raw under its own id when it passes the validator, else a generated one);
+every DHIS2 element so made keeps the raw's label as its `dhis2_label`
+beside the display label it already had (the folded common's own label,
+or the raw label for a new indicator; the column was added to 086 after
+1.73.0 had shipped it to Mozambique and three testing instances, which
+hold NULL there and get the column and CHECK from 090);
 a non-calculated common whose raws did not fold becomes a sum over the
 indicators they became, its members written to the junction (a mapping
 onto a calculated common contributed nothing to the old extract and is
@@ -440,7 +469,8 @@ stored run, version, schedule and CSV JSON is rewritten (pairs, progress
 and stats keyed `dataId`; window selections to `indicatorIds` plus the
 persisted `dataIds`; the run and ledger `source` columns to `route`, the
 staging result's `sourceType` to `kind`, the CSV config's `mappings` to
-`columns` with its indicator column `data_id`), the old default flag and
+`columns` with its indicator column `data_id`; the retired `shadow` block
+of a run's stats, keyed by raw id and read by nothing, is dropped), the old default flag and
 the two old tables go, and the id table (which indicator holds each raw id)
 is raised as NOTICEs the app's runner suppresses. The older migrations 003,
 056, 070 and 079 are guarded so a fresh replay after 086's schema is a
@@ -449,7 +479,8 @@ into a throwaway container, applies the pending migrations the way the
 runner does, prints that id table, and asserts the outcome (every raw
 became exactly one indicator's data id, folded or new; generated ids
 unique, bare, unreserved, non-special and equal to what the lib generates;
-the type `dhis2_element` exactly where the data id is DHIS2-shaped; no
+the type `dhis2_element`, carrying the raw label as its DHIS2 label,
+exactly where the data id is DHIS2-shaped; no
 calculated under a special id; every common with mappings a DHIS2 element, an
 Uploaded indicator or a sum over what its raws became; the analysed set
 after equal to the commons before; the extract's per-indicator sums
@@ -1003,14 +1034,16 @@ this layer.
   sortable. It is not in the CSV download, which carries the dictionary's
   authored fields.
 - Both indicator tables, the manager's and the import picker's, carry a
-  search box: every typed word must appear in the id, label, type word or
-  definition (`matchesIndicatorSearch`); the caller filters the rows
+  search box: every typed word must appear in the id, label, DHIS2 name,
+  type word or definition (`matchesIndicatorSearch`); the caller filters the rows
   before the table, which has no search of its own. A controlled
   selection survives filtering, and the header checkbox acts on the
   visible rows.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
   Calculated, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
-  element, the members, the formula, nothing for an Uploaded indicator;
+  element with the DHIS2 name under it when one is stored (`dhis2LabelOf`;
+  the editor shows the same name, read-only, under the DHIS2 id input while
+  the id stands), the members, the formula, nothing for an Uploaded indicator;
   `definedByText`, shared with the import picker), a read-only
   include-in-analysis tick (the flag is edited in the modal only) and the
   Special badge. The two facts the type implies (a count is adjusted by the

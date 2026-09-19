@@ -1,13 +1,20 @@
+// Parsed from an uploaded file or a DHIS2 response, never validated: every
+// field may be missing or null.
 type GeoJsonFeature = {
-  type: "Feature";
+  type: string | null | undefined;
   geometry: Record<string, unknown> | null | undefined;
-  properties: Record<string, unknown>;
-  id?: string | number;
+  properties: Record<string, unknown> | null | undefined;
 };
 
 type GeoJsonFeatureCollection = {
-  type: "FeatureCollection";
-  features: GeoJsonFeature[];
+  type: string | null | undefined;
+  features: GeoJsonFeature[] | null | undefined;
+};
+
+type StoredGeoJsonFeature = {
+  type: "Feature";
+  geometry: Record<string, unknown>;
+  properties: { area_id: string; source_name: string };
 };
 
 export type GeoJsonAnalysisResult = {
@@ -93,7 +100,7 @@ function processFeatures(
   areaMatchProp: string,
   areaMapping: Record<string, string>,
 ): ProcessedGeoJsonResult {
-  const processedFeatures: GeoJsonFeature[] = [];
+  const processedFeatures: StoredGeoJsonFeature[] = [];
   let matchedCount = 0;
   let droppedNoGeometryCount = 0;
   let droppedNoMatchValueCount = 0;
@@ -124,7 +131,7 @@ function processFeatures(
     });
   }
 
-  const result: GeoJsonFeatureCollection = {
+  const result = {
     type: "FeatureCollection",
     features: processedFeatures,
   };

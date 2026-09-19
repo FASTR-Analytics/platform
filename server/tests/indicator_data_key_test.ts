@@ -191,7 +191,11 @@ Deno.test("retyping keeps the key: a DHIS2 element made Uploaded keeps its UID, 
   await db`DELETE FROM dataset_hmis WHERE data_id = ${opdKey}`;
   const withoutRows = await updateIndicator(db, "opd", indicator("opd", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }));
   assert(withoutRows.success, withoutRows.success ? "" : withoutRows.err);
-  assertEquals((await dictionary()).get("opd")!.definition, { type: "dhis2_element", data_id: "KlMnOpQrSt2" });
+  assertEquals((await dictionary()).get("opd")!.definition, {
+    type: "dhis2_element",
+    data_id: "KlMnOpQrSt2",
+    dhis2_label: null,
+  });
 });
 
 Deno.test("a retype from Sum or Calculated to Uploaded generates a key", async () => {

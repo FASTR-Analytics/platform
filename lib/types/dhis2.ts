@@ -32,3 +32,11 @@ export type InstanceDhis2CredentialsInfo = {
   // credentials cannot be stored.
   encryptionKeyConfigured: boolean;
 };
+
+// What a DHIS2 name refresh did: names rewritten, names already current,
+// and the ids of the elements DHIS2 no longer has, left as they were.
+export type Dhis2LabelRefresh = {
+  refreshed: number;
+  unchanged: number;
+  notFound: string[];
+};

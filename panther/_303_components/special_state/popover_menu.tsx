@@ -448,6 +448,40 @@ export function MenuTriggerWrapper(
   );
 }
 
+// =============================================================================
+// Action menu button
+// =============================================================================
+
+export type ActionMenuButtonProps = {
+  items: MenuItem[] | (() => MenuItem[]);
+  intent?: Intent;
+  outline?: boolean;
+  onBackground?: Intent;
+  size?: "sm";
+  id?: string;
+} & DataAttrs;
+
+// The three-dots button that opens a screen's occasional actions. Styled
+// like any Button (intent, outline, onBackground, size); the icon, the
+// bottom-end placement and the accessible name are the component's. A
+// right-click context menu is showMenu, not this.
+export function ActionMenuButton(p: ActionMenuButtonProps): JSX.Element {
+  const [dataAttrs] = splitDataAttrs(p);
+  return (
+    <MenuTriggerWrapper {...dataAttrs} items={p.items} position="bottom-end">
+      <Button
+        id={p.id}
+        iconName="moreVertical"
+        intent={p.intent}
+        outline={p.outline}
+        onBackground={p.onBackground}
+        size={p.size}
+        ariaLabel="More actions"
+      />
+    </MenuTriggerWrapper>
+  );
+}
+
 export function createMenuTriggerWrapper(opts: {
   items: MenuItem[] | (() => MenuItem[]);
   position?: PopoverPosition;

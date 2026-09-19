@@ -323,6 +323,7 @@ type PostIndicator = {
   type: HmisIndicatorType;
   expression: string | null;
   data_id: string | null;
+  dhis2_label: string | null;
   members: string[];
   include_in_analysis: boolean;
 };
@@ -364,7 +365,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   const expected = expectedOutcome(pre);
   const post = await sql<PostIndicator[]>`
     SELECT i.indicator_common_id AS id, i.indicator_common_label AS label,
-      i.definition_type AS type, i.expression, i.data_id,
+      i.definition_type AS type, i.expression, i.data_id, i.dhis2_label,
       (SELECT COALESCE(array_agg(m.member_id ORDER BY m.member_id), ARRAY[]::text[])
          FROM indicator_sum_members m WHERE m.sum_id = i.indicator_common_id) AS members,
       i.include_in_analysis
@@ -374,7 +375,8 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
   const preIds = new Set(pre.commons.map((c) => c.id));
 
   // Every raw became exactly one indicator's data id, folded or new; the
-  // type is dhis2_element exactly where the data id is DHIS2-shaped.
+  // type is dhis2_element exactly where the data id is DHIS2-shaped, and a
+  // DHIS2 element carries the raw label as its dhis2_label.
   for (const raw of pre.raws) {
     const target = expected.rawTarget.get(raw.indicator_raw_id)!;
     const i = postById.get(target.id);
@@ -388,6 +390,10 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     const expectedType = isDhis2ShapedId(raw.indicator_raw_id) ? "dhis2_element" : "uploaded";
     if (i.type !== expectedType) {
       problems.push(`raw ${raw.indicator_raw_id}: ${target.id} is ${i.type}, expected ${expectedType}`);
+    }
+    const expectedDhis2Label = expectedType === "dhis2_element" ? raw.indicator_raw_label : null;
+    if (i.dhis2_label !== expectedDhis2Label) {
+      problems.push(`raw ${raw.indicator_raw_id}: ${target.id} carries dhis2_label ${JSON.stringify(i.dhis2_label)}, expected ${JSON.stringify(expectedDhis2Label)}`);
     }
     if (!target.folded) {
       if (i.label !== raw.indicator_raw_label) problems.push(`new indicator ${target.id} label differs from raw label`);
@@ -430,7 +436,7 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     const members = expected.sums.get(c.id);
     if (members !== undefined) {
       if (i.type !== "sum") problems.push(`common ${c.id} should be a sum, is ${i.type}`);
-      else if (JSON.stringify(i.members) !== JSON.stringify(members)) {
+      else if (JSON.stringify([...i.members].sort()) !== JSON.stringify(members)) {
         problems.push(`sum ${c.id}: members ${JSON.stringify(i.members)}, expected ${JSON.stringify(members)}`);
       }
     } else if (c.type === "base") {
@@ -474,13 +480,16 @@ async function assertMigrated(sql: Sql, pre: PreState, lines: string[]): Promise
     definition: i.type === "uploaded"
       ? { type: "uploaded", data_id: i.data_id ?? "" }
       : i.type === "dhis2_element"
-      ? { type: "dhis2_element", data_id: i.data_id ?? "" }
+      ? { type: "dhis2_element", data_id: i.data_id ?? "", dhis2_label: i.dhis2_label }
       : i.type === "sum"
       ? { type: "sum", members: i.members }
       : { type: "calculated", expression: i.expression ?? "" },
     include_in_analysis: i.include_in_analysis,
     format_as: "number",
     thresholds: null,
+    direction: "higher-is-better",
+    target: null,
+    expected_low_counts: false,
     sort_order: 0,
   }));
   const analysedAfter = new Set([

@@ -1,3 +1,28 @@
+[TBD] [user] [changed] - Refreshing DHIS2 names now opens an informative modal with progress details
+[TBD] [user] [changed] - DHIS2 name refresh shows how many indicators will be checked before running
+[TBD] [user] [changed] - Search bar and toolbar buttons have updated styling for a cleaner look
+[TBD] [admin] [changed] - Refreshing DHIS2 names now opens a confirmation dialog with details before running
+[TBD] [admin] [changed] - DHIS2 name refresh results displayed in a clearer summary with warnings for missing elements
+[TBD] [user] [added] - Refresh DHIS2 names from the indicator toolbar menu
+[TBD] [user] [changed] - DHIS2 original name now shown below element ID in indicator table
+[TBD] [user] [changed] - Download and DHIS2 name refresh moved to overflow menu in toolbar
+[TBD] [admin] [added] - Refresh DHIS2 element names from live metadata via toolbar menu
+[TBD] [admin] [changed] - DHIS2 label now shown beneath element ID in indicators table
+[TBD] [admin] [changed] - Download and DHIS2 name refresh moved to overflow menu in toolbar
+[1.74.0] [user] [changed] - Simplified indicator source display in indicator table
+[1.74.0] [admin] [changed] - Simplified indicator source column in HMIS indicator manager
+[1.74.0] [user] [added] - DHIS2 name now shown when editing a DHIS2 indicator
+[1.74.0] [user] [added] - DHIS2 name displayed in the indicator list's definition column
+[1.74.0] [user] [added] - DHIS2 name column included in the indicator dictionary download
+[1.74.0] [user] [changed] - Searching indicators now also matches by DHIS2 name
+[1.74.0] [admin] [added] - DHIS2 name now shown for DHIS2-linked indicators in the dictionary
+[1.74.0] [admin] [added] - Indicator search now matches against DHIS2 element names
+[1.74.0] [admin] [added] - DHIS2 name included in indicator dictionary CSV download
+[1.74.0] [admin] [changed] - DHIS2 name is preserved when editing indicator labels or renaming IDs
+[1.74.0] [admin] [changed] - DHIS2 name is cleared when an indicator's data element ID changes
+[1.74.0] [admin] [fixed] - DHIS2 data imports now gracefully handle missing or null values
+[1.74.0] [admin] [internal] - Improved resilience to unexpected responses from DHIS2 servers
+[1.74.0] [admin] [internal] - Streamlined org unit fetching during DHIS2 structure import
 [1.73.1] [user] [added] - Indicator count now shown next to the "Indicators" heading
 [1.73.1] [user] [added] - Indicator types now displayed as color-coded badges
 [1.73.1] [user] [added] - Long indicator IDs and labels now wrap neatly instead of overflowing

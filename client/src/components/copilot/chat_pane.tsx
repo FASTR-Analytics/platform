@@ -9,7 +9,7 @@ import {
   Button,
   createAIChat,
   Icon,
-  MenuTriggerWrapper,
+  ActionMenuButton,
   openComponent,
   openConfirm,
   useConversations,
@@ -423,15 +423,12 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
         </h3>
         <div class="ui-gap-sm flex items-center">
-          <MenuTriggerWrapper items={menuItems} position="bottom-end">
-            <Button
-              outline
-              onBackground="primary"
-              intent="base-100"
-              iconName="moreVertical"
-              ariaLabel="Menu"
-            />
-          </MenuTriggerWrapper>
+          <ActionMenuButton
+            items={menuItems}
+            outline
+            onBackground="primary"
+            intent="base-100"
+          />
           <Button
             onClick={() => setShowAi(false)}
             outline

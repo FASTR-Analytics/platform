@@ -66,6 +66,31 @@ none). The heavy geojson fetch and S6's dataValueSets pulls pass it
 Logging happens **only** behind explicit `logRequest`/`logResponse`
 flags, and logs only method/URL/status, never credentials.
 
+## Wire types: what a response type may claim
+
+`getDHIS2<T>` returns `data as T`. Nothing validates the body, so a
+response type is a claim about an external server, not a guarantee, and
+DHIS2 does send `null` and omit keys where its docs promise a value (a
+dataValueSets row arrived with `value: null` in production, 1.73.1).
+The rule for every type that describes a fetched body:
+
+- **Every field is `T | null | undefined`**, never `?:`. Both forms
+  reach the wire (a serialised `null` and a missing key), and a required
+  nullable field makes every object literal spell the field out, so a
+  field added to the type is caught at each fixture.
+- **The wire type is private to its fetcher, which normalises.** The
+  fetcher maps each row into a clean app type and drops a row that lacks
+  its identity (no `id`, no `path`), counting the drop where a caller can
+  show it (`OrgUnitPathPage.dropped`). Consumers, routes and the client
+  never see the wire shape. goal 1, goal 2 and goal 4 all work this way.
+- **The exception is goal 5's dataValueSets row.** `DHIS2DataValue` is
+  exported nullable and guarded at the S6 reduce instead of copied,
+  because a country-month pull is up to 10 MB and the reduce already
+  walks every row once.
+
+The compiler enforces the first point; the second is discipline, so a
+new fetcher is reviewed against it.
+
 ## Retry (`server/dhis2/common/retry_utils.ts`)
 
 The whole fetch closure runs inside `withRetry(fn, options)`. Defaults:
@@ -94,16 +119,16 @@ Endpoints are grouped by goal, each folder with a `mod.ts` barrel;
 | Folder | Goal | Key functions |
 | --- | --- | --- |
 | `common/` | fetcher + retry + validation | `fetchFromDHIS2`, `getDHIS2`, `withRetry`, `validateDhis2Connection` |
-| `goal1_org_units_v2/` | org-unit hierarchy metadata | `getOrgUnitMetadata` (levels + counts + roots, parallel), `testDHIS2Connection` |
+| `goal1_org_units_v2/` | org-unit hierarchy metadata and paged units | `getOrgUnitMetadata` (levels + counts + roots, parallel), `getOrgUnitNamesAtLevel`, `pageOrgUnitPathsAtLevel` (one page of units with paths per yield), `testDHIS2Connection` |
 | `goal2_indicators/` | indicator / data-element discovery, element eligibility, indicator decomposition | `get/search{Indicators,DataElements}FromDHIS2`, `searchAllIndicatorsAndDataElements`, `getDhis2ElementVerdict`, `parseDhis2Indicator`, `withElementVerdicts`, `withDecompositions` |
 | `goal4_geojson/` | boundary import for maps | `fetchOrgUnitsMetadataForLevel`, `fetchGeometryCountForLevel`, `fetchOrgUnitsGeoJsonForLevel`, session caches |
 | `goal5_data_value_sets/` | reported values + metadata id-existence | `getDataValueSetsFromDHIS2`, `getExistingMetadataIds`, `getOrgUnitIdsAtLevel` |
 
 (`goal1`'s `_v2` suffix is vestigial: no v1 survives.)
 
-**Query idioms.** `fields=` comma-lists with `DEFAULT_DATA_ELEMENT_FIELDS`
-/ `DEFAULT_INDICATOR_FIELDS` defaults; repeated `filter=` params;
-`paging`/`pageSize`; `rootJunction: "OR"` for ilike OR-search over
+**Query idioms.** `fields=` comma-lists (`DATA_ELEMENT_FIELDS` /
+`INDICATOR_FIELDS`, fixed so the mappers know what they read); repeated
+`filter=` params; `paging`; `rootJunction: "OR"` for ilike OR-search over
 name/code/id. `searchAllIndicatorsAndDataElements` splits the query on
 comma/semicolon/newline, searches every term in parallel across both
 endpoints, and merges deduped by id. The data-element field list carries
@@ -272,10 +297,10 @@ this system carry en/fr/pt.
 
 - **S5 structure import**: step-1 test connection
   (`testDHIS2Connection`), org-unit level metadata (`getOrgUnitMetadata`),
-  then bulk staging via `stageStructureFromDhis2V2`, which pages
-  `/api/organisationUnits.json` with raw `getDHIS2` calls inline instead
-  of a goal-1 fetcher (the known wart; goal 1 has no paging fetcher to
-  offer it yet).
+  then bulk staging via `stageStructureFromDhis2V2`: parent names from
+  `getOrgUnitNamesAtLevel`, facilities from `pageOrgUnitPathsAtLevel`,
+  whose per-page `dropped` count (units with no id or no path) the stager
+  adds to its invalid-row count.
 - **S5 geojson wizard**: validation, `getOrgUnitMetadata` (level list),
   the metadata/count/heavy fetchers and both session caches.
 - **S5 HMIS indicator manager**: the combined search and create routes
@@ -315,17 +340,7 @@ this system carry en/fr/pt.
 
 ## Open items
 
-- **Decoupling: split-brained DHIS2 wire types.** `DHIS2PagedResponse`
-  is defined twice with different shapes (generic
-  `goal1_org_units_v2/types.ts` vs pager-only `lib/types/indicators.ts`,
-  which goal 2 uses). (`Dhis2Credentials` has one home,
-  `lib/types/dhis2.ts`.)
 - Classify retries off `DHIS2FetchError.status` instead of message
   substrings, and decide whether the exhaustion error should preserve
   the structured fields.
-- The structure stager's inline org-unit paging (S5 file,
-  `stage_structure_from_dhis2.ts`) belongs behind a goal-1 paging
-  fetcher that doesn't exist yet.
-- Cruft: retire the `goal1_..._v2` suffix (no v1 exists); dead types in
-  `goal1_org_units_v2/types.ts` (`OrgUnitHierarchy`, `ProgressCallback`,
-  `BatchProcessor`, `DHIS2ErrorResponse` have no consumers).
+- Cruft: retire the `goal1_..._v2` suffix (no v1 exists).
