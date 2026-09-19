@@ -1,3 +1,9 @@
+[TBD] [user] [added] - Refresh DHIS2 names from the indicator toolbar menu
+[TBD] [user] [changed] - DHIS2 original name now shown below element ID in indicator table
+[TBD] [user] [changed] - Download and DHIS2 name refresh moved to overflow menu in toolbar
+[TBD] [admin] [added] - Refresh DHIS2 element names from live metadata via toolbar menu
+[TBD] [admin] [changed] - DHIS2 label now shown beneath element ID in indicators table
+[TBD] [admin] [changed] - Download and DHIS2 name refresh moved to overflow menu in toolbar
 [1.74.0] [user] [changed] - Simplified indicator source display in indicator table
 [1.74.0] [admin] [changed] - Simplified indicator source column in HMIS indicator manager
 [1.74.0] [user] [added] - DHIS2 name now shown when editing a DHIS2 indicator
