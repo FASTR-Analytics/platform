@@ -149,6 +149,10 @@ re-litigate; the package-format invariants below are their file-level twins):
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
 - **Vocabulary.** UI label "Results package"; "run" stays the internal name.
+- **Labels are unique per instance** (`runs_label_unique`, on
+  `lower(trim(label))`, migration 091). The wizard refuses a taken label
+  against the loaded catalogue and derives a free default; the insert
+  translates the index violation into the same message for the race.
 
 ## Loading (`server/module_loader/load_module.ts`)
 

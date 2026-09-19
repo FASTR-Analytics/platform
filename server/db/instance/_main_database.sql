@@ -58,6 +58,9 @@ CREATE TABLE runs (
 -- At most one pinned package per instance (SYSTEM_08 "The pinned package + followers").
 CREATE UNIQUE INDEX runs_one_pinned ON runs (pinned) WHERE pinned;
 
+-- Labels are unique per instance, case- and whitespace-insensitively (091).
+CREATE UNIQUE INDEX runs_label_unique ON runs (lower(trim(label)));
+
 CREATE TABLE projects (
   id text PRIMARY KEY NOT NULL,
   label text NOT NULL,

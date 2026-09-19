@@ -25,6 +25,7 @@ import { createStore, unwrap } from "solid-js/store";
 import { getModuleParameterInvalidMsg } from "~/components/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { freeRunLabel, isRunLabelTaken } from "./_label";
 import { buildModuleGraph, familiesOf, isOfferable } from "./_module_graph";
 import { StepConfirm } from "./_step_confirm";
 import { StepData } from "./_step_data";
@@ -196,11 +197,14 @@ function WizardInner(p: InnerProps) {
 
   // Step 3: confirm.
   const [label, setLabel] = createSignal(
-    `${t3({
-      en: "Results package",
-      fr: "Paquet de résultats",
-      pt: "Pacote de resultados",
-    })} ${new Date().toISOString().slice(0, 10)}`,
+    freeRunLabel(
+      `${t3({
+        en: "Results package",
+        fr: "Paquet de résultats",
+        pt: "Pacote de resultados",
+      })} ${new Date().toISOString().slice(0, 10)}`,
+      instanceState.runsCatalog,
+    ),
   );
   const [attachTargets, setAttachTargets] = createStore<
     Record<string, boolean>
@@ -247,6 +251,16 @@ function WizardInner(p: InnerProps) {
             en: "Enter a label for the results package",
             fr: "Saisissez un libellé pour le paquet de résultats",
             pt: "Introduza um rótulo para o pacote de resultados",
+          }),
+        };
+      }
+      if (isRunLabelTaken(trimmed, instanceState.runsCatalog)) {
+        return {
+          success: false,
+          err: t3({
+            en: "A results package with this label already exists",
+            fr: "Un paquet de résultats portant ce libellé existe déjà",
+            pt: "Já existe um pacote de resultados com este rótulo",
           }),
         };
       }

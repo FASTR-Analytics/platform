@@ -1,4 +1,4 @@
-import type { Sql } from "postgres";
+import { PostgresError, type Sql } from "postgres";
 import {
   runProgressSchema,
   type APIResponseNoData,
@@ -546,13 +546,24 @@ export async function createGeneratingRun(
     progress: RunProgress;
   },
 ): Promise<void> {
-  await mainDb`
+  try {
+    await mainDb`
 INSERT INTO runs (id, label, status, provenance, created_by, summary, progress)
 VALUES (
   ${args.runId}, ${args.label}, 'generating', 'wizard', ${args.createdBy},
   ${JSON.stringify(args.summary)}, ${JSON.stringify(args.progress)}
 )
 `;
+  } catch (e) {
+    if (
+      e instanceof PostgresError && e.constraint_name === "runs_label_unique"
+    ) {
+      throw new Error(
+        `A results package labelled "${args.label}" already exists`,
+      );
+    }
+    throw e;
+  }
 }
 
 // The launch concurrency guard's DB half (the in-memory registry is the
