@@ -183,7 +183,7 @@ One host, ~40 country instances, each two containers: `<country>-postgres` (host
 port `19xxx` → 5432) and `<country>` app (host `9xxx` → 8000). The app reads
 and writes one database, `main` (S2's contract:
 [SYSTEM_02](SYSTEM_02_persistence.md)). UUID-named databases on a host are
-legacy project databases: migration 091 reads them once to consolidate their
+legacy project databases: migration 201 reads them once to consolidate their
 content into `main`, and nothing drops them afterwards.
 
 SSH/credential/tunnel/psql recipes stay in the **gitignored**

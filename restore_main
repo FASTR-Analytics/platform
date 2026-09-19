@@ -4,15 +4,15 @@
 # restores one instance's `main` database from a named status-api dump and
 # puts the instance back on its previous server image.
 #
-# THE DUMP IS NOT OPTIONAL. Migration 092 drops `projects`,
+# THE DUMP IS NOT OPTIONAL. Migration 202 drops `projects`,
 # `project_user_roles`, `dashboard_slugs`, the three log tables' `project_id`
 # columns and the `users.default_project_*` / `can_create_projects` columns.
 # The previous image reads all of them at boot, so it CANNOT start against a
-# post-092 `main`; reverting the image alone leaves the instance down. The
+# post-202 `main`; reverting the image alone leaves the instance down. The
 # only rollback is: restore the pre-migration `main` dump, THEN start the
 # previous image.
 #
-# The legacy project databases are untouched by the rollout (091 only reads
+# The legacy project databases are untouched by the rollout (201 only reads
 # them) and stay on disk until ./purge_legacy_dbs runs, so restoring `main`
 # restores a coherent instance. Once ./purge_legacy_dbs has run, this script
 # can no longer bring a working instance back; that is the point of no

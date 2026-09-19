@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Executes the project consolidation (instance migrations 000, 091 and 092)
+# Executes the project consolidation (instance migrations 000, 201 and 202)
 # end to end in a throwaway postgres:15 container, through the real migration runner, against seeded
 # legacy data. ./validate_migrations only proves SQL idempotency; a .ts
 # migration changes data, so it is proved by running it. The checks are in

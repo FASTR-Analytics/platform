@@ -7,7 +7,7 @@
 // the ai_context contribution and the counts of everything it drops. Pure
 // planning: no writes, no main-DB handle. Two callers share it, so the thing
 // that is gated is the thing that runs: execute.ts applies the plan inside
-// the 091 migration transaction; validate_consolidation.ts only reports it.
+// the 201 migration transaction; validate_consolidation.ts only reports it.
 //
 // FROZEN TYPES: the legacy project-DB row types below describe a schema that
 // exists nowhere else in the repo (they were copied from the deleted

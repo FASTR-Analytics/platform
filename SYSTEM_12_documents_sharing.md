@@ -68,7 +68,7 @@ Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
 slide and report routes through the real registry, access guard and DB layer.
 `server/tests/consolidated_products_test.ts` proves the products that migration
-091 consolidated, and skips when none exist (they are the ones with no
+201 consolidated, and skips when none exist (they are the ones with no
 `created_by`): every stored figure bundle on the four surfaces (slides, report
 figures, and the two version tables read through the same figure-block upgrade
 the restore paths run) parses under the strict schema, so each carries its
@@ -103,7 +103,7 @@ SYSTEMS.md §4.3.9).
 ## The products registry on `main`
 
 `main` carries the products block (`_main_database.sql`, created on existing
-instances by `090_products.sql`): `folders` (nested through a nullable
+instances by `200_products.sql`): `folders` (nested through a nullable
 `parent_id` self-reference), `products` (id, `type` in {`slide_deck`, `report`},
 label, `folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
 `admin_area_2`, `created_by`, `created_at`, `last_updated`), and one detail

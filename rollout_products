@@ -6,15 +6,15 @@
 #   1. preflights: the instance exists, its runs volume has headroom, and the
 #      operator confirms a NAMED status-api dump of `main` is on disk (the
 #      rollback path is `./restore_main` with that dump plus the previous
-#      image, and the previous image cannot boot after migration 092
+#      image, and the previous image cannot boot after migration 202
 #      without it)
 #   2. points the instance at the target server image (wb c update / wb pull /
-#      wb restart), whose boot runs migrations 000 to 092 and the instance
+#      wb restart), whose boot runs migrations 000 to 202 and the instance
 #      JSON transforms inside the boot transaction
 #   3. polls /health_check until the server boots: a migration failure
 #      fail-stops the boot, so an unhealthy instance means the consolidation
 #      rolled back and the instance is still on its pre-restructure schema
-#   4. post-checks: the project layer is gone (092 recorded, `projects`
+#   4. post-checks: the project layer is gone (202 recorded, `projects`
 #      dropped), every registry row has its detail row, and the product,
 #      folder, slide and version counts match EXACTLY what
 #      ./validate_consolidation.ts planned for that instance
@@ -115,7 +115,7 @@ fail() {
     echo "  Instances completed before the halt: ${COMPLETED[*]:-none}"
     echo "  Rollback for a migrated instance is ./restore_main <instance>"
     echo "  <dump> --previous-version <v> --confirm (the named dump is NOT"
-    echo "  optional: the previous image cannot boot after 092 without it)."
+    echo "  optional: the previous image cannot boot after 202 without it)."
     exit 1
 }
 
@@ -202,7 +202,7 @@ for INSTANCE in "${INSTANCES[@]}"; do
     fi
 
     # The rollback path is the named dump plus the previous image, and the
-    # previous image cannot boot after 092. Refuse to migrate an instance
+    # previous image cannot boot after 202. Refuse to migrate an instance
     # whose dump you have not confirmed.
     if [ "$SKIP_BACKUP_CHECK" != "1" ] && [ "$DEPLOY" = true ]; then
         echo ""
@@ -260,7 +260,7 @@ REMOTE
     fi
     echo "Healthy."
 
-    # Keep the boot log: it carries the per-project 091 consolidate lines.
+    # Keep the boot log: it carries the per-project 201 consolidate lines.
     sshx "$SSH_HOST" "docker logs --tail 500 $INSTANCE" > "$LOG_DIR/$INSTANCE-boot.log" 2>&1 || true
 
     RUNNING_IMAGE=$(sshx "$SSH_HOST" "docker inspect --format '{{.Config.Image}}' $INSTANCE")
@@ -271,9 +271,9 @@ REMOTE
     PROJECTS_TABLE=$(psql_main "$INSTANCE" "SELECT COALESCE(to_regclass('public.projects')::text, 'dropped')") ||
         fail "$INSTANCE" "post-check" "could not query main"
     [ "$PROJECTS_TABLE" = "dropped" ] ||
-        fail "$INSTANCE" "post-check" "the projects table still exists, so migration 092 did not run"
+        fail "$INSTANCE" "post-check" "the projects table still exists, so migration 202 did not run"
 
-    for MIGRATION in 091_consolidate_projects 092_drop_project_layer; do
+    for MIGRATION in 201_consolidate_projects 202_drop_project_layer; do
         APPLIED=$(psql_main "$INSTANCE" "SELECT count(*) FROM schema_migrations WHERE migration_id = '$MIGRATION'")
         [ "$APPLIED" = "1" ] ||
             fail "$INSTANCE" "post-check" "$MIGRATION is not recorded in schema_migrations"

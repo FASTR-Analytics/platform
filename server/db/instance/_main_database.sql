@@ -107,7 +107,7 @@ CREATE TABLE instance_config (
 -- metadata write bumps it in the same transaction. Folders nest through
 -- `parent_id` (an adjacency list; no stored path, no depth cap, acyclic by
 -- server enforcement). `created_by` and `created_at` are provenance, not
--- ownership; NULL on rows migration 091 consolidated. Each detail table
+-- ownership; NULL on rows migration 201 consolidated. Each detail table
 -- carries a fixed `type` and a composite FK on (id, type), so a row
 -- can only exist in the detail table its registry type names; nothing
 -- forces the detail row to exist, which is the one-transaction insert rule.

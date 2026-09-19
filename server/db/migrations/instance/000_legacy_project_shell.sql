@@ -3,11 +3,11 @@
 -- ============================================================================
 --
 -- Once the project layer leaves the base schema (PLAN_PRODUCTS_RESTRUCTURE
--- D9), migrations 001 to 090 are still written against a base that had it,
+-- D9), every migration below 200 is still written against a base that had it,
 -- and several of them ALTER these tables or build indexes over their
 -- columns. On a FRESH database this file re-creates just enough of the
--- pre-restructure shape for those statements to resolve; 091 then
--- consolidates whatever projects exist (none, on a fresh database) and 092
+-- pre-restructure shape for those statements to resolve; 201 then
+-- consolidates whatever projects exist (none, on a fresh database) and 202
 -- drops the shell again, leaving a schema byte-identical to the base.
 --
 -- On a LIVE instance every object here already exists, so the file is a

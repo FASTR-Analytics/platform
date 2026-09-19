@@ -69,7 +69,7 @@ Boot completes (or fails if any validation fails)
 server/db/migrations/
 ├── runner.ts              # the migration runner and TS_MIGRATIONS
 ├── instance/              # SQL and TypeScript migrations - the main DB
-├── consolidation/         # plan.ts + execute.ts: the body of migration 091
+├── consolidation/         # plan.ts + execute.ts: the body of migration 201
 └── data_transforms/       # JSON data transforms - one file per type
     ├── instance_config.ts
     ├── runs_summary.ts
@@ -597,8 +597,8 @@ production behaviour is unchanged. `079` and `086` guard their statements on
 When too many older migrations touch the dropped layer to guard each one, a
 shell migration that sorts first recreates just enough of it instead:
 `000_legacy_project_shell.sql` creates `projects` and `project_user_roles`
-and adds the log tables' `project_id` columns so that 001 to 090 resolve on a
-fresh database, and `092_drop_project_layer.sql` drops them again. Every
+and adds the log tables' `project_id` columns so that every migration below 200
+resolves on a fresh database, and `202_drop_project_layer.sql` drops them again. Every
 object in a shell uses `IF NOT EXISTS`, so it is a no-op on a live instance.
 Keep a column add even when a `CREATE TABLE IF NOT EXISTS` for the same table
 would no-op: Postgres resolves an index expression before the

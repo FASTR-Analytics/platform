@@ -1,4 +1,4 @@
-// Harness for the products that migration 091 consolidated, against the dev
+// Harness for the products that migration 201 consolidated, against the dev
 // database: every stored figure bundle on all four surfaces parses under the
 // strict schema, so each carries its package and scope (version snapshots are
 // stored verbatim, so they are read through the same figure-block upgrade the

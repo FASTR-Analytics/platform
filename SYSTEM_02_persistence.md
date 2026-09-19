@@ -67,7 +67,7 @@ Postgres server
 
 The products block on `main` (`folders`, `products`, `slide_decks`, `slides`,
 `reports`, `report_versions`, `slide_deck_versions`) is in the base schema and,
-for existing instances, in `090_products.sql` in `IF NOT EXISTS` form.
+for existing instances, in `200_products.sql` in `IF NOT EXISTS` form.
 `server/db/products/**` reads and writes it
 ([SYSTEM_12](SYSTEM_12_documents_sharing.md)).
 
@@ -329,10 +329,10 @@ edit of an applied migration is the table-existence guard that lets a
 base-owned table leave the base schema (the protocol's "Dropping a table that
 older migrations touch").
 
-### The project consolidation: 000, 091 and 092
+### The project consolidation: 000, 201 and 202
 
-The base schema has no project layer, but migrations 001 to 090 were written
-against a base that had one: several alter `projects`, `project_user_roles` or
+The base schema has no project layer, but every migration below 200 was
+written against a base that had one: several alter `projects`, `project_user_roles` or
 the `project_id` columns of the log tables, or index those columns. Three
 instance migrations bridge that:
 
@@ -340,14 +340,14 @@ instance migrations bridge that:
   `project_user_roles` with `IF NOT EXISTS` and adds `project_id` to
   `user_logs`, `ai_usage_logs` and `user_logs_aggregate`. On a live instance
   every object already exists and the file is a no-op; on a fresh database it
-  gives 001 to 090 the shape they expect. The three `ADD COLUMN` lines are
+  gives every migration below 200 the shape it expects. The three `ADD COLUMN` lines are
   load-bearing: Postgres resolves an index expression before the
   `IF NOT EXISTS` name check, so the index statements in 016 and 035 fail
   without the column even though their `CREATE TABLE IF NOT EXISTS` no-ops.
   They are `ALTER TABLE IF EXISTS` because a fleet base older than a log table
   gets that table, with its `project_id` column, from the later migration that
   creates it.
-- **`091_consolidate_projects.ts`** is registered in `TS_MIGRATIONS`; the file
+- **`201_consolidate_projects.ts`** is registered in `TS_MIGRATIONS`; the file
   re-exports `consolidateProjects` from `consolidation/execute.ts`. For every
   `ready` project whose database exists, it plans with
   `consolidation/plan.ts` and inserts the plan through the migration
@@ -362,7 +362,7 @@ instance migrations bridge that:
   version snapshots keep their ledgers. A source database not at
   `041_drop_frozen_results_plane`, or a project with no `run_id` on an
   instance with no pinned run, throws. With no projects it returns at once.
-- **`092_drop_project_layer.sql`** merges `user_logs_aggregate` rows that
+- **`202_drop_project_layer.sql`** merges `user_logs_aggregate` rows that
   differ only by `project_id`, drops the `project_id` columns (which severs the
   cascade foreign keys, so the logs survive), rebuilds
   `idx_user_logs_aggregate_unique` on
@@ -376,15 +376,15 @@ throwaway container through the real runner over the real instance directory.
 It reads the legacy main base, the project base schema and the project
 migrations from `LEGACY_COMMIT` with `git show`. It proves (a) a seeded live
 instance with two template-identical project databases, (b) the users-and-logs
-path through 092, (c) the two negative controls that show 000's `ADD COLUMN`
+path through 202, (c) the two negative controls that show 000's `ADD COLUMN`
 lines are load-bearing, and (d) the fresh path; the migrated and fresh schemas
 must both dump byte-identical to the base. `./validate_consolidation.ts` (repo
 root) is the read-only fleet dry-run: per instance, over an ssh tunnel per
 PROTOCOL_ACCESS_DBS or `--local` against the dev database, it runs the same
-planner and reports the FAILs that would abort 091 and the REVIEW counts that
+planner and reports the FAILs that would abort 201 and the REVIEW counts that
 are irreversible once it runs; `--json` writes the planned per-instance counts
 the rollout post-check compares against. The replay harness runs it against
-its seeded instance and checks the planned counts against what 091 inserted.
+its seeded instance and checks the planned counts against what 201 inserted.
 
 ## FigureBundle backfill: the boot-time cutover
 

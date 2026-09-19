@@ -626,7 +626,7 @@ peer border appears only once text exists.
 
 ## Persistence & migrations
 
-- Columns on the main DB (migration `090_products.sql`, mirrored in
+- Columns on the main DB (migration `200_products.sql`, mirrored in
   `_main_database.sql`): `crdt_state` (base64 full Yjs state) +
   `crdt_state_last_updated` on `slides` and `reports`;
   `reports.body_authors` + `report_versions.body_authors`;
@@ -812,7 +812,7 @@ per CRDT operation.
 
 ### Storage
 
-Two main-DB tables (migration `090_products.sql`, mirrored in
+Two main-DB tables (migration `200_products.sql`, mirrored in
 `_main_database.sql`): `report_versions` and `slide_deck_versions`. Each row is
 a full content snapshot. Report: `label, body, figures, images`; deck: `label,
 slide_deck_config, slides` (JSON `[{id, sortOrder, config}]`, where original

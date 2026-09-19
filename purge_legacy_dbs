@@ -2,7 +2,7 @@
 
 # FINAL, IRREVERSIBLE CLEANUP after the products restructure has settled
 # (PLAN_PRODUCTS_RESTRUCTURE step 14). Per instance it removes the two things
-# migration 091 deliberately left on disk:
+# migration 201 deliberately left on disk:
 #
 #   1. every UUID-named Postgres database (the legacy project databases; also
 #      the long-standing orphaned UUID databases of abandoned projects),
@@ -121,7 +121,7 @@ for INSTANCE in "${INSTANCES[@]}"; do
     : > "$RUNS_FILE"
 
     # The purge is only safe once the restructure has actually landed here: a
-    # surviving `projects` table means 092 never ran and the project databases
+    # surviving `projects` table means 202 never ran and the project databases
     # are still the live data.
     PROJECTS_TABLE=$(psql_main "$INSTANCE" "SELECT COALESCE(to_regclass('public.projects')::text, 'dropped')") || {
         echo "  ERROR: could not query main on $INSTANCE, skipping."
