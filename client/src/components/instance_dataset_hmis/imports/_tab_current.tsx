@@ -120,13 +120,6 @@ export function Dhis2TabCurrent(p: Props) {
                 </div>
               )}
             </Show>
-            <Button onClick={p.onNewImport} iconName="databaseImport">
-              {t3({
-                en: "New import",
-                fr: "Nouvelle importation",
-                pt: "Nova importação",
-              })}
-            </Button>
           </div>
         }
       >
