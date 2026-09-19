@@ -28,7 +28,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { freeRunLabel, isRunLabelTaken } from "./_label";
 import { buildModuleGraph, familiesOf, isOfferable } from "./_module_graph";
 import { StepConfirm } from "./_step_confirm";
-import { StepData } from "./_step_data";
+import { StepData, type FamilyBlockedReason } from "./_step_data";
 import { StepModules } from "./_step_modules";
 
 type StepKind = "data" | "modules" | "confirm";
@@ -125,15 +125,22 @@ type InnerProps = {
 function WizardInner(p: InnerProps) {
   const graph = buildModuleGraph(p.options);
 
-  // Step 1: data. Seed: instance defaults, masked by what is uploaded.
-  const available = (family: DatasetType): boolean => {
-    if (!instanceState.datasetsWithData.includes(family)) {
-      return false;
+  // Step 1: data. Seed: instance defaults, masked by what is uploaded and,
+  // for HMIS, by a running import (the launch guard's client half).
+  const blocked = (family: DatasetType): FamilyBlockedReason | undefined => {
+    if (
+      !instanceState.datasetsWithData.includes(family) ||
+      (family === "hmis" && instanceState.datasetVersions.hmis === undefined)
+    ) {
+      return "no_data";
     }
-    return (
-      family !== "hmis" || instanceState.datasetVersions.hmis !== undefined
-    );
+    if (family === "hmis" && instanceState.hmisImportRunActive) {
+      return "hmis_import_running";
+    }
+    return undefined;
   };
+  const available = (family: DatasetType): boolean =>
+    blocked(family) === undefined;
   const [families, setFamilies] = createStore<RunGenerationStep1Result>({
     hmis: p.defaults.step1?.hmis === true && available("hmis"),
     hfa: p.defaults.step1?.hfa === true && available("hfa"),
@@ -335,7 +342,7 @@ function WizardInner(p: InnerProps) {
         <Show when={currentStepKind() === "data"}>
           <StepData
             families={families}
-            available={available}
+            blocked={blocked}
             setFamily={setFamilies}
           />
         </Show>

@@ -2,9 +2,11 @@ import { t3, type DatasetType, type RunGenerationStep1Result } from "lib";
 import { Checkbox } from "panther";
 import { For, Show } from "solid-js";
 
+export type FamilyBlockedReason = "no_data" | "hmis_import_running";
+
 type Props = {
   families: RunGenerationStep1Result;
-  available: (family: DatasetType) => boolean;
+  blocked: (family: DatasetType) => FamilyBlockedReason | undefined;
   setFamily: (family: DatasetType, included: boolean) => void;
 };
 
@@ -12,11 +14,18 @@ type Props = {
 // captures the FULL dataset per family (PLAN_FULL_CAPTURE_GENERATION);
 // per-project subsetting happens at attach time, never here.
 export function StepData(p: Props) {
-  const notAvailableNote = t3({
-    en: "No data of this type has been uploaded to this instance",
-    fr: "Aucune donnée de ce type n'a été téléversée sur cette instance",
-    pt: "Nenhum dado deste tipo foi carregado nesta instância",
-  });
+  const blockedNote: Record<FamilyBlockedReason, string> = {
+    no_data: t3({
+      en: "No data of this type has been uploaded to this instance",
+      fr: "Aucune donnée de ce type n'a été téléversée sur cette instance",
+      pt: "Nenhum dado deste tipo foi carregado nesta instância",
+    }),
+    hmis_import_running: t3({
+      en: "A DHIS2 import run is in progress. Wait for it to complete or cancel it.",
+      fr: "Une importation DHIS2 est en cours. Attendez qu'elle se termine ou annulez-la.",
+      pt: "Uma importação DHIS2 está em curso. Aguarde a sua conclusão ou cancele-a.",
+    }),
+  };
 
   const rows: { family: DatasetType; label: string }[] = [
     {
@@ -62,16 +71,18 @@ export function StepData(p: Props) {
               label={
                 <span>
                   <span>{row.label}</span>
-                  <Show when={!p.available(row.family)}>
-                    <span class="text-base-content-faint ml-2 text-sm italic">
-                      {notAvailableNote}
-                    </span>
+                  <Show when={p.blocked(row.family)}>
+                    {(reason) => (
+                      <span class="text-base-content-faint ml-2 text-sm italic">
+                        {blockedNote[reason()]}
+                      </span>
+                    )}
                   </Show>
                 </span>
               }
               checked={p.families[row.family]}
               onChange={(v) => p.setFamily(row.family, v)}
-              disabled={!p.available(row.family)}
+              disabled={p.blocked(row.family) !== undefined}
             />
           )}
         </For>
