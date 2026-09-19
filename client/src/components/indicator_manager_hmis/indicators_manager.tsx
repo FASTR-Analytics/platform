@@ -22,7 +22,7 @@ import {
   HeadingBar,
   Icon,
   Input,
-  MenuTriggerWrapper,
+  ActionMenuButton,
   ModalContainer,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
@@ -696,9 +696,7 @@ function IndicatorsTable(p: {
           >
             {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
           </Button>
-          <MenuTriggerWrapper position="bottom-end" items={otherActions}>
-            <Button iconName="moreVertical" intent="neutral" ariaLabel="Other actions" />
-          </MenuTriggerWrapper>
+          <ActionMenuButton items={otherActions} />
         </Show>
       </div>
       <Show when={importNotice()}>

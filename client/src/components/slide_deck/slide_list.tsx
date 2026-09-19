@@ -14,6 +14,7 @@ import {
   HeadingBar,
   LoadingIndicator,
   type MenuItem,
+  ActionMenuButton,
   MenuTriggerWrapper,
   Slider,
   createDeleteAction,
@@ -482,9 +483,7 @@ export function SlideList(p: Props) {
             >
               {t3(TC.settings)}
             </Button>
-            <MenuTriggerWrapper position="bottom-end" items={menuItems}>
-              <Button id="deck-more-button" iconName="moreVertical" outline />
-            </MenuTriggerWrapper>
+            <ActionMenuButton id="deck-more-button" items={menuItems} />
             <Show when={!showAi()}>
               <Button
                 onClick={() => setShowAi(true)}

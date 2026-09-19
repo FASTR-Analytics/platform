@@ -5,7 +5,7 @@ import {
   type AIChatSystemPromptPanelProps,
   Button,
   createAIChat,
-  MenuTriggerWrapper,
+  ActionMenuButton,
   openComponent,
   openConfirm,
   useConversations,
@@ -112,15 +112,7 @@ export function HfaIndicatorChatPane(p: Props) {
           </span>
         </h3>
         <div class="ui-gap-sm flex items-center">
-          <MenuTriggerWrapper items={menuItems} position="bottom-end">
-            <Button
-              outline
-              onBackground="primary"
-              intent="base-100"
-              iconName="moreVertical"
-              ariaLabel="Menu"
-            />
-          </MenuTriggerWrapper>
+          <ActionMenuButton items={menuItems} onBackground="primary" />
           <Button
             onClick={p.onClose}
             outline

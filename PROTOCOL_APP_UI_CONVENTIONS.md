@@ -225,7 +225,7 @@ mappings:
 | `report` / `presentation` / `layoutDashboard` / `chart` | reports / decks / dashboards / visualizations tabs |
 | `code` / `database` / `settings`                        | modules / data / settings tabs                     |
 | `sparkles`                                              | AI features                                        |
-| `moreVertical`                                          | overflow menu trigger                              |
+| `moreVertical`                                          | only inside panther's `ActionMenuButton`           |
 | `info` / `questionMark` / `help`                        | hints, help chrome                                 |
 | `lock` / `unlock` / `eye`                               | locking, visibility                                |
 

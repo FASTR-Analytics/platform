@@ -416,8 +416,8 @@ changes), reporting refreshed, unchanged and not-found counts; an element
 DHIS2 no longer has keeps its stored name. Display labels are never
 touched. The manager's toolbar keeps the daily actions as buttons (Sort,
 Add from DHIS2, Create new) and puts the occasional ones, the dictionary
-download and Refresh DHIS2 names, in an overflow menu (`moreVertical`,
-`otherActionItems`), global admins only, the refresh gated on a stored
+download and Refresh DHIS2 names, in an overflow menu (panther's
+`ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated on a stored
 DHIS2 connection like Add from DHIS2.
 
 Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1,
