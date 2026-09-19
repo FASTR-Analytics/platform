@@ -112,7 +112,12 @@ export function HfaIndicatorChatPane(p: Props) {
           </span>
         </h3>
         <div class="ui-gap-sm flex items-center">
-          <ActionMenuButton items={menuItems} onBackground="primary" />
+          <ActionMenuButton
+            items={menuItems}
+            outline
+            onBackground="primary"
+            intent="base-100"
+          />
           <Button
             onClick={p.onClose}
             outline

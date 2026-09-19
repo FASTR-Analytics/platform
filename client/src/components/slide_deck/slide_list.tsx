@@ -483,7 +483,7 @@ export function SlideList(p: Props) {
             >
               {t3(TC.settings)}
             </Button>
-            <ActionMenuButton id="deck-more-button" items={menuItems} />
+            <ActionMenuButton id="deck-more-button" items={menuItems} outline />
             <Show when={!showAi()}>
               <Button
                 onClick={() => setShowAi(true)}

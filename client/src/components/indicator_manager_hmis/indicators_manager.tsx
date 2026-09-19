@@ -696,7 +696,7 @@ function IndicatorsTable(p: {
           >
             {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
           </Button>
-          <ActionMenuButton items={otherActions} />
+          <ActionMenuButton items={otherActions} intent="neutral" />
         </Show>
       </div>
       <Show when={importNotice()}>

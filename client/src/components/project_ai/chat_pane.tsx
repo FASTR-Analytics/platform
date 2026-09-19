@@ -435,7 +435,12 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
         </h3>
         <div class="ui-gap-sm flex items-center">
-          <ActionMenuButton items={menuItems} onBackground="primary" />
+          <ActionMenuButton
+            items={menuItems}
+            outline
+            onBackground="primary"
+            intent="base-100"
+          />
           <Button
             onClick={() => setShowAi(false)}
             outline
