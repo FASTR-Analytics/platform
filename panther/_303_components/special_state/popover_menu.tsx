@@ -454,16 +454,17 @@ export function MenuTriggerWrapper(
 
 export type ActionMenuButtonProps = {
   items: MenuItem[] | (() => MenuItem[]);
-  // The surface the button rests on, for an outline on a coloured header.
+  intent?: Intent;
+  outline?: boolean;
   onBackground?: Intent;
   size?: "sm";
   id?: string;
 } & DataAttrs;
 
-// The three-dots button that opens a screen's occasional actions. One look
-// everywhere: an outline, icon-only `moreVertical` that opens bottom-end
-// under one accessible name. A right-click context menu is showMenu, not
-// this.
+// The three-dots button that opens a screen's occasional actions. Styled
+// like any Button (intent, outline, onBackground, size); the icon, the
+// bottom-end placement and the accessible name are the component's. A
+// right-click context menu is showMenu, not this.
 export function ActionMenuButton(p: ActionMenuButtonProps): JSX.Element {
   const [dataAttrs] = splitDataAttrs(p);
   return (
@@ -471,7 +472,8 @@ export function ActionMenuButton(p: ActionMenuButtonProps): JSX.Element {
       <Button
         id={p.id}
         iconName="moreVertical"
-        outline
+        intent={p.intent}
+        outline={p.outline}
         onBackground={p.onBackground}
         size={p.size}
         ariaLabel="More actions"
