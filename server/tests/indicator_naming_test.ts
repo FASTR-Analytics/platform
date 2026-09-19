@@ -21,8 +21,10 @@ import {
   createIndicators,
   createIndicatorsFromDhis2,
   type Dhis2NamingElement,
+  getDhis2ElementDataIds,
   getHmisIndicators,
   type NewIndicator,
+  setDhis2Labels,
   updateIndicator,
 } from "../db/instance/indicators.ts";
 import { parseDhis2Indicator } from "../dhis2/goal2_indicators/decompose_indicator.ts";
@@ -404,6 +406,43 @@ Deno.test("dhis2: the DHIS2 label survives a relabel and a rename, and goes with
     SELECT dhis2_label FROM indicators WHERE indicator_common_id = 'anc1'
   `;
   assertEquals(stored[0].dhis2_label, null);
+});
+
+Deno.test("dhis2: the label refresh writes only DHIS2 elements whose name differs", async () => {
+  await reset();
+  const created = await createIndicatorsFromDhis2(db, {
+    elements: [element(ANC1_ELEMENT, "anc1"), element(ANC4_ELEMENT, "anc4")],
+    indicators: [],
+  });
+  assert(created.success, created.success ? "" : created.err);
+  await seed("total", { type: "sum", members: ["anc1"] });
+  assertEquals(await getDhis2ElementDataIds(db), [
+    { indicator_common_id: "anc1", data_id: ANC1_ELEMENT },
+    { indicator_common_id: "anc4", data_id: ANC4_ELEMENT },
+  ]);
+
+  const refreshed = await setDhis2Labels(
+    db,
+    new Map([
+      ["anc1", "Renamed in DHIS2"],
+      ["anc4", dhis2LabelFor(ANC4_ELEMENT)],
+      ["total", "Not an element"],
+    ]),
+  );
+  assertEquals(refreshed, 1);
+  const d = await dictionary();
+  assertEquals(d.get("anc1")!.definition, {
+    type: "dhis2_element",
+    data_id: ANC1_ELEMENT,
+    dhis2_label: "Renamed in DHIS2",
+  });
+  assertEquals(d.get("anc4")!.definition, {
+    type: "dhis2_element",
+    data_id: ANC4_ELEMENT,
+    dhis2_label: dhis2LabelFor(ANC4_ELEMENT),
+  });
+  assertEquals(d.get("total")!.definition, { type: "sum", members: ["anc1"] });
+  assertEquals(await setDhis2Labels(db, new Map()), 0);
 });
 
 Deno.test("naming: a taken id (an Uploaded, a DHIS2 element, a sum, a calculated) is refused; nothing is assigned to", async () => {

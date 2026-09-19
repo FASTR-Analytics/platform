@@ -783,6 +783,41 @@ export type Dhis2NamingIndicator = {
 // DHIS2 metadata, never the client's. A refused element or indicator
 // refuses the whole save; an accepted indicator becomes a calculated over the
 // DHIS2 elements its operands land in.
+// Every DHIS2 element's id and data id, for the label refresh.
+export async function getDhis2ElementDataIds(
+  mainDb: Sql,
+): Promise<{ indicator_common_id: string; data_id: string }[]> {
+  const rows = await mainDb<{ indicator_common_id: string; data_id: string }[]>`
+    SELECT indicator_common_id, data_id FROM indicators
+    WHERE definition_type = 'dhis2_element'
+    ORDER BY indicator_common_id
+  `;
+  return rows.map((r) => ({ indicator_common_id: r.indicator_common_id, data_id: r.data_id }));
+}
+
+// Writes the DHIS2 label the route read for each element, by indicator id,
+// where it differs from the stored one; updated_at moves on those rows so
+// the dictionary stamp changes. Only a DHIS2 element is written (the CHECK
+// would refuse anything else). Returns how many rows changed.
+export async function setDhis2Labels(
+  mainDb: Sql,
+  labels: Map<string, string>,
+): Promise<number> {
+  if (labels.size === 0) return 0;
+  const ids = [...labels.keys()];
+  const values = ids.map((id) => labels.get(id)!);
+  const rows = await mainDb<{ indicator_common_id: string }[]>`
+    UPDATE indicators i
+    SET dhis2_label = v.label, updated_at = CURRENT_TIMESTAMP
+    FROM UNNEST(${ids}::text[], ${values}::text[]) AS v(id, label)
+    WHERE i.indicator_common_id = v.id
+      AND i.definition_type = 'dhis2_element'
+      AND i.dhis2_label IS DISTINCT FROM v.label
+    RETURNING i.indicator_common_id
+  `;
+  return rows.length;
+}
+
 export async function createIndicatorsFromDhis2(
   mainDb: Sql,
   input: { elements: Dhis2NamingElement[]; indicators: Dhis2NamingIndicator[] },

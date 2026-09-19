@@ -406,6 +406,20 @@ direction, target, expected_low_counts`; `type` in the four code names,
 format only: nothing reads it back (PLAN_A6 ruling 8 removed the batch
 upload).
 
+The DHIS2 names are refreshed on demand, never on a schedule:
+`refreshDhis2Labels` (`POST /indicators-dhis2/refresh-labels`) re-reads
+every DHIS2 element by UID from live metadata with the same chunked fetch
+and the same `dhis2ElementName` rule as the create route, and
+`setDhis2Labels` writes the names that differ (DHIS2 elements only, by
+indicator id, `updated_at` moving on those rows so the dictionary stamp
+changes), reporting refreshed, unchanged and not-found counts; an element
+DHIS2 no longer has keeps its stored name. Display labels are never
+touched. The manager's toolbar keeps the daily actions as buttons (Sort,
+Add from DHIS2, Create new) and puts the occasional ones, the dictionary
+download and Refresh DHIS2 names, in an overflow menu (`moreVertical`,
+`otherActionItems`), global admins only, the refresh gated on a stored
+DHIS2 connection like Add from DHIS2.
+
 Instance migration 087 (`087_indicator_data_key.sql`, PLAN_A6 rulings 1,
 11, 12 and 13) gives every Uploaded row a key: a row whose `data_id` was
 NULL takes a generated `u_` key and its `updated_at` moves; a row that
@@ -1014,10 +1028,10 @@ Every config mutation re-reads all configs and pushes one consolidated
   visible rows.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
   Calculated, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
-  element, the members, the formula, nothing for an Uploaded indicator;
-  `definedByText`, shared with the import picker; the DHIS2 name is not a
-  column: the editor shows it read-only under the DHIS2 id input while the
-  id stands, `dhis2LabelOf`, and the download carries it), a Format column (a
+  element with the DHIS2 name under it when one is stored (`dhis2LabelOf`;
+  the editor shows the same name, read-only, under the DHIS2 id input while
+  the id stands), the members, the formula, nothing for an Uploaded indicator;
+  `definedByText`, shared with the import picker), a Format column (a
   calculated indicator's Number, Percent or Rate per 10,000; blank for a
   count, which is always a number; `formatText`), a read-only
   include-in-analysis tick (the flag is edited in the modal only) and the

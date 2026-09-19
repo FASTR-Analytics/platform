@@ -22,6 +22,7 @@ import {
   HeadingBar,
   Icon,
   Input,
+  MenuTriggerWrapper,
   ModalContainer,
   getQueryStateFromApiResponse,
   StateHolderWrapper,
@@ -34,6 +35,7 @@ import {
   createDeleteAction,
   createQuery,
   type BulkAction,
+  type MenuItem,
   type StateHolder,
 } from "panther";
 import {
@@ -181,6 +183,39 @@ export function IndicatorsManager(p: Props) {
     await openEditor({ element: Dhis2IndicatorSelectForm, props: {} });
   }
 
+  // Re-reads every DHIS2 element's name from DHIS2 and stores it as the
+  // read-only DHIS2 label. A maintenance action: it lives in the toolbar's
+  // overflow menu, not on a button.
+  async function handleRefreshDhis2Labels() {
+    if (!instanceState.dhis2ConnectionUrl) {
+      await openAlert({ text: t3(NO_STORED_DHIS2_CONNECTION) });
+      return;
+    }
+    const res = await serverActions.refreshDhis2Labels({});
+    if (!res.success) {
+      await openAlert({ text: res.err, intent: "danger" });
+      return;
+    }
+    const { refreshed, unchanged, notFound } = res.data;
+    const lines = [
+      t3({
+        en: `${refreshed} DHIS2 name(s) updated, ${unchanged} already current.`,
+        fr: `${refreshed} nom(s) DHIS2 mis à jour, ${unchanged} déjà à jour.`,
+        pt: `${refreshed} nome(s) DHIS2 atualizado(s), ${unchanged} já atual(is).`,
+      }),
+    ];
+    if (notFound.length > 0) {
+      lines.push(
+        t3({
+          en: `Not found in DHIS2, left as they are: ${notFound.join(", ")}`,
+          fr: `Introuvables dans DHIS2, laissés tels quels : ${notFound.join(", ")}`,
+          pt: `Não encontrados no DHIS2, mantidos como estão: ${notFound.join(", ")}`,
+        }),
+      );
+    }
+    await openAlert({ text: lines.join(" ") });
+  }
+
   async function handleTypes() {
     await openComponent({ element: IndicatorTypesModal, props: {} });
   }
@@ -240,6 +275,7 @@ export function IndicatorsManager(p: Props) {
                   idsWithRows={idsWithRows()}
                   handleDownloadCsv={handleDownloadCsv}
                   handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
+                  handleRefreshDhis2Labels={handleRefreshDhis2Labels}
                 />
               </div>
             )}
@@ -255,11 +291,36 @@ type IndicatorStatus = {
   population: string | undefined;
 };
 
+// The occasional actions, off the toolbar so they are not taken for daily
+// ones: the dictionary download and the DHIS2 name refresh.
+function otherActionItems(p: {
+  onDownload: () => void;
+  onRefreshDhis2Labels: () => void;
+}): MenuItem[] {
+  return [
+    {
+      label: t3({ en: "Download", fr: "Télécharger", pt: "Transferir" }),
+      icon: "download",
+      onClick: p.onDownload,
+    },
+    {
+      label: t3({
+        en: "Refresh DHIS2 names",
+        fr: "Actualiser les noms DHIS2",
+        pt: "Atualizar nomes DHIS2",
+      }),
+      icon: "refresh",
+      onClick: p.onRefreshDhis2Labels,
+    },
+  ];
+}
+
 function IndicatorsTable(p: {
   indicators: HmisIndicator[];
   idsWithRows: Set<string> | undefined;
   handleDownloadCsv: (indicators: HmisIndicator[]) => void;
   handleDhis2IndicatorSelect: () => void;
+  handleRefreshDhis2Labels: () => void;
 }) {
   // The counts the extract could produce values for: an Uploaded or DHIS2
   // element by the rows under its data id, a sum by any member's. Over
@@ -343,6 +404,12 @@ function IndicatorsTable(p: {
       props: { indicators: p.indicators },
     });
   }
+
+  const otherActions = () =>
+    otherActionItems({
+      onDownload: () => p.handleDownloadCsv(p.indicators),
+      onRefreshDhis2Labels: p.handleRefreshDhis2Labels,
+    });
 
   // The DHIS2 data import for the rows in front of you (PLAN_A7 ruling 11):
   // the same wizard the imports view opens, preselected with the selection,
@@ -462,8 +529,13 @@ function IndicatorsTable(p: {
       sortable: true,
       sortValue: definedByText,
       render: (indicator) => (
-        <div class="font-mono text-xs">
-          <WrapOnUnderscore text={definedByText(indicator)} />
+        <div class="text-xs">
+          <div class="font-mono">
+            <WrapOnUnderscore text={definedByText(indicator)} />
+          </div>
+          <Show when={dhis2LabelOf(indicator)}>
+            {(label) => <div class="text-base-content-muted">{label()}</div>}
+          </Show>
         </div>
       ),
     },
@@ -600,13 +672,6 @@ function IndicatorsTable(p: {
         </div>
         <Show when={instanceState.currentUserIsGlobalAdmin}>
           <Button
-            onClick={() => p.handleDownloadCsv(p.indicators)}
-            iconName="download"
-            intent="neutral"
-          >
-            {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
-          </Button>
-          <Button
             onClick={handleSortIndicators}
             iconName="gripVertical"
             intent="neutral"
@@ -631,6 +696,9 @@ function IndicatorsTable(p: {
           >
             {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
           </Button>
+          <MenuTriggerWrapper position="bottom-end" items={otherActions}>
+            <Button iconName="moreVertical" intent="neutral" ariaLabel="Other actions" />
+          </MenuTriggerWrapper>
         </Show>
       </div>
       <Show when={importNotice()}>
