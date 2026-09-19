@@ -10,9 +10,10 @@ type Props = {
 
 // A module definition's parameter selections as inputs (all values are
 // strings keyed by replacementString; booleans round-trip "TRUE"/"FALSE").
-// Used by the module-defaults editor and the results-package wizard; both
-// gate their saves on getModuleParameterInvalidMsg, the same check that
-// drives each input's inline invalid message.
+// Rendered only by the module-defaults editor, the one writer of parameter
+// values; it gates its save on getModuleParameterInvalidMsg, the same check
+// that drives each input's inline invalid message and that the wizard runs
+// over the stored defaults before launch.
 export function getModuleParameterInvalidMsg(
   parameter: ModuleParameter,
   value: string | undefined,

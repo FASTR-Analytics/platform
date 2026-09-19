@@ -145,15 +145,14 @@ function WizardInner(p: InnerProps) {
   // Deriving the closure at read time is what keeps the launch payload
   // closed under prerequisites whatever order families and ticks change in:
   // a ticked module whose family is dropped simply falls out (and comes
-  // back with the family). Seed: instance defaults. Parameter values:
-  // instance defaults beat definition defaults
-  // (getMergedModuleConfigSelections).
+  // back with the family). Seed: instance defaults. Parameter values are
+  // not editable in the wizard: the module-defaults editor is their only
+  // writer, so they are a plain constant here, instance defaults beating
+  // definition defaults (getMergedModuleConfigSelections).
   const [selected, setSelected] = createStore<Record<string, boolean>>(
     Object.fromEntries(p.defaults.moduleIds.map((id) => [id, true])),
   );
-  const [paramValues, setParamValues] = createStore<
-    Record<string, Record<string, string>>
-  >(
+  const paramValues: Record<string, Record<string, string>> =
     Object.fromEntries(
       p.options.modules.map((o) => [
         o.id,
@@ -165,8 +164,7 @@ function WizardInner(p: InnerProps) {
           { parameters: o.parameters },
         ).parameterSelections,
       ]),
-    ),
-  );
+    );
   const chosenIds = createMemo((): Set<ModuleId> => {
     const familySet = familiesOf(families);
     const ids = new Set<ModuleId>();
@@ -182,16 +180,18 @@ function WizardInner(p: InnerProps) {
   const chosen = createMemo(() =>
     p.options.modules.filter((o) => chosenIds().has(o.id)),
   );
-  const chosenParamsValid = createMemo(() =>
-    chosen().every((o) =>
-      o.parameters.every(
-        (param) =>
-          getModuleParameterInvalidMsg(
-            param,
-            paramValues[o.id][param.replacementString],
-          ) === undefined,
-      ),
-    ),
+  const invalidDefaultLabels = createMemo(() =>
+    chosen()
+      .filter((o) =>
+        o.parameters.some(
+          (param) =>
+            getModuleParameterInvalidMsg(
+              param,
+              paramValues[o.id][param.replacementString],
+            ) !== undefined,
+        ),
+      )
+      .map((o) => o.label),
   );
 
   // Step 3: confirm.
@@ -208,7 +208,7 @@ function WizardInner(p: InnerProps) {
 
   const stepperData = createMemo(() => ({
     dataValid: families.hmis || families.hfa || families.iceh,
-    modulesValid: chosen().length > 0 && chosenParamsValid(),
+    modulesValid: chosen().length > 0 && invalidDefaultLabels().length === 0,
   }));
   const stepper = getStepper(stepperData, {
     initialStep: 0,
@@ -251,7 +251,6 @@ function WizardInner(p: InnerProps) {
         };
       }
       const targets = unwrap(attachTargets);
-      const values = unwrap(paramValues);
       return await serverActions.launchRunGeneration({
         label: trimmed,
         attachTargetProjectIds: instanceState.projects
@@ -262,7 +261,7 @@ function WizardInner(p: InnerProps) {
           gitRef: p.options.gitRef,
           modules: chosen().map((o) => ({
             moduleId: o.id,
-            parameterSelections: { ...values[o.id] },
+            parameterSelections: { ...paramValues[o.id] },
           })),
         },
       });
@@ -332,9 +331,8 @@ function WizardInner(p: InnerProps) {
             graph={graph}
             families={families}
             chosenIds={chosenIds()}
-            paramValues={paramValues}
+            invalidDefaultLabels={invalidDefaultLabels()}
             setSelected={setSelected}
-            setParam={setParamValues}
           />
         </Show>
         <Show when={currentStepKind() === "confirm"}>

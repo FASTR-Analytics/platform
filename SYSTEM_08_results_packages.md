@@ -788,9 +788,13 @@ pass through verbatim: the store tolerates unknowns by design. The editor
 enforces neither DAG closure nor data availability: the wizard sanitizes at
 read time (step 1 re-masks families by what is uploaded; the launched module
 set is the closure-completed, offerability-masked derivation of what is
-ticked, so a stored default whose family is absent simply never launches). Both writers gate their save on one
-shared check, `getModuleParameterInvalidMsg`, which also drives the inputs'
-inline invalid messages.
+ticked, so a stored default whose family is absent simply never launches).
+The wizard does not edit parameter values (ruled): the editor is the only
+place they are set, and launch sends the stored defaults merged with
+definition defaults. One shared check, `getModuleParameterInvalidMsg`, gates
+the editor's save, drives its inputs' inline invalid messages, and blocks the
+wizard's modules step with a note naming the modules whose stored default is
+invalid.
 
 ## Generation (`server/worker_routines/generate_run/`)
 

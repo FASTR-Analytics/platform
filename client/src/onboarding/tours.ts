@@ -2143,9 +2143,9 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
           pt: "Predefinições dos módulos",
         }),
         body: t3({
-          en: "The settings each module starts from whenever you generate. Set them once here rather than re-entering the same values in the wizard every time.",
-          fr: "Les paramètres dont chaque module part à chaque génération. Réglez-les une fois ici plutôt que de ressaisir les mêmes valeurs dans l'assistant à chaque fois.",
-          pt: "As definições de que cada módulo parte sempre que gera. Defina-as uma vez aqui em vez de repetir os mesmos valores no assistente de cada vez.",
+          en: "The settings each module runs with whenever you generate. This is the only place module parameters are set; the wizard uses them as stored.",
+          fr: "Les paramètres avec lesquels chaque module s'exécute à chaque génération. C'est le seul endroit où les paramètres des modules se règlent ; l'assistant les utilise tels qu'enregistrés.",
+          pt: "As definições com que cada módulo é executado sempre que gera. Este é o único sítio onde os parâmetros dos módulos se definem; o assistente usa-os tal como guardados.",
         }),
         placement: "bottom",
       },
