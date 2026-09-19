@@ -1,3 +1,8 @@
+[TBD] [user] [changed] - Refreshing DHIS2 names now opens an informative modal with progress details
+[TBD] [user] [changed] - DHIS2 name refresh shows how many indicators will be checked before running
+[TBD] [user] [changed] - Search bar and toolbar buttons have updated styling for a cleaner look
+[TBD] [admin] [changed] - Refreshing DHIS2 names now opens a confirmation dialog with details before running
+[TBD] [admin] [changed] - DHIS2 name refresh results displayed in a clearer summary with warnings for missing elements
 [TBD] [user] [added] - Refresh DHIS2 names from the indicator toolbar menu
 [TBD] [user] [changed] - DHIS2 original name now shown below element ID in indicator table
 [TBD] [user] [changed] - Download and DHIS2 name refresh moved to overflow menu in toolbar
