@@ -235,7 +235,7 @@ mappings:
 | `presentation` / `report` / `chart`      | slide decks and the Products tab / reports / the Explore tab and figures |
 | `code` / `database` / `settings`         | system-prompt view / the Data tab, data import / settings actions        |
 | `sparkles`                               | AI features                                                              |
-| `moreVertical`                           | only inside panther's `ActionMenuButton`                                 |
+| `moreVertical`                           | overflow menu trigger                                                    |
 | `info` / `questionMark` / `help`         | hints, help chrome                                                       |
 | `eye` / `eyeOff`                         | show / hide toggles                                                      |
 
