@@ -91,7 +91,11 @@ needs no server, no deploy and no database session.
 ## Rung 1: local dev
 
 ```bash
-./pg_run        # local Postgres, container `pg`, host port 7001
+./run           # replaces the `pg` and `valkey-local` containers with this checkout's
+                # data dirs, boots server and client, stops both containers on Ctrl+C
+
+# Or, piece by piece:
+./pg_run        # local Postgres, container `pg`, host port 7001; password from .env
 ./valkey_run    # Valkey on 7379, `VALKEY_URL` is set in .env, so boot expects it
 deno task dev   # server on :8000, /mcp mounted exactly as in production
 cd client && npm run dev   # SPA on :3000, hot-reloads
