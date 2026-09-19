@@ -414,7 +414,9 @@ and the same `dhis2ElementName` rule as the create route, and
 indicator id, `updated_at` moving on those rows so the dictionary stamp
 changes), reporting refreshed, unchanged and not-found counts; an element
 DHIS2 no longer has keeps its stored name. Display labels are never
-touched. The manager's toolbar keeps the daily actions as buttons (Sort,
+touched. The client runs it from `RefreshDhis2LabelsModal`: the
+explanation and the count of elements to read, the Refresh button waiting
+on the one request with its spinner, then the counts in its place. The manager's toolbar keeps the daily actions as buttons (Sort,
 Add from DHIS2, Create new) and puts the occasional ones, the dictionary
 download and Refresh DHIS2 names, in an overflow menu (panther's
 `ActionMenuButton`, `otherActionItems`), global admins only, the refresh gated on a stored

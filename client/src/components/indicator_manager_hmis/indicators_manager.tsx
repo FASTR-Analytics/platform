@@ -71,6 +71,7 @@ import { SpecialBadge } from "./_special_badge";
 import { IndicatorTypeBadge } from "./_type_badge";
 import { WrapOnUnderscore } from "./_wrap_on_underscore";
 import { IndicatorTypesModal } from "./_type_facts";
+import { RefreshDhis2LabelsModal } from "./refresh_dhis2_labels_modal";
 
 type Props = {
   backToInstance: () => void;
@@ -183,37 +184,19 @@ export function IndicatorsManager(p: Props) {
     await openEditor({ element: Dhis2IndicatorSelectForm, props: {} });
   }
 
-  // Re-reads every DHIS2 element's name from DHIS2 and stores it as the
-  // read-only DHIS2 label. A maintenance action: it lives in the toolbar's
-  // overflow menu, not on a button.
-  async function handleRefreshDhis2Labels() {
+  // The DHIS2 name refresh, a maintenance action in the toolbar's overflow
+  // menu: the modal explains it, runs it and reports it.
+  async function handleRefreshDhis2Labels(indicators: HmisIndicator[]) {
     if (!instanceState.dhis2ConnectionUrl) {
       await openAlert({ text: t3(NO_STORED_DHIS2_CONNECTION) });
       return;
     }
-    const res = await serverActions.refreshDhis2Labels({});
-    if (!res.success) {
-      await openAlert({ text: res.err, intent: "danger" });
-      return;
-    }
-    const { refreshed, unchanged, notFound } = res.data;
-    const lines = [
-      t3({
-        en: `${refreshed} DHIS2 name(s) updated, ${unchanged} already current.`,
-        fr: `${refreshed} nom(s) DHIS2 mis à jour, ${unchanged} déjà à jour.`,
-        pt: `${refreshed} nome(s) DHIS2 atualizado(s), ${unchanged} já atual(is).`,
-      }),
-    ];
-    if (notFound.length > 0) {
-      lines.push(
-        t3({
-          en: `Not found in DHIS2, left as they are: ${notFound.join(", ")}`,
-          fr: `Introuvables dans DHIS2, laissés tels quels : ${notFound.join(", ")}`,
-          pt: `Não encontrados no DHIS2, mantidos como estão: ${notFound.join(", ")}`,
-        }),
-      );
-    }
-    await openAlert({ text: lines.join(" ") });
+    await openComponent({
+      element: RefreshDhis2LabelsModal,
+      props: {
+        elementCount: indicators.filter((i) => i.definition.type === "dhis2_element").length,
+      },
+    });
   }
 
   async function handleTypes() {
@@ -320,7 +303,7 @@ function IndicatorsTable(p: {
   idsWithRows: Set<string> | undefined;
   handleDownloadCsv: (indicators: HmisIndicator[]) => void;
   handleDhis2IndicatorSelect: () => void;
-  handleRefreshDhis2Labels: () => void;
+  handleRefreshDhis2Labels: (indicators: HmisIndicator[]) => void;
 }) {
   // The counts the extract could produce values for: an Uploaded or DHIS2
   // element by the rows under its data id, a sum by any member's. Over
@@ -408,7 +391,7 @@ function IndicatorsTable(p: {
   const otherActions = () =>
     otherActionItems({
       onDownload: () => p.handleDownloadCsv(p.indicators),
-      onRefreshDhis2Labels: p.handleRefreshDhis2Labels,
+      onRefreshDhis2Labels: () => p.handleRefreshDhis2Labels(p.indicators),
     });
 
   // The DHIS2 data import for the rows in front of you (PLAN_A7 ruling 11):
@@ -656,7 +639,7 @@ function IndicatorsTable(p: {
           {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })} (
           {p.indicators.length})
         </div>
-        <div class="w-80">
+        <div class="w-72 xl:w-96">
           <Input
             value={search()}
             onChange={setSearch}
@@ -674,7 +657,8 @@ function IndicatorsTable(p: {
           <Button
             onClick={handleSortIndicators}
             iconName="gripVertical"
-            intent="neutral"
+            // intent="neutral"
+            outline
           >
             {t3({ en: "Sort", fr: "Trier", pt: "Ordenar" })}
           </Button>
@@ -696,7 +680,7 @@ function IndicatorsTable(p: {
           >
             {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
           </Button>
-          <ActionMenuButton items={otherActions} intent="neutral" />
+          <ActionMenuButton items={otherActions} outline />
         </Show>
       </div>
       <Show when={importNotice()}>
@@ -736,7 +720,11 @@ function IndicatorsTable(p: {
           keyField="indicator_common_id"
           noRowsMessage={
             search() === ""
-              ? t3({ en: "No indicators", fr: "Aucun indicateur", pt: "Nenhum indicador" })
+              ? t3({
+                  en: "No indicators",
+                  fr: "Aucun indicateur",
+                  pt: "Nenhum indicador",
+                })
               : t3({
                   en: "No indicators match",
                   fr: "Aucun indicateur ne correspond",

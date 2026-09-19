@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   Dhis2DataElementSearchItem,
   Dhis2IndicatorSearchItem,
+  Dhis2LabelRefresh,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 import { indicatorNamingElementSchema } from "./indicators.ts";
@@ -68,9 +69,3 @@ export const indicatorsDhis2RouteRegistry = {
     response: {} as Dhis2LabelRefresh,
   }),
 } as const;
-
-export type Dhis2LabelRefresh = {
-  refreshed: number;
-  unchanged: number;
-  notFound: string[];
-};

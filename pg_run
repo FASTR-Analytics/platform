@@ -2,13 +2,11 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Prompt for password if not set in environment
 if [ -z "$PG_PASSWORD" ]; then
-	printf "Enter PostgreSQL password: "
-	read -r PG_PASSWORD
+	PG_PASSWORD="$(grep '^PG_PASSWORD=' "$SCRIPT_DIR/.env" | cut -d= -f2-)"
 fi
 
-docker stop pg
+docker stop pg >/dev/null 2>&1
 
 if [ "$1" = "clear" ]; then
 	echo "Clearing database"
@@ -21,7 +19,7 @@ sleep 2
 
 docker run --rm -d \
 	--name pg \
-  -p 7001:5432 \
+	-p 7001:5432 \
 	-e POSTGRES_PASSWORD="$PG_PASSWORD" \
 	-e PGDATA=/var/lib/postgresql/data/pgdata \
 	-v "$SCRIPT_DIR/_example_instance_dir/databases":/var/lib/postgresql/data \
