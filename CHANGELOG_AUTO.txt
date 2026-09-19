@@ -1,3 +1,11 @@
+[TBD] [user] [changed] - Module parameter values are now set only in Module Defaults, not in the wizard
+[TBD] [user] [added] - Wizard warns which modules have invalid default parameter values
+[TBD] [user] [added] - Results package labels must now be unique; duplicates are rejected
+[TBD] [user] [added] - Default results package label automatically avoids duplicates by appending a number
+[TBD] [admin] [changed] - Module parameters are now set only in Module Defaults, not in the wizard
+[TBD] [admin] [added] - Wizard warns when selected modules have invalid default parameter values
+[TBD] [admin] [added] - Results package labels must now be unique; duplicates are rejected
+[TBD] [admin] [added] - Wizard auto-generates a unique label if the default is already taken
 [TBD] [user] [changed] - Refreshing DHIS2 names now opens an informative modal with progress details
 [TBD] [user] [changed] - DHIS2 name refresh shows how many indicators will be checked before running
 [TBD] [user] [changed] - Search bar and toolbar buttons have updated styling for a cleaner look
