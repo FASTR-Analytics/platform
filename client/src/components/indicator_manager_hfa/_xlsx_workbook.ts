@@ -3,6 +3,7 @@ import {
   HFA_INDICATOR_ID_REGEX,
   HFA_VARIANT_ITEM_ID_REGEX,
   isReservedHfaId,
+  nextHfaIndicatorId,
   parseMultiMembershipValues,
   serialiseMultiMembershipValues,
   type HfaIndicator,
@@ -172,7 +173,12 @@ function sheetToObjects(aoa: string[][]): Record<string, string>[] {
   return rows;
 }
 
-export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
+// `existingIndicatorIds` are the instance's stored ids: a row with a blank
+// indicatorId is assigned the next free id after those and the sheet's own.
+export function detectHfaWorkbookShape(
+  arrayBuffer: ArrayBuffer,
+  existingIndicatorIds: Iterable<string>,
+): DetectResult {
   let wb;
   try {
     wb = read(arrayBuffer, { type: "array" });
@@ -363,7 +369,10 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
   const rawCode: WorkbookShape["rawCode"] = [];
   const rawVariantCode: WorkbookShape["rawVariantCode"] = [];
   const usedIndicatorIds = new Set<string>();
-  let autoIdCounter = 1;
+  const takenIds = new Set([
+    ...existingIndicatorIds,
+    ...indRows.map((r) => (r.indicatorId ?? "").trim()).filter((id) => id !== ""),
+  ]);
 
   for (let i = 0; i < indRows.length; i++) {
     const row = indRows[i];
@@ -382,9 +391,8 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
 
     let indicatorId = (row.indicatorId ?? "").trim();
     if (!indicatorId) {
-      while (usedIndicatorIds.has(`ind${String(autoIdCounter).padStart(3, "0")}`)) autoIdCounter++;
-      indicatorId = `ind${String(autoIdCounter).padStart(3, "0")}`;
-      autoIdCounter++;
+      indicatorId = nextHfaIndicatorId(takenIds);
+      takenIds.add(indicatorId);
     }
     if (!HFA_INDICATOR_ID_REGEX.test(indicatorId)) {
       return { ok: false, err: `Indicators sheet, row ${i + 2}: Indicator ID "${indicatorId}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).` };

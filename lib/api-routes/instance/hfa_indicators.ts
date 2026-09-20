@@ -79,12 +79,10 @@ const hfaIndicatorIdSchema = hfaIndicatorIdShapeSchema.refine(
   RESERVED_INDICATOR_ID_MESSAGE,
 );
 
-// Shape only. The update paths identify the row by oldIndicatorId and indicatorId is
-// immutable there (hfa_indicator_code's FK has no ON UPDATE CASCADE), so the
-// body carries the stored id back unchanged. Applying the reserved-word rule
-// to it would lock every indicator whose id predates the rule out of all
-// edits: and fail a whole bulk batch atomically. A genuine rename is still
-// checked, by withRenameRule below.
+// Shape only. The update paths identify the row by indicatorId and never
+// change it, so the body carries the stored id back unchanged. Applying the
+// reserved-word rule to it would lock every indicator whose id predates the
+// rule out of all edits: and fail a whole bulk batch atomically.
 const hfaIndicatorEditSchema = z.object({
   indicatorId: hfaIndicatorIdShapeSchema,
   categoryId: z.string().nullable(),
@@ -100,21 +98,13 @@ const hfaIndicatorEditSchema = z.object({
   variantGroupId: z.string().nullable(),
 });
 
-// Creation paths: an id entering the dictionary must also clear the reserved set.
+// Batch and workbook creation paths carry ids the client assigned with
+// nextHfaIndicatorId; an id entering the dictionary must also clear the
+// reserved set. The single create route assigns the id on the server.
 const hfaIndicatorSchema = hfaIndicatorEditSchema.extend({
   indicatorId: hfaIndicatorIdSchema,
 });
-
-function withRenameRule<
-  T extends z.ZodType<{ oldIndicatorId: string; indicator: { indicatorId: string } }>,
->(schema: T) {
-  return schema.refine(
-    (b) =>
-      b.indicator.indicatorId === b.oldIndicatorId ||
-      !isReservedHfaId(b.indicator.indicatorId),
-    { message: RESERVED_INDICATOR_ID_MESSAGE, path: ["indicator", "indicatorId"] },
-  );
-}
+const hfaIndicatorCreateSchema = hfaIndicatorEditSchema.omit({ indicatorId: true });
 
 const hfaIndicatorCodeSchema = z.object({
   indicatorId: z.string(),
@@ -288,25 +278,18 @@ export const hfaIndicatorRouteRegistry = {
   createHfaIndicator: route({
     path: "/hfa-indicators",
     method: "POST",
-    body: z.object({ indicator: hfaIndicatorSchema }),
+    body: z.object({ indicator: hfaIndicatorCreateSchema }),
+    response: {} as { indicatorId: string },
   }),
   updateHfaIndicator: route({
     path: "/hfa-indicators/update",
     method: "POST",
-    body: withRenameRule(
-      z.object({ oldIndicatorId: z.string(), indicator: hfaIndicatorEditSchema }),
-    ),
+    body: z.object({ indicator: hfaIndicatorEditSchema }),
   }),
   updateHfaIndicatorsBulk: route({
     path: "/hfa-indicators/update-bulk",
     method: "POST",
-    body: z.object({
-      updates: z.array(
-        withRenameRule(
-          z.object({ oldIndicatorId: z.string(), indicator: hfaIndicatorEditSchema }),
-        ),
-      ).min(1),
-    }),
+    body: z.object({ indicators: z.array(hfaIndicatorEditSchema).min(1) }),
   }),
   deleteHfaIndicators: route({
     path: "/hfa-indicators/delete",
@@ -353,24 +336,21 @@ export const hfaIndicatorRouteRegistry = {
   saveHfaIndicatorFull: route({
     path: "/hfa-indicators/save-full",
     method: "POST",
-    body: withRenameRule(
-      z.object({
-        oldIndicatorId: z.string(),
-        indicator: hfaIndicatorEditSchema,
-        code: z.array(z.object({
-          timePoint: z.string(),
-          rCode: z.string(),
-          rFilterCode: z.string().optional(),
-        })),
-        variantCode: z.array(z.object({
-          timePoint: z.string(),
-          itemId: z.string(),
-          rCode: z.string(),
-        })),
-        hasSyntaxError: z.boolean(),
-        codeConsistent: z.boolean(),
-      }),
-    ),
+    body: z.object({
+      indicator: hfaIndicatorEditSchema,
+      code: z.array(z.object({
+        timePoint: z.string(),
+        rCode: z.string(),
+        rFilterCode: z.string().optional(),
+      })),
+      variantCode: z.array(z.object({
+        timePoint: z.string(),
+        itemId: z.string(),
+        rCode: z.string(),
+      })),
+      hasSyntaxError: z.boolean(),
+      codeConsistent: z.boolean(),
+    }),
   }),
   getHfaDictionaryForValidation: route({
     path: "/hfa-indicators/dictionary",

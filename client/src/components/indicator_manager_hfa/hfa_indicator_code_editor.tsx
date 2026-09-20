@@ -2,6 +2,7 @@ import {
   t3,
   type APIResponseNoData,
   type HfaDictionaryForValidation,
+  composeHfaIndicatorLabel,
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorServiceCategory,
@@ -67,7 +68,7 @@ export function HfaIndicatorCodeEditor(
     {
       indicator: HfaIndicator;
       dictionary: HfaDictionaryForValidation;
-      allIndicatorIds: string[];
+      indicators: HfaIndicator[];
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
@@ -143,8 +144,8 @@ export function HfaIndicatorCodeEditor(
               </Show>
             </div>
           }
-          heading={<span class="font-mono">{p.indicator.indicatorId}</span>}
-          subheading={p.indicator.definition}
+          heading={composeHfaIndicatorLabel(p.indicator, "compact")}
+          subheading={p.indicator.shortLabel.trim() ? p.indicator.definition : undefined}
         >
           <Show when={!p.showAi()}>
             <Button iconName="chevronLeft" outline onBackground="base-200" onClick={p.openAi}>
@@ -161,7 +162,7 @@ export function HfaIndicatorCodeEditor(
               <EditorInner
                 indicator={p.indicator}
                 dictionary={p.dictionary}
-                allIndicatorIds={p.allIndicatorIds}
+                indicators={p.indicators}
                 categories={p.categories}
                 subCategories={p.subCategories}
                 serviceCategories={p.serviceCategories}
@@ -185,7 +186,7 @@ export function HfaIndicatorCodeEditor(
 function EditorInner(p: {
   indicator: HfaIndicator;
   dictionary: HfaDictionaryForValidation;
-  allIndicatorIds: string[];
+  indicators: HfaIndicator[];
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
   serviceCategories: HfaIndicatorServiceCategory[];
@@ -243,12 +244,13 @@ function EditorInner(p: {
 
   const [variableSearch, setVariableSearch] = createSignal("");
 
-  const otherIndicatorIds = new Set(
-    p.allIndicatorIds.filter((v) => v !== p.indicator.indicatorId),
+  const otherIndicators = p.indicators.filter(
+    (i) => i.indicatorId !== p.indicator.indicatorId,
   );
+  const otherIndicatorIds = new Set(otherIndicators.map((i) => i.indicatorId));
   // Variant snippets may legitimately reference their own parent indicator
   // (e.g. `vacc == 1 & q12 == 2`), so their validation set includes it.
-  const allIndicatorIdsInclSelf = new Set(p.allIndicatorIds);
+  const allIndicatorIdsInclSelf = new Set(p.indicators.map((i) => i.indicatorId));
 
   const currentTpIndex = () =>
     state.code.findIndex((c) => c.timePoint === selectedTimePoint());
@@ -427,7 +429,6 @@ function EditorInner(p: {
     const codeConsistent = roundsConsistency() !== "different";
 
     return await serverActions.saveHfaIndicatorFull({
-      oldIndicatorId: p.indicator.indicatorId,
       indicator: {
         indicatorId: p.indicator.indicatorId,
         categoryId: state.categoryId,
@@ -457,19 +458,26 @@ function EditorInner(p: {
     p.setNeedsSaving(true);
   }
 
+  function insertSymbol(symbol: string) {
+    setState(
+      "code",
+      currentTpIndex(),
+      "rCode",
+      (prev) => prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + symbol + " ",
+    );
+    markDirty();
+  }
+
+  const searchMatches = (text: string) => {
+    const q = variableSearch().trim().toLowerCase();
+    return !q || text.toLowerCase().includes(q);
+  };
+
   return (
     <div class="flex h-full flex-col">
       <div class="flex-none border-b">
         <div class="ui-pad ui-spy-sm">
           <div class="flex items-end gap-4">
-            <div>
-              <div class="ui-label">
-                {t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
-              </div>
-              <div class="ui-form-pad ui-form-text-size font-mono">
-                {p.indicator.indicatorId}
-              </div>
-            </div>
             <Select
               label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
               value={state.categoryId ?? ""}
@@ -936,14 +944,9 @@ function EditorInner(p: {
                   <Show when={currentTpDict()}>
                     {(dict) => (
                       <For
-                        each={dict().variables.filter((v) => {
-                          const q = variableSearch().trim().toLowerCase();
-                          if (!q) return true;
-                          return (
-                            v.variableId.toLowerCase().includes(q) ||
-                            v.variableLabel.toLowerCase().includes(q)
-                          );
-                        })}
+                        each={dict().variables.filter(
+                          (v) => searchMatches(v.variableId) || searchMatches(v.variableLabel),
+                        )}
                       >
                         {(v) => {
                           const vals = dict().values.filter(
@@ -954,21 +957,7 @@ function EditorInner(p: {
                               <div class="flex items-baseline gap-2 text-xs">
                                 <span
                                   class="ui-hoverable-base-200 font-700 font-mono"
-                                  onClick={() => {
-                                    setState(
-                                      "code",
-                                      currentTpIndex(),
-                                      "rCode",
-                                      (prev) =>
-                                        prev +
-                                        (prev.length === 0 || /\s$/.test(prev)
-                                          ? ""
-                                          : " ") +
-                                        v.variableId +
-                                        " ",
-                                    );
-                                    markDirty();
-                                  }}
+                                  onClick={() => insertSymbol(v.variableId)}
                                 >
                                   {v.variableId}
                                 </span>
@@ -991,6 +980,31 @@ function EditorInner(p: {
                         }}
                       </For>
                     )}
+                  </Show>
+                  <Show when={otherIndicators.length > 0}>
+                    <div class="font-700 mt-3 mb-1 text-sm">
+                      {t3({
+                        en: "Other indicators",
+                        fr: "Autres indicateurs",
+                        pt: "Outros indicadores",
+                      })}
+                    </div>
+                    <For
+                      each={otherIndicators.filter((i) =>
+                        searchMatches(composeHfaIndicatorLabel(i, "full")),
+                      )}
+                    >
+                      {(i) => (
+                        <div class="border-b py-1 text-xs last:border-b-0">
+                          <span
+                            class="ui-hoverable-base-200"
+                            onClick={() => insertSymbol(i.indicatorId)}
+                          >
+                            {composeHfaIndicatorLabel(i, "full")}
+                          </span>
+                        </div>
+                      )}
+                    </For>
                   </Show>
                 </div>
               </div>

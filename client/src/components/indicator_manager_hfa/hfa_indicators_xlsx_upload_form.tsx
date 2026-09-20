@@ -31,7 +31,7 @@ export type HfaWorkbookSource = { kind: "pick" } | { kind: "default" };
 const DEFAULT_INDICATORS_XLSX_URL =
   "https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/hfa_default_indicators.xlsx";
 
-async function fetchDefaultWorkbookShape(): Promise<StateHolder<WorkbookShape>> {
+async function fetchDefaultWorkbookShape(existingIndicatorIds: string[]): Promise<StateHolder<WorkbookShape>> {
   let buf: ArrayBuffer;
   try {
     const res = await fetch(`${DEFAULT_INDICATORS_XLSX_URL}?t=${Date.now()}`, {
@@ -58,7 +58,7 @@ async function fetchDefaultWorkbookShape(): Promise<StateHolder<WorkbookShape>> 
       }),
     };
   }
-  const detected = detectHfaWorkbookShape(buf);
+  const detected = detectHfaWorkbookShape(buf, existingIndicatorIds);
   return detected.ok
     ? { status: "ready", data: detected.shape }
     : { status: "error", err: detected.err };
@@ -69,6 +69,7 @@ type Props = EditorComponentProps<
     source: HfaWorkbookSource;
     timePoints: string[];
     variableIds: string[];
+    existingIndicatorIds: string[];
     showAi: Accessor<boolean>;
     openAi: () => void;
   },
@@ -86,7 +87,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
   async function pickFile() {
     const buf = await pickFileAsArrayBuffer([".xlsx"]);
     if (!buf) return;
-    const detected = detectHfaWorkbookShape(buf);
+    const detected = detectHfaWorkbookShape(buf, p.existingIndicatorIds);
     if (!detected.ok) {
       // Surface parse error on pick: keep on pick step with error shown
       setParseErr(detected.err);
@@ -139,6 +140,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
           </Match>
           <Match when={step().name === "pick" && p.source.kind === "default"}>
             <DefaultStep
+              existingIndicatorIds={p.existingIndicatorIds}
               uploadMode={uploadMode()}
               onUploadModeChange={setUploadMode}
               onContinue={(shape) => setStep({ name: "reconcile", shape })}
@@ -199,6 +201,7 @@ function ImportModeRadio(p: {
 }
 
 function DefaultStep(p: {
+  existingIndicatorIds: string[];
   uploadMode: "replace" | "add";
   onUploadModeChange: (v: "replace" | "add") => void;
   onContinue: (shape: WorkbookShape) => void;
@@ -215,7 +218,7 @@ function DefaultStep(p: {
   const [workbook, setWorkbook] = createSignal<StateHolder<WorkbookShape>>(loadingState());
   async function load() {
     setWorkbook(loadingState());
-    setWorkbook(await fetchDefaultWorkbookShape());
+    setWorkbook(await fetchDefaultWorkbookShape(p.existingIndicatorIds));
   }
   onMount(load);
 
@@ -281,8 +284,13 @@ function PickStep(p: {
             label ({t3({ en: "optional", fr: "facultatif", pt: "opcional" })})
           </li>
           <li>
-            <span class="font-700 font-mono">Indicators</span>: indicatorId,
-            categoryId, subCategoryId, serviceCategoryId (
+            <span class="font-700 font-mono">Indicators</span>: indicatorId (
+            {t3({
+              en: "blank for a new indicator; the app assigns one",
+              fr: "vide pour un nouvel indicateur ; l'application en attribue un",
+              pt: "em branco para um novo indicador; a aplicação atribui um",
+            })}
+            ), categoryId, subCategoryId, serviceCategoryId (
             {t3({
               en: "pipe-separated for multiple",
               fr: "séparés par | pour plusieurs",

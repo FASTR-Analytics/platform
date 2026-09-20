@@ -1,7 +1,7 @@
-import { HFA_INDICATOR_ID_REGEX, isReservedHfaId, type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
+import { type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   MultiSelect,
   RadioGroup,
@@ -9,7 +9,7 @@ import {
   TextArea,
   createFormAction,
 } from "panther";
-import { createSignal, Match, Switch } from "solid-js";
+import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 export function EditHfaIndicator(
@@ -20,14 +20,12 @@ export function EditHfaIndicator(
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
-      variableIds: string[];
     },
     undefined
   >,
 ) {
   const mode = p.existingIndicator ? "update" : "create";
 
-  const [indicatorId, setIndicatorId] = createSignal(p.existingIndicator?.indicatorId ?? "");
   const [categoryId, setCategoryId] = createSignal<string | null>(p.existingIndicator?.categoryId ?? null);
   const [subCategoryId, setSubCategoryId] = createSignal<string | null>(p.existingIndicator?.subCategoryId ?? null);
   const [serviceCategoryIds, setServiceCategoryIds] = createSignal<string[]>(p.existingIndicator?.serviceCategoryIds ?? []);
@@ -46,48 +44,7 @@ export function EditHfaIndicator(
     async (e: MouseEvent) => {
       e.preventDefault();
 
-      // The indicator id is immutable once created: hfa_indicator_code references it via
-      // a non-cascading FK, so a rename would fail whenever code exists.
-      const trimmedIndicatorId =
-        mode === "create" ? indicatorId().trim() : p.existingIndicator!.indicatorId;
-      if (!trimmedIndicatorId) {
-        return { success: false, err: t3({ en: "Indicator ID is required", fr: "L'ID de l'indicateur est requis", pt: "O ID do indicador é obrigatório" }) };
-      }
-      if (mode === "create") {
-        if (!HFA_INDICATOR_ID_REGEX.test(trimmedIndicatorId)) {
-          return {
-            success: false,
-            err: t3({
-              en: "Indicator ID must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
-              fr: "L'ID de l'indicateur doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (max 64 caractères)",
-              pt: "O ID do indicador deve começar por uma letra e conter apenas letras, dígitos e sublinhados (máx. 64 caracteres)",
-            }),
-          };
-        }
-        if (isReservedHfaId(trimmedIndicatorId)) {
-          return {
-            success: false,
-            err: t3({
-              en: `"${trimmedIndicatorId}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different ID.`,
-              fr: `« ${trimmedIndicatorId} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs, ou une colonne générée par le script d'analyse). Choisissez un autre ID.`,
-              pt: `"${trimmedIndicatorId}" é uma palavra reservada (uma função ou operador R utilizado no código dos indicadores, ou uma coluna gerada pelo script de análise). Escolha um ID diferente.`,
-            }),
-          };
-        }
-        if (p.variableIds.includes(trimmedIndicatorId)) {
-          return {
-            success: false,
-            err: t3({
-              en: `"${trimmedIndicatorId}" is a survey variable ID. Using it would shadow the dataset column in other indicators' code. Choose a different ID.`,
-              fr: `« ${trimmedIndicatorId} » est l'ID d'une variable d'enquête. L'utiliser masquerait la colonne du jeu de données dans le code des autres indicateurs. Choisissez un autre ID.`,
-              pt: `"${trimmedIndicatorId}" é o ID de uma variável de inquérito. Utilizá-lo ocultaria a coluna do conjunto de dados no código dos outros indicadores. Escolha um ID diferente.`,
-            }),
-          };
-        }
-      }
-
-      const indicator: HfaIndicator = {
-        indicatorId: trimmedIndicatorId,
+      const indicator = {
         categoryId: categoryId(),
         subCategoryId: subCategoryId(),
         serviceCategoryIds: serviceCategoryIds(),
@@ -104,54 +61,31 @@ export function EditHfaIndicator(
       };
 
       if (mode === "create") {
-        return await serverActions.createHfaIndicator({
-          indicator,
-        });
-      } else {
-        return await serverActions.updateHfaIndicator({
-          oldIndicatorId: p.existingIndicator!.indicatorId,
-          indicator,
-        });
+        return await serverActions.createHfaIndicator({ indicator });
       }
+      return await serverActions.updateHfaIndicator({
+        indicator: { indicatorId: p.existingIndicator!.indicatorId, ...indicator },
+      });
     },
     () => p.close(undefined),
   );
 
   return (
-    <AlertFormHolder
-      formId="hfa-indicator-form"
-      header={
+    <ModalContainer
+      title={
         mode === "create"
           ? t3({ en: "Add HFA indicator", fr: "Ajouter un indicateur HFA", pt: "Adicionar indicador HFA" })
           : t3({ en: "Update HFA indicator", fr: "Mettre à jour l'indicateur HFA", pt: "Atualizar indicador HFA" })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
-        <Switch>
-          <Match when={mode === "create"}>
-            <Input
-              label={t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
-              value={indicatorId()}
-              onChange={setIndicatorId}
-              fullWidth
-              autoFocus
-              mono
-            />
-          </Match>
-          <Match when={mode === "update"}>
-            <div>
-              <div class="ui-label">
-                {t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
-              </div>
-              <div class="ui-form-pad ui-form-text-size font-mono">
-                {indicatorId()}
-              </div>
-            </div>
-          </Match>
-        </Switch>
         <Select
           label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
           value={categoryId() ?? ""}
@@ -217,6 +151,6 @@ export function EditHfaIndicator(
           ]}
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

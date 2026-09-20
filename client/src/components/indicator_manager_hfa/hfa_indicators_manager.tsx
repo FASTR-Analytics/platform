@@ -464,7 +464,6 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
-        variableIds: variableIds(),
       },
     });
   }
@@ -487,7 +486,6 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
-        variableIds: variableIds(),
       },
     });
   }
@@ -523,7 +521,7 @@ export function HfaIndicatorsManager(p: Props) {
       props: {
         indicator,
         dictionary: dict,
-        allIndicatorIds: allIndicators.map((i) => i.indicatorId),
+        indicators: allIndicators,
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
@@ -665,12 +663,14 @@ export function HfaIndicatorsManager(p: Props) {
   async function handleWorkbookImport(source: HfaWorkbookSource) {
     const timePoints = sortedTimePointLabels();
     if (timePoints === undefined) return;
+    const st = indicators();
     await openEditor({
       element: HfaIndicatorsXlsxUploadForm,
       props: {
         source,
         timePoints,
         variableIds: variableIds(),
+        existingIndicatorIds: st.status === "ready" ? st.data.map((i) => i.indicatorId) : [],
         showAi,
         openAi,
       },
@@ -822,12 +822,6 @@ export function HfaIndicatorsManager(p: Props) {
           .map((id) => svcLabels.get(id) ?? id)
           .join(", ");
       },
-    },
-    {
-      key: "indicatorId",
-      header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
-      sortable: true,
-      render: (ind) => <span class="font-mono">{ind.indicatorId}</span>,
     },
     {
       key: "shortLabel",
@@ -1129,6 +1123,7 @@ export function HfaIndicatorsManager(p: Props) {
                         data={filteredIndicators()}
                         columns={allColumns()}
                         keyField="indicatorId"
+                        defaultSort={{ key: "definition", direction: "asc" }}
                         noRowsMessage={
                           searchText().trim()
                             ? t3({

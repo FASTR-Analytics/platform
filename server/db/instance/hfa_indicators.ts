@@ -5,6 +5,7 @@ import {
   APIResponseWithData,
   composeHfaVariantColumnName,
   isReservedHfaId,
+  nextHfaIndicatorId,
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorCategory,
@@ -800,32 +801,40 @@ export async function getAllHfaIndicatorVariantCode(
 
 export async function createHfaIndicator(
   mainDb: Sql,
-  indicator: HfaIndicator,
-): Promise<APIResponseNoData> {
+  indicator: Omit<HfaIndicator, "indicatorId">,
+): Promise<APIResponseWithData<{ indicatorId: string }>> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb.begin(async (sql) => {
+    const indicatorId = await mainDb.begin(async (sql) => {
+      // Serialises id assignment: two concurrent creates would otherwise read
+      // the same highest id and the second insert would fail on the key.
+      await sql`LOCK TABLE hfa_indicators IN EXCLUSIVE MODE`;
+      const taken = await sql<{ id: string }[]>`
+        SELECT indicator_id AS id FROM hfa_indicators
+        UNION
+        SELECT DISTINCT variable_id FROM hfa_variables WHERE variable_id ~ '^ind[0-9]+$'
+      `;
+      const indicatorId = nextHfaIndicatorId(taken.map((r) => r.id));
       await sql`
         INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, variant_group_id, updated_at)
-        VALUES (${indicator.indicatorId}, ${indicator.categoryId}, ${indicator.subCategoryId}, ${JSON.stringify(indicator.serviceCategoryIds)}, ${indicator.shortLabel}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, ${indicator.variantGroupId}, CURRENT_TIMESTAMP)
+        VALUES (${indicatorId}, ${indicator.categoryId}, ${indicator.subCategoryId}, ${JSON.stringify(indicator.serviceCategoryIds)}, ${indicator.shortLabel}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, ${indicator.variantGroupId}, CURRENT_TIMESTAMP)
       `;
       await assertVariantIntegrity(sql);
+      return indicatorId;
     });
-    return { success: true };
+    return { success: true, data: { indicatorId } };
   });
 }
 
 export async function updateHfaIndicator(
   mainDb: Sql,
-  oldIndicatorId: string,
   indicator: HfaIndicator,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
-      await deleteOutOfGroupVariantCode(sql, oldIndicatorId, indicator.variantGroupId);
+      await deleteOutOfGroupVariantCode(sql, indicator.indicatorId, indicator.variantGroupId);
       await sql`
         UPDATE hfa_indicators
-        SET indicator_id = ${indicator.indicatorId},
-            category_id = ${indicator.categoryId},
+        SET category_id = ${indicator.categoryId},
             sub_category_id = ${indicator.subCategoryId},
             service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
             short_label = ${indicator.shortLabel},
@@ -835,7 +844,7 @@ export async function updateHfaIndicator(
             sort_order = ${indicator.sortOrder},
             variant_group_id = ${indicator.variantGroupId},
             updated_at = CURRENT_TIMESTAMP
-        WHERE indicator_id = ${oldIndicatorId}
+        WHERE indicator_id = ${indicator.indicatorId}
       `;
       await assertVariantIntegrity(sql);
     });
@@ -845,16 +854,15 @@ export async function updateHfaIndicator(
 
 export async function updateHfaIndicatorsBulk(
   mainDb: Sql,
-  updates: { oldIndicatorId: string; indicator: HfaIndicator }[],
+  indicators: HfaIndicator[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
-      for (const { oldIndicatorId, indicator } of updates) {
-        await deleteOutOfGroupVariantCode(sql, oldIndicatorId, indicator.variantGroupId);
+      for (const indicator of indicators) {
+        await deleteOutOfGroupVariantCode(sql, indicator.indicatorId, indicator.variantGroupId);
         await sql`
           UPDATE hfa_indicators
-          SET indicator_id = ${indicator.indicatorId},
-              category_id = ${indicator.categoryId},
+          SET category_id = ${indicator.categoryId},
               sub_category_id = ${indicator.subCategoryId},
               service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
               short_label = ${indicator.shortLabel},
@@ -864,7 +872,7 @@ export async function updateHfaIndicatorsBulk(
               sort_order = ${indicator.sortOrder},
               variant_group_id = ${indicator.variantGroupId},
               updated_at = CURRENT_TIMESTAMP
-          WHERE indicator_id = ${oldIndicatorId}
+          WHERE indicator_id = ${indicator.indicatorId}
         `;
       }
       await assertVariantIntegrity(sql);
@@ -1214,7 +1222,6 @@ export async function importHfaIndicatorsWorkbook(
 
 export async function saveHfaIndicatorFull(
   mainDb: Sql,
-  oldIndicatorId: string,
   indicator: HfaIndicator,
   code: { timePoint: string; rCode: string; rFilterCode?: string | undefined }[],
   variantCode: { timePoint: string; itemId: string; rCode: string }[],
@@ -1239,11 +1246,10 @@ export async function saveHfaIndicatorFull(
       };
     }
     await mainDb.begin(async (sql) => {
-      await deleteOutOfGroupVariantCode(sql, oldIndicatorId, indicator.variantGroupId);
+      await deleteOutOfGroupVariantCode(sql, indicator.indicatorId, indicator.variantGroupId);
       await sql`
         UPDATE hfa_indicators
-        SET indicator_id = ${indicator.indicatorId},
-            category_id = ${indicator.categoryId},
+        SET category_id = ${indicator.categoryId},
             sub_category_id = ${indicator.subCategoryId},
             service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
             short_label = ${indicator.shortLabel},
@@ -1255,9 +1261,9 @@ export async function saveHfaIndicatorFull(
             code_consistent = ${codeConsistent},
             variant_group_id = ${indicator.variantGroupId},
             updated_at = CURRENT_TIMESTAMP
-        WHERE indicator_id = ${oldIndicatorId}
+        WHERE indicator_id = ${indicator.indicatorId}
       `;
-      await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${oldIndicatorId}`;
+      await sql`DELETE FROM hfa_indicator_code WHERE indicator_id = ${indicator.indicatorId}`;
       for (const c of code) {
         if (!c.rCode.trim()) continue;
         await sql`
@@ -1265,7 +1271,7 @@ export async function saveHfaIndicatorFull(
           VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
         `;
       }
-      await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${oldIndicatorId}`;
+      await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${indicator.indicatorId}`;
       for (const c of nonEmptyVariantCode) {
         await sql`
           INSERT INTO hfa_indicator_variant_code (indicator_id, time_point, item_id, r_code)

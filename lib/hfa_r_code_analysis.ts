@@ -11,6 +11,24 @@
 // be reserved: see `isReservedHfaId`.
 export const HFA_INDICATOR_ID_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/;
 
+// The app assigns indicator ids; nobody types one. `takenIds` is every id the
+// new one must not equal: stored indicator ids, ids already assigned in the
+// same batch, and survey variable ids (an indicator id is spliced into R as a
+// bare symbol, so it must not shadow a dataset column).
+export function nextHfaIndicatorId(takenIds: Iterable<string>): string {
+  const taken = new Set(takenIds);
+  let n = 0;
+  for (const id of taken) {
+    const m = /^ind(\d+)$/.exec(id);
+    if (m) n = Math.max(n, Number(m[1]));
+  }
+  for (;;) {
+    n++;
+    const id = `ind${String(n).padStart(3, "0")}`;
+    if (!taken.has(id) && !isReservedHfaId(id)) return id;
+  }
+}
+
 // Shape rule for a variant item id: lowercase letter, then lowercase
 // letters/digits/underscores, max 64 chars. Item ids are data values of the
 // hfa_variant_item column and the suffix of composed per-item R columns, and

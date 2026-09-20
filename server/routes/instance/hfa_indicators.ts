@@ -448,7 +448,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicator"),
   async (c, { body }) => {
-    const res = await updateHfaIndicator(c.var.mainDb, body.oldIndicatorId, body.indicator);
+    const res = await updateHfaIndicator(c.var.mainDb, body.indicator);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
@@ -462,7 +462,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicatorsBulk"),
   async (c, { body }) => {
-    const res = await updateHfaIndicatorsBulk(c.var.mainDb, body.updates);
+    const res = await updateHfaIndicatorsBulk(c.var.mainDb, body.indicators);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
@@ -548,7 +548,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("saveHfaIndicatorFull"),
   async (c, { body }) => {
-    const res = await saveHfaIndicatorFull(c.var.mainDb, body.oldIndicatorId, body.indicator, body.code, body.variantCode, body.hasSyntaxError, body.codeConsistent);
+    const res = await saveHfaIndicatorFull(c.var.mainDb, body.indicator, body.code, body.variantCode, body.hasSyntaxError, body.codeConsistent);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }

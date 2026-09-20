@@ -1,6 +1,6 @@
 import { AIToolFailure, createAITool, createAskUserQuestionsTool } from "panther";
 import { z } from "zod";
-import { extractRIdentifiers, serialiseMultiMembershipValues, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode, type HfaIndicatorVariantCode } from "lib";
+import { extractRIdentifiers, nextHfaIndicatorId, serialiseMultiMembershipValues, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode, type HfaIndicatorVariantCode } from "lib";
 import { serverActions } from "~/server_actions";
 import { checkRCodeResultType, hasRCodeErrors, validateRCode } from "../hfa_r_code_validator";
 
@@ -30,12 +30,7 @@ async function loadTaxonomy() {
 // Apply a set of fully-merged indicators (read-modify-write: the bulk route
 // takes whole objects). Transactional server-side: all applied or none.
 async function applyIndicatorUpdates(merged: HfaIndicator[]): Promise<void> {
-  const res = await serverActions.updateHfaIndicatorsBulk({
-    updates: merged.map((indicator) => ({
-      oldIndicatorId: indicator.indicatorId,
-      indicator,
-    })),
-  });
+  const res = await serverActions.updateHfaIndicatorsBulk({ indicators: merged });
   if (!res.success) {
     throw new AIToolFailure(
       `Failed to apply the ${merged.length} update(s) — nothing was saved. Retry the batch.`,
@@ -507,11 +502,10 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "create_hfa_indicators",
       description:
-        "Create new HFA indicators from the survey dataset, in a batch. For each: a unique indicatorId, a long label (definition), type + aggregation (usually binary+avg for \"% of facilities\" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round r-code. Ids and time points are validated; r-code is validated against the dictionary (including a result-type check). Fails if an indicator id already exists.",
+        "Create new HFA indicators from the survey dataset, in a batch. For each: a long label (definition), type + aggregation (usually binary+avg for \"% of facilities\" — see the modelling guidance), optional category/sub-category/service categories (must already exist), and per-round r-code. The app assigns each indicator's id and returns it; time points are validated and r-code is validated against the dictionary (including a result-type check).",
       kind: "write",
       inputSchema: z.object({
         indicators: z.array(z.object({
-          indicatorId: z.string(),
           definition: z.string().describe("Long label / full descriptive text."),
           shortLabel: z.string().optional(),
           type: z.enum(["binary", "numeric"]),
@@ -537,16 +531,19 @@ export function buildHfaIndicatorTools() {
           const svcIds = new Set(serviceCategories.map((s) => s.id));
           const validTimePoints = new Set(dict.timePoints.map((t) => t.timePoint));
 
-          const newIds = input.indicators.map((i) => i.indicatorId);
-          const dupInBatch = newIds.filter((n, i) => newIds.indexOf(n) !== i);
-          if (dupInBatch.length > 0) throw new AIToolFailure(`Duplicate indicator ids in this batch: ${[...new Set(dupInBatch)].join(", ")}.`);
-          const allIdsAfter = new Set([...existingIds, ...newIds]);
+          const variableIds = dict.timePoints.flatMap((tp) => tp.variables.map((v) => v.variableId));
+          const taken = new Set([...existingIds, ...variableIds]);
+          const withIds = input.indicators.map((ind) => {
+            const indicatorId = nextHfaIndicatorId(taken);
+            taken.add(indicatorId);
+            return { ...ind, indicatorId };
+          });
+          const allIdsAfter = new Set([...existingIds, ...withIds.map((i) => i.indicatorId)]);
 
           const indicatorsToCreate: HfaIndicator[] = [];
           const codeToCreate: HfaIndicatorCode[] = [];
           const changes: { label: string; after: string }[] = [];
-          for (const ind of input.indicators) {
-            if (existingIds.has(ind.indicatorId)) throw new AIToolFailure(`Indicator "${ind.indicatorId}" already exists. Pick a new indicator id, or edit it with set_hfa_indicator_code / the update tools.`);
+          for (const ind of withIds) {
             if (ind.categoryId != null && !catIds.has(ind.categoryId)) throw new AIToolFailure(`Category "${ind.categoryId}" does not exist. Valid: ${[...catIds].join(", ") || "(none)"}.`);
             if (ind.subCategoryId != null) {
               const sub = subById.get(ind.subCategoryId);
@@ -579,7 +576,7 @@ export function buildHfaIndicatorTools() {
             });
             for (const c of code) codeToCreate.push({ indicatorId: ind.indicatorId, timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode });
             changes.push({
-              label: ind.indicatorId,
+              label: ind.definition,
               after: `${ind.type}/${ind.aggregation}${v.issues.length ? ` — ${v.issues.length} issue(s): ${v.issues.join("; ")}` : ""}`,
             });
           }
@@ -595,7 +592,7 @@ export function buildHfaIndicatorTools() {
               if (!res.success) throw new AIToolFailure("Failed to create indicators.");
               return {
                 applied: true,
-                created: indicatorsToCreate.length,
+                created: indicatorsToCreate.map((i) => ({ indicatorId: i.indicatorId, definition: i.definition })),
                 withValidationIssues: indicatorsToCreate.filter((i) => i.hasSyntaxError).map((i) => i.indicatorId),
               };
             },
@@ -676,7 +673,6 @@ export function buildHfaIndicatorTools() {
                 const variantRes = await serverActions.getHfaIndicatorVariantCode({ indicatorId: vn });
                 if (!variantRes.success) throw new AIToolFailure(`Failed to load variant code for "${vn}".`);
                 const res = await serverActions.saveHfaIndicatorFull({
-                  oldIndicatorId: vn,
                   indicator: { ...indicator, hasSyntaxError: v.hasSyntaxError, codeConsistent: v.codeConsistent },
                   code: code.map((c) => ({ timePoint: c.timePoint, rCode: c.rCode, rFilterCode: c.rFilterCode })),
                   variantCode: variantRes.data.map((c) => ({ timePoint: c.timePoint, itemId: c.itemId, rCode: c.rCode })),

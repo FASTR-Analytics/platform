@@ -499,9 +499,20 @@ that indicator R code references; `M10_STRUCTURAL_NAMES` reserves it with
 the other columns the script owns. User-authored R snippets in `hfa_indicator_code`
 (per indicator_id × time_point: `r_code` + optional `r_filter_code`, filter
 requires main code) reference variables AND other indicators, both by id.
-Indicator ids are validated as R identifiers (`HFA_INDICATOR_ID_REGEX`,
-`^[a-zA-Z][a-zA-Z0-9_]{0,63}$`) and checked against variable-id shadowing,
-because they are interpolated as bare R symbols. Taxonomy:
+Indicator ids are assigned by the app and never typed: `nextHfaIndicatorId`
+(`lib/hfa_r_code_analysis.ts`) takes the next `indNNN` after the highest
+stored one, skipping reserved words and survey variable ids (the id is
+interpolated as a bare R symbol, so it must not shadow a dataset column).
+The single create route assigns it on the server under a table lock; the
+AI batch tool and a workbook row with a blank `indicatorId` assign it on
+the client from the same rule, over the stored ids plus the batch's own.
+An id is immutable: every update path identifies the row by it and none
+renames. Ids are shown nowhere in the UI except the code editor, whose
+"Other indicators" list inserts one into the code on click; the workbook
+keeps its `indicatorId` column so a re-import updates rows in place.
+Stored ids that predate this rule (or violate `HFA_INDICATOR_ID_REGEX`,
+`^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which batch and workbook ids must still
+pass) are carried unchanged. Taxonomy:
 categories → sub-categories (real FKs) plus service categories stored as a
 JSON string array on the indicator (no FK; rename/delete integrity is
 maintained by jsonb rewrites in the service-category mutations).
