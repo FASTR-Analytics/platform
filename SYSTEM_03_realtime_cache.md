@@ -357,7 +357,7 @@ project-scoped: two projects attached to the same run share entries.
 | `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)`   | `PO_CACHE_VERSION`                     |
 | `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId`                               | `PO_CACHE_VERSION`                     |
 | `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)` | `PO_CACHE_VERSION`                     |
-| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)      | `computeHfaCacheHash(hfa_time_points)` |
+| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa_v2`      | constant `"hfa"` (instance-wide singleton)      | `computeHfaCacheHash(hfa_time_points)` |
 
 Two key separators are live: `\|` (po family) and `::` (metric_info,
 replicant_opts). A sixth cache (`_FETCH_CACHE_DATASET_HMIS_ITEMS`,
@@ -479,9 +479,10 @@ bump.
   `res.data.cacheHash` from the producer: the dup-logic class item 9 exists to
   kill, here spanning route and lib.
 - Cross-deploy payload-shape handling is per-cache and partial:
-  `PO_CACHE_VERSION` covers the three query caches, `po_detail_v2` used a prefix
-  bump, `ds_hfa` has neither. Fold a deploy/build version into `versionHash`
-  generically, or document the per-cache choice.
+  `PO_CACHE_VERSION` covers the three query caches, `po_detail` and `ds_hfa`
+  each use a prefix bump (`ds_hfa_v2`, PLAN_HFA_ID_VOCABULARY step 2). Fold a
+  deploy/build version into `versionHash` generically, or document the
+  per-cache choice.
 - `RequestQueue` is an identical class copy-pasted into
   `client/src/state/_infra/` and `server/utils/`. Move one copy to `lib/`.
 - Cruft: rename away the opaque `TimCacheC`/`cache_class_C` suffix and
