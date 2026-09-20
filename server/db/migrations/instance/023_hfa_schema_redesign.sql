@@ -58,7 +58,15 @@ CREATE TABLE IF NOT EXISTS hfa_data (
   FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_hfa_data_var_name ON hfa_data(var_name);
+-- Guarded on the column still existing: a fresh replay runs on a base schema
+-- whose column and index are variable_id (migration 093).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'hfa_data' AND column_name = 'var_name') THEN
+    CREATE INDEX IF NOT EXISTS idx_hfa_data_var_name ON hfa_data(var_name);
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS idx_hfa_data_facility_id ON hfa_data(facility_id);
 CREATE INDEX IF NOT EXISTS idx_hfa_data_time_point ON hfa_data(time_point);
 

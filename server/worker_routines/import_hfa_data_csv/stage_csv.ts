@@ -153,13 +153,13 @@ export async function stageHfaCsvIntoTables(args: {
   }
 
   const storedVarNames = csvVarMappings.flatMap((m) => {
-    const varName = m.xlsFormVar.name.trim();
+    const variableId = m.xlsFormVar.name.trim();
     if (m.xlsFormVar.type === "select_multiple") {
       return (m.choices ?? []).map(
-        (choice) => `${varName}_${String(choice.name).trim()}`,
+        (choice) => `${variableId}_${String(choice.name).trim()}`,
       );
     }
-    return [varName];
+    return [variableId];
   });
   // Reject names that collide with how indicator R code is interpreted:
   // `and`/`or` operator aliases, R keywords, the common functions the
@@ -177,11 +177,11 @@ export async function stageHfaCsvIntoTables(args: {
 
   const nCsvColsNotInXlsForm = unmatchedCsvCols.length;
 
-  // Count XLSForm vars not in CSV (informational)
+  // Count XLSForm questions not in CSV (informational)
   const csvLocalNames = new Set(csvVarMappings.map((m) => m.xlsFormVar.name));
-  let nXlsFormVarsNotInCsv = 0;
+  let nXlsFormQuestionsNotInCsv = 0;
   for (const [name] of xlsForm.vars) {
-    if (!csvLocalNames.has(name)) nXlsFormVarsNotInCsv++;
+    if (!csvLocalNames.has(name)) nXlsFormQuestionsNotInCsv++;
   }
 
   const nSelectMultipleExpanded = csvVarMappings.filter(
@@ -205,7 +205,7 @@ export async function stageHfaCsvIntoTables(args: {
 CREATE UNLOGGED TABLE ${names.raw} (
   facility_id TEXT NOT NULL,
   time_point TEXT NOT NULL,
-  var_name TEXT NOT NULL,
+  variable_id TEXT NOT NULL,
   value TEXT NOT NULL,
   row_seq BIGINT NOT NULL
 )`);
@@ -222,16 +222,16 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
   const dataTup = (
     facilityId: string,
-    varName: string,
+    variableId: string,
     value: string,
     rowSeq: number,
   ) =>
-    `('${escapeSqlString(facilityId)}','${escapeSqlString(cleanedTimePoint)}','${escapeSqlString(varName)}','${escapeSqlString(value)}',${rowSeq})`;
+    `('${escapeSqlString(facilityId)}','${escapeSqlString(cleanedTimePoint)}','${escapeSqlString(variableId)}','${escapeSqlString(value)}',${rowSeq})`;
 
   const flushBuffer = async () => {
     if (rowBuffer.length === 0) return;
     await importDb.unsafe(
-      `INSERT INTO ${names.raw} (facility_id, time_point, var_name, value, row_seq) VALUES ${rowBuffer.join(",")}`,
+      `INSERT INTO ${names.raw} (facility_id, time_point, variable_id, value, row_seq) VALUES ${rowBuffer.join(",")}`,
     );
     rowBuffer = [];
   };
@@ -259,7 +259,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
 
         if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
           // Expand to binary variables. An unanswered parent stays missing
-          // on every expanded var; a "don't know" (-99) answer marks the
+          // on every expanded variable; a "don't know" (-99) answer marks the
           // unselected choices -99 instead of 0, so downstream sentinel
           // handling sees it (PLAN_HFA_FEATURES.md)
           const selectedCodes = new Set(
@@ -272,12 +272,12 @@ CREATE UNLOGGED TABLE ${names.raw} (
                 ? "-99"
                 : "0";
           for (const choice of mapping.choices) {
-            const expandedVarName = `${mapping.xlsFormVar.name.trim()}_${String(choice.name).trim()}`;
+            const expandedVariableId = `${mapping.xlsFormVar.name.trim()}_${String(choice.name).trim()}`;
             const expandedValue = selectedCodes.has(String(choice.name))
               ? "1"
               : unselectedValue;
             rowBuffer.push(
-              dataTup(facilityId, expandedVarName, expandedValue, rowNumber),
+              dataTup(facilityId, expandedVariableId, expandedValue, rowNumber),
             );
           }
         } else {
@@ -369,7 +369,7 @@ CREATE TABLE ${names.final} AS
 SELECT
   t.facility_id,
   t.time_point,
-  t.var_name,
+  t.variable_id,
   t.value
 FROM ${names.raw} t
 JOIN ${names.keepRows} k
@@ -381,7 +381,7 @@ WHERE EXISTS (
 
   await importDb.unsafe(`
 ALTER TABLE ${names.final}
-ADD PRIMARY KEY (facility_id, time_point, var_name)`);
+ADD PRIMARY KEY (facility_id, time_point, variable_id)`);
 
   onProgress(93);
 
@@ -389,54 +389,54 @@ ADD PRIMARY KEY (facility_id, time_point, var_name)`);
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.dictVars} (
   time_point TEXT NOT NULL,
-  var_name TEXT NOT NULL,
-  var_label TEXT NOT NULL,
-  var_type TEXT NOT NULL,
-  PRIMARY KEY (time_point, var_name)
+  variable_id TEXT NOT NULL,
+  variable_label TEXT NOT NULL,
+  variable_type TEXT NOT NULL,
+  PRIMARY KEY (time_point, variable_id)
 )`);
   await importDb.unsafe(`
 CREATE UNLOGGED TABLE ${names.dictValues} (
   time_point TEXT NOT NULL,
-  var_name TEXT NOT NULL,
+  variable_id TEXT NOT NULL,
   value TEXT NOT NULL,
   value_label TEXT NOT NULL,
   sentinel_class TEXT NOT NULL DEFAULT '',
-  PRIMARY KEY (time_point, var_name, value)
+  PRIMARY KEY (time_point, variable_id, value)
 )`);
 
-  const dictVarRows: string[] = [];
+  const dictVariableRows: string[] = [];
   const dictValueRows: string[] = [];
 
   for (const mapping of csvVarMappings) {
-    const varName = mapping.xlsFormVar.name.trim();
-    const varLabel = qualifiedVarLabel(mapping.xlsFormVar);
-    const varType = mapping.xlsFormVar.type;
+    const variableId = mapping.xlsFormVar.name.trim();
+    const variableLabel = qualifiedVarLabel(mapping.xlsFormVar);
+    const variableType = mapping.xlsFormVar.type;
 
     if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
       const dkChoice = mapping.choices.find(
         (c) => String(c.name).trim() === "-99",
       );
       for (const choice of mapping.choices) {
-        const expandedVarName = `${varName}_${String(choice.name).trim()}`;
+        const expandedVariableId = `${variableId}_${String(choice.name).trim()}`;
         const compositeLabel =
-          `${varLabel}${XLSFORM_LABEL_SEPARATOR}${choice.label}`.trim();
-        dictVarRows.push(
+          `${variableLabel}${XLSFORM_LABEL_SEPARATOR}${choice.label}`.trim();
+        dictVariableRows.push(
           tup(
             cleanedTimePoint,
-            expandedVarName,
+            expandedVariableId,
             compositeLabel,
             "select_multiple_binary",
           ),
         );
         // "Yes"/"No" are substantive; only the carried "-99" is a sentinel.
-        dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "1", "Yes", ""));
-        dictValueRows.push(tup(cleanedTimePoint, expandedVarName, "0", "No", ""));
+        dictValueRows.push(tup(cleanedTimePoint, expandedVariableId, "1", "Yes", ""));
+        dictValueRows.push(tup(cleanedTimePoint, expandedVariableId, "0", "No", ""));
         if (dkChoice && String(choice.name).trim() !== "-99") {
           const dkLabel = dkChoice.label.trim();
           dictValueRows.push(
             tup(
               cleanedTimePoint,
-              expandedVarName,
+              expandedVariableId,
               "-99",
               dkLabel,
               classifyChoice("-99", dkLabel) ?? "",
@@ -445,14 +445,14 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
         }
       }
     } else if (mapping.xlsFormVar.type === "select_one" && mapping.choices) {
-      dictVarRows.push(tup(cleanedTimePoint, varName, varLabel, varType));
+      dictVariableRows.push(tup(cleanedTimePoint, variableId, variableLabel, variableType));
       for (const choice of mapping.choices) {
         const code = String(choice.name).trim();
         const label = choice.label.trim();
         dictValueRows.push(
           tup(
             cleanedTimePoint,
-            varName,
+            variableId,
             code,
             label,
             classifyChoice(code, label) ?? "",
@@ -460,8 +460,8 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
         );
       }
     } else {
-      dictVarRows.push(tup(cleanedTimePoint, varName, varLabel, varType));
-      // Numeric vars have no choice list; their don't-know sentinel lives in
+      dictVariableRows.push(tup(cleanedTimePoint, variableId, variableLabel, variableType));
+      // Numeric variables have no choice list; their don't-know sentinel lives in
       // the XLSForm constraint (e.g. ". = -999999"). Synthesize a dictionary
       // row so the sentinel and its class are captured like a choice code.
       for (const sv of parseNumericSentinels(
@@ -469,21 +469,21 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
       )) {
         const cls = classifyNumericSentinel(sv);
         const label = cls === "dont_know" ? "Don't know" : "Reserved value";
-        dictValueRows.push(tup(cleanedTimePoint, varName, sv, label, cls));
+        dictValueRows.push(tup(cleanedTimePoint, variableId, sv, label, cls));
       }
     }
   }
 
-  for (let i = 0; i < dictVarRows.length; i += 1000) {
-    const batch = dictVarRows.slice(i, i + 1000);
+  for (let i = 0; i < dictVariableRows.length; i += 1000) {
+    const batch = dictVariableRows.slice(i, i + 1000);
     await importDb.unsafe(
-      `INSERT INTO ${names.dictVars} (time_point, var_name, var_label, var_type) VALUES ${batch.join(",")}`,
+      `INSERT INTO ${names.dictVars} (time_point, variable_id, variable_label, variable_type) VALUES ${batch.join(",")}`,
     );
   }
   for (let i = 0; i < dictValueRows.length; i += 1000) {
     const batch = dictValueRows.slice(i, i + 1000);
     await importDb.unsafe(
-      `INSERT INTO ${names.dictValues} (time_point, var_name, value, value_label, sentinel_class) VALUES ${batch.join(",")}`,
+      `INSERT INTO ${names.dictValues} (time_point, variable_id, value, value_label, sentinel_class) VALUES ${batch.join(",")}`,
     );
   }
 
@@ -520,9 +520,9 @@ WHERE NOT EXISTS (
     nDedupOverridesApplied: dedupOverrides.length,
     nRowsTotal: validRowCount,
     timePoint,
-    nDictionaryVars: dictVarRows.length,
+    nDictionaryVariables: dictVariableRows.length,
     nDictionaryValues: dictValueRows.length,
-    nXlsFormVarsNotInCsv,
+    nXlsFormQuestionsNotInCsv,
     nCsvColsNotInXlsForm,
     nSelectMultipleExpanded,
   };

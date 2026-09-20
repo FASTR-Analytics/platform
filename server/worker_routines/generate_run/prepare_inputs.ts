@@ -79,7 +79,7 @@ export type PreparedRunInputs = {
   // Everything script generation needs (previously re-read from the project
   // snapshot tables the dual-write had just populated).
   scriptInputs: {
-    knownDatasetVariables: Set<string>;
+    knownVariableIds: Set<string>;
     hfaIndicators: HfaIndicator[];
     hfaIndicatorCode: HfaIndicatorCode[];
     // R code is generation-input only, never a package input file (the
@@ -130,7 +130,7 @@ export async function prepareRunInputs(
   const facilitiesTables: { tableName: string; columns: ExportedColumn[] }[] =
     [];
   const scriptInputs: PreparedRunInputs["scriptInputs"] = {
-    knownDatasetVariables: new Set<string>(),
+    knownVariableIds: new Set<string>(),
     hfaIndicators: [],
     hfaIndicatorCode: [],
     hfaVariantCode: [],
@@ -217,8 +217,8 @@ export async function prepareRunInputs(
       tableName: "facilities_hfa",
       columns: FACILITY_PARQUET_COLUMNS,
     });
-    scriptInputs.knownDatasetVariables = new Set(
-      capture.indicatorsHfa.map((r) => r.var_name),
+    scriptInputs.knownVariableIds = new Set(
+      capture.variables.map((r) => r.variable_id),
     );
     // Script generation consumed these through the project snapshot reader,
     // which ordered by category → sub-category → indicator sort order. The
@@ -254,7 +254,7 @@ export async function prepareRunInputs(
       rCode: c.r_code,
     }));
     scriptInputs.hfaSentinelRows = capture.sentinelValues.map((r) => ({
-      varName: r.var_name,
+      variableId: r.variable_id,
       value: r.value,
       sentinelClass: r.sentinel_class,
       isNumeric: r.is_numeric,

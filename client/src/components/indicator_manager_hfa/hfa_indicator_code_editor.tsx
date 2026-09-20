@@ -241,7 +241,7 @@ function EditorInner(p: {
     p.dictionary.timePoints[0]?.timePoint ?? "",
   );
 
-  const [varSearch, setVarSearch] = createSignal("");
+  const [variableSearch, setVariableSearch] = createSignal("");
 
   const otherIndicatorIds = new Set(
     p.allIndicatorIds.filter((v) => v !== p.indicator.indicatorId),
@@ -256,10 +256,10 @@ function EditorInner(p: {
   const currentTpDict = () =>
     p.dictionary.timePoints.find((tp) => tp.timePoint === selectedTimePoint());
 
-  const valuesForVar = (varName: string) => {
+  const valuesForVariable = (variableId: string) => {
     const dict = currentTpDict();
     if (!dict) return [];
-    return dict.values.filter((v) => v.varName === varName);
+    return dict.values.filter((v) => v.variableId === variableId);
   };
 
   const roundsConsistency = () => {
@@ -296,17 +296,17 @@ function EditorInner(p: {
     markDirty();
   }
 
-  const availableVarNames = () => {
+  const availableVariableIds = () => {
     const dict = currentTpDict();
     if (!dict) return new Set<string>();
-    return new Set(dict.vars.map((v) => v.varName));
+    return new Set(dict.variables.map((v) => v.variableId));
   };
 
   const emptyValidation: RCodeValidationResult = {
     syntaxErrors: [],
     unknownVariableErrors: [],
     warnings: [],
-    referencedVars: [],
+    referencedIds: [],
   };
 
   const currentRCodeValidation = (): RCodeValidationResult => {
@@ -314,7 +314,7 @@ function EditorInner(p: {
     if (idx < 0) return emptyValidation;
     return validateRCode(
       state.code[idx].rCode,
-      availableVarNames(),
+      availableVariableIds(),
       otherIndicatorIds,
     );
   };
@@ -324,7 +324,7 @@ function EditorInner(p: {
     if (idx < 0) return emptyValidation;
     return validateRCode(
       state.code[idx].rFilterCode,
-      availableVarNames(),
+      availableVariableIds(),
       otherIndicatorIds,
     );
   };
@@ -378,13 +378,13 @@ function EditorInner(p: {
       const tp = p.dictionary.timePoints.find(
         (t) => t.timePoint === c.timePoint,
       );
-      const availableVars = tp
-        ? new Set(tp.vars.map((v) => v.varName))
+      const availableVariableIds = tp
+        ? new Set(tp.variables.map((v) => v.variableId))
         : new Set<string>();
       if (c.rCode.trim()) {
         const result = validateRCode(
           c.rCode,
-          availableVars,
+          availableVariableIds,
           otherIndicatorIds,
         );
         if (hasRCodeErrors(result)) {
@@ -395,7 +395,7 @@ function EditorInner(p: {
       if (c.rFilterCode.trim()) {
         const result = validateRCode(
           c.rFilterCode,
-          availableVars,
+          availableVariableIds,
           otherIndicatorIds,
         );
         if (hasRCodeErrors(result)) {
@@ -409,12 +409,12 @@ function EditorInner(p: {
         const tp = p.dictionary.timePoints.find(
           (t) => t.timePoint === vc.timePoint,
         );
-        const availableVars = tp
-          ? new Set(tp.vars.map((v) => v.varName))
+        const availableVariableIds = tp
+          ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         const result = validateRCode(
           vc.rCode,
-          availableVars,
+          availableVariableIds,
           allIndicatorIdsInclSelf,
         );
         if (hasRCodeErrors(result)) {
@@ -684,7 +684,7 @@ function EditorInner(p: {
                   />
                   <Show
                     when={
-                      currentRCodeValidation().referencedVars.length > 0 ||
+                      currentRCodeValidation().referencedIds.length > 0 ||
                       currentRCodeValidation().warnings.length > 0 ||
                       currentRCodeValidation().unknownVariableErrors.length >
                         0 ||
@@ -703,17 +703,17 @@ function EditorInner(p: {
                       <For each={currentRCodeValidation().unknownVariableErrors}>
                         {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
-                      <For each={currentRCodeValidation().referencedVars}>
-                        {(varName) => {
-                          const varInfo = currentTpDict()?.vars.find(
-                            (v) => v.varName === varName,
+                      <For each={currentRCodeValidation().referencedIds}>
+                        {(id) => {
+                          const variable = currentTpDict()?.variables.find(
+                            (v) => v.variableId === id,
                           );
-                          const vals = valuesForVar(varName);
+                          const vals = valuesForVariable(id);
                           return (
                             <div class="text-success text-xs">
                               <div>
-                                {varName}
-                                {varInfo ? ` — ${varInfo.varLabel}` : ""}
+                                {id}
+                                {variable ? ` — ${variable.variableLabel}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
                                 <div class="text-base-content-muted ml-3">
@@ -765,7 +765,7 @@ function EditorInner(p: {
                   </Show>
                   <Show
                     when={
-                      currentFilterValidation().referencedVars.length > 0 ||
+                      currentFilterValidation().referencedIds.length > 0 ||
                       currentFilterValidation().warnings.length > 0 ||
                       currentFilterValidation().unknownVariableErrors.length >
                         0 ||
@@ -784,17 +784,17 @@ function EditorInner(p: {
                       <For each={currentFilterValidation().unknownVariableErrors}>
                         {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
-                      <For each={currentFilterValidation().referencedVars}>
-                        {(varName) => {
-                          const varInfo = currentTpDict()?.vars.find(
-                            (v) => v.varName === varName,
+                      <For each={currentFilterValidation().referencedIds}>
+                        {(id) => {
+                          const variable = currentTpDict()?.variables.find(
+                            (v) => v.variableId === id,
                           );
-                          const vals = valuesForVar(varName);
+                          const vals = valuesForVariable(id);
                           return (
                             <div class="text-success text-xs">
                               <div>
-                                {varName}
-                                {varInfo ? ` — ${varInfo.varLabel}` : ""}
+                                {id}
+                                {variable ? ` — ${variable.variableLabel}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
                                 <div class="text-base-content-muted ml-3">
@@ -829,7 +829,7 @@ function EditorInner(p: {
                         const validation = (): RCodeValidationResult =>
                           validateRCode(
                             state.variantCode[key()] ?? "",
-                            availableVarNames(),
+                            availableVariableIds(),
                             allIndicatorIdsInclSelf,
                           );
                         return (
@@ -920,8 +920,8 @@ function EditorInner(p: {
                     })}
                   </div>
                   <Input
-                    value={varSearch()}
-                    onChange={setVarSearch}
+                    value={variableSearch()}
+                    onChange={setVariableSearch}
                     placeholder={t3({
                       en: "Search variables...",
                       fr: "Rechercher des variables...",
@@ -936,18 +936,18 @@ function EditorInner(p: {
                   <Show when={currentTpDict()}>
                     {(dict) => (
                       <For
-                        each={dict().vars.filter((v) => {
-                          const q = varSearch().trim().toLowerCase();
+                        each={dict().variables.filter((v) => {
+                          const q = variableSearch().trim().toLowerCase();
                           if (!q) return true;
                           return (
-                            v.varName.toLowerCase().includes(q) ||
-                            v.varLabel.toLowerCase().includes(q)
+                            v.variableId.toLowerCase().includes(q) ||
+                            v.variableLabel.toLowerCase().includes(q)
                           );
                         })}
                       >
                         {(v) => {
                           const vals = dict().values.filter(
-                            (vv) => vv.varName === v.varName,
+                            (vv) => vv.variableId === v.variableId,
                           );
                           return (
                             <div class="border-b py-1 last:border-b-0">
@@ -964,19 +964,19 @@ function EditorInner(p: {
                                         (prev.length === 0 || /\s$/.test(prev)
                                           ? ""
                                           : " ") +
-                                        v.varName +
+                                        v.variableId +
                                         " ",
                                     );
                                     markDirty();
                                   }}
                                 >
-                                  {v.varName}
+                                  {v.variableId}
                                 </span>
                                 <span class="text-base-content-muted truncate">
-                                  {v.varLabel}
+                                  {v.variableLabel}
                                 </span>
                                 <span class="text-base-content-muted flex-none">
-                                  {v.varType}
+                                  {v.variableType}
                                 </span>
                               </div>
                               <Show when={vals.length > 0}>

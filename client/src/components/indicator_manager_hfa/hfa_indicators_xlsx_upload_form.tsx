@@ -68,7 +68,7 @@ type Props = EditorComponentProps<
   {
     source: HfaWorkbookSource;
     timePoints: string[];
-    surveyVarNames: string[];
+    variableIds: string[];
     showAi: Accessor<boolean>;
     openAi: () => void;
   },
@@ -156,7 +156,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
                   shape={s.shape}
                   uploadMode={uploadMode()}
                   timePoints={p.timePoints}
-                  surveyVarNames={p.surveyVarNames}
+                  variableIds={p.variableIds}
                   onBack={() => setStep({ name: "pick" })}
                   onDone={() => p.close(undefined)}
                 />
@@ -341,7 +341,7 @@ function ReconcileStep(p: {
   shape: WorkbookShape;
   uploadMode: "replace" | "add";
   timePoints: string[]; // platform time points in sort order
-  surveyVarNames: string[];
+  variableIds: string[];
   onBack: () => void;
   onDone: () => void;
 }) {
@@ -424,7 +424,7 @@ function ReconcileStep(p: {
       if (p.uploadMode === "add") {
         const shadowing = p.shape.indicators
           .map((ind) => ind.indicatorId)
-          .filter((v) => p.surveyVarNames.includes(v));
+          .filter((v) => p.variableIds.includes(v));
         if (shadowing.length > 0) {
           return {
             success: false,

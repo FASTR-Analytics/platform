@@ -225,8 +225,11 @@ the shared mechanism; HFA differs only here:
   xlsFormFilePin, mappings }`, two pinned assets),
   `time_point` denormalized from the mappings as the outcome link (HFA
   outcomes live in the time-point plane, not a versions table), `diagnostics`
-  (the staging result, written at the hold AND at complete; rides the polled
-  list, no detail route), `n_rows_integrated`.
+  (the staging result, `DatasetHfaCsvStagingResult`, written at the hold AND
+  at complete; rides the polled list, no detail route; a TEXT column parsed
+  without a schema, so a renamed key is rewritten in place by an instance
+  migration, as 093 did for `nDictionaryVariables` and
+  `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`.
 - **Clean condition**: `nRowsInvalidMissingFacilityId +
   nRowsInvalidFacilityNotFound = 0 AND nRowsTotal > 0`. Duplicates and
   filtered-out rows never gate. Both are resolved by user intent at wizard
@@ -318,12 +321,14 @@ start.
   facility scope is the UID-shape-filtered `facilities_hmis` list
   snapshotted at run start; failed pairs never delete anything.
 - HFA XLSForm: `survey`+`choices` sheets required; only
-  `select_one`/`select_multiple`/`integer`/`decimal` vars are staged;
-  `select_multiple` expands to one binary var per choice (`{var}_{choice}`:
-  selected `1`, unselected `0`, unanswered parent `""` on every expanded var,
-  a `-99` don't-know parent marks unselected choices `-99`); the name
-  `weight` (any case, incl. expanded) is reserved and aborts staging;
-  duplicate var names are a hard error.
+  `select_one`/`select_multiple`/`integer`/`decimal` questions are staged,
+  each as a variable whose id is the question's; `select_multiple` expands
+  to one binary variable per choice (variable id `{question}_{choice}`:
+  selected `1`, unselected `0`, unanswered parent `""` on every expanded
+  variable, a `-99` don't-know parent marks unselected choices `-99`); a
+  variable id that `isReservedHfaId` rejects (`weight`, `variable_id`,
+  `time_point`, an R keyword, any case, expanded ids included) aborts
+  staging; duplicate question ids are a hard error.
 - HFA row filtering + dedup (order fixed: **filter → review → resolve**; all
   fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string
   `equals`/`not_equals` on the raw cell) drop rows before any duplicate
@@ -374,7 +379,9 @@ Postgres crash truncates the UNLOGGED table. Then:
 
 **HFA, full replace per time_point**: stamp `hfa_time_points.imported_at` (the
 time point must pre-exist), DELETE `hfa_data` + `hfa_variables` for that time
-point (FK cascades to values), insert dictionary + data from staging. No merge →
+point (FK cascades to values), insert dictionary (`variable_id`,
+`variable_label`, `variable_type`, then the per-variable values) + data from
+staging. No merge →
 **no phantom-value hazard** within a time point; other time points untouched
 (rounds). **No version records**. Staleness identity is a hash over
 `hfa_time_points` (label, sort_order, imported_at). Weights

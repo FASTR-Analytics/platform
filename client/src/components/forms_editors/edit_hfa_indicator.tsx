@@ -20,7 +20,7 @@ export function EditHfaIndicator(
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
-      surveyVarNames: string[];
+      variableIds: string[];
     },
     undefined
   >,
@@ -74,7 +74,7 @@ export function EditHfaIndicator(
             }),
           };
         }
-        if (p.surveyVarNames.includes(trimmedIndicatorId)) {
+        if (p.variableIds.includes(trimmedIndicatorId)) {
           return {
             success: false,
             err: t3({

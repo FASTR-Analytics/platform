@@ -72,19 +72,19 @@ export async function integrateStagedHfaData(args: {
     onProgress(30);
 
     await sql.unsafe(`
-      INSERT INTO hfa_variables (time_point, var_name, var_label, var_type)
-      SELECT time_point, var_name, var_label, var_type FROM ${names.dictVars}
+      INSERT INTO hfa_variables (time_point, variable_id, variable_label, variable_type)
+      SELECT time_point, variable_id, variable_label, variable_type FROM ${names.dictVars}
     `);
     await sql.unsafe(`
-      INSERT INTO hfa_variable_values (time_point, var_name, value, value_label, sentinel_class)
-      SELECT time_point, var_name, value, value_label, sentinel_class FROM ${names.dictValues}
+      INSERT INTO hfa_variable_values (time_point, variable_id, value, value_label, sentinel_class)
+      SELECT time_point, variable_id, value, value_label, sentinel_class FROM ${names.dictValues}
     `);
 
     onProgress(50);
 
     await sql.unsafe(`
-      INSERT INTO hfa_data (facility_id, time_point, var_name, value)
-      SELECT facility_id, time_point, var_name, value FROM ${names.final}
+      INSERT INTO hfa_data (facility_id, time_point, variable_id, value)
+      SELECT facility_id, time_point, variable_id, value FROM ${names.final}
     `);
 
     onProgress(80);

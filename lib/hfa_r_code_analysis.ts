@@ -111,7 +111,7 @@ const R_COMMON_FUNCTIONS = new Set([
 
 // Bareword logical operators accepted as aliases for R's vectorised `&`/`|`.
 // Single source of truth for both `normalizeRLogicalOperators` (which rewrites
-// them) and `isReservedHfaId` (which forbids them as variable names).
+// them) and `isReservedHfaId` (which forbids them as variable ids).
 // Case-insensitive: the normaliser rewrites any case, so any case collides.
 const R_LOGICAL_OPERATOR_ALIASES = new Map<string, string>([
   ["and", "&"],
@@ -124,7 +124,7 @@ const R_LOGICAL_OPERATOR_REGEX = new RegExp(
 );
 
 // Column names the M10 script owns. `time_point` / `facility_*` / `admin_area_*`
-// are its facility columns, `var_name` / `value` are what it pivots on, and
+// are its facility columns, `variable_id` / `value` are what it pivots on, and
 // `weight` / `weight_final` carry the sampling weight. A survey variable or
 // indicator with one of these names collides at `pivot_wider`, overwrites the
 // column via `mutate`, or, at worst, silently shadows it inside the scoped
@@ -136,7 +136,7 @@ const R_LOGICAL_OPERATOR_REGEX = new RegExp(
 // `Weight` would not actually collide, but a name that differs only in case
 // from a structural column is a mistake worth rejecting at the boundary.
 const M10_STRUCTURAL_NAMES = new Set([
-  "var_name",
+  "variable_id",
   "value",
   "weight",
   "weight_final",

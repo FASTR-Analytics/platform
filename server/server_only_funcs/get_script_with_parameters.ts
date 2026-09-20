@@ -25,7 +25,7 @@ export function getScriptWithParameters(
   configSelections: ModuleConfigSelections,
   countryIso3: string | undefined,
   datasetsDirPath: string,
-  knownDatasetVariables?: Set<string>,
+  knownVariableIds?: Set<string>,
   hfaIndicators?: HfaIndicator[],
   hfaIndicatorCode?: HfaIndicatorCode[],
   hfaVariantCode?: HfaIndicatorVariantCode[],
@@ -34,9 +34,9 @@ export function getScriptWithParameters(
   hmisIndicatorCatalog?: HmisIndicatorCatalogRow[],
 ): string {
   if (moduleDefinition.scriptGenerationType === "hfa") {
-    if (!knownDatasetVariables) {
+    if (!knownVariableIds) {
       throw new Error(
-        "knownDatasetVariables is required for HFA module script generation"
+        "knownVariableIds is required for HFA module script generation"
       );
     }
     if (!hfaIndicators) {
@@ -52,7 +52,7 @@ export function getScriptWithParameters(
       hfaIndicators,
       hfaIndicatorCode ?? [],
       hfaVariantCode ?? [],
-      knownDatasetVariables,
+      knownVariableIds,
       hfaSentinelRows ?? [],
       hfaTimePointOrder ?? [],
     );

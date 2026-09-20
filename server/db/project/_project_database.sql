@@ -14,7 +14,7 @@ CREATE TABLE indicators (
 );
 
 CREATE TABLE indicators_hfa (
-  var_name text PRIMARY KEY NOT NULL,
+  variable_id text PRIMARY KEY NOT NULL,
   example_values text NOT NULL
 );
 
@@ -70,11 +70,11 @@ CREATE TABLE hfa_indicator_code_snapshot (
 -- classified rows are stored; is_numeric marks numeric-var don't-know
 -- (-999999), which is missing regardless of DK policy.
 CREATE TABLE hfa_variable_values_snapshot (
-  var_name text NOT NULL,
+  variable_id text NOT NULL,
   value text NOT NULL,
   sentinel_class text NOT NULL,
   is_numeric boolean NOT NULL,
-  PRIMARY KEY (var_name, value)
+  PRIMARY KEY (variable_id, value)
 );
 
 CREATE TABLE iceh_indicators_snapshot (

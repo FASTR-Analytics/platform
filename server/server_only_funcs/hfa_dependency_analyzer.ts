@@ -1,13 +1,14 @@
 import { extractRIdentifiers, type HfaIndicator, type HfaIndicatorCode } from "lib";
 
 export type ExtractedDependencies = {
-  // Dataset question variables. `qids` is the union across rCode + rFilterCode
-  // (used by the value/missingness expression); `codeQids` and `filterQids`
-  // split it by source so the response-status expression can decide
-  // applicability (filter vars) separately from answer status (code vars).
-  qids: string[];
-  codeQids: string[];
-  filterQids: string[];
+  // Dataset variable ids. `variableIds` is the union across rCode +
+  // rFilterCode (used by the value/missingness expression);
+  // `codeVariableIds` and `filterVariableIds` split it by source so the
+  // response-status expression can decide applicability (filter variables)
+  // separately from answer status (code variables).
+  variableIds: string[];
+  codeVariableIds: string[];
+  filterVariableIds: string[];
   dependencies: string[];
   unknownVariables: string[];
 };
@@ -16,7 +17,7 @@ export function extractDependenciesFromCode(
   rCode: string,
   rFilterCode: string | undefined,
   allIndicatorIds: Set<string>,
-  knownDatasetVariables: Set<string>,
+  knownVariableIds: Set<string>,
 ): ExtractedDependencies {
   const codeVars = new Set<string>();
   const filterVars = new Set<string>();
@@ -31,21 +32,21 @@ export function extractDependenciesFromCode(
     extractRIdentifiers(rFilterTrimmed).forEach((v) => filterVars.add(v));
   }
 
-  const qids = new Set<string>();
-  const codeQids: string[] = [];
-  const filterQids: string[] = [];
+  const variableIds = new Set<string>();
+  const codeVariableIds: string[] = [];
+  const filterVariableIds: string[] = [];
   const dependencies = new Set<string>();
   const unknownVariables = new Set<string>();
 
   const classify = (variable: string, source: "code" | "filter"): void => {
     if (allIndicatorIds.has(variable)) {
       dependencies.add(variable);
-    } else if (knownDatasetVariables.has(variable)) {
-      qids.add(variable);
+    } else if (knownVariableIds.has(variable)) {
+      variableIds.add(variable);
       if (source === "code") {
-        codeQids.push(variable);
+        codeVariableIds.push(variable);
       } else {
-        filterQids.push(variable);
+        filterVariableIds.push(variable);
       }
     } else {
       unknownVariables.add(variable);
@@ -56,9 +57,9 @@ export function extractDependenciesFromCode(
   filterVars.forEach((v) => classify(v, "filter"));
 
   return {
-    qids: [...qids].sort(),
-    codeQids: codeQids.sort(),
-    filterQids: filterQids.sort(),
+    variableIds: [...variableIds].sort(),
+    codeVariableIds: codeVariableIds.sort(),
+    filterVariableIds: filterVariableIds.sort(),
     dependencies: [...dependencies].sort(),
     unknownVariables: [...unknownVariables].sort(),
   };
@@ -68,7 +69,7 @@ export function buildUnionDependencyGraph(
   indicators: HfaIndicator[],
   codeByIndicator: Map<string, HfaIndicatorCode[]>,
   allIndicatorIds: Set<string>,
-  knownDatasetVariables: Set<string>,
+  knownVariableIds: Set<string>,
 ): {
   graph: Map<string, string[]>;
   dependenciesMap: Map<string, string[]>;
@@ -90,7 +91,7 @@ export function buildUnionDependencyGraph(
         snippet.rCode,
         snippet.rFilterCode,
         allIndicatorIds,
-        knownDatasetVariables,
+        knownVariableIds,
       );
 
       if (deps.unknownVariables.length > 0) {

@@ -514,10 +514,10 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
     JOIN hfa_indicator_variant_items it ON it.group_id = i.variant_group_id
   `;
   if (pairs.length > 0) {
-    const surveyVarRows = await sql<{ var_name: string }[]>`
-      SELECT DISTINCT var_name FROM hfa_variables
+    const variableIdRows = await sql<{ variable_id: string }[]>`
+      SELECT DISTINCT variable_id FROM hfa_variables
     `;
-    const surveyVars = new Set(surveyVarRows.map((r) => r.var_name));
+    const variableIds = new Set(variableIdRows.map((r) => r.variable_id));
     const composed = new Set<string>();
     for (const p of pairs) {
       const name = composeHfaVariantColumnName(p.indicator_id, p.item_id);
@@ -532,7 +532,7 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
           `Composed column name "${name}" (${source}) collides with an indicator id`,
         );
       }
-      if (surveyVars.has(name)) {
+      if (variableIds.has(name)) {
         throw new Error(
           `Composed column name "${name}" (${source}) collides with a survey variable`,
         );
@@ -1336,22 +1336,22 @@ export async function getHfaDictionaryForValidation(
     const tpRows = await mainDb<{ label: string }[]>`
       SELECT label FROM hfa_time_points ORDER BY sort_order
     `;
-    const varRows = await mainDb<{ time_point: string; var_name: string; var_label: string; var_type: string }[]>`
-      SELECT time_point, var_name, var_label, var_type FROM hfa_variables ORDER BY time_point, var_name
+    const variableRows = await mainDb<{ time_point: string; variable_id: string; variable_label: string; variable_type: string }[]>`
+      SELECT time_point, variable_id, variable_label, variable_type FROM hfa_variables ORDER BY time_point, variable_id
     `;
-    const valRows = await mainDb<{ time_point: string; var_name: string; value: string; value_label: string }[]>`
-      SELECT time_point, var_name, value, value_label FROM hfa_variable_values ORDER BY time_point, var_name, value
+    const valueRows = await mainDb<{ time_point: string; variable_id: string; value: string; value_label: string }[]>`
+      SELECT time_point, variable_id, value, value_label FROM hfa_variable_values ORDER BY time_point, variable_id, value
     `;
 
     const timePoints = tpRows.map((tp) => {
       return {
         timePoint: tp.label,
-        vars: varRows
+        variables: variableRows
           .filter((v) => v.time_point === tp.label)
-          .map((v) => ({ varName: v.var_name, varLabel: v.var_label, varType: v.var_type })),
-        values: valRows
+          .map((v) => ({ variableId: v.variable_id, variableLabel: v.variable_label, variableType: v.variable_type })),
+        values: valueRows
           .filter((v) => v.time_point === tp.label)
-          .map((v) => ({ varName: v.var_name, value: v.value, valueLabel: v.value_label })),
+          .map((v) => ({ variableId: v.variable_id, value: v.value, valueLabel: v.value_label })),
       };
     });
 

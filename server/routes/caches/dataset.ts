@@ -14,7 +14,7 @@ export const _FETCH_CACHE_DATASET_HFA_ITEMS = new TimCacheC<
   {},
   { hash: string },
   APIResponseWithData<ItemsHolderDatasetHfaDisplay>
->("ds_hfa", {
+>("ds_hfa_v2", {
   uniquenessHashFromParams: () => "hfa",
   versionHashFromParams: (params) => params.hash,
   parseData: (res) => {

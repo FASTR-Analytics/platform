@@ -600,10 +600,10 @@ CREATE TABLE hfa_time_points (
 
 CREATE TABLE hfa_variables (
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
-  var_name TEXT NOT NULL,
-  var_label TEXT NOT NULL,
-  var_type TEXT NOT NULL,
-  PRIMARY KEY (time_point, var_name)
+  variable_id TEXT NOT NULL,
+  variable_label TEXT NOT NULL,
+  variable_type TEXT NOT NULL,
+  PRIMARY KEY (time_point, variable_id)
 );
 
 -- ============================================================================
@@ -612,12 +612,12 @@ CREATE TABLE hfa_variables (
 
 CREATE TABLE hfa_variable_values (
   time_point TEXT NOT NULL,
-  var_name TEXT NOT NULL,
+  variable_id TEXT NOT NULL,
   value TEXT NOT NULL,
   value_label TEXT NOT NULL,
   sentinel_class TEXT NOT NULL DEFAULT '',
-  PRIMARY KEY (time_point, var_name, value),
-  FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
+  PRIMARY KEY (time_point, variable_id, value),
+  FOREIGN KEY (time_point, variable_id) REFERENCES hfa_variables(time_point, variable_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -627,9 +627,9 @@ CREATE TABLE hfa_variable_values (
 CREATE TABLE hfa_data (
   facility_id TEXT NOT NULL,
   time_point TEXT NOT NULL,
-  var_name TEXT NOT NULL,
+  variable_id TEXT NOT NULL,
   value TEXT NOT NULL,
-  PRIMARY KEY (facility_id, time_point, var_name),
+  PRIMARY KEY (facility_id, time_point, variable_id),
   -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
   -- Structure integration refuses (assertAbsentFacilitiesUnreferenced) before
   -- deleting any facility this table still references, so the old deferred
@@ -637,10 +637,10 @@ CREATE TABLE hfa_data (
   -- no longer used by code.
   CONSTRAINT hfa_data_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) DEFERRABLE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
-  FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
+  FOREIGN KEY (time_point, variable_id) REFERENCES hfa_variables(time_point, variable_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE INDEX idx_hfa_data_var_name ON hfa_data(var_name);
+CREATE INDEX idx_hfa_data_variable_id ON hfa_data(variable_id);
 CREATE INDEX idx_hfa_data_facility_id ON hfa_data(facility_id);
 CREATE INDEX idx_hfa_data_time_point ON hfa_data(time_point);
 

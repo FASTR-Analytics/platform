@@ -489,8 +489,13 @@ second run a no-op).
 
 **HFA** has two disjoint id namespaces that are easy to conflate:
 **indicator ids** (`hfa_indicators.indicator_id`, e.g. `ind001`) and
-**variable ids** (the `hfa_variables` rows, per time point, from staged ODK
-data, e.g. `fin_01a_a`). User-authored R snippets in `hfa_indicator_code`
+**variable ids** (`hfa_variables.variable_id`, per time point, with
+`variable_label` and `variable_type`; `hfa_data` and `hfa_variable_values`
+key on the same column; e.g. `fin_01a_a`, or `{question}_{choice}` for an
+expanded `select_multiple`). The variable id is the column the HFA extract
+carries to R (`hfa.csv` `variable_id`, the `m010` pivot column) and the id
+that indicator R code references; `M10_STRUCTURAL_NAMES` reserves it with
+the other columns the script owns. User-authored R snippets in `hfa_indicator_code`
 (per indicator_id × time_point: `r_code` + optional `r_filter_code`, filter
 requires main code) reference variables AND other indicators, both by id.
 Indicator ids are validated as R identifiers (`HFA_INDICATOR_ID_REGEX`,

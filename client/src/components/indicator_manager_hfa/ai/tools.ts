@@ -97,14 +97,14 @@ function computeIndicatorValidation(
       hasSyntaxError = true;
       continue;
     }
-    const availableVars = new Set(tp.vars.map((v) => v.varName));
+    const availableVariableIds = new Set(tp.variables.map((v) => v.variableId));
     const fields: [string, string][] = [
       ["rCode", c.rCode],
       ["rFilterCode", c.rFilterCode ?? ""],
     ];
     for (const [field, codeStr] of fields) {
       if (!codeStr.trim()) continue;
-      const r = validateRCode(codeStr, availableVars, otherIndicatorIds);
+      const r = validateRCode(codeStr, availableVariableIds, otherIndicatorIds);
       if (hasRCodeErrors(r)) {
         hasSyntaxError = true;
       }
@@ -355,11 +355,11 @@ export function buildHfaIndicatorTools() {
     createAITool({
       name: "get_hfa_variable_dictionary",
       description:
-        "List the survey variables in the dataset — name, human label, and data type — per round (time point). Compact by default. To see a variable's coded response options, missingness and the values actually present, use inspect_hfa_variable.",
+        "List the survey variables in the dataset — variable id, human label, and data type — per round (time point). Compact by default. To see a variable's coded response options, missingness and the values actually present, use inspect_hfa_variable.",
       kind: "read",
       inputSchema: z.object({
         timePoint: z.string().optional().describe("Restrict to one round / time point."),
-        search: z.string().optional().describe("Only variables whose name or label contains this text (case-insensitive)."),
+        search: z.string().optional().describe("Only variables whose id or label contains this text (case-insensitive)."),
       }),
       handler: async (input) => {
         const dict = await loadDictionary();
@@ -369,18 +369,18 @@ export function buildHfaIndicatorTools() {
           : dict.timePoints;
         return {
           timePoints: tps.map((tp) => {
-            let vars = tp.vars;
+            let variables = tp.variables;
             if (search) {
-              vars = vars.filter(
+              variables = variables.filter(
                 (v) =>
-                  v.varName.toLowerCase().includes(search) ||
-                  v.varLabel.toLowerCase().includes(search),
+                  v.variableId.toLowerCase().includes(search) ||
+                  v.variableLabel.toLowerCase().includes(search),
               );
             }
             return {
               timePoint: tp.timePoint,
-              variableCount: vars.length,
-              variables: vars.map((v) => ({ varName: v.varName, label: v.varLabel, dataType: v.varType })),
+              variableCount: variables.length,
+              variables: variables.map((v) => ({ variableId: v.variableId, label: v.variableLabel, dataType: v.variableType })),
             };
           }),
         };
@@ -395,22 +395,22 @@ export function buildHfaIndicatorTools() {
         "Inspect one or more survey variables in depth: per round, the coded response options (value → label), how many facilities answered vs are missing, and the distinct values actually present in the data. Use this before writing r-code that compares against a variable's codes.",
       kind: "read",
       inputSchema: z.object({
-        varNames: z.array(z.string()).min(1).describe("The survey variable name(s) to inspect."),
+        variableIds: z.array(z.string()).min(1).describe("The survey variable id(s) to inspect."),
         timePoint: z.string().optional().describe("Restrict to one round / time point."),
       }),
       handler: async (input) => {
         const res = await serverActions.getDatasetHfaDisplayInfo({});
         if (!res.success) throw new AIToolFailure("Could not load the dataset variable details.");
-        const wanted = new Set(input.varNames);
-        let rows = res.data.rows.filter((r) => wanted.has(r.varName));
+        const wanted = new Set(input.variableIds);
+        let rows = res.data.rows.filter((r) => wanted.has(r.variableId));
         if (input.timePoint) rows = rows.filter((r) => r.timePoint === input.timePoint);
-        const found = new Set(rows.map((r) => r.varName));
-        const missing = input.varNames.filter((v) => !found.has(v));
+        const found = new Set(rows.map((r) => r.variableId));
+        const missing = input.variableIds.filter((v) => !found.has(v));
         return {
           variables: rows.map((r) => ({
-            varName: r.varName,
-            label: r.varLabel,
-            dataType: r.varType,
+            variableId: r.variableId,
+            label: r.variableLabel,
+            dataType: r.variableType,
             timePoint: r.timePoint,
             answered: r.count,
             missing: r.missing,
@@ -420,7 +420,7 @@ export function buildHfaIndicatorTools() {
           notFound: missing.length > 0 ? missing : undefined,
         };
       },
-      inProgressLabel: (input) => `Inspecting ${input.varNames.join(", ")}...`,
+      inProgressLabel: (input) => `Inspecting ${input.variableIds.join(", ")}...`,
       completionMessage: "Inspected variable(s)",
     }),
 

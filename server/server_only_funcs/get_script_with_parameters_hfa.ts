@@ -31,7 +31,7 @@ export function populationFilePathLiteral(datasetsDirPath: string): string {
 // consumed here. A variable absent from the map falls back to the hardcoded
 // Sierra-Leone set, so un-reclassified snapshots keep working.
 export type HfaSentinelRow = {
-  varName: string;
+  variableId: string;
   value: string;
   sentinelClass: string;
   isNumeric: boolean;
@@ -49,10 +49,10 @@ type VarSentinels = {
 function buildSentinelMap(rows: HfaSentinelRow[]): Map<string, VarSentinels> {
   const map = new Map<string, VarSentinels>();
   for (const r of rows) {
-    let entry = map.get(r.varName);
+    let entry = map.get(r.variableId);
     if (!entry) {
       entry = { dontKnowSelect: [], dontKnowNumeric: [], refused: [] };
-      map.set(r.varName, entry);
+      map.set(r.variableId, entry);
     }
     if (r.sentinelClass === "refused") {
       entry.refused.push(r.value);
@@ -92,13 +92,13 @@ const SAFE_IN_BINDING =
 // for binary indicators, in which case it stays in the data and fails the
 // indicator's positive test item-by-item (see PLAN_HFA_FEATURES.md).
 function buildSentinelBindings(
-  qids: string[],
+  variableIds: string[],
   includeDontKnow: boolean,
   sentinelMap: Map<string, VarSentinels>,
 ): string[] {
   const bindings: string[] = [];
-  for (const varName of qids) {
-    const entry = sentinelMap.get(varName);
+  for (const variableId of variableIds) {
+    const entry = sentinelMap.get(variableId);
     let codes: string[];
     if (entry) {
       codes = [
@@ -113,47 +113,47 @@ function buildSentinelBindings(
       continue;
     }
     bindings.push(
-      `    ${varName} = replace(${varName}, ${varName} %in% c(${codes.join(", ")}), NA_real_)`,
+      `    ${variableId} = replace(${variableId}, ${variableId} %in% c(${codes.join(", ")}), NA_real_)`,
     );
   }
   return bindings;
 }
 
-// Response-status per-qid checks (policy-independent classification). Fall back
-// to the hardcoded set when a variable is unclassified.
+// Response-status per-variable checks (policy-independent classification).
+// Fall back to the hardcoded set when a variable is unclassified.
 function statusDontKnowCheck(
-  qid: string,
+  variableId: string,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
-  const entry = sentinelMap.get(qid);
+  const entry = sentinelMap.get(variableId);
   const codes = entry
     ? [...entry.dontKnowSelect, ...entry.dontKnowNumeric]
     : ["-99", "-999999"];
   const membership = rMembership(codes);
-  return membership ? `${qid} ${membership}` : "FALSE";
+  return membership ? `${variableId} ${membership}` : "FALSE";
 }
 
 function statusMissingCheck(
-  qid: string,
+  variableId: string,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
-  const entry = sentinelMap.get(qid);
+  const entry = sentinelMap.get(variableId);
   const refusedMembership = entry ? rMembership(entry.refused) : undefined;
   return refusedMembership
-    ? `is.na(${qid}) | ${qid} ${refusedMembership}`
-    : `is.na(${qid})`;
+    ? `is.na(${variableId}) | ${variableId} ${refusedMembership}`
+    : `is.na(${variableId})`;
 }
 
 function statusFilterUnknownCheck(
-  qid: string,
+  variableId: string,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
-  const entry = sentinelMap.get(qid);
+  const entry = sentinelMap.get(variableId);
   const codes = entry
     ? [...entry.dontKnowSelect, ...entry.dontKnowNumeric, ...entry.refused]
     : ["-99", "-999999"];
   const membership = rMembership(codes);
-  return membership ? `is.na(${qid}) | ${qid} ${membership}` : `is.na(${qid})`;
+  return membership ? `is.na(${variableId}) | ${variableId} ${membership}` : `is.na(${variableId})`;
 }
 
 // Gate the indicator on the RESULT of the authored expression, not on its
@@ -168,13 +168,13 @@ function buildPerTimePointMutateExpression(
   indicator: HfaIndicator,
   codeSnippets: HfaIndicatorCode[],
   allIndicatorIds: Set<string>,
-  knownDatasetVariables: Set<string>,
+  knownVariableIds: Set<string>,
   dontKnowAsNo: boolean,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
   const timePointBranches: string[] = [];
   const includeDontKnow = indicator.type === "numeric" || !dontKnowAsNo;
-  const boundQids = new Set<string>();
+  const boundVariableIds = new Set<string>();
 
   for (const snippet of codeSnippets) {
     const rCode = normalizeRLogicalOperators(snippet.rCode.trim());
@@ -189,10 +189,10 @@ function buildPerTimePointMutateExpression(
       rCode,
       snippet.rFilterCode,
       allIndicatorIds,
-      knownDatasetVariables,
+      knownVariableIds,
     );
-    for (const qid of deps.qids) {
-      boundQids.add(qid);
+    for (const variableId of deps.variableIds) {
+      boundVariableIds.add(variableId);
     }
 
     if (rFilterCode) {
@@ -225,7 +225,7 @@ function buildPerTimePointMutateExpression(
   const bindings = [
     SAFE_IN_BINDING,
     ...buildSentinelBindings(
-      [...boundQids].sort(),
+      [...boundVariableIds].sort(),
       includeDontKnow,
       sentinelMap,
     ),
@@ -243,7 +243,7 @@ function buildPerTimePointMutateExpression(
 function buildPerTimePointStatusExpression(
   codeSnippets: HfaIndicatorCode[],
   allIndicatorIds: Set<string>,
-  knownDatasetVariables: Set<string>,
+  knownVariableIds: Set<string>,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
   const branches: string[] = [];
@@ -260,7 +260,7 @@ function buildPerTimePointStatusExpression(
       rCode,
       snippet.rFilterCode,
       allIndicatorIds,
-      knownDatasetVariables,
+      knownVariableIds,
     );
 
     // Applicability is decided first, over the filter variables only: a facility
@@ -270,16 +270,16 @@ function buildPerTimePointStatusExpression(
     // variables only — otherwise a filtered-out facility whose (never-asked)
     // question variable is NA would be mislabelled "missing" before the
     // not_applicable branch is reached.
-    const dkCheck = deps.codeQids.length > 0
-      ? deps.codeQids.map((q) => statusDontKnowCheck(q, sentinelMap)).join(" | ")
+    const dkCheck = deps.codeVariableIds.length > 0
+      ? deps.codeVariableIds.map((v) => statusDontKnowCheck(v, sentinelMap)).join(" | ")
       : "FALSE";
-    const naCheck = deps.codeQids.length > 0
-      ? deps.codeQids.map((q) => statusMissingCheck(q, sentinelMap)).join(" | ")
+    const naCheck = deps.codeVariableIds.length > 0
+      ? deps.codeVariableIds.map((v) => statusMissingCheck(v, sentinelMap)).join(" | ")
       : "FALSE";
 
     if (rFilterCode) {
-      const filterUnknownChecks = deps.filterQids.map((q) =>
-        statusFilterUnknownCheck(q, sentinelMap)
+      const filterUnknownChecks = deps.filterVariableIds.map((v) =>
+        statusFilterUnknownCheck(v, sentinelMap)
       );
       const notApplicableCheck = [`!(${rFilterCode})`, ...filterUnknownChecks]
         .join(" | ");
@@ -309,7 +309,7 @@ export function getScriptWithParametersHfa(
   indicators: HfaIndicator[],
   indicatorCode: HfaIndicatorCode[],
   variantCode: HfaIndicatorVariantCode[],
-  knownDatasetVariables: Set<string>,
+  knownVariableIds: Set<string>,
   sentinelRows: HfaSentinelRow[],
   hfaTimePointOrder: string[],
 ): string {
@@ -362,7 +362,7 @@ export function getScriptWithParametersHfa(
     filteredIndicators,
     codeByIndicator,
     allIndicatorIds,
-    knownDatasetVariables,
+    knownVariableIds,
   );
 
   if (graphResult.validationErrors.length > 0) {
@@ -420,7 +420,7 @@ export function getScriptWithParametersHfa(
     filteredIndicators,
     codeByIndicator,
     allIndicatorIds,
-    knownDatasetVariables,
+    knownVariableIds,
   );
 
   const { ordered, cycles } = topologicalSort(
@@ -522,7 +522,7 @@ export function getScriptWithParametersHfa(
           snippet.rCode,
           snippet.rFilterCode,
           allIndicatorIds,
-          knownDatasetVariables,
+          knownVariableIds,
         );
         const problems: string[] = [];
         if (deps.unknownVariables.length > 0) {
@@ -583,7 +583,7 @@ export function getScriptWithParametersHfa(
           `Composed variant column "${e.composed}" (${source}) collides with an indicator id`,
         );
       }
-      if (knownDatasetVariables.has(e.composed)) {
+      if (knownVariableIds.has(e.composed)) {
         throw new Error(
           `Composed variant column "${e.composed}" (${source}) collides with a survey variable`,
         );
@@ -603,7 +603,7 @@ export function getScriptWithParametersHfa(
             e.parent,
             e.snippets,
             allIndicatorIds,
-            knownDatasetVariables,
+            knownVariableIds,
             dontKnowAsNo,
             sentinelMap,
           );
@@ -650,7 +650,7 @@ export function getScriptWithParametersHfa(
         indicator,
         activeSnippets,
         allIndicatorIds,
-        knownDatasetVariables,
+        knownVariableIds,
         dontKnowAsNo,
         sentinelMap,
       );
@@ -661,7 +661,7 @@ export function getScriptWithParametersHfa(
       const statusExpr = buildPerTimePointStatusExpression(
         activeSnippets,
         allIndicatorIds,
-        knownDatasetVariables,
+        knownVariableIds,
         sentinelMap,
       );
       return `${valueMutate} %>%\n  mutate(${indicator.indicatorId}__status = ${statusExpr})`;

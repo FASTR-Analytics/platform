@@ -245,14 +245,14 @@ export function HfaIndicatorsManager(p: Props) {
       pt: "Ainda não foram definidos pontos temporais HFA. Adicione um ponto temporal (HFA → Pontos temporais) para ativar a edição do código, a validação e a importação.",
     });
 
-  const surveyVarNames = createMemo(() => {
+  const variableIds = createMemo(() => {
     const dictSt = dictionary();
     if (dictSt.status !== "ready") return [];
-    const names = new Set<string>();
+    const ids = new Set<string>();
     for (const tp of dictSt.data.timePoints) {
-      for (const v of tp.vars) names.add(v.varName);
+      for (const v of tp.variables) ids.add(v.variableId);
     }
-    return [...names];
+    return [...ids];
   });
 
   type IndicatorCodeStats = {
@@ -299,14 +299,14 @@ export function HfaIndicatorsManager(p: Props) {
       let error = 0;
       for (const c of withCodeEntries) {
         const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
-        const availableVars = tp
-          ? new Set(tp.vars.map((v) => v.varName))
+        const availableVariableIds = tp
+          ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         let hasErr = false;
         let hasWarn = false;
         const rCodeResult = validateRCode(
           c.rCode,
-          availableVars,
+          availableVariableIds,
           otherIndicatorIds,
         );
         if (hasRCodeErrors(rCodeResult)) {
@@ -318,7 +318,7 @@ export function HfaIndicatorsManager(p: Props) {
         if (c.rFilterCode?.trim()) {
           const rFilterResult = validateRCode(
             c.rFilterCode,
-            availableVars,
+            availableVariableIds,
             otherIndicatorIds,
           );
           if (hasRCodeErrors(rFilterResult)) {
@@ -403,11 +403,11 @@ export function HfaIndicatorsManager(p: Props) {
       let hasSyntaxError = false;
       for (const c of indCode) {
         const tp = dict.timePoints.find((t) => t.timePoint === c.timePoint);
-        const availableVars = tp
-          ? new Set(tp.vars.map((v) => v.varName))
+        const availableVariableIds = tp
+          ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         if (c.rCode.trim()) {
-          const result = validateRCode(c.rCode, availableVars, otherIndicatorIds);
+          const result = validateRCode(c.rCode, availableVariableIds, otherIndicatorIds);
           if (hasRCodeErrors(result)) {
             hasSyntaxError = true;
           }
@@ -415,7 +415,7 @@ export function HfaIndicatorsManager(p: Props) {
         if (c.rFilterCode?.trim()) {
           const result = validateRCode(
             c.rFilterCode,
-            availableVars,
+            availableVariableIds,
             otherIndicatorIds,
           );
           if (hasRCodeErrors(result)) {
@@ -464,7 +464,7 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
-        surveyVarNames: surveyVarNames(),
+        variableIds: variableIds(),
       },
     });
   }
@@ -487,7 +487,7 @@ export function HfaIndicatorsManager(p: Props) {
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
-        surveyVarNames: surveyVarNames(),
+        variableIds: variableIds(),
       },
     });
   }
@@ -670,7 +670,7 @@ export function HfaIndicatorsManager(p: Props) {
       props: {
         source,
         timePoints,
-        surveyVarNames: surveyVarNames(),
+        variableIds: variableIds(),
         showAi,
         openAi,
       },
@@ -697,7 +697,7 @@ export function HfaIndicatorsManager(p: Props) {
     for (const tp of dict.timePoints) {
       availableByTimePoint.set(
         tp.timePoint,
-        new Set(tp.vars.map((v) => v.varName)),
+        new Set(tp.variables.map((v) => v.variableId)),
       );
       usedByTimePoint.set(tp.timePoint, new Set<string>());
     }
@@ -731,9 +731,9 @@ export function HfaIndicatorsManager(p: Props) {
         const used = usedByTimePoint.get(tp.timePoint) ?? new Set<string>();
         return {
           timePoint: tp.timePoint,
-          unused: tp.vars
-            .filter((v) => !used.has(v.varName))
-            .map((v) => ({ varName: v.varName, varLabel: v.varLabel })),
+          unused: tp.variables
+            .filter((v) => !used.has(v.variableId))
+            .map((v) => ({ variableId: v.variableId, variableLabel: v.variableLabel })),
         };
       });
 
