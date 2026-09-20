@@ -1,4 +1,4 @@
-import { PostgresError, type Sql } from "postgres";
+import postgres, { type Sql } from "postgres";
 import {
   runProgressSchema,
   type APIResponseNoData,
@@ -11,6 +11,10 @@ import {
   type RunProvenance,
   type RunSummary,
 } from "lib";
+
+// The vendored Deno build attaches PostgresError to the default export only;
+// the types declare it as a named export, which typechecks and fails at load.
+const { PostgresError } = postgres;
 
 // The runs catalog (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3 items 1 and
 // 3). The first section is the read surface: the instance catalogue listing
