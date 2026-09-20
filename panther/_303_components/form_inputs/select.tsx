@@ -9,7 +9,8 @@ import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { Icon } from "../icons/mod.ts";
 import type { SelectOption } from "./types.ts";
 import { getSelectClasses } from "./_internal/input_classes.ts";
-import { useAutoFocus } from "./utils.ts";
+import { useAutoFocus } from "./_internal/use_auto_focus.ts";
+import { Field } from "./field.tsx";
 
 type Props<T extends string> = {
   value: T | undefined;
@@ -30,16 +31,14 @@ type Props<T extends string> = {
 export function Select<T extends string>(p: Props<T>) {
   const [dataAttrs] = splitDataAttrs(p);
   return (
-    <div
+    <Field
       {...dataAttrs}
-      class="w-[200px] data-[width=true]:w-full"
-      data-width={p.fullWidth}
+      label={p.label}
+      intent={p.intent}
+      invalidMsg={p.invalidMsg}
+      width="w-[200px]"
+      fullWidth={p.fullWidth}
     >
-      <Show when={p.label}>
-        <label class="ui-label" data-intent={p.intent}>
-          {p.label}
-        </label>
-      </Show>
       <div class="ui-form-text relative w-full">
         <select
           ref={(el) => useAutoFocus(el, p.autoFocus)}
@@ -58,9 +57,7 @@ export function Select<T extends string>(p: Props<T>) {
             </option>
           </Show>
           <For each={p.options}>
-            {(opt) => {
-              return <option value={opt.value}>{opt.label}</option>;
-            }}
+            {(opt) => <option value={opt.value}>{opt.label}</option>}
           </For>
         </select>
         <div
@@ -73,11 +70,6 @@ export function Select<T extends string>(p: Props<T>) {
           <Icon iconName="selector" />
         </div>
       </div>
-      <Show when={p.invalidMsg}>
-        <div class="ui-text-small text-danger inline-block pt-1">
-          {p.invalidMsg}
-        </div>
-      </Show>
-    </div>
+    </Field>
   );
 }

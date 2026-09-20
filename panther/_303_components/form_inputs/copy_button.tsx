@@ -13,9 +13,7 @@ const FEEDBACK_DURATION_MS = 2000;
 
 type CopySource =
   | { text: string }
-  | { getText: () => string | Promise<string> }
-  | { selector: string }
-  | { element: HTMLElement };
+  | { getText: () => string | Promise<string> };
 
 type CopyToClipboardButtonProps = CopySource & {
   children?: string;
@@ -26,42 +24,6 @@ type CopyToClipboardButtonProps = CopySource & {
   disabled?: boolean;
   ariaLabel?: string;
 } & DataAttrs;
-
-async function getTextFromSource(source: CopySource): Promise<string> {
-  if ("text" in source) {
-    return source.text;
-  }
-  if ("getText" in source) {
-    const result = source.getText();
-    return result instanceof Promise ? await result : result;
-  }
-  if ("selector" in source) {
-    const el = document.querySelector(source.selector);
-    if (!el) return "";
-    return getTextContentFromElement(el as HTMLElement);
-  }
-  if ("element" in source) {
-    return getTextContentFromElement(source.element);
-  }
-  return "";
-}
-
-function getTextContentFromElement(el: HTMLElement): string {
-  // For input/textarea elements, use value
-  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-    return el.value;
-  }
-  // For contenteditable elements, use innerText
-  if (el.isContentEditable) {
-    return el.innerText;
-  }
-  // For pre/code elements, preserve whitespace formatting
-  if (el instanceof HTMLPreElement || el.tagName === "CODE") {
-    return el.innerText;
-  }
-  // Default: use innerText which respects CSS visibility and collapses whitespace appropriately
-  return el.innerText;
-}
 
 async function copyToClipboard(text: string): Promise<boolean> {
   // Modern Clipboard API (preferred)
@@ -127,15 +89,7 @@ export function CopyToClipboardButton(p: CopyToClipboardButtonProps) {
       timeoutId = undefined;
     }
 
-    const source: CopySource = "text" in p
-      ? { text: p.text }
-      : "getText" in p
-      ? { getText: p.getText }
-      : "selector" in p
-      ? { selector: p.selector }
-      : { element: p.element };
-
-    const text = await getTextFromSource(source);
+    const text = "text" in p ? p.text : await p.getText();
     const success = await copyToClipboard(text);
 
     if (success) {

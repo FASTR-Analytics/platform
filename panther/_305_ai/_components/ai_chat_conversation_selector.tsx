@@ -208,23 +208,18 @@ export function AIChatConversationSelector(
     <ModalContainer
       title={t3({ en: "Conversations", fr: "Conversations", pt: "Conversas" })}
       width="lg"
-      leftButtons={[
-        <Button
-          intent="primary"
-          onClick={handleNew}
-          iconName="plus"
-          disabled={activeBusy()}
-        >
-          {t3({
-            en: "New Conversation",
-            fr: "Nouvelle conversation",
-            pt: "Nova conversa",
-          })}
-        </Button>,
-        <Button intent="neutral" onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>,
-      ]}
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      actions={[{
+        label: t3({
+          en: "New Conversation",
+          fr: "Nouvelle conversation",
+          pt: "Nova conversa",
+        }),
+        onClick: handleNew,
+        iconName: "plus",
+        disabled: activeBusy(),
+      }]}
     >
       <Show
         when={conversations.conversations().length > 0}
@@ -252,8 +247,8 @@ export function AIChatConversationSelector(
           })}
           selectedKeys={selectedKeys}
           setSelectedKeys={setSelectedKeys}
-          paddingY="comfortable"
           paddingX="comfortable"
+          paddingY="comfortable"
         />
       </Show>
     </ModalContainer>

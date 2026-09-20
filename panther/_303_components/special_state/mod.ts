@@ -3,12 +3,28 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-export * from "./alert_form_holder.tsx";
-export * from "./confirm_delete_form.tsx";
 export * from "./alert.tsx";
-export { default as AlertProvider } from "./alert.tsx";
 export * from "./generic_editor_wrapper.tsx";
 export * from "./modal_container.tsx";
 export * from "./state_holder_wrapper.tsx";
-export * from "./popover_menu.tsx";
-export * from "./tooltip.tsx";
+export {
+  ActionMenuButton,
+  type ActionMenuButtonProps,
+  type AnchorRect,
+  MenuButton,
+  type MenuButtonProps,
+  type MenuItem,
+  type MenuItemClickable,
+  type MenuItemDivider,
+  type MenuItemWithSubmenu,
+  PopoverMenuProvider,
+  type PopoverPosition,
+  showMenu,
+  type ShowMenuOptions,
+} from "./popover_menu.tsx";
+export {
+  Tooltip,
+  type TooltipPosition,
+  type TooltipProps,
+  TooltipProvider,
+} from "./tooltip.tsx";

@@ -18,10 +18,6 @@ import { IconRenderer } from "../form_inputs/icon_renderer.tsx";
 import type { Intent } from "../types.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export type MenuItemClickable = {
   type?: "item";
   label: string;
@@ -73,17 +69,6 @@ export type ShowMenuOptions = {
   items: MenuItem[];
 };
 
-export type MenuButtonOptions = {
-  buttonProps?: {
-    iconName?: IconName;
-    intent?: Intent;
-    outline?: boolean;
-    children?: JSX.Element;
-  };
-  position?: PopoverPosition;
-  items: MenuItem[];
-};
-
 type MenuState = {
   position: PopoverPosition;
   items: MenuItem[];
@@ -93,10 +78,6 @@ type SubMenuState = {
   parentItemIndex: number;
   items: MenuItem[];
 };
-
-// =============================================================================
-// Module-level state
-// =============================================================================
 
 const [menuState, setMenuState] = createSignal<MenuState | undefined>();
 const [subMenuState, setSubMenuState] = createSignal<
@@ -131,15 +112,7 @@ export function showMenu(opts: ShowMenuOptions): void {
   });
 }
 
-export function showMenuAtPoint(
-  x: number,
-  y: number,
-  options: Omit<ShowMenuOptions, "anchor">,
-): void {
-  showMenu({ ...options, anchor: { x, y, width: 1, height: 1 } });
-}
-
-export function hideMenu(): void {
+function hideMenu(): void {
   batch(() => {
     subMenuPopoverRef?.hidePopover();
     setSubMenuState(undefined);
@@ -147,18 +120,6 @@ export function hideMenu(): void {
     setMenuState(undefined);
   });
 }
-
-// For testing
-export function _resetMenuState(): void {
-  batch(() => {
-    setMenuState(undefined);
-    setSubMenuState(undefined);
-  });
-}
-
-// =============================================================================
-// Provider component
-// =============================================================================
 
 export function PopoverMenuProvider() {
   let closeSubMenuTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -381,76 +342,53 @@ export function PopoverMenuProvider() {
   );
 }
 
-// =============================================================================
-// Menu button factory
-// =============================================================================
-
-export function createMenuButton(opts: MenuButtonOptions) {
-  return function MenuButton(p: { class?: string }): JSX.Element {
-    let buttonRef: HTMLButtonElement | undefined;
-
-    function handleClick() {
-      if (!buttonRef) return;
-      showMenu({
-        anchor: buttonRef.getBoundingClientRect(),
-        position: opts.position ?? "bottom-start",
-        items: opts.items,
-      });
-    }
-
-    return (
-      <Button
-        ref={buttonRef}
-        onClick={handleClick}
-        {...opts.buttonProps}
-        {...p}
-      />
-    );
-  };
-}
-
-// =============================================================================
-// Menu trigger wrapper
-// =============================================================================
-
-export type MenuTriggerWrapperProps = {
+export type MenuButtonProps = {
   items: MenuItem[] | (() => MenuItem[]);
   position?: PopoverPosition;
-  children: JSX.Element;
+  children?: JSX.Element;
+  iconName?: IconName;
+  iconPosition?: "left" | "right";
+  intent?: Intent;
+  outline?: boolean;
+  onBackground?: Intent;
+  size?: "sm";
+  fullWidth?: boolean;
+  disabled?: boolean;
+  ariaLabel?: string;
+  id?: string;
 } & DataAttrs;
 
-export function MenuTriggerWrapper(
-  p: MenuTriggerWrapperProps,
-): JSX.Element {
+// A Button that opens a menu anchored to itself. Styled like any Button; the
+// menu items may be a function, read at open time. A right-click context menu
+// is showMenu, not this.
+export function MenuButton(p: MenuButtonProps): JSX.Element {
   const [dataAttrs] = splitDataAttrs(p);
-  let wrapperRef: HTMLSpanElement | undefined;
-
-  function handleClick(e: MouseEvent) {
-    e.stopPropagation();
-    if (!wrapperRef) return;
-    const items = typeof p.items === "function" ? p.items() : p.items;
-    showMenu({
-      anchor: wrapperRef.getBoundingClientRect(),
-      position: p.position ?? "bottom-start",
-      items,
-    });
-  }
-
   return (
-    <span
+    <Button
       {...dataAttrs}
-      ref={wrapperRef}
-      onClick={handleClick}
-      style={{ cursor: "pointer" }}
+      id={p.id}
+      iconName={p.iconName}
+      iconPosition={p.iconPosition}
+      intent={p.intent}
+      outline={p.outline}
+      onBackground={p.onBackground}
+      size={p.size}
+      fullWidth={p.fullWidth}
+      disabled={p.disabled}
+      ariaLabel={p.ariaLabel}
+      onClick={(e) => {
+        e.stopPropagation();
+        showMenu({
+          anchor: e.currentTarget.getBoundingClientRect(),
+          position: p.position ?? "bottom-start",
+          items: typeof p.items === "function" ? p.items() : p.items,
+        });
+      }}
     >
       {p.children}
-    </span>
+    </Button>
   );
 }
-
-// =============================================================================
-// Action menu button
-// =============================================================================
 
 export type ActionMenuButtonProps = {
   items: MenuItem[] | (() => MenuItem[]);
@@ -461,38 +399,15 @@ export type ActionMenuButtonProps = {
   id?: string;
 } & DataAttrs;
 
-// The three-dots button that opens a screen's occasional actions. Styled
-// like any Button (intent, outline, onBackground, size); the icon, the
-// bottom-end placement and the accessible name are the component's. A
-// right-click context menu is showMenu, not this.
+// The three-dots button that opens a screen's occasional actions: a
+// MenuButton whose icon, bottom-end placement and accessible name are fixed.
 export function ActionMenuButton(p: ActionMenuButtonProps): JSX.Element {
-  const [dataAttrs] = splitDataAttrs(p);
   return (
-    <MenuTriggerWrapper {...dataAttrs} items={p.items} position="bottom-end">
-      <Button
-        id={p.id}
-        iconName="moreVertical"
-        intent={p.intent}
-        outline={p.outline}
-        onBackground={p.onBackground}
-        size={p.size}
-        ariaLabel="More actions"
-      />
-    </MenuTriggerWrapper>
+    <MenuButton
+      {...p}
+      iconName="moreVertical"
+      position="bottom-end"
+      ariaLabel="More actions"
+    />
   );
-}
-
-export function createMenuTriggerWrapper(opts: {
-  items: MenuItem[] | (() => MenuItem[]);
-  position?: PopoverPosition;
-}) {
-  return function MenuTriggerWrapperInstance(
-    p: { children: JSX.Element },
-  ): JSX.Element {
-    return (
-      <MenuTriggerWrapper items={opts.items} position={opts.position}>
-        {p.children}
-      </MenuTriggerWrapper>
-    );
-  };
 }

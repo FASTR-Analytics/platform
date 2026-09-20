@@ -9,12 +9,12 @@ export * from "./checkbox.tsx";
 export * from "./color_picker.tsx";
 export * from "./copy_button.tsx";
 export * from "./dates.tsx";
+export * from "./field.tsx";
 export * from "./file_input.tsx";
 export * from "./comparison_slider.tsx";
 export * from "./double_slider.tsx";
 export * from "./icon_renderer.tsx";
 export * from "./input.tsx";
-export * from "./label_holder.tsx";
 export * from "./loading_el.tsx";
 export * from "./multi_select.tsx";
 export * from "./multi_select_search.tsx";
@@ -25,8 +25,12 @@ export * from "./radio_group.tsx";
 export * from "./select.tsx";
 export * from "./select_list.tsx";
 export * from "./select_search.tsx";
-export * from "./slider.tsx";
+export { Slider } from "./slider.tsx";
 export * from "./slider_with_input.tsx";
+export {
+  default as Sortable,
+  SortableJs,
+} from "./solid_sortablejs_vendored.tsx";
 export * from "./text_area.tsx";
 export * from "./types.ts";
 export * from "./utils.ts";

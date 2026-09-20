@@ -8,6 +8,7 @@ import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import type { SelectOption } from "./types.ts";
 import { Checkbox } from "./checkbox.tsx";
+import { Field } from "./field.tsx";
 
 type MultiSelectProps<T extends string> = {
   values: T[];
@@ -64,10 +65,7 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
   }
 
   return (
-    <div class="">
-      <Show when={p.label}>
-        <legend class="ui-label">{p.label}</legend>
-      </Show>
+    <Field label={p.label}>
       <div
         class="data-[horizontal=true]:flex data-[horizontal=true]:items-center data-[horizontal=true]:gap-3 data-[horizontal=false]:space-y-1"
         data-horizontal={!!p.horizontal}
@@ -110,6 +108,6 @@ export function MultiSelect<T extends string>(p: MultiSelectProps<T>) {
           }}
         </For>
       </div>
-    </div>
+    </Field>
   );
 }

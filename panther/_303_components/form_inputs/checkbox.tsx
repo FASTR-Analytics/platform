@@ -10,7 +10,7 @@ import { CheckSvg, IndeterminateSvg } from "./_internal/check_glyphs.tsx";
 type CheckboxProps = {
   checked: boolean;
   onChange: (checked: boolean) => void;
-  label: string | JSX.Element;
+  label?: string | JSX.Element;
   disabled?: boolean;
   indeterminate?: boolean;
   intentWhenChecked?: Intent;

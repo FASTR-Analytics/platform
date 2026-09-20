@@ -29,16 +29,17 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
 8. **Loading/error via `StateHolderWrapper`**: Render async data through it, not
    hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
 9. **`data-*` goes on the component, not a wrapper**: `Button`, `Card`,
-   `HeadingBar`, `CollapsibleSection`, `Select`, `Input`, `Slider`,
-   `ButtonGroup`, `TabsNavigation`, `MenuTriggerWrapper`, `ActionMenuButton` and
-   `CopyToClipboardButton` forward `data-*` attributes to their root element;
-   put tour anchors, test hooks and other DOM markers there instead of wrapping
-   in a `<div data-*="...">`. `data-*` only: anything else (`class`, `style`,
-   `id`, event handlers) is a real prop or needs a wrapper; it will NOT forward,
-   by design. On every other component a `data-*` attribute compiles but is
-   silently dropped (TypeScript exempts hyphenated JSX attribute names), so this
-   list is the source of truth. Inside the kit, a component's own attributes are
-   always written after `{...dataAttrs}`, so they win on a key collision.
+   `HeadingBar`, `CollapsibleSection`, `Field`, `Select`, `Input`, `TextArea`,
+   `Slider`, `ButtonGroup`, `TabsNavigation`, `MenuButton`, `ActionMenuButton`
+   and `CopyToClipboardButton` forward `data-*` attributes to their root
+   element; put tour anchors, test hooks and other DOM markers there instead of
+   wrapping in a `<div data-*="...">`. `data-*` only: anything else (`class`,
+   `style`, `id`, event handlers) is a real prop or needs a wrapper; it will NOT
+   forward, by design. On every other component a `data-*` attribute compiles
+   but is silently dropped (TypeScript exempts hyphenated JSX attribute names),
+   so this list is the source of truth. Inside the kit, a component's own
+   attributes are always written after `{...dataAttrs}`, so they win on a key
+   collision.
 10. **Horizontal `TabsNavigation` is placed, not wrapped**: as a `FrameTop`
     `panelChildren` or directly under a `HeadingBar`, pass it bare; it carries
     its own `ui-pad-x` and bottom border. Inside padded content pass `noPad`;
@@ -133,22 +134,54 @@ await openEditor({ element: EditForm, props: { data, onSave } });
 ```
 
 **Why:** The helpers centralize focus, dismissal, and lifecycle; custom overlays
-duplicate that and miss edge cases.
+duplicate that and miss edge cases. Dialogs stack, so a dialog opened from
+inside another opens on top of it.
+
+### Dialog footers
+
+```tsx
+// ❌ DON'T: a hand-built footer
+<ModalContainer title="Copy" footer={[<Button onClick={save.click}>Save</Button>, <Button onClick={cancel}>Cancel</Button>]}>
+
+// ✅ DO: declare the actions; the container places Cancel and the buttons
+<ModalContainer
+  title="Copy"
+  form
+  onCancel={() => p.close(undefined)}
+  actions={[{ label: "Save", onClick: save.click, state: save.state(), disabled: !ok() }]}
+>
+```
+
+**Why:** the container decides button order and side (Cancel first, primary
+last, right-aligned), Cancel's look, and the error line under the body, once.
+`footer` is only for content that is not an action.
+
+### Menu triggers
+
+```tsx
+// ❌ DON'T: a wrapper span around a Button, or a hand-anchored showMenu
+// ✅ DO
+<MenuButton items={items} iconName="plus">Add slide</MenuButton>
+<ActionMenuButton items={items} />       // three dots, bottom-end
+showMenu({ anchor: rect, items })        // right-click / card context menus only
+```
 
 ## Patterns
 
 ### Component catalog (prefer these)
 
 - **Form:** `Button`, `Input`, `TextArea`, `Select`, `MultiSelect`, `Checkbox`
-  (incl. `indeterminate`), `RadioGroup`, `Slider`, `ButtonGroup`, `FileInput`.
-- **Layout:** `FrameTop`, `FrameLeft` / `FrameRight` / `FrameBottom` (+
-  resizable variants), `HeadingBar`, `TabsNavigation`, `Stepper`, collapsible
-  sections.
+  (incl. `indeterminate`), `RadioGroup`, `Slider`, `ButtonGroup`, `FileInput`;
+  `Field` around any control the kit does not label.
+- **Layout:** `FrameTop`, `FrameLeft` / `FrameRight` (+ resizable variants),
+  `HeadingBar`, `TabsNavigation`, `getStepper` + `StepperChipsWithTitles`,
+  collapsible sections.
 - **Display:** `Badge`, `Card`, `EmptyState`.
 - **Data:** `Table` (sortable/filterable/selectable), `FigureHolder`,
   `PageHolder`.
 - **State/feedback:** `StateHolderWrapper`, `StateHolderFormError`, editor/alert
-  helpers, loading/progress indicators.
+  helpers, `ModalContainer` (with `actions` / `onCancel`), `MenuButton` /
+  `ActionMenuButton`, loading/progress indicators.
 
 ### Standard data view
 

@@ -14,6 +14,7 @@ import {
 } from "solid-js";
 import { t3 } from "../deps.ts";
 import { Checkbox } from "./checkbox.tsx";
+import { Field } from "./field.tsx";
 import { Icon } from "../icons/mod.ts";
 import type { Intent } from "../types.ts";
 import type {
@@ -219,10 +220,7 @@ export function NestedMultiSelect<T extends string>(
   }
 
   return (
-    <div class="">
-      <Show when={p.label}>
-        <legend class="ui-label">{p.label}</legend>
-      </Show>
+    <Field label={p.label}>
       <div class="space-y-1">
         <Show
           when={p.showSelectAll &&
@@ -263,6 +261,6 @@ export function NestedMultiSelect<T extends string>(
           intentWhenChecked={p.intentWhenChecked}
         />
       </div>
-    </div>
+    </Field>
   );
 }

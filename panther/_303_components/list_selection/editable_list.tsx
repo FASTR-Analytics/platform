@@ -16,6 +16,7 @@ import {
   type SelectionMode,
 } from "./create_selection_controller.ts";
 import { Reorderable } from "./_internal/reorderable.tsx";
+import { intentDotClass } from "../_internal/intent_classes.ts";
 
 export type RowAction = {
   iconName: IconName;
@@ -59,22 +60,6 @@ export type EditableListProps<T extends string, M = never> = {
   fullWidth?: boolean;
 };
 
-function dotClass(intent: Intent): string {
-  const base = "h-2 w-2 flex-none rounded-full";
-  const map: Record<Intent, string> = {
-    primary: "bg-primary",
-    success: "bg-success",
-    warning: "bg-warning",
-    danger: "bg-danger",
-    neutral: "bg-neutral",
-    "base-content": "bg-base-content",
-    "base-100": "bg-base-100",
-    "base-200": "bg-base-200",
-    "base-300": "bg-base-300",
-  };
-  return `${base} ${map[intent]}`;
-}
-
 export function EditableList<T extends string, M = never>(
   p: EditableListProps<T, M>,
 ) {
@@ -107,7 +92,7 @@ export function EditableList<T extends string, M = never>(
             <Badge intent="base-300">{item.badge}</Badge>
           </Show>
           <Show when={item.dot}>
-            <span class={dotClass(item.dot!)} />
+            <span class={intentDotClass(item.dot!)} />
           </Show>
         </div>
         <Show when={item.sublabel}>

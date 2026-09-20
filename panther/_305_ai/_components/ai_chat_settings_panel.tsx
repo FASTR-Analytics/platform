@@ -7,7 +7,6 @@ import {
   type AlertComponentProps,
   type AnthropicModel,
   type AnthropicModelConfig,
-  Button,
   createSignal,
   type EffortLevel,
   getMaxOutputTokens,
@@ -96,36 +95,27 @@ export function AIChatSettingsPanel(p: Props) {
         pt: "Definições de IA",
       })}
       width="sm"
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button
-            intent="primary"
-            onClick={() =>
-              p.close({
-                model: model(),
-                // Models from Opus 4.7 onward reject non-default sampling
-                // params — don't carry a temperature setting onto them.
-                temperature: supportsSamplingParams(model())
-                  ? temperature()
-                  : undefined,
-                max_tokens: Math.min(maxTokens(), getMaxOutputTokens(model())),
-                // Re-resolve in case the model changed after the effort was
-                // picked (unsupported levels are clamped/dropped per model).
-                output_config: effort()
-                  ? resolveOutputConfig(model(), {
-                    effort: effort() as EffortLevel,
-                  })
-                  : undefined,
-              })}
-          >
-            {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
-          </Button>,
-          <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" }),
+        onClick: () =>
+          p.close({
+            model: model(),
+            // Models from Opus 4.7 onward reject non-default sampling
+            // params; don't carry a temperature setting onto them.
+            temperature: supportsSamplingParams(model())
+              ? temperature()
+              : undefined,
+            max_tokens: Math.min(maxTokens(), getMaxOutputTokens(model())),
+            // Re-resolve in case the model changed after the effort was
+            // picked (unsupported levels are clamped/dropped per model).
+            output_config: effort()
+              ? resolveOutputConfig(model(), {
+                effort: effort() as EffortLevel,
+              })
+              : undefined,
+          }),
+      }]}
     >
       <Show when={fields.has("model")}>
         <Select

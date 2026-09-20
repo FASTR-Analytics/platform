@@ -10,11 +10,6 @@ export type SelectOption<T extends string> = {
   label: JSX.Element | string;
 };
 
-export type SelectListItem<T extends string> =
-  | SelectOption<T>
-  | { type: "divider" }
-  | { type: "header"; label: string };
-
 export type NestedSelectBranchNode<T extends string> = {
   key: string;
   label: string | JSX.Element;

@@ -5,6 +5,7 @@
 
 import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
+import { INTENT_TEXT } from "../_internal/intent_classes.ts";
 
 type Props = {
   msg?: string;
@@ -31,18 +32,7 @@ export function Spinner(p: SpinnerProps = {}) {
   return (
     <div class="flex h-full w-full items-center justify-center">
       <svg
-        class="max-h-full animate-spin"
-        classList={{
-          "text-primary": p.intent === "primary",
-          "text-danger": p.intent === "danger",
-          "text-success": p.intent === "success",
-          "text-warning": p.intent === "warning",
-          "text-neutral": p.intent === "neutral",
-          "text-base-content": p.intent === "base-content",
-          "text-base-100": !p.intent || p.intent === "base-100",
-          "text-base-200": p.intent === "base-200",
-          "text-base-300": p.intent === "base-300",
-        }}
+        class={`max-h-full animate-spin ${INTENT_TEXT[p.intent ?? "base-100"]}`}
         viewBox="0 0 64 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"

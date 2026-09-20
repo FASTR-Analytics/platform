@@ -32,7 +32,7 @@ the full token catalog, and the theming mechanics, see
    on `base-100` must declare the surface token it sits on.
 8. **Never write a border color for the default**: bare `border` already paints
    the border token. A border color class always marks an exception.
-9. **Side frames own their divider**: `FrameLeft`, `FrameRight`, `FrameBottom`,
+9. **Side frames own their divider**: `FrameLeft`, `FrameRight`,
    `FrameLeftResizable`, `FrameRightResizable` and `FrameThreeColumnResizable`
    draw the panel/content edge themselves. Never put that edge's border on a
    side-frame panel (or on the panel component's root): it double-draws. Inner

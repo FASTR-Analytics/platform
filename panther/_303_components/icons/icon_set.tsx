@@ -43,7 +43,7 @@ function signal(): ReturnType<typeof createSignal<IconSetName>> {
   return store;
 }
 
-export function getIconSet(): IconSetName {
+function getIconSet(): IconSetName {
   return signal()[0]();
 }
 
@@ -53,16 +53,10 @@ export function setIconSet(name: IconSetName): void {
   signal()[1](name);
 }
 
-// Re-read the CSS var now. Only needed if an app changes `--panther-icon-set` at
-// runtime; the initial value is already read automatically on first render.
-export function initIconSetFromCss(): void {
-  signal()[1](readIconSetFromCss());
-}
-
 // Resolves a key against the active set, falling back to the tabler glyph for
 // any key the active set lacks. Returns undefined only for a key present in
 // neither set (i.e. an invalid, non-IconName value reaching here at runtime).
-export function resolveIcon(name: IconName): IconComponent | undefined {
+function resolveIcon(name: IconName): IconComponent | undefined {
   return ICON_SETS[getIconSet()][name] ?? _ICON_MAP_TABLER[name];
 }
 

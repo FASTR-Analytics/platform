@@ -8,8 +8,9 @@ import type { Intent } from "../types.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { t3 } from "../deps.ts";
 import { getInputClasses } from "./_internal/input_classes.ts";
+import { useAutoFocus } from "./_internal/use_auto_focus.ts";
+import { Field } from "./field.tsx";
 import { IconRenderer } from "./icon_renderer.tsx";
-import { useAutoFocus } from "./utils.ts";
 
 type Props = {
   value: string;
@@ -43,10 +44,13 @@ export function Input(p: Props) {
   }
 
   return (
-    <div
+    <Field
       {...dataAttrs}
-      class="w-[200px] data-[width=true]:w-full"
-      data-width={p.fullWidth}
+      label={p.searchIcon ? undefined : p.label}
+      intent={p.intent}
+      invalidMsg={p.invalidMsg}
+      width="w-[200px]"
+      fullWidth={p.fullWidth}
     >
       <div class="data-[left=true]:flex" data-left={!!p.searchIcon}>
         <Show when={p.searchIcon}>
@@ -60,11 +64,6 @@ export function Input(p: Props) {
           >
             <IconRenderer iconName="search" size={p.size} />
           </div>
-        </Show>
-        <Show when={p.label && !p.searchIcon}>
-          <label class="ui-label" data-intent={p.intent}>
-            {p.label}
-          </label>
         </Show>
         <div class="relative flex min-w-0 flex-1">
           <input
@@ -101,11 +100,6 @@ export function Input(p: Props) {
           </Show>
         </div>
       </div>
-      <Show when={p.invalidMsg}>
-        <div class="ui-text-small text-danger inline-block pt-1">
-          {p.invalidMsg}
-        </div>
-      </Show>
-    </div>
+    </Field>
   );
 }

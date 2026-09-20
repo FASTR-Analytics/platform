@@ -17,7 +17,6 @@ import type {
   AnyRow,
   BulkAction,
   FilterConfig,
-  ProcessedData,
   SortConfig,
   TableColumn,
   TableProps,
@@ -26,17 +25,12 @@ import {
   filterData,
   getCellAlignment,
   getPaddingClasses,
-  groupData,
   sortData,
 } from "./helpers.ts";
 import { ColumnFilter } from "./column_filter.tsx";
 import { HeaderGlyph } from "./header_glyph.tsx";
 import { Button, Checkbox } from "../../form_inputs/mod.ts";
 import { EmptyState } from "../../display/mod.ts";
-
-// ============================================================================
-// Main Table Component
-// ============================================================================
 
 // Shared by every control in a header cell so they are the same height.
 const HEADER_BUTTON =
@@ -136,22 +130,9 @@ export function Table<
       visibleRows().some((item) => selected.has(item[p.keyField]));
   });
 
-  // Process data with sorting and grouping
-  const processedData = createMemo((): ProcessedData<T> => {
-    const currentGroup = p.currentGroup;
-    const group = p.groups?.find((g) => g.key === currentGroup);
-
-    if (group) {
-      return groupData(visibleRows(), group, sortConfig(), p.columns);
-    }
-
-    const sorted = sortData(visibleRows(), sortConfig(), p.columns);
-    return {
-      isGrouped: false,
-      groups: [],
-      allItems: sorted,
-    };
-  });
+  const rows = createMemo(() =>
+    sortData(visibleRows(), sortConfig(), p.columns)
+  );
 
   // Handle sorting
   const handleSort = (column: TableColumn<T>) => {
@@ -219,7 +200,7 @@ export function Table<
     selectedItems().length > 0;
 
   const padding = createMemo(() =>
-    getPaddingClasses(p.paddingX || "normal", p.paddingY || "normal")
+    getPaddingClasses(p.paddingX ?? "normal", p.paddingY ?? "normal")
   );
 
   // Restore needs real layout — under a display:none ancestor scrollHeight is 0
@@ -315,7 +296,6 @@ export function Table<
                       checked={allSelected()}
                       indeterminate={someSelected()}
                       onChange={toggleSelectAll}
-                      label=""
                     />
                   </th>
                 </Show>
@@ -430,20 +410,8 @@ export function Table<
                     </td>
                   </tr>
                 </Match>
-                <Match when={processedData().isGrouped}>
-                  <GroupedRows
-                    processedData={processedData()}
-                    columns={p.columns}
-                    keyField={p.keyField}
-                    enableSelection={enableSelection()}
-                    selectedKeys={selectedKeys()}
-                    onToggleSelection={toggleSelection}
-                    onRowClick={p.onRowClick}
-                    padding={padding()}
-                  />
-                </Match>
-                <Match when={!processedData().isGrouped}>
-                  <For each={processedData().allItems}>
+                <Match when={rows().length > 0}>
+                  <For each={rows()}>
                     {(item) => (
                       <TableRow
                         item={item}
@@ -466,10 +434,6 @@ export function Table<
     </div>
   );
 }
-
-// ============================================================================
-// Sub-components
-// ============================================================================
 
 type SortIconProps<T> = {
   column: TableColumn<T>;
@@ -544,7 +508,6 @@ function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
             <Checkbox
               checked={p.selectedKeys.has(key())}
               onChange={() => p.onToggleSelection(key())}
-              label=""
             />
           </div>
         </td>
@@ -566,56 +529,5 @@ function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
         )}
       </For>
     </tr>
-  );
-}
-
-type GroupedRowsProps<T, K extends keyof T = keyof T> = {
-  processedData: ProcessedData<T>;
-  columns: TableColumn<T>[];
-  keyField: K;
-  enableSelection: boolean;
-  selectedKeys: Set<T[K]>;
-  onToggleSelection: (key: T[K]) => void;
-  onRowClick?: (item: T) => void;
-  padding: { px: string; py: string };
-};
-
-function GroupedRows<
-  T extends AnyRow,
-  K extends keyof T = keyof T,
->(
-  p: GroupedRowsProps<T, K>,
-) {
-  return (
-    <Show when={p.processedData.isGrouped}>
-      <For each={p.processedData.groups}>
-        {(group) => (
-          <>
-            <tr class="bg-base-200">
-              <td
-                colspan={p.columns.length + (p.enableSelection ? 1 : 0)}
-                class={`text-base-content border-t ${p.padding.px} ${p.padding.py} text-sm font-700 uppercase tracking-wider`}
-              >
-                {group.label}
-              </td>
-            </tr>
-            <For each={group.items}>
-              {(item) => (
-                <TableRow
-                  item={item}
-                  columns={p.columns}
-                  keyField={p.keyField}
-                  enableSelection={p.enableSelection}
-                  selectedKeys={p.selectedKeys}
-                  onToggleSelection={p.onToggleSelection}
-                  onRowClick={p.onRowClick}
-                  padding={p.padding}
-                />
-              )}
-            </For>
-          </>
-        )}
-      </For>
-    </Show>
   );
 }

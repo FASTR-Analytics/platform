@@ -10,15 +10,12 @@ import {
   createSignal,
   For,
   type JSX,
-  Match,
   onCleanup,
   onMount,
   Show,
-  Switch,
   untrack,
 } from "solid-js";
 import { clamp } from "../deps.ts";
-import { Button } from "../form_inputs/button.tsx";
 
 type FrameBaseProps = {
   panelChildren?: JSX.Element;
@@ -32,10 +29,6 @@ type FrameBaseProps = {
 // that knows its own tone (see HeadingBar) and owns its own bottom edge.
 type SideFrameProps = FrameBaseProps & {
   noBorder?: boolean;
-};
-
-type FrameTopProps = FrameBaseProps & {
-  allowShowHide?: boolean;
 };
 
 type ResizableFrameProps = SideFrameProps & {
@@ -129,113 +122,78 @@ export function FrameRight(p: SideFrameProps) {
   );
 }
 
-export function FrameTop(p: FrameTopProps) {
-  const [isPanelShown, setIsPanelShown] = createSignal(true);
-
+export function FrameTop(p: FrameBaseProps) {
   return (
-    <div class="relative flex h-full w-full flex-col">
-      <Show
-        when={p.panelChildren && (!p.allowShowHide || isPanelShown())}
-        // fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
-      >
+    <div class="flex h-full w-full flex-col">
+      <Show when={p.panelChildren}>
         <div class="w-full flex-none overflow-auto">{p.panelChildren}</div>
       </Show>
       <div class="h-0 w-full flex-1 overflow-auto">{p.children}</div>
-
-      <Switch>
-        <Match when={p.allowShowHide && isPanelShown()}>
-          <div class="absolute right-4 top-4 z-50">
-            <Button
-              iconName="chevronUp"
-              onClick={() => setIsPanelShown(false)}
-              ariaLabel="Show panel"
-              outline
-            />
-          </div>
-        </Match>
-        <Match when={p.allowShowHide}>
-          <div class="absolute right-4 top-4 z-50">
-            <Button
-              iconName="chevronDown"
-              onClick={() => setIsPanelShown(true)}
-              ariaLabel="Show panel"
-              outline
-            />
-          </div>
-        </Match>
-      </Switch>
     </div>
   );
 }
 
-export function FrameBottom(p: SideFrameProps) {
-  return (
-    <Show
-      when={p.panelChildren}
-      fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
-    >
-      <div class="flex h-full w-full flex-col">
-        <div class="h-0 w-full flex-1 overflow-auto">{p.children}</div>
-        <div
-          class="w-full flex-none overflow-auto"
-          classList={{ "border-t": !p.noBorder }}
-        >
-          {p.panelChildren}
-        </div>
-      </div>
-    </Show>
-  );
-}
+type ResizablePanelOptions = {
+  side: "left" | "right";
+  startingWidth: () => number;
+  minWidth: () => number;
+  maxWidth: () => number;
+  // Keep the panel's share of the container as the container resizes.
+  followContainer: boolean;
+  isShown?: () => boolean;
+};
 
-// Shared resizable-panel logic for FrameLeftResizable / FrameRightResizable.
-// The two frames are identical except for the drag direction and the JSX
-// order/handle side, so the signals, ResizeObserver, drag handlers and cleanup
-// live here once. Kept internal.
-function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
-  const minWidth = () => p.minWidth ?? 100;
-  const maxWidth = () => p.maxWidth ?? 600;
+// One resizable panel: its width, the drag handle's handlers, and the
+// container observation that keeps the width proportional. Every resizable
+// frame is one or two of these.
+function createResizablePanel(o: ResizablePanelOptions) {
   const [actualWidth, setActualWidth] = createSignal(
-    clamp(p.startingWidth, minWidth(), maxWidth()),
+    clamp(o.startingWidth(), o.minWidth(), o.maxWidth()),
   );
   const displayWidth = createMemo(() =>
-    p.isShown === false ? 0 : actualWidth()
+    o.isShown?.() === false ? 0 : actualWidth()
   );
   const [targetPercentage, setTargetPercentage] = createSignal<number>(0);
   const [containerWidth, setContainerWidth] = createSignal<number>(0);
-
-  let containerRef: HTMLDivElement | undefined;
   // A signal, not a `let`: the handle styles from it. `:active` cannot cover a
-  // drag — once the pointer leaves the 8px strip mid-drag both :hover and
-  // :active drop — so the drag state has to be projected as a data attribute.
+  // drag (once the pointer leaves the 8px strip mid-drag both :hover and
+  // :active drop), so the drag state has to be projected as a data attribute.
   const [isDragging, setIsDragging] = createSignal(false);
   let handleMouseMove: ((e: MouseEvent) => void) | undefined;
   let handleMouseUp: (() => void) | undefined;
   let resizeObserver: ResizeObserver | undefined;
 
-  onMount(() => {
-    if (!p.preventPanelResizeOnParentResize && containerRef) {
-      const initialWidth = containerRef.offsetWidth;
-      setContainerWidth(initialWidth);
-      setTargetPercentage(actualWidth() / initialWidth);
-
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          batch(() => {
-            const newContainerWidth = entry.contentRect.width;
-            setContainerWidth(newContainerWidth);
-            const newWidth = clamp(
+  function observe(container: HTMLDivElement) {
+    const initialWidth = container.offsetWidth;
+    setContainerWidth(initialWidth);
+    setTargetPercentage(actualWidth() / initialWidth);
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        batch(() => {
+          const newContainerWidth = entry.contentRect.width;
+          setContainerWidth(newContainerWidth);
+          setActualWidth(
+            clamp(
               targetPercentage() * newContainerWidth,
-              minWidth(),
-              maxWidth(),
-            );
-            setActualWidth(newWidth);
-          });
-        }
-      });
+              o.minWidth(),
+              o.maxWidth(),
+            ),
+          );
+        });
+      }
+    });
+    resizeObserver.observe(container);
+  }
 
-      resizeObserver.observe(containerRef);
-    }
-  });
+  function reset() {
+    const width = clamp(o.startingWidth(), o.minWidth(), o.maxWidth());
+    batch(() => {
+      setActualWidth(width);
+      if (containerWidth() > 0) {
+        setTargetPercentage(width / containerWidth());
+      }
+    });
+  }
 
   const handleMouseDown = (e: MouseEvent) => {
     setIsDragging(true);
@@ -246,14 +204,14 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
 
     handleMouseMove = (e: MouseEvent) => {
       if (!isDragging()) return;
-
-      // Right panel drag is reversed relative to the left panel.
-      const deltaX = side === "left" ? e.clientX - startX : startX - e.clientX;
-      const newWidth = clamp(startWidth + deltaX, minWidth(), maxWidth());
+      // A right panel grows as the pointer moves left.
+      const deltaX = o.side === "left"
+        ? e.clientX - startX
+        : startX - e.clientX;
+      const newWidth = clamp(startWidth + deltaX, o.minWidth(), o.maxWidth());
       batch(() => {
         setActualWidth(newWidth);
-
-        if (!p.preventPanelResizeOnParentResize && containerWidth() > 0) {
+        if (o.followContainer && containerWidth() > 0) {
           setTargetPercentage(newWidth / containerWidth());
         }
       });
@@ -282,24 +240,34 @@ function createResizablePanel(p: ResizableFrameProps, side: "left" | "right") {
     if (handleMouseUp) {
       document.removeEventListener("mouseup", handleMouseUp);
     }
-    if (resizeObserver) {
-      resizeObserver.disconnect();
-    }
+    resizeObserver?.disconnect();
   });
 
+  return { displayWidth, handleMouseDown, isDragging, observe, reset };
+}
+
+function createFramePanel(p: ResizableFrameProps, side: "left" | "right") {
+  const panel = createResizablePanel({
+    side,
+    startingWidth: () => p.startingWidth,
+    minWidth: () => p.minWidth ?? 100,
+    maxWidth: () => p.maxWidth ?? 600,
+    followContainer: !p.preventPanelResizeOnParentResize,
+    isShown: () => p.isShown !== false,
+  });
   return {
+    ...panel,
     setContainerRef: (el: HTMLDivElement) => {
-      containerRef = el;
+      if (!p.preventPanelResizeOnParentResize) {
+        onMount(() => panel.observe(el));
+      }
     },
-    displayWidth,
-    handleMouseDown,
-    isDragging,
   };
 }
 
 export function FrameLeftResizable(p: ResizableFrameProps) {
   const { setContainerRef, displayWidth, handleMouseDown, isDragging } =
-    createResizablePanel(p, "left");
+    createFramePanel(p, "left");
 
   return (
     <Show
@@ -336,7 +304,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
 
 export function FrameRightResizable(p: ResizableFrameProps) {
   const { setContainerRef, displayWidth, handleMouseDown, isDragging } =
-    createResizablePanel(p, "right");
+    createFramePanel(p, "right");
 
   return (
     <Show
@@ -375,28 +343,35 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const minWidths = () => p.minWidths ?? [100, 100];
   const maxWidths = () => p.maxWidths ?? [2000, 2000];
 
-  const [leftWidth, setLeftWidth] = createSignal(
-    clamp(p.startingWidths[0], minWidths()[0], maxWidths()[0]),
-  );
-  const [rightWidth, setRightWidth] = createSignal(
-    clamp(p.startingWidths[1], minWidths()[1], maxWidths()[1]),
-  );
-
-  const [leftPercent, setLeftPercent] = createSignal<number>(0);
-  const [rightPercent, setRightPercent] = createSignal<number>(0);
-  const [containerWidth, setContainerWidth] = createSignal<number>(0);
+  const left = createResizablePanel({
+    side: "left",
+    startingWidth: () => p.startingWidths[0],
+    minWidth: () => minWidths()[0],
+    maxWidth: () => maxWidths()[0],
+    followContainer: true,
+  });
+  const right = createResizablePanel({
+    side: "right",
+    startingWidth: () => p.startingWidths[1],
+    minWidth: () => minWidths()[1],
+    maxWidth: () => maxWidths()[1],
+    followContainer: true,
+  });
 
   let containerRef!: HTMLDivElement;
-  // Both are signals and both are needed: one isDragging is shared by two
-  // handles, so projecting it alone would light up both during either drag.
-  const [isDragging, setIsDragging] = createSignal(false);
-  const [activeHandle, setActiveHandle] = createSignal<"left" | "right" | null>(
-    null,
-  );
-  let handleMouseMove: ((e: MouseEvent) => void) | undefined;
-  let handleMouseUp: (() => void) | undefined;
-  let resizeObserver: ResizeObserver | undefined;
-  let rafId: number | null = null;
+  onMount(() => {
+    left.observe(containerRef);
+    right.observe(containerRef);
+  });
+
+  createEffect(() => {
+    if (p.resetKey !== undefined) {
+      untrack(() => {
+        left.reset();
+        right.reset();
+      });
+    }
+  });
 
   const hasLeft = createMemo(
     () => p.leftChild !== undefined && p.leftChild !== null,
@@ -404,156 +379,6 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
   const hasRight = createMemo(
     () => p.rightChild !== undefined && p.rightChild !== null,
   );
-
-  const resetWidths = () => {
-    const currentContainerWidth = containerWidth() ||
-      containerRef?.offsetWidth || 1;
-
-    const newLeftWidth = clamp(
-      p.startingWidths[0],
-      minWidths()[0],
-      maxWidths()[0],
-    );
-    const newRightWidth = clamp(
-      p.startingWidths[1],
-      minWidths()[1],
-      maxWidths()[1],
-    );
-
-    setLeftWidth(newLeftWidth);
-    setRightWidth(newRightWidth);
-    setLeftPercent(newLeftWidth / currentContainerWidth);
-    setRightPercent(newRightWidth / currentContainerWidth);
-  };
-
-  createEffect(() => {
-    const key = p.resetKey;
-    if (key !== undefined) {
-      untrack(resetWidths);
-    }
-  });
-
-  onMount(() => {
-    if (containerRef) {
-      const initialWidth = containerRef.offsetWidth;
-      setContainerWidth(initialWidth);
-      setLeftPercent(leftWidth() / initialWidth);
-      setRightPercent(rightWidth() / initialWidth);
-
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          batch(() => {
-            const newContainerWidth = entry.contentRect.width;
-            setContainerWidth(newContainerWidth);
-
-            setLeftWidth(
-              clamp(
-                leftPercent() * newContainerWidth,
-                minWidths()[0],
-                maxWidths()[0],
-              ),
-            );
-            setRightWidth(
-              clamp(
-                rightPercent() * newContainerWidth,
-                minWidths()[1],
-                maxWidths()[1],
-              ),
-            );
-          });
-        }
-      });
-
-      resizeObserver.observe(containerRef);
-    }
-  });
-
-  const handleMouseDown = (handle: "left" | "right") => (e: MouseEvent) => {
-    batch(() => {
-      setIsDragging(true);
-      setActiveHandle(handle);
-    });
-    e.preventDefault();
-
-    const startX = e.clientX;
-    const startLeftWidth = leftWidth();
-    const startRightWidth = rightWidth();
-
-    handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging()) return;
-
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-      }
-
-      rafId = requestAnimationFrame(() => {
-        batch(() => {
-          const deltaX = e.clientX - startX;
-
-          if (activeHandle() === "left") {
-            const maxDelta = maxWidths()[0] - startLeftWidth;
-            const minDelta = minWidths()[0] - startLeftWidth;
-            const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
-
-            const newLeftWidth = startLeftWidth + constrainedDelta;
-
-            setLeftWidth(newLeftWidth);
-
-            if (containerWidth() > 0) {
-              setLeftPercent(newLeftWidth / containerWidth());
-            }
-          } else if (activeHandle() === "right") {
-            const maxDelta = startRightWidth - minWidths()[1];
-            const minDelta = startRightWidth - maxWidths()[1];
-            const constrainedDelta = clamp(deltaX, minDelta, maxDelta);
-
-            const newRightWidth = startRightWidth - constrainedDelta;
-
-            setRightWidth(newRightWidth);
-
-            if (containerWidth() > 0) {
-              setRightPercent(newRightWidth / containerWidth());
-            }
-          }
-        });
-
-        rafId = null;
-      });
-    };
-
-    handleMouseUp = () => {
-      batch(() => {
-        setIsDragging(false);
-        setActiveHandle(null);
-      });
-      if (handleMouseMove) {
-        document.removeEventListener("mousemove", handleMouseMove);
-        handleMouseMove = undefined;
-      }
-      if (handleMouseUp) {
-        document.removeEventListener("mouseup", handleMouseUp);
-        handleMouseUp = undefined;
-      }
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  };
-
-  onCleanup(() => {
-    if (handleMouseMove) {
-      document.removeEventListener("mousemove", handleMouseMove);
-    }
-    if (handleMouseUp) {
-      document.removeEventListener("mouseup", handleMouseUp);
-    }
-    if (resizeObserver) {
-      resizeObserver.disconnect();
-    }
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId);
-    }
-  });
 
   const collapsedPanes = () => {
     const panes: Array<{ label: string; onClick: () => void }> = [];
@@ -572,7 +397,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
         <Show when={hasLeft()}>
           <div
             class="relative h-full flex-none"
-            style={{ width: `${leftWidth()}px` }}
+            style={{ width: `${left.displayWidth()}px` }}
           >
             <div
               class="h-full overflow-auto"
@@ -583,8 +408,8 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
             <div
               class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
               classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
-              data-dragging={isDragging() && activeHandle() === "left"}
-              onMouseDown={handleMouseDown("left")}
+              data-dragging={left.isDragging()}
+              onMouseDown={left.handleMouseDown}
             >
               <ResizeHandleLine side="left" noBorder={p.noBorder} />
             </div>
@@ -601,15 +426,15 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
           <Show when={hasRight()}>
             {
               /* Rendered on the CENTRE pane, so its line occupies the centre
-                pane's last pixel rather than the right pane's first — the same
+                pane's last pixel rather than the right pane's first: the same
                 boundary, and the one handle whose pane is not the pane the
                 divider "belongs" to. */
             }
             <div
               class="group absolute -right-[4px] top-0 z-50 h-full cursor-col-resize"
               classList={{ "w-[9px]": !p.noBorder, "w-[8px]": !!p.noBorder }}
-              data-dragging={isDragging() && activeHandle() === "right"}
-              onMouseDown={handleMouseDown("right")}
+              data-dragging={right.isDragging()}
+              onMouseDown={right.handleMouseDown}
             >
               <ResizeHandleLine side="left" noBorder={p.noBorder} />
             </div>
@@ -619,7 +444,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
         <Show when={hasRight()}>
           <div
             class="relative h-full flex-none"
-            style={{ width: `${rightWidth()}px` }}
+            style={{ width: `${right.displayWidth()}px` }}
           >
             <div class="h-full overflow-auto">{p.rightChild}</div>
           </div>

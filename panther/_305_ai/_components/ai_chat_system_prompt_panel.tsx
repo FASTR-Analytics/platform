@@ -3,12 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import {
-  type AlertComponentProps,
-  Button,
-  ModalContainer,
-  t3,
-} from "../deps.ts";
+import { type AlertComponentProps, ModalContainer, t3 } from "../deps.ts";
 
 export type AIChatSystemPromptPanelProps = {
   systemPrompt: string | Array<{ type: "text"; text: string }>;
@@ -30,11 +25,8 @@ export function AIChatSystemPromptPanel(p: Props) {
       })}
       width="lg"
       scroll="content"
-      rightButtons={
-        <Button intent="neutral" onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <pre class="whitespace-pre-wrap break-words text-xs">{text}</pre>
     </ModalContainer>

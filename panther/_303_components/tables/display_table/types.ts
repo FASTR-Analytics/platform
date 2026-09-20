@@ -24,12 +24,6 @@ export type TableColumn<T> = {
   alignH?: "left" | "center" | "right";
 };
 
-export type TableGroup<T> = {
-  key: string;
-  label: (items: T[]) => string;
-  groupBy: (item: T) => string;
-};
-
 export type SortConfig = {
   key: string;
   direction: "asc" | "desc";
@@ -57,31 +51,25 @@ export type TableProps<T, K extends keyof T = keyof T> = {
   columns: TableColumn<T>[];
   keyField: K;
   onRowClick?: (item: T) => void;
-  groups?: TableGroup<T>[];
-  currentGroup?: string;
   noRowsMessage?: string;
   bulkActions?: BulkAction<T>[];
   selectionLabel?: string; // e.g. "user", "row", "item"
-  tableContentMaxHeight?: string; // e.g. "400px", "50vh" - limits tbody height and makes it scrollable
-  fitTableToAvailableHeight?: boolean; // enables overflow-y: auto for scrollable table
-  defaultSort?: SortConfig; // initial sort configuration
-  onSortChange?: (config: SortConfig | null) => void; // callback when sort changes
-  defaultFilters?: FilterConfig; // initial per-column excluded values
-  onFilterChange?: (filters: FilterConfig) => void; // callback when a column filter changes
-  selectedKeys?: Accessor<Set<T[K]>>; // controlled selection state
-  setSelectedKeys?: (keys: Set<T[K]>) => void; // controlled selection setter
-  paddingX?: TablePadding; // horizontal padding (default: "normal")
-  paddingY?: TablePadding; // vertical padding (default: "normal")
-  initialScrollTop?: number; // restore the scroll container to this offset on mount
-  onScrollTopChange?: (scrollTop: number) => void; // reports scroll offset; hoist it to survive remounts
-};
-
-export type ProcessedData<T> = {
-  isGrouped: boolean;
-  groups: Array<{
-    key: string;
-    label: string;
-    items: T[];
-  }>;
-  allItems: T[];
+  // Limits the body height (e.g. "400px", "50vh") and makes it scroll.
+  tableContentMaxHeight?: string;
+  // Fills the parent's height and scrolls the body inside it.
+  fitTableToAvailableHeight?: boolean;
+  defaultSort?: SortConfig;
+  onSortChange?: (config: SortConfig | null) => void;
+  // Initial per-column excluded values, and the callback to persist them.
+  defaultFilters?: FilterConfig;
+  onFilterChange?: (filters: FilterConfig) => void;
+  // Controlled selection; both or neither.
+  selectedKeys?: Accessor<Set<T[K]>>;
+  setSelectedKeys?: (keys: Set<T[K]>) => void;
+  paddingX?: TablePadding;
+  paddingY?: TablePadding;
+  // Restore the scroll container to this offset on mount, and report it as it
+  // changes; hoist it to survive remounts.
+  initialScrollTop?: number;
+  onScrollTopChange?: (scrollTop: number) => void;
 };

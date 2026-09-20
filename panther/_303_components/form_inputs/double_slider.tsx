@@ -3,8 +3,9 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { batch, createMemo } from "solid-js";
+import { batch, createMemo, type JSX } from "solid-js";
 import { toPct3 } from "../deps.ts";
+import { Field } from "./field.tsx";
 
 type DoubleSliderProps = {
   min: number;
@@ -17,92 +18,77 @@ type DoubleSliderProps = {
   onReleaseLow?: (v: number) => void;
   onReleaseHigh?: (v: number) => void;
   minDifference?: number;
+  label?: string | JSX.Element;
+  fullWidth?: boolean;
 };
 
 export function DoubleSlider(p: DoubleSliderProps) {
   const minDiff = () => p.minDifference ?? 0;
 
-  // Calculate the fill bar position and width
   const fillStyle = createMemo(() => {
     if (p.valueLow >= p.valueHigh) {
       return { display: "none" };
     }
-
     const lowPercent = (p.valueLow - p.min) / (p.max - p.min);
     const highPercent = (p.valueHigh - p.min) / (p.max - p.min);
-
-    return {
-      left: toPct3(lowPercent),
-      right: toPct3(1 - highPercent),
-    };
+    return { left: toPct3(lowPercent), right: toPct3(1 - highPercent) };
   });
 
+  // Each thumb is clamped so the pair keeps minDifference, pushing the other
+  // thumb when needed.
   function handleLowChange(newValue: number) {
-    // Ensure low value doesn't exceed (max - minDifference)
-    const maxAllowedLow = p.max - minDiff();
-    const constrainedValue = Math.min(newValue, maxAllowedLow);
-
+    const constrainedValue = Math.min(newValue, p.max - minDiff());
     batch(() => {
       p.onChangeLow(constrainedValue);
-      // Push high value up if needed to maintain minimum difference
       if (constrainedValue + minDiff() > p.valueHigh) {
         p.onChangeHigh(constrainedValue + minDiff());
       }
     });
-
     return constrainedValue;
   }
 
   function handleHighChange(newValue: number) {
-    // Ensure high value doesn't go below (min + minDifference)
-    const minAllowedHigh = p.min + minDiff();
-    const constrainedValue = Math.max(newValue, minAllowedHigh);
-
+    const constrainedValue = Math.max(newValue, p.min + minDiff());
     batch(() => {
       p.onChangeHigh(constrainedValue);
-      // Push low value down if needed to maintain minimum difference
       if (constrainedValue - minDiff() < p.valueLow) {
         p.onChangeLow(constrainedValue - minDiff());
       }
     });
-
     return constrainedValue;
   }
 
   return (
-    <div class="ui-doubleslider">
-      <div
-        class="ui-doubleslider-fill"
-        style={fillStyle()}
-      />
-      <input
-        type="range"
-        class="ui-doubleslider-low"
-        min={p.min}
-        max={p.max}
-        step={p.increment}
-        value={p.valueLow}
-        onInput={(e) => {
-          const newValue = Number(e.target.value);
-          const constrainedValue = handleLowChange(newValue);
-          e.target.value = String(constrainedValue);
-        }}
-        onChange={(e) => p.onReleaseLow?.(Number(e.target.value))}
-      />
-      <input
-        type="range"
-        class="ui-doubleslider-high"
-        min={p.min}
-        max={p.max}
-        step={p.increment}
-        value={p.valueHigh}
-        onInput={(e) => {
-          const newValue = Number(e.target.value);
-          const constrainedValue = handleHighChange(newValue);
-          e.target.value = String(constrainedValue);
-        }}
-        onChange={(e) => p.onReleaseHigh?.(Number(e.target.value))}
-      />
-    </div>
+    <Field label={p.label} fullWidth={p.fullWidth}>
+      <div class="ui-doubleslider">
+        <div class="ui-doubleslider-fill" style={fillStyle()} />
+        <input
+          type="range"
+          class="ui-doubleslider-low"
+          min={p.min}
+          max={p.max}
+          step={p.increment}
+          value={p.valueLow}
+          onInput={(e) => {
+            const constrainedValue = handleLowChange(Number(e.target.value));
+            e.target.value = String(constrainedValue);
+          }}
+          onChange={(e) => p.onReleaseLow?.(Number(e.target.value))}
+        />
+        <input
+          type="range"
+          class="ui-doubleslider-high"
+          min={p.min}
+          max={p.max}
+          step={p.increment}
+          value={p.valueHigh}
+          onInput={(e) => {
+            const constrainedValue = handleHighChange(Number(e.target.value));
+            e.target.value = String(constrainedValue);
+          }}
+          onChange={(e) => p.onReleaseHigh?.(Number(e.target.value))}
+        />
+      </div>
+    </Field>
   );
 }
