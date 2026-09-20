@@ -1,3 +1,18 @@
+[TBD] [user] [changed] - Pop-up dialogs now have a more consistent button layout
+[TBD] [user] [changed] - HFA indicator IDs are now assigned automatically instead of manually
+[TBD] [user] [removed] - Indicator ID column removed from the HFA indicators table
+[TBD] [user] [changed] - HFA indicators table now sorted alphabetically by definition
+[TBD] [user] [added] - Other indicators now listed in the code editor's variable sidebar for easy reference
+[TBD] [user] [changed] - HFA indicator code editor heading now shows a composed label instead of raw ID
+[TBD] [user] [changed] - Blank indicator IDs in uploaded Excel files are auto-assigned unique values
+[TBD] [user] [added] - Excel upload instructions now note that indicator ID can be left blank
+[TBD] [admin] [changed] - HFA indicator IDs are now auto-assigned instead of manually entered
+[TBD] [admin] [changed] - Indicator ID column removed from HFA indicators table
+[TBD] [admin] [changed] - HFA indicators table now sorted by definition by default
+[TBD] [admin] [added] - Other indicators listed in HFA code editor sidebar for reference
+[TBD] [admin] [added] - HFA indicator labels shown in compact format in code editor heading
+[TBD] [admin] [changed] - Blank indicator IDs in uploaded Excel workbooks are auto-assigned unique IDs
+[TBD] [admin] [internal] - Modal dialogs updated to use consistent button and layout patterns
 [TBD] [user] [changed] - "Variable name" renamed to "Indicator ID" throughout the indicator manager
 [TBD] [user] [changed] - Dataset variable columns now labeled "Variable ID" instead of "Variable"
 [TBD] [user] [changed] - Workbook import now requires an "indicatorId" column instead of "varName"
