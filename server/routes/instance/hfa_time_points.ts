@@ -46,8 +46,8 @@ defineRoute(
         `;
         // Carry indicator code forward from the latest existing time point
         await sql`
-          INSERT INTO hfa_indicator_code (var_name, time_point, r_code, r_filter_code)
-          SELECT var_name, ${label}, r_code, r_filter_code
+          INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
+          SELECT indicator_id, ${label}, r_code, r_filter_code
           FROM hfa_indicator_code
           WHERE time_point = (
             SELECT tp.label FROM hfa_time_points tp

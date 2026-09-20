@@ -11,7 +11,7 @@ export type RoColumn = {
 
 export type HfaSnapshots = {
   indicators: {
-    var_name: string;
+    indicator_id: string;
     category_id: string;
     sub_category_id: string;
     service_category_ids: string;
@@ -124,11 +124,11 @@ export const F1_HMIS_MONTHLY: Fixture = {
 
 const HFA_SNAPSHOTS: HfaSnapshots = {
   indicators: [
-    { var_name: "ind_a", category_id: "cat_1", sub_category_id: "sub_1", service_category_ids: '["rmnch","nutrition"]', short_label: "Indicator A", definition: "Facilities with A", type: "binary", aggregation: "avg", sort_order: 1 },
-    { var_name: "ind_b", category_id: "cat_1", sub_category_id: "sub_1", service_category_ids: '["rmnch"]', short_label: "Indicator B", definition: "Facilities with B", type: "binary", aggregation: "avg", sort_order: 2 },
-    { var_name: "ind_c", category_id: "cat_2", sub_category_id: "sub_2", service_category_ids: '["nutrition"]', short_label: "Indicator C", definition: "Facilities with C", type: "binary", aggregation: "avg", sort_order: 3 },
-    { var_name: "ind_d", category_id: "cat_2", sub_category_id: "sub_2", service_category_ids: "[]", short_label: "Indicator D", definition: "Facilities with D", type: "binary", aggregation: "avg", sort_order: 4 },
-    { var_name: "ind_e", category_id: "cat_2", sub_category_id: "sub_2", service_category_ids: '["malaria"]', short_label: "Indicator E", definition: "Facilities with E", type: "binary", aggregation: "avg", sort_order: 5 },
+    { indicator_id: "ind_a", category_id: "cat_1", sub_category_id: "sub_1", service_category_ids: '["rmnch","nutrition"]', short_label: "Indicator A", definition: "Facilities with A", type: "binary", aggregation: "avg", sort_order: 1 },
+    { indicator_id: "ind_b", category_id: "cat_1", sub_category_id: "sub_1", service_category_ids: '["rmnch"]', short_label: "Indicator B", definition: "Facilities with B", type: "binary", aggregation: "avg", sort_order: 2 },
+    { indicator_id: "ind_c", category_id: "cat_2", sub_category_id: "sub_2", service_category_ids: '["nutrition"]', short_label: "Indicator C", definition: "Facilities with C", type: "binary", aggregation: "avg", sort_order: 3 },
+    { indicator_id: "ind_d", category_id: "cat_2", sub_category_id: "sub_2", service_category_ids: "[]", short_label: "Indicator D", definition: "Facilities with D", type: "binary", aggregation: "avg", sort_order: 4 },
+    { indicator_id: "ind_e", category_id: "cat_2", sub_category_id: "sub_2", service_category_ids: '["malaria"]', short_label: "Indicator E", definition: "Facilities with E", type: "binary", aggregation: "avg", sort_order: 5 },
   ],
   categories: [
     { id: "cat_1", label: "Category One", sort_order: 1 },

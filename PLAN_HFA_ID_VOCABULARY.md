@@ -9,7 +9,7 @@ input mirrors, the AI tool schemas, the workbook contract and the UI, and
 retires the word "name" for an identifier everywhere in the HFA area, because
 "name" is used for the id in one place and for the label in the next.
 
-**Next step:** Fix 1
+**Next step:** Review 1
 
 Branch: `main`. Repos touched: this app, `wb-fastr-modules` (step 2),
 `fastr-resource-hub` and `wb-fastr-site` (§7, outside the sessions).
@@ -478,3 +478,4 @@ previous commit on each instance.
 | 2026-09-20 | 1 | Review finding: `query_rig/fixtures.ts:14,127-131`. The `hfa_service_cats` fixture writes `inputs/hfa_indicators_snapshot.json` rows keyed `var_name`, and `buildRunIndicatorCatalog` now rejects them with `RunInputRowSchemaError`, so `./validate_queries` fails at "Preparing fixture: hfa_service_cats". The plan reaches `./validate_queries` at step 2 and lists `query_rig/` in no surface, but the gate is red on `main` after step 1. Fix: the fixture type and its five rows carry `indicator_id`; `./validate_queries` green. |
 | 2026-09-20 | 1 | Review: surface, deliverable and gates otherwise as claimed. The three files changed outside the surface (`023_hfa_schema_redesign.sql`, `stage_csv.ts`, `run_generation.ts`) are each logged above. Reviewer ran `deno task typecheck`, `deno task test` (144 passed against `./run`'s Postgres; without it 7 tests fail on ECONNREFUSED 7001, environmental), `./validate_protocols`, `./validate_migrations`, `./validate_fresh_boot`, the transform test (6 passed) and `./run` (clean boot, 8 manifests already at v11): all green. |
 | 2026-09-20 | 1 | Step 1 reviewed: 3 findings. |
+| 2026-09-20 | 1 | Step 1 fixed: SYSTEM_05 lines 497-987 removed and the regex sentence restored (the file is back to its pre-step length with the intended paragraphs only); `hfa_time_points.ts` inserts and selects `indicator_id`; `query_rig/fixtures.ts` carries `indicator_id`. Gates: typecheck, test (144 passed against `./run`'s Postgres), `./validate_protocols`, `./validate_migrations`, `./validate_fresh_boot`, `./validate_queries` (63 cases) and `./run` all green. Tim ran the fix in the review's own session. |
