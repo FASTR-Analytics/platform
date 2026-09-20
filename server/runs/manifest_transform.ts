@@ -44,6 +44,10 @@
 //      input block 1 (input_transform.ts) rewrites the mirror before block 1
 //      runs, and blocks 1 and 4 recompute from it, so this block only
 //      stamps.
+//   9. the hfa_indicators_snapshot mirror's `var_name` key reads
+//      `indicator_id` (schema v11): input block 2 rewrites the mirror before
+//      block 1 runs and block 1 recomputes from it, so this block only
+//      stamps.
 //
 // The input mirrors' own blocks are listed in input_transform.ts
 // (INPUT TRANSFORM BLOCKS); they run behind this file's version gate.
@@ -236,6 +240,12 @@ async function transformRunManifest(
   //    the catalog and hmisIndicators from it on this pass, so the manifest's
   //    own shape is unchanged and the stamp is the whole block.
   m.manifestSchemaVersion = 10;
+
+  // 9. The hfa_indicators_snapshot mirror's rows carry `indicator_id`: input
+  //    block 2 rewrote the mirror before block 1 ran, and block 1 recomputed
+  //    the catalog from it on this pass, so the manifest's own shape is
+  //    unchanged and the stamp is the whole block.
+  m.manifestSchemaVersion = 11;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a

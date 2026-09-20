@@ -90,7 +90,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "22" (2026-09-15): manifest schema v10 (the indicators mirror's `derived`
 // rows read `calculated`). No cached payload carries the mirror row's type;
 // the bump is the same per-block rule.
-const PO_CACHE_VERSION = "22";
+// "23" (2026-09-20): manifest schema v11 (the hfa_indicators_snapshot
+// mirror's `var_name` key reads `indicator_id`). No cached payload carries
+// the mirror row's keys; the bump is the same per-block rule.
+const PO_CACHE_VERSION = "23";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the three data caches: two projects
@@ -139,8 +142,10 @@ export const _PO_DETAIL_CACHE = new TimCacheC<
   // entries carry the interpretation facts); the payload does not embed that
   // list, the bump is the protocol's per-block rule. v12: manifest schema v10
   // (the indicators mirror's `derived` rows read `calculated`); the payload
-  // does not carry the mirror row's type, same per-block rule.
->("po_detail_v12", {
+  // does not carry the mirror row's type, same per-block rule. v13: manifest
+  // schema v11 (the hfa_indicators_snapshot mirror's `var_name` key reads
+  // `indicator_id`); the payload does not carry the mirror row, same rule.
+>("po_detail_v13", {
   uniquenessHashFromParams: (params) =>
     [params.projectId, params.presentationObjectId].join("|"),
   versionHashFromParams: (params) =>

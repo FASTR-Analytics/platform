@@ -49,7 +49,10 @@ import {
 // 10: the indicators mirror's `derived` rows read `calculated` (input block
 // 1, server/runs/input_transform.ts); the manifest's own shape is unchanged
 // and block 8 only stamps.
-export const RUN_MANIFEST_SCHEMA_VERSION = 10;
+// 11: the hfa_indicators_snapshot mirror's rows carry `indicator_id` instead
+// of `var_name` (input block 2, PLAN_HFA_ID_VOCABULARY); the manifest's own
+// shape is unchanged and block 9 only stamps.
+export const RUN_MANIFEST_SCHEMA_VERSION = 11;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([

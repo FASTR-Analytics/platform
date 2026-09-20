@@ -655,8 +655,11 @@ version stamps the generation consumed; the module and metric catalogs as the in
 (so existing parsers apply unchanged); pinned asset names + hashes; and the §3.7
 memoization fields (`inputKey` per module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `10`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v10 = the indicators mirror's `derived` rows
+**`manifestSchemaVersion` gates every read**, currently `11`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v11 = the `hfa_indicators_snapshot.json`
+mirror's rows carry `indicator_id` instead of `var_name`, input block 2;
+the manifest's own shape is unchanged and transform block 9 only stamps;
+v10 = the indicators mirror's `derived` rows
 read `calculated`, input block 1; the manifest's own shape is unchanged and
 transform block 8 only stamps; v9 = `hmisIndicators` entries carry the
 indicator's format, direction, target, thresholds and, for a calculated
@@ -864,7 +867,7 @@ viz-land indicator picker. Three rulings hold this together. **The
 definition gate**, emit only when the resolved definition declares the new
 RO (the `resultsObjects.some` pattern `supportsResponseStatus` established),
 must cover item mutates, item columns AND metadata entries _atomically_:
-a partial gate emits composed varNames as fake indicators into the MAIN
+a partial gate emits composed column names as fake indicators into the MAIN
 table, which ingests cleanly and corrupts silently. This is also what keeps
 generation at older pinned gitRefs byte-identical (verify as script **text**;
 inputKeys are unaffected either way, since `computeModuleInputs` folds only
