@@ -1,4 +1,4 @@
-import { HFA_INDICATOR_NAME_REGEX, isReservedHfaVarName, type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
+import { HFA_INDICATOR_ID_REGEX, isReservedHfaId, type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
   AlertFormHolder,
@@ -27,7 +27,7 @@ export function EditHfaIndicator(
 ) {
   const mode = p.existingIndicator ? "update" : "create";
 
-  const [varName, setVarName] = createSignal(p.existingIndicator?.varName ?? "");
+  const [indicatorId, setIndicatorId] = createSignal(p.existingIndicator?.indicatorId ?? "");
   const [categoryId, setCategoryId] = createSignal<string | null>(p.existingIndicator?.categoryId ?? null);
   const [subCategoryId, setSubCategoryId] = createSignal<string | null>(p.existingIndicator?.subCategoryId ?? null);
   const [serviceCategoryIds, setServiceCategoryIds] = createSignal<string[]>(p.existingIndicator?.serviceCategoryIds ?? []);
@@ -46,48 +46,48 @@ export function EditHfaIndicator(
     async (e: MouseEvent) => {
       e.preventDefault();
 
-      // varName is immutable once created: hfa_indicator_code references it via
+      // The indicator id is immutable once created: hfa_indicator_code references it via
       // a non-cascading FK, so a rename would fail whenever code exists.
-      const trimmedVarName =
-        mode === "create" ? varName().trim() : p.existingIndicator!.varName;
-      if (!trimmedVarName) {
-        return { success: false, err: t3({ en: "Variable name is required", fr: "Le nom de la variable est requis", pt: "O nome da variável é obrigatório" }) };
+      const trimmedIndicatorId =
+        mode === "create" ? indicatorId().trim() : p.existingIndicator!.indicatorId;
+      if (!trimmedIndicatorId) {
+        return { success: false, err: t3({ en: "Indicator ID is required", fr: "L'ID de l'indicateur est requis", pt: "O ID do indicador é obrigatório" }) };
       }
       if (mode === "create") {
-        if (!HFA_INDICATOR_NAME_REGEX.test(trimmedVarName)) {
+        if (!HFA_INDICATOR_ID_REGEX.test(trimmedIndicatorId)) {
           return {
             success: false,
             err: t3({
-              en: "Variable name must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
-              fr: "Le nom de la variable doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (max 64 caractères)",
-              pt: "O nome da variável deve começar por uma letra e conter apenas letras, dígitos e sublinhados (máx. 64 caracteres)",
+              en: "Indicator ID must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
+              fr: "L'ID de l'indicateur doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (max 64 caractères)",
+              pt: "O ID do indicador deve começar por uma letra e conter apenas letras, dígitos e sublinhados (máx. 64 caracteres)",
             }),
           };
         }
-        if (isReservedHfaVarName(trimmedVarName)) {
+        if (isReservedHfaId(trimmedIndicatorId)) {
           return {
             success: false,
             err: t3({
-              en: `"${trimmedVarName}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different name.`,
-              fr: `« ${trimmedVarName} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs, ou une colonne générée par le script d'analyse). Choisissez un autre nom.`,
-              pt: `"${trimmedVarName}" é uma palavra reservada (uma função ou operador R utilizado no código dos indicadores, ou uma coluna gerada pelo script de análise). Escolha um nome diferente.`,
+              en: `"${trimmedIndicatorId}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different ID.`,
+              fr: `« ${trimmedIndicatorId} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs, ou une colonne générée par le script d'analyse). Choisissez un autre ID.`,
+              pt: `"${trimmedIndicatorId}" é uma palavra reservada (uma função ou operador R utilizado no código dos indicadores, ou uma coluna gerada pelo script de análise). Escolha um ID diferente.`,
             }),
           };
         }
-        if (p.surveyVarNames.includes(trimmedVarName)) {
+        if (p.surveyVarNames.includes(trimmedIndicatorId)) {
           return {
             success: false,
             err: t3({
-              en: `"${trimmedVarName}" is a survey variable name — using it would shadow the dataset column in other indicators' code. Choose a different name.`,
-              fr: `« ${trimmedVarName} » est le nom d'une variable d'enquête — l'utiliser masquerait la colonne du jeu de données dans le code des autres indicateurs. Choisissez un autre nom.`,
-              pt: `"${trimmedVarName}" é o nome de uma variável de inquérito — utilizá-lo ocultaria a coluna do conjunto de dados no código dos outros indicadores. Escolha um nome diferente.`,
+              en: `"${trimmedIndicatorId}" is a survey variable ID. Using it would shadow the dataset column in other indicators' code. Choose a different ID.`,
+              fr: `« ${trimmedIndicatorId} » est l'ID d'une variable d'enquête. L'utiliser masquerait la colonne du jeu de données dans le code des autres indicateurs. Choisissez un autre ID.`,
+              pt: `"${trimmedIndicatorId}" é o ID de uma variável de inquérito. Utilizá-lo ocultaria a coluna do conjunto de dados no código dos outros indicadores. Escolha um ID diferente.`,
             }),
           };
         }
       }
 
       const indicator: HfaIndicator = {
-        varName: trimmedVarName,
+        indicatorId: trimmedIndicatorId,
         categoryId: categoryId(),
         subCategoryId: subCategoryId(),
         serviceCategoryIds: serviceCategoryIds(),
@@ -109,7 +109,7 @@ export function EditHfaIndicator(
         });
       } else {
         return await serverActions.updateHfaIndicator({
-          oldVarName: p.existingIndicator!.varName,
+          oldIndicatorId: p.existingIndicator!.indicatorId,
           indicator,
         });
       }
@@ -133,9 +133,9 @@ export function EditHfaIndicator(
         <Switch>
           <Match when={mode === "create"}>
             <Input
-              label={t3({ en: "Variable name", fr: "Nom de la variable", pt: "Nome da variável" })}
-              value={varName()}
-              onChange={setVarName}
+              label={t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
+              value={indicatorId()}
+              onChange={setIndicatorId}
               fullWidth
               autoFocus
               mono
@@ -144,10 +144,10 @@ export function EditHfaIndicator(
           <Match when={mode === "update"}>
             <div>
               <div class="ui-label">
-                {t3({ en: "Variable name", fr: "Nom de la variable", pt: "Nome da variável" })}
+                {t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
               </div>
               <div class="ui-form-pad ui-form-text-size font-mono">
-                {varName()}
+                {indicatorId()}
               </div>
             </div>
           </Match>

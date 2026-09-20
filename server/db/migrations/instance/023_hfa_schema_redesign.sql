@@ -4,8 +4,17 @@
 -- - Cleaner table naming (hfa_* prefix)
 -- - ON UPDATE CASCADE for label renames
 
--- Drop all existing HFA tables
-DROP TABLE IF EXISTS hfa_indicator_code CASCADE;
+-- Drop all existing HFA tables. hfa_indicator_code is dropped and recreated
+-- only while hfa_indicators still keys on var_name: a fresh replay runs on a
+-- base schema whose key is indicator_id (migration 092), where the recreate
+-- below would fail and the base table is already the redesigned one.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'hfa_indicators' AND column_name = 'var_name') THEN
+    DROP TABLE IF EXISTS hfa_indicator_code CASCADE;
+  END IF;
+END $$;
 DROP TABLE IF EXISTS dataset_hfa CASCADE;
 DROP TABLE IF EXISTS dataset_hfa_dictionary_values CASCADE;
 DROP TABLE IF EXISTS dataset_hfa_dictionary_vars CASCADE;
@@ -53,14 +62,21 @@ CREATE INDEX IF NOT EXISTS idx_hfa_data_var_name ON hfa_data(var_name);
 CREATE INDEX IF NOT EXISTS idx_hfa_data_facility_id ON hfa_data(facility_id);
 CREATE INDEX IF NOT EXISTS idx_hfa_data_time_point ON hfa_data(time_point);
 
--- Create hfa_indicator_code (hfa_indicators already exists, unchanged)
-CREATE TABLE IF NOT EXISTS hfa_indicator_code (
-  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
-  time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
-  r_code TEXT NOT NULL DEFAULT '',
-  r_filter_code TEXT,
-  PRIMARY KEY (var_name, time_point)
-);
+-- Create hfa_indicator_code (hfa_indicators already exists, unchanged).
+-- Guarded like the drop above: skipped on a fresh replay.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'hfa_indicators' AND column_name = 'var_name') THEN
+    CREATE TABLE IF NOT EXISTS hfa_indicator_code (
+      var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+      time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
+      r_code TEXT NOT NULL DEFAULT '',
+      r_filter_code TEXT,
+      PRIMARY KEY (var_name, time_point)
+    );
+  END IF;
+END $$;
 
 -- Create hfa_upload_attempts
 CREATE TABLE IF NOT EXISTS hfa_upload_attempts (

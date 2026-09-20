@@ -3,7 +3,7 @@ import { escapeSqlString } from "../../db/utils.ts";
 import {
   classifyChoice,
   classifyNumericSentinel,
-  isReservedHfaVarName,
+  isReservedHfaId,
   parseNumericSentinels,
   type DatasetHfaCsvStagingResult,
   type HfaCsvMappingParams,
@@ -167,8 +167,8 @@ export async function stageHfaCsvIntoTables(args: {
   // (`weight`, `time_point`, `facility_*`, ...). A survey variable named
   // `and`/`sum`/`if` would otherwise be silently rewritten or dropped, and one
   // named `weight`/`time_point` would collide with or shadow the script's own
-  // column (single source: isReservedHfaVarName).
-  const reservedCollisions = storedVarNames.filter(isReservedHfaVarName);
+  // column (single source: isReservedHfaId).
+  const reservedCollisions = storedVarNames.filter(isReservedHfaId);
   if (reservedCollisions.length > 0) {
     throw new Error(
       `The variable name "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the survey variable in the XLSForm/CSV and re-upload.`,

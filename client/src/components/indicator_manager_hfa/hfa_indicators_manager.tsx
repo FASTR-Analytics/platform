@@ -264,7 +264,7 @@ export function HfaIndicatorsManager(p: Props) {
     consistent: boolean;
   };
 
-  const statsByVarName = createMemo(() => {
+  const statsByIndicatorId = createMemo(() => {
     const map = new Map<string, IndicatorCodeStats>();
     const dictSt = dictionary();
     const codeSt = allCode();
@@ -279,19 +279,19 @@ export function HfaIndicatorsManager(p: Props) {
     const dict = dictSt.data;
     const total = dict.timePoints.length;
 
-    const codeByVarName = new Map<string, HfaIndicatorCode[]>();
+    const codeByIndicatorId = new Map<string, HfaIndicatorCode[]>();
     for (const c of codeSt.data) {
-      const arr = codeByVarName.get(c.varName) ?? [];
+      const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
       arr.push(c);
-      codeByVarName.set(c.varName, arr);
+      codeByIndicatorId.set(c.indicatorId, arr);
     }
 
-    const allVarNames = new Set(indSt.data.map((i) => i.varName));
+    const allIndicatorIds = new Set(indSt.data.map((i) => i.indicatorId));
 
     for (const ind of indSt.data) {
-      const indCode = codeByVarName.get(ind.varName) ?? [];
-      const otherVarNames = new Set(allVarNames);
-      otherVarNames.delete(ind.varName);
+      const indCode = codeByIndicatorId.get(ind.indicatorId) ?? [];
+      const otherIndicatorIds = new Set(allIndicatorIds);
+      otherIndicatorIds.delete(ind.indicatorId);
 
       const withCodeEntries = indCode.filter((c) => c.rCode.trim());
       let ready = 0;
@@ -307,7 +307,7 @@ export function HfaIndicatorsManager(p: Props) {
         const rCodeResult = validateRCode(
           c.rCode,
           availableVars,
-          otherVarNames,
+          otherIndicatorIds,
         );
         if (hasRCodeErrors(rCodeResult)) {
           hasErr = true;
@@ -319,7 +319,7 @@ export function HfaIndicatorsManager(p: Props) {
           const rFilterResult = validateRCode(
             c.rFilterCode,
             availableVars,
-            otherVarNames,
+            otherIndicatorIds,
           );
           if (hasRCodeErrors(rFilterResult)) {
             hasErr = true;
@@ -346,7 +346,7 @@ export function HfaIndicatorsManager(p: Props) {
         );
       }
 
-      map.set(ind.varName, {
+      map.set(ind.indicatorId, {
         withCode: withCodeEntries.length,
         total,
         ready,
@@ -379,26 +379,26 @@ export function HfaIndicatorsManager(p: Props) {
       return;
     }
 
-    // Group code by varName
-    const codeByVarName = new Map<string, HfaIndicatorCode[]>();
+    // Group code by indicator id
+    const codeByIndicatorId = new Map<string, HfaIndicatorCode[]>();
     for (const c of codeRes.data) {
-      const arr = codeByVarName.get(c.varName) ?? [];
+      const arr = codeByIndicatorId.get(c.indicatorId) ?? [];
       arr.push(c);
-      codeByVarName.set(c.varName, arr);
+      codeByIndicatorId.set(c.indicatorId, arr);
     }
 
-    const allIndicatorVarNames = new Set(st.data.map((i) => i.varName));
+    const allIndicatorIds = new Set(st.data.map((i) => i.indicatorId));
 
     // Compute validation for each indicator
     const updates: {
-      varName: string;
+      indicatorId: string;
       hasSyntaxError: boolean;
       codeConsistent: boolean;
     }[] = [];
     for (const ind of st.data) {
-      const indCode = codeByVarName.get(ind.varName) ?? [];
-      const otherVarNames = new Set(allIndicatorVarNames);
-      otherVarNames.delete(ind.varName);
+      const indCode = codeByIndicatorId.get(ind.indicatorId) ?? [];
+      const otherIndicatorIds = new Set(allIndicatorIds);
+      otherIndicatorIds.delete(ind.indicatorId);
 
       let hasSyntaxError = false;
       for (const c of indCode) {
@@ -407,7 +407,7 @@ export function HfaIndicatorsManager(p: Props) {
           ? new Set(tp.vars.map((v) => v.varName))
           : new Set<string>();
         if (c.rCode.trim()) {
-          const result = validateRCode(c.rCode, availableVars, otherVarNames);
+          const result = validateRCode(c.rCode, availableVars, otherIndicatorIds);
           if (hasRCodeErrors(result)) {
             hasSyntaxError = true;
           }
@@ -416,7 +416,7 @@ export function HfaIndicatorsManager(p: Props) {
           const result = validateRCode(
             c.rFilterCode,
             availableVars,
-            otherVarNames,
+            otherIndicatorIds,
           );
           if (hasRCodeErrors(result)) {
             hasSyntaxError = true;
@@ -437,7 +437,7 @@ export function HfaIndicatorsManager(p: Props) {
         );
       }
 
-      updates.push({ varName: ind.varName, hasSyntaxError, codeConsistent });
+      updates.push({ indicatorId: ind.indicatorId, hasSyntaxError, codeConsistent });
     }
 
     // Send bulk update - SSE will trigger refetch via createEffect
@@ -523,7 +523,7 @@ export function HfaIndicatorsManager(p: Props) {
       props: {
         indicator,
         dictionary: dict,
-        allIndicatorVarNames: allIndicators.map((i) => i.varName),
+        allIndicatorIds: allIndicators.map((i) => i.indicatorId),
         categories: catSt.data,
         subCategories: subCatSt.data,
         serviceCategories: svcCatSt.data,
@@ -538,34 +538,34 @@ export function HfaIndicatorsManager(p: Props) {
   // Both code sources must be loaded before the check means anything: a
   // half-loaded scan would silently miss references living only in variant
   // snippets and understate what a deletion breaks.
-  function findReferencingIndicators(deletedVarNames: string[]): string[] {
+  function findReferencingIndicators(deletedIndicatorIds: string[]): string[] {
     const codeSt = allCode();
     const variantCodeSt = allVariantCode();
     if (codeSt.status !== "ready" || variantCodeSt.status !== "ready") return [];
-    const deleted = new Set(deletedVarNames);
+    const deleted = new Set(deletedIndicatorIds);
     const referencing = new Set<string>();
     for (const c of codeSt.data) {
-      if (deleted.has(c.varName)) continue;
+      if (deleted.has(c.indicatorId)) continue;
       const identifiers = [
         ...extractRIdentifiers(c.rCode),
         ...(c.rFilterCode ? extractRIdentifiers(c.rFilterCode) : []),
       ];
       if (identifiers.some((id) => deleted.has(id))) {
-        referencing.add(c.varName);
+        referencing.add(c.indicatorId);
       }
     }
     for (const c of variantCodeSt.data) {
-      if (deleted.has(c.varName)) continue;
+      if (deleted.has(c.indicatorId)) continue;
       if (extractRIdentifiers(c.rCode).some((id) => deleted.has(id))) {
-        referencing.add(c.varName);
+        referencing.add(c.indicatorId);
       }
     }
     return [...referencing].sort();
   }
 
-  function deleteConfirmText(varNames: string[]): string {
+  function deleteConfirmText(indicatorIds: string[]): string {
     const base =
-      varNames.length === 1
+      indicatorIds.length === 1
         ? t3({
             en: "Are you sure you want to delete this indicator?",
             fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
@@ -576,7 +576,7 @@ export function HfaIndicatorsManager(p: Props) {
             fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
             pt: "Tem a certeza de que pretende eliminar estes indicadores?",
           });
-    const referencing = findReferencingIndicators(varNames);
+    const referencing = findReferencingIndicators(indicatorIds);
     if (referencing.length === 0) {
       return base;
     }
@@ -589,23 +589,23 @@ export function HfaIndicatorsManager(p: Props) {
   async function handleDelete(indicator: HfaIndicator) {
     const deleteAction = createDeleteAction(
       {
-        text: deleteConfirmText([indicator.varName]),
-        itemList: [indicator.varName],
+        text: deleteConfirmText([indicator.indicatorId]),
+        itemList: [indicator.indicatorId],
       },
       () =>
-        serverActions.deleteHfaIndicators({ varNames: [indicator.varName] }),
+        serverActions.deleteHfaIndicators({ indicatorIds: [indicator.indicatorId] }),
     );
     await deleteAction.click();
   }
 
   async function handleBulkDelete(selectedIndicators: HfaIndicator[]) {
-    const varNames = selectedIndicators.map((i) => i.varName);
+    const indicatorIds = selectedIndicators.map((i) => i.indicatorId);
     const deleteAction = createDeleteAction(
       {
-        text: deleteConfirmText(varNames),
-        itemList: varNames,
+        text: deleteConfirmText(indicatorIds),
+        itemList: indicatorIds,
       },
-      () => serverActions.deleteHfaIndicators({ varNames }),
+      () => serverActions.deleteHfaIndicators({ indicatorIds }),
     );
     await deleteAction.click();
   }
@@ -777,7 +777,7 @@ export function HfaIndicatorsManager(p: Props) {
     const svcLabels = serviceCategoryLabelById();
     return st.data.filter((ind) => {
       const haystack = [
-        ind.varName,
+        ind.indicatorId,
         ind.shortLabel,
         ind.definition,
         ind.categoryId ? (catLabels.get(ind.categoryId) ?? ind.categoryId) : "",
@@ -824,10 +824,10 @@ export function HfaIndicatorsManager(p: Props) {
       },
     },
     {
-      key: "varName",
-      header: t3({ en: "Variable Name", fr: "Nom de variable", pt: "Nome da variável" }),
+      key: "indicatorId",
+      header: t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" }),
       sortable: true,
-      render: (ind) => <span class="font-mono">{ind.varName}</span>,
+      render: (ind) => <span class="font-mono">{ind.indicatorId}</span>,
     },
     {
       key: "shortLabel",
@@ -856,9 +856,9 @@ export function HfaIndicatorsManager(p: Props) {
       key: "timePoints",
       header: t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" }),
       sortable: true,
-      sortValue: (ind) => statsByVarName().get(ind.varName)?.withCode ?? -1,
+      sortValue: (ind) => statsByIndicatorId().get(ind.indicatorId)?.withCode ?? -1,
       render: (ind) => {
-        const stats = statsByVarName().get(ind.varName);
+        const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
         return (
           <span class={stats.withCode === 0 ? "text-base-content-muted" : ""}>
@@ -875,9 +875,9 @@ export function HfaIndicatorsManager(p: Props) {
       key: "status",
       header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
       sortable: true,
-      sortValue: (ind) => statsByVarName().get(ind.varName)?.error ?? -1,
+      sortValue: (ind) => statsByIndicatorId().get(ind.indicatorId)?.error ?? -1,
       render: (ind) => {
-        const stats = statsByVarName().get(ind.varName);
+        const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
         if (stats.withCode === 0) {
           return <span class="text-base-content-muted">—</span>;
@@ -926,12 +926,12 @@ export function HfaIndicatorsManager(p: Props) {
       header: t3({ en: "Consistent", fr: "Cohérent", pt: "Consistente" }),
       sortable: true,
       sortValue: (ind) => {
-        const stats = statsByVarName().get(ind.varName);
+        const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats || stats.withCode === 0) return -1;
         return stats.consistent ? 1 : 0;
       },
       render: (ind) => {
-        const stats = statsByVarName().get(ind.varName);
+        const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats || stats.withCode === 0) {
           return <span class="text-base-content-muted">—</span>;
         }
@@ -1128,7 +1128,7 @@ export function HfaIndicatorsManager(p: Props) {
                       <Table
                         data={filteredIndicators()}
                         columns={allColumns()}
-                        keyField="varName"
+                        keyField="indicatorId"
                         noRowsMessage={
                           searchText().trim()
                             ? t3({

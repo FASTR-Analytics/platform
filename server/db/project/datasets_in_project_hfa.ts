@@ -62,13 +62,13 @@ export type DatasetHfaRunCapture = {
   variantItems: DBHfaIndicatorVariantItem[];
   indicators: DBHfaIndicator[];
   indicatorCode: {
-    var_name: string;
+    indicator_id: string;
     time_point: string;
     r_code: string;
     r_filter_code: string | null;
   }[];
   variantCode: {
-    var_name: string;
+    indicator_id: string;
     time_point: string;
     item_id: string;
     r_code: string;
@@ -100,25 +100,25 @@ export async function computeDatasetHfaRunCapture(
     // DB for the run snapshot. The module runner reads from the snapshot so
     // indicators and data stay in sync for this run.
     const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
-      SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
+      SELECT * FROM hfa_indicators ORDER BY sort_order, indicator_id
     `;
-    const indicatorVarNames = new Set(
-      hfaIndicatorRowsForSnapshot.map((ind) => ind.var_name),
+    const indicatorIds = new Set(
+      hfaIndicatorRowsForSnapshot.map((ind) => ind.indicator_id),
     );
     const hfaIndicatorCodeRowsForSnapshot = (
       await mainDb<
         {
-          var_name: string;
+          indicator_id: string;
           time_point: string;
           r_code: string;
           r_filter_code: string | null;
         }[]
       >`
-      SELECT var_name, time_point, r_code, r_filter_code
+      SELECT indicator_id, time_point, r_code, r_filter_code
       FROM hfa_indicator_code
-      ORDER BY var_name, time_point
+      ORDER BY indicator_id, time_point
     `
-    ).filter((c) => indicatorVarNames.has(c.var_name));
+    ).filter((c) => indicatorIds.has(c.indicator_id));
 
     // Staleness metadata: stored in datasets.info so the client can detect
     // when the project's export is behind the instance.
@@ -206,17 +206,17 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     const hfaVariantCodeRowsForSnapshot = (
       await mainDb<
         {
-          var_name: string;
+          indicator_id: string;
           time_point: string;
           item_id: string;
           r_code: string;
         }[]
       >`
-      SELECT var_name, time_point, item_id, r_code
+      SELECT indicator_id, time_point, item_id, r_code
       FROM hfa_indicator_variant_code
-      ORDER BY var_name, time_point, item_id
+      ORDER BY indicator_id, time_point, item_id
     `
-    ).filter((c) => indicatorVarNames.has(c.var_name));
+    ).filter((c) => indicatorIds.has(c.indicator_id));
 
     const info: DatasetHfaInfoInProject = {
       hfaCacheHash,
@@ -308,7 +308,7 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
 // ============================================================================
 
 type DBHfaIndicatorCodeSnapshot = {
-  var_name: string;
+  indicator_id: string;
   time_point: string;
   r_code: string;
   r_filter_code: string | null;
@@ -370,7 +370,7 @@ export async function getAllHfaIndicatorsFromSnapshot(
 ): Promise<HfaIndicator[]> {
   const rows = await projectDb<DBHfaIndicator[]>`
     SELECT
-      i.var_name,
+      i.indicator_id,
       i.category_id,
       i.sub_category_id,
       i.service_category_ids,
@@ -386,7 +386,7 @@ export async function getAllHfaIndicatorsFromSnapshot(
     FROM hfa_indicators_snapshot i
     LEFT JOIN hfa_indicator_categories_snapshot c ON i.category_id = c.id
     LEFT JOIN hfa_indicator_sub_categories_snapshot sc ON i.sub_category_id = sc.id
-    ORDER BY COALESCE(c.sort_order, 999999), COALESCE(sc.sort_order, 999999), i.sort_order, i.var_name
+    ORDER BY COALESCE(c.sort_order, 999999), COALESCE(sc.sort_order, 999999), i.sort_order, i.indicator_id
   `;
   return rows.map(dbRowToHfaIndicator);
 }
@@ -429,7 +429,7 @@ export async function getHfaTaxonomyForAI(
       periodId: t.period_id,
     })),
     indicators: indicators.map((i) => ({
-      id: i.varName,
+      id: i.indicatorId,
       label: composeHfaIndicatorLabel(i, "full"),
       measure: getHfaIndicatorMeasure(i.type, i.aggregation).label.en,
       categoryId: i.categoryId,
@@ -444,12 +444,12 @@ export async function getAllHfaIndicatorCodeFromSnapshot(
   projectDb: Sql,
 ): Promise<HfaIndicatorCode[]> {
   const rows = await projectDb<DBHfaIndicatorCodeSnapshot[]>`
-    SELECT var_name, time_point, r_code, r_filter_code
+    SELECT indicator_id, time_point, r_code, r_filter_code
     FROM hfa_indicator_code_snapshot
-    ORDER BY var_name, time_point
+    ORDER BY indicator_id, time_point
   `;
   return rows.map((r) => ({
-    varName: r.var_name,
+    indicatorId: r.indicator_id,
     timePoint: r.time_point,
     rCode: r.r_code,
     rFilterCode: r.r_filter_code ?? undefined,

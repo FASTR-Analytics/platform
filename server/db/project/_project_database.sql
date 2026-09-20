@@ -44,7 +44,7 @@ CREATE TABLE hfa_indicator_service_categories_snapshot (
 -- copied from the instance DB at HFA data export time. The module runner reads
 -- from these tables so indicators and data always stay in sync.
 CREATE TABLE hfa_indicators_snapshot (
-  var_name text PRIMARY KEY NOT NULL,
+  indicator_id text PRIMARY KEY NOT NULL,
   category_id text,
   sub_category_id text,
   service_category_ids text NOT NULL DEFAULT '[]',
@@ -56,12 +56,12 @@ CREATE TABLE hfa_indicators_snapshot (
 );
 
 CREATE TABLE hfa_indicator_code_snapshot (
-  var_name text NOT NULL,
+  indicator_id text NOT NULL,
   time_point text NOT NULL,
   r_code text NOT NULL DEFAULT '',
   r_filter_code text,
-  PRIMARY KEY (var_name, time_point),
-  FOREIGN KEY (var_name) REFERENCES hfa_indicators_snapshot(var_name) ON DELETE CASCADE
+  PRIMARY KEY (indicator_id, time_point),
+  FOREIGN KEY (indicator_id) REFERENCES hfa_indicators_snapshot(indicator_id) ON DELETE CASCADE
 );
 
 -- Per-variable sentinel classification, snapshotted from instance

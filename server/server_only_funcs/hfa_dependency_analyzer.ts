@@ -15,7 +15,7 @@ export type ExtractedDependencies = {
 export function extractDependenciesFromCode(
   rCode: string,
   rFilterCode: string | undefined,
-  allIndicatorVarNames: Set<string>,
+  allIndicatorIds: Set<string>,
   knownDatasetVariables: Set<string>,
 ): ExtractedDependencies {
   const codeVars = new Set<string>();
@@ -38,7 +38,7 @@ export function extractDependenciesFromCode(
   const unknownVariables = new Set<string>();
 
   const classify = (variable: string, source: "code" | "filter"): void => {
-    if (allIndicatorVarNames.has(variable)) {
+    if (allIndicatorIds.has(variable)) {
       dependencies.add(variable);
     } else if (knownDatasetVariables.has(variable)) {
       qids.add(variable);
@@ -67,7 +67,7 @@ export function extractDependenciesFromCode(
 export function buildUnionDependencyGraph(
   indicators: HfaIndicator[],
   codeByIndicator: Map<string, HfaIndicatorCode[]>,
-  allIndicatorVarNames: Set<string>,
+  allIndicatorIds: Set<string>,
   knownDatasetVariables: Set<string>,
 ): {
   graph: Map<string, string[]>;
@@ -79,38 +79,38 @@ export function buildUnionDependencyGraph(
   const validationErrors: string[] = [];
 
   for (const indicator of indicators) {
-    graph.set(indicator.varName, []);
+    graph.set(indicator.indicatorId, []);
     const unionDeps = new Set<string>();
 
-    const codeSnippets = codeByIndicator.get(indicator.varName) ?? [];
+    const codeSnippets = codeByIndicator.get(indicator.indicatorId) ?? [];
     for (const snippet of codeSnippets) {
       if (!snippet.rCode || snippet.rCode.trim() === "") continue;
 
       const deps = extractDependenciesFromCode(
         snippet.rCode,
         snippet.rFilterCode,
-        allIndicatorVarNames,
+        allIndicatorIds,
         knownDatasetVariables,
       );
 
       if (deps.unknownVariables.length > 0) {
         validationErrors.push(
-          `Indicator "${indicator.varName}" (time_point "${snippet.timePoint}"): Unknown variables [${deps.unknownVariables.join(", ")}].`,
+          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Unknown variables [${deps.unknownVariables.join(", ")}].`,
         );
       }
 
       deps.dependencies.forEach((d) => unionDeps.add(d));
     }
 
-    dependenciesMap.set(indicator.varName, [...unionDeps].sort());
+    dependenciesMap.set(indicator.indicatorId, [...unionDeps].sort());
   }
 
-  for (const [varName, dependencies] of dependenciesMap.entries()) {
+  for (const [indicatorId, dependencies] of dependenciesMap.entries()) {
     for (const dep of dependencies) {
       if (!graph.has(dep)) {
         graph.set(dep, []);
       }
-      graph.get(dep)!.push(varName);
+      graph.get(dep)!.push(indicatorId);
     }
   }
 
@@ -132,19 +132,19 @@ export function topologicalSort(
   const { graph, dependenciesMap } = graphResult;
   const indicatorMap = new Map<string, HfaIndicator>();
   for (const indicator of indicators) {
-    indicatorMap.set(indicator.varName, indicator);
+    indicatorMap.set(indicator.indicatorId, indicator);
   }
 
   const inDegree = new Map<string, number>();
   for (const indicator of indicators) {
-    const deps = dependenciesMap.get(indicator.varName) || [];
-    inDegree.set(indicator.varName, deps.length);
+    const deps = dependenciesMap.get(indicator.indicatorId) || [];
+    inDegree.set(indicator.indicatorId, deps.length);
   }
 
   const queue: string[] = [];
-  for (const [varName, degree] of inDegree.entries()) {
+  for (const [indicatorId, degree] of inDegree.entries()) {
     if (degree === 0) {
-      queue.push(varName);
+      queue.push(indicatorId);
     }
   }
 
@@ -168,7 +168,7 @@ export function topologicalSort(
 
   if (ordered.length !== indicators.length) {
     const remaining = indicators.filter(
-      (ind) => !ordered.find((o) => o.varName === ind.varName),
+      (ind) => !ordered.find((o) => o.indicatorId === ind.indicatorId),
     );
     const cycles = detectCycles(remaining, dependenciesMap);
     return { ordered: [], cycles };
@@ -185,12 +185,12 @@ function detectCycles(
   const visited = new Set<string>();
   const recStack = new Set<string>();
 
-  function dfs(varName: string, path: string[]): void {
-    visited.add(varName);
-    recStack.add(varName);
-    path.push(varName);
+  function dfs(indicatorId: string, path: string[]): void {
+    visited.add(indicatorId);
+    recStack.add(indicatorId);
+    path.push(indicatorId);
 
-    const dependencies = dependenciesMap.get(varName) || [];
+    const dependencies = dependenciesMap.get(indicatorId) || [];
     for (const dep of dependencies) {
       if (!visited.has(dep)) {
         dfs(dep, [...path]);
@@ -202,12 +202,12 @@ function detectCycles(
       }
     }
 
-    recStack.delete(varName);
+    recStack.delete(indicatorId);
   }
 
   for (const indicator of indicators) {
-    if (!visited.has(indicator.varName)) {
-      dfs(indicator.varName, []);
+    if (!visited.has(indicator.indicatorId)) {
+      dfs(indicator.indicatorId, []);
     }
   }
 

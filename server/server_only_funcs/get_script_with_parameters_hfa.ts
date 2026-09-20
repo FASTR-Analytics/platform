@@ -7,7 +7,7 @@ import type {
 } from "lib";
 import {
   composeHfaVariantColumnName,
-  isReservedHfaVarName,
+  isReservedHfaId,
   normalizeRLogicalOperators,
   serialiseMultiMembershipValues,
 } from "lib";
@@ -167,7 +167,7 @@ function statusFilterUnknownCheck(
 function buildPerTimePointMutateExpression(
   indicator: HfaIndicator,
   codeSnippets: HfaIndicatorCode[],
-  allIndicatorVarNames: Set<string>,
+  allIndicatorIds: Set<string>,
   knownDatasetVariables: Set<string>,
   dontKnowAsNo: boolean,
   sentinelMap: Map<string, VarSentinels>,
@@ -188,7 +188,7 @@ function buildPerTimePointMutateExpression(
     const deps = extractDependenciesFromCode(
       rCode,
       snippet.rFilterCode,
-      allIndicatorVarNames,
+      allIndicatorIds,
       knownDatasetVariables,
     );
     for (const qid of deps.qids) {
@@ -242,7 +242,7 @@ function buildPerTimePointMutateExpression(
 // M10_hfa_response_status.csv results object (PLAN_HFA_FEATURES.md).
 function buildPerTimePointStatusExpression(
   codeSnippets: HfaIndicatorCode[],
-  allIndicatorVarNames: Set<string>,
+  allIndicatorIds: Set<string>,
   knownDatasetVariables: Set<string>,
   sentinelMap: Map<string, VarSentinels>,
 ): string {
@@ -259,7 +259,7 @@ function buildPerTimePointStatusExpression(
     const deps = extractDependenciesFromCode(
       rCode,
       snippet.rFilterCode,
-      allIndicatorVarNames,
+      allIndicatorIds,
       knownDatasetVariables,
     );
 
@@ -323,15 +323,15 @@ export function getScriptWithParametersHfa(
     configSelections.parameterSelections["DONT_KNOW_TREATMENT"]?.trim() ===
       "no";
 
-  const allIndicatorVarNames = new Set(indicators.map((ind) => ind.varName));
+  const allIndicatorIds = new Set(indicators.map((ind) => ind.indicatorId));
 
   // Group code by indicator
   const codeByIndicator = new Map<string, HfaIndicatorCode[]>();
   for (const code of indicatorCode) {
-    if (!codeByIndicator.has(code.varName)) {
-      codeByIndicator.set(code.varName, []);
+    if (!codeByIndicator.has(code.indicatorId)) {
+      codeByIndicator.set(code.indicatorId, []);
     }
-    codeByIndicator.get(code.varName)!.push(code);
+    codeByIndicator.get(code.indicatorId)!.push(code);
   }
 
   // Track skipped indicators and warnings
@@ -342,14 +342,14 @@ export function getScriptWithParametersHfa(
   let filteredIndicators = indicators;
   if (!stopIfIndicatorFails) {
     filteredIndicators = indicators.filter((indicator) => {
-      const snippets = codeByIndicator.get(indicator.varName) ?? [];
+      const snippets = codeByIndicator.get(indicator.indicatorId) ?? [];
       const activeSnippets = snippets.filter(
         (s) => s.rCode && s.rCode.trim() !== "",
       );
       if (activeSnippets.length === 0) {
-        skippedIndicators.add(indicator.varName);
+        skippedIndicators.add(indicator.indicatorId);
         warnings.push(
-          `Skipped indicator "${indicator.varName}": no R code configured for any time point`,
+          `Skipped indicator "${indicator.indicatorId}": no R code configured for any time point`,
         );
         return false;
       }
@@ -361,7 +361,7 @@ export function getScriptWithParametersHfa(
   const graphResult = buildUnionDependencyGraph(
     filteredIndicators,
     codeByIndicator,
-    allIndicatorVarNames,
+    allIndicatorIds,
     knownDatasetVariables,
   );
 
@@ -380,7 +380,7 @@ export function getScriptWithParametersHfa(
       }
     }
     filteredIndicators = filteredIndicators.filter(
-      (ind) => !skippedIndicators.has(ind.varName),
+      (ind) => !skippedIndicators.has(ind.indicatorId),
     );
   }
 
@@ -389,15 +389,15 @@ export function getScriptWithParametersHfa(
   while (changed) {
     changed = false;
     for (const indicator of filteredIndicators) {
-      const deps = graphResult.dependenciesMap.get(indicator.varName) ?? [];
+      const deps = graphResult.dependenciesMap.get(indicator.indicatorId) ?? [];
       for (const dep of deps) {
         if (
           skippedIndicators.has(dep) &&
-          !skippedIndicators.has(indicator.varName)
+          !skippedIndicators.has(indicator.indicatorId)
         ) {
-          skippedIndicators.add(indicator.varName);
+          skippedIndicators.add(indicator.indicatorId);
           warnings.push(
-            `Skipped indicator "${indicator.varName}": depends on skipped indicator "${dep}"`,
+            `Skipped indicator "${indicator.indicatorId}": depends on skipped indicator "${dep}"`,
           );
           changed = true;
           break;
@@ -405,7 +405,7 @@ export function getScriptWithParametersHfa(
       }
     }
     filteredIndicators = filteredIndicators.filter(
-      (ind) => !skippedIndicators.has(ind.varName),
+      (ind) => !skippedIndicators.has(ind.indicatorId),
     );
   }
 
@@ -419,7 +419,7 @@ export function getScriptWithParametersHfa(
   const filteredGraphResult = buildUnionDependencyGraph(
     filteredIndicators,
     codeByIndicator,
-    allIndicatorVarNames,
+    allIndicatorIds,
     knownDatasetVariables,
   );
 
@@ -437,7 +437,7 @@ export function getScriptWithParametersHfa(
   // feeding the separate M10_hfa_results_variants.csv pipeline. Gated on the
   // resolved definition declaring the RO so generation at older pinned refs
   // stays byte-identical — the gate covers item mutates, item columns, AND
-  // metadata entries atomically (a partial gate would emit composed varNames
+  // metadata entries atomically (a partial gate would emit composed column names
   // as fake indicators into the main table, which ingests cleanly).
   //
   // Variant columns are computed AFTER every indicator column (a separate
@@ -464,13 +464,13 @@ export function getScriptWithParametersHfa(
   ].join(",\n");
 
   if (supportsVariants && variantCode.length > 0) {
-    const orderedIndex = new Map(ordered.map((ind, i) => [ind.varName, i]));
-    const indicatorByVarName = new Map(indicators.map((i) => [i.varName, i]));
+    const orderedIndex = new Map(ordered.map((ind, i) => [ind.indicatorId, i]));
+    const indicatorById = new Map(indicators.map((i) => [i.indicatorId, i]));
 
     const byPair = new Map<string, HfaIndicatorVariantCode[]>();
     for (const vc of variantCode) {
       if (!vc.rCode.trim()) continue;
-      const key = `${vc.varName} ${vc.itemId}`;
+      const key = `${vc.indicatorId} ${vc.itemId}`;
       if (!byPair.has(key)) {
         byPair.set(key, []);
       }
@@ -487,7 +487,7 @@ export function getScriptWithParametersHfa(
 
     for (const [key, rows] of byPair) {
       const [parentName, itemId] = key.split(" ");
-      const parent = indicatorByVarName.get(parentName);
+      const parent = indicatorById.get(parentName);
       if (parent === undefined || !orderedIndex.has(parentName)) {
         warnings.push(
           `Dropped variant item "${itemId}" of indicator "${parentName}": the indicator is not part of this run`,
@@ -510,7 +510,7 @@ export function getScriptWithParametersHfa(
           continue;
         }
         snippets.push({
-          varName: parentName,
+          indicatorId: parentName,
           timePoint: row.timePoint,
           rCode: row.rCode,
           rFilterCode: parentRow.rFilterCode,
@@ -521,7 +521,7 @@ export function getScriptWithParametersHfa(
         const deps = extractDependenciesFromCode(
           snippet.rCode,
           snippet.rFilterCode,
-          allIndicatorVarNames,
+          allIndicatorIds,
           knownDatasetVariables,
         );
         const problems: string[] = [];
@@ -562,7 +562,7 @@ export function getScriptWithParametersHfa(
 
     emits.sort(
       (a, b) =>
-        orderedIndex.get(a.parent.varName)! - orderedIndex.get(b.parent.varName)! ||
+        orderedIndex.get(a.parent.indicatorId)! - orderedIndex.get(b.parent.indicatorId)! ||
         a.itemId.localeCompare(b.itemId),
     );
 
@@ -572,15 +572,15 @@ export function getScriptWithParametersHfa(
     // reserved suffix double-routes into the response-status pivot.
     const composedSeen = new Set<string>();
     for (const e of emits) {
-      const source = `indicator "${e.parent.varName}" × variant item "${e.itemId}"`;
-      if (isReservedHfaVarName(e.composed)) {
+      const source = `indicator "${e.parent.indicatorId}" × variant item "${e.itemId}"`;
+      if (isReservedHfaId(e.composed)) {
         throw new Error(
           `Composed variant column "${e.composed}" (${source}) is a reserved name`,
         );
       }
-      if (allIndicatorVarNames.has(e.composed)) {
+      if (allIndicatorIds.has(e.composed)) {
         throw new Error(
-          `Composed variant column "${e.composed}" (${source}) collides with an indicator varName`,
+          `Composed variant column "${e.composed}" (${source}) collides with an indicator id`,
         );
       }
       if (knownDatasetVariables.has(e.composed)) {
@@ -602,7 +602,7 @@ export function getScriptWithParametersHfa(
           const expr = buildPerTimePointMutateExpression(
             e.parent,
             e.snippets,
-            allIndicatorVarNames,
+            allIndicatorIds,
             knownDatasetVariables,
             dontKnowAsNo,
             sentinelMap,
@@ -613,7 +613,7 @@ export function getScriptWithParametersHfa(
       variantCols = emits.map((e) => `"${e.composed}"`).join(", ");
       variantMetadata = [
         `  variant_col = c(${emits.map((e) => `"${e.composed}"`).join(", ")})`,
-        `  hfa_indicator = c(${emits.map((e) => `"${e.parent.varName}"`).join(", ")})`,
+        `  hfa_indicator = c(${emits.map((e) => `"${e.parent.indicatorId}"`).join(", ")})`,
         `  hfa_variant_item = c(${emits.map((e) => `"${e.itemId}"`).join(", ")})`,
         `  hfa_category = c(${emits.map((e) => `"${e.parent.categoryId ?? ""}"`).join(", ")})`,
         `  hfa_sub_category = c(${emits.map((e) => `"${e.parent.subCategoryId ?? ""}"`).join(", ")})`,
@@ -637,39 +637,39 @@ export function getScriptWithParametersHfa(
 
   const indicatorMutates = ordered
     .map((indicator) => {
-      const snippets = codeByIndicator.get(indicator.varName) ?? [];
+      const snippets = codeByIndicator.get(indicator.indicatorId) ?? [];
       const activeSnippets = snippets.filter(
         (s) => s.rCode && s.rCode.trim() !== "",
       );
       if (activeSnippets.length === 0) {
         throw new Error(
-          `Indicator "${indicator.varName}" has no R code configured for any time point. Configure R code for this indicator before running the module.`,
+          `Indicator "${indicator.indicatorId}" has no R code configured for any time point. Configure R code for this indicator before running the module.`,
         );
       }
       const expr = buildPerTimePointMutateExpression(
         indicator,
         activeSnippets,
-        allIndicatorVarNames,
+        allIndicatorIds,
         knownDatasetVariables,
         dontKnowAsNo,
         sentinelMap,
       );
-      const valueMutate = `  mutate(${indicator.varName} = ${expr})`;
+      const valueMutate = `  mutate(${indicator.indicatorId} = ${expr})`;
       if (!supportsResponseStatus) {
         return valueMutate;
       }
       const statusExpr = buildPerTimePointStatusExpression(
         activeSnippets,
-        allIndicatorVarNames,
+        allIndicatorIds,
         knownDatasetVariables,
         sentinelMap,
       );
-      return `${valueMutate} %>%\n  mutate(${indicator.varName}__status = ${statusExpr})`;
+      return `${valueMutate} %>%\n  mutate(${indicator.indicatorId}__status = ${statusExpr})`;
     })
     .join(" %>%\n");
 
   const indicatorCols = ordered
-    .map((ind) => `"${ind.varName}"`)
+    .map((ind) => `"${ind.indicatorId}"`)
     .join(", ");
 
   // Only emit hfa_service_category when the installed definition declares the
@@ -682,7 +682,7 @@ export function getScriptWithParametersHfa(
   );
 
   const indicatorMetadata = [
-    `  hfa_indicator = c(${ordered.map((i) => `"${i.varName}"`).join(", ")})`,
+    `  hfa_indicator = c(${ordered.map((i) => `"${i.indicatorId}"`).join(", ")})`,
     `  hfa_category = c(${ordered.map((i) => `"${i.categoryId ?? ""}"`).join(", ")})`,
     `  hfa_sub_category = c(${ordered.map((i) => `"${i.subCategoryId ?? ""}"`).join(", ")})`,
     ...(supportsServiceCategory

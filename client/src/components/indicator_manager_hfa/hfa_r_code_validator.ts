@@ -20,7 +20,7 @@ export function hasRCodeErrors(result: RCodeValidationResult): boolean {
 export function validateRCode(
   rCode: string,
   availableVarNames: Set<string>,
-  otherIndicatorVarNames: Set<string>,
+  otherIndicatorIds: Set<string>,
 ): RCodeValidationResult {
   if (!rCode.trim()) {
     return {
@@ -45,7 +45,7 @@ export function validateRCode(
   const referencedVars: string[] = [];
 
   for (const id of identifiers) {
-    if (availableVarNames.has(id) || otherIndicatorVarNames.has(id)) {
+    if (availableVarNames.has(id) || otherIndicatorIds.has(id)) {
       referencedVars.push(id);
     } else {
       unknownVariableErrors.push(`Variable '${id}' not found in this time point`);

@@ -3,34 +3,34 @@
 // so the editor's green/red status and the run-time unknown-variable check can
 // never disagree. Pure functions only: this compiles into Deno and Vite.
 
-// Shape rule for an *authored HFA indicator* name (`HfaIndicator.varName`):
+// Shape rule for an *authored HFA indicator* id (`HfaIndicator.indicatorId`):
 // starts with a letter, then letters/digits/underscores, max 64 chars. This is
-// deliberately NOT the rule for survey/dataset variable names: those are
+// deliberately NOT the rule for survey/dataset variable ids: those are
 // external (from the XLSForm) and legitimately broader (e.g. hyphenated
-// sentinel expansions like `sup_05e_-99`). A valid indicator name must also not
-// be reserved: see `isReservedHfaVarName`.
-export const HFA_INDICATOR_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/;
+// sentinel expansions like `sup_05e_-99`). A valid indicator id must also not
+// be reserved: see `isReservedHfaId`.
+export const HFA_INDICATOR_ID_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/;
 
 // Shape rule for a variant item id: lowercase letter, then lowercase
 // letters/digits/underscores, max 64 chars. Item ids are data values of the
 // hfa_variant_item column and the suffix of composed per-item R columns, and
-// must be globally unique across ALL HFA id namespaces (indicator varNames,
+// must be globally unique across ALL HFA id namespaces (indicator ids,
 // categories, sub-categories, service-categories, other items): labels
 // resolve through one flat id→label map, so a collision silently mislabels.
 export const HFA_VARIANT_ITEM_ID_REGEX = /^[a-z][a-z0-9_]{0,63}$/;
 
 // The generated per-item wide column for (parent indicator, variant item).
-// Composition is NOT reversible (varNames legally contain `__`), so nothing may
+// Composition is NOT reversible (indicator ids legally contain `__`), so nothing may
 // parse this name back apart: parent/item routing is metadata-driven only.
-// Composed names must be unique against {indicator varNames} ∪ {survey
-// variables} ∪ {other composed names} and must clear `isReservedHfaVarName`
+// Composed names must be unique against {indicator ids} ∪ {survey
+// variables} ∪ {other composed names} and must clear `isReservedHfaId`
 // (notably its `__status` suffix rule): enforced at authoring time and as a
 // generation-time hard error.
 export function composeHfaVariantColumnName(
-  parentVarName: string,
+  parentIndicatorId: string,
   itemId: string,
 ): string {
-  return `${parentVarName}__${itemId}`;
+  return `${parentIndicatorId}__${itemId}`;
 }
 
 const R_KEYWORDS = new Set([
@@ -111,7 +111,7 @@ const R_COMMON_FUNCTIONS = new Set([
 
 // Bareword logical operators accepted as aliases for R's vectorised `&`/`|`.
 // Single source of truth for both `normalizeRLogicalOperators` (which rewrites
-// them) and `isReservedHfaVarName` (which forbids them as variable names).
+// them) and `isReservedHfaId` (which forbids them as variable names).
 // Case-insensitive: the normaliser rewrites any case, so any case collides.
 const R_LOGICAL_OPERATOR_ALIASES = new Map<string, string>([
   ["and", "&"],
@@ -143,8 +143,8 @@ const M10_STRUCTURAL_NAMES = new Set([
 ]);
 const M10_STRUCTURAL_PREFIX_REGEX = /^(facility_|admin_area_|time_point)/i;
 
-// A name that cannot be used as an HFA variable, neither an authored indicator
-// name nor a referenceable survey variable, because it collides with how
+// An id that cannot be used in HFA, neither as an authored indicator id
+// nor as a referenceable survey variable, because it collides with how
 // indicator R code is interpreted or with the module script's own columns, and
 // would silently break at run time:
 //   - `and`/`or` (any case) are rewritten to `&`/`|` by
@@ -154,8 +154,8 @@ const M10_STRUCTURAL_PREFIX_REGEX = /^(facility_|admin_area_|time_point)/i;
 //     case) are dropped from identifier extraction, so a variable with that
 //     exact name is silently ignored as a dependency and mis-spliced into R.
 //   - The M10 structural column names above.
-// Applied at BOTH ends: indicator-name validation and survey-data import.
-export function isReservedHfaVarName(name: string): boolean {
+// Applied at BOTH ends: indicator-id validation and survey-data import.
+export function isReservedHfaId(name: string): boolean {
   const trimmed = name.trim();
   if (R_LOGICAL_OPERATOR_ALIASES.has(trimmed.toLowerCase())) {
     return true;

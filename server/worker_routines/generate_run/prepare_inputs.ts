@@ -238,17 +238,17 @@ export async function prepareRunInputs(
           (subCategoryOrder.get(a.sub_category_id ?? "") ?? 999999) -
             (subCategoryOrder.get(b.sub_category_id ?? "") ?? 999999) ||
           a.sort_order - b.sort_order ||
-          a.var_name.localeCompare(b.var_name),
+          a.indicator_id.localeCompare(b.indicator_id),
       )
       .map(dbRowToHfaIndicator);
     scriptInputs.hfaIndicatorCode = capture.indicatorCode.map((c) => ({
-      varName: c.var_name,
+      indicatorId: c.indicator_id,
       timePoint: c.time_point,
       rCode: c.r_code,
       rFilterCode: c.r_filter_code ?? undefined,
     }));
     scriptInputs.hfaVariantCode = capture.variantCode.map((c) => ({
-      varName: c.var_name,
+      indicatorId: c.indicator_id,
       timePoint: c.time_point,
       itemId: c.item_id,
       rCode: c.r_code,

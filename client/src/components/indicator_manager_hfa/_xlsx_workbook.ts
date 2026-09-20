@@ -1,8 +1,8 @@
 import { read, utils, write } from "xlsx";
 import {
-  HFA_INDICATOR_NAME_REGEX,
+  HFA_INDICATOR_ID_REGEX,
   HFA_VARIANT_ITEM_ID_REGEX,
-  isReservedHfaVarName,
+  isReservedHfaId,
   parseMultiMembershipValues,
   serialiseMultiMembershipValues,
   type HfaIndicator,
@@ -66,18 +66,18 @@ export function buildHfaWorkbookBlob(args: {
 
   const codeByKey = new Map<string, { rCode: string; rFilterCode: string }>();
   for (const c of code) {
-    codeByKey.set(`${c.varName}__${c.timePoint}`, {
+    codeByKey.set(`${c.indicatorId}__${c.timePoint}`, {
       rCode: c.rCode,
       rFilterCode: c.rFilterCode ?? "",
     });
   }
   const variantCodeByKey = new Map<string, string>();
   for (const c of variantCode) {
-    variantCodeByKey.set(`${c.varName} / ${c.timePoint} / ${c.itemId}`, c.rCode);
+    variantCodeByKey.set(`${c.indicatorId} / ${c.timePoint} / ${c.itemId}`, c.rCode);
   }
 
   const indicatorHeaders = [
-    "varName", "categoryId", "subCategoryId", "serviceCategoryId",
+    "indicatorId", "categoryId", "subCategoryId", "serviceCategoryId",
     "shortLabel", "definition", "type", "aggregation", "variantGroupId",
   ];
   // New label-embedded format so the file is self-describing on re-import
@@ -93,17 +93,17 @@ export function buildHfaWorkbookBlob(args: {
   const indicatorsAoa: string[][] = [indicatorHeaders];
   for (const ind of indicators) {
     const row: string[] = [
-      ind.varName, ind.categoryId ?? "", ind.subCategoryId ?? "",
+      ind.indicatorId, ind.categoryId ?? "", ind.subCategoryId ?? "",
       serialiseMultiMembershipValues(ind.serviceCategoryIds), ind.shortLabel, ind.definition,
       ind.type, ind.aggregation, ind.variantGroupId ?? "",
     ];
     for (const tp of timePoints) {
-      const entry = codeByKey.get(`${ind.varName}__${tp}`);
+      const entry = codeByKey.get(`${ind.indicatorId}__${tp}`);
       row.push(entry?.rCode ?? "", entry?.rFilterCode ?? "");
     }
     for (const vi of sortedVariantItems) {
       for (const tp of timePoints) {
-        row.push(variantCodeByKey.get(`${ind.varName} / ${tp} / ${vi.id}`) ?? "");
+        row.push(variantCodeByKey.get(`${ind.indicatorId} / ${tp} / ${vi.id}`) ?? "");
       }
     }
     indicatorsAoa.push(row);
@@ -287,6 +287,9 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
 
   // Indicators sheet: detect r_code columns before parsing rows
   const indHeaders = (indicatorsAoa[0] ?? []).map((h) => String(h ?? "").trim());
+  if (!indHeaders.includes("indicatorId")) {
+    return { ok: false, err: 'Indicators sheet: missing "indicatorId" column.' };
+  }
 
   // Detect code columns in the order they appear.
   // New format: r_code__<label>  →  label embedded
@@ -359,8 +362,8 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
   const indicators: WorkbookShape["indicators"] = [];
   const rawCode: WorkbookShape["rawCode"] = [];
   const rawVariantCode: WorkbookShape["rawVariantCode"] = [];
-  const usedVarNames = new Set<string>();
-  let autoVarCounter = 1;
+  const usedIndicatorIds = new Set<string>();
+  let autoIdCounter = 1;
 
   for (let i = 0; i < indRows.length; i++) {
     const row = indRows[i];
@@ -377,20 +380,20 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
     else if (aggLower === "avg" || aggLower === "average" || aggLower === "mean") aggregation = "avg";
     else return { ok: false, err: `Indicators sheet, row ${i + 2}: aggregation must be "sum" or "avg", got "${row.aggregation ?? ""}".` };
 
-    let varName = (row.varName ?? "").trim();
-    if (!varName) {
-      while (usedVarNames.has(`ind${String(autoVarCounter).padStart(3, "0")}`)) autoVarCounter++;
-      varName = `ind${String(autoVarCounter).padStart(3, "0")}`;
-      autoVarCounter++;
+    let indicatorId = (row.indicatorId ?? "").trim();
+    if (!indicatorId) {
+      while (usedIndicatorIds.has(`ind${String(autoIdCounter).padStart(3, "0")}`)) autoIdCounter++;
+      indicatorId = `ind${String(autoIdCounter).padStart(3, "0")}`;
+      autoIdCounter++;
     }
-    if (!HFA_INDICATOR_NAME_REGEX.test(varName)) {
-      return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).` };
+    if (!HFA_INDICATOR_ID_REGEX.test(indicatorId)) {
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: Indicator ID "${indicatorId}" must start with a letter and contain only letters, digits, and underscores (max 64 characters).` };
     }
-    if (isReservedHfaVarName(varName)) {
-      return { ok: false, err: `Indicators sheet, row ${i + 2}: varName "${varName}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates) — choose a different name.` };
+    if (isReservedHfaId(indicatorId)) {
+      return { ok: false, err: `Indicators sheet, row ${i + 2}: Indicator ID "${indicatorId}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different ID.` };
     }
-    if (usedVarNames.has(varName)) return { ok: false, err: `Indicators sheet, row ${i + 2}: duplicate varName "${varName}".` };
-    usedVarNames.add(varName);
+    if (usedIndicatorIds.has(indicatorId)) return { ok: false, err: `Indicators sheet, row ${i + 2}: duplicate indicator ID "${indicatorId}".` };
+    usedIndicatorIds.add(indicatorId);
 
     const categoryId = (row.categoryId ?? "").trim() || null;
     const subCategoryId = (row.subCategoryId ?? "").trim() || null;
@@ -417,7 +420,7 @@ export function detectHfaWorkbookShape(arrayBuffer: ArrayBuffer): DetectResult {
       return { ok: false, err: `Indicators sheet, row ${i + 2}: variantGroupId "${variantGroupId}" is not in the Variant groups sheet.` };
     }
 
-    indicators.push({ varName, categoryId, subCategoryId, serviceCategoryIds, shortLabel: (row.shortLabel ?? "").trim(), definition: (row.definition ?? "").trim(), type, aggregation, variantGroupId });
+    indicators.push({ indicatorId, categoryId, subCategoryId, serviceCategoryIds, shortLabel: (row.shortLabel ?? "").trim(), definition: (row.definition ?? "").trim(), type, aggregation, variantGroupId });
 
     // Collect raw code values per position using column indices directly
     const rowAoa = (indicatorsAoa[i + 1] ?? []).map((v) => String(v ?? "").trim());
@@ -459,7 +462,7 @@ export function applyTimePointMapping(
       if (!tp) continue;
       const { rCode, rFilterCode } = posCode[k] ?? { rCode: "", rFilterCode: "" };
       if (!rCode && !rFilterCode) continue;
-      code.push({ varName: ind.varName, timePoint: tp, rCode, rFilterCode: rFilterCode || undefined });
+      code.push({ indicatorId: ind.indicatorId, timePoint: tp, rCode, rFilterCode: rFilterCode || undefined });
     }
   }
   return code;
@@ -489,7 +492,7 @@ export function applyVariantTimePointMapping(
       const tp = labelToTp.get(shape.variantColumns[k].label);
       if (!tp) continue;
       variantCode.push({
-        varName: ind.varName,
+        indicatorId: ind.indicatorId,
         timePoint: tp,
         itemId: shape.variantColumns[k].itemId,
         rCode,

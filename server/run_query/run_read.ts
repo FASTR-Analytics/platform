@@ -304,7 +304,7 @@ function buildQueryContextFromManifest(
 // ── Indicator metadata from run inputs ───────────────────────────────────────
 
 const hfaIndicatorRow = z.object({
-  var_name: z.string(),
+  indicator_id: z.string(),
   short_label: z.string(),
   definition: z.string(),
   type: z.string(),
@@ -438,7 +438,7 @@ export async function getHfaTaxonomyFromManifestInputs(
     indicators: indicators
       .toSorted((a, b) => a.sort_order - b.sort_order)
       .map((i) => ({
-        id: i.var_name,
+        id: i.indicator_id,
         label: composeHfaIndicatorLabel(
           { shortLabel: i.short_label, definition: i.definition },
           "full",

@@ -736,7 +736,7 @@ CREATE TABLE hfa_indicator_variant_items (
 -- ============================================================================
 
 CREATE TABLE hfa_indicators (
-  var_name TEXT PRIMARY KEY NOT NULL,
+  indicator_id TEXT PRIMARY KEY NOT NULL,
   category_id TEXT REFERENCES hfa_indicator_categories(id) ON DELETE SET NULL,
   sub_category_id TEXT REFERENCES hfa_indicator_sub_categories(id) ON DELETE SET NULL,
   service_category_ids TEXT NOT NULL DEFAULT '[]',
@@ -759,19 +759,19 @@ CREATE TABLE hfa_indicators (
 -- ============================================================================
 
 CREATE TABLE hfa_indicator_code (
-  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
   r_code TEXT NOT NULL DEFAULT '',
   r_filter_code TEXT,
-  PRIMARY KEY (var_name, time_point)
+  PRIMARY KEY (indicator_id, time_point)
 );
 
 CREATE TABLE hfa_indicator_variant_code (
-  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
   item_id TEXT NOT NULL REFERENCES hfa_indicator_variant_items(id) ON UPDATE CASCADE ON DELETE CASCADE,
   r_code TEXT NOT NULL DEFAULT '',
-  PRIMARY KEY (var_name, time_point, item_id)
+  PRIMARY KEY (indicator_id, time_point, item_id)
 );
 
 -- ============================================================================

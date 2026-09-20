@@ -281,7 +281,7 @@ function PickStep(p: {
             label ({t3({ en: "optional", fr: "facultatif", pt: "opcional" })})
           </li>
           <li>
-            <span class="font-700 font-mono">Indicators</span>: varName,
+            <span class="font-700 font-mono">Indicators</span>: indicatorId,
             categoryId, subCategoryId, serviceCategoryId (
             {t3({
               en: "pipe-separated for multiple",
@@ -423,15 +423,15 @@ function ReconcileStep(p: {
 
       if (p.uploadMode === "add") {
         const shadowing = p.shape.indicators
-          .map((ind) => ind.varName)
+          .map((ind) => ind.indicatorId)
           .filter((v) => p.surveyVarNames.includes(v));
         if (shadowing.length > 0) {
           return {
             success: false,
             err: t3({
-              en: `These varNames are survey variable names and would shadow the dataset columns in other indicators' code: ${shadowing.join(", ")}. Rename them in the workbook.`,
-              fr: `Ces noms de variables sont des noms de variables d'enquête et masqueraient les colonnes du jeu de données dans le code des autres indicateurs : ${shadowing.join(", ")}. Renommez-les dans le classeur.`,
-              pt: `Estes varNames são nomes de variáveis de inquérito e ocultariam as colunas do conjunto de dados no código dos outros indicadores: ${shadowing.join(", ")}. Renomeie-os no livro.`,
+              en: `These indicator IDs are also survey variable IDs and would shadow the dataset columns in other indicators' code: ${shadowing.join(", ")}. Rename them in the workbook.`,
+              fr: `Ces ID d'indicateur sont aussi des ID de variables d'enquête et masqueraient les colonnes du jeu de données dans le code des autres indicateurs : ${shadowing.join(", ")}. Renommez-les dans le classeur.`,
+              pt: `Estes IDs de indicador são também IDs de variáveis de inquérito e ocultariam as colunas do conjunto de dados no código dos outros indicadores: ${shadowing.join(", ")}. Renomeie-os no livro.`,
             }),
           };
         }
@@ -442,7 +442,7 @@ function ReconcileStep(p: {
       const seenKeys = new Set<string>();
       const duplicateKeys = new Set<string>();
       for (const c of code) {
-        const key = `${c.varName} / ${c.timePoint}`;
+        const key = `${c.indicatorId} / ${c.timePoint}`;
         if (seenKeys.has(key)) duplicateKeys.add(key);
         seenKeys.add(key);
       }
@@ -464,9 +464,9 @@ function ReconcileStep(p: {
         return {
           success: false,
           err: t3({
-            en: `Filter code requires R code. Rows with filter code but no R code: ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
-            fr: `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
-            pt: `O código de filtro requer código R. Linhas com código de filtro mas sem código R: ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
+            en: `Filter code requires R code. Rows with filter code but no R code: ${filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join("; ")}.`,
+            fr: `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join("; ")}.`,
+            pt: `O código de filtro requer código R. Linhas com código de filtro mas sem código R: ${filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join("; ")}.`,
           }),
         };
       }

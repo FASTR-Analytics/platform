@@ -37,7 +37,7 @@ import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
 import { runInputFilePath } from "./run_paths.ts";
 
 const hfaIndicatorRow = z.object({
-  var_name: z.string(),
+  indicator_id: z.string(),
   short_label: z.string(),
   definition: z.string(),
   type: z.string(),
@@ -249,11 +249,11 @@ async function deriveIndicatorMetadata(
       await readRows("hfa_indicators_snapshot.json", hfaIndicatorRow)
     ).sort(
       (a, b) =>
-        a.sort_order - b.sort_order || a.var_name.localeCompare(b.var_name),
+        a.sort_order - b.sort_order || a.indicator_id.localeCompare(b.indicator_id),
     );
     for (const row of hfaIndicators) {
       metadata.push({
-        id: row.var_name,
+        id: row.indicator_id,
         label: composeHfaIndicatorLabel(
           { shortLabel: row.short_label, definition: row.definition },
           "compact",

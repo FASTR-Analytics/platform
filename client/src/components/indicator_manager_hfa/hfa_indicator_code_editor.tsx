@@ -67,7 +67,7 @@ export function HfaIndicatorCodeEditor(
     {
       indicator: HfaIndicator;
       dictionary: HfaDictionaryForValidation;
-      allIndicatorVarNames: string[];
+      allIndicatorIds: string[];
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
@@ -80,13 +80,13 @@ export function HfaIndicatorCodeEditor(
   >,
 ) {
   const codeQuery = createQuery(
-    () => serverActions.getHfaIndicatorCode({ varName: p.indicator.varName }),
+    () => serverActions.getHfaIndicatorCode({ indicatorId: p.indicator.indicatorId }),
     t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
   );
   const variantCodeQuery = createQuery(
     () =>
       serverActions.getHfaIndicatorVariantCode({
-        varName: p.indicator.varName,
+        indicatorId: p.indicator.indicatorId,
       }),
     t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
   );
@@ -143,7 +143,7 @@ export function HfaIndicatorCodeEditor(
               </Show>
             </div>
           }
-          heading={<span class="font-mono">{p.indicator.varName}</span>}
+          heading={<span class="font-mono">{p.indicator.indicatorId}</span>}
           subheading={p.indicator.definition}
         >
           <Show when={!p.showAi()}>
@@ -161,7 +161,7 @@ export function HfaIndicatorCodeEditor(
               <EditorInner
                 indicator={p.indicator}
                 dictionary={p.dictionary}
-                allIndicatorVarNames={p.allIndicatorVarNames}
+                allIndicatorIds={p.allIndicatorIds}
                 categories={p.categories}
                 subCategories={p.subCategories}
                 serviceCategories={p.serviceCategories}
@@ -185,7 +185,7 @@ export function HfaIndicatorCodeEditor(
 function EditorInner(p: {
   indicator: HfaIndicator;
   dictionary: HfaDictionaryForValidation;
-  allIndicatorVarNames: string[];
+  allIndicatorIds: string[];
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
   serviceCategories: HfaIndicatorServiceCategory[];
@@ -243,12 +243,12 @@ function EditorInner(p: {
 
   const [varSearch, setVarSearch] = createSignal("");
 
-  const otherIndicatorVarNames = new Set(
-    p.allIndicatorVarNames.filter((v) => v !== p.indicator.varName),
+  const otherIndicatorIds = new Set(
+    p.allIndicatorIds.filter((v) => v !== p.indicator.indicatorId),
   );
   // Variant snippets may legitimately reference their own parent indicator
   // (e.g. `vacc == 1 & q12 == 2`), so their validation set includes it.
-  const allIndicatorVarNamesInclSelf = new Set(p.allIndicatorVarNames);
+  const allIndicatorIdsInclSelf = new Set(p.allIndicatorIds);
 
   const currentTpIndex = () =>
     state.code.findIndex((c) => c.timePoint === selectedTimePoint());
@@ -315,7 +315,7 @@ function EditorInner(p: {
     return validateRCode(
       state.code[idx].rCode,
       availableVarNames(),
-      otherIndicatorVarNames,
+      otherIndicatorIds,
     );
   };
 
@@ -325,7 +325,7 @@ function EditorInner(p: {
     return validateRCode(
       state.code[idx].rFilterCode,
       availableVarNames(),
-      otherIndicatorVarNames,
+      otherIndicatorIds,
     );
   };
 
@@ -385,7 +385,7 @@ function EditorInner(p: {
         const result = validateRCode(
           c.rCode,
           availableVars,
-          otherIndicatorVarNames,
+          otherIndicatorIds,
         );
         if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
@@ -396,7 +396,7 @@ function EditorInner(p: {
         const result = validateRCode(
           c.rFilterCode,
           availableVars,
-          otherIndicatorVarNames,
+          otherIndicatorIds,
         );
         if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
@@ -415,7 +415,7 @@ function EditorInner(p: {
         const result = validateRCode(
           vc.rCode,
           availableVars,
-          allIndicatorVarNamesInclSelf,
+          allIndicatorIdsInclSelf,
         );
         if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
@@ -427,9 +427,9 @@ function EditorInner(p: {
     const codeConsistent = roundsConsistency() !== "different";
 
     return await serverActions.saveHfaIndicatorFull({
-      oldVarName: p.indicator.varName,
+      oldIndicatorId: p.indicator.indicatorId,
       indicator: {
-        varName: p.indicator.varName,
+        indicatorId: p.indicator.indicatorId,
         categoryId: state.categoryId,
         subCategoryId: state.subCategoryId,
         serviceCategoryIds: state.serviceCategoryIds,
@@ -464,10 +464,10 @@ function EditorInner(p: {
           <div class="flex items-end gap-4">
             <div>
               <div class="ui-label">
-                {t3({ en: "Variable name", fr: "Nom de variable", pt: "Nome da variável" })}
+                {t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
               </div>
               <div class="ui-form-pad ui-form-text-size font-mono">
-                {p.indicator.varName}
+                {p.indicator.indicatorId}
               </div>
             </div>
             <Select
@@ -830,7 +830,7 @@ function EditorInner(p: {
                           validateRCode(
                             state.variantCode[key()] ?? "",
                             availableVarNames(),
-                            allIndicatorVarNamesInclSelf,
+                            allIndicatorIdsInclSelf,
                           );
                         return (
                           <div>

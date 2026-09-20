@@ -448,7 +448,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicator"),
   async (c, { body }) => {
-    const res = await updateHfaIndicator(c.var.mainDb, body.oldVarName, body.indicator);
+    const res = await updateHfaIndicator(c.var.mainDb, body.oldIndicatorId, body.indicator);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
@@ -476,7 +476,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("deleteHfaIndicators"),
   async (c, { body }) => {
-    const res = await deleteHfaIndicators(c.var.mainDb, body.varNames);
+    const res = await deleteHfaIndicators(c.var.mainDb, body.indicatorIds);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
@@ -504,7 +504,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("getHfaIndicatorCode"),
   async (c, { body }) => {
-    const res = await getHfaIndicatorCode(c.var.mainDb, body.varName);
+    const res = await getHfaIndicatorCode(c.var.mainDb, body.indicatorId);
     return c.json(res);
   },
 );
@@ -526,7 +526,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("getHfaIndicatorVariantCode"),
   async (c, { body }) => {
-    const res = await getHfaIndicatorVariantCode(c.var.mainDb, body.varName);
+    const res = await getHfaIndicatorVariantCode(c.var.mainDb, body.indicatorId);
     return c.json(res);
   },
 );
@@ -548,7 +548,7 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("saveHfaIndicatorFull"),
   async (c, { body }) => {
-    const res = await saveHfaIndicatorFull(c.var.mainDb, body.oldVarName, body.indicator, body.code, body.variantCode, body.hasSyntaxError, body.codeConsistent);
+    const res = await saveHfaIndicatorFull(c.var.mainDb, body.oldIndicatorId, body.indicator, body.code, body.variantCode, body.hasSyntaxError, body.codeConsistent);
     if (res.success) {
       notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
     }
