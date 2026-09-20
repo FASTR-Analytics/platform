@@ -67,7 +67,8 @@ import {
   UpdateAllFiguresButton,
   updateFigureToScope,
 } from "~/components/figure_editor/stale_figure_badge";
-import { ProductScopeBadge } from "~/components/products/product_card";
+import { PackageScopeChip } from "~/components/products/package_scope_chip";
+import { PackageScopeModal } from "~/components/products/package_scope_modal";
 import { ProductSettings } from "~/components/products/product_settings";
 import type { FigureStaleContext } from "./ReportFigureEmbed";
 import type {
@@ -463,6 +464,21 @@ export function ReportEditor(p: Props) {
     const row = product();
     if (!row) return;
     await openComponent({ element: ProductSettings, props: { product: row } });
+  }
+
+  // The chip opens the pair surface with a live count of what the candidate
+  // pair would leave stale, off the same registry the header count reads.
+  async function openPackageScope() {
+    const row = product();
+    if (!row) return;
+    await openComponent({
+      element: PackageScopeModal,
+      props: {
+        product: row,
+        countStaleUnder: (pair: PackageScope) =>
+          Promise.resolve(findStaleFiguresInReport(figures(), pair).length),
+      },
+    });
   }
 
   // ── Stale figures (D4) ──────────────────────────────────────────────────────
@@ -1492,7 +1508,10 @@ export function ReportEditor(p: Props) {
               }
             >
               <div class="ui-gap-sm flex items-center">
-                <ProductScopeBadge product={product()} />
+                <PackageScopeChip
+                  product={product()}
+                  onClick={canConfigure() ? () => void openPackageScope() : undefined}
+                />
                 {/* Who else is currently in THIS report (live presence). */}
                 <PresenceAvatars
                   peers={otherPeers().filter(

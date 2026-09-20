@@ -316,13 +316,14 @@ const DUPLICATE_DETAIL_BY_TYPE: Record<
   report: duplicateReportDetail,
 };
 
-// The Q2 to Q3 workflow's first half (D5): the copy clones
-// (run_id, admin_area_2) VERBATIM through INSERT ... SELECT, so the pair can
-// never drift to the pin, and lands in the source's folder.
+// The Q2 to Q3 workflow's first half (D5): the copy clones run_id VERBATIM
+// through INSERT ... SELECT, so the package can never drift to the pin, takes
+// the scope the caller names, and lands in the source's folder.
 export async function duplicateProduct(
   mainDb: Sql,
   productId: string,
   createdBy: string,
+  adminArea2: string | null,
 ): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const source = (
@@ -343,7 +344,7 @@ export async function duplicateProduct(
         INSERT INTO products
           (id, type, label, folder_id, run_id, admin_area_2, created_by, created_at, last_updated)
         SELECT
-          ${newProductId}, type, ${label}, folder_id, run_id, admin_area_2,
+          ${newProductId}, type, ${label}, folder_id, run_id, ${adminArea2},
           ${createdBy}, ${lastUpdated}, ${lastUpdated}
         FROM products WHERE id = ${productId}
       `;

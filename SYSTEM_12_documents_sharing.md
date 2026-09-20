@@ -53,7 +53,8 @@ S1's `lib/api-routes/products/*`); on the client, the Products page and its
 surfaces (`client/src/components/products/**`: the explorer page, the pure
 `folder_tree.ts` derivations and their harness, the card and list views, the two
 menu builders, the folder and move modals, the type registry `product_types.ts`,
-`product_settings.tsx`, the duplicate modal, `package_label.ts`) and the two
+`product_settings.tsx` for name and folder, `package_scope_chip.tsx` and
+`package_scope_modal.tsx` for the pair, the duplicate modal, `package_label.ts`) and the two
 editors (`slide_deck/**`, `report/**`), which take `{ productId }` and read
 label, package and scope live from the T1 products row. Lib: slide/report types,
 plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
@@ -131,8 +132,9 @@ pinned AND status = 'ready'` inside the insert and returns the typed
 `moveProductsToFolder`, `setProductScope`; `deleteProducts` is one `DELETE
 ... WHERE id = ANY` on the registry, with the batch's slide ids pre-read
 inside the transaction for the room closers; `duplicateProduct` clones
-`(run_id, admin_area_2)` through `INSERT ... SELECT` and the detail through
-a per-type `Record<ProductType, fn>`. `folders.ts`: `updateFolder` is also
+`run_id` through `INSERT ... SELECT`, takes the scope from the body (the
+duplicate modal's "keep" sends each source's own) and copies the detail
+through a per-type `Record<ProductType, fn>`. `folders.ts`: `updateFolder` is also
 the move and refuses a cycle with a recursive CTE walking up from the new
 parent inside the same transaction (`FOLDER_CYCLE`, through the envelope);
 `deleteFolder` reparents child folders and products one level and returns
@@ -214,11 +216,14 @@ config text without re-validation.
 `{ productId }`: label, package and scope come from `productById` on the T1
 store (D16), the authoring context from S9's immutable
 `t2_run_authoring_context.ts` keyed by the LIVE `runId`, so a reattach or
-rescope (from the header's product settings entry, the Products page or a
-collaborator) moves figure data, metrics and presets together and lights the
-stale badges without a remount; a product deleted under an open editor
-closes it. The header shows the `ProductScopeBadge` ("package · scope") and
-the overflow menu opens the shared `ProductSettings` surface.
+rescope (from the header chip, the Products page or a collaborator) moves
+figure data, metrics and presets together and lights the stale badges
+without a remount; a product deleted under an open editor closes it. The
+header shows the `PackageScopeChip` ("package · scope" in the package accent
+from `app.css`), which for an editor opens `PackageScopeModal` with a count of
+the figures the candidate pair would leave stale; the overflow menu opens
+`ProductSettings` for name and folder. The slide editor header shows the same
+chip read-only.
 
 **The slide editor**
 ([slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx))

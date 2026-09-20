@@ -76,12 +76,14 @@ export const productRouteRegistry = {
     access: "edit",
   }),
 
-  // Clones (run_id, admin_area_2) verbatim into the source's folder: the Q2
-  // to Q3 workflow is duplicate, then reattach the duplicate (D5).
+  // Clones run_id verbatim into the source's folder under the scope the
+  // caller names (the source's own to keep it): a national deck copied per
+  // area is how area products are made (D5).
   duplicateProduct: route({
     path: "/products/:product_id/duplicate",
     method: "POST",
     params: productIdParamsSchema,
+    body: z.object({ adminArea2: z.string().min(1).nullable() }),
     response: {} as { productId: string; lastUpdated: string },
     access: "edit",
   }),

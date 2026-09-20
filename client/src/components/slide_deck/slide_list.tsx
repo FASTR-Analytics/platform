@@ -37,7 +37,8 @@ import { copilotViewController } from "~/components/copilot/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/figure_editor/stale_figure_badge";
-import { ProductScopeBadge } from "~/components/products/product_card";
+import { PackageScopeChip } from "~/components/products/package_scope_chip";
+import { PackageScopeModal } from "~/components/products/package_scope_modal";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
 type Props = {
@@ -471,6 +472,21 @@ export function SlideList(p: Props) {
 
   const canEditFigures = () => canEditProduct(p.productId);
 
+  // The chip opens the pair surface with a live count of what the candidate
+  // pair would leave stale, walked over the same per-slide cache as above.
+  async function openPackageScope() {
+    const product = p.product;
+    if (!product) return;
+    await openComponent({
+      element: PackageScopeModal,
+      props: {
+        product,
+        countStaleUnder: async (pair: PackageScope) =>
+          (await collectDeckStaleFigures(p.productId, [...p.slideIds], pair)).length,
+      },
+    });
+  }
+
   // The only cross-product figure reuse there is (D3): copy whole slides, with
   // their bundles verbatim. Enabled only with a selection.
   async function copyToDeck() {
@@ -495,11 +511,11 @@ export function SlideList(p: Props) {
   const menuItems = (): MenuItem[] => [
     {
       label: t3({
-        en: "Package, scope and folder",
-        fr: "Paquet, portée et dossier",
-        pt: "Pacote, âmbito e pasta",
+        en: "Name and folder",
+        fr: "Nom et dossier",
+        pt: "Nome e pasta",
       }),
-      icon: "package",
+      icon: "pencil",
       onClick: () => p.handleOpenProductSettings(),
     },
     {
@@ -552,7 +568,10 @@ export function SlideList(p: Props) {
           onBack={() => p.handleClose()}
         >
           <div class="ui-gap-sm flex items-center">
-            <ProductScopeBadge product={p.product} />
+            <PackageScopeChip
+              product={p.product}
+              onClick={canEditFigures() ? () => void openPackageScope() : undefined}
+            />
             <PresenceAvatars
               peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
             />

@@ -100,6 +100,8 @@ import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
 import { SlideEditorCursors } from "~/components/_shared/cursors/slide_cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { canEditProduct } from "~/state/instance/product_access";
+import { productById } from "~/state/instance/t1_store";
+import { PackageScopeChip } from "~/components/products/package_scope_chip";
 import { createIdGeneratorForLayout } from "~/components/slide_deck/_id_generation";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
@@ -922,6 +924,8 @@ export function SlideEditor(p: Props) {
               }
             >
               <div class="ui-gap-sm flex items-center">
+                {/* Read-only here: the pair is changed from the deck header. */}
+                <PackageScopeChip product={productById(p.productId)} />
                 {/* Who else is currently editing THIS slide (live presence). */}
                 <PresenceAvatars
                   peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}

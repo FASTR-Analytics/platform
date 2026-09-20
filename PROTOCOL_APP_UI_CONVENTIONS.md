@@ -41,6 +41,10 @@ Today's app-level additions:
 - `--text-5xl`.
 - `--color-running` / `--color-running-stripe` and the animated `ui-running`
   stripe utility.
+- `--color-package` (+ `-content`, `-hover`, `-active`) with the
+  `ui-fill-package` and `ui-hoverable-package` skins: the one accent for the
+  results-package chip (`components/products/package_scope_chip.tsx`) on
+  editor headers, product cards and list rows. Nothing else wears it.
 - The base layer: `html, body, #app` → `font-sans`,
   `bg-base-100 text-base-content`, `font-variant-numeric: tabular-nums` for
   aligned numeric columns.
@@ -236,6 +240,7 @@ mappings:
 | `code` / `database` / `settings`         | system-prompt view / the Data tab, data import / settings actions        |
 | `sparkles`                               | AI features                                                              |
 | `moreVertical`                           | overflow menu trigger                                                    |
+| `package`                                | the results package a product serves from (chip, menu entry)             |
 | `info` / `questionMark` / `help`         | hints, help chrome                                                       |
 | `eye` / `eyeOff`                         | show / hide toggles                                                      |
 

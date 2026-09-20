@@ -2,7 +2,8 @@ import { t3, type Folder, type ProductSummary, type SortMode } from "lib";
 import { Badge, Button, Checkbox, Icon } from "panther";
 import { For, Show, type JSX } from "solid-js";
 import { folderColor, folderCountsLine, topLevelLabel } from "./folder_card";
-import { packageLabel, scopeLabel } from "./package_label";
+import { scopeLabel } from "./package_label";
+import { PackageScopeChip } from "./package_scope_chip";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
 // Hand-built rather than assembled from panther's `Table`: the sanctioned
@@ -235,8 +236,8 @@ export function ListView(p: Props) {
             <div class="ui-pad-sm">
               {PRODUCT_TYPE_REGISTRY[product.type].label()}
             </div>
-            <div class="ui-pad-sm min-w-0 truncate">
-              {packageLabel(product.runId)}
+            <div class="ui-pad-sm flex min-w-0">
+              <PackageScopeChip product={product} size="sm" hideScope />
             </div>
             <div class="ui-pad-sm min-w-0">
               <Badge intent={product.adminArea2 === null ? "base-200" : "neutral"}>

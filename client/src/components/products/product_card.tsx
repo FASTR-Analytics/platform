@@ -1,7 +1,7 @@
 import type { ProductSummary } from "lib";
 import { Card, Icon } from "panther";
 import { Show } from "solid-js";
-import { packageScopeCaption } from "./package_label";
+import { PackageScopeChip } from "./package_scope_chip";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
 type Props = {
@@ -33,27 +33,17 @@ export function ProductCard(p: Props) {
       }
     >
       {/* ONE caption line, mirroring the folder tile's, so product and folder
-          tiles share a height. The pair the product serves from is the
-          load-bearing info (D8); type is the header icon, and the updated date
-          lives in the list view. */}
-      <div class="ui-text-caption truncate">
+          tiles share a height: the small chip's line box matches the caption's.
+          The pair the product serves from is the load-bearing info (D8); type
+          is the header icon, and the updated date lives in the list view. */}
+      <div class="ui-text-caption flex min-w-0">
         <Show
           when={p.searchPath}
-          fallback={packageScopeCaption(p.product)}
+          fallback={<PackageScopeChip product={p.product} size="sm" />}
         >
-          {(path) => path()}
+          {(path) => <span class="truncate">{path()}</span>}
         </Show>
       </div>
     </Card>
-  );
-}
-
-// The editor headers' version of the same caption: which package and scope
-// the open product resolves its figures under, live off the T1 row (D16).
-export function ProductScopeBadge(p: { product: ProductSummary | undefined }) {
-  return (
-    <div class="ui-text-caption bg-base-200 truncate rounded px-2 py-1">
-      {p.product ? packageScopeCaption(p.product) : ""}
-    </div>
   );
 }

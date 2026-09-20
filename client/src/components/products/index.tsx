@@ -52,6 +52,7 @@ import {
 } from "~/state/t4_ui";
 import { ProductCopilotHost } from "~/components/copilot";
 import { DuplicateProductsModal } from "./duplicate_products_modal";
+import { PackageScopeModal } from "./package_scope_modal";
 import { EditFolderModal } from "./edit_folder_modal";
 import { FolderCard, folderColor, topLevelLabel } from "./folder_card";
 import { buildFolderMenu } from "./folder_menu";
@@ -289,6 +290,10 @@ export function Products() {
     await openComponent({ element: ProductSettings, props: { product } });
   }
 
+  async function openPackageScope(product: ProductSummary) {
+    await openComponent({ element: PackageScopeModal, props: { product } });
+  }
+
   async function handleMoveToFolder(product: ProductSummary) {
     await openComponent({
       element: MoveToFolderModal,
@@ -371,6 +376,7 @@ export function Products() {
       folders: instanceState.folders,
       location: location(),
       onSettings: () => void openSettings(product),
+      onPackageScope: () => void openPackageScope(product),
       onMoveToFolder: () => void handleMoveToFolder(product),
       onDuplicate: () => void handleDuplicate(product),
       onDelete: () => void handleDelete(product),

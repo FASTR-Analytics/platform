@@ -2,11 +2,17 @@ import { t3, type ProductSummary } from "lib";
 import {
   AlertFormHolder,
   ProgressBar,
+  RadioGroup,
   createFormAction,
   getProgress,
   type AlertComponentProps,
 } from "panther";
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
+import {
+  ScopePicker,
+  storedValueFromScopeSelection,
+  type ScopeSelection,
+} from "~/components/_shared/scope_picker";
 import { serverActions } from "~/server_actions";
 
 type Props = {
@@ -15,17 +21,38 @@ type Props = {
 
 type ReturnType = { productIds: string[] } | undefined;
 
-// `duplicateProduct` clones `(run_id, admin_area_2)` verbatim and mints its own
-// label (D5), so there is nothing to fill in: this surface exists to confirm
-// the batch and to show progress while it runs.
+type ScopeChoice = "keep" | "set";
+
+// `duplicateProduct` keeps the source's package and mints its own label (D5);
+// the scope is the one thing to decide here, because a national deck copied
+// per area is the way area products are made. The default keeps each
+// original's scope, so a plain duplicate stays one click.
 export function DuplicateProductsModal(
   p: AlertComponentProps<Props, ReturnType>,
 ) {
   const progress = getProgress();
+  const [scopeChoice, setScopeChoice] = createSignal<ScopeChoice>("keep");
+  const [tempScope, setTempScope] = createSignal<ScopeSelection>({
+    mode: "national",
+  });
 
   const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
+      const chosen =
+        scopeChoice() === "set"
+          ? storedValueFromScopeSelection(tempScope())
+          : undefined;
+      if (scopeChoice() === "set" && chosen === undefined) {
+        return {
+          success: false,
+          err: t3({
+            en: "Select an area, or choose national scope",
+            fr: "Sélectionnez une zone ou choisissez la portée nationale",
+            pt: "Selecione uma zona ou escolha o âmbito nacional",
+          }),
+        };
+      }
       const total = p.products.length;
       const productIds: string[] = [];
 
@@ -41,6 +68,7 @@ export function DuplicateProductsModal(
         );
         const res = await serverActions.duplicateProduct({
           product_id: product.id,
+          adminArea2: chosen === undefined ? product.adminArea2 : chosen,
         });
         if (!res.success) {
           return {
@@ -83,11 +111,37 @@ export function DuplicateProductsModal(
       <div class="ui-spy-sm">
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "Each copy keeps the original's results package and scope.",
-            fr: "Chaque copie conserve le paquet de résultats et la portée de l'original.",
-            pt: "Cada cópia mantém o pacote de resultados e o âmbito do original.",
+            en: "Each copy keeps the original's results package.",
+            fr: "Chaque copie conserve le paquet de résultats de l'original.",
+            pt: "Cada cópia mantém o pacote de resultados do original.",
           })}
         </div>
+        <RadioGroup<ScopeChoice>
+          label={t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}
+          value={scopeChoice()}
+          options={[
+            {
+              value: "keep",
+              label: t3({
+                en: "Keep each original's scope",
+                fr: "Conserver la portée de chaque original",
+                pt: "Manter o âmbito de cada original",
+              }),
+            },
+            {
+              value: "set",
+              label: t3({
+                en: "Set a scope for the copies",
+                fr: "Définir une portée pour les copies",
+                pt: "Definir um âmbito para as cópias",
+              }),
+            },
+          ]}
+          onChange={setScopeChoice}
+        />
+        <Show when={scopeChoice() === "set"}>
+          <ScopePicker selection={tempScope()} onChange={setTempScope} />
+        </Show>
         <div class="ui-spy-sm max-h-64 overflow-auto">
           <For each={p.products}>
             {(product) => (

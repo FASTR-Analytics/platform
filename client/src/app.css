@@ -21,6 +21,27 @@
   /* ui-running progress stripes */
   --color-running: #426680;
   --color-running-stripe: #1e4a66;
+
+  /* The results-package identity: one accent that no button, status or
+     brand token shares, so the chip that names a product's package and
+     scope is unmistakable wherever it appears. Hover and active follow
+     panther's intent ramp recipe. */
+  --color-package: light-dark(#675f8f, #a39cc0);
+  --color-package-content: light-dark(#ffffff, #1e1a30);
+  --color-package-hover: color-mix(in oklab, var(--color-package), black 8%);
+  --color-package-active: color-mix(in oklab, var(--color-package), black 14%);
+}
+
+/* The package accent's fill and hoverable skins, the same two bundles
+   panther gives every intent, so the chip composes like a kit surface. */
+@layer components {
+  .ui-fill-package {
+    @apply bg-package text-package-content border-package;
+  }
+  .ui-hoverable-package {
+    @apply cursor-pointer select-none bg-package hover:bg-package-hover active:bg-package-active;
+    transition: background-color var(--ui-dur-fast) var(--ui-ease);
+  }
 }
 
 /* Dark mode: the token layer lives in panther. Every _fixed.css color token

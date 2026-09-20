@@ -103,6 +103,7 @@ export function buildProductMenu(args: {
   folders: Folder[];
   location: string | null;
   onSettings: () => void;
+  onPackageScope: () => void;
   onMoveToFolder: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -134,10 +135,20 @@ export function buildProductMenu(args: {
     {
       label: t3(TC.settings),
       icon: "settings",
-      // The settings surface takes one product; a batch has no single label,
-      // package or scope to show.
+      // Settings and the pair surface take one product; a batch has no single
+      // label, package or scope to show.
       disabled: many,
       onClick: args.onSettings,
+    },
+    {
+      label: t3({
+        en: "Results package and scope…",
+        fr: "Paquet de résultats et portée…",
+        pt: "Pacote de resultados e âmbito…",
+      }),
+      icon: "package",
+      disabled: many,
+      onClick: args.onPackageScope,
     },
     {
       label: many

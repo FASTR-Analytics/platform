@@ -192,11 +192,12 @@ defineRoute(
   routesProducts,
   "duplicateProduct",
   log("duplicateProduct"),
-  async (c, { params }) => {
+  async (c, { params, body }) => {
     const res = await duplicateProduct(
       c.var.mainDb,
       params.product_id,
       c.var.globalUser.email,
+      body.adminArea2,
     );
     if (!res.success) {
       return respond(c, res);

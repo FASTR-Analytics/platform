@@ -395,6 +395,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       app,
       "POST",
       `/products/${deck.productId}/duplicate`,
+      { adminArea2: "Harness Area" },
     );
     createdProductIds.push(copy.productId);
     const pairs = await mainDb<
@@ -403,6 +404,19 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(new Set(pairs.map((p) => p.run_id)), new Set([otherReady.id]));
     assertEquals(new Set(pairs.map((p) => p.admin_area_2)), new Set(["Harness Area"]));
     assertEquals(pairs.find((p) => p.id === copy.productId)?.label, "Untitled deck (copy)");
+    // The scope is the caller's: a national copy of an area deck keeps the
+    // package and takes the new scope.
+    const national = await ok<{ productId: string }>(
+      app,
+      "POST",
+      `/products/${deck.productId}/duplicate`,
+      { adminArea2: null },
+    );
+    createdProductIds.push(national.productId);
+    const nationalRow = (
+      await mainDb<{ run_id: string; admin_area_2: string | null }[]>`SELECT run_id, admin_area_2 FROM products WHERE id = ${national.productId}`
+    )[0];
+    assertEquals(nationalRow, { run_id: otherReady.id, admin_area_2: null });
     const copied = await ok<{ newSlideIds: string[] }>(
       app,
       "POST",
