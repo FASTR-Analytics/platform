@@ -198,7 +198,8 @@ and `intent`; delete is always last and `intent: "danger"`.
 through `createDeleteAction` (confirmation built in); async buttons pass
 `state={action.state()}`; toolbar groups are `div.flex.items-center.ui-gap-sm`.
 
-**Modal forms:** `openComponent()` + `AlertFormHolder` + `createFormAction`.
+**Modal forms:** `openComponent()` + `ModalContainer` (`form`, `onCancel`,
+`actions`) + `createFormAction`.
 Validate inside the action and return `{ success: false, err }`; fields spaced
 `ui-spy-sm`; `autoFocus` the first input. Settings pages: `ui-pad ui-spy` page,
 `ui-text-heading` section headings, fields `ui-spy-sm`. Modal widths are
