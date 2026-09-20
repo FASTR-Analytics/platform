@@ -9,7 +9,7 @@ input mirrors, the AI tool schemas, the workbook contract and the UI, and
 retires the word "name" for an identifier everywhere in the HFA area, because
 "name" is used for the id in one place and for the label in the next.
 
-**Next step:** Review 1
+**Next step:** Do 2
 
 Branch: `main`. Repos touched: this app, `wb-fastr-modules` (step 2),
 `fastr-resource-hub` and `wb-fastr-site` (§7, outside the sessions).
@@ -479,3 +479,5 @@ previous commit on each instance.
 | 2026-09-20 | 1 | Review: surface, deliverable and gates otherwise as claimed. The three files changed outside the surface (`023_hfa_schema_redesign.sql`, `stage_csv.ts`, `run_generation.ts`) are each logged above. Reviewer ran `deno task typecheck`, `deno task test` (144 passed against `./run`'s Postgres; without it 7 tests fail on ECONNREFUSED 7001, environmental), `./validate_protocols`, `./validate_migrations`, `./validate_fresh_boot`, the transform test (6 passed) and `./run` (clean boot, 8 manifests already at v11): all green. |
 | 2026-09-20 | 1 | Step 1 reviewed: 3 findings. |
 | 2026-09-20 | 1 | Step 1 fixed: SYSTEM_05 lines 497-987 removed and the regex sentence restored (the file is back to its pre-step length with the intended paragraphs only); `hfa_time_points.ts` inserts and selects `indicator_id`; `query_rig/fixtures.ts` carries `indicator_id`. Gates: typecheck, test (144 passed against `./run`'s Postgres), `./validate_protocols`, `./validate_migrations`, `./validate_fresh_boot`, `./validate_queries` (63 cases) and `./run` all green. Tim ran the fix in the review's own session. |
+| 2026-09-20 | 1 | Re-review after the fix, in a fresh context. The fix commit (`35e0a072`) touched only the three found files plus the plan; the two outside the Surface are the review's own findings. Read the code for every Deliverable item: 092 and 043 rename the five columns and the three `_fkey` constraints, guarded; both base schemas carry `indicator_id`; `_xlsx_workbook.ts` writes and requires `indicatorId` with the `ind001` fallback; `ai/tools.ts` and the route bodies carry `indicatorId` / `indicatorIds`; `PO_CACHE_VERSION` is "23" and `_PO_DETAIL_CACHE` is `po_detail_v13`; `RUN_MANIFEST_SCHEMA_VERSION` is 11 with input block 2 and manifest block 9; the row schemas name only `indicator_id`; the UI strings read "Indicator ID" in en/fr/pt; SYSTEM_05 is back to 1236 lines with one frontmatter block; SYSTEM_08 and SYSTEM_13 read as claimed. Every remaining `var_name` / `varName` under `server/`, `lib/`, `client/src/` and `query_rig/` denotes a variable id and is on the step 2 list above. Gates run by the reviewer: `deno task typecheck`, `./validate_protocols`, `./validate_migrations`, `./validate_fresh_boot`, `./validate_queries` (63 cases), the transform test (6 passed), `./run` (clean boot, 8 manifests already at v11, 0 transformed) and `deno task test` against it (144 passed): all green. |
+| 2026-09-20 | 1 | Step 1 reviewed: pass. |
