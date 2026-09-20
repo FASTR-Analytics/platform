@@ -1,3 +1,14 @@
+[TBD] [user] [changed] - "Variable name" renamed to "Indicator ID" throughout the indicator manager
+[TBD] [user] [changed] - Dataset variable columns now labeled "Variable ID" instead of "Variable"
+[TBD] [user] [changed] - Workbook import now requires an "indicatorId" column instead of "varName"
+[TBD] [user] [added] - Results package wizard now blocks HMIS data when a DHIS2 import is running
+[TBD] [user] [changed] - Import summary now says "XLSForm questions not in CSV" instead of "XLSForm vars not in CSV"
+[TBD] [admin] [changed] - HFA indicators now use "Indicator ID" instead of "Variable name" in all labels and messages
+[TBD] [admin] [changed] - HFA dataset display columns renamed from "Variable" to "Variable ID"
+[TBD] [admin] [changed] - XLSX workbook import now requires an "indicatorId" column instead of "varName"
+[TBD] [admin] [changed] - Import summary label changed from "XLSForm vars not in CSV" to "XLSForm questions not in CSV"
+[TBD] [admin] [added] - Results package wizard blocks HMIS data selection during an active DHIS2 import run
+[TBD] [admin] [internal] - Updated run manifest schema version to 11 for HFA indicator ID vocabulary change
 [TBD] [user] [changed] - Module parameter values are now set only in Module Defaults, not in the wizard
 [TBD] [user] [added] - Wizard warns which modules have invalid default parameter values
 [TBD] [user] [added] - Results package labels must now be unique; duplicates are rejected
