@@ -1,6 +1,6 @@
 import { t3, type ProductSummary } from "lib";
 import {
-  AlertFormHolder,
+  ModalContainer,
   ProgressBar,
   RadioGroup,
   createFormAction,
@@ -101,12 +101,15 @@ export function DuplicateProductsModal(
       : t3({ en: "Duplicate", fr: "Dupliquer", pt: "Duplicar" });
 
   return (
-    <AlertFormHolder
-      formId="duplicate-products"
-      header={header()}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={header()}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy-sm">
         <div class="text-base-content-muted text-sm">
@@ -161,6 +164,6 @@ export function DuplicateProductsModal(
           />
         </Show>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

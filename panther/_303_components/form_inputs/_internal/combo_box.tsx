@@ -16,6 +16,7 @@ import { Icon } from "../../icons/mod.ts";
 import { hideTooltip } from "../../special_state/tooltip.tsx";
 import type { SelectOption } from "../types.ts";
 import { getSelectClasses } from "./input_classes.ts";
+import { Field } from "../field.tsx";
 
 // Search matches string labels; JSX labels fall back to the option value.
 export function getSearchText<T extends string>(opt: SelectOption<T>): string {
@@ -220,12 +221,13 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
   const panel = () => p.panel;
 
   return (
-    <div class="w-[200px] data-[width=true]:w-full" data-width={p.fullWidth}>
-      <Show when={p.label}>
-        <label class="ui-label" for={panel().id}>
-          {p.label}
-        </label>
-      </Show>
+    <Field
+      label={p.label}
+      labelFor={panel().id}
+      invalidMsg={p.invalidMsg}
+      width="w-[200px]"
+      fullWidth={p.fullWidth}
+    >
       <div
         ref={panel().setWrapperRef}
         class="ui-form-text relative w-full"
@@ -263,10 +265,8 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
           onPointerDown={panel().openPanel}
           onBlur={panel().handleBlur}
           onKeyDown={panel().handleKeyDown}
-          onInput={(e) =>
-            panel().handleInput(e.currentTarget.value)}
-          onMouseEnter={(e) =>
-            p.onTriggerMouseEnter?.(e)}
+          onInput={(e) => panel().handleInput(e.currentTarget.value)}
+          onMouseEnter={(e) => p.onTriggerMouseEnter?.(e)}
           onMouseLeave={hideTooltip}
         />
         <Show when={!panel().open() && p.displayText}>
@@ -285,11 +285,6 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
           <Icon iconName={panel().open() ? "search" : "selector"} />
         </div>
       </div>
-      <Show when={p.invalidMsg}>
-        <div class="ui-text-small text-danger inline-block pt-1">
-          {p.invalidMsg}
-        </div>
-      </Show>
       <div
         ref={panel().setPanelRef}
         popover="manual"
@@ -314,6 +309,6 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
           </div>
         </Show>
       </div>
-    </div>
+    </Field>
   );
 }

@@ -15,6 +15,7 @@ import {
 } from "solid-js";
 import { Color } from "../deps.ts";
 import type { PopoverPosition } from "../special_state/popover_menu.tsx";
+import { Field } from "./field.tsx";
 
 export type ColorSetName =
   | "standard"
@@ -28,7 +29,7 @@ export type ColorSetName =
 // Light variants: ~92-95% luminance, ~25-35% saturation (visible hue, still muted)
 // Dark variants: ~18-25% luminance, ~30-40% saturation (visible hue, still muted)
 // Based on research: backgrounds should stay under 40% saturation for professional presentations
-export const SLIDE_BACKGROUND_COLORS: string[][] = [
+const SLIDE_BACKGROUND_COLORS: string[][] = [
   // Cool gray (hue 220)
   ["#eef1f5", "#dde3eb", "#2d3444", "#1f2530"],
   // Warm gray (hue 35)
@@ -63,7 +64,7 @@ export const SLIDE_BACKGROUND_COLORS: string[][] = [
   ["#f5eff7", "#eaddf0", "#452c4d", "#301e36"],
 ];
 
-export const TAILWIND_COLORS: string[][] = [
+const TAILWIND_COLORS: string[][] = [
   // Slate
   ["#f8fafc", "#e2e8f0", "#94a3b8", "#475569", "#1e293b"],
   // Gray
@@ -106,7 +107,7 @@ export const TAILWIND_COLORS: string[][] = [
   ["#fff1f2", "#fecdd3", "#fb7185", "#e11d48", "#881337"],
 ];
 
-export const COLOR_SETS: Record<ColorSetName, string[]> = {
+const COLOR_SETS: Record<ColorSetName, string[]> = {
   tailwind: TAILWIND_COLORS.flat().concat(["#ffffff", "#000000"]),
   standard: [
     "#e3f2fd",
@@ -342,10 +343,7 @@ export function ColorPicker(p: ColorPickerProps) {
     p.size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size";
 
   return (
-    <div>
-      <Show when={p.label}>
-        <label class="ui-label">{p.label}</label>
-      </Show>
+    <Field label={p.label}>
       <button
         type="button"
         class={`cursor-pointer select-none hover:border-base-content rounded border ${padClass()}`}
@@ -460,6 +458,6 @@ export function ColorPicker(p: ColorPickerProps) {
           </Show>
         </div>
       </div>
-    </div>
+    </Field>
   );
 }

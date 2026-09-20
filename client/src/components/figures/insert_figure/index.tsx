@@ -14,13 +14,12 @@ import {
 import { unwrap } from "solid-js/store";
 import {
   AlertComponentProps,
-  Button,
   ModalContainer,
   createFormAction,
   getStepper,
   StepperChipsWithTitles,
 } from "panther";
-import { createSignal, createMemo, Match, Switch, Show } from "solid-js";
+import { createSignal, createMemo, Match, Switch } from "solid-js";
 import { CUSTOM_OPTION, type PresetOption } from "./preset_preview";
 import { Step1Metric } from "./step_1_metric";
 import { Step2Preset } from "./step_2_preset";
@@ -209,36 +208,30 @@ export function InsertFigureModal(
           />
         </div>
       }
-      leftButtons={
-        <Show when={stepper.currentStep() > 0}>
-          <Button onClick={stepper.goPrev} outline>
-            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
-          </Button>
-        </Show>
-      }
-      rightButtons={
-        <>
-          <Button onClick={() => p.close(undefined)} outline>
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-          </Button>
-          <Show
-            when={isLastStep()}
-            fallback={
-              <Button onClick={stepper.goNext} disabled={!stepper.canGoNext()}>
-                {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-              </Button>
+      onCancel={() => p.close(undefined)}
+      actions={[
+        ...(stepper.currentStep() > 0
+          ? [
+              {
+                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+                onClick: stepper.goPrev,
+                outline: true,
+              },
+            ]
+          : []),
+        isLastStep()
+          ? {
+              label: t3({ en: "Insert", fr: "Insérer", pt: "Inserir" }),
+              onClick: save.click,
+              disabled: !stepper.canGoNext(),
+              state: save.state(),
             }
-          >
-            <Button
-              onClick={save.click}
-              disabled={!stepper.canGoNext()}
-              loading={save.state().status === "loading"}
-            >
-              {t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-            </Button>
-          </Show>
-        </>
-      }
+          : {
+              label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+              onClick: stepper.goNext,
+              disabled: !stepper.canGoNext(),
+            },
+      ]}
     >
       <div class="h-[min(36rem,60vh)]" onKeyDown={handleKeyDown} tabIndex={0}>
         <Switch>

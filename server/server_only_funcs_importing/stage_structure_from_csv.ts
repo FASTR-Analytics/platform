@@ -135,23 +135,23 @@ export async function stageStructureFromCsv(
       ];
       for (const mc of mappedColumns) {
         const rawHeader = headers[mc.index] ?? "";
-        // Same convention as HFA staging: exact match, or the header's
-        // post-last-"/" segment (ODK group prefix stripped).
-        const localName = rawHeader.includes("/")
+        // Same convention as HFA staging: the header is a question id, or an
+        // ODK question path whose last segment is the question id.
+        const lastSegment = rawHeader.includes("/")
           ? rawHeader.substring(rawHeader.lastIndexOf("/") + 1)
           : rawHeader;
-        const xlsVar =
-          xlsForm.vars.get(rawHeader) ?? xlsForm.vars.get(localName);
-        if (!xlsVar || xlsVar.type !== "select_one" || !xlsVar.listName) {
+        const question =
+          xlsForm.questions.get(rawHeader) ?? xlsForm.questions.get(lastSegment);
+        if (!question || question.type !== "select_one" || !question.listName) {
           continue;
         }
-        const choices = xlsForm.choiceLists.get(xlsVar.listName);
+        const choices = xlsForm.choiceLists.get(question.listName);
         if (!choices) {
           continue;
         }
         labelResolvers.set(mc.index, {
           column: mc.column,
-          codeToLabel: new Map(choices.map((c) => [c.name, c.label])),
+          codeToLabel: new Map(choices.map((c) => [c.value, c.label])),
           resolvedCount: 0,
           unresolvedValues: new Set(),
         });

@@ -121,6 +121,10 @@ re-litigate; the package-format invariants below are their file-level twins):
   catalogue's guarded hard delete (row + dir), refused while referenced or
   generating.
 - **Vocabulary.** UI label "Results package"; "run" stays the internal name.
+- **Labels are unique per instance** (`runs_label_unique`, on
+  `lower(trim(label))`, migration 091). The wizard refuses a taken label
+  against the loaded catalogue and derives a free default; the insert
+  translates the index violation into the same message for the race.
 
 ## Loading (`server/module_loader/load_module.ts`)
 
@@ -519,8 +523,11 @@ the installed definitions verbatim (so existing parsers apply unchanged);
 pinned asset names + hashes; and the §3.7 memoization fields (`inputKey` per
 module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `11`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v11 = `datasets[].info` holds exactly the keys
+**`manifestSchemaVersion` gates every read**, currently `12`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v12 = the `hfa_indicators_snapshot.json`
+mirror's rows carry `indicator_id` instead of `var_name`, input block 2;
+the manifest's own shape is unchanged and transform block 10 only stamps;
+v11 = `datasets[].info` holds exactly the keys
 `lib/types/run_datasets.ts` types for its family: the pre-1.72 HMIS stamp pair
 renamed `indicatorsVersion` / `countIndicatorsVersion`, and the keys nothing
 reads (`windowing`, `facilityColumnsConfig`, `maxAdminArea`,
@@ -662,9 +669,12 @@ enforces neither DAG closure nor data availability: the wizard sanitizes at
 read time (step 1 re-masks families by what is uploaded; the launched module
 set is the closure-completed, offerability-masked derivation of what is
 ticked, so a stored default whose family is absent simply never launches).
-Both writers gate their save on one shared check,
-`getModuleParameterInvalidMsg`, which also drives the inputs' inline invalid
-messages.
+The wizard does not edit parameter values (ruled): the editor is the only
+place they are set, and launch sends the stored defaults merged with
+definition defaults. One shared check, `getModuleParameterInvalidMsg`, gates
+the editor's save, drives its inputs' inline invalid messages, and blocks the
+wizard's modules step with a note naming the modules whose stored default is
+invalid.
 
 ## Generation (`server/worker_routines/generate_run/`)
 
@@ -734,7 +744,7 @@ viz-land indicator picker. Three rulings hold this together. **The
 definition gate**, emit only when the resolved definition declares the new
 RO (the `resultsObjects.some` pattern `supportsResponseStatus` established),
 must cover item mutates, item columns AND metadata entries _atomically_:
-a partial gate emits composed varNames as fake indicators into the MAIN
+a partial gate emits composed column names as fake indicators into the MAIN
 table, which ingests cleanly and corrupts silently. This is also what keeps
 generation at older pinned gitRefs byte-identical (verify as script **text**;
 inputKeys are unaffected either way, since `computeModuleInputs` folds only

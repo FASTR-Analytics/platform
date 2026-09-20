@@ -1,9 +1,7 @@
 import { t3, type IcehStep1Result } from "lib";
 import {
   AlertComponentProps,
-  Button,
   ModalContainer,
-  StateHolderFormError,
   StepperChipsWithTitles,
   createFormAction,
   getStepper,
@@ -141,36 +139,33 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
       }
-      leftButtons={
-        <Show when={stepper.currentStep() > 0}>
-          <Button onClick={stepper.goPrev} outline>
-            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
-          </Button>
-        </Show>
-      }
-      rightButtons={
-        <>
-          <Button onClick={() => p.close(undefined)} outline>
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-          </Button>
-          <Show
-            when={isLastStep()}
-            fallback={
-              <Button onClick={stepper.goNext} disabled={!stepper.canGoNext()}>
-                {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-              </Button>
-            }
-          >
-            <Button
-              onClick={submit.click}
-              state={submit.state()}
-              intent="success"
-            >
-              {t3({ en: "Start import", fr: "Démarrer l'importation", pt: "Iniciar a importação" })}
-            </Button>
-          </Show>
-        </>
-      }
+      onCancel={() => p.close(undefined)}
+      actions={[
+        ...(stepper.currentStep() > 0
+          ? [
+              {
+                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+                onClick: stepper.goPrev,
+                outline: true,
+              },
+            ]
+          : []),
+        ...(isLastStep()
+          ? [
+              {
+                label: t3({ en: "Start import", fr: "Démarrer l'importation", pt: "Iniciar a importação" }),
+                onClick: submit.click,
+                state: submit.state(),
+              },
+            ]
+          : [
+              {
+                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+                onClick: stepper.goNext,
+                disabled: !stepper.canGoNext(),
+              },
+            ]),
+      ]}
     >
       <div class="ui-pad ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
@@ -230,7 +225,6 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
                 pt: "A preparação valida todas as linhas; um ficheiro totalmente válido integra-se automaticamente, enquanto linhas ignoradas colocam a importação em espera para a sua revisão antes de qualquer fusão.",
               })}
             </p>
-            <StateHolderFormError state={submit.state()} />
           </div>
         </Show>
       </div>

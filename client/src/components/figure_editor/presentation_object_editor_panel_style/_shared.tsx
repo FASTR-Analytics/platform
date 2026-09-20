@@ -1,5 +1,5 @@
 import { PresentationObjectConfig, t3 } from "lib";
-import { Checkbox, LabelHolder, Slider } from "panther";
+import { Checkbox, Field, Slider } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { StyleRevealGroup } from "./_style_components";
@@ -14,7 +14,7 @@ export function SharedControlsTop(p: SharedTopProps) {
   return (
     <>
       <Show when={p.usingCells()}>
-        <LabelHolder
+        <Field
           label={t3({
             en: "Number of grid columns",
             fr: "Nombre de colonnes de grille",
@@ -48,7 +48,7 @@ export function SharedControlsTop(p: SharedTopProps) {
               </StyleRevealGroup>
             </Show>
           </div>
-        </LabelHolder>
+        </Field>
       </Show>
     </>
   );

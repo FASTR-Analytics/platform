@@ -3,10 +3,12 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { batch, createSignal, type JSX, Match, Show, Switch } from "solid-js";
+import { batch, createSignal, type JSX, Match, Switch } from "solid-js";
 import { clamp } from "../deps.ts";
 import { ComparisonSlider } from "./comparison_slider.tsx";
+import { Field } from "./field.tsx";
 import { Slider } from "./slider.tsx";
+import type { SliderTicksConfig } from "./_internal/slider_ticks.tsx";
 
 type SliderWithInputProps = {
   value: number;
@@ -16,7 +18,6 @@ type SliderWithInputProps = {
   max?: number;
   step?: number;
   label?: string | JSX.Element;
-  labelSize?: "sm" | "base" | "lg" | "xl";
   disabled?: boolean;
   inputWidth?: string;
   inputMultiplier?: number;
@@ -24,12 +25,7 @@ type SliderWithInputProps = {
   comparisonValue?: number;
   colorComparisonInput?: boolean;
   reverseColors?: boolean;
-  ticks?: {
-    major?: number | number[];
-    minor?: number | number[];
-    showLabels?: boolean;
-    labelFormatter?: (v: number) => string;
-  };
+  ticks?: SliderTicksConfig;
 };
 
 function countDecimals(value: number): number {
@@ -115,19 +111,6 @@ export function SliderWithInput(p: SliderWithInputProps) {
     });
   };
 
-  const labelSizeClass = () => {
-    switch (p.labelSize) {
-      case "sm":
-        return "text-sm";
-      case "lg":
-        return "text-lg";
-      case "xl":
-        return "text-xl";
-      default:
-        return "text-base";
-    }
-  };
-
   const comparisonColorClass = () => {
     if (!p.colorComparisonInput || p.comparisonValue === undefined) {
       return "";
@@ -154,12 +137,7 @@ export function SliderWithInput(p: SliderWithInputProps) {
   };
 
   return (
-    <div>
-      <Show when={p.label}>
-        <label class={`ui-label !block pb-2 ${labelSizeClass()}`}>
-          {p.label}
-        </label>
-      </Show>
+    <Field label={p.label}>
       <div class="ui-gap flex items-start">
         <div class="flex-grow">
           <Switch>
@@ -216,6 +194,6 @@ export function SliderWithInput(p: SliderWithInputProps) {
           disabled={p.disabled}
         />
       </div>
-    </div>
+    </Field>
   );
 }

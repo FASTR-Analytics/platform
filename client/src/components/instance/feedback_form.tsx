@@ -93,38 +93,20 @@ export function FeedbackForm(
         pt: "Ajuda e comentários",
       })}
       width="md"
-      leftButtons={
+      actions={
         sent()
-          ? // eslint-disable-next-line jsx-key
-            [
-              <Button
-                onClick={() => p.close(undefined)}
-                intent="success"
-                iconName="check"
-              >
-                {t3(TC.done)}
-              </Button>,
-            ]
-          : // eslint-disable-next-line jsx-key
-            [
-              <Button
-                onClick={handleSend}
-                intent="success"
-                iconName="arrowRight"
-                disabled={sending()}
-              >
-                {t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })}
-              </Button>,
-              // eslint-disable-next-line jsx-key
-              <Button
-                onClick={() => p.close(undefined)}
-                intent="neutral"
-                iconName="x"
-              >
-                {t3(TC.cancel)}
-              </Button>,
+          ? []
+          : [
+              {
+                label: t3({ en: "Send", fr: "Envoyer", pt: "Enviar" }),
+                onClick: handleSend,
+                iconName: "arrowRight",
+                disabled: sending(),
+              },
             ]
       }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={sent() ? t3(TC.done) : undefined}
     >
       <Show when={sent()}>
         <div class="text-success py-4 text-center">

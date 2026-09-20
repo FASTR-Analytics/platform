@@ -1,6 +1,6 @@
 import { t3, type ProductSummary } from "lib";
 import {
-  AlertFormHolder,
+  ModalContainer,
   Select,
   createFormAction,
   getSelectOptionsFromIdLabel,
@@ -61,17 +61,20 @@ export function CopySlidesToDeckModal(
   );
 
   return (
-    <AlertFormHolder
-      formId="copy-slides-to-deck"
-      header={t3({
+    <ModalContainer
+      title={t3({
         en: `Copy ${p.slideIds.length} slide(s) to another deck`,
         fr: `Copier ${p.slideIds.length} diapositive(s) vers une autre présentation`,
         pt: `Copiar ${p.slideIds.length} diapositivo(s) para outra apresentação`,
       })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={!targetProductId()}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: !targetProductId(),
+      }]}
     >
       <div class="ui-spy-sm">
         <Select
@@ -98,6 +101,6 @@ export function CopySlidesToDeckModal(
           })}
         </div>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

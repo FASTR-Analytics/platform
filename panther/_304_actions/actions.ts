@@ -4,7 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { type Accessor, createSignal, type JSX } from "solid-js";
-import { ConfirmDeleteForm, openAlert, openComponent } from "./deps.ts";
+import { openAlert, openComponent } from "./deps.ts";
+import { ConfirmDeleteForm } from "./confirm_delete_form.tsx";
 import type { ButtonActionState } from "./deps.ts";
 import type { APIResponseNoData, APIResponseWithData } from "./deps.ts";
 

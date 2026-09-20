@@ -197,27 +197,18 @@ function ExpandedSlideModal(
   return (
     <ModalContainer
       width="2xl"
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Show when={p.onAddToDeck}>
-            {(onAddToDeck) => (
-              <Button
-                outline
-                onClick={() => {
-                  p.close(undefined);
-                  onAddToDeck()();
-                }}
-              >
-                {p.addToDeckLabel}
-              </Button>
-            )}
-          </Show>,
-          <Button onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      actions={p.onAddToDeck === undefined ? [] : [
+        {
+          label: p.addToDeckLabel,
+          onClick: () => {
+            p.close(undefined);
+            p.onAddToDeck?.();
+          },
+          outline: true,
+        },
+      ]}
     >
       <div class="aspect-video overflow-hidden rounded border">
         <PageHolder

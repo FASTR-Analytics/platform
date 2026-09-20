@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { t3 } from "lib";
-import { type AlertComponentProps, Button, ModalContainer } from "panther";
+import { type AlertComponentProps, ModalContainer } from "panther";
 import { onCleanup, onMount } from "solid-js";
 
 type Props = AlertComponentProps<
@@ -89,25 +89,20 @@ export function ReportMarkdownDiff(p: Props) {
           pt: "Alteração proposta",
         })
       }
-      rightButtons={
-        <>
-          <Button
-            intent="danger"
-            outline
-            iconName="x"
-            onClick={() => p.close(false)}
-          >
-            {t3({ en: "Reject", fr: "Rejeter", pt: "Rejeitar" })}
-          </Button>
-          <Button
-            intent="success"
-            iconName="check"
-            onClick={() => p.close(true)}
-          >
-            {t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" })}
-          </Button>
-        </>
-      }
+      actions={[
+        {
+          label: t3({ en: "Reject", fr: "Rejeter", pt: "Rejeitar" }),
+          onClick: () => p.close(false),
+          intent: "danger",
+          outline: true,
+          iconName: "x",
+        },
+        {
+          label: t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" }),
+          onClick: () => p.close(true),
+          iconName: "check",
+        },
+      ]}
     >
       <div ref={parent} />
     </ModalContainer>

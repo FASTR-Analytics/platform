@@ -6,10 +6,9 @@
 import type {
   AnyRow,
   FilterConfig,
-  ProcessedData,
   SortConfig,
   TableColumn,
-  TableGroup,
+  TablePadding,
 } from "./types.ts";
 
 export function compareValues(a: unknown, b: unknown): number {
@@ -48,48 +47,6 @@ export function sortData<T extends AnyRow>(
   });
 
   return sorted;
-}
-
-export function groupData<T extends AnyRow>(
-  data: T[],
-  group: TableGroup<T>,
-  sortConfig: SortConfig | null,
-  columns?: TableColumn<T>[],
-): ProcessedData<T> {
-  const grouped: Record<string, T[]> = {};
-  const groupOrder: string[] = [];
-
-  data.forEach((item) => {
-    const groupKey = group.groupBy(item);
-    if (!grouped[groupKey]) {
-      grouped[groupKey] = [];
-      groupOrder.push(groupKey);
-    }
-    grouped[groupKey].push(item);
-  });
-
-  // Sort within each group if needed
-  if (sortConfig) {
-    const column = columns?.find((c) => c.key === sortConfig.key);
-    const getValue = column?.sortValue ?? ((item: T) => item[sortConfig.key]);
-
-    Object.values(grouped).forEach((items) => {
-      items.sort((a, b) => {
-        const comparison = compareValues(getValue(a), getValue(b));
-        return sortConfig.direction === "asc" ? comparison : -comparison;
-      });
-    });
-  }
-
-  return {
-    isGrouped: true,
-    groups: groupOrder.map((key) => ({
-      key,
-      label: group.label(grouped[key]),
-      items: grouped[key],
-    })),
-    allItems: data,
-  };
 }
 
 export function getFilterValue<T extends AnyRow>(
@@ -141,8 +98,8 @@ export function getCellAlignment(alignH?: string): string {
 }
 
 export function getPaddingClasses(
-  paddingX: "compact" | "normal" | "comfortable",
-  paddingY: "compact" | "normal" | "comfortable",
+  paddingX: TablePadding,
+  paddingY: TablePadding,
 ): { px: string; py: string } {
   const px = paddingX === "compact"
     ? "px-2"

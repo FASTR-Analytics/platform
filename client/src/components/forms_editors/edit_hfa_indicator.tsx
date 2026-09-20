@@ -1,7 +1,7 @@
-import { HFA_INDICATOR_NAME_REGEX, isReservedHfaVarName, type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
+import { type HfaIndicator, type HfaIndicatorCategory, type HfaIndicatorServiceCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   MultiSelect,
   RadioGroup,
@@ -9,7 +9,7 @@ import {
   TextArea,
   createFormAction,
 } from "panther";
-import { createSignal, Match, Switch } from "solid-js";
+import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 export function EditHfaIndicator(
@@ -20,14 +20,12 @@ export function EditHfaIndicator(
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
-      surveyVarNames: string[];
     },
     undefined
   >,
 ) {
   const mode = p.existingIndicator ? "update" : "create";
 
-  const [varName, setVarName] = createSignal(p.existingIndicator?.varName ?? "");
   const [categoryId, setCategoryId] = createSignal<string | null>(p.existingIndicator?.categoryId ?? null);
   const [subCategoryId, setSubCategoryId] = createSignal<string | null>(p.existingIndicator?.subCategoryId ?? null);
   const [serviceCategoryIds, setServiceCategoryIds] = createSignal<string[]>(p.existingIndicator?.serviceCategoryIds ?? []);
@@ -46,48 +44,7 @@ export function EditHfaIndicator(
     async (e: MouseEvent) => {
       e.preventDefault();
 
-      // varName is immutable once created: hfa_indicator_code references it via
-      // a non-cascading FK, so a rename would fail whenever code exists.
-      const trimmedVarName =
-        mode === "create" ? varName().trim() : p.existingIndicator!.varName;
-      if (!trimmedVarName) {
-        return { success: false, err: t3({ en: "Variable name is required", fr: "Le nom de la variable est requis", pt: "O nome da variável é obrigatório" }) };
-      }
-      if (mode === "create") {
-        if (!HFA_INDICATOR_NAME_REGEX.test(trimmedVarName)) {
-          return {
-            success: false,
-            err: t3({
-              en: "Variable name must start with a letter and contain only letters, digits, and underscores (max 64 characters)",
-              fr: "Le nom de la variable doit commencer par une lettre et ne contenir que des lettres, des chiffres et des tirets bas (max 64 caractères)",
-              pt: "O nome da variável deve começar por uma letra e conter apenas letras, dígitos e sublinhados (máx. 64 caracteres)",
-            }),
-          };
-        }
-        if (isReservedHfaVarName(trimmedVarName)) {
-          return {
-            success: false,
-            err: t3({
-              en: `"${trimmedVarName}" is a reserved word (an R function or operator used in indicator code, or a column the analysis script generates). Choose a different name.`,
-              fr: `« ${trimmedVarName} » est un mot réservé (une fonction ou un opérateur R utilisé dans le code des indicateurs, ou une colonne générée par le script d'analyse). Choisissez un autre nom.`,
-              pt: `"${trimmedVarName}" é uma palavra reservada (uma função ou operador R utilizado no código dos indicadores, ou uma coluna gerada pelo script de análise). Escolha um nome diferente.`,
-            }),
-          };
-        }
-        if (p.surveyVarNames.includes(trimmedVarName)) {
-          return {
-            success: false,
-            err: t3({
-              en: `"${trimmedVarName}" is a survey variable name — using it would shadow the dataset column in other indicators' code. Choose a different name.`,
-              fr: `« ${trimmedVarName} » est le nom d'une variable d'enquête — l'utiliser masquerait la colonne du jeu de données dans le code des autres indicateurs. Choisissez un autre nom.`,
-              pt: `"${trimmedVarName}" é o nome de uma variável de inquérito — utilizá-lo ocultaria a coluna do conjunto de dados no código dos outros indicadores. Escolha um nome diferente.`,
-            }),
-          };
-        }
-      }
-
-      const indicator: HfaIndicator = {
-        varName: trimmedVarName,
+      const indicator = {
         categoryId: categoryId(),
         subCategoryId: subCategoryId(),
         serviceCategoryIds: serviceCategoryIds(),
@@ -104,54 +61,31 @@ export function EditHfaIndicator(
       };
 
       if (mode === "create") {
-        return await serverActions.createHfaIndicator({
-          indicator,
-        });
-      } else {
-        return await serverActions.updateHfaIndicator({
-          oldVarName: p.existingIndicator!.varName,
-          indicator,
-        });
+        return await serverActions.createHfaIndicator({ indicator });
       }
+      return await serverActions.updateHfaIndicator({
+        indicator: { indicatorId: p.existingIndicator!.indicatorId, ...indicator },
+      });
     },
     () => p.close(undefined),
   );
 
   return (
-    <AlertFormHolder
-      formId="hfa-indicator-form"
-      header={
+    <ModalContainer
+      title={
         mode === "create"
           ? t3({ en: "Add HFA indicator", fr: "Ajouter un indicateur HFA", pt: "Adicionar indicador HFA" })
           : t3({ en: "Update HFA indicator", fr: "Mettre à jour l'indicateur HFA", pt: "Atualizar indicador HFA" })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
-        <Switch>
-          <Match when={mode === "create"}>
-            <Input
-              label={t3({ en: "Variable name", fr: "Nom de la variable", pt: "Nome da variável" })}
-              value={varName()}
-              onChange={setVarName}
-              fullWidth
-              autoFocus
-              mono
-            />
-          </Match>
-          <Match when={mode === "update"}>
-            <div>
-              <div class="ui-label">
-                {t3({ en: "Variable name", fr: "Nom de la variable", pt: "Nome da variável" })}
-              </div>
-              <div class="ui-form-pad ui-form-text-size font-mono">
-                {varName()}
-              </div>
-            </div>
-          </Match>
-        </Switch>
         <Select
           label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
           value={categoryId() ?? ""}
@@ -217,6 +151,6 @@ export function EditHfaIndicator(
           ]}
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

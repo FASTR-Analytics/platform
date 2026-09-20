@@ -160,7 +160,7 @@ function formatHfaTaxonomyForAI(tax: HfaTaxonomyForAI): string[] {
   lines.push(
     "metric(s) below. Filter / disaggregate with these columns + IDs:",
   );
-  lines.push("  hfa_indicator        → indicator IDs (var names)");
+  lines.push("  hfa_indicator        → indicator ids");
   lines.push("  hfa_category         → category IDs");
   lines.push("  hfa_sub_category     → sub-category IDs");
   lines.push(

@@ -6,7 +6,7 @@ import {
 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -87,16 +87,19 @@ export function EditHfaIndicatorVariantItem(
   );
 
   return (
-    <AlertFormHolder
-      formId="hfa-variant-item-form"
-      header={
+    <ModalContainer
+      title={
         mode === "create"
           ? t3({ en: "Add variant item", fr: "Ajouter un élément de variante", pt: "Adicionar item de variante" })
           : t3({ en: "Update variant item", fr: "Mettre à jour l'élément de variante", pt: "Atualizar item de variante" })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <div class="ui-spy-sm">
@@ -128,6 +131,6 @@ export function EditHfaIndicatorVariantItem(
           </div>
         )}
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

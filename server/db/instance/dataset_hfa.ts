@@ -140,64 +140,62 @@ export async function getDatasetHfaItemsForDisplay(
       ORDER BY sort_order
     `;
 
-    // Variable labels per (time_point, var_name)
-    const dictVarRows = await mainDb<{ time_point: string; var_name: string; var_label: string; var_type: string }[]>`
-      SELECT time_point, var_name, var_label, var_type
+    // Variable labels per (time_point, variable_id)
+    const dictVariableRows = await mainDb<{ time_point: string; variable_id: string; variable_label: string; variable_type: string }[]>`
+      SELECT time_point, variable_id, variable_label, variable_type
       FROM hfa_variables
-      ORDER BY var_name, time_point
+      ORDER BY variable_id, time_point
     `;
 
-    // Questionnaire values per (time_point, var_name): only for select vars
-    const dictValueRows = await mainDb<{ time_point: string; var_name: string; value: string; value_label: string }[]>`
-      SELECT time_point, var_name, value, value_label
+    // Questionnaire values per (time_point, variable_id): only for select variables
+    const dictValueRows = await mainDb<{ time_point: string; variable_id: string; value: string; value_label: string }[]>`
+      SELECT time_point, variable_id, value, value_label
       FROM hfa_variable_values
-      ORDER BY var_name, time_point, value
+      ORDER BY variable_id, time_point, value
     `;
-    // Build map: "tp|var_name" → "1: Yes, 2: No, ..."
+    // Build map: "tp|variable_id" → "1: Yes, 2: No, ..."
     const questionnaireValuesMap = new Map<string, string>();
-    const varsWithChoices = new Set<string>();
     {
       const grouped = new Map<string, string[]>();
       for (const r of dictValueRows) {
-        const key = `${r.time_point}|${r.var_name}`;
+        const key = `${r.time_point}|${r.variable_id}`;
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key)!.push(`${r.value}: ${r.value_label}`);
-        varsWithChoices.add(`${r.time_point}|${r.var_name}`);
       }
       for (const [key, parts] of grouped) {
         questionnaireValuesMap.set(key, parts.join(", "));
       }
     }
 
-    // Counts and missing per (var_name, time_point)
+    // Counts and missing per (variable_id, time_point)
     const statsRows = await mainDb<{
-      var_name: string;
+      variable_id: string;
       time_point: string;
       total_count: string;
       missing_count: string;
     }[]>`
       SELECT
-        var_name,
+        variable_id,
         time_point,
         COUNT(*) AS total_count,
         COUNT(*) FILTER (WHERE value = '') AS missing_count
       FROM hfa_data
-      GROUP BY var_name, time_point
-      ORDER BY var_name, time_point
+      GROUP BY variable_id, time_point
+      ORDER BY variable_id, time_point
     `;
 
     // Distinct data values for ALL variables
-    const dataValueRows = await mainDb<{ time_point: string; var_name: string; value: string }[]>`
-      SELECT DISTINCT d.time_point, d.var_name, d.value
+    const dataValueRows = await mainDb<{ time_point: string; variable_id: string; value: string }[]>`
+      SELECT DISTINCT d.time_point, d.variable_id, d.value
       FROM hfa_data d
       WHERE d.value != ''
-      ORDER BY d.var_name, d.time_point, d.value
+      ORDER BY d.variable_id, d.time_point, d.value
     `;
     const dataValuesMap = new Map<string, string>();
     {
       const grouped = new Map<string, string[]>();
       for (const r of dataValueRows) {
-        const key = `${r.time_point}|${r.var_name}`;
+        const key = `${r.time_point}|${r.variable_id}`;
         if (!grouped.has(key)) grouped.set(key, []);
         grouped.get(key)!.push(r.value);
       }
@@ -219,26 +217,26 @@ export async function getDatasetHfaItemsForDisplay(
     // Build stats lookup
     const statsMap = new Map<string, { count: number; missing: number }>();
     for (const r of statsRows) {
-      const key = `${r.time_point}|${r.var_name}`;
+      const key = `${r.time_point}|${r.variable_id}`;
       statsMap.set(key, {
         count: Number(r.total_count),
         missing: Number(r.missing_count),
       });
     }
 
-    // Build rows: use dictionary vars if available, otherwise fall back to stats
+    // Build rows: use dictionary variables if available, otherwise fall back to stats
     const rows: import("lib").HfaVariableRow[] = [];
 
-    if (dictVarRows.length > 0) {
-      for (const dv of dictVarRows) {
-        const key = `${dv.time_point}|${dv.var_name}`;
+    if (dictVariableRows.length > 0) {
+      for (const dv of dictVariableRows) {
+        const key = `${dv.time_point}|${dv.variable_id}`;
         const stats = statsMap.get(key);
 
         rows.push({
-          varName: dv.var_name,
-          varType: dv.var_type,
+          variableId: dv.variable_id,
+          variableType: dv.variable_type,
           timePoint: dv.time_point,
-          varLabel: dv.var_label,
+          variableLabel: dv.variable_label,
           count: stats?.count ?? 0,
           missing: stats?.missing ?? 0,
           questionnaireValues: questionnaireValuesMap.get(key) ?? "",
@@ -247,12 +245,12 @@ export async function getDatasetHfaItemsForDisplay(
       }
     } else {
       for (const r of statsRows) {
-        const key = `${r.time_point}|${r.var_name}`;
+        const key = `${r.time_point}|${r.variable_id}`;
         rows.push({
-          varName: r.var_name,
-          varType: "",
+          variableId: r.variable_id,
+          variableType: "",
           timePoint: r.time_point,
-          varLabel: r.var_name,
+          variableLabel: r.variable_id,
           count: Number(r.total_count),
           missing: Number(r.missing_count),
           questionnaireValues: "",

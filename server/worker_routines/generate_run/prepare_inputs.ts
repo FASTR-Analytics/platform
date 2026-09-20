@@ -77,7 +77,7 @@ export type PreparedRunInputs = {
   facilitiesTables: { tableName: string; columns: ExportedColumn[] }[];
   // Everything script generation needs.
   scriptInputs: {
-    knownDatasetVariables: Set<string>;
+    knownVariableIds: Set<string>;
     hfaIndicators: HfaIndicator[];
     hfaIndicatorCode: HfaIndicatorCode[];
     // R code is generation-input only, never a package input file (the
@@ -128,7 +128,7 @@ export async function prepareRunInputs(
   const facilitiesTables: { tableName: string; columns: ExportedColumn[] }[] =
     [];
   const scriptInputs: PreparedRunInputs["scriptInputs"] = {
-    knownDatasetVariables: new Set<string>(),
+    knownVariableIds: new Set<string>(),
     hfaIndicators: [],
     hfaIndicatorCode: [],
     hfaVariantCode: [],
@@ -215,8 +215,8 @@ export async function prepareRunInputs(
       tableName: "facilities_hfa",
       columns: FACILITY_PARQUET_COLUMNS,
     });
-    scriptInputs.knownDatasetVariables = new Set(
-      capture.indicatorsHfa.map((r) => r.var_name),
+    scriptInputs.knownVariableIds = new Set(
+      capture.variables.map((r) => r.variable_id),
     );
     // Script generation takes these in category → sub-category → indicator
     // sort order. The order reaches the generated R script (hence the module
@@ -236,23 +236,23 @@ export async function prepareRunInputs(
           (subCategoryOrder.get(a.sub_category_id ?? "") ?? 999999) -
             (subCategoryOrder.get(b.sub_category_id ?? "") ?? 999999) ||
           a.sort_order - b.sort_order ||
-          a.var_name.localeCompare(b.var_name),
+          a.indicator_id.localeCompare(b.indicator_id),
       )
       .map(dbRowToHfaIndicator);
     scriptInputs.hfaIndicatorCode = capture.indicatorCode.map((c) => ({
-      varName: c.var_name,
+      indicatorId: c.indicator_id,
       timePoint: c.time_point,
       rCode: c.r_code,
       rFilterCode: c.r_filter_code ?? undefined,
     }));
     scriptInputs.hfaVariantCode = capture.variantCode.map((c) => ({
-      varName: c.var_name,
+      indicatorId: c.indicator_id,
       timePoint: c.time_point,
       itemId: c.item_id,
       rCode: c.r_code,
     }));
     scriptInputs.hfaSentinelRows = capture.sentinelValues.map((r) => ({
-      varName: r.var_name,
+      variableId: r.variable_id,
       value: r.value,
       sentinelClass: r.sentinel_class,
       isNumeric: r.is_numeric,

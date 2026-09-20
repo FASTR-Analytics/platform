@@ -1,6 +1,5 @@
 import { emailRecipientsSchema, t3, TC } from "lib";
 import {
-  Button,
   EditorComponentProps,
   getTruncatedString,
   ModalContainer,
@@ -144,38 +143,19 @@ export function ShareSlideDeck(
     <ModalContainer
       title={t3({ en: "Share slide deck", fr: "Partager la présentation", pt: "Partilhar apresentação" })}
       width="md"
-      leftButtons={
-        sent()
-          ? // eslint-disable-next-line jsx-key
-            [
-              <Button
-                onClick={() => p.close(undefined)}
-                intent="success"
-                iconName="check"
-              >
-                {t3(TC.done)}
-              </Button>,
+      onCancel={sent() || pct() === 0 ? () => p.close(undefined) : undefined}
+      cancelLabel={sent() ? t3(TC.done) : t3(TC.cancel)}
+      actions={[
+        ...(!sent() && pct() === 0
+          ? [
+              {
+                label: `${t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })} (${allRecipients().length})`,
+                onClick: handleSend,
+                iconName: "arrowRight" as const,
+              },
             ]
-          : pct() > 0
-            ? undefined
-            : // eslint-disable-next-line jsx-key
-              [
-                <Button
-                  onClick={handleSend}
-                  intent="success"
-                  iconName="arrowRight"
-                >
-                  {t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })} ({allRecipients().length})
-                </Button>,
-                <Button
-                  onClick={() => p.close(undefined)}
-                  intent="neutral"
-                  iconName="x"
-                >
-                  {t3(TC.cancel)}
-                </Button>,
-              ]
-      }
+          : []),
+      ]}
     >
       <Show when={sent()}>
         <div class="text-success py-4 text-center">

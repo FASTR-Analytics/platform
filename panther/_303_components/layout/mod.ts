@@ -6,6 +6,5 @@
 export * from "./collapsible_section.tsx";
 export * from "./frames.tsx";
 export * from "./heading_bar.tsx";
-export * from "./size_measurer.tsx";
 export * from "./stepper/mod.ts";
 export * from "./tabs/mod.ts";

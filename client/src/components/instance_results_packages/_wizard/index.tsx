@@ -1,7 +1,6 @@
 import {
   getMergedModuleConfigSelections,
   t3,
-  TC,
   type DatasetType,
   type ModuleId,
   type RunGenerationDefaults,
@@ -10,10 +9,8 @@ import {
 } from "lib";
 import {
   AlertComponentProps,
-  Button,
   LoadingIndicator,
   ModalContainer,
-  StateHolderFormError,
   StateHolderWrapper,
   StepperChipsWithTitles,
   createFormAction,
@@ -25,9 +22,10 @@ import { createStore, unwrap } from "solid-js/store";
 import { getModuleParameterInvalidMsg } from "~/components/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { freeRunLabel, isRunLabelTaken } from "./_label";
 import { buildModuleGraph, familiesOf, isOfferable } from "./_module_graph";
 import { StepConfirm } from "./_step_confirm";
-import { StepData } from "./_step_data";
+import { StepData, type FamilyBlockedReason } from "./_step_data";
 import { StepModules } from "./_step_modules";
 
 type StepKind = "data" | "modules" | "confirm";
@@ -94,11 +92,7 @@ export function ResultsPackageWizard(
           topPanel={
             <div class="ui-text-heading leading-none">{t3(HEADING)}</div>
           }
-          rightButtons={
-            <Button onClick={() => p.close(undefined)} outline>
-              {t3(TC.cancel)}
-            </Button>
-          }
+          onCancel={() => p.close(undefined)}
         >
           <div class="text-danger">{err}</div>
         </ModalContainer>
@@ -124,15 +118,22 @@ type InnerProps = {
 function WizardInner(p: InnerProps) {
   const graph = buildModuleGraph(p.options);
 
-  // Step 1: data. Seed: instance defaults, masked by what is uploaded.
-  const available = (family: DatasetType): boolean => {
-    if (!instanceState.datasetsWithData.includes(family)) {
-      return false;
+  // Step 1: data. Seed: instance defaults, masked by what is uploaded and,
+  // for HMIS, by a running import (the launch guard's client half).
+  const blocked = (family: DatasetType): FamilyBlockedReason | undefined => {
+    if (
+      !instanceState.datasetsWithData.includes(family) ||
+      (family === "hmis" && instanceState.datasetVersions.hmis === undefined)
+    ) {
+      return "no_data";
     }
-    return (
-      family !== "hmis" || instanceState.datasetVersions.hmis !== undefined
-    );
+    if (family === "hmis" && instanceState.hmisImportRunActive) {
+      return "hmis_import_running";
+    }
+    return undefined;
   };
+  const available = (family: DatasetType): boolean =>
+    blocked(family) === undefined;
   const [families, setFamilies] = createStore<RunGenerationStep1Result>({
     hmis: p.defaults.step1?.hmis === true && available("hmis"),
     hfa: p.defaults.step1?.hfa === true && available("hfa"),
@@ -145,15 +146,14 @@ function WizardInner(p: InnerProps) {
   // Deriving the closure at read time is what keeps the launch payload
   // closed under prerequisites whatever order families and ticks change in:
   // a ticked module whose family is dropped simply falls out (and comes
-  // back with the family). Seed: instance defaults. Parameter values:
-  // instance defaults beat definition defaults
-  // (getMergedModuleConfigSelections).
+  // back with the family). Seed: instance defaults. Parameter values are
+  // not editable in the wizard: the module-defaults editor is their only
+  // writer, so they are a plain constant here, instance defaults beating
+  // definition defaults (getMergedModuleConfigSelections).
   const [selected, setSelected] = createStore<Record<string, boolean>>(
     Object.fromEntries(p.defaults.moduleIds.map((id) => [id, true])),
   );
-  const [paramValues, setParamValues] = createStore<
-    Record<string, Record<string, string>>
-  >(
+  const paramValues: Record<string, Record<string, string>> =
     Object.fromEntries(
       p.options.modules.map((o) => [
         o.id,
@@ -165,8 +165,7 @@ function WizardInner(p: InnerProps) {
           { parameters: o.parameters },
         ).parameterSelections,
       ]),
-    ),
-  );
+    );
   const chosenIds = createMemo((): Set<ModuleId> => {
     const familySet = familiesOf(families);
     const ids = new Set<ModuleId>();
@@ -182,30 +181,35 @@ function WizardInner(p: InnerProps) {
   const chosen = createMemo(() =>
     p.options.modules.filter((o) => chosenIds().has(o.id)),
   );
-  const chosenParamsValid = createMemo(() =>
-    chosen().every((o) =>
-      o.parameters.every(
-        (param) =>
-          getModuleParameterInvalidMsg(
-            param,
-            paramValues[o.id][param.replacementString],
-          ) === undefined,
-      ),
-    ),
+  const invalidDefaultLabels = createMemo(() =>
+    chosen()
+      .filter((o) =>
+        o.parameters.some(
+          (param) =>
+            getModuleParameterInvalidMsg(
+              param,
+              paramValues[o.id][param.replacementString],
+            ) !== undefined,
+        ),
+      )
+      .map((o) => o.label),
   );
 
   // Step 3: confirm.
   const [label, setLabel] = createSignal(
-    `${t3({
-      en: "Results package",
-      fr: "Paquet de résultats",
-      pt: "Pacote de resultados",
-    })} ${new Date().toISOString().slice(0, 10)}`,
+    freeRunLabel(
+      `${t3({
+        en: "Results package",
+        fr: "Paquet de résultats",
+        pt: "Pacote de resultados",
+      })} ${new Date().toISOString().slice(0, 10)}`,
+      instanceState.runsCatalog,
+    ),
   );
 
   const stepperData = createMemo(() => ({
     dataValid: families.hmis || families.hfa || families.iceh,
-    modulesValid: chosen().length > 0 && chosenParamsValid(),
+    modulesValid: chosen().length > 0 && invalidDefaultLabels().length === 0,
   }));
   const stepper = getStepper(stepperData, {
     initialStep: 0,
@@ -247,7 +251,16 @@ function WizardInner(p: InnerProps) {
           }),
         };
       }
-      const values = unwrap(paramValues);
+      if (isRunLabelTaken(trimmed, instanceState.runsCatalog)) {
+        return {
+          success: false,
+          err: t3({
+            en: "A results package with this label already exists",
+            fr: "Un paquet de résultats portant ce libellé existe déjà",
+            pt: "Já existe um pacote de resultados com este rótulo",
+          }),
+        };
+      }
       return await serverActions.launchRunGeneration({
         label: trimmed,
         step1Result: { ...unwrap(families) },
@@ -255,7 +268,7 @@ function WizardInner(p: InnerProps) {
           gitRef: p.options.gitRef,
           modules: chosen().map((o) => ({
             moduleId: o.id,
-            parameterSelections: { ...values[o.id] },
+            parameterSelections: { ...paramValues[o.id] },
           })),
         },
       });
@@ -275,47 +288,44 @@ function WizardInner(p: InnerProps) {
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
       }
-      leftButtons={
-        <Show when={stepper.currentStep() > 0}>
-          <Button onClick={stepper.goPrev} outline>
-            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
-          </Button>
-        </Show>
-      }
-      rightButtons={
-        <>
-          <Button onClick={() => p.close(undefined)} outline>
-            {t3(TC.cancel)}
-          </Button>
-          <Show
-            when={isLastStep()}
-            fallback={
-              <Button onClick={stepper.goNext} disabled={!stepper.canGoNext()}>
-                {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-              </Button>
-            }
-          >
-            <Button
-              onClick={launch.click}
-              state={launch.state()}
-              intent="success"
-              iconName="check"
-            >
-              {t3({
-                en: "Launch generation",
-                fr: "Lancer la génération",
-                pt: "Iniciar a geração",
-              })}
-            </Button>
-          </Show>
-        </>
-      }
+      onCancel={() => p.close(undefined)}
+      actions={[
+        ...(stepper.currentStep() > 0
+          ? [
+              {
+                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+                onClick: stepper.goPrev,
+                outline: true,
+              },
+            ]
+          : []),
+        ...(isLastStep()
+          ? [
+              {
+                label: t3({
+                  en: "Launch generation",
+                  fr: "Lancer la génération",
+                  pt: "Iniciar a geração",
+                }),
+                onClick: launch.click,
+                state: launch.state(),
+                iconName: "check" as const,
+              },
+            ]
+          : [
+              {
+                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+                onClick: stepper.goNext,
+                disabled: !stepper.canGoNext(),
+              },
+            ]),
+      ]}
     >
       <div class="min-h-96">
         <Show when={currentStepKind() === "data"}>
           <StepData
             families={families}
-            available={available}
+            blocked={blocked}
             setFamily={setFamilies}
           />
         </Show>
@@ -325,9 +335,8 @@ function WizardInner(p: InnerProps) {
             graph={graph}
             families={families}
             chosenIds={chosenIds()}
-            paramValues={paramValues}
+            invalidDefaultLabels={invalidDefaultLabels()}
             setSelected={setSelected}
-            setParam={setParamValues}
           />
         </Show>
         <Show when={currentStepKind() === "confirm"}>
@@ -337,7 +346,6 @@ function WizardInner(p: InnerProps) {
             label={label()}
             setLabel={setLabel}
           />
-          <StateHolderFormError state={launch.state()} />
         </Show>
       </div>
     </ModalContainer>

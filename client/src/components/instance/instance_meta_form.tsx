@@ -1,6 +1,5 @@
 import { t3, TC } from "lib";
 import {
-  Button,
   ModalContainer,
   Card,
   StateHolderWrapper,
@@ -42,14 +41,8 @@ export function InstanceMetaForm(p: AlertComponentProps<{}, undefined>) {
         pt: "Informações da instância",
       })}
       width="lg"
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button onClick={() => p.close(undefined)} iconName="x">
-            {t3(TC.done)}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3(TC.done)}
     >
       <StateHolderWrapper state={instanceMeta.state()} noPad>
         {(keyedMeta) => {

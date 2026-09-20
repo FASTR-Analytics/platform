@@ -18,6 +18,9 @@
 //   1. inputs/indicators.json: rows whose `type` is "derived" read
 //      "calculated" (manifest v10, stamped by manifest block 8): the formula
 //      indicator type's rename.
+//   2. inputs/hfa_indicators_snapshot.json: the `var_name` key reads
+//      `indicator_id` (manifest v11, stamped by manifest block 9): the HFA
+//      indicator id's rename (PLAN_HFA_ID_VOCABULARY).
 //
 // =============================================================================
 
@@ -59,6 +62,14 @@ export async function transformRunInputs(
   //    with none is left unwritten by the byte guard below.
   for (const row of await mirrors.rows("indicators.json")) {
     if (row.type === "derived") row.type = "calculated";
+  }
+
+  // 2. hfa_indicators_snapshot.json `var_name` → `indicator_id` (manifest
+  //    v11, stamped by manifest block 9): the HFA indicator id's rename. The
+  //    key keeps its position, so a rewritten mirror is byte-identical to one
+  //    a fresh capture writes. A row already carrying the new key is untouched.
+  for (const row of await mirrors.rows("hfa_indicators_snapshot.json")) {
+    renameKeyInPlace(row, "var_name", "indicator_id");
   }
 
   return mirrors.pendingWrites();
@@ -125,4 +136,18 @@ class MirrorSet {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+// Renames a key without moving it: the row is rebuilt in its own key order,
+// so the serialized mirror matches what the writer produces from a fresh
+// capture. A row without `from`, or already carrying `to`, is left alone.
+function renameKeyInPlace(
+  row: Record<string, unknown>,
+  from: string,
+  to: string,
+): void {
+  if (!(from in row) || to in row) return;
+  const entries = Object.entries(row);
+  for (const key of Object.keys(row)) delete row[key];
+  for (const [key, value] of entries) row[key === from ? to : key] = value;
 }

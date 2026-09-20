@@ -8,22 +8,18 @@ import type { ListItem } from "../list_selection/list_item_types.ts";
 import type { Intent } from "../types.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { IconRenderer } from "./icon_renderer.tsx";
+import { Field } from "./field.tsx";
 
-// Button group item classes composed from utility classes and component classes
+// Both arms take their surface and states from the hoverable family (added
+// per arm in classList): selected = the item's intent (+ ui-fill skin),
+// unselected = the declared onBackground token (quiet interactive of that
+// surface).
 function getButtonGroupItemClasses(size?: "sm") {
   return [
-    // Component classes (defined in CSS). Both arms take their surface +
-    // states from the hoverable family (added per-arm in classList):
-    // selected = the item's intent (+ ui-fill skin), unselected = the
-    // declared onBackground token (quiet interactive of that surface).
     "ui-focusable",
-
-    // Form utilities
     size === "sm" ? "ui-form-pad-sm" : "ui-form-pad",
     size === "sm" ? "ui-form-text-size-sm" : "ui-form-text-size",
     "font-400",
-
-    // Layout and appearance
     "inline-flex",
     "cursor-pointer",
     "select-none",
@@ -33,8 +29,6 @@ function getButtonGroupItemClasses(size?: "sm") {
     "gap-[0.5em]",
     "border-y",
     "border-r",
-
-    // Conditional styles
     "data-[first=true]:rounded-l",
     "data-[last=true]:rounded-r",
     "data-[first=true]:border-l",
@@ -66,10 +60,7 @@ export function ButtonGroup<T extends string, M = never>(
 ) {
   const [dataAttrs] = splitDataAttrs(p);
   return (
-    <div {...dataAttrs} class="">
-      <Show when={p.label}>
-        <label class="ui-label block">{p.label}</label>
-      </Show>
+    <Field {...dataAttrs} label={p.label} fullWidth={p.fullWidth}>
       <div
         class="inline-grid auto-cols-fr grid-flow-col data-[width=true]:w-full"
         data-width={p.fullWidth}
@@ -131,6 +122,6 @@ export function ButtonGroup<T extends string, M = never>(
           }}
         </For>
       </div>
-    </div>
+    </Field>
   );
 }

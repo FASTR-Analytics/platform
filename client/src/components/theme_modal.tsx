@@ -129,16 +129,15 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
         fr: "S'applique uniquement à cet appareil. Les figures conservent leurs couleurs fixes.",
         pt: "Aplica-se apenas a este dispositivo. As figuras mantêm as suas cores fixas.",
       })}
-      leftButtons={
+      footer={
         <Button outline onClick={() => setTheme(DEFAULT_THEME)}>
           {t3({ en: "Reset", fr: "Réinitialiser", pt: "Repor" })}
         </Button>
       }
-      rightButtons={
-        <Button onClick={() => p.close(undefined)}>
-          {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-        </Button>
-      }
+      actions={[{
+        label: t3({ en: "Done", fr: "Terminé", pt: "Concluído" }),
+        onClick: () => p.close(undefined),
+      }]}
     >
       <div class="ui-spy">
         <ButtonGroup

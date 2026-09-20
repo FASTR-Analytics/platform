@@ -19,10 +19,10 @@ export type DatasetHfaDetail = {
 };
 
 export type HfaVariableRow = {
-  varName: string;
-  varType: string;
+  variableId: string;
+  variableType: string;
   timePoint: string;
-  varLabel: string;
+  variableLabel: string;
   count: number;
   missing: number;
   questionnaireValues: string;

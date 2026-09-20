@@ -9,6 +9,6 @@ export type {
   FilterConfig,
   SortConfig,
   TableColumn,
-  TableGroup,
+  TablePadding,
   TableProps,
 } from "./types.ts";

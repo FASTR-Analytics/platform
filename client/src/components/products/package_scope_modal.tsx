@@ -6,7 +6,7 @@ import {
   type ProductSummary,
 } from "lib";
 import {
-  AlertFormHolder,
+  ModalContainer,
   Callout,
   Select,
   createFormAction,
@@ -135,16 +135,19 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="package-scope"
-      header={t3({
+    <ModalContainer
+      title={t3({
         en: "Results package and scope",
         fr: "Paquet de résultats et portée",
         pt: "Pacote de resultados e âmbito",
       })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy-sm">
         <Select
@@ -171,6 +174,6 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
           )}
         </Show>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

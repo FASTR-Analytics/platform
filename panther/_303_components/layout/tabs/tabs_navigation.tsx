@@ -8,9 +8,9 @@ import { IconRenderer } from "../../form_inputs/icon_renderer.tsx";
 import { Tooltip } from "../../special_state/tooltip.tsx";
 import { Badge } from "../../display/badge.tsx";
 import { Button } from "../../form_inputs/mod.ts";
-import type { Intent } from "../../types.ts";
 import { type DataAttrs, splitDataAttrs } from "../../data_attrs.ts";
 import type { ListItem } from "../../list_selection/list_item_types.ts";
+import { intentDotClass } from "../../_internal/intent_classes.ts";
 
 type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   items: ListItem<T, M>[];
@@ -118,26 +118,6 @@ export function TabsNavigation<T extends string = string, M = never>(
       }`
       : "flex-1 overflow-y-auto";
 
-  const getDotClasses = (intent: Intent) => {
-    const base = "h-2 w-2 rounded-full flex-none";
-    switch (intent) {
-      case "primary":
-        return `${base} bg-primary`;
-      case "success":
-        return `${base} bg-success`;
-      case "warning":
-        return `${base} bg-warning`;
-      case "danger":
-        return `${base} bg-danger`;
-      case "neutral":
-        return `${base} bg-neutral`;
-      case "base-content":
-        return `${base} bg-base-content`;
-      case "base-100":
-        return `${base} bg-base-100`;
-    }
-  };
-
   const renderTabContent = (item: ListItem<T, M>) => {
     const badge = item.badge;
     const dot = item.dot;
@@ -149,7 +129,7 @@ export function TabsNavigation<T extends string = string, M = never>(
           <IconRenderer iconName={icon ?? "chevronRight"} />
           <Show when={dot}>
             <span
-              class={`${getDotClasses(dot!)} absolute -right-2 -top-1`}
+              class={`${intentDotClass(dot!)} absolute -right-2 -top-1`}
             />
           </Show>
         </span>
@@ -175,7 +155,7 @@ export function TabsNavigation<T extends string = string, M = never>(
           </span>
         </Show>
         <Show when={dot}>
-          <span class={getDotClasses(dot!)} />
+          <span class={intentDotClass(dot!)} />
         </Show>
       </>
     );

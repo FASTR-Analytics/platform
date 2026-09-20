@@ -160,13 +160,14 @@ export async function hasRunningDatasetHmisImportRun(
 // CSV staging/integration and windowed deletion call this before claiming:
 // a run integrates per-pair transactions that mint version ids, so any
 // concurrent version-id writer risks the MAX(id)+1 collision.
+export const HMIS_IMPORT_RUN_IN_PROGRESS_MSG =
+  "A DHIS2 import run is in progress. Please wait for it to complete or cancel it.";
+
 export async function assertNoRunningDatasetHmisImportRun(
   mainDb: Sql,
 ): Promise<void> {
   if (await hasRunningDatasetHmisImportRun(mainDb)) {
-    throw new Error(
-      "A DHIS2 import run is in progress. Please wait for it to complete or cancel it.",
-    );
+    throw new Error(HMIS_IMPORT_RUN_IN_PROGRESS_MSG);
   }
 }
 

@@ -52,7 +52,10 @@ import {
 // 11: datasets[].info carries only the keys lib/types/run_datasets.ts names:
 // the pre-1.72 HMIS stamp pair renamed `indicatorsVersion` /
 // `countIndicatorsVersion`, the keys nothing reads dropped. Block 9.
-export const RUN_MANIFEST_SCHEMA_VERSION = 11;
+// 12: the hfa_indicators_snapshot mirror's rows carry `indicator_id` instead
+// of `var_name` (input block 2, PLAN_HFA_ID_VOCABULARY); the manifest's own
+// shape is unchanged and block 10 only stamps.
+export const RUN_MANIFEST_SCHEMA_VERSION = 12;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([

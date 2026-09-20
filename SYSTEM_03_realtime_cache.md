@@ -320,7 +320,7 @@ products on the same run and scope share entries.
 | `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)\|scopeToken`   | `PO_CACHE_VERSION`                     |
 | `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId::scopeToken`                               | `PO_CACHE_VERSION`                     |
 | `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)::scopeToken` | `PO_CACHE_VERSION`                     |
-| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa`         | constant `"hfa"` (instance-wide singleton)                  | `computeHfaCacheHash(hfa_time_points)` |
+| `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa_v2`      | constant `"hfa"` (instance-wide singleton)                  | `computeHfaCacheHash(hfa_time_points)` |
 
 Two key separators are live: `\|` (po_items) and `::` (metric_info,
 replicant_opts). There is no HMIS display cache (`ds_hmis`/`ds_hmis_v2`);
@@ -425,8 +425,9 @@ bump.
   two computations of one key, the duplication the "Rules" lockstep line
   exists to kill, here spanning route and db.
 - Cross-deploy payload-shape handling is per-cache and partial:
-  `PO_CACHE_VERSION` covers the three run-keyed caches, `ds_hfa` has none.
-  Fold a deploy/build version into `versionHash` generically, or document the
+  `PO_CACHE_VERSION` covers the three run-keyed caches, `ds_hfa` uses a
+  prefix bump (`ds_hfa_v2`, PLAN_HFA_ID_VOCABULARY step 2). Fold a
+  deploy/build version into `versionHash` generically, or document the
   per-cache choice.
 - `RequestQueue` is an identical class copy-pasted into
   `client/src/state/_infra/` and `server/utils/`. Move one copy to `lib/`.

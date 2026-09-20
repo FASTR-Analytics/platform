@@ -1,7 +1,6 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
-  Button,
   ModalContainer,
   TabsNavigation,
   type ListItem,
@@ -10,7 +9,7 @@ import { For, Show, createSignal } from "solid-js";
 
 export type UnusedVariablesByTimePoint = {
   timePoint: string;
-  unused: { varName: string; varLabel: string }[];
+  unused: { variableId: string; variableLabel: string }[];
 };
 
 type Props = {
@@ -42,16 +41,8 @@ export function HfaUnusedVariablesModal(
         pt: "Variáveis não utilizadas",
       })}
       width="lg"
-      leftButtons={[
-        // eslint-disable-next-line jsx-key
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-        >
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>,
-      ]}
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <Show
         when={p.timePoints.length > 0}
@@ -88,10 +79,10 @@ export function HfaUnusedVariablesModal(
               <For each={activeUnused()}>
                 {(v) => (
                   <div class="ui-gap-sm flex items-baseline border-b pb-2">
-                    <span class="font-mono">{v.varName}</span>
-                    <Show when={v.varLabel}>
+                    <span class="font-mono">{v.variableId}</span>
+                    <Show when={v.variableLabel}>
                       <span class="text-base-content-muted flex-1 truncate">
-                        {v.varLabel}
+                        {v.variableLabel}
                       </span>
                     </Show>
                   </div>

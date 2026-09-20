@@ -1,7 +1,7 @@
 import { APIResponseNoData, APIResponseWithData, t3, TC } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
   TextArea,
@@ -51,12 +51,15 @@ export function EditLabelForm(
       );
 
   return (
-    <AlertFormHolder
-      formId="edit-label"
-      header={p.headerText}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={p.headerText}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <Switch>
         <Match when={!p.textArea}>
@@ -79,6 +82,6 @@ export function EditLabelForm(
           />
         </Match>
       </Switch>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

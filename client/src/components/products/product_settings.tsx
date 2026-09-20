@@ -1,6 +1,6 @@
 import { t3, TC, type ProductSummary } from "lib";
 import {
-  AlertFormHolder,
+  ModalContainer,
   Input,
   Select,
   createFormAction,
@@ -77,12 +77,15 @@ export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="product-settings"
-      header={t3(TC.settings)}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3(TC.settings)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy-sm">
         <Input
@@ -100,6 +103,6 @@ export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
           fullWidth
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

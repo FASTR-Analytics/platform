@@ -111,9 +111,9 @@ export type DatasetHfaCsvStagingResult = {
   nDedupOverridesApplied: number;
   nRowsTotal: number;
   timePoint: string;
-  nDictionaryVars: number;
+  nDictionaryVariables: number;
   nDictionaryValues: number;
-  nXlsFormVarsNotInCsv: number;
+  nXlsFormQuestionsNotInCsv: number;
   nCsvColsNotInXlsForm: number;
   nSelectMultipleExpanded: number;
 };

@@ -31,7 +31,7 @@ export type HfaIndicatorVariantItem = {
 };
 
 export type HfaIndicator = {
-  varName: string;
+  indicatorId: string;
   categoryId: string | null;
   subCategoryId: string | null;
   serviceCategoryIds: string[];
@@ -46,7 +46,7 @@ export type HfaIndicator = {
 };
 
 export type HfaIndicatorCode = {
-  varName: string;
+  indicatorId: string;
   timePoint: string;
   rCode: string;
   rFilterCode?: string | undefined;
@@ -56,7 +56,7 @@ export type HfaIndicatorCode = {
 // per-item slot: `rFilterCode` on the parent's HfaIndicatorCode row is shared
 // by all items of that (indicator, time_point).
 export type HfaIndicatorVariantCode = {
-  varName: string;
+  indicatorId: string;
   timePoint: string;
   itemId: string;
   rCode: string;
@@ -112,7 +112,7 @@ export type HfaWorkbookImport = {
   variantGroups: { id: string; label: string }[];
   variantItems: { id: string; groupId: string; label: string }[];
   indicators: {
-    varName: string;
+    indicatorId: string;
     categoryId: string | null;
     subCategoryId: string | null;
     serviceCategoryIds: string[];
@@ -129,7 +129,7 @@ export type HfaWorkbookImport = {
 
 export type HfaWorkbookImportResult = {
   imported: number;
-  // Add mode only: varNames present in the workbook that already exist on the
+  // Add mode only: indicator ids present in the workbook that already exist on the
   // platform and were therefore left untouched.
   skippedExisting: string[];
 };
@@ -137,7 +137,7 @@ export type HfaWorkbookImportResult = {
 export type HfaDictionaryForValidation = {
   timePoints: {
     timePoint: string;
-    vars: { varName: string; varLabel: string; varType: string }[];
-    values: { varName: string; value: string; valueLabel: string }[];
+    variables: { variableId: string; variableLabel: string; variableType: string }[];
+    values: { variableId: string; value: string; valueLabel: string }[];
   }[];
 };

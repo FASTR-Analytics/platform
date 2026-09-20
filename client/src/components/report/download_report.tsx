@@ -1,6 +1,5 @@
 import { t3, TC } from "lib";
 import {
-  Button,
   EditorComponentProps,
   ModalContainer,
   RadioGroup,
@@ -48,27 +47,19 @@ export function DownloadReport(
     <ModalContainer
       title={t3({ en: "Download report", fr: "Télécharger le rapport", pt: "Transferir relatório" })}
       width="sm"
-      leftButtons={
-        pct() > 0
-          ? undefined
-          : // eslint-disable-next-line jsx-key
-            [
-              <Button
-                onClick={attemptExport}
-                intent="success"
-                iconName="download"
-              >
-                {t3(TC.download)}
-              </Button>,
-              <Button
-                onClick={() => p.close(undefined)}
-                intent="neutral"
-                iconName="x"
-              >
-                {t3(TC.done)}
-              </Button>,
-            ]
-      }
+      onCancel={pct() > 0 ? undefined : () => p.close(undefined)}
+      cancelLabel={t3(TC.done)}
+      actions={[
+        ...(pct() > 0
+          ? []
+          : [
+              {
+                label: t3(TC.download),
+                onClick: attemptExport,
+                iconName: "download" as const,
+              },
+            ]),
+      ]}
     >
       <div class="ui-spy-sm">
         <RadioGroup

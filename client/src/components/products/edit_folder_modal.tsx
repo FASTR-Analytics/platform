@@ -1,6 +1,6 @@
 import { t3, type Folder } from "lib";
 import {
-  AlertFormHolder,
+  ModalContainer,
   ColorPicker,
   Input,
   createFormAction,
@@ -65,9 +65,8 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="edit-folder"
-      header={
+    <ModalContainer
+      title={
         isCreate
           ? t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })
           : t3({
@@ -76,9 +75,13 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
               pt: "Editar pasta",
             })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-gap flex">
         <Input
@@ -99,6 +102,6 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
           position="right"
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

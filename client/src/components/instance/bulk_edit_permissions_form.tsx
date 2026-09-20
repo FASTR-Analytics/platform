@@ -1,8 +1,6 @@
 import {
   AlertComponentProps,
-  Button,
   ModalContainer,
-  StateHolderFormError,
   createFormAction,
 } from "panther";
 import { For } from "solid-js";
@@ -56,24 +54,15 @@ export function BulkEditPermissionsForm(
     <ModalContainer
       width="sm"
       title={t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}`, pt: `Editar permissões para ${userCount} utilizador${userCount === 1 ? "" : "es"}` })}
-      leftButtons={[
-        <Button
-          onClick={save.click}
-          intent="success"
-          state={save.state()}
-          iconName="save"
-        >
-          {t3(TC.save)}
-        </Button>,
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-          outline
-        >
-          {t3(TC.cancel)}
-        </Button>,
+      actions={[
+        {
+          label: t3(TC.save),
+          onClick: save.click,
+          state: save.state(),
+          iconName: "save",
+        },
       ]}
+      onCancel={() => p.close(undefined)}
     >
       <div class="space-y-1">
         <div class="ui-text-caption mb-2">
@@ -89,7 +78,6 @@ export function BulkEditPermissionsForm(
           )}
         </For>
       </div>
-      <StateHolderFormError state={save.state()} />
     </ModalContainer>
   );
 }

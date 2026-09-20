@@ -98,21 +98,20 @@ export function ProfileForm(
     <ModalContainer
       title={t3({ en: "Your profile", fr: "Votre profil", pt: "O seu perfil" })}
       width="lg"
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button onClick={() => p.close(undefined)} iconName="x">
-            {t3(TC.done)}
-          </Button>,
-          <Button onClick={p.attemptSignOut} outline iconName="arrowLeft">
-            {t3({
-              en: "Sign out",
-              fr: "Se déconnecter",
-              pt: "Terminar sessão",
-            })}
-          </Button>,
-        ]
-      }
+      actions={[
+        {
+          label: t3({
+            en: "Sign out",
+            fr: "Se déconnecter",
+            pt: "Terminar sessão",
+          }),
+          onClick: p.attemptSignOut,
+          outline: true,
+          iconName: "arrowLeft",
+        },
+      ]}
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3(TC.done)}
     >
       <StateHolderWrapper state={userDetails.state()} noPad>
         {(keyedUser) => {

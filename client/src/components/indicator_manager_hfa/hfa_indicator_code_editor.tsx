@@ -2,6 +2,7 @@ import {
   t3,
   type APIResponseNoData,
   type HfaDictionaryForValidation,
+  composeHfaIndicatorLabel,
   type HfaIndicator,
   type HfaIndicatorCategory,
   type HfaIndicatorServiceCategory,
@@ -67,7 +68,7 @@ export function HfaIndicatorCodeEditor(
     {
       indicator: HfaIndicator;
       dictionary: HfaDictionaryForValidation;
-      allIndicatorVarNames: string[];
+      indicators: HfaIndicator[];
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
       serviceCategories: HfaIndicatorServiceCategory[];
@@ -80,13 +81,13 @@ export function HfaIndicatorCodeEditor(
   >,
 ) {
   const codeQuery = createQuery(
-    () => serverActions.getHfaIndicatorCode({ varName: p.indicator.varName }),
+    () => serverActions.getHfaIndicatorCode({ indicatorId: p.indicator.indicatorId }),
     t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
   );
   const variantCodeQuery = createQuery(
     () =>
       serverActions.getHfaIndicatorVariantCode({
-        varName: p.indicator.varName,
+        indicatorId: p.indicator.indicatorId,
       }),
     t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
   );
@@ -142,8 +143,8 @@ export function HfaIndicatorCodeEditor(
               </Show>
             </div>
           }
-          heading={<span class="font-mono">{p.indicator.varName}</span>}
-          subheading={p.indicator.definition}
+          heading={composeHfaIndicatorLabel(p.indicator, "compact")}
+          subheading={p.indicator.shortLabel.trim() ? p.indicator.definition : undefined}
         >
           <Show when={!p.showAi()}>
             <Button iconName="chevronLeft" outline onClick={p.openAi}>
@@ -160,7 +161,7 @@ export function HfaIndicatorCodeEditor(
               <EditorInner
                 indicator={p.indicator}
                 dictionary={p.dictionary}
-                allIndicatorVarNames={p.allIndicatorVarNames}
+                indicators={p.indicators}
                 categories={p.categories}
                 subCategories={p.subCategories}
                 serviceCategories={p.serviceCategories}
@@ -184,7 +185,7 @@ export function HfaIndicatorCodeEditor(
 function EditorInner(p: {
   indicator: HfaIndicator;
   dictionary: HfaDictionaryForValidation;
-  allIndicatorVarNames: string[];
+  indicators: HfaIndicator[];
   categories: HfaIndicatorCategory[];
   subCategories: HfaIndicatorSubCategory[];
   serviceCategories: HfaIndicatorServiceCategory[];
@@ -240,14 +241,15 @@ function EditorInner(p: {
     p.dictionary.timePoints[0]?.timePoint ?? "",
   );
 
-  const [varSearch, setVarSearch] = createSignal("");
+  const [variableSearch, setVariableSearch] = createSignal("");
 
-  const otherIndicatorVarNames = new Set(
-    p.allIndicatorVarNames.filter((v) => v !== p.indicator.varName),
+  const otherIndicators = p.indicators.filter(
+    (i) => i.indicatorId !== p.indicator.indicatorId,
   );
+  const otherIndicatorIds = new Set(otherIndicators.map((i) => i.indicatorId));
   // Variant snippets may legitimately reference their own parent indicator
   // (e.g. `vacc == 1 & q12 == 2`), so their validation set includes it.
-  const allIndicatorVarNamesInclSelf = new Set(p.allIndicatorVarNames);
+  const allIndicatorIdsInclSelf = new Set(p.indicators.map((i) => i.indicatorId));
 
   const currentTpIndex = () =>
     state.code.findIndex((c) => c.timePoint === selectedTimePoint());
@@ -255,10 +257,10 @@ function EditorInner(p: {
   const currentTpDict = () =>
     p.dictionary.timePoints.find((tp) => tp.timePoint === selectedTimePoint());
 
-  const valuesForVar = (varName: string) => {
+  const valuesForVariable = (variableId: string) => {
     const dict = currentTpDict();
     if (!dict) return [];
-    return dict.values.filter((v) => v.varName === varName);
+    return dict.values.filter((v) => v.variableId === variableId);
   };
 
   const roundsConsistency = () => {
@@ -295,17 +297,17 @@ function EditorInner(p: {
     markDirty();
   }
 
-  const availableVarNames = () => {
+  const availableVariableIds = () => {
     const dict = currentTpDict();
     if (!dict) return new Set<string>();
-    return new Set(dict.vars.map((v) => v.varName));
+    return new Set(dict.variables.map((v) => v.variableId));
   };
 
   const emptyValidation: RCodeValidationResult = {
     syntaxErrors: [],
     unknownVariableErrors: [],
     warnings: [],
-    referencedVars: [],
+    referencedIds: [],
   };
 
   const currentRCodeValidation = (): RCodeValidationResult => {
@@ -313,8 +315,8 @@ function EditorInner(p: {
     if (idx < 0) return emptyValidation;
     return validateRCode(
       state.code[idx].rCode,
-      availableVarNames(),
-      otherIndicatorVarNames,
+      availableVariableIds(),
+      otherIndicatorIds,
     );
   };
 
@@ -323,8 +325,8 @@ function EditorInner(p: {
     if (idx < 0) return emptyValidation;
     return validateRCode(
       state.code[idx].rFilterCode,
-      availableVarNames(),
-      otherIndicatorVarNames,
+      availableVariableIds(),
+      otherIndicatorIds,
     );
   };
 
@@ -377,14 +379,14 @@ function EditorInner(p: {
       const tp = p.dictionary.timePoints.find(
         (t) => t.timePoint === c.timePoint,
       );
-      const availableVars = tp
-        ? new Set(tp.vars.map((v) => v.varName))
+      const availableVariableIds = tp
+        ? new Set(tp.variables.map((v) => v.variableId))
         : new Set<string>();
       if (c.rCode.trim()) {
         const result = validateRCode(
           c.rCode,
-          availableVars,
-          otherIndicatorVarNames,
+          availableVariableIds,
+          otherIndicatorIds,
         );
         if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
@@ -394,8 +396,8 @@ function EditorInner(p: {
       if (c.rFilterCode.trim()) {
         const result = validateRCode(
           c.rFilterCode,
-          availableVars,
-          otherIndicatorVarNames,
+          availableVariableIds,
+          otherIndicatorIds,
         );
         if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
@@ -408,13 +410,13 @@ function EditorInner(p: {
         const tp = p.dictionary.timePoints.find(
           (t) => t.timePoint === vc.timePoint,
         );
-        const availableVars = tp
-          ? new Set(tp.vars.map((v) => v.varName))
+        const availableVariableIds = tp
+          ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         const result = validateRCode(
           vc.rCode,
-          availableVars,
-          allIndicatorVarNamesInclSelf,
+          availableVariableIds,
+          allIndicatorIdsInclSelf,
         );
         if (hasRCodeErrors(result)) {
           hasSyntaxError = true;
@@ -426,9 +428,8 @@ function EditorInner(p: {
     const codeConsistent = roundsConsistency() !== "different";
 
     return await serverActions.saveHfaIndicatorFull({
-      oldVarName: p.indicator.varName,
       indicator: {
-        varName: p.indicator.varName,
+        indicatorId: p.indicator.indicatorId,
         categoryId: state.categoryId,
         subCategoryId: state.subCategoryId,
         serviceCategoryIds: state.serviceCategoryIds,
@@ -456,19 +457,26 @@ function EditorInner(p: {
     p.setNeedsSaving(true);
   }
 
+  function insertSymbol(symbol: string) {
+    setState(
+      "code",
+      currentTpIndex(),
+      "rCode",
+      (prev) => prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + symbol + " ",
+    );
+    markDirty();
+  }
+
+  const searchMatches = (text: string) => {
+    const q = variableSearch().trim().toLowerCase();
+    return !q || text.toLowerCase().includes(q);
+  };
+
   return (
     <div class="flex h-full flex-col">
       <div class="flex-none border-b">
         <div class="ui-pad ui-spy-sm">
           <div class="flex items-end gap-4">
-            <div>
-              <div class="ui-label">
-                {t3({ en: "Variable name", fr: "Nom de variable", pt: "Nome da variável" })}
-              </div>
-              <div class="ui-form-pad ui-form-text-size font-mono">
-                {p.indicator.varName}
-              </div>
-            </div>
             <Select
               label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
               value={state.categoryId ?? ""}
@@ -683,7 +691,7 @@ function EditorInner(p: {
                   />
                   <Show
                     when={
-                      currentRCodeValidation().referencedVars.length > 0 ||
+                      currentRCodeValidation().referencedIds.length > 0 ||
                       currentRCodeValidation().warnings.length > 0 ||
                       currentRCodeValidation().unknownVariableErrors.length >
                         0 ||
@@ -702,17 +710,17 @@ function EditorInner(p: {
                       <For each={currentRCodeValidation().unknownVariableErrors}>
                         {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
-                      <For each={currentRCodeValidation().referencedVars}>
-                        {(varName) => {
-                          const varInfo = currentTpDict()?.vars.find(
-                            (v) => v.varName === varName,
+                      <For each={currentRCodeValidation().referencedIds}>
+                        {(id) => {
+                          const variable = currentTpDict()?.variables.find(
+                            (v) => v.variableId === id,
                           );
-                          const vals = valuesForVar(varName);
+                          const vals = valuesForVariable(id);
                           return (
                             <div class="text-success text-xs">
                               <div>
-                                {varName}
-                                {varInfo ? ` — ${varInfo.varLabel}` : ""}
+                                {id}
+                                {variable ? ` — ${variable.variableLabel}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
                                 <div class="text-base-content-muted ml-3">
@@ -764,7 +772,7 @@ function EditorInner(p: {
                   </Show>
                   <Show
                     when={
-                      currentFilterValidation().referencedVars.length > 0 ||
+                      currentFilterValidation().referencedIds.length > 0 ||
                       currentFilterValidation().warnings.length > 0 ||
                       currentFilterValidation().unknownVariableErrors.length >
                         0 ||
@@ -783,17 +791,17 @@ function EditorInner(p: {
                       <For each={currentFilterValidation().unknownVariableErrors}>
                         {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
-                      <For each={currentFilterValidation().referencedVars}>
-                        {(varName) => {
-                          const varInfo = currentTpDict()?.vars.find(
-                            (v) => v.varName === varName,
+                      <For each={currentFilterValidation().referencedIds}>
+                        {(id) => {
+                          const variable = currentTpDict()?.variables.find(
+                            (v) => v.variableId === id,
                           );
-                          const vals = valuesForVar(varName);
+                          const vals = valuesForVariable(id);
                           return (
                             <div class="text-success text-xs">
                               <div>
-                                {varName}
-                                {varInfo ? ` — ${varInfo.varLabel}` : ""}
+                                {id}
+                                {variable ? ` — ${variable.variableLabel}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
                                 <div class="text-base-content-muted ml-3">
@@ -828,8 +836,8 @@ function EditorInner(p: {
                         const validation = (): RCodeValidationResult =>
                           validateRCode(
                             state.variantCode[key()] ?? "",
-                            availableVarNames(),
-                            allIndicatorVarNamesInclSelf,
+                            availableVariableIds(),
+                            allIndicatorIdsInclSelf,
                           );
                         return (
                           <div>
@@ -919,8 +927,8 @@ function EditorInner(p: {
                     })}
                   </div>
                   <Input
-                    value={varSearch()}
-                    onChange={setVarSearch}
+                    value={variableSearch()}
+                    onChange={setVariableSearch}
                     placeholder={t3({
                       en: "Search variables...",
                       fr: "Rechercher des variables...",
@@ -935,47 +943,28 @@ function EditorInner(p: {
                   <Show when={currentTpDict()}>
                     {(dict) => (
                       <For
-                        each={dict().vars.filter((v) => {
-                          const q = varSearch().trim().toLowerCase();
-                          if (!q) return true;
-                          return (
-                            v.varName.toLowerCase().includes(q) ||
-                            v.varLabel.toLowerCase().includes(q)
-                          );
-                        })}
+                        each={dict().variables.filter(
+                          (v) => searchMatches(v.variableId) || searchMatches(v.variableLabel),
+                        )}
                       >
                         {(v) => {
                           const vals = dict().values.filter(
-                            (vv) => vv.varName === v.varName,
+                            (vv) => vv.variableId === v.variableId,
                           );
                           return (
                             <div class="border-b py-1 last:border-b-0">
                               <div class="flex items-baseline gap-2 text-xs">
                                 <span
                                   class="ui-hoverable-base-200 font-700 font-mono"
-                                  onClick={() => {
-                                    setState(
-                                      "code",
-                                      currentTpIndex(),
-                                      "rCode",
-                                      (prev) =>
-                                        prev +
-                                        (prev.length === 0 || /\s$/.test(prev)
-                                          ? ""
-                                          : " ") +
-                                        v.varName +
-                                        " ",
-                                    );
-                                    markDirty();
-                                  }}
+                                  onClick={() => insertSymbol(v.variableId)}
                                 >
-                                  {v.varName}
+                                  {v.variableId}
                                 </span>
                                 <span class="text-base-content-muted truncate">
-                                  {v.varLabel}
+                                  {v.variableLabel}
                                 </span>
                                 <span class="text-base-content-muted flex-none">
-                                  {v.varType}
+                                  {v.variableType}
                                 </span>
                               </div>
                               <Show when={vals.length > 0}>
@@ -990,6 +979,31 @@ function EditorInner(p: {
                         }}
                       </For>
                     )}
+                  </Show>
+                  <Show when={otherIndicators.length > 0}>
+                    <div class="font-700 mt-3 mb-1 text-sm">
+                      {t3({
+                        en: "Other indicators",
+                        fr: "Autres indicateurs",
+                        pt: "Outros indicadores",
+                      })}
+                    </div>
+                    <For
+                      each={otherIndicators.filter((i) =>
+                        searchMatches(composeHfaIndicatorLabel(i, "full")),
+                      )}
+                    >
+                      {(i) => (
+                        <div class="border-b py-1 text-xs last:border-b-0">
+                          <span
+                            class="ui-hoverable-base-200"
+                            onClick={() => insertSymbol(i.indicatorId)}
+                          >
+                            {composeHfaIndicatorLabel(i, "full")}
+                          </span>
+                        </div>
+                      )}
+                    </For>
                   </Show>
                 </div>
               </div>

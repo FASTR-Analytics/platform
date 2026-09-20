@@ -1,7 +1,7 @@
 import { type HfaIndicatorCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -72,16 +72,19 @@ export function EditHfaIndicatorSubCategory(
   );
 
   return (
-    <AlertFormHolder
-      formId="hfa-sub-category-form"
-      header={
+    <ModalContainer
+      title={
         mode === "create"
           ? t3({ en: "Add sub-category", fr: "Ajouter une sous-catégorie", pt: "Adicionar subcategoria" })
           : t3({ en: "Update sub-category", fr: "Mettre à jour la sous-catégorie", pt: "Atualizar subcategoria" })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <div class="ui-spy-sm">
@@ -113,6 +116,6 @@ export function EditHfaIndicatorSubCategory(
           </div>
         )}
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

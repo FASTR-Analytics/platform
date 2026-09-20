@@ -31,7 +31,7 @@ export type HfaWorkbookSource = { kind: "pick" } | { kind: "default" };
 const DEFAULT_INDICATORS_XLSX_URL =
   "https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main/hfa_default_indicators.xlsx";
 
-async function fetchDefaultWorkbookShape(): Promise<StateHolder<WorkbookShape>> {
+async function fetchDefaultWorkbookShape(existingIndicatorIds: string[]): Promise<StateHolder<WorkbookShape>> {
   let buf: ArrayBuffer;
   try {
     const res = await fetch(`${DEFAULT_INDICATORS_XLSX_URL}?t=${Date.now()}`, {
@@ -58,7 +58,7 @@ async function fetchDefaultWorkbookShape(): Promise<StateHolder<WorkbookShape>> 
       }),
     };
   }
-  const detected = detectHfaWorkbookShape(buf);
+  const detected = detectHfaWorkbookShape(buf, existingIndicatorIds);
   return detected.ok
     ? { status: "ready", data: detected.shape }
     : { status: "error", err: detected.err };
@@ -68,7 +68,8 @@ type Props = EditorComponentProps<
   {
     source: HfaWorkbookSource;
     timePoints: string[];
-    surveyVarNames: string[];
+    variableIds: string[];
+    existingIndicatorIds: string[];
     showAi: Accessor<boolean>;
     openAi: () => void;
   },
@@ -86,7 +87,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
   async function pickFile() {
     const buf = await pickFileAsArrayBuffer([".xlsx"]);
     if (!buf) return;
-    const detected = detectHfaWorkbookShape(buf);
+    const detected = detectHfaWorkbookShape(buf, p.existingIndicatorIds);
     if (!detected.ok) {
       // Surface parse error on pick: keep on pick step with error shown
       setParseErr(detected.err);
@@ -138,6 +139,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
           </Match>
           <Match when={step().name === "pick" && p.source.kind === "default"}>
             <DefaultStep
+              existingIndicatorIds={p.existingIndicatorIds}
               uploadMode={uploadMode()}
               onUploadModeChange={setUploadMode}
               onContinue={(shape) => setStep({ name: "reconcile", shape })}
@@ -155,7 +157,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
                   shape={s.shape}
                   uploadMode={uploadMode()}
                   timePoints={p.timePoints}
-                  surveyVarNames={p.surveyVarNames}
+                  variableIds={p.variableIds}
                   onBack={() => setStep({ name: "pick" })}
                   onDone={() => p.close(undefined)}
                 />
@@ -198,6 +200,7 @@ function ImportModeRadio(p: {
 }
 
 function DefaultStep(p: {
+  existingIndicatorIds: string[];
   uploadMode: "replace" | "add";
   onUploadModeChange: (v: "replace" | "add") => void;
   onContinue: (shape: WorkbookShape) => void;
@@ -214,7 +217,7 @@ function DefaultStep(p: {
   const [workbook, setWorkbook] = createSignal<StateHolder<WorkbookShape>>(loadingState());
   async function load() {
     setWorkbook(loadingState());
-    setWorkbook(await fetchDefaultWorkbookShape());
+    setWorkbook(await fetchDefaultWorkbookShape(p.existingIndicatorIds));
   }
   onMount(load);
 
@@ -280,8 +283,13 @@ function PickStep(p: {
             label ({t3({ en: "optional", fr: "facultatif", pt: "opcional" })})
           </li>
           <li>
-            <span class="font-700 font-mono">Indicators</span>: varName,
-            categoryId, subCategoryId, serviceCategoryId (
+            <span class="font-700 font-mono">Indicators</span>: indicatorId (
+            {t3({
+              en: "blank for a new indicator; the app assigns one",
+              fr: "vide pour un nouvel indicateur ; l'application en attribue un",
+              pt: "em branco para um novo indicador; a aplicação atribui um",
+            })}
+            ), categoryId, subCategoryId, serviceCategoryId (
             {t3({
               en: "pipe-separated for multiple",
               fr: "séparés par | pour plusieurs",
@@ -340,7 +348,7 @@ function ReconcileStep(p: {
   shape: WorkbookShape;
   uploadMode: "replace" | "add";
   timePoints: string[]; // platform time points in sort order
-  surveyVarNames: string[];
+  variableIds: string[];
   onBack: () => void;
   onDone: () => void;
 }) {
@@ -422,15 +430,15 @@ function ReconcileStep(p: {
 
       if (p.uploadMode === "add") {
         const shadowing = p.shape.indicators
-          .map((ind) => ind.varName)
-          .filter((v) => p.surveyVarNames.includes(v));
+          .map((ind) => ind.indicatorId)
+          .filter((v) => p.variableIds.includes(v));
         if (shadowing.length > 0) {
           return {
             success: false,
             err: t3({
-              en: `These varNames are survey variable names and would shadow the dataset columns in other indicators' code: ${shadowing.join(", ")}. Rename them in the workbook.`,
-              fr: `Ces noms de variables sont des noms de variables d'enquête et masqueraient les colonnes du jeu de données dans le code des autres indicateurs : ${shadowing.join(", ")}. Renommez-les dans le classeur.`,
-              pt: `Estes varNames são nomes de variáveis de inquérito e ocultariam as colunas do conjunto de dados no código dos outros indicadores: ${shadowing.join(", ")}. Renomeie-os no livro.`,
+              en: `These indicator IDs are also survey variable IDs and would shadow the dataset columns in other indicators' code: ${shadowing.join(", ")}. Rename them in the workbook.`,
+              fr: `Ces ID d'indicateur sont aussi des ID de variables d'enquête et masqueraient les colonnes du jeu de données dans le code des autres indicateurs : ${shadowing.join(", ")}. Renommez-les dans le classeur.`,
+              pt: `Estes IDs de indicador são também IDs de variáveis de inquérito e ocultariam as colunas do conjunto de dados no código dos outros indicadores: ${shadowing.join(", ")}. Renomeie-os no livro.`,
             }),
           };
         }
@@ -441,7 +449,7 @@ function ReconcileStep(p: {
       const seenKeys = new Set<string>();
       const duplicateKeys = new Set<string>();
       for (const c of code) {
-        const key = `${c.varName} / ${c.timePoint}`;
+        const key = `${c.indicatorId} / ${c.timePoint}`;
         if (seenKeys.has(key)) duplicateKeys.add(key);
         seenKeys.add(key);
       }
@@ -463,9 +471,9 @@ function ReconcileStep(p: {
         return {
           success: false,
           err: t3({
-            en: `Filter code requires R code. Rows with filter code but no R code: ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
-            fr: `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
-            pt: `O código de filtro requer código R. Linhas com código de filtro mas sem código R: ${filterOnly.map((c) => `${c.varName} / ${c.timePoint}`).join("; ")}.`,
+            en: `Filter code requires R code. Rows with filter code but no R code: ${filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join("; ")}.`,
+            fr: `Le code filtre nécessite un code R. Lignes avec un code filtre mais sans code R : ${filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join("; ")}.`,
+            pt: `O código de filtro requer código R. Linhas com código de filtro mas sem código R: ${filterOnly.map((c) => `${c.indicatorId} / ${c.timePoint}`).join("; ")}.`,
           }),
         };
       }

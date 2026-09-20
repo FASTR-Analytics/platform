@@ -11,6 +11,10 @@ import {
 import { _IS_PRODUCTION } from "../../exposed_env_vars.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
+  HMIS_IMPORT_RUN_IN_PROGRESS_MSG,
+  hasRunningDatasetHmisImportRun,
+} from "../../db/instance/dataset_hmis_import_runs.ts";
+import {
   createGeneratingRun,
   markRunGenerationFailed,
 } from "../../db/instance/run_generation.ts";
@@ -98,6 +102,12 @@ export async function launchRunGeneration(
   const invalidMsg = getLaunchInputInvalidMsg(input);
   if (invalidMsg !== undefined) {
     return { success: false, err: invalidMsg };
+  }
+
+  // The HMIS extract refuses while an import run is integrating (torn data);
+  // refuse here so the wizard hears it instead of minting a failed row.
+  if (step1Result.hmis && (await hasRunningDatasetHmisImportRun(mainDb))) {
+    return { success: false, err: HMIS_IMPORT_RUN_IN_PROGRESS_MSG };
   }
 
   // Disk guard for the dataset extracts the prepare stage is about to export.

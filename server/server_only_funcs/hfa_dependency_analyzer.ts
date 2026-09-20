@@ -1,13 +1,14 @@
 import { extractRIdentifiers, type HfaIndicator, type HfaIndicatorCode } from "lib";
 
 export type ExtractedDependencies = {
-  // Dataset question variables. `qids` is the union across rCode + rFilterCode
-  // (used by the value/missingness expression); `codeQids` and `filterQids`
-  // split it by source so the response-status expression can decide
-  // applicability (filter vars) separately from answer status (code vars).
-  qids: string[];
-  codeQids: string[];
-  filterQids: string[];
+  // Dataset variable ids. `variableIds` is the union across rCode +
+  // rFilterCode (used by the value/missingness expression);
+  // `codeVariableIds` and `filterVariableIds` split it by source so the
+  // response-status expression can decide applicability (filter variables)
+  // separately from answer status (code variables).
+  variableIds: string[];
+  codeVariableIds: string[];
+  filterVariableIds: string[];
   dependencies: string[];
   unknownVariables: string[];
 };
@@ -15,8 +16,8 @@ export type ExtractedDependencies = {
 export function extractDependenciesFromCode(
   rCode: string,
   rFilterCode: string | undefined,
-  allIndicatorVarNames: Set<string>,
-  knownDatasetVariables: Set<string>,
+  allIndicatorIds: Set<string>,
+  knownVariableIds: Set<string>,
 ): ExtractedDependencies {
   const codeVars = new Set<string>();
   const filterVars = new Set<string>();
@@ -31,21 +32,21 @@ export function extractDependenciesFromCode(
     extractRIdentifiers(rFilterTrimmed).forEach((v) => filterVars.add(v));
   }
 
-  const qids = new Set<string>();
-  const codeQids: string[] = [];
-  const filterQids: string[] = [];
+  const variableIds = new Set<string>();
+  const codeVariableIds: string[] = [];
+  const filterVariableIds: string[] = [];
   const dependencies = new Set<string>();
   const unknownVariables = new Set<string>();
 
   const classify = (variable: string, source: "code" | "filter"): void => {
-    if (allIndicatorVarNames.has(variable)) {
+    if (allIndicatorIds.has(variable)) {
       dependencies.add(variable);
-    } else if (knownDatasetVariables.has(variable)) {
-      qids.add(variable);
+    } else if (knownVariableIds.has(variable)) {
+      variableIds.add(variable);
       if (source === "code") {
-        codeQids.push(variable);
+        codeVariableIds.push(variable);
       } else {
-        filterQids.push(variable);
+        filterVariableIds.push(variable);
       }
     } else {
       unknownVariables.add(variable);
@@ -56,9 +57,9 @@ export function extractDependenciesFromCode(
   filterVars.forEach((v) => classify(v, "filter"));
 
   return {
-    qids: [...qids].sort(),
-    codeQids: codeQids.sort(),
-    filterQids: filterQids.sort(),
+    variableIds: [...variableIds].sort(),
+    codeVariableIds: codeVariableIds.sort(),
+    filterVariableIds: filterVariableIds.sort(),
     dependencies: [...dependencies].sort(),
     unknownVariables: [...unknownVariables].sort(),
   };
@@ -67,8 +68,8 @@ export function extractDependenciesFromCode(
 export function buildUnionDependencyGraph(
   indicators: HfaIndicator[],
   codeByIndicator: Map<string, HfaIndicatorCode[]>,
-  allIndicatorVarNames: Set<string>,
-  knownDatasetVariables: Set<string>,
+  allIndicatorIds: Set<string>,
+  knownVariableIds: Set<string>,
 ): {
   graph: Map<string, string[]>;
   dependenciesMap: Map<string, string[]>;
@@ -79,38 +80,38 @@ export function buildUnionDependencyGraph(
   const validationErrors: string[] = [];
 
   for (const indicator of indicators) {
-    graph.set(indicator.varName, []);
+    graph.set(indicator.indicatorId, []);
     const unionDeps = new Set<string>();
 
-    const codeSnippets = codeByIndicator.get(indicator.varName) ?? [];
+    const codeSnippets = codeByIndicator.get(indicator.indicatorId) ?? [];
     for (const snippet of codeSnippets) {
       if (!snippet.rCode || snippet.rCode.trim() === "") continue;
 
       const deps = extractDependenciesFromCode(
         snippet.rCode,
         snippet.rFilterCode,
-        allIndicatorVarNames,
-        knownDatasetVariables,
+        allIndicatorIds,
+        knownVariableIds,
       );
 
       if (deps.unknownVariables.length > 0) {
         validationErrors.push(
-          `Indicator "${indicator.varName}" (time_point "${snippet.timePoint}"): Unknown variables [${deps.unknownVariables.join(", ")}].`,
+          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Unknown variables [${deps.unknownVariables.join(", ")}].`,
         );
       }
 
       deps.dependencies.forEach((d) => unionDeps.add(d));
     }
 
-    dependenciesMap.set(indicator.varName, [...unionDeps].sort());
+    dependenciesMap.set(indicator.indicatorId, [...unionDeps].sort());
   }
 
-  for (const [varName, dependencies] of dependenciesMap.entries()) {
+  for (const [indicatorId, dependencies] of dependenciesMap.entries()) {
     for (const dep of dependencies) {
       if (!graph.has(dep)) {
         graph.set(dep, []);
       }
-      graph.get(dep)!.push(varName);
+      graph.get(dep)!.push(indicatorId);
     }
   }
 
@@ -132,19 +133,19 @@ export function topologicalSort(
   const { graph, dependenciesMap } = graphResult;
   const indicatorMap = new Map<string, HfaIndicator>();
   for (const indicator of indicators) {
-    indicatorMap.set(indicator.varName, indicator);
+    indicatorMap.set(indicator.indicatorId, indicator);
   }
 
   const inDegree = new Map<string, number>();
   for (const indicator of indicators) {
-    const deps = dependenciesMap.get(indicator.varName) || [];
-    inDegree.set(indicator.varName, deps.length);
+    const deps = dependenciesMap.get(indicator.indicatorId) || [];
+    inDegree.set(indicator.indicatorId, deps.length);
   }
 
   const queue: string[] = [];
-  for (const [varName, degree] of inDegree.entries()) {
+  for (const [indicatorId, degree] of inDegree.entries()) {
     if (degree === 0) {
-      queue.push(varName);
+      queue.push(indicatorId);
     }
   }
 
@@ -168,7 +169,7 @@ export function topologicalSort(
 
   if (ordered.length !== indicators.length) {
     const remaining = indicators.filter(
-      (ind) => !ordered.find((o) => o.varName === ind.varName),
+      (ind) => !ordered.find((o) => o.indicatorId === ind.indicatorId),
     );
     const cycles = detectCycles(remaining, dependenciesMap);
     return { ordered: [], cycles };
@@ -185,12 +186,12 @@ function detectCycles(
   const visited = new Set<string>();
   const recStack = new Set<string>();
 
-  function dfs(varName: string, path: string[]): void {
-    visited.add(varName);
-    recStack.add(varName);
-    path.push(varName);
+  function dfs(indicatorId: string, path: string[]): void {
+    visited.add(indicatorId);
+    recStack.add(indicatorId);
+    path.push(indicatorId);
 
-    const dependencies = dependenciesMap.get(varName) || [];
+    const dependencies = dependenciesMap.get(indicatorId) || [];
     for (const dep of dependencies) {
       if (!visited.has(dep)) {
         dfs(dep, [...path]);
@@ -202,12 +203,12 @@ function detectCycles(
       }
     }
 
-    recStack.delete(varName);
+    recStack.delete(indicatorId);
   }
 
   for (const indicator of indicators) {
-    if (!visited.has(indicator.varName)) {
-      dfs(indicator.varName, []);
+    if (!visited.has(indicator.indicatorId)) {
+      dfs(indicator.indicatorId, []);
     }
   }
 

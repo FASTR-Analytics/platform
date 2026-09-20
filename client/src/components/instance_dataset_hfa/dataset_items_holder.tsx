@@ -68,25 +68,25 @@ function DatasetDisplayPresentation(p: {
     const search = searchText().toLowerCase();
     const allRows: DisplayRow[] = p.displayItems.rows.map((r) => ({
       ...r,
-      _key: `${r.varName}|${r.timePoint}`,
+      _key: `${r.variableId}|${r.timePoint}`,
     }));
     if (!search) return allRows;
     return allRows.filter(
       (r) =>
-        r.varName.toLowerCase().includes(search) ||
-        r.varLabel.toLowerCase().includes(search) ||
+        r.variableId.toLowerCase().includes(search) ||
+        r.variableLabel.toLowerCase().includes(search) ||
         r.questionnaireValues.toLowerCase().includes(search),
     );
   });
 
   const columns: TableColumn<DisplayRow>[] = [
     {
-      key: "varName",
-      header: t3({ en: "Variable", fr: "Variable", pt: "Variável" }),
+      key: "variableId",
+      header: t3({ en: "Variable ID", fr: "ID de variable", pt: "ID da variável" }),
       sortable: true,
     },
     {
-      key: "varType",
+      key: "variableType",
       header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
       sortable: true,
     },
@@ -96,7 +96,7 @@ function DatasetDisplayPresentation(p: {
       sortable: true,
     },
     {
-      key: "varLabel",
+      key: "variableLabel",
       header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
       sortable: true,
     },

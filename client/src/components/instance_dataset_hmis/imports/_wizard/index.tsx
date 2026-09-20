@@ -15,9 +15,7 @@ import {
 import { recurrenceLabel } from "../_recurrence_label";
 import {
   AlertComponentProps,
-  Button,
   ModalContainer,
-  StateHolderFormError,
   StepperChipsWithTitles,
   createFormAction,
   getLocalTimezone,
@@ -129,11 +127,8 @@ export function Dhis2Wizard(
         <ModalContainer
           width="md"
           title={t3(DHIS2_DATA_IMPORT_TITLE)}
-          rightButtons={
-            <Button onClick={() => p.close(undefined)} outline>
-              {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-            </Button>
-          }
+          onCancel={() => p.close(undefined)}
+          cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
         >
           <div class="text-danger">{t3(NO_STORED_DHIS2_CONNECTION)}</div>
         </ModalContainer>
@@ -531,36 +526,33 @@ function Dhis2WizardInner(p: InnerProps) {
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
       }
-      leftButtons={
-        <Show when={stepper.currentStep() > 0}>
-          <Button onClick={stepper.goPrev} outline>
-            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
-          </Button>
-        </Show>
-      }
-      rightButtons={
-        <>
-          <Button onClick={() => p.close(undefined)} outline>
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-          </Button>
-          <Show
-            when={isLastStep()}
-            fallback={
-              <Button onClick={stepper.goNext} disabled={!stepper.canGoNext()}>
-                {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-              </Button>
-            }
-          >
-            <Button
-              onClick={submit.click}
-              state={submit.state()}
-              intent="success"
-            >
-              {ctaLabel()}
-            </Button>
-          </Show>
-        </>
-      }
+      onCancel={() => p.close(undefined)}
+      actions={[
+        ...(stepper.currentStep() > 0
+          ? [
+              {
+                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+                onClick: stepper.goPrev,
+                outline: true,
+              },
+            ]
+          : []),
+        ...(isLastStep()
+          ? [
+              {
+                label: ctaLabel(),
+                onClick: submit.click,
+                state: submit.state(),
+              },
+            ]
+          : [
+              {
+                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+                onClick: stepper.goNext,
+                disabled: !stepper.canGoNext(),
+              },
+            ]),
+      ]}
     >
       <div class="ui-pad min-h-[24rem]">
         <Show when={currentStepKind() === "indicators"}>
@@ -622,7 +614,6 @@ function Dhis2WizardInner(p: InnerProps) {
             nPairs={nPairs()}
             queueNotice={queueNotice()}
           />
-          <StateHolderFormError state={submit.state()} />
         </Show>
       </div>
     </ModalContainer>

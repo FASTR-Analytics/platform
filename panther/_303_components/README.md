@@ -84,9 +84,14 @@ controller).
 <Checkbox checked={false} indeterminate onChange={...} label="Partial" />
 <TextArea value={text()} onChange={setText} />
 <FileInput value={file()} onChange={setFile} label="Data file" />
+<Field label="Range" invalidMsg={err()}>
+  <DoubleSlider ... />
+</Field>
 ```
 
-Complete form control library. Size via `size="sm"`, never ad-hoc classes.
+Complete form control library. Size via `size="sm"`, never ad-hoc classes. Every
+control renders inside `Field` (label, intent, invalid message, width); `Field`
+is also the app-facing wrapper for a control the kit does not label itself.
 
 ### Layout (`layout/`)
 
@@ -94,16 +99,16 @@ Complete form control library. Size via `size="sm"`, never ad-hoc classes.
 <FrameTop panelChildren={<HeadingBar heading="Rows" />}>{content}</FrameTop>
 <FrameLeft panelChildren={<Sidebar />}>{content}</FrameLeft>
 <TabsNavigation items={items} value={active()} onChange={setActive} vertical />
-<CollapsibleSection header="Advanced">{content}</CollapsibleSection>
+<CollapsibleSection title="Advanced">{content}</CollapsibleSection>
 ```
 
-Frames: `FrameTop`, `FrameLeft`, `FrameRight`, `FrameBottom`, plus
-`FrameLeftResizable`, `FrameRightResizable`, `FrameThreeColumnResizable`. Side
-frames own their panel/content divider (never add that edge's border yourself).
-Horizontal `TabsNavigation` is a `FrameTop` panel in its own right (it carries
-its own `ui-pad-x` and bottom border; no wrapper); inside padded content pass
-`noPad`; `size="sm"` is independent of placement. Steppers: `StepperNavigation`,
-`StepperLabeledBreadcrumb`, `StepperChipsWithTitles`, and friends.
+Frames: `FrameTop`, `FrameLeft`, `FrameRight`, plus `FrameLeftResizable`,
+`FrameRightResizable`, `FrameThreeColumnResizable`. Side frames own their
+panel/content divider (never add that edge's border yourself). Horizontal
+`TabsNavigation` is a `FrameTop` panel in its own right (it carries its own
+`ui-pad-x` and bottom border; no wrapper); inside padded content pass `noPad`;
+`size="sm"` is independent of placement. Steppers: `getStepper` with
+`StepperChipsWithTitles` or `StepperNavigationVisual`.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
 `onChange` contract (swap = rename); `EditableList` adds add/delete/reorder; the
@@ -129,15 +134,33 @@ await openAlert({ text: "Saved", intent: "success" });
 const ok = await openConfirm({ title: "Delete?", text: "..." });
 await openComponent({ element: EditForm, props: { data } });
 
+// Inside EditForm (an AlertComponentProps component):
+<ModalContainer
+  title="Edit"
+  form
+  onCancel={() => p.close(undefined)}
+  actions={[{ label: "Save", onClick: save.click, state: save.state() }]}
+>
+  {fields}
+</ModalContainer>;
+
 const { openEditor, EditorWrapper } = getEditorWrapper();
+
+<MenuButton items={items} iconName="plus">Add</MenuButton>;
+<ActionMenuButton items={items} />; // the three-dots button
 
 <StateHolderWrapper state={query.state()}>
   {(data) => <Content data={data} />}
 </StateHolderWrapper>;
 ```
 
-Modals, editors, popover menus (`PopoverMenu`, `showMenu`), tooltips, and the
-async-state container. Never hand-roll an overlay.
+Dialogs stack: one opened over another layers on top, and each promise settles
+when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders
+Cancel, `actions` render right-aligned after it with the last one primary,
+`form` makes Enter click the primary action, and each action's error state
+renders under the body. `footer` is the left slot for non-action content. Menus:
+`MenuButton` for a button that opens a menu, `ActionMenuButton` for the
+three-dots preset, `showMenu` for context menus. Never hand-roll an overlay.
 
 A popover that can open inside an `openAlert` or `openComponent` modal must stop
 Escape itself. `AlertProvider` closes the modal from a document-level `keydown`
@@ -164,10 +187,10 @@ filter (`tables/display_table/column_filter.tsx`) does.
 ```
 
 Sorting and per-column value filters via column config (`sortable`,
-`filterable`), grouping, controlled multi-select with bulk actions, and an
-`EmptyState` no-rows fallback. A filterable column gets a funnel button in its
-header that lists the column's distinct values as check rows; `defaultFilters`
-and `onFilterChange` persist the unchecked values.
+`filterable`), controlled multi-select with bulk actions, and an `EmptyState`
+no-rows fallback. A filterable column gets a funnel button in its header that
+lists the column's distinct values as check rows; `defaultFilters` and
+`onFilterChange` persist the unchecked values.
 
 ## CSS Public API
 

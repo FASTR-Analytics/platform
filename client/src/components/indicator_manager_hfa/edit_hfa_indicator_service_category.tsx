@@ -1,7 +1,7 @@
 import { type HfaIndicatorServiceCategory, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -61,16 +61,19 @@ export function EditHfaIndicatorServiceCategory(
   );
 
   return (
-    <AlertFormHolder
-      formId="hfa-service-category-form"
-      header={
+    <ModalContainer
+      title={
         mode === "create"
           ? t3({ en: "Add service category", fr: "Ajouter une catégorie de service", pt: "Adicionar categoria de serviço" })
           : t3({ en: "Update service category", fr: "Mettre à jour la catégorie de service", pt: "Atualizar categoria de serviço" })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -98,6 +101,6 @@ export function EditHfaIndicatorServiceCategory(
           </div>
         )}
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

@@ -3,10 +3,11 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createUniqueId, Show } from "solid-js";
+import { createUniqueId } from "solid-js";
 import { t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { Button } from "./button.tsx";
+import { Field } from "./field.tsx";
 
 type FileInputProps = {
   value?: File;
@@ -23,12 +24,7 @@ export function FileInput(p: FileInputProps) {
   const buttonId = createUniqueId();
 
   return (
-    <div>
-      <Show when={p.label}>
-        <label class="ui-label" for={buttonId}>
-          {p.label}
-        </label>
-      </Show>
+    <Field label={p.label} labelFor={buttonId}>
       <div class="ui-gap-sm flex items-center">
         <input
           ref={inputEl}
@@ -71,6 +67,6 @@ export function FileInput(p: FileInputProps) {
           })}
         </div>
       </div>
-    </div>
+    </Field>
   );
 }

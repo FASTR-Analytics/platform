@@ -8,7 +8,7 @@ export type RCodeValidationResult = {
   syntaxErrors: string[];
   unknownVariableErrors: string[];
   warnings: string[];
-  referencedVars: string[];
+  referencedIds: string[];
 };
 
 export function hasRCodeErrors(result: RCodeValidationResult): boolean {
@@ -19,15 +19,15 @@ export function hasRCodeErrors(result: RCodeValidationResult): boolean {
 
 export function validateRCode(
   rCode: string,
-  availableVarNames: Set<string>,
-  otherIndicatorVarNames: Set<string>,
+  availableVariableIds: Set<string>,
+  otherIndicatorIds: Set<string>,
 ): RCodeValidationResult {
   if (!rCode.trim()) {
     return {
       syntaxErrors: [],
       unknownVariableErrors: [],
       warnings: [],
-      referencedVars: [],
+      referencedIds: [],
     };
   }
 
@@ -42,17 +42,17 @@ export function validateRCode(
   const identifiers = extractRIdentifiers(normalized);
   const warnings: string[] = [...checkLoneEquals(normalized)];
   const unknownVariableErrors: string[] = [];
-  const referencedVars: string[] = [];
+  const referencedIds: string[] = [];
 
   for (const id of identifiers) {
-    if (availableVarNames.has(id) || otherIndicatorVarNames.has(id)) {
-      referencedVars.push(id);
+    if (availableVariableIds.has(id) || otherIndicatorIds.has(id)) {
+      referencedIds.push(id);
     } else {
       unknownVariableErrors.push(`Variable '${id}' not found in this time point`);
     }
   }
 
-  return { syntaxErrors, unknownVariableErrors, warnings, referencedVars };
+  return { syntaxErrors, unknownVariableErrors, warnings, referencedIds };
 }
 
 function checkRSyntax(rCode: string): string[] {

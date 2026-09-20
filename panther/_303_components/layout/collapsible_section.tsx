@@ -3,138 +3,74 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createSignal, type JSX, mergeProps, Show, splitProps } from "solid-js";
+import { createSignal, type JSX, Show } from "solid-js";
 import { Icon } from "../icons/mod.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 
 export type CollapsibleSectionProps = DataAttrs & {
   title: string | JSX.Element;
+  // Controlled when isOpen is given; otherwise the section owns its state,
+  // starting from defaultOpen.
   isOpen?: boolean;
   defaultOpen?: boolean;
   onToggle?: (isOpen: boolean) => void;
-  onHeaderClick?: () => void;
-  rightContent?: JSX.Element;
   children?: JSX.Element;
   class?: string;
-  shadedHeader?: boolean;
   borderStyle?: "full" | "bottom" | "top" | "none";
-  rounded?: boolean;
-  boldHeader?: boolean;
-  activeHeader?: boolean;
   padding?: "sm" | "md";
-  contentBorder?: boolean;
-  hideChevron?: boolean;
-  noClickToCollapse?: boolean;
+  boldHeader?: boolean;
+};
+
+const BORDER_CLASSES: Record<
+  NonNullable<CollapsibleSectionProps["borderStyle"]>,
+  string
+> = {
+  full: "border rounded",
+  bottom: "border-b",
+  top: "border-t",
+  none: "",
 };
 
 export function CollapsibleSection(p: CollapsibleSectionProps) {
-  const merged = mergeProps(
-    {
-      defaultOpen: false,
-      class: "",
-      borderStyle: "full" as const,
-      rounded: true,
-      boldHeader: false,
-      padding: "md" as const,
-      contentBorder: true,
-    },
-    p,
-  );
   const [dataAttrs] = splitDataAttrs(p);
-  const [local] = splitProps(merged, [
-    "title",
-    "isOpen",
-    "defaultOpen",
-    "onToggle",
-    "onHeaderClick",
-    "rightContent",
-    "children",
-    "class",
-    "shadedHeader",
-    "borderStyle",
-    "rounded",
-    "boldHeader",
-    "activeHeader",
-    "padding",
-    "contentBorder",
-    "hideChevron",
-    "noClickToCollapse",
-  ]);
-
-  const [internalOpen, setInternalOpen] = createSignal(local.defaultOpen);
-  const isOpen = () => local.isOpen ?? internalOpen();
+  const [internalOpen, setInternalOpen] = createSignal(p.defaultOpen ?? false);
+  const isOpen = () => p.isOpen ?? internalOpen();
 
   const handleToggle = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    local.onHeaderClick?.();
-
-    if (!local.noClickToCollapse) {
-      if (local.isOpen === undefined) {
-        const next = !internalOpen();
-        setInternalOpen(next);
-        local.onToggle?.(next);
-      } else {
-        local.onToggle?.(!local.isOpen);
-      }
+    const next = !isOpen();
+    if (p.isOpen === undefined) {
+      setInternalOpen(next);
     }
+    p.onToggle?.(next);
   };
-
-  const containerClasses = () => {
-    const classes = ["overflow-x-hidden"];
-
-    if (local.borderStyle === "full") {
-      classes.push("border");
-    } else if (local.borderStyle === "bottom") {
-      classes.push("border-b");
-    } else if (local.borderStyle === "top") {
-      classes.push("border-t");
-    }
-
-    if (local.rounded) {
-      classes.push("rounded");
-    }
-
-    if (local.class) {
-      classes.push(local.class);
-    }
-
-    return classes.join(" ");
-  };
-
-  const headerPadding = () => (local.padding === "sm" ? "ui-pad-sm" : "ui-pad");
 
   return (
-    <div {...dataAttrs} class={containerClasses()}>
+    <div
+      {...dataAttrs}
+      class={[
+        "overflow-x-hidden",
+        BORDER_CLASSES[p.borderStyle ?? "full"],
+        p.class,
+      ].filter(Boolean).join(" ")}
+    >
       <div
-        class={`${headerPadding()} flex items-center`}
+        class="ui-hoverable-base-100 flex items-center"
         classList={{
-          "ui-hoverable-base-100": !local.shadedHeader,
-          "ui-hoverable-base-200": !!local.shadedHeader,
-          "font-700": local.boldHeader,
-          "text-primary": local.activeHeader,
+          "ui-pad-sm": p.padding === "sm",
+          "ui-pad": p.padding !== "sm",
+          "font-700": !!p.boldHeader,
         }}
         onClick={handleToggle}
       >
-        <div class="flex-1">{local.title}</div>
-        <Show when={local.rightContent} keyed>
-          {(content) => <div class="mr-2">{content}</div>}
-        </Show>
-        <Show when={!local.hideChevron} keyed>
-          <div class="h-[1.25em] w-[1.25em]">
-            <Icon iconName={isOpen() ? "chevronDown" : "chevronRight"} />
-          </div>
-        </Show>
-      </div>
-      <Show when={isOpen() && local.children} keyed>
-        <div
-          classList={{
-            "border-t": local.contentBorder,
-          }}
-        >
-          {local.children}
+        <div class="flex-1">{p.title}</div>
+        <div class="h-[1.25em] w-[1.25em]">
+          <Icon iconName={isOpen() ? "chevronDown" : "chevronRight"} />
         </div>
+      </div>
+      <Show when={isOpen() && p.children} keyed>
+        <div class="border-t">{p.children}</div>
       </Show>
     </div>
   );

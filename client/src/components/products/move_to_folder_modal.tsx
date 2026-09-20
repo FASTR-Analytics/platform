@@ -1,6 +1,6 @@
 import { t3, type Folder } from "lib";
 import {
-  AlertFormHolder,
+  ModalContainer,
   RadioGroup,
   createFormAction,
   type AlertComponentProps,
@@ -95,12 +95,15 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   };
 
   return (
-    <AlertFormHolder
-      formId="move-to-folder"
-      header={header()}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={header()}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <RadioGroup
         label={t3({
@@ -114,6 +117,6 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
         convertToSelectThreshold={6}
         fullWidthForSelect
       />
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

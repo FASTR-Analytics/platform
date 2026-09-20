@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import {
-  AlertFormHolder,
+  ModalContainer,
   TextArea,
   createFormAction,
   type AlertComponentProps,
@@ -31,12 +31,15 @@ export function AiContextForm(p: AlertComponentProps<{}, undefined>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="ai-context"
-      header={t3({ en: "AI context", fr: "Contexte IA", pt: "Contexto de IA" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "AI context", fr: "Contexte IA", pt: "Contexto de IA" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <TextArea
         label={t3({
@@ -49,6 +52,6 @@ export function AiContextForm(p: AlertComponentProps<{}, undefined>) {
         rows={16}
         fullWidth
       />
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

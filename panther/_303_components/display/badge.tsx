@@ -6,21 +6,7 @@
 import type { JSX } from "solid-js";
 import type { Intent } from "../types.ts";
 
-// Literal strings so the consumer app's Tailwind scan generates the classes —
-// dynamic `bg-${intent}-subtle` templates would never be seen by the scanner.
-// Washes exist only for the five color intents; the surface intents take their
-// fill skin instead (a surface is already quiet).
-const SUBTLE_CLASSES: Record<Intent, string> = {
-  primary: "bg-primary-subtle text-primary-subtle-content",
-  neutral: "bg-neutral-subtle text-neutral-subtle-content",
-  success: "bg-success-subtle text-success-subtle-content",
-  warning: "bg-warning-subtle text-warning-subtle-content",
-  danger: "bg-danger-subtle text-danger-subtle-content",
-  "base-content": "ui-fill-base-content",
-  "base-100": "ui-fill-base-100",
-  "base-200": "ui-fill-base-200",
-  "base-300": "ui-fill-base-300",
-};
+import { INTENT_SUBTLE } from "../_internal/intent_classes.ts";
 
 type BadgeProps = {
   intent?: Intent;
@@ -32,7 +18,7 @@ type BadgeProps = {
 export function Badge(p: BadgeProps) {
   const skin = () => {
     const intent = p.intent ?? "primary";
-    return p.variant === "solid" ? `ui-fill-${intent}` : SUBTLE_CLASSES[intent];
+    return p.variant === "solid" ? `ui-fill-${intent}` : INTENT_SUBTLE[intent];
   };
 
   return (

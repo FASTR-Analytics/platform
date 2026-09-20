@@ -3,13 +3,13 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { Show } from "solid-js";
 import { getLanguage } from "../deps.ts";
 import type { Language, ZonedDateTime } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { Icon } from "../icons/mod.ts";
 import type { IconName } from "../icons/mod.ts";
 import { getInputClasses } from "./_internal/input_classes.ts";
+import { Field } from "./field.tsx";
 import { Select } from "./select.tsx";
 import type { SelectOption } from "./types.ts";
 
@@ -144,19 +144,26 @@ export function YearSelect(p: YearSelectProps) {
 // Native picker inputs (browser owns the popup, panther owns the box)
 ////////////////////////////////////////////////////////////////////////////////
 
+// Native pickers have locale-dependent intrinsic widths (12-hour locales
+// append " AM"/" PM"), so the field is w-fit: the input's own pr-[2.5em]
+// makes the intrinsic width include the icon allowance exactly.
 type NativePickerInputProps = {
-  type: "date" | "time" | "datetime-local";
-  iconName: IconName;
   value: string;
   onChange: (v: string) => void;
   label?: string;
   intent?: Intent;
+  fullWidth?: boolean;
   invalidMsg?: string;
   disabled?: boolean;
   size?: "sm";
 };
 
-function NativePickerInput(p: NativePickerInputProps) {
+function NativePickerInput(
+  p: NativePickerInputProps & {
+    type: "date" | "time" | "datetime-local";
+    iconName: IconName;
+  },
+) {
   let inputEl: HTMLInputElement | undefined;
 
   const openPicker = () => {
@@ -171,18 +178,13 @@ function NativePickerInput(p: NativePickerInputProps) {
   };
 
   return (
-    <div>
-      {
-        /* [contain:inline-size] keeps label/message out of the w-fit intrinsic
-          width — they wrap at the input's width instead of widening it */
-      }
-      <Show when={p.label}>
-        <div class="[contain:inline-size]">
-          <label class="ui-label" data-intent={p.intent}>
-            {p.label}
-          </label>
-        </div>
-      </Show>
+    <Field
+      label={p.label}
+      intent={p.intent}
+      invalidMsg={p.invalidMsg}
+      width="w-fit"
+      fullWidth={p.fullWidth}
+    >
       <div class="ui-form-text relative w-full">
         <input
           ref={(el) => (inputEl = el)}
@@ -203,105 +205,20 @@ function NativePickerInput(p: NativePickerInputProps) {
           <Icon iconName={p.iconName} />
         </div>
       </div>
-      <Show when={p.invalidMsg}>
-        <div class="[contain:inline-size]">
-          <div class="ui-text-small text-danger inline-block pt-1">
-            {p.invalidMsg}
-          </div>
-        </div>
-      </Show>
-    </div>
+    </Field>
   );
 }
 
-// Native pickers have locale-dependent intrinsic widths (12-hour locales
-// append " AM"/" PM"), so the default width is w-fit: the input's own
-// pr-[2.5em] makes the intrinsic width include the icon allowance exactly.
-type DateInputProps = {
-  value: string;
-  onChange: (v: string) => void;
-  label?: string;
-  intent?: Intent;
-  fullWidth?: boolean;
-  invalidMsg?: string;
-  disabled?: boolean;
-  size?: "sm";
-};
-
-export function DateInput(p: DateInputProps) {
-  return (
-    <div class="w-fit data-[width=true]:w-full" data-width={p.fullWidth}>
-      <NativePickerInput
-        type="date"
-        iconName="calendar"
-        value={p.value}
-        onChange={p.onChange}
-        label={p.label}
-        intent={p.intent}
-        invalidMsg={p.invalidMsg}
-        disabled={p.disabled}
-        size={p.size}
-      />
-    </div>
-  );
+export function DateInput(p: NativePickerInputProps) {
+  return <NativePickerInput {...p} type="date" iconName="calendar" />;
 }
 
-type TimeInputProps = {
-  value: string;
-  onChange: (v: string) => void;
-  label?: string;
-  intent?: Intent;
-  fullWidth?: boolean;
-  invalidMsg?: string;
-  disabled?: boolean;
-  size?: "sm";
-};
-
-export function TimeInput(p: TimeInputProps) {
-  return (
-    <div class="w-fit data-[width=true]:w-full" data-width={p.fullWidth}>
-      <NativePickerInput
-        type="time"
-        iconName="clock"
-        value={p.value}
-        onChange={p.onChange}
-        label={p.label}
-        intent={p.intent}
-        invalidMsg={p.invalidMsg}
-        disabled={p.disabled}
-        size={p.size}
-      />
-    </div>
-  );
+export function TimeInput(p: NativePickerInputProps) {
+  return <NativePickerInput {...p} type="time" iconName="clock" />;
 }
 
-type DateTimeInputProps = {
-  value: string;
-  onChange: (v: string) => void;
-  label?: string;
-  intent?: Intent;
-  fullWidth?: boolean;
-  invalidMsg?: string;
-  disabled?: boolean;
-  size?: "sm";
-};
-
-export function DateTimeInput(p: DateTimeInputProps) {
-  return (
-    <div class="w-fit data-[width=true]:w-full" data-width={p.fullWidth}>
-      <NativePickerInput
-        type="datetime-local"
-        iconName="calendar"
-        value={p.value}
-        onChange={p.onChange}
-        label={p.label}
-        intent={p.intent}
-        invalidMsg={p.invalidMsg}
-        disabled={p.disabled}
-        size={p.size}
-      />
-    </div>
-  );
+function DateTimeInput(p: NativePickerInputProps) {
+  return <NativePickerInput {...p} type="datetime-local" iconName="calendar" />;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -368,7 +285,7 @@ type ZonedDateTimeInputProps = {
 
 export function ZonedDateTimeInput(p: ZonedDateTimeInputProps) {
   return (
-    <div>
+    <Field invalidMsg={p.invalidMsg}>
       <div class="flex gap-4">
         <DateTimeInput
           value={p.value.dateTime}
@@ -387,11 +304,6 @@ export function ZonedDateTimeInput(p: ZonedDateTimeInputProps) {
           size={p.size}
         />
       </div>
-      <Show when={p.invalidMsg}>
-        <div class="ui-text-small text-danger inline-block pt-1">
-          {p.invalidMsg}
-        </div>
-      </Show>
-    </div>
+    </Field>
   );
 }

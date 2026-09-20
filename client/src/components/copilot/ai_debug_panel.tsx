@@ -1,4 +1,4 @@
-import { type AlertComponentProps, Button, ModalContainer } from "panther";
+import { type AlertComponentProps, ModalContainer } from "panther";
 import { t3, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
 import { formatMetricsListForAI } from "lib";
 
@@ -21,11 +21,8 @@ export function AIDebugPanel(p: Props) {
       title={t3({ en: "AI debug — available metrics (get_available_metrics)", fr: "Débogage IA — métriques disponibles (get_available_metrics)", pt: "Depuração da IA — métricas disponíveis (get_available_metrics)" })}
       width="lg"
       scroll="content"
-      rightButtons={
-        <Button onClick={() => p.close()}>
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>
-      }
+      onCancel={() => p.close()}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <pre class="whitespace-pre-wrap break-words text-xs">{content()}</pre>
     </ModalContainer>

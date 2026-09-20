@@ -113,7 +113,7 @@ export function HfaStagingSummary(p: Props) {
               {t3({ en: "Variable labels extracted", fr: "Libellés de variables extraits", pt: "Etiquetas de variáveis extraídas" })}
             </span>
             <span class="font-700 font-mono text-xl">
-              {toNum0(p.result.nDictionaryVars)}
+              {toNum0(p.result.nDictionaryVariables)}
             </span>
           </div>
           <div class="flex flex-col">
@@ -132,13 +132,13 @@ export function HfaStagingSummary(p: Props) {
               {toNum0(p.result.nSelectMultipleExpanded)}
             </span>
           </div>
-          <Show when={p.result.nXlsFormVarsNotInCsv > 0}>
+          <Show when={p.result.nXlsFormQuestionsNotInCsv > 0}>
             <div class="flex flex-col">
               <span class="text-base-content text-sm">
-                {t3({ en: "XLSForm vars not in CSV (ok)", fr: "Variables XLSForm absentes du CSV (ok)", pt: "Variáveis XLSForm ausentes do CSV (ok)" })}
+                {t3({ en: "XLSForm questions not in CSV (ok)", fr: "Questions XLSForm absentes du CSV (ok)", pt: "Questões XLSForm ausentes do CSV (ok)" })}
               </span>
               <span class="font-700 font-mono text-xl">
-                {toNum0(p.result.nXlsFormVarsNotInCsv)}
+                {toNum0(p.result.nXlsFormQuestionsNotInCsv)}
               </span>
             </div>
           </Show>

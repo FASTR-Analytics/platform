@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Button,
   MultiSelect,
   createFormAction,
@@ -106,21 +106,23 @@ export function AIDocumentSelectorModal(
   );
 
   return (
-    <AlertFormHolder
-      formId="ai-document-selector"
-      header={t3({
+    <ModalContainer
+      title={t3({
         en: "Include PDF documents for the AI to consider",
         fr: "Inclure des documents PDF pour l'IA",
         pt: "Incluir documentos PDF para a IA considerar",
       })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      saveButtonText={t3({
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({
         en: "Include selected",
         fr: "Inclure la sélection",
         pt: "Incluir selecionados",
-      })}
+      }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="mb-3 flex items-center gap-3">
         <Button id="upload-pdf-button" size="sm" outline type="button">
@@ -174,7 +176,7 @@ export function AIDocumentSelectorModal(
           />
         </div>
       </Show>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }
 

@@ -48,6 +48,10 @@
 //      type names (schema v11): the pre-1.72 stamp pair renamed
 //      `indicatorsVersion` / `countIndicatorsVersion`, and the keys nothing
 //      reads dropped. Key rename and delete, no recompute.
+//  10. the hfa_indicators_snapshot mirror's `var_name` key reads
+//      `indicator_id` (schema v12): input block 2 rewrites the mirror before
+//      block 1 runs and block 1 recomputes from it, so this block only
+//      stamps.
 //
 // The input mirrors' own blocks are listed in input_transform.ts
 // (INPUT TRANSFORM BLOCKS); they run behind this file's version gate.
@@ -273,6 +277,12 @@ async function transformRunManifest(
     }
   }
   m.manifestSchemaVersion = 11;
+
+  // 10. The hfa_indicators_snapshot mirror's rows carry `indicator_id`: input
+  //    block 2 rewrote the mirror before block 1 ran, and block 1 recomputed
+  //    the catalog from it on this pass, so the manifest's own shape is
+  //    unchanged and the stamp is the whole block.
+  m.manifestSchemaVersion = 12;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a

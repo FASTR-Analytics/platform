@@ -4,7 +4,7 @@ import {
   ResultsValue,
   t3,
 } from "lib";
-import { Checkbox, LabelHolder, RadioGroup } from "panther";
+import { Checkbox, Field, RadioGroup } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { ChartLikeControls } from "./_chart_like_controls";
@@ -131,7 +131,7 @@ export function ChartStyleControls(p: Props) {
         </>
       </StyleSection>
       <StyleSection label={t3({ en: "Sorting", fr: "Tri", pt: "Ordenação" })}>
-        <LabelHolder
+        <Field
           label={t3({
             en: "Sort indicator values",
             fr: "Trier les valeurs des indicateurs",
@@ -162,7 +162,7 @@ export function ChartStyleControls(p: Props) {
               }
             />
           </div>
-        </LabelHolder>
+        </Field>
       </StyleSection>
       <ChartLikeControls
         metric={p.metric}

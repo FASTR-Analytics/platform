@@ -129,7 +129,8 @@ two-file step 1 (`survey`+`choices` sheets validated on save;
 `CsvDetails` row is normalized on read by `parseCsvStep1Result`).
 At staging, each mapped column except `facility_id` (admin areas
 included) is matched to a select_one question by the HFA header
-convention (exact name, else the header's post-last-`/` segment), and
+convention (the header itself as a question id, else its last `/`
+segment), and
 matching cell values are replaced by choice labels: **labels are stored
 in the facility columns, codes are discarded, no dictionary table**.
 Unresolved codes stay raw and are surfaced per column in the staging
@@ -489,15 +490,31 @@ same checksum over every row before and after, every key some
 indicator's data id; every stored JSON row parsed under the new shapes; a
 second run a no-op).
 
-**HFA** has two disjoint namespaces that are easy to conflate:
-`hfa_indicators.var_name` (definition ids, e.g. `ind001`) vs **survey
-variables** (`hfa_variables`, per time point, from staged ODK data, e.g.
-`fin_01a_a`). User-authored R snippets in `hfa_indicator_code`
-(per var_name × time_point: `r_code` + optional `r_filter_code`, filter
-requires main code) reference survey variables AND other indicator
-var_names. varNames are validated as R identifiers
-(`^[a-zA-Z][a-zA-Z0-9_]{0,63}$`) and checked against survey-variable
-shadowing, because they are interpolated as bare R symbols. Taxonomy:
+**HFA** has two disjoint id namespaces that are easy to conflate:
+**indicator ids** (`hfa_indicators.indicator_id`, e.g. `ind001`) and
+**variable ids** (`hfa_variables.variable_id`, per time point, with
+`variable_label` and `variable_type`; `hfa_data` and `hfa_variable_values`
+key on the same column; e.g. `fin_01a_a`, or `{question}_{choice}` for an
+expanded `select_multiple`). The variable id is the column the HFA extract
+carries to R (`hfa.csv` `variable_id`, the `m010` pivot column) and the id
+that indicator R code references; `M10_STRUCTURAL_NAMES` reserves it with
+the other columns the script owns. User-authored R snippets in `hfa_indicator_code`
+(per indicator_id × time_point: `r_code` + optional `r_filter_code`, filter
+requires main code) reference variables AND other indicators, both by id.
+Indicator ids are assigned by the app and never typed: `nextHfaIndicatorId`
+(`lib/hfa_r_code_analysis.ts`) takes the next `indNNN` after the highest
+stored one, skipping reserved words and survey variable ids (the id is
+interpolated as a bare R symbol, so it must not shadow a dataset column).
+The single create route assigns it on the server under a table lock; the
+AI batch tool and a workbook row with a blank `indicatorId` assign it on
+the client from the same rule, over the stored ids plus the batch's own.
+An id is immutable: every update path identifies the row by it and none
+renames. Ids are shown nowhere in the UI except the code editor, whose
+"Other indicators" list inserts one into the code on click; the workbook
+keeps its `indicatorId` column so a re-import updates rows in place.
+Stored ids that predate this rule (or violate `HFA_INDICATOR_ID_REGEX`,
+`^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which batch and workbook ids must still
+pass) are carried unchanged. Taxonomy:
 categories → sub-categories (real FKs) plus service categories stored as a
 JSON string array on the indicator (no FK; rename/delete integrity is
 maintained by jsonb rewrites in the service-category mutations).
@@ -524,7 +541,7 @@ response-option breakdown ("provides vaccination" × {campaign, routine,
 both}) without the items becoming indicators. Storage is one indicator row
 plus a sibling code table: `hfa_indicator_variant_groups` /
 `_items` (id PK, group FK) and `hfa_indicator_variant_code`
-(`var_name, time_point, item_id` → `r_code`), with a nullable
+(`indicator_id, time_point, item_id` → `r_code`), with a nullable
 `hfa_indicators.variant_group_id`. Real variant *rows* in `hfa_indicators`
 were rejected: their failure mode is a hiding rule at every surface that
 iterates the dictionary (manager, xlsx, `HfaTaxonomyForAI`,
@@ -545,11 +562,11 @@ inside every mutating transaction** that can touch them, including the
 category-side CRUD, because id uniqueness is bidirectional and a category
 created onto an existing item id would otherwise be accepted and then block
 every later indicator write: (1) item ids are unique across ALL HFA id
-namespaces (varNames, categories, sub-categories, service-categories, other
+namespaces (indicator ids, categories, sub-categories, service-categories, other
 items): labels resolve through one flat id→label map, so a collision
 silently mislabels; (2) the generated per-item column `<parent>__<item>`
-(`composeHfaVariantColumnName`) must not collide with an indicator varName,
-a survey variable, another composed name, or `isReservedHfaVarName` (its
+(`composeHfaVariantColumnName`) must not collide with an indicator id,
+a variable id, another composed name, or `isReservedHfaId` (its
 `/__status$/` rule especially: `script.R` collects response-status columns
 by that suffix); (3) an indicator with variant code must have overall code,
 else the generator's "no code" skip silently discards it. The composed name
@@ -1130,8 +1147,8 @@ this layer.
   relying on (or renaming) them.
 - `lib/hfa_r_code_analysis.ts` compiles into both the Deno server and the
   Vite client. Keep it dependency-free.
-- A stored HFA varName that violates the regex would 400 on save (dev
-  DB verified clean, 232/232; a violating varName would already be
+- Legacy HFA indicator ids that violate the regex would 400 on save (dev
+  DB verified clean, 232/232; a violating id would already be
   breaking R generation, but check before assuming on other instances).
 
 ## Open items

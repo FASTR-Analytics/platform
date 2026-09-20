@@ -40,6 +40,9 @@ CREATE TABLE runs (
 -- At most one pinned package per instance (SYSTEM_08 "The pinned package").
 CREATE UNIQUE INDEX runs_one_pinned ON runs (pinned) WHERE pinned;
 
+-- Labels are unique per instance, case- and whitespace-insensitively (091).
+CREATE UNIQUE INDEX runs_label_unique ON runs (lower(trim(label)));
+
 CREATE TABLE user_logs (
   id SERIAL PRIMARY KEY,
   user_email text NOT NULL,
@@ -642,10 +645,10 @@ CREATE TABLE hfa_time_points (
 
 CREATE TABLE hfa_variables (
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
-  var_name TEXT NOT NULL,
-  var_label TEXT NOT NULL,
-  var_type TEXT NOT NULL,
-  PRIMARY KEY (time_point, var_name)
+  variable_id TEXT NOT NULL,
+  variable_label TEXT NOT NULL,
+  variable_type TEXT NOT NULL,
+  PRIMARY KEY (time_point, variable_id)
 );
 
 -- ============================================================================
@@ -654,12 +657,12 @@ CREATE TABLE hfa_variables (
 
 CREATE TABLE hfa_variable_values (
   time_point TEXT NOT NULL,
-  var_name TEXT NOT NULL,
+  variable_id TEXT NOT NULL,
   value TEXT NOT NULL,
   value_label TEXT NOT NULL,
   sentinel_class TEXT NOT NULL DEFAULT '',
-  PRIMARY KEY (time_point, var_name, value),
-  FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
+  PRIMARY KEY (time_point, variable_id, value),
+  FOREIGN KEY (time_point, variable_id) REFERENCES hfa_variables(time_point, variable_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 -- ============================================================================
@@ -669,9 +672,9 @@ CREATE TABLE hfa_variable_values (
 CREATE TABLE hfa_data (
   facility_id TEXT NOT NULL,
   time_point TEXT NOT NULL,
-  var_name TEXT NOT NULL,
+  variable_id TEXT NOT NULL,
   value TEXT NOT NULL,
-  PRIMARY KEY (facility_id, time_point, var_name),
+  PRIMARY KEY (facility_id, time_point, variable_id),
   -- NO ACTION (default), not RESTRICT (RESTRICT's delete-side check can't defer).
   -- Structure integration refuses (assertAbsentFacilitiesUnreferenced) before
   -- deleting any facility this table still references, so the old deferred
@@ -679,10 +682,10 @@ CREATE TABLE hfa_data (
   -- no longer used by code.
   CONSTRAINT hfa_data_facility_id_fkey FOREIGN KEY (facility_id) REFERENCES facilities_hfa(facility_id) DEFERRABLE,
   FOREIGN KEY (time_point) REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE CASCADE,
-  FOREIGN KEY (time_point, var_name) REFERENCES hfa_variables(time_point, var_name) ON UPDATE CASCADE ON DELETE CASCADE
+  FOREIGN KEY (time_point, variable_id) REFERENCES hfa_variables(time_point, variable_id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-CREATE INDEX idx_hfa_data_var_name ON hfa_data(var_name);
+CREATE INDEX idx_hfa_data_variable_id ON hfa_data(variable_id);
 CREATE INDEX idx_hfa_data_facility_id ON hfa_data(facility_id);
 CREATE INDEX idx_hfa_data_time_point ON hfa_data(time_point);
 
@@ -778,7 +781,7 @@ CREATE TABLE hfa_indicator_variant_items (
 -- ============================================================================
 
 CREATE TABLE hfa_indicators (
-  var_name TEXT PRIMARY KEY NOT NULL,
+  indicator_id TEXT PRIMARY KEY NOT NULL,
   category_id TEXT REFERENCES hfa_indicator_categories(id) ON DELETE SET NULL,
   sub_category_id TEXT REFERENCES hfa_indicator_sub_categories(id) ON DELETE SET NULL,
   service_category_ids TEXT NOT NULL DEFAULT '[]',
@@ -801,19 +804,19 @@ CREATE TABLE hfa_indicators (
 -- ============================================================================
 
 CREATE TABLE hfa_indicator_code (
-  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
   r_code TEXT NOT NULL DEFAULT '',
   r_filter_code TEXT,
-  PRIMARY KEY (var_name, time_point)
+  PRIMARY KEY (indicator_id, time_point)
 );
 
 CREATE TABLE hfa_indicator_variant_code (
-  var_name TEXT NOT NULL REFERENCES hfa_indicators(var_name) ON DELETE CASCADE,
+  indicator_id TEXT NOT NULL REFERENCES hfa_indicators(indicator_id) ON DELETE CASCADE,
   time_point TEXT NOT NULL REFERENCES hfa_time_points(label) ON UPDATE CASCADE ON DELETE RESTRICT,
   item_id TEXT NOT NULL REFERENCES hfa_indicator_variant_items(id) ON UPDATE CASCADE ON DELETE CASCADE,
   r_code TEXT NOT NULL DEFAULT '',
-  PRIMARY KEY (var_name, time_point, item_id)
+  PRIMARY KEY (indicator_id, time_point, item_id)
 );
 
 -- ============================================================================

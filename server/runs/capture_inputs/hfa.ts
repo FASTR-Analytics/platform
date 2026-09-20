@@ -33,9 +33,9 @@ export type DatasetHfaRunCapture = {
   info: RunDatasetHfaInfo;
   lastUpdated: string;
   facilities: RunFacilityRow[];
-  indicatorsHfa: { var_name: string; example_values: string }[];
+  variables: { variable_id: string; example_values: string }[];
   sentinelValues: {
-    var_name: string;
+    variable_id: string;
     value: string;
     sentinel_class: string;
     is_numeric: boolean;
@@ -47,13 +47,13 @@ export type DatasetHfaRunCapture = {
   variantItems: DBHfaIndicatorVariantItem[];
   indicators: DBHfaIndicator[];
   indicatorCode: {
-    var_name: string;
+    indicator_id: string;
     time_point: string;
     r_code: string;
     r_filter_code: string | null;
   }[];
   variantCode: {
-    var_name: string;
+    indicator_id: string;
     time_point: string;
     item_id: string;
     r_code: string;
@@ -83,25 +83,25 @@ export async function computeDatasetHfaRunCapture(
     // DB for the run snapshot. The module runner reads from the snapshot so
     // indicators and data stay in sync for this run.
     const hfaIndicatorRowsForSnapshot = await mainDb<DBHfaIndicator[]>`
-      SELECT * FROM hfa_indicators ORDER BY sort_order, var_name
+      SELECT * FROM hfa_indicators ORDER BY sort_order, indicator_id
     `;
-    const indicatorVarNames = new Set(
-      hfaIndicatorRowsForSnapshot.map((ind) => ind.var_name),
+    const indicatorIds = new Set(
+      hfaIndicatorRowsForSnapshot.map((ind) => ind.indicator_id),
     );
     const hfaIndicatorCodeRowsForSnapshot = (
       await mainDb<
         {
-          var_name: string;
+          indicator_id: string;
           time_point: string;
           r_code: string;
           r_filter_code: string | null;
         }[]
       >`
-      SELECT var_name, time_point, r_code, r_filter_code
+      SELECT indicator_id, time_point, r_code, r_filter_code
       FROM hfa_indicator_code
-      ORDER BY var_name, time_point
+      ORDER BY indicator_id, time_point
     `
-    ).filter((c) => indicatorVarNames.has(c.var_name));
+    ).filter((c) => indicatorIds.has(c.indicator_id));
 
     // Staleness metadata: stored in the manifest datasets info so a reader
     // can detect when the package is behind the instance.
@@ -147,14 +147,14 @@ SELECT
   ${adminAreaColumns.map((col) => `f.${col}`).join(",\n  ")},
   h.time_point,
   w.weight,
-  h.var_name,
+  h.variable_id,
   h.value
 FROM hfa_data h
 INNER JOIN facilities_hfa f ON h.facility_id = f.facility_id
 LEFT JOIN hfa_facility_weights w ON w.facility_id = h.facility_id AND w.time_point = h.time_point
 -- Deterministic row order: the extract's bytes are a module inputKey
 -- ingredient (PLAN_RESULTS_RUNS §3.7); unordered COPY output varies run to run.
-ORDER BY h.facility_id, h.time_point, h.var_name, h.value`;
+ORDER BY h.facility_id, h.time_point, h.variable_id, h.value`;
 
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`
@@ -189,17 +189,17 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     const hfaVariantCodeRowsForSnapshot = (
       await mainDb<
         {
-          var_name: string;
+          indicator_id: string;
           time_point: string;
           item_id: string;
           r_code: string;
         }[]
       >`
-      SELECT var_name, time_point, item_id, r_code
+      SELECT indicator_id, time_point, item_id, r_code
       FROM hfa_indicator_variant_code
-      ORDER BY var_name, time_point, item_id
+      ORDER BY indicator_id, time_point, item_id
     `
-    ).filter((c) => indicatorVarNames.has(c.var_name));
+    ).filter((c) => indicatorIds.has(c.indicator_id));
 
     const info: RunDatasetHfaInfo = {
       hfaCacheHash,
@@ -212,51 +212,47 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
       `SELECT ${RUN_FACILITY_COLUMN_NAMES.join(", ")} FROM facilities_hfa`,
     )) as RunFacilityRow[];
 
-    // Fetch unique HFA indicators (var_name) from main database with sample values
-    const hfaIndicators = (await mainDb.unsafe(`
+    // Every variable id in hfa_data with sample values. Never scoped by
+    // service category: indicator R code must be able to resolve any variable.
+    const variables = (await mainDb.unsafe(`
       WITH distinct_values AS (
         SELECT
-          var_name,
+          variable_id,
           value,
-          ROW_NUMBER() OVER (PARTITION BY var_name ORDER BY value) as rn
+          ROW_NUMBER() OVER (PARTITION BY variable_id ORDER BY value) as rn
         FROM (
-          SELECT DISTINCT var_name, value
+          SELECT DISTINCT variable_id, value
           FROM hfa_data
           WHERE value IS NOT NULL AND value != ''
         ) AS dv
       )
       SELECT
-        var_name,
+        variable_id,
         STRING_AGG(value, ', ' ORDER BY value) as sample_values
       FROM distinct_values
       WHERE rn <= 20
-      GROUP BY var_name
-      ORDER BY var_name
-    `)) as Array<{ var_name: string; sample_values: string | null }>;
-    // NOTE: `hfaIndicators` here are the raw HFA *survey variables* (var_name =
-    // fin_01a_a, hr_01, ...) drawn from hfa_data: a DIFFERENT namespace from the
-    // hfa_indicators *definition* ids (ind001, ...). The service-category scope
-    // filters indicator DEFINITIONS + their code only; the available survey
-    // variables must stay complete or indicator R code can't resolve them.
+      GROUP BY variable_id
+      ORDER BY variable_id
+    `)) as Array<{ variable_id: string; sample_values: string | null }>;
 
     // Per-variable sentinel classification (layer 3): one row per classified
-    // (var_name, value). is_numeric flags a numeric-var don't-know (-999999),
+    // (variable_id, value). is_numeric flags a numeric-variable don't-know (-999999),
     // which the generator treats as always-missing regardless of DK policy.
     // MAX/bool_or collapse the rare case of a code classified differently across
     // time points to a single deterministic row.
     const hfaSentinelValuesForSnapshot = (await mainDb.unsafe(`
       SELECT
-        vv.var_name,
+        vv.variable_id,
         vv.value,
         MAX(vv.sentinel_class) AS sentinel_class,
-        bool_or(v.var_type IN ('integer', 'decimal')) AS is_numeric
+        bool_or(v.variable_type IN ('integer', 'decimal')) AS is_numeric
       FROM hfa_variable_values vv
       JOIN hfa_variables v
-        ON v.time_point = vv.time_point AND v.var_name = vv.var_name
+        ON v.time_point = vv.time_point AND v.variable_id = vv.variable_id
       WHERE vv.sentinel_class <> ''
-      GROUP BY vv.var_name, vv.value
+      GROUP BY vv.variable_id, vv.value
     `)) as Array<{
-      var_name: string;
+      variable_id: string;
       value: string;
       sentinel_class: string;
       is_numeric: boolean;
@@ -268,9 +264,9 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
         info,
         lastUpdated: new Date().toISOString(),
         facilities,
-        indicatorsHfa: hfaIndicators.map((ind) => ({
-          var_name: ind.var_name,
-          example_values: ind.sample_values || "",
+        variables: variables.map((v) => ({
+          variable_id: v.variable_id,
+          example_values: v.sample_values || "",
         })),
         sentinelValues: hfaSentinelValuesForSnapshot,
         categories: hfaCategoriesForSnapshot,

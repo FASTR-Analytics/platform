@@ -4,26 +4,20 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  createEffect,
   createSignal,
+  For,
   type JSX,
   Match,
   onCleanup,
   onMount,
   Show,
   Switch,
-  untrack,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { t3 } from "../deps.ts";
-import { Button } from "../form_inputs/button.tsx";
 import { Input } from "../form_inputs/input.tsx";
 import type { Intent } from "../types.ts";
 import { ModalContainer } from "./modal_container.tsx";
-
-///////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////// Inputs ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
 
 type OpenAlertInput = {
   title?: string;
@@ -58,188 +52,70 @@ type OpenComponentInput<TProps, TReturn> = {
   props: TProps;
 };
 
-///////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////// States ////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
-type AlertStateType = OpenAlertInput & {
-  stateType: "alert";
-  alertResolver(): void;
-};
-
-type ConfirmStateType = OpenConfirmInput & {
-  stateType: "confirm";
-  confirmResolver(v: boolean): void;
-};
-
-type PromptStateType = OpenPromptInput & {
-  stateType: "prompt";
-  promptResolver(v: string | undefined): void;
-};
-
-type ACPStateType = AlertStateType | ConfirmStateType | PromptStateType;
-
-function isACPState(
-  alertState:
-    | AlertStateType
-    | ConfirmStateType
-    | PromptStateType
-    | AnyComponentStateType
-    | undefined,
-): alertState is ACPStateType {
-  return alertState?.stateType !== "component";
-}
-
-function isAlertState(
-  alertState:
-    | AlertStateType
-    | ConfirmStateType
-    | PromptStateType
-    | AnyComponentStateType
-    | undefined,
-): alertState is AlertStateType {
-  return alertState?.stateType === "alert";
-}
-
-function isConfirmState(
-  alertState:
-    | AlertStateType
-    | ConfirmStateType
-    | PromptStateType
-    | AnyComponentStateType
-    | undefined,
-): alertState is ConfirmStateType {
-  return alertState?.stateType === "confirm";
-}
-
-function isPromptState(
-  alertState:
-    | AlertStateType
-    | ConfirmStateType
-    | PromptStateType
-    | AnyComponentStateType
-    | undefined,
-): alertState is PromptStateType {
-  return alertState?.stateType === "prompt";
-}
-
-function isComponentState(
-  alertState:
-    | AlertStateType
-    | ConfirmStateType
-    | PromptStateType
-    | AnyComponentStateType
-    | undefined,
-): alertState is AnyComponentStateType {
-  return alertState?.stateType === "component";
-}
-
-type ComponentStateType<TProps, TReturn> =
-  & OpenComponentInput<
-    TProps,
-    TReturn
-  >
-  & {
-    stateType: "component";
-    componentResolver(v: TReturn | undefined): void;
+type DialogEntry =
+  | { kind: "alert"; input: OpenAlertInput; resolve: () => void }
+  | { kind: "confirm"; input: OpenConfirmInput; resolve: (v: boolean) => void }
+  | {
+    kind: "prompt";
+    input: OpenPromptInput;
+    resolve: (v: string | undefined) => void;
+  }
+  | {
+    kind: "component";
+    // deno-lint-ignore no-explicit-any -- heterogeneous component props/return; per-instance generics can't be expressed in a shared union without `any`
+    input: OpenComponentInput<any, any>;
+    resolve: (v: unknown) => void;
   };
 
-// deno-lint-ignore no-explicit-any -- heterogeneous component props/return; per-instance generics can't be expressed in a shared union without `any`
-type AnyComponentStateType = ComponentStateType<any, any>;
+// Dialogs stack: opening one over another layers it on top, and each promise
+// settles when its own layer closes.
+const [stack, setStack] = createSignal<DialogEntry[]>([]);
 
-const [alertState, setAlertState] = createSignal<
-  | AlertStateType
-  | ConfirmStateType
-  | PromptStateType
-  | AnyComponentStateType
-  | undefined
->(undefined);
-
-// A dialog's promise must always settle. There is one global slot, so
-// opening a dialog while another is live displaces it — resolve the
-// displaced one as cancelled instead of dropping its resolver (which would
-// leave the displaced caller awaiting forever).
-function resolveAsCancelled(
-  state:
-    | AlertStateType
-    | ConfirmStateType
-    | PromptStateType
-    | AnyComponentStateType
-    | undefined,
-): void {
-  if (isAlertState(state)) {
-    state.alertResolver();
-  }
-  if (isConfirmState(state)) {
-    state.confirmResolver(false);
-  }
-  if (isPromptState(state)) {
-    state.promptResolver(undefined);
-  }
-  if (isComponentState(state)) {
-    state.componentResolver(undefined);
-  }
+function push(entry: DialogEntry): void {
+  setStack((s) => [...s, entry]);
 }
 
-function replaceAlertState(
-  next:
-    | AlertStateType
-    | ConfirmStateType
-    | PromptStateType
-    | AnyComponentStateType,
-): void {
-  // untrack: open* is often called from inside an effect (sync prefix of an
-  // async fn). A tracked read here would subscribe that effect to the slot,
-  // and the setAlertState below would re-run it in an infinite loop.
-  resolveAsCancelled(untrack(alertState));
-  setAlertState(next);
+function close(entry: DialogEntry): void {
+  setStack((s) => s.filter((e) => e !== entry));
+}
+
+function cancel(entry: DialogEntry): void {
+  switch (entry.kind) {
+    case "alert":
+      entry.resolve();
+      break;
+    case "confirm":
+      entry.resolve(false);
+      break;
+    case "prompt":
+    case "component":
+      entry.resolve(undefined);
+      break;
+  }
+  close(entry);
 }
 
 export function openAlert(v: OpenAlertInput): Promise<void> {
-  return new Promise((resolve: () => void) => {
-    replaceAlertState({
-      ...v,
-      stateType: "alert",
-      alertResolver: resolve,
-    });
-  });
+  return new Promise((resolve) => push({ kind: "alert", input: v, resolve }));
 }
 
 export function openConfirm(v: OpenConfirmInput): Promise<boolean> {
-  return new Promise<boolean>((resolve: (p: boolean) => void) => {
-    replaceAlertState({
-      ...v,
-      stateType: "confirm",
-      confirmResolver: resolve,
-    });
-  });
+  return new Promise((resolve) => push({ kind: "confirm", input: v, resolve }));
 }
 
-export function openPrompt(
-  v: OpenPromptInput,
-): Promise<string | undefined> {
-  return new Promise<string | undefined>(
-    (resolve: (p: string | undefined) => void) => {
-      replaceAlertState({
-        ...v,
-        stateType: "prompt",
-        promptResolver: resolve,
-      });
-    },
-  );
+export function openPrompt(v: OpenPromptInput): Promise<string | undefined> {
+  return new Promise((resolve) => push({ kind: "prompt", input: v, resolve }));
 }
 
 export function openComponent<TProps, TReturn>(
   v: OpenComponentInput<TProps, TReturn>,
 ): Promise<TReturn | undefined> {
-  return new Promise<TReturn | undefined>(
-    (resolve: (p: TReturn | undefined) => void) => {
-      replaceAlertState({
-        ...v,
-        stateType: "component",
-        componentResolver: resolve,
-      });
-    },
+  return new Promise<TReturn | undefined>((resolve) =>
+    push({
+      kind: "component",
+      input: v,
+      resolve: resolve as (v: unknown) => void,
+    })
   );
 }
 
@@ -252,14 +128,17 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(", ");
 
-export default function AlertProvider() {
-  let dialogEl: HTMLDivElement | undefined;
-  let previouslyFocused: Element | null = null;
+export function AlertProvider() {
+  return (
+    <For each={stack()}>
+      {(entry) => <DialogLayer entry={entry} />}
+    </For>
+  );
+}
 
-  function cancelAny() {
-    resolveAsCancelled(alertState());
-    setAlertState(undefined);
-  }
+function DialogLayer(p: { entry: DialogEntry }) {
+  let dialogEl: HTMLDivElement | undefined;
+  const isTop = () => stack()[stack().length - 1] === p.entry;
 
   function getFocusables(): HTMLElement[] {
     if (!dialogEl) {
@@ -271,12 +150,12 @@ export default function AlertProvider() {
   }
 
   function handleKeyDown(evt: KeyboardEvent) {
-    if (!untrack(alertState)) {
+    if (!isTop()) {
       return;
     }
     if (evt.key === "Escape") {
       evt.preventDefault();
-      cancelAny();
+      cancel(p.entry);
       return;
     }
     if (evt.key === "Tab") {
@@ -304,251 +183,172 @@ export default function AlertProvider() {
   }
 
   onMount(() => {
+    const previouslyFocused = document.activeElement;
     document.addEventListener("keydown", handleKeyDown);
-  });
-  onCleanup(() => {
-    document.removeEventListener("keydown", handleKeyDown);
-  });
-
-  createEffect(() => {
-    if (alertState()) {
-      // Runs on open and on displacement (keyed swap); only the first open
-      // of the run records the restore target.
-      if (!previouslyFocused) {
-        previouslyFocused = document.activeElement;
-      }
-      // autofocus props (confirm's Cancel, prompt's Input) may already have
-      // claimed focus — only place initial focus if it is still outside.
-      if (dialogEl && !dialogEl.contains(document.activeElement)) {
-        (getFocusables()[0] ?? dialogEl).focus();
-      }
-    } else if (previouslyFocused) {
+    // autofocus props may already have claimed focus; only place initial
+    // focus if it is still outside the layer.
+    if (dialogEl && !dialogEl.contains(document.activeElement)) {
+      (getFocusables()[0] ?? dialogEl).focus();
+    }
+    onCleanup(() => {
+      document.removeEventListener("keydown", handleKeyDown);
       if (previouslyFocused instanceof HTMLElement) {
         previouslyFocused.focus();
       }
-      previouslyFocused = null;
-    }
+    });
   });
 
+  const label = () =>
+    p.entry.kind === "component" ? undefined : p.entry.input.title;
+
   return (
-    <Show when={alertState()} keyed>
-      {(keyedAlertState) => {
-        return (
-          <>
-            <div class="bg-scrim fixed inset-0 z-50" />
-            <div
-              ref={dialogEl}
-              class="fixed inset-0 z-50 overflow-y-auto outline-none [container-type:size]"
-              role="dialog"
-              aria-modal="true"
-              aria-label={isACPState(keyedAlertState)
-                ? keyedAlertState.title
-                : undefined}
-              tabindex="-1"
-            >
-              <div class="flex min-h-full items-center justify-center">
-                <Switch>
-                  <Match
-                    when={isComponentState(keyedAlertState) && keyedAlertState}
-                    keyed
-                  >
-                    {(keyedComponentState) => {
-                      return (
-                        <div class="ui-never-focusable bg-base-100 z-50 m-(--ui-modal-gutter) rounded border shadow-floating outline-none">
-                          <Dynamic
-                            component={keyedComponentState.element}
-                            close={(p: unknown) => {
-                              keyedComponentState.componentResolver(p);
-                              setAlertState(undefined);
-                            }}
-                            {...keyedComponentState.props}
-                          />
-                        </div>
-                      );
+    <>
+      <div class="bg-scrim fixed inset-0 z-50" />
+      <div
+        ref={dialogEl}
+        class="fixed inset-0 z-50 overflow-y-auto outline-none [container-type:size]"
+        role="dialog"
+        aria-modal="true"
+        aria-label={label()}
+        tabindex="-1"
+      >
+        <div class="flex min-h-full items-center justify-center">
+          <div class="ui-never-focusable bg-base-100 z-50 m-(--ui-modal-gutter) rounded border shadow-floating outline-none">
+            <Switch>
+              <Match when={p.entry.kind === "component" && p.entry} keyed>
+                {(entry) => (
+                  <Dynamic
+                    component={entry.input.element}
+                    close={(v: unknown) => {
+                      entry.resolve(v);
+                      close(entry);
                     }}
-                  </Match>
-                  <Match
-                    when={isACPState(keyedAlertState) && keyedAlertState}
-                    keyed
-                  >
-                    {(keyedACPState) => {
-                      return (
-                        <div class="ui-never-focusable bg-base-100 z-50 m-(--ui-modal-gutter) rounded border shadow-floating outline-none">
-                          <ModalContainer
-                            width="sm"
-                            topPanel={keyedACPState.title
-                              ? (
-                                <h2
-                                  class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-none"
-                                  data-intent={keyedACPState.intent}
-                                >
-                                  {keyedACPState.title}
-                                </h2>
-                              )
-                              : undefined}
-                            leftButtons={(() => {
-                              const ass = keyedACPState;
-                              if (isAlertState(ass)) {
-                                // eslint-disable-next-line jsx-key
-                                return [
-                                  <Button
-                                    onClick={() => {
-                                      ass.alertResolver();
-                                      setAlertState(undefined);
-                                    }}
-                                    intent={ass.intent}
-                                  >
-                                    {ass.closeButtonLabel ??
-                                      t3({
-                                        en: "Close",
-                                        fr: "Fermer",
-                                        pt: "Fechar",
-                                      })}
-                                  </Button>,
-                                ];
-                              }
-                              if (isConfirmState(ass)) {
-                                // eslint-disable-next-line jsx-key
-                                return [
-                                  <Button
-                                    onClick={() => {
-                                      ass.confirmResolver(true);
-                                      setAlertState(undefined);
-                                    }}
-                                    intent={ass.intent}
-                                  >
-                                    {ass.confirmButtonLabel ??
-                                      t3({
-                                        en: "Confirm",
-                                        fr: "Confirmer",
-                                        pt: "Confirmar",
-                                      })}
-                                  </Button>,
-                                  <Button
-                                    onClick={() => {
-                                      ass.confirmResolver(false);
-                                      setAlertState(undefined);
-                                    }}
-                                    intent="neutral"
-                                    autofocus
-                                  >
-                                    {t3({
-                                      en: "Cancel",
-                                      fr: "Annuler",
-                                      pt: "Cancelar",
-                                    })}
-                                  </Button>,
-                                ];
-                              }
-                              if (isPromptState(ass)) {
-                                // eslint-disable-next-line jsx-key
-                                return [
-                                  <Button
-                                    type="submit"
-                                    form="promptForm"
-                                    intent={ass.intent}
-                                  >
-                                    {ass.saveButtonLabel ??
-                                      t3({
-                                        en: "Confirm",
-                                        fr: "Confirmer",
-                                        pt: "Confirmar",
-                                      })}
-                                  </Button>,
-                                  <Button
-                                    type="button"
-                                    onClick={() => {
-                                      ass.promptResolver(undefined);
-                                      setAlertState(undefined);
-                                    }}
-                                    intent="neutral"
-                                  >
-                                    {t3({
-                                      en: "Cancel",
-                                      fr: "Annuler",
-                                      pt: "Cancelar",
-                                    })}
-                                  </Button>,
-                                ];
-                              }
-                              return [];
-                            })()}
-                          >
-                            <Show when={keyedACPState.text} keyed>
-                              {(keyedText) => (
-                                <Switch>
-                                  <Match when={typeof keyedText === "string"}>
-                                    <p>{keyedText}</p>
-                                  </Match>
-                                  <Match when={typeof keyedText !== "string"}>
-                                    {keyedText}
-                                  </Match>
-                                </Switch>
-                              )}
-                            </Show>
-                            <Show
-                              when={isPromptState(keyedACPState) &&
-                                keyedACPState}
-                              keyed
-                            >
-                              {(keyedPromptState) => (
-                                <InnerForPrompt
-                                  pst={keyedPromptState}
-                                  close={(v: string | undefined) => {
-                                    keyedPromptState.promptResolver(v);
-                                    setAlertState(undefined);
-                                  }}
-                                />
-                              )}
-                            </Show>
-                          </ModalContainer>
-                        </div>
-                      );
-                    }}
-                  </Match>
-                </Switch>
-              </div>
-            </div>
-          </>
-        );
-      }}
-    </Show>
+                    {...entry.input.props}
+                  />
+                )}
+              </Match>
+              <Match when={p.entry.kind === "alert" && p.entry} keyed>
+                {(entry) => (
+                  <BuiltInDialog
+                    title={entry.input.title}
+                    text={entry.input.text}
+                    intent={entry.input.intent}
+                    actions={[{
+                      label: entry.input.closeButtonLabel ??
+                        t3({ en: "Close", fr: "Fermer", pt: "Fechar" }),
+                      intent: entry.input.intent,
+                      onClick: () => {
+                        entry.resolve();
+                        close(entry);
+                      },
+                    }]}
+                  />
+                )}
+              </Match>
+              <Match when={p.entry.kind === "confirm" && p.entry} keyed>
+                {(entry) => (
+                  <BuiltInDialog
+                    title={entry.input.title}
+                    text={entry.input.text}
+                    intent={entry.input.intent}
+                    onCancel={() => cancel(entry)}
+                    actions={[{
+                      label: entry.input.confirmButtonLabel ??
+                        t3({ en: "Confirm", fr: "Confirmer", pt: "Confirmar" }),
+                      intent: entry.input.intent,
+                      onClick: () => {
+                        entry.resolve(true);
+                        close(entry);
+                      },
+                    }]}
+                  />
+                )}
+              </Match>
+              <Match when={p.entry.kind === "prompt" && p.entry} keyed>
+                {(entry) => <PromptDialog entry={entry} />}
+              </Match>
+            </Switch>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////
-
-type InnerForPromptProps = {
-  pst: PromptStateType;
-  close: (p: string | undefined) => void;
+type BuiltInDialogProps = {
+  title?: string;
+  text?: string | JSX.Element;
+  intent?: Intent;
+  actions: { label: string; intent?: Intent; onClick: () => void }[];
+  onCancel?: () => void;
+  form?: boolean;
+  children?: JSX.Element;
 };
 
-function InnerForPrompt(p: InnerForPromptProps) {
+function BuiltInDialog(p: BuiltInDialogProps) {
+  return (
+    <ModalContainer
+      width="sm"
+      topPanel={p.title
+        ? (
+          <h2
+            class="ui-text-heading data-primary:text-primary data-neutral:text-neutral data-success:text-success data-danger:text-danger leading-none"
+            data-intent={p.intent}
+          >
+            {p.title}
+          </h2>
+        )
+        : undefined}
+      actions={p.actions}
+      onCancel={p.onCancel}
+      form={p.form}
+    >
+      <Show when={p.text} keyed>
+        {(text) => (
+          <Switch>
+            <Match when={typeof text === "string"}>
+              <p>{text}</p>
+            </Match>
+            <Match when={typeof text !== "string"}>{text}</Match>
+          </Switch>
+        )}
+      </Show>
+      {p.children}
+    </ModalContainer>
+  );
+}
+
+function PromptDialog(
+  p: { entry: Extract<DialogEntry, { kind: "prompt" }> },
+) {
   const [promptInput, setPromptInput] = createSignal<string>(
-    p.pst.initialInputText,
+    p.entry.input.initialInputText,
   );
   return (
-    <form
-      id="promptForm"
-      onSubmit={(evt) => {
-        evt.preventDefault();
-        p.close(promptInput());
-      }}
+    <BuiltInDialog
+      title={p.entry.input.title}
+      text={p.entry.input.text}
+      intent={p.entry.input.intent}
+      form
+      onCancel={() => cancel(p.entry)}
+      actions={[{
+        label: p.entry.input.saveButtonLabel ??
+          t3({ en: "Confirm", fr: "Confirmer", pt: "Confirmar" }),
+        intent: p.entry.input.intent,
+        onClick: () => {
+          p.entry.resolve(promptInput());
+          close(p.entry);
+        },
+      }]}
     >
       <Input
-        label={p.pst.inputLabel}
+        label={p.entry.input.inputLabel}
+        type={p.entry.input.inputType}
         value={promptInput()}
-        onChange={(v) => setPromptInput(v)}
+        onChange={setPromptInput}
         autoFocus
         fullWidth
       />
-    </form>
+    </BuiltInDialog>
   );
 }

@@ -26,7 +26,9 @@ import { serverActions } from "~/server_actions";
 
 // The instance's module-defaults editor (S8 "Instance module defaults"): the
 // ONE writer of the `run_generation_defaults` store, which pre-fills the
-// generation wizard (resume beats these defaults beats definition defaults).
+// generation wizard (these defaults beat definition defaults). The wizard
+// no longer edits parameter values, so this editor is the ONLY place they
+// are set.
 // Definitions are never stored: they are resolved live on open via the same
 // read the wizard uses, and drift is absorbed by
 // getMergedModuleConfigSelections on the next read. Params render for EVERY
@@ -237,9 +239,9 @@ function ModuleDefaultsInner(p: {
     <div class="ui-pad ui-spy">
       <div class="text-base-content-muted max-w-2xl">
         {t3({
-          en: "These defaults pre-fill the generation wizard when a new results package is configured. They can be changed there for any individual package.",
-          fr: "Ces valeurs par défaut préremplissent l'assistant de génération lors de la configuration d'un nouveau paquet de résultats. Elles peuvent y être modifiées pour chaque paquet.",
-          pt: "Estas predefinições preenchem o assistente de geração quando um novo pacote de resultados é configurado. Podem ser alteradas aí para cada pacote.",
+          en: "These defaults configure the generation wizard when a new results package is generated. Module parameter values are set only here and apply to every package that includes the module.",
+          fr: "Ces valeurs par défaut configurent l'assistant de génération lors de la création d'un nouveau paquet de résultats. Les valeurs des paramètres des modules se règlent uniquement ici et s'appliquent à chaque paquet qui inclut le module.",
+          pt: "Estas predefinições configuram o assistente de geração quando um novo pacote de resultados é gerado. Os valores dos parâmetros dos módulos definem-se apenas aqui e aplicam-se a todos os pacotes que incluam o módulo.",
         })}
       </div>
 

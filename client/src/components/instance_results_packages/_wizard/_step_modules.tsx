@@ -6,9 +6,8 @@ import {
   type RunGenerationModuleOptions,
   type RunGenerationStep1Result,
 } from "lib";
-import { Checkbox, CollapsibleSection } from "panther";
+import { Checkbox } from "panther";
 import { For, Show, createMemo } from "solid-js";
-import { ModuleParameterInputs } from "~/components/_shared/module_parameter_inputs";
 import {
   familiesOf,
   isOfferable,
@@ -21,9 +20,8 @@ type Props = {
   graph: ModuleGraph;
   families: RunGenerationStep1Result;
   chosenIds: Set<ModuleId>;
-  paramValues: Record<string, Record<string, string>>;
+  invalidDefaultLabels: string[];
   setSelected: (id: ModuleId, checked: boolean) => void;
-  setParam: (id: ModuleId, key: string, value: string) => void;
 };
 
 // Step 2: configure modules. Selection is DAG-aware, mirroring the
@@ -34,9 +32,10 @@ type Props = {
 // disabled: with the note naming the missing family, since the user can go
 // back to step 1 and add it.
 //
-// Selection and settings are separate lists: every module is one checkbox
-// line, and only a checked module with parameters gets a settings section,
-// closed by default because the instance's module defaults pre-fill it.
+// Parameter values are not editable here: the instance's module defaults
+// are the one place they are set, and launch sends them as stored. A chosen
+// module whose stored default fails the shared validity check is named so
+// the user knows to fix it in the module-defaults editor.
 export function StepModules(p: Props) {
   const familySet = createMemo(() => familiesOf(p.families));
 
@@ -57,9 +56,6 @@ export function StepModules(p: Props) {
     hfa: t3({ en: "HFA", fr: "FOSA", pt: "HFA" }),
     iceh: t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" }),
   };
-
-  const modulesWithSettings = () =>
-    p.options.modules.filter((o) => isChecked(o.id) && o.parameters.length > 0);
 
   return (
     <div class="ui-spy">
@@ -140,28 +136,14 @@ export function StepModules(p: Props) {
         </For>
       </div>
 
-      <Show when={modulesWithSettings().length > 0}>
-        <div class="ui-spy-sm">
-          <div class="ui-text-caption font-700">
-            {t3({
-              en: "Module settings",
-              fr: "Paramètres des modules",
-              pt: "Definições dos módulos",
-            })}
-          </div>
-          <For each={modulesWithSettings()}>
-            {(option) => (
-              <CollapsibleSection title={option.label}>
-                <div class="ui-pad">
-                  <ModuleParameterInputs
-                    parameters={option.parameters}
-                    values={p.paramValues[option.id]}
-                    onChange={(k, v) => p.setParam(option.id, k, v)}
-                  />
-                </div>
-              </CollapsibleSection>
-            )}
-          </For>
+      <Show when={p.invalidDefaultLabels.length > 0}>
+        <div class="text-danger text-sm">
+          {t3({
+            en: "These modules have invalid default parameter values. Fix them in Module defaults before launching:",
+            fr: "Ces modules ont des valeurs de paramètres par défaut non valides. Corrigez-les dans les paramètres par défaut des modules avant de lancer :",
+            pt: "Estes módulos têm valores de parâmetros predefinidos inválidos. Corrija-os nas predefinições dos módulos antes de iniciar:",
+          })}{" "}
+          {p.invalidDefaultLabels.join(", ")}
         </div>
       </Show>
     </div>

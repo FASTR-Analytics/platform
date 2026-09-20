@@ -15,7 +15,7 @@ import {
   FrameLeft,
   FrameTop,
   Icon,
-  MenuTriggerWrapper,
+  MenuButton,
   PopoverMenuProvider,
   TabsNavigation,
   TooltipProvider,
@@ -218,7 +218,7 @@ export default function Instance(p: Props) {
                 <Button intent="base-100" onClick={openTheme}>
                   {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
                 </Button>
-                <MenuTriggerWrapper
+                <MenuButton
                   data-tour="instance-topbar-language"
                   items={
                     [
@@ -249,11 +249,10 @@ export default function Instance(p: Props) {
                     ] satisfies MenuItem[]
                   }
                   position="bottom-end"
+                  intent="base-100"
                 >
-                  <Button intent="base-100">
-                    {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
-                  </Button>
-                </MenuTriggerWrapper>
+                  {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
+                </MenuButton>
                 <Show
                   when={
                     instanceState.currentUserApproved &&
@@ -272,7 +271,7 @@ export default function Instance(p: Props) {
                   </div>
                 </Show>
                 <Show when={instanceState.currentUserApproved}>
-                  <MenuTriggerWrapper
+                  <MenuButton
                     data-tour="instance-topbar-help"
                     items={() => {
                       const items: MenuItem[] = [];
@@ -316,11 +315,10 @@ export default function Instance(p: Props) {
                       return items;
                     }}
                     position="bottom-end"
+                    intent="base-100"
                   >
-                    <Button intent="base-100">
-                      {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                    </Button>
-                  </MenuTriggerWrapper>
+                    {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                  </MenuButton>
                   <Button
                     onClick={openInstanceMeta}
                     iconName="versions"

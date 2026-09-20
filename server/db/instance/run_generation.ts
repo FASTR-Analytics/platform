@@ -1,4 +1,4 @@
-import type { Sql } from "postgres";
+import postgres, { type Sql } from "postgres";
 import {
   runProgressSchema,
   type APIResponseNoData,
@@ -11,6 +11,10 @@ import {
   type RunProvenance,
   type RunSummary,
 } from "lib";
+
+// The vendored Deno build attaches PostgresError to the default export only;
+// the types declare it as a named export, which typechecks and fails at load.
+const { PostgresError } = postgres;
 
 // The runs catalog (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3 items 1 and
 // 3). The first section is the read surface: the instance catalogue listing,
@@ -390,13 +394,24 @@ export async function createGeneratingRun(
     progress: RunProgress;
   },
 ): Promise<void> {
-  await mainDb`
+  try {
+    await mainDb`
 INSERT INTO runs (id, label, status, provenance, created_by, summary, progress)
 VALUES (
   ${args.runId}, ${args.label}, 'generating', 'wizard', ${args.createdBy},
   ${JSON.stringify(args.summary)}, ${JSON.stringify(args.progress)}
 )
 `;
+  } catch (e) {
+    if (
+      e instanceof PostgresError && e.constraint_name === "runs_label_unique"
+    ) {
+      throw new Error(
+        `A results package labelled "${args.label}" already exists`,
+      );
+    }
+    throw e;
+  }
 }
 
 export async function updateRunProgress(
