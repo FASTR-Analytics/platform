@@ -31,6 +31,8 @@ export type ModalAction = {
   outline?: boolean;
   disabled?: boolean;
   iconName?: IconName;
+  // For an icon-only action (empty label).
+  ariaLabel?: string;
 };
 
 type ModalContainerProps =
@@ -46,6 +48,7 @@ type ModalContainerProps =
     actions?: ModalAction[];
     onCancel?: () => void;
     cancelLabel?: string;
+    cancelDisabled?: boolean;
     // Wraps the body and footer in a <form> so Enter in a text input clicks
     // the primary action (implicit submission); the other buttons are
     // type="button". The form itself never submits.
@@ -124,6 +127,7 @@ export function ModalContainer(p: ModalContainerProps) {
                   type="button"
                   intent="neutral"
                   outline
+                  disabled={p.cancelDisabled}
                   onClick={onCancel}
                 >
                   {p.cancelLabel ??
@@ -140,6 +144,7 @@ export function ModalContainer(p: ModalContainerProps) {
                   iconName={action.iconName}
                   state={action.state}
                   disabled={action.disabled}
+                  ariaLabel={action.ariaLabel}
                   onClick={action.onClick}
                 >
                   {action.label}
