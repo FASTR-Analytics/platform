@@ -1,6 +1,6 @@
 import type { ProjectPermission, ProjectUser } from "lib";
 import { PROJECT_PERMISSION_LABELS, PROJECT_PERMISSION_CATEGORIES, t3, TC } from "lib";
-import { AlertComponentProps, Button, ModalContainer } from "panther";
+import { AlertComponentProps, ModalContainer } from "panther";
 import { createSignal, onMount, Show, For } from "solid-js";
 import { serverActions } from "~/server_actions";
 
@@ -71,18 +71,7 @@ export function DisplayProjectUserRole(
             </Show>
         </div>
       }
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button
-            onClick={() => p.close(undefined)}
-            intent="neutral"
-            iconName="x"
-          >
-            {t3(TC.cancel)}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
     >
       <Show
         when={userRoleExists()}

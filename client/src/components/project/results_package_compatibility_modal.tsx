@@ -1,7 +1,6 @@
-import { t3, TC, type ResultsPackageCompatibilityIssue } from "lib";
+import { t3, type ResultsPackageCompatibilityIssue } from "lib";
 import {
   AlertComponentProps,
-  Button,
   ModalContainer,
   StateHolderWrapper,
   createQuery,
@@ -45,19 +44,17 @@ export function ResultsPackageCompatibilityModal(
         fr: "Utiliser ce paquet de résultats",
         pt: "Usar este pacote de resultados",
       })}: ${p.runLabel}`}
-      leftButtons={[
-        <Button onClick={() => p.close(false)} intent="neutral" outline>
-          {t3(TC.cancel)}
-        </Button>,
-      ]}
-      rightButtons={[
-        <Button onClick={() => p.close(true)} iconName="check">
-          {t3({
+      onCancel={() => p.close(false)}
+      actions={[
+        {
+          label: t3({
             en: "Use this package",
             fr: "Utiliser ce paquet",
             pt: "Usar este pacote",
-          })}
-        </Button>,
+          }),
+          onClick: () => p.close(true),
+          iconName: "check",
+        },
       ]}
     >
       <StateHolderWrapper state={report.state()} noPad>

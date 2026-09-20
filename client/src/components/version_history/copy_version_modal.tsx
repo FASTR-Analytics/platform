@@ -1,7 +1,7 @@
 import { t3, type APIResponseWithData } from "lib";
 import {
   type AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   createFormAction,
   Input,
 } from "panther";
@@ -41,13 +41,16 @@ export function CopyVersionModal(
   );
 
   return (
-    <AlertFormHolder
-      formId="copy-version"
-      header={p.header}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={!tempLabel().trim()}
+    <ModalContainer
+      title={p.header}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: !tempLabel().trim(),
+      }]}
     >
       <Input
         label={t3({ en: "Name for the copy", fr: "Nom de la copie", pt: "Nome da cópia" })}
@@ -56,6 +59,6 @@ export function CopyVersionModal(
         fullWidth
         autoFocus
       />
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

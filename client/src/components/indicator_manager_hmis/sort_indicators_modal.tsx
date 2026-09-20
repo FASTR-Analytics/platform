@@ -1,6 +1,6 @@
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   SortableList,
   createFormAction,
 } from "panther";
@@ -39,16 +39,19 @@ export function SortIndicatorsModal(p: Props) {
   );
 
   return (
-    <AlertFormHolder
-      formId="sort-indicators-form"
-      header={t3({
+    <ModalContainer
+      title={t3({
         en: "Sort indicators",
         fr: "Trier les indicateurs",
         pt: "Ordenar os indicadores",
       })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div>
         <SortableList
@@ -64,6 +67,6 @@ export function SortIndicatorsModal(p: Props) {
           )}
         </SortableList>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

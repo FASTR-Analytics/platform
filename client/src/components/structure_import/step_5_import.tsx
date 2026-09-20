@@ -443,7 +443,6 @@ export function Step5Import(p: Props) {
                 value={strategyType()}
                 options={strategyOptions}
                 onChange={(v) => setStrategyType(v)}
-                label=""
               />
 
               <Show when={strategyType()} keyed>

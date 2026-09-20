@@ -1,7 +1,7 @@
 import { ReportFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Button,
   ColorPicker,
   Input,
@@ -147,17 +147,18 @@ export function DuplicateReportModal(
       : t3({ en: "Duplicate report", fr: "Dupliquer le rapport", pt: "Duplicar relatório" });
 
   return (
-    <AlertFormHolder
-      formId="duplicate-report"
-      header={header}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={
-        isCreatingFolder()
+    <ModalContainer
+      title={header}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: isCreatingFolder()
           ? !newFolderLabel().trim()
-          : !isBatchMode() && !tempLabel().trim()
-      }
+          : !isBatchMode() && !tempLabel().trim(),
+      }]}
     >
       <div class="space-y-4">
         <Show when={isBatchMode() && save.state().status === "loading"}>
@@ -226,6 +227,6 @@ export function DuplicateReportModal(
           </div>
         </Show>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

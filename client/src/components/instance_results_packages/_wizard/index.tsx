@@ -1,7 +1,6 @@
 import {
   getMergedModuleConfigSelections,
   t3,
-  TC,
   type DatasetType,
   type ModuleId,
   type RunGenerationDefaults,
@@ -10,10 +9,8 @@ import {
 } from "lib";
 import {
   AlertComponentProps,
-  Button,
   LoadingIndicator,
   ModalContainer,
-  StateHolderFormError,
   StateHolderWrapper,
   StepperChipsWithTitles,
   createFormAction,
@@ -95,11 +92,7 @@ export function ResultsPackageWizard(
           topPanel={
             <div class="ui-text-heading leading-none">{t3(HEADING)}</div>
           }
-          rightButtons={
-            <Button onClick={() => p.close(undefined)} outline>
-              {t3(TC.cancel)}
-            </Button>
-          }
+          onCancel={() => p.close(undefined)}
         >
           <div class="text-danger">{err}</div>
         </ModalContainer>
@@ -302,41 +295,38 @@ function WizardInner(p: InnerProps) {
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
       }
-      leftButtons={
-        <Show when={stepper.currentStep() > 0}>
-          <Button onClick={stepper.goPrev} outline>
-            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
-          </Button>
-        </Show>
-      }
-      rightButtons={
-        <>
-          <Button onClick={() => p.close(undefined)} outline>
-            {t3(TC.cancel)}
-          </Button>
-          <Show
-            when={isLastStep()}
-            fallback={
-              <Button onClick={stepper.goNext} disabled={!stepper.canGoNext()}>
-                {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-              </Button>
-            }
-          >
-            <Button
-              onClick={launch.click}
-              state={launch.state()}
-              intent="success"
-              iconName="check"
-            >
-              {t3({
-                en: "Launch generation",
-                fr: "Lancer la génération",
-                pt: "Iniciar a geração",
-              })}
-            </Button>
-          </Show>
-        </>
-      }
+      onCancel={() => p.close(undefined)}
+      actions={[
+        ...(stepper.currentStep() > 0
+          ? [
+              {
+                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+                onClick: stepper.goPrev,
+                outline: true,
+              },
+            ]
+          : []),
+        ...(isLastStep()
+          ? [
+              {
+                label: t3({
+                  en: "Launch generation",
+                  fr: "Lancer la génération",
+                  pt: "Iniciar a geração",
+                }),
+                onClick: launch.click,
+                state: launch.state(),
+                iconName: "check" as const,
+              },
+            ]
+          : [
+              {
+                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+                onClick: stepper.goNext,
+                disabled: !stepper.canGoNext(),
+              },
+            ]),
+      ]}
     >
       <div class="min-h-96">
         <Show when={currentStepKind() === "data"}>
@@ -365,7 +355,6 @@ function WizardInner(p: InnerProps) {
             attachTargets={attachTargets}
             setAttachTarget={(id, v) => setAttachTargets(id, v)}
           />
-          <StateHolderFormError state={launch.state()} />
         </Show>
       </div>
     </ModalContainer>

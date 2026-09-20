@@ -13,7 +13,6 @@ import {
   Button,
   Checkbox,
   ModalContainer,
-  StateHolderFormError,
   createFormAction,
 } from "panther";
 import { For, Show, createSignal, onMount } from "solid-js";
@@ -80,26 +79,15 @@ export function SelectProjectUserRole(
       width="md"
       title={t3({ en: "Update project permissions", fr: "Mettre à jour les droits du projet", pt: "Atualizar as permissões do projeto" })}
       subtitle={p.users.map((u) => u.email).join(", ")}
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button
-            onClick={save.click}
-            intent="success"
-            state={save.state()}
-            iconName="save"
-          >
-            {t3(TC.save)}
-          </Button>,
-          <Button
-            onClick={() => p.close(undefined)}
-            intent="neutral"
-            iconName="x"
-          >
-            {t3(TC.cancel)}
-          </Button>,
-        ]
-      }
+      actions={[
+        {
+          label: t3(TC.save),
+          onClick: save.click,
+          state: save.state(),
+          iconName: "save",
+        },
+      ]}
+      onCancel={() => p.close(undefined)}
     >
       <Show
         when={permissions()}
@@ -142,7 +130,6 @@ export function SelectProjectUserRole(
           </For>
         </div>
       </Show>
-      <StateHolderFormError state={save.state()} />
     </ModalContainer>
   );
 }

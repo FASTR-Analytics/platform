@@ -1,7 +1,6 @@
 import { createSignal, For, onMount } from "solid-js";
 import {
   AlertComponentProps,
-  Button,
   Input,
   ModalContainer,
   RadioGroup,
@@ -96,15 +95,15 @@ export function SaveToPromptLibraryModal(
       }
       width="lg"
       scroll="content"
-      rightButtons={[
-        <Button onClick={() => p.close(undefined)} intent="neutral">
-          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-        </Button>,
-        <Button onClick={handleSave} intent="primary" disabled={isSaving()}>
-          {isSaving()
+      onCancel={() => p.close(undefined)}
+      actions={[
+        {
+          label: isSaving()
             ? t3({ en: "Saving...", fr: "Enregistrement...", pt: "A guardar..." })
-            : t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
-        </Button>,
+            : t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
+          onClick: handleSave,
+          disabled: isSaving(),
+        },
       ]}
     >
       <div class="flex flex-col gap-4">

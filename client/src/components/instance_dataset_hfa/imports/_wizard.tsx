@@ -13,7 +13,6 @@ import {
   ModalContainer,
   RadioGroup,
   Select,
-  StateHolderFormError,
   StepperChipsWithTitles,
   createFormAction,
   getSelectOptions,
@@ -271,46 +270,36 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
           />
         </div>
       }
-      leftButtons={
-        <Show when={stepper.currentStep() > 0}>
-          <Button
-            onClick={isLastStep() ? goPrevFromReview : stepper.goPrev}
-            outline
-          >
-            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
-          </Button>
-        </Show>
-      }
-      rightButtons={
-        <>
-          <Button onClick={() => p.close(undefined)} outline>
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-          </Button>
-          <Show
-            when={isLastStep()}
-            fallback={
-              <Button
-                onClick={
+      onCancel={() => p.close(undefined)}
+      actions={[
+        ...(stepper.currentStep() > 0
+          ? [
+              {
+                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+                onClick: isLastStep() ? goPrevFromReview : stepper.goPrev,
+                outline: true,
+              },
+            ]
+          : []),
+        ...(isLastStep()
+          ? [
+              {
+                label: t3({ en: "Start import", fr: "Démarrer l'importation", pt: "Iniciar a importação" }),
+                onClick: submit.click,
+                state: submit.state(),
+              },
+            ]
+          : [
+              {
+                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+                onClick:
                   currentStepKind() === "mappings"
                     ? goNextFromMappings
-                    : stepper.goNext
-                }
-                disabled={!stepper.canGoNext() || scanning()}
-              >
-                {t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })}
-              </Button>
-            }
-          >
-            <Button
-              onClick={submit.click}
-              state={submit.state()}
-              intent="success"
-            >
-              {t3({ en: "Start import", fr: "Démarrer l'importation", pt: "Iniciar a importação" })}
-            </Button>
-          </Show>
-        </>
-      }
+                    : stepper.goNext,
+                disabled: !stepper.canGoNext() || scanning(),
+              },
+            ]),
+      ]}
     >
       <div class="ui-pad ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
@@ -576,7 +565,6 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
               })}
             </div>
           </div>
-          <StateHolderFormError state={submit.state()} />
         </Show>
       </div>
     </ModalContainer>

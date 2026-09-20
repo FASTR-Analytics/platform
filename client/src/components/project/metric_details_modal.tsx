@@ -1,5 +1,5 @@
 import { ResultsValue, t3 } from "lib";
-import { Button, ModalContainer, type AlertComponentProps } from "panther";
+import { ModalContainer, type AlertComponentProps } from "panther";
 import { For, Show } from "solid-js";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
@@ -29,14 +29,8 @@ export function MetricDetailsModal(
           </div>
         </div>
       }
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button onClick={() => p.close(undefined)} iconName="x">
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <Show when={p.metric.aiDescription}>
         <div class="bg-base-200 ui-spy-sm rounded p-3">

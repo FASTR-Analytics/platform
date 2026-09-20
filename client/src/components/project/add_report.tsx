@@ -1,7 +1,7 @@
 import { ReportFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   Select,
   createFormAction,
@@ -42,12 +42,15 @@ export function AddReportForm(
   );
 
   return (
-    <AlertFormHolder
-      formId="add-report"
-      header={t3({ en: "Create report", fr: "Créer un rapport", pt: "Criar relatório" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Create report", fr: "Créer un rapport", pt: "Criar relatório" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -65,6 +68,6 @@ export function AddReportForm(
           fullWidth
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

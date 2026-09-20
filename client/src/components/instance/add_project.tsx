@@ -1,7 +1,7 @@
 import { OtherUser, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -63,17 +63,20 @@ export function AddProjectForm(
   );
 
   return (
-    <AlertFormHolder
-      formId="add-project"
-      header={t3({
+    <ModalContainer
+      title={t3({
         en: "Create project",
         fr: "Créer un projet",
         pt: "Criar projeto",
       })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      wider
+      width="lg"
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -89,6 +92,6 @@ export function AddProjectForm(
         />
         <ProjectScopePicker selection={tempScope()} onChange={setTempScope} />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

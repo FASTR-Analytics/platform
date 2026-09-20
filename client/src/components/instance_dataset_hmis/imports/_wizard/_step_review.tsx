@@ -17,7 +17,7 @@ type Props = {
 };
 
 // Pure summary: the submit button itself lives in the wizard controller's
-// ModalContainer rightButtons (matching the "Add visualization" pattern:
+// ModalContainer actions (matching the "Add visualization" pattern:
 // step content never owns navigation/submit chrome).
 export function Dhis2StepReview(p: Props) {
   return (

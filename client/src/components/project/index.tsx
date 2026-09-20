@@ -6,7 +6,7 @@ import {
   Button,
   FrameLeft,
   FrameTop,
-  MenuTriggerWrapper,
+  MenuButton,
   TabsNavigation,
   getEditorWrapper,
   openComponent,
@@ -219,7 +219,7 @@ function ProjectInner() {
                   }
                 >
                   <div class="ui-gap-sm flex items-center">
-                    <MenuTriggerWrapper
+                    <MenuButton
                       items={
                         [
                           {
@@ -282,11 +282,10 @@ function ProjectInner() {
                         ] satisfies MenuItem[]
                       }
                       position="bottom-end"
+                      outline
                     >
-                      <Button outline>
-                        {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                      </Button>
-                    </MenuTriggerWrapper>
+                      {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                    </MenuButton>
                     <Show when={!showAi()}>
                       <Button
                         onClick={() => setShowAi(true)}

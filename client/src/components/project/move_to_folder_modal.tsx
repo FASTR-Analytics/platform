@@ -1,7 +1,7 @@
 import { VisualizationFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Button,
   ColorPicker,
   Input,
@@ -102,13 +102,16 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
     : t3({ en: "Move to folder", fr: "Déplacer vers le dossier", pt: "Mover para a pasta" });
 
   return (
-    <AlertFormHolder
-      formId="move-to-folder"
-      header={header}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={isCreatingFolder() && !newFolderLabel().trim()}
+    <ModalContainer
+      title={header}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: isCreatingFolder() && !newFolderLabel().trim(),
+      }]}
     >
       <Show
         when={!isCreatingFolder()}
@@ -159,6 +162,6 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
           </Button>
         </div>
       </Show>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

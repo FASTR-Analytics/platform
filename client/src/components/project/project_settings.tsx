@@ -8,7 +8,7 @@ import {
 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Button,
   FrameTop,
   HeadingBar,
@@ -476,19 +476,22 @@ function ProjectScopeForm(p: AlertComponentProps<void, boolean>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="project-scope"
-      header={t3({
+    <ModalContainer
+      title={t3({
         en: "Edit project scope",
         fr: "Modifier la portée du projet",
         pt: "Editar o âmbito do projeto",
       })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <ProjectScopePicker selection={tempScope()} onChange={setTempScope} />
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }
 

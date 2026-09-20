@@ -56,21 +56,8 @@ export function CustomSeriesStyles(
     <ModalContainer
       title={t3({ en: "Custom series colors", fr: "Couleurs de séries personnalisées", pt: "Cores de séries personalizadas" })}
       width="md"
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button onClick={done} intent="success" iconName="save">
-            {t3(TC.save)}
-          </Button>,
-          <Button
-            onClick={() => p.close(undefined)}
-            intent="neutral"
-            iconName="x"
-          >
-            {t3(TC.cancel)}
-          </Button>,
-        ]
-      }
+      actions={[{ label: t3(TC.save), onClick: done, iconName: "save" }]}
+      onCancel={() => p.close(undefined)}
     >
       <div class="ui-spy-sm">
         <For each={tempStyles}>

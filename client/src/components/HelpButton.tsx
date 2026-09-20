@@ -25,21 +25,12 @@ function HelpModal(p: AlertComponentProps<{ id: HelpId }, void>) {
     <ModalContainer
       width="md"
       title={t3(target.title)}
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-          </Button>,
-        ]
-      }
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button intent="primary" href={getHelpUrl(target)} newTab>
-            {t3({ en: "Read more…", fr: "En savoir plus…", pt: "Ler mais…" })}
-          </Button>,
-        ]
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      footer={
+        <Button intent="primary" href={getHelpUrl(target)} newTab>
+          {t3({ en: "Read more…", fr: "En savoir plus…", pt: "Ler mais…" })}
+        </Button>
       }
     >
       <p class="text-base-content text-sm">{t3(target.summary)}</p>

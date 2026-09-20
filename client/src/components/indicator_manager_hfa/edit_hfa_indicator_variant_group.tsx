@@ -1,7 +1,7 @@
 import { type HfaIndicatorVariantGroup, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -69,16 +69,19 @@ export function EditHfaIndicatorVariantGroup(
   );
 
   return (
-    <AlertFormHolder
-      formId="hfa-variant-group-form"
-      header={
+    <ModalContainer
+      title={
         mode === "create"
           ? t3({ en: "Add variant group", fr: "Ajouter un groupe de variantes", pt: "Adicionar grupo de variantes" })
           : t3({ en: "Update variant group", fr: "Mettre à jour le groupe de variantes", pt: "Atualizar grupo de variantes" })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -106,6 +109,6 @@ export function EditHfaIndicatorVariantGroup(
           </div>
         )}
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

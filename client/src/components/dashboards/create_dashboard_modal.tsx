@@ -6,7 +6,7 @@ import {
 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -75,12 +75,15 @@ export function CreateDashboardModal(
   );
 
   return (
-    <AlertFormHolder
-      formId="create-dashboard"
-      header={t3({ en: "Create dashboard", fr: "Créer un tableau de bord", pt: "Criar painel" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Create dashboard", fr: "Créer un tableau de bord", pt: "Criar painel" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -98,6 +101,6 @@ export function CreateDashboardModal(
           placeholder="nigeria-immunization-2024"
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

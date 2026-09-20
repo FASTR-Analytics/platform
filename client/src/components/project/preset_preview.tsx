@@ -13,7 +13,7 @@ import {
   type StateHolder,
 } from "panther";
 import { t3 } from "lib";
-import { LabelHolder } from "panther";
+import { Field } from "panther";
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { unwrap } from "solid-js/store";
 import { projectState, runVersionKey } from "~/state/project/t1_store";

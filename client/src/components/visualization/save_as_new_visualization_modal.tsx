@@ -8,7 +8,7 @@ import {
 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   Select,
   createFormAction,
@@ -73,12 +73,15 @@ export function SaveAsNewVisualizationModal(
   );
 
   return (
-    <AlertFormHolder
-      formId="create-visualization"
-      header={t3({ en: "Create visualization", fr: "Créer une visualisation", pt: "Criar visualização" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Create visualization", fr: "Créer une visualisation", pt: "Criar visualização" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -96,6 +99,6 @@ export function SaveAsNewVisualizationModal(
           fullWidth
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

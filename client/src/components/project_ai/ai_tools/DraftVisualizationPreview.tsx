@@ -364,36 +364,30 @@ function ExpandedVizModal(p: AlertComponentProps<ExpandedVizModalProps, void>) {
   return (
     <ModalContainer
       width="2xl"
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button
-            outline
-            onClick={() => {
-              p.close(undefined);
-              p.onEditSave();
-            }}
-          >
-            {t3({
-              en: "Save as new visualization",
-              fr: "Sauver comme nouvelle viz.",
-              pt: "Guardar como nova visualização",
-            })}
-          </Button>,
-          <Button
-            outline
-            onClick={() => {
-              p.close(undefined);
-              p.onAddToDeck();
-            }}
-          >
-            {p.addToDeckLabel}
-          </Button>,
-          <Button onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      actions={[
+        {
+          label: t3({
+            en: "Save as new visualization",
+            fr: "Sauver comme nouvelle viz.",
+            pt: "Guardar como nova visualização",
+          }),
+          onClick: () => {
+            p.close(undefined);
+            p.onEditSave();
+          },
+          outline: true,
+        },
+        {
+          label: p.addToDeckLabel,
+          onClick: () => {
+            p.close(undefined);
+            p.onAddToDeck();
+          },
+          outline: true,
+        },
+      ]}
     >
       {/* <div style={{ width: "min(80vw, 1200px)" }}> */}
       <FigureStateWrapper

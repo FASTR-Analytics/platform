@@ -1,6 +1,6 @@
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   TextArea,
   createFormAction,
 } from "panther";
@@ -43,12 +43,15 @@ export function AddUserForm(
   );
 
   return (
-    <AlertFormHolder
-      formId="add-user"
-      header={t3({ en: "Add new user", fr: "Ajouter un utilisateur", pt: "Adicionar novo utilizador" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Add new user", fr: "Ajouter un utilisateur", pt: "Adicionar novo utilizador" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <TextArea
         label={t3(TC.email)}
@@ -70,6 +73,6 @@ export function AddUserForm(
           </For>
         </div>
       </Show>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

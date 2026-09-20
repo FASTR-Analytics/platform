@@ -253,11 +253,8 @@ export function ChangeEmailModal(
     <ModalContainer
       title={t3({ en: "Change email", fr: "Changer d'e-mail", pt: "Alterar e-mail" })}
       width="lg"
-      leftButtons={phase() === "report" ? [] : [
-        <Button onClick={() => p.close(undefined)} outline iconName="x" disabled={busy()}>
-          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-        </Button>,
-      ]}
+      onCancel={phase() === "report" ? undefined : () => p.close(undefined)}
+      cancelDisabled={busy()}
     >
       <Show when={phase() === "enter"}>
         <div class="flex flex-col gap-4">

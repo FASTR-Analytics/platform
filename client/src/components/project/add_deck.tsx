@@ -1,7 +1,7 @@
 import { SlideDeckFolder, t3, TC } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   Select,
   createFormAction,
@@ -42,12 +42,15 @@ export function AddDeckForm(
   );
 
   return (
-    <AlertFormHolder
-      formId="add-deck"
-      header={t3({ en: "Create slide deck", fr: "Créer une présentation", pt: "Criar apresentação" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Create slide deck", fr: "Créer une présentation", pt: "Criar apresentação" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -65,6 +68,6 @@ export function AddDeckForm(
           fullWidth
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

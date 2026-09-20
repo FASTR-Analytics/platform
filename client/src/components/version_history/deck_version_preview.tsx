@@ -800,11 +800,8 @@ function ExpandedVersionSlideModal(
   return (
     <ModalContainer
       width="2xl"
-      rightButtons={
-        <Button onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <div class="aspect-video overflow-hidden rounded border">
         <PageHolder

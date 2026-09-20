@@ -1,5 +1,5 @@
 import { t3, type Slide, type SlideDeckFolder, type SlideDeckSummary } from "lib";
-import { AlertComponentProps, AlertFormHolder, createFormAction } from "panther";
+import { AlertComponentProps, ModalContainer, createFormAction } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { reportDraftSlideAdded } from "./add_slide_to_deck";
@@ -65,15 +65,16 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="add-to-deck"
-      header={t3({ en: "Add to Slide Deck", fr: "Ajouter à une présentation", pt: "Adicionar à apresentação" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={
-        isCreatingNew() ? !newDeckLabel().trim() : !selectedDeckId()
-      }
+    <ModalContainer
+      title={t3({ en: "Add to Slide Deck", fr: "Ajouter à une présentation", pt: "Adicionar à apresentação" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: isCreatingNew() ? !newDeckLabel().trim() : !selectedDeckId(),
+      }]}
     >
       <DeckSelector
         decks={p.slideDecks}
@@ -85,6 +86,6 @@ export function AddToDeckModal(p: AlertComponentProps<Props, ReturnType>) {
         newDeckLabel={newDeckLabel()}
         onSetNewDeckLabel={setNewDeckLabel}
       />
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

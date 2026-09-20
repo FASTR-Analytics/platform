@@ -24,16 +24,16 @@ function ForceDeleteModal(p: AlertComponentProps<{ projectId: string; projectLab
     <ModalContainer
       width="sm"
       title={t3({ en: "Permanently delete project?", fr: "Supprimer définitivement le projet ?", pt: "Eliminar permanentemente o projeto?" })}
-      leftButtons={[
-        <Button onClick={() => p.close(undefined)} intent="neutral" disabled={loading()}>
-          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-        </Button>,
+      actions={[
+        {
+          label: t3({ en: "Delete permanently", fr: "Supprimer définitivement", pt: "Eliminar permanentemente" }),
+          onClick: handleConfirm,
+          intent: "danger",
+          disabled: loading(),
+        },
       ]}
-      rightButtons={[
-        <Button onClick={handleConfirm} intent="danger" disabled={loading()}>
-          {t3({ en: "Delete permanently", fr: "Supprimer définitivement", pt: "Eliminar permanentemente" })}
-        </Button>,
-      ]}
+      onCancel={() => p.close(undefined)}
+      cancelDisabled={loading()}
     >
       <div class="ui-spy-sm">
         <p class="text-base-content text-sm">

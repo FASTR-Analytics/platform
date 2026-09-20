@@ -15,13 +15,11 @@ import {
   LoadingIndicator,
   type MenuItem,
   ActionMenuButton,
-  MenuTriggerWrapper,
+  MenuButton,
   Slider,
   createDeleteAction,
 } from "panther";
-import SortableVendor, {
-  SortableJs,
-} from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
+import { Sortable, SortableJs } from "panther";
 import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { SlideCard } from "./slide_card";
@@ -470,11 +468,9 @@ export function SlideList(p: Props) {
                 {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
               </Button>
             </Show>
-            <MenuTriggerWrapper position="bottom-end" items={addSlideMenuItems}>
-              <Button id="deck-add-slide-button" iconName="plus">
-                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-              </Button>
-            </MenuTriggerWrapper>
+            <MenuButton position="bottom-end" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
+              {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+            </MenuButton>
             <Button
               id="deck-settings-button"
               iconName="settings"
@@ -534,7 +530,7 @@ export function SlideList(p: Props) {
               scroll container above is full-height, which leaves a tour
               popover nowhere to sit. */}
           <div data-tour="deck-grid">
-          <SortableVendor
+          <Sortable
             idField="id"
             items={sortableSlideItems()}
             setItems={(newItems: { id: string }[]) => {
@@ -582,7 +578,7 @@ export function SlideList(p: Props) {
                 />
               );
             }}
-          </SortableVendor>
+          </Sortable>
           </div>
         </Show>
       </div>

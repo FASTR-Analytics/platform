@@ -11,11 +11,11 @@
 // formula references.
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Checkbox,
   createFormAction,
   Input,
-  LabelHolder,
+  Field,
   MultiSelectSearch,
   Select,
   SelectSearch,
@@ -679,9 +679,8 @@ export function EditIndicatorForm(
       });
 
   return (
-    <AlertFormHolder
-      formId="indicator-form"
-      header={
+    <ModalContainer
+      title={
         mode === "create"
           ? t3({
               en: "Add indicator",
@@ -694,10 +693,14 @@ export function EditIndicatorForm(
               pt: "Atualizar indicador",
             })
       }
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
       width="xl"
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
         <div class="ui-spy-sm">
@@ -882,7 +885,7 @@ export function EditIndicatorForm(
               />
             </div>
             <Show when={legend().length > 0}>
-              <LabelHolder
+              <Field
                 label={t3({
                   en: "Included indicators",
                   fr: "Indicateurs inclus",
@@ -946,7 +949,7 @@ export function EditIndicatorForm(
                     </div>
                   </Show>
                 </div>
-              </LabelHolder>
+              </Field>
             </Show>
           </Show>
         </div>
@@ -1070,6 +1073,6 @@ export function EditIndicatorForm(
           </Show>
         </div>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

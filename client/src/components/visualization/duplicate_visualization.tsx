@@ -1,7 +1,7 @@
 import { t3, TC, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Button,
   ColorPicker,
   Input,
@@ -147,17 +147,18 @@ export function DuplicateVisualization(
     : t3({ en: "Duplicate visualization", fr: "Dupliquer la visualisation", pt: "Duplicar visualização" });
 
   return (
-    <AlertFormHolder
-      formId="duplicate-presentation-object"
-      header={header}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={
-        isCreatingFolder()
+    <ModalContainer
+      title={header}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: isCreatingFolder()
           ? !newFolderLabel().trim()
-          : (!isBatchMode() && !tempLabel().trim())
-      }
+          : (!isBatchMode() && !tempLabel().trim()),
+      }]}
     >
       <div class="space-y-4">
         {/* Progress bar for batch mode */}
@@ -229,6 +230,6 @@ export function DuplicateVisualization(
           </div>
         </Show>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

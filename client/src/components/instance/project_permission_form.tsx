@@ -12,7 +12,6 @@ import {
   Button,
   Checkbox,
   ModalContainer,
-  StateHolderFormError,
   createFormAction,
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
@@ -103,26 +102,19 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
     <ModalContainer
       width="lg"
       title={p.projectLabel}
-      leftButtons={[
-        <Show when={hasChanges()}>
-          <Button
-            onClick={save.click}
-            state={save.state()}
-            intent="success"
-            iconName="save"
-          >
-            {t3(TC.save)}
-          </Button>
-        </Show>,
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-          outline
-        >
-          {t3(TC.cancel)}
-        </Button>,
-      ]}
+      actions={
+        hasChanges()
+          ? [
+              {
+                label: t3(TC.save),
+                onClick: save.click,
+                state: save.state(),
+                iconName: "save",
+              },
+            ]
+          : []
+      }
+      onCancel={() => p.close(undefined)}
     >
       <Show when={permissions()} keyed fallback={<div>{t3(TC.loading)}</div>}>
         {(perms) => (
@@ -161,7 +153,6 @@ export function ProjectPermissionForm(p: AlertComponentProps<Props, undefined>) 
           </div>
         )}
       </Show>
-      <StateHolderFormError state={save.state()} />
     </ModalContainer>
   );
 }

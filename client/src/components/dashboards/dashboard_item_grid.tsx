@@ -2,7 +2,7 @@ import type { PublicDashboardItem } from "lib";
 import { t3 } from "lib";
 import { Card, type SelectionController } from "panther";
 import { createEffect, createSignal, For, on, Show } from "solid-js";
-import SortableVendor from "../../../../panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx";
+import { Sortable } from "panther";
 import { FigureThumbnail } from "~/components/PresentationObjectMiniDisplay";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 
@@ -85,7 +85,7 @@ export function DashboardItemGrid(p: Props) {
             </div>
           }
         >
-          <SortableVendor
+          <Sortable
             idField="id"
             items={order()}
             setItems={(newItems: { id: string }[]) => {
@@ -104,7 +104,7 @@ export function DashboardItemGrid(p: Props) {
                 {(entry) => <EntryCard entry={entry()} grid={p} />}
               </Show>
             )}
-          </SortableVendor>
+          </Sortable>
         </Show>
       </Show>
     </div>

@@ -1,7 +1,7 @@
 import { APIResponseNoData, t3, TC, VisualizationFolder } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Button,
   Input,
   Select,
@@ -94,13 +94,16 @@ export function VisualizationSettings(
   const closeButton = async () => p.close(undefined);
 
   return (
-    <AlertFormHolder
-      formId="visualization-settings"
-      header={t3({ en: "Visualization settings", fr: "Paramètres de la visualisation", pt: "Definições da visualização" })}
-      savingState={p.isDefault ? undefined : save.state()}
-      saveFunc={p.isDefault ? undefined : save.click}
-      cancelFunc={closeButton}
-      cancelButtonText={p.isDefault ? t3({ en: "Close", fr: "Fermer", pt: "Fechar" }) : t3(TC.cancel)}
+    <ModalContainer
+      title={t3({ en: "Visualization settings", fr: "Paramètres de la visualisation", pt: "Definições da visualização" })}
+      form
+      onCancel={closeButton}
+      cancelLabel={p.isDefault ? t3({ en: "Close", fr: "Fermer", pt: "Fechar" }) : t3(TC.cancel)}
+      actions={p.isDefault ? [] : [{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Show when={!p.isDefault}>
@@ -138,6 +141,6 @@ export function VisualizationSettings(
           </div>
         </div>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

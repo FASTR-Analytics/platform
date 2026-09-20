@@ -1,5 +1,5 @@
 import { clerk } from "~/components/LoggedInWrapper";
-import { Button, TextArea, ModalContainer, type AlertComponentProps } from "panther";
+import { TextArea, ModalContainer, type AlertComponentProps } from "panther";
 import { createSignal } from "solid-js";
 import { t3 } from "lib";
 
@@ -28,30 +28,16 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
     <ModalContainer
       width="sm"
       title={t3({ en: "Your organisation", fr: "Votre organisation", pt: "A sua organização" })}
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button
-            onClick={() => p.close(undefined)}
-            intent="neutral"
-            disabled={loading()}
-          >
-            {t3({ en: "Skip for now", fr: "Passer pour l'instant", pt: "Ignorar por agora" })}
-          </Button>,
-        ]
-      }
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button
-            onClick={handleSave}
-            intent="primary"
-            disabled={loading() || !organisation().trim()}
-          >
-            {t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" })}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Skip for now", fr: "Passer pour l'instant", pt: "Ignorar por agora" })}
+      cancelDisabled={loading()}
+      actions={[
+        {
+          label: t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
+          onClick: handleSave,
+          disabled: loading() || !organisation().trim(),
+        },
+      ]}
     >
       <div class="flex flex-col gap-3">
         <p class="text-base-content text-sm">

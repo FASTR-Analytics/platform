@@ -328,25 +328,14 @@ function CustomValueOrderModal(
     <ModalContainer
       title={p.dimLabel}
       width="md"
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button
-            onClick={() => p.close(items().map((i) => i.id))}
-            intent="success"
-            iconName="save"
-          >
-            {t3(TC.save)}
-          </Button>,
-          <Button
-            onClick={() => p.close(undefined)}
-            intent="neutral"
-            iconName="x"
-          >
-            {t3(TC.cancel)}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      actions={[
+        {
+          label: t3(TC.save),
+          onClick: () => p.close(items().map((i) => i.id)),
+          iconName: "save",
+        },
+      ]}
     >
       <div class="ui-spy-sm">
         <Show when={p.items.length > MODAL_SEARCH_THRESHOLD}>

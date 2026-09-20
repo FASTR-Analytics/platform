@@ -2,7 +2,6 @@ import { t3, TC, type RunCatalogItem } from "lib";
 import {
   AlertComponentProps,
   Badge,
-  Button,
   ModalContainer,
   ProgressBar,
 } from "panther";
@@ -73,27 +72,24 @@ export function PruneResultsPackages(
     <ModalContainer
       width="md"
       title={t3(HEADING)}
-      rightButtons={
-        <Switch>
-          <Match when={phase() === "confirm"}>
-            <Button onClick={() => p.close(undefined)} outline>
-              {t3(TC.cancel)}
-            </Button>
-            <Button
-              onClick={run}
-              intent="danger"
-              iconName="trash"
-              disabled={plan().delete.length === 0}
-            >
-              {t3(TC.delete)}
-            </Button>
-          </Match>
-          <Match when={phase() === "done"}>
-            <Button onClick={() => p.close(undefined)}>
-              {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-            </Button>
-          </Match>
-        </Switch>
+      onCancel={phase() === "running" ? undefined : () => p.close(undefined)}
+      cancelLabel={
+        phase() === "done"
+          ? t3({ en: "Close", fr: "Fermer", pt: "Fechar" })
+          : t3(TC.cancel)
+      }
+      actions={
+        phase() === "confirm"
+          ? [
+              {
+                label: t3(TC.delete),
+                onClick: run,
+                intent: "danger",
+                iconName: "trash",
+                disabled: plan().delete.length === 0,
+              },
+            ]
+          : []
       }
     >
       <Switch>

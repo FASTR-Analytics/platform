@@ -2,7 +2,6 @@ import { createSignal } from "solid-js";
 import {
   type AlertComponentProps,
   type SelectOption,
-  Button,
   ModalContainer,
   Select,
 } from "panther";
@@ -50,11 +49,8 @@ export function AIDebugPanel(p: Props) {
       title={t3({ en: "AI debug — tool output preview", fr: "Débogage IA — aperçu de la sortie des outils", pt: "Depuração da IA — pré-visualização da saída das ferramentas" })}
       width="lg"
       scroll="content"
-      rightButtons={
-        <Button intent="neutral" onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <div class="flex flex-col gap-3">
         <Select

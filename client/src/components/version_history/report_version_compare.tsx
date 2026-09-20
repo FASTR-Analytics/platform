@@ -1,7 +1,6 @@
 import { t3, type ReportVersionLineageStep } from "lib";
 import {
   type AlertComponentProps,
-  Button,
   createQuery,
   ModalContainer,
   StateHolderWrapper,
@@ -76,11 +75,8 @@ export function ReportVersionCompare(
         fr: "Modifications depuis cette version",
         pt: "Alterações desde esta versão",
       })}
-      rightButtons={
-        <Button outline onClick={() => p.close(undefined)}>
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <StateHolderWrapper state={lineage.state()}>
         {(steps) => {

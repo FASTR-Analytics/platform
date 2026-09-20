@@ -7,7 +7,7 @@ import {
 import {
   Button,
   Checkbox,
-  LabelHolder,
+  Field,
   RadioGroup,
   Select,
   Slider,
@@ -85,7 +85,7 @@ export function PieStyleControls(p: Props) {
       </StyleSection>
       <StyleSection label={t3({ en: "Sorting", fr: "Tri", pt: "Ordenação" })}>
         <>
-          <LabelHolder
+          <Field
             label={t3({
               en: "Sort slices by value",
               fr: "Trier les tranches par valeur",
@@ -116,7 +116,7 @@ export function PieStyleControls(p: Props) {
                 }
               />
             </div>
-          </LabelHolder>
+          </Field>
           <div class="pt-0.5"></div>
           <Checkbox
             label={t3({

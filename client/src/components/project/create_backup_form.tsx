@@ -1,6 +1,6 @@
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -59,12 +59,15 @@ export function CreateBackupForm(
       );
 
   return (
-    <AlertFormHolder
-      formId="create-backup"
-      header={t3({ en: "Create Backup", fr: "Créer une sauvegarde", pt: "Criar cópia de segurança" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Create Backup", fr: "Créer une sauvegarde", pt: "Criar cópia de segurança" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <Input
         label={t3({ en: "Backup name", fr: "Nom de la sauvegarde", pt: "Nome da cópia de segurança" })}
@@ -73,6 +76,6 @@ export function CreateBackupForm(
         fullWidth
         autoFocus
       />
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

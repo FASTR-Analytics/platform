@@ -1,4 +1,4 @@
-import { AlertComponentProps, AlertFormHolder, createFormAction } from "panther";
+import { AlertComponentProps, ModalContainer, createFormAction } from "panther";
 import { APIResponseNoData, t3 } from "lib";
 import { createSignal } from "solid-js";
 
@@ -38,12 +38,15 @@ export function CreateRestoreFromFileForm(
     );
 
     return (
-        <AlertFormHolder
-            formId="restore-from-file"
-            header={t3({ en: "Restore from file", fr: "Restaurer depuis un fichier", pt: "Restaurar a partir de ficheiro" })}
-            savingState={save.state()}
-            saveFunc={save.click}
-            cancelFunc={() => p.close(undefined)}
+        <ModalContainer
+          title={t3({ en: "Restore from file", fr: "Restaurer depuis un fichier", pt: "Restaurar a partir de ficheiro" })}
+          form
+          onCancel={() => p.close(undefined)}
+          actions={[{
+            label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+            onClick: save.click,
+            state: save.state(),
+          }]}
         >
             <div class="flex flex-col gap-2">
                 <label class="text-sm">
@@ -61,6 +64,6 @@ export function CreateRestoreFromFileForm(
                     </div>
                 )}
             </div>
-        </AlertFormHolder>
+        </ModalContainer>
     );
 }

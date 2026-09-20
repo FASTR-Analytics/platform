@@ -774,11 +774,8 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
         fr: "Indicateurs spéciaux et mots réservés",
         pt: "Indicadores especiais e palavras reservadas",
       })}
-      rightButtons={[
-        <Button intent="primary" onClick={() => p.close(undefined)}>
-          {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-        </Button>,
-      ]}
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
     >
       <div class="ui-spy text-sm">
         <div class="ui-spy-sm">

@@ -1,7 +1,7 @@
 import { inferPeriodFormatFromValue, PeriodBounds, PeriodFilter, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Checkbox,
   RadioGroup,
   Slider,
@@ -97,13 +97,16 @@ export function EditCommonPropertiesModal(
   const header = t3({ en: `Edit common properties for ${p.visualizationIds.length} visualizations`, fr: `Modifier les propriétés communes de ${p.visualizationIds.length} visualisations`, pt: `Editar propriedades comuns de ${p.visualizationIds.length} visualizações` });
 
   return (
-    <AlertFormHolder
-      formId="edit-common-properties"
-      header={header}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={!enablePeriodFilter()}
+    <ModalContainer
+      title={header}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: !enablePeriodFilter(),
+      }]}
     >
       <div class="space-y-4">
         <div class="text-sm text-base-content-muted">
@@ -356,6 +359,6 @@ export function EditCommonPropertiesModal(
           </Show>
         </div>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

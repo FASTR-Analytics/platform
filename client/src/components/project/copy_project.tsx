@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   Input,
   createFormAction,
 } from "panther";
@@ -39,12 +39,15 @@ export function CopyProjectForm(
   );
 
   return (
-    <AlertFormHolder
-      formId="add-project"
-      header={t3({ en: "Copy project", fr: "Copier le projet", pt: "Copiar projeto" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Copy project", fr: "Copier le projet", pt: "Copiar projeto" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <Input
@@ -55,6 +58,6 @@ export function CopyProjectForm(
           autoFocus
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

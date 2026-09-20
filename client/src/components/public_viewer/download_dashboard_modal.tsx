@@ -5,7 +5,6 @@ import {
   TC,
 } from "lib";
 import {
-  Button,
   Checkbox,
   downloadBase64Image,
   type EditorComponentProps,
@@ -173,28 +172,19 @@ export function DownloadDashboardModal(
     <ModalContainer
       title={t3(TC.download)}
       width="sm"
-      leftButtons={
-        pct() > 0
-          ? undefined
-          : // eslint-disable-next-line jsx-key
-            [
-              <Button
-                onClick={attemptExport}
-                intent="success"
-                iconName="download"
-                disabled={!canDownload()}
-              >
-                {t3(TC.download)}
-              </Button>,
-              <Button
-                onClick={() => p.close(undefined)}
-                intent="neutral"
-                iconName="x"
-              >
-                {t3(TC.cancel)}
-              </Button>,
-            ]
-      }
+      onCancel={pct() > 0 ? undefined : () => p.close(undefined)}
+      actions={[
+        ...(pct() > 0
+          ? []
+          : [
+              {
+                label: t3(TC.download),
+                onClick: attemptExport,
+                iconName: "download" as const,
+                disabled: !canDownload(),
+              },
+            ]),
+      ]}
     >
       <div class="ui-spy">
         <RadioGroup

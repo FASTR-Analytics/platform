@@ -1,7 +1,7 @@
 import { formatReplicantLabelForDisplay, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   ProgressBar,
   RadioGroup,
   getProgress,
@@ -129,12 +129,15 @@ export function AddDashboardItemConfirmModal(
   );
 
   return (
-    <AlertFormHolder
-      formId="confirm-add-dashboard-item"
-      header={t3({ en: "Add to dashboard", fr: "Ajouter au tableau de bord", pt: "Adicionar ao painel" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={t3({ en: "Add to dashboard", fr: "Ajouter au tableau de bord", pt: "Adicionar ao painel" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <div class="text-sm">
@@ -179,6 +182,6 @@ export function AddDashboardItemConfirmModal(
           />
         </Show>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

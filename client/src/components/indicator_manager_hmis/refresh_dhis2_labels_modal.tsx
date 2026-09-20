@@ -1,6 +1,5 @@
 import {
   AlertComponentProps,
-  Button,
   Callout,
   ModalContainer,
   createButtonAction,
@@ -31,24 +30,23 @@ export function RefreshDhis2LabelsModal(p: Props) {
         fr: "Actualiser les noms DHIS2",
         pt: "Atualizar nomes DHIS2",
       })}
-      rightButtons={
-        <Show
-          when={result()}
-          fallback={
-            <>
-              <Button intent="neutral" onClick={() => p.close(undefined)}>
-                {t3(TC.cancel)}
-              </Button>
-              <Button intent="primary" iconName="refresh" state={refresh.state()} onClick={refresh.click}>
-                {t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" })}
-              </Button>
-            </>
-          }
-        >
-          <Button intent="primary" onClick={() => p.close(undefined)}>
-            {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-          </Button>
-        </Show>
+      actions={
+        result()
+          ? []
+          : [
+              {
+                label: t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" }),
+                onClick: refresh.click,
+                state: refresh.state(),
+                iconName: "refresh",
+              },
+            ]
+      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={
+        result()
+          ? t3({ en: "Done", fr: "Terminé", pt: "Concluído" })
+          : undefined
       }
     >
       <div class="ui-spy text-sm">

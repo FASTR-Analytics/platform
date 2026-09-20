@@ -1,7 +1,6 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
-  Button,
   ModalContainer,
   TabsNavigation,
   type ListItem,
@@ -42,16 +41,8 @@ export function HfaUnusedVariablesModal(
         pt: "Variáveis não utilizadas",
       })}
       width="lg"
-      leftButtons={[
-        // eslint-disable-next-line jsx-key
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-        >
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>,
-      ]}
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <Show
         when={p.timePoints.length > 0}

@@ -231,27 +231,24 @@ export function PromptLibraryModal(
       }
       width="xl"
       scroll="content"
-      rightButtons={
-        !isLoading() && !selectedPrompt()
-          ? // eslint-disable-next-line jsx-key
-            [
-              <Button onClick={() => p.close(undefined)} intent="neutral">
-                {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-              </Button>,
-              <Button
-                onClick={handleNewCustomPrompt}
-                intent="primary"
-                iconName="plus"
-              >
-                {t3({
+      onCancel={
+        !isLoading() && !selectedPrompt() ? () => p.close(undefined) : undefined
+      }
+      actions={[
+        ...(!isLoading() && !selectedPrompt()
+          ? [
+              {
+                label: t3({
                   en: "Create custom prompt",
                   fr: "Créer un prompt personnalisé",
                   pt: "Criar prompt personalizado",
-                })}
-              </Button>,
+                }),
+                onClick: handleNewCustomPrompt,
+                iconName: "plus" as const,
+              },
             ]
-          : undefined
-      }
+          : []),
+      ]}
     >
       <Show when={isLoading()}>
         <div>
@@ -349,7 +346,6 @@ function BrowsePhase(p: BrowsePhaseProps) {
               }
               defaultOpen={false}
               borderStyle="full"
-              rounded
               padding="sm"
             >
               <div>
@@ -382,7 +378,6 @@ function BrowsePhase(p: BrowsePhaseProps) {
               }
               defaultOpen={false}
               borderStyle="full"
-              rounded
               padding="sm"
             >
               <div>
@@ -429,7 +424,6 @@ function BrowsePhase(p: BrowsePhaseProps) {
                   }
                   defaultOpen={isSearching()}
                   borderStyle="full"
-                  rounded
                   padding="sm"
                 >
                   <div>

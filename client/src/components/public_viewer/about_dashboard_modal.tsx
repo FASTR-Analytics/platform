@@ -1,6 +1,5 @@
 import { t3 } from "lib";
 import {
-  Button,
   EditorComponentProps,
   MarkdownPresentationJsx,
   ModalContainer,
@@ -24,16 +23,8 @@ export function AboutDashboardModal(
         pt: "Acerca deste painel",
       })}
       width="lg"
-      leftButtons={[
-        // eslint-disable-next-line jsx-key
-        <Button
-          onClick={() => p.close(undefined)}
-          intent="neutral"
-          iconName="x"
-        >
-          {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-        </Button>,
-      ]}
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <div class="ui-spy">
         <MarkdownPresentationJsx markdown={p.body} />

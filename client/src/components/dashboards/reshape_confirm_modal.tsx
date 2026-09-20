@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   ProgressBar,
   getProgress,
   createFormAction,
@@ -34,16 +34,19 @@ export function ReshapeConfirmModal(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="confirm-reshape-dashboard-entry"
-      header={t3({
+    <ModalContainer
+      title={t3({
         en: "Update dashboard item",
         fr: "Mettre à jour l'élément",
         pt: "Atualizar elemento do painel",
       })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="ui-spy">
         <div class="text-sm">{p.message}</div>
@@ -55,6 +58,6 @@ export function ReshapeConfirmModal(p: AlertComponentProps<Props, ReturnType>) {
           />
         </Show>
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

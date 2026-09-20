@@ -12,7 +12,6 @@ import {
   type WhatsNewText,
 } from "lib";
 import {
-  Button,
   MarkdownPresentationJsx,
   ModalContainer,
   type AlertComponentProps,
@@ -93,57 +92,53 @@ export function WhatsNewModal(
       width="lg"
       scroll="content"
       title={rt(p.post.title)}
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Show when={multiPage() && !isLast()}>
-            <Button intent="neutral" onClick={() => p.close("skipped")}>
-              {t3({ en: "Skip", fr: "Passer", pt: "Ignorar" })}
-            </Button>
-          </Show>,
-        ]
+      onCancel={
+        multiPage() && !isLast() ? () => p.close("skipped") : undefined
       }
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Show when={multiPage()}>
-            <div class="flex items-center gap-1.5 pr-2">
-              <Index each={pages()}>
-                {(_, i) => (
-                  <div
-                    class="h-1.5 w-1.5 rounded-full"
-                    classList={{
-                      "bg-primary": i === pageIndex(),
-                      "bg-base-300": i !== pageIndex(),
-                    }}
-                  />
-                )}
-              </Index>
-            </div>
-          </Show>,
-          <Show when={multiPage()}>
-            <Button
-              intent="neutral"
-              iconName="chevronLeft"
-              disabled={pageIndex() === 0}
-              onClick={prev}
-            />
-          </Show>,
-          <Show
-            when={multiPage() && !isLast()}
-            fallback={
-              <Button
-                intent="primary"
-                iconName="x"
-                ariaLabel={t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-                onClick={() => p.close("completed")}
-              />
+      cancelLabel={t3({ en: "Skip", fr: "Passer", pt: "Ignorar" })}
+      footer={
+        <Show when={multiPage()}>
+          <div class="flex items-center gap-1.5 pr-2">
+            <Index each={pages()}>
+              {(_, i) => (
+                <div
+                  class="h-1.5 w-1.5 rounded-full"
+                  classList={{
+                    "bg-primary": i === pageIndex(),
+                    "bg-base-300": i !== pageIndex(),
+                  }}
+                />
+              )}
+            </Index>
+          </div>
+        </Show>
+      }
+      actions={[
+        ...(multiPage()
+          ? [
+              {
+                label: "",
+                ariaLabel: t3({ en: "Previous", fr: "Précédent", pt: "Anterior" }),
+                intent: "neutral" as const,
+                iconName: "chevronLeft" as const,
+                disabled: pageIndex() === 0,
+                onClick: prev,
+              },
+            ]
+          : []),
+        multiPage() && !isLast()
+          ? {
+              label: "",
+              ariaLabel: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+              iconName: "chevronRight",
+              onClick: next,
             }
-          >
-            <Button intent="primary" iconName="chevronRight" onClick={next} />
-          </Show>,
-        ]
-      }
+          : {
+              label: t3({ en: "Done", fr: "Terminé", pt: "Concluído" }),
+              iconName: "x",
+              onClick: () => p.close("completed"),
+            },
+      ]}
     >
       {/* Fixed height so the modal doesn't resize as pages change; long
           pages scroll inside their own layer. Inactive pages are `invisible`
@@ -493,14 +488,8 @@ export function WhatsNewFeedModal(
       width="md"
       scroll="content"
       title={t3({ en: "What's New", fr: "Nouveautés", pt: "Novidades" })}
-      rightButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button intent="neutral" onClick={() => p.close(undefined)}>
-            {t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-          </Button>,
-        ]
-      }
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
     >
       <div class="ui-spy-sm">
         <For each={sorted()}>

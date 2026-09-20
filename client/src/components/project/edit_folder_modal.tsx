@@ -1,7 +1,7 @@
 import { VisualizationFolder, t3 } from "lib";
 import {
   AlertComponentProps,
-  AlertFormHolder,
+  ModalContainer,
   ColorPicker,
   Input,
   createFormAction,
@@ -48,12 +48,15 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   );
 
   return (
-    <AlertFormHolder
-      formId="edit-folder"
-      header={isCreate ? t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" }) : t3({ en: "Edit folder", fr: "Modifier le dossier", pt: "Editar pasta" })}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
+    <ModalContainer
+      title={isCreate ? t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" }) : t3({ en: "Edit folder", fr: "Modifier le dossier", pt: "Editar pasta" })}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+      }]}
     >
       <div class="flex ui-gap">
         <Input
@@ -70,6 +73,6 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
           position="right"
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }

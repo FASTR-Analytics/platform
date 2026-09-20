@@ -17,7 +17,7 @@ import {
   ButtonGroup,
   FrameTop,
   Icon,
-  MenuTriggerWrapper,
+  MenuButton,
   PopoverMenuProvider,
   TooltipProvider,
   getFirstString,
@@ -252,7 +252,7 @@ export default function Instance(p: Props) {
                   </div>
                 </Show>
                 <div class="ui-gap-sm flex flex-0 items-center justify-end">
-                  <MenuTriggerWrapper
+                  <MenuButton
                     data-tour="instance-topbar-language"
                     items={
                       [
@@ -283,15 +283,14 @@ export default function Instance(p: Props) {
                       ] satisfies MenuItem[]
                     }
                     position="bottom-end"
+                    intent="base-100"
                   >
-                    <Button intent="base-100">
-                      {
-                        ({ en: "EN", fr: "FR", pt: "PT" } as const)[
-                          getLanguage()
-                        ]
-                      }
-                    </Button>
-                  </MenuTriggerWrapper>
+                    {
+                      ({ en: "EN", fr: "FR", pt: "PT" } as const)[
+                        getLanguage()
+                      ]
+                    }
+                  </MenuButton>
                   <Show
                     when={
                       instanceState.currentUserApproved &&
@@ -310,7 +309,7 @@ export default function Instance(p: Props) {
                     </div>
                   </Show>
                   <Show when={instanceState.currentUserApproved}>
-                    <MenuTriggerWrapper
+                    <MenuButton
                       data-tour="instance-topbar-help"
                       items={() => {
                         const items: MenuItem[] = [];
@@ -363,11 +362,10 @@ export default function Instance(p: Props) {
                         return items;
                       }}
                       position="bottom-end"
+                      intent="base-100"
                     >
-                      <Button intent="base-100">
-                        {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                      </Button>
-                    </MenuTriggerWrapper>
+                      {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                    </MenuButton>
                     <Button
                       onClick={openInstanceMeta}
                       iconName="versions"

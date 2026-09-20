@@ -3,7 +3,7 @@ import {
   t3,
   type HmisIndicatorType,
 } from "lib";
-import { AlertComponentProps, Button, ModalContainer } from "panther";
+import { AlertComponentProps, ModalContainer } from "panther";
 import { For } from "solid-js";
 import { indicatorTypeWord } from "./_indicator_display";
 
@@ -145,11 +145,8 @@ export function IndicatorTypesModal(p: AlertComponentProps<{}, undefined>) {
         fr: "Types d'indicateurs",
         pt: "Tipos de indicadores",
       })}
-      rightButtons={[
-        <Button intent="primary" onClick={() => p.close(undefined)}>
-          {t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
-        </Button>,
-      ]}
+      onCancel={() => p.close(undefined)}
+      cancelLabel={t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
     >
       <div class="ui-spy text-sm">
         <div class="text-xs">

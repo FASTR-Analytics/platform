@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { AlertComponentProps, Button, Input, ModalContainer } from "panther";
+import { AlertComponentProps, Input, ModalContainer } from "panther";
 import { createSignal } from "solid-js";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
 
@@ -15,19 +15,14 @@ export function ReportImagePicker(p: AlertComponentProps<object, PickedImage>) {
     <ModalContainer
       width="md"
       title={t3({ en: "Insert image", fr: "Insérer une image", pt: "Inserir imagem" })}
-      rightButtons={
-        <>
-          <Button outline onClick={() => p.close(undefined)}>
-            {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-          </Button>
-          <Button
-            disabled={!imgFile()}
-            onClick={() => p.close({ imgFile: imgFile(), alt: alt().trim() })}
-          >
-            {t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-          </Button>
-        </>
-      }
+      onCancel={() => p.close(undefined)}
+      actions={[
+        {
+          label: t3({ en: "Insert", fr: "Insérer", pt: "Inserir" }),
+          onClick: () => p.close({ imgFile: imgFile(), alt: alt().trim() }),
+          disabled: !imgFile(),
+        },
+      ]}
     >
       <div class="ui-spy">
         <FileUploadSelector

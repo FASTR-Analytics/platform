@@ -1,4 +1,4 @@
-import { Button, EditorComponentProps, ModalContainer, RadioGroup } from "panther";
+import { EditorComponentProps, ModalContainer, RadioGroup } from "panther";
 import { Show, createSignal } from "solid-js";
 import { t3, TC, PresentationObjectEditorDetail } from "lib";
 
@@ -47,21 +47,10 @@ export function DownloadPresentationObject(
     <ModalContainer
       title={t3(TC.download)}
       width="sm"
-      leftButtons={
-        // eslint-disable-next-line jsx-key
-        [
-          <Button onClick={done} intent="success" iconName="download">
-            {t3(TC.download)}
-          </Button>,
-          <Button
-            onClick={() => p.close(undefined)}
-            intent="neutral"
-            iconName="x"
-          >
-            {t3(TC.cancel)}
-          </Button>,
-        ]
-      }
+      actions={[
+        { label: t3(TC.download), onClick: done, iconName: "download" },
+      ]}
+      onCancel={() => p.close(undefined)}
     >
       <div class="">
         <RadioGroup

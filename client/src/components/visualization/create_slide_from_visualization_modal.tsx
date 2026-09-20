@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import type { AiContentSlideInput, DisaggregationOption, MetricWithStatus, SlideDeckConfig, SlideDeckFolder, SlideDeckSummary } from "lib";
 import { formatReplicantLabelForDisplay, getStartingConfigForSlideDeck, t3 } from "lib";
-import { AlertComponentProps, AlertFormHolder, RadioGroup, ProgressBar, getProgress, createFormAction } from "panther";
+import { AlertComponentProps, ModalContainer, RadioGroup, ProgressBar, getProgress, createFormAction } from "panther";
 import { createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -227,18 +227,19 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
     : t3({ en: "Create Slide", fr: "Créer une diapositive", pt: "Criar diapositivo" });
 
   return (
-    <AlertFormHolder
-      formId="create-slide-from-viz"
-      header={header}
-      savingState={save.state()}
-      saveFunc={save.click}
-      cancelFunc={() => p.close(undefined)}
-      disableSaveButton={
-        isCreatingNew()
+    <ModalContainer
+      title={header}
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
+        onClick: save.click,
+        state: save.state(),
+        disabled: isCreatingNew()
           ? !newDeckLabel().trim()
           : !selectedDeckId() ||
-          (isSingleReplicatedMode() && creationMode() === "single" && !selectedReplicant())
-      }
+          (isSingleReplicatedMode() && creationMode() === "single" && !selectedReplicant()),
+      }]}
     >
       <div class="ui-spy">
         <Show when={isSingleReplicatedMode() ? p.replicateBy : false}>
@@ -297,6 +298,6 @@ export function CreateSlideFromVisualizationModal(p: AlertComponentProps<Props, 
           onSetNewDeckLabel={setNewDeckLabel}
         />
       </div>
-    </AlertFormHolder>
+    </ModalContainer>
   );
 }
