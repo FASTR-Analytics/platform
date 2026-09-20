@@ -129,7 +129,8 @@ two-file step 1 (`survey`+`choices` sheets validated on save;
 bare-`CsvDetails` rows are normalized on read by `parseCsvStep1Result`).
 At staging, each mapped column except `facility_id` (admin areas
 included) is matched to a select_one question by the HFA header
-convention (exact name, else the header's post-last-`/` segment), and
+convention (the header itself as a question id, else its last `/`
+segment), and
 matching cell values are replaced by choice labels: **labels are stored
 in the facility columns, codes are discarded, no dictionary table**.
 Unresolved codes stay raw and are surfaced per column in the staging

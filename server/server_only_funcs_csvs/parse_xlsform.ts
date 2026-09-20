@@ -1,14 +1,14 @@
 import { readXlsxFileAsSheets } from "./read_xlsx_raw.ts";
 
-export type XlsFormVarInfo = {
-  name: string;
+export type XlsFormQuestion = {
+  questionId: string;
   label: string;
   // Labels of the enclosing begin_group/begin_repeat rows, outermost first.
   // ODK matrix questions carry the stem on the group row and leave each child's
   // own label as a bare suffix ("Infrastructure"), so the group label is what
-  // makes the variable identifiable: `chal_01_b` and `chal_02_b` are both
+  // makes the question identifiable: `chal_01_b` and `chal_02_b` are both
   // labelled "Infrastructure" and differ only by their group. Composed into the
-  // stored dictionary label by qualifiedVarLabel().
+  // stored variable label by qualifiedQuestionLabel().
   groupLabels: string[];
   type: "select_one" | "select_multiple" | "integer" | "decimal" | "other";
   listName?: string;
@@ -18,14 +18,16 @@ export type XlsFormVarInfo = {
   constraint?: string;
 };
 
-export type XlsFormChoiceInfo = {
-  name: string;
+// `value` is the choices sheet's `name` column: the code stored as
+// hfa_variable_values.value, never an identifier.
+export type XlsFormChoice = {
+  value: string;
   label: string;
 };
 
 export type ParsedXlsForm = {
-  vars: Map<string, XlsFormVarInfo>;
-  choiceLists: Map<string, XlsFormChoiceInfo[]>;
+  questions: Map<string, XlsFormQuestion>;
+  choiceLists: Map<string, XlsFormChoice[]>;
 };
 
 const GROUP_OPEN_TYPES = new Set(["begin_group", "begin_repeat"]);
@@ -81,29 +83,30 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
   );
   const choicesLabelIdx = findLabelColumn(choicesHeaders, "choices");
 
-  const choiceLists = new Map<string, XlsFormChoiceInfo[]>();
+  const choiceLists = new Map<string, XlsFormChoice[]>();
   for (let i = 1; i < choicesRows.length; i++) {
     const row = choicesRows[i];
     if (!row) continue;
     const listName = String(row[choicesListNameIdx] ?? "").trim();
-    const name = String(row[choicesNameIdx] ?? "").trim();
+    const value = String(row[choicesNameIdx] ?? "").trim();
     const label = String(row[choicesLabelIdx] ?? "").trim();
-    if (!listName || !name) continue;
+    if (!listName || !value) continue;
     if (!choiceLists.has(listName)) {
       choiceLists.set(listName, []);
     }
-    choiceLists.get(listName)!.push({ name, label: label || name });
+    choiceLists.get(listName)!.push({ value, label: label || value });
   }
 
-  const vars = new Map<string, XlsFormVarInfo>();
+  const questions = new Map<string, XlsFormQuestion>();
   // Labels of the currently open groups, outermost first. Group rows are handled
-  // before the name guard below because end_group/end_repeat rows carry no name.
+  // before the question-id guard below because end_group/end_repeat rows carry
+  // no name.
   const groupStack: string[] = [];
   for (let i = 1; i < surveyRows.length; i++) {
     const row = surveyRows[i];
     if (!row) continue;
     const rawType = String(row[surveyTypeIdx] ?? "").trim();
-    const name = String(row[surveyNameIdx] ?? "").trim();
+    const questionId = String(row[surveyNameIdx] ?? "").trim();
     const label = cleanSurveyLabel(String(row[surveyLabelIdx] ?? ""));
     const constraint = surveyConstraintIdx >= 0
       ? String(row[surveyConstraintIdx] ?? "").trim()
@@ -121,10 +124,10 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
       continue;
     }
 
-    if (!name) continue;
+    if (!questionId) continue;
     if (SKIP_TYPES.has(typeLower)) continue;
 
-    let type: XlsFormVarInfo["type"] = "other";
+    let type: XlsFormQuestion["type"] = "other";
     let listName: string | undefined;
 
     if (typeLower.startsWith("select_one ")) {
@@ -142,15 +145,15 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
       type = "decimal";
     }
 
-    if (vars.has(name)) {
+    if (questions.has(questionId)) {
       throw new Error(
-        `Duplicate variable name '${name}' in XLSForm survey sheet`,
+        `Duplicate question id '${questionId}' in XLSForm survey sheet`,
       );
     }
 
-    vars.set(name, {
-      name,
-      label: label || name,
+    questions.set(questionId, {
+      questionId,
+      label: label || questionId,
       groupLabels: groupStack.filter((g) => g !== ""),
       type,
       listName,
@@ -158,19 +161,19 @@ export function parseXlsForm(filePath: string): ParsedXlsForm {
     });
   }
 
-  return { vars, choiceLists };
+  return { questions, choiceLists };
 }
 
 export const XLSFORM_LABEL_SEPARATOR = " — ";
 
-// The dictionary label for a variable: its immediate group's label followed by
-// its own. Without the group, matrix children are unidentifiable ("Infrastructure")
-// and often outright duplicated across matrices. Only the immediate group is used.
-// Outer groups are section headings ("BLOCK B.2: CHALLENGES...") that add length
-// without disambiguating.
-export function qualifiedVarLabel(v: XlsFormVarInfo): string {
-  const parent = v.groupLabels.at(-1);
-  return parent ? `${parent}${XLSFORM_LABEL_SEPARATOR}${v.label}` : v.label;
+// The dictionary label of the variable a question yields: the question's
+// immediate group label followed by its own. Without the group, matrix children
+// are unidentifiable ("Infrastructure") and often outright duplicated across
+// matrices. Only the immediate group is used. Outer groups are section headings
+// ("BLOCK B.2: CHALLENGES...") that add length without disambiguating.
+export function qualifiedQuestionLabel(q: XlsFormQuestion): string {
+  const parent = q.groupLabels.at(-1);
+  return parent ? `${parent}${XLSFORM_LABEL_SEPARATOR}${q.label}` : q.label;
 }
 
 // XLSForm labels are authored for on-screen rendering: they carry markup, hard

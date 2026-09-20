@@ -11,10 +11,10 @@ import {
 import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import {
   parseXlsForm,
-  qualifiedVarLabel,
+  qualifiedQuestionLabel,
   XLSFORM_LABEL_SEPARATOR,
-  type XlsFormChoiceInfo,
-  type XlsFormVarInfo,
+  type XlsFormChoice,
+  type XlsFormQuestion,
 } from "../../server_only_funcs_csvs/parse_xlsform.ts";
 
 // Per-run staging tables (PLAN_DHIS2_IMPORTER_CONSOLIDATION B4): staging
@@ -101,91 +101,92 @@ export async function stageHfaCsvIntoTables(args: {
   const { headers, facilityIdIndex, processFilteredRows } =
     await getHfaRowScanComponents(csvFilePath, mappings.facilityIdColumn, rowFilters);
 
-  // Match CSV columns to XLSForm vars (with group prefix stripping)
-  type CsvVarMapping = {
+  // Match CSV columns to XLSForm questions.
+  type CsvQuestionMapping = {
     csvHeader: string;
     csvIndex: number;
-    xlsFormVar: XlsFormVarInfo;
-    choices?: XlsFormChoiceInfo[];
+    question: XlsFormQuestion;
+    choices?: XlsFormChoice[];
   };
 
-  const csvVarMappings: CsvVarMapping[] = [];
+  const csvQuestionMappings: CsvQuestionMapping[] = [];
   const unmatchedCsvCols: string[] = [];
 
   for (let i = 0; i < headers.length; i++) {
     if (i === facilityIdIndex) continue;
     const csvHeader = headers[i];
-    // Strip group prefix: "section_a/subsection/var_name" → "var_name"
-    const localName = csvHeader.includes("/")
+    // An ODK export header is the question's path through its groups,
+    // "section_a/subsection/question_id"; the last segment is the question id.
+    const questionId = csvHeader.includes("/")
       ? csvHeader.substring(csvHeader.lastIndexOf("/") + 1)
       : csvHeader;
 
-    const xlsVar = xlsForm.vars.get(localName);
-    if (!xlsVar) {
+    const question = xlsForm.questions.get(questionId);
+    if (!question) {
       unmatchedCsvCols.push(csvHeader);
       continue;
     }
 
     // Only include select_one, select_multiple, integer, decimal
     if (
-      xlsVar.type !== "select_one" &&
-      xlsVar.type !== "select_multiple" &&
-      xlsVar.type !== "integer" &&
-      xlsVar.type !== "decimal"
+      question.type !== "select_one" &&
+      question.type !== "select_multiple" &&
+      question.type !== "integer" &&
+      question.type !== "decimal"
     ) {
       continue;
     }
 
-    const mapping: CsvVarMapping = {
+    const mapping: CsvQuestionMapping = {
       csvHeader,
       csvIndex: i,
-      xlsFormVar: xlsVar,
+      question,
     };
 
     if (
-      (xlsVar.type === "select_one" || xlsVar.type === "select_multiple") &&
-      xlsVar.listName
+      (question.type === "select_one" || question.type === "select_multiple") &&
+      question.listName
     ) {
-      mapping.choices = xlsForm.choiceLists.get(xlsVar.listName);
+      mapping.choices = xlsForm.choiceLists.get(question.listName);
     }
 
-    csvVarMappings.push(mapping);
+    csvQuestionMappings.push(mapping);
   }
 
-  const storedVarNames = csvVarMappings.flatMap((m) => {
-    const variableId = m.xlsFormVar.name.trim();
-    if (m.xlsFormVar.type === "select_multiple") {
-      return (m.choices ?? []).map(
-        (choice) => `${variableId}_${String(choice.name).trim()}`,
-      );
+  const variableIds = csvQuestionMappings.flatMap((m) => {
+    const { questionId } = m.question;
+    if (m.question.type === "select_multiple") {
+      return (m.choices ?? []).map((choice) => `${questionId}_${choice.value}`);
     }
-    return [variableId];
+    return [questionId];
   });
-  // Reject names that collide with how indicator R code is interpreted:
+  // Reject variable ids that collide with how indicator R code is interpreted:
   // `and`/`or` operator aliases, R keywords, the common functions the
   // identifier extractor filters, or with a column the module script owns
-  // (`weight`, `time_point`, `facility_*`, ...). A survey variable named
-  // `and`/`sum`/`if` would otherwise be silently rewritten or dropped, and one
-  // named `weight`/`time_point` would collide with or shadow the script's own
-  // column (single source: isReservedHfaId).
-  const reservedCollisions = storedVarNames.filter(isReservedHfaId);
+  // (`weight`, `time_point`, `facility_*`, ...). A variable id `and`/`sum`/`if`
+  // would otherwise be silently rewritten or dropped, and `weight`/`time_point`
+  // would collide with or shadow the script's own column (single source:
+  // isReservedHfaId).
+  const reservedCollisions = variableIds.filter(isReservedHfaId);
   if (reservedCollisions.length > 0) {
     throw new Error(
-      `The variable name "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the survey variable in the XLSForm/CSV and re-upload.`,
+      `The variable id "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
     );
   }
 
   const nCsvColsNotInXlsForm = unmatchedCsvCols.length;
 
   // Count XLSForm questions not in CSV (informational)
-  const csvLocalNames = new Set(csvVarMappings.map((m) => m.xlsFormVar.name));
+  const matchedQuestionIds = new Set(
+    csvQuestionMappings.map((m) => m.question.questionId),
+  );
   let nXlsFormQuestionsNotInCsv = 0;
-  for (const [name] of xlsForm.vars) {
-    if (!csvLocalNames.has(name)) nXlsFormQuestionsNotInCsv++;
+  for (const questionId of xlsForm.questions.keys()) {
+    if (!matchedQuestionIds.has(questionId)) nXlsFormQuestionsNotInCsv++;
   }
 
-  const nSelectMultipleExpanded = csvVarMappings.filter(
-    (m) => m.xlsFormVar.type === "select_multiple",
+  const nSelectMultipleExpanded = csvQuestionMappings.filter(
+    (m) => m.question.type === "select_multiple",
   ).length;
 
   const dateImported = new Date().toISOString();
@@ -253,11 +254,11 @@ CREATE UNLOGGED TABLE ${names.raw} (
         facilityRowNumbers.set(facilityId, [rowNumber]);
       }
 
-      for (const mapping of csvVarMappings) {
+      for (const mapping of csvQuestionMappings) {
         const valueRaw = row[mapping.csvIndex] || "";
         const value = valueRaw.trim();
 
-        if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
+        if (mapping.question.type === "select_multiple" && mapping.choices) {
           // Expand to binary variables. An unanswered parent stays missing
           // on every expanded variable; a "don't know" (-99) answer marks the
           // unselected choices -99 instead of 0, so downstream sentinel
@@ -272,8 +273,8 @@ CREATE UNLOGGED TABLE ${names.raw} (
                 ? "-99"
                 : "0";
           for (const choice of mapping.choices) {
-            const expandedVariableId = `${mapping.xlsFormVar.name.trim()}_${String(choice.name).trim()}`;
-            const expandedValue = selectedCodes.has(String(choice.name))
+            const expandedVariableId = `${mapping.question.questionId}_${choice.value}`;
+            const expandedValue = selectedCodes.has(choice.value)
               ? "1"
               : unselectedValue;
             rowBuffer.push(
@@ -282,12 +283,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
           }
         } else {
           rowBuffer.push(
-            dataTup(
-              facilityId,
-              mapping.xlsFormVar.name.trim(),
-              value,
-              rowNumber,
-            ),
+            dataTup(facilityId, mapping.question.questionId, value, rowNumber),
           );
         }
       }
@@ -407,17 +403,15 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
   const dictVariableRows: string[] = [];
   const dictValueRows: string[] = [];
 
-  for (const mapping of csvVarMappings) {
-    const variableId = mapping.xlsFormVar.name.trim();
-    const variableLabel = qualifiedVarLabel(mapping.xlsFormVar);
-    const variableType = mapping.xlsFormVar.type;
+  for (const mapping of csvQuestionMappings) {
+    const variableId = mapping.question.questionId;
+    const variableLabel = qualifiedQuestionLabel(mapping.question);
+    const variableType = mapping.question.type;
 
-    if (mapping.xlsFormVar.type === "select_multiple" && mapping.choices) {
-      const dkChoice = mapping.choices.find(
-        (c) => String(c.name).trim() === "-99",
-      );
+    if (mapping.question.type === "select_multiple" && mapping.choices) {
+      const dkChoice = mapping.choices.find((c) => c.value === "-99");
       for (const choice of mapping.choices) {
-        const expandedVariableId = `${variableId}_${String(choice.name).trim()}`;
+        const expandedVariableId = `${variableId}_${choice.value}`;
         const compositeLabel =
           `${variableLabel}${XLSFORM_LABEL_SEPARATOR}${choice.label}`.trim();
         dictVariableRows.push(
@@ -431,7 +425,7 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
         // "Yes"/"No" are substantive; only the carried "-99" is a sentinel.
         dictValueRows.push(tup(cleanedTimePoint, expandedVariableId, "1", "Yes", ""));
         dictValueRows.push(tup(cleanedTimePoint, expandedVariableId, "0", "No", ""));
-        if (dkChoice && String(choice.name).trim() !== "-99") {
+        if (dkChoice && choice.value !== "-99") {
           const dkLabel = dkChoice.label.trim();
           dictValueRows.push(
             tup(
@@ -444,10 +438,10 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
           );
         }
       }
-    } else if (mapping.xlsFormVar.type === "select_one" && mapping.choices) {
+    } else if (mapping.question.type === "select_one" && mapping.choices) {
       dictVariableRows.push(tup(cleanedTimePoint, variableId, variableLabel, variableType));
       for (const choice of mapping.choices) {
-        const code = String(choice.name).trim();
+        const code = choice.value;
         const label = choice.label.trim();
         dictValueRows.push(
           tup(
@@ -464,9 +458,7 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
       // Numeric variables have no choice list; their don't-know sentinel lives in
       // the XLSForm constraint (e.g. ". = -999999"). Synthesize a dictionary
       // row so the sentinel and its class are captured like a choice code.
-      for (const sv of parseNumericSentinels(
-        mapping.xlsFormVar.constraint ?? "",
-      )) {
+      for (const sv of parseNumericSentinels(mapping.question.constraint ?? "")) {
         const cls = classifyNumericSentinel(sv);
         const label = cls === "dont_know" ? "Don't know" : "Reserved value";
         dictValueRows.push(tup(cleanedTimePoint, variableId, sv, label, cls));

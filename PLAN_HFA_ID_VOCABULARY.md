@@ -9,7 +9,7 @@ input mirrors, the AI tool schemas, the workbook contract and the UI, and
 retires the word "name" for an identifier everywhere in the HFA area, because
 "name" is used for the id in one place and for the label in the next.
 
-**Next step:** Do 3
+**Next step:** Review 3
 
 Branch: `main`. Repos touched: this app, `wb-fastr-modules` (step 2),
 `fastr-resource-hub` and `wb-fastr-site` (§7, outside the sessions).
@@ -496,3 +496,9 @@ previous commit on each instance.
 | 2026-09-20 | 2 | Review finding: `SYSTEM_03_realtime_cache.md:360,481-484`. The singleton table's prefix cell for `_FETCH_CACHE_DATASET_HFA_ITEMS` reads `ds_hfa`, and the cross-deploy bullet says `ds_hfa` has neither `PO_CACHE_VERSION` nor a prefix bump; after ruling 13 the prefix is `ds_hfa_v2` and the bump is its payload-shape handling. Docs move with the code, and this file names the contract the step changed even though the Surface lists only SYSTEM_05 and SYSTEM_06. Fix: the cell reads `ds_hfa_v2`, and the bullet says `ds_hfa` used a prefix bump (`ds_hfa_v2`, this plan's step 2). The adjacent `po_detail_v10` cell was already stale before this plan (the code is `po_detail_v13`) and is not this finding. |
 | 2026-09-20 | 2 | Step 2 reviewed: 1 finding. |
 | 2026-09-20 | 2 | Step 2 fixed: SYSTEM_03's table cell reads `ds_hfa_v2` and the cross-deploy bullet says `po_detail` and `ds_hfa` each use a prefix bump. Fixed in the review's own session; `deno task typecheck` and `./validate_protocols` green on the edit, code unchanged since the review's full gate run. Tim waived the re-review for a docs-only fix, so the line moves to `Do 3`. |
+| 2026-09-20 | 3 | Ruling 14 lists `groupLabel` among `XlsFormQuestion`'s fields; the code holds `groupLabels: string[]`, the open-group stack whose last entry `qualifiedQuestionLabel` reads, and also `constraint`, which the ruling's list omits. Neither is an id, so both keep their names; the code wins. |
+| 2026-09-20 | 3 | Names not in ruling 14, chosen here: `CsvVarMapping` / `csvVarMappings` became `CsvQuestionMapping` / `csvQuestionMappings` (a CSV column matched to a question); `csvLocalNames` became `matchedQuestionIds`; the stripped-header local became `questionId` in `stage_csv.ts` (it is the lookup key) and `lastSegment` in `stage_structure_from_csv.ts` (the raw header is tried first there). `XlsFormChoice.value` carries a comment saying it is the choices sheet's `name` column, because the rename hides that. |
+| 2026-09-20 | 3 | The `.trim()` calls on the question id and choice value in `stage_csv.ts` were dropped with the rename: the parser trims both at read (`parse_xlsform.ts` survey and choices loops), so every one was a no-op. |
+| 2026-09-20 | 3 | `_staging_summary.tsx` is in the Surface but unchanged: step 2 already moved its strings to "questions", and no other string in it names a question a var. SYSTEM_06's XLSForm bullet likewise already reads in the plan's vocabulary; the only doc change is SYSTEM_05's ODK label resolution paragraph ("exact name" became "the header itself as a question id"). |
+| 2026-09-20 | 3 | Gates: `deno task typecheck`, `./validate_protocols`, `./validate_migrations` (no-op, schema unchanged), `./validate_fresh_boot` (no-op) green; `./run` booted the dev instance clean (no migration applied, 8 manifests checked, 0 transformed) and `deno task test` against it passed 144. `deno fmt --check` status of the three code files is unchanged from HEAD (`parse_xlsform.ts` clean, the other two already unformatted). |
+| 2026-09-20 | 3 | Step 3 built. One commit. |
