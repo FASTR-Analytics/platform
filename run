@@ -13,15 +13,29 @@ export PG_PASSWORD="$(grep '^PG_PASSWORD=' .env | cut -d= -f2-)"
 echo "Waiting for Postgres..."
 until docker exec pg pg_isready -U postgres >/dev/null 2>&1; do sleep 0.5; done
 
-deno run --allow-all --env-file --unstable-broadcast-channel main.ts 2>&1 | while IFS= read -r line; do printf "\033[0;32mS:\033[0m %s\n" "$line"; done &
+colorize() {
+  while IFS= read -r line; do printf "\033[0;%sm%s:\033[0m %s\n" "$1" "$2" "$line"; done
+}
+
+# Kill a process and every descendant. `$!` of a pipeline is the reader
+# subshell, so the pipelines are process substitutions instead: `$!` is then
+# the command itself, and the tree walk reaches npm's vite child.
+kill_tree() {
+  local child
+  for child in $(pgrep -P "$1"); do kill_tree "$child"; done
+  kill "$1" 2>/dev/null
+}
+
+deno run --allow-all --env-file --unstable-broadcast-channel main.ts > >(colorize 32 S) 2>&1 &
 SERVER_PID=$!
 
-(cd client && npm run dev) 2>&1 | while IFS= read -r line; do printf "\033[0;34mC:\033[0m %s\n" "$line"; done &
+(cd client && npm run dev) > >(colorize 34 C) 2>&1 &
 CLIENT_PID=$!
 
 cleanup() {
   echo "Shutting down..."
-  kill $SERVER_PID $CLIENT_PID 2>/dev/null
+  kill_tree $SERVER_PID
+  kill_tree $CLIENT_PID
   docker stop pg valkey-local >/dev/null 2>&1
   exit
 }
