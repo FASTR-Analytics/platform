@@ -24,7 +24,7 @@ export type RenderedReportPdf = {
 };
 
 let browser: Browser | undefined;
-let idleTimer: number | undefined;
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
 // The render queue: each render waits for the previous one to settle.
 let queue: Promise<unknown> = Promise.resolve();
 
