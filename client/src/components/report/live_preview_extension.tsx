@@ -4629,9 +4629,11 @@ function innerCandidates(
 // measured are the paragraph's true rows, and the next measure moves the
 // anchor back to the head of its row.
 //
-// At least this many rows stay at the foot of a page and carry over.
-const PARA_ORPHANS = 2;
-const PARA_WIDOWS = 2;
+// At least this many rows stay at the foot of a page and carry over. One
+// and one (Nick, 2026-09-21): a page fills to its last row, a single row
+// may stand alone on either side, as in a plain text editor.
+const PARA_ORPHANS = 1;
+const PARA_WIDOWS = 1;
 // A paragraph line's rows, by the block's key: per source line, for a
 // paragraph that has left the viewport.
 const measuredParaRows = new Map<string, number[]>();
