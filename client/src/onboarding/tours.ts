@@ -556,6 +556,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
           pt: "Dividido mostra o seu texto ao lado da página final. Editar dá todo o espaço ao texto e Ver mostra apenas o resultado.",
         }),
         placement: "bottom",
+        // Only the older formats have the switch (a FASTR Markdown report is
+        // its Edit pane alone).
+        when: () => document.querySelector('[data-tour="report-mode"]') !== null,
       },
       {
         id: "code-pane",

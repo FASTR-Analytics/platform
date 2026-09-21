@@ -403,6 +403,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // Three modes: edit (CodeMirror only), split (editor + preview, the
   // default), view (read-only HTML preview only). AI is mode-agnostic: the
   // editor stays mounted in every mode.
+  // A FASTR Markdown report has ONE: edit (Nick, 2026-09-21). Its Edit pane
+  // is the finished page (live preview on page boxes, the PDF's own layout),
+  // so Split and View showed the same thing twice; the load below puts it in
+  // edit and the header drops the switch. The older markdown and html formats
+  // keep all three: their Edit pane is raw source, and View is the only
+  // place they render.
   const [mode, setMode] = createSignal<ReportMode>("split");
   // Live collab (Yjs). collabReady LATCHES at the first report_sync: from then
   // on the room's checkpoints own persistence and the REST autosave is off for
@@ -1024,6 +1030,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const res = await getReportDetailFromCacheOrFetch(p.productId);
     if (res.success) {
       setFormat(getReportFormat(res.data.config));
+      if (getReportFormat(res.data.config) === "fastr") setMode("edit");
       htmlStyle = getReportHtmlStyle(res.data.config);
       // Custom style: live ref + snapshot fallback (S12) — prefer the CURRENT
       // library brief when the style still exists and is visible here, so
@@ -2113,25 +2120,27 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                 />
               }
               centerChildren={
-                <ButtonGroup<ReportMode>
-                  data-tour="report-mode"
-                  items={[
-                    {
-                      id: "edit",
-                      label: t3({ en: "Edit", fr: "Édition", pt: "Editar" }),
-                    },
-                    {
-                      id: "split",
-                      label: t3({ en: "Split", fr: "Divisé", pt: "Dividido" }),
-                    },
-                    {
-                      id: "view",
-                      label: t3({ en: "View", fr: "Aperçu", pt: "Ver" }),
-                    },
-                  ]}
-                  value={mode()}
-                  onChange={(v) => v && setMode(v)}
-                />
+                <Show when={format() !== "fastr"}>
+                  <ButtonGroup<ReportMode>
+                    data-tour="report-mode"
+                    items={[
+                      {
+                        id: "edit",
+                        label: t3({ en: "Edit", fr: "Édition", pt: "Editar" }),
+                      },
+                      {
+                        id: "split",
+                        label: t3({ en: "Split", fr: "Divisé", pt: "Dividido" }),
+                      },
+                      {
+                        id: "view",
+                        label: t3({ en: "View", fr: "Aperçu", pt: "Ver" }),
+                      },
+                    ]}
+                    value={mode()}
+                    onChange={(v) => v && setMode(v)}
+                  />
+                </Show>
               }
             >
               <div class="ui-gap-sm flex items-center">
