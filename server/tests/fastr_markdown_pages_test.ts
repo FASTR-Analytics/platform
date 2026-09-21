@@ -243,3 +243,15 @@ Deno.test("blank lines at the document's end never open a page", () => {
   assertEquals(r.total, 1);
   assertEquals(fastrPageStartLines(r), []);
 });
+
+Deno.test("a run of headings that fills a page breaks, keeping one heading with the block", () => {
+  // 16 headings of 60 + 16 gaps: the 13th would make 972 + 76 > 987.
+  const hs = Array.from({ length: 16 }, (_, k) => block(k, 60, { heading: true }));
+  const r = layoutFastrPages(hs, G);
+  assertEquals(r.total, 2);
+  // The heading directly above the one that did not fit travels with it.
+  assertEquals(fastrPageStartLines(r), [12]);
+  // A paragraph under the run takes only its own heading along.
+  const p = layoutFastrPages([...hs.slice(0, 13), block(13, 300)], G);
+  assertEquals(fastrPageStartLines(p), [12]);
+});

@@ -141,6 +141,13 @@ export function layoutFastrPages(
     }
     return j;
   };
+  // The heading directly above block i (lines of space between them
+  // allowed), or i itself when there is none.
+  const nearestHeading = (i: number) => {
+    let k = i;
+    while (k > first && blocks[k - 1].space) k--;
+    return k > first && blocks[k - 1].heading ? k - 1 : i;
+  };
   // Close the page with what stands before block j, open the next page on
   // j, and count blocks j to i - 1 (already placed on the page that closed)
   // onto the new one.
@@ -226,8 +233,21 @@ export function layoutFastrPages(
         reopen(j, i);
         continue;
       }
-      // Nothing but those headings stands before it on this page, so it
-      // cannot move without stranding them. A block that can continue at
+      // A run of headings that reaches back to the page's top cannot all
+      // travel (the page would never end and its content ran past the
+      // foot): only the heading directly above the block goes with it,
+      // when the two fit a page of their own (a block too tall for that
+      // gains nothing by moving, and continues in place below).
+      const near = nearestHeading(i);
+      let moved = 0;
+      for (let k = near; k <= i; k++) moved += footprint(k, near);
+      const fresh = fastrPageArea(g, { cover: false, flushTop: false }) - safety;
+      if (near > first && moved <= fresh) {
+        reopen(near, i);
+        continue;
+      }
+      // Nothing but its one heading stands before it on this page, so it
+      // cannot move without stranding it. A block that can continue at
       // its inner boundaries starts here and does; any other keeps the
       // page and runs past it (it is taller than the page: see below).
       if (b.inner !== undefined && b.inner.length > 0) {

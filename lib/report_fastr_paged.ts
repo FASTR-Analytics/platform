@@ -475,6 +475,10 @@ export function fastrPagedRunnerJs(): string {
     for (var q = 0; q < anchors.length; q++) {
       var an = anchors[q];
       if (window.getComputedStyle(an).getPropertyValue("--fm-forced").trim() !== "1") continue;
+      // The editor starts a page here: a heading directly above must not
+      // hold it back (afterParsed drops its keep-with-next).
+      var above = an.previousElementSibling;
+      if (above && /^H[1-6]$/.test(above.tagName)) above.setAttribute("data-fm-release-after", "");
       var host = an.parentElement ? an.parentElement.closest(ATOMIC) : null;
       while (host) {
         if (!host.classList.contains("fm-cover")) {
@@ -521,6 +525,20 @@ export function fastrPagedRunnerJs(): string {
       var released = parsed.querySelectorAll("[data-fm-overflow]");
       for (var i = 0; i < released.length; i++) {
         released[i].removeAttribute("data-break-inside");
+      }
+      // Keep-with-next must end somewhere. A run of headings each kept with
+      // the next is a chain Paged.js can never break: a run taller than a
+      // page printed its first page twice and lost the rest. Only the last
+      // two headings of a run keep with what follows, and none where the
+      // editor forced a page start under it.
+      var heads = parsed.querySelectorAll("h1, h2, h3, h4, h5, h6");
+      for (var h = 0; h < heads.length; h++) {
+        var n1 = heads[h].nextElementSibling;
+        var n2 = n1 ? n1.nextElementSibling : null;
+        var longRun = n1 && n2 && /^H[1-6]$/.test(n1.tagName) && /^H[1-6]$/.test(n2.tagName);
+        if (longRun || heads[h].hasAttribute("data-fm-release-after")) {
+          heads[h].removeAttribute("data-break-after");
+        }
       }
       // Paged.js marks "the displayed element after" a break-after: avoid
       // heading so its walker keeps the two together; in the detached source
@@ -641,6 +659,8 @@ export function fastrPagedRunnerJs(): string {
           prev = prev.previousElementSibling;
         }
         if (!prev || !/^H[1-6]$/.test(prev.tagName) || firstOnPage(prev)) break;
+        // Only a heading that still keeps with what follows (afterParsed).
+        if (!prev.hasAttribute("data-break-after")) break;
         target = prev;
       }
       breakToken.node = target;

@@ -4116,6 +4116,10 @@ type DocRhythm = {
   spaceBottom: Map<number, number>;
   // A block's first line with no blank line above it: the collapsed gap, px.
   gapTop: Map<number, number>;
+  // Every such line (0-based), whatever its gap: where a run of non-blank
+  // lines holds more than one block (a heading straight over another, a
+  // paragraph straight under its heading). The page layout splits there.
+  starts: Set<number>;
   bqFirst: Set<number>;
   bqLast: Set<number>;
   liNext: Set<number>;
@@ -4168,6 +4172,7 @@ function docRhythmOf(state: EditorState, metrics: PrintMetrics | undefined): Doc
   const blankGap = new Map<number, number>();
   const spaceBottom = new Map<number, number>();
   const gapTop = new Map<number, number>();
+  const starts = new Set<number>();
   // A cover that fills its page ends it: nothing stands under it on the page.
   const fillCoverAt = (i: number) => {
     const o = db.owner[i];
@@ -4212,6 +4217,7 @@ function docRhythmOf(state: EditorState, metrics: PrintMetrics | undefined): Doc
         continue;
       }
       if (prev === i - 1 && i !== firstVisible && !sameBlock(prev, i)) {
+        starts.add(i);
         const g = fillCoverAt(prev)
           ? marginsOf(metrics, key[i]).mt
           : Math.max(marginsOf(metrics, key[prev]).mb, marginsOf(metrics, key[i]).mt);
@@ -4229,7 +4235,7 @@ function docRhythmOf(state: EditorState, metrics: PrintMetrics | undefined): Doc
       i++;
     }
   }
-  const rhythm: DocRhythm = { blank, key, inCode, fenceAt, blankGap, spaceBottom, gapTop, bqFirst, bqLast, liNext, firstVisible };
+  const rhythm: DocRhythm = { blank, key, inCode, fenceAt, blankGap, spaceBottom, gapTop, starts, bqFirst, bqLast, liNext, firstVisible };
   rhythmCache.set(state.doc, { metrics, rhythm });
   return rhythm;
 }
@@ -4772,8 +4778,11 @@ function flowBlocksOf(
       i++;
       continue;
     }
+    // One block per run of lines, split where the rhythm starts another (a
+    // run of headings taken as ONE block could never break and ran past the
+    // page's foot).
     let j = i;
-    while (j + 1 < doc.lines && db.owner[j + 1] === undefined && !blank(j + 1)) j++;
+    while (j + 1 < doc.lines && db.owner[j + 1] === undefined && !blank(j + 1) && !rhythm.starts.has(j + 1)) j++;
     const top = lineBox(view, i).top;
     const bottom = lineBox(view, j).bottom;
     const text = textOf(i, j);
