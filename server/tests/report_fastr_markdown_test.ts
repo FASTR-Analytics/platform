@@ -414,8 +414,9 @@ Deno.test("a blank line beyond the separator is a line of space, anchored to its
   // the silent header does not start the count.
   assertEquals(spaces(html("\n\n\na\n")), []);
   assertEquals(spaces(html(":::report{width=wide}\n\n\n\na\n")), []);
-  // Trailing blank lines count, as the editor shows them.
-  assertEquals(spaces(html("a\n\n\n")), [2, 3]);
+  // Trailing blank lines are nothing: no content follows them, and a line
+  // of space at the end of a full page would open an empty last page.
+  assertEquals(spaces(html("a\n\n\n")), []);
   // Inside a container the fence line is the block's own; after it, the same
   // rule. After the closing fence, the same rule.
   assertEquals(spaces(html(":::band\n\n\ntext\n:::\n\n\nb\n")), [2, 6]);

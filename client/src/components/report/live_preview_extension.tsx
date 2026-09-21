@@ -4823,6 +4823,9 @@ function flowBlocksOf(
     prevBlank = false;
     i = j + 1;
   }
+  // Blank lines at the document's end are not content: print renders none,
+  // and the layout keeps them on the last block's page (FastrLayoutBlock).
+  for (let k = blocks.length - 1; k > 0 && blocks[k].space; k--) blocks[k].trailing = true;
   return blocks;
 }
 

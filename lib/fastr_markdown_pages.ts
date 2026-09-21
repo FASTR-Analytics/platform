@@ -58,6 +58,12 @@ export type FastrLayoutBlock = {
   // A line of space (a second blank line): it travels with the heading
   // above it when that heading moves to the next page.
   space?: boolean;
+  // A line of space with nothing but blank lines after it to the document's
+  // end. Print renders none of them, so they never open a page: they stand
+  // on the page of the last block, past its foot if they must. Counted as a
+  // block of its own, an empty line at the end of a nearly full page opened
+  // an empty last page (and had the page before it set as one cut short).
+  trailing?: boolean;
   // What the block grows by when it OPENS a page, px. Print keeps a block's
   // whole top margin at the top of a page, while the editor's box of a
   // block mid-page keeps only what that margin exceeds the blank separator
@@ -189,6 +195,11 @@ export function layoutFastrPages(
   let i = 0;
   while (i < blocks.length) {
     const b = blocks[i];
+    if (b.trailing && i > first) {
+      used += footprint(i, first);
+      i++;
+      continue;
+    }
     if (i > first && (b.breakBefore || b.cover !== undefined)) {
       // The page ends above the block. The headings directly above a
       // block that starts a page travel with it: a section's heading

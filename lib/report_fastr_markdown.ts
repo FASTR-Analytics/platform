@@ -217,8 +217,9 @@ export function createFastrMarkdownIt(): MarkdownIt {
   // by Enter snaps back when the paginator answers (Nick, 2026-09-09). One
   // element per blank line, so a run breaks across pages like lines of text.
   // Blank lines before the first rendered block stay nothing, as the editor
-  // collapses them; blank lines at the end of the document count, as the
-  // editor shows them.
+  // collapses them. Blank lines at the end of the document are nothing too:
+  // no content follows them, and on a nearly full page they opened an empty
+  // last page (the editor's layout keeps them on the last block's page).
   md.core.ruler.after("block", "fm_spaces", (state) => {
     const tokens = state.tokens;
     // One past the last source line consumed so far, undefined until a
@@ -270,9 +271,6 @@ export function createFastrMarkdownIt(): MarkdownIt {
           end = back;
         }
       }
-    }
-    if (end !== undefined) {
-      for (let k = end + 1; k < lines.length; k++) tokens.push(spaceAt(k, 0));
     }
     return true;
   });

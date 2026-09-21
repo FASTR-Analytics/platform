@@ -233,3 +233,13 @@ Deno.test("a line of space between a heading and its block travels with them", (
   assertEquals(fastrPageStartLines(r2), [4]);
   assertEquals(r2.pages[0].contentHeight, 700 + 16 + 12);
 });
+
+Deno.test("blank lines at the document's end never open a page", () => {
+  // 960 + 16 + 25 = 1001 is past the 987 of content: as a line of space the
+  // last block opens an empty page 2; as a trailing one it stays on page 1.
+  const space = (extra: Partial<FastrLayoutBlock>) => block(3, 25, { space: true, ...extra });
+  assertEquals(layoutFastrPages([block(0, 960), space({})], G).total, 2);
+  const r = layoutFastrPages([block(0, 960), space({ trailing: true })], G);
+  assertEquals(r.total, 1);
+  assertEquals(fastrPageStartLines(r), []);
+});
