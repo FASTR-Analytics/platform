@@ -18,7 +18,7 @@ import {
 } from "panther";
 import { ChangeEmailModal } from "./change_email_modal";
 import { serverActions } from "~/server_actions";
-import { createSignal, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 
 // The one panther dark palette: same source as the CSS pairs and the canvas
 // dark companion.
@@ -68,6 +68,24 @@ export function ProfileForm(
       pt: "A carregar o seu perfil...",
     }),
   );
+
+  // A name edited in Clerk's account window reaches the users table through
+  // getCurrentUser's sync (contract on syncUserName), which would otherwise
+  // wait for the next page load. The listener fires on every Clerk resource
+  // change, so act only when the name itself differs. skipCache mints a
+  // session token carrying the new name claims before the refetch reads them.
+  let syncedName = `${clerk.user?.firstName ?? ""}\n${clerk.user?.lastName ?? ""}`;
+  const unsubscribeClerk = clerk.addListener((e) => {
+    if (!e.user) return;
+    const name = `${e.user.firstName ?? ""}\n${e.user.lastName ?? ""}`;
+    if (name === syncedName) return;
+    syncedName = name;
+    (async () => {
+      await clerk.session?.getToken({ skipCache: true });
+      await userDetails.silentFetch();
+    })().catch(() => {});
+  });
+  onCleanup(unsubscribeClerk);
 
   const aiUsage = createQuery(
     () => serverActions.getAiUsage({}),
