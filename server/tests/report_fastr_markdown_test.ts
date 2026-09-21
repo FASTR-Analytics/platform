@@ -335,15 +335,8 @@ Deno.test("a fastr starting config round-trips the schema and carries a theme", 
   assertEquals(reportConfigSchema.parse(config).fastrTheme, "ministry");
 });
 
-Deno.test("the seeded body demonstrates the syntax and is well formed", () => {
-  const body = getStartingBodyForReport("My report", "fastr");
-  assertStringIncludes(body, "# My report");
-  assertStringIncludes(body, ":::callout{");
-  assertStringIncludes(body, ":::tiles{");
-  assertEquals(listFastrContainerDefects(body), []);
-  const html = render(body);
-  assertStringIncludes(html, "fm-callout");
-  assertStringIncludes(html, "fm-stat__value");
+Deno.test("the seeded body is just the title", () => {
+  assertEquals(getStartingBodyForReport("My report", "fastr"), "# My report\n\n");
 });
 
 Deno.test("embed helpers treat fastr as markdown", () => {
@@ -1233,13 +1226,15 @@ Deno.test("every rule that darkens the ground re-points the semantic colours", (
   assertStringIncludes(lightBlock, "--fm-danger: var(--fm-danger-light);");
 });
 
-Deno.test("all 12 themes build, and the html styles with no theme are the retired ones", async () => {
-  assertEquals(FASTR_REPORT_THEMES.length, 12);
+Deno.test("all 11 themes build, and the html styles with no theme are the retired ones", async () => {
+  assertEquals(FASTR_REPORT_THEMES.length, 11);
   const { REPORT_HTML_STYLES } = await import("../../lib/types/reports.ts");
   const themes = new Set<string>(FASTR_REPORT_THEMES);
   // A retired theme keeps its html style: an html report written in one still
-  // renders. blueprint went 2026-09-03; the five loud ones 2026-09-17.
+  // renders. blueprint went 2026-09-03; the five loud ones 2026-09-17;
+  // classic 2026-09-21.
   assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), [
+    "classic",
     "blueprint",
     "risograph",
     "artdeco",

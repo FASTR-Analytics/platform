@@ -15,7 +15,6 @@ export const FASTR_REPORT_THEMES = [
   "minimal",
   "corporate",
   "ministry",
-  "classic",
   "executive",
   "clinical",
   "editorial",
@@ -48,7 +47,7 @@ export type FastrReportTheme = (typeof FASTR_REPORT_THEMES)[number];
 // no colour of its own.
 //
 // The catch, kept in the open: on a theme whose accent IS warm (Editorial's
-// ochre, Swiss's and Bauhaus's red, Broadsheet's maroon, Classic's gold) the
+// ochre, Swiss's and Bauhaus's red, Broadsheet's maroon) the
 // good news and the bad news are two warm tones, told apart by depth rather
 // than by hue. Those themes lean on the lightness gap, which the theme tests
 // hold them to.
@@ -275,30 +274,6 @@ h2 { color: var(--fm-accent-text); border-bottom: 2px solid var(--fm-border); pa
 thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
 .fm-cover { text-align: center; }
 .fm-kicker { letter-spacing: 0.3em; }
-`,
-  },
-  classic: {
-    scheme: "light",
-    palette: { paper: "#f9f6ef", ink: "#2b2620", accent: "#8c6a3f", warm: "#6d332c" },
-    fontImport: googleFonts("family=Lora:wght@400;600;700"),
-    fontBody: `Lora, Georgia, "Times New Roman", serif`,
-    fontHeading: `Lora, Georgia, "Times New Roman", serif`,
-    radius: "3px",
-    borderWidth: "1px",
-    headingWeight: "700",
-    headingTracking: "0",
-    headingCase: "none",
-    measure: "48rem",
-    extraCss: `
-body { line-height: 1.7; }
-/* Book furniture: a rule under every heading, figures set like plates. */
-h2 { border-bottom: 1px solid var(--fm-border); padding-bottom: 0.25em; }
-.fm-figure { border: 1px solid var(--fm-border); padding: 1.1em; background: var(--fm-surface); }
-.fm-figure__caption { font-style: italic; text-align: center; }
-.fm-stat { background: var(--fm-surface); border: 1px solid var(--fm-border); }
-.fm-quote { border-left-width: 2px; font-size: 1.15em; font-style: italic; }
-.fm-steps { background: var(--fm-surface); }
-thead th { border-bottom-width: 1px; font-variant: small-caps; letter-spacing: 0.05em; }
 `,
   },
   executive: {
@@ -697,7 +672,7 @@ function cautionGold(warm: string, accent: string): string {
   // Clear of the warm pole first: Broadsheet's sepia is nearly this hue.
   let lightness = Math.min(0.56, l + (golden(h) ? 0.1 : 0.02));
   // Then clear of the accent, for a theme whose own colour is a gold
-  // (Classic). The hue cannot give way here, the caution hue being the whole
+  // (none today; the retired Classic was one). The hue cannot give way here, the caution hue being the whole
   // point, so the gold steps DOWN into a bronze: type still reads on it,
   // which it would not on a paler gold.
   const a = hexToHsl(accent);

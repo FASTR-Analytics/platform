@@ -108,7 +108,8 @@ export async function migrateReports(
       delete config.htmlStyle;
     }
 
-    // Block 3: retired fastr themes (2026-09-03 — blueprint removed). Same
+    // Block 3: retired fastr themes (2026-09-03 — blueprint removed;
+    // 2026-09-21 — classic removed). Same
     // mechanics as Block 2: an out-of-enum value fails safeParse and routes
     // the row here; dropping the key falls the report back to the default
     // theme (the theme is a starting point, changeable in the editor).

@@ -3351,18 +3351,21 @@ const livePreviewTheme = EditorView.theme({
   ".cm-content": {
     fontFamily: "var(--fm-font-body)",
     color: "var(--fm-ink)",
-    // KNOWN LIMIT: pinned, so a theme that sets its own body typography (the
-    // classic theme's 1.7 line-height, the japanese theme's 1.85, artdeco's
-    // 1.06em font size) does not reach the editor's lines and that document
-    // paginates on another rhythm than its PDF. Letting these inherit from
-    // the scope root (where buildFastrReportCss lands a theme's body rule)
-    // is the shape of the fix, but it moved BOTH sides when tried, so it
-    // needs its own pass.
+    // KNOWN LIMIT: pinned, so a theme that set its own body typography in
+    // extraCss (`body { line-height: ... }`) would not reach the editor's
+    // lines and would paginate on another rhythm than its PDF. No theme does
+    // today (classic, the one that did, was removed 2026-09-21 for exactly
+    // this); keep it that way, or make these inherit from the scope root
+    // (tried once: it moved BOTH sides, so it needs its own pass).
     fontSize: "16px",
     lineHeight: "1.55",
     caretColor: "var(--fm-ink)",
   },
   ".cm-gutters": { display: "none" },
+  // No scrollbar on the page surface: it still scrolls (wheel, keys, touch),
+  // the bar just isn't drawn beside the sheets.
+  ".cm-scroller": { scrollbarWidth: "none" },
+  ".cm-scroller::-webkit-scrollbar": { display: "none" },
 });
 
 // ── Assembly ─────────────────────────────────────────────────────────────────

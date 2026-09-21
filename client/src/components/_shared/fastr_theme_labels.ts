@@ -14,8 +14,6 @@ export function fastrThemeLabel(theme: FastrReportTheme): string {
       return t3({ en: "Corporate", fr: "Institutionnel", pt: "Corporativo" });
     case "ministry":
       return t3({ en: "Ministry", fr: "Ministère", pt: "Ministério" });
-    case "classic":
-      return t3({ en: "Classic", fr: "Classique", pt: "Clássico" });
     case "executive":
       return t3({ en: "Executive", fr: "Direction", pt: "Executivo" });
     case "clinical":
@@ -58,12 +56,6 @@ export function fastrThemeCaption(theme: FastrReportTheme): string {
         en: "Formal, serif headings, green accent",
         fr: "Formel, titres serif, accent vert",
         pt: "Formal, títulos serifados, destaque verde",
-      });
-    case "classic":
-      return t3({
-        en: "Serif text on warm paper",
-        fr: "Texte serif sur papier chaud",
-        pt: "Texto serifado em papel quente",
       });
     case "executive":
       return t3({

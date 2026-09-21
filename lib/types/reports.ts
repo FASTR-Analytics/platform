@@ -15,7 +15,6 @@ import {
   isFastrReportTheme,
 } from "./report_fastr_themes.ts";
 import { reportStyleColorsSchema } from "./report_styles.ts";
-import { t3 } from "../translate/t-func.ts";
 import type { ImageBlock } from "./slides.ts";
 import type { FigureBlock } from "./_figure_bundle.ts";
 import { figureBlockSchema, imageBlockSchema } from "./_slide_config.ts";
@@ -176,49 +175,7 @@ export function getStartingBodyForReport(
   format: ReportFormat,
 ): string {
   if (format === "html") return `<h1>${escapeReportHtml(label)}</h1>\n`;
-  // FASTR Markdown seeds a working example of the two blocks people reach for
-  // first — the format's syntax is only discoverable if something demonstrates
-  // it, and an empty file teaches nothing.
-  if (format === "fastr") {
-    return `# ${label}
-
-${
-      t3({
-        en: "Write your introduction here.",
-        fr: "Rédigez votre introduction ici.",
-        pt: "Escreva a sua introdução aqui.",
-      })
-    }
-
-:::callout{kind=note title="${
-      t3({
-        en: "Key finding",
-        fr: "Constat principal",
-        pt: "Principal conclusão",
-      })
-    }"}
-${
-      t3({
-        en: "Replace this with the point that matters most.",
-        fr: "Remplacez ceci par le point le plus important.",
-        pt: "Substitua isto pelo ponto mais importante.",
-      })
-    }
-:::
-
-:::tiles{cols=3}
-:::stat{value="64%" label="${
-      t3({ en: "Coverage", fr: "Couverture", pt: "Cobertura" })
-    }" delta="+3pp" dir=up}
-:::stat{value="82%" label="${
-      t3({ en: "Completeness", fr: "Complétude", pt: "Integralidade" })
-    }" delta="-1pp" dir=down}
-:::stat{value="91%" label="${
-      t3({ en: "Timeliness", fr: "Ponctualité", pt: "Pontualidade" })
-    }" dir=flat}
-:::
-`;
-  }
+  // Markdown and FASTR Markdown both start with just the title.
   return `# ${label}\n\n`;
 }
 
