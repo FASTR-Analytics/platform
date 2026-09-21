@@ -4921,6 +4921,13 @@ export const stretchField = StateField.define<Stretches & { deco: DecorationSet 
 // room); one beside a figure or a block this much; one between two
 // paragraphs this much; the gap under a heading never (a heading keeps its
 // text); a leftover under the minimum is not worth spreading.
+// OFF (Nick, 2026-09-21): a block moving to the next page re-spaced every
+// paragraph on the page it left, and text shifting under the author while
+// they type further down read as a bug each time it showed. A page now keeps
+// its source spacing and the room left stays at its foot, in the editor and
+// (no stretches being carried) in print. The machinery stays for a ruling
+// the other way: flip this.
+const GAP_STRETCH_ENABLED = false;
 const STRETCH_CAP_HEADING_PX = 48;
 const STRETCH_CAP_PX = 32;
 const STRETCH_CAP_PROSE_PX = 12;
@@ -4943,6 +4950,7 @@ function stretchesOf(
   const print = new Map<number, number>();
   const totals = new Map<number, number>();
   const prose = (fb: FlowBlock) => fb.kind === "p" && !fb.heading;
+  if (!GAP_STRETCH_ENABLED) return { lines, print, totals };
   for (let i = 0; i + 1 < pages.length; i++) {
     const list = pageBlocks[i];
     const last = list[list.length - 1];
@@ -4953,6 +4961,10 @@ function stretchesOf(
     if (pages[i + 1].firstLine !== nextFirst.line) continue;
     if (last.pagebreak || last.breakAfter || last.cover === "fill") continue;
     if (nextFirst.breakBefore || nextFirst.cover !== undefined) continue;
+    // Nor one whose next page opens on a line of space: empty lines ran
+    // over (someone pressing Enter at the page's end), no block was cut
+    // off, and the paragraphs above must not shift as the page opens.
+    if (nextFirst.space) continue;
     const leftover = leftovers[i];
     if (leftover < STRETCH_MIN_PX) continue;
     const gaps: { at: FlowBlock; prev: FlowBlock; cap: number }[] = [];
