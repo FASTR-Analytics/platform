@@ -4566,6 +4566,17 @@ function innerCandidates(
   return dedup;
 }
 
+// The caret's 0-based line when it stands in the blank lines that end the
+// document (nothing but blank lines from it to the end), else -1.
+function caretTrailingLine(state: EditorState): number {
+  const doc = state.doc;
+  const at = doc.lineAt(state.selection.main.head).number;
+  for (let n = doc.lines; n >= at; n--) {
+    if (doc.line(n).text.trim().length > 0) return -1;
+  }
+  return at - 1;
+}
+
 // Every block of the document with its height and the space above it, in
 // document order: what layoutFastrPages lays out.
 function flowBlocksOf(
@@ -4834,7 +4845,13 @@ function flowBlocksOf(
   }
   // Blank lines at the document's end are not content: print renders none,
   // and the layout keeps them on the last block's page (FastrLayoutBlock).
-  for (let k = blocks.length - 1; k > 0 && blocks[k].space; k--) blocks[k].trailing = true;
+  // Except up to the caret: someone writing at the end of a full page gets
+  // the next page to write on, not a caret under the footer. A stray blank
+  // line nobody is on still opens nothing.
+  const caret = caretTrailingLine(view.state);
+  for (let k = blocks.length - 1; k > 0 && blocks[k].space; k--) {
+    if (blocks[k].line > caret) blocks[k].trailing = true;
+  }
   return blocks;
 }
 
@@ -5023,6 +5040,8 @@ function pageBoxPlugin(resolver: EmbedResolver) {
     // A layout found but not yet dispatched: the next pass would find it
     // again from the same heights.
     pendingMove = false;
+    // caretTrailingLine as last laid out: the layout depends on it.
+    caretTrail = -1;
     // A widget that grows after it is measured (a figure's raster arriving)
     // changes the page under it without an editor update; the content box's
     // size says so.
@@ -5051,7 +5070,10 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       const landed = u.transactions.some((tr) =>
         tr.effects.some((e) => e.is(setPagination) || e.is(setLayoutHints) || e.is(setPrintMetrics))
       );
-      if (landed || u.docChanged || u.viewportChanged || u.geometryChanged) {
+      const caretTrail = caretTrailingLine(u.state);
+      const caretMoved = caretTrail !== this.caretTrail;
+      this.caretTrail = caretTrail;
+      if (landed || u.docChanged || u.viewportChanged || u.geometryChanged || caretMoved) {
         this.measure();
       }
       if (landed || u.docChanged) this.markPaged(u.state);
