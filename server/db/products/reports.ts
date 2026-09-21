@@ -3,11 +3,17 @@ import {
   type APIResponseWithData,
   type AuthorRun,
   type FigureBlock,
+  type FastrReportTheme,
+  getReportCustomStyle,
+  getReportFormat,
+  getReportHtmlStyle,
+  getStartingBodyForReport,
   getStartingConfigForReport,
   type ImageBlock,
   parseJsonOrThrow,
   type ReportConfig,
   reportConfigSchema,
+  type ReportCustomStyleSnapshot,
   type ReportDetail,
   type ReportDocContent,
   reportFiguresSchema,
@@ -161,14 +167,104 @@ export function updateReportImages(
     sql`UPDATE reports SET images = ${parsed} WHERE id = ${productId}`);
 }
 
-export function updateReportConfig(
+// The body format and the report's STYLE are fixed at creation and a config
+// write cannot flip them: both are already encoded in the body a writer has
+// typed. (A fastr report's THEME is not a fixture. It carries no CSS in the
+// body, so the editor may change it at any time, and it rides in through the
+// incoming config like any other passthrough field.)
+//
+// The stored config is read INSIDE the write transaction: a read-then-write
+// would let a concurrent style change slip between the two and be pinned
+// back to its old value.
+export async function updateReportConfig(
   mainDb: Sql,
   productId: string,
   config: ReportConfig,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
-  const parsed = JSON.stringify(reportConfigSchema.parse(config));
-  return updateReportColumn(mainDb, productId, (sql) =>
-    sql`UPDATE reports SET config = ${parsed} WHERE id = ${productId}`);
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    await mainDb.begin(async (sql) => {
+      const stored = (
+        await sql<{ config: string | null }[]>`
+          SELECT config FROM reports WHERE id = ${productId}
+        `
+      ).at(0);
+      if (!stored) {
+        throw new Error(REPORT_NOT_FOUND);
+      }
+      const storedConfig = parseReportConfig(stored.config);
+      const format = getReportFormat(storedConfig);
+      const storedCustom = getReportCustomStyle(storedConfig);
+      const next: ReportConfig = {
+        ...config,
+        format,
+        // Only setReportStyle retires the theme modal.
+        ...(storedConfig.themeChosen === undefined
+          ? {}
+          : { themeChosen: storedConfig.themeChosen }),
+        ...(format === "html"
+          ? storedCustom
+            ? { customStyle: storedCustom }
+            : { htmlStyle: getReportHtmlStyle(storedConfig) }
+          : format === "fastr" && storedCustom
+          ? { customStyle: storedCustom }
+          : {}),
+      };
+      const parsed = JSON.stringify(reportConfigSchema.parse(next));
+      await touchProduct(sql, productId, "report", lastUpdated);
+      await sql`UPDATE reports SET config = ${parsed} WHERE id = ${productId}`;
+    });
+    return { success: true, data: { lastUpdated } };
+  });
+}
+
+/** LOAD-BEARING: a fastr report's look is the ONE part of its style a write
+ *  after creation may change, and it changes only through here. The style is
+ *  a resolved snapshot, never a client-supplied blob: the route checks the
+ *  library row's visibility first (see reports.ts `setReportStyle`). */
+export const REPORT_NOT_FASTR = "Only a FASTR Markdown report can be re-themed";
+
+export async function setReportStyle(
+  mainDb: Sql,
+  productId: string,
+  fastrTheme: FastrReportTheme,
+  customStyle: ReportCustomStyleSnapshot | null,
+): Promise<APIResponseWithData<{ lastUpdated: string; config: ReportConfig }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const lastUpdated = new Date().toISOString();
+    let written: ReportConfig | undefined;
+    await mainDb.begin(async (sql) => {
+      const stored = (
+        await sql<{ config: string | null }[]>`
+          SELECT config FROM reports WHERE id = ${productId}
+        `
+      ).at(0);
+      if (!stored) {
+        throw new Error(REPORT_NOT_FOUND);
+      }
+      const storedConfig = parseReportConfig(stored.config);
+      if (getReportFormat(storedConfig) !== "fastr") {
+        throw new Error(REPORT_NOT_FASTR);
+      }
+      // Answering the modal is what retires it, whichever look was picked.
+      const next: ReportConfig = {
+        ...storedConfig,
+        fastrTheme,
+        themeChosen: true,
+      };
+      if (customStyle) {
+        next.customStyle = customStyle;
+      } else {
+        delete next.customStyle;
+      }
+      written = reportConfigSchema.parse(next) as ReportConfig;
+      await touchProduct(sql, productId, "report", lastUpdated);
+      await sql`UPDATE reports SET config = ${
+        JSON.stringify(written)
+      } WHERE id = ${productId}`;
+    });
+    return { success: true, data: { lastUpdated, config: written! } };
+  });
 }
 
 // The persisted Yjs CRDT state for a report (collab rooms), current only
@@ -269,15 +365,19 @@ export async function stripPersistedBodyAuthorTombstones(
 
 // The report half of createProduct: runs INSIDE its transaction, after the
 // new `products` row exists.
+// Every new report is FASTR Markdown on the default theme. The older
+// `markdown` and `html` formats are still read and edited (reports predating
+// this, and reports restored from a version), but nothing mints one.
 export async function insertNewReportDetail(
   sql: Sql,
   productId: string,
   label: string,
 ): Promise<void> {
-  const config = reportConfigSchema.parse(getStartingConfigForReport());
+  const config = reportConfigSchema.parse(getStartingConfigForReport("fastr"));
+  const body = getStartingBodyForReport(label, "fastr");
   await sql`
     INSERT INTO reports (id, body, figures, images, config)
-    VALUES (${productId}, ${`# ${label}\n\n`}, '{}', '{}', ${JSON.stringify(config)})
+    VALUES (${productId}, ${body}, '{}', '{}', ${JSON.stringify(config)})
   `;
 }
 

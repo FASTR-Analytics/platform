@@ -1,7 +1,9 @@
 import {
   canonicalJson,
   type FigureBlock,
+  findReportEmbeds,
   type ImageBlock,
+  type ReportFormat,
   type ReportVersionDetail,
   t3,
 } from "lib";
@@ -15,11 +17,16 @@ import {
   openConfirm,
   StateHolderWrapper,
 } from "panther";
-import { createSignal, For, type JSX, Show } from "solid-js";
+import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { productById } from "~/state/instance/t1_store";
 import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
 import { REPORT_MARKDOWN_STYLE } from "../report/report_markdown_style";
+import { ReportHtmlPreview } from "../report/report_html_preview";
+import {
+  createFigureRasterCache,
+  type FigureInkTheme,
+} from "../report/report_figure_raster";
 import { CopyVersionModal } from "./copy_version_modal";
 import {
   buildAuthorNames,
@@ -44,6 +51,13 @@ export function ReportVersionPreview(p: {
   canRestore: boolean;
   /** Live body accessor for "Compare with current". */
   getCurrentBody?: () => string;
+  /** The report's body format (fixed at creation; every version shares it). */
+  format: ReportFormat;
+  /** fastr only: the CURRENT theme stylesheet. The theme is not part of a
+   *  version snapshot (it lives in config, not the body), so an old version
+   *  renders in whatever theme the report wears today. */
+  fastrThemeCss?: string;
+  figureInkTheme?: FigureInkTheme;
   onRestored: () => void;
 }) {
   const version = createQuery(
@@ -179,21 +193,34 @@ export function ReportVersionPreview(p: {
           <Show
             when={mode() === "edits"}
             fallback={
-              <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-10">
-                <div class="bg-base-100 md-dark-adapt mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-floating">
-                  <MarkdownPresentationJsx
-                    markdown={v.body}
-                    renderImage={renderEmbedFor(v)}
-                    style={REPORT_MARKDOWN_STYLE}
-                  />
-                </div>
-              </div>
+              <Show
+                when={p.format !== "markdown"}
+                fallback={
+                  <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-10">
+                    <div class="bg-base-100 md-dark-adapt mx-auto min-h-full w-full max-w-4xl rounded px-6 py-10 shadow-floating">
+                      <MarkdownPresentationJsx
+                        markdown={v.body}
+                        renderImage={renderEmbedFor(v)}
+                        style={REPORT_MARKDOWN_STYLE}
+                      />
+                    </div>
+                  </div>
+                }
+              >
+                <HtmlVersionPreview
+                  version={v}
+                  format={p.format}
+                  themeCss={p.fastrThemeCss}
+                  inkTheme={p.figureInkTheme}
+                />
+              </Show>
             }
           >
             <SessionEdits
               productId={p.productId}
               version={v}
               previousVersionId={p.previousVersionId}
+              format={p.format}
             />
           </Show>
           <div class="ui-pad ui-gap-sm flex items-center border-t">
@@ -218,6 +245,38 @@ export function ReportVersionPreview(p: {
   );
 }
 
+// Read-only render of an HTML-format version — the same sandboxed-iframe
+// funnel as the report's View mode, against the version's SNAPSHOT registries,
+// with its own raster cache (disposed with the pane).
+function HtmlVersionPreview(p: {
+  version: ReportVersionDetail;
+  format: ReportFormat;
+  themeCss?: string;
+  inkTheme?: FigureInkTheme;
+}) {
+  const [rasterTick, setRasterTick] = createSignal(0);
+  const rasters = createFigureRasterCache(() => setRasterTick((t) => t + 1));
+  onCleanup(() => rasters.dispose());
+  return (
+    <div class="bg-base-200 min-h-0 flex-1 overflow-hidden px-8 py-10">
+      <ReportHtmlPreview
+        class="shadow-floating mx-auto block h-full w-full max-w-4xl rounded border-0 bg-white"
+        body={p.version.body}
+        title={p.version.label}
+        figures={p.version.figures}
+        images={p.version.images}
+        assetUrl={(imgFile) => `${_SERVER_HOST}/${imgFile}`}
+        rasters={rasters}
+        rasterVersion={rasterTick()}
+        lightInk={p.inkTheme}
+        format={p.format}
+        themeCss={p.themeCss}
+        lineAnchors={false}
+      />
+    </div>
+  );
+}
+
 // The diff this version's editing session produced, i.e. this version vs the
 // one immediately before it. The oldest version diffs against an empty
 // document: the session that created the report.
@@ -225,6 +284,7 @@ function SessionEdits(p: {
   productId: string;
   version: ReportVersionDetail;
   previousVersionId?: string;
+  format: ReportFormat;
 }) {
   // The snapshot is wrapped in an object because StateHolderWrapper renders
   // nothing for falsy ready-data: a bare "" (the oldest version's base)
@@ -285,7 +345,7 @@ function SessionEdits(p: {
             .filter((c) => c.kind === "edited")
             .map((c) => c.key),
         );
-        const marked = markEditedEmbeds(segments, editedKeys, {
+        const marked = markEditedEmbeds(segments, editedKeys, p.format, {
           who: editorDisplayNames(p.version.editors) || undefined,
           whoExact: p.version.editors.length === 1,
           whoEmail: p.version.editors.length === 1
@@ -296,7 +356,7 @@ function SessionEdits(p: {
         // key -> the embed's alt text, so each change card carries the same
         // name as its highlighted token in the body diff (current body first:
         // freshest alt; prev body covers removed embeds).
-        const embedLabels = collectEmbedLabels([p.version.body, prev.body]);
+        const embedLabels = collectEmbedLabels([p.version.body, prev.body], p.format);
         return (
           <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-6">
             <Show when={!p.previousVersionId}>
@@ -409,15 +469,17 @@ function diffRegistry<T>(
   return out;
 }
 
-// key -> alt text of the first embed token referencing it, across the given
+// key -> caption of the first embed token referencing it, across the given
 // bodies in priority order.
-function collectEmbedLabels(bodies: string[]): Map<string, string> {
-  const re = /!\[([^\]\n]*)\]\((?:figure|image):([^)\n]+)\)/g;
+function collectEmbedLabels(
+  bodies: string[],
+  format: ReportFormat,
+): Map<string, string> {
   const out = new Map<string, string>();
   for (const body of bodies) {
-    for (const m of body.matchAll(re)) {
-      if (m[1] && !out.has(m[2])) {
-        out.set(m[2], m[1]);
+    for (const ref of findReportEmbeds(body, format)) {
+      if (ref.caption && !out.has(ref.id)) {
+        out.set(ref.id, ref.caption);
       }
     }
   }
@@ -431,12 +493,12 @@ function collectEmbedLabels(bodies: string[]): Map<string, string> {
 function markEditedEmbeds(
   segments: DiffSegment[],
   editedKeys: Set<string>,
+  format: ReportFormat,
   who: { who?: string; whoExact?: boolean; whoEmail?: string },
 ): DiffSegment[] {
   if (editedKeys.size === 0) {
     return segments;
   }
-  const re = /!\[[^\]\n]*\]\((?:figure|image):([^)\n]+)\)/g;
   const out: DiffSegment[] = [];
   for (const seg of segments) {
     if (seg.kind !== "same") {
@@ -444,16 +506,15 @@ function markEditedEmbeds(
       continue;
     }
     let pos = 0;
-    for (const m of seg.text.matchAll(re)) {
-      const idx = m.index ?? 0;
-      if (!editedKeys.has(m[1])) {
+    for (const ref of findReportEmbeds(seg.text, format)) {
+      if (!editedKeys.has(ref.id)) {
         continue;
       }
-      if (idx > pos) {
-        out.push({ text: seg.text.slice(pos, idx), kind: "same" });
+      if (ref.start > pos) {
+        out.push({ text: seg.text.slice(pos, ref.start), kind: "same" });
       }
-      out.push({ text: m[0], kind: "edited", ...who });
-      pos = idx + m[0].length;
+      out.push({ text: ref.raw, kind: "edited", ...who });
+      pos = ref.end;
     }
     if (pos === 0) {
       out.push(seg);

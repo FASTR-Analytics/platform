@@ -1,17 +1,39 @@
 // Pure DOM-coordinate helpers for editor↔preview scroll sync. Decoupled from
-// Solid/CM so they're unit-testable with a fake container. The source line is the
+// Solid/CM so they're unit-testable with a fake surface. The source line is the
 // canonical coordinate; preview pixel positions are derived live from the DOM.
+//
+// The preview is abstracted as a PreviewSurface so the same maths drives both
+// the markdown pane (a scrolling div — divSurface) and the HTML pane (a
+// sandboxed iframe whose DOCUMENT scrolls — iframeSurface).
 
 export type PreviewAnchor = { line: number; top: number };
 
-// Every [data-line] anchor in the preview as { line, top }, where top is the
-// element's offset within the scroll container's content (i.e. scrollTop space).
-// Sorted by top; non-finite data-line values are filtered out.
-export function previewAnchors(container: HTMLElement): PreviewAnchor[] {
-  const containerTop = container.getBoundingClientRect().top;
-  const scrollTop = container.scrollTop;
+export type PreviewSurfaceEvent = "scroll" | "wheel" | "pointerdown";
+
+export type PreviewSurface = {
+  scrollTop: () => number;
+  setScrollTop: (top: number) => void;
+  clientHeight: () => number;
+  scrollHeight: () => number;
+  // Every [data-line] anchor as { line, top } in scrollTop space, sorted by top.
+  anchors: () => PreviewAnchor[];
+  // The rendered embed's rect in PARENT-VIEWPORT coordinates (an iframe adds
+  // its own rect), or undefined when not rendered.
+  findEmbedRect: (id: string) => DOMRect | undefined;
+  // Subscribe to a surface event; returns the unsubscribe.
+  on: (type: PreviewSurfaceEvent, cb: () => void) => () => void;
+  // Observe content-height changes (figure-settle); returns the disconnect.
+  observeContent: (cb: () => void) => () => void;
+};
+
+// Anchors of an element tree relative to a scroll container.
+function collectAnchors(
+  root: ParentNode,
+  containerTop: number,
+  scrollTop: number,
+): PreviewAnchor[] {
   const anchors: PreviewAnchor[] = [];
-  for (const el of container.querySelectorAll<HTMLElement>("[data-line]")) {
+  for (const el of root.querySelectorAll<HTMLElement>("[data-line]")) {
     const line = Number(el.dataset.line);
     if (!Number.isFinite(line)) continue;
     const top = el.getBoundingClientRect().top - containerTop + scrollTop;
@@ -21,11 +43,85 @@ export function previewAnchors(container: HTMLElement): PreviewAnchor[] {
   return anchors;
 }
 
-// scrollTop that puts a fractional source line at the container's top, linearly
+// The markdown preview: `el` scrolls, `contentEl` is the centered content card
+// (observed for figure-settle). Behaviour is unchanged from the pre-surface code.
+export function divSurface(
+  el: HTMLElement,
+  contentEl: HTMLElement | undefined,
+): PreviewSurface {
+  return {
+    scrollTop: () => el.scrollTop,
+    setScrollTop: (top) => {
+      el.scrollTop = top;
+    },
+    clientHeight: () => el.clientHeight,
+    scrollHeight: () => el.scrollHeight,
+    anchors: () =>
+      collectAnchors(el, el.getBoundingClientRect().top, el.scrollTop),
+    findEmbedRect: (id) => {
+      const target = el.querySelector(`[data-embed-id="${id}"]`);
+      if (!target) return undefined;
+      const r = target.getBoundingClientRect();
+      return r.width === 0 || r.height === 0 ? undefined : r;
+    },
+    on: (type, cb) => {
+      el.addEventListener(type, cb, { passive: true });
+      return () => el.removeEventListener(type, cb);
+    },
+    observeContent: (cb) => {
+      const ro = new ResizeObserver(() => cb());
+      if (contentEl) ro.observe(contentEl);
+      return () => ro.disconnect();
+    },
+  };
+}
+
+// The HTML preview: a same-origin srcdoc iframe whose document scrolls. The
+// iframe must be loaded (contentDocument/contentWindow present).
+export function iframeSurface(iframe: HTMLIFrameElement): PreviewSurface {
+  const win = iframe.contentWindow!;
+  const doc = iframe.contentDocument!;
+  const root = () => doc.documentElement;
+  return {
+    scrollTop: () => win.scrollY,
+    setScrollTop: (top) => win.scrollTo(0, top),
+    clientHeight: () => root().clientHeight,
+    scrollHeight: () => root().scrollHeight,
+    anchors: () => collectAnchors(doc, 0, win.scrollY),
+    findEmbedRect: (id) => {
+      const target = doc.querySelector(`[data-embed-id="${id}"]`);
+      if (!target) return undefined;
+      const r = target.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return undefined;
+      const f = iframe.getBoundingClientRect();
+      return new DOMRect(f.left + r.left, f.top + r.top, r.width, r.height);
+    },
+    on: (type, cb) => {
+      const target: EventTarget = type === "scroll" ? win : doc;
+      target.addEventListener(type, cb, { passive: true });
+      return () => target.removeEventListener(type, cb);
+    },
+    observeContent: (cb) => {
+      // Created from the frame's own realm — cross-document observation isn't
+      // guaranteed.
+      const RO =
+        (win as unknown as { ResizeObserver?: typeof ResizeObserver })
+          .ResizeObserver ?? ResizeObserver;
+      const ro = new RO(() => cb());
+      if (doc.body) ro.observe(doc.body);
+      return () => ro.disconnect();
+    },
+  };
+}
+
+// scrollTop that puts a fractional source line at the surface's top, linearly
 // interpolating between the bracketing anchors. Guards: 0 anchors → 0; 1 anchor
 // or out of range → clamp to the nearest anchor.
-export function lineToPreviewTop(container: HTMLElement, line: number): number {
-  const anchors = previewAnchors(container);
+export function lineToPreviewTop(
+  surface: PreviewSurface,
+  line: number,
+): number {
+  const anchors = surface.anchors();
   if (anchors.length === 0) return 0;
   const first = anchors[0];
   const last = anchors[anchors.length - 1];
@@ -46,14 +142,14 @@ export function lineToPreviewTop(container: HTMLElement, line: number): number {
   return last.top;
 }
 
-// Inverse: the fractional source line currently at the container's top. Same
+// Inverse: the fractional source line currently at the surface's top. Same
 // guards as lineToPreviewTop.
-export function previewTopToLine(container: HTMLElement): number {
-  const anchors = previewAnchors(container);
+export function previewTopToLine(surface: PreviewSurface): number {
+  const anchors = surface.anchors();
   if (anchors.length === 0) return 0;
   const first = anchors[0];
   const last = anchors[anchors.length - 1];
-  const top = container.scrollTop;
+  const top = surface.scrollTop();
   if (anchors.length === 1 || top <= first.top) return first.line;
   if (top >= last.top) return last.line;
   for (let i = 0; i < anchors.length - 1; i++) {
@@ -66,4 +162,15 @@ export function previewTopToLine(container: HTMLElement): number {
     }
   }
   return last.line;
+}
+
+// Scrollable AND at the end (a non-scrollable surface isn't "at bottom").
+export function isSurfaceAtBottom(surface: PreviewSurface): boolean {
+  const sh = surface.scrollHeight();
+  const ch = surface.clientHeight();
+  return sh > ch + 1 && surface.scrollTop() + ch >= sh - 2;
+}
+
+export function scrollSurfaceToBottom(surface: PreviewSurface): void {
+  surface.setScrollTop(surface.scrollHeight() - surface.clientHeight());
 }

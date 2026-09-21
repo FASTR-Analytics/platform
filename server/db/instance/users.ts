@@ -13,19 +13,28 @@ import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 import { DBUser } from "./_main_database_types.ts";
 
-// Writes the user's name from Clerk on their first login. The WHERE first_name IS NULL
-// ensures this is a no-op on every subsequent call, so it's safe to fire-and-forget.
+// Mirrors the user's name from Clerk, the sole source of truth for names, into
+// the users table. Writes only when the stored pair differs, so it is a no-op
+// on every unchanged call and safe to fire-and-forget. Both names blank means
+// "no information" (headless callers carry no claims; a session-token template
+// missing the name claims looks the same), never "clear the name": skipping
+// keeps a misconfiguration from nulling every name on the instance.
+// Returns true when a row changed.
 export async function syncUserName(
   mainDb: Sql,
   email: string,
   firstName: string | null,
   lastName: string | null,
-): Promise<void> {
-  await mainDb`
+): Promise<boolean> {
+  if (firstName === null && lastName === null) return false;
+  const updated = await mainDb`
     UPDATE users
     SET first_name = ${firstName}, last_name = ${lastName}
-    WHERE email = ${email} AND first_name IS NULL
+    WHERE email = ${email}
+      AND (first_name, last_name) IS DISTINCT FROM (${firstName}, ${lastName})
+    RETURNING email
   `;
+  return updated.length > 0;
 }
 
 export async function getOtherUser(

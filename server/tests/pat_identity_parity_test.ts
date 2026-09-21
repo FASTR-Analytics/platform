@@ -133,18 +133,50 @@ Deno.test("PAT auth resolves to the identical user context as Clerk auth (GET /u
     assertEquals(clerkNamedBody.data.firstName, "Parity");
 
     // Poison net: getCurrentUser fires syncUserName as a side effect. The PAT
-    // leg carries no name claims, and GlobalUser coerces them to "": writing
-    // "" would defeat the first_name IS NULL guard forever, killing the real
-    // Clerk name sync. The write is fire-and-forget, so give it a beat.
-    // ORDER CONSTRAINT: the PAT leg must run BEFORE the named Clerk leg. This
-    // assert is the only one that pins the ""-poisoning regression, and it
-    // only sees the bug if the PAT whoami had a chance to write "" first,
-    // reordering the legs makes it pass vacuously.
+    // leg carries no name claims, and GlobalUser coerces them to "": "" must
+    // never be written as a name. The write is fire-and-forget, so give it a
+    // beat.
     await new Promise((r) => setTimeout(r, 300));
     const rows = await mainDb<{ first_name: string | null }[]>`
       SELECT first_name FROM users WHERE email = ${TEST_EMAIL}
     `;
     assertEquals(rows[0].first_name, "Parity");
+
+    // Rename leg: Clerk is the sole source of truth for names, so a changed
+    // claim must overwrite the stored name (not first-login-only).
+    const clerkRenamedApp = new Hono();
+    clerkRenamedApp.use(
+      "*",
+      clerkLegMiddleware({
+        email: TEST_EMAIL,
+        firstName: "Renamed",
+        lastName: "Probe",
+      }) as never,
+    );
+    clerkRenamedApp.route("/", routesUsers);
+    assertEquals((await clerkRenamedApp.request("/user")).status, 200);
+    await new Promise((r) => setTimeout(r, 300));
+    const renamedRows = await mainDb<{ first_name: string | null }[]>`
+      SELECT first_name FROM users WHERE email = ${TEST_EMAIL}
+    `;
+    assertEquals(renamedRows[0].first_name, "Renamed");
+
+    // Blank net: a claimless whoami AFTER the name is stored (PAT, or a
+    // session whose template lost the name claims) is "no information" and
+    // must leave the stored name alone.
+    const patAfterRes = await headlessApp.request("/user", {
+      headers: { Authorization: `Bearer ${minted.data.token}` },
+    });
+    assertEquals(patAfterRes.status, 200);
+    assertEquals((await clerkApp.request("/user")).status, 200);
+    await new Promise((r) => setTimeout(r, 300));
+    const afterBlankRows = await mainDb<
+      { first_name: string | null; last_name: string | null }[]
+    >`
+      SELECT first_name, last_name FROM users WHERE email = ${TEST_EMAIL}
+    `;
+    assertEquals(afterBlankRows[0].first_name, "Renamed");
+    assertEquals(afterBlankRows[0].last_name, "Probe");
 
     // Explicit-transport leg (PLAN_112 step 2): the same route reached
     // through createAllServerActions over an EXPLICIT transport whose

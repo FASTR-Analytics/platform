@@ -14,6 +14,8 @@
 // =============================================================================
 
 import {
+  FASTR_REPORT_THEMES,
+  REPORT_HTML_STYLES,
   reportConfigSchema,
   reportFiguresSchema,
   reportImagesSchema,
@@ -91,6 +93,30 @@ export async function migrateReports(
           adminArea2: row.admin_area_2,
         });
       }
+    }
+
+    // Block 2: retired html style presets (2026-08-31 — the artistic set was
+    // replaced by the professional set). A stored value outside the current
+    // enum reads as "default" everywhere at runtime (getReportHtmlStyle is
+    // total), so drop the key instead of failing the boot validation. The
+    // skip gate above routes these rows here automatically: an invalid enum
+    // value fails safeParse, so no forced gate is needed.
+    if (
+      typeof config.htmlStyle === "string" &&
+      !(REPORT_HTML_STYLES as readonly string[]).includes(config.htmlStyle)
+    ) {
+      delete config.htmlStyle;
+    }
+
+    // Block 3: retired fastr themes (2026-09-03 — blueprint removed). Same
+    // mechanics as Block 2: an out-of-enum value fails safeParse and routes
+    // the row here; dropping the key falls the report back to the default
+    // theme (the theme is a starting point, changeable in the editor).
+    if (
+      typeof config.fastrTheme === "string" &&
+      !(FASTR_REPORT_THEMES as readonly string[]).includes(config.fastrTheme)
+    ) {
+      delete config.fastrTheme;
     }
 
     // Throws if the row is still invalid after every transform (including

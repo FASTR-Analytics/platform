@@ -693,23 +693,27 @@ style builders and the legend builder `conditional_formatting.ts`).
 
 ## The export engine (client/src/exports)
 
-8 files, ~580 LOC, no barrel (callers import files directly). Every heavy
+13 files, ~1.6k LOC, no barrel (callers import files directly). Every heavy
 engine is panther-side: `PageRenderer`,
 `createPdfRenderContextWithFontsBrowser`, `pagesToPptxBrowser`,
 `markdownToPdfBrowser` / `markdownToWordBrowser`. The app files are
-orchestrators: fetch detail → build model/PageInputs → panther → `saveAs`. All
-five entries return `APIResponse` envelopes (never throw), take a
-`progress(pct)` callback, and yield to the UI between items.
+orchestrators: fetch detail → build model/PageInputs → panther → `saveAs`.
+Every entry returns an `APIResponse` envelope (never throws), takes a
+`progress(pct)` callback, and yields to the UI between items. The exception to
+"panther does the heavy work" is the paged report PDF, whose engine is the
+SERVER's headless Chrome (S12).
 
 | Artifact   | Formats                                   | Pipeline                                                                                                                                                                                                                                                                                             |
 | ---------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Slide deck | PDF (download), PDF-base64 (email), PPTX  | `(productId, progress)`: fetch deck detail + per-slide `getSlideFromCacheOrFetch` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                       |
-| Report     | PDF, Word                                 | `(productId, progress)`: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers)                                                                                                                               |
+| Report     | fastr: paged PDF, HTML · markdown: PDF, Word · html: HTML, print | `(productId, progress)` throughout. markdown: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers). html and fastr (`export_report_as_html.ts`, S12's formats): the same sanitize→materialize→base-CSS builder as the editor preview with figures as `getFigureAsDataUrlBrowser` PNGs at 1920 and images inlined → standalone `.html` via `saveAs`, or a hidden `sandbox="allow-same-origin allow-modals"` frame → `print()`. fastr's PDF is the paged one (`export_report_as_paged_pdf.ts`): the client builds the complete paged document and `renderReportPdf` prints it with headless Chrome, so the PDF and the editor's page boxes agree |
 | Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`visualization_editor_inner.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
 
-The email exit is the only non-download path: `ShareSlideDeck` →
-`exportSlideDeckAsPdfBase64` → `sendSlideDeckEmail` (S12's SendGrid route) with
-the PDF as attachment.
+The email exits are the only non-download paths: `ShareSlideDeck` →
+`exportSlideDeckAsPdfBase64` → `sendSlideDeckEmail`, and `ShareReport` →
+`buildReportAttachment` → `sendReportEmail` (S12's SendGrid routes). A report
+goes as the file its format downloads as, so unlike the deck's fixed PDF the
+attachment carries its own MIME type.
 
 **`getTableExportAoa`**
 ([get_table_export_aoa.ts](client/src/exports/get_table_export_aoa.ts)) exports

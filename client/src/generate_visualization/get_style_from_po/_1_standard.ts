@@ -6,8 +6,10 @@ import {
 import {
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
+  type FastrChartPalette,
   PresentationObjectConfig,
   selectCf,
+  themeConditionalFormatting,
 } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
@@ -32,6 +34,7 @@ export function buildStandardStyle(
   deckStyle: DeckStyleContext | undefined,
   allowNegativeScale: boolean,
   effectiveValueProps: string[],
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   // Signed metrics (e.g. inequality measures) must let the value axis fit below 0
   // rather than flooring at 0, which draws negative values outside the plot box.
@@ -64,7 +67,9 @@ export function buildStandardStyle(
       ),
       config.s.decimalPlaces ?? 0,
     );
-  const cf = selectCf(config.s);
+  // A themed report's cell tints stand in for the stock traffic lights (the
+  // legend goes through the same function, so the two cannot disagree).
+  const cf = themeConditionalFormatting(selectCf(config.s), chartPalette);
   const cfOn = cf.type !== "none";
   const c = config.s.content;
   const showPoints =
@@ -74,7 +79,7 @@ export function buildStandardStyle(
   const showConnectors = c === "points-connectors";
 
   return {
-    seriesColorFunc: getStandardSeriesColorFunc(config),
+    seriesColorFunc: getStandardSeriesColorFunc(config, chartPalette),
     text: getTextStyle(config, deckStyle),
     surrounds: {
       legendPosition: config.s.hideLegend ? "none" : undefined,

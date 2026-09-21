@@ -29,6 +29,8 @@ export default defineConfig({
       jspdf: path.resolve(__dirname, "node_modules/jspdf"),
       papaparse: path.resolve(__dirname, "node_modules/papaparse"),
       zod: path.resolve(__dirname, "node_modules/zod"),
+      "@lezer/common": path.resolve(__dirname, "node_modules/@lezer/common"),
+      "@lezer/html": path.resolve(__dirname, "node_modules/@lezer/html"),
       yjs: path.resolve(__dirname, "node_modules/yjs"),
       "fractional-indexing": path.resolve(
         __dirname,
@@ -43,7 +45,24 @@ export default defineConfig({
     port: 3000,
   },
   optimizeDeps: {
-    include: ["@uppy/tus", "@uppy/core", "@uppy/dashboard", "@uppy/xhr-upload", "pptxgenjs", "jszip"],
+    include: [
+      "@uppy/tus",
+      "@uppy/core",
+      "@uppy/dashboard",
+      "@uppy/xhr-upload",
+      "pptxgenjs",
+      "jszip",
+      // The CodeMirror/Lezer family is reached through lib/ and the report
+      // editor, which the dev server only transforms when a report opens. A
+      // dep DISCOVERED at that moment forces a mid-session re-optimize; the
+      // chunk hashes change under the already-loaded modules and the mixed
+      // graph throws "Cannot access 'X' before initialization". Pre-bundle
+      // them at startup so discovery can never happen mid-session.
+      "@codemirror/language",
+      "@lezer/common",
+      "@lezer/html",
+      "@lezer/highlight",
+    ],
   },
   build: {
     target: "esnext",
