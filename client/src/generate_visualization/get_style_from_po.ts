@@ -2,6 +2,7 @@ import { CustomFigureStyleOptions } from "panther";
 import {
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
+  type FastrChartPalette,
   type FigureLocalization,
   PresentationObjectConfig,
   resolveFigureCalendar,
@@ -25,19 +26,20 @@ export function getStyleFromPresentationObject(
   deckStyle: DeckStyleContext | undefined,
   allowNegativeScale: boolean,
   effectiveValueProps: string[],
+  chartPalette?: FastrChartPalette,
 ): CustomFigureStyleOptions {
   const calendar = resolveFigureCalendar(config, localization);
   // The special chart modes are all constant-format metrics (m3/m4/m6/m11), so
   // their declaration IS the axis format and nothing they draw is per-value.
   const formatAs = facts.axisFormat;
   if (isSpecialCoverageChartActive(config)) {
-    return buildCoverageChartStyle(config, formatAs, calendar, deckStyle);
+    return buildCoverageChartStyle(config, formatAs, calendar, deckStyle, chartPalette);
   }
   if (isSpecialBarChartActive(config)) {
-    return buildPercentChangeChartStyle(config, formatAs, calendar, deckStyle);
+    return buildPercentChangeChartStyle(config, formatAs, calendar, deckStyle, chartPalette);
   }
   if (isSpecialDisruptionsChartActive(config)) {
-    return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle);
+    return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle, chartPalette);
   }
   if (isSpecialDisruptionsChartV2Active(config)) {
     return buildDisruptionsChartV2Style(config, formatAs, calendar, deckStyle);
@@ -49,5 +51,6 @@ export function getStyleFromPresentationObject(
     deckStyle,
     allowNegativeScale,
     effectiveValueProps,
+    chartPalette,
   );
 }

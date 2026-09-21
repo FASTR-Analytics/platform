@@ -124,6 +124,20 @@ export const userRouteRegistry = {
     body: z.object({ oldEmail: z.string(), newEmail: z.string(), dryRun: z.boolean() }),
     response: {} as { instances: RenameEmailInstanceResult[]; warnings: string[] },
   }),
+  // Applies a Clerk name change pushed by the peer instance that observed it
+  // (contract on syncUserName). Fleet-internal and machine-only: the
+  // status-api-key header is the sole authorization, a session caller is
+  // refused because Clerk, not an admin, is the source of truth for names.
+  receiveUserNameSync: route({
+    path: "/user/sync-name",
+    method: "POST",
+    body: z.object({
+      email: z.string(),
+      firstName: z.string().nullable(),
+      lastName: z.string().nullable(),
+    }),
+    response: {} as { changed: boolean },
+  }),
   // Personal access tokens: self-service, always scoped to the caller.
   createPersonalAccessToken: route({
     path: "/personal-access-tokens",

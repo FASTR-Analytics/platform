@@ -1,9 +1,12 @@
 import { createAIViewController, defineAIViews, view } from "panther";
 import type { AIViewController, AIViewState } from "panther";
+import { getEditingReportInstructions } from "lib";
 import type {
   FigureBlock,
   ImageBlock,
   PackageScope,
+  ReportFormat,
+  ReportHtmlStyle,
   Slide,
   SlideDeckConfig,
   SlideType,
@@ -19,7 +22,6 @@ import {
   type CopilotInteractionDefs,
 } from "./interactions";
 import {
-  getEditingReportInstructions,
   getEditingSlideDeckInstructions,
   getEditingSlideInstructions,
   getOpeningProductInstructions,
@@ -81,6 +83,11 @@ export type EditingSlideContext = OpenProductScope & {
 export type EditingReportParams = {
   reportId: string;
   reportLabel: string;
+  // Format and (html only) style, fixed at creation and known before setView.
+  format: ReportFormat;
+  htmlStyle?: ReportHtmlStyle;
+  // Custom style, resolved live-vs-snapshot by the report editor (S12).
+  customStyle?: { label: string; brief: string; referenceCss?: string | null };
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = OpenProductScope & {
@@ -117,7 +124,14 @@ export const copilotViews = defineAIViews({
   editing_report: view<EditingReportParams, EditingReportContext>({
     label: (params) => params.reportLabel,
     instructions: (params, context) => {
-      const base = `${getEditingReportInstructions(params.reportLabel)}\n\nreportId: ${params.reportId}`;
+      const base = `${
+        getEditingReportInstructions(
+          params.reportLabel,
+          params.format,
+          params.htmlStyle,
+          params.customStyle,
+        )
+      }\n\nreportId: ${params.reportId}`;
       const sel = context.getSelection();
       if (!sel) return base;
       if (sel.empty) {

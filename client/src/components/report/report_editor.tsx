@@ -3,18 +3,68 @@ import { EditorView, keymap } from "@codemirror/view";
 import { Compartment, EditorState } from "@codemirror/state";
 import { basicSetup } from "codemirror";
 import { markdown } from "@codemirror/lang-markdown";
+import { html } from "@codemirror/lang-html";
 import { redo as cmRedo, undo as cmUndo } from "@codemirror/commands";
+import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import {
   attachSelectionNameHover,
+  yCaretHygiene,
   darkMarkdownExtensions,
 } from "~/components/_shared/collab_markdown_editor";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
-import type { FigureBlock, ImageBlock } from "lib";
+import {
+  fastrPageStartLines,
+  fastrParagraphSplits,
+  type EditResult,
+  fastrContainerStackUpTo,
+  fastrOpenFenceOnLine,
+  type FastrFencePatch,
+  type FastrInkRole,
+  type FastrOpenFence,
+  type FigureBlock,
+  findReportEmbeds,
+  type ImageBlock,
+  type InlineMarkState,
+  inlineMarkStateAt,
+  insertLinkEdit,
+  type ReportEmbedRef,
+  type ReportFormat,
+  rewriteReportEmbedToken,
+  setHeadingLevelEdit,
+  setInlineColorEdit,
+  applyTableCellAction,
+  parseContainerFence,
+  setInlineHighlightEdit,
+  setInlineRoleEdit,
+  type TableCellAction,
+  t3,
+  setInlineSizeEdit,
+  setInlineUnderlineEdit,
+  tableSnippet,
+  toggleInlineDelimiters,
+  toggleLinePrefixEdit,
+  updateContainerFenceLine,
+  type FastrChartPalette,
+  type FastrLayoutHint,
+} from "lib";
 import type { ReportEditorSelection } from "~/components/copilot/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
 import type { FigureStaleContext } from "./ReportFigureEmbed";
+import type { FigureInkTheme } from "./report_figure_raster";
+import {
+  type EditorPagination,
+  FM_LIVE_SCOPE_CLASS,
+  livePreviewExtensions,
+  setPagination as setPaginationEffect,
+  setLayoutHints as setLayoutHintsEffect,
+  refreshEmbedSizes as refreshEmbedSizesEffect,
+  stretchField,
+  paginationField,
+} from "./live_preview_extension";
+import { fastrContainerFences } from "./fastr_fence_extension";
+import { createPagedEditSurface, type PagedSurface } from "./paged_edit_surface";
 import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
 import { darkMode } from "~/state/t4_ui";
 
@@ -43,9 +93,19 @@ function centerTheme(centered: boolean, padRight: number) {
   });
 }
 
+// The editor's page layout for print (export_report_as_paged_pdf.ts).
+export type ReportPageLayoutOut = {
+  body: string;
+  pageStarts: number[];
+  paraSplits: { line: number; rows: number[] }[];
+  figureFits: { line: number; height: number }[];
+  gapStretches: { line: number; marginTop: number }[];
+};
+
 export type ReportEditorApi = {
-  // Insert an embed token on its own line at the current cursor.
-  insertEmbedOnNewLine: (token: string) => void;
+  // Insert text as its own block at the current cursor — an embed token, or
+  // a FASTR Markdown block snippet from the format guide.
+  insertBlockOnNewLine: (token: string) => void;
   // Apply an accepted AI proposal by REBASING it over whatever changed while
   // it was under review: the proposal's hunks (baseBody -> newBody) are mapped
   // onto the live doc; hunks whose text a collaborator concurrently edited are
@@ -65,7 +125,8 @@ export type ReportEditorApi = {
   };
   // Remove an embed's token line (used when deleting a figure/image).
   removeEmbedToken: (kind: "figure" | "image", id: string) => void;
-  // Change an embed's caption (the markdown alt text in its token).
+  // Change an embed's caption (the token's caption/alt; the token's other
+  // attributes survive).
   setEmbedCaption: (
     kind: "figure" | "image",
     id: string,
@@ -73,12 +134,57 @@ export type ReportEditorApi = {
   ) => void;
   // Current text selection / cursor (surfaced to the AI).
   getSelection: () => ReportEditorSelection;
-  // Undo/redo the body: the toolbar's counterpart to the editor's own
+  // ── FASTR Markdown toolbar ────────────────────────────────────────────────
+  // Rewrite the open fence at `line` (1-based); undefined or "" deletes a key.
+  // The line is explicit rather than "wherever the cursor is" so the toolbar
+  // can tone an OUTER block while the caret sits inside one of its cards.
+  setBlockAttrs: (line: number, patch: FastrFencePatch) => void;
+  // Create the `:::report` page-setup header (first line) when the document
+  // lacks one — the toolbar's Page setup control targets it from anywhere.
+  insertPageSetup: (patch: FastrFencePatch) => void;
+  // Wrap/unwrap the selection: ("**","**"), ("*","*"), ("`","`").
+  toggleInlineMark: (before: string, after: string) => void;
+  // `[phrase]{.danger}`; undefined clears the mark around the selection.
+  setInlineRole: (role: FastrInkRole | undefined) => void;
+  // `[phrase]{color=#c62828}` — a literal that does not re-theme; replaces
+  // any role. undefined clears role and colour alike.
+  setInlineColor: (color: string | undefined) => void;
+  // `[phrase]{size=12}` (points); undefined clears the size. Role and size
+  // share the wrapper, so setting one preserves the other.
+  setInlineSize: (size: number | undefined) => void;
+  // `[phrase]{underline}` on/off — markdown has no underline of its own.
+  setInlineUnderline: (on: boolean) => void;
+  // `[phrase]{highlight=#ffe08a}`; undefined clears the stripe.
+  setInlineHighlight: (color: string | undefined) => void;
+  // 0 = paragraph, 1..6 = heading, across every line the selection touches.
+  setHeadingLevel: (level: number) => void;
+  toggleLinePrefix: (kind: "bullet" | "ordered" | "quote") => void;
+  // Rows and columns around the caret's table cell.
+  applyTableAction: (action: TableCellAction) => void;
+  // CodeMirror's own find/replace panel, over the SOURCE — so it reaches
+  // text inside collapsed blocks, which the browser's Ctrl+F cannot see.
+  openFind: () => void;
+  insertLink: () => void;
+  insertTable: (cols: number, rows: number) => void;
+  // Undo/redo the body — the toolbar's counterpart to the editor's own
   // Ctrl+Z/Ctrl+Shift+Z (per-user under collab, local history otherwise).
   undo: () => void;
   redo: () => void;
   // Re-measure (e.g. after the editor was hidden during a diff review).
   refresh: () => void;
+  // Switch the page boxes on (a pagination with no pages: the editor lays
+  // the document out itself, live_preview_extension's pageBoxPlugin) or
+  // off (undefined). Live preview only; a no-op in Split.
+  setPagination: (pagination: EditorPagination | undefined) => void;
+  // Print's height for every block, by source text (the host's background
+  // layout): the estimates for blocks the editor has not rendered.
+  setLayoutHints: (hints: Map<string, FastrLayoutHint>) => void;
+  // An embed's size landed in the host's caches (see EmbedResolver): the
+  // rendered embeds still waiting for one take their box now.
+  refreshEmbedSizes: () => void;
+  // The page starts the editor laid out, with the body they belong to, for
+  // the PDF export to force; undefined without page boxes.
+  getPageLayout: () => ReportPageLayoutOut | undefined;
   // Fractional 0-based source line at the viewport top (for scroll sync), or
   // undefined if it can't be read (no view / zero height / off-screen).
   getTopLine: () => number | undefined;
@@ -93,11 +199,20 @@ export type ReportEditorApi = {
 
 type Props = {
   body: string;
+  // Fixed for the editor's lifetime (a report's format never changes).
+  format: ReportFormat;
   figures: Record<string, FigureBlock>;
   images: Record<string, ImageBlock>;
   // What an embed needs to judge and update its own figure (D4).
   figureStale: (id: string) => FigureStaleContext | undefined;
   assetUrl: (imgFile: string) => string;
+  // Ink for a figure on the ground behind an element (see EmbedResolver).
+  figureInkFor: (el: Element) => FigureInkTheme | undefined;
+  // The report theme's series palette for its figures (undefined = default).
+  figureChartPalette: () => FastrChartPalette | undefined;
+  // Embed boxes known ahead of drawing (see EmbedResolver).
+  figureSize?: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  imageSize?: (id: string) => { width: number; height: number } | undefined;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
   selectedId: () => string | undefined;
@@ -116,11 +231,56 @@ type Props = {
   // collab this is required: a view-only user's keystrokes would otherwise
   // enter the shared doc, be rejected server-side, and silently diverge them.
   canEdit: () => boolean;
+  // FASTR Markdown only: where the caret is, structurally, so the toolbar can
+  // show the block it is inside and that block's own controls. Fires on cursor
+  // moves as well as edits, but only when something the toolbar renders has
+  // actually changed.
+  onContextChange?: (ctx: ReportBlockContext) => void;
+  // FASTR only: Edit mode's Obsidian-style surface — regions render as their
+  // true themed HTML, inline syntax conceals, the editor paints the document
+  // page. Toggled at runtime (Edit <-> Split) via a compartment, so flipping it
+  // preserves undo, scroll, selection and the collab binding.
+  livePreview?: () => boolean;
+  // Edit ON the printed pages (paged_edit_surface.ts): the pane shows the
+  // PDF's own pages in a frame with the in-place editors attached, the
+  // CodeMirror view kept mounted (hidden) as the model. buildPagedHtml gives
+  // the paged standalone document for a body; pagesKey changes whenever the
+  // document must be re-laid out for a reason other than an edit (theme,
+  // rasters, label).
+  pages?: () => boolean;
+  buildPagedHtml?: (body: string) => Promise<string>;
+  pagesKey?: () => string;
   ref?: (api: ReportEditorApi) => void;
+};
+
+export type ReportBlockContext = {
+  // Blocks ENCLOSING the caret line, innermost last.
+  stack: FastrOpenFence[];
+  // The open fence ON the caret line itself. Leaf blocks (`stat`, `report`)
+  // carry no closing fence and so never appear on the stack — this is the only
+  // way the toolbar can reach them.
+  fenceHere: FastrOpenFence | undefined;
+  // 1-based.
+  line: number;
+  hasSelection: boolean;
+  marks: InlineMarkState;
+  // The RENDERED font size at the caret, in points, measured from the DOM —
+  // the theme's own rule for that line or island, whatever it is (an h1 is
+  // ~26pt in the default theme, 2.8em in Swiss) — so the toolbar's size box
+  // always shows a number and its stepper steps from the real size, never
+  // from an assumed body size. Undefined only when nothing is measurable.
+  fontSizePt: number | undefined;
+  // Where the caret sits in a TABLE, so the toolbar can offer rows and
+  // columns without the reader having to find the right-click menu. Undefined
+  // when the caret is not in one.
+  table: { rowLine: number; cellIndex: number } | undefined;
 };
 
 export function ReportBodyEditor(p: Props) {
   let parent!: HTMLDivElement;
+  let pagesHost!: HTMLDivElement;
+  let surface: PagedSurface | undefined;
+  const pagesOn = () => isFastr && (p.pages?.() ?? false) && p.buildPagedHtml !== undefined;
   let view: EditorView | undefined;
   let detachSelectionHover: (() => void) | undefined;
   let scrollRAF = 0;
@@ -134,6 +294,8 @@ export function ReportBodyEditor(p: Props) {
   // Without collab the view falls back to basicSetup's local history.
   let yUndoMgr: Y.UndoManager | undefined;
   const centerCompartment = new Compartment();
+  const livePreviewCompartment = new Compartment();
+  let lastLiveKey = "";
 
   // Pad the centered column to the right by the sidebar width so it lines up with
   // the View preview, but only when the pane is wide enough to fit the column
@@ -156,6 +318,10 @@ export function ReportBodyEditor(p: Props) {
     view.dispatch({
       effects: centerCompartment.reconfigure(centerTheme(centered, pad)),
     });
+    // The live-preview sheet ignores the scroller padding (it would shrink the
+    // sheet's content area and paint the ground asymmetrically) and instead
+    // re-centres itself shifted left by half the pad — same final position.
+    view.scrollDOM.style.setProperty("--fm-center-pad", `${pad}px`);
   }
 
   // Read the registries/selection live (Solid props are reactive getters) so a
@@ -167,6 +333,10 @@ export function ReportBodyEditor(p: Props) {
     assetUrl: (imgFile) => p.assetUrl(imgFile),
     onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
     getSelectedId: () => p.selectedId(),
+    inkFor: (el) => p.figureInkFor(el),
+    chartPalette: () => p.figureChartPalette(),
+    figureSize: (id, block) => p.figureSize?.(id, block),
+    imageSize: (id) => p.imageSize?.(id),
   };
 
   // rAF-throttle scroll events so getTopLine reads at most once per frame.
@@ -182,6 +352,32 @@ export function ReportBodyEditor(p: Props) {
   // props say) and again when the collab binding appears or the edit permission
   // flips: preserving scroll position and (clamped) selection across the swap.
   // Known cost: the local undo history resets on a rebuild.
+  // Fixed for the editor's lifetime, like the format it reads.
+  const isFastr = p.format === "fastr";
+
+  function liveExtensions(
+    on: boolean,
+    collab: { yText: Y.Text; awareness: Awareness } | undefined,
+  ) {
+    return on
+      ? livePreviewExtensions(resolver, collab)
+      : [...darkMarkdownExtensions(), embedWidgets(resolver, p.format)];
+  }
+
+  // Runtime Edit <-> Split flip, mirroring applyCenterTheme: reconfigure the
+  // compartment and toggle the document-surface scope class, never rebuild.
+  function applyLivePreview(on: boolean) {
+    const key = String(on);
+    if (!view || key === lastLiveKey) return;
+    lastLiveKey = key;
+    parent.classList.toggle(FM_LIVE_SCOPE_CLASS, on);
+    const collab = p.collab?.();
+    view.dispatch({
+      effects: livePreviewCompartment.reconfigure(liveExtensions(on, collab)),
+    });
+    if (on) reapplyPagination();
+  }
+
   function buildView(collab: { yText: Y.Text; awareness: Awareness } | undefined) {
     const prevScroll = view?.scrollDOM.scrollTop;
     const prevSel = view?.state.selection.main;
@@ -199,9 +395,29 @@ export function ReportBodyEditor(p: Props) {
       extensions: [
         // yCollab's per-user undo takes precedence over basicSetup's keymap.
         ...(collab ? [keymap.of([...yUndoManagerKeymap])] : []),
+        // Find/replace over the SOURCE, so a phrase inside a collapsed block
+        // is reachable — the browser's own Ctrl+F sees only rendered text.
+        // The panel sits at the TOP, where a document editor's does.
+        search({ top: true }),
+        keymap.of([
+          ...searchKeymap,
+          // Google Docs' link shortcut, the one key binding the pill's link
+          // button doubles.
+          {
+            key: "Mod-k",
+            preventDefault: true,
+            run: () => {
+              insertLink();
+              return true;
+            },
+          },
+        ]),
         basicSetup,
-        ...darkMarkdownExtensions(),
-        markdown(),
+        ...(isFastr ? [] : darkMarkdownExtensions()),
+        // FASTR Markdown is markdown to CodeMirror; the `:::` fences get
+        // their own line decoration on top.
+        p.format === "html" ? html() : markdown(),
+        ...(p.format === "fastr" ? fastrContainerFences() : []),
         ...(p.canEdit()
           ? []
           : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
@@ -232,12 +448,33 @@ export function ReportBodyEditor(p: Props) {
           },
         }),
         centerCompartment.of(centerTheme(p.centered(), 0)),
-        embedWidgets(resolver),
+        // For fastr, this slot toggles between the live-preview surface (Edit)
+        // and the classic source view (Split) via a compartment, so flipping
+        // modes preserves undo, scroll, selection and the collab binding. The
+        // dark markdown highlighter lives in the OFF branch: live preview is a
+        // light DOCUMENT even in a dark app. Other formats keep the plain
+        // embed widgets, untouched.
+        ...(isFastr
+          ? [livePreviewCompartment.of(
+            liveExtensions(p.livePreview?.() ?? false, collab),
+          )]
+          : [embedWidgets(resolver, p.format)]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
+          if (u.docChanged) surface?.schedule();
+          // Push, not poll: a timer would still be wrong between ticks, and
+          // this is exact and free. Guarded inside emitContext.
+          if (isFastr && (u.docChanged || u.selectionSet)) {
+            emitContext(u.state, u.docChanged);
+          }
         }),
         ...(collab && undoMgr
-          ? [yCollab(collab.yText, collab.awareness, { undoManager: undoMgr })]
+          ? [
+            yCollab(collab.yText, collab.awareness, { undoManager: undoMgr }),
+            // Clears the caret on blur/teardown — yCollab alone never does
+            // (see yCaretHygiene).
+            yCaretHygiene(collab.yText, collab.awareness),
+          ]
           : []),
       ],
     });
@@ -259,9 +496,19 @@ export function ReportBodyEditor(p: Props) {
         },
       });
     }
+    // So the toolbar has a context on first paint and after every rebuild —
+    // the selection dispatch above does not always produce a selectionSet.
+    if (isFastr) {
+      const liveOn = p.livePreview?.() ?? false;
+      lastLiveKey = String(liveOn);
+      parent.classList.toggle(FM_LIVE_SCOPE_CLASS, liveOn);
+      ctxKey = "";
+      emitContext(view.state, true);
+      if (liveOn) reapplyPagination();
+    }
   }
 
-  function insertEmbedOnNewLine(token: string) {
+  function insertBlockOnNewLine(token: string) {
     if (!view) return;
     const sel = view.state.selection.main;
     const line = view.state.doc.lineAt(sel.from);
@@ -277,6 +524,262 @@ export function ReportBodyEditor(p: Props) {
       scrollIntoView: true,
     });
     view.focus();
+  }
+
+  // ── FASTR Markdown toolbar ─────────────────────────────────────────────────
+
+  function setBlockAttrs(lineNumber: number, patch: FastrFencePatch) {
+    if (!view || lineNumber < 1 || lineNumber > view.state.doc.lines) return;
+    const line = view.state.doc.line(lineNumber);
+    const next = updateContainerFenceLine(line.text, patch);
+    if (next === undefined || next === line.text) return;
+    // One line, one transaction — under yCollab this becomes a delete+insert
+    // confined to that line, so it merges with a peer typing anywhere else.
+    // Deliberately no view.focus(): the user is still inside a popover picking
+    // a second option, and pulling focus back mid-interaction closes it.
+    view.dispatch({ changes: { from: line.from, to: line.to, insert: next } });
+  }
+
+  function insertPageSetup(patch: FastrFencePatch) {
+    if (!view) return;
+    const line = updateContainerFenceLine(":::report", patch) ?? ":::report";
+    view.dispatch({ changes: { from: 0, to: 0, insert: `${line}\n` } });
+  }
+
+  // Every text action lands as ONE transaction, which is what makes the
+  // offsets (all measured pre-transaction) valid and the collab ops minimal.
+  function applyEdit(r: EditResult) {
+    if (!view || r.changes.length === 0) return;
+    view.dispatch({
+      changes: r.changes,
+      selection: r.selection,
+      scrollIntoView: true,
+    });
+    view.focus();
+  }
+
+  function selectionRange(): { doc: string; from: number; to: number } | undefined {
+    if (!view) return undefined;
+    const sel = view.state.selection.main;
+    return { doc: view.state.doc.toString(), from: sel.from, to: sel.to };
+  }
+
+  function toggleInlineMark(before: string, after: string) {
+    const s = selectionRange();
+    if (s) applyEdit(toggleInlineDelimiters(s.doc, s.from, s.to, before, after));
+  }
+
+  function setInlineRole(role: FastrInkRole | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineRoleEdit(s.doc, s.from, s.to, role));
+  }
+
+  function setInlineColor(color: string | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineColorEdit(s.doc, s.from, s.to, color));
+  }
+
+  function setInlineSize(size: number | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineSizeEdit(s.doc, s.from, s.to, size));
+  }
+
+  function setInlineUnderline(on: boolean) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineUnderlineEdit(s.doc, s.from, s.to, on));
+  }
+
+  function setInlineHighlight(color: string | undefined) {
+    const s = selectionRange();
+    if (s) applyEdit(setInlineHighlightEdit(s.doc, s.from, s.to, color));
+  }
+
+  // The table around the caret, rebuilt by the same pure function the cell
+  // context menu uses — one dispatch over the table's own lines.
+  function applyTableAction(action: TableCellAction) {
+    if (!view) return;
+    const state = view.state;
+    const sel = state.selection.main;
+    const line = state.doc.lineAt(sel.from);
+    const here = tableAt(state, line.number, sel.from - line.from);
+    if (!here) return;
+    let start = here.rowLine;
+    while (start > 1 && isTableRow(state.doc.line(start - 1).text)) start--;
+    let end = here.rowLine;
+    while (end < state.doc.lines && isTableRow(state.doc.line(end + 1).text)) {
+      end++;
+    }
+    const lines: string[] = [];
+    for (let l = start; l <= end; l++) lines.push(state.doc.line(l).text);
+    const next = applyTableCellAction(
+      lines,
+      here.rowLine - start,
+      here.cellIndex,
+      action,
+      t3({ en: "New column", fr: "Nouvelle colonne", pt: "Nova coluna" }),
+    );
+    if (next === undefined) return;
+    view.dispatch({
+      changes: {
+        from: state.doc.line(start).from,
+        to: state.doc.line(end).to,
+        insert: next.join("\n"),
+      },
+    });
+    view.focus();
+  }
+
+  function openFind() {
+    if (!view) return;
+    view.focus();
+    openSearchPanel(view);
+  }
+
+  function setHeadingLevel(level: number) {
+    const s = selectionRange();
+    if (s) applyEdit(setHeadingLevelEdit(s.doc, s.from, s.to, level));
+  }
+
+  function toggleLinePrefix(kind: "bullet" | "ordered" | "quote") {
+    const s = selectionRange();
+    if (s) applyEdit(toggleLinePrefixEdit(s.doc, s.from, s.to, kind));
+  }
+
+  function insertLink() {
+    const s = selectionRange();
+    if (s) applyEdit(insertLinkEdit(s.doc, s.from, s.to));
+  }
+
+  function insertTable(cols: number, rows: number) {
+    insertBlockOnNewLine(tableSnippet(cols, rows));
+  }
+
+  // The stack walk is cheap (a regex per line, and iterLines never
+  // materialises the document) but the SIGNAL write downstream is not: a fresh
+  // context object per arrow key re-renders the toolbar continuously while
+  // typing and can close an open popover. So cache the walk by line, and emit
+  // only when something the toolbar actually renders has changed.
+  let ctxStackLine = -1;
+  let ctxStack: FastrOpenFence[] = [];
+  let ctxKey = "";
+
+  // The element whose computed font-size IS the caret's rendered size: the
+  // focused text island when one is active (its DOM selection node, so a
+  // styled span inside it counts), else CodeMirror's own node at the
+  // position — a mark span, or the line with its theme class. 1pt = 4/3 px.
+  function measureFontSizePt(pos: number): number | undefined {
+    const v = view;
+    if (!v) return undefined;
+    let el: Element | null = null;
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement && active.isContentEditable &&
+      active.classList.contains("cm-fm-text-edit") && v.dom.contains(active)
+    ) {
+      const sel = window.getSelection();
+      const node = sel && sel.rangeCount > 0 && active.contains(sel.anchorNode)
+        ? sel.anchorNode
+        : active;
+      el = node instanceof Element ? node : node?.parentElement ?? active;
+    } else {
+      try {
+        const { node } = v.domAtPos(pos);
+        el = node instanceof Element ? node : node.parentElement;
+      } catch {
+        return undefined;
+      }
+    }
+    if (!el) return undefined;
+    const px = parseFloat(getComputedStyle(el).fontSize);
+    return Number.isFinite(px) && px > 0 ? px * 0.75 : undefined;
+  }
+
+  // A pipe row that is not a fence — the same heuristic the live preview's
+  // cell menus use, applied to the caret's own line.
+  function isTableRow(text: string): boolean {
+    return text.trim().length > 0 && text.includes("|") &&
+      parseContainerFence(text) === undefined;
+  }
+
+  // Which cell the caret is in, counting the pipes before it.
+  function tableAt(
+    state: EditorState,
+    line1: number,
+    col: number,
+  ): { rowLine: number; cellIndex: number } | undefined {
+    const text = state.doc.line(line1).text;
+    if (!isTableRow(text)) return undefined;
+    // A one-line pipe paragraph is not a table: a delimiter row must sit
+    // directly above or below the run.
+    const isDelimiter = (t: string) =>
+      /^\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?$/.test(t.trim()) &&
+      t.includes("|");
+    let start = line1;
+    while (start > 1 && isTableRow(state.doc.line(start - 1).text)) start--;
+    let end = line1;
+    while (end < state.doc.lines && isTableRow(state.doc.line(end + 1).text)) {
+      end++;
+    }
+    let hasRule = false;
+    for (let l = start; l <= end; l++) {
+      if (isDelimiter(state.doc.line(l).text)) hasRule = true;
+    }
+    if (!hasRule || isDelimiter(text)) return undefined;
+    const before = text.slice(0, Math.max(0, col));
+    const cells = before.split("|").length - 2;
+    return {
+      rowLine: line1,
+      cellIndex: Math.max(0, Math.min(cells, text.split("|").length - 3)),
+    };
+  }
+
+  function emitContext(state: EditorState, docChanged: boolean) {
+    if (!p.onContextChange) return;
+    const sel = state.selection.main;
+    // A selection is described by where it STARTS: a triple-clicked heading
+    // runs to the start of the next line, and describing that head would
+    // report the blank line below — "Normal text", body size — for a heading.
+    const pos = sel.empty ? sel.head : sel.from;
+    const line = state.doc.lineAt(pos);
+    if (docChanged || line.number !== ctxStackLine) {
+      ctxStackLine = line.number;
+      ctxStack = fastrContainerStackUpTo(state.doc.iterLines(1, line.number));
+    }
+    const fenceHere = fastrOpenFenceOnLine(line.text, line.number);
+    const table = tableAt(state, line.number, pos - line.from);
+    const marks = inlineMarkStateAt(
+      line.text,
+      sel.from - line.from,
+      // Clamped to this line: the selection may run on past its end.
+      Math.min(sel.to, line.to) - line.from,
+    );
+    // The stack's ATTRS are part of the key, not just its shape: re-toning an
+    // enclosing block while the caret sits in one of its children changes only
+    // that outer fence, so a name+line key would suppress the update and leave
+    // the toolbar showing the tone you just replaced.
+    const key = `${line.number}|${!sel.empty}|${line.text}|${
+      JSON.stringify(marks)
+    }|${JSON.stringify(table)}|${measureFontSizePt(pos) ?? "?"}|${
+      ctxStack
+        .map((f) => `${f.name}${f.line}${JSON.stringify(f.attrs)}`)
+        .join(">")
+    }`;
+    if (key === ctxKey) return;
+    ctxKey = key;
+    const ctx: ReportBlockContext = {
+      stack: ctxStack,
+      fenceHere,
+      line: line.number,
+      hasSelection: !sel.empty,
+      marks,
+      fontSizePt: measureFontSizePt(pos),
+      table,
+    };
+    // Out of the CodeMirror update. A synchronous signal write here re-renders
+    // the toolbar mid-update, and anything in that render that touches the
+    // view throws "Calls to EditorView.update are not allowed while an update
+    // is in progress".
+    queueMicrotask(() => p.onContextChange?.(ctx));
   }
 
   // See the ReportEditorApi doc comment. Reads the LIVE doc (not the body
@@ -306,19 +809,35 @@ export function ReportBodyEditor(p: Props) {
     return { applied: changes.length, skipped, firstAppliedLine };
   }
 
-  function findTokenLine(kind: "figure" | "image", id: string) {
+  // First token of (kind, id) in the live doc, with its line.
+  function findToken(
+    kind: "figure" | "image",
+    id: string,
+  ): { ref: ReportEmbedRef; ownsLine: boolean } | undefined {
     if (!view) return undefined;
-    const idx = view.state.doc.toString().indexOf(`(${kind}:${id})`);
-    if (idx < 0) return undefined;
-    return view.state.doc.lineAt(idx);
+    const doc = view.state.doc;
+    const ref = findReportEmbeds(doc.toString(), p.format).find(
+      (r) => r.kind === kind && r.id === id,
+    );
+    if (!ref) return undefined;
+    const line = doc.lineAt(ref.start);
+    const ownsLine = line.text.trim() === ref.raw.trim() &&
+      doc.lineAt(ref.end).number === line.number;
+    return { ref, ownsLine };
   }
 
+  // A token that owns its line goes with the line; an inline token goes alone.
   function removeEmbedToken(kind: "figure" | "image", id: string) {
     if (!view) return;
-    const line = findTokenLine(kind, id);
-    if (!line) return;
-    const to = Math.min(view.state.doc.length, line.to + 1);
-    view.dispatch({ changes: { from: line.from, to } });
+    const found = findToken(kind, id);
+    if (!found) return;
+    if (found.ownsLine) {
+      const line = view.state.doc.lineAt(found.ref.start);
+      const to = Math.min(view.state.doc.length, line.to + 1);
+      view.dispatch({ changes: { from: line.from, to } });
+      return;
+    }
+    view.dispatch({ changes: { from: found.ref.start, to: found.ref.end } });
   }
 
   function setEmbedCaption(
@@ -327,17 +846,13 @@ export function ReportBodyEditor(p: Props) {
     caption: string,
   ) {
     if (!view) return;
-    const line = findTokenLine(kind, id);
-    if (!line) return;
-    const safe = caption
-      .replace(/[[\]\n\r]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const found = findToken(kind, id);
+    if (!found) return;
     view.dispatch({
       changes: {
-        from: line.from,
-        to: line.to,
-        insert: `![${safe}](${kind}:${id})`,
+        from: found.ref.start,
+        to: found.ref.end,
+        insert: rewriteReportEmbedToken(found.ref, { caption }, p.format),
       },
     });
   }
@@ -375,6 +890,57 @@ export function ReportBodyEditor(p: Props) {
 
   function refresh() {
     view?.requestMeasure();
+  }
+
+  // The page boxes and the layout hints the host last asked for. The host
+  // asks once, when it decides page boxes are wanted, which can be before
+  // the view exists (first open) and is not repeated when the view is
+  // rebuilt (a collab or permission change) or the live preview is
+  // reconfigured, both of which start the pagination field empty. So the
+  // wish is kept and re-applied at each of those points; on first open the
+  // page boxes were missing until a mode switch asked again (Nick,
+  // 2026-09-10).
+  let wantedPagination: EditorPagination | undefined;
+  let wantedHints: Map<string, FastrLayoutHint> | undefined;
+
+  function setPagination(pagination: EditorPagination | undefined) {
+    wantedPagination = pagination;
+    view?.dispatch({ effects: setPaginationEffect.of(pagination) });
+  }
+
+  function setLayoutHints(hints: Map<string, FastrLayoutHint>) {
+    wantedHints = hints;
+    view?.dispatch({ effects: setLayoutHintsEffect.of(hints) });
+  }
+
+  function refreshEmbedSizes() {
+    view?.dispatch({ effects: refreshEmbedSizesEffect.of(null) });
+  }
+
+  function reapplyPagination() {
+    if (!view) return;
+    const effects = [];
+    if (wantedPagination !== undefined) effects.push(setPaginationEffect.of(wantedPagination));
+    if (wantedHints !== undefined) effects.push(setLayoutHintsEffect.of(wantedHints));
+    if (effects.length > 0) view.dispatch({ effects });
+  }
+
+  function getPageLayout(): ReportPageLayoutOut | undefined {
+    const pag = view?.state.field(paginationField, false)?.pagination;
+    if (view === undefined || pag === undefined) return undefined;
+    const figureFits: { line: number; height: number }[] = [];
+    for (const [line, height] of pag.figureFits ?? []) figureFits.push({ line, height });
+    const gapStretches: { line: number; marginTop: number }[] = [];
+    for (const [line, marginTop] of view.state.field(stretchField, false)?.print ?? []) {
+      gapStretches.push({ line, marginTop });
+    }
+    return {
+      body: view.state.doc.toString(),
+      pageStarts: fastrPageStartLines(pag.result),
+      paraSplits: fastrParagraphSplits(pag.result),
+      figureFits,
+      gapStretches,
+    };
   }
 
   // Fractional 0-based source line at the viewport top. Coordinate spaces must
@@ -442,20 +1008,64 @@ export function ReportBodyEditor(p: Props) {
     buildView(collab);
 
     p.ref?.({
-      insertEmbedOnNewLine,
+      insertBlockOnNewLine,
       applyRebasedBody,
       removeEmbedToken,
       setEmbedCaption,
       getSelection,
+      setBlockAttrs,
+      insertPageSetup,
+      toggleInlineMark,
+      setInlineRole,
+      setInlineColor,
+      setInlineSize,
+      setInlineUnderline,
+      setInlineHighlight,
+      applyTableAction,
+      openFind,
+      setHeadingLevel,
+      toggleLinePrefix,
+      insertLink,
+      insertTable,
       undo,
       redo,
       refresh,
+      setPagination,
+      setLayoutHints,
+      refreshEmbedSizes,
+      getPageLayout,
       getTopLine,
       scrollToLine,
       isAtBottom,
       scrollToBottom,
     });
   });
+
+  // Edit <-> Split flips the live-preview surface without a rebuild.
+  createEffect(() => {
+    const on = p.livePreview?.() ?? false;
+    if (isFastr) applyLivePreview(on);
+  });
+
+  // The paged surface: created once the view exists, shown while `pages` is
+  // on, re-laid out when the host's key changes, given the collab binding for
+  // peer carets.
+  onMount(() => {
+    if (!isFastr || !p.buildPagedHtml) return;
+    const build = p.buildPagedHtml;
+    surface = createPagedEditSurface(pagesHost, {
+      view: () => view,
+      buildHtml: build,
+      onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
+    });
+    createEffect(() => surface?.setActive(pagesOn()));
+    createEffect(() => {
+      p.pagesKey?.();
+      if (pagesOn()) surface?.refresh();
+    });
+    createEffect(() => surface?.setPresence(p.collab?.()));
+  });
+  onCleanup(() => surface?.dispose());
 
   // Rebuild when the collab binding appears (plain -> live upgrade shortly
   // after open), the edit permission flips (permissions can arrive late), or
@@ -487,5 +1097,16 @@ export function ReportBodyEditor(p: Props) {
     yUndoMgr = undefined;
   });
 
-  return <div ref={parent} class="bg-base-100 h-full w-full" />;
+  return (
+    <div class="relative h-full w-full">
+      <div
+        ref={parent}
+        class="bg-base-100 h-full w-full"
+        style={pagesOn()
+          ? "position:absolute;inset:0;visibility:hidden;pointer-events:none"
+          : undefined}
+      />
+      <div ref={pagesHost} class="absolute inset-0" classList={{ hidden: !pagesOn() }} />
+    </div>
+  );
 }

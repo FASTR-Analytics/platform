@@ -941,6 +941,29 @@ CREATE INDEX idx_personal_access_tokens_user_email
   ON personal_access_tokens (user_email);
 
 -- ============================================================================
+-- CUSTOM REPORT STYLES
+-- ============================================================================
+-- User-authored AI design briefs for HTML and FASTR Markdown reports
+-- (SYSTEM_12). reference_css carries the source report's actual stylesheet
+-- verbatim, which is what the AI is told to reuse; the prose brief alone is a
+-- lossy encoding of a design.
+--
+-- Visibility is per product: product_ids NULL = every product on the
+-- instance, else a JSON array of product ids. A report snapshots the brief
+-- into its config and resolves the live row while it stays visible.
+
+CREATE TABLE report_styles (
+  id text PRIMARY KEY,
+  label text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  brief text NOT NULL,
+  colors text,
+  reference_css text,
+  product_ids text,
+  last_updated timestamptz NOT NULL DEFAULT now()
+);
+
+-- ============================================================================
 -- SCHEMA MIGRATIONS
 -- ============================================================================
 

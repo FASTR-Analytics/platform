@@ -27,6 +27,7 @@ import {
   getAbcQualScale2,
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
+  type FastrChartPalette,
   type IndicatorFormat,
   getSlideFontInfo,
   isPieCompletionMode,
@@ -464,47 +465,72 @@ function getColorPropHeaderId(
 
 export function getStandardSeriesColorFunc(
   config: PresentationObjectConfig,
+  // A document's own chart palette (a FASTR report theme's). The discrete
+  // scales take its series cycle; the semantic scales take its neutral,
+  // good/bad and ramp — colours each theme picked to still MEAN the same on
+  // its page — so every colour scale re-themes with the document. A figure's
+  // explicit per-series colours are never replaced.
+  chartPalette?: FastrChartPalette,
 ): (info: ChartSeriesInfo) => ColorKeyOrString {
-  const base = getStandardSeriesColorFuncBase(config);
+  const base = getStandardSeriesColorFuncBase(config, chartPalette);
   if (!isRollupActive(config)) {
     return base;
   }
   // The roll-up (total) series gets a fixed neutral color: pinning it first
   // shifts every other series' palette index, and the total reads as a
   // reference series rather than a member of the palette.
+  const neutral = chartPalette?.neutral ?? _CF_COMPARISON;
   return (info: ChartSeriesInfo) => {
     const id = getColorPropHeaderId(info, config.s.seriesColorFuncPropToUse);
-    return ROLLUP_PIN_IDS.includes(id) ? _CF_COMPARISON : base(info);
+    return ROLLUP_PIN_IDS.includes(id) ? neutral : base(info);
   };
 }
 
 function getStandardSeriesColorFuncBase(
   config: PresentationObjectConfig,
+  chartPalette?: FastrChartPalette,
 ): (info: ChartSeriesInfo) => ColorKeyOrString {
   if (config.s.colorScale === "single-grey") {
-    return () => _CF_COMPARISON;
+    const neutral = chartPalette?.neutral ?? _CF_COMPARISON;
+    return () => neutral;
   }
+  const themed = chartPalette && chartPalette.series.length > 0
+    ? chartPalette.series
+    : undefined;
   if (config.s.colorScale === "pastel-discrete") {
-    return (info: ChartSeriesInfo) =>
-      getAbcQualScale(getIndex(info, config.s.seriesColorFuncPropToUse));
+    return (info: ChartSeriesInfo) => {
+      const i = getIndex(info, config.s.seriesColorFuncPropToUse);
+      return themed ? themed[i % themed.length] : getAbcQualScale(i);
+    };
   }
   if (config.s.colorScale === "alt-discrete") {
-    return (info: ChartSeriesInfo) =>
-      getAbcQualScale2(getIndex(info, config.s.seriesColorFuncPropToUse));
+    return (info: ChartSeriesInfo) => {
+      const i = getIndex(info, config.s.seriesColorFuncPropToUse);
+      return themed ? themed[(i + 1) % themed.length] : getAbcQualScale2(i);
+    };
   }
   if (config.s.colorScale === "blue-green") {
-    return (info: ChartSeriesInfo) =>
-      Color.scale(
-        _RANDOM_BLUE,
-        _CF_GREEN,
-        getN(info, config.s.seriesColorFuncPropToUse),
-      )[getIndex(info, config.s.seriesColorFuncPropToUse)];
+    // Themed: a sequential ramp whose emphatic end a lone series takes (the
+    // stock scale hands a lone series its blue end, which for a tint→shade
+    // ramp would be the faint one).
+    const [from, to] = chartPalette
+      ? chartPalette.ramp
+      : [_RANDOM_BLUE, _CF_GREEN];
+    return (info: ChartSeriesInfo) => {
+      const n = getN(info, config.s.seriesColorFuncPropToUse);
+      if (chartPalette && n <= 1) return to;
+      return Color.scale(from, to, n)[
+        getIndex(info, config.s.seriesColorFuncPropToUse)
+      ];
+    };
   }
   if (config.s.colorScale === "red-green") {
+    const bad = chartPalette?.bad ?? _CF_RED;
+    const good = chartPalette?.good ?? _CF_GREEN;
     return (info: ChartSeriesInfo) =>
       Color.scale(
-        _CF_RED,
-        _CF_GREEN,
+        bad,
+        good,
         getN(info, config.s.seriesColorFuncPropToUse),
       )[getIndex(info, config.s.seriesColorFuncPropToUse)];
   }

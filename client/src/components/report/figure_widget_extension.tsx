@@ -12,8 +12,16 @@ import {
 } from "@codemirror/state";
 import { render } from "solid-js/web";
 import { Match, Show, Switch } from "solid-js";
-import { type FigureBlock, type ImageBlock, t3 } from "lib";
+import {
+  type FastrChartPalette,
+  type FigureBlock,
+  type ImageBlock,
+  parseReportEmbedLine,
+  type ReportFormat,
+  t3,
+} from "lib";
 import { type FigureStaleContext, ReportFigureEmbed } from "./ReportFigureEmbed";
+import type { FigureInkTheme } from "./report_figure_raster";
 
 export type EmbedKind = "figure" | "image";
 
@@ -25,10 +33,19 @@ export type EmbedResolver = {
   // Clicking an embed selects it (opens the left-side editor).
   onSelectEmbed: (kind: EmbedKind, id: string) => void;
   getSelectedId: () => string | undefined;
+  // The ink a figure takes on the ground behind `el` (dark on light, light
+  // on dark), from the report's own palette.
+  inkFor: (el: Element) => FigureInkTheme | undefined;
+  // The report theme's series palette for its figures.
+  chartPalette: () => FastrChartPalette | undefined;
+  // The box a figure's raster has (the host's size cache, what the PDF
+  // embeds and the print layout gives the figure) and an image's natural
+  // size: the live embed takes the same box BEFORE it draws, so its widget
+  // never measures a transient height. Undefined while the size is being
+  // measured; the host calls the editor's refreshEmbedSizes when it lands.
+  figureSize?: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  imageSize?: (id: string) => { width: number; height: number } | undefined;
 };
-
-// A line that is exactly a single embed token: ![caption](figure:id) / ![alt](image:id)
-const LINE_TOKEN_RE = /^!\[([^\]]*)\]\((figure|image):([^)\s]+)\)$/;
 
 class EmbedWidget extends WidgetType {
   constructor(
@@ -98,6 +115,8 @@ class EmbedWidget extends WidgetType {
                     figure={fig()}
                     stale={this.resolver.figureStale(this.id)}
                     onMeasured={() => view.requestMeasure()}
+                    inkFor={this.resolver.inkFor}
+                    chartPalette={this.resolver.chartPalette}
                   />
                 )}
               </Show>
@@ -144,24 +163,26 @@ class EmbedWidget extends WidgetType {
   }
 }
 
+// A line that is exactly one embed token (per format — lib parseReportEmbedLine)
+// renders as an atomic block widget.
 function buildEmbedDecorations(
   state: EditorState,
   resolver: EmbedResolver,
+  format: ReportFormat,
 ): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   for (let i = 1; i <= state.doc.lines; i++) {
     const line = state.doc.line(i);
-    const m = LINE_TOKEN_RE.exec(line.text.trim());
-    if (!m) continue;
-    const [, caption, kind, id] = m;
+    const parsed = parseReportEmbedLine(line.text, format);
+    if (!parsed) continue;
     builder.add(
       line.from,
       line.to,
       Decoration.replace({
         widget: new EmbedWidget(
-          kind as "figure" | "image",
-          id,
-          caption,
+          parsed.kind,
+          parsed.id,
+          parsed.caption,
           resolver,
         ),
         block: true,
@@ -172,14 +193,19 @@ function buildEmbedDecorations(
 }
 
 // Block decorations MUST be provided directly via a StateField (not a view
-// plugin): see EditorView.decorations facet docs.
-export function embedWidgets(resolver: EmbedResolver): Extension {
+// plugin) — see EditorView.decorations facet docs.
+export function embedWidgets(
+  resolver: EmbedResolver,
+  format: ReportFormat,
+): Extension {
   const field = StateField.define<DecorationSet>({
     create(state) {
-      return buildEmbedDecorations(state, resolver);
+      return buildEmbedDecorations(state, resolver, format);
     },
     update(deco, tr) {
-      return tr.docChanged ? buildEmbedDecorations(tr.state, resolver) : deco;
+      return tr.docChanged
+        ? buildEmbedDecorations(tr.state, resolver, format)
+        : deco;
     },
     provide: (f) => EditorView.decorations.from(f),
   });

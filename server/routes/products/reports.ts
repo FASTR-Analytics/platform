@@ -1,5 +1,11 @@
 import { Hono } from "hono";
-import { reportFiguresSchema, reportImagesSchema, stripTombstoneRuns } from "lib";
+import {
+  type ReportCustomStyleSnapshot,
+  reportFiguresSchema,
+  reportImagesSchema,
+  reportStyleVisibleToProduct,
+  stripTombstoneRuns,
+} from "lib";
 import {
   copyReportFromVersion,
   getReportDetail,
@@ -12,6 +18,7 @@ import {
   updateProductLabel,
   updateReportBody,
   updateReportConfig,
+  setReportStyle,
   updateReportFigures,
   updateReportImages,
 } from "../../db/products/mod.ts";
@@ -30,8 +37,21 @@ import {
 } from "../../collab/version_capture.ts";
 import { log } from "../../middleware/logging.ts";
 import { notifyInstanceProductsUpserted } from "../../task_management/notify_instance_updated.ts";
+import {
+  createReportStyle,
+  deleteReportStyle,
+  getReportStyle,
+  listReportStylesForProduct,
+  updateReportStyle,
+} from "../../db/instance/report_styles.ts";
+import {
+  canRenderReportPdf,
+  renderReportPdf,
+} from "../../report_pdf/render_report_pdf.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { streamResponse } from "../streaming.ts";
 import { respond } from "./_respond.ts";
+import { encodeBase64 } from "@std/encoding/base64";
 
 export const routesProductReports = new Hono();
 
@@ -422,5 +442,124 @@ defineRoute(
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [res.data.productId]);
     return respond(c, res);
+  },
+);
+
+// A fastr report's look, after creation. The style is named by id and
+// resolved HERE: visibility is the server's call, and the config carries a
+// snapshot so the report keeps its look once the library row is gone.
+defineRoute(
+  routesProductReports,
+  "setReportStyle",
+  log("setReportStyle"),
+  async (c, { params, body }) => {
+    let snapshot: ReportCustomStyleSnapshot | null = null;
+    if (body.customStyleId !== null) {
+      const styleRes = await getReportStyle(c.var.mainDb, body.customStyleId);
+      if (!styleRes.success) {
+        return respond(c, styleRes);
+      }
+      if (!reportStyleVisibleToProduct(styleRes.data, params.product_id)) {
+        return respond(c, {
+          success: false as const,
+          err: "This style is not available to this report",
+        });
+      }
+      snapshot = {
+        id: styleRes.data.id,
+        label: styleRes.data.label,
+        brief: styleRes.data.brief,
+        referenceCss: styleRes.data.referenceCss,
+        colors: styleRes.data.colors,
+      };
+    }
+    const res = await setReportStyle(
+      c.var.mainDb,
+      params.product_id,
+      body.fastrTheme,
+      snapshot,
+    );
+    if (!res.success) {
+      return respond(c, res);
+    }
+    await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    return respond(c, res);
+  },
+);
+
+// Custom report styles (library rows in the MAIN db, SYSTEM_12). Product
+// scoped: the path's report decides which styles are visible, and authoring
+// one is an edit on that report.
+
+defineRoute(
+  routesProductReports,
+  "listReportStyles",
+  async (c, { params }) => {
+    return respond(
+      c,
+      await listReportStylesForProduct(c.var.mainDb, params.product_id),
+    );
+  },
+);
+
+defineRoute(
+  routesProductReports,
+  "createReportStyle",
+  log("createReportStyle"),
+  async (c, { body }) => {
+    return respond(c, await createReportStyle(c.var.mainDb, body));
+  },
+);
+
+defineRoute(
+  routesProductReports,
+  "updateReportStyle",
+  log("updateReportStyle"),
+  async (c, { params, body }) => {
+    return respond(
+      c,
+      await updateReportStyle(c.var.mainDb, params.style_id, body),
+    );
+  },
+);
+
+defineRoute(
+  routesProductReports,
+  "deleteReportStyle",
+  log("deleteReportStyle"),
+  async (c, { params }) => {
+    return respond(c, await deleteReportStyle(c.var.mainDb, params.style_id));
+  },
+);
+
+// The paged PDF. The client sends the complete standalone document (it owns
+// the rasters and the layout); the server prints it. Viewing access, like
+// Download and Email: the caller already holds the content it is sending.
+defineRoute(
+  routesProductReports,
+  "renderReportPdf",
+  log("renderReportPdf"),
+  (c, { body }) => {
+    return streamResponse(c, async (writer) => {
+      if (!canRenderReportPdf()) {
+        await writer.error(
+          "This instance cannot render PDFs yet: headless Chrome is not configured on the server.",
+        );
+        return;
+      }
+      await writer.progress(0.02, "Starting");
+      const res = await renderReportPdf(
+        body.html,
+        (pct, message) => writer.progress(pct, message),
+      );
+      if (!res.success) {
+        await writer.error(res.err);
+        return;
+      }
+      await writer.complete({
+        pdfBase64: encodeBase64(res.data.pdf),
+        pages: res.data.pages,
+      });
+    });
   },
 );

@@ -34,6 +34,10 @@
       "codemirror": ["./node_modules/codemirror"],
       "@codemirror/state": ["./node_modules/@codemirror/state"],
       "@codemirror/lang-markdown": ["./node_modules/@codemirror/lang-markdown"],
+      "@codemirror/lang-html": ["./node_modules/@codemirror/lang-html"],
+      "@lezer/common": ["./node_modules/@lezer/common"],
+      "@lezer/html": ["./node_modules/@lezer/html"],
+      "dompurify": ["./node_modules/dompurify"],
       "@codemirror/merge": ["./node_modules/@codemirror/merge"],
       "pptxgenjs": ["./node_modules/pptxgenjs"],
       "idb-keyval": ["./node_modules/idb-keyval"]

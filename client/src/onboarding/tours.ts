@@ -566,9 +566,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
           pt: "Escreva aqui",
         }),
         body: t3({
-          en: "This is the report's text, written in Markdown — # for a heading, ** ** for bold, - for a list. Figures appear as blocks you can click.",
-          fr: "Voici le texte du rapport, écrit en Markdown — # pour un titre, ** ** pour du gras, - pour une liste. Les figures apparaissent sous forme de blocs cliquables.",
-          pt: "Este é o texto do relatório, escrito em Markdown — # para um título, ** ** para negrito, - para uma lista. As figuras aparecem como blocos que pode clicar.",
+          en: "This is the report's text, written in FASTR Markdown (# for a heading, ** ** for bold, - for a list, and ::: blocks for callouts, stat tiles and bands). Visualizations appear as blocks you can click.",
+          fr: "Voici le texte du rapport, écrit en FASTR Markdown (# pour un titre, ** ** pour du gras, - pour une liste, et des blocs ::: pour les encadrés, les tuiles de chiffres et les bandeaux). Les visualisations apparaissent sous forme de blocs cliquables.",
+          pt: "Este é o texto do relatório, escrito em FASTR Markdown (# para um título, ** ** para negrito, - para uma lista, e blocos ::: para destaques, mosaicos de números e faixas). As visualizações aparecem como blocos que pode clicar.",
         }),
         placement: "right",
       },
@@ -591,20 +591,21 @@ export function buildReportEditorIntroTour(): TourDefinition {
       },
       {
         id: "embed-panel",
-        target: tourTarget("report-embed-panel"),
+        target: tourTarget("report-insert-buttons"),
         title: t3({
           en: "Figures and images",
           fr: "Figures et images",
           pt: "Figuras e imagens",
         }),
         body: t3({
-          en: "Insert a figure or an image from this panel. Click one already in the report and this panel switches to editing it — caption, swapping it for another, or removing it.",
-          fr: "Insérez une figure ou une image depuis ce panneau. Cliquez sur un élément déjà dans le rapport et ce panneau passe à sa modification — légende, remplacement ou suppression.",
-          pt: "Insira uma figura ou uma imagem a partir deste painel. Clique num elemento já presente no relatório e este painel passa a editá-lo — legenda, substituição ou remoção.",
+          en: "Insert a visualization or an image from here. Click one already in the report and these controls switch to editing it: swapping it for another, or removing it.",
+          fr: "Insérez une visualisation ou une image depuis ici. Cliquez sur un élément déjà dans le rapport et ces contrôles passent à sa modification : remplacement ou suppression.",
+          pt: "Insira uma visualização ou uma imagem a partir daqui. Clique num elemento já presente no relatório e estes controlos passam a editá-lo: substituição ou remoção.",
         }),
-        placement: "right",
+        placement: "bottom",
         when: () =>
-          document.querySelector('[data-tour="report-embed-panel"]') !== null,
+          document.querySelector('[data-tour="report-insert-buttons"]') !==
+            null,
       },
       {
         id: "save-status",

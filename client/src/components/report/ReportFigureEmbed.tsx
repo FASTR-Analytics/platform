@@ -1,6 +1,16 @@
-import { createEffect, createMemo, type JSX, Match, Show, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+  Match,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import { FigureHolder, type FigureInputs } from "panther";
 import {
+  type FastrChartPalette,
   type FigureBlock,
   type FigureBundle,
   type PackageScope,
@@ -9,6 +19,7 @@ import {
 } from "lib";
 import { buildFigureInputs, isFigureBundleStale } from "~/generate_visualization/mod";
 import { StaleFigureBadge } from "~/components/figure_editor/stale_figure_badge";
+import { applyInkTheme, type FigureInkTheme } from "./report_figure_raster";
 
 // What the report editor hands each embed so it can judge and update its own
 // figure (PLAN_PRODUCTS_RESTRUCTURE D4). Absent on surfaces that only display
@@ -24,6 +35,12 @@ type Props = {
   figure: FigureBlock;
   stale?: FigureStaleContext;
   onMeasured?: () => void;
+  // The ink for the ground this embed sits on, measured from its own
+  // element — dark on light, light on dark — so a figure keeps its stored
+  // series colours but never its dashboard's text colour.
+  inkFor?: (el: Element) => FigureInkTheme | undefined;
+  // The report theme's chart palette (see getStandardSeriesColorFunc).
+  chartPalette?: () => FastrChartPalette | undefined;
 };
 
 type Hydrated = { ok: true; inputs: FigureInputs } | { ok: false; err: string };
@@ -42,7 +59,7 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
       };
     }
     try {
-      return { ok: true, inputs: buildFigureInputs(bundle) };
+      return { ok: true, inputs: buildFigureInputs(bundle, undefined, p.chartPalette?.()) };
     } catch (e) {
       return {
         ok: false,
@@ -51,9 +68,24 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
     }
   });
 
+  let root: HTMLDivElement | undefined;
+  const [ink, setInk] = createSignal<FigureInkTheme | undefined>();
+  const measureInk = () => {
+    if (root && p.inkFor) setInk(p.inkFor(root));
+  };
+  onMount(() => {
+    // The widget's element is often still detached when this mounts (the
+    // editor inserts it after building it): measure now for the common case
+    // and again once it is in the document.
+    measureInk();
+    requestAnimationFrame(measureInk);
+    setTimeout(measureInk, 0);
+  });
   const inputs = () => {
     const h = hydrated();
-    return h.ok ? h.inputs : undefined;
+    if (!h.ok) return undefined;
+    const theme = ink();
+    return theme ? applyInkTheme(h.inputs, theme) : h.inputs;
   };
   const errMsg = () => {
     const h = hydrated();
@@ -74,11 +106,16 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
   });
 
   return (
-    <div class="ui-spy-sm">
+    <div ref={root} class="ui-spy-sm">
       <Switch>
+        {/* scheme="light": a document stays light in a dark app. Keyed
+            colours (a table's column-header ground is the page key, CF cell
+            text picks the base text key) must resolve against the light set,
+            or a dark app paints black header cells and white values on pale
+            tints. Dark GROUNDS inside the report are the ink theme's job. */}
         <Match when={inputs()}>
           {(fi) => (
-            <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" />
+            <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" scheme="light" />
           )}
         </Match>
         <Match when={errMsg()}>

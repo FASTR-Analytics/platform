@@ -23,6 +23,7 @@ import {
   withReplicant,
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
+  type FastrChartPalette,
   type IndicatorFormat,
   type IndicatorMetadataDisplay,
 } from "lib";
@@ -50,6 +51,8 @@ import { getGeoJsonSync } from "~/state/instance/t2_geojson";
 export function buildFigureInputs(
   bundle: FigureBundle,
   deckStyle?: DeckStyleContext,
+  // A document's own chart palette (see getStandardSeriesColorFunc).
+  chartPalette?: FastrChartPalette,
 ): FigureInputs {
   const { config, items, resultsValue, indicatorMetadata, dateRange, geo, localization, scope } = bundle;
 
@@ -65,7 +68,7 @@ export function buildFigureInputs(
     indicatorMetadata,
   });
   const legend = () =>
-    getLegendFromConfig(config, effectiveFormat.axisFormat, effectiveFormat, localization);
+    getLegendFromConfig(config, effectiveFormat.axisFormat, effectiveFormat, localization, chartPalette);
 
   const allowNegativeScale = metricAllowsNegativeScale(bundle.metricId);
 
@@ -120,7 +123,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
       legend: legend(),
     };
   }
@@ -144,7 +147,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
       legend: legend(),
     };
   }
@@ -154,7 +157,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
       legend: legend(),
     };
     if (effectiveConfig.s.horizontal) {
@@ -238,8 +241,8 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
-      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat, localization),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat, localization, chartPalette),
     };
   }
 
@@ -266,7 +269,7 @@ export function buildFigureInputs(
       caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
       footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps),
+      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
       // Never pass an explicit legend: CF is unwired for slices (they color
       // via the series sentinel), so a cf* state carried over from a
       // chart/map conversion would show threshold/scale colors that appear
@@ -301,11 +304,12 @@ function buildMapAutoLegend(
   config: PresentationObjectConfig,
   facts: EffectiveIndicatorFacts,
   localization: Pick<FigureLocalization, "language">,
+  chartPalette: FastrChartPalette | undefined,
 ) {
   const cf = selectCf(config.s);
   const formatAs: IndicatorFormat = facts.axisFormat;
   if (cf.type === "thresholds" || cf.type === "indicator") {
-    return getLegendFromConfig(config, formatAs, facts, localization);
+    return getLegendFromConfig(config, formatAs, facts, localization, chartPalette);
   }
   const noData = {
     color: "#f0f0f0",

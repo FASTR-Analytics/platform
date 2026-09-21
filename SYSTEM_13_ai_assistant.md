@@ -394,9 +394,52 @@ report contract
 [ai_views.ts](client/src/components/copilot/ai_views.ts).
 
 **Report edits are never silent**: they ride panther's approval lifecycle. The
-five staged text tools (`rewrite_report`, `rewrite_section`, `replace_text`,
-`insert_figure`, `replace_figure`) declare `approval.propose`
-([report_editor.ts](client/src/components/copilot/ai_tools/tools/report_editor.ts)):
+five staged text tools (`rewrite_report {body}`, `rewrite_section {newBody}`,
+`replace_text`, `insert_figure`, `replace_figure`) declare `approval.propose`
+([report_editor.ts](client/src/components/copilot/ai_tools/tools/report_editor.ts)).
+They are **format-aware** (S12: a report body is FASTR Markdown, markdown or
+html, fixed at creation; the `editing_report` view params carry `format`,
+`htmlStyle` and the live-resolved `customStyle`, and
+`getEditingReportInstructions(label, format, htmlStyle, customStyle)`
+([lib/ai_tools/build_system_prompt.ts](lib/ai_tools/build_system_prompt.ts))
+has an html and a FASTR Markdown authoring branch. Every non-default html
+style appends its `REPORT_STYLE_BRIEFS` entry or, for a CUSTOM style (S12's
+main-db library), the report's live-resolved brief: a prescriptive design
+language (fonts via `@import`, palette, structural devices, figure treatment;
+shared sanitizer constraints ride once at the end) that the model writes its
+own stylesheet from, led by a top-of-instructions banner and backstopped by
+`validateStyledReportHasStylesheet` on `rewrite_report`. The AI pane's kebab
+menu offers "Save this report's style..." inside an HTML report
+([save_report_style.tsx](client/src/components/copilot/save_report_style.tsx)):
+a one-shot Sonnet call on the governed instance proxy distills the report's
+markup patterns into a preset-shaped brief + tile colors, while the report's
+actual `<style>` CSS is extracted EXACTLY in code and stored as the style's
+reference stylesheet, injected verbatim into the instructions as the CSS to
+reuse; all reviewed in the S12 style editor before it enters the library):
+tokens are built/parsed through the lib helpers, `get_report_editor` prints
+the format plus a headings index (1-based line + the exact section range and
+`wrapper <tag>`/`flat` mode from `lib/report_sections.ts`), `rewrite_section`
+splices that range (wrapper mode insists `newBody` starts with the wrapper
+tag), `insert_figure.afterHeading` lands after the heading's header block, and
+the validators
+([report_validators.ts](client/src/components/copilot/ai_tools/validators/report_validators.ts))
+reject wrong-syntax tokens (with the correct spelling), doctype/html/head/body
+wrappers and non-well-formed html (incl. unclosed elements) for whole bodies
+and section fragments, and, for `replace_text`, which may legitimately span
+tag boundaries, only an edit that ADDS defects (`newHtmlDefect` delta).
+
+Nothing in the copilot MINTS a report: creation is the products page's
+`createProduct`, which always mints FASTR Markdown (S12). The copilot's
+report surface is therefore the open report alone, `editing_report`, and it
+includes `get_report_pages`: the draft or the live body laid out as the
+printed pages, so a rewrite can be checked against the page budget BEFORE it
+is proposed. The fastr write tools (`rewrite_report`, `rewrite_section`,
+`replace_text`) carry the literal-background gate delta-based
+(`validateFastrNewLiteralBackgrounds`): only literals whose value is not
+already in the current body trip it, so user-sanctioned colours survive
+rewrites, and `allowLiteralColors` is the deliberate escape hatch for when the
+user asked for exact colours.
+
 `proposeEdit` stages the CodeMirror diff as the `customProposalUI`, an
 identical-body proposal short-circuits to panther's `{skip}` (a normal
 no-decision result), `stillValid` guards a stale accept against a torn-down
@@ -405,6 +448,21 @@ skipped hunks); leaving the view auto-declines via `availableIn`.
 `applyFigureUpdate` is the stable-id figure path that persists directly and
 reports save failure (`update_report_figure`: no diff, the figure's body token
 doesn't change).
+
+The **FASTR Markdown branch is the inverse of the html one**: there the model
+designs and CSS is its output; here the design already exists as a real theme
+stylesheet, so the brief is `FASTR_MD_SYNTAX_DOC`
+([lib/fastr_markdown_spec.ts](lib/fastr_markdown_spec.ts), the ONE reference,
+also rendered by the in-editor guide, so the two cannot drift) plus an
+explicit "never write CSS, a `<style>` block or raw layout HTML; reach for a
+block instead": such markup would be INERT and would break the user's ability
+to re-theme. The brief deliberately never NAMES the theme, because the theme
+is changeable at any time (S12's theme modal) and a name in the view params
+would go stale. `validateFastrContainers`
+([report_validators.ts](client/src/components/copilot/ai_tools/validators/report_validators.ts))
+rejects an unbalanced or misspelt `:::` before staging (an unclosed container
+runs to EOF) and it checks the SPLICED result, not the fragment, so a locally
+balanced `newBody` that unbalances the document is still caught.
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level) and
 `update_report_figure` share one pipeline:

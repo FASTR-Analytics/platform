@@ -19,6 +19,26 @@ export const emailRouteRegistry = {
     }),
     response: {} as { sent: boolean; failedRecipients?: string[] },
   }),
+  // A report goes as the file its format downloads as: the standalone .html
+  // for html/fastr reports, the PDF for markdown, so the attachment carries
+  // its own MIME type, unlike the deck route's fixed PDF. Approved-user
+  // access like the deck route (PLAN_PRODUCTS_RESTRUCTURE D2): the caller
+  // already holds the content it is sending.
+  sendReportEmail: route({
+    path: "/emails/report",
+    method: "POST",
+    body: z.object({
+      recipients: emailRecipientsSchema,
+      message: z.string(),
+      reportLabel: z.string(),
+      attachment: z.object({
+        content: z.string(),
+        filename: z.string(),
+        mimeType: z.enum(["application/pdf", "text/html"]),
+      }),
+    }),
+    response: {} as { sent: boolean; failedRecipients?: string[] },
+  }),
   sendHelpEmail: route({
     path: "/emails/help",
     method: "POST",

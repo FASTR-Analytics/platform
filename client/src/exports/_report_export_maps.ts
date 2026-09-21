@@ -1,4 +1,4 @@
-import { type FigureMap, type ImageMap } from "panther";
+import { type FigureInputs, type FigureMap, type ImageMap } from "panther";
 import type { FigureBlock, ImageBlock } from "lib";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
@@ -33,7 +33,7 @@ export async function buildReportImageMap(
   return map;
 }
 
-async function loadImageEntry(
+export async function loadImageEntry(
   url: string,
 ): Promise<{ dataUrl: string; width: number; height: number } | undefined> {
   // Any failure (fetch, read, decode) returns undefined so the image is simply
@@ -62,4 +62,28 @@ async function loadImageEntry(
   } catch {
     return undefined;
   }
+}
+
+const DOWNLOAD_MARGIN_DU = 20;
+
+// Background and margin are baked into the figure's surrounds so the plain
+// panther export helper renders them: no manual canvas compositing. Every
+// report caller wants the transparent, unpadded variant, because the report's
+// own page supplies the ground and the spacing.
+export function figureInputsForDownload(
+  fi: FigureInputs,
+  transparent: boolean,
+  padding: boolean,
+): FigureInputs {
+  return {
+    ...fi,
+    style: {
+      ...fi.style,
+      surrounds: {
+        ...fi.style?.surrounds,
+        backgroundColor: transparent ? "none" : "#ffffff",
+        padding: padding ? DOWNLOAD_MARGIN_DU : 0,
+      },
+    },
+  };
 }

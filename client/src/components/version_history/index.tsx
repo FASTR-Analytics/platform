@@ -3,6 +3,7 @@ import {
   presenceColorForKey,
   t3,
   type VersionEditor,
+  type ReportFormat,
 } from "lib";
 import {
   Button,
@@ -20,6 +21,7 @@ import { PresenceAvatars } from "../slide_deck/presence_avatars";
 import { DeckVersionPreview } from "./deck_version_preview";
 import { editorDisplayName } from "./diff_segments";
 import { ReportVersionPreview } from "./report_version_preview";
+import type { FigureInkTheme } from "../report/report_figure_raster";
 
 export type VersionHistoryKind = "report" | "deck";
 
@@ -45,6 +47,12 @@ type Props = EditorComponentProps<
     currentLabel: string;
     /** Report only: live body accessor for "Compare with current". */
     getCurrentBody?: () => string;
+    /** Report only: the report's body format (absent ⇒ markdown). */
+    reportFormat?: ReportFormat;
+    /** Report only, fastr format: the current theme stylesheet. */
+    reportFastrThemeCss?: string;
+    /** Report only: chart ink for dark styles (report_figure_raster). */
+    figureInkTheme?: FigureInkTheme;
   },
   undefined
 >;
@@ -248,6 +256,9 @@ export function VersionHistoryEditor(p: Props) {
                 previousVersionId={previousVersionId(versionId)}
                 canRestore={canRestore()}
                 getCurrentBody={p.getCurrentBody}
+                format={p.reportFormat ?? "markdown"}
+                fastrThemeCss={p.reportFastrThemeCss}
+                figureInkTheme={p.figureInkTheme}
                 onRestored={() => p.close(undefined)}
               />
             </Show>

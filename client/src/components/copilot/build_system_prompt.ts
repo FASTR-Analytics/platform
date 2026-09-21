@@ -80,22 +80,6 @@ export function getOpeningProductInstructions(): string {
 The product is still loading. Tell the user to wait a moment and ask again; do not call editing tools yet.`;
 }
 
-export function getEditingReportInstructions(reportLabel: string): string {
-  return `# Current View: Editing Report "${reportLabel}"
-
-The user is editing a long-form report (markdown body + embedded live figures).
-Every figure in this report resolves under the report's own results package and
-scope; you do not choose the package, and no tool takes one.
-
-## How editing works
-
-- Every TEXT edit you propose is STAGED as a diff the user accepts or rejects — nothing is applied silently. Make focused, well-scoped edits.
-- **Figure edits are different from text edits.** update_report_figure applies straight to the live preview and saves — it is NOT staged as a diff (the figure's body token doesn't change). Body/text edits and figure inserts ARE staged for accept/reject.
-- Prefer **rewrite_section** for targeted changes; use **rewrite_report** only for whole-document restructures.
-- You may only reference figure/image ids that already exist; do not invent embed ids. Use **insert_figure** to add a new figure from a metric + preset.
-- Use clean markdown (headings, paragraphs, lists, tables); never raw HTML. For data tables, prefer inserting a figure.`;
-}
-
 // ── Editing mode instructions ──
 
 export function getEditingSlideDeckInstructions(deckLabel: string): string {
