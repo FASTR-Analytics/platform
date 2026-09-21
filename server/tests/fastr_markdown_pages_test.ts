@@ -2,6 +2,7 @@ import { assertEquals } from "@std/assert";
 import {
   type FastrLayoutBlock,
   fastrPageStartLines,
+  fastrParagraphSplits,
   layoutFastrPages,
 } from "../../lib/fastr_markdown_pages.ts";
 
@@ -254,4 +255,26 @@ Deno.test("a run of headings that fills a page breaks, keeping one heading with 
   // A paragraph under the run takes only its own heading along.
   const p = layoutFastrPages([...hs.slice(0, 13), block(13, 300)], G);
   assertEquals(fastrPageStartLines(p), [12]);
+});
+
+Deno.test("a flowing paragraph starts on the page with the rows that fit and runs on", () => {
+  // Ten rows of 25 under 800 of prose: 800 + 16 + 250 > 987. Rows 2 to 8
+  // are offered (two stay, two carry over); 800 + 16 + 150 = 966 fits six.
+  const rows = [2, 3, 4, 5, 6, 7, 8].map((k) => ({ line: 2, top: k * 25, row: k, blockRow: k }));
+  const para = block(2, 250, { flow: true, inner: rows });
+  const r = layoutFastrPages([block(0, 800), para, block(4, 100)], G);
+  assertEquals(r.total, 2);
+  assertEquals(r.pages[1].firstLine, 2);
+  assertEquals(r.pages[1].firstRow, 6);
+  assertEquals(r.pages[1].para, { line: 2, row: 6 });
+  assertEquals(r.pages[0].contentHeight, 800 + 16 + 150);
+  assertEquals(r.pages[1].contentHeight, 100 + 16 + 100);
+  // Not flagged as a block longer than a page, and not a line the export forces.
+  assertEquals(r.splits, []);
+  assertEquals(fastrPageStartLines(r), []);
+  assertEquals(fastrParagraphSplits(r), [{ line: 2, rows: [6] }]);
+  // No offered row fits the room left: it moves whole, as any block.
+  const r2 = layoutFastrPages([block(0, 940), para], G);
+  assertEquals(fastrPageStartLines(r2), [2]);
+  assertEquals(fastrParagraphSplits(r2), []);
 });

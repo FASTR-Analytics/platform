@@ -51,12 +51,13 @@ const COVER_PAGE_NAME = "fmcover";
 // seams, between paragraphs and between steps, the box drawn on both sides,
 // so a long one no longer drags a page of white behind it.
 export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
-  // A paragraph moves whole. Print could split one at its lines (orphans and
-  // widows of three), but the editor shows a paragraph as one line box and
-  // cannot draw a page seam through it, so every page that opened on the
-  // tail of a split paragraph stood taller in Edit than in print, and the
-  // page before it ended early (Nick, 2026-09-09). One block model on both
-  // sides is worth more than the odd shorter page.
+  // A paragraph moves whole as far as Paged.js is concerned. Left to split
+  // one at its lines it disagreed with the editor about where (every page
+  // that opened on the tail of a split paragraph stood taller in Edit than
+  // in print: Nick, 2026-09-09). A paragraph runs on to the next page all
+  // the same, where the EDITOR decided it does: the export names the row
+  // (fastrParagraphSplitsCss) and the runner cuts the paragraph in two
+  // there before Paged.js sees it, each part whole.
   "p",
   // Callouts, bands, quotes and steps once flowed across pages. A block
   // cut by a page reads as a mistake (its ground stops at the seam) and
@@ -101,6 +102,13 @@ export type FastrPagedPage = {
   // undefined for a page with no anchored content (should not happen; kept
   // honest).
   firstLine: number | undefined;
+  // The wrapped row of firstLine the page opens on, when it opens INSIDE a
+  // source line (the editor's layout of a paragraph that runs on from the
+  // page before); absent or 0 when it opens at the line's start.
+  firstRow?: number;
+  // Set when the page opens inside a paragraph: the paragraph's first source
+  // line and the wrapped row, counted from its first, the page opens on.
+  para?: { line: number; row: number };
   // Every anchored source line on the page, ascending. The editor uses
   // firstLine for the gutter and this list to place breaks inside a rendered
   // block.
@@ -296,6 +304,9 @@ thead { display: table-header-group; break-inside: avoid; }
 }
 [data-break="before"] { break-before: page; }
 [data-break="after"] { break-after: page; }
+/* The tail of a paragraph the editor ran on to the next page (the runner
+   cuts it off its head): it opens the page, with no margin of its own. */
+p[data-fm-cont] { break-before: page; margin-top: 0 !important; }
 
 /* ── Numbered sections under pagination ───────────────────────────────────── */
 /* The theme sheet numbers body > h2. Paged.js applies counter declarations
@@ -365,6 +376,21 @@ export function fastrFigureFitCss(
     `figure[data-line="${f.line}"] img { max-height: ${Math.floor(f.height * 64 + 1e-6) / 64}px !important; }`
   );
   return `/* ── Figures sized to their pages, as the editor laid them out ─────────── */
+${rules.join("\n")}
+`;
+}
+
+// The paragraphs the editor ran on to a next page (fastrParagraphSplits):
+// each one's wrapped rows, counted from its first, that open a page. The
+// runner reads them off the paragraph and cuts it there.
+export function fastrParagraphSplitsCss(
+  splits: readonly { line: number; rows: readonly number[] }[],
+): string {
+  if (splits.length === 0) return "";
+  const rules = splits.map((sp) =>
+    `p[data-line="${sp.line}"] { --fm-split-rows: "${sp.rows.join(" ")}"; }`
+  );
+  return `/* ── Paragraphs that run on to the next page, as the editor laid them out ─ */
 ${rules.join("\n")}
 `;
 }
@@ -486,6 +512,61 @@ export function fastrPagedRunnerJs(): string {
           host.setAttribute("data-fm-overflow", "");
         }
         host = host.parentElement ? host.parentElement.closest(ATOMIC) : null;
+      }
+    }
+    // A paragraph the editor ran on to the next page: cut in two at the head
+    // of the row that opens the page (its rows here are the editor's: the
+    // same column, the same type), the tail a paragraph of its own that
+    // starts the page. Read a character at a time: a row begins where a
+    // character stands lower than the one before it.
+    var paras = document.querySelectorAll("p[data-line]");
+    for (var pi = 0; pi < paras.length; pi++) {
+      var para = paras[pi];
+      var spec = window.getComputedStyle(para).getPropertyValue("--fm-split-rows").replace(/"/g, "").trim();
+      if (!spec) continue;
+      var wanted = spec.split(/\s+/).map(Number).filter(function (n) { return n > 0; });
+      wanted.sort(function (x, y) { return y - x; });
+      var heads = [];
+      var walker = document.createTreeWalker(para, NodeFilter.SHOW_TEXT);
+      var probe = document.createRange();
+      var rowIndex = 0;
+      var rowTop = null;
+      var rowH = 0;
+      var tn;
+      while ((tn = walker.nextNode())) {
+        var len = tn.nodeValue.length;
+        for (var ci = 0; ci < len; ci++) {
+          probe.setStart(tn, ci);
+          probe.setEnd(tn, ci + 1);
+          var rects = probe.getClientRects();
+          if (rects.length === 0 || (rects[0].width === 0 && rects[0].height === 0)) continue;
+          if (rowTop === null) {
+            rowTop = rects[0].top;
+            rowH = rects[0].height;
+          } else if (rects[0].top > rowTop + rowH / 2) {
+            rowIndex++;
+            rowTop = rects[0].top;
+            rowH = rects[0].height;
+            heads[rowIndex] = { node: tn, offset: ci };
+          }
+        }
+      }
+      var justified = window.getComputedStyle(para).textAlign === "justify";
+      // From the last row wanted to the first: a cut leaves what stands
+      // before it untouched.
+      for (var wi = 0; wi < wanted.length; wi++) {
+        var head = heads[wanted[wi]];
+        if (!head) continue;
+        var cut = document.createRange();
+        cut.setStart(head.node, head.offset);
+        cut.setEnd(para, para.childNodes.length);
+        var tail = para.cloneNode(false);
+        tail.removeAttribute("data-line");
+        tail.removeAttribute("id");
+        tail.setAttribute("data-fm-cont", "");
+        tail.appendChild(cut.extractContents());
+        para.parentNode.insertBefore(tail, para.nextSibling);
+        if (justified) para.style.textAlignLast = "justify";
       }
     }
     body.style.width = prev.width;

@@ -30,6 +30,7 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
+  keymap,
   layer,
   RectangleMarker,
   ViewPlugin,
@@ -38,8 +39,10 @@ import {
 } from "@codemirror/view";
 import {
   Annotation,
+  EditorSelection,
   EditorState as CMEditorState,
   Facet,
+  Prec,
   RangeSetBuilder,
   StateEffect,
   StateField,
@@ -3522,6 +3525,11 @@ export type EditorPagination = {
   // written by pageBoxPlugin as --fm-fig-fit on the mount, read back by a
   // widget created later, and handed to print (getPageLayout).
   figureFits?: Map<number, number>;
+  // Per page number, the document position a page that opens INSIDE a source
+  // line starts at (FastrPagedPage.firstRow): the head of that wrapped row,
+  // found by pageBoxPlugin once the line is rendered. Until then the seam
+  // stands before the line.
+  rowPos?: Map<number, number>;
 };
 
 export const setPagination = StateEffect.define<EditorPagination | undefined>();
@@ -3738,6 +3746,27 @@ class PageGutterWidget extends WidgetType {
   }
 }
 
+// The seam INSIDE a source line, before the wrapped row that opens the page
+// (see "Paragraphs that run on to the next page"): an inline widget whose
+// element floats across the whole line box, so it lands between two rows.
+class PageRowSeamWidget extends WidgetType {
+  constructor(readonly pag: EditorPagination, readonly page: number) {
+    super();
+  }
+  override eq(other: PageRowSeamWidget): boolean {
+    return other.page === this.page && other.pag.title === this.pag.title &&
+      other.pag.result.total === this.pag.result.total;
+  }
+  override toDOM(): HTMLElement {
+    const el = seamElement(this.pag, this.page);
+    el.classList.add("fm-page-gutter--row");
+    return el;
+  }
+  override ignoreEvent(): boolean {
+    return false;
+  }
+}
+
 // After the document's last line: the last page's foot and its filler, so
 // the final page is a full sheet too.
 class PageEndWidget extends WidgetType {
@@ -3793,6 +3822,16 @@ function buildPaginationState(
       regionSeams.set(r.region.startLine, list);
       continue;
     }
+    // A page that opens inside the line (a paragraph running on): the seam
+    // goes in at the row's head once pageBoxPlugin has found it.
+    const at = page.firstRow !== undefined && page.firstRow > 0 ? pag.rowPos?.get(page.number) : undefined;
+    const docLine = state.doc.line(line + 1);
+    if (at !== undefined && at > docLine.from && at <= docLine.to) {
+      decos.push(
+        Decoration.widget({ widget: new PageRowSeamWidget(pag, page.number), side: -1 }).range(at),
+      );
+      continue;
+    }
     decos.push(
       Decoration.widget({
         widget: new PageGutterWidget(pag, page.number),
@@ -3843,10 +3882,17 @@ export const paginationField = StateField.define<PaginationState>({
           if (to !== undefined) figureFits.set(to, px);
         }
       }
+      let rowPos: Map<number, number> | undefined;
+      if (value.pagination.rowPos !== undefined) {
+        rowPos = new Map();
+        // Typing at the row's head goes on that row, after the seam.
+        for (const [n, pos] of value.pagination.rowPos) rowPos.set(n, tr.changes.mapPos(pos, -1));
+      }
       return buildPaginationState(tr.state, {
         ...value.pagination,
         result: mapResultThroughChanges(value.pagination.result, tr),
         figureFits,
+        rowPos,
       });
     }
     return value;
@@ -3869,7 +3915,11 @@ function mapResultThroughChanges(result: FastrPagedResult, tr: Transaction): Fas
   const mapLine = lineMapper(tr);
   return {
     ...result,
-    pages: result.pages.map((p) => ({ ...p, firstLine: mapLine(p.firstLine) })),
+    pages: result.pages.map((p) => ({
+      ...p,
+      firstLine: mapLine(p.firstLine),
+      para: p.para === undefined ? undefined : { ...p.para, line: mapLine(p.para.line) ?? p.para.line },
+    })),
     splits: result.splits.map((sp) => ({ ...sp, line: mapLine(sp.line) ?? sp.line })),
     fits: (result.fits ?? []).map((f) => ({ ...f, line: mapLine(f.line) ?? f.line })),
   };
@@ -4525,6 +4575,8 @@ function keepMeasuredEpoch(view: EditorView): boolean {
   measuredEpoch = epoch;
   measuredBlockHeights.clear();
   measuredInner.clear();
+  measuredParaRows.clear();
+  paraRowHeight = undefined;
   measuredRepeat.clear();
   measuredPageExtents.clear();
   pendingBlockHeights.clear();
@@ -4565,6 +4617,131 @@ function innerCandidates(
   }
   return dedup;
 }
+
+// ── Paragraphs that run on to the next page ─────────────────────────────────
+// A paragraph written on one source line is ONE CodeMirror line however many
+// rows it wraps to, and a block widget only goes between lines. So the seam
+// inside a paragraph is an INLINE widget whose element is a full-width float
+// (PageRowSeamWidget): a float as wide as its line box never fits beside
+// text, so the browser sets it down between two rows, and the rows wrap
+// exactly as they would without it. That is the invariant everything here
+// leans on: wherever the anchor drifts to as the text is edited, the rows
+// measured are the paragraph's true rows, and the next measure moves the
+// anchor back to the head of its row.
+//
+// At least this many rows stay at the foot of a page and carry over.
+const PARA_ORPHANS = 2;
+const PARA_WIDOWS = 2;
+// A paragraph line's rows, by the block's key: per source line, for a
+// paragraph that has left the viewport.
+const measuredParaRows = new Map<string, number[]>();
+// A plain paragraph row's height, px, as last measured (one geometry).
+let paraRowHeight: number | undefined;
+
+function lineElementOf(view: EditorView, line0: number): HTMLElement | null {
+  const at = view.domAtPos(view.state.doc.line(line0 + 1).from).node;
+  const el = at instanceof HTMLElement ? at : at.parentElement;
+  const line = el?.closest<HTMLElement>(".cm-line") ?? null;
+  return line !== null && view.contentDOM.contains(line) ? line : null;
+}
+
+// The seams standing inside a rendered line (row seams), top to bottom.
+function rowSeamsOf(el: HTMLElement): DOMRect[] {
+  return Array.from(el.querySelectorAll<HTMLElement>(".fm-page-gutter--row"))
+    .map((seam) => seam.getBoundingClientRect())
+    .sort((a, b) => a.top - b.top);
+}
+
+// A rendered plain line's own height (without the row seams inside it) and
+// its rows, when they are all one height; `lead` is what stands over the
+// first row (the gap a line carries when no blank line is above it).
+function lineRowsOf(
+  view: EditorView,
+  line0: number,
+  lead: number,
+): { own: number; rows: number; lh: number } | undefined {
+  const el = lineElementOf(view, line0);
+  if (el === null) return undefined;
+  let own = el.getBoundingClientRect().height;
+  for (const r of rowSeamsOf(el)) own -= r.height;
+  const lh = parseFloat(getComputedStyle(el).lineHeight);
+  if (!(lh > 0)) return { own, rows: 0, lh: 0 };
+  const rows = Math.round((own - lead) / lh);
+  // Rows of another height (a sized mark, an inline image): no boundaries.
+  if (rows < 1 || Math.abs(lead + rows * lh - own) > 1.5) return { own, rows: 0, lh };
+  // The row height the browser laid out at (its 1/64 px grid), not the
+  // declared one: a page's foot stands on the sum of these.
+  return { own, rows, lh: (own - lead) / rows };
+}
+
+// The document position that opens row `row` (0-based) of a rendered line.
+function rowStartPos(view: EditorView, line0: number, row: number, lead: number): number | undefined {
+  const el = lineElementOf(view, line0);
+  if (el === null) return undefined;
+  const line = view.state.doc.line(line0 + 1);
+  const rect = el.getBoundingClientRect();
+  const lh = parseFloat(getComputedStyle(el).lineHeight);
+  if (!(lh > 0)) return undefined;
+  // The row's top on screen: the rows above it, and the seams above it.
+  let y = rect.top + lead + row * lh;
+  let above = 0;
+  for (const seam of rowSeamsOf(el)) {
+    const k = Math.round((seam.top - rect.top - lead - above) / lh);
+    if (k <= row) {
+      y += seam.height;
+      above += seam.height;
+    }
+  }
+  let pos = view.posAtCoords({ x: rect.left + 2, y: y + lh / 2 }, false);
+  if (pos <= line.from || pos > line.to) return undefined;
+  // The first position drawn on that row.
+  const topOf = (at: number) => view.coordsAtPos(at, 1)?.top;
+  for (let n = 0; n < 4; n++) {
+    const t = topOf(pos);
+    if (t === undefined || t >= y - lh / 2) break;
+    pos++;
+  }
+  for (let n = 0; n < 4 && pos - 1 > line.from; n++) {
+    const t = topOf(pos - 1);
+    if (t === undefined || t < y - lh / 2) break;
+    pos--;
+  }
+  return pos > line.from && pos <= line.to ? pos : undefined;
+}
+
+// Up and Down across a row seam. CodeMirror moves the caret by asking what
+// stands half a line above or below it; from the row beside a row seam that
+// point is inside the seam, which answers with its own anchor, so Down
+// landed on the row's head whatever the column and Up did not move at all.
+// When the step would land in a row seam, step over it to the row beyond,
+// keeping the goal column.
+function moveAcrossRowSeam(view: EditorView, forward: boolean, extend: boolean): boolean {
+  const sel = view.state.selection.main;
+  const coords = view.coordsAtPos(sel.head, sel.assoc || (forward ? 1 : -1));
+  if (coords === null) return false;
+  const at = view.domAtPos(sel.head).node;
+  const lineEl = (at instanceof HTMLElement ? at : at.parentElement)?.closest<HTMLElement>(".cm-line") ?? null;
+  if (lineEl === null) return false;
+  const rowH = coords.bottom - coords.top;
+  const probe = forward ? coords.bottom + rowH / 2 : coords.top - rowH / 2;
+  for (const seam of rowSeamsOf(lineEl)) {
+    if (probe < seam.top || probe > seam.bottom) continue;
+    const content = view.contentDOM.getBoundingClientRect();
+    const goal = sel.goalColumn ?? coords.left - content.left;
+    const y = forward ? seam.bottom + rowH / 2 : seam.top - rowH / 2;
+    const found = view.posAndSideAtCoords({ x: content.left + goal, y }, false);
+    const range = extend
+      ? EditorSelection.range(sel.anchor, found.pos, goal)
+      : EditorSelection.cursor(found.pos, found.assoc, undefined, goal);
+    view.dispatch({ selection: range, scrollIntoView: true, userEvent: "select" });
+    return true;
+  }
+  return false;
+}
+const rowSeamKeymap = Prec.high(keymap.of([
+  { key: "ArrowDown", run: (v) => moveAcrossRowSeam(v, true, false), shift: (v) => moveAcrossRowSeam(v, true, true) },
+  { key: "ArrowUp", run: (v) => moveAcrossRowSeam(v, false, false), shift: (v) => moveAcrossRowSeam(v, false, true) },
+]));
 
 // The caret's 0-based line when it stands in the blank lines that end the
 // document (nothing but blank lines from it to the end), else -1.
@@ -4800,6 +4977,33 @@ function flowBlocksOf(
     let height = bottom - top;
     const isRendered = rendered(i, j);
     const key = blockKey("p", text);
+    // A plain paragraph may run on to the next page at a row boundary.
+    let plainPara = true;
+    for (let k = i; k <= j; k++) if (rhythm.key[k] !== "p") plainPara = false;
+    let rowsPer: number[] | undefined;
+    if (isRendered && plainPara) {
+      // Its own box: the lines without the row seams standing inside them.
+      let own = 0;
+      let uniform = true;
+      const per: number[] = [];
+      for (let k = i; k <= j; k++) {
+        const lr = lineRowsOf(view, k, rhythm.gapTop.get(k) ?? 0);
+        if (lr === undefined) {
+          uniform = false;
+          own += lineBox(view, k).bottom - lineBox(view, k).top;
+          continue;
+        }
+        own += lr.own;
+        if (lr.rows === 0) uniform = false;
+        else paraRowHeight = lr.lh;
+        per.push(lr.rows);
+      }
+      height = own;
+      if (uniform) {
+        rowsPer = per;
+        measuredParaRows.set(key, per);
+      } else measuredParaRows.delete(key);
+    }
     if (isRendered) rememberBlockHeight(key, height);
     else {
       // Once measured, that; else print's height for a plain paragraph
@@ -4823,6 +5027,34 @@ function flowBlocksOf(
     const hm = HEADING_LINE_RE.exec(doc.line(i + 1).text);
     const pm = marginsOf(metrics, rhythm.key[i]);
     const topExtra = i === start ? 0 : Math.max(0, pm.mt - (rhythm.gapTop.get(i) ?? 0));
+    // The row boundaries it may continue at, orphans and widows kept.
+    let paraInner: FlowBlock["inner"];
+    if (plainPara && paraRowHeight !== undefined) {
+      const lh = paraRowHeight;
+      const lead = rhythm.gapTop.get(i) ?? 0;
+      if (rowsPer === undefined) {
+        rowsPer = measuredParaRows.get(key);
+        // One source line never seen: its rows are its height's.
+        if (rowsPer === undefined && i === j) {
+          const n = Math.round((height - lead) / lh);
+          if (n >= 1 && Math.abs(lead + n * lh - height) <= 1.5) rowsPer = [n];
+        }
+      }
+      if (rowsPer !== undefined && rowsPer.length === j - i + 1) {
+        const total = rowsPer.reduce((a, b) => a + b, 0);
+        paraInner = [];
+        let before = 0;
+        for (let k = 0; k < rowsPer.length; k++) {
+          for (let r = 0; r < rowsPer[k]; r++) {
+            const q = before + r;
+            if (q < PARA_ORPHANS || total - q < PARA_WIDOWS) continue;
+            paraInner.push({ line: i + k, row: r, blockRow: q, top: lead + q * lh });
+          }
+          before += rowsPer[k];
+        }
+        if (paraInner.length === 0) paraInner = undefined;
+      }
+    }
     push({
       line: i,
       endLine: j,
@@ -4830,6 +5062,8 @@ function flowBlocksOf(
       bottom: top + height,
       text,
       height,
+      inner: paraInner,
+      flow: paraInner !== undefined,
       heading: hm !== null,
       pagebreak: false,
       breakBefore: false,
@@ -5003,6 +5237,8 @@ function stretchesOf(
 type BoxMeasure = {
   pag: EditorPagination;
   move?: FastrPagedResult;
+  // With a move: where each page that opens inside a line starts.
+  rowPos?: Map<number, number>;
   // Print's margins, measured: to land in printMetricsField before any
   // layout (the rhythm depends on them).
   metrics?: PrintMetrics;
@@ -5038,7 +5274,8 @@ function samePages(a: FastrPagedResult, b: FastrPagedResult): boolean {
   return a.total === b.total &&
     a.pages.every((p, i) => {
       const q = b.pages[i];
-      return q !== undefined && p.firstLine === q.firstLine && p.cover === q.cover &&
+      return q !== undefined && p.firstLine === q.firstLine && (p.firstRow ?? 0) === (q.firstRow ?? 0) &&
+        p.para?.line === q.para?.line && p.para?.row === q.para?.row && p.cover === q.cover &&
         p.flushTop === q.flushTop;
     }) &&
     a.splits.length === b.splits.length &&
@@ -5130,7 +5367,7 @@ function pageBoxPlugin(resolver: EmbedResolver) {
             return;
           }
           if (m.move !== undefined) {
-            const { pag, move } = m;
+            const { pag, move, rowPos } = m;
             // Pages the new layout no longer has leave nothing behind: a
             // seam created later for the end would read a stale extra.
             for (const map of [pag.fillers, pag.topExtras]) {
@@ -5142,8 +5379,14 @@ function pageBoxPlugin(resolver: EmbedResolver) {
             // layout; and only against the pagination it was measured on.
             setTimeout(() => {
               this.pendingMove = false;
-              if (view.state.field(paginationField, false)?.pagination !== pag) return;
-              view.dispatch({ effects: setPagination.of({ ...pag, result: move }) });
+              if (view.state.field(paginationField, false)?.pagination !== pag) {
+                // The document moved on while this waited (fast typing): the
+                // measures made meanwhile found the move pending and stood
+                // by, so ask again or the last one is never laid out.
+                this.measure();
+                return;
+              }
+              view.dispatch({ effects: setPagination.of({ ...pag, result: move, rowPos }) });
             }, 0);
             return;
           }
@@ -5221,8 +5464,22 @@ function pageBoxPlugin(resolver: EmbedResolver) {
       // The layout, from the heights as they stand.
       const blocks = flowBlocksOf(view, hints, area, this.oracle, geometry, resolver);
       const laid = layoutFastrPages(blocks, layoutGeometry);
-      if (!this.pendingMove && !samePages(laid, pag.result)) {
-        return { pag, move: laid, writes: [], aligns: [], extras: [], fits: [], sizes: [], tocPages: [] };
+      // Where the pages that open inside a line start: the head of the row,
+      // from the rendered line (the row seam never re-wraps its paragraph,
+      // so the rows read are the true ones wherever the anchor has drifted);
+      // a line not rendered keeps the position it had.
+      const rowPos = new Map<number, number>();
+      let rowsMoved = false;
+      for (const page of laid.pages) {
+        if (page.firstLine === undefined || page.firstRow === undefined || page.firstRow <= 0) continue;
+        const had = pag.rowPos?.get(page.number);
+        const found = rowStartPos(view, page.firstLine, page.firstRow, rhythm.gapTop.get(page.firstLine) ?? 0);
+        const at = found ?? had;
+        if (at !== undefined) rowPos.set(page.number, at);
+        if (at !== had) rowsMoved = true;
+      }
+      if (!this.pendingMove && (!samePages(laid, pag.result) || rowsMoved)) {
+        return { pag, move: laid, rowPos, writes: [], aligns: [], extras: [], fits: [], sizes: [], tocPages: [] };
       }
       const writes: BoxMeasure["writes"] = [];
       const aligns: BoxMeasure["aligns"] = [];
@@ -5265,7 +5522,11 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         let b = 0;
         for (let i = 0; i < pages.length; i++) {
           const to = pages[i + 1]?.firstLine ?? doc.lines;
-          while (b < blocks.length && blocks[b].line < to) pageBlocks[i].push(blocks[b++]);
+          // A paragraph the next page opens inside of starts on this one.
+          const inside = (pages[i + 1]?.firstRow ?? 0) > 0;
+          while (b < blocks.length && (blocks[b].line < to || (inside && blocks[b].line === to))) {
+            pageBlocks[i].push(blocks[b++]);
+          }
         }
       }
       // What each page has left under its content: beyond the heights the
@@ -5376,7 +5637,8 @@ function pageBoxPlugin(resolver: EmbedResolver) {
         if (page.number < 2 || page.firstLine === undefined) continue;
         // To the hundredth: print keeps the block's exact margin at the page
         // top, and a rounded seam stood the whole page up to half a pixel off.
-        const px = snapPx(byLine.get(page.firstLine)?.topExtra ?? 0);
+        // None for a page a paragraph runs on to: no block begins there.
+        const px = page.para !== undefined ? 0 : snapPx(byLine.get(page.firstLine)?.topExtra ?? 0);
         const el = seamEls.get(page.number);
         const current = el !== undefined
           ? parseFloat(el.style.paddingBottom) || 0
@@ -5480,6 +5742,7 @@ export function livePreviewExtensions(
     stretchField,
     paginationPlugin,
     pageBoxPlugin(resolver),
+    rowSeamKeymap,
     ...(collab ? [regionPresencePlugin(collab), presenceFacet.of(collab)] : []),
   ];
 }

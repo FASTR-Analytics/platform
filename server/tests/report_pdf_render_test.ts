@@ -22,6 +22,7 @@ import {
   buildFastrPagedCss,
   buildFastrReportCss,
   FASTR_PAGED_ATOMIC_SELECTORS,
+  fastrParagraphSplitsCss,
   FASTR_REPORT_THEMES,
   type FastrReportTheme,
   fastrPagedRunnerJs,
@@ -372,5 +373,47 @@ Deno.test({
       await browser.close();
     }
     assertEquals(failures, []);
+  },
+});
+
+// A paragraph the editor ran on to the next page: the export names the row
+// (fastrParagraphSplitsCss) and the runner cuts the paragraph there, so the
+// page ends on the row before it and the next opens on it.
+Deno.test({
+  name: "a paragraph splits across pages at the row the editor chose",
+  ignore: CHROME_PATH === undefined,
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const lorem =
+      "Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.";
+    const lines = ["# Long paragraph test", ""];
+    for (let k = 0; k < 8; k++) lines.push(`(${k + 1}) ${lorem}`, "");
+    const body = lines.join("\n");
+    // Paragraph (6) is on source line 12; the editor keeps three rows of it
+    // on page 1 (probe, 2026-09-21).
+    const html = (await buildDocument(body, "default", "T")).replace(
+      "</head>",
+      `<style>${fastrParagraphSplitsCss([{ line: 12, rows: [3] }])}</style></head>`,
+    );
+    const browser = await launchChrome(CHROME_PATH!);
+    try {
+      let texts: string[] = [];
+      const { result } = await printPagedDocument(browser, html, {
+        timeoutMs: 60_000,
+        inspect: async (page) => {
+          texts = await page.evaluate(() =>
+            Array.from(document.querySelectorAll(".pagedjs_page_content")).map((el) =>
+              (el as HTMLElement).innerText.replace(/\s+/g, " ").trim()
+            )
+          );
+        },
+      });
+      assertEquals(result.total, 2);
+      assert(texts[0].endsWith("(6) " + lorem.slice(0, lorem.indexOf(" bibendum"))), `page 1 ends: ${texts[0].slice(-60)}`);
+      assert(texts[1].startsWith("bibendum egestas."), `page 2 starts: ${texts[1].slice(0, 60)}`);
+    } finally {
+      await browser.close();
+    }
   },
 });

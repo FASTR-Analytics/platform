@@ -16,6 +16,7 @@ import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
   fastrPageStartLines,
+  fastrParagraphSplits,
   type EditResult,
   fastrContainerStackUpTo,
   fastrOpenFenceOnLine,
@@ -96,6 +97,7 @@ function centerTheme(centered: boolean, padRight: number) {
 export type ReportPageLayoutOut = {
   body: string;
   pageStarts: number[];
+  paraSplits: { line: number; rows: number[] }[];
   figureFits: { line: number; height: number }[];
   gapStretches: { line: number; marginTop: number }[];
 };
@@ -935,6 +937,7 @@ export function ReportBodyEditor(p: Props) {
     return {
       body: view.state.doc.toString(),
       pageStarts: fastrPageStartLines(pag.result),
+      paraSplits: fastrParagraphSplits(pag.result),
       figureFits,
       gapStretches,
     };

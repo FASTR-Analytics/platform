@@ -30,6 +30,7 @@ export function fastrPagedFooter(title: string): FastrPagedFooter {
 export type ReportPageLayout = {
   body: string;
   pageStarts: number[];
+  paraSplits: { line: number; rows: number[] }[];
   figureFits: { line: number; height: number }[];
   gapStretches: { line: number; marginTop: number }[];
 };
@@ -69,6 +70,7 @@ export async function buildReportPdfFromDetail(
         paged: {
           footer: fastrPagedFooter(detail.label),
           pageStarts: layoutFor(detail)?.pageStarts,
+          paraSplits: layoutFor(detail)?.paraSplits,
           figureFits: layoutFor(detail)?.figureFits,
           gapStretches: layoutFor(detail)?.gapStretches,
         },

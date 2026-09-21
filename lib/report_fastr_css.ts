@@ -1649,6 +1649,19 @@ ${d}.fm-page-gutter--inner {
   z-index: 1;
 }
 ${d}.fm-page-gutter--inner::before, ${d}.fm-page-gutter--inner::after { content: none !important; }
+/* A seam INSIDE a wrapped line, before the row that opens the page (a
+   paragraph running on: PageRowSeamWidget). A float whose margin box is as
+   wide as the line box never fits beside text, so it is set down between
+   two rows and the paragraph wraps exactly as it would without it. */
+${d}.cm-line > .fm-page-gutter.fm-page-gutter--row {
+  float: left;
+  clear: both;
+  box-sizing: border-box;
+  width: calc(100% + 2 * var(--fm-bleed-pad));
+  margin: 0 var(--fm-bleed-margin);
+  text-indent: 0;
+  line-height: var(--fm-line-height, 1.55);
+}
 /* Between plain lines the gutter is a block widget: no line box of its own,
    the same seam geometry as inside a block. After the last line, the last
    page's foot and filler. */
