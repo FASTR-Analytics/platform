@@ -316,10 +316,10 @@ component-local**: transient per-user workflow state (signal + polling), not
 shared.
 
 Instance-level: structure upload attempts (in the structure dataset
-component), HMIS import runs (`instance_dataset_hmis/imports/`: the shell's
+component), HMIS import runs (`data/hmis/imports/`: the shell's
 `createQuery` reads for runs, scheduling and indicator labels; the runs poll
 and both runs and scheduling refresh on the SSE summary flags) and the
-HMIS import ledger (`instance_dataset_hmis/index.tsx`: a full-table read into
+HMIS import ledger (`data/hmis/dataset/dataset.tsx`: a full-table read into
 the page's `createSignal<StateHolder>`, refetched by a `createEffect` on
 `datasetVersions.hmis` and `hmisImportRunActive`; SYSTEM_06), HFA
 import runs (`data/hfa/imports/`), ICEH import runs

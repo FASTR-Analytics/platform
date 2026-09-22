@@ -12,7 +12,7 @@ import {
   type ZonedDateTime,
 } from "panther";
 import { Match, Show, Switch } from "solid-js";
-import { dayOfWeekLabel, weekdayOfWallDate } from "../_shared/_recurrence_label";
+import { dayOfWeekLabel, weekdayOfWallDate } from "../_shared/mod.ts";
 
 export type Dhis2WizardTimeChoice = "now" | "later" | "recurring";
 

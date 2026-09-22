@@ -12,7 +12,7 @@ import {
   type Dhis2SelectionDescription,
   type HmisIndicator,
 } from "lib";
-import { recurrenceLabel } from "../_shared/_recurrence_label";
+import { recurrenceLabel } from "../_shared/mod.ts";
 import {
   AlertComponentProps,
   ModalContainer,

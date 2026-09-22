@@ -40,12 +40,12 @@ import {
   indicatorsByDataId,
   indicatorNameText,
 } from "~/components/data/hmis/_shared/mod.ts";
-import { DatasetHmisImports } from "../imports/imports";
+import { DatasetHmisImports } from "../imports/mod.ts";
 import {
   Dhis2Wizard,
   type Dhis2WizardEntry,
   type Dhis2WizardResult,
-} from "../imports/wizard/wizard";
+} from "../imports/mod.ts";
 import { DeleteData } from "./_delete_data";
 import { ImportLedgerIndicatorDetail } from "./_ledger_indicator_detail";
 import { LedgerTable, type LedgerPeriodWindow } from "./_ledger_table";

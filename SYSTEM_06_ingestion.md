@@ -418,7 +418,7 @@ the slot's direct `onChange` callback (never an effect on the fileName
 signal: re-uploading the same name leaves the signal unchanged, and only the
 callback re-parses the new bytes).
 
-- **HMIS** (`instance_dataset_hmis/`): the HMIS Data page has two tabs,
+- **HMIS** (`data/hmis/dataset/`): the HMIS Data page has two tabs,
   Visualization and Ledger (PLAN_A8). The page owns every read and the
   view state (the tab, the display-info holder, the `vizConfig` store and
   the ledger rows); the tab bodies are renders over it, so a tab switch is
@@ -444,7 +444,7 @@ callback re-parses the new bytes).
   failed pairs" hands the table's pair list to the page; both open the
   DHIS2 wizard's `presetPairs` entry from the page, and a result shows a
   dismissible notice pointing at Imports (the manager's `importNotice`
-  shape). The imports view (`instance_dataset_hmis/imports/`) has Current /
+  shape). The imports view (`data/hmis/imports/`) has Current /
   Future / History tabs (SSE summary fields as the wake-up signal, routed
   through the shell's `refresh()`). The shell owns every read. The tabs are
   stateless: panther's `StateHolderWrapper` keys its ready branch on the data
