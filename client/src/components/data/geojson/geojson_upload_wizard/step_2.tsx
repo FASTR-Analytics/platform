@@ -4,7 +4,7 @@ import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { structureSchemaForFamily } from "~/state/instance/t1_store";
-import type { WizardState } from "./index";
+import type { WizardState } from "./wizard";
 
 type Props = {
   state: WizardState;

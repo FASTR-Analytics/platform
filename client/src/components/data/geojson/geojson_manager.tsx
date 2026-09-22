@@ -17,7 +17,7 @@ import {
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { GeoJsonUploadWizard } from "./geojson_upload_wizard/index";
+import { GeoJsonUploadWizard } from "./geojson_upload_wizard/wizard";
 import { GeoJsonEditModal } from "./geojson_edit_modal";
 
 type Props = {

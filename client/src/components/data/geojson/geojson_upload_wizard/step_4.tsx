@@ -2,7 +2,7 @@ import { parseAdminAreaLevel, t3 } from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import type { WizardState } from "./index";
+import type { WizardState } from "./wizard";
 
 type Props = {
   state: WizardState;

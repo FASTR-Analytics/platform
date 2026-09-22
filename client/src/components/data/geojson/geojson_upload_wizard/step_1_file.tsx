@@ -2,7 +2,7 @@ import { t3 } from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_file_upload_selector";
-import type { WizardState } from "./index";
+import type { WizardState } from "./wizard";
 
 type Props = {
   state: WizardState;

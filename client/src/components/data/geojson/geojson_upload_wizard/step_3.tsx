@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import { Button, Select } from "panther";
 import { For, Show, createMemo } from "solid-js";
-import type { WizardState, Dhis2FeatureContext } from "./index";
+import type { WizardState, Dhis2FeatureContext } from "./wizard";
 
 type Props = {
   state: WizardState;

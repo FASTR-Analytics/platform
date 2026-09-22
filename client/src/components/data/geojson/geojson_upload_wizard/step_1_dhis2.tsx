@@ -3,7 +3,7 @@ import { Button, StateHolderFormError, createFormAction } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import type { WizardState } from "./index";
+import type { WizardState } from "./wizard";
 
 type Props = {
   state: WizardState;

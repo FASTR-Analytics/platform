@@ -25,7 +25,7 @@ import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
 import { HfaWeights } from "../structure/hfa_weights";
-import { GeoJsonManager } from "../instance_geojson/geojson_manager";
+import { GeoJsonManager } from "./geojson/geojson_manager";
 import { PopulationManager } from "../instance_population/population_manager";
 import {
   instanceState,

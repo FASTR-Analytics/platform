@@ -5,7 +5,7 @@ globs:
   - client/src/components/forms_editors/edit_hfa_indicator.tsx
   - client/src/components/indicator_manager_hfa/**
   - client/src/components/indicator_manager_hmis/**
-  - client/src/components/instance_geojson/**
+  - client/src/components/data/geojson/**
   - client/src/components/instance_hfa_time_points/**
   - client/src/components/instance_population/**
   - client/src/components/data/general/admin_area_labels.tsx

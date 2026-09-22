@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import { Button } from "panther";
 import { createSignal } from "solid-js";
-import type { WizardState } from "./index";
+import type { WizardState } from "./wizard";
 
 type Props = {
   state: WizardState;
