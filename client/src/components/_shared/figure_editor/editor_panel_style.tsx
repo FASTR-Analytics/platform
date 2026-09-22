@@ -15,13 +15,13 @@ import {
   canUseSpecialDisruptionsChartV2,
   canUseSpecialPercentChangeChart,
 } from "~/generate_visualization/special_chart_checks";
-import { SharedControlsTop } from "./presentation_object_editor_panel_style/mod.ts";
-import { TimeseriesStyleControls } from "./presentation_object_editor_panel_style/mod.ts";
-import { ChartStyleControls } from "./presentation_object_editor_panel_style/mod.ts";
-import { TableStyleControls } from "./presentation_object_editor_panel_style/mod.ts";
-import { MapStyleControls } from "./presentation_object_editor_panel_style/mod.ts";
-import { PieStyleControls } from "./presentation_object_editor_panel_style/mod.ts";
-import { CustomValueOrderSection } from "./presentation_object_editor_panel_style/mod.ts";
+import { SharedControlsTop } from "./editor_panel_style/mod.ts";
+import { TimeseriesStyleControls } from "./editor_panel_style/mod.ts";
+import { ChartStyleControls } from "./editor_panel_style/mod.ts";
+import { TableStyleControls } from "./editor_panel_style/mod.ts";
+import { MapStyleControls } from "./editor_panel_style/mod.ts";
+import { PieStyleControls } from "./editor_panel_style/mod.ts";
+import { CustomValueOrderSection } from "./editor_panel_style/mod.ts";
 
 type Props = {
   metric: ResultsValue;

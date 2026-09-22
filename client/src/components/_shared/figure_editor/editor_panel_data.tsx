@@ -10,9 +10,9 @@ import { SetStoreFunction } from "solid-js/store";
 import {
   DataValuesSummary,
   PresentationTypeSummary,
-} from "./presentation_object_editor_panel_data/mod.ts";
-import { Filters } from "./presentation_object_editor_panel_data/mod.ts";
-import { DisaggregationSection } from "./presentation_object_editor_panel_data/mod.ts";
+} from "./editor_panel_data/mod.ts";
+import { Filters } from "./editor_panel_data/mod.ts";
+import { DisaggregationSection } from "./editor_panel_data/mod.ts";
 import { HelpButton } from "./help_button";
 
 type Props = {

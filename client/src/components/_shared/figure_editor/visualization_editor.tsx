@@ -12,7 +12,7 @@ import { AlertComponentProps, StateHolderWrapper, createQuery } from "panther";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
-import { VisualizationEditorInner } from "./visualization_editor_inner";
+import { VisualizationEditorInner } from "./figure_editor";
 
 // The embedded figure editor. A figure is `{ metricId, config }` inside a
 // product (PLAN_PRODUCTS_RESTRUCTURE D3): a host (slide editor, report

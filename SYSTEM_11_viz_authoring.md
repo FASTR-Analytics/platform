@@ -37,7 +37,7 @@ and no standalone editor since step 9a.
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
 `components/_shared/figure_editor/**`: the editor (`visualization_editor.tsx` = `VisualizationEditor`,
-the wrapper the slide and report editors open; `visualization_editor_inner.tsx`
+the wrapper the slide and report editors open; `figure_editor.tsx`
 + the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
 `conditional_formatting_editor.tsx` + `cf_store_helper.ts`) and
 `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
@@ -99,7 +99,7 @@ pair is deliberately NOT snapshotted (D16).
   store), skipping first run and auto-resolution; it gates the Apply button
   and nothing else.
 - **The refetch effect**
-  ([visualization_editor_inner.tsx](client/src/components/_shared/figure_editor/visualization_editor_inner.tsx))
+  ([figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx))
   re-queries items when `tempConfig.d` changes, via
   `trackStore(tempConfig.d)` plus a tracked read of the host's pair, so a
   reattach or rescope mid-edit re-previews under the new package. Superseded
@@ -131,7 +131,7 @@ The "Live" badge, the undo/redo buttons and the "Not saving" pill read
 `isCollabLive()` (binding ready AND the socket open, `collabSocketOpen()`) and
 `docSaveFailing` for the HOST doc. Live cursors and the "who is on which
 tab" avatars ride the host session's awareness under a `fig:<figureId>` scope
-(`_shared/figure_editor/viz_cursors.tsx`; the `vizTab` field is cleared on unmount
+(`_shared/figure_editor/viz_editor_cursors.tsx`; the `vizTab` field is cleared on unmount
 because the host's awareness outlives the editor). Without a live binding
 the editor is Apply/Cancel with no target; contract in
 [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md).

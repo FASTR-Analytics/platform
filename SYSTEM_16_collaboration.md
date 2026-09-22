@@ -492,7 +492,7 @@ and merge via CRDT.
 
 ### Figure editor
 
-[visualization_editor_inner.tsx](client/src/components/_shared/figure_editor/visualization_editor_inner.tsx)
+[figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx)
 co-edits a figure inside its host slide or report session. The host passes a
 `VizFigureCollabBinding`
 ([figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)):
@@ -552,7 +552,7 @@ The rendering engine is
 [live_cursors.tsx](client/src/components/_shared/live_cursors.tsx);
 per-surface glue (coordinate mapping + scope gate) lives one file per surface:
 [slide_cursors.tsx](client/src/components/products/slide_deck/slide_editor/slide_cursors.tsx),
-[viz_cursors.tsx](client/src/components/_shared/figure_editor/viz_cursors.tsx) and
+[viz_editor_cursors.tsx](client/src/components/_shared/figure_editor/viz_editor_cursors.tsx) and
 [report_cursors.tsx](client/src/components/products/report/report_cursors.tsx).
 
 **Awareness field registry** (one shared Awareness per session — do not

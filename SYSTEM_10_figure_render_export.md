@@ -193,7 +193,7 @@ The elegant consequence the whole design turns on:
 
 | Caller                                                                                                                          | Surface                    | Items               | Localization source                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------- | ---------------------------------------------------------------------- |
-| `visualization_editor_inner.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`                               | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
+| `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`                               | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
 | `convert_slide_to_page_inputs.ts`, `ReportFigureEmbed.tsx`, `exports/**`, AI previews                                           | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
 
 So the live editor and every stored figure run **identical code**, and a
@@ -385,7 +385,7 @@ remains.
 
 **The override contract (spans S10/S11).** The UI half lives in the style panel
 (S11 custody,
-`components/_shared/figure_editor/presentation_object_editor_panel_style/`): the panel
+`components/_shared/figure_editor/editor_panel_style/`): the panel
 gates each mode's toggle by `canUse*` (an active-but-no-longer-allowed mode is
 still listed so the user can switch away), and `setMode()` in `_timeseries.tsx`
 forces the hidden properties to safe defaults on every mode switch (e.g.
@@ -732,7 +732,7 @@ SERVER's headless Chrome (S12).
 | ---------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Slide deck | PDF (download), PDF-base64 (email), PPTX  | `(productId, progress)`: fetch deck detail + per-slide `getSlideFromCacheOrFetch` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                       |
 | Report     | fastr: paged PDF, HTML · markdown: PDF, Word · html: HTML, print | `(productId, progress)` throughout. markdown: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers). html and fastr (`export_report_as_html.ts`, S12's formats): the same sanitize→materialize→base-CSS builder as the editor preview with figures as `getFigureAsDataUrlBrowser` PNGs at 1920 and images inlined → standalone `.html` via `saveAs`, or a hidden `sandbox="allow-same-origin allow-modals"` frame → `print()`. fastr's PDF is the paged one (`export_report_as_paged_pdf.ts`): the client builds the complete paged document and `renderReportPdf` prints it with headless Chrome, so the PDF and the editor's page boxes agree |
-| Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`visualization_editor_inner.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
+| Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`figure_editor.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
 
 The email exits are the only non-download paths: `ShareSlideDeck` →
 `exportSlideDeckAsPdfBase64` → `sendSlideDeckEmail`, and `ShareReport` →

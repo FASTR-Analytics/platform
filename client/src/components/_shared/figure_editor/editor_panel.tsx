@@ -12,12 +12,12 @@ import {
 import { Match, Show, Switch, createSignal } from "solid-js";
 import { PresenceAvatars } from "../mod.ts";
 import { SetStoreFunction } from "solid-js/store";
-import { PresentationObjectEditorPanelData } from "./presentation_object_editor_panel_data";
-import { PresentationObjectEditorPanelStyle } from "./presentation_object_editor_panel_style";
+import { PresentationObjectEditorPanelData } from "./editor_panel_data";
+import { PresentationObjectEditorPanelStyle } from "./editor_panel_style";
 import {
   PresentationObjectEditorPanelText,
   type VizCaptionCollab,
-} from "./presentation_object_editor_panel_text";
+} from "./editor_panel_text";
 
 type Props = {
   metric: ResultsValue;

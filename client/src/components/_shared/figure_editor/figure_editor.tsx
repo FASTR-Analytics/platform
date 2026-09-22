@@ -63,7 +63,7 @@ import {
   docSaveFailing,
   otherPeers,
 } from "~/state/instance/collab";
-import { VizEditorCursors } from "./viz_cursors";
+import { VizEditorCursors } from "./viz_editor_cursors";
 import { ReplicateByOptionsList } from "./replicate_by_options";
 import { DownloadPresentationObject } from "./download_presentation_object";
 import { ViewResultsObject } from "./view_results_object";
@@ -81,7 +81,7 @@ import {
 } from "~/state/products/t2_figure_data";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import type { FigureEditorResult, VizFigureCollabBinding } from "./visualization_editor";
-import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
+import { PresentationObjectEditorPanel } from "./editor_panel";
 
 // Input types with no native undo: they must not swallow the editor's Ctrl+Z.
 const NON_TEXT_INPUT_TYPES = new Set([
@@ -362,7 +362,7 @@ export function VisualizationEditorInner(p: InnerProps) {
     return b ? `fig:${b.figureId}` : undefined;
   };
 
-  // Live cursors: surface glue lives in _shared/cursors/viz_cursors.tsx
+  // Live cursors: surface glue lives in viz_editor_cursors.tsx
   // (mounted in the JSX below).
   const vizCursorsEnabled = () => !!collabTarget() && collabReady();
 
