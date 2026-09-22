@@ -19,6 +19,7 @@ globs:
   - server/server_only_funcs/**
   - server/tests/m012_expression_parity_test.ts
   - server/tests/population_coverage_issue_test.ts
+  - server/tests/run_generation_module_options_test.ts
   - server/tests/run_input_transform_test.ts
   - server/tests/run_manifest_transform_test.ts
   - server/worker_routines/generate_run/**
@@ -130,7 +131,10 @@ re-litigate; the package-format invariants below are their file-level twins):
 
 Loading is read-only and side-effect-free: fetch, validate, translate. No DB,
 no run directory. `MODULE_REGISTRY` (`lib/types/module_registry.ts`) is static; each
-entry is `{ id, label, prerequisites, github: { owner, repo, path } }`.
+entry is `{ id, label, prerequisites, github: { owner, repo, path } }`. Every
+entry must resolve under the strict GitHub schema, since the wizard read
+resolves them all or fails; `server/tests/run_generation_module_options_test.ts`
+pins that against the local checkout.
 `MODULE_SOURCE = _IS_PRODUCTION ? "github" : "local"`:
 
 - **github (prod):** `GET /repos/<owner>/<repo>/commits?path=<path>&per_page=1`

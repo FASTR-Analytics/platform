@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Fix 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -535,3 +535,5 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R1 | Finding: `m012/_parameters.ts:4` and `m012/_results_objects.ts:8` in the modules repo still say adjustment comparison and facility analysis "stay on m3-01-01", a module this app retired (R3, R10). Fix: reword both comments. Comments do not reach `definition.json`, so no rebuild. |
 | 2026-09-22 | R1 | Gates rerun: G2, G3, G4 green in the modules repo; floor green here (typecheck, 397 tests, validate_protocols, boot: 8 manifests checked, 0 unreadable). The boot's listen then failed with AddrInUse because a dev server was already on port 8000; environmental, not a step defect. |
 | 2026-09-22 | R1 | Step 1 reviewed: 2 findings. |
+| 2026-09-22 | F1 | Harness committed: `server/tests/run_generation_module_options_test.ts` resolves every registry module through the wizard read and asserts unprefixed labels, skipped without `FASTR_MODULES_LOCAL_DIR`; claimed and pointed to in SYSTEM_08. Modules repo commit `c8acb8b` on `main`, pushed, rewords the two m012 comments; the build leaves the tree clean. |
+| 2026-09-22 | F1 | Step 1 fixed. Floor green: typecheck, 398 tests, validate_protocols, boot against the dev database on port 8001 (8000 held by a running dev server): 8 manifests checked, 0 unreadable. |
