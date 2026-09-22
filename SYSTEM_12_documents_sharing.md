@@ -3,13 +3,11 @@ system: 12
 name: Documents & Sharing
 globs:
   - client/src/components/_shared/collab_markdown_editor.tsx
-  - client/src/components/_shared/connection_banner.tsx
   - client/src/components/_shared/fastr_logos.ts
   - client/src/components/_shared/live_cursors.tsx
   - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
   - client/src/components/_shared/presence_avatars.tsx
-  - client/src/components/_shared/presence_toasts.tsx
   - client/src/components/products/*.ts
   - client/src/components/products/*.tsx
   - client/src/components/products/_shared/*.ts

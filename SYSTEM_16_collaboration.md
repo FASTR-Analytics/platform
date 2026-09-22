@@ -6,6 +6,8 @@ globs:
   - lib/collab/**
   - client/src/components/products/_shared/version_history/**
   - client/src/state/instance/collab.ts
+  - client/src/state/instance/connection_banner.tsx
+  - client/src/state/instance/presence_toasts.tsx
   - lib/types/collab.ts
   - lib/types/versions.ts
   - server/routes/instance/collab.ts
@@ -53,10 +55,13 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   slide_decks,versions}.ts`, `server/routes/products/{reports,slide_decks,
   slides}.ts`, SYSTEMS.md §4.1). The collab client UI
   (`_shared/live_cursors.tsx`, the per-surface cursor files,
-  `_shared/presence_toasts.tsx`, `_shared/connection_banner.tsx`,
   `_shared/collab_markdown_editor.tsx`, the presence avatars and editor
   overlays) lives inside S12's manifest globs.
   S12 owns those files; this system documents the collab behavior in them.
+  The two notice sinks `collab.ts` drives, `state/instance/presence_toasts.tsx`
+  and `state/instance/connection_banner.tsx`, sit beside it and are this
+  system's (they render through `solid-js/web`'s `render` into hosts they mount
+  themselves, so nothing under `components/` imports them).
 
 ## Contract
 
@@ -175,7 +180,7 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
   frame of their session.
 - Reconnect: exponential backoff (1 s → 30 s cap), retrying FOREVER;
   `online` / tab-refocus events short-circuit the wait; a top-center banner
-  ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
+  ([connection_banner.tsx](client/src/state/instance/connection_banner.tsx))
   shows "Connection lost — reconnecting…" (+ Reload) and flashes "Live again"
   on recovery, never on a normal initial connect. The **one** exception to
   retrying forever is an authorization refusal (close 4403, or the standard
@@ -224,7 +229,7 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
   [presence_avatars.tsx](client/src/components/_shared/presence_avatars.tsx),
   the report header (same avatar stack filtered on `reportId`), the
   join/leave toasts
-  ([presence_toasts.tsx](client/src/components/_shared/presence_toasts.tsx)),
+  ([presence_toasts.tsx](client/src/state/instance/presence_toasts.tsx)),
   the in-editor peer overlays, and the AI busy-guard.
 - Semantics: `slideId` set ⇔ that user has the slide open in the editor (set
   on editor mount, cleared to deck-level on unmount). `selectedBlockId`

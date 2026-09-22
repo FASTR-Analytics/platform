@@ -1,5 +1,5 @@
-import { Clerk } from "@clerk/clerk-js";
 import { frFR } from "@clerk/localizations";
+import { clerk } from "~/state/_infra/clerk";
 import { clearDataCache } from "~/state/clear_caches";
 import {
   GlobalUser,
@@ -19,8 +19,6 @@ import {
   reportNetworkSuccess,
 } from "~/state/t4_connection_monitor";
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
 // Only allow bypass auth if:
 // 1. VITE_BYPASS_AUTH is set to true
 // 2. Client is NOT built in production mode
@@ -31,7 +29,6 @@ const bypassAuth =
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
-export const clerk = new Clerk(publishableKey);
 
 // The browser transport for the server-action layer: Clerk cookie auth, with
 // a session refresh before each request and a hard reload on persistent 401.

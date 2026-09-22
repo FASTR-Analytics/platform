@@ -25,7 +25,7 @@ import {
   type MenuItem,
 } from "panther";
 import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
-import { clerk } from "./logged_in_wrapper";
+import { clerk } from "~/state/_infra/clerk";
 import { EmailOptInModal } from "./email_opt_in_modal";
 import { OrganisationModal } from "./organisation_modal";
 import { ThemeModal } from "./theme_modal";

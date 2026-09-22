@@ -87,8 +87,9 @@ performs on boot is S3 machinery
 each switchboard mounts belongs to its feature system. This system owns the
 frame. Sub-file custody exceptions are in SYSTEMS.md §4.1:
 `instance/logged_in_wrapper.tsx`
-is owned by **S1** (this system a mandatory reader: it hosts the Clerk
-singleton, language resolution, and the version flush);
+is owned by **S1** (this system a mandatory reader: it registers the
+browser server-action transport, resolves the language, and runs the version
+flush; the Clerk singleton itself is `state/_infra/clerk.ts`, S1's);
 `lib/translate/t-func.ts` is owned here with **S9** a mandatory reader (calendar
 semantics feed period labels); `components/products/sort_control.tsx` is
 **S12**'s but renders this system's sort prefs. Repo-root
@@ -118,8 +119,10 @@ for boot.
 `InstanceLoggedInWrapper` (`routes/index.tsx`) → `LoggedInWrapper` (S1-owned
 file), which:
 
-- holds the module-level Clerk singleton (`new Clerk(publishableKey)` from
-  `VITE_CLERK_PUBLISHABLE_KEY`), and a `bypassAuth` dev path
+- loads the module-level Clerk singleton (`state/_infra/clerk.ts`, S1's:
+  `new Clerk(publishableKey)` from `VITE_CLERK_PUBLISHABLE_KEY`) and
+  registers the browser server-action transport against it; a `bypassAuth`
+  dev path
   (`VITE_BYPASS_AUTH`, non-production builds only) that skips Clerk
   entirely and synthesizes a dev user (`"en"`/`"gregorian"`);
 - resolves **language**: `localStorage[LANGUAGE_STORAGE_KEY]`

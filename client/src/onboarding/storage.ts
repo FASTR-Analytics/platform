@@ -1,4 +1,4 @@
-import { clerk } from "~/components/instance/mod.ts";
+import { clerk } from "~/state/_infra/clerk";
 import type { StorageAdapter } from "@njwse/roadtrip";
 
 type OnboardingRecord = Record<string, unknown>;
