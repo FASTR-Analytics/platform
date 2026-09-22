@@ -5,7 +5,7 @@ settings block, lists indicators in a rail that leads nowhere for HMIS,
 renders one frozen table that cannot be disaggregated, and shows "no
 further visualizations" under every indicator. This plan first considers
 how the page should work, puts the options and a recommendation in front of
-Tim, and only then builds what he rules.
+Tim in chat, records what he decides there, and only then builds it.
 
 **Next step: Do 1.** Each session sets this line in its final commit.
 
@@ -42,17 +42,22 @@ Cadence, session shapes, the two-things rule and the step rules are
 - Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`,
   `./run`. No step touches a migration, the seed, the query engine or
   help text, so no conditional gate applies.
-- Build log: §8. Last step: 4.
+- Build log: §8. Last step: 4. Step 1 has no review (§4).
 - A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for
   each area the step names, §2 and §3 here, the step's own section in §4,
   and §8.
 
 Rules peculiar to this plan:
 
-- **Step 1 decides nothing.** It weighs the options in §2 against the
-  code, records an assessment and a recommendation per question in the
-  build log, and asks Tim in chat. Tim writes the rulings into §3 and sets
-  the line to `Do 2`. No session builds on a question §3 leaves open.
+- **Step 1 decides nothing on its own, and Tim writes nothing.** The
+  session weighs the options in §2 against the code, then puts each
+  question to Tim in chat with its recommendation first and waits for his
+  answer. It records each answer as a ruling in §3, in Tim's words, with
+  the build-log row that says what was asked and what he said. This is the
+  one exception to the two-things rule: step 1 is the only session that
+  writes §3, and it writes only what Tim said in chat. No session builds
+  on a question §3 leaves open; a later session that finds one asks in
+  chat the same way and records the answer the same way.
 - **Parallel with PLAN_PACKAGE_PAGE.** A session of this plan never edits
   `client/src/components/results_packages/**`, `client/src/onboarding/**`,
   `SYSTEM_08_results_packages.md`, or `client/src/components/_shared/scope_picker.tsx`
@@ -262,7 +267,8 @@ prose already fixes them:
 4. **The three primary metrics keep their meaning.** No change to what
    they compute or to HFA and ICEH thresholds.
 
-Tim's rulings on Q1 to Q9 go here, numbered from 5, before `Do 2`.
+Step 1 records Tim's chat decisions on Q1 to Q9 here, numbered from 5,
+before setting the line to `Do 2`.
 
 ## 4. Steps
 
@@ -279,17 +285,19 @@ preset for Q5(a) must declare and whether the app's `filteredToIndicator`
 pins it correctly; what the single-area scope does to each preset for Q6;
 and what the DataGrid change of Q8 costs. Where a question has a cheaper
 answer than any listed option, the row says so. The session then asks Tim
-in chat, question by question, with the recommendation first.
+in chat, one question at a time, recommendation first, and waits. When
+every question has an answer, §3 holds the rulings in Tim's words.
 
-**Not in this step.** Any edit outside the build log. Any prototype in the
-tree.
+**Not in this step.** Any edit outside §3 and the build log. Any prototype
+in the tree. Deciding a question Tim has not answered.
 
-**Gates.** None beyond the reading. The review checks each claim in the
-rows against the code it cites.
+**Gates.** None beyond the reading. There is no Review 1: the rulings are
+Tim's own words, and the next Do session reads them.
 
-**Ends with.** One commit holding the rows and the line set to `Review 1`.
-After that review passes, the line reads `Do 2` only once §3 holds Tim's
-rulings on every question steps 2 to 4 depend on.
+**Ends with.** One commit holding the assessment rows, the decision rows,
+§3 filled, and the line set to `Do 2`. If the chat ends before every
+question is answered, the commit holds what was decided and the line stays
+`Do 1`, with a row naming the open questions.
 
 ### Step 2: What the rulings need outside this app
 
