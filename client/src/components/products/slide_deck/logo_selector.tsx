@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import { MultiSelect, SortableList } from "panther";
 import { Show } from "solid-js";
-import { FASTR_LOGOS } from "~/components/_shared/mod.ts";
+import { FASTR_LOGOS } from "~/generate_slide_deck/fastr_logos";
 
 type Props = {
   values: string[];

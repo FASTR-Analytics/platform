@@ -3,7 +3,6 @@ system: 12
 name: Documents & Sharing
 globs:
   - client/src/components/_shared/collab_markdown_editor.tsx
-  - client/src/components/_shared/fastr_logos.ts
   - client/src/components/_shared/live_cursors.tsx
   - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
@@ -88,8 +87,9 @@ plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
 `ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `PackageScope`,
 `scopeToken`) that describe the products registry below. Custody wrinkle: this
 manifest owns `products/sort_control.tsx` (shell furniture, flagged in
-SYSTEM_14); the three logo files are genuinely S12's (Open item: settle the
-manifest).
+SYSTEM_14); the two logo editors are this system's under
+`products/slide_deck/**`, and the FASTR logo table they read is S10's
+`generate_slide_deck/fastr_logos.ts`.
 
 Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
