@@ -488,7 +488,7 @@ callback re-parses the new bytes).
   period-indicator list labels each data id through the dictionary and
   shows the key only under a DHIS2 element (its raw-metadata dump is the
   stored JSON as is).
-- **HFA** (`instance_dataset_hfa/imports/`): Current card + History table, no
+- **HFA** (`data/hfa/imports/`): Current card + History table, no
   tabs; four-step wizard (upload both files → mappings + filters → duplicates
   → review; Start only, refusal inline). The run row is HFA's only durable
   import record.
