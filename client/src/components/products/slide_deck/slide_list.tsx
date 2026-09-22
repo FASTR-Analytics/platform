@@ -34,7 +34,7 @@ import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
-import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
+import { PackageScopeChip, ProductTitle } from "~/components/products/_shared/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
@@ -617,7 +617,7 @@ export function SlideList(p: Props) {
             <div class="flex min-w-0 flex-1 flex-col">
               <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
                 <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
-                <div class="ui-text-title truncate">{p.deckLabel}</div>
+                <ProductTitle productId={p.productId} label={p.deckLabel} />
                 <PackageScopeChip
                   product={p.product}
                   onClick={canEditFigures() ? () => void openPackageScope() : undefined}

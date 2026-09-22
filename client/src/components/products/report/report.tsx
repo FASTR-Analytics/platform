@@ -74,7 +74,7 @@ import {
   setCollabView,
 } from "~/state/instance/collab";
 import { fastrThemeOptions } from "./fastr_theme_labels";
-import { createReportPaginator } from "~/components/products/_shared/mod.ts";
+import { createReportPaginator, ProductTitle } from "~/components/products/_shared/mod.ts";
 import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
@@ -2111,13 +2111,16 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           >
             <HeadingBar
               data-tour="report-toolbar"
-              heading={label()}
+              heading=""
               leftChildren={
-                <Button
-                  id="report-back-button"
-                  iconName="chevronLeft"
-                  onClick={() => p.close(undefined)}
-                />
+                <div class="ui-gap-sm flex items-center">
+                  <Button
+                    id="report-back-button"
+                    iconName="chevronLeft"
+                    onClick={() => p.close(undefined)}
+                  />
+                  <ProductTitle productId={p.productId} label={label()} />
+                </div>
               }
               centerChildren={
                 <Show when={format() !== "fastr"}>

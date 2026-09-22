@@ -6,6 +6,7 @@ export { PackageScopeModal } from "./package_scope_modal.tsx";
 export { createReportPaginator } from "./paginate_report.ts";
 export type { ReportPaginator, ReportPaginatorDeps } from "./paginate_report.ts";
 export { ProductSettings } from "./product_settings.tsx";
+export { ProductTitle } from "./product_title.tsx";
 export { applyRebasedEdits, formatLineRanges, rebaseProposedEdits } from "./rebase_edits.ts";
 export type { RebasedEdit, SkippedRange } from "./rebase_edits.ts";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
