@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Do 4.** Each session sets this line in its final commit.
+**Next step: Review 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -558,3 +558,8 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R3 | Gates rerun: floor green (typecheck, 401 tests, validate_protocols). Step 3 reviewed: 1 finding. |
 | 2026-09-22 | F3 | The picker opens on "Primary results" only when a module in the package is primary, else on "All modules". The family label map is one `lib` helper, `getModuleFamilyLabel` beside the comparator, used by the wizard sections and the sidebar headings. Step 3 fixed. Floor green: typecheck, 401 tests, validate_protocols. |
 | 2026-09-22 | R3 | Re-review of Fix 3 (scoped): the picker default follows the package's tiers and one label helper serves both listings; typecheck and validate_protocols green. Step 3 reviewed: pass. |
+| 2026-09-22 | 4 | Panther commit `317c7d1` on `main`: `DataGrid` in `_303_components/tables/data_grid/` (types, component, mod) exported through `tables/mod.ts`; `sync-configs.json` gains the `wb-fastr-v2` target (mode both, `_237_deck` excluded), since the existing `wb-fastr` target points at the old checkout. Panther gates green: typecheck, `clean.ts --dry-run`, lint, 483 tests. |
+| 2026-09-22 | 4 | Choice: a cell is `{ text, value?, bg?, fg? }`; `value` is the sort key because text alone cannot order numbers, and the grid still formats and colours nothing. Sort is uncontrolled with `defaultSort` and `onSortChange`, like the record table. The row-header column sorts by label under `ROW_HEADER_COLUMN_ID`. |
+| 2026-09-22 | 4 | Sandbox: panther's UI sandbox is the `panther-test` consumer app (panther's `testing_sandbox/` is Deno scripts). A `grid` board was added there (commit `e3ad8f9`) and, because that app imported a component panther had since removed, one stale usage was repointed to `MenuButton` (`62c9a2a`) so it boots. Rendered and driven in a browser: 40 rows, group headers spanning 3 and 2, sticky header and row-header column, coloured cells, sort ascending with empties last, hover and cell and row click each reporting row and column ids. |
+| 2026-09-22 | 4 | The sync commit `0d617062` is the auto-commit `./sync` makes and holds only `panther/**` (G7): the grid files, `tables/mod.ts`, the manifest, and three protocol files that had moved upstream since the last sync. This plan-log commit is separate so G7 and the two-things rule both hold. |
+| 2026-09-22 | 4 | Step 4 built. Floor green over the synced tree: typecheck, 401 tests, validate_protocols. |
