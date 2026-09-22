@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Review 6.** Each session sets this line in its final commit.
+**Next step: Do 7.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -667,3 +667,4 @@ commit.
 | 2026-09-22 | 6 | Step 6 reviewed: 3 findings. |
 | 2026-09-22 | 6 | Fix: `SYSTEM_12_documents_sharing.md` (the custody wrinkle and its Open item) and `SYSTEM_14_client_shell.md` (the custody sentence and its Open item) now say S12's manifest lists `_shared/sort_control.tsx`, not that a `_shared/**` glob owns the folder. |
 | 2026-09-22 | 6 | Step 6 fixed. |
+| 2026-09-22 | 6 | Step 6 reviewed: pass. Re-review after Fix 6: `SYSTEM_12_documents_sharing.md:103` and `:1907` and `SYSTEM_14_client_shell.md:93` and `:364` say S12's manifest lists `_shared/sort_control.tsx`, which matches `SYSTEM_12:21`; `git grep '_shared/\*\*'` over both files is empty; `ba3df6a3` touches those two files and the plan only, with no em-dash added. Floor green at HEAD: `deno task typecheck`, `deno task test` (396 passed), `./validate_protocols`, `cd client && npm run build`. |
