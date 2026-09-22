@@ -15,7 +15,7 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { indicatorNameText } from "~/components/indicator_manager_hmis/_indicator_display";
+import { indicatorNameText } from "~/components/data/hmis/_shared/indicator_display";
 
 type Props = {
   run: DatasetHmisImportRunSummary;

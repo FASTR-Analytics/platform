@@ -1,7 +1,7 @@
 import { t3, type Dhis2SelectionDescription } from "lib";
 import { toNum0 } from "panther";
 import { For, Show } from "solid-js";
-import { dhis2IdLabel } from "~/components/indicator_manager_hmis/_indicator_display";
+import { dhis2IdLabel } from "~/components/data/hmis/_shared/indicator_display";
 import { IdListLine } from "./_id_list_line";
 
 type Props = {

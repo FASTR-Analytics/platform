@@ -12,9 +12,9 @@ import {
   definedByText,
   indicatorTypeLabel,
   matchesIndicatorSearch,
-} from "~/components/indicator_manager_hmis/_indicator_display";
-import { IndicatorTypeBadge } from "~/components/indicator_manager_hmis/_type_badge";
-import { WrapOnUnderscore } from "~/components/indicator_manager_hmis/_wrap_on_underscore";
+} from "~/components/data/hmis/_shared/indicator_display";
+import { IndicatorTypeBadge } from "~/components/data/hmis/_shared/type_badge";
+import { WrapOnUnderscore } from "~/components/data/hmis/_shared/wrap_on_underscore";
 
 type Props = {
   selectedIds: () => string[];

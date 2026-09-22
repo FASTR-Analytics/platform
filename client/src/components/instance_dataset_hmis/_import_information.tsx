@@ -16,7 +16,7 @@ import {
 } from "panther";
 import { createMemo, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { indicatorsByDataId } from "~/components/indicator_manager_hmis/_indicator_display";
+import { indicatorsByDataId } from "~/components/data/hmis/_shared/indicator_display";
 
 export function ImportInformation(
   p: EditorComponentProps<

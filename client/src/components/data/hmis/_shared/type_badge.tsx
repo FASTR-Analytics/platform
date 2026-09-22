@@ -1,6 +1,6 @@
 import { type HmisIndicatorType } from "lib";
 import { Badge, type Intent } from "panther";
-import { indicatorTypeWord } from "./_indicator_display";
+import { indicatorTypeWord } from "./indicator_display";
 
 // The DHIS2 picker's colours for the two types it badges, and the two
 // remaining intents for the rest.

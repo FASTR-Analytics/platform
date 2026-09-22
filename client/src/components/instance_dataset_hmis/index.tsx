@@ -39,7 +39,7 @@ import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import {
   indicatorsByDataId,
   indicatorNameText,
-} from "~/components/indicator_manager_hmis/_indicator_display";
+} from "~/components/data/hmis/_shared/indicator_display";
 import { DatasetHmisImports } from "./imports";
 import {
   Dhis2Wizard,

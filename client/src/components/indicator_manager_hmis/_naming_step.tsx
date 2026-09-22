@@ -21,7 +21,7 @@ import {
   writeIndicatorExpression,
 } from "lib";
 import { Input } from "panther";
-import { indicatorFormatWord } from "./_indicator_display";
+import { indicatorFormatWord } from "~/components/data/hmis/_shared/indicator_display";
 import { createMemo, For, Show } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 

@@ -13,7 +13,7 @@ import {
   type TableColumn,
 } from "panther";
 import { Show } from "solid-js";
-import { WrapOnUnderscore } from "~/components/indicator_manager_hmis/_wrap_on_underscore";
+import { WrapOnUnderscore } from "~/components/data/hmis/_shared/wrap_on_underscore";
 
 export type LedgerPeriodWindow = { min: number; max: number };
 
