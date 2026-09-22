@@ -29,12 +29,10 @@ import type {
   MeasuredPage,
 } from "panther";
 import {
-  AlertComponentProps,
   APIResponseWithData,
   Button,
   FrameTop,
   getQueryStateFromApiResponse,
-  HeadingBar,
   PageHolder,
   PageInputs,
   buildHitRegions,
@@ -87,7 +85,6 @@ import {
 } from "~/components/_shared/figure_editor/mod.ts";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/products/t2_slides";
-import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   collabSocketOpen,
   docSaveFailing,
@@ -97,12 +94,9 @@ import {
   setCollabView,
   type SlideSession,
 } from "~/state/instance/collab";
-import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { SlideEditorCursors } from "./slide_cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { canEditProduct } from "~/state/instance/product_access";
-import { productById } from "~/state/instance/t1_store";
-import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/mod.ts";
@@ -134,9 +128,25 @@ type SlideEditorInnerProps = {
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
   returnToContext?: CopilotViewState;
+  // The deck the slide sits in, read live: the copilot's slide view carries
+  // the deck's tools too, since the deck's rail is always beside the slide.
+  deckContext: {
+    getDeckConfig: () => SlideDeckConfig;
+    getSlideIds: () => string[];
+    getSelectedSlideIds: () => string[];
+  };
+  // What the deck may ask of the mounted editor: `flush` settles an unsaved
+  // draft before the deck swaps the slide out (false = the user chose to keep
+  // editing, so the swap is off).
+  onApi?: (api: SlideEditorApi | undefined) => void;
 };
 
-type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
+export type SlideEditorApi = { flush: () => Promise<boolean> };
+
+// Mounted beside the deck's slide rail (slide_list.tsx), one instance per
+// open slide: the rail swaps it out by key, so a mount is "open" and a
+// cleanup is "close" — there is no back button and no Save.
+type Props = SlideEditorInnerProps;
 
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
@@ -587,8 +597,12 @@ export function SlideEditor(p: Props) {
         getScope: () => p.scope,
         getTempSlide: () => tempSlide,
         setTempSlide,
+        getDeckConfig: () => p.deckContext.getDeckConfig(),
+        getSlideIds: () => p.deckContext.getSlideIds(),
+        getSelectedSlideIds: () => p.deckContext.getSelectedSlideIds(),
       },
     );
+    p.onApi?.({ flush });
 
     // Bind this slide to a shared CRDT document for live co-editing.
     const s = openSlideSession(
@@ -693,6 +707,7 @@ export function SlideEditor(p: Props) {
   });
 
   onCleanup(() => {
+    p.onApi?.(undefined);
     if (renderTimeout) {
       clearTimeout(renderTimeout);
     }
@@ -825,11 +840,12 @@ export function SlideEditor(p: Props) {
     return { success: true, data: { lastUpdated: updateRes.data.lastUpdated } };
   }
 
-  async function handleCancel() {
-    // Edits autosave via the collab checkpoint; flush explicitly when collab
-    // isn't actually persisting RIGHT NOW: never synced, or synced but the
-    // socket has since dropped (isLive, not the latched collabReady: edits made
-    // while disconnected sit only in the local doc and die with it on close).
+  // Before the deck swaps this slide out. Edits autosave via the collab
+  // checkpoint; flush explicitly when collab isn't actually persisting RIGHT
+  // NOW: never synced, or synced but the socket has since dropped (isLive,
+  // not the latched collabReady: edits made while disconnected sit only in
+  // the local doc and die with it on close).
+  async function flush(): Promise<boolean> {
     if (needsSave() && !(session()?.isLive() ?? false)) {
       const res = await saveFunc();
       if (
@@ -837,15 +853,15 @@ export function SlideEditor(p: Props) {
         res.data.conflictResolutionDecision === "user_chose_cancel"
       ) {
         // The user chose to keep editing rather than resolve the conflict:
-        // don't close (closing would discard the draft they chose to keep).
-        return;
+        // the swap is off (it would discard the draft they chose to keep).
+        return false;
       }
       // Every other outcome resolved the draft (saved, saved-as-new, or
       // explicitly discarded in favor of theirs): clear the dirty flag so the
       // onCleanup last-chance flush doesn't re-save a resolved/discarded draft.
       setNeedsSave(false);
     }
-    p.close(false);
+    return true;
   }
 
   function handleDividerDrag(update: DividerDragUpdate) {
@@ -1162,68 +1178,28 @@ export function SlideEditor(p: Props) {
           <div
             class="h-full w-full"
             data-cursor-zone="header"
+            data-tour="slide-editor-header"
           >
-            <HeadingBar
-              data-tour="slide-editor-header"
-              heading={t3({
-                en: "Edit Slide",
-                fr: "Modifier la diapositive",
-                pt: "Editar diapositivo",
-              })}
-              leftChildren={
-                <Button
-                  id="slide-back-button"
-                  iconName="chevronLeft"
-                  onClick={handleCancel}
-                />
+            {/* Room checkpoint health: edits relay live between peers, but
+                the server can't persist them right now. */}
+            <Show
+              when={
+                collabReady() &&
+                collabSocketOpen() &&
+                docSaveFailing("slide", p.slideId)
               }
             >
-              <div class="ui-gap-sm flex items-center">
-                {/* Read-only here: the pair is changed from the deck header. */}
-                <PackageScopeChip product={productById(p.productId)} />
-                {/* Who else is currently editing THIS slide (live presence). */}
-                <PresenceAvatars
-                  peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}
-                  size="sm"
-                />
-                {/* Room checkpoint health: edits relay live between peers,
-                    but the server can't persist them right now. */}
-                <Show
-                  when={
-                    collabReady() &&
-                    collabSocketOpen() &&
-                    docSaveFailing("slide", p.slideId)
-                  }
-                >
-                  <div class="ui-text-caption flex items-center gap-1.5">
-                    <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
-                    <span>
-                      {t3({
-                        en: "Not saving — retrying…",
-                        fr: "Non enregistré — nouvel essai…",
-                        pt: "Não está a guardar — a tentar novamente…",
-                      })}
-                    </span>
-                  </div>
-                </Show>
-                <Show when={canEdit()}>
-                  <UpdateAllFiguresButton
-                    count={staleFigures().length}
-                    busy={updatingFigures()}
-                    onClick={() => void updateAllFiguresOnSlide()}
-                  />
-                </Show>
-                <Show when={!showAi()}>
-                  <Button
-                    onClick={() => setShowAi(true)}
-                    iconName="chevronLeft"
-                    outline
-                  >
-                    {t3({ en: "AI", fr: "IA", pt: "IA" })}
-                  </Button>
-                </Show>
+              <div class="ui-text-caption border-b flex items-center gap-1.5 px-3 py-1">
+                <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
+                <span>
+                  {t3({
+                    en: "Not saving — retrying…",
+                    fr: "Non enregistré — nouvel essai…",
+                    pt: "Não está a guardar — a tentar novamente…",
+                  })}
+                </span>
               </div>
-            </HeadingBar>
+            </Show>
             <Show when={canEdit()}>
               <SlideToolbar
                 tempSlide={tempSlide}

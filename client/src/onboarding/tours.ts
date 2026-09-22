@@ -34,9 +34,9 @@ export function buildDeckEditorIntroTour(): TourDefinition {
           pt: "Dentro de uma apresentação",
         }),
         body: t3({
-          en: "This is the deck itself. The bar along the top holds everything you can do to the deck as a whole; the slides sit below it.",
-          fr: "Voici la présentation elle-même. La barre du haut regroupe tout ce que vous pouvez faire sur l'ensemble de la présentation ; les diapositives sont en dessous.",
-          pt: "Esta é a própria apresentação. A barra superior reúne tudo o que pode fazer à apresentação como um todo; os diapositivos ficam abaixo.",
+          en: "This is the deck itself. The bar along the top holds everything you can do to the deck as a whole; the slides run down the left, and the one you click opens beside them.",
+          fr: "Voici la présentation elle-même. La barre du haut regroupe tout ce que vous pouvez faire sur l'ensemble de la présentation ; les diapositives défilent à gauche, et celle que vous cliquez s'ouvre à côté.",
+          pt: "Esta é a própria apresentação. A barra superior reúne tudo o que pode fazer à apresentação como um todo; os diapositivos ficam à esquerda, e o que clicar abre-se ao lado.",
         }),
         placement: "bottom",
       },
@@ -90,26 +90,11 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
           pt: "Os seus diapositivos",
         }),
         body: t3({
-          en: "Slides appear in presentation order, numbered as they'll be shown. Drag a slide to move it, and everything you change is saved automatically for the whole team.",
-          fr: "Les diapositives apparaissent dans l'ordre de présentation, numérotées telles qu'elles seront affichées. Faites glisser une diapositive pour la déplacer ; tout ce que vous modifiez est enregistré automatiquement pour toute l'équipe.",
-          pt: "Os diapositivos aparecem na ordem de apresentação, numerados tal como serão mostrados. Arraste um diapositivo para o mover; tudo o que alterar é guardado automaticamente para toda a equipa.",
+          en: "Slides run down this list in presentation order, numbered as they'll be shown. Drag a slide to move it, and everything you change is saved automatically for the whole team.",
+          fr: "Les diapositives défilent dans cette liste, dans l'ordre de présentation, numérotées telles qu'elles seront affichées. Faites glisser une diapositive pour la déplacer ; tout ce que vous modifiez est enregistré automatiquement pour toute l'équipe.",
+          pt: "Os diapositivos seguem nesta lista pela ordem de apresentação, numerados tal como serão mostrados. Arraste um diapositivo para o mover; tudo o que alterar é guardado automaticamente para toda a equipa.",
         }),
         placement: "top",
-      },
-      {
-        id: "slide-size",
-        target: tourTarget("deck-slide-size"),
-        title: t3({
-          en: "Thumbnail size",
-          fr: "Taille des vignettes",
-          pt: "Tamanho das miniaturas",
-        }),
-        body: t3({
-          en: "Zoom the thumbnails to see more slides at once, or use the button beside it to fill the width with one slide.",
-          fr: "Ajustez la taille des vignettes pour voir plus de diapositives à la fois, ou utilisez le bouton à côté pour occuper toute la largeur avec une seule diapositive.",
-          pt: "Ajuste o tamanho das miniaturas para ver mais diapositivos ao mesmo tempo, ou utilize o botão ao lado para ocupar toda a largura com um diapositivo.",
-        }),
-        placement: "bottom",
       },
       {
         id: "slide-card",
@@ -120,9 +105,9 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
           pt: "Trabalhar com um diapositivo",
         }),
         body: t3({
-          en: "Click a slide to edit it. Use the circle in its corner to select several at once, and right-click for duplicate, move and delete.",
-          fr: "Cliquez sur une diapositive pour la modifier. Utilisez le cercle dans son coin pour en sélectionner plusieurs à la fois, et faites un clic droit pour dupliquer, déplacer ou supprimer.",
-          pt: "Clique num diapositivo para o editar. Utilize o círculo no canto para selecionar vários ao mesmo tempo e clique com o botão direito para duplicar, mover e eliminar.",
+          en: "Click a slide to open it beside the list. Use the circle in its corner to select several at once, and right-click for duplicate, move and delete.",
+          fr: "Cliquez sur une diapositive pour l'ouvrir à côté de la liste. Utilisez le cercle dans son coin pour en sélectionner plusieurs à la fois, et faites un clic droit pour dupliquer, déplacer ou supprimer.",
+          pt: "Clique num diapositivo para o abrir ao lado da lista. Utilize o círculo no canto para selecionar vários ao mesmo tempo e clique com o botão direito para duplicar, mover e eliminar.",
         }),
         placement: "right",
         waitForTargetTimeoutMs: 2000,
@@ -322,24 +307,6 @@ function slideEditorIntroStep(body: string): TourStep {
   };
 }
 
-function slideEditorBackStep(): TourStep {
-  return {
-    id: "back",
-    target: "#slide-back-button",
-    title: t3({
-      en: "Back to the deck",
-      fr: "Retour à la présentation",
-      pt: "Voltar à apresentação",
-    }),
-    body: t3({
-      en: "There's no save button — your edits are saved as you type and shared with anyone else in the deck. This arrow takes you back to the slides.",
-      fr: "Il n'y a pas de bouton d'enregistrement — vos modifications sont enregistrées au fur et à mesure et partagées avec les autres personnes dans la présentation. Cette flèche vous ramène aux diapositives.",
-      pt: "Não há botão de guardar — as suas edições são guardadas à medida que escreve e partilhadas com quem mais estiver na apresentação. Esta seta leva-o de volta aos diapositivos.",
-    }),
-    placement: "bottom",
-  };
-}
-
 function slideTypeStep(): TourStep {
   return {
     id: "type",
@@ -404,7 +371,6 @@ export function buildSlideCoverTour(): TourDefinition {
         placement: "bottom",
       },
       slideCanvasStep(),
-      slideEditorBackStep(),
     ],
   };
 }
@@ -437,7 +403,6 @@ export function buildSlideSectionTour(): TourDefinition {
         placement: "bottom",
       },
       slideCanvasStep(),
-      slideEditorBackStep(),
     ],
   };
 }
@@ -485,7 +450,6 @@ export function buildSlideContentTour(): TourDefinition {
         }),
         placement: "left",
       },
-      slideEditorBackStep(),
     ],
   };
 }

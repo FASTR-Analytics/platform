@@ -253,12 +253,33 @@ without a remount; a product deleted under an open editor closes it. The
 header shows the `PackageScopeChip` ("package · scope" in the package accent
 from `app.css`), which for an editor opens `PackageScopeModal` with a count of
 the figures the candidate pair would leave stale; the overflow menu opens
-`ProductSettings` for name and folder. The slide editor header shows the same
-chip read-only.
+`ProductSettings` for name and folder; Present and Download are buttons on
+the bar.
+
+**One screen, Google-Slides style (2026-09-22).** The deck is a heading bar
+over a `FrameLeftResizable` (260px, 180-520): the RAIL on the left is the
+vertical slide list, and the slide clicked in it is open beside it. `SlideList`
+([slide_list.tsx](client/src/components/products/slide_deck/slide_list.tsx))
+is that frame and takes the editor as its children; the deck component
+(`SlideDeckEditorInner`) owns `currentSlideId`, fetches the slide's content,
+and mounts the editor KEYED by slide id plus the deck config's JSON, so a
+click on another slide is a cleanup (the outgoing slide's collab session
+closes, an unsaved offline draft is flushed) and a fresh mount, while a
+refetch of an unchanged config remounts nothing. The rail follows the deck:
+the first slide opens when none is, the neighbour when the open one is gone;
+a new or duplicated slide opens; deleting the open slide moves the editor to
+its neighbour BEFORE the request, since the server closes the deleted slide's
+room with a fatal error that must never reach a mounted editor. The deck asks
+the editor to settle a draft before a swap (`onApi({ flush })`, the same
+conflict-modal path the old back button ran), and a refused flush leaves the
+open slide where it is. The copilot's `editing_slide` view carries the deck's
+context too (`EditingSlideContext` extends the deck's), so every deck tool is
+available while a slide is open, and the deck's view state is what the editor
+returns to between slides.
 
 **The slide editor**
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
-opens via `openEditor` with `snapshotForSlideEditor` (the deck config only,
+is mounted by the deck with `snapshotForSlideEditor` (the deck config only,
 structuredClone-severed) plus the product id, the live pair and its
 authoring context passed down. There is no side panel: a toolbar under the
 header
