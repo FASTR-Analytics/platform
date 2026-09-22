@@ -7,7 +7,7 @@ import {
 import { Checkbox, Field, RadioGroup } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { ChartLikeControls } from "./_chart_like_controls";
+import { ChartLikeControls } from "./chart_like_controls";
 import { StyleRevealGroup, StyleSection } from "../_shared/mod.ts";
 
 type Props = {

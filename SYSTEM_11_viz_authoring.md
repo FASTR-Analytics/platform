@@ -39,7 +39,7 @@ The `globs:` frontmatter above is the lint-enforced manifest
 `components/_shared/figure_editor/**`: the editor (`visualization_editor.tsx` = `VisualizationEditor`,
 the wrapper the slide and report editors open; `figure_editor.tsx`
 + the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
-`conditional_formatting_editor.tsx` + `cf_store_helper.ts`) and
+`conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and
 `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
 <package>" action and the "Update all figures" header button of
 PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and

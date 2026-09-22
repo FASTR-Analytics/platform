@@ -1,3 +1,3 @@
-export { DataValuesSummary, PresentationTypeSummary } from "./_1_summary.tsx";
-export { Filters } from "./_2_filters.tsx";
-export { DisaggregationSection } from "./_3_disaggregation.tsx";
+export { DataValuesSummary, PresentationTypeSummary } from "./summary.tsx";
+export { Filters } from "./filters.tsx";
+export { DisaggregationSection } from "./disaggregation_section.tsx";

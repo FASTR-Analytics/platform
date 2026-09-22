@@ -9,7 +9,7 @@ import { metricAllowsNegativeScale } from "~/generate_visualization/special_char
 import { Checkbox, RadioGroup, getSelectOptions } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { applyCfToTempConfig } from "./cf_store_helper";
+import { applyCfToTempConfig } from "./conditional_formatting_store";
 import { ConditionalFormattingEditor } from "../_shared/mod.ts";
 import { StyleSection } from "../_shared/mod.ts";
 
