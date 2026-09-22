@@ -19,7 +19,7 @@ import {
 } from "panther";
 import { HeadingBar } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
-import { AddUserForm } from "./add_users";
+import { AddUserForm } from "./add_user_form";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
 import { User } from "./user";

@@ -2,7 +2,7 @@
 system: 15
 name: Instance Administration & Ops
 globs:
-  - client/src/components/users/add_users.tsx
+  - client/src/components/users/add_user_form.tsx
   - client/src/components/users/mod.ts
   - client/src/components/users/batch_upload_users_form.tsx
   - client/src/components/users/bulk_edit_permissions_form.tsx
