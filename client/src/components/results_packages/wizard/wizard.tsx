@@ -22,11 +22,11 @@ import { createStore, unwrap } from "solid-js/store";
 import { getModuleParameterInvalidMsg } from "../_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { freeRunLabel, isRunLabelTaken } from "./_label";
-import { buildModuleGraph, familiesOf, isOfferable } from "./_module_graph";
-import { StepConfirm } from "./_step_confirm";
-import { StepData, type FamilyBlockedReason } from "./_step_data";
-import { StepModules } from "./_step_modules";
+import { freeRunLabel, isRunLabelTaken } from "./run_label";
+import { buildModuleGraph, familiesOf, isOfferable } from "./module_graph";
+import { StepConfirm } from "./step_3_confirm";
+import { StepData, type FamilyBlockedReason } from "./step_1_data";
+import { StepModules } from "./step_2_modules";
 
 type StepKind = "data" | "modules" | "confirm";
 const STEPS: StepKind[] = ["data", "modules", "confirm"];

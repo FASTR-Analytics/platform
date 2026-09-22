@@ -13,7 +13,7 @@ import {
   isOfferable,
   missingFamiliesFor,
   type ModuleGraph,
-} from "./_module_graph";
+} from "./module_graph";
 
 type Props = {
   options: RunGenerationModuleOptions;
