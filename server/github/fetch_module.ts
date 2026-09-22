@@ -3,8 +3,10 @@ import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
 
 // The one GitHub fetch. The token is optional (the modules repo is public;
 // it only raises the rate limit), so a rejected token must never break a
-// read: a 401 is retried once without it, and the rejection is logged once
-// per process.
+// read. The API answers a bad token with 401; raw.githubusercontent.com
+// answers it with 404, indistinguishable from a missing file, so both are
+// retried once without the token (a real 404 stays 404) and the rejection
+// is logged once per process.
 let tokenRejectedLogged = false;
 export async function githubFetch(
   url: string,
@@ -14,14 +16,15 @@ export async function githubFetch(
   const withToken = await fetch(url, {
     headers: { ...headers, Authorization: `Bearer ${_GITHUB_TOKEN}` },
   });
-  if (withToken.status !== 401) return withToken;
-  if (!tokenRejectedLogged) {
+  if (withToken.status !== 401 && withToken.status !== 404) return withToken;
+  const withoutToken = await fetch(url, { headers });
+  if (withoutToken.ok && !tokenRejectedLogged) {
     tokenRejectedLogged = true;
     console.warn(
-      "[github] GITHUB_TOKEN was rejected (401); continuing unauthenticated",
+      `[github] GITHUB_TOKEN was rejected (${withToken.status}); continuing unauthenticated`,
     );
   }
-  return await fetch(url, { headers });
+  return withoutToken;
 }
 
 const GITHUB_API_HEADERS = { Accept: "application/vnd.github.v3+json" };
