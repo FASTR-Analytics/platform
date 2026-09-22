@@ -1,7 +1,7 @@
 # PLAN: Package page
 
-Reorganise the results package page around the family and tier facts that
-PLAN_EXPLORE_PRIMARY_RESULTS gives every module. The page becomes a tab
+Reorganise the results package page around the family and tier facts every
+module now declares (SYSTEM_08 "Three presentation facts"). The page becomes a tab
 bar: About, then one tab per data family in the package. About is the
 package's status and facts, the same shape for a generating, failed or
 ready package. A family tab is a list of that family's modules, the primary
@@ -11,16 +11,23 @@ then its settings, script, logs and output files.
 
 **Next step: Do 1.** Each session sets this line in its final commit.
 
-**Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS step 3 is reviewed (its
-Next step line reads `Do 4` or later, or the file is gone). Step 3 there
-gives `RunDetail.modules[]` and `RunAuthoringContext.modules[]` the
-`family`, `tier` and `sortOrder` facts and `compareModules` in `lib/`,
-which every listing here orders by.
+**Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS, which closed on 2026-09-22
+(its file is deleted; its last commit is `dc554836`). That plan gave
+`RunDetail.modules[]` and `RunAuthoringContext.modules[]` the `family`,
+`tier` and `sortOrder` facts and `compareModules` in
+`lib/group_metrics.ts`, which every listing here orders by. Its rulings
+now live as prose: SYSTEM_08 "Three presentation facts are declared by
+every module" (the facts, the comparator, the registry's reduced role,
+manifest transform block 11) and SYSTEM_11 "The Explore page" (the third
+surface that lists modules this way). The condition is met; nothing
+blocks `Do 1`.
 
 Branch: `version2`. Repos touched: this app only.
-Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`,
-`SYSTEM_11_viz_authoring.md`, §2 and §3 of `PLAN_EXPLORE_PRIMARY_RESULTS.md`
-(family, tier, module order) if it still exists, then §2 and §3 here.
+Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`
+(the "Three presentation facts" paragraph under Loading, and the package
+view paragraph under "Module settings and the run-keyed mounts"),
+`SYSTEM_11_viz_authoring.md` ("The Explore page", for how another surface
+reads the same facts), then §2 and §3 here.
 
 ---
 
@@ -52,35 +59,49 @@ Rules peculiar to this plan:
 - **Nothing here changes what a module declares.** Family, tier and sort
   order are read; a page that finds them missing on a package is reading a
   package the manifest transform has not reached, which is a defect in
-  PLAN_EXPLORE_PRIMARY_RESULTS step 2, not here.
+  manifest transform block 11 (`server/runs/manifest_transform.ts`,
+  `LEGACY_MODULE_PRESENTATION`; pinned by
+  `server/tests/run_manifest_transform_test.ts`), not here.
 
 ## 1. The problem
 
 - The page's ready body is one flat gallery over every default
   visualization in the package, then every module's card
-  ([visualizations.tsx:102](client/src/components/results_packages/package_view/visualizations.tsx#L102),
+  ([visualizations.tsx:103](client/src/components/results_packages/package_view/visualizations.tsx#L103),
   [package_view.tsx:88](client/src/components/results_packages/package_view/package_view.tsx#L88)).
   A figure and the settings that produced it are far apart, and nothing
   says which module a figure came from.
 - Provenance, usage and population are loose lines above the content
-  ([package_page.tsx:111](client/src/components/results_packages/package_page.tsx#L111)
-  onwards; [package_view.tsx:184](client/src/components/results_packages/package_view/package_view.tsx#L184)).
+  ([package_page.tsx:248](client/src/components/results_packages/package_page.tsx#L248)
+  onwards; [package_view.tsx:421](client/src/components/results_packages/package_view/package_view.tsx#L421)).
   Status is a badge; the module progress chips exist only in the
   generating and failed branches, although
   [run_generation.ts:440](server/db/instance/run_generation.ts#L440)
   stores the final `progress` (which modules ran, which were reused) on
   a ready package too.
-- Modules are ordered by the manifest and named from the registry
-  ([status.tsx:47](client/src/components/results_packages/package_view/status.tsx#L47)).
-  After PLAN_EXPLORE_PRIMARY_RESULTS every other listing (the wizard, the
-  picker sidebar, Explore) presents modules as family, primary, supporting;
-  this page does not.
+- The per-module cards are one flat run in module order
+  ([package_view.tsx:169](client/src/components/results_packages/package_view/package_view.tsx#L169),
+  over `RunDetail.modules[]`, which `readRunDetail` already sorts with
+  `compareModules` and names from the manifest), with no family heading
+  and no primary-versus-supporting distinction; the registry's
+  `moduleLabel`
+  ([status.tsx:47](client/src/components/results_packages/package_view/status.tsx#L47))
+  now serves only the generating and failed branches and the
+  unreadable-manifest fallback. Every other listing (the wizard's modules
+  step, `wizard/step_2_modules.tsx`; the insert-figure sidebar,
+  `products/_shared/insert_figure/module_sidebar.tsx`; the Explore page's
+  family tabs, `explore/explore.tsx`) presents modules as family, primary,
+  supporting; this page does not.
 
 ## 2. The model
 
-Vocabulary, used throughout; family, tier and module order are
-PLAN_EXPLORE_PRIMARY_RESULTS's and are restated here so this plan stands
-alone once that one is deleted:
+Vocabulary, used throughout; family, tier and module order were settled
+by PLAN_EXPLORE_PRIMARY_RESULTS (now deleted) and are restated here so
+this plan stands alone. The authoritative prose is SYSTEM_08 "Three
+presentation facts"; the code is `compareModules`, `MODULE_FAMILY_ORDER`
+and `getModuleFamilyLabel` in `lib/group_metrics.ts`, and the grouping
+the wizard's modules step already does in
+`client/src/components/results_packages/wizard/step_2_modules.tsx`:
 
 - **Family**: `hmis`, `hfa` or `iceh`, declared by the module. Family
   order is HMIS, HFA, ICEH everywhere.
@@ -93,7 +114,11 @@ alone once that one is deleted:
 - **Family tab**: one tab per family whose modules the package ran.
 - **Module list**: a `SelectList` of the family's modules, the primary
   first, then a "Supporting analyses" header and the secondaries in module
-  order.
+  order. The insert-figure sidebar
+  (`products/_shared/insert_figure/module_sidebar.tsx`) already builds a
+  `SelectList` with `{ header }` entries per family; the wording
+  "Supporting analyses" and its fr/pt strings are in
+  `wizard/step_2_modules.tsx`.
 - **Module pane**: one module, whole: the page scope picker, the module's
   default visualizations, its settings, Script and Logs, its output files.
 - **Page scope**: the `(package, admin area 2)` pair every figure on the
@@ -256,7 +281,9 @@ commit.
 ## 6. Out of scope
 
 - Declaring family, tier and sort order, `compareModules`, and the
-  manifest transform that stamps them: PLAN_EXPLORE_PRIMARY_RESULTS.
+  manifest transform that stamps them: done by PLAN_EXPLORE_PRIMARY_RESULTS
+  (closed); see SYSTEM_08 "Three presentation facts" and
+  `lib/group_metrics.ts`.
 - The Explore tab, and any insert-into-product or download from this page.
 - The Results packages list and the wizard.
 - Persisting the page scope, the active tab or the selected module.
