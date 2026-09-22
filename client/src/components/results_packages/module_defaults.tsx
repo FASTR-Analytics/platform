@@ -21,7 +21,7 @@ import { createStore, unwrap } from "solid-js/store";
 import {
   ModuleParameterInputs,
   getModuleParameterInvalidMsg,
-} from "~/components/_shared/module_parameter_inputs";
+} from "~/components/results_packages/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 
 // The instance's module-defaults editor (S8 "Instance module defaults"): the

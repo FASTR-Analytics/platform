@@ -12,7 +12,7 @@ import {
   FailedErrorDetail,
   ResultsPackageProvenanceLine,
   ResultsPackageView,
-} from "~/components/_shared/results_package/package_view";
+} from "~/components/results_packages/package_view/package_view";
 import {
   ModuleProgressChip,
   PinnedBadge,
@@ -20,10 +20,10 @@ import {
   canViewPackageContents,
   canViewPackageLogs,
   moduleLabel,
-} from "~/components/_shared/results_package/status";
-import { ViewFiles } from "~/components/_shared/results_package/view_files";
-import { ViewLogs } from "~/components/_shared/results_package/view_logs";
-import { ViewScript } from "~/components/_shared/results_package/view_script";
+} from "~/components/results_packages/package_view/status";
+import { ViewFiles } from "~/components/results_packages/package_view/view_files";
+import { ViewLogs } from "~/components/results_packages/package_view/view_logs";
+import { ViewScript } from "~/components/results_packages/package_view/view_script";
 import { PRODUCT_TYPE_REGISTRY } from "~/components/products/product_types";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";

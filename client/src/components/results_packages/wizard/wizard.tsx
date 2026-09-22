@@ -19,7 +19,7 @@ import {
 } from "panther";
 import { Show, createMemo, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
-import { getModuleParameterInvalidMsg } from "~/components/_shared/module_parameter_inputs";
+import { getModuleParameterInvalidMsg } from "~/components/results_packages/_shared/module_parameter_inputs";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { freeRunLabel, isRunLabelTaken } from "./_label";

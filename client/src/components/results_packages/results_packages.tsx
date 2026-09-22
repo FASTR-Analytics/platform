@@ -19,7 +19,7 @@ import {
   onMount,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { PinnedBadge } from "~/components/_shared/results_package/status";
+import { PinnedBadge } from "~/components/results_packages/package_view/status";
 import { PruneResultsPackages } from "./prune";
 import { ResultsPackageWizard } from "./wizard/mod.ts";
 import { RunCatalogDetailPane } from "./detail";
