@@ -41,6 +41,10 @@ type VisualLine = {
   bottom: number;
   caretTop: number;
   caretBottom: number;
+  /** Width of a space in this line's base font: where a caret after typed
+   *  but not-yet-drawn spaces goes (markdown trims trailing whitespace and
+   *  panther collapses whitespace runs, so those spaces have no glyph). */
+  spaceW: number;
 };
 
 // One drawn char (or one drawn space standing for a whitespace run): the
@@ -64,7 +68,14 @@ export type TextGeometry = {
   stops: CaretStop[];
   boxes: CharBox[];
   /** Where a caret on a line with no text sits (empty block, typed newline). */
-  emptyLine: { x: number; top: number; caretTop: number; caretBottom: number; height: number };
+  emptyLine: {
+    x: number;
+    top: number;
+    caretTop: number;
+    caretBottom: number;
+    height: number;
+    spaceW: number;
+  };
 };
 
 export type CaretBox = { x: number; top: number; bottom: number };
@@ -156,6 +167,7 @@ function addUnit(
   y: number,
 ): void {
   const lineHeight = mft.baseStyle.fontSize * mft.baseStyle.lineHeight;
+  const spaceW = rc.mText(" ", mft.baseStyle, 99999).dims.w();
   const spans = assignRunsToUnit(
     unit.text,
     mft.lines.map((l) => l.runs.map((r) => r.mText.lines[0]?.text ?? "")),
@@ -178,6 +190,7 @@ function addUnit(
       bottom: top + lineHeight,
       caretTop: (line.runs.length ? baseline : top + asc) - asc,
       caretBottom: (line.runs.length ? baseline : top + asc) + desc,
+      spaceW,
     });
 
     if (!line.runs.length) {
@@ -284,6 +297,7 @@ export function buildBlockGeometry(
       caretTop: baseline - asc,
       caretBottom: baseline + desc,
       height: pft.mft.baseStyle.fontSize * pft.mft.baseStyle.lineHeight,
+      spaceW: rc.mText(" ", pft.mft.baseStyle, 99999).dims.w(),
     };
   } else {
     emptyLine = {
@@ -292,6 +306,7 @@ export function buildBlockGeometry(
       caretTop: bounds.y(),
       caretBottom: bounds.y() + 30,
       height: 36,
+      spaceW: 8,
     };
   }
 
@@ -362,7 +377,14 @@ export function buildTitleGeometry(
     lines: [],
     stops: [],
     boxes: [],
-    emptyLine: { x: prim.x, top: top0, caretTop: top0, caretBottom: top0 + m.ti.fontSize, height: m.ti.fontSize * 1.2 },
+    emptyLine: {
+      x: prim.x,
+      top: top0,
+      caretTop: top0,
+      caretBottom: top0 + m.ti.fontSize,
+      height: m.ti.fontSize * 1.2,
+      spaceW: ctx.measureText(" ").width,
+    },
   };
 
   // measureText collapses whitespace and splits words on " ": walk the source
@@ -377,9 +399,23 @@ export function buildTitleGeometry(
     const asc = metrics.fontBoundingBoxAscent ?? m.ti.fontSize * 0.95;
     const desc = metrics.fontBoundingBoxDescent ?? m.ti.fontSize * 0.3;
     const baseline = top0 + line.y;
-    g.lines.push({ top: baseline - asc, bottom: baseline + desc, caretTop: baseline - asc, caretBottom: baseline + desc });
+    const spaceW = ctx.measureText(" ").width;
+    g.lines.push({
+      top: baseline - asc,
+      bottom: baseline + desc,
+      caretTop: baseline - asc,
+      caretBottom: baseline + desc,
+      spaceW,
+    });
     if (li === 0) {
-      g.emptyLine = { x: lx, top: baseline - asc, caretTop: baseline - asc, caretBottom: baseline + desc, height: asc + desc };
+      g.emptyLine = {
+        x: lx,
+        top: baseline - asc,
+        caretTop: baseline - asc,
+        caretBottom: baseline + desc,
+        height: asc + desc,
+        spaceW,
+      };
     }
     const xs: number[] = [0];
     for (let k = 1; k <= line.text.length; k++) {
@@ -437,8 +473,14 @@ export function caretAt(g: TextGeometry, offset: number): CaretBox {
   const { stops } = g;
   if (!stops.length) {
     const e = g.emptyLine;
+    const before = g.source.slice(0, offset);
     const extra = newlinesBetween(g.source, 0, offset) * e.height;
-    return { x: e.x, top: e.caretTop + extra, bottom: e.caretBottom + extra };
+    const spaces = before.length - before.lastIndexOf("\n") - 1;
+    return {
+      x: e.x + spaces * e.spaceW,
+      top: e.caretTop + extra,
+      bottom: e.caretBottom + extra,
+    };
   }
   // Exact stop: the LAST one (a wrapped trailing space ends one line and
   // starts the next; the caret belongs at the next line's start).
@@ -466,9 +508,25 @@ export function caretAt(g: TextGeometry, offset: number): CaretBox {
     const h = l.bottom - l.top || g.emptyLine.height;
     const dy = l.bottom - l.top + (nPrev - 1) * h;
     const x = g.emptyLine.x;
-    return { x, top: l.caretTop + dy, bottom: l.caretBottom + dy };
+    const tail = g.source.slice(g.source.lastIndexOf("\n", offset - 1) + 1, offset);
+    const spaces = /^[ \t]*$/.test(tail) ? tail.length : 0;
+    return {
+      x: x + spaces * g.emptyLine.spaceW,
+      top: l.caretTop + dy,
+      bottom: l.caretBottom + dy,
+    };
   }
-  return stopBox(g, stops[prev]);
+  // Typed spaces with no glyph yet: step the caret right by a space each,
+  // never past the next glyph on the same line.
+  const box = stopBox(g, stops[prev]);
+  const gap = g.source.slice(pSrc, offset);
+  if (/^[ \t]+$/.test(gap)) {
+    const line = g.lines[stops[prev].line];
+    const onLine = next >= 0 && stops[next].line === stops[prev].line;
+    const room = onLine ? Math.max(0, stops[next].x - box.x) : Infinity;
+    box.x += Math.min(gap.length * line.spaceW, room);
+  }
+  return box;
 }
 
 /** The source offset nearest a point (page DU). */

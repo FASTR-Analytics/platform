@@ -466,6 +466,12 @@ export function InlineTextEditor(p: Props) {
             ]
             : []),
           EditorView.inputHandler.of((v, from, to, text) => {
+            // A second space in a row would never be drawn (panther
+            // collapses whitespace runs): keep the one rather than add
+            // invisible text.
+            if (text === " " && from === to && v.state.doc.sliceString(from - 1, from) === " ") {
+              return true;
+            }
             if (!isMarkdown) return false;
             // Typing over a selection keeps the formatting around it; typed
             // markdown punctuation renders as typed.
