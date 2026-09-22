@@ -107,6 +107,8 @@ type InnerProps = {
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   /** Live co-editing of the figure inside the host doc; absent means Apply/Cancel. */
   collabBinding?: VizFigureCollabBinding;
+  /** Back only: the draft never leaves the editor. */
+  viewOnly?: boolean;
   onClose: (result: FigureEditorResult) => void;
 };
 
@@ -736,7 +738,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 when={isCollabLive()}
                 fallback={
                   <Show
-                    when={needsSave()}
+                    when={needsSave() && !p.viewOnly}
                     fallback={
                       <Button iconName="chevronLeft" onClick={cancel} />
                     }

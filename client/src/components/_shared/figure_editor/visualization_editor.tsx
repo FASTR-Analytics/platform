@@ -71,6 +71,9 @@ export type VisualizationEditorProps = {
   authoringContext: RunAuthoringContext;
   /** When present and live, the figure is co-edited in the host doc. */
   collabBinding?: VizFigureCollabBinding;
+  /** A viewer over a figure nobody owns: the draft is for looking at, and
+   *  closing returns nothing. No Apply, no discard prompt. */
+  viewOnly?: boolean;
 };
 
 export function VisualizationEditor(
@@ -96,6 +99,7 @@ export function VisualizationEditor(
           authoringContext={p.authoringContext}
           resultsValueInfo={keyedResultsValueInfo}
           collabBinding={p.collabBinding}
+          viewOnly={p.viewOnly}
           onClose={p.close}
         />
       )}

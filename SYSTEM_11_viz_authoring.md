@@ -79,8 +79,8 @@ and mounts `VisualizationEditorInner`. Three hosts open it: `slide_editor/slide_
 (edits `figureBlock.bundle.config`, then re-queries items and rebuilds the
 bundle), `report/report.tsx` (rebuilds the figure block), and the package
 page's Visualizations section (`results_packages/package_view/visualizations.tsx`,
-S8: no collab binding, Apply replaces a page-local working config and
-nothing is stored). The product hosts pass
+S8), which opens it `viewOnly`: no collab binding, Back is the only way
+out, and the draft never leaves the editor. The product hosts pass
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
 re-previews under the new package (S10 "The captured pair"); the package
 page's scope cannot change while the editor covers it.
