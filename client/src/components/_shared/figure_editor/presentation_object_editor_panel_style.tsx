@@ -8,7 +8,7 @@ import {
 import { openComponent } from "panther";
 import { Match, Show, Switch } from "solid-js";
 import { SetStoreFunction, unwrap } from "solid-js/store";
-import { CustomSeriesStyles } from "~/components/forms_editors/custom_series_styles";
+import { CustomSeriesStyles } from "./custom_series_styles";
 import {
   canUseSpecialCoverageChart,
   canUseSpecialDisruptionsChart,

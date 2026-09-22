@@ -24,7 +24,7 @@ import {
 import type { StateHolder } from "panther";
 import { For, Match, Show, Switch, createEffect, createMemo, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
-import { FileUploadSelector } from "~/components/_file_upload_selector";
+import { FileUploadSelector } from "~/components/_shared/file_upload_selector";
 import { serverActions, _SERVER_HOST } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 

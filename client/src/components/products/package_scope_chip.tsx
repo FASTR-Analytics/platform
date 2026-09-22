@@ -1,7 +1,7 @@
 import type { ProductSummary } from "lib";
 import { Icon } from "panther";
 import { Show } from "solid-js";
-import { packageLabel, scopeLabel } from "./package_label";
+import { packageLabel, scopeLabel } from "~/components/_shared/package_label";
 
 type Props = {
   product: ProductSummary | undefined;

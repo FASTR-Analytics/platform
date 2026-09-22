@@ -96,7 +96,7 @@ import {
   setCollabView,
   type SlideSession,
 } from "~/state/instance/collab";
-import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
+import { PresenceAvatars } from "~/components/_shared/presence_avatars";
 import { SlideEditorCursors } from "~/components/_shared/cursors/slide_cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { canEditProduct } from "~/state/instance/product_access";

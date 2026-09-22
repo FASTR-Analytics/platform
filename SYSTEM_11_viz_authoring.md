@@ -7,9 +7,6 @@ globs:
   - client/src/components/_shared/figure_editor/**
   - client/src/components/figures/**
   - client/src/components/forms_editors/conflict_resolution_modal.tsx
-  - client/src/components/forms_editors/custom_series_styles.tsx
-  - client/src/components/forms_editors/download_presentation_object.tsx
-  - client/src/components/forms_editors/view_results_object.tsx
   - client/src/state/instance/_util_disaggregation_label.ts
   - lib/convert_visualization_type.ts
   - lib/derive_default_visualizations.ts

@@ -10,7 +10,7 @@ import {
   t3,
 } from "lib";
 import { Match, Show, Switch, createSignal } from "solid-js";
-import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
+import { PresenceAvatars } from "~/components/_shared/presence_avatars";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectEditorPanelData } from "./presentation_object_editor_panel_data";
 import { PresentationObjectEditorPanelStyle } from "./presentation_object_editor_panel_style";

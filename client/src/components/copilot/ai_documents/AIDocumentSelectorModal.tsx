@@ -8,7 +8,7 @@ import {
 } from "panther";
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import type Uppy from "@uppy/core";
-import { cleanupUppy, createUppyInstance } from "~/components/_uppy_file_upload";
+import { cleanupUppy, createUppyInstance } from "~/components/_shared/uppy_file_upload";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { instanceState, updateInstanceAssets } from "~/state/instance/t1_store";
 import {

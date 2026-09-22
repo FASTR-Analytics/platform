@@ -7,7 +7,7 @@ import {
   type AlertComponentProps,
 } from "panther";
 import { createMemo, createSignal } from "solid-js";
-import { packageScopeCaption } from "~/components/products/package_label";
+import { packageScopeCaption } from "~/components/_shared/package_label";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 

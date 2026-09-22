@@ -2,8 +2,8 @@
 system: 4
 name: Assets & Upload
 globs:
-  - client/src/components/_file_upload_selector.tsx
-  - client/src/components/_uppy_file_upload.ts
+  - client/src/components/_shared/file_upload_selector.tsx
+  - client/src/components/_shared/uppy_file_upload.ts
   - client/src/components/assets/assets.tsx
   - client/src/components/assets/mod.ts
   - lib/types/assets.ts

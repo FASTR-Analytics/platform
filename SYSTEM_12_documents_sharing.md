@@ -12,6 +12,9 @@ globs:
   - client/src/components/_shared/live_cursors.tsx
   - client/src/components/_shared/logo_section_editor.tsx
   - client/src/components/_shared/logo_selector.tsx
+  - client/src/components/_shared/package_label.ts
+  - client/src/components/_shared/presence_avatars.tsx
+  - client/src/components/_shared/product_types.ts
   - client/src/components/_shared/presence_toasts.tsx
   - client/src/components/_shared/scope_picker.tsx
   - client/src/components/_shared/sort_control.tsx

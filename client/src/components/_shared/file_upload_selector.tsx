@@ -13,7 +13,7 @@ import { Button, Select, getSelectOptions } from "panther";
 import {
   cleanupUppy,
   createUppyInstance,
-} from "~/components/_uppy_file_upload";
+} from "./uppy_file_upload";
 import { instanceState } from "~/state/instance/t1_store";
 
 let idCounter = 0;

@@ -77,7 +77,7 @@ import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
 import { createReportPaginator } from "./paginate_report";
 import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
-import { PresenceAvatars } from "~/components/slide_deck/presence_avatars";
+import { PresenceAvatars } from "~/components/_shared/presence_avatars";
 import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { productById } from "~/state/instance/t1_store";

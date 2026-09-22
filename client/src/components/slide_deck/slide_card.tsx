@@ -1,6 +1,6 @@
 import { t3, type PresenceEntry, type SlideDeckConfig } from "lib";
 import { createSignal, createEffect, Show } from "solid-js";
-import { PresenceAvatars } from "./presence_avatars";
+import { PresenceAvatars } from "~/components/_shared/presence_avatars";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import {
   getQueryStateFromApiResponse,

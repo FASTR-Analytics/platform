@@ -21,7 +21,7 @@ import {
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { FileUploadSelector } from "~/components/_file_upload_selector";
+import { FileUploadSelector } from "~/components/_shared/file_upload_selector";
 import { instanceState } from "~/state/instance/t1_store";
 
 export type HfaWizardResult = { launched: true };

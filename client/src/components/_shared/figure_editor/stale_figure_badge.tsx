@@ -8,7 +8,7 @@ import {
 } from "lib";
 import { Button } from "panther";
 import { createSignal, Show } from "solid-js";
-import { packageLabel, scopeLabel } from "~/components/products/package_label";
+import { packageLabel, scopeLabel } from "~/components/_shared/package_label";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
 import {
   resolveFigureBundleInteractively,

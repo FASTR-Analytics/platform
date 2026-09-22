@@ -63,10 +63,10 @@ import {
   docSaveFailing,
   otherPeers,
 } from "~/state/instance/collab";
-import { VizEditorCursors } from "~/components/_shared/cursors/viz_cursors";
+import { VizEditorCursors } from "./viz_cursors";
 import { ReplicateByOptionsList } from "./replicate_by_options";
-import { DownloadPresentationObject } from "~/components/forms_editors/download_presentation_object";
-import { ViewResultsObject } from "~/components/forms_editors/view_results_object";
+import { DownloadPresentationObject } from "./download_presentation_object";
+import { ViewResultsObject } from "./view_results_object";
 import {
   buildFigureInputs,
   makeFigureBundleFromFetchedData,

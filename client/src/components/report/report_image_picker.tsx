@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import { AlertComponentProps, Input, ModalContainer } from "panther";
 import { createSignal } from "solid-js";
-import { FileUploadSelector } from "~/components/_file_upload_selector";
+import { FileUploadSelector } from "~/components/_shared/file_upload_selector";
 
 type PickedImage = { imgFile: string; alt: string } | undefined;
 

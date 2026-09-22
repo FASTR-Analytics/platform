@@ -16,7 +16,7 @@ import { _SERVER_HOST } from "~/server_actions";
 import {
   createUppyInstance,
   cleanupUppy,
-} from "~/components/_uppy_file_upload";
+} from "~/components/_shared/uppy_file_upload";
 import type Uppy from "@uppy/core";
 import { instanceState } from "~/state/instance/t1_store";
 

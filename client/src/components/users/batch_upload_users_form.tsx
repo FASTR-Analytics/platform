@@ -16,7 +16,7 @@ import {
 import {
   cleanupUppy,
   createUppyInstance,
-} from "~/components/_uppy_file_upload";
+} from "~/components/_shared/uppy_file_upload";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = EditorComponentProps<{}, undefined>;
