@@ -17,16 +17,16 @@ import {
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
-import { ColorThemePicker } from "./style_editor/ColorThemePicker.tsx";
-import { FontPicker } from "./style_editor/FontPicker.tsx";
-import { LayoutPicker } from "./style_editor/LayoutPicker.tsx";
-import { OverlayPicker } from "./style_editor/OverlayPicker.tsx";
+import { ColorThemePicker } from "./style_editor/mod.ts";
+import { FontPicker } from "./style_editor/mod.ts";
+import { LayoutPicker } from "./style_editor/mod.ts";
+import { OverlayPicker } from "./style_editor/mod.ts";
 import {
   CoverTreatmentPicker,
   FreeformTreatmentPicker,
-} from "./style_editor/TreatmentPicker.tsx";
+} from "./style_editor/mod.ts";
 import { LogoSectionEditor } from "./logo_section_editor";
-import { StylePreview } from "./style_editor/StylePreview.tsx";
+import { StylePreview } from "./style_editor/mod.ts";
 
 export type SlideDeckSettingsProps = {
   config: SlideDeckConfig;

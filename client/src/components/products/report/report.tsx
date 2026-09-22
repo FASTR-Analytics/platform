@@ -155,7 +155,7 @@ import {
   GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
 } from "~/components/products/_shared/mod.ts";
-import { VersionHistoryEditor } from "~/components/products/_shared/mod.ts";
+import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
 
 type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };

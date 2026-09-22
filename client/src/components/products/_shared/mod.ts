@@ -14,7 +14,6 @@ export { buildReportBodyNodes, FASTR_THEME_STYLE_ATTR, interceptReportLinks, REP
 export type { FigureRasterState } from "./report_html.ts";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
 export { REPORT_MARKDOWN_STYLE } from "./report_markdown_style.ts";
-export { describeReportPages } from "./report_page_map.ts";
 export { ReportStyleEditor } from "./report_style_editor.tsx";
 export type { ReportStyleEditorResult } from "./report_style_editor.tsx";
 export { ReportFigureEmbed } from "./ReportFigureEmbed.tsx";
@@ -25,5 +24,3 @@ export { divSurface, iframeSurface, isSurfaceAtBottom, lineToPreviewTop, preview
 export type { PreviewAnchor, PreviewSurface, PreviewSurfaceEvent } from "./scroll_sync.ts";
 export { InsertFigureModal } from "./insert_figure/mod.ts";
 export type { InsertFigureResult } from "./insert_figure/mod.ts";
-export { VersionHistoryEditor } from "./version_history/mod.ts";
-export type { VersionHistoryKind } from "./version_history/mod.ts";

@@ -37,7 +37,7 @@ import { snapshotForSlideEditor } from "./_editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
 import { clerk } from "~/components/instance/mod.ts";
-import { VersionHistoryEditor } from "~/components/products/_shared/mod.ts";
+import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
 import { ProductSettings } from "~/components/products/_shared/mod.ts";
 
 type Props = EditorComponentProps<

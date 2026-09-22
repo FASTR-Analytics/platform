@@ -6,8 +6,8 @@
 // as in the editor, so the map is the PDF's pages give or take a fit.
 
 import { fastrPageMapText, type FastrPagedResult, type ReportDetail } from "lib";
-import { createReportPaginator } from "./paginate_report";
-import { createFigureSizeCache } from "./report_figure_raster";
+import { createReportPaginator } from "~/components/products/_shared/mod.ts";
+import { createFigureSizeCache } from "~/components/products/_shared/mod.ts";
 import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
 
 const SIZE_WAIT_MS = 12_000;
