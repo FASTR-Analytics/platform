@@ -6,7 +6,7 @@ import {
   type CoverTreatmentId,
   type FreeformTreatmentId,
 } from "panther";
-import { PresetCard } from "./PresetCard.tsx";
+import { PresetCard } from "./preset_card.tsx";
 
 const THUMBNAIL_PRIMARY = "#64748b";
 const THUMBNAIL_BASE_100 = "#ffffff";

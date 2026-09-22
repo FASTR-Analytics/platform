@@ -1,6 +1,6 @@
-export { ColorThemePicker } from "./ColorThemePicker.tsx";
-export { FontPicker } from "./FontPicker.tsx";
-export { LayoutPicker } from "./LayoutPicker.tsx";
-export { OverlayPicker } from "./OverlayPicker.tsx";
-export { ContentSlideMiniPreview, StylePreview } from "./StylePreview.tsx";
-export { CoverTreatmentPicker, FreeformTreatmentPicker } from "./TreatmentPicker.tsx";
+export { ColorThemePicker } from "./color_theme_picker.tsx";
+export { FontPicker } from "./font_picker.tsx";
+export { LayoutPicker } from "./layout_picker.tsx";
+export { OverlayPicker } from "./overlay_picker.tsx";
+export { ContentSlideMiniPreview, StylePreview } from "./style_preview.tsx";
+export { CoverTreatmentPicker, FreeformTreatmentPicker } from "./treatment_picker.tsx";

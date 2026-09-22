@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import { For } from "solid-js";
 import { getLayoutPresets, type LayoutPresetId } from "panther";
-import { PresetCard } from "./PresetCard.tsx";
+import { PresetCard } from "./preset_card.tsx";
 
 type LayoutPickerProps = {
   value: LayoutPresetId;

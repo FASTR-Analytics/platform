@@ -4,7 +4,7 @@ import { Select } from "panther";
 import { SetStoreFunction } from "solid-js/store";
 import type { SlideSession } from "~/state/instance/collab";
 import { CollabTextField } from "./collab_text_field";
-import { TextStylePopover } from "./TextStylePopover.tsx";
+import { TextStylePopover } from "./text_style_popover.tsx";
 
 type Props = {
   productId: string;

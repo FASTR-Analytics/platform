@@ -33,7 +33,7 @@ import {
   restoreCopilotView,
   type CopilotViewState,
 } from "~/components/products/copilot/mod.ts";
-import { snapshotForSlideEditor } from "./_editor_snapshot";
+import { snapshotForSlideEditor } from "./editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
 import { clerk } from "~/state/_infra/clerk";

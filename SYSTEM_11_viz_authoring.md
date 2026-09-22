@@ -48,7 +48,7 @@ and the preset gallery it renders, below). `components/explore/explore.tsx`
 (the instance Explore tab's page, S14 mounts it: empty until the results
 explorer plan fills it, D6). The
 figure modals in `_shared/figure_editor/` (download, results-file viewer,
-custom series styles). `products/slide_deck/_editor_snapshot.ts`
+custom series styles). `products/slide_deck/editor_snapshot.ts`
 (`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
 `products/slide_deck/slide_editor/conflict_resolution_modal.tsx` are S12's
 now, under its slide deck glob. Lib config semantics
@@ -82,7 +82,7 @@ re-previews under the new package (S10 "The captured pair").
 
 **Snapshot isolation.** The draft is `createStore(structuredClone(p.configSnapshot))`,
 so editor writes never reach the host's store.
-[\_editor_snapshot.ts](client/src/components/products/slide_deck/_editor_snapshot.ts) holds only
+[editor_snapshot.ts](client/src/components/products/slide_deck/editor_snapshot.ts) holds only
 the slide editor's `snapshotForSlideEditor` (the deck config at open): the
 pair is deliberately NOT snapshotted (D16).
 

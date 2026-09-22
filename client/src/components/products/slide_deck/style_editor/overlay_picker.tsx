@@ -1,7 +1,7 @@
 import { For } from "solid-js";
 import { t3 } from "lib";
 import type { BackgroundDetailType, TranslatableString } from "lib";
-import { PresetCard } from "./PresetCard.tsx";
+import { PresetCard } from "./preset_card.tsx";
 
 type OverlayPickerProps = {
   value: BackgroundDetailType | undefined;

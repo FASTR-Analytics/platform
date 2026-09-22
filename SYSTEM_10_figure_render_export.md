@@ -607,7 +607,7 @@ Three files:
 [convert_slide_to_page_inputs.ts](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts)
 (578 LOC), `get_overlay_image.ts` (49 LOC) and `fastr_logos.ts` (the built-in
 FASTR logo table read by the transform, `slide_deck/logo_selector.tsx` and
-`slide_deck/style_editor/StylePreview.tsx`). One transform,
+`slide_deck/style_editor/style_preview.tsx`). One transform,
 `convertSlideToPageInputs(slide, slideIndex, config) →
 APIResponse<PageInputs>`,
 serves all its call sites: screen (`slide_editor/slide_editor.tsx`,
@@ -673,7 +673,7 @@ reads, so an entry never invalidates (Open item). 30s abort-timeout, 3 retries
 with exponential delay (CORS errors not retried), module-level per-URL failure
 backoff (capped 60s), in-flight promise dedupe. Exactly three consumers:
 `convertSlideToPageInputs` (logos, split images, image blocks),
-`get_overlay_image.ts`, and `StylePreview.tsx`. Screen render and slide exports
+`get_overlay_image.ts`, and `style_preview.tsx`. Screen render and slide exports
 share it; report exports fetch directly.
 
 **Fonts**: two disjoint paths. Screen text uses hand-written `@font-face` rules
@@ -805,7 +805,7 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
   `client/src/` and `client/public/fonts/`, and its `woff2`/`boldVariants`
   sections have zero consumers.
 - `loadLogos` logic is duplicated (`convert_slide_to_page_inputs.ts` vs
-  `StylePreview.tsx`).
+  `style_preview.tsx`).
 - `resolveTextBackground("success")` renders `_SLIDE_BACKGROUND_COLOR` (=
   `_NIGERIA_GREEN`), not the success token: misleading name or wrong color;
   needs a ruling.
