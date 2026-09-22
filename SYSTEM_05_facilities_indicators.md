@@ -1071,7 +1071,7 @@ this layer.
   data quality modules, `isCount`; an Uploaded or DHIS2 element holds rows
   of its own, `hasRows`) are not columns: the Indicator types button opens
   a modal that states each type's source, adjustment, rows and format
-  (`IndicatorTypesModal`, `_type_facts.tsx`), and the editor shows the same
+  (`IndicatorTypesModal`, `type_facts.tsx`), and the editor shows the same
   four lines under the type selector (`TypeFactsList`). The editor offers
   the four types and branches on the type: a DHIS2 element has the DHIS2 id
   input (locked while the ledger reports rows under it or has not loaded;

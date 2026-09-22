@@ -25,9 +25,9 @@ import {
   indicatorsByDataId,
   indicatorNameText,
 } from "~/components/data/hmis/_shared/mod.ts";
-import { ImportInformation } from "./_import_information";
-import { selectionLabel, statusLabel } from "./_tab_history";
-import { fetchDatasetHmisVersion } from "./_version_info";
+import { ImportInformation } from "./import_information";
+import { selectionLabel, statusLabel } from "./dhis2_tab_history";
+import { fetchDatasetHmisVersion } from "./version_info";
 
 function errorKindLabel(kind: Dhis2FetchErrorKind | undefined): string {
   if (kind === "permanent") {

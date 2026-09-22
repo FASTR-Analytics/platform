@@ -19,7 +19,7 @@ import {
 } from "panther";
 import { Show, createMemo } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
-import { PresenceHeatMap, type HeatMapAxis } from "./_presence_heat_map";
+import { PresenceHeatMap, type HeatMapAxis } from "./presence_heat_map";
 
 export type VizConfig = {
   value: "count" | "sum";

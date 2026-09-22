@@ -2,7 +2,7 @@ import { t3, type Dhis2SelectionDescription } from "lib";
 import { toNum0 } from "panther";
 import { For, Show } from "solid-js";
 import { dhis2IdLabel } from "~/components/data/hmis/_shared/mod.ts";
-import { IdListLine } from "./_id_list_line";
+import { IdListLine } from "./id_list_line";
 
 type Props = {
   connectionSummary: string;

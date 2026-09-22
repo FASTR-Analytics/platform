@@ -57,8 +57,8 @@ import {
 import {
   computabilityProblemText,
   missingPopulationText,
-} from "./_computability";
-import { EditIndicatorForm } from "./_edit_indicator";
+} from "./computability";
+import { EditIndicatorForm } from "./edit_indicator_form";
 import {
   definedByText,
   dhis2LabelOf,
@@ -67,10 +67,10 @@ import {
 } from "~/components/data/hmis/_shared/mod.ts";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
-import { SpecialBadge } from "./_special_badge";
+import { SpecialBadge } from "./special_badge";
 import { IndicatorTypeBadge } from "~/components/data/hmis/_shared/mod.ts";
 import { WrapOnUnderscore } from "~/components/data/hmis/_shared/mod.ts";
-import { IndicatorTypesModal } from "./_type_facts";
+import { IndicatorTypesModal } from "./type_facts";
 import { RefreshDhis2LabelsModal } from "./refresh_dhis2_labels_modal";
 
 type Props = {

@@ -421,21 +421,21 @@ callback re-parses the new bytes).
   Visualization and Ledger (PLAN_A8). The page owns every read and the
   view state (the tab, the display-info holder, the `vizConfig` store and
   the ledger rows); the tab bodies are renders over it, so a tab switch is
-  never a fetch. Visualization is `dataset_items_holder.tsx`'s
+  never a fetch. Visualization is `dataset_display_presentation.tsx`'s
   `DatasetDisplayPresentation` over the display cache below, its rows read
   under `indicator_common_id`, the server column: one figure at a time by
   a radio, the panther timeseries line graph (count or sum of records per
   indicator and month) or the presence heat map
-  (`_presence_heat_map.tsx`, a DOM table of indicator × month or year,
+  (`presence_heat_map.tsx`, a DOM table of indicator × month or year,
   a cell filled where the indicator has a record in the period, hover from
   the cell's title; no figure package and no server call), with the
   indicator multi-select applied to both. Ledger is
-  `_ledger_table.tsx`: the import ledger pivoted by data id (its key),
+  `ledger_table.tsx`: the import ledger pivoted by data id (its key),
   each row labelled through the T2 indicators cache (indicator id and
   label beside a "DHIS2 id" column that shows the key only under a DHIS2
   element; an Uploaded indicator's key is opaque and never shown, PLAN_A6
   ruling 1), click-through to a per-month detail
-  (`_ledger_indicator_detail.tsx`, headed the same way). The ledger is a
+  (`import_ledger_indicator_detail.tsx`, headed the same way). The ledger is a
   full-table read, a page-level `createSignal<StateHolder>` + `createEffect`
   fetched on mount and again on `datasetVersions.hmis` or
   `hmisImportRunActive`; stale rows stay visible until fresh ones arrive.
@@ -486,7 +486,7 @@ callback re-parses the new bytes).
   the table. The imports view's `refresh()` on the wizard's result is what
   refetches its runs and schedules after a launch. A run
   detail's
-  Version row opens the version's `_import_information.tsx`, whose
+  Version row opens the version's `import_information.tsx`, whose
   period-indicator list labels each data id through the dictionary and
   shows the key only under a DHIS2 element (its raw-metadata dump is the
   stored JSON as is).

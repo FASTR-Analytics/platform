@@ -10,10 +10,10 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { ImportInformation } from "./_import_information";
-import { statusLabel } from "./_tab_history";
-import { CsvStagingSummary } from "./_csv_staging_summary";
-import { fetchDatasetHmisVersion } from "./_version_info";
+import { ImportInformation } from "./import_information";
+import { statusLabel } from "./dhis2_tab_history";
+import { CsvStagingSummary } from "./csv_staging_summary";
+import { fetchDatasetHmisVersion } from "./version_info";
 
 // History click-through for a CSV run: the run facts + the durable staging
 // diagnostics. The Version row (where one exists) opens the version's import

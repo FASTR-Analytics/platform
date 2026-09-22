@@ -31,12 +31,12 @@ import {
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { indicatorsByDataId } from "~/components/data/hmis/_shared/mod.ts";
-import { CsvRunDetail } from "./_csv_run_detail";
-import { CsvWizard } from "./_csv_wizard";
-import { Dhis2RunDetail } from "./_run_detail";
-import { Dhis2TabCurrent } from "./_tab_current";
-import { Dhis2TabFuture, visibleFutureSchedules } from "./_tab_future";
-import { Dhis2TabHistory } from "./_tab_history";
+import { CsvRunDetail } from "./csv_run_detail";
+import { CsvWizard } from "./csv_wizard";
+import { Dhis2RunDetail } from "./dhis2_run_detail";
+import { Dhis2TabCurrent } from "./dhis2_tab_current";
+import { Dhis2TabFuture, visibleFutureSchedules } from "./dhis2_tab_future";
+import { Dhis2TabHistory } from "./dhis2_tab_history";
 import { Dhis2Wizard, type Dhis2WizardEntry } from "./wizard/mod.ts";
 
 type Props = EditorComponentProps<{}, undefined>;

@@ -15,10 +15,10 @@ import {
 } from "panther";
 import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { Dhis2RunView } from "./_run_view";
-import { CsvRunView } from "./_csv_run_view";
-import { CsvNeedsReviewCard } from "./_csv_needs_review_card";
-import { selectionLabel } from "./_tab_history";
+import { Dhis2RunView } from "./dhis2_run_view";
+import { CsvRunView } from "./csv_run_view";
+import { CsvNeedsReviewCard } from "./csv_needs_review_card";
+import { selectionLabel } from "./dhis2_tab_history";
 
 type Props = {
   runningRun: DatasetHmisImportRunSummary | undefined;

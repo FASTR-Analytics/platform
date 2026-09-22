@@ -9,7 +9,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { CsvStagingSummary } from "./_csv_staging_summary";
+import { CsvStagingSummary } from "./csv_staging_summary";
 
 type Props = {
   run: DatasetHmisImportRunSummary;

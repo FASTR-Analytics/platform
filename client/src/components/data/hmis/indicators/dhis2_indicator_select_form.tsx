@@ -41,7 +41,7 @@ import {
   type NamingCalculatedCandidate,
   type NamingElementCandidate,
   type NamingState,
-} from "./_naming_step";
+} from "./naming_step";
 
 type Props = EditorComponentProps<{}, undefined>;
 

@@ -59,13 +59,13 @@ import {
   writeIdentifier,
 } from "lib";
 import { ThresholdsPanel } from "~/components/_shared/figure_editor/mod.ts";
-import { TypeFactsList } from "./_type_facts";
+import { TypeFactsList } from "./type_facts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   computabilityProblemText,
   populationCoverageSummary,
-} from "./_computability";
+} from "./computability";
 import {
   dhis2IdLabel,
   dhis2LabelHeading,
@@ -73,7 +73,7 @@ import {
   indicatorFormatWord,
   indicatorTypeWord,
 } from "~/components/data/hmis/_shared/mod.ts";
-import { SpecialBadge } from "./_special_badge";
+import { SpecialBadge } from "./special_badge";
 
 // The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in
 // the indicator's own display units, labelled in the UI language.

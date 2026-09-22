@@ -29,10 +29,10 @@ import {
 import { Show, createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { Dhis2StepConfig } from "./_step_config";
-import { Dhis2StepIndicators } from "./_step_indicators";
-import { Dhis2StepReview } from "./_step_review";
-import { Dhis2StepTime, type Dhis2WizardTimeChoice } from "./_step_time";
+import { Dhis2StepConfig } from "./step_3_config";
+import { Dhis2StepIndicators } from "./step_1_indicators";
+import { Dhis2StepReview } from "./step_4_review";
+import { Dhis2StepTime, type Dhis2WizardTimeChoice } from "./step_2_time";
 
 // `new` may carry a selection to preselect (the indicator manager's bulk
 // action, PLAN_A7 ruling 12); the imports view passes none.

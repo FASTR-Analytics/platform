@@ -46,13 +46,13 @@ import {
   type Dhis2WizardEntry,
   type Dhis2WizardResult,
 } from "../imports/mod.ts";
-import { DeleteData } from "./_delete_data";
-import { ImportLedgerIndicatorDetail } from "./_ledger_indicator_detail";
-import { LedgerTable, type LedgerPeriodWindow } from "./_ledger_table";
+import { DeleteData } from "./delete_data";
+import { ImportLedgerIndicatorDetail } from "./import_ledger_indicator_detail";
+import { LedgerTable, type LedgerPeriodWindow } from "./ledger_table";
 import {
   DatasetDisplayPresentation,
   type VizConfig,
-} from "./dataset_items_holder";
+} from "./dataset_display_presentation";
 
 type Props = {
   close: (v: undefined) => void;

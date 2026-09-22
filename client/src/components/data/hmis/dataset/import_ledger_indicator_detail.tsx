@@ -16,7 +16,7 @@ import {
   type TableColumn,
 } from "panther";
 import { indicatorNameText } from "~/components/data/hmis/_shared/mod.ts";
-import { importRouteLabel, type LedgerPeriodWindow } from "./_ledger_table";
+import { importRouteLabel, type LedgerPeriodWindow } from "./ledger_table";
 
 type MonthRow = {
   periodId: number;

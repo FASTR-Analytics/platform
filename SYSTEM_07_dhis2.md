@@ -284,7 +284,7 @@ never stores or reads the credentials table itself, only the resolved
 owned by S5) do the same; the session caches there hash the resolved
 credentials, so replacing the stored connection misses the cache.
 
-`data/hmis/dhis2_connection/Dhis2CredentialsEditor.tsx` is the credentials widget: plain
+`data/hmis/dhis2_connection/dhis2_credentials_editor.tsx` is the credentials widget: plain
 url/username/password inputs with a show/hide toggle, no persistence of
 its own. Its one caller is the manage-connection modal
 (`data/hmis/dhis2_connection/manage_connection.tsx`), opened only from the

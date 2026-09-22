@@ -19,8 +19,8 @@ import { Show, createSignal } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { instanceState } from "~/state/instance/t1_store";
-import { PopulationImportForm } from "./_import_form";
-import { PopulationGrid } from "./_population_grid";
+import { PopulationImportForm } from "./import_form";
+import { PopulationGrid } from "./grid";
 
 type Props = {
   close: (v: undefined) => void;
