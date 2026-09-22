@@ -4,7 +4,7 @@ name: Assets & Upload
 globs:
   - client/src/components/_file_upload_selector.tsx
   - client/src/components/_uppy_file_upload.ts
-  - client/src/components/instance/instance_assets.tsx
+  - client/src/components/assets/assets.tsx
   - lib/types/assets.ts
   - server/db/instance/assets.ts
   - server/routes/instance/assets.ts
