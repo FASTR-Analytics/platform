@@ -46,20 +46,20 @@ receive it during sync.
 
 ## Protocol List
 
-| Protocol                      | Scope | Content                                                                 |
-| ----------------------------- | ----- | ----------------------------------------------------------------------- |
-| `PROTOCOL_ALL_TYPESCRIPT.md`  | All   | Coding conventions, function style, types, error handling               |
-| `PROTOCOL_ALL_STRUCTURE.md`   | All   | File organization, imports, panther integration                         |
-| `PROTOCOL_ALL_SIZING.md`      | All   | Figure/page sizing: DUs, resolution, shrink-to-fit                      |
-| `PROTOCOL_ALL_TRANSLATION.md` | All   | TranslatableString, t3/resolveTS, language handling                     |
-| `PROTOCOL_ALL_PLANS.md`       | All   | Multi-session `PLAN_*.md` files: Do/Review/Fix cadence, step shape      |
-| `PROTOCOL_UI_SOLIDJS.md`      | UI    | Reactivity rules, component declaration, control flow                   |
-| `PROTOCOL_UI_STATE.md`        | UI    | createQuery, createAction*, StateHolderWrapper patterns                 |
-| `PROTOCOL_UI_STYLING.md`      | UI    | Color tokens, interactive state, spacing utilities, app theming         |
-| `PROTOCOL_UI_COMPONENTS.md`   | UI    | Using the panther component library                                     |
+| Protocol                      | Scope | Content                                                                                                           |
+| ----------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
+| `PROTOCOL_ALL_TYPESCRIPT.md`  | All   | Coding conventions, function style, types, error handling                                                         |
+| `PROTOCOL_ALL_STRUCTURE.md`   | All   | File organization, imports, panther integration                                                                   |
+| `PROTOCOL_ALL_SIZING.md`      | All   | Figure/page sizing: DUs, resolution, shrink-to-fit                                                                |
+| `PROTOCOL_ALL_TRANSLATION.md` | All   | TranslatableString, t3/resolveTS, language handling                                                               |
+| `PROTOCOL_ALL_PLANS.md`       | All   | Multi-session `PLAN_*.md` files: Do/Review/Fix cadence, step shape                                                |
+| `PROTOCOL_UI_SOLIDJS.md`      | UI    | Reactivity rules, component declaration, control flow                                                             |
+| `PROTOCOL_UI_STATE.md`        | UI    | createQuery, createAction*, StateHolderWrapper patterns                                                           |
+| `PROTOCOL_UI_STYLING.md`      | UI    | Color tokens, interactive state, spacing utilities, app theming                                                   |
+| `PROTOCOL_UI_COMPONENTS.md`   | UI    | Using the panther component library                                                                               |
 | `PROTOCOL_UI_STRUCTURE.md`    | UI    | Client file organization: nav-mirroring tree, `mod.ts` entries, scoped `_shared/`, one-way layers, lint check ids |
-| `PROTOCOL_UI_AI_CHAT.md`      | UI    | AI chat surfaces: views, tools, gating, interactions, approval, prompts |
-| `PROTOCOL_DENO_API.md`        | Deno  | Hono patterns, route structure, validation                              |
+| `PROTOCOL_UI_AI_CHAT.md`      | UI    | AI chat surfaces: views, tools, gating, interactions, approval, prompts                                           |
+| `PROTOCOL_DENO_API.md`        | Deno  | Hono patterns, route structure, validation                                                                        |
 
 ## Protocol Structure
 

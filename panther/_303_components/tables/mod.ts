@@ -4,4 +4,5 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./csv_table/table_from_csv.tsx";
+export * from "./data_grid/mod.ts";
 export * from "./display_table/mod.ts";
