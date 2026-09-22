@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Review 1.** Each session sets this line in its final commit.
+**Next step: Do 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -613,3 +613,4 @@ commit.
 | 2026-09-22 | 1 | Step 1 reviewed: 3 findings. |
 | 2026-09-22 | 1 | Fix: panther `de5bf6f` adds a Cycles Do/Don't for rule 7, rewords the opening to name the linted rules (3 to 7 and the naming half of 10) and turns the four unlinted checklist items into prose. Copied by hand as in the step 1 deviation, mode 444, byte-identical to panther HEAD. |
 | 2026-09-22 | 1 | Step 1 fixed. |
+| 2026-09-22 | 1 | Step 1 reviewed: pass. Re-review after Fix 1: rule 7 has a Cycles Do/Don't (`PROTOCOL_UI_STRUCTURE.md:160`), the opening (line 11) names the linted rules and the four judgement items are prose (line 228); the copy is byte-identical to panther `de5bf6f`, mode 444, no em-dashes; app commit `c4d9218d` holds that file and the plan only. Gates green: `deno task typecheck`, `deno task test`, `./validate_protocols`, `cd client && npm run build`, panther `deno task typecheck`. Noted, not a finding: the opening lists rule 1 as judgement though `root-file` lints its "no file at the root" half. |
