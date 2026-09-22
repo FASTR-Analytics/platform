@@ -99,10 +99,10 @@ editors (`slide_deck/**`, `report/**`), which take `{ productId }` and read
 label, package and scope live from the T1 products row. Lib: slide/report types,
 plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
 `ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `PackageScope`,
-`scopeToken`) that describe the products registry below. Custody wrinkle: the
-`_shared/**` glob also carries `sort_control.tsx` (shell
-furniture, flagged in SYSTEM_14); the three logo files are genuinely S12's (Open
-item: settle the manifest).
+`scopeToken`) that describe the products registry below. Custody wrinkle: this
+manifest lists `_shared/sort_control.tsx` (shell furniture, flagged in
+SYSTEM_14); the three logo files are genuinely S12's (Open item: settle the
+manifest).
 
 Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
@@ -1904,9 +1904,9 @@ deliveries returns `success: false` (the form shows the error instead of
   need to reach support. Decide and either document or add the check.
 - **`overwrite` on `updateReportBody` is dead**: always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
-- **`_shared/**` custody**: `sort_control.tsx` is shell
-  furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1 exception
-  row.
+- **`_shared/sort_control.tsx` custody**: this manifest lists it, but it is
+  shell furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1
+  exception row.
 - **Type casts on mutation bodies**: `body.slide as Slide`,
   `body.config as SlideDeckConfig`: the
   Zod-validated body is discarded typewise; ties into the tighten-to-schema
