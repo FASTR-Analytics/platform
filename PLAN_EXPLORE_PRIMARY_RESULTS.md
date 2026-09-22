@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Review 1.** Each session sets this line in its final commit.
+**Next step: Fix 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -528,3 +528,10 @@ that passes deletes this file in its commit.
 | 2026-09-22 | 1 | v1 compatibility checked: every module in the deployed app's registry (m001 to m012 minus m007, m008) parses its pushed `definition.json` under that app's GitHub schema, with the three new keys stripped. Labels shown there lose their prefix (R11). |
 | 2026-09-22 | 1 | `vendor_schema` also refreshed a one-line comment in the vendored `conditional_formatting_standalone.ts`, which had drifted from the app's copy. m011 had no `pt` label; one was added so all eight labels exist in en, fr and pt. |
 | 2026-09-22 | 1 | Step 1 built. Modules repo: `a15f890`. App: this commit (the GitHub schema, the registry retirement). Floor green: typecheck, test, validate_protocols, boot against the dev database (8 manifests checked, 0 unreadable). |
+| 2026-09-22 | R1 | The commit after step 1's (`e9085cd0`, "rp") belongs to PLAN_PACKAGE_PAGE and is not step work; excluded from the surface diff. |
+| 2026-09-22 | R1 | The registry retirement outside step 1's surface is justified: `getRunGenerationModuleOptions` resolves every `MODULE_REGISTRY` entry through the strict GitHub schema, and m003's frozen `definition.json` has no `family`, so the wizard read cannot succeed with them registered. No code change. |
+| 2026-09-22 | R1 | `.validation/conditional_formatting_standalone.ts` in the modules commit is outside the surface: a one-line comment refreshed by `vendor_schema`, which copies the app's files wholesale. No code change. |
+| 2026-09-22 | R1 | Finding: the wizard-options gate has no committed harness. The boot never calls `getRunGenerationModuleOptions` (its summary covers manifests only) and the doer's harness was not committed, so the gate is a one-off. Fix: a test in `server/tests/` that, with `FASTR_MODULES_LOCAL_DIR` set, calls it and asserts the eight registry ids resolve (skipped otherwise, as `m012_expression_parity_test.ts` does), claimed in SYSTEM_08's globs. The reviewer's rerun: eight modules, unprefixed labels. |
+| 2026-09-22 | R1 | Finding: `m012/_parameters.ts:4` and `m012/_results_objects.ts:8` in the modules repo still say adjustment comparison and facility analysis "stay on m3-01-01", a module this app retired (R3, R10). Fix: reword both comments. Comments do not reach `definition.json`, so no rebuild. |
+| 2026-09-22 | R1 | Gates rerun: G2, G3, G4 green in the modules repo; floor green here (typecheck, 397 tests, validate_protocols, boot: 8 manifests checked, 0 unreadable). The boot's listen then failed with AddrInUse because a dev server was already on port 8000; environmental, not a step defect. |
+| 2026-09-22 | R1 | Step 1 reviewed: 2 findings. |
