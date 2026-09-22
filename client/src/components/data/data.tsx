@@ -21,10 +21,10 @@ import { IndicatorsManager } from "../indicator_manager_hmis/indicators_manager"
 import { InstanceDatasetHfa } from "./hfa/dataset/mod.ts";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { InstanceDatasetIceh } from "../instance_dataset_iceh";
-import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
+import { InstanceHfaTimePoints } from "./hfa/_shared/time_points";
 import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
-import { HfaWeights } from "../structure/hfa_weights";
+import { HfaWeights } from "./hfa/hfa_weights";
 import { GeoJsonManager } from "./geojson/mod.ts";
 import { PopulationManager } from "../instance_population/population_manager";
 import {
