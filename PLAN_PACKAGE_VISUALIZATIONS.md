@@ -7,7 +7,7 @@ chosen scope, and each one has an Edit that opens the figure editor with
 nothing behind it: the user can change the visualization on the page and
 nothing is saved anywhere.
 
-**Next step: Review 1.** Each session sets this line in its final commit.
+**Next step: Do 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app only.
 Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`,
@@ -264,3 +264,5 @@ its commit.
 | 2026-09-22 | 1 | The onboarding catalogue tour targets `instance-results-packages-card` and `-usage`, which lived in the pane. Both attributes moved with the body onto the page; `client/src/onboarding/**` is outside the Surface and was not edited, so that tour now starts the first time a package page is opened. Its copy still describes the catalogue. |
 | 2026-09-22 | 1 | Floor `./run`: it stops and recreates the machine-global `pg` and `valkey-local` containers. Both were already up and mounted on this checkout's `_example_instance_dir`, so the server was booted directly against them (`deno run --allow-all --env-file --unstable-broadcast-channel main.ts`, `/health_check` polled) instead of replacing them. |
 | 2026-09-22 | 1 | Step 1 built. |
+| 2026-09-22 | 1 | Review finding, no code change in this step: `client/src/onboarding/catalogue.ts:565` launches the catalogue tour from the help menu with `navigate: openTabOnly("results_packages")`, and `client/src/onboarding/index.ts:123` auto-starts it whenever the `instance-results-packages-card` attribute is on screen. Both targets now live on the package page (`package_page.tsx:254`, `:264`, `:281`), so the help-menu launch lands on the list where neither target exists, and the auto-start fires on the first opened page. `client/src/onboarding/**` is outside the Surface; the fix belongs to a step that owns the onboarding files or to SYSTEM_08 Open items. |
+| 2026-09-22 | 1 | Step 1 reviewed: 1 finding. |
