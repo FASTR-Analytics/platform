@@ -6,7 +6,7 @@ globs:
   - client/src/components/data/hmis/_shared/indicator_display.ts
   - client/src/components/data/hmis/_shared/type_badge.tsx
   - client/src/components/data/hmis/_shared/wrap_on_underscore.tsx
-  - client/src/components/indicator_manager_hmis/**
+  - client/src/components/data/hmis/indicators/**
   - client/src/components/data/geojson/**
   - client/src/components/data/hfa/_shared/**
   - client/src/components/instance_population/**
