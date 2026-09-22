@@ -887,7 +887,7 @@ spread into `InstanceState`; "has data" everywhere is
 The two HMIS structure write routes (`deleteFamilyFacilities` and
 `structureStep4_ImportData`, hmis family only) emit it too, since coverage
 is measured against the structure. The manager page
-(`client/src/components/instance_population/`) is laid out like the
+(`client/src/components/data/hmis/population/`) is laid out like the
 facilities and weights pages: heading bar with Download and the level as
 subheading, a right panel (the level setting, import, delete all), and the
 body. The

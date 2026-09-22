@@ -23,7 +23,7 @@ import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
 import { HfaIndicatorsManager, HfaWeights, InstanceDatasetHfa, InstanceHfaTimePoints } from "./hfa/mod.ts";
 import { GeoJsonManager } from "./geojson/mod.ts";
-import { PopulationManager } from "./hmis/population/population_manager";
+import { PopulationManager } from "./hmis/population/mod.ts";
 import {
   instanceState,
   maxDepth,
