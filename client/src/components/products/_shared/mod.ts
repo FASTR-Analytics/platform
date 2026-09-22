@@ -19,3 +19,4 @@ export { divSurface, iframeSurface, isSurfaceAtBottom, lineToPreviewTop, preview
 export type { PreviewAnchor, PreviewSurface, PreviewSurfaceEvent } from "./scroll_sync.ts";
 export { InsertFigureModal } from "./insert_figure/mod.ts";
 export type { InsertFigureResult } from "./insert_figure/mod.ts";
+export { MenuDivider, MenuFlyout, PopoverRow, ToolbarDivider, ToolbarPopover, ToolButton } from "./toolbar_primitives.tsx";

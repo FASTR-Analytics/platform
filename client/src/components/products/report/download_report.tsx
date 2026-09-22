@@ -11,6 +11,7 @@ import { Show, createSignal } from "solid-js";
 import { exportReportAsPdf } from "~/exports/export_report_as_pdf";
 import { exportReportAsPagedPdf } from "~/exports/export_report_as_paged_pdf";
 import { exportReportAsWord } from "~/exports/export_report_as_word";
+import { exportFastrReportAsWord } from "~/exports/export_report_as_fastr_word";
 import {
   exportReportAsHtml,
   printReportHtml,
@@ -23,9 +24,9 @@ export function DownloadReport(
     {
       productId: string;
       // Absent means markdown (PDF / Word). fastr gets the paged PDF (the
-      // pages the editor shows, printed by the server) and the .html file;
-      // html renders through the same funnel but has no pagination, so it
-      // keeps the .html / print pair.
+      // pages the editor shows, printed by the server), a Word file built
+      // from the same document, and the .html file; html renders through the
+      // same funnel but has no pagination, so it keeps the .html / print pair.
       format?: ReportFormat;
     },
     undefined
@@ -51,7 +52,9 @@ export function DownloadReport(
     const kind = exportFormat();
 
     const res = kind === "word"
-      ? await exportReportAsWord(p.productId, progress)
+      ? isFastr
+        ? await exportFastrReportAsWord(p.productId, progress)
+        : await exportReportAsWord(p.productId, progress)
       : kind === "html"
       ? await exportReportAsHtml(p.productId, progress)
       : kind === "print"
@@ -75,8 +78,12 @@ export function DownloadReport(
     value: "html" as const,
     label: t3({ en: "HTML file (.html)", fr: "Fichier HTML (.html)", pt: "Ficheiro HTML (.html)" }),
   };
+  const wordOption = {
+    value: "word" as const,
+    label: t3({ en: "Word (.docx)", fr: "Word (.docx)", pt: "Word (.docx)" }),
+  };
   const options = isFastr
-    ? [pdfOption, htmlOption]
+    ? [pdfOption, wordOption, htmlOption]
     : rendersAsHtml
     ? [
       htmlOption,
@@ -85,10 +92,7 @@ export function DownloadReport(
         label: t3({ en: "Print / save as PDF", fr: "Imprimer / enregistrer en PDF", pt: "Imprimir / guardar como PDF" }),
       },
     ]
-    : [
-      pdfOption,
-      { value: "word" as const, label: t3({ en: "Word (.docx)", fr: "Word (.docx)", pt: "Word (.docx)" }) },
-    ];
+    : [pdfOption, wordOption];
 
   return (
     <ModalContainer
@@ -117,9 +121,9 @@ export function DownloadReport(
         <Show when={isFastr}>
           <div class="text-base-content-muted text-xs">
             {t3({
-              en: "The PDF has exactly the pages the editor shows. The HTML file is self-contained (figures embedded as images) and reads as one continuous page.",
-              fr: "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier HTML est autonome (figures intégrées en images) et se lit comme une seule page continue.",
-              pt: "O PDF tem exatamente as páginas que o editor mostra. O ficheiro HTML é autónomo (figuras incorporadas como imagens) e lê-se como uma única página contínua.",
+              en: "The PDF has exactly the pages the editor shows. The Word file keeps headings, text, tables and figures editable; covers, bands and tiles are pictures with their text in editable boxes on top (Word asks to update fields on opening when the report has a contents page, and a coloured page ground prints only with Word's 'Print background colours' on). The HTML file is self-contained (figures embedded as images) and reads as one continuous page.",
+              fr: "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier Word garde les titres, le texte, les tableaux et les figures modifiables ; les couvertures, bandeaux et tuiles sont des images avec leur texte dans des zones modifiables par-dessus (Word propose de mettre à jour les champs à l'ouverture si le rapport a une table des matières, et un fond de page coloré ne s'imprime qu'avec l'option « Imprimer les couleurs d'arrière-plan » de Word). Le fichier HTML est autonome (figures intégrées en images) et se lit comme une seule page continue.",
+              pt: "O PDF tem exatamente as páginas que o editor mostra. O ficheiro Word mantém títulos, texto, tabelas e figuras editáveis; capas, faixas e mosaicos são imagens com o seu texto em caixas editáveis por cima (o Word pede para atualizar os campos ao abrir quando o relatório tem um índice, e um fundo de página colorido só é impresso com a opção 'Imprimir cores de fundo' do Word). O ficheiro HTML é autónomo (figuras incorporadas como imagens) e lê-se como uma única página contínua.",
             })}
           </div>
         </Show>

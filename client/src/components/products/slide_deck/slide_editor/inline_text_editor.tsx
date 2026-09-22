@@ -22,6 +22,7 @@ import {
   slideDeleteForward,
   slideDeleteRange,
   slideInsertText,
+  slideRangeHasStyle,
   type SlideEditResult,
   slideToggleStyle,
   slideWordAt,
@@ -84,7 +85,26 @@ type Props = {
   onExit: () => void;
   /** A modal covers the canvas: hide everything painted over it. */
   covered: boolean;
+  /** Start with the whole text selected (a just-added field's placeholder). */
+  selectAll?: boolean;
+  /** Receives the formatting commands and state, for the toolbar. */
+  onApi?: (api: InlineTextApi | undefined) => void;
 };
+
+/** What the slide toolbar drives while text is being edited on the canvas. */
+export type InlineTextApi = {
+  isMarkdown: boolean;
+  toggleStyle: (prop: "bold" | "italic") => void;
+  toggleList: (ordered: boolean) => void;
+  /** Bold/italic at the caret (or over the whole selection) and the list
+   *  kind of the caret's line. */
+  marks: () => { bold: boolean; italic: boolean; list?: "bullet" | "numbered" };
+  focus: () => void;
+};
+
+/** Elements carrying this attribute (the slide toolbar) do not end editing
+ *  when clicked. */
+export const INLINE_EDIT_KEEP_ATTR = "data-inline-edit-keep";
 
 type PeerMark = {
   key: string;
@@ -149,6 +169,36 @@ export function InlineTextEditor(p: Props) {
       ? g.analysis
       : analyzeSlideMarkdown(docText());
   }
+
+  const marks = createMemo(() => {
+    const s = sel();
+    const text = docText();
+    if (!isMarkdown) return { bold: false, italic: false };
+    const an = analysis();
+    const from = Math.min(s.anchor, s.head);
+    const to = Math.max(s.anchor, s.head);
+    let bold: boolean;
+    let italic: boolean;
+    if (from !== to) {
+      bold = slideRangeHasStyle(an, from, to, "bold");
+      italic = slideRangeHasStyle(an, from, to, "italic");
+    } else {
+      // The char the caret follows: what typing here continues.
+      let i = from - 1;
+      while (i >= 0 && an.kind[i] !== SRC_VISIBLE && text[i] !== "\n") i--;
+      const st = i >= 0 && an.kind[i] === SRC_VISIBLE ? an.srcStyle[i] : undefined;
+      bold = !!st?.bold;
+      italic = !!st?.italic;
+    }
+    const lineStart = text.lastIndexOf("\n", s.head - 1) + 1;
+    const line = text.slice(lineStart, text.indexOf("\n", s.head) < 0 ? text.length : text.indexOf("\n", s.head));
+    const m = /^\s*([-*+]|\d+[.)])\s/.exec(line);
+    return {
+      bold,
+      italic,
+      list: m ? (/\d/.test(m[1]) ? "numbered" as const : "bullet" as const) : undefined,
+    };
+  });
 
   // ── Screen mapping ─────────────────────────────────────────────────────────
 
@@ -548,8 +598,26 @@ export function InlineTextEditor(p: Props) {
     const at = g && p.initialPoint
       ? offsetAt(g, p.initialPoint.x, p.initialPoint.y)
       : initial.length;
-    view.dispatch({ selection: EditorSelection.cursor(Math.min(at, initial.length)) });
+    view.dispatch({
+      selection: p.selectAll
+        ? EditorSelection.single(0, initial.length)
+        : EditorSelection.cursor(Math.min(at, initial.length)),
+    });
     view.focus();
+
+    p.onApi?.({
+      isMarkdown,
+      toggleStyle: (prop) => {
+        toggle(prop);
+        view?.focus();
+      },
+      toggleList: (ordered) => {
+        toggleList(ordered);
+        view?.focus();
+      },
+      marks,
+      focus: () => view?.focus(),
+    });
 
     const onMove = () => setTick((t) => t + 1);
     window.addEventListener("resize", onMove);
@@ -571,6 +639,7 @@ export function InlineTextEditor(p: Props) {
       window.removeEventListener("scroll", onMove, true);
       document.removeEventListener("pointerdown", onOutside, true);
       detachPeers?.();
+      p.onApi?.(undefined);
       view?.destroy();
       view = undefined;
     });
@@ -589,11 +658,12 @@ export function InlineTextEditor(p: Props) {
   }
 
   let captureEl: HTMLDivElement | undefined;
-  let toolbarEl: HTMLDivElement | undefined;
   function onOutside(e: PointerEvent) {
     const t = e.target as Node | null;
     if (!t) return;
-    if (captureEl?.contains(t) || toolbarEl?.contains(t) || host.contains(t)) return;
+    if (captureEl?.contains(t) || host.contains(t)) return;
+    // The toolbar (and its popovers) acts on this editor: not "outside".
+    if ((t as Element).closest?.(`[${INLINE_EDIT_KEEP_ATTR}]`)) return;
     p.onExit();
   }
 
@@ -788,9 +858,6 @@ export function InlineTextEditor(p: Props) {
     });
   });
 
-  const btn =
-    "flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-sm hover:bg-base-200";
-
   return (
     <Portal mount={document.body}>
       <style>{CARET_CSS}</style>
@@ -898,51 +965,6 @@ export function InlineTextEditor(p: Props) {
               onDblClick={(e) => e.stopPropagation()}
               onContextMenu={(e) => e.stopPropagation()}
             />
-            <Show when={isMarkdown}>
-              <div
-                ref={toolbarEl}
-                class="bg-base-100 border-base-300 pointer-events-auto absolute flex items-center gap-0.5 rounded-md border p-0.5 shadow-md"
-                style={{
-                  left: `${pt().bounds.left}px`,
-                  top: `${Math.max(4, pt().bounds.top - 42)}px`,
-                }}
-                onPointerDown={(e) => e.preventDefault()}
-              >
-                <button
-                  type="button"
-                  class={`${btn} font-700`}
-                  title={t3({ en: "Bold (Ctrl+B)", fr: "Gras (Ctrl+B)", pt: "Negrito (Ctrl+B)" })}
-                  onClick={() => toggle("bold")}
-                >
-                  B
-                </button>
-                <button
-                  type="button"
-                  class={`${btn} italic`}
-                  title={t3({ en: "Italic (Ctrl+I)", fr: "Italique (Ctrl+I)", pt: "Itálico (Ctrl+I)" })}
-                  onClick={() => toggle("italic")}
-                >
-                  I
-                </button>
-                <div class="bg-base-300 mx-0.5 h-5 w-px" />
-                <button
-                  type="button"
-                  class={btn}
-                  title={t3({ en: "Bulleted list", fr: "Liste à puces", pt: "Lista com marcadores" })}
-                  onClick={() => toggleList(false)}
-                >
-                  •
-                </button>
-                <button
-                  type="button"
-                  class={`${btn} text-xs`}
-                  title={t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" })}
-                  onClick={() => toggleList(true)}
-                >
-                  1.
-                </button>
-              </div>
-            </Show>
           </div>
         )}
       </Show>

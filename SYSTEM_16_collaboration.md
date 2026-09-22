@@ -463,11 +463,16 @@ prior session for the same slide):
   scopes undo to local edits. `plain` prop disables markdown highlighting for
   title fields. Read-only (`EditorState.readOnly` +
   `EditorView.editable(false)`) when the caller's `canEdit` is false.
-- [collab_text_field.tsx](client/src/components/products/slide_deck/slide_editor/collab_text_field.tsx)
-  wraps one root text field: binds the field's Y.Text (`findRootTextField`)
-  when collab is ready, falls back to panther `TextArea` otherwise; both paths
-  mirror into `tempSlide` so the canvas re-renders; focus broadcasts
-  `selectedTextTarget`.
+- Slide text (body blocks and root title fields) is typed ON the canvas:
+  [inline_text_editor.tsx](client/src/components/products/slide_deck/slide_editor/inline_text_editor.tsx)
+  binds a hidden CodeMirror to the block's `markdown` / the field's
+  `findRootTextField` Y.Text with the same `yCollab` + `yCaretHygiene` pair
+  and the session's shared `undoManager`, paints peers' carets and selections
+  over the canvas from their awareness `cursor`, and mirrors every change
+  into `tempSlide` so the canvas re-renders (S12 "Typing on the canvas").
+  Without a ready session it edits `tempSlide` directly. A text block's
+  markdown source opens in `markdown_source_modal.tsx`, the shared editor
+  bound to the same Y.Text.
 - Awareness (cursor positions) rides the same WS as `awareness_update` /
   `awareness`; the server relays without applying or persisting (ephemeral).
   The `user` awareness field (name/color) is stamped from the client's own

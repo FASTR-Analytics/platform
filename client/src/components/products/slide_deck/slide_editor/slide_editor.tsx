@@ -15,6 +15,7 @@ import {
   COLLAB_NO_EDIT_PERMISSION,
   findSlideFigureConfigMap,
   getSlideTitle,
+  findNodeMap,
   materializeSlide,
   t3,
   PAGE_HEIGHT_DU,
@@ -31,14 +32,12 @@ import {
   AlertComponentProps,
   APIResponseWithData,
   Button,
-  FrameLeftResizable,
   FrameTop,
   getQueryStateFromApiResponse,
   HeadingBar,
   PageHolder,
   PageInputs,
   buildHitRegions,
-  Select,
   StateHolder,
   applyDividerDragUpdate,
   findHitTarget,
@@ -109,25 +108,18 @@ import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to
 import { convertBlockType } from "../slide_transforms/mod.ts";
 import { convertSlideType } from "../slide_transforms/mod.ts";
 import { updateBlockInLayout } from "../slide_transforms/mod.ts";
-import { SlideEditorPanel } from "./editor_panel";
-import { InlineTextEditor, type InlineEditTarget } from "./inline_text_editor";
+import { SlideToolbar } from "./slide_toolbar";
+import { SLIDE_TEXT_FIELDS, slideTextField } from "./slide_fields";
+import { MarkdownSourceModal } from "./markdown_source_modal";
+import {
+  InlineTextEditor,
+  type InlineEditTarget,
+  type InlineTextApi,
+} from "./inline_text_editor";
 
 // The title primitives panther draws, and the slide field each one shows.
-const INLINE_TITLE_FIELDS: Record<
-  string,
-  { field: string; slideType: SlideType }
-> = {
-  headerText: { field: "header", slideType: "content" },
-  subHeaderText: { field: "subHeader", slideType: "content" },
-  dateText: { field: "date", slideType: "content" },
-  footerText: { field: "footer", slideType: "content" },
-  coverTitle: { field: "title", slideType: "cover" },
-  coverSubTitle: { field: "subtitle", slideType: "cover" },
-  coverAuthor: { field: "presenter", slideType: "cover" },
-  coverDate: { field: "date", slideType: "cover" },
-  sectionTitle: { field: "sectionTitle", slideType: "section" },
-  sectionSubTitle: { field: "sectionSubtitle", slideType: "section" },
-};
+const INLINE_TITLE_FIELDS: Record<string, { field: string; slideType: SlideType }> =
+  Object.fromEntries(SLIDE_TEXT_FIELDS.map((f) => [f.primitiveId, f]));
 
 type SlideEditorInnerProps = {
   productId: string;
@@ -193,7 +185,6 @@ export function SlideEditor(p: Props) {
     if (id) setSelectedTextTarget(undefined);
     setSelectedBlockId(id);
   }
-  const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
   const [measuredPage, setMeasuredPage] = createSignal<MeasuredPage>();
 
   // ── Typing on the canvas ────────────────────────────────────────────────────
@@ -201,8 +192,15 @@ export function SlideEditor(p: Props) {
   // type straight onto the slide: see inline_text_editor.tsx. A fresh object
   // per session remounts the editor for each one.
   const [inlineEdit, setInlineEdit] = createSignal<
-    { target: InlineEditTarget; point?: { x: number; y: number } } | undefined
+    | {
+      target: InlineEditTarget;
+      point?: { x: number; y: number };
+      selectAll?: boolean;
+    }
+    | undefined
   >();
+  // The open inline editor's commands, for the toolbar's formatting buttons.
+  const [inlineApi, setInlineApi] = createSignal<InlineTextApi>();
 
   function textOfTarget(t: InlineEditTarget): string | undefined {
     if (t.kind === "block") {
@@ -222,16 +220,32 @@ export function SlideEditor(p: Props) {
   function startInlineEdit(
     target: InlineEditTarget,
     point?: { x: number; y: number },
+    selectAll?: boolean,
   ) {
     if (!canEdit() || textOfTarget(target) === undefined) return;
     if (target.kind === "block") {
       selectBlock(target.id);
-      setContentTab("block");
     } else {
       selectTextTarget(target.primitiveId);
-      setContentTab("slide");
     }
-    setInlineEdit({ target, point });
+    setInlineEdit({ target, point, selectAll });
+  }
+
+  // Text menu → an absent title field: seed it with its name (an empty field
+  // draws nothing to click) and start typing over it.
+  function addTitleField(primitiveId: string) {
+    const f = slideTextField(primitiveId);
+    const target = titleTarget(primitiveId);
+    if (!f || !target || tempSlide.type !== f.slideType) return;
+    manuallyUpdateTempSlide(
+      produce((draft) => {
+        (draft as unknown as Record<string, unknown>)[f.field] = f.label();
+      }),
+    );
+    // Opened after the seeded text reaches the canvas, so the editor binds to
+    // it with the placeholder selected.
+    setInlineEdit(undefined);
+    queueMicrotask(() => startInlineEdit(target, undefined, true));
   }
 
   function inlineTargetAt(x: number, y: number): InlineEditTarget | undefined {
@@ -285,12 +299,81 @@ export function SlideEditor(p: Props) {
         }),
       );
     } else {
+      // An emptied optional field is removed, as the old side panel did.
+      const optional = slideTextField(target.primitiveId)?.optional ?? false;
       manuallyUpdateTempSlide(
         produce((draft) => {
-          (draft as unknown as Record<string, unknown>)[target.field] = text;
+          (draft as unknown as Record<string, unknown>)[target.field] =
+            text === "" && optional ? undefined : text;
         }),
       );
     }
+  }
+
+  // ── Block edits from the toolbar ──────────────────────────────────────────
+
+  function updateBlock(
+    blockId: string,
+    updater: (block: ContentBlock) => ContentBlock,
+  ) {
+    if (tempSlide.type !== "content") return;
+    // Path set, as setFigureBlockBundle below: a fresh reference on the path.
+    const layout = updateBlockInLayout(tempSlide.layout, blockId, updater);
+    (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)("layout", layout);
+  }
+
+  // Switching a block's type keeps what it held under the old type, so
+  // switching back restores it.
+  const blockTypeCache = new Map<string, ContentBlock>();
+  function handleBlockTypeChange(
+    blockId: string,
+    newType: "text" | "figure" | "image",
+  ) {
+    if (tempSlide.type !== "content") return;
+    const hit = findById(tempSlide.layout, blockId);
+    const current = hit?.node.type === "item" ? hit.node.data : undefined;
+    if (!current || current.type === newType) return;
+    blockTypeCache.set(`${blockId}_${current.type}`, unwrap(current));
+    const cached = blockTypeCache.get(`${blockId}_${newType}`);
+    if (cached) {
+      updateBlock(blockId, () => cached);
+    } else {
+      manuallyUpdateTempSlide(
+        reconcile({
+          ...unwrap(tempSlide),
+          layout: convertBlockType(
+            unwrap(tempSlide as ContentSlide).layout,
+            blockId,
+            newType,
+          ),
+        }),
+      );
+    }
+  }
+
+  // A text block's markdown source, for what typing on the canvas can't
+  // reach (code blocks, link targets) or anyone who prefers it.
+  function openMarkdownSource(blockId: string) {
+    setInlineEdit(undefined);
+    const s = session();
+    const yText = collabReady() && s
+      ? (findNodeMap(s.doc, blockId)?.get("markdown") as Y.Text | undefined)
+      : undefined;
+    const initial = textOfTarget({ kind: "block", id: blockId }) ?? "";
+    void withCanvasCovered(
+      openComponent({
+        element: MarkdownSourceModal,
+        props: {
+          productId: p.productId,
+          yText,
+          awareness: s?.awareness,
+          undoManager: s?.undoManager,
+          initial,
+          onText: (md: string) =>
+            applyInlineText({ kind: "block", id: blockId }, md),
+        },
+      }),
+    );
   }
 
   // The block or field went away under the editor (deleted, retyped, a slide
@@ -1102,11 +1185,6 @@ export function SlideEditor(p: Props) {
                     </span>
                   </div>
                 </Show>
-                {/* Per-user undo/redo of this client's own slide edits. */}
-                <Show when={canUndoRedo()}>
-                  <Button onClick={undo} iconName="undo" outline />
-                  <Button onClick={redo} iconName="redo" outline />
-                </Show>
                 <Show when={canEdit()}>
                   <UpdateAllFiguresButton
                     count={staleFigures().length}
@@ -1114,31 +1192,6 @@ export function SlideEditor(p: Props) {
                     onClick={() => void updateAllFiguresOnSlide()}
                   />
                 </Show>
-                <Select
-                  data-tour="slide-type-select"
-                  options={[
-                    {
-                      value: "cover",
-                      label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
-                    },
-                    {
-                      value: "section",
-                      label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
-                    },
-                    {
-                      value: "content",
-                      label: t3({
-                        en: "Content",
-                        fr: "Contenu",
-                        pt: "Conteúdo",
-                      }),
-                    },
-                  ]}
-                  value={tempSlide.type}
-                  onChange={(v: string) =>
-                    handleTypeChange(v as "cover" | "section" | "content")
-                  }
-                />
                 <Show when={!showAi()}>
                   <Button
                     onClick={() => setShowAi(true)}
@@ -1150,57 +1203,42 @@ export function SlideEditor(p: Props) {
                 </Show>
               </div>
             </HeadingBar>
-          </div>
-        }
-      >
-        <FrameLeftResizable
-          startingWidth={400}
-          minWidth={300}
-          maxWidth={600}
-          panelChildren={
-            <div
-              class="h-full w-full"
-              data-cursor-zone="panel"
-              data-tour="slide-panel"
-            >
-              <SlideEditorPanel
-                productId={p.productId}
-                staleContext={staleContext()}
+            <Show when={canEdit()}>
+              <SlideToolbar
+                tempSlide={tempSlide}
+                setTempSlide={manuallyUpdateTempSlide}
+                showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover.showByDefault}
+                showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header.showByDefault}
+                showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer.showByDefault}
+                hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !== undefined}
+                canEdit={canEdit()}
+                canUndoRedo={canUndoRedo()}
+                onUndo={undo}
+                onRedo={redo}
+                onTypeChange={handleTypeChange}
+                selectedBlockId={selectedBlockId()}
+                selectedTextTarget={selectedTextTarget()}
+                editing={inlineEdit()?.target}
+                inlineApi={inlineApi()}
+                onEditText={(target) => startInlineEdit(target)}
+                onAddField={addTitleField}
+                onEditMarkdown={openMarkdownSource}
+                onShowLayoutMenu={handleShowLayoutMenu}
+                onBlockTypeChange={handleBlockTypeChange}
+                updateBlock={updateBlock}
                 staleFigureBundle={selectedStaleBundle()}
+                staleContext={staleContext()}
                 onFigureUpdated={(bundle) => {
                   const blockId = selectedBlockId();
                   if (blockId) setFigureBlockBundle(blockId, bundle);
                 }}
-                canEditFigures={canEdit()}
-                tempSlide={tempSlide}
-                setTempSlide={manuallyUpdateTempSlide}
-                selectedBlockId={selectedBlockId()}
-                setSelectedBlockId={setSelectedBlockId}
-                session={session()}
-                collabReady={collabReady()}
-                onSelectTextTarget={selectTextTarget}
-                openEditor={openEditor}
-                contentTab={contentTab()}
-                setContentTab={setContentTab}
-                onShowLayoutMenu={handleShowLayoutMenu}
                 onEditVisualization={handleEditVisualization}
                 onCreateVisualization={handleCreateVisualization}
-                showCoverLogosByDefault={
-                  p.deckConfigSnapshot.logos.cover.showByDefault
-                }
-                showHeaderLogosByDefault={
-                  p.deckConfigSnapshot.logos.header.showByDefault
-                }
-                showFooterLogosByDefault={
-                  p.deckConfigSnapshot.logos.footer.showByDefault
-                }
-                hasGlobalFooterText={
-                  p.deckConfigSnapshot.globalFooterText !== undefined
-                }
               />
-            </div>
-          }
-        >
+            </Show>
+          </div>
+        }
+      >
           <div
             class="bg-base-200 h-full w-full overflow-auto"
             data-cursor-zone="canvas-area"
@@ -1255,7 +1293,6 @@ export function SlideEditor(p: Props) {
                     onClick={(target) => {
                       if (target.type === "layoutItem") {
                         selectBlock(target.node.id);
-                        setContentTab("block");
                       } else if (
                         target.type === "headerText" ||
                         target.type === "subHeaderText" ||
@@ -1271,7 +1308,6 @@ export function SlideEditor(p: Props) {
                         // Clicking a title target on the canvas both switches to
                         // the slide tab and highlights it for collaborators.
                         selectTextTarget(target.type);
-                        setContentTab("slide");
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
@@ -1302,7 +1338,6 @@ export function SlideEditor(p: Props) {
                               }),
                             );
                             setSelectedBlockId(blockId);
-                            setContentTab("block");
                           },
                           onConvertToFigure: (blockId) => {
                             const newLayout = convertBlockType(
@@ -1317,7 +1352,6 @@ export function SlideEditor(p: Props) {
                               }),
                             );
                             setSelectedBlockId(blockId);
-                            setContentTab("block");
                           },
                           onConvertToImage: (blockId) => {
                             const newLayout = convertBlockType(
@@ -1332,7 +1366,6 @@ export function SlideEditor(p: Props) {
                               }),
                             );
                             setSelectedBlockId(blockId);
-                            setContentTab("block");
                           },
                         },
                       );
@@ -1368,6 +1401,8 @@ export function SlideEditor(p: Props) {
                   onText={(text) => applyInlineText(ie.target, text)}
                   onExit={() => setInlineEdit(undefined)}
                   covered={subEditorOpen() > 0}
+                  selectAll={ie.selectAll}
+                  onApi={setInlineApi}
                 />
               )}
             </Show>
@@ -1381,7 +1416,6 @@ export function SlideEditor(p: Props) {
               covered={() => subEditorOpen() > 0}
             />
           </div>
-        </FrameLeftResizable>
       </FrameTop>
     </EditorWrapper>
   );

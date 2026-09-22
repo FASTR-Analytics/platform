@@ -110,8 +110,8 @@ export function buildFastrToneCss(
   colors?: FastrThemeColorOverride,
 ): string {
   const { d } = selectors(scope);
-  const c = derivedFor(tokens, colors);
-  const accentText = accentTextFor(c.accent, c.surfaceAlt, c.ink);
+  const c = fastrDerivedColorsFor(tokens, colors);
+  const accentText = fastrAccentTextFor(c.accent, c.surfaceAlt, c.ink);
   return FASTR_GROUNDS.map((tone) =>
     toneRuleCss(
       d,
@@ -130,7 +130,7 @@ export function buildFastrToneCss(
 // protects future themes and a custom style's colour override.
 const MIN_TEXT_SEPARATION = 0.25;
 
-function accentTextFor(accent: string, surface: string, ink: string): string {
+export function fastrAccentTextFor(accent: string, surface: string, ink: string): string {
   const a = cssColorLuminance(accent);
   const s = cssColorLuminance(surface);
   if (a === undefined || s === undefined) return accent;
@@ -144,7 +144,7 @@ function accentTextFor(accent: string, surface: string, ink: string): string {
 // cannot be mixed: then only the three vars change and the theme's derived
 // colours stand, as before.
 const HEX6 = /^#[0-9a-f]{6}$/i;
-function derivedFor(
+export function fastrDerivedColorsFor(
   tokens: FastrThemeTokens,
   colors?: FastrThemeColorOverride,
 ): FastrDerivedColors & { scheme: "light" | "dark" } {
@@ -169,9 +169,9 @@ export function buildFastrThemeVarsCss(
   colors?: FastrThemeColorOverride,
 ): string {
   const { vars } = selectors(scope);
-  const c = derivedFor(tokens, colors);
+  const c = fastrDerivedColorsFor(tokens, colors);
   const { page, ink, accent } = c;
-  const accentText = accentTextFor(accent, c.surfaceAlt, ink);
+  const accentText = fastrAccentTextFor(accent, c.surfaceAlt, ink);
   const roles = SEMANTIC_ROLES.map((r) =>
     `  --fm-${r}-light: ${c.semanticOnLight[r]};
   --fm-${r}-dark: ${c.semanticOnDark[r]};`

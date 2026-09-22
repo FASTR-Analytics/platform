@@ -34,6 +34,7 @@ globs:
   - lib/report_fastr_css.ts
   - lib/report_fastr_markdown.ts
   - lib/report_fastr_paged.ts
+  - lib/report_fastr_word.ts
   - lib/report_sections.ts
   - lib/slide_text_offsets.ts
   - server/db/instance/report_styles.ts
@@ -49,9 +50,11 @@ globs:
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/report_fastr_markdown_test.ts
+  - server/tests/report_fastr_word_test.ts
   - server/tests/report_format_helpers_test.ts
   - server/tests/report_html_sanitize_test.ts
   - server/tests/report_pdf_render_test.ts
+  - server/tests/report_word_raster_test.ts
   - server/tests/report_sections_test.ts
   - server/tests/slide_text_offsets_test.ts
   - server/utils/id_generation.ts
@@ -257,10 +260,18 @@ chip read-only.
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
 opens via `openEditor` with `snapshotForSlideEditor` (the deck config only,
 structuredClone-severed) plus the product id, the live pair and its
-authoring context passed down. Left panel switches per slide type
-(cover/section/content; content = header/footer tab + a per-block Content
-tab with text/figure/image editors); right side is a live preview through
-S10's `convertSlideToPageInputs` debounced 100ms off `trackStore(tempSlide)`.
+authoring context passed down. There is no side panel: a toolbar under the
+header
+([slide_toolbar.tsx](client/src/components/products/slide_deck/slide_editor/slide_toolbar.tsx),
+built from the report toolbar's shared parts in
+`products/_shared/toolbar_primitives.tsx`) has a menu row (Slide: type and
+logos; Text: the slide type's title fields from `slide_fields.ts`, adding an
+absent one seeds it with its name and starts typing; Split panel) over one
+pill that follows the selection (text formatting while typing, a title's
+size/bold/italic, or the selected block's type, Layout menu, text background
+and markdown source, figure or image controls). Below it the canvas is a live
+preview through S10's `convertSlideToPageInputs`, debounced 100ms off
+`trackStore(tempSlide)` except while typing on it.
 Every figure it writes is stamped with the product's pair, a figure block
 whose bundle was resolved under another pair shows S11's stale badge in the
 block panel, and the header counts them with "Update all figures" (S10 "The
@@ -582,9 +593,48 @@ contributes only its `colors` here — its `reference_css` targets AI-authored
 class names, not `fm-*`. Sections are the markdown `#`-line scan with a
 top-level mask (`fastrTopLevelLineMask`): headings inside a container or a
 code fence are NOT indexed, so `rewrite_section` can never splice a section
-that starts mid-block. Exports: `.html` (same builder as html) and a PAGED PDF
-— see "Paged PDF and page boxes" below; Word is absent because panther's
-markdown IR cannot represent the blocks and would silently drop every one.
+that starts mid-block. Exports: `.html` (same builder as html), a PAGED PDF
+(see "Paged PDF and page boxes" below) and, since 2026-09-22, a Word file
+(see "Word export" below). Panther's markdown-to-Word engine is NOT used for
+it: its IR cannot represent the blocks and would silently drop every one.
+
+**Word export (2026-09-22).** `lib/report_fastr_word.ts` builds the .docx from
+markdown-it's token stream (the same `createFastrMarkdownIt` the compiler
+uses, so container attrs arrive parsed) with the `docx` library, in the
+browser (`client/src/exports/export_report_as_fastr_word.ts`, `Packer.toBlob`
++ `saveAs`). Text-carrying blocks become native Word structures so the file
+reflows and pastes into a ministry's own template: headings (with the
+`numbering=sections` numbers baked into the text, so a live TOC agrees),
+paragraphs, lists, tables, callouts and steps as shaded one-cell tables,
+quotes as ruled paragraphs, `:::columns` as a continuous multi-column
+section, marks as run colours, `:::contents` as a Word TOC field with
+update-on-open, figures inline at the column's width under a Caption
+paragraph, the page ground as Word's page colour, and the PDF's running
+footer with PAGE/NUMPAGES fields. The decorative blocks (cover, band, tiles,
+card, stat) have no Word equivalent, so they are PICTURES with the text laid
+over them in editable boxes: the client posts the same standalone document
+the PDF prints, laid out at the print column by `buildFastrWordRasterCss`
+(bands bleed by the margin exactly as print), to `rasterizeReportBlocks`
+(`server/report_pdf/rasterize_blocks.ts`, on the PDF's shared browser via
+`withReportBrowser`); Chrome measures every text element of each block
+(`fastrWordMeasureJs`: content box, alignment, line height, per-run font,
+size, weight, colour with any alpha composited onto the ground, tracking,
+caps), hides the glyphs with `-webkit-text-fill-color: transparent` (so
+rules, pills, bullets and counters stay painted) and screenshots the block
+at 2x. The document anchors the PNG behind one exact-height paragraph and
+floats a VML text box per element (`FastrTextboxRun`: unfilled, unstroked,
+zero inset, grow-to-fit; docx's own `Textbox` can be none of those) at the
+measured offsets; a `fill=page` cover is its own zero-margin section with no
+footer, a natural cover is pulled up through the top margin like print. Only
+authored breaks (`:::pagebreak`, `break=`) are forced; Word paginates the
+rest, so page counts drift from the PDF by a page or so. The theme's faces
+are embedded from static TrueType files vendored under
+`client/public/fonts/word/` (one face per family; docx writes `embedRegular`
+only, so a heading family embedded at 700 is emitted unbolded). Same Chrome
+gate as the PDF, no degraded fallback: a report with no decorative block
+never calls the server. Tests: `server/tests/report_fastr_word_test.ts`
+(asserts on the .docx's own XML) and the Chrome-gated
+`server/tests/report_word_raster_test.ts`.
 
 **Paged PDF and page boxes (2026-09-08, inverted 2026-09-10).** A FASTR
 Markdown report has a real PDF, and the Edit pane shows where its pages fall.
