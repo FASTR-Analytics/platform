@@ -9,8 +9,9 @@ tab, the family's scorecard, and a per-indicator detail.
 
 **Next step: Do 1.** Each session sets this line in its final commit.
 
-Branch: `version2`. Repos touched: this app and
-`/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only).
+Branch: `version2`. Repos touched: this app,
+`/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
+`/Users/timroberton/projects/panther/timroberton-panther` (step 4 only).
 Read first: `CLAUDE.md`, `SYSTEMS.md`, then §2 and §3 here.
 
 ---
@@ -29,7 +30,7 @@ Cadence, session shapes, the two-things rule and the step rules are
   help text, so no conditional gate applies. The manifest transform in
   step 2 is covered by `deno task test` through
   `server/tests/run_manifest_transform_test.ts`.
-- Build log: §8. Last step: 4.
+- Build log: §8. Last step: 5.
 - A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for
   each area the step names, §2 and §3 here, the step's own section in §4,
   and §8.
@@ -45,6 +46,9 @@ Rules peculiar to this plan:
   Its commit is listed in the build log like an app commit. The app's
   `deno task typecheck` does not cover it; step 1's gate runs its build and
   validator by hand.
+- **`panther/` is never edited here.** Step 4 builds the grid in the
+  panther repo, confirms panther typechecks, and lands the sync as one
+  app commit holding only synced files (CLAUDE.md "Boundaries").
 - **Frozen modules are never rebuilt.** `_frozen_modules.ts` in the modules
   repo names the directories exempt from build, typecheck and validation.
   Step 1 adds m003 and m004 to it; nothing in this plan edits, rebuilds or
@@ -95,10 +99,22 @@ Vocabulary, used throughout:
   "Supporting analyses".
 - **Module order**: family, then tier (primary first), then the declared
   `sortOrder`, then id. One comparator in `lib/`, used by every surface.
-- **Scorecard**: the first ready metric, by id, of a family's primary
-  module, rendered through that metric's first preset. Today that is
-  `m12-01-01` / `scorecard-table`, `m10-01-01` /
-  `hfa-category-indicator-table`, `m9-01-01` / `iceh-coverage-table`.
+- **Scorecard metric**: the first ready metric, by id, of a family's
+  primary module. Today `m12-01-01`, `m10-01-01`, `m9-01-01`.
+- **Scorecard query**: the data config (`d`) of the scorecard metric's
+  first preset (`scorecard-table`, `hfa-category-indicator-table`,
+  `iceh-coverage-table`): what is queried, at which grain, for which
+  period window. The preset's style and text configs are not used.
+- **Grid**: a new panther component, `DataGrid` in
+  `_303_components/tables/data_grid/`, built in step 4: a numeric matrix
+  with sticky row and column headers, column groups, formatted cells with
+  caller-supplied colours, sort by column, hover and click callbacks.
+  Neither the record table (`display_table`, entity rows with filters and
+  bulk actions) nor the csv table (`csv_table`, a raw dump viewer).
+- **Scorecard**: the rows of the scorecard query rendered through the
+  grid, not as a canvas figure: sortable columns, a hover value per cell,
+  a clickable row, and cells coloured by the indicator's own rule where
+  the family declares one.
 - **Indicator dimension**: the disaggregation that names the family's
   indicators: `indicator_common_id`, `hfa_indicator`, `iceh_indicator`.
 - **Explore selection**: a `PackageScope` (package + admin area 2, national
@@ -140,12 +156,14 @@ The Explore page:
 ```
 [Package ▾]  [Scope: National ▾]                 HMIS | HFA | ICEH
 ──────────────────────────────────────────────────────────────────
-Indicators (rail)   │  Scorecard: the family's primary metric through
-  ANC 1st visit     │  its first preset, with the preset's replicant
-  ANC 4th visit     │  selector when it declares one (HFA: category).
-  Penta 3           │
-  ...               │  Selected indicator: every other preset of the
-                    │  same metric, filtered to that indicator.
+Indicators (rail)   │  Period: [Last 12 months] [Last quarter] [Year] [All]
+  ANC 1st visit     │  Scorecard: an HTML table of the scorecard query,
+  ANC 4th visit     │  sortable, hoverable, coloured, with the preset's
+  Penta 3           │  replicant selector when it declares one (HFA).
+  ...               │
+                    │  Selected indicator: every other preset of the
+                    │  same metric, filtered to that indicator, as
+                    │  rendered figures.
 ```
 
 Families offered are those whose primary module is in the selected
@@ -154,7 +172,11 @@ the scope defaults to national. Selecting an indicator in the rail adds a
 `filterBy` on the indicator dimension to each remaining preset of the
 scorecard metric; a preset that already disaggregates by that dimension
 collapses it through `getEffectivePOConfig`'s `filtered_to_one_value`
-rule, which is the existing behaviour and needs no code.
+rule, which is the existing behaviour and needs no code. Clicking a
+scorecard row selects that indicator in the rail. The period chips
+replace the scorecard query's `periodFilter` and apply to the detail
+figures too; HFA offers its time points and ICEH its survey years in
+place of calendar windows.
 
 ## 3. Rulings
 
@@ -180,8 +202,26 @@ rule, which is the existing behaviour and needs no code.
 5. **Tier is module-level.** m010's response-status metrics and m009's
    inequality metric are primary because their module is. The scorecard
    metric is the primary module's first ready metric by id, and the
-   scorecard preset is that metric's first `vizPresets` entry: declared by
-   array order, no new flag.
+   scorecard query is that metric's first `vizPresets` entry's data
+   config: declared by array order, no new flag.
+5a. **The scorecard is an HTML table, the detail is rendered figures.**
+   The overview is a lookup task, so it renders through the grid (R5b)
+   with sortable columns, a hover value, row click and threshold
+   colouring from the same per-value rule resolution the `indicator` CF
+   source uses (`lib/traffic_light_rule.ts`); HFA colours by the fixed
+   rule its preset declares, ICEH is uncoloured. The per-indicator detail
+   renders the metric's other presets as canvas figures, because that is
+   exactly what a product would insert. Explore never grows its own copy
+   of the figure editor: reading controls only (period chips, sort,
+   replicant), and anything else is done in a product.
+5b. **The grid is a new panther component.** `DataGrid` takes row and
+   column headers (columns optionally grouped), cells as
+   `{ text, bg?, fg? }` or empty, and emits sort, hover and click with
+   row and column ids. It formats nothing and colours nothing on its own:
+   the app's `lib` formats values and resolves threshold colours, the
+   grid draws what it is given. No selection, no filters, no bulk
+   actions. The record table and the csv table are untouched; folding
+   the csv table onto the grid is panther housekeeping outside this plan.
 6. **One module comparator**, `compareModules` in `lib/`, over
    `{ family, tier, sortOrder, id }`, with family order HMIS, HFA, ICEH.
    The wizard, the picker sidebar, the AI module and metric lists, the
@@ -357,7 +397,27 @@ means.
 **Ends with.** Three commits, each green: the wizard and package view;
 the picker; the AI lists.
 
-### Step 4: The Explore page
+### Step 4: The panther data grid
+
+**Surface.** In `timroberton-panther`: `modules/_303_components/tables/data_grid/**`
+(new), `modules/_303_components/tables/mod.ts`, and its docs or tests
+as that repo's conventions require. In this app: the synced `panther/`
+copies landed by that repo's `./sync`, and nothing else.
+
+**Deliverable.** `DataGrid` exists with the contract of R5b, exported
+from the UI entry, and renders in panther's own sandbox with sticky
+headers, a column group, sorted columns, coloured cells and the three
+callbacks. The app commit contains only synced files.
+
+**Not in this step.** Any app file. The csv table.
+
+**Gates.** Panther: `deno task typecheck` green in that repo before the
+sync. App: the floor; `git diff --stat` of the app commit lists only
+`panther/**`.
+
+**Ends with.** One commit in panther, one commit here.
+
+### Step 5: The Explore page
 
 **Surface.** `client/src/components/explore/**` (new files as the step
 needs; `explore.tsx` is the page), `client/src/state/t4_ui.ts`
@@ -379,12 +439,16 @@ ruling), `SYSTEM_14_client_shell.md`.
 user (R12 to R17): package `Select` over `instanceState.readyPackages`
 defaulting to the pin; the moved `ScopePicker`; family tabs
 (`TabsNavigation`, as the Data page) over the families whose primary
-module is in the package, persisted in `exploreFamily`; the scorecard
-through the shared figure helper with `ReplicateByOptionsSelect` when the
-preset declares a replicant; an indicator rail from the authoring
-context's family catalog (`hmisIndicators`, `hfaTaxonomy.indicators`,
-`icehIndicators`) in catalog order; and, for the selected indicator, the
-scorecard metric's other presets each filtered to it. Empty states are
+module is in the package, persisted in `exploreFamily`; the period chips;
+the scorecard as a `DataGrid` over the scorecard query's rows read
+through `t2_figure_data` (R5a, R5b), with sortable columns, a hover value per
+cell, row click selecting the indicator, threshold colouring, and
+`ReplicateByOptionsSelect` when the preset declares a replicant; an
+indicator rail from the authoring context's family catalog
+(`hmisIndicators`, `hfaTaxonomy.indicators`, `icehIndicators`) in
+catalog order; and, for the selected indicator, the scorecard metric's
+other presets each filtered to it and to the period, rendered through the
+shared figure helper. Empty states are
 typed and worded: no ready package, a package with no primary module, a
 family whose scorecard metric is unavailable (its stamped reason). Every
 read goes through `t2_run_authoring_context` and `t2_figure_data`, so a
@@ -394,11 +458,12 @@ explorer plan"; SYSTEM_11's `ReplicateByOptionsSelect` open item is
 deleted; SYSTEM_14 names `exploreFamily` and the tab's page.
 
 **Not in this step.** Any write. Insert into product. The figure editor.
-A copilot mount. Cross-family search. Help buttons.
+A copilot mount. Cross-family search. Help buttons. Admin-level switching,
+column focus and a "show as figure" toggle on the scorecard (§6).
 
 **Gates.** Floor, with `lint:structure` green over the moves (the
-structure lint is chained into the typecheck). `git diff -M --name-status`
-lists the two moved files as renames.
+structure lint is chained into the typecheck). G8 over the two moved
+files.
 
 **Ends with.** Two commits, each green: the two moves with their importers
 repointed and manifests edited; then the page and its docs. The review
@@ -414,7 +479,8 @@ that passes deletes this file in its commit.
 | G4 | Frozen directories untouched | `git diff --stat <c>^ <c> -- m003 m004 m007 m008` empty in the modules repo | 1 |
 | G5 | Block 11 is pinned | `deno task test` runs the new cases in `server/tests/run_manifest_transform_test.ts` | 2 |
 | G6 | Every dev package transforms to 13 | boot log against the dev database reports no unreadable package | 2 |
-| G7 | Moves are moves | `git diff -M --name-status <c>^ <c>` lists `R…` for each moved file | 4 |
+| G7 | Panther typechecks and the sync is isolated | `deno task typecheck` in the panther repo; `git diff --stat <c>^ <c>` of the app commit lists only `panther/**` | 4 |
+| G8 | Moves are moves | `git diff -M --name-status <c>^ <c>` lists `R…` for each moved file | 5 |
 
 ## 6. Out of scope
 
@@ -423,8 +489,13 @@ that passes deletes this file in its commit.
   editor, download, a copilot mount, and a cross-family indicator search.
   Nothing here anticipates them beyond the shared figure helper.
 - A merged cross-family values table (R13).
+- **A follow-on plan, "Explore controls"**: switching the scorecard's
+  admin level, focusing one area from a column header, a "show as
+  figure" toggle that renders the scorecard query as a canvas figure, and
+  colouring on/off. Reading controls only, per R5a.
 - A replacement for `m3-01-01`'s facility-level view (R10).
 - Deleting m003, m004, m007 or m008 from the modules repo (R3).
+- Reimplementing the csv table over the grid (R5b).
 - Metric-level tier or an explicit scorecard-metric flag (R5).
 - Any change to what the three primary metrics compute, to their presets,
   or to thresholds for HFA and ICEH indicators.
