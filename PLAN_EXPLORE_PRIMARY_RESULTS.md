@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Review 2.** Each session sets this line in its final commit.
+**Next step: Fix 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -544,3 +544,6 @@ that passes deletes this file in its commit.
 | 2026-09-22 | 2 | Choice: `LEGACY_MODULE_PRESENTATION` places the retired modules after the live HMIS secondary ones: m003 sortOrder 6, m004 7, m007 8, m008 9, all `hmis`/`secondary`. |
 | 2026-09-22 | 2 | `getDatasetFamilyFromRun` parses only `family` out of the module blob (`moduleDefinitionInstalledStrict.pick`), because it sits on the per-request items read and the blob carries the whole script. |
 | 2026-09-22 | 2 | Step 2 built. Two commits: the schema, registry, comparator and declared-family reads; then schema 13, block 11, four transform test cases and the docs. Floor green: typecheck, 401 tests, validate_protocols, boot against the dev database on port 8001: 8 manifests checked, 0 unreadable, all at v13. |
+| 2026-09-22 | R2 | Finding: `server/routes/caches/visualizations.ts:97` bumped `PO_CACHE_VERSION` to 25 without the per-bump history line the file keeps. Fix: add the "25" line naming schema v13 and that `metric_info` payloads carry `datasetFamily`. |
+| 2026-09-22 | R2 | The transform test has three `Deno.test` blocks, not four cases: the second-pass check is folded into the first. Behaviourally complete; no change. PROTOCOL_APP_MIGRATIONS's carry-forward list still names `modules[]` and `metrics[]`, which blocks 2 and 11 rewrite under a ruling; outside this plan's surface, noted for a later pass. |
+| 2026-09-22 | R2 | Gates rerun: floor green (typecheck, 401 tests, validate_protocols). Step 2 reviewed: 1 finding. |
