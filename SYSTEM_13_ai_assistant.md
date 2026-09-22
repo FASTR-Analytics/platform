@@ -251,7 +251,7 @@ passthrough.
 
 [`ProductCopilotHost`](client/src/components/copilot/index.tsx) is the copilot
 mount (D15): the product opener (`openProduct` in
-`client/src/components/products/index.tsx`, the ONE mount site) renders it
+`client/src/components/products/products.tsx`, the ONE mount site) renders it
 around whichever editor it opens, so there is one copilot per open product and
 the panel spans the editor's full height. The host keeps the editor mounted
 (a reattach is handled live there, D16) and keys the chat beside it on the

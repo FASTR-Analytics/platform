@@ -51,18 +51,18 @@ import {
   setProductsViewMode,
 } from "~/state/t4_ui";
 import { ProductCopilotHost } from "~/components/copilot";
-import { DuplicateProductsModal } from "./_shared/duplicate_products_modal";
-import { PackageScopeModal } from "./_shared/package_scope_modal";
+import { DuplicateProductsModal } from "./_shared/mod.ts";
+import { PackageScopeModal } from "./_shared/mod.ts";
 import { EditFolderModal } from "./edit_folder_modal";
 import { FolderCard, folderColor, topLevelLabel } from "./folder_card";
 import { buildFolderMenu } from "./folder_menu";
-import { ancestors, childFolders, folderPathLabels } from "./_shared/folder_tree";
+import { ancestors, childFolders, folderPathLabels } from "./_shared/mod.ts";
 import { ListView } from "./list_view";
 import { MoveToFolderModal } from "./move_to_folder_modal";
 import { ProductCard } from "./product_card";
 import { buildProductMenu } from "./product_menu";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
-import { ProductSettings } from "./_shared/product_settings";
+import { ProductSettings } from "./_shared/mod.ts";
 
 // The type-filter chips store null for "every type", so the chip group needs a
 // sentinel of its own.

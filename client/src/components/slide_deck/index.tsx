@@ -38,7 +38,7 @@ import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
 import { clerk } from "~/components/instance/mod.ts";
 import { VersionHistoryEditor } from "../version_history";
-import { ProductSettings } from "~/components/products/_shared/product_settings";
+import { ProductSettings } from "~/components/products/_shared/mod.ts";
 
 type Props = EditorComponentProps<
   { productId: string; returnToContext?: CopilotViewState },

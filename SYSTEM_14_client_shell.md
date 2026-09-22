@@ -90,8 +90,8 @@ frame. Sub-file custody exceptions are in SYSTEMS.md §4.1:
 is owned by **S1** (this system a mandatory reader: it hosts the Clerk
 singleton, language resolution, and the version flush);
 `lib/translate/t-func.ts` is owned here with **S9** a mandatory reader (calendar
-semantics feed period labels); `components/_shared/sort_control.tsx` is listed
-in **S12**'s manifest but renders this system's sort prefs. Repo-root
+semantics feed period labels); `components/products/sort_control.tsx` is
+**S12**'s but renders this system's sort prefs. Repo-root
 `build_help_buttons.ts` and `client/src/app.css` are outside the lint manifest
 but reviewed here.
 
@@ -361,7 +361,7 @@ the PO editor's data panel).
   site-side `pt` tree before the app side can follow.
 - Help-button adoption is 1 of 43 generated targets. The machinery is built;
   the buttons were never rolled out.
-- `components/_shared/sort_control.tsx` custody: S12's manifest lists it but
+- `components/products/sort_control.tsx` custody: S12's manifest owns it but
   it is shell furniture. Settle the custody (manifest or §4.1 exception)
   rather than leaving prose and globs disagreeing.
 - Help generator hygiene: `.mdx` pages are silently skipped by the walk;

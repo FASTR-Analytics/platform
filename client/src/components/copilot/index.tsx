@@ -37,7 +37,7 @@ import { buildSystemPromptForContext } from "./build_system_prompt";
 import { createCopilotAIToolEnv } from "./ai_tools/client_env";
 import { showAi, setShowAi } from "~/state/t4_ui";
 import { useAIDocuments } from "./ai_documents";
-import type { ProductEditorComponent } from "~/components/products/product_types";
+import type { ProductEditorComponent } from "~/components/products/mod.ts";
 
 type HostProps = EditorComponentProps<
   { productId: string; editor: ProductEditorComponent },

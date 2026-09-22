@@ -89,7 +89,7 @@ generator, table-aware). The product plane: `server/db/products/**`,
 S1's `lib/api-routes/products/*`); on the client, the Products page and its
 surfaces (`client/src/components/products/**`: the explorer page, the pure
 `folder_tree.ts` derivations and their harness, the card and list views, the two
-menu builders, the folder and move modals, the type registry `_shared/product_types.ts`,
+menu builders, the folder and move modals, the type registry `product_types.ts`,
 `product_settings.tsx` for name and folder, `package_scope_chip.tsx` and
 `package_scope_modal.tsx` for the pair, the duplicate modal, `_shared/package_label.ts`) and the two
 editors (`slide_deck/**`, `report/**`), which take `{ productId }` and read
@@ -97,7 +97,7 @@ label, package and scope live from the T1 products row. Lib: slide/report types,
 plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
 `ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `PackageScope`,
 `scopeToken`) that describe the products registry below. Custody wrinkle: this
-manifest lists `_shared/sort_control.tsx` (shell furniture, flagged in
+manifest owns `products/sort_control.tsx` (shell furniture, flagged in
 SYSTEM_14); the three logo files are genuinely S12's (Open item: settle the
 manifest).
 
@@ -308,7 +308,7 @@ slide tools pass `expectedLastUpdated` from a pre-write `getSlide` fetch
 and rethrow `CONFLICT` to the model as a "re-read via get_slide and retry"
 error (no overwrite path: the human editor's modal is the only override).
 
-**The product explorer** (`components/products/index.tsx`) is a file browser
+**The product explorer** (`components/products/products.tsx`) is a file browser
 over the two flat T1 lists (`instanceState.products` and
 `instanceState.folders`, both maintained per row off the instance channel).
 The user is always **inside one folder**: the page shows that folder's
@@ -1901,7 +1901,7 @@ deliveries returns `success: false` (the form shows the error instead of
   need to reach support. Decide and either document or add the check.
 - **`overwrite` on `updateReportBody` is dead**: always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
-- **`_shared/sort_control.tsx` custody**: this manifest lists it, but it is
+- **`products/sort_control.tsx` custody**: this manifest owns it, but it is
   shell furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1
   exception row.
 - **Type casts on mutation bodies**: `body.slide as Slide`,

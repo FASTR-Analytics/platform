@@ -43,7 +43,7 @@ Today's app-level additions:
   stripe utility.
 - `--color-package` (+ `-content`, `-hover`, `-active`) with the
   `ui-fill-package` and `ui-hoverable-package` skins: the one accent for the
-  results-package chip (`components/products/package_scope_chip.tsx`) on
+  results-package chip (`components/products/_shared/package_scope_chip.tsx`) on
   editor headers, product cards and list rows. Nothing else wears it.
 - The base layer: `html, body, #app` → `font-sans`,
   `bg-base-100 text-base-content`, `font-variant-numeric: tabular-nums` for
@@ -132,7 +132,7 @@ Pattern specifics, from the live pages:
   (`products/index.tsx`) is the search-and-sort variant without the side
   panel: `HeadingBar` carries `searchText`/`setSearchText`, a `centerChildren`
   with the type-filter `ButtonGroup`, `SortControl`
-  (`components/_shared/sort_control.tsx`) and the view-mode `ButtonGroup`, and
+  (`components/products/sort_control.tsx`) and the view-mode `ButtonGroup`, and
   the Create buttons, over a location row (Up button plus breadcrumb) in the
   same `FrameTop` panel that renders only inside a folder; open folder / view mode / sort / type-filter state
   lives in `t4_ui` signals (PROTOCOL_APP_STATE).

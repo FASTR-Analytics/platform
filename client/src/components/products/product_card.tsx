@@ -1,7 +1,7 @@
 import type { ProductSummary } from "lib";
 import { Card, Icon } from "panther";
 import { Show } from "solid-js";
-import { PackageScopeChip } from "./_shared/package_scope_chip";
+import { PackageScopeChip } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
 type Props = {

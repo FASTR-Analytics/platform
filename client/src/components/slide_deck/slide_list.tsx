@@ -35,8 +35,8 @@ import { copilotViewController } from "~/components/copilot/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
-import { PackageScopeChip } from "~/components/products/_shared/package_scope_chip";
-import { PackageScopeModal } from "~/components/products/_shared/package_scope_modal";
+import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
+import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
 type Props = {

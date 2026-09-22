@@ -93,9 +93,9 @@ import {
   UpdateAllFiguresButton,
   updateFigureToScope,
 } from "~/components/_shared/figure_editor/mod.ts";
-import { PackageScopeChip } from "~/components/products/_shared/package_scope_chip";
-import { PackageScopeModal } from "~/components/products/_shared/package_scope_modal";
-import { ProductSettings } from "~/components/products/_shared/product_settings";
+import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
+import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
+import { ProductSettings } from "~/components/products/_shared/mod.ts";
 import type { FigureStaleContext } from "./ReportFigureEmbed";
 import type {
   ReportEditProposalResult,
@@ -135,7 +135,7 @@ import { isDarkGroundBehind } from "./report_html";
 import { ShareReport } from "./share_report";
 import { ReportThemeModal } from "./report_theme_modal";
 import { ReportStyleEditor } from "./report_style_editor";
-import { DuplicateProductsModal } from "~/components/products/_shared/duplicate_products_modal";
+import { DuplicateProductsModal } from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   divSurface,
