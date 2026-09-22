@@ -8,7 +8,7 @@ import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_de
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 
 // The instance's tabs, as the tour manager and the catalogue modal name them.
-// The shell (components/instance/index.tsx) imports this union rather than
+// The shell (components/instance/instance.tsx) imports this union rather than
 // redeclaring it.
 export type InstanceTab =
   | "products"

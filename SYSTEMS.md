@@ -58,7 +58,7 @@ list.)
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                                                  |
 | `server/db/instance/run_generation.ts`                                  | S8    | S9, S3, S12       | catalogue, the pin, `attachedProducts`, `setProductRun`, the delete guard               |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / mounts)                                                 |
-| `client/src/components/instance/logged_in_wrapper.tsx`                   | S1    | S3, S14           | Clerk singleton + version flush + shell                                                 |
+| `client/src/components/instance/logged_in_wrapper.tsx`                  | S1    | S3, S14           | Clerk singleton + version flush + shell                                                 |
 | `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (two systems in one small file)                                      |
 | `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance                                          |
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/disk + dataset versions                                            |
