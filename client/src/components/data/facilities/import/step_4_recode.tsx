@@ -29,7 +29,7 @@ import {
 import { For, Match, Show, Switch, batch, createEffect, createMemo, createSignal } from "solid-js";
 import { unwrap, type SetStoreFunction } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { getStructureColumnLabel } from "./_column_labels";
+import { getStructureColumnLabel } from "./column_labels";
 
 // No pagination: reassignment only makes sense for low-cardinality values, so
 // all affected rows load at once and the table scrolls in a capped container.

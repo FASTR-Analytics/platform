@@ -16,7 +16,7 @@ import {
 } from "panther";
 import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getStructureColumnLabel } from "./_column_labels";
+import { getStructureColumnLabel } from "./column_labels";
 
 type Props = {
   step3Result: StructureStagingResult;

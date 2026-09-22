@@ -18,7 +18,7 @@ import {
   createFormAction,
 } from "panther";
 import { serverActions } from "~/server_actions";
-import { getStructureColumnLabel } from "./_column_labels";
+import { getStructureColumnLabel } from "./column_labels";
 
 type Props = {
   step1Result: CsvDetails;
