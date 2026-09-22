@@ -345,11 +345,12 @@ export function indicatorForHit(
   indicatorDimension: DisaggregationOption,
   hit: { rowId: string; columnId: string },
 ): string | undefined {
-  if (grid.rowDimension === indicatorDimension) return hit.rowId;
-  if (grid.columnDimension === indicatorDimension) {
-    return hit.columnId.split(COLUMN_KEY_SEPARATOR).at(-1);
-  }
-  return undefined;
+  const id = grid.rowDimension === indicatorDimension
+    ? hit.rowId
+    : grid.columnDimension === indicatorDimension
+    ? hit.columnId.split(COLUMN_KEY_SEPARATOR).at(-1)
+    : undefined;
+  return id === "" ? undefined : id;
 }
 
 // Labels for a dimension's values: the metric info's possible values first,

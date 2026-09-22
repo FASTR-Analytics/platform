@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Fix 5.** Each session sets this line in its final commit.
+**Next step: Review 5.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -579,3 +579,4 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R5 | Finding: ICEH's declared replicant (`wealth_quintiles`) is discarded: the host seeds the replicant with `""` and then takes the first option the select reports. Fix: seed from the preset's `selectedReplicantValue`. |
 | 2026-09-22 | R5 | Finding: `max-h-[60vh]` around a fit-to-height grid gives it no definite height, so it never scrolls and the sticky headers have no container. Fix: `h-[60vh]`. Also noted: the `createEffect(on(...))` reset in `family_view.tsx` is dead (keyed remounts cover it) and SYSTEM_11's replicant-machinery line still says the select has no consumer. |
 | 2026-09-22 | R5 | Gates rerun: floor green (typecheck, 401 tests, validate_protocols). Step 5 reviewed: 4 findings. |
+| 2026-09-22 | F5 | `explore/tracked_query.ts` (`createTrackedQuery`, the tracked twin of panther's once-only `createQuery`) now serves the scorecard items and the metric info, so a scope change refetches both; the row click is offered only when rows are indicators and an empty id is no hit; the replicant is seeded from the preset's own value; the grid wrapper has a definite height; the dead reset effect is gone; SYSTEM_11's replicant line names the Explore page as the select's consumer. Step 5 fixed. Floor green: typecheck, 401 tests, validate_protocols. |

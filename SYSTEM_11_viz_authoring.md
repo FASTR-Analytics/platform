@@ -331,8 +331,8 @@ nothing: no insert into a product, no editor, no copilot, no download.
 
 `replicate_by_options.tsx` exports a sidebar `SelectList` variant
 (`ReplicateByOptionsList`, the editor's) and a `Select` dropdown variant
-(`ReplicateByOptionsSelect`, no consumer since 9a took the inline selector and
-the slide picker; Open item). Both fetch replicant options through the S9
+(`ReplicateByOptionsSelect`, the Explore page's replicant picker, exported
+through the editor folder's entry). Both fetch replicant options through the S9
 scope-keyed cache (`getReplicantOptionsFromCacheOrFetch`) with
 `excludeReplicantFilter: true` and deep-tracked `filterBy`/`periodFilter`
 reads; statuses `too_many_values` (>500) / `no_values_available` / `error` are

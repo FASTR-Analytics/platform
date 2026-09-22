@@ -1,6 +1,5 @@
 import {
   t3,
-  TC,
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
@@ -9,12 +8,11 @@ import {
 } from "lib";
 import {
   ButtonGroup,
-  createQuery,
   SelectList,
   StateHolderWrapper,
   type ListEntry,
 } from "panther";
-import { createEffect, createMemo, createSignal, on, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { ReplicateByOptionsSelect } from "~/components/_shared/figure_editor/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
@@ -31,6 +29,7 @@ import {
 } from "./explore_query";
 import { IndicatorDetail } from "./indicator_detail";
 import { Scorecard } from "./scorecard";
+import { createTrackedQuery } from "./tracked_query";
 
 // One family of one package at one scope: the indicator rail, the period
 // chips, the scorecard and the selected indicator's detail. The scorecard
@@ -84,17 +83,16 @@ function ReadyFamilyView(p: {
   });
 
   // The metric's queryable shape: labels, formats, rules and the values a
-  // dimension can take (ICEH's survey years come from here).
-  const info = createQuery(
-    () =>
-      getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-        p.scope,
-        p.metric.id,
-      ),
-    t3(TC.loading),
+  // dimension can take (ICEH's survey years come from here). Tracked, so a
+  // scope change re-reads it.
+  const info = createTrackedQuery(() =>
+    getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+      p.scope,
+      p.metric.id,
+    )
   );
   const infoData = (): ResultsValueInfoForPresentationObject | undefined => {
-    const state = info.state();
+    const state = info();
     return state.status === "ready" ? state.data : undefined;
   };
 
@@ -127,15 +125,16 @@ function ReadyFamilyView(p: {
       choices.find((c) => c.id === defaultPeriodChoiceId(family(), choices));
   });
 
+  // Selection state lives for this family of this package: a family or
+  // package change remounts this view through the keyed boundaries above.
   const [selectedIndicator, setSelectedIndicator] = createSignal<
     string | undefined
   >(undefined);
-  const [replicant, setReplicant] = createSignal<string>("");
-  createEffect(on([family, () => p.scope.runId], () => {
-    setSelectedIndicator(undefined);
-    setChosenPeriodId(undefined);
-    setReplicant("");
-  }));
+  // Seeded from the preset's own replicant (ICEH declares one); an unset
+  // preset value is resolved to the first option the select reports.
+  const [replicant, setReplicant] = createSignal<string>(
+    scorecardBase()?.d.selectedReplicantValue ?? "",
+  );
 
   const scorecardConfig = createMemo((): PresentationObjectConfig | undefined => {
     const base = scorecardBase();
@@ -215,7 +214,7 @@ function ReadyFamilyView(p: {
             )}
           </Show>
         </div>
-        <StateHolderWrapper state={info.state()} noPad>
+        <StateHolderWrapper state={info()} noPad>
           {(metricInfo) => (
             <Show
               when={scorecardConfig()}

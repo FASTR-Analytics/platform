@@ -1,19 +1,13 @@
 import {
   resolveEffectiveIndicatorFacts,
   t3,
-  TC,
   type DisaggregationOption,
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
   type ResultsValueInfoForPresentationObject,
 } from "lib";
-import {
-  createQuery,
-  DataGrid,
-  StateHolderWrapper,
-  type DataGridHit,
-} from "panther";
+import { DataGrid, StateHolderWrapper, type DataGridHit } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import {
@@ -22,6 +16,7 @@ import {
   indicatorForHit,
   possibleValueIds,
 } from "./explore_query";
+import { createTrackedQuery } from "./tracked_query";
 
 // The scorecard query rendered through the grid: sortable columns, a hover
 // value per cell, threshold colouring, and a click on a row or cell selecting
@@ -36,9 +31,8 @@ export function Scorecard(p: {
   selectedIndicator: string | undefined;
   onSelectIndicator: (id: string) => void;
 }) {
-  const items = createQuery(
-    () => getPresentationObjectItemsFromCacheOrFetch(p.scope, p.metric, p.config),
-    t3(TC.loading),
+  const items = createTrackedQuery(() =>
+    getPresentationObjectItemsFromCacheOrFetch(p.scope, p.metric, p.config)
   );
 
   const facts = createMemo(() =>
@@ -59,7 +53,7 @@ export function Scorecard(p: {
   const [hover, setHover] = createSignal<DataGridHit | null>(null);
 
   return (
-    <StateHolderWrapper state={items.state()} noPad>
+    <StateHolderWrapper state={items()} noPad>
       {(fetched) => {
         const grid = createMemo(() =>
           fetched.ih.status === "ok"
@@ -103,7 +97,7 @@ export function Scorecard(p: {
           >
             {(g) => (
               <div class="ui-spy-sm">
-                <div class="max-h-[60vh]">
+                <div class="h-[60vh]">
                   <DataGrid
                     columns={g.columns}
                     columnGroups={g.columnGroups}
@@ -115,7 +109,9 @@ export function Scorecard(p: {
                     fitToAvailableHeight
                     onCellHover={setHover}
                     onCellClick={select}
-                    onRowClick={(rowId) => select({ rowId, columnId: "" })}
+                    onRowClick={g.rowDimension === p.indicatorDimension
+                      ? (rowId) => select({ rowId, columnId: "" })
+                      : undefined}
                   />
                 </div>
                 <div class="ui-text-caption h-4 truncate">
