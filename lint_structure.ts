@@ -342,6 +342,9 @@ function consumedChildren(tree: ClientTree, shared: string, e: Edge): string[] {
   }))];
 }
 
+// A child of `_shared/` needs two distinct consuming children of the parent.
+// A consumer inside the same `_shared/` folder lends its own consumers: a
+// helper used only by a shared file is as shared as that file.
 function checkSharedConsumers(tree: ClientTree): Hit[] {
   const hits: Hit[] = [];
   const sharedFolders = new Set<string>();
@@ -354,24 +357,39 @@ function checkSharedConsumers(tree: ClientTree): Hit[] {
   }
   for (const shared of [...sharedFolders].sort()) {
     const parent = dirname(shared);
-    const consumersByChild = new Map<string, Set<string>>();
-    const children = new Set<string>();
-    for (const file of tree.files) {
-      if (isUnder(file, shared) && file !== `${shared}/mod.ts`) {
-        children.add(file.slice(shared.length + 1).split("/")[0]);
-      }
-    }
-    for (const child of children) consumersByChild.set(child, new Set());
+    const childOf = (file: string): string => file.slice(shared.length + 1).split("/")[0];
+    const children = new Set(tree.files.filter((f) => isUnder(f, shared) && f !== `${shared}/mod.ts`).map(childOf));
+    const external = new Map([...children].map((c) => [c, new Set<string>()]));
+    const internal = new Map([...children].map((c) => [c, new Set<string>()]));
     for (const e of tree.edges) {
       if (!isUnder(e.to, shared) || !isUnder(e.from, parent) || e.from === `${shared}/mod.ts`) continue;
+      const inside = isUnder(e.from, shared);
       const rest = e.from.slice(parent.length + 1);
       const consumer = rest.includes("/") ? rest.split("/")[0] : ".";
       for (const child of consumedChildren(tree, shared, e)) {
-        if (isUnder(e.from, `${shared}/${child}`) || e.from === `${shared}/${child}`) continue;
-        consumersByChild.get(child)?.add(consumer);
+        if (inside && childOf(e.from) === child) continue;
+        if (inside) internal.get(child)?.add(childOf(e.from));
+        else external.get(child)?.add(consumer);
       }
     }
-    for (const [child, consumers] of consumersByChild) {
+    const effective = new Map([...children].map((c) => [c, new Set(external.get(c))]));
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const c of children) {
+        const mine = effective.get(c)!;
+        for (const i of internal.get(c)!) {
+          for (const x of effective.get(i) ?? []) {
+            if (!mine.has(x)) {
+              mine.add(x);
+              grew = true;
+            }
+          }
+        }
+      }
+    }
+    for (const child of [...children].sort()) {
+      const consumers = effective.get(child)!;
       if (consumers.size >= 2) continue;
       const path = `${shared}/${child}`;
       const file = tree.files.includes(path) ? path : `${path}/`;

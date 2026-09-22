@@ -66,6 +66,11 @@ const VIOLATIONS: Record<CheckId, Tree> = {
   },
 };
 
+const SHARED_HELPER: Tree = {
+  "components/_shared/upload.tsx": `import { chunk } from "./upload_helper.tsx";\nexport function Upload() {\n  return chunk;\n}\n`,
+  "components/_shared/upload_helper.tsx": `export const chunk = 1;\n`,
+};
+
 const TYPE_ONLY_CYCLE: Tree = {
   "components/products/_shared/panel.tsx": `import type { Deck } from "../slide_deck/mod.ts";\nexport function Panel(): Deck | null {\n  return null;\n}\n`,
 };
@@ -95,6 +100,10 @@ for (const check of CHECK_IDS) {
     });
   });
 }
+
+Deno.test("lint_structure: a helper used only by a shared file is as shared as that file", async () => {
+  await withTree(SHARED_HELPER, (srcDir) => assertEquals(lintStructure(srcDir), []));
+});
 
 Deno.test("lint_structure: a type-only import does not make an entry cycle", async () => {
   await withTree(TYPE_ONLY_CYCLE, (srcDir) => assertEquals(lintStructure(srcDir), []));
