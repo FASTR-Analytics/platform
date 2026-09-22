@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Review 8.** Each session sets this line in its final commit.
+**Next step: Do 9.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -712,3 +712,4 @@ commit.
 | 2026-09-22 | 8 | Step 8 reviewed: 3 findings. |
 | 2026-09-22 | 8 | Fix: `SYSTEM_10_figure_render_export.md` now says `generate_report/` imports `generate_visualization/`, `server_actions/` (`_SERVER_HOST`), lib, panther and `dompurify`, and names `slide_deck/logo_selector.tsx` and `slide_deck/style_editor/StylePreview.tsx` as the two component readers of `fastr_logos.ts`. The G2 row above that says `generate_report/` imports `state/` is wrong in the same way; this row is the correction. The resolved-surface row's import-line list should read `products/_shared/{mod.ts,ReportFigureEmbed.tsx,report_html_preview.tsx,version_history/report_version_preview.tsx,version_history/version_history.tsx}`, `products/report/{report.tsx,figure_widget_extension.tsx,report_editor.tsx,live_preview_extension.tsx}` and `onboarding/storage.ts` alone; no code changes. |
 | 2026-09-22 | 8 | Step 8 fixed. |
+| 2026-09-22 | 8 | Step 8 reviewed: pass. Re-review after Fix 8: `f848c0fd` touches `SYSTEM_10_figure_render_export.md` and the plan only, with no em-dash added. `SYSTEM_10:712` now names `generate_visualization/`, `server_actions/` (`_SERVER_HOST`), lib, panther and `dompurify`, which is the full set `grep -n from client/src/generate_report/*.ts` returns outside the folder's own files; `:608` names `slide_deck/logo_selector.tsx` and `slide_deck/style_editor/StylePreview.tsx`, the two component importers `git grep fastr_logos client/src` finds beside the transform. The correction row's import-line list matches the 45-file diff stat. Floor green at HEAD: `deno task typecheck`, `deno task test` (397 passed, 0 failed, 2 ignored), `./validate_protocols` (0 violations, 16 baselined), `cd client && npm run build`. |
