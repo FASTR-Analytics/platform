@@ -8,10 +8,11 @@ global barrels see `PROTOCOL_ALL_STRUCTURE.md`. For how to use panther
 components see `PROTOCOL_UI_COMPONENTS.md`. For identifier naming see
 `PROTOCOL_ALL_TYPESCRIPT.md`.
 
-Every rule below is mechanically checkable, and each checklist item names the
-check that verifies it. The checker lives in the consuming app
-(`lint_structure.ts`, chained into its typecheck task) until panther ships its
-audit tool.
+Rules 3 to 7 and the file-naming half of rule 10 are checked by a lint, and
+each checklist item names the check that verifies it. Rules 1, 2, 8 and 9 and
+the naming judgement in rule 10 are what a reviewer reads the tree for. The
+checker lives in the consuming app (`lint_structure.ts`, chained into its
+typecheck task) until panther ships its audit tool.
 
 ## Principle
 
@@ -156,6 +157,26 @@ import { REPORT_MARKDOWN_STYLE } from "~/generate_report/report_markdown_style";
 the UI above it, and the tree stops being a map because the same code has two
 homes.
 
+### Cycles
+
+```tsx
+// ❌ DON'T: two folders that each import the other's entry at runtime
+// products/slide_deck/slide_editor.tsx
+import { ProductCopilotHost } from "../copilot/mod.ts";
+// products/copilot/slide_ai/convert_ai_input_to_slide.ts
+import { defaultSlideConfig } from "../../slide_deck/mod.ts";
+
+// ✅ DO: what both need moves to their common _shared/; the edge points one way
+// products/slide_deck/slide_editor.tsx
+import { ProductCopilotHost } from "../copilot/mod.ts";
+// products/copilot/slide_ai/convert_ai_input_to_slide.ts
+import { defaultSlideConfig } from "../../_shared/mod.ts";
+```
+
+**Why:** a cycle means neither folder can be loaded, tested or moved without
+the other, so the two are one unit that the tree draws as two. Type-only
+imports do not count: they vanish at runtime.
+
 ### Names
 
 ```text
@@ -204,9 +225,9 @@ Each item names the check in the consuming app's `lint_structure.ts`.
 - [ ] `unimported`: every file has an importer (the app entry and the route
       pages are the roots)
 
-Judgement, not linted:
-
-- [ ] The top level is the nav rail plus the shell
-- [ ] Pages nest under the page that opens them
-- [ ] No mechanism buckets; facets nest rather than suffix
-- [ ] Each file is named for its main export and does not repeat its folder
+The lint cannot read the nav rail or a component's purpose, so a reviewer
+also checks that the top level is the nav rail plus the shell (rule 1), that
+pages nest under the page that opens them (rule 2), that there are no
+mechanism buckets and facets nest rather than suffix (rules 2 and 8), that a
+folder exists only at the second file (rule 9), and that each file is named
+for its main export without repeating its folder (rule 10).

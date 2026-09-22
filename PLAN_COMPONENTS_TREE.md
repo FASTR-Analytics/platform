@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Fix 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -611,3 +611,5 @@ commit.
 | 2026-09-22 | 1 | Finding: `panther/protocols/PROTOCOL_UI_STRUCTURE.md:11` says "Every rule below is mechanically checkable, and each checklist item names the check that verifies it", but lines 207 to 212 add four checkbox items under "Judgement, not linted" with no check id, and rules 1, 2, 8 and 9 have no check. The file contradicts itself and the deliverable ("a Checklist whose every item names the check id"). Reword line 11 to say which rules the lint covers, and either turn the four judgement items into prose or drop them; the nine id-bearing items (lines 193 to 205) are correct as they stand. Fix in panther, then re-copy. |
 | 2026-09-22 | 1 | Reviewer's reading, no change needed: the app commit `b7dd54fc` also contains `PLAN_COMPONENTS_TREE.md` (the Next step line and four log rows), which the two-things rule requires of every session; the step's gate at line 292 ("lists only `panther/protocols/*`") and the deliverable at line 286 omit it. Everything else checked: the three synced files are byte-identical to panther `8370dc4`, mode 444 as `cli/copy.ts` sets, unchanged in panther between `21b1caf` and `ca6a023` so the hand copy equals what a sync would produce, and free of em-dashes; the sync deviation is accepted for the reasons logged. Gates green: `deno task typecheck`, `deno task test` (384 passed), `./validate_protocols`, `cd client && npm run build`, panther `deno task typecheck` at `8370dc4`. |
 | 2026-09-22 | 1 | Step 1 reviewed: 3 findings. |
+| 2026-09-22 | 1 | Fix: panther `de5bf6f` adds a Cycles Do/Don't for rule 7, rewords the opening to name the linted rules (3 to 7 and the naming half of 10) and turns the four unlinted checklist items into prose. Copied by hand as in the step 1 deviation, mode 444, byte-identical to panther HEAD. |
+| 2026-09-22 | 1 | Step 1 fixed. |
