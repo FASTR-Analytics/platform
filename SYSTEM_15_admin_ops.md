@@ -30,8 +30,7 @@ The `globs:` frontmatter above is the lint-enforced manifest
 `components/users/**`, and under `components/instance/` the profile,
 feedback, instance-meta and change-email forms (`instance.tsx`, its entry and
 the four header modals → S14, `logged_in_wrapper.tsx` → S1,
-`instance_assets.tsx` → S4, `instance_data.tsx` → S6,
-`ai_context_form.tsx` → S13). Server: `routes/instance/health.ts`,
+`instance_data.tsx` → S6, `ai_context_form.tsx` → S13). Server: `routes/instance/health.ts`,
 `utils/disk_space.ts` (`db/instance/user_logs.ts` → S17); cron jobs in
 `main.ts` (S1-owned, S15 reader); `routes/instance/instance.ts` is S5-owned
 with S15 reading its meta/disk slice; the user and permission handlers live in

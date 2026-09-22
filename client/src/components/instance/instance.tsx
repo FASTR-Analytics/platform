@@ -32,7 +32,7 @@ import { ThemeModal } from "./theme_modal";
 import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { Explore } from "~/components/explore";
-import { InstanceAssets } from "~/components/assets/assets";
+import { InstanceAssets } from "~/components/assets/mod.ts";
 import { InstanceData } from "~/components/instance/instance_data";
 import { Products } from "~/components/products";
 import { InstanceResultsPackages } from "~/components/instance_results_packages";

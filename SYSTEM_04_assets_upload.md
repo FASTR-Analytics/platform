@@ -5,6 +5,7 @@ globs:
   - client/src/components/_file_upload_selector.tsx
   - client/src/components/_uppy_file_upload.ts
   - client/src/components/assets/assets.tsx
+  - client/src/components/assets/mod.ts
   - lib/types/assets.ts
   - server/db/instance/assets.ts
   - server/routes/instance/assets.ts
@@ -128,7 +129,7 @@ are admin-delete-only); admins delete anything. Deletion removes the file
   _new_ file uploads it shows "Processing upload…" and waits for the asset to
   appear in the T1 store via SSE before selecting it (re-uploads of an existing
   name select immediately). Used by the S5/S6/S12 wizards.
-- **`instance/instance_assets.tsx`** is the Assets admin page: type tabs
+- **`assets/assets.tsx`** is the Assets admin page: type tabs
   (CSV/Excel/Images/ZIP/Other), size/modified/owner columns, per-row download
   (root-path `GET`, S1 static serve) and delete; delete buttons and the
   admin-only bulk delete mirror the server's ownership rule.
