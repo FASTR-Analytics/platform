@@ -9,9 +9,9 @@ import {
 import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { getDatasetIcehDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
-import { DataTab } from "./_data_tab";
-import { StratifiersTab } from "./_stratifiers_tab";
-import { IndicatorsTab } from "./_indicators_tab";
+import { DataTab } from "./data_tab";
+import { StratifiersTab } from "./stratifiers_tab";
+import { IndicatorsTab } from "./indicators_tab";
 
 export function DatasetItemsHolder() {
   const [displayData, setDisplayData] = createSignal<StateHolder<IcehDisplayData>>({

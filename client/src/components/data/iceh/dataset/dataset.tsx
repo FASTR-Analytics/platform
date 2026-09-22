@@ -10,7 +10,7 @@ import { Show, createEffect, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { DatasetItemsHolder } from "./dataset_items_holder";
-import { DeleteData } from "./_delete_data";
+import { DeleteData } from "./delete_data";
 import { DatasetIcehImports } from "../imports/mod.ts";
 
 type Props = {

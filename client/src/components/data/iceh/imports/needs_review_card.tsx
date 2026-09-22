@@ -7,7 +7,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { IcehStagingSummary } from "./_staging_summary";
+import { IcehStagingSummary } from "./staging_summary";
 
 type Props = {
   run: IcehImportRunSummary;

@@ -1,8 +1,8 @@
 import { t3, type IcehImportRunSummary } from "lib";
 import { EditorComponentProps, FrameTop, HeadingBar } from "panther";
 import { Show } from "solid-js";
-import { IcehStagingSummary } from "./_staging_summary";
-import { icehRunStatusLabel } from "./_status_label";
+import { IcehStagingSummary } from "./staging_summary";
+import { icehRunStatusLabel } from "./run_status_label";
 
 // History click-through for an ICEH run: the run facts + the durable staging
 // diagnostics (the run row is ICEH's only import record: invariant 4).

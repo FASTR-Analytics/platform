@@ -15,11 +15,11 @@ import {
 } from "panther";
 import { For, Show, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { IcehNeedsReviewCard } from "./_needs_review_card";
-import { IcehRunDetail } from "./_run_detail";
-import { IcehRunView } from "./_run_view";
-import { icehRunStatusLabel } from "./_status_label";
-import { IcehWizard } from "./_wizard";
+import { IcehNeedsReviewCard } from "./needs_review_card";
+import { IcehRunDetail } from "./run_detail";
+import { IcehRunView } from "./run_view";
+import { icehRunStatusLabel } from "./run_status_label";
+import { IcehWizard } from "./wizard";
 
 type Props = EditorComponentProps<{}, undefined>;
 
