@@ -58,14 +58,14 @@ list.)
 | `server/db/instance/dataset_hmis.ts` / `dataset_hfa.ts`                 | S6    | S2, S8            | orchestrator + worker lifecycle + CRUD                                                  |
 | `server/db/instance/run_generation.ts`                                  | S8    | S9, S3, S12       | catalogue, the pin, `attachedProducts`, `setProductRun`, the delete guard               |
 | `main.ts`                                                               | S1    | S2, S15, S12      | composition root (boot / cron / mounts)                                                 |
-| `client/src/components/LoggedInWrapper.tsx`                             | S1    | S3, S14           | Clerk singleton + version flush + shell                                                 |
+| `client/src/components/instance/logged_in_wrapper.tsx`                  | S1    | S3, S14           | server-action transport + version flush + shell                                         |
+| `client/src/generate_report/**`                                         | S10   | S12               | report document model + HTML rendering: S10's pipeline, S12's formats                   |
 | `lib/translate/t-func.ts`                                               | S14   | S9                | calendar semantics (two systems in one small file)                                      |
 | `server/routes/instance/users.ts` · `server/db/instance/users.ts`       | S1    | S15, S13          | guard rows + admin handlers + token governance                                          |
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/disk + dataset versions                                            |
 | `server/utils/id_generation.ts`                                         | S12   | S2                | the one short-id generator; S2 owns the id-scheme rules                                 |
-| `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                                                                |
-| `client/src/components/_shared/results_package/**`                      | S8    | S12               | S8 content under S12's `_shared/**` glob                                                |
-| `client/src/components/instance/instance_data.tsx`                      | S6    | S5                | data-tab switchboard mounting S5 managers                                               |
+| `_shared/file_upload_selector.tsx` · `_shared/uppy_file_upload.ts`     | S4    | S6, S5, S12, S15  | shared upload primitives                                                                |
+| `client/src/components/data/data.tsx`                                   | S6    | S5                | data-tab switchboard mounting S5 managers                                               |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9, S13       | instance config parameterizes ELT, generated SQL and the copilot's `ai_context`         |
 | `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables                                     |
 | `server/collab/version_capture.ts`                                      | S16   | S17               | onSessionEnd writes edit-session user_logs rows                                         |
@@ -138,10 +138,11 @@ a standalone "visualization" name nothing in this app; do not reintroduce
 them. `PresentationObjectConfig` remains the figure-config TYPE name;
 renaming the PO vocabulary in code is a separate refactor.
 
-## Running the lint
+## Running the lints
 
 ```
 deno task lint:systems
+deno task lint:structure
 ```
 
 Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/`
@@ -149,3 +150,13 @@ Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/`
 ORPHAN until a SYSTEM file's `globs:` claims it. The lint is chained into
 `deno task typecheck` (which the deploy script gates on), so an unclaimed
 file blocks deploy rather than accumulating silently.
+
+`lint_structure.ts` (task `lint:structure`, chained into `deno task typecheck`
+after `lint:systems`) enforces the client tree rules of
+`panther/protocols/PROTOCOL_UI_STRUCTURE.md`: snake_case names with no
+underscore prefix except `_shared/`, no file at the root of `components/`,
+`mod.ts` as the only entry another folder may import, `_shared/` scoped to its
+parent and consumed by two or more of the parent's children, no import of
+`components/` from `state/`, `exports/` or `generate_*/`, no unreachable file,
+and no runtime cycle between folder entries. It resolves imports and has no
+baseline; an optional directory argument narrows which files are reported.

@@ -1,0 +1,62 @@
+import { t3 } from "lib";
+import { Button, StateHolderFormError, createFormAction } from "panther";
+import { serverActions } from "~/server_actions";
+import { FileUploadSelector } from "~/components/_shared/mod.ts";
+import type { WizardState } from "./wizard";
+
+type Props = {
+  state: WizardState;
+};
+
+export function Step1File(p: Props) {
+  const { state } = p;
+
+  const analyzeAction = createFormAction(
+    async () => {
+      const fileName = state.selectedFileName();
+      if (!fileName) {
+        return { success: false, err: t3({ en: "Please select a file", fr: "Veuillez sélectionner un fichier", pt: "Selecione um ficheiro" }) };
+      }
+      const res = await serverActions.analyzeGeoJsonUpload({ assetFileName: fileName });
+      if (res.success) {
+        state.setAnalysisResult(res.data);
+        if (res.data.properties.length > 0) {
+          state.setSelectedProp(res.data.properties[0]);
+        }
+        state.setStep(2);
+      }
+      return res;
+    },
+    () => {},
+  );
+
+  return (
+    <div class="ui-spy">
+      <div class="font-700">{t3({ en: "Step 1: Select GeoJSON file", fr: "Étape 1 : Sélectionner le fichier GeoJSON", pt: "Passo 1: Selecionar o ficheiro GeoJSON" })}</div>
+
+      <FileUploadSelector
+        buttonLabel={t3({ en: "Upload new GeoJSON file", fr: "Téléverser un nouveau fichier GeoJSON", pt: "Carregar um novo ficheiro GeoJSON" })}
+        selectLabel={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant", pt: "Ou selecionar um ficheiro existente" })}
+        filter={(a) => a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json")}
+        value={state.selectedFileName()}
+        onChange={state.setSelectedFileName}
+      />
+
+      <StateHolderFormError state={analyzeAction.state()} />
+
+      <div class="ui-gap-sm flex">
+        <Button
+          onClick={analyzeAction.click}
+          state={analyzeAction.state()}
+          disabled={!state.selectedFileName()}
+          intent="primary"
+        >
+          {t3({ en: "Analyze", fr: "Analyser", pt: "Analisar" })}
+        </Button>
+        <Button intent="neutral" onClick={() => state.setStep(0)}>
+          {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
+        </Button>
+      </div>
+    </div>
+  );
+}

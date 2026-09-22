@@ -1,82 +1,82 @@
 [
   {
     "id": "jsx-and-and",
-    "file": "client/src/components/version_history/report_version_preview.tsx",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
     "text": "old={ch.oldVal && <ReportFigureEmbed figure={ch.oldVal} />}"
   },
   {
     "id": "jsx-and-and",
-    "file": "client/src/components/version_history/report_version_preview.tsx",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
     "text": "neu={ch.newVal && <ReportFigureEmbed figure={ch.newVal} />}"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/whats_new_modal.tsx",
+    "file": "client/src/components/products/_shared/report_figure_embed.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/whats_new_modal.tsx",
+    "file": "client/src/components/instance/instance.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/whats_new_modal.tsx",
+    "file": "client/src/components/instance/whats_new_modal.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/instance/index.tsx",
+    "file": "client/src/components/instance/whats_new_modal.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/report/ReportFigureEmbed.tsx",
+    "file": "client/src/components/instance/whats_new_modal.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/slide_deck/index.tsx",
+    "file": "client/src/components/products/slide_deck/slide_deck.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/copilot/ai_prompt_library/PromptLibraryModal.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/copilot/ai_prompt_library/SaveToPromptLibraryModal.tsx",
+    "file": "client/src/components/products/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx",
     "text": "const [error, setError] = createSignal(\"\");"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/email_opt_in_modal.tsx",
-    "text": "const [loading, setLoading] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/organisation_modal.tsx",
-    "text": "const [loading, setLoading] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/report/index.tsx",
+    "file": "client/src/components/products/copilot/ai_prompt_library/prompt_library_modal.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance_geojson/geojson_edit_modal.tsx",
+    "file": "client/src/components/products/report/report.tsx",
+    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/instance/email_opt_in_modal.tsx",
+    "text": "const [loading, setLoading] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/instance/organisation_modal.tsx",
+    "text": "const [loading, setLoading] = createSignal(false);"
+  },
+  {
+    "id": "raw-loading-signal",
+    "file": "client/src/components/data/geojson/edit_modal.tsx",
     "text": "const [loading, setLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/instance_geojson/geojson_edit_modal.tsx",
+    "file": "client/src/components/data/geojson/edit_modal.tsx",
     "text": "const [error, setError] = createSignal<string | null>(null);"
   },
   {
     "id": "async-effect-race",
-    "file": "client/src/components/copilot/ai_documents/useAIDocuments.ts",
+    "file": "client/src/components/products/copilot/ai_documents/ai_documents_store.ts",
     "text": "async effect writes state after await, no out-of-order guard"
   }
 ]

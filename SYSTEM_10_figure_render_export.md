@@ -3,6 +3,7 @@ system: 10
 name: Figure Rendering & Export Engine
 globs:
   - client/src/exports/**
+  - client/src/generate_report/**
   - client/src/generate_slide_deck/**
   - client/src/generate_visualization/**
   - client/src/state/products/t2_images.ts
@@ -34,7 +35,9 @@ resolver `resolve_figure_from_metric.ts` +
 `resolve_bundle_from_metric_and_config.ts`, the stale predicate
 `figure_staleness.ts`, special chart modes, the conditional-formatting
 compile path, `GLOBAL_STYLE_OPTIONS`);
-`generate_slide_deck/**` (`convertSlideToPageInputs`); `client/src/exports/**`
+`generate_slide_deck/**` (`convertSlideToPageInputs`); `generate_report/**`
+(the report document model and its HTML rendering, below; S12's prose
+describes the pipeline, SYSTEMS.md §4.1); `client/src/exports/**`
 (incl. `get_table_export_aoa.ts`); lib render contracts (`_figure_bundle.ts`,
 `brand_presets.ts`, `key_colors.ts`, slide-font types);
 `state/products/t2_images.ts`; the two schema and predicate pins under
@@ -190,8 +193,8 @@ The elegant consequence the whole design turns on:
 
 | Caller                                                                                                                          | Surface                    | Items               | Localization source                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------- | ---------------------------------------------------------------------- |
-| `visualization_editor_inner.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`                               | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
-| `convert_slide_to_page_inputs.ts`, `ReportFigureEmbed.tsx`, `exports/**`, AI previews                                           | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
+| `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`                               | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
+| `convert_slide_to_page_inputs.ts`, `report_figure_embed.tsx`, `exports/**`, AI previews                                           | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
 
 So the live editor and every stored figure run **identical code**, and a
 figure renders identically to the draft it was captured from when the two
@@ -276,8 +279,8 @@ The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
 `resolve_bundle_from_metric_and_config.ts`) is the shared
 snapshot-a-figure-into-FigureBlock core consumed by the report editor
-(`report/index.tsx`) and the slide editor; the same-named file under
-`slide_deck/slide_ai/` is a thin S13 AI adapter that delegates to it.
+(`report/report.tsx`) and the slide editor; the same-named file under
+`products/copilot/slide_ai/` is a thin S13 AI adapter that delegates to it.
 
 ## Special chart modes: the style pipeline
 
@@ -317,7 +320,7 @@ Deno). `findStaleFiguresInLayout` and `findStaleFiguresInReport` walk a slide
 layout and a report's figure registry with it. Nothing rewrites a stored
 bundle behind the user: mixed-package documents are a visible state, and
 reattaching or rescoping never blocks and has no pre-flight. The affordance
-is S11's `StaleFigureBadge` (`components/figure_editor/stale_figure_badge.tsx`);
+is S11's `StaleFigureBadge` (`components/_shared/figure_editor/stale_figure_badge.tsx`);
 its update action re-resolves `{ metricId, config }` under the container's
 current pair through `resolveFigureBundleInteractively` (the human path:
 a stored replicant value missing under the new package is auto-defaulted,
@@ -382,7 +385,7 @@ remains.
 
 **The override contract (spans S10/S11).** The UI half lives in the style panel
 (S11 custody,
-`components/figure_editor/presentation_object_editor_panel_style/`): the panel
+`components/_shared/figure_editor/editor_panel_style/`): the panel
 gates each mode's toggle by `canUse*` (an active-but-no-longer-allowed mode is
 still listed so the user can switch away), and `setMode()` in `_timeseries.tsx`
 forces the hidden properties to safe defaults on every mode switch (e.g.
@@ -600,14 +603,16 @@ unbounded in both directions.
 
 ## Slide→page rendering (generate_slide_deck)
 
-Two files:
+Three files:
 [convert_slide_to_page_inputs.ts](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts)
-(578 LOC) and `get_overlay_image.ts` (49 LOC). One transform,
+(578 LOC), `get_overlay_image.ts` (49 LOC) and `fastr_logos.ts` (the built-in
+FASTR logo table read by the transform, `slide_deck/logo_selector.tsx` and
+`slide_deck/style_editor/style_preview.tsx`). One transform,
 `convertSlideToPageInputs(slide, slideIndex, config) →
 APIResponse<PageInputs>`,
-serves all its call sites: screen (`slide_editor/index.tsx`,
+serves all its call sites: screen (`slide_editor/slide_editor.tsx`,
 `slide_card.tsx`, `slide_presenter.tsx`, the deck version preview), AI
-previews (`DraftSlidePreview.tsx`, `ai_tools/tools/drafts.tsx`), and the
+previews (`draft_slide_preview.tsx`, `ai_tools/tools/drafts.tsx`), and the
 three deck exports, so a slide renders byte-identically everywhere. Every
 surface uses the
 same frame: `PAGE_WIDTH_DU` 1400 × `PAGE_HEIGHT_DU` 788
@@ -668,7 +673,7 @@ reads, so an entry never invalidates (Open item). 30s abort-timeout, 3 retries
 with exponential delay (CORS errors not retried), module-level per-URL failure
 backoff (capped 60s), in-flight promise dedupe. Exactly three consumers:
 `convertSlideToPageInputs` (logos, split images, image blocks),
-`get_overlay_image.ts`, and `StylePreview.tsx`. Screen render and slide exports
+`get_overlay_image.ts`, and `style_preview.tsx`. Screen render and slide exports
 share it; report exports fetch directly.
 
 **Fonts**: two disjoint paths. Screen text uses hand-written `@font-face` rules
@@ -691,9 +696,29 @@ picker, `resolveColorThemeToPreset`, the deck-config schema, and the S2
 traffic-light palette + qualitative scales (15 consumer files, including the
 style builders and the legend builder `conditional_formatting.ts`).
 
+## Report document rendering (generate_report)
+
+The twin of `generate_slide_deck/` for reports: what the report editor, the
+version-history preview and the exporters all render through, so the preview
+and the file agree. Five files behind `mod.ts`:
+[report_html.ts](client/src/generate_report/report_html.ts) (sanitize →
+materialize embeds → base CSS, the one document builder),
+[report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts)
+(the content-keyed figure raster cache and the ink themes),
+`report_markdown_style.ts` (`REPORT_MARKDOWN_STYLE` for markdown-format
+reports), `_report_export_maps.ts` (the figure and image maps keyed by literal
+`figure:<id>` / `image:<id>` tokens, `figureInputsForDownload`) and
+`_media_placeholder.ts` (the localized "could not be displayed" placeholder and
+the token swap the report exporters run; `convertSlideToPageInputs` reads the
+placeholder too). The folder imports `generate_visualization/`,
+`server_actions/` (`_SERVER_HOST`), lib, panther and `dompurify`, and nothing
+from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE layers). The formats
+themselves are S12's: its Reports section is the authoritative description of
+this pipeline, and S12 is the mandatory reader (SYSTEMS.md §4.1).
+
 ## The export engine (client/src/exports)
 
-13 files, ~1.6k LOC, no barrel (callers import files directly). Every heavy
+11 files, ~1.5k LOC, no barrel (callers import files directly). Every heavy
 engine is panther-side: `PageRenderer`,
 `createPdfRenderContextWithFontsBrowser`, `pagesToPptxBrowser`,
 `markdownToPdfBrowser` / `markdownToWordBrowser`. The app files are
@@ -707,7 +732,7 @@ SERVER's headless Chrome (S12).
 | ---------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Slide deck | PDF (download), PDF-base64 (email), PPTX  | `(productId, progress)`: fetch deck detail + per-slide `getSlideFromCacheOrFetch` → `convertSlideToPageInputs` → PageRenderer into jsPDF (deck-family fonts only) or `pagesToPptxBrowser`; 1400×788                                                                                                                                       |
 | Report     | fastr: paged PDF, HTML · markdown: PDF, Word · html: HTML, print | `(productId, progress)` throughout. markdown: fetch report detail → hydrate figure/image maps keyed by literal `figure:<id>` / `image:<id>` tokens → `markdownTo{Pdf,Word}Browser` (PDF 1000×1414 with page numbers). html and fastr (`export_report_as_html.ts`, S12's formats): the same sanitize→materialize→base-CSS builder as the editor preview with figures as `getFigureAsDataUrlBrowser` PNGs at 1920 and images inlined → standalone `.html` via `saveAs`, or a hidden `sandbox="allow-same-origin allow-modals"` frame → `print()`. fastr's PDF is the paged one (`export_report_as_paged_pdf.ts`): the client builds the complete paged document and `renderReportPdf` prints it with headless Chrome, so the PDF and the editor's page boxes agree |
-| Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`visualization_editor_inner.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
+| Single viz | PNG, table CSV, data CSV, JSON definition | in the editor (`figure_editor.tsx`, outside `exports/`): transient bundle → `getFigureAsCanvas` at `FIGURE_EXPORT_WIDTH_PX` 1920; multi-replicant download disabled                                                                                                                     |
 
 The email exits are the only non-download paths: `ShareSlideDeck` →
 `exportSlideDeckAsPdfBase64` → `sendSlideDeckEmail`, and `ShareReport` →
@@ -780,14 +805,14 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
   `client/src/` and `client/public/fonts/`, and its `woff2`/`boldVariants`
   sections have zero consumers.
 - `loadLogos` logic is duplicated (`convert_slide_to_page_inputs.ts` vs
-  `StylePreview.tsx`).
+  `style_preview.tsx`).
 - `resolveTextBackground("success")` renders `_SLIDE_BACKGROUND_COLOR` (=
   `_NIGERIA_GREEN`), not the success token: misleading name or wrong color;
   needs a ruling.
 - Deck PDF loads only the deck family's font variants: a figure styled with
   another family hits "Font not found in map".
 - The figure editor's multi-replicant download is disabled (`allReplicants`
-  hard-coded false in `forms_editors/download_presentation_object.tsx`, its
+  hard-coded false in `_shared/figure_editor/download_presentation_object.tsx`, its
   selector commented out, and the editor has no multi-replicant branch).
   Revive or delete.
 - The editor PNG honors transparency only in the no-padding branch

@@ -28,5 +28,6 @@ export async function buildRunAuthoringContext(
     icehIndicators,
     hfaTaxonomy,
     presets: deriveVirtualDefaults(manifest),
+    population: manifest.population,
   };
 }

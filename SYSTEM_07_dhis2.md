@@ -2,7 +2,7 @@
 system: 7
 name: DHIS2 Connector
 globs:
-  - client/src/components/Dhis2CredentialsEditor.tsx
+  - client/src/components/data/hmis/dhis2_connection/**
   - server/dhis2/**
   - server/routes/instance/indicators_dhis2.ts
   - server/tests/dhis2_decompose_indicator_test.ts
@@ -284,10 +284,10 @@ never stores or reads the credentials table itself, only the resolved
 owned by S5) do the same; the session caches there hash the resolved
 credentials, so replacing the stored connection misses the cache.
 
-`Dhis2CredentialsEditor.tsx` is the credentials widget: plain
+`data/hmis/dhis2_connection/dhis2_credentials_editor.tsx` is the credentials widget: plain
 url/username/password inputs with a show/hide toggle, no persistence of
 its own. Its one caller is the manage-connection modal
-(`_shared/dhis2_credentials/manage_connection.tsx`), opened only from the
+(`data/hmis/dhis2_connection/manage_connection.tsx`), opened only from the
 Data page's DHIS2 connection card: the one place a connection is set,
 replaced or deleted. Every other DHIS2 flow uses the stored connection
 and, when none is stored, points to that card. All user-facing strings in

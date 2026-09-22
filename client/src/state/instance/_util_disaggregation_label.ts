@@ -33,6 +33,17 @@ export function getDisplayDisaggregationLabel(
   });
 }
 
+// For a level stamped as a plain integer (a manifest's population level).
+export function getAdminAreaLabelForLevel(level: number): TranslatableString {
+  return level === 1 || level === 2 || level === 3 || level === 4
+    ? getAdminAreaLabel(level)
+    : {
+        en: `Admin area ${level}`,
+        fr: `Unité administrative ${level}`,
+        pt: `Zona administrativa ${level}`,
+      };
+}
+
 export function getAdminAreaLabel(level: 1 | 2 | 3 | 4): TranslatableString {
   if (level === 1) {
     const custom = instanceState.adminAreaLabels.label1;

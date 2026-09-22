@@ -3,7 +3,7 @@ system: 8
 name: Results Packages & Module Execution
 globs:
   - client/src/state/instance/t2_runs.ts
-  - client/src/components/instance_results_packages/**
+  - client/src/components/results_packages/**
   - lib/figure_package_issue.ts
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
@@ -18,6 +18,7 @@ globs:
   - server/runs/*.ts
   - server/server_only_funcs/**
   - server/tests/m012_expression_parity_test.ts
+  - server/tests/population_coverage_issue_test.ts
   - server/tests/run_input_transform_test.ts
   - server/tests/run_manifest_transform_test.ts
   - server/worker_routines/generate_run/**
@@ -70,14 +71,13 @@ templating); `routes/instance/run_generation.ts` (the wizard, the catalogue
 listing, pin/unpin, the guarded hard delete, and the ONE mount for package
 reads: detail/script/logs/files, run-keyed under the instance data bits);
 lib module + run
-types + `module_registry.ts`; client: `instance_results_packages/**` (the
-catalogue), the launch wizard `instance_results_packages/_wizard/**` (an
+types + `module_registry.ts`; client: `results_packages/**` (the
+catalogue), the launch wizard `results_packages/wizard/**` (an
 ephemeral modal, the Upload-CSV pattern), and the T2 run-detail
-cache `state/instance/t2_runs.ts`. Shared-custody: `_shared/results_package/**`,
+cache `state/instance/t2_runs.ts`. `results_packages/package_view/**` is
 what a package CONTAINS, rendered identically wherever a package is
 explored (`package_view.tsx` = `ResultsPackageView`, `status.tsx`,
-`view_{script,logs,files}.tsx`). It sits under S12's `_shared/**` glob; §4.1
-records S8 as its owner. External: wb-fastr-modules repo, Docker images.
+`view_{script,logs,files}.tsx`). External: wb-fastr-modules repo, Docker images.
 
 ## Contract
 
@@ -113,7 +113,7 @@ re-litigate; the package-format invariants below are their file-level twins):
   package contents never depend on who is asking, only the chrome does. So
   reads are mounted ONCE (run-keyed, `routes/instance/run_generation.ts`)
   under the INSTANCE data bits (`can_view_data`; `can_view_logs` for logs),
-  and one shared view (`_shared/results_package/package_view.tsx`) renders a
+  and one shared view (`results_packages/package_view/package_view.tsx`) renders a
   package identically wherever one is explored (the catalogue is its one
   host). AI tools take
   a run RESOLVER, never a runId from the model.
@@ -186,7 +186,8 @@ ONE mount for package reads: the `(run_id, module_id)` run-dir reads
 (`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`),
 `getRunModuleWithConfigSelections` (one module's settings from the manifest)
 and `getRunDetail` (per-module settings resolved server-side from the
-manifest's `configSelections` + the outputs-dir file listing, via
+manifest's `configSelections` + the outputs-dir file listing + the
+population stamp, via
 `readRunDetail` in `server/runs/package_internals.ts`; manifest-gated, so
 ready runs only),
 gated on the INSTANCE data bits: `can_view_data`, `can_view_logs` for logs
@@ -220,8 +221,9 @@ gated on the instance data bits: `can_view_data` for all but logs,
 belongs on the shared surface: **if
 the answer to the question lives inside the run directory, it is the same
 view for everyone who can see that package.** `ResultsPackageView`
-(`_shared/results_package/package_view.tsx`) renders a READY run's header
+(`results_packages/package_view/package_view.tsx`) renders a READY run's header
 (label · pin · status · provenance incl. disk size), summary line and
+Population card when the stamp is active ("population.csv"), and
 per-module cards (settings; Script/Logs viewers gated client-side by
 `canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`; files
 inline with download). A host adds only chrome through its slots: the
@@ -238,7 +240,7 @@ The same rule governs the AI tools: the shared tools' `AIToolEnv`
 never comes from the model. The SPA env is bound to the open product's pair
 for the life of its mount (D15); the `/mcp` env is bound to the pin resolved
 for that call. The SPA-only module tools (script/logs/settings:
-`client/src/components/copilot/ai_tools/tools/modules.ts`, getters on
+`client/src/components/products/copilot/ai_tools/tools/modules.ts`, getters on
 `ClientAIToolEnv`) read the run-keyed mount too
 (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
 `can_view_data` on the settings read, so for a user without the instance bit
@@ -282,7 +284,7 @@ rows, not hundreds; selection is T5 and never jumps, because an effect PINS
 the newest run's id whenever nothing is pinned (first non-empty render, and
 newest after the selection is deleted), with the derived `?? newest` fallback
 kept only as the same-tick bridge, so another admin's launch never remounts
-the pane) beside a detail pane (`instance_results_packages/detail.tsx`). The
+the pane) beside a detail pane (`results_packages/detail.tsx`). The
 LISTING is instance-T1 as a nonce pull:
 `runs_catalog_updated` broadcasts a data-free nonce, and each entitled client
 refetches `listRunCatalog` into `InstanceState.runsCatalog` (per-request guard;
@@ -307,7 +309,7 @@ ready-only because a product points only at a ready run (C2 ruling). A READY
 run is rendered by that shared view, identically wherever
 a package is explored (ruled).
 
-**Prune** (`instance_results_packages/_prune.tsx` + `_prune_plan.ts`, ruled)
+**Prune** (`results_packages/prune.tsx` + `prune_plan.ts`, ruled)
 is the bulk form of the guarded delete: one rule, remove every
 package not in use (not pinned, no product pointing at it, not generating;
 `planPrune` derives the set from the same T1 facts the sidebar shows and the
@@ -368,7 +370,7 @@ package and should not pin. Rulings, all deliberate:
 - **New products start on the pin.** `createProduct` resolves `run_id` from
   the pin inside the insert (national scope), so there is no read-then-write
   window. The bare `pinnedRunId` is instance T1, broadcast unfiltered (S3),
-  which is what lets the products surface (`products/index.tsx`, create
+  which is what lets the products surface (`products/products.tsx`, create
   gated on a ready pin) render the pin for users without
   `can_configure_data`.
 - **MCP reads the pin** (PLAN_MCP_PINNED_PACKAGE). The
@@ -409,7 +411,7 @@ Rulings:
   `admin_area_2`, a modules lockstep this design otherwise avoids.
 - **Mismatch is allowed, never auto-fixed.** A package without the
   product's AA2 attaches fine; area metrics degrade to empty. The scope is
-  never silently cleared: the scope picker (`_shared/scope_picker.tsx`)
+  never silently cleared: the scope picker (`products/_shared/scope_picker.tsx`)
   renders an orphaned stored value (a structure re-upload dropped the area)
   as an explicit annotated option.
 - **Write-time validation is schema-only** (non-empty string or null): no
@@ -641,10 +643,10 @@ no `inputKey` and are never reuse sources.
 The wizard's starting values (default data families, default module set, and
 per-module parameter values) live in one `instance_config` row, seeded into the
 wizard as instance defaults > definition defaults
-(`instance_results_packages/_wizard/index.tsx` via
+(`results_packages/wizard/wizard.tsx` via
 `getMergedModuleConfigSelections`).
 Its **sole writer** is the
-module-defaults editor (`instance_results_packages/module_defaults.tsx`, opened
+module-defaults editor (`results_packages/module_defaults.tsx`, opened
 from the Results packages surface); the wizard only reads it and has no
 "save as instance defaults" action (ruled): a save built from only the
 modules selected for one generation would silently drop curated defaults
@@ -945,7 +947,13 @@ and m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or
 filter there (`deriveAvailableDisaggregationOptions` reads the columns
 present). A figure that groups or filters m012 by a level the package lacks
 cannot be updated to it: pressing the figure's Update reports
-`dimensions_not_in_package` (`lib/figure_package_issue.ts`). The script's
+`dimensions_not_in_package` (`lib/figure_package_issue.ts`) with
+`populationLevel` set, and the badge says the package's population data is
+at that level. The stamp is also on `RunDetail.population` and
+`RunAuthoringContext.population`, and the package view shows an active
+stamp as a Population card: level, and per type the areas covered and the
+first and last covered month. Neither surface mentions population when the
+stamp is inactive. The script's
 "deeper than the data" stop stays as a defensive check behind the capture
 refusal.
 

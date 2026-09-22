@@ -8,9 +8,9 @@ import {
 } from "lib";
 import { serverActions } from "~/server_actions";
 import fontMap from "~/font-map.json";
-import { buildReportFigureMap, buildReportImageMap } from "./_report_export_maps";
-import { replaceUnavailableMediaTokens } from "./_media_placeholder";
-import { REPORT_MARKDOWN_STYLE } from "~/components/report/report_markdown_style";
+import { buildReportFigureMap, buildReportImageMap } from "~/generate_report/mod";
+import { replaceUnavailableMediaTokens } from "~/generate_report/mod";
+import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 import { buildStandaloneReportHtml } from "./export_report_as_html";
 import { buildReportPdfFromDetail } from "./export_report_as_paged_pdf";
 import { rasterizeReportPages } from "./rasterize_report_document";

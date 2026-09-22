@@ -1,0 +1,11 @@
+export { copilotViewController, copilotViews, restoreCopilotView } from "./ai_views.ts";
+export type { CopilotViewDefs, CopilotViewId, CopilotViewState, EditingReportContext, EditingReportParams, EditingSlideContext, EditingSlideDeckContext, EditingSlideDeckParams, EditingSlideParams, OpenProductScope } from "./ai_views.ts";
+export { buildSystemPromptForContext, getEditingSlideDeckInstructions, getEditingSlideInstructions, getOpeningProductInstructions } from "./build_system_prompt.ts";
+export { createCopilotAIToolEnv } from "./client_env.ts";
+export type { ClientAIToolEnv } from "./client_env.ts";
+export { SPA_INFO_TOPICS } from "./client_info_topics.ts";
+export { validateMaxContentBlocks, validateNoMarkdownTables, validatePresetOverrides, validateSlideTotalWordCount } from "./content_validators.ts";
+export { formatFigureConfigForAI } from "./format_figure_config_for_ai.ts";
+export { copilotInteractions } from "./interactions.ts";
+export type { CopilotInteractionDefs } from "./interactions.ts";
+export type { ReportEditorSelection, ReportEditProposal, ReportEditProposalResult } from "./types.ts";

@@ -2,16 +2,9 @@
 system: 11
 name: Visualization Authoring UI
 globs:
-  - client/src/components/NotAvailableBox.tsx
-  - client/src/components/_editor_snapshot.ts
   - client/src/components/explore/**
-  - client/src/components/figure_editor/**
-  - client/src/components/figures/**
-  - client/src/components/forms_editors/confirm_update.tsx
-  - client/src/components/forms_editors/conflict_resolution_modal.tsx
-  - client/src/components/forms_editors/custom_series_styles.tsx
-  - client/src/components/forms_editors/download_presentation_object.tsx
-  - client/src/components/forms_editors/view_results_object.tsx
+  - client/src/components/_shared/figure_editor/**
+  - client/src/components/products/_shared/insert_figure/**
   - client/src/state/instance/_util_disaggregation_label.ts
   - lib/convert_visualization_type.ts
   - lib/derive_default_visualizations.ts
@@ -43,21 +36,22 @@ and no standalone editor since step 9a.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`components/figure_editor/**`: the editor (`index.tsx` = `VisualizationEditor`,
-the wrapper the slide and report editors open; `visualization_editor_inner.tsx`
+`components/_shared/figure_editor/**`: the editor (`visualization_editor.tsx` = `VisualizationEditor`,
+the wrapper the slide and report editors open; `figure_editor.tsx`
 + the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
-`conditional_formatting_editor.tsx` + `cf_store_helper.ts`) and
+`conditional_formatting_editor.tsx` + `conditional_formatting_store.ts`) and
 `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
 <package>" action and the "Update all figures" header button of
 PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
-staleness"). `components/figures/insert_figure/**` (the insert-figure wizard
-and the preset gallery it renders, below). `components/explore/index.tsx`
+staleness"). `components/products/_shared/insert_figure/**` (the insert-figure wizard
+and the preset gallery it renders, below). `components/explore/explore.tsx`
 (the instance Explore tab's page, S14 mounts it: empty until the results
-explorer plan fills it, D6). `_editor_snapshot.ts` (`snapshotForSlideEditor`,
-the one thing the slide editor freezes at open), `NotAvailableBox`, the
-forms_editors figure modals (download, results-file viewer, custom series
-styles; `conflict_resolution_modal.tsx` is consumed by S12's slide editor and
-`confirm_update.tsx` by nothing). Lib config semantics
+explorer plan fills it, D6). The
+figure modals in `_shared/figure_editor/` (download, results-file viewer,
+custom series styles). `products/slide_deck/editor_snapshot.ts`
+(`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
+`products/slide_deck/slide_editor/conflict_resolution_modal.tsx` are S12's
+now, under its slide deck glob. Lib config semantics
 (`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
 families, the conditional-formatting family). `withReplicant` lives in
 kernel-owned `lib/utils.ts` (S00).
@@ -76,19 +70,19 @@ Neither carries a hand-enumerated dependency list; do not add one.
 
 ## The embedded figure editor
 
-[components/figure_editor/index.tsx](client/src/components/figure_editor/index.tsx)
+[_shared/figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)
 takes `{ label, scope, metric, configSnapshot, authoringContext,
 collabBinding? }`, resolves the metric's queryable shape
 (`resultsValueInfo`, S9's scope-keyed `t2_figure_data.ts`) under the pair,
-and mounts `VisualizationEditorInner`. Two hosts open it: `slide_editor/index.tsx`
+and mounts `VisualizationEditorInner`. Two hosts open it: `slide_editor/slide_editor.tsx`
 (edits `figureBlock.bundle.config`, then re-queries items and rebuilds the
-bundle) and `report/index.tsx` (rebuilds the figure block). The host passes
+bundle) and `report/report.tsx` (rebuilds the figure block). The host passes
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
 re-previews under the new package (S10 "The captured pair").
 
 **Snapshot isolation.** The draft is `createStore(structuredClone(p.configSnapshot))`,
 so editor writes never reach the host's store.
-[\_editor_snapshot.ts](client/src/components/_editor_snapshot.ts) holds only
+[editor_snapshot.ts](client/src/components/products/slide_deck/editor_snapshot.ts) holds only
 the slide editor's `snapshotForSlideEditor` (the deck config at open): the
 pair is deliberately NOT snapshotted (D16).
 
@@ -105,7 +99,7 @@ pair is deliberately NOT snapshotted (D16).
   store), skipping first run and auto-resolution; it gates the Apply button
   and nothing else.
 - **The refetch effect**
-  ([visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx))
+  ([figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx))
   re-queries items when `tempConfig.d` changes, via
   `trackStore(tempConfig.d)` plus a tracked read of the host's pair, so a
   reattach or rescope mid-edit re-previews under the new package. Superseded
@@ -137,7 +131,7 @@ The "Live" badge, the undo/redo buttons and the "Not saving" pill read
 `isCollabLive()` (binding ready AND the socket open, `collabSocketOpen()`) and
 `docSaveFailing` for the HOST doc. Live cursors and the "who is on which
 tab" avatars ride the host session's awareness under a `fig:<figureId>` scope
-(`_shared/cursors/viz_cursors.tsx`; the `vizTab` field is cleared on unmount
+(`_shared/figure_editor/viz_editor_cursors.tsx`; the `vizTab` field is cleared on unmount
 because the host's awareness outlives the editor). Without a live binding
 the editor is Apply/Cancel with no target; contract in
 [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md).
@@ -155,7 +149,7 @@ item).
 
 ## The insert-figure wizard
 
-`InsertFigureModal` (`components/figures/insert_figure/index.tsx`) takes `{
+`InsertFigureModal` (`components/products/_shared/insert_figure/insert_figure.tsx`) takes `{
 scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
 "modules">, preselectedMetricId }`: the metrics and modules come from the
 package's authoring context (S9's `t2_run_authoring_context.ts`) and the pair
@@ -298,7 +292,7 @@ something.
   renders wrong. The open question is prune-on-apply versus keep-latent, and it
   turns on whether re-adding a dimension later should silently recover its old
   order (keep) or start clean (prune).
-- **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`;
+- **Dead code (zero importers/consumers):**
   `lib/types/dimension_definitions.ts` (barrel-exported, zero uses); the
   download modal's `allReplicants` result field (hard-coded false).
 - **Stale white-fill comment**: the download path claims `getFigureAsCanvas`

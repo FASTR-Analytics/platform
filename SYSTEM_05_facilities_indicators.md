@@ -2,14 +2,18 @@
 system: 5
 name: Facilities & Indicators
 globs:
-  - client/src/components/forms_editors/edit_hfa_indicator.tsx
-  - client/src/components/indicator_manager_hfa/**
-  - client/src/components/indicator_manager_hmis/**
-  - client/src/components/instance_geojson/**
-  - client/src/components/instance_hfa_time_points/**
-  - client/src/components/instance_population/**
-  - client/src/components/structure/**
-  - client/src/components/structure_import/**
+  - client/src/components/data/hfa/indicators/**
+  - client/src/components/data/hmis/_shared/indicator_display.ts
+  - client/src/components/data/hmis/_shared/type_badge.tsx
+  - client/src/components/data/hmis/_shared/wrap_on_underscore.tsx
+  - client/src/components/data/hmis/indicators/**
+  - client/src/components/data/geojson/**
+  - client/src/components/data/hfa/_shared/**
+  - client/src/components/data/hmis/population/**
+  - client/src/components/data/general/admin_area_labels.tsx
+  - client/src/components/data/facilities/**
+  - client/src/components/data/family_configuration.tsx
+  - client/src/components/data/hfa/hfa_weights.tsx
   - client/src/state/instance/t2_geojson.ts
   - client/src/state/instance/t2_indicators.ts
   - client/src/state/instance/t2_population.ts
@@ -521,7 +525,7 @@ maintained by jsonb rewrites in the service-category mutations).
 `lib/hfa_indicator_labels.ts` is the single label authority
 (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
-**HFA workbook import** (`hfa_indicators_xlsx_upload_form.tsx`) has two
+**HFA workbook import** (`xlsx_upload_form.tsx`) has two
 inputs behind one flow: a picked `.xlsx`, or the **default indicator set**
 fetched client-side from the FASTR resource hub
 (`fastr-resource-hub/hfa_default_indicators.xlsx`, raw GitHub, cache-busted
@@ -883,7 +887,7 @@ spread into `InstanceState`; "has data" everywhere is
 The two HMIS structure write routes (`deleteFamilyFacilities` and
 `structureStep4_ImportData`, hmis family only) emit it too, since coverage
 is measured against the structure. The manager page
-(`client/src/components/instance_population/`) is laid out like the
+(`client/src/components/data/hmis/population/`) is laid out like the
 facilities and weights pages: heading bar with Download and the level as
 subheading, a right panel (the level setting, import, delete all), and the
 body. The
@@ -970,7 +974,7 @@ figure bundles snapshot geojson as `{kind:"data"}` when available.
   labels and depth persist across a delete + re-import cycle.
 - `admin_area_labels`: display-only label overrides carrying an `(AAn)`
   suffix convention (space-prefixed) appended/stripped by
-  `structure/admin_area_labels.tsx`.
+  `data/general/admin_area_labels.tsx`.
 - `structure_last_updated`: see above; written by the structure world,
   not by the settings UI.
 
@@ -1067,7 +1071,7 @@ this layer.
   data quality modules, `isCount`; an Uploaded or DHIS2 element holds rows
   of its own, `hasRows`) are not columns: the Indicator types button opens
   a modal that states each type's source, adjustment, rows and format
-  (`IndicatorTypesModal`, `_type_facts.tsx`), and the editor shows the same
+  (`IndicatorTypesModal`, `type_facts.tsx`), and the editor shows the same
   four lines under the type selector (`TypeFactsList`). The editor offers
   the four types and branches on the type: a DHIS2 element has the DHIS2 id
   input (locked while the ledger reports rows under it or has not loaded;
@@ -1227,7 +1231,7 @@ raised by adversarial review of the shipped feature; none blocks it.
   harmless in the per-group-scoped views the presets ship, and the reason
   those presets scope by category.
 - The metric-variant picker's hardcoded "Select geographic level:" caption
-  (`figures/insert_figure/metric_card.tsx`) predates non-geographic variant
+  (`products/_shared/insert_figure/metric_card.tsx`) predates non-geographic variant
   pairs and is now wrong for both HFA observed/carried pairs.
 
 ### HFA indicator authoring follow-on (from the retired HFA plans)

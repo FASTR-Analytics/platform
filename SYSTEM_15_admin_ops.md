@@ -2,15 +2,16 @@
 system: 15
 name: Instance Administration & Ops
 globs:
-  - client/src/components/instance/add_users.tsx
-  - client/src/components/instance/batch_upload_users_form.tsx
-  - client/src/components/instance/bulk_edit_permissions_form.tsx
+  - client/src/components/users/add_user_form.tsx
+  - client/src/components/users/mod.ts
+  - client/src/components/users/batch_upload_users_form.tsx
+  - client/src/components/users/bulk_edit_permissions_form.tsx
   - client/src/components/instance/change_email_modal.tsx
   - client/src/components/instance/feedback_form.tsx
   - client/src/components/instance/instance_meta_form.tsx
-  - client/src/components/instance/instance_users.tsx
+  - client/src/components/users/users.tsx
   - client/src/components/instance/profile.tsx
-  - client/src/components/instance/user.tsx
+  - client/src/components/users/user.tsx
   - server/routes/instance/health.ts
   - server/utils/disk_space.ts
 docs_absorbed:
@@ -26,9 +27,9 @@ Small server surface, highest privilege.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
-`components/instance/**` except the files owned elsewhere (`index.tsx` →
-S14, `instance_assets.tsx` → S4, `instance_data.tsx` → S6,
-`ai_context_form.tsx` → S13). Server: `routes/instance/health.ts`,
+`components/users/**`, and under `components/instance/` the profile,
+feedback, instance-meta and change-email forms (`instance.tsx`, its entry and
+the four header modals → S14, `logged_in_wrapper.tsx` → S1). Server: `routes/instance/health.ts`,
 `utils/disk_space.ts` (`db/instance/user_logs.ts` → S17); cron jobs in
 `main.ts` (S1-owned, S15 reader); `routes/instance/instance.ts` is S5-owned
 with S15 reading its meta/disk slice; the user and permission handlers live in
@@ -142,7 +143,7 @@ failures surface as user-facing route errors with GB figures.
   `Deno.serve`; SIGINT/SIGTERM shutdown with an 8s forced-exit timer.
 - **`./run`**: backgrounds the Deno server + Vite client with prefixed output,
   killing both on INT/TERM.
-- **`./deploy`** (in order): typecheck gate (includes `lint:systems`) →
+- **`./deploy`** (in order): typecheck gate (includes `lint:systems` and `lint:structure`) →
   `./validate_protocols` (a failure prompts to continue) → optional
   `./validate_migrations` → optional `./validate_queries` → minor/patch
   VERSION bump prompts → client build baked into `client_dist/` (with
@@ -158,7 +159,7 @@ failures surface as user-facing route errors with GB figures.
 
 ## Admin UI
 
-- **Users tab** (`instance_users.tsx` + `user.tsx` + bulk forms; visibility
+- **Users tab** (`users/users.tsx` + `user.tsx` + bulk forms; visibility
   `admin || can_configure_users || can_view_users`): user table with last-active
   (from `getAllUserLogs`), admin toggle (server requires full admin: the bulk
   buttons show for `can_configure_users` and 403 at click, Open item), per-user
@@ -193,7 +194,7 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
 ## Open items
 
 - **`getInstanceMeta` is deliberately unguarded**: it is fetched pre-auth by
-  the sign-in screen (`LoggedInWrapper.tsx` ClerkNewLogin) so a guard would
+  the sign-in screen (`instance/logged_in_wrapper.tsx` ClerkNewLogin) so a guard would
   break login, and every field it exposes except `instanceFiscalYear`,
   `openAccess` and the two constants `adminVersion` and `isHealthy` is
   already public by design on `/health_check`. Open question:
@@ -209,4 +210,4 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   `can_configure_users` but the route requires full admin (403 at click).
 - **Legacy UUID project DBs stay on prod hosts** after consolidation; nothing
   drops them (see Production topology).
-- Cruft: dead `showCommingSoon` prop in `instance_users.tsx`.
+- Cruft: dead `showCommingSoon` prop in `users/users.tsx`.

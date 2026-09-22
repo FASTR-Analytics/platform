@@ -1,0 +1,92 @@
+import {
+  DisaggregationOption,
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
+  IneffectiveDisaggregator,
+  PresentationObjectConfig,
+  ResultsValue,
+  ResultsValueInfoForPresentationObject,
+} from "lib";
+import { SetStoreFunction } from "solid-js/store";
+import {
+  DataValuesSummary,
+  PresentationTypeSummary,
+} from "./editor_panel_data/mod.ts";
+import { Filters } from "./editor_panel_data/mod.ts";
+import { DisaggregationSection } from "./editor_panel_data/mod.ts";
+import { HelpButton } from "./help_button";
+
+type Props = {
+  metric: ResultsValue;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
+  tempConfig: PresentationObjectConfig;
+  setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  viewResultsObject: (resultsObjectId: string) => Promise<void>;
+  singleValueDims: ReadonlySet<DisaggregationOption>;
+  ineffectiveDisaggregators: IneffectiveDisaggregator[];
+  effectiveValueProps: string[];
+  hasMultipleValueProps: boolean;
+};
+
+export function PresentationObjectEditorPanelData(p: Props) {
+  const allowedFilterOptions = () => {
+    return p.metric.disaggregationOptions.filter((disOpt) => {
+      if (
+        disOpt.allowedPresentationOptions &&
+        !disOpt.allowedPresentationOptions.includes(p.tempConfig.d.type)
+      ) {
+        return false;
+      }
+      const possibleValues =
+        p.resultsValueInfo.disaggregationPossibleValues[disOpt.value];
+      if (!possibleValues || possibleValues.status === "no_values_available") {
+        return false;
+      }
+      return true;
+    });
+  };
+
+  return (
+    <div data-viz-panel-scroll class="ui-pad ui-spy h-full w-full overflow-auto">
+      {/* <div class="h-0 text-right">
+        <HelpButton id="viz-data-tab" />
+      </div> */}
+      <DataValuesSummary metric={p.metric} />
+      <PresentationTypeSummary
+        tempConfig={p.tempConfig}
+        setTempConfig={p.setTempConfig}
+        disaggregationOptions={p.metric.disaggregationOptions}
+      />
+
+      <Filters
+        metric={p.metric}
+        tempConfig={p.tempConfig}
+        setTempConfig={p.setTempConfig}
+        resultsValueInfo={p.resultsValueInfo}
+        allowedFilterOptions={allowedFilterOptions().filter(
+          // A one-option filter is noise, EXCEPT when the stored config already
+          // filters on it: the filter still applies to every fetch, so hiding
+          // the row leaves a stale selection that produces "no data" with no
+          // way to see or clear it.
+          (o) =>
+            !p.singleValueDims.has(o.value) ||
+            p.tempConfig.d.filterBy.some(
+              (f) => f.disOpt === o.value && f.values.length > 0,
+            ),
+        )}
+      />
+
+      <DisaggregationSection
+        metric={p.metric}
+        tempConfig={p.tempConfig}
+        setTempConfig={p.setTempConfig}
+        allDisaggregationOptions={allowedFilterOptions().filter(
+          (o) => !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(o.value),
+        )}
+        singleValueDims={p.singleValueDims}
+        ineffectiveDisaggregators={p.ineffectiveDisaggregators}
+        effectiveValueProps={p.effectiveValueProps}
+        hasMultipleValueProps={p.hasMultipleValueProps}
+      />
+    </div>
+  );
+}

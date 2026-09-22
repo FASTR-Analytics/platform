@@ -1,0 +1,137 @@
+import {
+  DEFAULT_PERIOD_END,
+  DEFAULT_PERIOD_START,
+  t3,
+  TC,
+  type DatasetHmisWindowing,
+  type StructureSchema,
+} from "lib";
+import {
+  Button,
+  EditorComponentProps,
+  FrameTop,
+  HeadingBar,
+  Input,
+  createDeleteAction,
+} from "panther";
+import { createSignal } from "solid-js";
+import { createStore, unwrap } from "solid-js/store";
+import { serverActions } from "~/server_actions";
+import { WindowingSelector } from "./windowing_selector";
+
+export function DeleteData(
+  p: EditorComponentProps<
+    {
+      hmisVersionId: number;
+      countIndicatorsVersion: string;
+      structureSchema: StructureSchema;
+    },
+    undefined
+  >,
+) {
+  const [tempWindowing, setTempWindowing] =
+    createStore<DatasetHmisWindowing>(
+      structuredClone({
+        start: DEFAULT_PERIOD_START,
+        end: DEFAULT_PERIOD_END,
+        takeAllIndicators: true,
+        takeAllAdminArea2s: true,
+        indicatorsToInclude: [],
+        adminArea2sToInclude: [],
+        takeAllAdminArea3s: true,
+        adminArea3sToInclude: [],
+      }),
+    );
+
+  const [checkText, setCheckText] = createSignal("");
+
+  async function attemptDeleteData() {
+    const windowing = unwrap(tempWindowing);
+
+    const deleteAction = createDeleteAction(
+      t3({
+        en: "Are you sure you want to delete this data?",
+        fr: "Voulez-vous vraiment supprimer ces données ?",
+        pt: "Tem a certeza de que pretende eliminar estes dados?",
+      }),
+      async () => {
+        if (
+          !windowing.takeAllIndicators &&
+          windowing.indicatorsToInclude.length === 0
+        ) {
+          return {
+            success: false,
+            err: t3({
+              en: "You must select at least one indicator",
+              fr: "Vous devez sélectionner au moins un indicateur",
+              pt: "Tem de selecionar pelo menos um indicador",
+            }),
+          };
+        }
+
+        if (
+          !windowing.takeAllAdminArea2s &&
+          windowing.adminArea2sToInclude.length === 0
+        ) {
+          return {
+            success: false,
+            err: t3({
+              en: "You must select at least one admin area",
+              fr: "Vous devez sélectionner au moins une zone administrative",
+              pt: "Tem de selecionar pelo menos uma área administrativa",
+            }),
+          };
+        }
+
+        return serverActions.deleteAllDatasetHmisData({ windowing });
+      },
+      () => p.close(undefined),
+    );
+
+    await deleteAction.click();
+  }
+
+  return (
+    <FrameTop
+      panelChildren={
+        <HeadingBar
+          onBack={() => p.close(undefined)}
+          heading={t3(TC.delete)}
+        />
+      }
+    >
+      <div class="ui-pad ui-spy h-full w-full">
+        <div class="">
+          <WindowingSelector
+            hmisVersionId={p.hmisVersionId}
+            countIndicatorsVersion={p.countIndicatorsVersion}
+            tempWindowing={tempWindowing}
+            setTempWindowing={setTempWindowing}
+            includeOrDelete="delete"
+            structureSchema={p.structureSchema}
+          />
+        </div>
+        <div class="ui-spy-sm">
+          <div class="">
+            {t3({ en: "If you want to delete this data, write", fr: "Pour supprimer ces données, écrivez", pt: "Se pretende eliminar estes dados, escreva" })}{" "}
+            <span class="font-700">yes please delete</span>{" "}
+            {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "na caixa de introdução" })}
+          </div>
+          <div class="w-96">
+            <Input value={checkText()} onChange={setCheckText} />
+          </div>
+          <div class="">
+            <Button
+              intent="danger"
+              iconName="trash"
+              disabled={checkText() !== "yes please delete"}
+              onClick={attemptDeleteData}
+            >
+              {t3(TC.delete)}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </FrameTop>
+  );
+}

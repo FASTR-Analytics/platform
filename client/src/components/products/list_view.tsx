@@ -2,8 +2,8 @@ import { t3, type Folder, type ProductSummary, type SortMode } from "lib";
 import { Badge, Button, Checkbox, Icon } from "panther";
 import { For, Show, type JSX } from "solid-js";
 import { folderColor, folderCountsLine, topLevelLabel } from "./folder_card";
-import { scopeLabel } from "./package_label";
-import { PackageScopeChip } from "./package_scope_chip";
+import { scopeLabel } from "~/components/_shared/mod.ts";
+import { PackageScopeChip } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
 // Hand-built rather than assembled from panther's `Table`: the sanctioned

@@ -51,8 +51,8 @@ const migratedReportVersion = (
 ).at(0);
 
 const migratedDeck = (
-  await mainDb<{ id: string }[]>`
-    SELECT p.id FROM products p
+  await mainDb<{ id: string; admin_area_2: string | null }[]>`
+    SELECT p.id, p.admin_area_2 FROM products p
     WHERE p.type = 'slide_deck' AND p.created_by IS NULL
       AND (SELECT count(*) FROM slides s WHERE s.slide_deck_id = p.id) >= 2
       AND EXISTS (
@@ -210,7 +210,9 @@ Deno.test({
   ignore: migratedDeck === undefined,
   fn: async () => {
     await withApprovedUser(async (app, created) => {
-      const copy = await ok<{ productId: string }>(app, "POST", `/products/${migratedDeck!.id}/duplicate`);
+      const copy = await ok<{ productId: string }>(app, "POST", `/products/${migratedDeck!.id}/duplicate`, {
+        adminArea2: migratedDeck!.admin_area_2,
+      });
       created.push(copy.productId);
 
       const data = await loadSlideDeckVersionData(mainDb, copy.productId);

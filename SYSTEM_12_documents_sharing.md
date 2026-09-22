@@ -2,18 +2,17 @@
 system: 12
 name: Documents & Sharing
 globs:
-  - client/src/components/PasswordGate.tsx
-  - client/src/components/_markdown_guide.tsx
-  - client/src/components/_shared/**
-  - client/src/components/forms_editors/edit_label.tsx
-  - client/src/components/layout_editor/**
-  - client/src/components/products/**
-  - client/src/components/report/**
-  - client/src/components/slide_deck/*.ts
-  - client/src/components/slide_deck/*.tsx
-  - client/src/components/slide_deck/slide_editor/**
-  - client/src/components/slide_deck/slide_transforms/**
-  - client/src/components/slide_deck/style_editor/**
+  - client/src/components/_shared/collab_markdown_editor.tsx
+  - client/src/components/_shared/live_cursors.tsx
+  - client/src/components/_shared/mod.ts
+  - client/src/components/_shared/package_label.ts
+  - client/src/components/_shared/presence_avatars.tsx
+  - client/src/components/products/*.ts
+  - client/src/components/products/*.tsx
+  - client/src/components/products/_shared/*.ts
+  - client/src/components/products/_shared/*.tsx
+  - client/src/components/products/report/**
+  - client/src/components/products/slide_deck/**
   - client/src/state/products/t2_report_detail.ts
   - client/src/state/products/t2_slide_deck_detail.ts
   - client/src/state/products/t2_slides.ts
@@ -69,8 +68,8 @@ export *triggers*.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
-`components/slide_deck/**` minus `slide_ai/` (S13), `layout_editor/` (one file,
-imported only by the slide editor), `components/report/**`,
+`components/products/slide_deck/**` (the copilot's `slide_ai/` is S13's),
+`components/products/report/**`,
 `state/products/{t2_slides,t2_slide_deck_detail,t2_report_detail}.ts`
 (`t2_images.ts` is S10's). Server: CRUD for both product families + folders,
 `routes/instance/emails.ts`, `server/utils/id_generation.ts` (one 4-char
@@ -81,16 +80,16 @@ surfaces (`client/src/components/products/**`: the explorer page, the pure
 `folder_tree.ts` derivations and their harness, the card and list views, the two
 menu builders, the folder and move modals, the type registry `product_types.ts`,
 `product_settings.tsx` for name and folder, `package_scope_chip.tsx` and
-`package_scope_modal.tsx` for the pair, the duplicate modal, `package_label.ts`) and the two
+`package_scope_modal.tsx` for the pair, the duplicate modal, `_shared/package_label.ts`) and the two
 editors (`slide_deck/**`, `report/**`), which take `{ productId }` and read
 label, package and scope live from the T1 products row. Lib: slide/report types,
 plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
 `ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `PackageScope`,
-`scopeToken`) that describe the products registry below. Custody wrinkle: the
-`_shared/**` glob also carries `dhis2_credentials/` (its one consumer is S6's
-Data page card, documented in SYSTEM_07) and `sort_control.tsx` (shell
-furniture, flagged in SYSTEM_14); the three logo files are genuinely S12's (Open
-item: settle the manifest).
+`scopeToken`) that describe the products registry below. Custody wrinkle: this
+manifest owns `products/sort_control.tsx` (shell furniture, flagged in
+SYSTEM_14); the two logo editors are this system's under
+`products/slide_deck/**`, and the FASTR logo table they read is S10's
+`generate_slide_deck/fastr_logos.ts`.
 
 Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
@@ -239,7 +238,7 @@ The layout tree is a recursive Zod union embedding the strict
 config text without re-validation.
 
 **The deck editor** (`SlideDeckEditor` in
-[slide_deck/index.tsx](client/src/components/slide_deck/index.tsx)) takes
+[slide_deck/slide_deck.tsx](client/src/components/products/slide_deck/slide_deck.tsx)) takes
 `{ productId }`: label, package and scope come from `productById` on the T1
 store (D16), the authoring context from S9's immutable
 `t2_run_authoring_context.ts` keyed by the LIVE `runId`, so a reattach or
@@ -253,7 +252,7 @@ the figures the candidate pair would leave stale; the overflow menu opens
 chip read-only.
 
 **The slide editor**
-([slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx))
+([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
 opens via `openEditor` with `snapshotForSlideEditor` (the deck config only,
 structuredClone-severed) plus the product id, the live pair and its
 authoring context passed down. Left panel switches per slide type
@@ -272,7 +271,7 @@ through `updateSlide` with its `expectedLastUpdated`. Slide-type switching
 keeps a per-type cache so switching back restores prior state (same idiom
 per-block for block-type switches). The layout tree is manipulated exclusively
 through panther node ops via `buildLayoutContextMenu`
-([layout_editor/build_context_menu.ts](client/src/components/layout_editor/build_context_menu.ts)):
+([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and
 canvas right-click. Figure blocks have ONE authoring path (D3): insert and
 replace open `InsertFigureModal` (the product package's presets and the
@@ -299,7 +298,7 @@ slide tools pass `expectedLastUpdated` from a pre-write `getSlide` fetch
 and rethrow `CONFLICT` to the model as a "re-read via get_slide and retry"
 error (no overwrite path: the human editor's modal is the only override).
 
-**The product explorer** (`components/products/index.tsx`) is a file browser
+**The product explorer** (`components/products/products.tsx`) is a file browser
 over the two flat T1 lists (`instanceState.products` and
 `instanceState.folders`, both maintained per row off the instance channel).
 The user is always **inside one folder**: the page shows that folder's
@@ -398,14 +397,14 @@ fastr report stored on a retired theme opens on the default,
 `getFastrReportTheme` being total. **Creation asks nothing**: the products
 page mints the report the way it mints a deck, server-labelled and instantly
 open (D16). The look is chosen from INSIDE the report instead, by
-[report_theme_modal.tsx](client/src/components/report/report_theme_modal.tsx),
+[theme_modal.tsx](client/src/components/products/report/theme_modal.tsx),
 which the editor opens unprompted the first time a new report is opened and
 which the Page menu reaches after that. `config.themeChosen === false` is the
 mark of a report that has never been asked: it is written only at creation, so
 a report minted before the modal existed carries no flag at all and is never
 interrupted about a choice it was never offered. Its tiles render the REAL
 theme sheet over the REAL `fm-*` markup, scoped per tile
-([fastr_theme_mock.tsx](client/src/components/report/fastr_theme_mock.tsx)),
+([fastr_theme_mock.tsx](client/src/components/products/report/fastr_theme_mock.tsx)),
 so a preview is exactly what the report becomes. **Custom styles**:
 user-authored briefs live in the MAIN-db `report_styles` table (203;
 visibility per style, either this/selected REPORTS via a `product_ids` JSON
@@ -416,7 +415,7 @@ CRUD on the product-scoped report routes: the path's report decides which
 styles are visible, list is `view` access and every mutation is `edit` and
 logged). They render in the theme modal as color-skinned generic tiles and are
 created/edited via
-[report_style_editor.tsx](client/src/components/report/report_style_editor.tsx)
+[report_style_editor.tsx](client/src/components/products/_shared/report_style_editor.tsx)
 (delete lives there because openConfirm would replace the modal). A style
 saved from a report also carries the source report's `<style>` CSS verbatim
 (`reference_css`, 076) — the prose brief alone proved lossy, so the AI is
@@ -450,10 +449,10 @@ in SQL.
 `REPORT_PURIFY_CONFIG` (lib; `FORCE_BODY`, explicit `FORBID_TAGS`, the default
 URI regexp plus the `figure:`/`image:` schemes — pinned by
 `server/tests/report_html_sanitize_test.ts` on jsdom) → materialize embeds →
-base CSS ([report_html.ts](client/src/components/report/report_html.ts), the
-one builder for preview, version-history preview, `.html` download and
-print). The editor preview is a `sandbox="allow-same-origin"` srcdoc iframe
-([report_html_preview.tsx](client/src/components/report/report_html_preview.tsx))
+base CSS ([report_html.ts](client/src/generate_report/report_html.ts) in S10's
+`generate_report/`, the one builder for preview, version-history preview,
+`.html` download and print). The editor preview is a `sandbox="allow-same-origin"` srcdoc iframe
+([report_html_preview.tsx](client/src/components/products/_shared/report_html_preview.tsx))
 — scripts browser-blocked, the report's `<style>` scoped to its own document,
 blob:/asset URLs load because the frame keeps the parent origin; in-page
 `#` links scroll in-frame, everything else opens a new tab; pointer events are
@@ -471,7 +470,7 @@ style, `GENERIC_LIGHT_INK` fallback, `applyInkTheme` at raster time); the
 `.html`/print export measures grounds by mounting the sanitized document in a
 hidden iframe (`measureFigureGrounds`); ink is part of the raster key) from a
 **content-keyed** cache
-([report_figure_raster.ts](client/src/components/report/report_figure_raster.ts):
+([report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts):
 `metricId|snapshotAt|canonicalJson(config)`, NOT object identity — collab
 materializes fresh block objects on every remote update), serial with a frame
 yield, pending → placeholder, failure → "Missing visualization". Structural
@@ -930,7 +929,7 @@ taller than a page that has not been rendered lays out whole until it is
 
 Print follows: `fastrForcedBreaksCss` emits `[data-line="N"]
 { break-before: page !important }` for the editor's page starts
-(`paged.pageStarts` on `buildStandaloneReportHtml`), which index.tsx hands
+(`paged.pageStarts` on `buildStandaloneReportHtml`), which report.tsx hands
 to Download and Email through `registerReportPageLayout`
 (export_report_as_paged_pdf.ts) when the body the export fetched is the
 body the editor laid out; otherwise Paged.js decides by the same rules.
@@ -1342,8 +1341,8 @@ a ground that is already a hue, so the three hue grounds clear the heading
 background. Both rules stay: a custom style can do either.
 
 **Editor** (`ReportEditor` in
-[report/index.tsx](client/src/components/report/index.tsx), ~2,300 LOC, over
-`ReportBodyEditor` in `report_editor.tsx`): takes `{ productId }` and reads
+[report/report.tsx](client/src/components/products/report/report.tsx), ~2,300 LOC, over
+`ReportBodyEditor` in `body_editor.tsx`): takes `{ productId }` and reads
 label, package and scope live from the T1 row like the deck editor (the
 product id is also the collab document id, since a report IS its product), so
 rename and duplicate are the SHARED product surfaces (`ProductSettings`,
@@ -1356,7 +1355,7 @@ the header counts them with "Update all figures", re-resolving through one
 embed-widget extension (a line that is exactly one token renders as an atomic
 block widget), three modes edit/split/view, and line-anchored bidirectional
 scroll sync over a `PreviewSurface` adapter
-([scroll_sync.ts](client/src/components/report/scroll_sync.ts): `divSurface`
+([scroll_sync.ts](client/src/components/products/_shared/scroll_sync.ts): `divSurface`
 for the markdown card, `iframeSurface` for the html/fastr frame; `data-line`
 anchors, echo-loop guard, figure-settle ResizeObserver window; the html pane
 aligns when its surface becomes ready, not on the next frame). Embed insert/edit controls
@@ -1366,12 +1365,12 @@ block insertion; figures resolve through the same S10 funnel as dashboards).
 Markdown View mode and both markdown exports share
 `REPORT_MARKDOWN_STYLE`. FASTR Markdown reuses the html editing surface wholesale
 — `markdown()` as the CodeMirror language plus a line decoration for the `:::`
-fences ([fastr_fence_extension.ts](client/src/components/report/fastr_fence_extension.ts))
+fences ([fastr_fence_extension.ts](client/src/components/products/report/fastr_fence_extension.ts))
 and the same iframe preview (the theme sheet lives in a `<style data-fm-theme>` in
 the frame HEAD so a re-theme never reloads the frame, which would drop the
 surface, the scroll position and every blob: raster).
 
-**The formatting toolbar** ([report_toolbar.tsx](client/src/components/report/report_toolbar.tsx),
+**The formatting toolbar** ([toolbar.tsx](client/src/components/products/report/toolbar.tsx),
 FASTR only) sits inside the same `FrameTop` panel as the `HeadingBar`
 — that panel is `flex-none overflow-auto` and sizes to content, so the strip
 just grows the header, and the `HeadingBar`'s slots (already seven controls,
@@ -1495,7 +1494,7 @@ own depth/stack/defect logic, which genuinely differs — what they must not kee
 is a private copy of the loop, because a drifting copy mis-nests a whole
 document in silence.
 
-**Live preview** ([live_preview_extension.tsx](client/src/components/report/live_preview_extension.tsx),
+**Live preview** ([live_preview_extension.tsx](client/src/components/products/report/live_preview_extension.tsx),
 [lib/fastr_live_regions.ts](lib/fastr_live_regions.ts)): for FASTR reports,
 Edit mode is an Obsidian-style surface — still CodeMirror on the same Y.Text
 (collab, per-user undo and the toolbar untouched), but decorated. Top-level
@@ -1892,14 +1891,12 @@ deliveries returns `success: false` (the form shows the error instead of
   need to reach support. Decide and either document or add the check.
 - **`overwrite` on `updateReportBody` is dead**: always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
-- **`_shared/**` custody**: `dhis2_credentials/` is consumed only by
-  S6's Data page card and documented by S7; `sort_control.tsx` is shell
-  furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1 exception
-  row.
+- **`products/sort_control.tsx` custody**: this manifest owns it, but it is
+  shell furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1
+  exception row.
 - **Type casts on mutation bodies**: `body.slide as Slide`,
   `body.config as SlideDeckConfig`: the
   Zod-validated body is discarded typewise; ties into the tighten-to-schema
   follow-on.
-- **Dead code**: `PasswordGate.tsx` (zero importers, EN-only).
 - **Barrel bypass**: `slide_list.tsx` imports the vendored SortableJS
   wrapper via a deep `../../../../panther/...` path instead of `"panther"`.

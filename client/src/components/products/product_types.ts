@@ -1,8 +1,8 @@
 import { t3, type ProductType } from "lib";
 import type { EditorComponentProps, IconName } from "panther";
 import type { JSX } from "solid-js";
-import { ReportEditor } from "~/components/report";
-import { SlideDeckEditor } from "~/components/slide_deck";
+import { ReportEditor } from "./report/mod.ts";
+import { SlideDeckEditor } from "./slide_deck/mod.ts";
 
 // The one place the client knows what a product type IS
 // (PLAN_PRODUCTS_RESTRUCTURE §3.6). Every per-type dispatch reads this object,

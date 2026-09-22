@@ -14,7 +14,7 @@ import {
   descendantIds,
   folderPathLabels,
   folderPathOptions,
-} from "../../client/src/components/products/folder_tree.ts";
+} from "../../client/src/components/products/_shared/folder_tree.ts";
 
 function folder(id: string, label: string, parentId: string | null): Folder {
   return {

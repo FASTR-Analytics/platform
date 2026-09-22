@@ -14,7 +14,7 @@ import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
 // copilot and the /mcp get_overview) ground the model with. Each surface
 // assembles its own context section from these building blocks and its own
 // prose (the SPA: the open product's package and scope and the instance
-// ai_context, client/src/components/copilot/build_system_prompt.ts;
+// ai_context, client/src/components/products/copilot/_shared/build_system_prompt.ts;
 // /mcp: the pinned package, server/mcp/mcp_tools.ts), then hands it to
 // buildSystemPrompt.
 //
@@ -360,7 +360,7 @@ Before writing any interpretation, settle which way is good for the indicator.
 
 // ── Report authoring briefs ──
 // The per-view instructions live with the SPA (client/src/components/
-// project_ai/build_system_prompt.ts); the report EDITING brief stays here
+// products/copilot/_shared/build_system_prompt.ts); the report EDITING brief stays here
 // because its style presets are also read by the report style editor
 // (REPORT_STYLE_BRIEFS, via lib) and covered by the server test suite.
 

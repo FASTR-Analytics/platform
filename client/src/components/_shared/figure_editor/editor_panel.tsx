@@ -1,0 +1,172 @@
+import {
+  PresentationObjectConfig,
+  ResultsValue,
+  type PresenceEntry,
+  ResultsValueInfoForPresentationObject,
+  getEffectivePOConfig,
+  resolveEffectiveIndicatorFacts,
+  getPeriodFilterExactBounds,
+  getSingleValueDimsFromPossibleValues,
+  t3,
+} from "lib";
+import { Match, Show, Switch, createSignal } from "solid-js";
+import { PresenceAvatars } from "../mod.ts";
+import { SetStoreFunction } from "solid-js/store";
+import { PresentationObjectEditorPanelData } from "./editor_panel_data";
+import { PresentationObjectEditorPanelStyle } from "./editor_panel_style";
+import {
+  PresentationObjectEditorPanelText,
+  type VizCaptionCollab,
+} from "./editor_panel_text";
+
+type Props = {
+  metric: ResultsValue;
+  resultsValueInfo: ResultsValueInfoForPresentationObject;
+  tempConfig: PresentationObjectConfig;
+  setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  viewResultsObject: (resultsObjectId: string) => Promise<void>;
+  /** When live-collab is bound, caption fields use CodeMirror (remote carets);
+   *  undefined → plain TextArea fallback. */
+  captionCollab?: VizCaptionCollab;
+  /** Notifies the host which tab is active (live-cursor tab gating). */
+  onTabChange?: (tab: "data" | "style" | "text") => void;
+  /** Collaborators currently on each tab (live), for per-tab avatars. */
+  tabPeers?: Record<"data" | "style" | "text", PresenceEntry[]>;
+};
+
+// One panel tab: label + live avatars of collaborators currently ON that tab.
+function TabButton(tp: {
+  label: string;
+  selected: boolean;
+  peers?: PresenceEntry[];
+  onClick: () => void;
+  borderRight?: boolean;
+  dataTour?: string;
+}) {
+  return (
+    <div
+      class="ui-hoverable-base-100 data-[selected=true]:bg-base-200 flex-1 px-2 py-2"
+      classList={{ "border-r": tp.borderRight }}
+      onClick={tp.onClick}
+      data-selected={tp.selected}
+      data-tour={tp.dataTour}
+    >
+      <div class="flex items-center justify-center gap-1.5">
+        <span class="truncate">{tp.label}</span>
+        <Show when={(tp.peers?.length ?? 0) > 0}>
+          <PresenceAvatars peers={tp.peers!} size="sm" max={3} />
+        </Show>
+      </div>
+    </div>
+  );
+}
+
+export function PresentationObjectEditorPanel(p: Props) {
+  const [tab, setTab] = createSignal<"data" | "style" | "text">("data");
+  function switchTab(t: "data" | "style" | "text") {
+    setTab(t);
+    p.onTabChange?.(t);
+  }
+
+  const resolvedPeriodBounds = () => {
+    const pf = p.tempConfig.d.periodFilter;
+    if (!pf) return undefined;
+    return getPeriodFilterExactBounds(pf, p.resultsValueInfo.periodBounds);
+  };
+
+  const singleValueDims = () =>
+    getSingleValueDimsFromPossibleValues(
+      p.resultsValueInfo.disaggregationPossibleValues,
+    );
+
+  const effectivePOConfigResult = () => {
+    return getEffectivePOConfig(p.tempConfig, {
+      dateRange: resolvedPeriodBounds(),
+      valueProps: p.metric.valueProps,
+      singleValueDims: singleValueDims(),
+    });
+  };
+
+  // Resolved against tempConfig (the DRAFT, not the saved config), so the
+  // percent-only controls react to the filter edit in progress. Config-based,
+  // so no refetch is involved: a control appearing the instant a filter pins a
+  // percent indicator is the intended behavior.
+  const effectiveFormat = () =>
+    resolveEffectiveIndicatorFacts({
+      metricFormatAs: p.metric.formatAs,
+      config: p.tempConfig,
+      indicatorFormats: p.resultsValueInfo.indicatorFormats,
+      indicatorRules: p.resultsValueInfo.indicatorRules,
+      possibleValues: p.resultsValueInfo.disaggregationPossibleValues,
+    });
+
+  return (
+    <div
+      id="VIZ_PANEL_ROOT"
+      class="flex h-full w-full flex-col"
+      data-cursor-zone="panel"
+    >
+      <div class="flex w-full flex-none border-b">
+        <TabButton
+          label={t3({ en: "Data", fr: "Données", pt: "Dados" })}
+          selected={tab() === "data"}
+          peers={p.tabPeers?.data}
+          onClick={() => switchTab("data")}
+          borderRight
+          dataTour="viz-tab-data"
+        />
+        <TabButton
+          label={t3({ en: "Presentation", fr: "Présentation", pt: "Apresentação" })}
+          selected={tab() === "style"}
+          peers={p.tabPeers?.style}
+          onClick={() => switchTab("style")}
+          borderRight
+          dataTour="viz-tab-style"
+        />
+        <TabButton
+          label={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
+          selected={tab() === "text"}
+          peers={p.tabPeers?.text}
+          onClick={() => switchTab("text")}
+          dataTour="viz-tab-text"
+        />
+      </div>
+      <div class="h-0 w-full flex-1">
+        <Switch>
+          <Match when={tab() === "data"}>
+            <PresentationObjectEditorPanelData
+              metric={p.metric}
+              resultsValueInfo={p.resultsValueInfo}
+              tempConfig={p.tempConfig}
+              setTempConfig={p.setTempConfig}
+              viewResultsObject={p.viewResultsObject}
+              singleValueDims={singleValueDims()}
+              ineffectiveDisaggregators={effectivePOConfigResult().ineffectiveDisaggregators}
+              effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
+              hasMultipleValueProps={effectivePOConfigResult().hasMultipleValueProps}
+            />
+          </Match>
+          <Match when={tab() === "style"}>
+            <PresentationObjectEditorPanelStyle
+              metric={p.metric}
+              resultsValueInfo={p.resultsValueInfo}
+              tempConfig={p.tempConfig}
+              setTempConfig={p.setTempConfig}
+              effectiveConfig={effectivePOConfigResult().config}
+              effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
+              effectiveFormatAs={effectiveFormat().axisFormat}
+            />
+          </Match>
+          <Match when={tab() === "text"}>
+            <PresentationObjectEditorPanelText
+              metric={p.metric}
+              tempConfig={p.tempConfig}
+              setTempConfig={p.setTempConfig}
+              captionCollab={p.captionCollab}
+            />
+          </Match>
+        </Switch>
+      </div>
+    </div>
+  );
+}

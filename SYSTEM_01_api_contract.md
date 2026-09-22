@@ -2,8 +2,9 @@
 system: 1
 name: API Contract, Transport & Access Control
 globs:
-  - client/src/components/LoggedInWrapper.tsx
+  - client/src/components/instance/logged_in_wrapper.tsx
   - client/src/server_actions/**
+  - client/src/state/_infra/clerk.ts
   - client/src/state/instance/product_access.ts
   - lib/api-routes/**
   - lib/h_users.ts
@@ -67,7 +68,7 @@ _writes_ the `users` rows the guards here evaluate: S1 owns the gate, S15 owns
 the admin surface behind it. Client-side consumption rules (tiers, caches) are
 [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). Sub-file custody exceptions are
 in SYSTEMS.md §4.1 (`main.ts` owned here, S2/S15 readers;
-`LoggedInWrapper.tsx` owned here, S3/S14 readers; `routes/instance/users.ts` +
+`instance/logged_in_wrapper.tsx` owned here, S3/S14 readers; `routes/instance/users.ts` +
 `db/instance/users.ts` owned here, S15/S13 readers).
 
 ## Contract

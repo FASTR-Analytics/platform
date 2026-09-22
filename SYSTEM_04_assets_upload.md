@@ -2,9 +2,10 @@
 system: 4
 name: Assets & Upload
 globs:
-  - client/src/components/_file_upload_selector.tsx
-  - client/src/components/_uppy_file_upload.ts
-  - client/src/components/instance/instance_assets.tsx
+  - client/src/components/_shared/file_upload_selector.tsx
+  - client/src/components/_shared/uppy_file_upload.ts
+  - client/src/components/assets/assets.tsx
+  - client/src/components/assets/mod.ts
   - lib/types/assets.ts
   - server/db/instance/assets.ts
   - server/routes/instance/assets.ts
@@ -83,7 +84,7 @@ carries `X-Upload-Complete` / `X-Upload-Filename`.
 (PLAN_IMPORT_FILE_INPUT_UNIFICATION). There is no wizard-temp TUS mode:
 every upload takes the asset path above, and the S6 wizards name their
 inputs by asset `fileName` (upload a new file or pick an existing one via
-`_file_upload_selector.tsx`). Import inputs persist after the run (nothing
+`_shared/file_upload_selector.tsx`). Import inputs persist after the run (nothing
 deletes them at finalize) and are managed on the assets page like any other
 asset.
 
@@ -116,19 +117,19 @@ are admin-delete-only); admins delete anything. Deletion removes the file
 
 ## Client primitives
 
-- **`_uppy_file_upload.ts`** exports `createUppyInstance(config)`: Uppy
+- **`_shared/uppy_file_upload.ts`** exports `createUppyInstance(config)`: Uppy
   Dashboard modal + TUS plugin (5 MB chunks, retry delays 0/1s/3s/5s,
   `withCredentials`, `storeFingerprintForResuming: false`, so resume works
   within one attempt, not across page loads). Restrictions carry only
   `maxNumberOfFiles` (default 1; `0` = unlimited, as the instance-assets page
   uses). There are no type/size caps (Open items). State is cleared on every
   modal open/close; `cleanupUppy` clears + destroys on unmount.
-- **`_file_upload_selector.tsx`** is the shared upload-or-pick control: a
+- **`_shared/file_upload_selector.tsx`** is the shared upload-or-pick control: a
   filtered `Select` over `instanceState.assets` plus an upload button. After a
   _new_ file uploads it shows "Processing upload…" and waits for the asset to
   appear in the T1 store via SSE before selecting it (re-uploads of an existing
   name select immediately). Used by the S5/S6/S12 wizards.
-- **`instance/instance_assets.tsx`** is the Assets admin page: type tabs
+- **`assets/assets.tsx`** is the Assets admin page: type tabs
   (CSV/Excel/Images/ZIP/Other), size/modified/owner columns, per-row download
   (root-path `GET`, S1 static serve) and delete; delete buttons and the
   admin-only bulk delete mirror the server's ownership rule.
@@ -171,4 +172,4 @@ ownership annotation, not a registry.
 - **Cruft:** `deleteAssets`' handler re-checks
   `Array.isArray(body.assetFileNames)`, though the registry schema
   (`z.array(z.string())`) already guarantees it; the `onBeforeRequest` no-op
-  hook in `_uppy_file_upload.ts`.
+  hook in `_shared/uppy_file_upload.ts`.

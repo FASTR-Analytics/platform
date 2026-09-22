@@ -43,7 +43,7 @@ Today's app-level additions:
   stripe utility.
 - `--color-package` (+ `-content`, `-hover`, `-active`) with the
   `ui-fill-package` and `ui-hoverable-package` skins: the one accent for the
-  results-package chip (`components/products/package_scope_chip.tsx`) on
+  results-package chip (`components/products/_shared/package_scope_chip.tsx`) on
   editor headers, product cards and list rows. Nothing else wears it.
 - The base layer: `html, body, #app` → `font-sans`,
   `bg-base-100 text-base-content`, `font-variant-numeric: tabular-nums` for
@@ -116,11 +116,11 @@ are panther exports.)
 
 | Pattern               | Frame structure                                    | Live example                                   |
 | --------------------- | -------------------------------------------------- | ---------------------------------------------- |
-| A: simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`    | `slide_deck/slide_deck_settings.tsx`           |
-| B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `instance_population/_population_grid.tsx`     |
-| C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `instance_results_packages/index.tsx`          |
-| D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `figure_editor/visualization_editor_inner.tsx` |
-| E: split columns      | `div.flex` halves with `w-1/2` + `border-r`        | `indicator_manager_hfa/*` managers             |
+| A: simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`    | `slide_deck/settings.tsx`           |
+| B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `data/hmis/population/grid.tsx`    |
+| C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `results_packages/results_packages.tsx`        |
+| D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `_shared/figure_editor/figure_editor.tsx` |
+| E: split columns      | `div.flex` halves with `w-1/2` + `border-r`        | `data/hfa/indicators/*` managers               |
 
 Pattern specifics, from the live pages:
 
@@ -129,10 +129,10 @@ Pattern specifics, from the live pages:
 - **C (list pages):**
   `FrameLeftResizable startingWidth={300} minWidth={150}
   maxWidth={400}` around a `SelectList`. The product explorer
-  (`products/index.tsx`) is the search-and-sort variant without the side
+  (`products/products.tsx`) is the search-and-sort variant without the side
   panel: `HeadingBar` carries `searchText`/`setSearchText`, a `centerChildren`
   with the type-filter `ButtonGroup`, `SortControl`
-  (`components/_shared/sort_control.tsx`) and the view-mode `ButtonGroup`, and
+  (`components/products/sort_control.tsx`) and the view-mode `ButtonGroup`, and
   the Create buttons, over a location row (Up button plus breadcrumb) in the
   same `FrameTop` panel that renders only inside a folder; open folder / view mode / sort / type-filter state
   lives in `t4_ui` signals (PROTOCOL_APP_STATE).

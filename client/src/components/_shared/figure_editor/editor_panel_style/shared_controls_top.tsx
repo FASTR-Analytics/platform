@@ -1,0 +1,55 @@
+import { PresentationObjectConfig, t3 } from "lib";
+import { Checkbox, Field, Slider } from "panther";
+import { Show } from "solid-js";
+import { SetStoreFunction } from "solid-js/store";
+import { StyleRevealGroup } from "../_shared/mod.ts";
+
+type SharedTopProps = {
+  tempConfig: PresentationObjectConfig;
+  setTempConfig: SetStoreFunction<PresentationObjectConfig>;
+  usingCells: () => boolean;
+};
+
+export function SharedControlsTop(p: SharedTopProps) {
+  return (
+    <>
+      <Show when={p.usingCells()}>
+        <Field
+          label={t3({
+            en: "Number of grid columns",
+            fr: "Nombre de colonnes de grille",
+            pt: "Número de colunas da grelha",
+          })}
+        >
+          <div class="ui-spy-sm">
+            <Checkbox
+              label={t3({ en: "Auto", fr: "Auto", pt: "Auto" })}
+              checked={p.tempConfig.s.nColsInCellDisplay === "auto"}
+              onChange={(v) => {
+                if (v) {
+                  p.setTempConfig("s", "nColsInCellDisplay", "auto");
+                } else {
+                  p.setTempConfig("s", "nColsInCellDisplay", 2);
+                }
+              }}
+            />
+            <Show when={p.tempConfig.s.nColsInCellDisplay !== "auto"}>
+              <StyleRevealGroup>
+                <Slider
+                  label={t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" })}
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={p.tempConfig.s.nColsInCellDisplay as number}
+                  onChange={(v) => p.setTempConfig("s", "nColsInCellDisplay", v)}
+                  fullWidth
+                  showValueInLabel
+                />
+              </StyleRevealGroup>
+            </Show>
+          </div>
+        </Field>
+      </Show>
+    </>
+  );
+}

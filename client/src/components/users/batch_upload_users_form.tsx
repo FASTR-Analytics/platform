@@ -1,0 +1,167 @@
+import type Uppy from "@uppy/core";
+import { createSignal, onCleanup, onMount } from "solid-js";
+import { t3, TC } from "lib";
+import { serverActions } from "~/server_actions";
+import {
+  Button,
+  Select,
+  StateHolderFormError,
+  getSelectOptions,
+  createFormAction,
+  type EditorComponentProps,
+  FrameTop,
+  HeadingBar,
+  Checkbox,
+} from "panther";
+import {
+  cleanupUppy,
+  createUppyInstance,
+} from "~/components/_shared/mod.ts";
+import { instanceState } from "~/state/instance/t1_store";
+
+type Props = EditorComponentProps<{}, undefined>;
+
+export function BatchUploadUsersForm(p: Props) {
+  const [selectedFileName, setSelectedFileName] = createSignal<string>("");
+  const [replaceAllExisting, setReplaceAllExisting] =
+    createSignal<boolean>(false);
+
+  function updateSelectedFileName(fileName: string) {
+    setSelectedFileName(fileName);
+  }
+
+  const handleBatchUpload = createFormAction(
+    async () => {
+      const assetFileName = selectedFileName();
+
+      if (!assetFileName) {
+        return {
+          success: false,
+          err: t3({
+            en: "You must select a CSV file",
+            fr: "Vous devez sélectionner un fichier CSV",
+            pt: "Tem de selecionar um ficheiro CSV",
+          }),
+        };
+      }
+
+      return serverActions.batchUploadUsers({
+        asset_file_name: assetFileName,
+        replace_all_existing: replaceAllExisting(),
+      });
+    },
+    async () => {
+      p.close(undefined);
+    },
+  );
+
+  let uppy: Uppy | undefined = undefined;
+
+  onMount(() => {
+    uppy = createUppyInstance({
+      triggerId: "#select-csv-file-button",
+      onUploadSuccess: (file) => {
+        if (!file) {
+          return;
+        }
+        updateSelectedFileName(file.name as string);
+      },
+    });
+  });
+
+  onCleanup(() => {
+    cleanupUppy(uppy);
+  });
+
+  return (
+    <FrameTop
+      panelChildren={
+        <HeadingBar
+          heading={t3({
+            en: "Batch import users",
+            fr: "Importation groupée d'utilisateurs",
+            pt: "Importação em lote de utilizadores",
+          })}
+          onBack={() => p.close(undefined)}
+        />
+      }
+    >
+      <div class="ui-pad ui-spy">
+        <div class="text-sm">
+          {t3({
+            en: "Upload a CSV file with the following headers:",
+            fr: "Téléversez un fichier CSV avec les en-têtes suivants :",
+            pt: "Carregue um ficheiro CSV com os seguintes cabeçalhos:",
+          })}
+          <span class="font-700 ml-3 font-mono">email, is_global_admin</span>
+        </div>
+
+        <div class="text-base-content-muted text-sm">
+          {t3({ en: "Example:", fr: "Exemple :", pt: "Exemplo:" })}{" "}
+          <span class="font-mono">user@example.com,false</span>
+        </div>
+
+        <div class="">
+          <Button id="select-csv-file-button" iconName="upload">
+            {t3({
+              en: "Upload new CSV file",
+              fr: "Téléverser un nouveau fichier CSV",
+              pt: "Carregar novo ficheiro CSV",
+            })}
+          </Button>
+        </div>
+
+        <div class="w-96">
+          <Select
+            label={t3({
+              en: "Or select existing CSV file",
+              fr: "Ou sélectionner un fichier CSV existant",
+              pt: "Ou selecionar um ficheiro CSV existente",
+            })}
+            options={getSelectOptions(
+              instanceState.assets
+                .filter((a) => a.isCsv)
+                .map((a) => a.fileName),
+            )}
+            value={selectedFileName()}
+            onChange={updateSelectedFileName}
+            fullWidth
+          />
+        </div>
+
+        <div class="">
+          <Checkbox
+            label={t3({
+              en: "Replace all existing users (DANGEROUS)",
+              fr: "Remplacer tous les utilisateurs existants (DANGEREUX)",
+              pt: "Substituir todos os utilizadores existentes (PERIGOSO)",
+            })}
+            checked={replaceAllExisting()}
+            onChange={setReplaceAllExisting}
+          />
+        </div>
+
+        <StateHolderFormError state={handleBatchUpload.state()} />
+
+        <div class="ui-gap-sm flex">
+          <Button
+            onClick={handleBatchUpload.click}
+            intent="primary"
+            state={handleBatchUpload.state()}
+            disabled={!selectedFileName()}
+            iconName="upload"
+          >
+            {t3({
+              en: "Process CSV",
+              fr: "Traiter le CSV",
+              pt: "Processar CSV",
+            })}
+          </Button>
+          <Button onClick={() => p.close(undefined)} intent="neutral">
+            {t3(TC.cancel)}
+          </Button>
+        </div>
+      </div>
+    </FrameTop>
+  );
+}

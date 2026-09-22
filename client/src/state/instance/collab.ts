@@ -28,8 +28,8 @@ import { _SERVER_HOST } from "~/server_actions";
 import {
   notifyPresenceToasts,
   resetPresenceToasts,
-} from "~/components/_shared/presence_toasts";
-import { notifyCollabConnection } from "~/components/_shared/connection_banner";
+} from "./presence_toasts";
+import { notifyCollabConnection } from "./connection_banner";
 
 // Client manager for the instance-wide collaboration WebSocket (GET /collab):
 // presence, idle detection, and the two CRDT session families the server

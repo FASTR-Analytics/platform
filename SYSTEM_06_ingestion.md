@@ -2,13 +2,18 @@
 system: 6
 name: Dataset Ingestion
 globs:
-  - client/src/components/PeriodSelector.tsx
-  - client/src/components/TimeIndexSelector.tsx
-  - client/src/components/WindowingSelector.tsx
-  - client/src/components/instance/instance_data.tsx
-  - client/src/components/instance_dataset_hfa/**
-  - client/src/components/instance_dataset_hmis/**
-  - client/src/components/instance_dataset_iceh/**
+  - client/src/components/data/hmis/_shared/mod.ts
+  - client/src/components/data/hmis/_shared/period_selector/**
+  - client/src/components/data/data.tsx
+  - client/src/components/data/general/mod.ts
+  - client/src/components/data/mod.ts
+  - client/src/components/data/hfa/dataset/**
+  - client/src/components/data/hfa/imports/**
+  - client/src/components/data/hfa/mod.ts
+  - client/src/components/data/hmis/dataset/**
+  - client/src/components/data/hmis/imports/**
+  - client/src/components/data/hmis/mod.ts
+  - client/src/components/data/iceh/**
   - client/src/state/instance/t2_datasets.ts
   - lib/hfa_sentinel_classification.ts
   - lib/table_structures/**
@@ -412,25 +417,25 @@ the slot's direct `onChange` callback (never an effect on the fileName
 signal: re-uploading the same name leaves the signal unchanged, and only the
 callback re-parses the new bytes).
 
-- **HMIS** (`instance_dataset_hmis/`): the HMIS Data page has two tabs,
+- **HMIS** (`data/hmis/dataset/`): the HMIS Data page has two tabs,
   Visualization and Ledger (PLAN_A8). The page owns every read and the
   view state (the tab, the display-info holder, the `vizConfig` store and
   the ledger rows); the tab bodies are renders over it, so a tab switch is
-  never a fetch. Visualization is `dataset_items_holder.tsx`'s
+  never a fetch. Visualization is `dataset_display_presentation.tsx`'s
   `DatasetDisplayPresentation` over the display cache below, its rows read
   under `indicator_common_id`, the server column: one figure at a time by
   a radio, the panther timeseries line graph (count or sum of records per
   indicator and month) or the presence heat map
-  (`_presence_heat_map.tsx`, a DOM table of indicator × month or year,
+  (`presence_heat_map.tsx`, a DOM table of indicator × month or year,
   a cell filled where the indicator has a record in the period, hover from
   the cell's title; no figure package and no server call), with the
   indicator multi-select applied to both. Ledger is
-  `_ledger_table.tsx`: the import ledger pivoted by data id (its key),
+  `ledger_table.tsx`: the import ledger pivoted by data id (its key),
   each row labelled through the T2 indicators cache (indicator id and
   label beside a "DHIS2 id" column that shows the key only under a DHIS2
   element; an Uploaded indicator's key is opaque and never shown, PLAN_A6
   ruling 1), click-through to a per-month detail
-  (`_ledger_indicator_detail.tsx`, headed the same way). The ledger is a
+  (`import_ledger_indicator_detail.tsx`, headed the same way). The ledger is a
   full-table read, a page-level `createSignal<StateHolder>` + `createEffect`
   fetched on mount and again on `datasetVersions.hmis` or
   `hmisImportRunActive`; stale rows stay visible until fresh ones arrive.
@@ -438,7 +443,7 @@ callback re-parses the new bytes).
   failed pairs" hands the table's pair list to the page; both open the
   DHIS2 wizard's `presetPairs` entry from the page, and a result shows a
   dismissible notice pointing at Imports (the manager's `importNotice`
-  shape). The imports view (`instance_dataset_hmis/imports/`) has Current /
+  shape). The imports view (`data/hmis/imports/`) has Current /
   Future / History tabs (SSE summary fields as the wake-up signal, routed
   through the shell's `refresh()`). The shell owns every read. The tabs are
   stateless: panther's `StateHolderWrapper` keys its ready branch on the data
@@ -481,15 +486,15 @@ callback re-parses the new bytes).
   the table. The imports view's `refresh()` on the wizard's result is what
   refetches its runs and schedules after a launch. A run
   detail's
-  Version row opens the version's `_import_information.tsx`, whose
+  Version row opens the version's `import_information.tsx`, whose
   period-indicator list labels each data id through the dictionary and
   shows the key only under a DHIS2 element (its raw-metadata dump is the
   stored JSON as is).
-- **HFA** (`instance_dataset_hfa/imports/`): Current card + History table, no
+- **HFA** (`data/hfa/imports/`): Current card + History table, no
   tabs; four-step wizard (upload both files → mappings + filters → duplicates
   → review; Start only, refusal inline). The run row is HFA's only durable
   import record.
-- **ICEH** (`instance_dataset_iceh/imports/`): the leaner twin, Current
+- **ICEH** (`data/iceh/imports/`): the leaner twin, Current
   card plus History table; two-step wizard (upload zip + preview → review);
   needs_review cards show the skip counters/samples.
 - Every wizard (the three import families and the results-package wizard)
@@ -548,7 +553,7 @@ The facilities parquet is built from `RUN_FACILITY_COLUMN_NAMES` rows.
   headers; the streaming variant's header read is one 64 KB `file.read()` (wide
   XLSForm exports / short reads → confusing failure).
 - Ethiopian-calendar period math in the DHIS2 wizard
-  (`imports/_wizard/index.tsx`, `getCurrentPeriodId`) assumes 12 months (no
+  (`data/hmis/imports/wizard/wizard.tsx`, `getCurrentPeriodId`) assumes 12 months (no
   Pagume); untranslated strings in the delete flows and Period/TimeIndex
   selectors; `facilityOwnwershipsToInclude` typo is the persisted canonical
   field (fixing it = stored-JSON migration).

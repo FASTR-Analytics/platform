@@ -91,7 +91,7 @@ function readFigureBundle(m: Y.Map<unknown>): FigureBundle | undefined {
 // node, so a slide push that didn't touch this figure (the common case: a text
 // block edited elsewhere) skips re-serializing its (potentially multi-MB) data.
 // Mirrors setOpaque's reference-cache discipline; a changed bundle must be a
-// fresh object (the editor's path-set guarantees this: slide_editor index.tsx).
+// fresh object (the editor's path-set guarantees this: slide_editor/slide_editor.tsx).
 const lastFigureBundleRef = new WeakMap<Y.Map<unknown>, unknown>();
 
 const ROOT_KEY = "slide";

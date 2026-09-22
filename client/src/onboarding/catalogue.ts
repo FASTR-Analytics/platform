@@ -2,13 +2,13 @@ import { t3 } from "lib";
 import type { IconName } from "panther";
 import type { ProductSummary, SlideType } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
-import { copilotViewController } from "~/components/copilot/ai_views";
+import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import { setPendingEditorOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 
 // The instance's tabs, as the tour manager and the catalogue modal name them.
-// The shell (components/instance/index.tsx) imports this union rather than
+// The shell (components/instance/instance.tsx) imports this union rather than
 // redeclaring it.
 export type InstanceTab =
   | "products"

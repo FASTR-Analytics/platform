@@ -4,8 +4,10 @@ name: Realtime Collaboration & Version History
 globs:
   - server/collab/**
   - lib/collab/**
-  - client/src/components/version_history/**
+  - client/src/components/products/_shared/version_history/**
   - client/src/state/instance/collab.ts
+  - client/src/state/instance/connection_banner.tsx
+  - client/src/state/instance/presence_toasts.tsx
   - lib/types/collab.ts
   - lib/types/versions.ts
   - server/routes/instance/collab.ts
@@ -46,17 +48,20 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   the attribution ledgers `authorship.ts` (per-character report bodies, with
   tombstones) + `deck_session_ledger.ts` (per-slide / per-element decks),
   `server/db/products/versions.ts` (S12's file), `lib/types/versions.ts`, and
-  the client `components/version_history/**` (diff, compare, previews,
+  the client `components/products/_shared/version_history/**` (diff, compare, previews,
   restore modals).
 - **Shared custody.** The server chokepoint branches, checkpoint functions, and
   version routes ride **S12**'s files (`server/db/products/{reports,slides,
   slide_decks,versions}.ts`, `server/routes/products/{reports,slide_decks,
   slides}.ts`, SYSTEMS.md §4.1). The collab client UI
-  (`_shared/live_cursors.tsx`, `_shared/cursors/`,
-  `_shared/presence_toasts.tsx`, `_shared/connection_banner.tsx`,
+  (`_shared/live_cursors.tsx`, the per-surface cursor files,
   `_shared/collab_markdown_editor.tsx`, the presence avatars and editor
   overlays) lives inside S12's manifest globs.
   S12 owns those files; this system documents the collab behavior in them.
+  The two notice sinks `collab.ts` drives, `state/instance/presence_toasts.tsx`
+  and `state/instance/connection_banner.tsx`, sit beside it and are this
+  system's (they render through `solid-js/web`'s `render` into hosts they mount
+  themselves, so nothing under `components/` imports them).
 
 ## Contract
 
@@ -175,7 +180,7 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
   frame of their session.
 - Reconnect: exponential backoff (1 s → 30 s cap), retrying FOREVER;
   `online` / tab-refocus events short-circuit the wait; a top-center banner
-  ([connection_banner.tsx](client/src/components/_shared/connection_banner.tsx))
+  ([connection_banner.tsx](client/src/state/instance/connection_banner.tsx))
   shows "Connection lost — reconnecting…" (+ Reload) and flashes "Live again"
   on recovery, never on a normal initial connect. The **one** exception to
   retrying forever is an authorization refusal (close 4403, or the standard
@@ -221,10 +226,10 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
   Anything reading `collabState.peers` directly is asking about connections and
   must say why; `peersInProduct(productId)` is the product-filtered view.
   Consumers: the deck header + per-slide cards via
-  [presence_avatars.tsx](client/src/components/slide_deck/presence_avatars.tsx),
+  [presence_avatars.tsx](client/src/components/_shared/presence_avatars.tsx),
   the report header (same avatar stack filtered on `reportId`), the
   join/leave toasts
-  ([presence_toasts.tsx](client/src/components/_shared/presence_toasts.tsx)),
+  ([presence_toasts.tsx](client/src/state/instance/presence_toasts.tsx)),
   the in-editor peer overlays, and the AI busy-guard.
 - Semantics: `slideId` set ⇔ that user has the slide open in the editor (set
   on editor mount, cleared to deck-level on unmount). `selectedBlockId`
@@ -414,7 +419,7 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts) and
 
 ### Slide editor: tempSlide ⇄ session doc
 
-[slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx)
+[slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx)
 keeps the pre-collab editing model (a local `tempSlide` Solid store driving
 the canvas) and bridges it to a per-slide session doc from
 `openSlideSession(productId, slideId, onRemote)` (which first destroys any
@@ -458,7 +463,7 @@ prior session for the same slide):
   scopes undo to local edits. `plain` prop disables markdown highlighting for
   title fields. Read-only (`EditorState.readOnly` +
   `EditorView.editable(false)`) when the caller's `canEdit` is false.
-- [collab_text_field.tsx](client/src/components/slide_deck/slide_editor/collab_text_field.tsx)
+- [collab_text_field.tsx](client/src/components/products/slide_deck/slide_editor/collab_text_field.tsx)
   wraps one root text field: binds the field's Y.Text (`findRootTextField`)
   when collab is ready, falls back to panther `TextArea` otherwise; both paths
   mirror into `tempSlide` so the canvas re-renders; focus broadcasts
@@ -470,8 +475,8 @@ prior session for the same slide):
 
 ### Report editor
 
-[report/index.tsx](client/src/components/report/index.tsx) +
-[report_editor.tsx](client/src/components/report/report_editor.tsx): the
+[report/report.tsx](client/src/components/products/report/report.tsx) +
+[body_editor.tsx](client/src/components/products/report/body_editor.tsx): the
 CodeMirror view rebuilds once when the session becomes ready, swapping in
 `yCollab` + per-user undo; the latched `collabReady` turns the 800 ms REST
 autosave off for good (offline edits accumulate in the doc and the reconnect
@@ -487,10 +492,10 @@ and merge via CRDT.
 
 ### Figure editor
 
-[visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx)
+[figure_editor.tsx](client/src/components/_shared/figure_editor/figure_editor.tsx)
 co-edits a figure inside its host slide or report session. The host passes a
 `VizFigureCollabBinding`
-([figure_editor/index.tsx](client/src/components/figure_editor/index.tsx)):
+([figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)):
 the figure's `figConfig` Y.Map, the host session's awareness, `isLive`,
 `canEdit`, a local origin, the host doc identity (so the editor reads
 `doc_save_state` for that doc), and `onCoherentBundle`, which pushes the
@@ -545,9 +550,10 @@ primary anchor.
 
 The rendering engine is
 [live_cursors.tsx](client/src/components/_shared/live_cursors.tsx);
-per-surface glue (coordinate mapping + scope gate) lives one file per surface
-in [\_shared/cursors/](client/src/components/_shared/cursors/) (slide / viz /
-report).
+per-surface glue (coordinate mapping + scope gate) lives one file per surface:
+[slide_cursors.tsx](client/src/components/products/slide_deck/slide_editor/slide_cursors.tsx),
+[viz_editor_cursors.tsx](client/src/components/_shared/figure_editor/viz_editor_cursors.tsx) and
+[cursors.tsx](client/src/components/products/report/cursors.tsx).
 
 **Awareness field registry** (one shared Awareness per session — do not
 collide): `cursor` = yCollab text caret (nulled on every CM blur and on view
@@ -688,7 +694,7 @@ peer border appears only once text exists.
 
 ## AI integration
 
-- [presence_guard.ts](client/src/components/copilot/ai_tools/validators/presence_guard.ts):
+- [presence_guard.ts](client/src/components/products/copilot/ai_tools/validators/presence_guard.ts):
   `assertSlidesNotBusy(slideIds)` throws (surfaced to the AI, relayed to its
   user) when any _other_ peer has a target slide open. Called by every
   slide-mutating AI tool; `create_slide`/`move_slides`/`duplicate_slides` are
@@ -1110,7 +1116,7 @@ and re-runs the sweep.
 
 ### UI
 
-[client/src/components/version_history/](client/src/components/version_history/)
+[client/src/components/products/_shared/version_history/](client/src/components/products/_shared/version_history/)
 holds `VersionHistoryEditor`, a full-panel editor: day-grouped version list on
 the left (pinned "Current version" row, contributor chips via
 `PresenceAvatars` + `presenceColorForKey(email)`, names preferring the live
@@ -1236,7 +1242,7 @@ heading bar; "Version history" in the deck overflow menu.
 
   **The state.** A report's body text is undoable; its figure and image
   registries are not. `setFigures`/`setImages` + `persistFigures`/`persistImages`
-  in [report/index.tsx](client/src/components/report/index.tsx) bypass history
+  in [report/report.tsx](client/src/components/products/report/report.tsx) bypass history
   completely, so registry-only edits (the AI's `update_report_figure`, sidebar
   Edit/Switch, an image-file change) cannot be reversed by the user at all.
   (`handleDelete` is already token-only, so undoing a _delete_ does restore a
@@ -1246,7 +1252,7 @@ heading bar; "Version history" in the deck overflow menu.
   CodeMirror transactions as `StateEffect`s and let `invertedEffects` +
   CM's own history undo "doc change + registry change" atomically. That only
   works where CM history is the authority, and it isn't:
-  [report_editor.tsx:180](client/src/components/report/report_editor.tsx#L180)
+  [body_editor.tsx:180](client/src/components/products/report/body_editor.tsx#L180)
   installs `yUndoManagerKeymap` ahead of `basicSetup` precisely because
   "yCollab's per-user undo takes precedence", and `yCollab` is installed at
   `:219`. `collabReady` latches at the first `report_sync`, so the editor

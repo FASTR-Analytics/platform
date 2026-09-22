@@ -316,24 +316,24 @@ component-local**: transient per-user workflow state (signal + polling), not
 shared.
 
 Instance-level: structure upload attempts (in the structure dataset
-component), HMIS import runs (`instance_dataset_hmis/imports/`: the shell's
+component), HMIS import runs (`data/hmis/imports/`: the shell's
 `createQuery` reads for runs, scheduling and indicator labels; the runs poll
 and both runs and scheduling refresh on the SSE summary flags) and the
-HMIS import ledger (`instance_dataset_hmis/index.tsx`: a full-table read into
+HMIS import ledger (`data/hmis/dataset/dataset.tsx`: a full-table read into
 the page's `createSignal<StateHolder>`, refetched by a `createEffect` on
 `datasetVersions.hmis` and `hmisImportRunActive`; SYSTEM_06), HFA
-import runs (`instance_dataset_hfa/imports/`), ICEH import runs
-(`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
+import runs (`data/hfa/imports/`), ICEH import runs
+(`data/iceh/imports/`), user logs, HMIS version history modal,
 HFA indicator R code
-(`indicator_manager_hfa/hfa_indicator_code_editor.tsx`), user-permission
+(`data/hfa/indicators/indicator_code_editor.tsx`), user-permission
 editors, instance meta modal, profile refresh, the results-package wizard's
 module options + defaults
-(`instance_results_packages/_wizard/index.tsx`, read once per open,
-client-local until launch), and the `LoggedInWrapper.tsx` bootstrap fetches
+(`results_packages/wizard/wizard.tsx`, read once per open,
+client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap fetches
 (GlobalUser, InstanceMeta, needed before SSE connects).
 
 Run-keyed: a package's script / log bytes and a failed run's
-file listing (`_shared/results_package/view_{script,logs,files}.tsx`).
+file listing (`results_packages/package_view/view_{script,logs,files}.tsx`).
 
 ## T4: client-persistent
 

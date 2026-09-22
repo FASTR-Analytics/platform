@@ -2,7 +2,7 @@ import type { DerivedDefaultVisualization } from "../derive_default_visualizatio
 import type { HfaTaxonomyForAI } from "./hfa_types.ts";
 import type { InstalledModuleSummary, MetricWithStatus } from "./modules.ts";
 import type { RunDataset } from "./run_datasets.ts";
-import type { RunHmisIndicator } from "./run_manifest.ts";
+import type { RunHmisIndicator, RunPopulation } from "./run_manifest.ts";
 
 // Everything an author needs FROM a package: which modules ran, which metrics
 // they produced and whether each is available, which datasets were captured,
@@ -31,4 +31,7 @@ export type RunAuthoringContext = {
   // Presets are not products: no rows, no detail read. They render through
   // the run-keyed items read with their own config (D6).
   presets: DerivedDefaultVisualization[];
+  // The manifest's population stamp, verbatim: what the package's rate
+  // indicators are aggregated at, for the badge's reason line.
+  population: RunPopulation | null;
 };
