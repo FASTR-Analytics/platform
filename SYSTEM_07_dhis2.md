@@ -2,7 +2,7 @@
 system: 7
 name: DHIS2 Connector
 globs:
-  - client/src/components/Dhis2CredentialsEditor.tsx
+  - client/src/components/data/hmis/dhis2_connection/**
   - server/dhis2/**
   - server/routes/instance/indicators_dhis2.ts
   - server/tests/dhis2_decompose_indicator_test.ts

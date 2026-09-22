@@ -14,7 +14,7 @@ import {
 } from "panther";
 import { Match, Show, Switch, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { Dhis2CredentialsEditor } from "../../Dhis2CredentialsEditor";
+import { Dhis2CredentialsEditor } from "./Dhis2CredentialsEditor";
 
 type Props = {};
 

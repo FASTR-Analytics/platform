@@ -15,7 +15,7 @@ import {
 } from "panther";
 import { HeadingBar } from "panther";
 import { For, Match, Show, Switch, type JSX } from "solid-js";
-import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
+import { Dhis2ManageConnection } from "./hmis/dhis2_connection/manage_connection";
 import { IndicatorsManager } from "./hmis/indicators/mod.ts";
 import { InstanceDatasetHmis } from "./hmis/dataset/mod.ts";
 import { InstanceDatasetIceh } from "./iceh/mod.ts";
