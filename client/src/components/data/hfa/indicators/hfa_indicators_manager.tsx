@@ -36,7 +36,7 @@ import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { getHfaIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
-import { EditHfaIndicator } from "../forms_editors/edit_hfa_indicator";
+import { EditHfaIndicator } from "./edit_hfa_indicator";
 import { HfaIndicatorCodeEditor } from "./hfa_indicator_code_editor";
 import {
   HfaIndicatorsXlsxUploadForm,
@@ -46,12 +46,12 @@ import { HfaCategoriesManager } from "./hfa_categories_manager";
 import { HfaServiceCategoriesManager } from "./hfa_service_categories_manager";
 import { HfaVariantGroupsManager } from "./hfa_variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./_xlsx_workbook";
-import { hasRCodeErrors, validateRCode } from "./hfa_r_code_validator";
+import { hasRCodeErrors, validateRCode } from "./_shared/hfa_r_code_validator";
 import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
 } from "./hfa_unused_variables_modal";
-import { HfaIndicatorAiWrapper } from "./ai";
+import { HfaIndicatorAiWrapper } from "./ai/ai_wrapper";
 
 type Props = {
   close: (v: undefined) => void;

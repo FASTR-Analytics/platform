@@ -2,8 +2,7 @@
 system: 5
 name: Facilities & Indicators
 globs:
-  - client/src/components/forms_editors/edit_hfa_indicator.tsx
-  - client/src/components/indicator_manager_hfa/**
+  - client/src/components/data/hfa/indicators/**
   - client/src/components/indicator_manager_hmis/**
   - client/src/components/data/geojson/**
   - client/src/components/instance_hfa_time_points/**

@@ -34,7 +34,7 @@ import {
   hasRCodeErrors,
   validateRCode,
   type RCodeValidationResult,
-} from "./hfa_r_code_validator";
+} from "./_shared/hfa_r_code_validator";
 
 type TempCodeEntry = {
   timePoint: string;
