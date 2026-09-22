@@ -15,13 +15,13 @@
 
 import {
   analyzeSlideMarkdown,
-  escapeTypedSlideText,
   findNodeMap,
   findRootTextField,
   PAGE_WIDTH_DU,
   slideBackspace,
   slideDeleteForward,
   slideDeleteRange,
+  slideInsertText,
   type SlideEditResult,
   slideToggleStyle,
   slideWordAt,
@@ -275,6 +275,31 @@ export function InlineTextEditor(p: Props) {
     return true;
   }
 
+  // Insert typed/pasted text at the caret. Markdown goes through
+  // slideInsertText: escaped, styled like the text it joins, and placed where
+  // it renders that way (never inside delimiters it would break).
+  function insertText(text: string, userEvent: string) {
+    if (!view) return;
+    const at = view.state.selection.main.head;
+    if (!isMarkdown) {
+      view.dispatch({
+        changes: { from: at, insert: text },
+        selection: EditorSelection.cursor(at + text.length),
+        userEvent,
+        scrollIntoView: false,
+      });
+      return;
+    }
+    const r = slideInsertText(analysis(), at, text);
+    view.dispatch({
+      changes: r.changes,
+      selection: EditorSelection.single(r.anchor, r.head),
+      userEvent,
+      scrollIntoView: false,
+    });
+    goalX = undefined;
+  }
+
   function toggle(prop: "bold" | "italic"): boolean {
     if (!view || !isMarkdown) return true;
     const an = analysis();
@@ -328,12 +353,7 @@ export function InlineTextEditor(p: Props) {
     const s = view.state.selection.main;
     const line = view.state.doc.lineAt(s.head);
     if (LIST_LINE.test(line.text) && insertNewlineContinueMarkup(view)) return true;
-    view.dispatch({
-      changes: { from: s.head, insert: "\n" },
-      selection: EditorSelection.cursor(s.head + 1),
-      userEvent: "input",
-      scrollIntoView: false,
-    });
+    insertText("\n", "input");
     return true;
   }
 
@@ -410,8 +430,7 @@ export function InlineTextEditor(p: Props) {
       run: () => {
         if (!view) return true;
         deleteSelectionIfAny();
-        const h = view.state.selection.main.head;
-        view.dispatch({ changes: { from: h, insert: "\n" }, selection: EditorSelection.cursor(h + 1), userEvent: "input" });
+        insertText("\n", "input");
         return true;
       },
     },
@@ -473,22 +492,19 @@ export function InlineTextEditor(p: Props) {
               return true;
             }
             if (!isMarkdown) return false;
-            // Typing over a selection keeps the formatting around it; typed
-            // markdown punctuation renders as typed.
-            let at = from;
+            // Typing over a selection keeps the formatting around it.
             if (from !== to) {
               const r = slideDeleteRange(analysis(), from, to);
-              v.dispatch({ changes: r.changes, userEvent: "delete", scrollIntoView: false });
-              at = r.anchor;
+              v.dispatch({
+                changes: r.changes,
+                selection: EditorSelection.cursor(r.anchor),
+                userEvent: "delete",
+                scrollIntoView: false,
+              });
+            } else if (v.state.selection.main.head !== from) {
+              v.dispatch({ selection: EditorSelection.cursor(from) });
             }
-            const ins = escapeTypedSlideText(text);
-            v.dispatch({
-              changes: { from: at, insert: ins },
-              selection: EditorSelection.cursor(at + ins.length),
-              userEvent: "input.type",
-              scrollIntoView: false,
-            });
-            goalX = undefined;
+            insertText(text, "input.type");
             return true;
           }),
           EditorView.domEventHandlers({
@@ -499,14 +515,7 @@ export function InlineTextEditor(p: Props) {
               if (!view || text == null) return false;
               e.preventDefault();
               deleteSelectionIfAny();
-              const at = view.state.selection.main.head;
-              const ins = isMarkdown ? escapeTypedSlideText(text) : text;
-              view.dispatch({
-                changes: { from: at, insert: ins },
-                selection: EditorSelection.cursor(at + ins.length),
-                userEvent: "input.paste",
-                scrollIntoView: false,
-              });
+              insertText(text, "input.paste");
               return true;
             },
             focus: () => {

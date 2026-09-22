@@ -7,6 +7,7 @@ import {
   slideBackspace,
   slideDeleteForward,
   slideDeleteRange,
+  slideInsertText,
   slideToggleStyle,
   slideWordAt,
   SRC_BLOCK,
@@ -196,4 +197,25 @@ Deno.test("word ranges come from rendered text, spanning syntax", () => {
   const an = analyzeSlideMarkdown("say **hel**lo now");
   assertEquals(slideWordAt(an, 7), { from: 6, to: 13 }); // "hel**lo", from the h
   assertEquals(slideWordAt(an, 0), { from: 0, to: 3 });
+});
+
+Deno.test("typing continues the formatting it is typed into, validly", () => {
+  const typeAt = (src: string, pos: number, text: string) => {
+    const r = slideInsertText(analyzeSlideMarkdown(src), pos, text);
+    return { doc: apply(src, r)!, caret: r.anchor };
+  };
+  // A space at the end of a bold span goes after the closing delimiters.
+  const sp = typeAt("**hello**", 7, " ");
+  assertEquals(sp.doc, "**hello** ");
+  // The next letter joins the bold again.
+  const w = typeAt(sp.doc, sp.caret, "w");
+  assertEquals(w.doc, "**hello w**");
+  assert(analyzeSlideMarkdown(w.doc).units[0].styles.every((s) => s.bold));
+  // Letters inside or at the end of a span just extend it.
+  assertEquals(typeAt("**hello**", 7, "x").doc, "**hellox**");
+  assertEquals(typeAt("a *b* c", 4, "d").doc, "a *bd* c");
+  // A space typed at the start of a span goes before its opener.
+  assertEquals(typeAt("x **bold**", 4, " ").doc, "x  **bold**");
+  // Typed punctuation stays literal.
+  assertEquals(typeAt("ab", 1, "*").doc, "a\\*b");
 });

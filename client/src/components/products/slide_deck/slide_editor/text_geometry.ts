@@ -519,7 +519,8 @@ export function caretAt(g: TextGeometry, offset: number): CaretBox {
   // Typed spaces with no glyph yet: step the caret right by a space each,
   // never past the next glyph on the same line.
   const box = stopBox(g, stops[prev]);
-  const gap = g.source.slice(pSrc, offset);
+  // (Emphasis delimiters between draw nothing: `**bold** |` counts one.)
+  const gap = g.source.slice(pSrc, offset).replace(/[*_~`]/g, "");
   if (/^[ \t]+$/.test(gap)) {
     const line = g.lines[stops[prev].line];
     const onLine = next >= 0 && stops[next].line === stops[prev].line;

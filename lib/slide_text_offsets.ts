@@ -1038,6 +1038,97 @@ export function escapeTypedSlideText(text: string): string {
     .replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&");
 }
 
+/** Type `typed` at `pos` (after any selection was deleted). The new text
+ *  takes the style of the visible char before it (or after it, at the start
+ *  of a line), like a word processor, and lands where it renders that way:
+ *  a space typed at the end of `**bold|**` cannot go inside the delimiters
+ *  (`**bold **` is not bold, it prints the asterisks), so it goes after them;
+ *  a letter typed after that space joins the bold again (`**bold w**`). */
+export function slideInsertText(
+  an: SlideTextAnalysis,
+  pos: number,
+  typed: string,
+): SlideEditResult {
+  const { src, kind } = an;
+  const plain: SlideCharStyle = { bold: false, italic: false, code: false };
+  const pv = prevVisible(an, pos);
+  const nv = nextVisible(an, pos);
+  // Spaces markdown trims (a trailing one) read as block structure; they do
+  // not separate the typed text from the char it inherits from.
+  const separated = (from: number, to: number) => {
+    for (let i = from; i < to; i++) {
+      if (kind[i] === SRC_BREAK || (kind[i] === SRC_BLOCK && !/[ \t]/.test(src[i]))) {
+        return true;
+      }
+    }
+    return false;
+  };
+  const inherit: SlideCharStyle = pv >= 0 && !separated(pv + 1, pos)
+    ? an.srcStyle[pv] ?? plain
+    : nv >= 0 && !separated(pos, nv)
+    ? an.srcStyle[nv] ?? plain
+    : plain;
+  // Inside a code span text is literal: no escapes.
+  const ins = inherit.code ? typed : escapeTypedSlideText(typed);
+  const at = (p: number) => src.slice(0, p) + ins + src.slice(p);
+
+  let b = pos;
+  while (b < src.length && kind[b] === SRC_INLINE_SYNTAX) b++;
+  let a = pos;
+  while (a > 0 && kind[a - 1] === SRC_INLINE_SYNTAX) a--;
+
+  const before = visibleSeq(an);
+  const k = before.filter((c) => c.src < pos).length;
+  // Whitespace markdown trimmed before the caret (a trailing space) is drawn
+  // once text follows it.
+  const lead = pv >= 0 && /[ \t]/.test(src.slice(pv + 1, pos).replace(/[^ \t]/g, "")) &&
+      !separated(pv + 1, pos)
+    ? " "
+    : "";
+  const added = [...(lead + typed)].filter((c) => c !== "\n").map((ch) => ({
+    ch: normQuote(ch),
+    style: inherit,
+  }));
+  const expected = [
+    ...before.slice(0, k).map((c) => ({ ch: c.ch, style: c.style })),
+    ...added,
+    ...before.slice(k).map((c) => ({ ch: c.ch, style: c.style })),
+  ];
+
+  const positions = [pos, b, a].filter((p, i, arr) => arr.indexOf(p) === i);
+  const simple = positions.map(at);
+  // Last resort: rebuild the line with the typed text styled as inherited.
+  const basePos = b;
+  const base = analyzeSlideMarkdown(at(basePos));
+  // The typed text, and any bare whitespace joining it to the char it
+  // inherits from, take the inherited style.
+  const from = lead && pv >= 0 ? pv + 1 : basePos;
+  const pick = (i: number) =>
+    i >= from && i < basePos + ins.length ? inherit : base.srcStyle[i] ?? plain;
+  const rebuilt = ["*", "_"].map((em) =>
+    serializeLines(base, from, basePos + ins.length, pick, em)
+  );
+  const hit = firstVerified([...simple, ...rebuilt], expected);
+  if (!hit) {
+    return { changes: [{ from: pos, to: pos, insert: ins }], anchor: pos + ins.length, head: pos + ins.length };
+  }
+  const si = simple.indexOf(hit.next);
+  let caret: number;
+  if (si >= 0) {
+    caret = positions[si] + ins.length;
+  } else {
+    // After the last typed glyph, plus any whitespace typed after it.
+    const ink = (c: { ch: string }) => !/\s/.test(c.ch);
+    const inkBefore = before.slice(0, k).filter(ink).length;
+    const inkTyped = added.filter(ink).length;
+    const trailing = /\s*$/.exec(typed)![0].length;
+    const inked = hit.seq.filter(ink);
+    const last = inked[inkBefore + inkTyped - 1];
+    caret = last ? last.src + 1 + trailing : basePos + ins.length;
+  }
+  return { changes: wholeDocChange(src, hit.next), anchor: caret, head: caret };
+}
+
 // ── Bold / italic ────────────────────────────────────────────────────────────
 
 export type SlideStyleProp = "bold" | "italic";
