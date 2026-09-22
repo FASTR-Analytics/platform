@@ -40,7 +40,7 @@ import {
   setDataSection,
   type DataSection,
 } from "~/state/t4_ui";
-import { AiContextForm } from "./ai_context_form";
+import { AiContextForm } from "../instance/ai_context_form";
 
 type Props = {};
 

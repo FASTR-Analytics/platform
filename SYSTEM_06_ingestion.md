@@ -5,7 +5,7 @@ globs:
   - client/src/components/PeriodSelector.tsx
   - client/src/components/TimeIndexSelector.tsx
   - client/src/components/WindowingSelector.tsx
-  - client/src/components/instance/instance_data.tsx
+  - client/src/components/data/data.tsx
   - client/src/components/instance_dataset_hfa/**
   - client/src/components/instance_dataset_hmis/**
   - client/src/components/instance_dataset_iceh/**
