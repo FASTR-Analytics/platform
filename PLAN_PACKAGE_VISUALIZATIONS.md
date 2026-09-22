@@ -7,7 +7,7 @@ chosen scope, and each one has an Edit that opens the figure editor with
 nothing behind it: the user can change the visualization on the page and
 nothing is saved anywhere.
 
-**Next step: Do 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app only.
 Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`,
@@ -258,3 +258,9 @@ its commit.
 
 | Date | Step | Entry |
 | --- | --- | --- |
+| 2026-09-22 | 1 | Session start: the tree carried an uncommitted edit to `PLAN_EXPLORE_PRIMARY_RESULTS.md` from another workstream. Left untouched; only this step's files were staged. |
+| 2026-09-22 | 1 | The page's `HeadingBar` reads "Results package"; the label, badges and housekeeping stay on the view's own header row (R3 keeps `ResultsPackageView` unchanged), so the label is not shown twice. §2's sketch puts the label on the Back line. |
+| 2026-09-22 | 1 | The wizard opens the launched run's page before its catalogue row lands (the pane used to pre-select it). The page shows a loading indicator until the row appears and closes only once a row it has shown is removed, so a fresh launch does not close itself. |
+| 2026-09-22 | 1 | The onboarding catalogue tour targets `instance-results-packages-card` and `-usage`, which lived in the pane. Both attributes moved with the body onto the page; `client/src/onboarding/**` is outside the Surface and was not edited, so that tour now starts the first time a package page is opened. Its copy still describes the catalogue. |
+| 2026-09-22 | 1 | Floor `./run`: it stops and recreates the machine-global `pg` and `valkey-local` containers. Both were already up and mounted on this checkout's `_example_instance_dir`, so the server was booted directly against them (`deno run --allow-all --env-file --unstable-broadcast-channel main.ts`, `/health_check` polled) instead of replacing them. |
+| 2026-09-22 | 1 | Step 1 built. |

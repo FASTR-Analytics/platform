@@ -72,7 +72,7 @@ listing, pin/unpin, the guarded hard delete, and the ONE mount for package
 reads: detail/script/logs/files, run-keyed under the instance data bits);
 lib module + run
 types + `module_registry.ts`; client: `results_packages/**` (the
-catalogue), the launch wizard `results_packages/wizard/**` (an
+catalogue list and the package page), the launch wizard `results_packages/wizard/**` (an
 ephemeral modal, the Upload-CSV pattern), and the T2 run-detail
 cache `state/instance/t2_runs.ts`. `results_packages/package_view/**` is
 what a package CONTAINS, rendered identically wherever a package is
@@ -114,8 +114,8 @@ re-litigate; the package-format invariants below are their file-level twins):
   reads are mounted ONCE (run-keyed, `routes/instance/run_generation.ts`)
   under the INSTANCE data bits (`can_view_data`; `can_view_logs` for logs),
   and one shared view (`results_packages/package_view/package_view.tsx`) renders a
-  package identically wherever one is explored (the catalogue is its one
-  host). AI tools take
+  package identically wherever one is explored (the package page is its
+  one host). AI tools take
   a run RESOLVER, never a runId from the model.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
@@ -227,7 +227,7 @@ Population card when the stamp is active ("population.csv"), and
 per-module cards (settings; Script/Logs viewers gated client-side by
 `canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`; files
 inline with download). A host adds only chrome through its slots: the
-catalogue puts pin/unpin/delete in `headerActions` and "in use by" in
+package page puts pin/unpin/delete in `headerActions` and "in use by" in
 `headerNote`, and renders generating/failed runs itself. The detail is
 **T2, immutable-by-identity**
 (`state/instance/t2_runs.ts`, `createReactiveCache` keyed `[runId]`,
@@ -277,14 +277,17 @@ are keyed `runId + scopeToken` with the run id leading.
 T1 (`readyPackages`, D8), with no compatibility pre-flight (D4: reattach never
 blocks, staleness is per figure).
 
-**The instance catalogue is a master–detail**
-(PLAN_RESULTS_PACKAGES_CATALOGUE_UI): a plain newest-first
-sidebar (`SelectList`, no search/sort/grouping, since there are dozens of
-rows, not hundreds; selection is T5 and never jumps, because an effect PINS
-the newest run's id whenever nothing is pinned (first non-empty render, and
-newest after the selection is deleted), with the derived `?? newest` fallback
-kept only as the same-tick bridge, so another admin's launch never remounts
-the pane) beside a detail pane (`results_packages/detail.tsx`). The
+**The instance catalogue is a list and a page**
+(PLAN_PACKAGE_VISUALIZATIONS ruling 1): the Results packages tab is a plain
+newest-first list (`results_packages.tsx`; no search/sort/grouping, since
+there are dozens of rows, not hundreds, and no selection state), and a row
+opens that package's own page (`results_packages/package_page.tsx` =
+`ResultsPackagePage`) through the shell wrapper (`openShellEditor`) with the
+run id. The page reads its row live from `instanceState.runsCatalog`, waits
+for a freshly launched run's row to land (the wizard opens the page before
+the catalogue refetch), and closes itself once a row it has shown is
+removed. It owns its own editor wrapper, one level below the shell's, for
+the script, logs and files viewers. The
 LISTING is instance-T1 as a nonce pull:
 `runs_catalog_updated` broadcasts a data-free nonce, and each entitled client
 refetches `listRunCatalog` into `InstanceState.runsCatalog` (per-request guard;
@@ -300,7 +303,9 @@ stays correct.
 A visitor arriving mid-generation sees launch-time progress chips until the
 next per-module push: the `run_progress` listeners are page-local and
 `updateRunProgress` deliberately does not signal the catalogue: per-module
-signal spam is worse than a bounded-stale chip row (ruled). The detail pane is the ONLY
+signal spam is worse than a bounded-stale chip row (ruled). The listeners
+live in `results_packages.tsx`, which stays mounted under the open page, and
+the page reads them through accessor props. The package page is the ONLY
 surface that renders a non-ready run. Its generating/failed branches
 (progress chips + live R line; `FailedErrorDetail` + per-started-module
 Script/Logs/Files viewers, the last via `ViewFiles` since a failed run has no
@@ -312,15 +317,15 @@ a package is explored (ruled).
 **Prune** (`results_packages/prune.tsx` + `prune_plan.ts`, ruled)
 is the bulk form of the guarded delete: one rule, remove every
 package not in use (not pinned, no product pointing at it, not generating;
-`planPrune` derives the set from the same T1 facts the sidebar shows and the
+`planPrune` derives the set from the same T1 facts the list shows and the
 confirm lists what goes and what stays with its reason), then the SAME
 single `deleteRun` route, called in turn from the client with a progress
 bar and a per-package outcome list. No batch route: the guard is already
 per-package and atomic, each delete pushes the catalogue nonce so the
-sidebar shrinks live, and a guard refusal mid-list (a product attached
+list shrinks live, and a guard refusal mid-list (a product attached
 between confirm and that package's turn) is an outcome by label, never an
 abort. There is no "delete all": the pin is removed only by the explicit
-unpin on the detail pane. Further rules (keep-latest; all-except-pinned,
+unpin on the package page. Further rules (keep-latest; all-except-pinned,
 which must first repoint every product onto the pin) are one more
 `PruneRule` member each, and the last needs its own instance route.
 
@@ -338,7 +343,7 @@ package and should not pin. Rulings, all deliberate:
   a client-side badge on the catalogue and nothing more, never a stored
   or consumer-facing pointer. The pin is the only stored concept, and it
   reaches every client as ONE instance T1 fact, `pinnedRunId` (S3): the
-  catalogue sidebar/detail derives its badge from that field; `pinned` is
+  catalogue list and package page derive their badges from that field; `pinned` is
   not a listing column.
 - **Pinning is always an explicit act** (`pinResultsPackage`,
   `can_configure_data`, `server/runs/pin_run.ts`). Nothing auto-advances
@@ -365,7 +370,7 @@ package and should not pin. Rulings, all deliberate:
   cache-key change.
 - **Delete protection is a code guard** in `deleteRunCatalogRow` (the
   boolean carries no FK protection the way `products.run_id` does), and
-  the catalogue pane states "cannot delete while pinned" like its other
+  the package page states "cannot delete while pinned" like its other
   blocked reasons.
 - **New products start on the pin.** `createProduct` resolves `run_id` from
   the pin inside the insert (national scope), so there is no read-then-write
@@ -509,7 +514,7 @@ Four invariants, in the order they matter:
    migration belongs, not in a per-request read.
 
 Beyond the query read path, the manifest's module catalog also serves
-`getRunDetail` (the instance catalogue's detail pane): each entry's
+`getRunDetail` (the package page): each entry's
 `configSelections` resolves to the displayed settings server-side: the same
 `getRunManifestCached` load, the same version gate.
 

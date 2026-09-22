@@ -2,12 +2,22 @@ import { t3, TC, type RunCatalogItem, type RunProgress } from "lib";
 import {
   Button,
   Callout,
+  FrameTop,
+  HeadingBar,
+  LoadingIndicator,
   createButtonAction,
   createDeleteAction,
   getEditorWrapper,
   openConfirm,
 } from "panther";
-import { For, Match, Show, Switch } from "solid-js";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+} from "solid-js";
 import {
   FailedErrorDetail,
   ResultsPackageProvenanceLine,
@@ -31,26 +41,87 @@ import { instanceState } from "~/state/instance/t1_store";
 type Viewer = typeof ViewScript | typeof ViewLogs | typeof ViewFiles;
 type OpenViewer = (element: Viewer, moduleId: string) => void;
 
-// The catalogue's detail pane (master–detail, PLAN ruling 1: instance surface
-// only). This is the ONLY surface that renders a non-ready run: the
+type Props = {
+  runId: string;
+  // Accessors into the catalogue's page-local SSE listeners, which stay
+  // mounted under this page: progress patches in place and the R line is
+  // keyed by run and module.
+  liveProgress: () => RunProgress | undefined;
+  latestRLine: (moduleId: string) => string | undefined;
+  close: (v: undefined) => void;
+};
+
+// One results package, full page, opened from the catalogue list through the
+// shell wrapper. This is the ONLY surface that renders a non-ready run: the
 // generating/failed bodies live here, because a product points only at a
 // ready run and so never sees one. A READY run is rendered by the shared
-// ResultsPackageView; this pane adds only its housekeeping chrome (pin/unpin,
-// guarded delete, "in use by").
-export function RunCatalogDetailPane(p: {
+// ResultsPackageView; this page adds only its housekeeping chrome (pin/unpin,
+// guarded delete, "in use by") and owns the editor wrapper the view's script,
+// logs and files viewers open into.
+//
+// The row is read live from T1 rather than snapshotted through the wrapper. A
+// freshly launched run is opened before its catalogue refetch lands, so the
+// page waits for the row to appear and closes itself only once a row it has
+// shown is removed.
+export function ResultsPackagePage(p: Props) {
+  const run = createMemo(() =>
+    instanceState.runsCatalog.find((r) => r.id === p.runId),
+  );
+  let seen = false;
+  createEffect(() => {
+    const row = run();
+    if (row !== undefined) {
+      seen = true;
+    } else if (seen) {
+      p.close(undefined);
+    }
+  });
+
+  const { openEditor, EditorWrapper } = getEditorWrapper();
+
+  return (
+    <EditorWrapper>
+      <FrameTop
+        panelChildren={
+          <HeadingBar
+            onBack={() => p.close(undefined)}
+            heading={t3({
+              en: "Results package",
+              fr: "Paquet de résultats",
+              pt: "Pacote de resultados",
+            })}
+          />
+        }
+      >
+        <Show when={run()} fallback={<LoadingIndicator />}>
+          {(run) => (
+            <PackageBody
+              run={run()}
+              liveProgress={p.liveProgress}
+              latestRLine={p.latestRLine}
+              openEditor={openEditor}
+            />
+          )}
+        </Show>
+      </FrameTop>
+    </EditorWrapper>
+  );
+}
+
+function PackageBody(p: {
   run: RunCatalogItem;
-  liveProgress: RunProgress | undefined;
+  liveProgress: () => RunProgress | undefined;
   latestRLine: (moduleId: string) => string | undefined;
   openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
-  const progress = () => p.liveProgress ?? p.run.progress;
+  const progress = () => p.liveProgress() ?? p.run.progress;
 
   // Guarded hard delete (fork ruling 3): ONE act (catalog row, files and
   // cached results) with no archived state and no automatic GC. The server
   // refuses while a product points at the package or it is still generating;
-  // the pane states the reason rather than hiding the button, so an
+  // the page states the reason rather than hiding the button, so an
   // undeletable package is never a mystery. No refetch on success: the SSE
-  // push updates the store and the sidebar's pin effect moves selection.
+  // push updates the store and the page closes when its row is gone.
   const deleteBlockedReason = (): string | null => {
     if (p.run.status === "generating") {
       return t3({
@@ -220,7 +291,7 @@ export function RunCatalogDetailPane(p: {
         </Match>
         <Match when={p.run.status !== "ready"}>
           <div class="ui-gap flex items-center">
-            <div class="font-700 flex-1 truncate">{p.run.label}</div>
+            <div class="font-700 flex-1 truncate text-lg">{p.run.label}</div>
             <Show when={isPinned()}>
               <PinnedBadge />
             </Show>
