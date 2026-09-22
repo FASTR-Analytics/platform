@@ -92,7 +92,6 @@ import {
   collabSocketOpen,
   docSaveFailing,
   openSlideSession,
-  collabState,
   otherPeers,
   reconnectForStaleEditAuth,
   setCollabView,
@@ -1409,7 +1408,9 @@ export function SlideEditor(p: Props) {
                     measured={measuredPage()}
                     slideId={p.slideId}
                     suppressed={subEditorOpen() > 0}
-                    self={{ blockId: selectedBlockId(), textTarget: selectedTextTarget() }}
+                    self={inlineEdit()
+                      ? { blockId: undefined, textTarget: undefined }
+                      : { blockId: selectedBlockId(), textTarget: selectedTextTarget() }}
                   />
                 </div>
               )}
@@ -1491,19 +1492,22 @@ function buildIdRectMap(
 }
 
 // Draws a colored border around the block each remote peer has selected on the
-// slide currently being edited, and around this user's OWN selection in their
-// presence colour (the same frame their collaborators see), so what a click
-// selected is never in doubt. A DOM overlay is required because panther's
-// canvas (PageHolder) is unmodifiable and exposes no highlight-by-id API. The
-// boxes are positioned in viewport coordinates inside a Portal so a transformed
-// modal ancestor cannot offset them, and recompute on resize/scroll.
-const OWN_SELECTION_FALLBACK_COLOR = "#0070f3";
+// slide currently being edited, and around this user's OWN selection in the
+// canvas's hover blue (the outline they saw while hovering stays once they
+// click, without the hover fill), so what a click selected is never in doubt.
+// It goes while the element is being typed into. A DOM overlay is required
+// because panther's canvas (PageHolder) is unmodifiable and exposes no
+// highlight-by-id API. The boxes are positioned in viewport coordinates
+// inside a Portal so a transformed modal ancestor cannot offset them, and
+// recompute on resize/scroll.
+const OWN_SELECTION_COLOR = "rgba(0, 112, 243, 0.8)";
 
 function PeerSelectionOverlay(p: {
   measured: MeasuredPage | undefined;
   slideId: string;
   suppressed: boolean;
-  // This user's selection on the slide (a body block, or a title field).
+  // This user's selection on the slide (a body block, or a title field);
+  // neither while it is being typed into.
   self: { blockId: string | undefined; textTarget: string | undefined };
 }) {
   const [tick, setTick] = createSignal(0);
@@ -1590,12 +1594,14 @@ function PeerSelectionOverlay(p: {
       if (!rcd) return undefined;
       let entry = byTarget.get(targetKey);
       if (!entry) {
+        // A 2px border centred on the element's edge, where the canvas
+        // strokes its hover outline: one px out, one px in.
         entry = {
           key: targetKey,
-          left: r.left + rcd.x * sx,
-          top: r.top + rcd.y * sy,
-          width: rcd.w * sx,
-          height: rcd.h * sy,
+          left: r.left + rcd.x * sx - 1,
+          top: r.top + rcd.y * sy - 1,
+          width: rcd.w * sx + 2,
+          height: rcd.h * sy + 2,
           color,
           editors: [],
         };
@@ -1606,10 +1612,7 @@ function PeerSelectionOverlay(p: {
     };
     // This user's own frame first, so its colour is the outer border and a
     // collaborator on the same element takes the inset ring.
-    if (own) {
-      const me = collabState.peers.find((pe) => pe.connectionId === collabState.connectionId);
-      entryFor(own.blockId, own.textTarget, me?.color ?? OWN_SELECTION_FALLBACK_COLOR);
-    }
+    if (own) entryFor(own.blockId, own.textTarget, OWN_SELECTION_COLOR);
     for (const peer of peers) {
       const entry = entryFor(
         peer.selectedBlockId || undefined,
