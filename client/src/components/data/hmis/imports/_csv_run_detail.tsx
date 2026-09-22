@@ -10,7 +10,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { ImportInformation } from "../_import_information";
+import { ImportInformation } from "./_import_information";
 import { statusLabel } from "./_tab_history";
 import { CsvStagingSummary } from "./_csv_staging_summary";
 import { fetchDatasetHmisVersion } from "./_version_info";

@@ -53,7 +53,7 @@ import {
   DHIS2_DATA_IMPORT_TITLE,
   Dhis2Wizard,
   type Dhis2WizardResult,
-} from "../instance_dataset_hmis/imports/_wizard";
+} from "~/components/data/hmis/imports/wizard/wizard";
 import {
   computabilityProblemText,
   missingPopulationText,

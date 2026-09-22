@@ -4,7 +4,7 @@ import {
   type DatasetHmisScheduledImport,
   type HmisIndicator,
 } from "lib";
-import { recurrenceLabel } from "./_recurrence_label";
+import { recurrenceLabel } from "./_shared/_recurrence_label";
 import {
   Button,
   CollapsibleSection,

@@ -2,7 +2,7 @@ import { t3, type DatasetHmisScheduledImport } from "lib";
 import { Button, Table, createDeleteAction, toNum0, type TableColumn } from "panther";
 import { Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { recurrenceLabel } from "./_recurrence_label";
+import { recurrenceLabel } from "./_shared/_recurrence_label";
 
 type Props = {
   schedules: DatasetHmisScheduledImport[];

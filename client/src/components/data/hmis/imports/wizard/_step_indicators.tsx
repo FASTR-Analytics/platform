@@ -1,8 +1,8 @@
 import { t3, type HmisIndicator } from "lib";
 import { Show } from "solid-js";
-import { Dhis2IndicatorPicker } from "../_indicator_picker";
+import { Dhis2IndicatorPicker } from "./_indicator_picker";
 import { IdListLine } from "./_id_list_line";
-import type { Dhis2SeedDrop } from "./index";
+import type { Dhis2SeedDrop } from "./wizard";
 
 type Props = {
   selectedIds: () => string[];
