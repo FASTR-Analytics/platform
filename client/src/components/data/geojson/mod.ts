@@ -1,1 +1,1 @@
-export { GeoJsonManager } from "./geojson_manager.tsx";
+export { GeoJsonManager } from "./manager.tsx";

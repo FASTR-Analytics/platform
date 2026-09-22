@@ -66,12 +66,12 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/data/geojson/geojson_edit_modal.tsx",
+    "file": "client/src/components/data/geojson/edit_modal.tsx",
     "text": "const [loading, setLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/data/geojson/geojson_edit_modal.tsx",
+    "file": "client/src/components/data/geojson/edit_modal.tsx",
     "text": "const [error, setError] = createSignal<string | null>(null);"
   },
   {

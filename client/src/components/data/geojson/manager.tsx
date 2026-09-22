@@ -17,8 +17,8 @@ import {
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { GeoJsonUploadWizard } from "./geojson_upload_wizard/mod.ts";
-import { GeoJsonEditModal } from "./geojson_edit_modal";
+import { GeoJsonUploadWizard } from "./upload_wizard/mod.ts";
+import { GeoJsonEditModal } from "./edit_modal";
 
 type Props = {
   family: FacilityFamily;
