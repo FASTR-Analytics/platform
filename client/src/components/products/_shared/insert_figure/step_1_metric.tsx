@@ -18,9 +18,10 @@ type Props = {
 };
 
 export function Step1Metric(p: Props) {
-  // Module ids on the read plane are plain strings from the manifest ("all" =
-  // no filter): ModuleId is a generation-plane type (PLAN_1a §0 clause 3).
-  const [selectedModule, setSelectedModule] = createSignal<string>("all");
+  // Module ids on the read plane are plain strings from the manifest
+  // ("primary" = every family's primary module, "all" = no filter): ModuleId
+  // is a generation-plane type (PLAN_1a §0 clause 3).
+  const [selectedModule, setSelectedModule] = createSignal<string>("primary");
 
   const metricsByModule = createMemo(() =>
     groupMetricsByModule(p.metrics, p.modules),
@@ -36,6 +37,11 @@ export function Step1Metric(p: Props) {
 
     if (modFilter === "all") {
       return byModule.flatMap((m) => m.metricGroups);
+    }
+    if (modFilter === "primary") {
+      return byModule
+        .filter((m) => m.tier === "primary")
+        .flatMap((m) => m.metricGroups);
     }
     const mod = byModule.find((m) => m.moduleId === modFilter);
     return mod?.metricGroups ?? [];

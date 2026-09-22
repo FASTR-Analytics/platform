@@ -159,7 +159,11 @@ scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
 "modules">, preselectedMetricId }`: the metrics and modules come from the
 package's authoring context (S9's `t2_run_authoring_context.ts`) and the pair
 is used only by the preset previews. It is a 3-step stepper: **Metric** (module
-sidebar + `MetricCard` grid; a card is selectable only when single-variant and
+sidebar + `MetricCard` grid; the sidebar opens on "Primary results", the
+primary modules' metrics of every family in the package, then "All modules",
+then the modules under a family heading in module order, since
+`groupMetricsByModule` sorts with `compareModules`; a card is selectable only
+when single-variant and
 `status === "ready"`; multi-variant metrics render per-variant chips) →
 **Presets** (`PresetSelector`: one live-rendered `PresetPreview` per
 `metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting

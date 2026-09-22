@@ -46,6 +46,8 @@ export type MetricsByModule = {
   // (PLAN_1a §0 clause 3).
   moduleId: string;
   moduleLabel: string;
+  family: DatasetType;
+  tier: ModuleTier;
   metricGroups: MetricGroup[];
 };
 
@@ -108,12 +110,14 @@ export function groupMetricsByModule(
   }
 
   const result: MetricsByModule[] = [];
-  for (const mod of modules) {
+  for (const mod of modules.toSorted(compareModules)) {
     const moduleMetrics = moduleMap.get(mod.id);
     if (moduleMetrics && moduleMetrics.length > 0) {
       result.push({
         moduleId: mod.id,
         moduleLabel: mod.label,
+        family: mod.family,
+        tier: mod.tier,
         metricGroups: groupMetricsByLabel(moduleMetrics),
       });
     }
