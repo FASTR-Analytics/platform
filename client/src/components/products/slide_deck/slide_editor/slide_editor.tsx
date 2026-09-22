@@ -1495,13 +1495,31 @@ function PeerSelectionOverlay(p: {
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
 
+  // The covering backstop below only re-runs when something bumps, and a
+  // modal or editor opening over the canvas (the deck's settings, a modal in
+  // <body>) is a DOM change, not a resize or scroll: it left the frame
+  // showing until the next click. So DOM changes bump too, coalesced to one
+  // per frame (typing on the canvas mutates the DOM constantly).
+  let bodyObserver: MutationObserver | undefined;
+  let bumpFrame: number | undefined;
+  const bumpSoon = () => {
+    if (bumpFrame !== undefined) return;
+    bumpFrame = requestAnimationFrame(() => {
+      bumpFrame = undefined;
+      bump();
+    });
+  };
   onMount(() => {
     window.addEventListener("resize", bump);
     window.addEventListener("scroll", bump, true);
+    bodyObserver = new MutationObserver(bumpSoon);
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
   });
   onCleanup(() => {
     window.removeEventListener("resize", bump);
     window.removeEventListener("scroll", bump, true);
+    bodyObserver?.disconnect();
+    if (bumpFrame !== undefined) cancelAnimationFrame(bumpFrame);
   });
 
   const boxes = () => {
