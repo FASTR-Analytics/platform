@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Review 7.** Each session sets this line in its final commit.
+**Next step: Do 8.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -695,3 +695,4 @@ commit.
 | 2026-09-22 | 7 | Step 7 reviewed: 1 finding. |
 | 2026-09-22 | 7 | Fix: `lib/collab/slide_crdt.ts:94` names `slide_editor/slide_editor.tsx`. |
 | 2026-09-22 | 7 | Step 7 fixed. |
+| 2026-09-22 | 7 | Step 7 reviewed: pass. Re-review after the second Fix 7: `lib/collab/slide_crdt.ts:94` names `slide_editor/slide_editor.tsx`; `c86943cc` touches that line and the plan only, with no em-dash added; the bare-name grep for every old path over `*.md` (excluding `PLAN_*.md` and `panther/`) and `lib/**/*.ts` is empty. Floor green at HEAD: `deno task typecheck`, `deno task test` (397 passed), `./validate_protocols`, `cd client && npm run build`. |
