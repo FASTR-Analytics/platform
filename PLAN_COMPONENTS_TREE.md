@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Review 5.** Each session sets this line in its final commit.
+**Next step: Do 6.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -655,3 +655,4 @@ commit.
 | 2026-09-22 | 5 | Step 5 reviewed: 2 findings. |
 | 2026-09-22 | 5 | Fix: `SYSTEM_06_ingestion.md:556` names `data/hmis/imports/wizard/wizard.tsx`. |
 | 2026-09-22 | 5 | Step 5 fixed. |
+| 2026-09-22 | 5 | Step 5 reviewed: pass. Re-review after Fix 5: `SYSTEM_06_ingestion.md:556` names `data/hmis/imports/wizard/wizard.tsx`; `af12117a` touches that line and the plan only, with no em-dash added; `git grep` for `_wizard/index` and `imports/_wizard` across `*.md` excluding `PLAN_*.md` and `panther/` is empty. Floor green at HEAD: `deno task typecheck`, `deno task test` (396 passed), `./validate_protocols`, `cd client && npm run build`. |
