@@ -49,7 +49,7 @@ the wrapper the slide and report editors open; `visualization_editor_inner.tsx`
 <package>" action and the "Update all figures" header button of
 PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
 staleness"). `components/figures/insert_figure/**` (the insert-figure wizard
-and the preset gallery it renders, below). `components/explore/index.tsx`
+and the preset gallery it renders, below). `components/explore/explore.tsx`
 (the instance Explore tab's page, S14 mounts it: empty until the results
 explorer plan fills it, D6). `_editor_snapshot.ts` (`snapshotForSlideEditor`,
 the one thing the slide editor freezes at open), the
