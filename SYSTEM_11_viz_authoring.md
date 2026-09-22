@@ -45,9 +45,8 @@ the wrapper the slide and report editors open; `figure_editor.tsx`
 <package>" action and the "Update all figures" header button of
 PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
 staleness"). `components/products/_shared/insert_figure/**` (the insert-figure wizard
-and the preset gallery it renders, below). `components/explore/explore.tsx`
-(the instance Explore tab's page, S14 mounts it: empty until the results
-explorer plan fills it, D6). The
+and the preset gallery it renders, below). `components/explore/**` (the
+instance Explore tab's page, S14 mounts it: "The Explore page" below). The
 figure modals in `_shared/figure_editor/` (download, results-file viewer,
 custom series styles). `products/slide_deck/editor_snapshot.ts`
 (`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
@@ -191,8 +190,57 @@ go through `getStartingConfigForPresentationObject` (type defaults from
 `getNextAvailableDisaggregationDisplayOption`). **The wizard never persists**.
 It closes with `InsertFigureResult = { metric, config }` (a figure IS `{
 metricId, config }`, D3) and its two callers, the slide and report editors,
-build a figure block directly from their live pair and context; the results
-explorer will be the third caller when it lands.
+build a figure block directly from their live pair and context; the Explore
+page is read-only and does not call it.
+
+## The Explore page
+
+`components/explore/explore.tsx` renders one package at one scope, a family
+tab, the family's scorecard and a per-indicator detail, for an approved user.
+The package is a `Select` over `instanceState.readyPackages` that opens on
+the pin, else the newest ready package; the scope is the shared
+`ScopePicker` (`components/_shared/scope_picker.tsx`) and starts national.
+Both are page signals, never stored, so a deleted package can never be a
+stored default; only the family tab persists (`exploreFamily`, S14). The
+family tabs (`TabsNavigation`, as the Data page) offer the families whose
+primary module is in the package, in family order (`familiesInPackage` in
+`explore_query.ts`, over the authoring context's module summaries), and a
+stored family the package does not offer falls back to the first offered.
+
+Per family (`family_view.tsx`): the **scorecard metric** is the primary
+module's first ready metric by id (its first metric by id when none is
+ready, so the stamped reason shows), and the **scorecard query** is that
+metric's first preset's data config. The period chips replace its window:
+HMIS chips are calendar windows written into `periodFilter`; HFA chips are
+the instance's time points and ICEH chips the survey years the metric info
+enumerates, each a `filterBy` on that dimension with any preset window
+dropped (`periodChoicesFor`). A preset that declares a replicant (HFA's
+category, ICEH's stratifier) gets `ReplicateByOptionsSelect` beside the
+chips; the items read auto-resolves an unset replicant to the first option,
+and the select reports its option list back so both show the same value.
+The **scorecard** (`scorecard.tsx`) is panther's `DataGrid` over the query's
+rows, pivoted by the config's row, col and colGroup dimensions
+(`buildScorecardGrid`): sortable columns, a hover line naming the cell,
+threshold colouring by the preset's fixed rule where it declares one
+(HFA), else by the indicator's own rule through the same
+`resolveEffectiveIndicatorFacts` the `indicator` CF source uses (HMIS),
+else none (ICEH), and a click on a row or cell selects the indicator from
+whichever axis carries the family's indicator dimension
+(`INDICATOR_DIMENSION`). The **rail** lists the family's catalog from the
+authoring context (`hmisIndicators`, `hfaTaxonomy.indicators`,
+`icehIndicators` under category headings) in catalog order. The
+**detail** (`indicator_detail.tsx`) renders the scorecard metric's other
+presets, each pinned to the selected indicator (through the replicant slot
+when the preset replicates by the indicator dimension, else a `filterBy`;
+a preset that disaggregates by it collapses through
+`getEffectivePOConfig`'s `filtered_to_one_value` rule) and to the period,
+through the shared `_shared/figure_preview.ts` helper. Every read goes
+through `t2_run_authoring_context` and `t2_figure_data`, so a preset seen in
+the picker and in Explore under the same pair is one cache entry. Empty
+states are typed: no ready package, a package with no primary module, a
+family whose scorecard metric is unavailable (its stamped reason), a metric
+with no preset, and a query with no rows or too many. The page writes
+nothing: no insert into a product, no editor, no copilot, no download.
 
 ## lib config semantics
 
@@ -294,9 +342,6 @@ something.
 
 ## Open items
 
-- **`ReplicateByOptionsSelect` has no consumer.** Delete it, or keep it for the
-  results explorer's replicant picker; both variants share the
-  `createReplicantOptions` loader.
 - **Custom value orders are never pruned: ruling pending.**
   `normalizePOConfigForStorage` canonicalizes roll-up flags at apply but does not
   touch `s.customValueOrder`, so entries survive for dimensions that were

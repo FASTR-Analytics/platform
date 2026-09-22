@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Do 5.** Each session sets this line in its final commit.
+**Next step: Review 5.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -569,3 +569,8 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R4 | G7 held (sync commit lists only `panther/**`; panther commit lists only the grid, `tables/mod.ts` and `sync-configs.json`); floor green (typecheck, 401 tests, validate_protocols). Step 4 reviewed: 3 findings. |
 | 2026-09-22 | F4 | Panther commit `76d1eea` fixes the three: spans merge by group id only, the row header clears the hover, and cells rank valued, then text-only, then empty before comparing. Synced as the auto-commit before this one (only `panther/**`). Step 4 fixed. Panther gates green (typecheck, clean, lint, tests via `./sync`); app typecheck below. |
 | 2026-09-22 | R4 | Re-review of Fix 4 (scoped): spans by group id, hover cleared over the row header, transitive sort; the synced copy equals panther's; panther and client typechecks green. Step 4 reviewed: pass. |
+| 2026-09-22 | 5 | The two moves had already landed before this plan: `components/_shared/scope_picker.tsx` and `components/_shared/figure_preview.ts` exist, are exported from `_shared/mod.ts`, are claimed by SYSTEM_12 and SYSTEM_11, and SYSTEM_08's AA2 ruling already names the `_shared` path. So step 5 is one commit, the page and its docs; G8 has nothing to list. |
+| 2026-09-22 | 5 | Deviation: `client/src/components/_shared/figure_editor/mod.ts` (outside the surface) exports `ReplicateByOptionsSelect`, which had no consumer and was not on the folder's entry; the structure protocol's entry rule requires the export. `replicate_by_options.tsx` itself is unchanged. |
+| 2026-09-22 | 5 | Choice: the HMIS scorecard has areas as rows and indicators as columns, so "clicking a scorecard row selects that indicator" is read as: a click on a row or a cell selects the indicator from whichever axis carries the family's indicator dimension. Choice: m012 declares only the scorecard preset, so the HMIS detail shows its typed empty state until a second preset exists; no ruling names a substitute. |
+| 2026-09-22 | 5 | Choice: the page opens HMIS on the preset's own window (last 12 months), HFA on all time points (its scorecard already places them side by side) and ICEH on the latest survey year. ICEH years come from the metric info's possible values for `year`, so the chips exist only once that read resolves. |
+| 2026-09-22 | 5 | Step 5 built. Files: `explore/explore.tsx`, `family_view.tsx`, `scorecard.tsx`, `indicator_detail.tsx`, `explore_query.ts`, `state/t4_ui.ts`. Floor green: typecheck (with `lint:structure`), 401 tests, validate_protocols; no server file changed since the step 2 boot on port 8001. |

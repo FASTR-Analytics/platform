@@ -6,7 +6,7 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import type { ProductType, SlideType, SortMode } from "lib";
+import type { DatasetType, ProductType, SlideType, SortMode } from "lib";
 
 // ============================================================================
 // Instance shell
@@ -35,6 +35,19 @@ export const [dataSection, setDataSectionInternal] = createSignal<DataSection>(
 export function setDataSection(section: DataSection) {
   localStorage.setItem("dataSection", section);
   setDataSectionInternal(section);
+}
+
+// The Explore page's family tab, persisted like the Data page's section.
+// The package and scope are page signals, never stored (SYSTEM_11).
+const storedExploreFamily = localStorage.getItem(
+  "exploreFamily",
+) as DatasetType | null;
+export const [exploreFamily, setExploreFamilyInternal] = createSignal<
+  DatasetType
+>(storedExploreFamily ?? "hmis");
+export function setExploreFamily(family: DatasetType) {
+  localStorage.setItem("exploreFamily", family);
+  setExploreFamilyInternal(family);
 }
 
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole
