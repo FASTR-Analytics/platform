@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Fix 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -547,3 +547,4 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R2 | Finding: `server/routes/caches/visualizations.ts:97` bumped `PO_CACHE_VERSION` to 25 without the per-bump history line the file keeps. Fix: add the "25" line naming schema v13 and that `metric_info` payloads carry `datasetFamily`. |
 | 2026-09-22 | R2 | The transform test has three `Deno.test` blocks, not four cases: the second-pass check is folded into the first. Behaviourally complete; no change. PROTOCOL_APP_MIGRATIONS's carry-forward list still names `modules[]` and `metrics[]`, which blocks 2 and 11 rewrite under a ruling; outside this plan's surface, noted for a later pass. |
 | 2026-09-22 | R2 | Gates rerun: floor green (typecheck, 401 tests, validate_protocols). Step 2 reviewed: 1 finding. |
+| 2026-09-22 | F2 | The "25" history line added above `PO_CACHE_VERSION`. Step 2 fixed. Floor green: server typecheck; the comment is the only change. |

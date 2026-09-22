@@ -94,6 +94,9 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "24" (2026-09-20): manifest schema v12 (the hfa_indicators_snapshot
 // mirror's `var_name` key reads `indicator_id`). No cached payload carries
 // the mirror row's keys; the bump is the same per-block rule.
+// "25" (2026-09-22): manifest schema v13 (module blobs declare family, tier
+// and sortOrder; metrics[].datasetFamily is non-null). metric_info payloads
+// carry datasetFamily, so "24" entries may hold null where it is now declared.
 const PO_CACHE_VERSION = "25";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
