@@ -256,23 +256,24 @@ package page (`results_packages/package_page.tsx`, the package's one host)
 is one shape for every status: a heading bar (the label, the pinned and
 status badges, Pin or Unpin and the guarded Delete, with the provenance
 line as its subheading: created, by whom, `synthetic-backfill` when so, disk
-size) over a tab bar (`TabsNavigation`, as the Data page) of **About, then
-one tab per family the package ran**, in family order; a generating or
-failed package has About only. **About** (`package_view/about.tsx`) is the
-package's status and facts: one `ModuleProgressChip` per module of
-`run.progress.moduleOrder` with its `moduleStatus` (the final progress is
-stored at publish, so a ready package has chips too: done and reused),
-the live R line under them while generating, `FailedErrorDetail` when
-failed, the "in use by" line, the Population card when the stamp is active
-("population.csv", read from the authoring context) and, for a failed
-package, each started module's Script, Logs and Files viewers (the last via
-`ViewFiles`, since a failed run has no manifest). A ready package's chips
-are grouped under family headings from `RunAuthoringContext.modules` in
-module order; a generating or failed run has no manifest and the registry
-declares no family, so its chips stay flat in execution order and are
-named from the registry. The family tabs come from
-`RunAuthoringContext.modules` through `compareModules`, so a package with
-modules of one family has one family tab. A family tab (`package_view/family_pane.tsx`)
+size), a **status bar** under it (`package_view/status_bar.tsx`), and the
+body. The status bar is the package's facts for every status, as labelled
+rows: one `ModuleProgressChip` per module of `run.progress.moduleOrder`
+with its `moduleStatus` (the final progress is stored at publish, so a
+ready package has chips too: done and reused), the live R line while
+generating, "in use by", and the population stamp when active
+("population.csv", read from the authoring context). A ready package's
+chips are grouped under family labels from `RunAuthoringContext.modules`
+in module order; a generating or failed run has no manifest and the
+registry declares no family, so its chips stay flat in execution order and
+are named from the registry. The body is by status: a READY package's is a
+tab bar (`TabsNavigation`, as the Data page) of **one tab per family the
+package ran**, in family order (from `RunAuthoringContext.modules` through
+`compareModules`, so a package with modules of one family has one tab); a
+FAILED package's is `package_view/failed_detail.tsx`, the error detail and
+each started module's Script, Logs and Files viewers (the last via
+`ViewFiles`, since a failed run has no manifest); a GENERATING package's is
+a line saying results appear once generation completes. A family tab (`package_view/family_pane.tsx`)
 is a `SelectList` of the family's modules, the primary first and the
 secondaries under a "Supporting analyses" header, beside the selected
 module's pane (`package_view/module_pane.tsx`), which shows one module
@@ -292,15 +293,15 @@ write of any kind), then its settings, Script and Logs viewers (gated
 client-side by `canViewPackageContents()`/`canViewPackageLogs()` in
 `status.tsx`) and output files with download, from `RunDetail.modules[]`,
 which `readRunDetail` fills from the manifest's own definition blob (label
-and the three presentation facts). The active tab (starts at About), the
-selected module per family (starts at the primary) and the page scope are
-page signals that die with the page. Modules are named from the package's
-manifest on every ready surface; the registry label (`moduleLabel` in
-`status.tsx`) names modules only where there is no manifest: the About
-chips of a generating or failed package and the wizard's confirm step. Both
-ready reads run once the row is ready (a run that becomes ready under the
-open page fetches then); a manifest the server cannot read fails them, and
-the page shows that error in place of About and offers no family tab. The
+and the three presentation facts). The active family (starts at the
+first), the selected module per family (starts at the primary) and the page
+scope are page signals that die with the page. Modules are named from the
+package's manifest on every ready surface; the registry label (`moduleLabel`
+in `status.tsx`) names modules only where there is no manifest: the status
+bar's chips of a generating or failed package, the failed body, and the
+wizard's confirm step. Both ready reads run once the row is ready (a run
+that becomes ready under the open page fetches then); a manifest the server
+cannot read fails them, and the page shows that error as the body. The
 detail is **T2, immutable-by-identity**
 (`state/instance/t2_runs.ts`, `createReactiveCache` keyed `[runId]`,
 `versionKey: () => "immutable"`, the `t2_images` shape: nothing ever
@@ -380,12 +381,12 @@ live in `results_packages.tsx`, which stays mounted under the open page, and
 the page reads them through accessor props. The package page is the ONLY
 surface that renders a non-ready run, and the only surface that renders a
 package at all (a product points only at a ready run and never explores
-it, C2 ruling): every status is the same page with a different About. The
-catalogue onboarding tour (`onboarding/tours.ts`,
+it, C2 ruling): every status is the same heading and status bar over a
+body by status. The catalogue onboarding tour (`onboarding/tours.ts`,
 `instance-results-packages-catalogue`) walks from the list into a package:
 its first step spotlights a list row (`data-tour="instance-results-packages-card"`)
 and completes on the click that opens the page, its second waits for the
-About tab's usage line (`-usage`); it auto-starts only while a row is
+status bar's usage row (`-usage`); it auto-starts only while a row is
 rendered, not merely in the DOM, since an open page hides the list under
 the shell wrapper.
 

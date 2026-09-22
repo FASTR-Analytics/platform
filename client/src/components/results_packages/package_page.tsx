@@ -36,10 +36,11 @@ import {
   createSignal,
 } from "solid-js";
 import {
-  About,
+  FailedDetail,
   FamilyPane,
   PinnedBadge,
   RunStatusBadge,
+  StatusBar,
   type OpenEditor,
 } from "./package_view/mod.ts";
 import {
@@ -63,15 +64,15 @@ type Props = {
 
 type ReadyReads = { detail: RunDetail; ctx: RunAuthoringContext };
 type FamilyModules = { family: DatasetType; modules: InstalledModuleSummary[] };
-type Tab = "about" | DatasetType;
 
 // One results package, full page, opened from the catalogue list through the
 // shell wrapper: the package's one host (SYSTEM_08), so every status renders
 // here, as one shape. The heading bar carries the label, the badges, the
-// housekeeping (pin/unpin, guarded delete) and the provenance line; the tab
-// bar is About, then one tab per family the package ran, each a module list
-// beside the selected module's pane. A generating or failed package has
-// About only. The page owns the editor wrapper the viewers open into.
+// housekeeping (pin/unpin, guarded delete) and the provenance line; the
+// status bar under it carries the package's facts for every status; the body
+// is one tab per family the package ran, each a module list beside the
+// selected module's pane, or a failed package's error detail and viewers.
+// The page owns the editor wrapper the viewers open into.
 //
 // The row is read live from T1 rather than snapshotted through the wrapper. A
 // freshly launched run is opened before its catalogue refetch lands, so the
@@ -224,45 +225,6 @@ function PackageBody(p: {
       : undefined;
   };
 
-  const modulesByFamily = createMemo((): FamilyModules[] => {
-    const ctx = readyReads()?.ctx;
-    if (ctx === undefined) return [];
-    return MODULE_FAMILY_ORDER.flatMap((family) => {
-      const modules = ctx.modules
-        .filter((m) => m.family === family)
-        .toSorted(compareModules);
-      return modules.length === 0 ? [] : [{ family, modules }];
-    });
-  });
-
-  // Page state, never stored: the active tab, the selected module per
-  // family (the primary until chosen) and the page scope every figure on
-  // every family tab renders under.
-  const [chosenTab, setChosenTab] = createSignal<Tab>("about");
-  const activeFamily = createMemo(() => {
-    const data = readyReads();
-    const family = modulesByFamily().find((f) => f.family === chosenTab());
-    return data !== undefined && family !== undefined
-      ? { ...data, ...family }
-      : undefined;
-  });
-  const [chosenModule, setChosenModule] = createSignal<
-    Partial<Record<DatasetType, string>>
-  >({});
-  const [selection, setSelection] = createSignal<ScopeSelection>({
-    mode: "national",
-  });
-  const [adminArea2, setAdminArea2] = createSignal<string | null>(null);
-  function changeScope(next: ScopeSelection): void {
-    setSelection(next);
-    const stored = storedValueFromScopeSelection(next);
-    if (stored !== undefined) setAdminArea2(stored);
-  }
-  const scope = (): PackageScope => ({
-    runId: p.run.id,
-    adminArea2: adminArea2(),
-  });
-
   const heading = (
     <span class="inline-flex items-center gap-2">
       <span class="truncate">{p.run.label}</span>
@@ -319,89 +281,153 @@ function PackageBody(p: {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar
-          onBack={p.close}
-          heading={heading}
-          subheading={provenanceLine(p.run)}
-        >
-          {housekeeping}
-        </HeadingBar>
+        <>
+          <HeadingBar
+            onBack={p.close}
+            heading={heading}
+            subheading={provenanceLine(p.run)}
+          >
+            {housekeeping}
+          </HeadingBar>
+          <StatusBar
+            run={p.run}
+            progress={progress()}
+            latestRLine={p.latestRLine}
+            ctx={readyReads()?.ctx}
+          />
+        </>
       }
     >
-      <FrameTop
-        panelChildren={
-          <TabsNavigation<Tab>
-            items={[
-              {
-                id: "about",
-                label: t3({ en: "About", fr: "À propos", pt: "Sobre" }),
-              },
-              ...modulesByFamily().map((f) => ({
-                id: f.family,
-                label: getModuleFamilyLabel(f.family),
-              })),
-            ]}
-            value={activeFamily()?.family ?? "about"}
-            onChange={setChosenTab}
-            insetRail
-          />
-        }
-      >
-        <div class="ui-pad h-full overflow-y-auto">
-          <Switch>
-            <Match
-              when={activeFamily() === undefined && p.run.status === "ready"}
-            >
-              <StateHolderWrapper state={reads()} noPad>
-                {(data: ReadyReads) => (
-                  <About
-                    run={p.run}
-                    progress={progress()}
-                    latestRLine={p.latestRLine}
-                    ctx={data.ctx}
-                    openEditor={p.openEditor}
-                  />
-                )}
-              </StateHolderWrapper>
-            </Match>
-            <Match
-              when={activeFamily() === undefined && p.run.status !== "ready"}
-            >
-              <About
-                run={p.run}
-                progress={progress()}
-                latestRLine={p.latestRLine}
-                ctx={undefined}
+      <Switch>
+        <Match when={p.run.status === "ready"}>
+          <StateHolderWrapper state={reads()} noPad>
+            {(data: ReadyReads) => (
+              <FamilyTabs
+                runId={p.run.id}
+                detail={data.detail}
+                ctx={data.ctx}
                 openEditor={p.openEditor}
               />
-            </Match>
-            <Match when={activeFamily()} keyed>
-              {(family) => (
-                <FamilyPane
-                  runId={p.run.id}
-                  modules={family.modules}
-                  selectedModuleId={
-                    chosenModule()[family.family] ?? family.modules[0].id
-                  }
-                  onSelectModule={(moduleId) =>
-                    setChosenModule((prev) => ({
-                      ...prev,
-                      [family.family]: moduleId,
-                    }))
-                  }
-                  detail={family.detail}
-                  ctx={family.ctx}
-                  scope={scope()}
-                  selection={selection()}
-                  onChangeScope={changeScope}
-                  openEditor={p.openEditor}
-                />
-              )}
-            </Match>
-          </Switch>
-        </div>
-      </FrameTop>
+            )}
+          </StateHolderWrapper>
+        </Match>
+        <Match when={p.run.status === "failed"}>
+          <div class="ui-pad">
+            <FailedDetail
+              runId={p.run.id}
+              progress={progress()}
+              openEditor={p.openEditor}
+            />
+          </div>
+        </Match>
+        <Match when={p.run.status === "generating"}>
+          <div class="ui-pad text-base-content-muted text-sm">
+            {t3({
+              en: "Results appear here once generation completes.",
+              fr: "Les résultats apparaîtront ici une fois la génération terminée.",
+              pt: "Os resultados aparecem aqui quando a geração terminar.",
+            })}
+          </div>
+        </Match>
+      </Switch>
     </FrameTop>
+  );
+}
+
+// A READY package's body: one tab per family the package ran, in family
+// order, each a module list beside the selected module's pane. The active
+// family (starts at the first), the selected module per family (starts at
+// the primary) and the page scope every figure renders under are page
+// state, never stored.
+function FamilyTabs(p: {
+  runId: string;
+  detail: RunDetail;
+  ctx: RunAuthoringContext;
+  openEditor: OpenEditor;
+}) {
+  const modulesByFamily = createMemo((): FamilyModules[] =>
+    MODULE_FAMILY_ORDER.flatMap((family) => {
+      const modules = p.ctx.modules
+        .filter((m) => m.family === family)
+        .toSorted(compareModules);
+      return modules.length === 0 ? [] : [{ family, modules }];
+    }),
+  );
+  const [chosenFamily, setChosenFamily] = createSignal<DatasetType>();
+  const active = createMemo(
+    () =>
+      modulesByFamily().find((f) => f.family === chosenFamily()) ??
+      modulesByFamily()[0],
+  );
+  const [chosenModule, setChosenModule] = createSignal<
+    Partial<Record<DatasetType, string>>
+  >({});
+  const [selection, setSelection] = createSignal<ScopeSelection>({
+    mode: "national",
+  });
+  const [adminArea2, setAdminArea2] = createSignal<string | null>(null);
+  function changeScope(next: ScopeSelection): void {
+    setSelection(next);
+    const stored = storedValueFromScopeSelection(next);
+    if (stored !== undefined) setAdminArea2(stored);
+  }
+  const scope = (): PackageScope => ({
+    runId: p.runId,
+    adminArea2: adminArea2(),
+  });
+
+  return (
+    <Show
+      when={active()}
+      keyed
+      fallback={
+        <div class="ui-pad text-base-content-muted text-sm">
+          {t3({
+            en: "This package has no modules",
+            fr: "Ce paquet n'a aucun module",
+            pt: "Este pacote não tem módulos",
+          })}
+        </div>
+      }
+    >
+      {(family) => (
+        <FrameTop
+          panelChildren={
+            <TabsNavigation
+              items={modulesByFamily().map((f) => ({
+                id: f.family,
+                label: getModuleFamilyLabel(f.family),
+              }))}
+              value={family.family}
+              onChange={setChosenFamily}
+              insetRail
+            />
+          }
+        >
+          <div class="ui-pad h-full overflow-y-auto">
+            <FamilyPane
+              runId={p.runId}
+              modules={family.modules}
+              selectedModuleId={
+                chosenModule()[family.family] ?? family.modules[0].id
+              }
+              onSelectModule={(moduleId) =>
+                setChosenModule((prev) => ({
+                  ...prev,
+                  [family.family]: moduleId,
+                }))
+              }
+              detail={p.detail}
+              ctx={p.ctx}
+              scope={scope()}
+              selection={selection()}
+              onChangeScope={changeScope}
+              openEditor={p.openEditor}
+            />
+          </div>
+        </FrameTop>
+      )}
+    </Show>
   );
 }
 

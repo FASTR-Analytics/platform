@@ -1154,7 +1154,7 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
 // a tour that runs against nothing still writes its seen-flag. The tour walks
 // from the list into a package: the first step completes when the user clicks
 // the row, which opens that package's page, and the second waits for the
-// About tab's usage line there. The page covers the shell, so the list row
+// status bar's usage row there. The page covers the shell, so the list row
 // could not be shown after a page had been opened first.
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
   return {
@@ -1180,14 +1180,14 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
         id: "usage",
         target: tourTarget("instance-results-packages-usage"),
         title: t3({
-          en: "About a package",
-          fr: "À propos d'un paquet",
-          pt: "Sobre um pacote",
+          en: "Inside a package",
+          fr: "Dans un paquet",
+          pt: "Dentro de um pacote",
         }),
         body: t3({
-          en: "The About tab shows how each module ran, which decks and reports use the package, and the population it was computed over; the other tabs hold each data family's results. A package in use cannot be deleted, and the button says so rather than disappearing. Deleting is one act — catalogue entry, files and cached results — and cannot be undone.",
-          fr: "L'onglet À propos montre comment chaque module s'est exécuté, quelles présentations et quels rapports utilisent le paquet, et la population sur laquelle il a été calculé ; les autres onglets contiennent les résultats de chaque famille de données. Un paquet utilisé ne peut pas être supprimé, et le bouton l'indique au lieu de disparaître. La suppression est un seul acte — entrée du catalogue, fichiers et résultats en cache — et elle est irréversible.",
-          pt: "O separador Sobre mostra como cada módulo correu, que apresentações e relatórios usam o pacote, e a população sobre a qual foi calculado; os outros separadores contêm os resultados de cada família de dados. Um pacote em uso não pode ser eliminado, e o botão di-lo em vez de desaparecer. Eliminar é um único ato — entrada do catálogo, ficheiros e resultados em cache — e não pode ser anulado.",
+          en: "The bar under the heading shows how each module ran, which decks and reports use the package, and the population it was computed over; the tabs below hold each data family's results. A package in use cannot be deleted, and the button says so rather than disappearing. Deleting is one act — catalogue entry, files and cached results — and cannot be undone.",
+          fr: "La barre sous l'en-tête montre comment chaque module s'est exécuté, quelles présentations et quels rapports utilisent le paquet, et la population sur laquelle il a été calculé ; les onglets en dessous contiennent les résultats de chaque famille de données. Un paquet utilisé ne peut pas être supprimé, et le bouton l'indique au lieu de disparaître. La suppression est un seul acte — entrée du catalogue, fichiers et résultats en cache — et elle est irréversible.",
+          pt: "A barra sob o cabeçalho mostra como cada módulo correu, que apresentações e relatórios usam o pacote, e a população sobre a qual foi calculado; os separadores abaixo contêm os resultados de cada família de dados. Um pacote em uso não pode ser eliminado, e o botão di-lo em vez de desaparecer. Eliminar é um único ato — entrada do catálogo, ficheiros e resultados em cache — e não pode ser anulado.",
         }),
         placement: "bottom",
       },

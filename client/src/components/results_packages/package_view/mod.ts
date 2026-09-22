@@ -1,5 +1,6 @@
-export { About } from "./about.tsx";
+export { FailedDetail } from "./failed_detail.tsx";
 export { FamilyPane } from "./family_pane.tsx";
+export { StatusBar } from "./status_bar.tsx";
 export {
   canViewPackageContents,
   canViewPackageLogs,
