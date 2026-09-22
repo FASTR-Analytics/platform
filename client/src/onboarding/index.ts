@@ -1,3 +1,4 @@
+import { resolveVisibleTarget, tourTarget } from "@njwse/roadtrip";
 import {
   createTourManager,
   type SolidTourManagerController,
@@ -113,15 +114,16 @@ export function setupTours(opts: {
       tour: buildInstanceResultsPackagesTour(),
     },
     // Deferred until the instance actually holds a package: merges into the
-    // intro's run when a card is on screen, or starts on its own once the
-    // first generation's refetch lands (if the admin is still on the tab)
-    // or on the next visit.
+    // intro's run when a list row is on screen, or starts on its own once the
+    // first generation's refetch lands (if the admin is still on the list)
+    // or on the next visit. The row must be rendered, not merely in the DOM:
+    // an open package page hides the list under the shell wrapper, and the
+    // wizard opens the page before the launched run's row lands.
     {
       page: "instance-results-packages",
       when: () =>
-        document.querySelector(
-          '[data-tour="instance-results-packages-card"]',
-        ) !== null,
+        resolveVisibleTarget(tourTarget("instance-results-packages-card")) !==
+        null,
       tour: buildInstanceResultsPackagesCatalogueTour(),
     },
     { page: "instance-assets", tour: buildInstanceAssetsTour() },

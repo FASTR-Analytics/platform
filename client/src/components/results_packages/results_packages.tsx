@@ -242,6 +242,7 @@ export function InstanceResultsPackages() {
               {(run) => (
                 <div
                   class="ui-hoverable-base-100 ui-gap flex cursor-pointer items-center rounded border px-3 py-2"
+                  data-tour="instance-results-packages-card"
                   onClick={() => openPackagePage(run.id)}
                 >
                   <div class="min-w-0 flex-1">

@@ -9,7 +9,7 @@ first and the supporting analyses under it, beside one pane that shows the
 selected module whole: its default visualizations under the page scope,
 then its settings, script, logs and output files.
 
-**Next step: Do 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 **Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS, which closed on 2026-09-22
 (its file is deleted; its last commit is `dc554836`). That plan gave
@@ -314,3 +314,11 @@ commit.
 | 2026-09-22 | 1 | Fix: the `family` prop is dropped from `FamilyPane`; `OpenEditor` is declared once in `package_view/visualizations.tsx` and imported by the panes and the page (exported through `package_view/mod.ts`); SYSTEM_11's third-host clause names the module pane's `ModuleVisualizations`, and nothing else in that file changed. |
 | 2026-09-22 | 1 | Step 1 fixed. Floor green: `deno task typecheck`, `deno task test` (401 passed), `./validate_protocols`, the `./run` gate on `PORT=8010`. |
 | 2026-09-22 | 1 | Step 1 reviewed: pass. Re-review of `cb04acf6`: the `family` prop is gone from `FamilyPane` and its call site; `OpenEditor` is declared once (`package_view/visualizations.tsx:21`), exported through `package_view/mod.ts` and imported by the page and both panes; the SYSTEM_11 diff is the third-host clause alone. No file outside the Surface changed beyond the two accepted lines (`view_files.tsx`, SYSTEM_11). R3 to R9 re-read as met in the code. Floor green: `deno task typecheck`, `deno task test` (401 passed, 0 failed, 2 ignored), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the `./run` gate on `PORT=8010` (`"running":true` on the first poll, then stopped). |
+| 2026-09-22 | 2 | R2 asks for About's chips grouped by family for every status, but a generating or failed run has no manifest and the registry declares no family (SYSTEM_08 Loading; §0 forbids declaring one here). A ready package's chips are grouped from `RunAuthoringContext.modules`; a generating or failed package's chips are flat in `moduleOrder`, named from the registry (`about.tsx`). |
+| 2026-09-22 | 2 | R10's "the help-menu launch opens a package page first" cannot work: the shell wrapper hides the list under an open page (`display: none`), so the card step's list row would never be shown. Instead the card step completes on the row click (`advanceOn: "click"`, `tours.ts`), which opens the page, and the usage step waits for About's usage line; the launch stays `openTabOnly("results_packages")`. The auto-start gate (`index.ts`) requires the row to be rendered (`resolveVisibleTarget`), not merely in the DOM, since the wizard opens the page before the launched row lands. |
+| 2026-09-22 | 2 | About reads the population stamp from `RunAuthoringContext.population` rather than `RunDetail.population`: both are the manifest's stamp verbatim, and About then needs only the context. |
+| 2026-09-22 | 2 | The provenance subheading is one string (`provenanceLine`, joined with " · "), since `HeadingBar` renders the subheading inline in the title. |
+| 2026-09-22 | 2 | `./validate_protocols` flagged the ready-reads effect (guard before deps, SOLIDJS 3); it now reads `p.run.id` and the status before returning. |
+| 2026-09-22 | 2 | Prettier reflowed two lines it had not written (`tours.ts` `report-mode` gate, `catalogue.ts` `openTabOnly`); both reverted so the diff is the step's alone. |
+| 2026-09-22 | 2 | SYSTEM_14's tour paragraph gains one sentence on a tour that walks across a page boundary, edited while the file was clean and committed with the step (PLAN_EXPLORE_PAGE's shared-doc rule). |
+| 2026-09-22 | 2 | Step 2 built. Floor green: `deno task typecheck`, `deno task test` (401 passed), `./validate_protocols` (0 new flags), the `./run` gate on `PORT=8010`. |

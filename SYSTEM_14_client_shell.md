@@ -43,8 +43,11 @@ predicate excludes the editing views, so a list tour never fires behind an
 editor. Deferred parts (a card on screen, a slide in the deck, a figure in
 the report) use entry-level `when` gates plus `watch` triggers over the T1
 list lengths, the explorer's location, filter and view signals, and the open
-view's slide or figure count. The same directory hosts the tour catalogue
-modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the Help
+view's slide or figure count. A tour may walk across a page boundary: the
+results-package catalogue tour's first step completes on the user's click
+of a list row (`advanceOn`), which opens the package page over the shell,
+and its second step waits for a target on that page (S8). The same
+directory hosts the tour catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the Help
 menu, always offered), which lists every tour by area (Products, Slide
 decks, Reports, Instance) with availability computed over T1 only
 (`instanceState.products`, `readyPackages`, the permissions; the three

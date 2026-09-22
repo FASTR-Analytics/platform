@@ -553,9 +553,9 @@ export function getTourCatalogue(
         pt: "O catálogo de pacotes",
       }),
       description: t3({
-        en: "Reading a package's status and disk use, and when one can be deleted.",
-        fr: "Lire l'état et l'espace disque d'un paquet, et quand il peut être supprimé.",
-        pt: "Ler o estado e o uso de disco de um pacote, e quando pode ser eliminado.",
+        en: "Opening a package from the list, reading its About tab, and when one can be deleted.",
+        fr: "Ouvrir un paquet depuis la liste, lire son onglet À propos, et quand il peut être supprimé.",
+        pt: "Abrir um pacote a partir da lista, ler o seu separador Sobre, e quando pode ser eliminado.",
       }),
       available: () => (admin() || perms().can_configure_data) && hasPackage(),
       unavailableReason: () =>

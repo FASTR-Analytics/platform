@@ -1,3 +1,4 @@
+export { About } from "./about.tsx";
 export { FamilyPane } from "./family_pane.tsx";
 export {
   canViewPackageContents,

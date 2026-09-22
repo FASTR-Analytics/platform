@@ -47,7 +47,7 @@ export function runOutputFileHref(
 // The registry label: the only name a generating or failed run has, since
 // neither holds a manifest. A ready package names its modules from its own
 // manifest (`RunDetail.modules[]`, `RunAuthoringContext.modules[]`); this
-// serves the package page's generating and failed branches and the wizard's
+// serves the About chips of a generating or failed package and the wizard's
 // confirm step.
 export function moduleLabel(moduleId: string): string {
   const entry = MODULE_REGISTRY.find((m) => m.id === moduleId);
