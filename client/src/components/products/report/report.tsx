@@ -126,9 +126,9 @@ import {
   ReportEmbedControls,
   ReportInsertEmbedButtons,
   type SelectedReportEmbed,
-} from "./ReportEmbedEditor";
+} from "./report_embed_editor";
 import { ReportImagePicker } from "./report_image_picker";
-import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
+import { ReportMarkdownDiff } from "./report_markdown_diff";
 import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 import { DownloadReport } from "./download_report";
 import { isDarkGroundBehind } from "~/generate_report/mod";
