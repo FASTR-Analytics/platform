@@ -1,0 +1,276 @@
+# PLAN: Package page
+
+Reorganise the results package page around the family and tier facts that
+PLAN_EXPLORE_PRIMARY_RESULTS gives every module. The page becomes a tab
+bar: About, then one tab per data family in the package. About is the
+package's status and facts, the same shape for a generating, failed or
+ready package. A family tab is a list of that family's modules, the primary
+first and the supporting analyses under it, beside one pane that shows the
+selected module whole: its default visualizations under the page scope,
+then its settings, script, logs and output files.
+
+**Next step: Do 1.** Each session sets this line in its final commit.
+
+**Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS step 3 is reviewed (its
+Next step line reads `Do 4` or later, or the file is gone). Step 3 there
+gives `RunDetail.modules[]` and `RunAuthoringContext.modules[]` the
+`family`, `tier` and `sortOrder` facts and `compareModules` in `lib/`,
+which every listing here orders by.
+
+Branch: `version2`. Repos touched: this app only.
+Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`,
+`SYSTEM_11_viz_authoring.md`, §2 and §3 of `PLAN_EXPLORE_PRIMARY_RESULTS.md`
+(family, tier, module order) if it still exists, then §2 and §3 here.
+
+---
+
+## 0. How to work this plan
+
+Cadence, session shapes, the two-things rule and the step rules are
+`panther/protocols/PROTOCOL_ALL_PLANS.md`; the app bindings are
+`PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
+
+- Instruction: "Do the next step of PLAN_PACKAGE_PAGE.md."
+- Branch: `version2` (this plan's ruling; `PROTOCOL_APP_PLANS.md` names
+  `tim-branch`, and the version 2 work is on `version2`).
+- Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`,
+  `./run`. No step touches a migration, the seed, the query engine or
+  help text, so no conditional gate applies.
+- Build log: §8. Last step: 2.
+- A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for
+  each area the step names, §2 and §3 here, the step's own section in §4,
+  and §8.
+
+Rules peculiar to this plan:
+
+- **The `./run` gate.** `./run` stops and recreates the machine-global
+  `pg` and `valkey-local` containers. When both are already up and mounted
+  on this checkout's `_example_instance_dir` (`docker inspect pg`), the
+  gate is satisfied by booting the server directly against them
+  (`deno run --allow-all --env-file --unstable-broadcast-channel main.ts`)
+  and polling `/health_check` for `"running":true`, then stopping it.
+- **Nothing here changes what a module declares.** Family, tier and sort
+  order are read; a page that finds them missing on a package is reading a
+  package the manifest transform has not reached, which is a defect in
+  PLAN_EXPLORE_PRIMARY_RESULTS step 2, not here.
+
+## 1. The problem
+
+- The page's ready body is one flat gallery over every default
+  visualization in the package, then every module's card
+  ([visualizations.tsx:102](client/src/components/results_packages/package_view/visualizations.tsx#L102),
+  [package_view.tsx:88](client/src/components/results_packages/package_view/package_view.tsx#L88)).
+  A figure and the settings that produced it are far apart, and nothing
+  says which module a figure came from.
+- Provenance, usage and population are loose lines above the content
+  ([package_page.tsx:111](client/src/components/results_packages/package_page.tsx#L111)
+  onwards; [package_view.tsx:184](client/src/components/results_packages/package_view/package_view.tsx#L184)).
+  Status is a badge; the module progress chips exist only in the
+  generating and failed branches, although
+  [run_generation.ts:440](server/db/instance/run_generation.ts#L440)
+  stores the final `progress` (which modules ran, which were reused) on
+  a ready package too.
+- Modules are ordered by the manifest and named from the registry
+  ([status.tsx:47](client/src/components/results_packages/package_view/status.tsx#L47)).
+  After PLAN_EXPLORE_PRIMARY_RESULTS every other listing (the wizard, the
+  picker sidebar, Explore) presents modules as family, primary, supporting;
+  this page does not.
+
+## 2. The model
+
+Vocabulary, used throughout; family, tier and module order are
+PLAN_EXPLORE_PRIMARY_RESULTS's and are restated here so this plan stands
+alone once that one is deleted:
+
+- **Family**: `hmis`, `hfa` or `iceh`, declared by the module. Family
+  order is HMIS, HFA, ICEH everywhere.
+- **Tier**: `primary` or `secondary`, declared by the module. Each family
+  has one primary module; the rest are "Supporting analyses".
+- **Module order**: `compareModules` in `lib/`: family, then tier, then
+  `sortOrder`, then id.
+- **About**: the first tab. Status, facts and usage, for every package
+  status.
+- **Family tab**: one tab per family whose modules the package ran.
+- **Module list**: a `SelectList` of the family's modules, the primary
+  first, then a "Supporting analyses" header and the secondaries in module
+  order.
+- **Module pane**: one module, whole: the page scope picker, the module's
+  default visualizations, its settings, Script and Logs, its output files.
+- **Page scope**: the `(package, admin area 2)` pair every figure on the
+  page renders under. Starts national, page state, shared by every family
+  tab and module.
+
+```
+← Results package   <label> [pinned] [ready]              Pin · Delete
+  12 Sep 2026 · tim · 1.4 GB
+
+[ About ] [ HMIS ] [ HFA ] [ ICEH ]
+
+About
+  [Indicator values: done] [Data quality assessment: reused] ...
+  <live R line while generating / error detail when failed>
+  In use by: Q3 deck, Annual report
+  Population: state level, coverage per type
+  <failed: started modules with Script · Logs · Files>
+
+HMIS
+┌ modules ───────────────┐ ┌ Indicator values ─────────────────────┐
+│ Indicator values       │ │ Scope [National ▾]                     │
+│ Supporting analyses    │ │ [fig] [fig] [fig] [fig]                │
+│   Data quality assess. │ │                                        │
+│   Data quality adjust. │ │ Settings   label: value ...            │
+│   Disruption detection │ │ Script · Logs                          │
+│   Coverage denominators│ │ Output files  name  size  ⤓            │
+│   Coverage estimates   │ └────────────────────────────────────────┘
+└────────────────────────┘
+```
+
+A generating or failed package has the About tab only. Clicking a
+visualization card opens the figure editor as a viewer (`viewOnly`), as
+today; nothing on the page writes anything.
+
+## 3. Rulings
+
+1. **The page is a heading bar and a tab bar.** The heading bar carries
+   the label, the pinned and status badges, Pin or Unpin and Delete, with
+   the provenance line (created, by, disk size) as its subheading. The
+   tab bar is `TabsNavigation`, as the Data page: About, then the
+   families present in the package, in family order. Nothing sits between
+   the heading bar and the tabs.
+2. **About is the same shape for every status.** Module chips for every
+   module in `run.progress.moduleOrder`, grouped under a family heading in
+   module order, each with its `moduleStatus` (pending, running, done,
+   reused, error); the live R line under them while generating; the error
+   detail when failed; the "in use by" line; the population section; and,
+   for a failed package, the started modules' Script, Logs and Files
+   buttons. `run.progress` is the source for every status, since the
+   final progress is stored at publish.
+3. **A family tab is a module list beside a module pane.** Families and
+   module order come from `RunAuthoringContext.modules` through
+   `compareModules`; the list is a `SelectList` with the primary module
+   first, then a `{ header: "Supporting analyses" }` entry and the
+   secondaries. A family with one module still renders the list.
+4. **The module pane shows one module whole.** The page scope picker; the
+   module's default visualizations (the entries of
+   `RunAuthoringContext.presets` whose metric's `moduleId` is the module,
+   in preset order, unavailable metrics shown with their stamped reason);
+   then its settings, Script and Logs, and output files from
+   `RunDetail.modules[]`. No separate visualizations tab and no separate
+   modules tab: a module's figures and its settings are one thing.
+5. **Page state, never stored.** The page scope (starts national), the
+   active tab (starts About) and the selected module per family (starts
+   the primary) are signals in the page and die with it.
+6. **`ResultsPackageView` is retired.** SYSTEM_08 already names the
+   package page as the package's one host, so the package rule (one
+   rendering wherever a package is explored) is met by the page's panes.
+   `FailedErrorDetail`, the provenance line and the population section
+   move to the files that render them; `package_view/` keeps `status.tsx`,
+   the three viewers, and gains `about.tsx`, `family_pane.tsx` and
+   `module_pane.tsx`.
+7. **Labels come from the package.** A ready package names its modules
+   from `RunDetail.modules[].label` and `RunAuthoringContext.modules[].label`
+   (the manifest); the registry's `moduleLabel` serves only the About
+   chips of a generating or failed package, which have no manifest.
+8. **The viewer contract is unchanged.** A card click opens
+   `VisualizationEditor` with `viewOnly` through the page's editor
+   wrapper; Back is the only way out; nothing is stored (SYSTEM_08,
+   SYSTEM_11).
+9. **Reads are unchanged.** `t2_runs`, `t2_run_authoring_context` and
+   `t2_figure_data`, through the existing run-keyed instance routes. No
+   new route, no new cache.
+10. **The catalogue onboarding tour follows the page.** Its `card` step
+    targets the list row on the Results packages tab and its `usage` step
+    targets the About tab's usage line; the help-menu launch opens a
+    package page first. This closes the SYSTEM_08 open item.
+
+## 4. Steps
+
+### Step 1: Family tabs and the module pane
+
+**Surface.** `client/src/components/results_packages/package_page.tsx`,
+`client/src/components/results_packages/package_view/package_view.tsx`
+(deleted), `client/src/components/results_packages/package_view/family_pane.tsx`
+(new), `client/src/components/results_packages/package_view/module_pane.tsx`
+(new), `client/src/components/results_packages/package_view/visualizations.tsx`
+(becomes one module's gallery), `client/src/components/results_packages/package_view/mod.ts`,
+`client/src/components/results_packages/package_view/status.tsx`,
+`SYSTEM_08_results_packages.md`.
+
+**Deliverable.** A ready package's page renders, below the header row,
+provenance, usage and population it renders today, a `TabsNavigation` of
+the package's families in family order (R1's tab bar without About yet);
+each family tab is the module list beside the module pane (R3, R4); the
+selected module per family and the page scope are page state (R5); the
+flat gallery and the per-module collapsible sections are gone;
+`ResultsPackageView` is deleted and its pieces live where they are
+rendered (R6); module labels come from the package (R7); a card click
+opens the viewer as before (R8). Generating and failed packages render as
+today. SYSTEM_08 describes the family tab and the module pane.
+
+**Not in this step.** About. Status chips on a ready package. The heading
+bar's subheading. The onboarding tour.
+
+**Gates.** Floor. `lint:structure` green over the deletion and the two new
+files.
+
+**Ends with.** One commit.
+
+### Step 2: About, and one page shape for every status
+
+**Surface.** `client/src/components/results_packages/package_page.tsx`,
+`client/src/components/results_packages/package_view/about.tsx` (new),
+`client/src/components/results_packages/package_view/status.tsx`,
+`client/src/components/results_packages/package_view/mod.ts`,
+`client/src/components/results_packages/results_packages.tsx` (the list
+row's `data-tour` target only), `client/src/onboarding/tours.ts`,
+`client/src/onboarding/catalogue.ts`, `client/src/onboarding/index.ts`,
+`SYSTEM_08_results_packages.md`, `SYSTEM_14_client_shell.md` (only if it
+describes the tour).
+
+**Deliverable.** The heading bar carries label, badges, Pin or Unpin and
+Delete, and the provenance subheading (R1). The tab bar is About then the
+families; a generating or failed package has About only. About is
+`about.tsx` and holds the status chips grouped by family from
+`run.progress`, the live R line, the error detail, usage, population and
+the failed package's started-module viewers (R2). The generating and
+failed branches of `package_page.tsx` are gone: every status renders the
+same page with a different About. The catalogue tour's two targets and
+its help-menu launch are repointed (R10) and SYSTEM_08's open item is
+deleted. SYSTEM_08 describes About and the page shape in one paragraph.
+
+**Not in this step.** Anything on a family tab. Any new fact on the run
+row.
+
+**Gates.** Floor.
+
+**Ends with.** One commit. The review that passes deletes this file in its
+commit.
+
+## 5. Gates catalogue
+
+| Gate | What it proves | Command | First reached |
+| --- | --- | --- | --- |
+| G1 | The floor | §0 | 1 |
+| G2 | The tree still follows the structure protocol after a deletion and new files | `deno task lint:structure` (chained into the typecheck) | 1 |
+
+## 6. Out of scope
+
+- Declaring family, tier and sort order, `compareModules`, and the
+  manifest transform that stamps them: PLAN_EXPLORE_PRIMARY_RESULTS.
+- The Explore tab, and any insert-into-product or download from this page.
+- The Results packages list and the wizard.
+- Persisting the page scope, the active tab or the selected module.
+- Changing what a default visualization is, or the viewer's contract.
+- A settings or files view across modules.
+
+## 7. Rollout and rollback
+
+- Nothing ships before step 2's review passes; `./deploy_testing` may run
+  at Tim's discretion after any review passes. Every step leaves
+  `version2` deployable.
+- Rollback is a revert: no schema, cache key or stored shape changes.
+
+## 8. Build log
+
+| Date | Step | Entry |
+| --- | --- | --- |
