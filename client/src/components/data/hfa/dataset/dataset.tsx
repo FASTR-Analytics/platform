@@ -11,7 +11,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { DeleteData } from "./_delete_data";
 import { TimePointsView } from "./_time_points";
 import { DatasetItemsHolder } from "./dataset_items_holder";
-import { DatasetHfaImports } from "./imports";
+import { DatasetHfaImports } from "../imports/imports";
 
 type Props = {
   close: (v: undefined) => void;

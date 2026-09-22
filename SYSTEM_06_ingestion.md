@@ -8,7 +8,8 @@ globs:
   - client/src/components/data/data.tsx
   - client/src/components/data/general/mod.ts
   - client/src/components/data/mod.ts
-  - client/src/components/instance_dataset_hfa/**
+  - client/src/components/data/hfa/dataset/**
+  - client/src/components/data/hfa/imports/**
   - client/src/components/instance_dataset_hmis/**
   - client/src/components/instance_dataset_iceh/**
   - client/src/state/instance/t2_datasets.ts
