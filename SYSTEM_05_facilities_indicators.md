@@ -9,7 +9,7 @@ globs:
   - client/src/components/data/hmis/indicators/**
   - client/src/components/data/geojson/**
   - client/src/components/data/hfa/_shared/**
-  - client/src/components/instance_population/**
+  - client/src/components/data/hmis/population/**
   - client/src/components/data/general/admin_area_labels.tsx
   - client/src/components/data/facilities/**
   - client/src/components/data/family_configuration.tsx
