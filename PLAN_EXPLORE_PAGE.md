@@ -12,9 +12,12 @@ Tim in chat, records what he decides there, and only then builds it.
 **Starts:** now, in parallel with PLAN_PACKAGE_PAGE, which is already
 running. That plan's surface is `client/src/components/results_packages/**`,
 `client/src/onboarding/**`, `SYSTEM_08_results_packages.md` and the tour
-paragraph of `SYSTEM_14_client_shell.md`. This plan never touches any of
-those. Its own surface is `client/src/components/explore/**`, the modules
-repo, panther, `SYSTEM_11_viz_authoring.md` and the one Explore line of
+paragraph of `SYSTEM_14_client_shell.md`; its sessions also edit the
+package-page paragraphs of `SYSTEM_11_viz_authoring.md`. This plan never
+touches any of those files except SYSTEM_11 and SYSTEM_14, where it edits
+only the Explore paragraphs. Its own surface is
+`client/src/components/explore/**`, the modules repo, panther, the Explore
+section of `SYSTEM_11_viz_authoring.md` and the one Explore line of
 `SYSTEM_14_client_shell.md`. `client/src/components/_shared/scope_picker.tsx`
 is shared by both pages and is out of bounds for this plan while the other
 is open (§0).
@@ -71,6 +74,11 @@ Rules peculiar to this plan:
   serial plans; here two run at once. A session of this plan stages only
   its own files and never runs `git add -A`, `git stash` or a wholesale
   sync while the tree is dirty.
+- **The two shared docs are edited only while clean.** SYSTEM_11 and
+  SYSTEM_14 are in both plans' surfaces. A session of this plan edits
+  either only when `git status` shows it unmodified, edits only its Explore
+  paragraphs, and commits that edit at once, so an uncommitted edit by the
+  other plan's session can never be overwritten.
 - **The modules repo lands first, on `main`, if a ruling needs it.** A
   new preset is ordinary definition content under the schema every
   deployed app accepts, so the push is safe for every instance (§7).
