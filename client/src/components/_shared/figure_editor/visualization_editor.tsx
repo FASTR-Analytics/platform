@@ -74,6 +74,8 @@ export type VisualizationEditorProps = {
   /** A viewer over a figure nobody owns: the draft is for looking at, and
    *  closing returns nothing. No Apply, no discard prompt. */
   viewOnly?: boolean;
+  /** Mounted inside a page (the Explore tab): no Back, no copilot toggle. */
+  inline?: boolean;
 };
 
 export function VisualizationEditor(
@@ -100,6 +102,7 @@ export function VisualizationEditor(
           resultsValueInfo={keyedResultsValueInfo}
           collabBinding={p.collabBinding}
           viewOnly={p.viewOnly}
+          inline={p.inline}
           onClose={p.close}
         />
       )}

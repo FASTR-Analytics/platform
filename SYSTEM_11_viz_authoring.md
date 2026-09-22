@@ -80,7 +80,10 @@ bundle), `report/report.tsx` (rebuilds the figure block), and the package
 page's module pane (`ModuleVisualizations` in
 `results_packages/package_view/visualizations.tsx`, S8), which opens it
 `viewOnly`: no collab binding, Back is the only way
-out, and the draft never leaves the editor. The product hosts pass
+out, and the draft never leaves the editor. A fourth, the Explore page
+(`components/explore/explore.tsx`), mounts it `viewOnly` and `inline`
+inside the page: no Back, no copilot toggle, the draft lives as long as the
+mount. The product hosts pass
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
 re-previews under the new package (S10 "The captured pair"); the package
 page's scope cannot change while the editor covers it.
@@ -197,51 +200,31 @@ page is read-only and does not call it.
 ## The Explore page
 
 `components/explore/explore.tsx` renders one package at one scope, a family
-tab, the family's scorecard and a per-indicator detail, for an approved user.
-The package is a `Select` over `instanceState.readyPackages` that opens on
-the pin, else the newest ready package; the scope is the shared
-`ScopePicker` (`components/_shared/scope_picker.tsx`) and starts national.
-Both are page signals, never stored, so a deleted package can never be a
-stored default; only the family tab persists (`exploreFamily`, S14). The
-family tabs (`TabsNavigation`, as the Data page) offer the families whose
-primary module is in the package, in family order (`familiesInPackage` in
-`explore_query.ts`, over the authoring context's module summaries), and a
-stored family the package does not offer falls back to the first offered.
-
-Per family (`family_view.tsx`): the **scorecard metric** is the primary
-module's first ready metric by id (its first metric by id when none is
-ready, so the stamped reason shows), and the **scorecard query** is that
-metric's first preset's data config. The period chips replace its window:
-HMIS chips are calendar windows written into `periodFilter`; HFA chips are
-the instance's time points and ICEH chips the survey years the metric info
-enumerates, each a `filterBy` on that dimension with any preset window
-dropped (`periodChoicesFor`). A preset that declares a replicant (HFA's
-category, ICEH's stratifier) gets `ReplicateByOptionsSelect` beside the
-chips; the items read auto-resolves an unset replicant to the first option,
-and the select reports its option list back so both show the same value.
-The **scorecard** (`scorecard.tsx`) is panther's `DataGrid` over the query's
-rows, pivoted by the config's row, col and colGroup dimensions
-(`buildScorecardGrid`): sortable columns, a hover line naming the cell,
-threshold colouring by the preset's fixed rule where it declares one
-(HFA), else by the indicator's own rule through the same
-`resolveEffectiveIndicatorFacts` the `indicator` CF source uses (HMIS),
-else none (ICEH), and a click on a row or cell selects the indicator from
-whichever axis carries the family's indicator dimension
-(`INDICATOR_DIMENSION`). The **rail** lists the family's catalog from the
-authoring context (`hmisIndicators`, `hfaTaxonomy.indicators`,
-`icehIndicators` under category headings) in catalog order. The
-**detail** (`indicator_detail.tsx`) renders the scorecard metric's other
-presets, each pinned to the selected indicator (through the replicant slot
-when the preset replicates by the indicator dimension, else a `filterBy`;
-a preset that disaggregates by it collapses through
-`getEffectivePOConfig`'s `filtered_to_one_value` rule) and to the period,
-through the shared `_shared/figure_preview.ts` helper. Every read goes
-through `t2_run_authoring_context` and `t2_figure_data`, so a preset seen in
-the picker and in Explore under the same pair is one cache entry. Empty
-states are typed: no ready package, a package with no primary module, a
-family whose scorecard metric is unavailable (its stamped reason), a metric
-with no preset, and a query with no rows or too many. The page writes
-nothing: no insert into a product, no editor, no copilot, no download.
+tab, and that family's one default visualization open in the figure editor,
+inline and read-only, for an approved user. The heading row carries a
+package `Select` over `instanceState.readyPackages`, opening on the pin,
+else the newest ready package, and an area `Select` over `listAdminArea2s`
+whose first option is National. Both are page signals, never stored, so a
+deleted package can never be a stored default; only the family tab persists
+(`exploreFamily`, S14). The family tabs (`TabsNavigation`, as the Data page)
+offer the families whose primary module is in the package, in family order
+(`familiesInPackage` in `explore_query.ts`, over the authoring context's
+module summaries), and a stored family the package does not offer falls
+back to the first offered. Per family the default is the primary module's
+first ready metric by id (its first metric by id when none is ready, so the
+stamped reason shows) and that metric's first preset, derived through
+`presetConfig` (the shared `deriveConfigFromVizPreset`). It mounts
+`VisualizationEditor` with `viewOnly` and `inline`: the Data, Style and
+Text panels are the user's controls, the header keeps Download and the
+height toggle and drops Back and the copilot toggle, and the draft is
+keyed on the pair and the metric, so a package, scope or family change
+remounts the editor on a fresh copy of the preset. Every read goes through
+`t2_run_authoring_context` and `t2_figure_data`, so the preset seen in the
+picker and on Explore under the same pair is one cache entry. Empty states
+are typed: no ready package, a package with no primary module, a family
+whose metric is unavailable (its stamped reason), and a metric with no
+preset. The page writes nothing: no insert into a product, no persisted
+draft, no copilot.
 
 ## lib config semantics
 
@@ -332,8 +315,8 @@ nothing: no insert into a product, no editor, no copilot, no download.
 
 `replicate_by_options.tsx` exports a sidebar `SelectList` variant
 (`ReplicateByOptionsList`, the editor's) and a `Select` dropdown variant
-(`ReplicateByOptionsSelect`, the Explore page's replicant picker, exported
-through the editor folder's entry). Both fetch replicant options through the S9
+(`ReplicateByOptionsSelect`, exported through the editor folder's entry;
+no consumer since the Explore page moved onto the editor). Both fetch replicant options through the S9
 scope-keyed cache (`getReplicantOptionsFromCacheOrFetch`) with
 `excludeReplicantFilter: true` and deep-tracked `filterBy`/`periodFilter`
 reads; statuses `too_many_values` (>500) / `no_values_available` / `error` are
