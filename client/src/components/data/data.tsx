@@ -22,7 +22,7 @@ import { InstanceDatasetHfa } from "../instance_dataset_hfa";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { InstanceDatasetIceh } from "../instance_dataset_iceh";
 import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
-import { Facilities } from "./facilities/facilities";
+import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
 import { HfaWeights } from "../structure/hfa_weights";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";

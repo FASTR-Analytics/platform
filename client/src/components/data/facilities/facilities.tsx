@@ -17,7 +17,7 @@ import {
   toNum0,
 } from "panther";
 import { For, Match, Show, Switch, createSignal, onMount } from "solid-js";
-import { StructureUploadAttemptForm } from "./import/upload_attempt_form";
+import { StructureUploadAttemptForm } from "./import/mod.ts";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
