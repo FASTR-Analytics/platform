@@ -9,7 +9,7 @@ first and the supporting analyses under it, beside one pane that shows the
 selected module whole: its default visualizations under the page scope,
 then its settings, script, logs and output files.
 
-**Next step: Review 1.** Each session sets this line in its final commit.
+**Next step: Fix 1.** Each session sets this line in its final commit.
 
 **Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS, which closed on 2026-09-22
 (its file is deleted; its last commit is `dc554836`). That plan gave
@@ -306,3 +306,8 @@ commit.
 | 2026-09-22 | 1 | `view_files.tsx` (outside the Surface) had a comment naming the deleted `ResultsPackageView`; the one line was reworded. No code changed there. |
 | 2026-09-22 | 1 | The `./run` gate: `pg` and `valkey-local` were up and mounted on this checkout, and a dev server already held port 8000, so the server booted on `PORT=8010` and answered `/health_check` with `"running":true` within 2 s, then was stopped. |
 | 2026-09-22 | 1 | Step 1 built. Floor green: `deno task typecheck`, `deno task test` (401 passed), `./validate_protocols`, the `./run` gate. |
+| 2026-09-22 | 1 | Review: `view_files.tsx:18` is outside the Surface; the reworded comment names the module pane that now lists a ready run's files, and leaving the old name would have been stale prose. Accepted, no change. |
+| 2026-09-22 | 1 | Review: `package_view/family_pane.tsx:21` declares a `family` prop that nothing in the component reads (`package_page.tsx:510` passes it); drop the prop and the argument. |
+| 2026-09-22 | 1 | Review: `ReturnType<typeof getEditorWrapper>["openEditor"]` is written four times in the Surface (`package_page.tsx:65` and `module_pane.tsx:20` as `OpenEditor`, inline at `family_pane.tsx:30` and `visualizations.tsx:31`); define it once in `package_view/` and import it. |
+| 2026-09-22 | 1 | Review: `SYSTEM_11_viz_authoring.md:80` still calls the viewer's third host "the package page's Visualizations section"; it is now the module pane's default visualizations (`package_view/visualizations.tsx`, `ModuleVisualizations`). Outside this plan's Surface and inside PLAN_EXPLORE_PAGE's, so the Fix session reworks only that clause and stages nothing else in the file. |
+| 2026-09-22 | 1 | Step 1 reviewed: 3 findings. Surface diff: only `view_files.tsx` outside it (accepted above). R3 to R9 read as met in the code; the viewer opens `viewOnly` through the page's wrapper, the scope is one pair of signals in `ReadyPackageBody` shared by every tab and module, labels come from `RunAuthoringContext.modules[]` and `RunDetail.modules[]`, and both reads are the existing T2 caches. Floor green: `deno task typecheck`, `deno task test` (401 passed, 0 failed, 2 ignored), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the `./run` gate on `PORT=8010` (`"running":true`, then stopped). |
