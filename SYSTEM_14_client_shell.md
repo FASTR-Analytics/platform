@@ -105,6 +105,14 @@ page transition is a signal. UI prefs persist via localStorage and
 never enter fetch configs or cache hashes. Every user-visible string is a
 `TranslatableString` resolved by `t3`.
 
+The client tree's shape is linted here too: `lint_structure.ts` at the repo
+root (task `lint:structure`, chained into `deno task typecheck` after
+`lint_systems.ts`) checks every file under `client/src/` against the naming,
+entry, scoped-shared, layering, reachability and folder-cycle rules of
+[panther/protocols/PROTOCOL_UI_STRUCTURE.md](panther/protocols/PROTOCOL_UI_STRUCTURE.md),
+with `server/tests/lint_structure_test.ts` (this system's) pinning one
+violation per check against a synthetic tree.
+
 ## Boot
 
 `client/src/index.tsx` runs exactly three panther setters before

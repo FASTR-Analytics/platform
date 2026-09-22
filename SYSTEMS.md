@@ -138,10 +138,11 @@ a standalone "visualization" name nothing in this app; do not reintroduce
 them. `PresentationObjectConfig` remains the figure-config TYPE name;
 renaming the PO vocabulary in code is a separate refactor.
 
-## Running the lint
+## Running the lints
 
 ```
 deno task lint:systems
+deno task lint:structure
 ```
 
 Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/`
@@ -149,3 +150,13 @@ Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/`
 ORPHAN until a SYSTEM file's `globs:` claims it. The lint is chained into
 `deno task typecheck` (which the deploy script gates on), so an unclaimed
 file blocks deploy rather than accumulating silently.
+
+`lint_structure.ts` (task `lint:structure`, chained into `deno task typecheck`
+after `lint:systems`) enforces the client tree rules of
+`panther/protocols/PROTOCOL_UI_STRUCTURE.md`: snake_case names with no
+underscore prefix except `_shared/`, no file at the root of `components/`,
+`mod.ts` as the only entry another folder may import, `_shared/` scoped to its
+parent and consumed by two or more of the parent's children, no import of
+`components/` from `state/`, `exports/` or `generate_*/`, no unreachable file,
+and no runtime cycle between folder entries. It resolves imports and has no
+baseline; an optional directory argument narrows which files are reported.
