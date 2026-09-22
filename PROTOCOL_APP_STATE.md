@@ -329,7 +329,7 @@ HFA indicator R code
 editors, instance meta modal, profile refresh, the results-package wizard's
 module options + defaults
 (`instance_results_packages/_wizard/index.tsx`, read once per open,
-client-local until launch), and the `LoggedInWrapper.tsx` bootstrap fetches
+client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap fetches
 (GlobalUser, InstanceMeta, needed before SSE connects).
 
 Run-keyed: a package's script / log bytes and a failed run's

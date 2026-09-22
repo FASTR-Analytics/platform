@@ -26,8 +26,9 @@ Small server surface, highest privilege.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
-`components/instance/**` except the files owned elsewhere (`index.tsx` →
-S14, `instance_assets.tsx` → S4, `instance_data.tsx` → S6,
+`components/instance/**` except the files owned elsewhere (`instance.tsx`
+and the four header modals → S14, `logged_in_wrapper.tsx` → S1,
+`instance_assets.tsx` → S4, `instance_data.tsx` → S6,
 `ai_context_form.tsx` → S13). Server: `routes/instance/health.ts`,
 `utils/disk_space.ts` (`db/instance/user_logs.ts` → S17); cron jobs in
 `main.ts` (S1-owned, S15 reader); `routes/instance/instance.ts` is S5-owned
@@ -193,7 +194,7 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
 ## Open items
 
 - **`getInstanceMeta` is deliberately unguarded**: it is fetched pre-auth by
-  the sign-in screen (`LoggedInWrapper.tsx` ClerkNewLogin) so a guard would
+  the sign-in screen (`instance/logged_in_wrapper.tsx` ClerkNewLogin) so a guard would
   break login, and every field it exposes except `instanceFiscalYear`,
   `openAccess` and the two constants `adminVersion` and `isHealthy` is
   already public by design on `/health_check`. Open question:

@@ -85,7 +85,8 @@ the machinery. Client state tiers and cache-consumption rules are
 performs on boot is S3 machinery
 ([SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)). The page _content_
 each switchboard mounts belongs to its feature system. This system owns the
-frame. Sub-file custody exceptions are in SYSTEMS.md §4.1: `LoggedInWrapper.tsx`
+frame. Sub-file custody exceptions are in SYSTEMS.md §4.1:
+`instance/logged_in_wrapper.tsx`
 is owned by **S1** (this system a mandatory reader: it hosts the Clerk
 singleton, language resolution, and the version flush);
 `lib/translate/t-func.ts` is owned here with **S9** a mandatory reader (calendar
@@ -150,7 +151,7 @@ once the store has hydrated (S12). No other product parameter (`?p=`, `?d=`)
 is recognised.
 
 Everything else is a **signal-driven switchboard**, never the URL:
-`components/instance/index.tsx` holds a local `_tab` signal filtered through
+`components/instance/instance.tsx` holds a local `_tab` signal filtered through
 a permission-guarded derivation that selects Products / Explore / Results /
 Data / Assets / Users, in that nav order; Products (S12's
 `components/products/`) is first and the default, and Explore (S11's
@@ -251,7 +252,7 @@ previous user's open view). The rule these encode: **display-only preferences st
 in T4: they never enter fetch configs or cache hashes** (the roll-up sentinel
 lesson, SYSTEM_09).
 
-## Theme prototype (`state/t4_theme.ts`, `components/theme_modal.tsx`)
+## Theme prototype (`state/t4_theme.ts`, `components/instance/theme_modal.tsx`)
 
 The reskin preview: a `Theme` of five color knobs (surface ramp, primary, text
 ink, status colors, dark-mode primary) plus corner radius, density and text scale,
@@ -277,19 +278,18 @@ than a theme knob, and a summary line names the current combination. Canvas figu
 
 No polling, no heartbeat: `navigator.onLine` seeds `isOnline`, and the
 `online`/`offline` window listeners that update it are attached only by
-`useConnectionMonitor()`, which only `ConnectionStatus.tsx` calls; a failure
+`useConnectionMonitor()`, which nothing calls; a failure
 counter fed by the server-action wrapper
 (`try_catch_server.ts` fires the transport's `onNetworkFailure` /
-`onNetworkSuccess` hooks, which `LoggedInWrapper.tsx` binds to
+`onNetworkSuccess` hooks, which `instance/logged_in_wrapper.tsx` binds to
 `reportNetworkFailure` / `reportNetworkSuccess`)
-flips `connectionIssues` at ≥2 failures with a 30 s decay.
-`ConnectionStatus.tsx` renders the offline banner but is **mounted nowhere,
-dead UI** (Open items); the failure counter is live, the window listeners are
-never attached.
+flips `connectionIssues` at ≥2 failures with a 30 s decay. Nothing renders
+either signal (Open items): the failure counter is live, the window listeners
+are never attached.
 
 ## Onboarding modals
 
-An effect in `components/instance/index.tsx` (after approval + Clerk user)
+An effect in `components/instance/instance.tsx` (after approval + Clerk user)
 sequentially opens `EmailOptInModal` (writes
 `clerk.user.unsafeMetadata.{emailOptIn, emailOptInAsked}`) then
 `OrganisationModal` (writes `unsafeMetadata.organisation`; skippable), then
@@ -353,9 +353,9 @@ the PO editor's data panel).
   are; `setLanguage`/`setCalendar` run mid-render in `routes/index.tsx`. Decide:
   hoist resolution ahead of `render()` (kills any pre-language flash) or bless
   the current order as the contract.
-- `ConnectionStatus.tsx` is dead UI: the monitor feeds signals nobody renders,
-  and its `online`/`offline` listeners are never attached. Mount it or delete
-  it.
+- The connection monitor feeds signals nobody renders, and its
+  `online`/`offline` listeners are never attached. Render a banner or delete
+  the monitor.
 - Help system has no `pt`: the generator and `getHelpUrl` are EN/FR-only, so
   Portuguese users silently get English summaries and the English site. Needs a
   site-side `pt` tree before the app side can follow.

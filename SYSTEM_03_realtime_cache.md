@@ -45,7 +45,7 @@ collaboration WebSocket layer (live Yjs deltas, presence) is **S16**
 ([SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)), strictly additive:
 its room checkpoints feed this system's triangle through the existing notify
 wrappers and post nothing new to the BroadcastChannels. Sub-file custody
-exceptions are in SYSTEMS.md §4.1 (`LoggedInWrapper.tsx` is owned by S1, this
+exceptions are in SYSTEMS.md §4.1 (`instance/logged_in_wrapper.tsx` is owned by S1, this
 system a reader).
 
 ## Contract
@@ -393,7 +393,7 @@ Around it:
 - **`clear_caches.ts`**: `clearDataCache()` deletes every IndexedDB key except
   the AI prefixes (`ai-conv`, `ai-documents`) and clears the geojson memory
   cache; `clearAiChatCache()` deletes only the AI prefixes.
-- **Deploy flush**: `LoggedInWrapper.tsx` (S1 file, this system a reader)
+- **Deploy flush**: `instance/logged_in_wrapper.tsx` (S1 file, this system a reader)
   compares the server's `serverVersion` against `localStorage` on boot and calls
   `clearDataCache()` on change: client caches auto-invalidate on deploy. (Dev
   has no deploy: stale IndexedDB can mask server fixes; clear site data.)

@@ -1898,6 +1898,5 @@ deliveries returns `success: false` (the form shows the error instead of
   `body.config as SlideDeckConfig`: the
   Zod-validated body is discarded typewise; ties into the tighten-to-schema
   follow-on.
-- **Dead code**: `PasswordGate.tsx` (zero importers, EN-only).
 - **Barrel bypass**: `slide_list.tsx` imports the vendored SortableJS
   wrapper via a deep `../../../../panther/...` path instead of `"panther"`.

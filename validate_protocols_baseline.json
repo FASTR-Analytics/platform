@@ -11,22 +11,22 @@
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/whats_new_modal.tsx",
+    "file": "client/src/components/instance/instance.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/whats_new_modal.tsx",
+    "file": "client/src/components/instance/whats_new_modal.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/whats_new_modal.tsx",
+    "file": "client/src/components/instance/whats_new_modal.tsx",
     "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/instance/index.tsx",
+    "file": "client/src/components/instance/whats_new_modal.tsx",
     "text": "effect body opens with a conditional"
   },
   {
@@ -51,12 +51,12 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/email_opt_in_modal.tsx",
+    "file": "client/src/components/instance/email_opt_in_modal.tsx",
     "text": "const [loading, setLoading] = createSignal(false);"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/organisation_modal.tsx",
+    "file": "client/src/components/instance/organisation_modal.tsx",
     "text": "const [loading, setLoading] = createSignal(false);"
   },
   {

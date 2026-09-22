@@ -52,10 +52,9 @@ staleness"). `components/figures/insert_figure/**` (the insert-figure wizard
 and the preset gallery it renders, below). `components/explore/index.tsx`
 (the instance Explore tab's page, S14 mounts it: empty until the results
 explorer plan fills it, D6). `_editor_snapshot.ts` (`snapshotForSlideEditor`,
-the one thing the slide editor freezes at open), `NotAvailableBox`, the
+the one thing the slide editor freezes at open), the
 forms_editors figure modals (download, results-file viewer, custom series
-styles; `conflict_resolution_modal.tsx` is consumed by S12's slide editor and
-`confirm_update.tsx` by nothing). Lib config semantics
+styles; `conflict_resolution_modal.tsx` is consumed by S12's slide editor). Lib config semantics
 (`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
 families, the conditional-formatting family). `withReplicant` lives in
 kernel-owned `lib/utils.ts` (S00).
@@ -296,7 +295,7 @@ something.
   renders wrong. The open question is prune-on-apply versus keep-latent, and it
   turns on whether re-adding a dimension later should silently recover its old
   order (keep) or start clean (prune).
-- **Dead code (zero importers/consumers):** `forms_editors/confirm_update.tsx`;
+- **Dead code (zero importers/consumers):**
   `lib/types/dimension_definitions.ts` (barrel-exported, zero uses); the
   download modal's `allReplicants` result field (hard-coded false).
 - **Stale white-fill comment**: the download path claims `getFigureAsCanvas`

@@ -8,7 +8,7 @@ import {
 } from "panther";
 import { createSignal, Show } from "solid-js";
 import type { PersonalAccessTokenSummary } from "lib";
-import { LoggedInWrapper } from "~/components/instance/logged_in_wrapper";
+import { LoggedInWrapper } from "~/components/instance/mod.ts";
 import { serverActions } from "~/server_actions";
 
 // Standalone, unlisted personal-access-token panel (/access-tokens). Linked
