@@ -118,10 +118,8 @@ client/src/components/
 │   └── theme_modal.tsx  organisation_modal.tsx  whats_new_modal.tsx  email_opt_in_modal.tsx
 ├── products/                      # nav: Products (the explorer at the root)
 │   ├── mod.ts  products.tsx  product_card.tsx  folder_card.tsx  list_view.tsx  …
-│   ├── _shared/                   # used by two or more of slide_deck, report, copilot, products.tsx
-│   │   ├── insert_figure/  version_history/
-│   │   ├── product_settings.tsx  report_figure_embed.tsx  markdown_guide.tsx
-│   │   └── id_generation.ts  rebase_edits.ts  scope_picker.tsx
+│   ├── _shared/                   # what two or more of slide_deck, report, copilot, products.tsx import:
+│   │   └── insert_figure/  version_history/  and the files the import graph says
 │   ├── slide_deck/                # + slide_editor/ style_editor/ slide_transforms/
 │   ├── report/
 │   └── copilot/                   # + slide_ai/ ai_tools/ ai_documents/ ai_prompt_library/
@@ -138,9 +136,16 @@ client/src/components/
 └── users/                         # nav: Users
 ```
 
-Outside `components/`, four files leave it so that non-UI code never
-imports the tree: the Clerk singleton, the FASTR logo table, the report
-markdown style, and the two collaboration notice sinks (R12).
+Outside `components/`, the client has layers, and imports point one way:
+
+```text
+routes/ onboarding/  ->  components/  ->  exports/  ->  generate_*/  ->  state/ lib panther
+```
+
+`generate_report/` is new, the twin of `generate_slide_deck/`: the report
+document model and its HTML rendering, which the editor and the exporters
+both use. `exports/` holds file-format wrappers only. What crosses these
+lines today moves down until nothing does (R12).
 
 Import rules the lint enforces, stated once here and restated nowhere but
 the protocol (R3, R4, R6):
@@ -148,8 +153,9 @@ the protocol (R3, R4, R6):
 1. Same folder: any file.
 2. Any other folder: its `mod.ts` only. Type-only imports included.
 3. `X/_shared/**`: only from files under `X/`, through rules 1 and 2.
-4. `state/`, `exports/`, `generate_*/` never import `components/`.
-   `routes/` and `onboarding/` import entries only, by rule 2.
+4. `state/`, `exports/`, `generate_*/` never import `components/`, and
+   `generate_*/` never imports `exports/`. `routes/` and `onboarding/`
+   import entries only, by rule 2.
 5. No cycle in the graph whose nodes are folders and whose edges are
    runtime (not `import type`) imports of a `mod.ts`.
 
@@ -210,26 +216,29 @@ overruled here before `Do 1`.
     download_presentation_object,view_results_object}.tsx` and
     `_shared/cursors/viz_cursors.tsx` have it as their one consumer and
     move into it.
-11. **Products-level shared and the copilot boundary.** _(proposed)_
-    `slide_deck/slide_ai/**` (S13-owned) moves to `products/copilot/slide_ai/`.
-    `slide_deck/_id_generation.ts`, `report/rebase_edits.ts`,
-    `report/ReportFigureEmbed.tsx`, `_markdown_guide.tsx`,
-    `products/product_settings.tsx`, `_shared/scope_picker.tsx`,
-    `figures/insert_figure/**` and `version_history/**` move to
-    `products/_shared/`. After this the runtime folder graph has no cycle:
+11. **The copilot boundary.** _(proposed)_ `slide_deck/slide_ai/**` is
+    S13-owned and moves to `products/copilot/slide_ai/`. Beyond that there
+    is no file list: R4 decides. A file that the copilot and an editor both
+    import, or that two editors both import, goes to `products/_shared/`;
+    a file one editor imports stays with that editor. The import graph at
+    the time of the step is the authority, because the collaborator
+    branches keep adding to it. The result must satisfy `entry-cycle`:
     editors import the copilot's entry, the copilot imports only
     `products/_shared/` and top-level `_shared/`.
-12. **Direction fixes.** _(proposed)_
-    - `clerk` leaves `LoggedInWrapper.tsx` for `state/_infra/clerk.ts`
-      (consumers: instance, slide_deck, onboarding).
-    - `_shared/fastr_logos.ts` moves to `generate_slide_deck/fastr_logos.ts`.
-    - `report/report_markdown_style.ts` moves to a new
-      `client/src/generate_report/report_markdown_style.ts`, the report
-      twin of `generate_slide_deck/`.
-    - `_shared/connection_banner.tsx` and `_shared/presence_toasts.tsx` are
-      imperative sinks called only by `state/instance/collab.ts`; they move
-      beside it as `state/instance/collab_connection_banner.tsx` and
-      `state/instance/collab_presence_toasts.tsx` (S16).
+12. **Direction fixes.** _(proposed)_ Import rule 4 of §2 decides; the
+    lint's `direction` check finds the files. What moves, and where:
+    - Report rendering that `exports/` imports from `components/report/`
+      moves to `client/src/generate_report/`. Anything that moved down and
+      still imports `exports/` takes what it imports down with it, and so
+      on until `generate_report/` imports nothing above itself. The same
+      applies to `generate_slide_deck/`, which imports one exports helper
+      today. Names are kept; a function whose old home was an `export_*`
+      file is not renamed for the move.
+    - A singleton or sink that `state/` or `onboarding/` calls moves to
+      `state/`: the Clerk instance to `state/_infra/`, the collaboration
+      notice sinks beside `state/instance/collab.ts` (S16).
+    - A table that only `generate_*/` and its editor read moves to that
+      `generate_*/` folder (the FASTR logo table).
     - `copilot/ai_views.ts` stays in the copilot and is exported from its
       entry; `onboarding/` imports the entry.
 13. **Data placements.** _(proposed)_ From the section switch in
@@ -402,32 +411,26 @@ against `products/` paths, listed in §8. G3, G4, G5.
 ### Step 6: Top-level shared
 
 **Surface.** `client/src/components/_shared/**`, `figure_editor/**`,
-`HelpButton.tsx`, `forms_editors/{custom_series_styles,
-download_presentation_object,view_results_object}.tsx`,
-`_file_upload_selector.tsx`, `_uppy_file_upload.ts`,
-`slide_deck/presence_avatars.tsx`, `products/package_label.ts`,
-`products/product_types.ts`, every importer of those (import lines only),
-`SYSTEM_04`, `SYSTEM_11`, `SYSTEM_12`, `SYSTEM_14`, `SYSTEMS.md`,
+every file whose one consumer is the figure editor, every file with two
+or more top-level consumers by the import graph at the start of the step,
+the import lines of their consumers, `SYSTEM_04`, `SYSTEM_11`, `SYSTEM_12`, `SYSTEM_14`, `SYSTEMS.md`,
 `PROTOCOL_APP_HELP_BUTTONS.md`, `PROTOCOL_APP_UI_CONVENTIONS.md`,
 `validate_protocols_baseline.json`.
 
-**Deliverable.** Per R4 and R10, `_shared/` holds exactly:
-`figure_editor/**` (with `mod.ts`, `help_button.tsx`, the three
-`forms_editors` files, `viz_cursors.tsx`, `stale_figure_badge.tsx`
-exported), `file_upload_selector.tsx`, `uppy_file_upload.ts`,
-`collab_markdown_editor.tsx`, `presence_avatars.tsx`, `live_cursors.tsx`,
-`package_label.ts`, `product_types.ts`. Everything else that was in
-`_shared/` has moved in steps 4, 5 and 7 or moves in 7 and 8; this step
-must leave `_shared/` with no file that has one consumer, except the
-cursors and logo files that step 7 takes. `PROTOCOL_APP_HELP_BUTTONS.md`
-names the new home of the help button and says it is promoted to
-`_shared/` at its second consumer. The `_file_upload_selector` custody row
-in `SYSTEMS.md §4.1` names the new paths.
+**Deliverable.** Per R4 and R10: `_shared/figure_editor/` exists with its
+`mod.ts`, and every file whose one consumer is the figure editor has
+moved into it. Every file with two or more top-level consumers, by the
+import graph at the time of the step, is at the top of `_shared/`; every
+file there with one consumer under `products/` is left for step 7 and
+listed in §8, and every file there that step 8 moves out of `components/`
+is left for step 8 and listed in §8. Nothing else remains in `_shared/`.
+`PROTOCOL_APP_HELP_BUTTONS.md` names the new home of the help button and
+says it is promoted to `_shared/` at its second consumer. The
+`_file_upload_selector` custody row in `SYSTEMS.md §4.1` names the new
+paths.
 
-**Not in this step.** `slide_cursors.tsx`, `report_cursors.tsx`,
-`logo_selector.tsx`, `logo_section_editor.tsx`, `scope_picker.tsx`,
-`sort_control.tsx` (step 7). `fastr_logos.ts`, `connection_banner.tsx`,
-`presence_toasts.tsx` (step 8).
+**Not in this step.** Files whose consumers are all under `products/`
+(step 7). Files that leave `components/` (step 8).
 
 **Gates.** G2 for `client/src/components/_shared`, `entry-only` hits
 allowed only against `products/`, `slide_deck/`, `report/` paths, listed
@@ -448,22 +451,19 @@ scope_picker,sort_control}.*`, `client/src/onboarding/{index,catalogue}.ts`
 `PROTOCOL_APP_AI_TOOLS.md`, `PROTOCOL_APP_UI_CONVENTIONS.md`,
 `validate_protocols_baseline.json`.
 
-**Deliverable.** Per R2, R11: `products/mod.ts`, `products/products.tsx`
-and the explorer files at the root (`product_card.tsx`, `folder_card.tsx`,
-`folder_menu.ts`, `folder_tree.ts`, `list_view.tsx`, `product_menu.ts`,
-`sort_control.tsx`, the three modals); `products/_shared/` per R11;
-`products/slide_deck/**` with `slide_deck.tsx`, `slide_editor/`,
-`style_editor/`, `slide_transforms/`, `build_context_menu.ts`,
-`editor_snapshot.ts`, `conflict_resolution_modal.tsx`, `logo_selector.tsx`,
-`logo_section_editor.tsx`, `slide_cursors.tsx`; `products/report/**` with
-`report.tsx` and `report_cursors.tsx`; `products/copilot/**` with
-`copilot.tsx` and `slide_ai/`. `forms_editors/`, `figures/`,
+**Deliverable.** Per R2, R4 and R11: the explorer's own files at
+`products/` root with `mod.ts` and `products.tsx`; `products/slide_deck/`,
+`products/report/`, `products/copilot/` (with `slide_ai/`), each with its
+entry and holding every file whose consumers are all inside it, wherever
+that file was before (root, `_shared/`, `forms_editors/`,
+`layout_editor/`); `products/_shared/` holding `insert_figure/`,
+`version_history/` and every file with two or more consumers among the
+explorer, the editors and the copilot. `forms_editors/`, `figures/`,
 `layout_editor/`, `version_history/` no longer exist at the root. The
 `entry-cycle` check is clean across `products/`.
 
-**Not in this step.** `rebase_edits.ts` consumers in `exports/` (none
-exist); `report_markdown_style.ts` (step 8). Renames inside folders
-(step 9).
+**Not in this step.** Files that leave `components/` (step 8). Renames
+inside folders (step 9).
 
 **Gates.** G2 for `client/src/components/products` clean, including
 `entry-cycle`. G3, G4, G5. `git diff -M --name-status` for the
@@ -474,29 +474,30 @@ shows every file as `R100` (pure `git mv` is possible for these four).
 
 ### Step 8: Direction fixes
 
-**Surface.** `client/src/components/instance/logged_in_wrapper.tsx`,
-`client/src/state/_infra/clerk.ts` (new), every `clerk` importer (import
-lines only), `client/src/components/_shared/fastr_logos.ts`,
-`client/src/generate_slide_deck/fastr_logos.ts` (new),
-`client/src/components/products/report/report_markdown_style.ts`,
-`client/src/generate_report/report_markdown_style.ts` (new),
-`client/src/exports/export_report_as_{pdf,word}.ts` (import lines),
-`client/src/components/_shared/{connection_banner,presence_toasts}.tsx`,
-`client/src/state/instance/collab_{connection_banner,presence_toasts}.tsx`
-(new), `client/src/state/instance/collab.ts` (import lines),
-`SYSTEM_01`, `SYSTEM_10`, `SYSTEM_12`, `SYSTEM_14`, `SYSTEM_16`,
-`SYSTEMS.md`, `validate_protocols_baseline.json`.
+**Surface.** The files the `direction` check names at the start of the
+step, the files they pull down with them under R12, the new
+`client/src/generate_report/`, `client/src/exports/**`,
+`client/src/generate_slide_deck/**`, `client/src/state/**`, the import
+lines of every consumer of a moved file, the SYSTEM files whose globs or
+prose name a moved file (S1, S10, S12, S14, S16 at least), `SYSTEMS.md`,
+`validate_protocols_baseline.json`. The session lists the resolved surface
+in §8 before its first commit.
 
-**Deliverable.** R12 in full. `deno task lint:structure` reports zero
-`direction` hits. The `LoggedInWrapper.tsx` custody row in
+**Deliverable.** R12 in full: the `direction` check is clean, and
+`generate_report/` and `generate_slide_deck/` import nothing from
+`exports/` or `components/`. The `LoggedInWrapper.tsx` custody row in
 `SYSTEMS.md §4.1` names `instance/logged_in_wrapper.tsx` and drops the
-Clerk seam if the singleton's move makes S1 its sole owner.
+Clerk seam if the singleton's move makes S1 its sole owner. The S10 and
+S12 manifests say which of them owns `generate_report/`.
 
-**Not in this step.** Any behaviour change in the moved code.
+**Not in this step.** Any behaviour change in the moved code. Splitting a
+file: a file moves whole, and a file that mixes a builder with a wrapper
+moves to the lower layer with the wrapper still in it, recorded in §8 as
+an open item for the owning SYSTEM.
 
 **Gates.** G2 whole tree, `direction` and `entry-only` clean. G3, G4, G5.
 
-**Ends with.** One commit per moved file, or one per R12 bullet.
+**Ends with.** One commit per R12 bullet, each green.
 
 ### Step 9: Names
 
@@ -597,3 +598,5 @@ commit.
 | When | Step | Row |
 | --- | --- | --- |
 | 2026-09-20 | plan | Written from the tree as measured that day (316 files, 22 top-level folders, 35 deep imports, 5 dead files, 16 baseline entries). |
+| 2026-09-22 | plan | Tim: the collaborator merge landed (`676d9871`). Steps 3 to 10 are unblocked. |
+| 2026-09-22 | plan | Re-measured after the merge: 336 files, same 22 folders, same 5 dead files, 16 baseline entries, both gates green. The merge added a two-way dependency between `components/report/` and `exports/`; R12 and step 8 were rewritten to a layering rule, and R11, step 6 and step 7 to rules instead of file lists, before `Do 1`. |
