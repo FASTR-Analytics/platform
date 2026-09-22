@@ -2,7 +2,7 @@ import { openComponent } from "panther";
 import {
   PromptLibraryModal,
   type PromptLibraryResult,
-} from "./PromptLibraryModal";
+} from "./prompt_library_modal";
 
 export type UsePromptLibraryOptions = {
   onRunPrompt: (promptText: string, startNewConversation: boolean) => void;

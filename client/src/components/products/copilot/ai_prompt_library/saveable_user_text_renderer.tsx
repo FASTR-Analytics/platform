@@ -1,6 +1,6 @@
 import { type Component } from "solid-js";
 import { createMarkdownIt, openComponent } from "panther";
-import { SaveToPromptLibraryModal, type SaveToPromptLibraryResult } from "./SaveToPromptLibraryModal";
+import { SaveToPromptLibraryModal, type SaveToPromptLibraryResult } from "./save_to_prompt_library_modal";
 import { t3 } from "lib";
 
 const md = createMarkdownIt();

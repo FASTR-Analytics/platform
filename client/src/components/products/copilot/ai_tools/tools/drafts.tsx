@@ -17,7 +17,7 @@ import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { copilotViewController } from "../../_shared/mod.ts";
-import { DraftSlidePreview } from "./DraftSlidePreview";
+import { DraftSlidePreview } from "./draft_slide_preview";
 
 // A draft resolves under the open product's pair, the only pair this copilot
 // serves (D15). From the deck and slide views the preview card adds it

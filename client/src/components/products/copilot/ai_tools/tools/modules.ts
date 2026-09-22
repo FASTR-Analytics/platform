@@ -2,8 +2,8 @@ import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import type { InstalledModuleSummary, MetricWithStatus } from "lib";
 import type { ClientAIToolEnv } from "../../_shared/mod.ts";
-import { formatModulesListForAI } from "./_internal/mod.ts";
-import { formatModuleSettingsForAI } from "./_internal/mod.ts";
+import { formatModulesListForAI } from "./format_for_ai/mod.ts";
+import { formatModuleSettingsForAI } from "./format_for_ai/mod.ts";
 
 // How the open product's package was produced (SPA-only: the /mcp surface is
 // for seeing results, not module internals). Which package is never a

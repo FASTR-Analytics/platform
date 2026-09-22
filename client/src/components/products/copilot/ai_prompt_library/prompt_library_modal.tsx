@@ -24,7 +24,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import {
   SaveToPromptLibraryModal,
   type SaveToPromptLibraryResult,
-} from "./SaveToPromptLibraryModal";
+} from "./save_to_prompt_library_modal";
 
 type Props = {};
 

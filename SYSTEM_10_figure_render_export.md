@@ -612,7 +612,7 @@ FASTR logo table read by the transform, `slide_deck/logo_selector.tsx` and
 APIResponse<PageInputs>`,
 serves all its call sites: screen (`slide_editor/slide_editor.tsx`,
 `slide_card.tsx`, `slide_presenter.tsx`, the deck version preview), AI
-previews (`DraftSlidePreview.tsx`, `ai_tools/tools/drafts.tsx`), and the
+previews (`draft_slide_preview.tsx`, `ai_tools/tools/drafts.tsx`), and the
 three deck exports, so a slide renders byte-identically everywhere. Every
 surface uses the
 same frame: `PAGE_WIDTH_DU` 1400 × `PAGE_HEIGHT_DU` 788

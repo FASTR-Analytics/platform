@@ -787,7 +787,7 @@ slide-figure replicant bug. Every item below is one shape:
 
 > The AI's **read-projections** (`simplifySlideForAI`, `get_report_editor`, the
 > `format_*_for_ai.ts` formatters in `lib/ai_tools/` and in the copilot's
-> `ai_tools/tools/_internal/`) and its **write-schemas**
+> `ai_tools/tools/format_for_ai/`) and its **write-schemas**
 > (`lib/types/ai_input.ts` `Ai*Schema`) were each designed around a minimal
 > title/text/figure-data mental model, while the stored shapes (`Slide` /
 > `ContentBlock` / `FigureBundle` / `PresentationObjectConfig`) are far richer.

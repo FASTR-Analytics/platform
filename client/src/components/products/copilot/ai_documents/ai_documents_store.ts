@@ -12,7 +12,7 @@ import {
   setPendingAttachments,
   type UploadedDocument,
 } from "~/state/products/t4_ai_documents";
-import { AIDocumentSelectorModal } from "./AIDocumentSelectorModal";
+import { AIDocumentSelectorModal } from "./ai_document_selector_modal";
 
 type SentDocument = {
   fileId: string;

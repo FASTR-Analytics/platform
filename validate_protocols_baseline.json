@@ -41,13 +41,13 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/products/copilot/ai_prompt_library/PromptLibraryModal.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+    "file": "client/src/components/products/copilot/ai_prompt_library/save_to_prompt_library_modal.tsx",
+    "text": "const [error, setError] = createSignal(\"\");"
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/products/copilot/ai_prompt_library/SaveToPromptLibraryModal.tsx",
-    "text": "const [error, setError] = createSignal(\"\");"
+    "file": "client/src/components/products/copilot/ai_prompt_library/prompt_library_modal.tsx",
+    "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",
@@ -76,7 +76,7 @@
   },
   {
     "id": "async-effect-race",
-    "file": "client/src/components/products/copilot/ai_documents/useAIDocuments.ts",
+    "file": "client/src/components/products/copilot/ai_documents/ai_documents_store.ts",
     "text": "async effect writes state after await, no out-of-order guard"
   }
 ]
