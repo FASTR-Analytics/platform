@@ -3,7 +3,7 @@ system: 8
 name: Results Packages & Module Execution
 globs:
   - client/src/state/instance/t2_runs.ts
-  - client/src/components/instance_results_packages/**
+  - client/src/components/results_packages/**
   - lib/figure_package_issue.ts
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts

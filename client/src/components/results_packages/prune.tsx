@@ -9,7 +9,7 @@ import { For, Match, Show, Switch, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { planPrune, type KeepReason, type PrunePlan } from "./_prune_plan";
+import { planPrune, type KeepReason, type PrunePlan } from "./prune_plan";
 
 type Phase = "confirm" | "running" | "done";
 type Outcome = "deleted" | { err: string };

@@ -20,8 +20,8 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { PinnedBadge } from "~/components/_shared/results_package/status";
-import { PruneResultsPackages } from "./_prune";
-import { ResultsPackageWizard } from "./_wizard";
+import { PruneResultsPackages } from "./prune";
+import { ResultsPackageWizard } from "./wizard/wizard";
 import { RunCatalogDetailPane } from "./detail";
 import { ModuleDefaultsEditor } from "./module_defaults";
 import {
