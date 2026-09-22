@@ -1,15 +1,30 @@
 import { APIResponseWithData } from "lib";
 import { _GITHUB_TOKEN } from "../exposed_env_vars.ts";
 
-function githubHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github.v3+json",
-  };
-  if (_GITHUB_TOKEN) {
-    headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;
+// The one GitHub fetch. The token is optional (the modules repo is public;
+// it only raises the rate limit), so a rejected token must never break a
+// read: a 401 is retried once without it, and the rejection is logged once
+// per process.
+let tokenRejectedLogged = false;
+export async function githubFetch(
+  url: string,
+  headers: Record<string, string> = {},
+): Promise<Response> {
+  if (!_GITHUB_TOKEN) return await fetch(url, { headers });
+  const withToken = await fetch(url, {
+    headers: { ...headers, Authorization: `Bearer ${_GITHUB_TOKEN}` },
+  });
+  if (withToken.status !== 401) return withToken;
+  if (!tokenRejectedLogged) {
+    tokenRejectedLogged = true;
+    console.warn(
+      "[github] GITHUB_TOKEN was rejected (401); continuing unauthenticated",
+    );
   }
-  return headers;
+  return await fetch(url, { headers });
 }
+
+const GITHUB_API_HEADERS = { Accept: "application/vnd.github.v3+json" };
 
 export type GitHubCommit = {
   sha: string;
@@ -40,9 +55,7 @@ export async function fetchCommits(
   try {
     const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${branch}&per_page=10`;
 
-    const response = await fetch(url, {
-      headers: githubHeaders(),
-    });
+    const response = await githubFetch(url, GITHUB_API_HEADERS);
 
     if (!response.ok) {
       if (response.status === 403) {
@@ -91,9 +104,7 @@ export async function fetchRawScript(
   try {
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${commit}/${path}`;
 
-    const response = await fetch(url, {
-      headers: githubHeaders(),
-    });
+    const response = await githubFetch(url);
 
     if (!response.ok) {
       if (response.status === 404) {
