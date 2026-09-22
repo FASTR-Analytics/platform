@@ -1,1 +1,1 @@
-export { HfaIndicatorAiWrapper } from "./ai_wrapper.tsx";
+export { HfaIndicatorAiWrapper } from "./wrapper.tsx";

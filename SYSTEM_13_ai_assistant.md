@@ -257,7 +257,7 @@ tools, the pattern the HFA indicator manager already uses. Each mount builds
 one panther `AIChatProvider` config, validated in dev by panther's no-mount
 construction check: both assistants call `validateAIChatConfig(config)` under
 `import.meta.env.DEV` at config assembly (HFA
-[ai/ai_wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/ai_wrapper.tsx#L39-L41)):
+[ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
 
 - **sdkClient**
   ([defaults.ts](client/src/components/products/copilot/ai_configs/defaults.ts)):
@@ -664,7 +664,7 @@ declare `approval.propose` with `presentation: "modal"` (panther owns the
 propose → modal diff → commit lifecycle; the old hand-rolled `confirmChain`
 serializer is deleted), and the config sets `approvalPolicy: { requireForKind:
 "write", requireKind: true }`
-([ai/ai_wrapper.tsx:36](client/src/components/data/hfa/indicators/ai/ai_wrapper.tsx#L36)).
+([ai/wrapper.tsx:36](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L36)).
 A write tool without approval, or any tool without a `kind`, fails at
 construction. Every anticipated failure throws `AIToolFailure` (zero
 plain-`Error` throws in
