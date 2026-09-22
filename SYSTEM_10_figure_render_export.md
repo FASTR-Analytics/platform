@@ -606,7 +606,8 @@ unbounded in both directions.
 Three files:
 [convert_slide_to_page_inputs.ts](client/src/generate_slide_deck/convert_slide_to_page_inputs.ts)
 (578 LOC), `get_overlay_image.ts` (49 LOC) and `fastr_logos.ts` (the built-in
-FASTR logo table the transform and the deck's logo pickers read). One transform,
+FASTR logo table read by the transform, `slide_deck/logo_selector.tsx` and
+`slide_deck/style_editor/StylePreview.tsx`). One transform,
 `convertSlideToPageInputs(slide, slideIndex, config) →
 APIResponse<PageInputs>`,
 serves all its call sites: screen (`slide_editor/slide_editor.tsx`,
@@ -709,11 +710,11 @@ reports), `_report_export_maps.ts` (the figure and image maps keyed by literal
 `figure:<id>` / `image:<id>` tokens, `figureInputsForDownload`) and
 `_media_placeholder.ts` (the localized "could not be displayed" placeholder and
 the token swap the report exporters run; `convertSlideToPageInputs` reads the
-placeholder too). The folder imports `generate_visualization/`, `state/`, lib
-and panther, and nothing from `exports/` or `components/`
-(PROTOCOL_UI_STRUCTURE layers). The formats themselves are S12's: its Reports
-section is the authoritative description of this pipeline, and S12 is the
-mandatory reader (SYSTEMS.md §4.1).
+placeholder too). The folder imports `generate_visualization/`,
+`server_actions/` (`_SERVER_HOST`), lib, panther and `dompurify`, and nothing
+from `exports/` or `components/` (PROTOCOL_UI_STRUCTURE layers). The formats
+themselves are S12's: its Reports section is the authoritative description of
+this pipeline, and S12 is the mandatory reader (SYSTEMS.md §4.1).
 
 ## The export engine (client/src/exports)
 
