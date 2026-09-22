@@ -16,7 +16,5 @@ export {
 export type { PointerAwarenessState } from "./live_cursors.tsx";
 export { packageLabel, packageScopeCaption, scopeLabel } from "./package_label.ts";
 export { PresenceAvatars } from "./presence_avatars.tsx";
-export { PRODUCT_TYPE_REGISTRY } from "./product_types.ts";
-export type { ProductEditorComponent, ProductTypeDefinition } from "./product_types.ts";
 export { cleanupUppy, createUppyInstance } from "./uppy_file_upload.ts";
 export type { UppyFileUploadConfig } from "./uppy_file_upload.ts";

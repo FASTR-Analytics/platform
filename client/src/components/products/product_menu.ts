@@ -1,8 +1,8 @@
 import { t3, TC, type Folder, type ProductSummary } from "lib";
 import type { MenuItem } from "panther";
-import { sortBySortMode } from "~/components/_shared/sort_control";
+import { sortBySortMode } from "./sort_control";
 import { productsSortMode } from "~/state/t4_ui";
-import { childFolders } from "./folder_tree";
+import { childFolders } from "./_shared/folder_tree";
 
 // The move affordances D16 gives both menus: quick hops within reach of the
 // current location, with the full picker as the catch-all. There is no

@@ -32,7 +32,7 @@ import {
   createSignal,
   type JSX,
 } from "solid-js";
-import { SortControl, sortBySortMode } from "~/components/_shared/sort_control";
+import { SortControl, sortBySortMode } from "./sort_control";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -51,18 +51,18 @@ import {
   setProductsViewMode,
 } from "~/state/t4_ui";
 import { ProductCopilotHost } from "~/components/copilot";
-import { DuplicateProductsModal } from "./duplicate_products_modal";
-import { PackageScopeModal } from "./package_scope_modal";
+import { DuplicateProductsModal } from "./_shared/duplicate_products_modal";
+import { PackageScopeModal } from "./_shared/package_scope_modal";
 import { EditFolderModal } from "./edit_folder_modal";
 import { FolderCard, folderColor, topLevelLabel } from "./folder_card";
 import { buildFolderMenu } from "./folder_menu";
-import { ancestors, childFolders, folderPathLabels } from "./folder_tree";
+import { ancestors, childFolders, folderPathLabels } from "./_shared/folder_tree";
 import { ListView } from "./list_view";
 import { MoveToFolderModal } from "./move_to_folder_modal";
 import { ProductCard } from "./product_card";
 import { buildProductMenu } from "./product_menu";
-import { PRODUCT_TYPE_REGISTRY } from "~/components/_shared/mod.ts";
-import { ProductSettings } from "./product_settings";
+import { PRODUCT_TYPE_REGISTRY } from "./product_types";
+import { ProductSettings } from "./_shared/product_settings";
 
 // The type-filter chips store null for "every type", so the chip group needs a
 // sentinel of its own.

@@ -18,7 +18,7 @@ import {
   scopeSelectionFromStored,
   storedValueFromScopeSelection,
   type ScopeSelection,
-} from "~/components/_shared/scope_picker";
+} from "./scope_picker";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 

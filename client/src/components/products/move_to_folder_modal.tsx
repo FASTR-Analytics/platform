@@ -7,7 +7,7 @@ import {
 } from "panther";
 import { createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { folderPathOptions } from "./folder_tree";
+import { folderPathOptions } from "./_shared/folder_tree";
 
 const _NO_FOLDER = "_none";
 

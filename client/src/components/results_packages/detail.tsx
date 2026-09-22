@@ -24,7 +24,7 @@ import {
 import { ViewFiles } from "./package_view/mod.ts";
 import { ViewLogs } from "./package_view/mod.ts";
 import { ViewScript } from "./package_view/mod.ts";
-import { PRODUCT_TYPE_REGISTRY } from "~/components/_shared/mod.ts";
+import { PRODUCT_TYPE_REGISTRY } from "~/components/products/product_types";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 

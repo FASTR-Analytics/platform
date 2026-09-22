@@ -1,6 +1,6 @@
 import { t3, type Folder } from "lib";
 import type { MenuItem } from "panther";
-import { descendantIds } from "./folder_tree";
+import { descendantIds } from "./_shared/folder_tree";
 import { buildQuickMoveEntries } from "./product_menu";
 
 // ONE folder menu: the grid tile's button, the list row's button and both
