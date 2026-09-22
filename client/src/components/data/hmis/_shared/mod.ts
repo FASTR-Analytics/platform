@@ -10,8 +10,6 @@ export {
   indicatorTypeWord,
   matchesIndicatorSearch,
 } from "./indicator_display.ts";
-export { PeriodSelector } from "./period_selector.tsx";
-export { TimeIndexSelector } from "./time_index_selector.tsx";
+export { PeriodSelector } from "./period_selector/period_selector.tsx";
 export { IndicatorTypeBadge } from "./type_badge.tsx";
-export { WindowingSelector } from "./windowing_selector.tsx";
 export { WrapOnUnderscore } from "./wrap_on_underscore.tsx";

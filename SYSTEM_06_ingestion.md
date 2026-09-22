@@ -3,9 +3,7 @@ system: 6
 name: Dataset Ingestion
 globs:
   - client/src/components/data/hmis/_shared/mod.ts
-  - client/src/components/data/hmis/_shared/period_selector.tsx
-  - client/src/components/data/hmis/_shared/time_index_selector.tsx
-  - client/src/components/data/hmis/_shared/windowing_selector.tsx
+  - client/src/components/data/hmis/_shared/period_selector/**
   - client/src/components/data/data.tsx
   - client/src/components/data/general/mod.ts
   - client/src/components/data/mod.ts
