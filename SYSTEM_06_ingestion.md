@@ -553,7 +553,7 @@ The facilities parquet is built from `RUN_FACILITY_COLUMN_NAMES` rows.
   headers; the streaming variant's header read is one 64 KB `file.read()` (wide
   XLSForm exports / short reads → confusing failure).
 - Ethiopian-calendar period math in the DHIS2 wizard
-  (`imports/_wizard/index.tsx`, `getCurrentPeriodId`) assumes 12 months (no
+  (`data/hmis/imports/wizard/wizard.tsx`, `getCurrentPeriodId`) assumes 12 months (no
   Pagume); untranslated strings in the delete flows and Period/TimeIndex
   selectors; `facilityOwnwershipsToInclude` typo is the persisted canonical
   field (fixing it = stored-JSON migration).
