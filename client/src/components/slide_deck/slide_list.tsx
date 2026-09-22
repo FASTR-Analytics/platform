@@ -31,7 +31,7 @@ import { SlideCard } from "./slide_card";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { otherPeers } from "~/state/instance/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import { copilotViewController } from "~/components/copilot/ai_views";
+import { copilotViewController } from "~/components/products/copilot/_shared/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";

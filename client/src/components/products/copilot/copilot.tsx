@@ -27,16 +27,16 @@ import {
   DEFAULT_BUILTIN_TOOLS,
   createCopilotSDKClient,
 } from "./ai_configs/defaults";
-import { copilotViewController } from "./ai_views";
+import { copilotViewController } from "./_shared/ai_views";
 import { instanceState, productById } from "~/state/instance/t1_store";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { ConsolidatedChatPane } from "./chat_pane";
 import { buildCopilotTools } from "./build_tools";
-import { buildSystemPromptForContext } from "./build_system_prompt";
-import { createCopilotAIToolEnv } from "./ai_tools/client_env";
+import { buildSystemPromptForContext } from "./_shared/build_system_prompt";
+import { createCopilotAIToolEnv } from "./_shared/client_env";
 import { showAi, setShowAi } from "~/state/t4_ui";
-import { useAIDocuments } from "./ai_documents";
+import { useAIDocuments } from "./ai_documents/mod.ts";
 import type { ProductEditorComponent } from "~/components/products/mod.ts";
 
 type HostProps = EditorComponentProps<

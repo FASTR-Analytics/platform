@@ -10,7 +10,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
-import { SPA_INFO_TOPICS } from "./ai_tools/client_info_topics";
+import { SPA_INFO_TOPICS } from "./client_info_topics";
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) plus the instance's own prose: the open product's

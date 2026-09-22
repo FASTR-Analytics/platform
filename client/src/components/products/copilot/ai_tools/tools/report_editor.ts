@@ -35,12 +35,12 @@ import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/stat
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { describeReportPages } from "~/components/products/_shared/mod.ts";
 import { _SERVER_HOST } from "~/server_actions";
-import { copilotViews } from "~/components/copilot/ai_views";
+import { copilotViews } from "~/components/products/copilot/_shared/ai_views";
 import { formatLineRanges } from "~/components/products/_shared/mod.ts";
-import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
-import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
+import { resolveFigureFromMetric } from "~/components/products/copilot/slide_ai/resolve_figure_from_metric";
+import { formatFigureConfigForAI } from "../../_shared/format_figure_config_for_ai";
 import { validateMetricInputs } from "lib";
-import type { ClientAIToolEnv } from "../client_env";
+import type { ClientAIToolEnv } from "../../_shared/client_env";
 import {
   validateFastrContainers,
   validateFastrNewLiteralBackgrounds,

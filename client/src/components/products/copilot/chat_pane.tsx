@@ -24,13 +24,13 @@ import {
   Show,
   type Accessor,
 } from "solid-js";
-import { copilotViewController } from "./ai_views";
-import type { EditingReportContext, EditingReportParams } from "./ai_views";
+import { copilotViewController } from "./_shared/ai_views";
+import type { EditingReportContext, EditingReportParams } from "./_shared/ai_views";
 import { SaveReportStyleModal } from "./save_report_style";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
-import { useAIDocuments, AIDocumentList } from "./ai_documents";
-import { usePromptLibrary } from "./ai_prompt_library";
+import { useAIDocuments, AIDocumentList } from "./ai_documents/mod.ts";
+import { usePromptLibrary } from "./ai_prompt_library/mod.ts";
 import { SaveableUserTextRenderer } from "./ai_prompt_library/SaveableUserTextRenderer";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
 import type { HfaTaxonomyForAI, RunAuthoringContext } from "lib";

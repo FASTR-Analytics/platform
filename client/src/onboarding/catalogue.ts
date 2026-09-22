@@ -2,7 +2,7 @@ import { t3 } from "lib";
 import type { IconName } from "panther";
 import type { ProductSummary, SlideType } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
-import { copilotViewController } from "~/components/copilot/ai_views";
+import { copilotViewController } from "~/components/products/copilot/_shared/ai_views";
 import { setPendingEditorOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";

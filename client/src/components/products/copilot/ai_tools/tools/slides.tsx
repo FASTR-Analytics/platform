@@ -13,28 +13,28 @@ import {
   type ContentBlock,
   type MetricWithStatus,
 } from "lib";
-import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
-import { extractBlocksFromLayout } from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
+import { convertAiInputToSlide } from "~/components/products/copilot/slide_ai/convert_ai_input_to_slide";
+import { extractBlocksFromLayout } from "~/components/products/copilot/slide_ai/extract_blocks_from_layout";
 import { createGetSlideTool } from "./get_slide";
-import type { ClientAIToolEnv } from "../client_env";
-import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
-import { getDeckSummaryForAI } from "~/components/slide_deck/slide_ai/get_deck_summary";
+import type { ClientAIToolEnv } from "../../_shared/client_env";
+import { getSlideWithUpdatedBlocks } from "~/components/products/copilot/slide_ai/get_slide_with_updated_blocks";
+import { getDeckSummaryForAI } from "~/components/products/copilot/slide_ai/get_deck_summary";
 import {
   buildLayoutFromSpec,
   normalizeSpans,
-} from "~/components/slide_deck/slide_ai/layout_spec_helpers";
-import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
+} from "~/components/products/copilot/slide_ai/layout_spec_helpers";
+import { resolveFigureFromMetric } from "~/components/products/copilot/slide_ai/resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
-} from "../validators/content_validators";
+} from "../../_shared/content_validators";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
   copilotViewController,
   copilotViews,
-} from "~/components/copilot/ai_views";
+} from "~/components/products/copilot/_shared/ai_views";
 
 function throwSlideUpdateError(err: string): never {
   if (err === "CONFLICT") {

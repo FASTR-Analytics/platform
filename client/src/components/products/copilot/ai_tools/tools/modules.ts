@@ -1,7 +1,7 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import type { InstalledModuleSummary, MetricWithStatus } from "lib";
-import type { ClientAIToolEnv } from "../client_env";
+import type { ClientAIToolEnv } from "../../_shared/client_env";
 import { formatModulesListForAI } from "./_internal/format_modules_list_for_ai";
 import { formatModuleSettingsForAI } from "./_internal/format_module_settings_for_ai";
 

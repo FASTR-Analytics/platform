@@ -50,7 +50,7 @@ import {
   setProductsTypeFilter,
   setProductsViewMode,
 } from "~/state/t4_ui";
-import { ProductCopilotHost } from "~/components/copilot";
+import { ProductCopilotHost } from "~/components/products/copilot/copilot";
 import { DuplicateProductsModal } from "./_shared/mod.ts";
 import { PackageScopeModal } from "./_shared/mod.ts";
 import { EditFolderModal } from "./edit_folder_modal";

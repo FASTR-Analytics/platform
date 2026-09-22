@@ -12,12 +12,12 @@ import {
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
-} from "../validators/content_validators";
-import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
-import { convertAiInputToSlide } from "~/components/slide_deck/slide_ai/convert_ai_input_to_slide";
+} from "../../_shared/content_validators";
+import { resolveFigureFromMetric } from "~/components/products/copilot/slide_ai/resolve_figure_from_metric";
+import { convertAiInputToSlide } from "~/components/products/copilot/slide_ai/convert_ai_input_to_slide";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { copilotViewController } from "~/components/copilot/ai_views";
-import { DraftSlidePreview } from "../DraftSlidePreview";
+import { copilotViewController } from "~/components/products/copilot/_shared/ai_views";
+import { DraftSlidePreview } from "./DraftSlidePreview";
 
 // A draft resolves under the open product's pair, the only pair this copilot
 // serves (D15). From the deck and slide views the preview card adds it

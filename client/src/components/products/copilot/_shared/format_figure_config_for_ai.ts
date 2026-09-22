@@ -9,7 +9,7 @@ import {
   type PresentationObjectConfig,
   VIZ_TYPE_CONFIG,
 } from "lib";
-import type { ClientAIToolEnv } from "../../client_env";
+import type { ClientAIToolEnv } from "./client_env";
 
 // Renders a figure's stored config + the options needed to edit it, so the AI
 // can read back exactly what a figure shows (incl. the active replicant and the

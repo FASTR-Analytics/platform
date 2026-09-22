@@ -27,25 +27,25 @@ import { z } from "zod";
 import {
   copilotViewController,
   copilotViews,
-} from "~/components/copilot/ai_views";
+} from "~/components/products/copilot/_shared/ai_views";
 import { validateMetricInputs } from "lib";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
-} from "../validators/content_validators";
-import type { ClientAIToolEnv } from "../client_env";
+} from "../../_shared/content_validators";
+import type { ClientAIToolEnv } from "../../_shared/client_env";
 import { assertSlidesNotBusy } from "../validators/presence_guard";
 import {
   extractBlocksFromLayout,
   simplifySlideForAI,
-} from "~/components/slide_deck/slide_ai/extract_blocks_from_layout";
-import { getSlideWithUpdatedBlocks } from "~/components/slide_deck/slide_ai/get_slide_with_updated_blocks";
+} from "~/components/products/copilot/slide_ai/extract_blocks_from_layout";
+import { getSlideWithUpdatedBlocks } from "~/components/products/copilot/slide_ai/get_slide_with_updated_blocks";
 import {
   buildLayoutFromSpec,
   normalizeSpans,
-} from "~/components/slide_deck/slide_ai/layout_spec_helpers";
-import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
+} from "~/components/products/copilot/slide_ai/layout_spec_helpers";
+import { resolveFigureFromMetric } from "~/components/products/copilot/slide_ai/resolve_figure_from_metric";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 

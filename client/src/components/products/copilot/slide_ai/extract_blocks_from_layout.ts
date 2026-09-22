@@ -1,12 +1,12 @@
 import type { ContentBlock, MetricWithStatus, Slide } from "lib";
 import { getDataFromConfig } from "lib";
 import type { LayoutNode } from "panther";
-import { formatFigureConfigForAI } from "~/components/copilot/ai_tools/tools/_internal/format_figure_config_for_ai";
+import { formatFigureConfigForAI } from "~/components/products/copilot/_shared/format_figure_config_for_ai";
 import {
   layoutNodeToStructure,
   type LayoutStructure,
 } from "./layout_spec_helpers";
-import type { ClientAIToolEnv } from "~/components/copilot/ai_tools/client_env";
+import type { ClientAIToolEnv } from "~/components/products/copilot/_shared/client_env";
 
 export type BlockWithId = {
   id: string;
