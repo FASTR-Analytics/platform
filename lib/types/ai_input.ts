@@ -41,7 +41,7 @@ export const AiMetricQuerySchema = z.object({
     ),
   // EXCEPTION: startDate/endDate is a simpler abstraction than full periodFilter.
   // AI provides dates in flexible format (YYYY or YYYYMM), system converts using
-  // metric's mostGranularTimePeriodColumnInResultsFile. See build_config_from_metric.ts.
+  // metric's mostGranularTimePeriodColumnInResultsFile. See build_config_from_preset.ts.
   startDate: z
     .number()
     .optional()
@@ -111,7 +111,7 @@ export const AiFigureFromMetricSchema = z.object({
       "Optional: Which value properties to show. Array of value property names from get_available_metrics. If omitted, the preset's default is used.",
     ),
   // EXCEPTION: startDate/endDate is a simpler abstraction than full periodFilter.
-  // See comment in AiMetricQuerySchema and build_config_from_metric.ts.
+  // See comment in AiMetricQuerySchema and build_config_from_preset.ts.
   startDate: z
     .number()
     .optional()

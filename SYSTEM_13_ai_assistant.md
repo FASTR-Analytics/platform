@@ -529,7 +529,7 @@ The S13-owned files in `client/src/components/products/copilot/slide_ai/` conver
 between AI input shapes and stored `Slide`/`FigureBundle` shapes; deck-level and
 editor-level tools call the same resolvers, so behavior is identical:
 
-- [build_config_from_metric.ts](client/src/components/products/copilot/slide_ai/build_config_from_metric.ts)
+- [build_config_from_preset.ts](client/src/components/products/copilot/slide_ai/build_config_from_preset.ts)
   converts AiFigureFromMetric → `PresentationObjectConfig`: preset spread over
   defaults, AI overrides applied (filters gated by `preset.allowedFilters`,
   startDate/endDate → `custom` periodFilter via `convertPeriodValue`).

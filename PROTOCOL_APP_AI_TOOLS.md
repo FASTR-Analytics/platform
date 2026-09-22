@@ -57,7 +57,7 @@ localized to one place, and a comment explains the tradeoff:
 ```ts
 // EXCEPTION: startDate/endDate is a simpler abstraction than full periodFilter.
 // AI provides YYYY or YYYYMM; system converts using the metric's
-// mostGranularTimePeriodColumnInResultsFile. See build_config_from_metric.ts.
+// mostGranularTimePeriodColumnInResultsFile. See build_config_from_preset.ts.
 startDate: z.number().optional(),
 endDate: z.number().optional(),
 ```

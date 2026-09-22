@@ -1,4 +1,4 @@
-export { buildConfigFromPreset } from "./build_config_from_metric.ts";
+export { buildConfigFromPreset } from "./build_config_from_preset.ts";
 export { convertAiInputToSlide } from "./convert_ai_input_to_slide.ts";
 export { extractBlocksFromLayout, simplifySlideForAI } from "./extract_blocks_from_layout.ts";
 export type { BlockWithId, SimplifiedSlide } from "./extract_blocks_from_layout.ts";
