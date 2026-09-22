@@ -1,7 +1,7 @@
 import { t3, type ModuleId, type RunGenerationStep1Result } from "lib";
 import { Card, Input } from "panther";
 import { For, Show } from "solid-js";
-import { moduleLabel } from "~/components/results_packages/package_view/status";
+import { moduleLabel } from "../package_view/mod.ts";
 
 type Props = {
   families: RunGenerationStep1Result;

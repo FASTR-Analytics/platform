@@ -333,7 +333,7 @@ client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap f
 (GlobalUser, InstanceMeta, needed before SSE connects).
 
 Run-keyed: a package's script / log bytes and a failed run's
-file listing (`_shared/results_package/view_{script,logs,files}.tsx`).
+file listing (`results_packages/package_view/view_{script,logs,files}.tsx`).
 
 ## T4: client-persistent
 

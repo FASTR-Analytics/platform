@@ -74,11 +74,10 @@ lib module + run
 types + `module_registry.ts`; client: `results_packages/**` (the
 catalogue), the launch wizard `results_packages/wizard/**` (an
 ephemeral modal, the Upload-CSV pattern), and the T2 run-detail
-cache `state/instance/t2_runs.ts`. Shared-custody: `_shared/results_package/**`,
+cache `state/instance/t2_runs.ts`. `results_packages/package_view/**` is
 what a package CONTAINS, rendered identically wherever a package is
 explored (`package_view.tsx` = `ResultsPackageView`, `status.tsx`,
-`view_{script,logs,files}.tsx`). It sits under S12's `_shared/**` glob; §4.1
-records S8 as its owner. External: wb-fastr-modules repo, Docker images.
+`view_{script,logs,files}.tsx`). External: wb-fastr-modules repo, Docker images.
 
 ## Contract
 
@@ -114,7 +113,7 @@ re-litigate; the package-format invariants below are their file-level twins):
   package contents never depend on who is asking, only the chrome does. So
   reads are mounted ONCE (run-keyed, `routes/instance/run_generation.ts`)
   under the INSTANCE data bits (`can_view_data`; `can_view_logs` for logs),
-  and one shared view (`_shared/results_package/package_view.tsx`) renders a
+  and one shared view (`results_packages/package_view/package_view.tsx`) renders a
   package identically wherever one is explored (the catalogue is its one
   host). AI tools take
   a run RESOLVER, never a runId from the model.
@@ -222,7 +221,7 @@ gated on the instance data bits: `can_view_data` for all but logs,
 belongs on the shared surface: **if
 the answer to the question lives inside the run directory, it is the same
 view for everyone who can see that package.** `ResultsPackageView`
-(`_shared/results_package/package_view.tsx`) renders a READY run's header
+(`results_packages/package_view/package_view.tsx`) renders a READY run's header
 (label · pin · status · provenance incl. disk size), summary line and
 Population card when the stamp is active ("population.csv"), and
 per-module cards (settings; Script/Logs viewers gated client-side by

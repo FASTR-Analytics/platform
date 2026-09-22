@@ -64,7 +64,6 @@ list.)
 | `server/routes/instance/instance.ts` · `server/db/instance/instance.ts` | S5    | S15, S6           | config routes + meta/disk + dataset versions                                            |
 | `server/utils/id_generation.ts`                                         | S12   | S2                | the one short-id generator; S2 owns the id-scheme rules                                 |
 | `_file_upload_selector.tsx` · `_uppy_file_upload.ts`                    | S4    | S6, S5, S12, S15  | shared upload primitives                                                                |
-| `client/src/components/_shared/results_package/**`                      | S8    | S12               | S8 content under S12's `_shared/**` glob                                                |
 | `client/src/components/data/data.tsx`                                   | S6    | S5                | data-tab switchboard mounting S5 managers                                               |
 | `server/db/instance/config.ts`                                          | S5    | S6, S9, S13       | instance config parameterizes ELT, generated SQL and the copilot's `ai_context`         |
 | `server/routes/instance/health.ts`                                      | S15   | S17               | unauthenticated endpoints dump the user_logs tables                                     |
