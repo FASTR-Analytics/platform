@@ -6,6 +6,7 @@ globs:
   - client/src/components/TimeIndexSelector.tsx
   - client/src/components/WindowingSelector.tsx
   - client/src/components/data/data.tsx
+  - client/src/components/data/mod.ts
   - client/src/components/instance_dataset_hfa/**
   - client/src/components/instance_dataset_hmis/**
   - client/src/components/instance_dataset_iceh/**

@@ -33,7 +33,7 @@ import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { Explore } from "~/components/explore/mod.ts";
 import { InstanceAssets } from "~/components/assets/mod.ts";
-import { InstanceData } from "~/components/data/data";
+import { InstanceData } from "~/components/data/mod.ts";
 import { Products } from "~/components/products";
 import { InstanceResultsPackages } from "~/components/instance_results_packages";
 import { InstanceUsers } from "~/components/users/mod.ts";
