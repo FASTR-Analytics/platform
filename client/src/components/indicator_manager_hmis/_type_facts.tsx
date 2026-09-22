@@ -5,7 +5,7 @@ import {
 } from "lib";
 import { AlertComponentProps, ModalContainer } from "panther";
 import { For } from "solid-js";
-import { indicatorTypeWord } from "~/components/data/hmis/_shared/indicator_display";
+import { indicatorTypeWord } from "~/components/data/hmis/_shared/mod.ts";
 
 // What a type entails, in the four terms a reader needs: where its data
 // comes from, whether the data quality modules adjust it (`isCount`),

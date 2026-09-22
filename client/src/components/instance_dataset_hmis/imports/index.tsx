@@ -30,7 +30,7 @@ import {
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { indicatorsByDataId } from "~/components/data/hmis/_shared/indicator_display";
+import { indicatorsByDataId } from "~/components/data/hmis/_shared/mod.ts";
 import { CsvRunDetail } from "./_csv_run_detail";
 import { CsvWizard } from "./_csv_wizard";
 import { Dhis2RunDetail } from "./_run_detail";

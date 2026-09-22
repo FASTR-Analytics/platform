@@ -1,7 +1,7 @@
 import { t3 } from "lib";
 import { Slider } from "panther";
 import { Match, Switch } from "solid-js";
-import { PeriodSelector } from "~/components/data/hmis/_shared/period_selector";
+import { PeriodSelector } from "~/components/data/hmis/_shared/mod.ts";
 import type { Dhis2WizardTimeChoice } from "./_step_time";
 
 type Props = {

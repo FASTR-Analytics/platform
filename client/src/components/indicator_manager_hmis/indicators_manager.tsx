@@ -64,12 +64,12 @@ import {
   dhis2LabelOf,
   indicatorTypeLabel,
   matchesIndicatorSearch,
-} from "~/components/data/hmis/_shared/indicator_display";
+} from "~/components/data/hmis/_shared/mod.ts";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
 import { SpecialBadge } from "./_special_badge";
-import { IndicatorTypeBadge } from "~/components/data/hmis/_shared/type_badge";
-import { WrapOnUnderscore } from "~/components/data/hmis/_shared/wrap_on_underscore";
+import { IndicatorTypeBadge } from "~/components/data/hmis/_shared/mod.ts";
+import { WrapOnUnderscore } from "~/components/data/hmis/_shared/mod.ts";
 import { IndicatorTypesModal } from "./_type_facts";
 import { RefreshDhis2LabelsModal } from "./refresh_dhis2_labels_modal";
 

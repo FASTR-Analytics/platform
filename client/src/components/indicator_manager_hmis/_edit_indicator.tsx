@@ -72,7 +72,7 @@ import {
   dhis2LabelOf,
   indicatorFormatWord,
   indicatorTypeWord,
-} from "~/components/data/hmis/_shared/indicator_display";
+} from "~/components/data/hmis/_shared/mod.ts";
 import { SpecialBadge } from "./_special_badge";
 
 // The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in

@@ -24,7 +24,7 @@ import { serverActions } from "~/server_actions";
 import {
   indicatorsByDataId,
   indicatorNameText,
-} from "~/components/data/hmis/_shared/indicator_display";
+} from "~/components/data/hmis/_shared/mod.ts";
 import { ImportInformation } from "../_import_information";
 import { selectionLabel, statusLabel } from "./_tab_history";
 import { fetchDatasetHmisVersion } from "./_version_info";

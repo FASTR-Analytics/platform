@@ -17,7 +17,7 @@ import {
 import { createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { WindowingSelector } from "~/components/data/hmis/_shared/windowing_selector";
+import { WindowingSelector } from "~/components/data/hmis/_shared/mod.ts";
 
 export function DeleteData(
   p: EditorComponentProps<
