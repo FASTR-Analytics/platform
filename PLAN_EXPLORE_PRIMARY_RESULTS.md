@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Review 5.** Each session sets this line in its final commit.
+**Next step: Fix 5.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -574,3 +574,8 @@ that passes deletes this file in its commit.
 | 2026-09-22 | 5 | Choice: the HMIS scorecard has areas as rows and indicators as columns, so "clicking a scorecard row selects that indicator" is read as: a click on a row or a cell selects the indicator from whichever axis carries the family's indicator dimension. Choice: m012 declares only the scorecard preset, so the HMIS detail shows its typed empty state until a second preset exists; no ruling names a substitute. |
 | 2026-09-22 | 5 | Choice: the page opens HMIS on the preset's own window (last 12 months), HFA on all time points (its scorecard already places them side by side) and ICEH on the latest survey year. ICEH years come from the metric info's possible values for `year`, so the chips exist only once that read resolves. |
 | 2026-09-22 | 5 | Step 5 built. Files: `explore/explore.tsx`, `family_view.tsx`, `scorecard.tsx`, `indicator_detail.tsx`, `explore_query.ts`, `state/t4_ui.ts`. Floor green: typecheck (with `lint:structure`), 401 tests, validate_protocols; no server file changed since the step 2 boot on port 8001. |
+| 2026-09-22 | R5 | Finding: `scorecard.tsx:39` and `family_view.tsx:88` read through panther's `createQuery`, which runs once and tracks nothing, so a scope change never refetches the scorecard or the metric info while the replicant options and detail figures do move. Fix: a tracked effect over a `StateHolder` signal, as `figure_preview.ts` does. |
+| 2026-09-22 | R5 | Finding: a row click when the indicator is the column dimension (HMIS) selects `""`, collapsing the detail. Fix: offer the row click only when rows are indicators and treat an empty id as no hit. |
+| 2026-09-22 | R5 | Finding: ICEH's declared replicant (`wealth_quintiles`) is discarded: the host seeds the replicant with `""` and then takes the first option the select reports. Fix: seed from the preset's `selectedReplicantValue`. |
+| 2026-09-22 | R5 | Finding: `max-h-[60vh]` around a fit-to-height grid gives it no definite height, so it never scrolls and the sticky headers have no container. Fix: `h-[60vh]`. Also noted: the `createEffect(on(...))` reset in `family_view.tsx` is dead (keyed remounts cover it) and SYSTEM_11's replicant-machinery line still says the select has no consumer. |
+| 2026-09-22 | R5 | Gates rerun: floor green (typecheck, 401 tests, validate_protocols). Step 5 reviewed: 4 findings. |
