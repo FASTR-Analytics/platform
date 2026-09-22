@@ -493,9 +493,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       ) : (
         <div class="text-danger text-xs" data-line={line}>
           {t3({
-            en: "Missing figure:",
-            fr: "Figure manquante :",
-            pt: "Figura em falta:",
+            en: "Missing visualization:",
+            fr: "Visualisation manquante :",
+            pt: "Visualização em falta:",
           })}{" "}
           {fig[1]}
         </div>
@@ -1727,9 +1727,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     if (!metric) {
       await openAlert({
         text: t3({
-          en: "This figure's metric is not in the product's package",
-          fr: "L'indicateur de cette figure n'est pas dans le paquet du produit",
-          pt: "A métrica desta figura não está no pacote do produto",
+          en: "This visualization's metric is not in the product's package",
+          fr: "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
+          pt: "A métrica desta visualização não está no pacote do produto",
         }),
         intent: "danger",
       });
@@ -2490,9 +2490,9 @@ function ReportPeerSelectionOverlay(p: {
                       {e.editingFigure
                         ? " " +
                           t3({
-                            en: "\u270e figure",
-                            fr: "\u270e figure",
-                            pt: "\u270e figura",
+                            en: "\u270e visualization",
+                            fr: "\u270e visualisation",
+                            pt: "\u270e visualização",
                           })
                         : ""}
                     </div>

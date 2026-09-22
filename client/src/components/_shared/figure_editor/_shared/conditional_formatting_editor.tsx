@@ -93,9 +93,9 @@ export function ConditionalFormattingEditor(p: Props) {
       <Show when={cf().type === "indicator"}>
         <div class="text-base-content-muted text-xs">
           {t3({
-            en: "Each value is coloured by its own indicator's rule, set in the instance indicator dictionary. The figure's legend shows the bands.",
-            fr: "Chaque valeur est colorée selon la règle de son propre indicateur, définie dans le dictionnaire d'indicateurs de l'instance. La légende de la figure montre les tranches.",
-            pt: "Cada valor é colorido pela regra do seu próprio indicador, definida no dicionário de indicadores da instância. A legenda da figura mostra as faixas.",
+            en: "Each value is coloured by its own indicator's rule, set in the instance indicator dictionary. The visualization's legend shows the bands.",
+            fr: "Chaque valeur est colorée selon la règle de son propre indicateur, définie dans le dictionnaire d'indicateurs de l'instance. La légende de la visualisation montre les tranches.",
+            pt: "Cada valor é colorido pela regra do seu próprio indicador, definida no dicionário de indicadores da instância. A legenda da visualização mostra as faixas.",
           })}
         </div>
       </Show>

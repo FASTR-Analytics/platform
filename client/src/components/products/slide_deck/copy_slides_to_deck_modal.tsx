@@ -95,9 +95,9 @@ export function CopySlidesToDeckModal(
         />
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "Figures are copied as they are. Any that came from a different package or scope show an update button in the destination deck.",
-            fr: "Les figures sont copiées telles quelles. Celles provenant d'un autre paquet ou d'une autre portée afficheront un bouton de mise à jour dans la présentation de destination.",
-            pt: "As figuras são copiadas tal como estão. As que vieram de outro pacote ou âmbito mostram um botão de atualização na apresentação de destino.",
+            en: "Visualizations are copied as they are. Any that came from a different package or scope show an update button in the destination deck.",
+            fr: "Les visualisations sont copiées telles quelles. Celles provenant d'un autre paquet ou d'une autre portée afficheront un bouton de mise à jour dans la présentation de destination.",
+            pt: "As visualizações são copiadas tal como estão. As que vieram de outro pacote ou âmbito mostram um botão de atualização na apresentação de destino.",
           })}
         </div>
       </div>

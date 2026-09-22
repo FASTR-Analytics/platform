@@ -133,7 +133,7 @@ export function DatasetDisplayPresentation(p: Props) {
           </div>
           <div class="ui-gap flex">
             <ButtonGroup
-              label={t3({ en: "Figure", fr: "Figure", pt: "Figura" })}
+              label={t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })}
               items={[
                 {
                   id: "line",

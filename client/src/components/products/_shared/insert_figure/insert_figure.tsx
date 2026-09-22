@@ -199,7 +199,7 @@ export function InsertFigureModal(
       topPanel={
         <div class="flex items-center justify-between">
           <div class="font-700 text-lg">
-            {t3({ en: "Insert figure", fr: "Insérer une figure", pt: "Inserir figura" })}
+            {t3({ en: "Insert visualization", fr: "Insérer une visualisation", pt: "Inserir visualização" })}
           </div>
           <StepperChipsWithTitles
             stepper={stepper}

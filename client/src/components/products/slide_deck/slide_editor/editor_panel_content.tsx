@@ -492,9 +492,9 @@ export function SlideEditorPanelContent(p: Props) {
                         {
                           value: "figure",
                           label: t3({
-                            en: "Figure",
-                            fr: "Figure",
-                            pt: "Figura",
+                            en: "Visualization",
+                            fr: "Visualisation",
+                            pt: "Visualização",
                           }),
                         },
                         {
@@ -724,23 +724,23 @@ export function SlideEditorPanelContent(p: Props) {
                             <Show when={hasBundle()}>
                               <Button onClick={() => p.onEditVisualization()}>
                                 {t3({
-                                  en: "Edit figure",
-                                  fr: "Modifier la figure",
-                                  pt: "Editar figura",
+                                  en: "Edit visualization",
+                                  fr: "Modifier la visualisation",
+                                  pt: "Editar visualização",
                                 })}
                               </Button>
                             </Show>
                             <Button onClick={() => p.onCreateVisualization()}>
                               {hasBundle()
                                 ? t3({
-                                    en: "Replace figure",
-                                    fr: "Remplacer la figure",
-                                    pt: "Substituir figura",
+                                    en: "Replace visualization",
+                                    fr: "Remplacer la visualisation",
+                                    pt: "Substituir visualização",
                                   })
                                 : t3({
-                                    en: "Insert figure",
-                                    fr: "Insérer une figure",
-                                    pt: "Inserir figura",
+                                    en: "Insert visualization",
+                                    fr: "Insérer une visualisation",
+                                    pt: "Inserir visualização",
                                   })}
                             </Button>
                             <Show when={hasBundle()}>
@@ -754,9 +754,9 @@ export function SlideEditorPanelContent(p: Props) {
                                 }
                               >
                                 {t3({
-                                  en: "Remove figure",
-                                  fr: "Supprimer la figure",
-                                  pt: "Remover figura",
+                                  en: "Remove visualization",
+                                  fr: "Supprimer la visualisation",
+                                  pt: "Remover visualização",
                                 })}
                               </Button>
                             </Show>

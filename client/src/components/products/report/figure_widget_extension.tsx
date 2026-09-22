@@ -102,9 +102,9 @@ class EmbedWidget extends WidgetType {
                 fallback={
                   <div class="text-danger text-xs">
                     {t3({
-                      en: "Missing figure:",
-                      fr: "Figure manquante :",
-                      pt: "Figura em falta:",
+                      en: "Missing visualization:",
+                      fr: "Visualisation manquante :",
+                      pt: "Visualização em falta:",
                     })}{" "}
                     {this.id}
                   </div>

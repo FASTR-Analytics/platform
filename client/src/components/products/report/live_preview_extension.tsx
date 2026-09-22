@@ -146,7 +146,7 @@ function fastrRegionLabel(
   if (kind === "embed") {
     return /\(image:/.test(source)
       ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
-      : t3({ en: "Figure", fr: "Figure", pt: "Figura" });
+      : t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" });
   }
   return t3({ en: "Block", fr: "Bloc", pt: "Bloco" });
 }

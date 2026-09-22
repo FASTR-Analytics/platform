@@ -132,9 +132,9 @@ const reasonNeedReport = () =>
   });
 const reasonNeedReportFigure = () =>
   t3({
-    en: "Add a figure to your first report first",
-    fr: "Ajoutez d'abord une figure à votre premier rapport",
-    pt: "Adicione primeiro uma figura ao seu primeiro relatório",
+    en: "Add a visualization to your first report first",
+    fr: "Ajoutez d'abord une visualisation à votre premier rapport",
+    pt: "Adicione primeiro uma visualização ao seu primeiro relatório",
   });
 
 export const SLIDE_TOUR_TYPES: SlideType[] = ["cover", "section", "content"];
@@ -460,14 +460,14 @@ export function getTourCatalogue(
       id: "report-editor-figures",
       area: "reports",
       label: t3({
-        en: "Figures in reports",
-        fr: "Figures dans les rapports",
-        pt: "Figuras nos relatórios",
+        en: "Visualizations in reports",
+        fr: "Visualisations dans les rapports",
+        pt: "Visualizações nos relatórios",
       }),
       description: t3({
-        en: "Working with embedded figures. Opens your first report.",
-        fr: "Travailler avec des figures intégrées. Ouvre votre premier rapport.",
-        pt: "Trabalhar com figuras incorporadas. Abre o seu primeiro relatório.",
+        en: "Working with embedded visualizations. Opens your first report.",
+        fr: "Travailler avec des visualisations intégrées. Ouvre votre premier rapport.",
+        pt: "Trabalhar com visualizações incorporadas. Abre o seu primeiro relatório.",
       }),
       available: () => reports().length > 0 && firstReportHasEmbeds(),
       unavailableReason: () =>

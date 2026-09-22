@@ -117,18 +117,18 @@ export function DownloadReport(
         <Show when={isFastr}>
           <div class="text-base-content-muted text-xs">
             {t3({
-              en: "The PDF has exactly the pages the editor shows. The HTML file is self-contained (figures embedded as images) and reads as one continuous page.",
-              fr: "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier HTML est autonome (figures intégrées en images) et se lit comme une seule page continue.",
-              pt: "O PDF tem exatamente as páginas que o editor mostra. O ficheiro HTML é autónomo (figuras incorporadas como imagens) e lê-se como uma única página contínua.",
+              en: "The PDF has exactly the pages the editor shows. The HTML file is self-contained (visualizations embedded as images) and reads as one continuous page.",
+              fr: "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier HTML est autonome (visualisations intégrées en images) et se lit comme une seule page continue.",
+              pt: "O PDF tem exatamente as páginas que o editor mostra. O ficheiro HTML é autónomo (visualizações incorporadas como imagens) e lê-se como uma única página contínua.",
             })}
           </div>
         </Show>
         <Show when={rendersAsHtml && !isFastr}>
           <div class="text-base-content-muted text-xs">
             {t3({
-              en: "The HTML file is self-contained (figures embedded as images). Print opens your browser's print dialog, where you can save as PDF.",
-              fr: "Le fichier HTML est autonome (figures intégrées en images). Imprimer ouvre la boîte de dialogue d'impression du navigateur, où vous pouvez enregistrer en PDF.",
-              pt: "O ficheiro HTML é autónomo (figuras incorporadas como imagens). Imprimir abre a caixa de diálogo de impressão do navegador, onde pode guardar como PDF.",
+              en: "The HTML file is self-contained (visualizations embedded as images). Print opens your browser's print dialog, where you can save as PDF.",
+              fr: "Le fichier HTML est autonome (visualisations intégrées en images). Imprimer ouvre la boîte de dialogue d'impression du navigateur, où vous pouvez enregistrer en PDF.",
+              pt: "O ficheiro HTML é autónomo (visualizações incorporadas como imagens). Imprimir abre a caixa de diálogo de impressão do navegador, onde pode guardar como PDF.",
             })}
           </div>
         </Show>

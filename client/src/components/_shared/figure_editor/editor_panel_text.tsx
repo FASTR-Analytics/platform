@@ -112,9 +112,9 @@ export function PresentationObjectEditorPanelText(p: Props) {
           {t3({ en: "or", fr: "ou", pt: "ou" })}{" "}
           <span class="font-700">INTERVALO_DE_DATAS</span>{" "}
           {t3({
-            en: "to insert the date range of the data shown in the figure. (Note that this currently only works for timeseries visualizations.)",
-            fr: "pour insérer la plage de dates des données affichées dans la figure. (Notez que cela ne fonctionne actuellement que pour les visualisations de séries chronologiques.)",
-            pt: "para inserir o intervalo de datas dos dados apresentados na figura. (Note que atualmente isto só funciona para visualizações de séries temporais.)",
+            en: "to insert the date range of the data shown in the visualization. (Note that this currently only works for timeseries visualizations.)",
+            fr: "pour insérer la plage de dates des données affichées dans la visualisation. (Notez que cela ne fonctionne actuellement que pour les visualisations de séries chronologiques.)",
+            pt: "para inserir o intervalo de datas dos dados apresentados na visualização. (Note que atualmente isto só funciona para visualizações de séries temporais.)",
           })}
         </div>
         <div class="">
