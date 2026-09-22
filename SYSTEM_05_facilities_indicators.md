@@ -9,8 +9,9 @@ globs:
   - client/src/components/instance_hfa_time_points/**
   - client/src/components/instance_population/**
   - client/src/components/data/general/admin_area_labels.tsx
+  - client/src/components/data/facilities/**
+  - client/src/components/data/family_configuration.tsx
   - client/src/components/structure/**
-  - client/src/components/structure_import/**
   - client/src/state/instance/t2_geojson.ts
   - client/src/state/instance/t2_indicators.ts
   - client/src/state/instance/t2_population.ts
