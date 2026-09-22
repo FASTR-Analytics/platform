@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Do 4.** Each session sets this line in its final commit.
+**Next step: Review 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -634,3 +634,9 @@ commit.
 | 2026-09-22 | 3 | Fix: the `onboarding/catalogue.ts` comment names `instance/instance.tsx`; the SYSTEMS.md §4.1 row is re-padded to the table width. |
 | 2026-09-22 | 3 | Step 3 fixed. |
 | 2026-09-22 | 3 | Step 3 reviewed: pass. Re-review after Fix 3: `client/src/onboarding/catalogue.ts:11` names `components/instance/instance.tsx`; `SYSTEMS.md:61` is 194 characters like its neighbours; `1b80c407` touches those two files and the plan only, with no em-dash added. Floor green at HEAD: `deno task typecheck`, `deno task test` (396 passed), `./validate_protocols`, `cd client && npm run build`. |
+| 2026-09-22 | 4 | Code wins over R13: facilities, geojson and `family_configuration.tsx` have one importer, `data.tsx`, so R4's count (the parent's root files are one child) and the `shared-consumers` check reject `data/_shared/`. They are pages `data.tsx` opens and sit where R2 puts them: `data/facilities/` (with `import/`), `data/geojson/`, `data/family_configuration.tsx`. `hfa/_shared/time_points.tsx` stands: `hfa/mod.ts` re-exports it and `hfa/dataset/` imports it, two children. |
+| 2026-09-22 | 4 | Choice the rulings did not cover: the `index.tsx` files R3 renames take the page's name as step 3 did (`facilities.tsx`, `dataset.tsx`, `imports.tsx`); the two that are not pages are named for their export minus the words the path already says: `structure_import/index.tsx` is `facilities/import/upload_attempt_form.tsx` (`StructureUploadAttemptForm`) and `indicator_manager_hfa/ai/index.tsx` is `hfa/indicators/ai/ai_wrapper.tsx` (`HfaIndicatorAiWrapper`); `geojson_upload_wizard/index.tsx` is `wizard.tsx`. No other file was renamed. |
+| 2026-09-22 | 4 | Choice the rulings did not cover: `hfa_r_code_validator.ts` is imported by the indicator manager's root files and by `ai/`, so it lives in `hfa/indicators/_shared/` with its own entry; in the root it would make `indicators` and `indicators/ai` an entry cycle. Every `mod.ts` under `data/` that no `**` glob covers is S6's (`data/mod.ts`, `general/mod.ts`, `hfa/mod.ts`); S5's `**` globs cover the entries inside facilities, geojson, indicators and `hfa/_shared`. |
+| 2026-09-22 | 4 | Fact the plan got wrong: the gate allows `entry-only` hits only against HMIS paths, but five files import the root file `_file_upload_selector.tsx`, which step 6 moves (`facilities/import/step_1_csv.tsx`, `geojson/geojson_upload_wizard/step_1_file.tsx`, `hfa/hfa_weights.tsx`, `hfa/imports/_wizard.tsx`, `iceh/imports/_wizard.tsx`); §0 tolerates a deep import into a folder that has not moved. And `snake-case` reports 22 underscore-prefixed files under `data/`, all step 9's, which this step's "Not in this step" defers. |
+| 2026-09-22 | 4 | G2 over `data`: `entry-only` 9 (the five above plus `data.tsx` -> `_shared/dhis2_credentials/manage_connection.tsx`, `indicator_manager_hmis/indicators_manager.tsx`, `instance_dataset_hmis/index.tsx`, `instance_population/population_manager.tsx`), `snake-case` 22 as above, every other check 0, `shared-consumers` and `entry-cycle` included. G3: every moved file an `R` row (R098 to R100) in each of the eight move commits. G4 and G5 clean. Floor green: typecheck, 396 tests, validate_protocols, client build. |
+| 2026-09-22 | 4 | Step 4 built. |
