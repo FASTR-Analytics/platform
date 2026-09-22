@@ -9,7 +9,7 @@ import {
 import { trackStore } from "@solid-primitives/deep";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { FASTR_LOGO_VALUES } from "~/components/_shared/fastr_logos";
+import { FASTR_LOGO_VALUES } from "~/components/_shared/mod.ts";
 import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
 import { _SERVER_HOST } from "~/server_actions";

@@ -414,7 +414,7 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts) and
 
 ### Slide editor: tempSlide ⇄ session doc
 
-[slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx)
+[slide_editor/index.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx)
 keeps the pre-collab editing model (a local `tempSlide` Solid store driving
 the canvas) and bridges it to a per-slide session doc from
 `openSlideSession(productId, slideId, onRemote)` (which first destroys any
@@ -458,7 +458,7 @@ prior session for the same slide):
   scopes undo to local edits. `plain` prop disables markdown highlighting for
   title fields. Read-only (`EditorState.readOnly` +
   `EditorView.editable(false)`) when the caller's `canEdit` is false.
-- [collab_text_field.tsx](client/src/components/slide_deck/slide_editor/collab_text_field.tsx)
+- [collab_text_field.tsx](client/src/components/products/slide_deck/slide_editor/collab_text_field.tsx)
   wraps one root text field: binds the field's Y.Text (`findRootTextField`)
   when collab is ready, falls back to panther `TextArea` otherwise; both paths
   mirror into `tempSlide` so the canvas re-renders; focus broadcasts

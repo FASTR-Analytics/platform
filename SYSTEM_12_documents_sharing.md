@@ -74,8 +74,8 @@ export *triggers*.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
-`components/slide_deck/**` minus `slide_ai/` (S13), `layout_editor/` (one file,
-imported only by the slide editor), `components/report/**`,
+`components/products/slide_deck/**` (the copilot's `slide_ai/` is S13's),
+`components/report/**`,
 `state/products/{t2_slides,t2_slide_deck_detail,t2_report_detail}.ts`
 (`t2_images.ts` is S10's). Server: CRUD for both product families + folders,
 `routes/instance/emails.ts`, `server/utils/id_generation.ts` (one 4-char
@@ -243,7 +243,7 @@ The layout tree is a recursive Zod union embedding the strict
 config text without re-validation.
 
 **The deck editor** (`SlideDeckEditor` in
-[slide_deck/index.tsx](client/src/components/slide_deck/index.tsx)) takes
+[slide_deck/index.tsx](client/src/components/products/slide_deck/slide_deck.tsx)) takes
 `{ productId }`: label, package and scope come from `productById` on the T1
 store (D16), the authoring context from S9's immutable
 `t2_run_authoring_context.ts` keyed by the LIVE `runId`, so a reattach or
@@ -257,7 +257,7 @@ the figures the candidate pair would leave stale; the overflow menu opens
 chip read-only.
 
 **The slide editor**
-([slide_editor/index.tsx](client/src/components/slide_deck/slide_editor/index.tsx))
+([slide_editor/index.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
 opens via `openEditor` with `snapshotForSlideEditor` (the deck config only,
 structuredClone-severed) plus the product id, the live pair and its
 authoring context passed down. Left panel switches per slide type
@@ -276,7 +276,7 @@ through `updateSlide` with its `expectedLastUpdated`. Slide-type switching
 keeps a per-type cache so switching back restores prior state (same idiom
 per-block for block-type switches). The layout tree is manipulated exclusively
 through panther node ops via `buildLayoutContextMenu`
-([layout_editor/build_context_menu.ts](client/src/components/layout_editor/build_context_menu.ts)):
+([layout_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and
 canvas right-click. Figure blocks have ONE authoring path (D3): insert and
 replace open `InsertFigureModal` (the product package's presets and the

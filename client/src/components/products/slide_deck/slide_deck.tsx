@@ -21,7 +21,7 @@ import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_de
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
-import { SlideEditor } from "./slide_editor/slide_editor";
+import { SlideEditor } from "./slide_editor/mod.ts";
 import { SlideList } from "./slide_list";
 import { SlidePresenter } from "./slide_presenter";
 import {

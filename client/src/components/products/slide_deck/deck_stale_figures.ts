@@ -9,7 +9,7 @@ import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE, getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { findStaleFiguresInLayout } from "~/generate_visualization/mod";
 import { updateFigureToScope } from "~/components/_shared/figure_editor/mod.ts";
-import { updateBlockInLayout } from "./slide_transforms/update_block_in_layout";
+import { updateBlockInLayout } from "./slide_transforms/mod.ts";
 
 // Deck-level staleness (PLAN_PRODUCTS_RESTRUCTURE D4): which figures across
 // the deck were resolved under a pair other than the container's current

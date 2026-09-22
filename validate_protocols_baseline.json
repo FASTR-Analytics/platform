@@ -36,7 +36,7 @@
   },
   {
     "id": "raw-loading-signal",
-    "file": "client/src/components/slide_deck/index.tsx",
+    "file": "client/src/components/products/slide_deck/slide_deck.tsx",
     "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {

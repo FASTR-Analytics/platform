@@ -104,9 +104,9 @@ import { productById } from "~/state/instance/t1_store";
 import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { convertBlockType } from "../slide_transforms/convert_block_type";
-import { convertSlideType } from "../slide_transforms/convert_slide_type";
-import { updateBlockInLayout } from "../slide_transforms/update_block_in_layout";
+import { convertBlockType } from "../slide_transforms/mod.ts";
+import { convertSlideType } from "../slide_transforms/mod.ts";
+import { updateBlockInLayout } from "../slide_transforms/mod.ts";
 import { SlideEditorPanel } from "./editor_panel";
 
 type SlideEditorInnerProps = {

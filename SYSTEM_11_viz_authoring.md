@@ -81,7 +81,7 @@ re-previews under the new package (S10 "The captured pair").
 
 **Snapshot isolation.** The draft is `createStore(structuredClone(p.configSnapshot))`,
 so editor writes never reach the host's store.
-[\_editor_snapshot.ts](client/src/components/_editor_snapshot.ts) holds only
+[\_editor_snapshot.ts](client/src/components/products/slide_deck/_editor_snapshot.ts) holds only
 the slide editor's `snapshotForSlideEditor` (the deck config at open): the
 pair is deliberately NOT snapshotted (D16).
 

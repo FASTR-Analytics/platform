@@ -1,4 +1,5 @@
 export { attachSelectionNameHover, CollabMarkdownEditor, darkMarkdownExtensions, yCaretHygiene } from "./collab_markdown_editor.tsx";
+export { FASTR_LOGO_VALUES, FASTR_LOGOS, resolveLogoUrl } from "./fastr_logos.ts";
 export { FileUploadSelector } from "./file_upload_selector.tsx";
 export {
   acceptZonePointer,

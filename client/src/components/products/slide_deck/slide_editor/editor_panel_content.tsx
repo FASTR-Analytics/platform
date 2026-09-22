@@ -29,7 +29,7 @@ import {
 import { createSignal, Match, Setter, Show, Switch } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { SetStoreFunction } from "solid-js/store";
-import { convertBlockType } from "../slide_transforms/convert_block_type";
+import { convertBlockType } from "../slide_transforms/mod.ts";
 import { MarkdownGuide } from "./_markdown_guide";
 import { CollabMarkdownEditor } from "./collab_markdown_editor";
 import { CollabTextField } from "./collab_text_field";
