@@ -1,11 +1,17 @@
 import { type AlertComponentProps, ModalContainer } from "panther";
-import { t3, type HfaTaxonomyForAI, type MetricWithStatus } from "lib";
-import { formatMetricsListForAI } from "lib";
+import {
+  formatMetricsListForAI,
+  t3,
+  type HfaTaxonomyForAI,
+  type InstalledModuleSummary,
+  type MetricWithStatus,
+} from "lib";
 
 // Renders the metric-list formatter VERBATIM, so a human sees exactly what
 // get_available_metrics puts in front of the model.
 export type AIDebugPanelProps = {
   metrics: MetricWithStatus[];
+  modules: InstalledModuleSummary[];
   icehIndicators: { id: string; label: string; category: string }[];
   hfaTaxonomy: HfaTaxonomyForAI;
 };
@@ -14,7 +20,12 @@ type Props = AlertComponentProps<AIDebugPanelProps, void>;
 
 export function AIDebugPanel(p: Props) {
   const content = () =>
-    formatMetricsListForAI(p.metrics, p.icehIndicators, p.hfaTaxonomy);
+    formatMetricsListForAI(
+      p.metrics,
+      p.modules,
+      p.icehIndicators,
+      p.hfaTaxonomy,
+    );
 
   return (
     <ModalContainer
