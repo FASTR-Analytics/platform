@@ -525,7 +525,7 @@ maintained by jsonb rewrites in the service-category mutations).
 `lib/hfa_indicator_labels.ts` is the single label authority
 (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
-**HFA workbook import** (`hfa_indicators_xlsx_upload_form.tsx`) has two
+**HFA workbook import** (`xlsx_upload_form.tsx`) has two
 inputs behind one flow: a picked `.xlsx`, or the **default indicator set**
 fetched client-side from the FASTR resource hub
 (`fastr-resource-hub/hfa_default_indicators.xlsx`, raw GitHub, cache-busted

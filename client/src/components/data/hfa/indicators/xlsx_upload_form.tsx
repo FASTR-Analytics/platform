@@ -24,7 +24,7 @@ import {
   applyVariantTimePointMapping,
   detectHfaWorkbookShape,
   type WorkbookShape,
-} from "./_xlsx_workbook";
+} from "./xlsx_workbook";
 
 export type HfaWorkbookSource = { kind: "pick" } | { kind: "default" };
 

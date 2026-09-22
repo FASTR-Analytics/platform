@@ -7,7 +7,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { HfaStagingSummary } from "./_staging_summary";
+import { HfaStagingSummary } from "./staging_summary";
 
 type Props = {
   run: HfaImportRunSummary;

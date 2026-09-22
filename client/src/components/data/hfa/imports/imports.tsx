@@ -16,11 +16,11 @@ import {
 import { For, Show, onCleanup, onMount } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { HfaNeedsReviewCard } from "./_needs_review_card";
-import { HfaRunDetail } from "./_run_detail";
-import { HfaRunView } from "./_run_view";
-import { hfaRunStatusLabel } from "./_status_label";
-import { HfaWizard } from "./_wizard";
+import { HfaNeedsReviewCard } from "./needs_review_card";
+import { HfaRunDetail } from "./run_detail";
+import { HfaRunView } from "./run_view";
+import { hfaRunStatusLabel } from "./run_status_label";
+import { HfaWizard } from "./wizard";
 
 type Props = EditorComponentProps<{}, undefined>;
 

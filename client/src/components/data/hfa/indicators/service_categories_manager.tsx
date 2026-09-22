@@ -9,7 +9,7 @@ import { Show, createEffect } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { EditHfaIndicatorServiceCategory } from "./edit_hfa_indicator_service_category";
+import { EditHfaIndicatorServiceCategory } from "./edit_service_category";
 
 type Props = {
   serviceCategories: HfaIndicatorServiceCategory[];

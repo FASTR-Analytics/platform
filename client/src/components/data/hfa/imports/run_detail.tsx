@@ -1,8 +1,8 @@
 import { t3, type HfaImportRunSummary } from "lib";
 import { EditorComponentProps, FrameTop, HeadingBar } from "panther";
 import { Show } from "solid-js";
-import { HfaStagingSummary } from "./_staging_summary";
-import { hfaRunStatusLabel } from "./_status_label";
+import { HfaStagingSummary } from "./staging_summary";
+import { hfaRunStatusLabel } from "./run_status_label";
 
 // History click-through for an HFA run: the run facts + the durable staging
 // diagnostics (the run row is HFA's only import record: invariant 4).

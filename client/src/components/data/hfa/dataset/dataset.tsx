@@ -8,8 +8,8 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
-import { DeleteData } from "./_delete_data";
-import { TimePointsView } from "./_time_points";
+import { DeleteData } from "./delete_data";
+import { TimePointsView } from "./time_points_view";
 import { DatasetItemsHolder } from "./dataset_items_holder";
 import { DatasetHfaImports } from "../imports/mod.ts";
 

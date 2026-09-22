@@ -7,7 +7,7 @@ import {
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { slugify } from "./_shared";
+import { slugify } from "./slugify";
 
 export function EditHfaIndicatorVariantGroup(
   p: AlertComponentProps<

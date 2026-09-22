@@ -1,4 +1,4 @@
-import { type HfaIndicatorCategory, t3 } from "lib";
+import { type HfaIndicatorCategory, type HfaIndicatorSubCategory, t3 } from "lib";
 import {
   AlertComponentProps,
   ModalContainer,
@@ -7,12 +7,13 @@ import {
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { slugify } from "./_shared";
+import { slugify } from "./slugify";
 
-export function EditHfaIndicatorCategory(
+export function EditHfaIndicatorSubCategory(
   p: AlertComponentProps<
     {
-      existing?: HfaIndicatorCategory;
+      category: HfaIndicatorCategory;
+      existing?: HfaIndicatorSubCategory;
       sortOrder: number;
       existingIds: string[];
     },
@@ -47,14 +48,24 @@ export function EditHfaIndicatorCategory(
             err: t3({ en: `ID "${newId}" already exists`, fr: `L'identifiant "${newId}" existe déjà`, pt: `O ID "${newId}" já existe` }),
           };
         }
-        return await serverActions.createHfaIndicatorCategory({
-          category: { id: newId, label: trimmedLabel, sortOrder: p.sortOrder },
+        return await serverActions.createHfaIndicatorSubCategory({
+          subCategory: {
+            id: newId,
+            categoryId: p.category.id,
+            label: trimmedLabel,
+            sortOrder: p.sortOrder,
+          },
         });
       }
 
-      return await serverActions.updateHfaIndicatorCategory({
+      return await serverActions.updateHfaIndicatorSubCategory({
         oldId: p.existing!.id,
-        category: { id: p.existing!.id, label: trimmedLabel, sortOrder: p.existing!.sortOrder },
+        subCategory: {
+          id: p.existing!.id,
+          categoryId: p.existing!.categoryId,
+          label: trimmedLabel,
+          sortOrder: p.existing!.sortOrder,
+        },
       });
     },
     () => p.close(undefined),
@@ -64,8 +75,8 @@ export function EditHfaIndicatorCategory(
     <ModalContainer
       title={
         mode === "create"
-          ? t3({ en: "Add category", fr: "Ajouter une catégorie", pt: "Adicionar categoria" })
-          : t3({ en: "Update category", fr: "Mettre à jour la catégorie", pt: "Atualizar categoria" })
+          ? t3({ en: "Add sub-category", fr: "Ajouter une sous-catégorie", pt: "Adicionar subcategoria" })
+          : t3({ en: "Update sub-category", fr: "Mettre à jour la sous-catégorie", pt: "Atualizar subcategoria" })
       }
       form
       onCancel={() => p.close(undefined)}
@@ -76,6 +87,10 @@ export function EditHfaIndicatorCategory(
       }]}
     >
       <div class="ui-spy">
+        <div class="ui-spy-sm">
+          <div class="ui-text-caption">{t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}</div>
+          <div class="font-700 text-sm">{p.category.label}</div>
+        </div>
         <Input
           label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
           value={label()}

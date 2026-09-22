@@ -14,8 +14,8 @@ import { Show, createEffect, createMemo } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { EditHfaIndicatorVariantGroup } from "./edit_hfa_indicator_variant_group";
-import { EditHfaIndicatorVariantItem } from "./edit_hfa_indicator_variant_item";
+import { EditHfaIndicatorVariantGroup } from "./edit_variant_group";
+import { EditHfaIndicatorVariantItem } from "./edit_variant_item";
 
 type Props = {
   variantGroups: HfaIndicatorVariantGroup[];

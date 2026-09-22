@@ -1,4 +1,9 @@
-import { type HfaIndicatorServiceCategory, t3 } from "lib";
+import {
+  HFA_VARIANT_ITEM_ID_REGEX,
+  t3,
+  type HfaIndicatorVariantGroup,
+  type HfaIndicatorVariantItem,
+} from "lib";
 import {
   AlertComponentProps,
   ModalContainer,
@@ -7,12 +12,13 @@ import {
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { slugify } from "./_shared";
+import { slugify } from "./slugify";
 
-export function EditHfaIndicatorServiceCategory(
+export function EditHfaIndicatorVariantItem(
   p: AlertComponentProps<
     {
-      existing?: HfaIndicatorServiceCategory;
+      group: HfaIndicatorVariantGroup;
+      existing?: HfaIndicatorVariantItem;
       sortOrder: number;
       existingIds: string[];
     },
@@ -41,20 +47,40 @@ export function EditHfaIndicatorServiceCategory(
         if (!newId) {
           return { success: false, err: t3({ en: "ID is required", fr: "L'identifiant est requis", pt: "O ID é obrigatório" }) };
         }
+        if (!HFA_VARIANT_ITEM_ID_REGEX.test(newId)) {
+          return {
+            success: false,
+            err: t3({
+              en: `ID "${newId}" must start with a lowercase letter and contain only lowercase letters, digits, and underscores (max 64 characters)`,
+              fr: `L'identifiant "${newId}" doit commencer par une lettre minuscule et ne contenir que des lettres minuscules, des chiffres et des tirets bas (64 caractères max)`,
+              pt: `O ID "${newId}" deve começar por uma letra minúscula e conter apenas letras minúsculas, dígitos e sublinhados (máx. 64 caracteres)`,
+            }),
+          };
+        }
         if (p.existingIds.includes(newId)) {
           return {
             success: false,
             err: t3({ en: `ID "${newId}" already exists`, fr: `L'identifiant "${newId}" existe déjà`, pt: `O ID "${newId}" já existe` }),
           };
         }
-        return await serverActions.createHfaIndicatorServiceCategory({
-          serviceCategory: { id: newId, label: trimmedLabel, sortOrder: p.sortOrder },
+        return await serverActions.createHfaIndicatorVariantItem({
+          item: {
+            id: newId,
+            groupId: p.group.id,
+            label: trimmedLabel,
+            sortOrder: p.sortOrder,
+          },
         });
       }
 
-      return await serverActions.updateHfaIndicatorServiceCategory({
+      return await serverActions.updateHfaIndicatorVariantItem({
         oldId: p.existing!.id,
-        serviceCategory: { id: p.existing!.id, label: trimmedLabel, sortOrder: p.existing!.sortOrder },
+        item: {
+          id: p.existing!.id,
+          groupId: p.existing!.groupId,
+          label: trimmedLabel,
+          sortOrder: p.existing!.sortOrder,
+        },
       });
     },
     () => p.close(undefined),
@@ -64,8 +90,8 @@ export function EditHfaIndicatorServiceCategory(
     <ModalContainer
       title={
         mode === "create"
-          ? t3({ en: "Add service category", fr: "Ajouter une catégorie de service", pt: "Adicionar categoria de serviço" })
-          : t3({ en: "Update service category", fr: "Mettre à jour la catégorie de service", pt: "Atualizar categoria de serviço" })
+          ? t3({ en: "Add variant item", fr: "Ajouter un élément de variante", pt: "Adicionar item de variante" })
+          : t3({ en: "Update variant item", fr: "Mettre à jour l'élément de variante", pt: "Atualizar item de variante" })
       }
       form
       onCancel={() => p.close(undefined)}
@@ -76,6 +102,10 @@ export function EditHfaIndicatorServiceCategory(
       }]}
     >
       <div class="ui-spy">
+        <div class="ui-spy-sm">
+          <div class="ui-text-caption">{t3({ en: "Variant group", fr: "Groupe de variantes", pt: "Grupo de variantes" })}</div>
+          <div class="font-700 text-sm">{p.group.label}</div>
+        </div>
         <Input
           label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
           value={label()}

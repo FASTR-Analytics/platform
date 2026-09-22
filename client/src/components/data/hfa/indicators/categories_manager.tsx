@@ -13,8 +13,8 @@ import { Show, createEffect, createMemo } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { EditHfaIndicatorCategory } from "./edit_hfa_indicator_category";
-import { EditHfaIndicatorSubCategory } from "./edit_hfa_indicator_sub_category";
+import { EditHfaIndicatorCategory } from "./edit_category";
+import { EditHfaIndicatorSubCategory } from "./edit_sub_category";
 
 type Props = {
   categories: HfaIndicatorCategory[];
