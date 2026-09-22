@@ -73,12 +73,12 @@ import {
   type ReportSession,
   setCollabView,
 } from "~/state/instance/collab";
-import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
+import { fastrThemeOptions } from "./fastr_theme_labels";
 import { createReportPaginator } from "~/components/products/_shared/mod.ts";
 import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
-import { ReportEditorCursors } from "~/components/_shared/cursors/report_cursors";
+import { ReportEditorCursors } from "./report_cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { productById } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";

@@ -43,13 +43,13 @@ import {
   Switch,
 } from "solid-js";
 import { Button, Icon } from "panther";
-import { fastrThemeLabel } from "~/components/_shared/fastr_theme_labels";
+import { fastrThemeLabel } from "./fastr_theme_labels";
 import {
   fastrBlockLabel,
   fastrCoverLayoutLabel,
   fastrRoleLabel,
   fastrToneLabel,
-} from "~/components/_shared/fastr_block_labels";
+} from "./fastr_block_labels";
 import type { ReportBlockContext, ReportEditorApi } from "./report_editor";
 
 // The "Fixed colours" swatches. The toolbar draws its own grid (its colour

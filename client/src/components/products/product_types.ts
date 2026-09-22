@@ -1,7 +1,7 @@
 import { t3, type ProductType } from "lib";
 import type { EditorComponentProps, IconName } from "panther";
 import type { JSX } from "solid-js";
-import { ReportEditor } from "~/components/report";
+import { ReportEditor } from "./report/report";
 import { SlideDeckEditor } from "./slide_deck/mod.ts";
 
 // The one place the client knows what a product type IS

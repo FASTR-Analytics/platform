@@ -17,7 +17,7 @@ import { serverActions } from "~/server_actions";
 import {
   fastrThemeCaption,
   fastrThemeLabel,
-} from "~/components/_shared/fastr_theme_labels";
+} from "./fastr_theme_labels";
 import {
   FastrCustomThemeMock,
   FastrThemeMock,

@@ -4,10 +4,7 @@ name: Documents & Sharing
 globs:
   - client/src/components/_shared/collab_markdown_editor.tsx
   - client/src/components/_shared/connection_banner.tsx
-  - client/src/components/_shared/cursors/report_cursors.tsx
-  - client/src/components/_shared/fastr_block_labels.ts
   - client/src/components/_shared/fastr_logos.ts
-  - client/src/components/_shared/fastr_theme_labels.ts
   - client/src/components/_shared/live_cursors.tsx
   - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
@@ -17,7 +14,7 @@ globs:
   - client/src/components/products/*.tsx
   - client/src/components/products/_shared/*.ts
   - client/src/components/products/_shared/*.tsx
-  - client/src/components/report/**
+  - client/src/components/products/report/**
   - client/src/components/products/slide_deck/**
   - client/src/state/products/t2_report_detail.ts
   - client/src/state/products/t2_slide_deck_detail.ts
