@@ -1,6 +1,6 @@
 import { clearDataCache, clearAiChatCache } from "~/state/clear_caches";
 import { darkMode, schemePref, setScheme } from "~/state/t4_ui";
-import { clerk } from "~/components/LoggedInWrapper";
+import { clerk } from "./logged_in_wrapper";
 import { t3, TC } from "lib";
 import {
   Button,

@@ -25,11 +25,11 @@ import {
   type MenuItem,
 } from "panther";
 import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
-import { clerk } from "~/components/LoggedInWrapper";
-import { EmailOptInModal } from "~/components/email_opt_in_modal";
-import { OrganisationModal } from "~/components/organisation_modal";
-import { ThemeModal } from "~/components/theme_modal";
-import { WhatsNewFeedModal, WhatsNewModal } from "~/components/whats_new_modal";
+import { clerk } from "./logged_in_wrapper";
+import { EmailOptInModal } from "./email_opt_in_modal";
+import { OrganisationModal } from "./organisation_modal";
+import { ThemeModal } from "./theme_modal";
+import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { Explore } from "~/components/explore";
 import { InstanceAssets } from "~/components/instance/instance_assets";

@@ -3,13 +3,12 @@ system: 14
 name: Client Shell & Session
 globs:
   - client/src/app.tsx
-  - client/src/components/ConnectionStatus.tsx
   - client/src/components/HelpButton.tsx
-  - client/src/components/email_opt_in_modal.tsx
-  - client/src/components/whats_new_modal.tsx
-  - client/src/components/instance/index.tsx
-  - client/src/components/organisation_modal.tsx
-  - client/src/components/theme_modal.tsx
+  - client/src/components/instance/email_opt_in_modal.tsx
+  - client/src/components/instance/whats_new_modal.tsx
+  - client/src/components/instance/instance.tsx
+  - client/src/components/instance/organisation_modal.tsx
+  - client/src/components/instance/theme_modal.tsx
   - client/src/index.tsx
   - client/src/onboarding/**
   - client/src/routes/**

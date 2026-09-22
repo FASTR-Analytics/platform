@@ -1,4 +1,4 @@
-import { clerk } from "~/components/LoggedInWrapper";
+import { clerk } from "./logged_in_wrapper";
 import { ModalContainer, type AlertComponentProps } from "panther";
 import { createSignal } from "solid-js";
 import { t3 } from "lib";

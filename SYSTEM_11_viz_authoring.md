@@ -2,12 +2,10 @@
 system: 11
 name: Visualization Authoring UI
 globs:
-  - client/src/components/NotAvailableBox.tsx
   - client/src/components/_editor_snapshot.ts
   - client/src/components/explore/**
   - client/src/components/figure_editor/**
   - client/src/components/figures/**
-  - client/src/components/forms_editors/confirm_update.tsx
   - client/src/components/forms_editors/conflict_resolution_modal.tsx
   - client/src/components/forms_editors/custom_series_styles.tsx
   - client/src/components/forms_editors/download_presentation_object.tsx

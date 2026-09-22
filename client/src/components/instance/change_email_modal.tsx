@@ -9,7 +9,7 @@ import {
   createButtonAction,
 } from "panther";
 import { For, Show, createSignal } from "solid-js";
-import { clerk } from "~/components/LoggedInWrapper";
+import { clerk } from "./logged_in_wrapper";
 import { serverActions } from "~/server_actions";
 
 // Self-service email change, everywhere at once. Two deliberate acts, the

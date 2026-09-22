@@ -1,5 +1,5 @@
-import { LoggedInWrapper } from "~/components/LoggedInWrapper";
-import Instance from "~/components/instance/index";
+import { LoggedInWrapper } from "~/components/instance/logged_in_wrapper";
+import Instance from "~/components/instance/instance";
 import { setCalendar, setLanguage, LANGUAGE_STORAGE_KEY } from "lib";
 import type { Language } from "panther";
 import { InstanceSSEBoundary } from "~/state/instance/t1_sse";

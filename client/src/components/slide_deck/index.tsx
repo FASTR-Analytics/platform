@@ -36,7 +36,7 @@ import {
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
-import { clerk } from "~/components/LoggedInWrapper";
+import { clerk } from "~/components/instance/logged_in_wrapper";
 import { VersionHistoryEditor } from "../version_history";
 import { ProductSettings } from "~/components/products/product_settings";
 

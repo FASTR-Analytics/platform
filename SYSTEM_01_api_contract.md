@@ -2,7 +2,7 @@
 system: 1
 name: API Contract, Transport & Access Control
 globs:
-  - client/src/components/LoggedInWrapper.tsx
+  - client/src/components/instance/logged_in_wrapper.tsx
   - client/src/server_actions/**
   - client/src/state/instance/product_access.ts
   - lib/api-routes/**

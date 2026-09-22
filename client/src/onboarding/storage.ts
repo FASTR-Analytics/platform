@@ -1,4 +1,4 @@
-import { clerk } from "~/components/LoggedInWrapper";
+import { clerk } from "~/components/instance/logged_in_wrapper";
 import type { StorageAdapter } from "@njwse/roadtrip";
 
 type OnboardingRecord = Record<string, unknown>;
