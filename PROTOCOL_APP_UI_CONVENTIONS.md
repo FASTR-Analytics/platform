@@ -116,7 +116,7 @@ are panther exports.)
 
 | Pattern               | Frame structure                                    | Live example                                   |
 | --------------------- | -------------------------------------------------- | ---------------------------------------------- |
-| A: simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`    | `slide_deck/slide_deck_settings.tsx`           |
+| A: simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`    | `slide_deck/settings.tsx`           |
 | B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `data/hmis/population/grid.tsx`    |
 | C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `results_packages/results_packages.tsx`        |
 | D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `_shared/figure_editor/figure_editor.tsx` |

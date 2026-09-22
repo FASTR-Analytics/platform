@@ -27,7 +27,7 @@ import { SlidePresenter } from "./slide_presenter";
 import {
   SlideDeckSettings,
   type SlideDeckSettingsProps,
-} from "./slide_deck_settings";
+} from "./settings";
 import {
   copilotViewController,
   restoreCopilotView,

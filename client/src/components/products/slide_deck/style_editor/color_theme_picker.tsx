@@ -7,7 +7,7 @@ import {
 import { BRAND_PRESETS, t3, type BrandPresetId } from "lib";
 import type { ColorTheme, AllPresetId, SlideDeckConfig } from "lib";
 import { ColorThemePickerModal } from "./color_theme_picker_modal.tsx";
-import { normalizeHex } from "./color_theme_utils.ts";
+import { normalizeHex } from "./normalize_hex.ts";
 
 type ColorThemePickerProps = {
   value: ColorTheme;

@@ -9,7 +9,7 @@ import { Button } from "panther";
 import { BRAND_PRESETS, t3, type BrandPresetId } from "lib";
 import type { AllPresetId, ColorTheme, SlideDeckConfig } from "lib";
 import { ContentSlideMiniPreview } from "./style_preview.tsx";
-import { normalizeHex } from "./color_theme_utils.ts";
+import { normalizeHex } from "./normalize_hex.ts";
 
 type ColorThemePickerModalProps = {
   value: ColorTheme;
