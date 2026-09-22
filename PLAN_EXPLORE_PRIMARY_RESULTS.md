@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Fix 4.** Each session sets this line in its final commit.
+**Next step: Review 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -567,3 +567,4 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R4 | Finding: hover is cleared only on tbody mouse-leave, so moving from a cell onto a row-header `th` keeps reporting the last cell. Fix: the row header clears the hover on enter. |
 | 2026-09-22 | R4 | Finding: `compareCells` is not transitive in a column mixing valued and value-less cells. Fix: valued cells order first by value, then value-less cells by text, then empties. |
 | 2026-09-22 | R4 | G7 held (sync commit lists only `panther/**`; panther commit lists only the grid, `tables/mod.ts` and `sync-configs.json`); floor green (typecheck, 401 tests, validate_protocols). Step 4 reviewed: 3 findings. |
+| 2026-09-22 | F4 | Panther commit `76d1eea` fixes the three: spans merge by group id only, the row header clears the hover, and cells rank valued, then text-only, then empty before comparing. Synced as the auto-commit before this one (only `panther/**`). Step 4 fixed. Panther gates green (typecheck, clean, lint, tests via `./sync`); app typecheck below. |
