@@ -11,7 +11,7 @@
   },
   {
     "id": "guard-before-deps",
-    "file": "client/src/components/products/_shared/ReportFigureEmbed.tsx",
+    "file": "client/src/components/products/_shared/report_figure_embed.tsx",
     "text": "effect body opens with a conditional"
   },
   {

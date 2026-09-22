@@ -194,7 +194,7 @@ The elegant consequence the whole design turns on:
 | Caller                                                                                                                          | Surface                    | Items               | Localization source                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------- | ---------------------------------------------------------------------- |
 | `figure_editor.tsx` (the live FigureInputs memo), `insert_figure/preset_preview.tsx`                               | **Live editor draft**      | live query          | `getSnapshotInstanceLocalization()`, a **transient** bundle each tick  |
-| `convert_slide_to_page_inputs.ts`, `ReportFigureEmbed.tsx`, `exports/**`, AI previews                                           | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
+| `convert_slide_to_page_inputs.ts`, `report_figure_embed.tsx`, `exports/**`, AI previews                                           | **stored Figure / export** | baked in the bundle | `bundle.localization` (frozen)                                         |
 
 So the live editor and every stored figure run **identical code**, and a
 figure renders identically to the draft it was captured from when the two

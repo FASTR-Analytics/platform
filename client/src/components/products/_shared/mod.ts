@@ -1,4 +1,4 @@
-export { createIdGeneratorForLayout, generateUniqueBlockId } from "./_id_generation.ts";
+export { createIdGeneratorForLayout, generateUniqueBlockId } from "./id_generation.ts";
 export { DuplicateProductsModal } from "./duplicate_products_modal.tsx";
 export { ancestors, childFolders, descendantIds, folderPathLabels, folderPathOptions } from "./folder_tree.ts";
 export { PackageScopeChip } from "./package_scope_chip.tsx";
@@ -11,8 +11,8 @@ export type { RebasedEdit, SkippedRange } from "./rebase_edits.ts";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
 export { ReportStyleEditor } from "./report_style_editor.tsx";
 export type { ReportStyleEditorResult } from "./report_style_editor.tsx";
-export { ReportFigureEmbed } from "./ReportFigureEmbed.tsx";
-export type { FigureStaleContext } from "./ReportFigureEmbed.tsx";
+export { ReportFigureEmbed } from "./report_figure_embed.tsx";
+export type { FigureStaleContext } from "./report_figure_embed.tsx";
 export { ScopePicker, scopeSelectionFromStored, storedValueFromScopeSelection } from "./scope_picker.tsx";
 export type { ScopeSelection } from "./scope_picker.tsx";
 export { divSurface, iframeSurface, isSurfaceAtBottom, lineToPreviewTop, previewTopToLine, scrollSurfaceToBottom } from "./scroll_sync.ts";
