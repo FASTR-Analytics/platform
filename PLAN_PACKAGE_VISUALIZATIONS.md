@@ -7,7 +7,7 @@ chosen scope, and each one has an Edit that opens the figure editor with
 nothing behind it: the user can change the visualization on the page and
 nothing is saved anywhere.
 
-**Next step: Review 2.** Each session sets this line in its final commit.
+**Next step: Do 3.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app only.
 Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`,
@@ -273,3 +273,4 @@ its commit.
 | 2026-09-22 | 2 | `SYSTEM_10_figure_render_export.md` line 196 names `insert_figure/preset_preview.tsx` as a live-draft render site. Still true (it renders through the lifted helper); the file is outside this step's Surface and was not edited. |
 | 2026-09-22 | 2 | G2 on this step's commit: `scope_picker.tsx` lists as `R100`. `figure_preview.ts` lists as `A`, and cannot list as `R`: it is a function lifted out of `preset_preview.tsx`, which remains, so there is no file rename for git to detect. The gate's wording assumed two file moves; the code is as §4 step 2 describes. |
 | 2026-09-22 | 2 | Step 2 built. |
+| 2026-09-22 | 2 | Step 2 reviewed: pass. |
