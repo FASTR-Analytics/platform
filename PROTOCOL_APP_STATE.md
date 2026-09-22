@@ -323,7 +323,7 @@ HMIS import ledger (`instance_dataset_hmis/index.tsx`: a full-table read into
 the page's `createSignal<StateHolder>`, refetched by a `createEffect` on
 `datasetVersions.hmis` and `hmisImportRunActive`; SYSTEM_06), HFA
 import runs (`data/hfa/imports/`), ICEH import runs
-(`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
+(`data/iceh/imports/`), user logs, HMIS version history modal,
 HFA indicator R code
 (`data/hfa/indicators/hfa_indicator_code_editor.tsx`), user-permission
 editors, instance meta modal, profile refresh, the results-package wizard's
