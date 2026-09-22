@@ -291,8 +291,8 @@ are keyed `runId + scopeToken` with the run id leading.
 T1 (`readyPackages`, D8), with no compatibility pre-flight (D4: reattach never
 blocks, staleness is per figure).
 
-**The instance catalogue is a list and a page**
-(PLAN_PACKAGE_VISUALIZATIONS ruling 1): the Results packages tab is a plain
+**The instance catalogue is a list and a page** (ruled 2026-09-22,
+replacing the earlier master-detail pane): the Results packages tab is a plain
 newest-first list (`results_packages.tsx`; no search/sort/grouping, since
 there are dozens of rows, not hundreds, and no selection state), and a row
 opens that package's own page (`results_packages/package_page.tsx` =
@@ -1006,6 +1006,15 @@ refuses any run a product points at.
 
 ## Open items
 
+- **The catalogue onboarding tour targets the package page.** Its two
+  `data-tour` targets (`instance-results-packages-card`, `-usage`) moved from
+  the detail pane onto `results_packages/package_page.tsx`, but
+  `client/src/onboarding/catalogue.ts` still launches the tour from the help
+  menu with `openTabOnly("results_packages")`, which lands on the list where
+  neither target exists, and `client/src/onboarding/index.ts` auto-starts it
+  the first time a package page is opened; its copy still describes the
+  catalogue. Repoint the launch at a package page or retarget the tour to the
+  list, and rewrite the copy.
 - **Harden the R-source interpolation.** The default and HFA script generators
   wrap config `text` and string-valued `select` values in single quotes
   with no escaping and substitute `number` values bare. Nothing validates or
