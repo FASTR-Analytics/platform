@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Do 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -600,3 +600,7 @@ commit.
 | 2026-09-20 | plan | Written from the tree as measured that day (316 files, 22 top-level folders, 35 deep imports, 5 dead files, 16 baseline entries). |
 | 2026-09-22 | plan | Tim: the collaborator merge landed (`676d9871`). Steps 3 to 10 are unblocked. |
 | 2026-09-22 | plan | Re-measured after the merge: 336 files, same 22 folders, same 5 dead files, 16 baseline entries, both gates green. The merge added a two-way dependency between `components/report/` and `exports/`; R12 and step 8 were rewritten to a layering rule, and R11, step 6 and step 7 to rules instead of file lists, before `Do 1`. |
+| 2026-09-22 | 1 | Deviation: `./sync platform` was not run. Panther HEAD (`ca6a023`) is six commits past the synced `21b1caf`, and a wholesale sync would have brought 71 module files into `panther/`, outside this step's surface. The three protocol files were copied by hand exactly as the sync copies them (plain copy, mode 444); they were identical between `21b1caf` and panther HEAD before the edit, so the next real sync will find them unchanged. Panther commit `8370dc4`. |
+| 2026-09-22 | 1 | Fact found: panther's `sync-configs.json` no longer has a `platform` target (dropped in `ca6a023`); it has `wb-fastr` pointing at `apps/wb-fastr/panther`, not this worktree. `README.md`'s `./sync platform` is stale. Not in this plan's surface. |
+| 2026-09-22 | 1 | Floor, outside this step's surface and reported, not fixed: `lint:systems` fails with one orphan, `server/tests/population_coverage_issue_test.ts` (added in `29763bbc`, claimed by no SYSTEM manifest); `deno task test` fails one test, `consolidated products: a deck version restores` (`server/tests/consolidated_products_test.ts:208`). `./validate_protocols` passes. `./run` was not exercised: the step changed only markdown, and `./run` replaces the machine-global `pg` and `valkey` containers. |
+| 2026-09-22 | 1 | Step 1 built. |

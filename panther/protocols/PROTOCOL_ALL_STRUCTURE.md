@@ -6,7 +6,9 @@
 
 1. **Never modify panther/**: External library, auto-synced
 2. **Barrel exports via mod.ts**: Not `index.ts`
-3. **Underscore prefix for internal**: `_internal/`, `_helpers.ts`
+3. **Underscore prefix for internal**: `_internal/`, `_helpers.ts`. Not under
+   `components/`, where `_shared/` is the only underscore
+   (`PROTOCOL_UI_STRUCTURE.md` rule 5)
 4. **Domain types centralized**: In `data/types.ts` or `lib/types/`
 5. **Static imports only**: Never dynamic imports
 6. **Exports before helpers**: Main functions at top of file
@@ -18,7 +20,7 @@
 | General files    | snake_case        | `measure_text.ts` |
 | Components       | snake_case        | `data_table.tsx`  |
 | Route pages      | Underscore prefix | `_4_marking.tsx`  |
-| Internal modules | Underscore prefix | `_internal/`      |
+| Internal modules | Underscore prefix, outside `components/` | `_internal/` |
 
 ## Directory Patterns
 
@@ -39,8 +41,9 @@ src/
 └── utils/             # Business logic
 ```
 
-For the opinionated rules _inside_ `components/` (feature-mirrors-UI, the
-`_shared/` home, co-location, facet nesting), see `PROTOCOL_UI_STRUCTURE.md`.
+For the rules inside `components/` (the tree mirrors the nav, `mod.ts`
+entries, scoped `_shared/`, one-way layers, and the lint check that verifies
+each), see `PROTOCOL_UI_STRUCTURE.md`.
 
 ### Full-Stack App (both mode)
 
@@ -130,6 +133,6 @@ export type DashboardData = { ... };
 
 - [ ] No modifications to `panther/` directory
 - [ ] Barrel exports use `mod.ts`
-- [ ] Internal modules prefixed with underscore
+- [ ] Internal modules prefixed with underscore, outside `components/`
 - [ ] Domain types in centralized location
 - [ ] Import order follows convention
