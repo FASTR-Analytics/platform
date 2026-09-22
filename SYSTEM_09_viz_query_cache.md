@@ -181,7 +181,8 @@ through `CTEManager`.
   through `items` to the table renderer (naming in
   [lib/sample_n.ts](lib/sample_n.ts), emission in `buildSampleNColumns`).
   Emitted only when `emitsSampleN(queryContext)`: `datasetFamily === "hfa"`
-  **and** `queryContext.hasFacilityId`. n is a survey concept: an HMIS count
+  (the module's declared family, read from the manifest's module blob by
+  `getDatasetFamilyFromRun`) **and** `queryContext.hasFacilityId`. n is a survey concept: an HMIS count
   over a table not grouped by period returns facility-months (40 facilities × 36
   months = 1440), and ICEH rows arrive pre-aggregated. Always
   `COUNT(DISTINCT <sourceTable>.facility_id)`, never a row count: HFA rows are

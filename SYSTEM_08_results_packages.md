@@ -134,7 +134,35 @@ no run directory. `MODULE_REGISTRY` (`lib/types/module_registry.ts`) is static; 
 entry is `{ id, label, prerequisites, github: { owner, repo, path } }`. Every
 entry must resolve under the strict GitHub schema, since the wizard read
 resolves them all or fails; `server/tests/run_generation_module_options_test.ts`
-pins that against the local checkout.
+pins that against the local checkout. The registry lists m001, m002, m005,
+m006, m009, m010, m011 and m012; m003 and m004 are retired from this app
+(their directories stay frozen in the modules repo, and a package generated
+with them is still readable). The registry's label is the only name a
+generating or failed run has, since neither holds a manifest; every other
+fact about a module travels with the definition.
+
+**Three presentation facts are declared by every module and never
+inferred**: `family` (`hmis`, `hfa` or `iceh`, the dataset family whose
+results the module carries), `tier` (`primary` or `secondary`: each family
+has exactly one primary module, m012 for HMIS, m010 for HFA, m009 for ICEH;
+the UI word for secondary is "Supporting analyses") and `sortOrder` (a
+positive integer, the module's position within its tier). The GitHub schema
+requires them, the installed blob stores them verbatim, and from there they
+reach `RunGenerationModuleOption` (the wizard), `InstalledModuleSummary`
+(the authoring context) and every listing. **One comparator orders
+modules everywhere**: `compareModules` (`lib/group_metrics.ts`) sorts by
+family (HMIS, HFA, ICEH), then tier (primary first), then `sortOrder`, then
+id; nothing sorts modules by id or label. Labels carry no number prefix.
+A metric's `datasetFamily` is its module's declared family, stamped at
+finalize and read by the query layer through `getDatasetFamilyFromRun`
+(which parses the family alone out of the manifest's module blob). Packages
+written before the declaration existed are stamped by manifest transform
+block 11 from `LEGACY_MODULE_PRESENTATION` (`server/runs/manifest_transform.ts`),
+a frozen map of every module id that ever shipped (m001 to m012); an id
+outside it throws, because the map is complete by construction.
+`indicator_catalog.ts` deliberately does not read `family`: it runs in
+transform block 1, before block 11 stamps legacy blobs, so it dispatches on
+`scriptGenerationType` and `dataSources`, both declared facts.
 `MODULE_SOURCE = _IS_PRODUCTION ? "github" : "local"`:
 
 - **github (prod):** `GET /repos/<owner>/<repo>/commits?path=<path>&per_page=1`
@@ -428,7 +456,7 @@ Rulings:
   degrade-to-empty guarantee holds for direct-filter ROs, NOT the derived
   ones: an instance with duplicate district names across regions would fold
   the twin's numbers in (measured nil in prod today; latent). If it ever
-  goes live, the fix is stopping the M4/M5/M6 R scripts dropping
+  goes live, the fix is stopping the m005 and m006 R scripts dropping
   `admin_area_2`, a modules lockstep this design otherwise avoids.
 - **Mismatch is allowed, never auto-fixed.** A package without the
   product's AA2 attaches fine; area metrics degrade to empty. The scope is
@@ -546,8 +574,11 @@ the installed definitions verbatim (so existing parsers apply unchanged);
 pinned asset names + hashes; and the §3.7 memoization fields (`inputKey` per
 module, content hashes per output file).
 
-**`manifestSchemaVersion` gates every read**, currently `12`
-(`RUN_MANIFEST_SCHEMA_VERSION`; v12 = the `hfa_indicators_snapshot.json`
+**`manifestSchemaVersion` gates every read**, currently `13`
+(`RUN_MANIFEST_SCHEMA_VERSION`; v13 = every `modules[].moduleDefinition`
+blob declares `family`, `tier` and `sortOrder` (stamped for legacy blobs
+from `LEGACY_MODULE_PRESENTATION`) and `metrics[].datasetFamily` is the
+module's declared family, non-null, transform block 11; v12 = the `hfa_indicators_snapshot.json`
 mirror's rows carry `indicator_id` instead of `var_name`, input block 2;
 the manifest's own shape is unchanged and transform block 10 only stamps;
 v11 = `datasets[].info` holds exactly the keys
@@ -900,8 +931,9 @@ The wide `ing1..ing8` layout is m008's shipped `numerator`/`denominator` shape
 generalised from two columns to eight. It is what makes expression-over-sums
 exact at every grouping: `m12-01-01` requires `indicator_common_id` as a GROUP
 BY, so a row only ever carries ONE indicator and a long-format row could never
-hold the ingredients its own formula needs. m012 is deliberately temporary:
-it folds into a redefined m003 in PLAN_1e.
+hold the ingredients its own formula needs. m012 is the HMIS family's primary
+module; m003, whose raw-versus-adjusted facility view it does not replace, is
+retired.
 
 ## population.csv: the person-years file
 

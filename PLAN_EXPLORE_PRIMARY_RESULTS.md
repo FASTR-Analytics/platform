@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Do 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -538,3 +538,9 @@ that passes deletes this file in its commit.
 | 2026-09-22 | F1 | Harness committed: `server/tests/run_generation_module_options_test.ts` resolves every registry module through the wizard read and asserts unprefixed labels, skipped without `FASTR_MODULES_LOCAL_DIR`; claimed and pointed to in SYSTEM_08. Modules repo commit `c8acb8b` on `main`, pushed, rewords the two m012 comments; the build leaves the tree clean. |
 | 2026-09-22 | F1 | Step 1 fixed. Floor green: typecheck, 398 tests, validate_protocols, boot against the dev database on port 8001 (8000 held by a running dev server): 8 manifests checked, 0 unreadable. |
 | 2026-09-22 | R1 | Re-review of Fix 1 (scoped): the harness resolves every registry id through the wizard read and skips without `FASTR_MODULES_LOCAL_DIR`; modules commit `c8acb8b` is comment-only and the build leaves the tree clean; floor green (typecheck, 398 tests, validate_protocols). Step 1 reviewed: pass. |
+| 2026-09-22 | 2 | Deviation: `server/module_loader/load_module.ts` is outside the surface and had to change: `ModuleDefinitionDetail` is the installed type plus metrics, so requiring `family`, `tier` and `sortOrder` in the installed schema means the loader copies them from the GitHub definition. Three lines. |
+| 2026-09-22 | 2 | Deviation: `server/routes/caches/visualizations.ts` is outside the surface; `PO_CACHE_VERSION` went 24 to 25 because PROTOCOL_APP_MIGRATIONS's block checklist bumps it on every manifest bump and the v11 and v12 bumps did. |
+| 2026-09-22 | 2 | Deviation: `getRunGenerationModuleOptions` returns its options in module order (R6 names the wizard as a comparator user), so `server/tests/run_generation_module_options_test.ts` (outside the surface) pins that order instead of registry order. |
+| 2026-09-22 | 2 | Choice: `LEGACY_MODULE_PRESENTATION` places the retired modules after the live HMIS secondary ones: m003 sortOrder 6, m004 7, m007 8, m008 9, all `hmis`/`secondary`. |
+| 2026-09-22 | 2 | `getDatasetFamilyFromRun` parses only `family` out of the module blob (`moduleDefinitionInstalledStrict.pick`), because it sits on the per-request items read and the blob carries the whole script. |
+| 2026-09-22 | 2 | Step 2 built. Two commits: the schema, registry, comparator and declared-family reads; then schema 13, block 11, four transform test cases and the docs. Floor green: typecheck, 401 tests, validate_protocols, boot against the dev database on port 8001: 8 manifests checked, 0 unreadable, all at v13. |

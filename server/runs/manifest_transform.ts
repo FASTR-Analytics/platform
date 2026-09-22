@@ -52,6 +52,10 @@
 //      `indicator_id` (schema v12): input block 2 rewrites the mirror before
 //      block 1 runs and block 1 recomputes from it, so this block only
 //      stamps.
+//  11. modules[].moduleDefinition blobs carry the declared presentation
+//      facts `family`, `tier` and `sortOrder` (schema v13), stamped for
+//      blobs that predate them from LEGACY_MODULE_PRESENTATION, and
+//      metrics[].datasetFamily recomputed from the module's family.
 //
 // The input mirrors' own blocks are listed in input_transform.ts
 // (INPUT TRANSFORM BLOCKS); they run behind this file's version gate.
@@ -59,7 +63,9 @@
 // =============================================================================
 
 import {
+  type DatasetType,
   INDICATOR_FORMAT_METRIC_IDS,
+  type ModuleTier,
   RUN_MANIFEST_SCHEMA_VERSION,
   type RunManifest,
   runManifestSchema,
@@ -78,6 +84,31 @@ import {
   transformRunInputs,
 } from "./input_transform.ts";
 import { runManifestPath } from "./run_paths.ts";
+
+// The presentation facts of every module that ever shipped, as block 11
+// stamps them into a blob written before the definition declared them.
+// FROZEN here rather than read from the modules repo: the transform backfills
+// immutable old packages, the repo's declarations may change, and a retired
+// module (m003, m004, m007, m008) has no live declaration at all. Complete
+// by construction, so an id outside it is a code defect and throws. The
+// precedent is LEGACY_SEED_ORDER in indicator_catalog.ts.
+const LEGACY_MODULE_PRESENTATION: Record<
+  string,
+  { family: DatasetType; tier: ModuleTier; sortOrder: number }
+> = {
+  m001: { family: "hmis", tier: "secondary", sortOrder: 1 },
+  m002: { family: "hmis", tier: "secondary", sortOrder: 2 },
+  m003: { family: "hmis", tier: "secondary", sortOrder: 6 },
+  m004: { family: "hmis", tier: "secondary", sortOrder: 7 },
+  m005: { family: "hmis", tier: "secondary", sortOrder: 4 },
+  m006: { family: "hmis", tier: "secondary", sortOrder: 5 },
+  m007: { family: "hmis", tier: "secondary", sortOrder: 8 },
+  m008: { family: "hmis", tier: "secondary", sortOrder: 9 },
+  m009: { family: "iceh", tier: "primary", sortOrder: 1 },
+  m010: { family: "hfa", tier: "primary", sortOrder: 1 },
+  m011: { family: "hmis", tier: "secondary", sortOrder: 3 },
+  m012: { family: "hmis", tier: "primary", sortOrder: 1 },
+};
 
 // A package directory can be missing, half-written, or written by a newer
 // server, and none of those are "invalid data": only the last two rows of
@@ -283,6 +314,49 @@ async function transformRunManifest(
   //    the catalog from it on this pass, so the manifest's own shape is
   //    unchanged and the stamp is the whole block.
   m.manifestSchemaVersion = 12;
+
+  // 11. Every module blob declares `family`, `tier` and `sortOrder`, and
+  //     every metric's datasetFamily is its module's declared family. The
+  //     blob stamp is not invention: the map records what each module has
+  //     always been. A blob already carrying the facts is left byte-for-byte
+  //     (the stamp rewrites the JSON string, so it runs only when needed);
+  //     the metric recompute is unconditional and idempotent.
+  const familyByModuleId = new Map<string, DatasetType>();
+  if (Array.isArray(m.modules)) {
+    for (const mod of m.modules as Record<string, unknown>[]) {
+      const blob = JSON.parse(String(mod.moduleDefinition)) as Record<
+        string,
+        unknown
+      >;
+      if (
+        blob.family === undefined || blob.tier === undefined ||
+        blob.sortOrder === undefined
+      ) {
+        const legacy = LEGACY_MODULE_PRESENTATION[String(mod.id)];
+        if (legacy === undefined) {
+          throw new Error(
+            `manifest transform block 11: module ${mod.id} has no legacy presentation entry`,
+          );
+        }
+        mod.moduleDefinition = JSON.stringify({ ...blob, ...legacy });
+        familyByModuleId.set(String(mod.id), legacy.family);
+      } else {
+        familyByModuleId.set(String(mod.id), blob.family as DatasetType);
+      }
+    }
+  }
+  if (Array.isArray(m.metrics)) {
+    for (const metric of m.metrics as Record<string, unknown>[]) {
+      const family = familyByModuleId.get(String(metric.module_id));
+      if (family === undefined) {
+        throw new Error(
+          `manifest transform block 11: metric ${metric.id} names module ${metric.module_id}, which is not in the manifest`,
+        );
+      }
+      metric.datasetFamily = family;
+    }
+  }
+  m.manifestSchemaVersion = 13;
 
   const validated = runManifestSchema.parse(m);
   // The schema deliberately accepts ANY integer version: it has to, so a
