@@ -328,7 +328,7 @@ HFA indicator R code
 (`data/hfa/indicators/hfa_indicator_code_editor.tsx`), user-permission
 editors, instance meta modal, profile refresh, the results-package wizard's
 module options + defaults
-(`instance_results_packages/_wizard/index.tsx`, read once per open,
+(`results_packages/wizard/wizard.tsx`, read once per open,
 client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap fetches
 (GlobalUser, InstanceMeta, needed before SSE connects).
 

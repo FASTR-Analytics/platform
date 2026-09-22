@@ -118,7 +118,7 @@ are panther exports.)
 | --------------------- | -------------------------------------------------- | ---------------------------------------------- |
 | A: simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`    | `slide_deck/slide_deck_settings.tsx`           |
 | B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `data/hmis/population/_population_grid.tsx`    |
-| C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `instance_results_packages/index.tsx`          |
+| C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `results_packages/results_packages.tsx`        |
 | D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `figure_editor/visualization_editor_inner.tsx` |
 | E: split columns      | `div.flex` halves with `w-1/2` + `border-r`        | `data/hfa/indicators/*` managers               |
 

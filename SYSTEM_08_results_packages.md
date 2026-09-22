@@ -71,8 +71,8 @@ templating); `routes/instance/run_generation.ts` (the wizard, the catalogue
 listing, pin/unpin, the guarded hard delete, and the ONE mount for package
 reads: detail/script/logs/files, run-keyed under the instance data bits);
 lib module + run
-types + `module_registry.ts`; client: `instance_results_packages/**` (the
-catalogue), the launch wizard `instance_results_packages/_wizard/**` (an
+types + `module_registry.ts`; client: `results_packages/**` (the
+catalogue), the launch wizard `results_packages/wizard/**` (an
 ephemeral modal, the Upload-CSV pattern), and the T2 run-detail
 cache `state/instance/t2_runs.ts`. Shared-custody: `_shared/results_package/**`,
 what a package CONTAINS, rendered identically wherever a package is
@@ -285,7 +285,7 @@ rows, not hundreds; selection is T5 and never jumps, because an effect PINS
 the newest run's id whenever nothing is pinned (first non-empty render, and
 newest after the selection is deleted), with the derived `?? newest` fallback
 kept only as the same-tick bridge, so another admin's launch never remounts
-the pane) beside a detail pane (`instance_results_packages/detail.tsx`). The
+the pane) beside a detail pane (`results_packages/detail.tsx`). The
 LISTING is instance-T1 as a nonce pull:
 `runs_catalog_updated` broadcasts a data-free nonce, and each entitled client
 refetches `listRunCatalog` into `InstanceState.runsCatalog` (per-request guard;
@@ -310,7 +310,7 @@ ready-only because a product points only at a ready run (C2 ruling). A READY
 run is rendered by that shared view, identically wherever
 a package is explored (ruled).
 
-**Prune** (`instance_results_packages/_prune.tsx` + `_prune_plan.ts`, ruled)
+**Prune** (`results_packages/prune.tsx` + `prune_plan.ts`, ruled)
 is the bulk form of the guarded delete: one rule, remove every
 package not in use (not pinned, no product pointing at it, not generating;
 `planPrune` derives the set from the same T1 facts the sidebar shows and the
@@ -644,10 +644,10 @@ no `inputKey` and are never reuse sources.
 The wizard's starting values (default data families, default module set, and
 per-module parameter values) live in one `instance_config` row, seeded into the
 wizard as instance defaults > definition defaults
-(`instance_results_packages/_wizard/index.tsx` via
+(`results_packages/wizard/wizard.tsx` via
 `getMergedModuleConfigSelections`).
 Its **sole writer** is the
-module-defaults editor (`instance_results_packages/module_defaults.tsx`, opened
+module-defaults editor (`results_packages/module_defaults.tsx`, opened
 from the Results packages surface); the wizard only reads it and has no
 "save as instance defaults" action (ruled): a save built from only the
 modules selected for one generation would silently drop curated defaults

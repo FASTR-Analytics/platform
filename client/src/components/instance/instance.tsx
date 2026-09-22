@@ -35,7 +35,7 @@ import { Explore } from "~/components/explore/mod.ts";
 import { InstanceAssets } from "~/components/assets/mod.ts";
 import { InstanceData } from "~/components/data/mod.ts";
 import { Products } from "~/components/products";
-import { InstanceResultsPackages } from "~/components/results_packages/results_packages";
+import { InstanceResultsPackages } from "~/components/results_packages/mod.ts";
 import { InstanceUsers } from "~/components/users/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {

@@ -21,7 +21,7 @@ import {
 import { createStore } from "solid-js/store";
 import { PinnedBadge } from "~/components/_shared/results_package/status";
 import { PruneResultsPackages } from "./prune";
-import { ResultsPackageWizard } from "./wizard/wizard";
+import { ResultsPackageWizard } from "./wizard/mod.ts";
 import { RunCatalogDetailPane } from "./detail";
 import { ModuleDefaultsEditor } from "./module_defaults";
 import {
