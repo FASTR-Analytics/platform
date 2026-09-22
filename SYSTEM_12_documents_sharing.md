@@ -72,7 +72,7 @@ export *triggers*.
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
 `components/products/slide_deck/**` (the copilot's `slide_ai/` is S13's),
-`components/report/**`,
+`components/products/report/**`,
 `state/products/{t2_slides,t2_slide_deck_detail,t2_report_detail}.ts`
 (`t2_images.ts` is S10's). Server: CRUD for both product families + folders,
 `routes/instance/emails.ts`, `server/utils/id_generation.ts` (one 4-char
@@ -399,14 +399,14 @@ fastr report stored on a retired theme opens on the default,
 `getFastrReportTheme` being total. **Creation asks nothing**: the products
 page mints the report the way it mints a deck, server-labelled and instantly
 open (D16). The look is chosen from INSIDE the report instead, by
-[report_theme_modal.tsx](client/src/components/report/report_theme_modal.tsx),
+[report_theme_modal.tsx](client/src/components/products/report/report_theme_modal.tsx),
 which the editor opens unprompted the first time a new report is opened and
 which the Page menu reaches after that. `config.themeChosen === false` is the
 mark of a report that has never been asked: it is written only at creation, so
 a report minted before the modal existed carries no flag at all and is never
 interrupted about a choice it was never offered. Its tiles render the REAL
 theme sheet over the REAL `fm-*` markup, scoped per tile
-([fastr_theme_mock.tsx](client/src/components/report/fastr_theme_mock.tsx)),
+([fastr_theme_mock.tsx](client/src/components/products/report/fastr_theme_mock.tsx)),
 so a preview is exactly what the report becomes. **Custom styles**:
 user-authored briefs live in the MAIN-db `report_styles` table (203;
 visibility per style, either this/selected REPORTS via a `product_ids` JSON
@@ -1343,7 +1343,7 @@ a ground that is already a hue, so the three hue grounds clear the heading
 background. Both rules stay: a custom style can do either.
 
 **Editor** (`ReportEditor` in
-[report/index.tsx](client/src/components/report/index.tsx), ~2,300 LOC, over
+[report/index.tsx](client/src/components/products/report/report.tsx), ~2,300 LOC, over
 `ReportBodyEditor` in `report_editor.tsx`): takes `{ productId }` and reads
 label, package and scope live from the T1 row like the deck editor (the
 product id is also the collab document id, since a report IS its product), so
@@ -1367,12 +1367,12 @@ block insertion; figures resolve through the same S10 funnel as dashboards).
 Markdown View mode and both markdown exports share
 `REPORT_MARKDOWN_STYLE`. FASTR Markdown reuses the html editing surface wholesale
 — `markdown()` as the CodeMirror language plus a line decoration for the `:::`
-fences ([fastr_fence_extension.ts](client/src/components/report/fastr_fence_extension.ts))
+fences ([fastr_fence_extension.ts](client/src/components/products/report/fastr_fence_extension.ts))
 and the same iframe preview (the theme sheet lives in a `<style data-fm-theme>` in
 the frame HEAD so a re-theme never reloads the frame, which would drop the
 surface, the scroll position and every blob: raster).
 
-**The formatting toolbar** ([report_toolbar.tsx](client/src/components/report/report_toolbar.tsx),
+**The formatting toolbar** ([report_toolbar.tsx](client/src/components/products/report/report_toolbar.tsx),
 FASTR only) sits inside the same `FrameTop` panel as the `HeadingBar`
 — that panel is `flex-none overflow-auto` and sizes to content, so the strip
 just grows the header, and the `HeadingBar`'s slots (already seven controls,
@@ -1496,7 +1496,7 @@ own depth/stack/defect logic, which genuinely differs — what they must not kee
 is a private copy of the loop, because a drifting copy mis-nests a whole
 document in silence.
 
-**Live preview** ([live_preview_extension.tsx](client/src/components/report/live_preview_extension.tsx),
+**Live preview** ([live_preview_extension.tsx](client/src/components/products/report/live_preview_extension.tsx),
 [lib/fastr_live_regions.ts](lib/fastr_live_regions.ts)): for FASTR reports,
 Edit mode is an Obsidian-style surface — still CodeMirror on the same Y.Text
 (collab, per-user undo and the toolbar untouched), but decorated. Top-level

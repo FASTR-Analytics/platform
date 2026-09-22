@@ -51,6 +51,11 @@
   },
   {
     "id": "raw-loading-signal",
+    "file": "client/src/components/products/report/report.tsx",
+    "text": "const [isLoading, setIsLoading] = createSignal(true);"
+  },
+  {
+    "id": "raw-loading-signal",
     "file": "client/src/components/instance/email_opt_in_modal.tsx",
     "text": "const [loading, setLoading] = createSignal(false);"
   },
@@ -58,11 +63,6 @@
     "id": "raw-loading-signal",
     "file": "client/src/components/instance/organisation_modal.tsx",
     "text": "const [loading, setLoading] = createSignal(false);"
-  },
-  {
-    "id": "raw-loading-signal",
-    "file": "client/src/components/report/index.tsx",
-    "text": "const [isLoading, setIsLoading] = createSignal(true);"
   },
   {
     "id": "raw-loading-signal",

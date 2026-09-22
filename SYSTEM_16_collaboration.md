@@ -470,8 +470,8 @@ prior session for the same slide):
 
 ### Report editor
 
-[report/index.tsx](client/src/components/report/index.tsx) +
-[report_editor.tsx](client/src/components/report/report_editor.tsx): the
+[report/index.tsx](client/src/components/products/report/report.tsx) +
+[report_editor.tsx](client/src/components/products/report/report_editor.tsx): the
 CodeMirror view rebuilds once when the session becomes ready, swapping in
 `yCollab` + per-user undo; the latched `collabReady` turns the 800 ms REST
 autosave off for good (offline edits accumulate in the doc and the reconnect
@@ -545,9 +545,10 @@ primary anchor.
 
 The rendering engine is
 [live_cursors.tsx](client/src/components/_shared/live_cursors.tsx);
-per-surface glue (coordinate mapping + scope gate) lives one file per surface
-in [\_shared/cursors/](client/src/components/_shared/cursors/) (slide / viz /
-report).
+per-surface glue (coordinate mapping + scope gate) lives one file per surface:
+[slide_cursors.tsx](client/src/components/products/slide_deck/slide_editor/slide_cursors.tsx),
+[viz_cursors.tsx](client/src/components/_shared/figure_editor/viz_cursors.tsx) and
+[report_cursors.tsx](client/src/components/products/report/report_cursors.tsx).
 
 **Awareness field registry** (one shared Awareness per session — do not
 collide): `cursor` = yCollab text caret (nulled on every CM blur and on view
@@ -1236,7 +1237,7 @@ heading bar; "Version history" in the deck overflow menu.
 
   **The state.** A report's body text is undoable; its figure and image
   registries are not. `setFigures`/`setImages` + `persistFigures`/`persistImages`
-  in [report/index.tsx](client/src/components/report/index.tsx) bypass history
+  in [report/index.tsx](client/src/components/products/report/report.tsx) bypass history
   completely, so registry-only edits (the AI's `update_report_figure`, sidebar
   Edit/Switch, an image-file change) cannot be reversed by the user at all.
   (`handleDelete` is already token-only, so undoing a _delete_ does restore a
@@ -1246,7 +1247,7 @@ heading bar; "Version history" in the deck overflow menu.
   CodeMirror transactions as `StateEffect`s and let `invertedEffects` +
   CM's own history undo "doc change + registry change" atomically. That only
   works where CM history is the authority, and it isn't:
-  [report_editor.tsx:180](client/src/components/report/report_editor.tsx#L180)
+  [report_editor.tsx:180](client/src/components/products/report/report_editor.tsx#L180)
   installs `yUndoManagerKeymap` ahead of `basicSetup` precisely because
   "yCollab's per-user undo takes precedence", and `yCollab` is installed at
   `:219`. `collabReady` latches at the first `report_sync`, so the editor
