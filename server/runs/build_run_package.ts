@@ -3,7 +3,6 @@ import type { Sql } from "postgres";
 import {
   catalogExpressionEvaluationStrict,
   getAssetToImportName,
-  getDatasetFamily,
   postAggregationExpressionStrict,
   RUN_MANIFEST_SCHEMA_VERSION,
   runManifestSchema,
@@ -83,7 +82,7 @@ export async function buildRunPackageIntoTmp(
     throw new Error(`hfa structure schema: ${resSchemaHfa.err}`);
   }
   const schemaByFamily = (
-    family: DatasetType | null | undefined,
+    family: DatasetType,
   ): StructureSchema | undefined =>
     family === "hmis"
       ? resSchemaHmis.data
@@ -102,17 +101,16 @@ export async function buildRunPackageIntoTmp(
   // stamped unavailable) rather than failing the whole run.
   const runResultsObjects: RunResultsObject[] = [];
   for (const mod of runModules) {
-    // The module's own family selects which structure schema governs its
-    // facility columns (iceh/unknown → none)
-    const moduleFamilySchema = schemaByFamily(
-      getDatasetFamily(mod.moduleDefinition),
-    );
+    // The module's declared family selects which structure schema governs
+    // its facility columns (iceh → none)
     const def = JSON.parse(mod.moduleDefinition) as {
+      family: DatasetType;
       resultsObjects?: {
         id: string;
         createTableStatementPossibleColumns: Record<string, string> | false;
       }[];
     };
+    const moduleFamilySchema = schemaByFamily(def.family);
     if ((def.resultsObjects ?? []).length > 0) {
       await Deno.mkdir(join(tmpDir, "outputs", mod.id), { recursive: true });
     }

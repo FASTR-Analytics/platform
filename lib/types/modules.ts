@@ -2,6 +2,7 @@ import {
   type ModuleConfigRequirements,
   type ModuleParameter,
   type ModuleDefinitionInstalled,
+  type ModuleTier,
 } from "./_module_definition_installed.ts";
 import {
   type Metric,
@@ -96,6 +97,9 @@ export type MetricWithStatus = ResultsValue & {
 export type InstalledModuleSummary = {
   id: string;
   label: string;
+  family: DatasetType;
+  tier: ModuleTier;
+  sortOrder: number;
   hasParameters: boolean;
   lastRunAt: string | null;
   lastRunGitRef?: string;

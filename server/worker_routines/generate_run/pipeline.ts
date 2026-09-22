@@ -1,7 +1,6 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
-  getDatasetFamily,
   metricStrict,
   throwIfErrWithData,
   type RunMetric,
@@ -211,13 +210,10 @@ function buildRunModules(
 function buildRunMetrics(resolved: ResolvedRunModule[]): RunMetric[] {
   const metrics: RunMetric[] = [];
   for (const mod of resolved) {
-    const datasetFamily = getDatasetFamily(
-      prepareModuleDefinitionForStorage(mod.detail),
-    ) ?? null;
     for (const metric of mod.detail.metrics) {
       const m = metricStrict.parse(metric);
       metrics.push({
-        datasetFamily,
+        datasetFamily: mod.detail.family,
         id: m.id,
         module_id: mod.moduleId,
         label: m.label,

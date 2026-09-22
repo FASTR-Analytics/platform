@@ -20,7 +20,6 @@
 import { z } from "zod";
 import {
   composeHfaIndicatorLabel,
-  getDatasetTypes,
   getHfaIndicatorMeasure,
   ICEH_STRAT_INFO,
   type HfaIndicatorAggregation,
@@ -392,6 +391,22 @@ async function deriveIndicatorMetadata(
     .toSorted((a, b) =>
       (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id.localeCompare(b.id)
     );
+}
+
+// Dispatch on the module's declared data sources, not its presentation
+// family: this runs in transform block 1, before block 11 stamps `family`
+// into legacy blobs, and blocks are never reordered.
+function getDatasetTypes(moduleDefinition: string): string[] {
+  try {
+    const parsed = JSON.parse(moduleDefinition) as {
+      dataSources?: { sourceType: string; datasetType?: string }[];
+    };
+    return (parsed.dataSources ?? []).flatMap((ds) =>
+      ds.sourceType === "dataset" && ds.datasetType ? [ds.datasetType] : []
+    );
+  } catch {
+    return [];
+  }
 }
 
 function isHfaScriptGeneration(moduleDefinition: string): boolean {

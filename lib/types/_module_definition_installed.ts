@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { z } from "zod";
+import type { DatasetType } from "./datasets.ts";
 
 // ============================================================================
 // Module-specific atoms
@@ -19,6 +20,18 @@ export const scriptGenerationType = z.enum([
   "hfa",
   "calculated_indicators",
 ]);
+
+// Presentation facts, declared by the module and never inferred (the GitHub
+// schema requires them; the installed blob stores them verbatim): the family
+// whose results the module carries, whether it is that family's one primary
+// module or a supporting analysis, and its position among its tier's modules.
+// Every surface orders modules through compareModules (lib/group_metrics.ts).
+export const moduleFamily: z.ZodType<DatasetType> = z.enum([
+  "hmis",
+  "hfa",
+  "iceh",
+]);
+export const moduleTier = z.enum(["primary", "secondary"]);
 
 export const dataSourceDataset = z.object({
   sourceType: z.literal("dataset"),
@@ -111,6 +124,9 @@ export const resultsObjectDefinitionInstalledStrict = z.object({
 export const moduleDefinitionInstalledStrict = z.object({
   id: z.string(),
   label: z.string(),
+  family: moduleFamily,
+  tier: moduleTier,
+  sortOrder: z.number().int().positive(),
   prerequisites: z.array(z.string()),
   lastScriptUpdate: z.string(),
   commitSha: z.string().optional(),
@@ -132,6 +148,7 @@ export const moduleDefinitionInstalledSchema = moduleDefinitionInstalledStrict;
 // ============================================================================
 
 export type ScriptGenerationType = z.infer<typeof scriptGenerationType>;
+export type ModuleTier = z.infer<typeof moduleTier>;
 export type DataSource = z.infer<typeof dataSource>;
 export type DataSourceDataset = z.infer<typeof dataSourceDataset>;
 export type DataSourceResultsObject = z.infer<typeof dataSourceResultsObject>;

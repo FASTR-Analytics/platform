@@ -1,4 +1,35 @@
-import type { MetricWithStatus, InstalledModuleSummary } from "./types/mod.ts";
+import type {
+  DatasetType,
+  InstalledModuleSummary,
+  MetricWithStatus,
+  ModuleTier,
+} from "./types/mod.ts";
+
+// The one module order: family (HMIS, HFA, ICEH), then the family's primary
+// module before its supporting analyses, then the declared sort order, then
+// id. Every listing of modules sorts through this and nothing sorts modules
+// by id or label.
+const FAMILY_ORDER: Record<DatasetType, number> = { hmis: 0, hfa: 1, iceh: 2 };
+const TIER_ORDER: Record<ModuleTier, number> = { primary: 0, secondary: 1 };
+
+export type ModulePresentation = {
+  id: string;
+  family: DatasetType;
+  tier: ModuleTier;
+  sortOrder: number;
+};
+
+export function compareModules(
+  a: ModulePresentation,
+  b: ModulePresentation,
+): number {
+  return (
+    FAMILY_ORDER[a.family] - FAMILY_ORDER[b.family] ||
+    TIER_ORDER[a.tier] - TIER_ORDER[b.tier] ||
+    a.sortOrder - b.sortOrder ||
+    a.id.localeCompare(b.id)
+  );
+}
 
 export type MetricGroup = {
   label: string;

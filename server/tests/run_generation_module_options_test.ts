@@ -1,7 +1,8 @@
 // The launch wizard resolves every MODULE_REGISTRY entry through the strict
 // GitHub schema, so one registered module whose definition lacks a required
 // field takes the whole wizard down. This resolves them all from the local
-// checkout and pins the unprefixed labels: modules are ordered by their
+// checkout and pins the unprefixed labels and the module order (family,
+// primary first, declared sort order): modules are ordered by their
 // declared facts, never by a number in the name.
 //
 // Needs the local modules checkout (FASTR_MODULES_LOCAL_DIR); skipped
@@ -19,9 +20,19 @@ Deno.test({
   async fn() {
     const res = await getRunGenerationModuleOptions(null as unknown as Sql);
     if (!res.success) throw new Error(res.err);
+    assertEquals(res.data.modules.map((m) => m.id), [
+      "m012",
+      "m001",
+      "m002",
+      "m011",
+      "m005",
+      "m006",
+      "m010",
+      "m009",
+    ]);
     assertEquals(
-      res.data.modules.map((m) => m.id),
-      MODULE_REGISTRY.map((m) => m.id),
+      res.data.modules.map((m) => m.id).toSorted(),
+      MODULE_REGISTRY.map((m) => m.id).toSorted(),
     );
     for (const m of res.data.modules) {
       assert(!/^M\d+\./.test(m.label), `${m.id} label is numbered: ${m.label}`);

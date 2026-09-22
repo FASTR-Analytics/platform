@@ -238,6 +238,9 @@ export async function getModuleDefinitionDetail(
     const translatedModule: ModuleDefinitionDetail = {
       id,
       label: resolveTS(definition.label, language),
+      family: definition.family,
+      tier: definition.tier,
+      sortOrder: definition.sortOrder,
       prerequisites: definition.prerequisites as ModuleId[],
       lastScriptUpdate: new Date().toISOString(),
       dataSources: definition.dataSources,

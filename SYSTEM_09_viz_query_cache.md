@@ -7,7 +7,6 @@ globs:
   - client/src/state/products/t2_replicant_options.ts
   - lib/rollup.ts
   - lib/convert_period_value.ts
-  - lib/dataset_family.ts
   - lib/get_fetch_config_from_po.ts
   - lib/sample_n.ts
   - lib/types/run_authoring_context.ts
