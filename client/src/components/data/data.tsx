@@ -23,7 +23,6 @@ import { InstanceDatasetHmis } from "../instance_dataset_hmis";
 import { InstanceDatasetIceh } from "../instance_dataset_iceh";
 import { InstanceHfaTimePoints } from "../instance_hfa_time_points";
 import { Facilities } from "../structure";
-import { AdminAreaLabels } from "./general/admin_area_labels";
 import { FamilyConfiguration } from "../structure/family_configuration";
 import { HfaWeights } from "../structure/hfa_weights";
 import { GeoJsonManager } from "../instance_geojson/geojson_manager";
@@ -40,7 +39,7 @@ import {
   setDataSection,
   type DataSection,
 } from "~/state/t4_ui";
-import { AiContextForm } from "./general/ai_context_form";
+import { AdminAreaLabels, AiContextForm } from "./general/mod.ts";
 
 type Props = {};
 

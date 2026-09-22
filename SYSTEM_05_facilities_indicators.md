@@ -971,7 +971,7 @@ figure bundles snapshot geojson as `{kind:"data"}` when available.
   labels and depth persist across a delete + re-import cycle.
 - `admin_area_labels`: display-only label overrides carrying an `(AAn)`
   suffix convention (space-prefixed) appended/stripped by
-  `structure/admin_area_labels.tsx`.
+  `data/general/admin_area_labels.tsx`.
 - `structure_last_updated`: see above; written by the structure world,
   not by the settings UI.
 

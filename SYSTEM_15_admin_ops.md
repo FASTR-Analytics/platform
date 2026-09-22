@@ -29,8 +29,7 @@ The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
 `components/users/**`, and under `components/instance/` the profile,
 feedback, instance-meta and change-email forms (`instance.tsx`, its entry and
-the four header modals → S14, `logged_in_wrapper.tsx` → S1,
-`ai_context_form.tsx` → S13). Server: `routes/instance/health.ts`,
+the four header modals → S14, `logged_in_wrapper.tsx` → S1). Server: `routes/instance/health.ts`,
 `utils/disk_space.ts` (`db/instance/user_logs.ts` → S17); cron jobs in
 `main.ts` (S1-owned, S15 reader); `routes/instance/instance.ts` is S5-owned
 with S15 reading its meta/disk slice; the user and permission handlers live in
