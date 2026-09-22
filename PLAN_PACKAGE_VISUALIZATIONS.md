@@ -7,7 +7,7 @@ chosen scope, and each one has an Edit that opens the figure editor with
 nothing behind it: the user can change the visualization on the page and
 nothing is saved anywhere.
 
-**Next step: Do 3.** Each session sets this line in its final commit.
+**Next step: Review 3.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app only.
 Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`,
@@ -274,3 +274,7 @@ its commit.
 | 2026-09-22 | 2 | G2 on this step's commit: `scope_picker.tsx` lists as `R100`. `figure_preview.ts` lists as `A`, and cannot list as `R`: it is a function lifted out of `preset_preview.tsx`, which remains, so there is no file rename for git to detect. The gate's wording assumed two file moves; the code is as §4 step 2 describes. |
 | 2026-09-22 | 2 | Step 2 built. |
 | 2026-09-22 | 2 | Step 2 reviewed: pass. |
+| 2026-09-22 | 3 | Outside the step's Surface: `package_view/package_view.tsx`, one line, passing the view's `openEditor` prop through to `PackageVisualizations`. R7 requires Edit to open through the page's wrapper, which only reaches the section through the view; step 2 did not pass it because the section had no use for it then, and an unused prop is cruft (CLAUDE.md). |
+| 2026-09-22 | 3 | The working config map is local to the section (`visualizations.tsx`), a plain signal of default id to config replaced immutably on Apply and Reset; `package_page.tsx` is untouched. Edits survive a scope change because the scope is a sibling signal, and die with the page because the section unmounts with it (R6). |
+| 2026-09-22 | 3 | The editor receives the page scope as a snapshot at open time. The page's picker is covered while the editor is open, so the scope cannot change mid-edit; the product hosts' live-scope contract (SYSTEM_11) does not apply here and SYSTEM_11 says so. |
+| 2026-09-22 | 3 | Step 3 built. |

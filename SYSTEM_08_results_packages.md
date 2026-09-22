@@ -228,7 +228,15 @@ package's `RunAuthoringContext.presets`, in catalog order and unfiltered,
 each rendered through S11's shared `_shared/figure_preview.ts` helper
 under a page scope that starts national, is chosen through the shared
 `ScopePicker` and is never stored; a default whose metric is stamped
-unavailable shows the stamped reason in place of a figure), then the
+unavailable shows the stamped reason in place of a figure and no Edit.
+Edit opens S11's `VisualizationEditor` through the page's own editor
+wrapper with the card's metric, its working config, the page scope and the
+package's authoring context, and no collab binding; Apply replaces the
+working config, a page-local map from default id to config, and the card
+re-renders; Cancel leaves it; an edited card shows Reset, which drops the
+entry. Working configs survive a scope change and die with the page: no
+storage, no route, no cache key, and no write of any kind from this
+section), then the
 Population card when the stamp is active ("population.csv"), and
 per-module cards (settings; Script/Logs viewers gated client-side by
 `canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`; files

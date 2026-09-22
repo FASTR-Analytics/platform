@@ -75,11 +75,15 @@ Neither carries a hand-enumerated dependency list; do not add one.
 takes `{ label, scope, metric, configSnapshot, authoringContext,
 collabBinding? }`, resolves the metric's queryable shape
 (`resultsValueInfo`, S9's scope-keyed `t2_figure_data.ts`) under the pair,
-and mounts `VisualizationEditorInner`. Two hosts open it: `slide_editor/slide_editor.tsx`
+and mounts `VisualizationEditorInner`. Three hosts open it: `slide_editor/slide_editor.tsx`
 (edits `figureBlock.bundle.config`, then re-queries items and rebuilds the
-bundle) and `report/report.tsx` (rebuilds the figure block). The host passes
+bundle), `report/report.tsx` (rebuilds the figure block), and the package
+page's Visualizations section (`results_packages/package_view/visualizations.tsx`,
+S8: no collab binding, Apply replaces a page-local working config and
+nothing is stored). The product hosts pass
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
-re-previews under the new package (S10 "The captured pair").
+re-previews under the new package (S10 "The captured pair"); the package
+page's scope cannot change while the editor covers it.
 
 **Snapshot isolation.** The draft is `createStore(structuredClone(p.configSnapshot))`,
 so editor writes never reach the host's store.

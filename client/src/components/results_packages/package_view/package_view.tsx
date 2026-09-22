@@ -75,7 +75,7 @@ export function ResultsPackageView(p: {
 
       {p.headerNote}
 
-      <PackageVisualizations run={p.run} />
+      <PackageVisualizations run={p.run} openEditor={p.openEditor} />
 
       <ReadyModulesSection run={p.run} openViewer={openViewer} />
     </div>

@@ -9,13 +9,16 @@ import {
   type RunListingItem,
 } from "lib";
 import {
+  Button,
   FigureHolder,
   LoadingIndicator,
   StateHolderWrapper,
   createQuery,
+  getEditorWrapper,
   type FigureInputs,
 } from "panther";
 import { For, Match, Show, Switch, createSignal } from "solid-js";
+import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import {
   ScopePicker,
   createFigurePreview,
@@ -28,7 +31,14 @@ import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_
 // in catalog order, no filter), rendered under the page scope. The scope
 // starts national and lives here, never stored; a half-chosen single-area
 // selection keeps rendering the last complete pair.
-export function PackageVisualizations(p: { run: RunListingItem }) {
+//
+// Edit opens the figure editor with nothing behind it: no collab binding, no
+// save target. Apply replaces the card's working config, held here by default
+// id and gone with the page; Reset drops it. Nothing is written anywhere.
+export function PackageVisualizations(p: {
+  run: RunListingItem;
+  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
+}) {
   const context = createQuery(
     () => getRunAuthoringContextFromCacheOrFetch(p.run.id),
     t3(TC.loading),
@@ -47,6 +57,40 @@ export function PackageVisualizations(p: { run: RunListingItem }) {
     runId: p.run.id,
     adminArea2: adminArea2(),
   });
+
+  const [edits, setEdits] = createSignal<
+    Record<string, PresentationObjectConfig>
+  >({});
+  const workingConfig = (preset: DerivedDefaultVisualization) =>
+    edits()[preset.id] ?? preset.config;
+
+  async function editDefault(
+    preset: DerivedDefaultVisualization,
+    metric: MetricWithStatus,
+    authoringContext: RunAuthoringContext,
+  ): Promise<void> {
+    const result = await p.openEditor({
+      element: VisualizationEditor,
+      props: {
+        label: metric.label,
+        scope: scope(),
+        metric,
+        configSnapshot: structuredClone(workingConfig(preset)),
+        authoringContext,
+      },
+    });
+    if (result?.updated) {
+      const config = result.updated.config;
+      setEdits((prev) => ({ ...prev, [preset.id]: config }));
+    }
+  }
+
+  function resetDefault(preset: DerivedDefaultVisualization): void {
+    setEdits((prev) => {
+      const { [preset.id]: _dropped, ...rest } = prev;
+      return rest;
+    });
+  }
 
   return (
     <div class="ui-spy-sm">
@@ -79,6 +123,10 @@ export function PackageVisualizations(p: { run: RunListingItem }) {
                     preset={preset}
                     metric={ctx.metrics.find((m) => m.id === preset.metricId)}
                     scope={scope()}
+                    config={workingConfig(preset)}
+                    edited={edits()[preset.id] !== undefined}
+                    onEdit={(metric) => void editDefault(preset, metric, ctx)}
+                    onReset={() => resetDefault(preset)}
                   />
                 )}
               </For>
@@ -94,6 +142,10 @@ function DefaultVisualizationCard(p: {
   preset: DerivedDefaultVisualization;
   metric: MetricWithStatus | undefined;
   scope: PackageScope;
+  config: PresentationObjectConfig;
+  edited: boolean;
+  onEdit: (metric: MetricWithStatus) => void;
+  onReset: () => void;
 }) {
   const availableMetric = () =>
     p.metric?.status === "ready" ? p.metric : undefined;
@@ -122,16 +174,39 @@ function DefaultVisualizationCard(p: {
               <FigurePreview
                 scope={p.scope}
                 metric={metric}
-                config={p.preset.config}
+                config={p.config}
               />
             )}
           </Show>
         </div>
       </div>
-      <div class="px-2 pb-2">
-        <div class="font-700 text-sm">{p.preset.label}</div>
-        <Show when={p.metric} keyed>
-          {(metric) => <div class="ui-text-caption">{metric.label}</div>}
+      <div class="ui-gap-sm flex items-end px-2 pb-2">
+        <div class="min-w-0 flex-1">
+          <div class="font-700 truncate text-sm">{p.preset.label}</div>
+          <Show when={p.metric} keyed>
+            {(metric) => (
+              <div class="ui-text-caption truncate">{metric.label}</div>
+            )}
+          </Show>
+        </div>
+        <Show when={availableMetric()} keyed>
+          {(metric) => (
+            <>
+              <Show when={p.edited}>
+                <Button size="sm" outline onClick={p.onReset}>
+                  {t3({ en: "Reset", fr: "Réinitialiser", pt: "Repor" })}
+                </Button>
+              </Show>
+              <Button
+                size="sm"
+                outline
+                iconName="pencil"
+                onClick={() => p.onEdit(metric)}
+              >
+                {t3(TC.edit)}
+              </Button>
+            </>
+          )}
         </Show>
       </div>
     </div>
