@@ -1159,12 +1159,16 @@ export function slideRangeHasStyle(
 
 /** Toggle bold/italic over [from, to): on unless the whole range already has
  *  it. Undefined when the range holds no text, or when no serialization
- *  renders exactly as intended (refused, never applied wrong). */
+ *  renders exactly as intended (refused, never applied wrong). The result
+ *  selects the restyled text; with `caret` (a source offset, the caret that
+ *  restyled the word it sits in) it is that caret again, mapped into the new
+ *  source, so typing continues where it was rather than over the word. */
 export function slideToggleStyle(
   an: SlideTextAnalysis,
   from: number,
   to: number,
   prop: SlideStyleProp,
+  caret?: number,
 ): SlideEditResult | undefined {
   const on = !slideRangeHasStyle(an, from, to, prop);
   const before = visibleSeq(an);
@@ -1184,13 +1188,19 @@ export function slideToggleStyle(
     unitTexts(an),
   );
   if (!hit) return undefined;
+  const changes = wholeDocChange(an.src, hit.next);
+  if (caret !== undefined) {
+    const k = before.filter((c) => c.src < caret).length;
+    const at = k === 0 ? hit.seq[0].src : hit.seq[k - 1].src + 1;
+    return { changes, anchor: at, head: at };
+  }
   const firstIdx = before.findIndex((c) => inRange(c.src));
   let lastIdx = -1;
   before.forEach((c, i) => {
     if (inRange(c.src)) lastIdx = i;
   });
   return {
-    changes: wholeDocChange(an.src, hit.next),
+    changes,
     anchor: hit.seq[firstIdx].src,
     head: hit.seq[lastIdx].src + 1,
   };

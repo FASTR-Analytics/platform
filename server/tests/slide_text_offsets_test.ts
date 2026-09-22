@@ -184,6 +184,17 @@ Deno.test("bold and italic toggles are verified serializations", () => {
   assert(analyzeSlideMarkdown(esc).units[0].styles.every((s) => s.bold));
 });
 
+Deno.test("a caret that restyles the word it sits in stays a caret", () => {
+  const an = analyzeSlideMarkdown("say hello world");
+  const r = slideToggleStyle(an, 4, 9, "bold", 6)!;
+  assertEquals(apply("say hello world", r), "say **hello** world");
+  // Two chars into the word, after the opener now.
+  assertEquals([r.anchor, r.head], [8, 8]);
+  const back = slideToggleStyle(analyzeSlideMarkdown("say **hello** world"), 6, 11, "bold", 8)!;
+  assertEquals(apply("say **hello** world", back), "say hello world");
+  assertEquals([back.anchor, back.head], [6, 6]);
+});
+
 Deno.test("typed text is escaped so it renders literally", () => {
   assertEquals(escapeTypedSlideText("a*b_c"), "a\\*b\\_c");
   assertEquals(escapeTypedSlideText("<b>"), "\\<b>");

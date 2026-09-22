@@ -360,21 +360,22 @@ export function InlineTextEditor(p: Props) {
     goalX = undefined;
   }
 
-  // Like a word processor: a selection is restyled; a caret INSIDE a word
-  // restyles that word; a caret at a word's edge (the end of what was just
-  // typed) or on nothing sets what typing does next.
+  // Like a word processor: a selection is restyled; a caret inside a word
+  // or at its start restyles that word; a caret at a word's END (what was
+  // just typed) or on nothing sets what typing does next.
   function toggle(prop: "bold" | "italic"): boolean {
     if (!view || !isMarkdown) return true;
     const an = analysis();
     const s = view.state.selection.main;
     if (s.empty) {
       const word = slideWordAt(an, s.head);
-      const inside = word !== undefined && s.head > word.from && s.head < word.to;
-      if (!inside) {
+      if (word === undefined || s.head >= word.to) {
         setPending({ ...pending(), [prop]: !marks()[prop] });
         return true;
       }
-      dispatchEdit(slideToggleStyle(an, word.from, word.to, prop));
+      // The caret stays a caret, where it was: a selection here would make
+      // the next keystroke type over the word.
+      dispatchEdit(slideToggleStyle(an, word.from, word.to, prop, s.head));
       return true;
     }
     setPending({});

@@ -92,6 +92,7 @@ import {
   collabSocketOpen,
   docSaveFailing,
   openSlideSession,
+  collabState,
   otherPeers,
   reconnectForStaleEditAuth,
   setCollabView,
@@ -1408,6 +1409,7 @@ export function SlideEditor(p: Props) {
                     measured={measuredPage()}
                     slideId={p.slideId}
                     suppressed={subEditorOpen() > 0}
+                    self={{ blockId: selectedBlockId(), textTarget: selectedTextTarget() }}
                   />
                 </div>
               )}
@@ -1489,14 +1491,20 @@ function buildIdRectMap(
 }
 
 // Draws a colored border around the block each remote peer has selected on the
-// slide currently being edited. A DOM overlay is required because panther's
+// slide currently being edited, and around this user's OWN selection in their
+// presence colour (the same frame their collaborators see), so what a click
+// selected is never in doubt. A DOM overlay is required because panther's
 // canvas (PageHolder) is unmodifiable and exposes no highlight-by-id API. The
 // boxes are positioned in viewport coordinates inside a Portal so a transformed
 // modal ancestor cannot offset them, and recompute on resize/scroll.
+const OWN_SELECTION_FALLBACK_COLOR = "#0070f3";
+
 function PeerSelectionOverlay(p: {
   measured: MeasuredPage | undefined;
   slideId: string;
   suppressed: boolean;
+  // This user's selection on the slide (a body block, or a title field).
+  self: { blockId: string | undefined; textTarget: string | undefined };
 }) {
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
@@ -1520,7 +1528,8 @@ function PeerSelectionOverlay(p: {
         peer.slideId === p.slideId &&
         (peer.selectedBlockId || peer.selectedTextTarget),
     );
-    if (peers.length === 0) return [];
+    const own = p.self.blockId || p.self.textTarget ? p.self : undefined;
+    if (peers.length === 0 && !own) return [];
     const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
     if (!canvas) return [];
     const r = canvas.getBoundingClientRect();
@@ -1566,17 +1575,19 @@ function PeerSelectionOverlay(p: {
       top: number;
       width: number;
       height: number;
+      // The outer frame's colour: this user's own when the element is theirs.
+      color: string;
       editors: { name: string; color: string; editingFigure: boolean }[];
     }[] = [];
     const byTarget = new Map<string, (typeof out)[number]>();
-    for (const peer of peers) {
-      const targetKey = peer.selectedBlockId
-        ? `block:${peer.selectedBlockId}`
-        : `text:${peer.selectedTextTarget}`;
-      const rcd = peer.selectedBlockId
-        ? blockRects.get(peer.selectedBlockId)
-        : textRects.get(peer.selectedTextTarget!);
-      if (!rcd) continue;
+    const entryFor = (
+      blockId: string | undefined,
+      textTarget: string | undefined,
+      color: string,
+    ) => {
+      const targetKey = blockId ? `block:${blockId}` : `text:${textTarget}`;
+      const rcd = blockId ? blockRects.get(blockId) : textRects.get(textTarget!);
+      if (!rcd) return undefined;
       let entry = byTarget.get(targetKey);
       if (!entry) {
         entry = {
@@ -1585,11 +1596,27 @@ function PeerSelectionOverlay(p: {
           top: r.top + rcd.y * sy,
           width: rcd.w * sx,
           height: rcd.h * sy,
+          color,
           editors: [],
         };
         byTarget.set(targetKey, entry);
         out.push(entry);
       }
+      return entry;
+    };
+    // This user's own frame first, so its colour is the outer border and a
+    // collaborator on the same element takes the inset ring.
+    if (own) {
+      const me = collabState.peers.find((pe) => pe.connectionId === collabState.connectionId);
+      entryFor(own.blockId, own.textTarget, me?.color ?? OWN_SELECTION_FALLBACK_COLOR);
+    }
+    for (const peer of peers) {
+      const entry = entryFor(
+        peer.selectedBlockId || undefined,
+        peer.selectedTextTarget || undefined,
+        peer.color,
+      );
+      if (!entry) continue;
       // Same user in two tabs = two connections; show their name once.
       if (!entry.editors.some((e) => e.name === peer.name)) {
         entry.editors.push({
@@ -1620,12 +1647,12 @@ function PeerSelectionOverlay(p: {
                 top: `${b.top}px`,
                 width: `${b.width}px`,
                 height: `${b.height}px`,
-                border: `2px solid ${b.editors[0].color}`,
+                border: `2px solid ${b.color}`,
               }}
             >
-              {/* Additional co-editors get concentric inset borders so every
-                  editor's color stays visible on the shared element. */}
-              <For each={b.editors.slice(1)}>
+              {/* Co-editors get concentric inset borders so every editor's
+                  colour stays visible on the shared element. */}
+              <For each={b.editors.filter((e) => e.color !== b.color)}>
                 {(e, i) => (
                   <div
                     class="pointer-events-none absolute rounded-sm"
