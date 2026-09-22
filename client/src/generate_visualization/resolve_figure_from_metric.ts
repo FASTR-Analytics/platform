@@ -15,7 +15,7 @@ import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
-// (AI adapter in slide_deck/slide_ai). No AI types imported here.
+// (AI adapter in components/products/copilot/slide_ai). No AI types imported here.
 //
 // It goes at the items cache directly rather than through
 // getPresentationObjectItemsFromCacheOrFetch because the caller already holds

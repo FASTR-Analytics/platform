@@ -5,7 +5,7 @@ import type { ContentBlock, ContentSlide, FigureBlock, FigureBundle, PackageScop
 // behind the user's back, so a mixed-package document is a visible,
 // intentional state, and the badge is the whole mechanism: reattach and scope
 // change never block. Pure: no fetches, no stores, no components. The update
-// action lives in components/figure_editor/stale_figure_badge.tsx. Type-only
+// action lives in components/_shared/figure_editor/stale_figure_badge.tsx. Type-only
 // imports, so the server test can load this file under Deno.
 
 export function isFigureBundleStale(

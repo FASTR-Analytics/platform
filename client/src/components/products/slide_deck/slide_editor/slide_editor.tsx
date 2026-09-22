@@ -245,7 +245,7 @@ export function SlideEditor(p: Props) {
     else undo();
   }
 
-  // Live cursors: surface glue lives in _shared/cursors/slide_cursors.tsx
+  // Live cursors: surface glue lives in slide_cursors.tsx
   // (mounted in the JSX below). Disabled while a sub-editor modal covers the
   // canvas (the figure modal's own broadcaster takes over the awareness field).
   const slideCursorsEnabled = () =>
