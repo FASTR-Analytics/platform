@@ -17,12 +17,18 @@ export const ROW_HEADER_COLUMN_ID = "__row_header__";
 const HEADER_BUTTON =
   "inline-flex w-full items-center gap-1 rounded px-1.5 py-1 ui-hoverable-base-200 ui-focusable";
 
+// Valued cells first, by value; then value-less cells, by text; empties last.
+// Ranking before comparing keeps the order transitive in a mixed column.
+function cellRank(cell: DataGridCell | undefined): number {
+  return cell === undefined ? 2 : cell.value === undefined ? 1 : 0;
+}
+
 function compareCells(
   a: DataGridCell | undefined,
   b: DataGridCell | undefined,
 ): number {
-  if (a === undefined) return b === undefined ? 0 : 1;
-  if (b === undefined) return -1;
+  const rank = cellRank(a) - cellRank(b);
+  if (rank !== 0 || a === undefined || b === undefined) return rank;
   if (a.value !== undefined && b.value !== undefined) return a.value - b.value;
   return a.text.localeCompare(b.text);
 }
@@ -50,13 +56,12 @@ export function DataGrid(p: DataGridProps) {
     }
     const col = columnIndex().get(s.columnId);
     if (col === undefined) return indices;
+    // Empties stay last in both directions; only the valued order flips.
     return indices.sort((a, b) => {
-      const cmp = compareCells(p.cells[a]?.[col], p.cells[b]?.[col]);
-      const bothEmpty = p.cells[a]?.[col] === undefined &&
-        p.cells[b]?.[col] === undefined;
-      const oneEmpty = (p.cells[a]?.[col] === undefined) !==
-        (p.cells[b]?.[col] === undefined);
-      return bothEmpty ? 0 : oneEmpty ? cmp : sign * cmp;
+      const cellA = p.cells[a]?.[col];
+      const cellB = p.cells[b]?.[col];
+      const rank = cellRank(cellA) - cellRank(cellB);
+      return rank !== 0 ? rank : sign * compareCells(cellA, cellB);
     });
   });
 
@@ -66,19 +71,25 @@ export function DataGrid(p: DataGridProps) {
     const groups = p.columnGroups;
     if (groups === undefined) return undefined;
     const labelById = new Map(groups.map((g) => [g.id, g.label]));
-    const spans: { label: string; span: number }[] = [];
+    const spans: {
+      groupId: string | undefined;
+      label: string;
+      span: number;
+    }[] = [];
     for (const column of p.columns) {
-      const label = column.groupId === undefined
-        ? ""
-        : labelById.get(column.groupId) ?? "";
+      const groupId = column.groupId !== undefined &&
+          labelById.has(column.groupId)
+        ? column.groupId
+        : undefined;
       const last = spans.at(-1);
-      if (
-        last !== undefined && column.groupId !== undefined &&
-        last.label === label
-      ) {
+      if (groupId !== undefined && last?.groupId === groupId) {
         last.span += 1;
       } else {
-        spans.push({ label, span: 1 });
+        spans.push({
+          groupId,
+          label: groupId === undefined ? "" : labelById.get(groupId)!,
+          span: 1,
+        });
       }
     }
     return spans;
@@ -178,6 +189,7 @@ export function DataGrid(p: DataGridProps) {
                   classList={{
                     "cursor-pointer ui-hoverable-base-100": !!p.onRowClick,
                   }}
+                  onMouseEnter={() => p.onCellHover?.(null)}
                   onClick={() => p.onRowClick?.(p.rows[rowIndex].id)}
                 >
                   {p.rows[rowIndex].label}
