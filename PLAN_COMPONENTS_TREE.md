@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Do 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -614,3 +614,8 @@ commit.
 | 2026-09-22 | 1 | Fix: panther `de5bf6f` adds a Cycles Do/Don't for rule 7, rewords the opening to name the linted rules (3 to 7 and the naming half of 10) and turns the four unlinted checklist items into prose. Copied by hand as in the step 1 deviation, mode 444, byte-identical to panther HEAD. |
 | 2026-09-22 | 1 | Step 1 fixed. |
 | 2026-09-22 | 1 | Step 1 reviewed: pass. Re-review after Fix 1: rule 7 has a Cycles Do/Don't (`PROTOCOL_UI_STRUCTURE.md:160`), the opening (line 11) names the linted rules and the four judgement items are prose (line 228); the copy is byte-identical to panther `de5bf6f`, mode 444, no em-dashes; app commit `c4d9218d` holds that file and the plan only. Gates green: `deno task typecheck`, `deno task test`, `./validate_protocols`, `cd client && npm run build`, panther `deno task typecheck`. Noted, not a finding: the opening lists rule 1 as judgement though `root-file` lints its "no file at the root" half. |
+| 2026-09-22 | 2 | Starting point, `deno task lint:structure` over the whole client: root-file 17, snake-case 110 (107 files, 3 folders), index-entry 26, entry-only 260, shared-scope 3, shared-consumers 12, direction 9, unimported 5 (the five dead files of R14), entry-cycle 0 (no `mod.ts` exists yet). 442 hits. |
+| 2026-09-22 | 2 | Deviation forced by the floor: `SYSTEM_14_client_shell.md` gains one glob, `server/tests/lint_structure_test.ts`, because `lint:systems` fails on an unclaimed test and the step's surface named no SYSTEM file. S14 is where step 10 documents the lint. |
+| 2026-09-22 | 2 | Choice the plan did not cover: `unimported` also treats `client/src/index.tsx` as a root, since it is the Vite entry that imports `app.tsx`; without it `app.tsx` and `index.tsx` would be the only unreachable files. Hits are reported for every file under `client/src`, not only `components/`, so a file left dead by step 8 is caught. |
+| 2026-09-22 | 2 | Choice the plan did not cover: `shared-consumers` counts per direct child of a `_shared/` folder (a file or a sub-folder), and an import of the folder's `mod.ts` is attributed to the children whose exported names the importer names (`export *` and `export { } from` are followed). A namespace import counts for every child. `entry-cycle` edges are runtime imports of a `mod.ts` only, as §2 rule 5 says, so deep imports tolerated until step 10 do not form cycles. |
+| 2026-09-22 | 2 | Step 2 built. |

@@ -22,6 +22,7 @@ globs:
   - server/routes/instance/whats_new.ts
   - lib/translate/**
   - server/routes/instance/onboarding.ts
+  - server/tests/lint_structure_test.ts
 docs_absorbed:
 ---
 
