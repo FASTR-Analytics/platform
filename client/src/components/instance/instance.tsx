@@ -31,7 +31,7 @@ import { OrganisationModal } from "./organisation_modal";
 import { ThemeModal } from "./theme_modal";
 import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
 import { serverActions } from "~/server_actions";
-import { Explore } from "~/components/explore";
+import { Explore } from "~/components/explore/explore";
 import { InstanceAssets } from "~/components/assets/mod.ts";
 import { InstanceData } from "~/components/instance/instance_data";
 import { Products } from "~/components/products";
