@@ -18,7 +18,7 @@ import { For, Match, Show, Switch, type JSX } from "solid-js";
 import { Dhis2ManageConnection } from "../_shared/dhis2_credentials/manage_connection";
 import { IndicatorsManager } from "../indicator_manager_hmis/indicators_manager";
 import { InstanceDatasetHmis } from "../instance_dataset_hmis";
-import { InstanceDatasetIceh } from "../instance_dataset_iceh";
+import { InstanceDatasetIceh } from "./iceh/dataset/dataset";
 import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
 import { HfaIndicatorsManager, HfaWeights, InstanceDatasetHfa, InstanceHfaTimePoints } from "./hfa/mod.ts";

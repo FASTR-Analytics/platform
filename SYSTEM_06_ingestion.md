@@ -12,7 +12,7 @@ globs:
   - client/src/components/data/hfa/imports/**
   - client/src/components/data/hfa/mod.ts
   - client/src/components/instance_dataset_hmis/**
-  - client/src/components/instance_dataset_iceh/**
+  - client/src/components/data/iceh/**
   - client/src/state/instance/t2_datasets.ts
   - lib/hfa_sentinel_classification.ts
   - lib/table_structures/**
