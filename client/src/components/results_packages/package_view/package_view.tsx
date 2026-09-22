@@ -26,6 +26,7 @@ import {
 } from "./status";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
+import { PackageVisualizations } from "./visualizations";
 
 // One READY results package, as it is explored ANYWHERE (Tim's ruling
 // 2026-08-18: what a package contains is a function of the runId alone, so it
@@ -33,10 +34,10 @@ import { ViewScript } from "./view_script";
 // (label, pin, status, provenance) + the per-module collapsible sections:
 // settings, Script/Logs viewers, files with download.
 //
-// Hosts add only their own chrome through the slots: the instance catalogue
-// puts pin/unpin/delete in `headerActions` and renders generating/failed runs
+// Hosts add only their own chrome through the slots: the package page puts
+// pin/unpin/delete in `headerActions` and renders generating/failed runs
 // itself, so this view is ready-only by construction; `headerNote` carries
-// whatever caveat the host needs above the module cards.
+// whatever caveat the host needs above the visualizations.
 export function ResultsPackageView(p: {
   run: RunListingItem;
   headerActions?: JSX.Element;
@@ -73,6 +74,8 @@ export function ResultsPackageView(p: {
       </div>
 
       {p.headerNote}
+
+      <PackageVisualizations run={p.run} />
 
       <ReadyModulesSection run={p.run} openViewer={openViewer} />
     </div>

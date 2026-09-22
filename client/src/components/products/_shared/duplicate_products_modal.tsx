@@ -12,7 +12,7 @@ import {
   ScopePicker,
   storedValueFromScopeSelection,
   type ScopeSelection,
-} from "./scope_picker";
+} from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 
 type Props = {

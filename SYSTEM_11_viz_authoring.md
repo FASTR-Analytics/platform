@@ -4,6 +4,7 @@ name: Visualization Authoring UI
 globs:
   - client/src/components/explore/**
   - client/src/components/_shared/figure_editor/**
+  - client/src/components/_shared/figure_preview.ts
   - client/src/components/products/_shared/insert_figure/**
   - client/src/state/instance/_util_disaggregation_label.ts
   - lib/convert_visualization_type.ts
@@ -167,11 +168,16 @@ excluded). The wizard derives every preset's config ONCE through
 the `t` TranslatableStrings at insertion time; stored figure text fields are
 plain strings), after cloning the preset to plain data because the context may
 be a Solid store; the previews render that list and the inserted figure is
-picked from it by id, so preview and figure cannot drift. A preview reads its
-rows through the scope-keyed `state/products/t2_figure_data.ts` (S9) and
-assembles them with `makeFigureBundleFromFetchedData(scope, ...)` +
+picked from it by id, so preview and figure cannot drift. A preview renders
+through the one shared helper, `components/_shared/figure_preview.ts`
+(`fetchFigureInputs`, and `createFigurePreview`, the tracked signal over it):
+it reads its rows through the scope-keyed `state/products/t2_figure_data.ts`
+(S9) and assembles them with `makeFigureBundleFromFetchedData(scope, ...)` +
 `buildFigureInputs`, so reopening a preset under the same `(runId,
-scopeToken)` is a cache hit and a preset is never a row (D6). Custom configs
+scopeToken)` is a cache hit and a preset is never a row (D6). The package
+page's default-visualization cards (S8) render through the same helper, so a
+default seen there and later inserted under the same pair is one cache
+entry. Custom configs
 go through `getStartingConfigForPresentationObject` (type defaults from
 `VIZ_TYPE_CONFIG`, display slots assigned via
 `getNextAvailableDisaggregationDisplayOption`). **The wizard never persists**.

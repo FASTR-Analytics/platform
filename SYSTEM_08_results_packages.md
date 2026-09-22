@@ -222,7 +222,13 @@ belongs on the shared surface: **if
 the answer to the question lives inside the run directory, it is the same
 view for everyone who can see that package.** `ResultsPackageView`
 (`results_packages/package_view/package_view.tsx`) renders a READY run's header
-(label · pin · status · provenance incl. disk size), summary line and
+(label · pin · status · provenance incl. disk size), the **Visualizations**
+section (`package_view/visualizations.tsx`: one card per entry of the
+package's `RunAuthoringContext.presets`, in catalog order and unfiltered,
+each rendered through S11's shared `_shared/figure_preview.ts` helper
+under a page scope that starts national, is chosen through the shared
+`ScopePicker` and is never stored; a default whose metric is stamped
+unavailable shows the stamped reason in place of a figure), then the
 Population card when the stamp is active ("population.csv"), and
 per-module cards (settings; Script/Logs viewers gated client-side by
 `canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`; files
@@ -416,7 +422,7 @@ Rulings:
   `admin_area_2`, a modules lockstep this design otherwise avoids.
 - **Mismatch is allowed, never auto-fixed.** A package without the
   product's AA2 attaches fine; area metrics degrade to empty. The scope is
-  never silently cleared: the scope picker (`products/_shared/scope_picker.tsx`)
+  never silently cleared: the scope picker (`components/_shared/scope_picker.tsx`)
   renders an orphaned stored value (a structure re-upload dropped the area)
   as an explicit annotated option.
 - **Write-time validation is schema-only** (non-empty string or null): no

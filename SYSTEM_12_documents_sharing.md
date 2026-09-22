@@ -7,6 +7,7 @@ globs:
   - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
   - client/src/components/_shared/presence_avatars.tsx
+  - client/src/components/_shared/scope_picker.tsx
   - client/src/components/products/*.ts
   - client/src/components/products/*.tsx
   - client/src/components/products/_shared/*.ts

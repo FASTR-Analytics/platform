@@ -7,7 +7,7 @@ chosen scope, and each one has an Edit that opens the figure editor with
 nothing behind it: the user can change the visualization on the page and
 nothing is saved anywhere.
 
-**Next step: Do 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app only.
 Read first: `CLAUDE.md`, `SYSTEMS.md`, `SYSTEM_08_results_packages.md`,
@@ -266,3 +266,10 @@ its commit.
 | 2026-09-22 | 1 | Step 1 built. |
 | 2026-09-22 | 1 | Review finding, no code change in this step: `client/src/onboarding/catalogue.ts:565` launches the catalogue tour from the help menu with `navigate: openTabOnly("results_packages")`, and `client/src/onboarding/index.ts:123` auto-starts it whenever the `instance-results-packages-card` attribute is on screen. Both targets now live on the package page (`package_page.tsx:254`, `:264`, `:281`), so the help-menu launch lands on the list where neither target exists, and the auto-start fires on the first opened page. `client/src/onboarding/**` is outside the Surface; the fix belongs to a step that owns the onboarding files or to SYSTEM_08 Open items. |
 | 2026-09-22 | 1 | Step 1 reviewed: 1 finding. |
+| 2026-09-22 | 2 | PLAN_EXPLORE_PRIMARY_RESULTS had not moved the two shared files (its Next step was still `Do 1`), so this step performed both moves. That plan's build log is not this plan's to edit; its step finds them done. |
+| 2026-09-22 | 2 | One commit, not two. `lint:structure`'s `shared-consumers` check requires two consuming areas for every file under `components/_shared/`; a moves-only commit leaves `scope_picker.tsx` and `figure_preview.ts` with one consumer (`products/`), so the moves and the section that gives them their second consumer land together. G2 is checked on that commit. |
+| 2026-09-22 | 2 | `figure_preview.ts` exports `createFigurePreview` beside `fetchFigureInputs`: the version-guarded fetch effect was about to be duplicated between `preset_preview.tsx` and the card, so it is the shared primitive and both render through it (CLAUDE.md "extract duplicated logic"). |
+| 2026-09-22 | 2 | Page scope with a single-area selection that has no area chosen yet (the picker's interim state): the cards keep rendering under the last complete pair rather than blanking. Not covered by R5. |
+| 2026-09-22 | 2 | `SYSTEM_10_figure_render_export.md` line 196 names `insert_figure/preset_preview.tsx` as a live-draft render site. Still true (it renders through the lifted helper); the file is outside this step's Surface and was not edited. |
+| 2026-09-22 | 2 | G2 on this step's commit: `scope_picker.tsx` lists as `R100`. `figure_preview.ts` lists as `A`, and cannot list as `R`: it is a function lifted out of `preset_preview.tsx`, which remains, so there is no file rename for git to detect. The gate's wording assumed two file moves; the code is as §4 step 2 describes. |
+| 2026-09-22 | 2 | Step 2 built. |
