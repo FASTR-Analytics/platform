@@ -9,7 +9,7 @@ import {
   type RunPopulation,
   type RunProgress,
 } from "lib";
-import { Button, Callout, CollapsibleSection } from "panther";
+import { Button, Callout } from "panther";
 import { For, Match, Show, Switch, createMemo, createSignal } from "solid-js";
 import { PRODUCT_TYPE_REGISTRY } from "~/components/products/mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
@@ -289,10 +289,11 @@ function PopulationSection(p: { population: RunPopulation }) {
   const level = () =>
     t3(getAdminAreaLabelForLevel(p.population.adminAreaLevel));
   return (
-    <CollapsibleSection
-      title={t3({ en: "Population", fr: "Population", pt: "População" })}
-    >
-      <div class="ui-pad ui-spy-sm">
+    <div class="ui-spy-sm">
+      <div class="ui-text-caption font-700">
+        {t3({ en: "Population", fr: "Population", pt: "População" })}
+      </div>
+      <div class="ui-spy-sm">
         <div class="text-sm">
           <span class="text-base-content-muted">
             {t3({ en: "Level", fr: "Niveau", pt: "Nível" })}
@@ -330,7 +331,7 @@ function PopulationSection(p: { population: RunPopulation }) {
           )}
         </Show>
       </div>
-    </CollapsibleSection>
+    </div>
   );
 }
 
