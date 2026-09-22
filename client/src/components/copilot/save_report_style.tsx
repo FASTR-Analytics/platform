@@ -13,7 +13,7 @@ import { createSignal, Match, onMount, Switch } from "solid-js";
 import {
   ReportStyleEditor,
   type ReportStyleEditorResult,
-} from "~/components/products/_shared/report_style_editor";
+} from "~/components/products/_shared/mod.ts";
 import { createCopilotSDKClient } from "./ai_configs/defaults";
 
 // "Save this report's style…" (AI pane kebab menu, HTML reports only): a

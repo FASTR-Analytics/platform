@@ -45,7 +45,7 @@ the wrapper the slide and report editors open; `visualization_editor_inner.tsx`
 `stale_figure_badge.tsx` (the per-figure stale badge, its "Update to
 <package>" action and the "Update all figures" header button of
 PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
-staleness"). `components/figures/insert_figure/**` (the insert-figure wizard
+staleness"). `components/products/_shared/insert_figure/**` (the insert-figure wizard
 and the preset gallery it renders, below). `components/explore/explore.tsx`
 (the instance Explore tab's page, S14 mounts it: empty until the results
 explorer plan fills it, D6). `_editor_snapshot.ts` (`snapshotForSlideEditor`,
@@ -150,7 +150,7 @@ item).
 
 ## The insert-figure wizard
 
-`InsertFigureModal` (`components/figures/insert_figure/index.tsx`) takes `{
+`InsertFigureModal` (`components/products/_shared/insert_figure/insert_figure.tsx`) takes `{
 scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
 "modules">, preselectedMetricId }`: the metrics and modules come from the
 package's authoring context (S9's `t2_run_authoring_context.ts`) and the pair

@@ -428,7 +428,7 @@ CRUD on the product-scoped report routes: the path's report decides which
 styles are visible, list is `view` access and every mutation is `edit` and
 logged). They render in the theme modal as color-skinned generic tiles and are
 created/edited via
-[report_style_editor.tsx](client/src/components/report/report_style_editor.tsx)
+[report_style_editor.tsx](client/src/components/products/_shared/report_style_editor.tsx)
 (delete lives there because openConfirm would replace the modal). A style
 saved from a report also carries the source report's `<style>` CSS verbatim
 (`reference_css`, 076) — the prose brief alone proved lossy, so the AI is
@@ -462,10 +462,10 @@ in SQL.
 `REPORT_PURIFY_CONFIG` (lib; `FORCE_BODY`, explicit `FORBID_TAGS`, the default
 URI regexp plus the `figure:`/`image:` schemes — pinned by
 `server/tests/report_html_sanitize_test.ts` on jsdom) → materialize embeds →
-base CSS ([report_html.ts](client/src/components/report/report_html.ts), the
+base CSS ([report_html.ts](client/src/components/products/_shared/report_html.ts), the
 one builder for preview, version-history preview, `.html` download and
 print). The editor preview is a `sandbox="allow-same-origin"` srcdoc iframe
-([report_html_preview.tsx](client/src/components/report/report_html_preview.tsx))
+([report_html_preview.tsx](client/src/components/products/_shared/report_html_preview.tsx))
 — scripts browser-blocked, the report's `<style>` scoped to its own document,
 blob:/asset URLs load because the frame keeps the parent origin; in-page
 `#` links scroll in-frame, everything else opens a new tab; pointer events are
@@ -483,7 +483,7 @@ style, `GENERIC_LIGHT_INK` fallback, `applyInkTheme` at raster time); the
 `.html`/print export measures grounds by mounting the sanitized document in a
 hidden iframe (`measureFigureGrounds`); ink is part of the raster key) from a
 **content-keyed** cache
-([report_figure_raster.ts](client/src/components/report/report_figure_raster.ts):
+([report_figure_raster.ts](client/src/components/products/_shared/report_figure_raster.ts):
 `metricId|snapshotAt|canonicalJson(config)`, NOT object identity — collab
 materializes fresh block objects on every remote update), serial with a frame
 yield, pending → placeholder, failure → "Missing visualization". Structural
@@ -1368,7 +1368,7 @@ the header counts them with "Update all figures", re-resolving through one
 embed-widget extension (a line that is exactly one token renders as an atomic
 block widget), three modes edit/split/view, and line-anchored bidirectional
 scroll sync over a `PreviewSurface` adapter
-([scroll_sync.ts](client/src/components/report/scroll_sync.ts): `divSurface`
+([scroll_sync.ts](client/src/components/products/_shared/scroll_sync.ts): `divSurface`
 for the markdown card, `iframeSurface` for the html/fastr frame; `data-line`
 anchors, echo-loop guard, figure-settle ResizeObserver window; the html pane
 aligns when its surface becomes ready, not on the next frame). Embed insert/edit controls

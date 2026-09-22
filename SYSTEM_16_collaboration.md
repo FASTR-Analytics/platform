@@ -46,7 +46,7 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   the attribution ledgers `authorship.ts` (per-character report bodies, with
   tombstones) + `deck_session_ledger.ts` (per-slide / per-element decks),
   `server/db/products/versions.ts` (S12's file), `lib/types/versions.ts`, and
-  the client `components/version_history/**` (diff, compare, previews,
+  the client `components/products/_shared/version_history/**` (diff, compare, previews,
   restore modals).
 - **Shared custody.** The server chokepoint branches, checkpoint functions, and
   version routes ride **S12**'s files (`server/db/products/{reports,slides,
@@ -1110,7 +1110,7 @@ and re-runs the sweep.
 
 ### UI
 
-[client/src/components/version_history/](client/src/components/version_history/)
+[client/src/components/products/_shared/version_history/](client/src/components/products/_shared/version_history/)
 holds `VersionHistoryEditor`, a full-panel editor: day-grouped version list on
 the left (pinned "Current version" row, contributor chips via
 `PresenceAvatars` + `presenceColorForKey(email)`, names preferring the live

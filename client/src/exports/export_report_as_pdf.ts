@@ -4,7 +4,7 @@ import { serverActions } from "~/server_actions";
 import fontMap from "~/font-map.json";
 import { buildReportFigureMap, buildReportImageMap } from "./_report_export_maps";
 import { replaceUnavailableMediaTokens } from "./_media_placeholder";
-import { REPORT_MARKDOWN_STYLE } from "~/components/products/_shared/report_markdown_style";
+import { REPORT_MARKDOWN_STYLE } from "~/components/products/_shared/mod.ts";
 
 // A4 portrait DU frame (1000 wide × ~1.414 → 1414). Fixed minimal style for v1
 // (PLAN_REPORTS.md §10.2). Keep asSlides unset/false (§5 footgun).

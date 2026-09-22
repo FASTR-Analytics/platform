@@ -20,8 +20,8 @@ import {
   type ReportFormat,
   t3,
 } from "lib";
-import { type FigureStaleContext, ReportFigureEmbed } from "~/components/products/_shared/ReportFigureEmbed";
-import type { FigureInkTheme } from "~/components/products/_shared/report_figure_raster";
+import { type FigureStaleContext, ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
+import type { FigureInkTheme } from "~/components/products/_shared/mod.ts";
 
 export type EmbedKind = "figure" | "image";
 

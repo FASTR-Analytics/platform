@@ -108,10 +108,10 @@ import {
 import {
   materializeReportBackgrounds,
   sanitizeReportHtml,
-} from "~/components/products/_shared/report_html";
+} from "~/components/products/_shared/mod.ts";
 import { fastrBlockLabel } from "~/components/_shared/fastr_block_labels";
 import type { EmbedResolver } from "./figure_widget_extension";
-import { ReportFigureEmbed } from "~/components/products/_shared/ReportFigureEmbed";
+import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 
 // The scope class the host puts on the editor wrapper and passes to
 // buildFastrReportCss / buildFastrEditorSurfaceCss. One name, three users.

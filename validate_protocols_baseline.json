@@ -1,13 +1,18 @@
 [
   {
     "id": "jsx-and-and",
-    "file": "client/src/components/version_history/report_version_preview.tsx",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
     "text": "old={ch.oldVal && <ReportFigureEmbed figure={ch.oldVal} />}"
   },
   {
     "id": "jsx-and-and",
-    "file": "client/src/components/version_history/report_version_preview.tsx",
+    "file": "client/src/components/products/_shared/version_history/report_version_preview.tsx",
     "text": "neu={ch.newVal && <ReportFigureEmbed figure={ch.newVal} />}"
+  },
+  {
+    "id": "guard-before-deps",
+    "file": "client/src/components/products/_shared/ReportFigureEmbed.tsx",
+    "text": "effect body opens with a conditional"
   },
   {
     "id": "guard-before-deps",
@@ -27,11 +32,6 @@
   {
     "id": "guard-before-deps",
     "file": "client/src/components/instance/whats_new_modal.tsx",
-    "text": "effect body opens with a conditional"
-  },
-  {
-    "id": "guard-before-deps",
-    "file": "client/src/components/report/ReportFigureEmbed.tsx",
     "text": "effect body opens with a conditional"
   },
   {

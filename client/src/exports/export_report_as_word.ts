@@ -4,7 +4,7 @@ import type { APIResponseNoData } from "lib";
 import { serverActions } from "~/server_actions";
 import { buildReportFigureMap, buildReportImageMap } from "./_report_export_maps";
 import { replaceUnavailableMediaTokens } from "./_media_placeholder";
-import { REPORT_MARKDOWN_STYLE } from "~/components/products/_shared/report_markdown_style";
+import { REPORT_MARKDOWN_STYLE } from "~/components/products/_shared/mod.ts";
 
 export async function exportReportAsWord(
   productId: string,

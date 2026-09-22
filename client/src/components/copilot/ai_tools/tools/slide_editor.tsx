@@ -46,7 +46,7 @@ import {
   normalizeSpans,
 } from "~/components/slide_deck/slide_ai/layout_spec_helpers";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
-import { createIdGeneratorForLayout } from "~/components/products/_shared/_id_generation";
+import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 
 // Replace the bundle of one figure block in a content slide's layout, in place

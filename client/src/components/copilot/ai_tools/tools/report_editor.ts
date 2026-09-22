@@ -33,10 +33,10 @@ import {
 } from "~/generate_visualization/mod";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
-import { describeReportPages } from "~/components/products/_shared/report_page_map";
+import { describeReportPages } from "~/components/products/_shared/mod.ts";
 import { _SERVER_HOST } from "~/server_actions";
 import { copilotViews } from "~/components/copilot/ai_views";
-import { formatLineRanges } from "~/components/products/_shared/rebase_edits";
+import { formatLineRanges } from "~/components/products/_shared/mod.ts";
 import { resolveFigureFromMetric } from "~/components/slide_deck/slide_ai/resolve_figure_from_metric";
 import { formatFigureConfigForAI } from "./_internal/format_figure_config_for_ai";
 import { validateMetricInputs } from "lib";

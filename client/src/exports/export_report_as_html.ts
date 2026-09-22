@@ -43,7 +43,7 @@ import {
   type FigureInkTheme,
   figureInkThemeForStyle,
   GENERIC_LIGHT_INK,
-} from "~/components/products/_shared/report_figure_raster";
+} from "~/components/products/_shared/mod.ts";
 import type { FigureBlock } from "lib";
 import {
   buildReportBodyNodes,
@@ -52,7 +52,7 @@ import {
   sanitizeReportHtml,
   stripLazyLoading,
   wrapReportDocument,
-} from "~/components/products/_shared/report_html";
+} from "~/components/products/_shared/mod.ts";
 
 // The standalone .html file and print-to-PDF, for BOTH html-format reports
 // (the body is the markup) and FASTR Markdown (the body compiles to markup and

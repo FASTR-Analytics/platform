@@ -21,7 +21,7 @@ import { slideConfigSchema, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
-import { createIdGeneratorForLayout } from "~/components/products/_shared/_id_generation";
+import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 
 /**
  * Convert AI input (blocks[]) to storage format (LayoutNode<ContentBlock>).

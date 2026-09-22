@@ -74,7 +74,7 @@ import {
   setCollabView,
 } from "~/state/instance/collab";
 import { fastrThemeOptions } from "~/components/_shared/fastr_theme_labels";
-import { createReportPaginator } from "~/components/products/_shared/paginate_report";
+import { createReportPaginator } from "~/components/products/_shared/mod.ts";
 import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
@@ -96,7 +96,7 @@ import {
 import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { ProductSettings } from "~/components/products/_shared/mod.ts";
-import type { FigureStaleContext } from "~/components/products/_shared/ReportFigureEmbed";
+import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type {
   ReportEditProposalResult,
   ReportEditProposal,
@@ -106,10 +106,10 @@ import {
   restoreCopilotView,
   type CopilotViewState,
 } from "../copilot/ai_views";
-import { formatLineRanges, type SkippedRange } from "~/components/products/_shared/rebase_edits";
+import { formatLineRanges, type SkippedRange } from "~/components/products/_shared/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
-import { InsertFigureModal } from "~/components/products/_shared/insert_figure/insert_figure";
+import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
   EDITOR_PANE_MAX_REM,
   ReportBodyEditor,
@@ -121,7 +121,7 @@ import {
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
 } from "./live_preview_extension";
-import { REPORT_MARKDOWN_STYLE } from "~/components/products/_shared/report_markdown_style";
+import { REPORT_MARKDOWN_STYLE } from "~/components/products/_shared/mod.ts";
 import {
   ReportEmbedControls,
   ReportInsertEmbedButtons,
@@ -129,12 +129,12 @@ import {
 } from "./ReportEmbedEditor";
 import { ReportImagePicker } from "./report_image_picker";
 import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
-import { ReportFigureEmbed } from "~/components/products/_shared/ReportFigureEmbed";
+import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 import { DownloadReport } from "./download_report";
-import { isDarkGroundBehind } from "~/components/products/_shared/report_html";
+import { isDarkGroundBehind } from "~/components/products/_shared/mod.ts";
 import { ShareReport } from "./share_report";
 import { ReportThemeModal } from "./report_theme_modal";
-import { ReportStyleEditor } from "~/components/products/_shared/report_style_editor";
+import { ReportStyleEditor } from "~/components/products/_shared/mod.ts";
 import { DuplicateProductsModal } from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
@@ -144,8 +144,8 @@ import {
   type PreviewSurface,
   previewTopToLine,
   scrollSurfaceToBottom,
-} from "~/components/products/_shared/scroll_sync";
-import { ReportHtmlPreview } from "~/components/products/_shared/report_html_preview";
+} from "~/components/products/_shared/mod.ts";
+import { ReportHtmlPreview } from "~/components/products/_shared/mod.ts";
 import {
   createFigureRasterCache,
   createFigureSizeCache,
@@ -154,8 +154,8 @@ import {
   figureInkThemeForStyle,
   GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
-} from "~/components/products/_shared/report_figure_raster";
-import { VersionHistoryEditor } from "~/components/products/_shared/version_history/version_history";
+} from "~/components/products/_shared/mod.ts";
+import { VersionHistoryEditor } from "~/components/products/_shared/mod.ts";
 
 type EmbedKind = "figure" | "image";
 type EmbedSelection = { kind: EmbedKind; id: string };

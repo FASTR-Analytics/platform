@@ -68,7 +68,7 @@ import {
 } from "solid-js/store";
 import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
 import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
-import { InsertFigureModal } from "~/components/products/_shared/insert_figure/insert_figure";
+import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
   copilotViewController,
   restoreCopilotView,
@@ -102,7 +102,7 @@ import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { canEditProduct } from "~/state/instance/product_access";
 import { productById } from "~/state/instance/t1_store";
 import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
-import { createIdGeneratorForLayout } from "~/components/products/_shared/_id_generation";
+import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { convertSlideType } from "../slide_transforms/convert_slide_type";

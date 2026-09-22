@@ -1,6 +1,6 @@
 import type { FigureBlock } from "lib";
 import type { ProposalPreview } from "panther";
-import type { SkippedRange } from "~/components/products/_shared/rebase_edits";
+import type { SkippedRange } from "~/components/products/_shared/mod.ts";
 
 // A staged AI edit the user accepts/rejects via a diff (never silent mutation).
 export type ReportEditProposal = {
