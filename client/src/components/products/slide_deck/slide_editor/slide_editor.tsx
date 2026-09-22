@@ -131,6 +131,7 @@ type SlideEditorInnerProps = {
   // deck's heading bar, spanning the rail and the slide (Google Slides). The
   // toolbar is rendered there through a portal; it stays this editor's.
   toolbarHost?: HTMLElement;
+  menuRowHost?: HTMLElement;
   // The deck the slide sits in, read live: the copilot's slide view carries
   // the deck's tools too, since the deck's rail is always beside the slide.
   deckContext: {
@@ -1197,6 +1198,7 @@ export function SlideEditor(p: Props) {
           onAddField={addTitleField}
           onEditMarkdown={openMarkdownSource}
           onShowLayoutMenu={handleShowLayoutMenu}
+          menuRowHost={p.menuRowHost}
           onBlockTypeChange={handleBlockTypeChange}
           updateBlock={updateBlock}
           staleFigureBundle={selectedStaleBundle()}

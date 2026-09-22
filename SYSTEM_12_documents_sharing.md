@@ -256,11 +256,14 @@ the figures the candidate pair would leave stale; the overflow menu opens
 `ProductSettings` for name and folder; Present and Download are buttons on
 the bar.
 
-**One screen, Google-Slides style (2026-09-22).** The deck is a heading bar
-(name, Present, Download, the deck's menus), under it a full-width TOOLBAR
-ROW (the deck's Add slide at the left, then the open slide's toolbar, which
-the slide editor portals into the row's host so it spans rail and slide),
-over a `FrameLeftResizable` (210px, 140-420): the RAIL on the left is the
+**One screen, Google-Slides style (2026-09-22).** The deck is ONE header:
+the name (with the back arrow, chip and presence) and, under it, the open
+slide's menu row (Slide / Insert / Layout, portaled there by `SlideToolbar`
+through `menuRowHost`) on the left, the deck's actions (Present, Download,
+Update figures, Settings, More, AI) on the right; beneath it a full-width
+TOOLBAR ROW (the deck's Add slide at the left, then the slide's formatting
+pill, portaled through `toolbarHost`), over a `FrameLeftResizable` (210px,
+140-420): the RAIL on the left is the
 vertical slide list, and the slide clicked in it is open beside it. `SlideList`
 ([slide_list.tsx](client/src/components/products/slide_deck/slide_list.tsx))
 is that frame and takes the editor as its children; the deck component

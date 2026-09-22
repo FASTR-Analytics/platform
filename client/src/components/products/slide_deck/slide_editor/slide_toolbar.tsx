@@ -22,6 +22,7 @@ import { t3 } from "lib";
 import type { PatternType } from "panther";
 import { findById, Icon } from "panther";
 import { For, type JSX, Match, Show, Switch } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { SetStoreFunction } from "solid-js/store";
 import {
   MenuDivider,
@@ -64,6 +65,8 @@ type Props = {
   onAddField: (primitiveId: string) => void;
   onEditMarkdown: (blockId: string) => void;
   onShowLayoutMenu: (x: number, y: number) => void;
+  // Where the deck wants the menu row (its header); absent, it renders here.
+  menuRowHost?: HTMLElement;
   onBlockTypeChange: (blockId: string, type: BlockType) => void;
   updateBlock: (blockId: string, updater: (b: ContentBlock) => ContentBlock) => void;
   staleFigureBundle: FigureBundle | undefined;
@@ -201,6 +204,241 @@ export function SlideToolbar(p: Props) {
     if (p.editing && (e.target as Element).closest("button")) e.preventDefault();
   };
 
+  // The menu row (Slide, Insert, Layout…). The deck renders it beside its
+  // own name and menus (Google Slides' one header) through `menuRowHost`;
+  // alone, it sits above the pill.
+  const menuRow = () => (
+    <div
+      data-cursor-zone="header"
+      {...{ [INLINE_EDIT_KEEP_ATTR]: "" }}
+      onMouseDown={keepFocus}
+    >
+  <div class="flex flex-wrap items-center gap-1 px-2 pt-0.5">
+    <ToolbarPopover
+      menu
+      tour="slide-type-select"
+      label={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
+      title={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
+    >
+      {(close) => (
+        <div class="w-56">
+          <Caption>{t3({ en: "Slide type", fr: "Type de diapositive", pt: "Tipo de diapositivo" })}</Caption>
+          <For
+            each={[
+              { value: "cover" as const, label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }) },
+              { value: "section" as const, label: t3({ en: "Section", fr: "Section", pt: "Secção" }) },
+              { value: "content" as const, label: t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" }) },
+            ]}
+          >
+            {(o) => (
+              <PopoverRow
+                active={p.tempSlide.type === o.value}
+                onClick={() => {
+                  p.onTypeChange(o.value);
+                  close();
+                }}
+              >
+                {o.label}
+              </PopoverRow>
+            )}
+          </For>
+          <Switch>
+            <Match when={p.tempSlide.type === "cover"}>
+              <MenuDivider />
+              <Caption>{t3({ en: "Cover logos", fr: "Logos de couverture", pt: "Logótipos da capa" })}</Caption>
+              {logoRows("showLogos", p.showCoverLogosByDefault)}
+            </Match>
+            <Match when={p.tempSlide.type === "content"}>
+              <MenuDivider />
+              <Caption>{t3({ en: "Header logos", fr: "Logos d'en-tête", pt: "Logótipos do cabeçalho" })}</Caption>
+              {logoRows("showHeaderLogos", p.showHeaderLogosByDefault)}
+              <MenuDivider />
+              <Caption>{t3({ en: "Footer logos", fr: "Logos de pied de page", pt: "Logótipos do rodapé" })}</Caption>
+              {logoRows("showFooterLogos", p.showFooterLogosByDefault)}
+            </Match>
+          </Switch>
+        </div>
+      )}
+    </ToolbarPopover>
+
+    <ToolbarPopover
+      menu
+      tour="slide-text-fields"
+      label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
+      title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
+    >
+      {(close) => (
+        <div class="w-56">
+          <Caption>
+            {t3({
+              en: "Click text on the slide to edit it",
+              fr: "Cliquez sur un texte de la diapositive pour le modifier",
+              pt: "Clique num texto do diapositivo para o editar",
+            })}
+          </Caption>
+          <For each={SLIDE_TEXT_FIELDS.filter((f) => f.slideType === p.tempSlide.type)}>
+            {(f) => {
+              const present = () => !!(slideRec()[f.field] as string | undefined)?.trim();
+              const deckFooter = () => f.primitiveId === "footerText" && p.hasGlobalFooterText;
+              return (
+                <Show
+                  when={!deckFooter()}
+                  fallback={
+                    <Caption>
+                      {t3({
+                        en: "Footer text is set for the whole deck",
+                        fr: "Le pied de page est défini pour toute la présentation",
+                        pt: "O rodapé é definido para toda a apresentação",
+                      })}
+                    </Caption>
+                  }
+                >
+                  <PopoverRow
+                    active={false}
+                    onClick={() => {
+                      close();
+                      if (present()) {
+                        p.onEditText({ kind: "title", field: f.field, primitiveId: f.primitiveId });
+                      } else {
+                        p.onAddField(f.primitiveId);
+                      }
+                    }}
+                  >
+                    <Check on={present()} />
+                    <span class="flex-1">{f.label()}</span>
+                    <Show when={!present()}>
+                      <span class="text-base-content-muted text-xs">
+                        {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
+                      </span>
+                    </Show>
+                  </PopoverRow>
+                </Show>
+              );
+            }}
+          </For>
+        </div>
+      )}
+    </ToolbarPopover>
+
+    <Show when={p.tempSlide.type === "content"}>
+      <ToolbarPopover
+        menu
+        tour="slide-split-menu"
+        label={t3({ en: "Split panel", fr: "Panneau divisé", pt: "Painel dividido" })}
+        title={t3({ en: "Split panel", fr: "Panneau divisé", pt: "Painel dividido" })}
+      >
+        {() => (
+          <div class="w-60">
+            <PopoverRow active={!split()} onClick={() => p.setTempSlide("split", undefined)}>
+              {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
+            </PopoverRow>
+            <For each={["left", "right"] as const}>
+              {(side) => (
+                <PopoverRow
+                  active={split()?.placement === side}
+                  onClick={() =>
+                    split()
+                      ? p.setTempSlide("split", "placement", side)
+                      : p.setTempSlide("split", {
+                        placement: side,
+                        sizeAsPct: 15,
+                        fill: { type: "plain" },
+                      } satisfies ContentSlideSplit)}
+                >
+                  {side === "left"
+                    ? t3({ en: "Left", fr: "Gauche", pt: "Esquerda" })
+                    : t3({ en: "Right", fr: "Droite", pt: "Direita" })}
+                </PopoverRow>
+              )}
+            </For>
+            <Show when={split()}>
+              {(sp) => (
+                <>
+                  <MenuDivider />
+                  <Caption>{t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}</Caption>
+                  <div class="grid grid-cols-5 gap-0.5 px-1">
+                    <For each={[5, 10, 15, 20, 25, 30, 35, 40, 45, 50]}>
+                      {(pct) => (
+                        <PopoverRow
+                          active={sp().sizeAsPct === pct}
+                          onClick={() => p.setTempSlide("split", "sizeAsPct", pct)}
+                        >
+                          {pct}%
+                        </PopoverRow>
+                      )}
+                    </For>
+                  </div>
+                  <MenuDivider />
+                  <Caption>{t3({ en: "Fill", fr: "Remplissage", pt: "Preenchimento" })}</Caption>
+                  <PopoverRow
+                    active={sp().fill.type === "plain"}
+                    onClick={() => p.setTempSlide("split", "fill", { type: "plain" })}
+                  >
+                    {t3({ en: "Plain", fr: "Uni", pt: "Liso" })}
+                  </PopoverRow>
+                  <PopoverRow
+                    active={sp().fill.type === "pattern"}
+                    onClick={() =>
+                      sp().fill.type !== "pattern" &&
+                      p.setTempSlide("split", "fill", { type: "pattern", patternType: "ovals" })}
+                  >
+                    {t3({ en: "Pattern", fr: "Motif", pt: "Padrão" })}
+                  </PopoverRow>
+                  <PopoverRow
+                    active={sp().fill.type === "image"}
+                    onClick={() =>
+                      sp().fill.type !== "image" &&
+                      p.setTempSlide("split", "fill", { type: "image", imgFile: "" })}
+                  >
+                    {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
+                  </PopoverRow>
+                  <Show when={sp().fill.type === "pattern"}>
+                    <div class="grid grid-cols-2 gap-0.5 px-1 pt-1">
+                      <For each={PATTERNS}>
+                        {(pat) => (
+                          <PopoverRow
+                            active={(sp().fill as { patternType?: PatternType }).patternType === pat.value}
+                            onClick={() =>
+                              p.setTempSlide("split", "fill", { type: "pattern", patternType: pat.value })}
+                          >
+                            {pat.label()}
+                          </PopoverRow>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                  <Show when={sp().fill.type === "image"}>
+                    <div class="max-h-48 overflow-auto px-1 pt-1">
+                      <For
+                        each={imageAssets()}
+                        fallback={
+                          <Caption>
+                            {t3({ en: "No images uploaded", fr: "Aucune image téléversée", pt: "Nenhuma imagem carregada" })}
+                          </Caption>
+                        }
+                      >
+                        {(file) => (
+                          <PopoverRow
+                            active={(sp().fill as { imgFile?: string }).imgFile === file}
+                            onClick={() => p.setTempSlide("split", "fill", { type: "image", imgFile: file })}
+                          >
+                            <span class="truncate">{file}</span>
+                          </PopoverRow>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                </>
+              )}
+            </Show>
+          </div>
+        )}
+      </ToolbarPopover>
+    </Show>
+  </div>
+    </div>
+  );
+
   return (
     <div
       data-cursor-zone="header"
@@ -208,230 +446,9 @@ export function SlideToolbar(p: Props) {
       {...{ [INLINE_EDIT_KEEP_ATTR]: "" }}
       onMouseDown={keepFocus}
     >
-      {/* ── Menu row ─────────────────────────────────────────────────── */}
-      <div class="flex flex-wrap items-center gap-1 px-2 pt-0.5">
-        <ToolbarPopover
-          menu
-          tour="slide-type-select"
-          label={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
-          title={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
-        >
-          {(close) => (
-            <div class="w-56">
-              <Caption>{t3({ en: "Slide type", fr: "Type de diapositive", pt: "Tipo de diapositivo" })}</Caption>
-              <For
-                each={[
-                  { value: "cover" as const, label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }) },
-                  { value: "section" as const, label: t3({ en: "Section", fr: "Section", pt: "Secção" }) },
-                  { value: "content" as const, label: t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" }) },
-                ]}
-              >
-                {(o) => (
-                  <PopoverRow
-                    active={p.tempSlide.type === o.value}
-                    onClick={() => {
-                      p.onTypeChange(o.value);
-                      close();
-                    }}
-                  >
-                    {o.label}
-                  </PopoverRow>
-                )}
-              </For>
-              <Switch>
-                <Match when={p.tempSlide.type === "cover"}>
-                  <MenuDivider />
-                  <Caption>{t3({ en: "Cover logos", fr: "Logos de couverture", pt: "Logótipos da capa" })}</Caption>
-                  {logoRows("showLogos", p.showCoverLogosByDefault)}
-                </Match>
-                <Match when={p.tempSlide.type === "content"}>
-                  <MenuDivider />
-                  <Caption>{t3({ en: "Header logos", fr: "Logos d'en-tête", pt: "Logótipos do cabeçalho" })}</Caption>
-                  {logoRows("showHeaderLogos", p.showHeaderLogosByDefault)}
-                  <MenuDivider />
-                  <Caption>{t3({ en: "Footer logos", fr: "Logos de pied de page", pt: "Logótipos do rodapé" })}</Caption>
-                  {logoRows("showFooterLogos", p.showFooterLogosByDefault)}
-                </Match>
-              </Switch>
-            </div>
-          )}
-        </ToolbarPopover>
-
-        <ToolbarPopover
-          menu
-          tour="slide-text-fields"
-          label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-          title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-        >
-          {(close) => (
-            <div class="w-56">
-              <Caption>
-                {t3({
-                  en: "Click text on the slide to edit it",
-                  fr: "Cliquez sur un texte de la diapositive pour le modifier",
-                  pt: "Clique num texto do diapositivo para o editar",
-                })}
-              </Caption>
-              <For each={SLIDE_TEXT_FIELDS.filter((f) => f.slideType === p.tempSlide.type)}>
-                {(f) => {
-                  const present = () => !!(slideRec()[f.field] as string | undefined)?.trim();
-                  const deckFooter = () => f.primitiveId === "footerText" && p.hasGlobalFooterText;
-                  return (
-                    <Show
-                      when={!deckFooter()}
-                      fallback={
-                        <Caption>
-                          {t3({
-                            en: "Footer text is set for the whole deck",
-                            fr: "Le pied de page est défini pour toute la présentation",
-                            pt: "O rodapé é definido para toda a apresentação",
-                          })}
-                        </Caption>
-                      }
-                    >
-                      <PopoverRow
-                        active={false}
-                        onClick={() => {
-                          close();
-                          if (present()) {
-                            p.onEditText({ kind: "title", field: f.field, primitiveId: f.primitiveId });
-                          } else {
-                            p.onAddField(f.primitiveId);
-                          }
-                        }}
-                      >
-                        <Check on={present()} />
-                        <span class="flex-1">{f.label()}</span>
-                        <Show when={!present()}>
-                          <span class="text-base-content-muted text-xs">
-                            {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-                          </span>
-                        </Show>
-                      </PopoverRow>
-                    </Show>
-                  );
-                }}
-              </For>
-            </div>
-          )}
-        </ToolbarPopover>
-
-        <Show when={p.tempSlide.type === "content"}>
-          <ToolbarPopover
-            menu
-            tour="slide-split-menu"
-            label={t3({ en: "Split panel", fr: "Panneau divisé", pt: "Painel dividido" })}
-            title={t3({ en: "Split panel", fr: "Panneau divisé", pt: "Painel dividido" })}
-          >
-            {() => (
-              <div class="w-60">
-                <PopoverRow active={!split()} onClick={() => p.setTempSlide("split", undefined)}>
-                  {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
-                </PopoverRow>
-                <For each={["left", "right"] as const}>
-                  {(side) => (
-                    <PopoverRow
-                      active={split()?.placement === side}
-                      onClick={() =>
-                        split()
-                          ? p.setTempSlide("split", "placement", side)
-                          : p.setTempSlide("split", {
-                            placement: side,
-                            sizeAsPct: 15,
-                            fill: { type: "plain" },
-                          } satisfies ContentSlideSplit)}
-                    >
-                      {side === "left"
-                        ? t3({ en: "Left", fr: "Gauche", pt: "Esquerda" })
-                        : t3({ en: "Right", fr: "Droite", pt: "Direita" })}
-                    </PopoverRow>
-                  )}
-                </For>
-                <Show when={split()}>
-                  {(sp) => (
-                    <>
-                      <MenuDivider />
-                      <Caption>{t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}</Caption>
-                      <div class="grid grid-cols-5 gap-0.5 px-1">
-                        <For each={[5, 10, 15, 20, 25, 30, 35, 40, 45, 50]}>
-                          {(pct) => (
-                            <PopoverRow
-                              active={sp().sizeAsPct === pct}
-                              onClick={() => p.setTempSlide("split", "sizeAsPct", pct)}
-                            >
-                              {pct}%
-                            </PopoverRow>
-                          )}
-                        </For>
-                      </div>
-                      <MenuDivider />
-                      <Caption>{t3({ en: "Fill", fr: "Remplissage", pt: "Preenchimento" })}</Caption>
-                      <PopoverRow
-                        active={sp().fill.type === "plain"}
-                        onClick={() => p.setTempSlide("split", "fill", { type: "plain" })}
-                      >
-                        {t3({ en: "Plain", fr: "Uni", pt: "Liso" })}
-                      </PopoverRow>
-                      <PopoverRow
-                        active={sp().fill.type === "pattern"}
-                        onClick={() =>
-                          sp().fill.type !== "pattern" &&
-                          p.setTempSlide("split", "fill", { type: "pattern", patternType: "ovals" })}
-                      >
-                        {t3({ en: "Pattern", fr: "Motif", pt: "Padrão" })}
-                      </PopoverRow>
-                      <PopoverRow
-                        active={sp().fill.type === "image"}
-                        onClick={() =>
-                          sp().fill.type !== "image" &&
-                          p.setTempSlide("split", "fill", { type: "image", imgFile: "" })}
-                      >
-                        {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
-                      </PopoverRow>
-                      <Show when={sp().fill.type === "pattern"}>
-                        <div class="grid grid-cols-2 gap-0.5 px-1 pt-1">
-                          <For each={PATTERNS}>
-                            {(pat) => (
-                              <PopoverRow
-                                active={(sp().fill as { patternType?: PatternType }).patternType === pat.value}
-                                onClick={() =>
-                                  p.setTempSlide("split", "fill", { type: "pattern", patternType: pat.value })}
-                              >
-                                {pat.label()}
-                              </PopoverRow>
-                            )}
-                          </For>
-                        </div>
-                      </Show>
-                      <Show when={sp().fill.type === "image"}>
-                        <div class="max-h-48 overflow-auto px-1 pt-1">
-                          <For
-                            each={imageAssets()}
-                            fallback={
-                              <Caption>
-                                {t3({ en: "No images uploaded", fr: "Aucune image téléversée", pt: "Nenhuma imagem carregada" })}
-                              </Caption>
-                            }
-                          >
-                            {(file) => (
-                              <PopoverRow
-                                active={(sp().fill as { imgFile?: string }).imgFile === file}
-                                onClick={() => p.setTempSlide("split", "fill", { type: "image", imgFile: file })}
-                              >
-                                <span class="truncate">{file}</span>
-                              </PopoverRow>
-                            )}
-                          </For>
-                        </div>
-                      </Show>
-                    </>
-                  )}
-                </Show>
-              </div>
-            )}
-          </ToolbarPopover>
-        </Show>
-      </div>
+      <Show when={p.menuRowHost} fallback={menuRow()}>
+        {(host) => <Portal mount={host()}>{menuRow()}</Portal>}
+      </Show>
 
       {/* ── The pill: follows the selection ────────────────────────────── */}
       <div class="px-2 pt-1 pb-2">

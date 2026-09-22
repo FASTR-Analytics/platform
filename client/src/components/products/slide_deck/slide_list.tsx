@@ -14,7 +14,6 @@ import {
   Button,
   FrameLeftResizable,
   FrameTop,
-  HeadingBar,
   LoadingIndicator,
   type MenuItem,
   ActionMenuButton,
@@ -61,6 +60,9 @@ type Props = {
   // The toolbar row under the heading bar, where the open slide's editor
   // portals its toolbar (beside the deck's own Add slide).
   onToolbarHost: (el: HTMLDivElement) => void;
+  // The header's menus line, where the open slide's editor portals its
+  // Slide / Insert / Layout menus (under the deck's name, Google Slides).
+  onMenuRowHost: (el: HTMLDivElement) => void;
   handleClose: () => Promise<void>;
   handleOpenSettings: () => Promise<void>;
   handleOpenProductSettings: () => Promise<void>;
@@ -607,72 +609,80 @@ export function SlideList(p: Props) {
     <FrameTop
       panelChildren={
         <div class="h-full w-full" data-cursor-zone="header">
-        <HeadingBar
-          data-tour="deck-toolbar"
-          heading={p.deckLabel}
-          onBack={() => p.handleClose()}
-        >
-          <div class="ui-gap-sm flex items-center">
-            <PackageScopeChip
-              product={p.product}
-              onClick={canEditFigures() ? () => void openPackageScope() : undefined}
-            />
-            <PresenceAvatars
-              peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
-            />
-            <Show when={p.slideIds.length > 0}>
+        {/* One header (Google Slides): the name with the slide's menus under
+            it on the left, the deck's actions on the right, the toolbar row
+            beneath. */}
+        <div class="border-b w-full flex-none" data-tour="deck-toolbar">
+          <div class="ui-pad-sm ui-gap flex w-full items-start">
+            <div class="flex min-w-0 flex-1 flex-col">
+              <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
+                <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
+                <div class="ui-text-title truncate">{p.deckLabel}</div>
+                <PackageScopeChip
+                  product={p.product}
+                  onClick={canEditFigures() ? () => void openPackageScope() : undefined}
+                />
+                <PresenceAvatars
+                  peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
+                />
+              </div>
+              <div class="flex min-w-0 items-center" ref={p.onMenuRowHost} />
+            </div>
+            <div class="ui-gap-sm flex flex-none items-center">
+              <Show when={p.slideIds.length > 0}>
+                <Button
+                  id="deck-present-button"
+                  iconName="presentation"
+                  onClick={() => p.present()}
+                >
+                  {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
+                </Button>
+                <Button
+                  id="deck-download-button"
+                  iconName="download"
+                  outline
+                  onClick={() => p.download()}
+                >
+                  {t3(TC.download)}
+                </Button>
+              </Show>
+              <Show when={canEditFigures()}>
+                <UpdateAllFiguresButton
+                  count={staleCount()}
+                  busy={updatingFigures()}
+                  onClick={() => void updateAllFigures()}
+                />
+              </Show>
               <Button
-                id="deck-present-button"
-                iconName="presentation"
-                onClick={() => p.present()}
-              >
-                {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
-              </Button>
-              <Button
-                id="deck-download-button"
-                iconName="download"
+                id="deck-settings-button"
+                iconName="settings"
                 outline
-                onClick={() => p.download()}
+                onClick={() => p.handleOpenSettings()}
               >
-                {t3(TC.download)}
+                {t3(TC.settings)}
               </Button>
-            </Show>
-            <Show when={canEditFigures()}>
-              <UpdateAllFiguresButton
-                count={staleCount()}
-                busy={updatingFigures()}
-                onClick={() => void updateAllFigures()}
-              />
-            </Show>
-            <Button
-              id="deck-settings-button"
-              iconName="settings"
-              outline
-              onClick={() => p.handleOpenSettings()}
-            >
-              {t3(TC.settings)}
-            </Button>
-            <ActionMenuButton id="deck-more-button" items={menuItems} outline />
-            <Show when={!showAi()}>
-              <Button
-                onClick={() => setShowAi(true)}
-                iconName="chevronLeft"
-                outline
-              >
-                {t3({ en: "AI", fr: "IA", pt: "IA" })}
-              </Button>
-            </Show>
+              <ActionMenuButton id="deck-more-button" items={menuItems} outline />
+              <Show when={!showAi()}>
+                <Button
+                  onClick={() => setShowAi(true)}
+                  iconName="chevronLeft"
+                  outline
+                >
+                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
+                </Button>
+              </Show>
+            </div>
           </div>
-        </HeadingBar>
-        {/* The toolbar row (Google Slides): the deck's Add slide at the
-            left, then whatever the open slide's editor portals in. */}
-        <div class="border-b flex items-start" data-cursor-zone="header">
-          <div class="flex-none px-2 pt-0.5">
-            <MenuButton position="bottom-start" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
-              {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-            </MenuButton>
+          {/* The toolbar row: the deck's Add slide at the left, then the open
+              slide's formatting pill. */}
+          <div class="border-t flex items-start" data-cursor-zone="header">
+            <div class="flex-none px-2 pt-1">
+              <MenuButton position="bottom-start" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
+                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+              </MenuButton>
+            </div>
+            <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
           </div>
-          <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
         </div>
         </div>
       }
