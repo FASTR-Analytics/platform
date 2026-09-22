@@ -15,15 +15,12 @@ import {
 } from "panther";
 import { HeadingBar } from "panther";
 import { For, Match, Show, Switch, type JSX } from "solid-js";
-import { Dhis2ManageConnection } from "./hmis/dhis2_connection/manage_connection";
-import { IndicatorsManager } from "./hmis/indicators/mod.ts";
-import { InstanceDatasetHmis } from "./hmis/dataset/mod.ts";
 import { InstanceDatasetIceh } from "./iceh/mod.ts";
 import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
 import { HfaIndicatorsManager, HfaWeights, InstanceDatasetHfa, InstanceHfaTimePoints } from "./hfa/mod.ts";
 import { GeoJsonManager } from "./geojson/mod.ts";
-import { PopulationManager } from "./hmis/population/mod.ts";
+import { Dhis2ManageConnection, IndicatorsManager, InstanceDatasetHmis, PopulationManager } from "./hmis/mod.ts";
 import {
   instanceState,
   maxDepth,

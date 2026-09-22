@@ -14,6 +14,7 @@ globs:
   - client/src/components/data/hfa/mod.ts
   - client/src/components/data/hmis/dataset/**
   - client/src/components/data/hmis/imports/**
+  - client/src/components/data/hmis/mod.ts
   - client/src/components/data/iceh/**
   - client/src/state/instance/t2_datasets.ts
   - lib/hfa_sentinel_classification.ts

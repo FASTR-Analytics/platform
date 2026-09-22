@@ -85,8 +85,7 @@ label, package and scope live from the T1 products row. Lib: slide/report types,
 plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
 `ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `PackageScope`,
 `scopeToken`) that describe the products registry below. Custody wrinkle: the
-`_shared/**` glob also carries `dhis2_credentials/` (its one consumer is S6's
-Data page card, documented in SYSTEM_07) and `sort_control.tsx` (shell
+`_shared/**` glob also carries `sort_control.tsx` (shell
 furniture, flagged in SYSTEM_14); the three logo files are genuinely S12's (Open
 item: settle the manifest).
 
@@ -1890,8 +1889,7 @@ deliveries returns `success: false` (the form shows the error instead of
   need to reach support. Decide and either document or add the check.
 - **`overwrite` on `updateReportBody` is dead**: always sent `true`,
   ignored by the DB fn; wire the hard-reject mode or drop it.
-- **`_shared/**` custody**: `dhis2_credentials/` is consumed only by
-  S6's Data page card and documented by S7; `sort_control.tsx` is shell
+- **`_shared/**` custody**: `sort_control.tsx` is shell
   furniture (SYSTEM_14 flag). Settle via manifest move or a §4.1 exception
   row.
 - **Type casts on mutation bodies**: `body.slide as Slide`,
