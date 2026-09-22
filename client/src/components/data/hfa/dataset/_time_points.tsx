@@ -1,6 +1,6 @@
 import { t3, type HfaTimePoint } from "lib";
 import { HeadingBar, Button, EditorComponentProps, FrameTop } from "panther";
-import { HfaTimePointsEditor } from "../_shared/time_points";
+import { HfaTimePointsEditor } from "../_shared/mod.ts";
 
 export function TimePointsView(
   p: EditorComponentProps<
