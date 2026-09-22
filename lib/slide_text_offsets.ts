@@ -1043,11 +1043,16 @@ export function escapeTypedSlideText(text: string): string {
  *  of a line), like a word processor, and lands where it renders that way:
  *  a space typed at the end of `**bold|**` cannot go inside the delimiters
  *  (`**bold **` is not bold, it prints the asterisks), so it goes after them;
- *  a letter typed after that space joins the bold again (`**bold w**`). */
+ *  a letter typed after that space joins the bold again (`**bold w**`).
+ *  `want` is the typing state a toolbar toggle set with nothing selected
+ *  (bold off at the end of a bold word): it overrides what would be
+ *  inherited, and the text lands where it renders that way too
+ *  (`**bold**x`). */
 export function slideInsertText(
   an: SlideTextAnalysis,
   pos: number,
   typed: string,
+  want?: Partial<Pick<SlideCharStyle, "bold" | "italic">>,
 ): SlideEditResult {
   const { src, kind } = an;
   const plain: SlideCharStyle = { bold: false, italic: false, code: false };
@@ -1063,11 +1068,14 @@ export function slideInsertText(
     }
     return false;
   };
-  const inherit: SlideCharStyle = pv >= 0 && !separated(pv + 1, pos)
+  const inherited: SlideCharStyle = pv >= 0 && !separated(pv + 1, pos)
     ? an.srcStyle[pv] ?? plain
     : nv >= 0 && !separated(pos, nv)
     ? an.srcStyle[nv] ?? plain
     : plain;
+  const inherit: SlideCharStyle = want === undefined || inherited.code
+    ? inherited
+    : { ...inherited, ...want };
   // Inside a code span text is literal: no escapes.
   const ins = inherit.code ? typed : escapeTypedSlideText(typed);
   const at = (p: number) => src.slice(0, p) + ins + src.slice(p);

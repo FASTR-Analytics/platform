@@ -272,6 +272,27 @@ export function SlideEditor(p: Props) {
     return { kind: "title", field: f.field, primitiveId };
   }
 
+  // A click on nothing (the slide's empty ground, or the grey around it)
+  // deselects, so the toolbar returns to the slide's own row. PageHolder
+  // reports hits on its own click handler, which runs before this one
+  // bubbles; a drag that ends here is not a click.
+  let canvasHit = false;
+  let canvasPress: { x: number; y: number } | undefined;
+  function handleCanvasPointerDown(e: PointerEvent) {
+    canvasPress = { x: e.clientX, y: e.clientY };
+  }
+  function handleCanvasClick(e: MouseEvent) {
+    const press = canvasPress;
+    canvasPress = undefined;
+    const hit = canvasHit;
+    canvasHit = false;
+    if (hit) return;
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 4) return;
+    if (inlineEdit()) return;
+    selectBlock(undefined);
+    selectTextTarget(undefined);
+  }
+
   function handleCanvasDblClick(e: MouseEvent) {
     if (inlineEdit()) return;
     const r = document
@@ -1275,6 +1296,8 @@ export function SlideEditor(p: Props) {
               {(readyPageInputs) => (
                 <div
                   class="ui-pad-lg bg-base-200 h-full w-full overflow-auto"
+                  onPointerDown={handleCanvasPointerDown}
+                  onClick={handleCanvasClick}
                   onDblClick={handleCanvasDblClick}
                 >
                   <PageHolder
@@ -1291,6 +1314,7 @@ export function SlideEditor(p: Props) {
                       showLayoutBoundaries: true,
                     }}
                     onClick={(target) => {
+                      canvasHit = true;
                       if (target.type === "layoutItem") {
                         selectBlock(target.node.id);
                       } else if (

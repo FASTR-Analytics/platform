@@ -200,8 +200,13 @@ Deno.test("word ranges come from rendered text, spanning syntax", () => {
 });
 
 Deno.test("typing continues the formatting it is typed into, validly", () => {
-  const typeAt = (src: string, pos: number, text: string) => {
-    const r = slideInsertText(analyzeSlideMarkdown(src), pos, text);
+  const typeAt = (
+    src: string,
+    pos: number,
+    text: string,
+    want?: { bold?: boolean; italic?: boolean },
+  ) => {
+    const r = slideInsertText(analyzeSlideMarkdown(src), pos, text, want);
     return { doc: apply(src, r)!, caret: r.anchor };
   };
   // A space at the end of a bold span goes after the closing delimiters.
@@ -218,4 +223,13 @@ Deno.test("typing continues the formatting it is typed into, validly", () => {
   assertEquals(typeAt("x **bold**", 4, " ").doc, "x  **bold**");
   // Typed punctuation stays literal.
   assertEquals(typeAt("ab", 1, "*").doc, "a\\*b");
+  // A typing state set by a toggle with nothing selected wins over the
+  // inherited style, and the text lands where it renders that way.
+  assertEquals(typeAt("**hello**", 7, "x", { bold: false }).doc, "**hello**x");
+  const off = typeAt("**hello** ", 10, "w", { bold: false });
+  assertEquals(off.doc, "**hello** w");
+  assert(!analyzeSlideMarkdown(off.doc).srcStyle[off.caret - 1]?.bold);
+  const on = typeAt("hello ", 6, "w", { bold: true });
+  assertEquals(on.doc, "hello **w**");
+  assertEquals(typeAt("a *b* c", 4, "d", { italic: false, bold: true }).doc, "a *b***d** c");
 });

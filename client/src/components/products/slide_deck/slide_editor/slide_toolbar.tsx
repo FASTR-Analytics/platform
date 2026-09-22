@@ -260,8 +260,8 @@ export function SlideToolbar(p: Props) {
         <ToolbarPopover
           menu
           tour="slide-text-fields"
-          label={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
-          title={t3({ en: "Text", fr: "Texte", pt: "Texto" })}
+          label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
+          title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
         >
           {(close) => (
             <div class="w-56">

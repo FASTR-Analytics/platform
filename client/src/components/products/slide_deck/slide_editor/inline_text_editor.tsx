@@ -133,6 +133,10 @@ export function InlineTextEditor(p: Props) {
   const [blinkKey, setBlinkKey] = createSignal(0);
   const [tick, setTick] = createSignal(0);
   const [peers, setPeers] = createSignal<PeerMark[]>([]);
+  // The typing state: what Bold/Italic toggled with nothing selected, which
+  // the next typed text takes instead of the style it would inherit (bold
+  // off at the end of a bold word). Cleared when the caret moves on its own.
+  const [pending, setPending] = createSignal<{ bold?: boolean; italic?: boolean }>({});
   // Up/down keep the column they started from.
   let goalX: number | undefined;
 
@@ -187,8 +191,9 @@ export function InlineTextEditor(p: Props) {
       let i = from - 1;
       while (i >= 0 && an.kind[i] !== SRC_VISIBLE && text[i] !== "\n") i--;
       const st = i >= 0 && an.kind[i] === SRC_VISIBLE ? an.srcStyle[i] : undefined;
-      bold = !!st?.bold;
-      italic = !!st?.italic;
+      const pd = pending();
+      bold = pd.bold ?? !!st?.bold;
+      italic = pd.italic ?? !!st?.italic;
     }
     const lineStart = text.lastIndexOf("\n", s.head - 1) + 1;
     const line = text.slice(lineStart, text.indexOf("\n", s.head) < 0 ? text.length : text.indexOf("\n", s.head));
@@ -328,7 +333,7 @@ export function InlineTextEditor(p: Props) {
   // Insert typed/pasted text at the caret. Markdown goes through
   // slideInsertText: escaped, styled like the text it joins, and placed where
   // it renders that way (never inside delimiters it would break).
-  function insertText(text: string, userEvent: string) {
+  function insertText(text: string, userEvent: string, want = pending()) {
     if (!view) return;
     const at = view.state.selection.main.head;
     if (!isMarkdown) {
@@ -340,7 +345,12 @@ export function InlineTextEditor(p: Props) {
       });
       return;
     }
-    const r = slideInsertText(analysis(), at, text);
+    const r = slideInsertText(
+      analysis(),
+      at,
+      text,
+      want.bold === undefined && want.italic === undefined ? undefined : want,
+    );
     view.dispatch({
       changes: r.changes,
       selection: EditorSelection.single(r.anchor, r.head),
@@ -350,13 +360,25 @@ export function InlineTextEditor(p: Props) {
     goalX = undefined;
   }
 
+  // Like a word processor: a selection is restyled; a caret INSIDE a word
+  // restyles that word; a caret at a word's edge (the end of what was just
+  // typed) or on nothing sets what typing does next.
   function toggle(prop: "bold" | "italic"): boolean {
     if (!view || !isMarkdown) return true;
     const an = analysis();
     const s = view.state.selection.main;
-    const range = s.empty ? slideWordAt(an, s.head) : { from: s.from, to: s.to };
-    if (!range) return true;
-    dispatchEdit(slideToggleStyle(an, range.from, range.to, prop));
+    if (s.empty) {
+      const word = slideWordAt(an, s.head);
+      const inside = word !== undefined && s.head > word.from && s.head < word.to;
+      if (!inside) {
+        setPending({ ...pending(), [prop]: !marks()[prop] });
+        return true;
+      }
+      dispatchEdit(slideToggleStyle(an, word.from, word.to, prop));
+      return true;
+    }
+    setPending({});
+    dispatchEdit(slideToggleStyle(an, s.from, s.to, prop));
     return true;
   }
 
@@ -542,6 +564,8 @@ export function InlineTextEditor(p: Props) {
               return true;
             }
             if (!isMarkdown) return false;
+            // The typing state, before any caret repair below clears it.
+            const want = pending();
             // Typing over a selection keeps the formatting around it.
             if (from !== to) {
               const r = slideDeleteRange(analysis(), from, to);
@@ -554,7 +578,7 @@ export function InlineTextEditor(p: Props) {
             } else if (v.state.selection.main.head !== from) {
               v.dispatch({ selection: EditorSelection.cursor(from) });
             }
-            insertText(text, "input.type");
+            insertText(text, "input.type", want);
             return true;
           }),
           EditorView.domEventHandlers({
@@ -588,6 +612,9 @@ export function InlineTextEditor(p: Props) {
               setSel({ anchor: m.anchor, head: m.head });
               setBlinkKey((k) => k + 1);
             }
+            // A caret that moved on its own (click, arrows) leaves the
+            // typing state behind; typing carries it along.
+            if (u.selectionSet && !u.docChanged) setPending({});
           }),
         ],
       }),
