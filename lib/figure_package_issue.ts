@@ -3,7 +3,7 @@ import type { DisaggregationOption } from "./types/disaggregation_options.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { DatasetType } from "./types/datasets.ts";
 import type { MetricWithStatus } from "./types/modules.ts";
-import type { RunManifest } from "./types/run_manifest.ts";
+import type { RunManifest, RunPopulation } from "./types/run_manifest.ts";
 
 // Why one figure will not resolve under a package (PLAN_PRODUCTS_RESTRUCTURE
 // D4). Manifest lookups only, no data queries: every fact needed is stamped
@@ -21,6 +21,11 @@ export type FigurePackageIssue =
     disaggregationOptions: DisaggregationOption[];
     // Labels the missing dimensions with the owning family's column labels.
     datasetFamily?: DatasetType;
+    // Set when a missing admin level is deeper than the level the package's
+    // population data holds: m012 aggregates every rate to that level
+    // (SYSTEM_08 "population.csv"), so the reason is the population, not
+    // the module.
+    populationLevel?: number;
   };
 
 // Every dimension a stored config asks the package for: grouping, filtering
@@ -53,7 +58,11 @@ export function figurePackageIssueForDimensions(
     (a) => a.metricId === metricId,
   );
   if (availability !== undefined && availability.status === "unavailable") {
-    return { kind: "metric_unavailable", metricId, reason: availability.reason };
+    return {
+      kind: "metric_unavailable",
+      metricId,
+      reason: availability.reason,
+    };
   }
 
   // A metric whose results object carries no query parquet offers no
@@ -66,6 +75,7 @@ export function figurePackageIssueForDimensions(
     requested,
     ro?.availableDisaggregationOptions ?? [],
     metric.datasetFamily ?? undefined,
+    manifest.population,
   );
 }
 
@@ -89,6 +99,7 @@ export function figurePackageIssueForMetrics(
   metricId: string,
   config: PresentationObjectConfig,
   metrics: MetricWithStatus[],
+  population: RunPopulation | null,
 ): FigurePackageIssue | null {
   const metric = metrics.find((m) => m.id === metricId);
   if (metric === undefined) {
@@ -105,6 +116,7 @@ export function figurePackageIssueForMetrics(
     requestedDisaggregationOptions(config),
     metric.disaggregationOptions.map((d) => d.value),
     metric.datasetFamily,
+    population,
   );
 }
 
@@ -112,9 +124,30 @@ function missingDimensions(
   requested: DisaggregationOption[],
   available: readonly string[],
   datasetFamily: DatasetType | undefined,
+  population: RunPopulation | null,
 ): FigurePackageIssue | null {
   const availableSet = new Set<string>(available);
   const missing = requested.filter((disOpt) => !availableSet.has(disOpt));
   if (missing.length === 0) return null;
-  return { kind: "dimensions_not_in_package", disaggregationOptions: missing, datasetFamily };
+  const populationLevel = populationLevelShallowerThan(missing, population);
+  return {
+    kind: "dimensions_not_in_package",
+    disaggregationOptions: missing,
+    datasetFamily,
+    ...(populationLevel === undefined ? {} : { populationLevel }),
+  };
+}
+
+const ADMIN_AREA_OPTION = /^admin_area_(\d)$/;
+
+function populationLevelShallowerThan(
+  missing: DisaggregationOption[],
+  population: RunPopulation | null,
+): number | undefined {
+  if (population === null || !population.active) return undefined;
+  const deeper = missing.some((disOpt) => {
+    const match = ADMIN_AREA_OPTION.exec(disOpt);
+    return match !== null && Number(match[1]) > population.adminAreaLevel;
+  });
+  return deeper ? population.adminAreaLevel : undefined;
 }

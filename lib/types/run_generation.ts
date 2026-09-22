@@ -4,7 +4,11 @@ import type { DisaggregationOption } from "./disaggregation_options.ts";
 import type { ModuleParameter } from "./_module_definition_installed.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type { ProductType } from "./products.ts";
-import type { RunProvenance, RunSummary } from "./run_manifest.ts";
+import type {
+  RunPopulation,
+  RunProvenance,
+  RunSummary,
+} from "./run_manifest.ts";
 
 // Results-package generation (PLAN_RESULTS_RUNS item 2, re-cut by Phase 3
 // item 1). Two surfaces: the LAUNCH wizard (an ephemeral modal, its step
@@ -128,6 +132,8 @@ export type RunDetail = {
     settings: { label: string; value: string }[];
     files: { name: string; sizeBytes: number }[];
   }[];
+  // The manifest's population stamp, verbatim (SYSTEM_08 "population.csv").
+  population: RunPopulation | null;
 };
 
 // One module's raw output files inside a package (see

@@ -178,7 +178,7 @@ export async function readRunDetail(
         files: filesRes.data.files,
       });
     }
-    return { success: true, data: { modules } };
+    return { success: true, data: { modules, population: manifest.population } };
   } catch (e) {
     return {
       success: false,

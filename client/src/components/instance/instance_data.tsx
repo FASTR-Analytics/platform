@@ -510,7 +510,7 @@ export function InstanceData(p: Props) {
                       }
                       keyed
                       fallback={
-                        <div class="text-danger text-xs">
+                        <div class="text-base-content-muted text-xs">
                           {instanceState.populationLevel === undefined
                             ? t3({
                                 en: "No population level set",

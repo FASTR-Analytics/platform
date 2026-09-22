@@ -14,7 +14,7 @@ const _RUN_AUTHORING_CONTEXT_CACHE = createReactiveCache<
   { runId: string },
   RunAuthoringContext
 >({
-  name: "run_authoring_context",
+  name: "run_authoring_context_v2",
   uniquenessKeys: (params) => [params.runId],
   versionKey: () => "immutable",
 });

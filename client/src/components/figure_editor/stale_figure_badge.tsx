@@ -9,6 +9,7 @@ import {
 import { Button } from "panther";
 import { createSignal, Show } from "solid-js";
 import { packageLabel, scopeLabel } from "~/components/products/package_label";
+import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
 import {
   resolveFigureBundleInteractively,
   type ResolveFigureResult,
@@ -45,6 +46,7 @@ export async function updateFigureToScope(
     bundle.metricId,
     bundle.config,
     authoringContext.metrics,
+    authoringContext.population,
   );
   if (issue !== null) {
     return { ok: false, reason: describePackageIssue(issue, scope.runId) };
@@ -70,10 +72,18 @@ function describePackageIssue(issue: FigurePackageIssue, runId: string): string 
     });
   }
   const dims = issue.disaggregationOptions.join(", ");
+  if (issue.populationLevel === undefined) {
+    return t3({
+      en: `${pkg} has no ${dims} for this figure`,
+      fr: `${pkg} n'a pas de ${dims} pour cette figure`,
+      pt: `${pkg} não tem ${dims} para esta figura`,
+    });
+  }
+  const level = t3(getAdminAreaLabelForLevel(issue.populationLevel));
   return t3({
-    en: `${pkg} has no ${dims} for this figure`,
-    fr: `${pkg} n'a pas de ${dims} pour cette figure`,
-    pt: `${pkg} não tem ${dims} para esta figura`,
+    en: `${pkg} has no ${dims} for this figure because its population data is at ${level}`,
+    fr: `${pkg} n'a pas de ${dims} pour cette figure car ses données de population sont au niveau ${level}`,
+    pt: `${pkg} não tem ${dims} para esta figura porque os seus dados de população estão ao nível ${level}`,
   });
 }
 

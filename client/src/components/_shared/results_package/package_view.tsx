@@ -1,4 +1,9 @@
-import { t3, type RunDetail, type RunListingItem } from "lib";
+import {
+  t3,
+  type RunDetail,
+  type RunListingItem,
+  type RunPopulation,
+} from "lib";
 import {
   Button,
   CollapsibleSection,
@@ -10,6 +15,7 @@ import {
 import { For, Show, createEffect, createSignal, type JSX } from "solid-js";
 import { getRunDetailFromCacheOrFetch } from "~/state/instance/t2_runs";
 import { instanceState } from "~/state/instance/t1_store";
+import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
 import {
   PinnedBadge,
   RunStatusBadge,
@@ -144,6 +150,16 @@ function ReadyModulesSection(p: {
     >
       {(keyedDetail) => (
         <div class="ui-spy">
+          <Show
+            when={
+              keyedDetail.population?.active
+                ? keyedDetail.population
+                : undefined
+            }
+            keyed
+          >
+            {(population) => <PopulationSection population={population} />}
+          </Show>
           <For each={keyedDetail.modules}>
             {(mod) => (
               <ModuleSection
@@ -157,6 +173,79 @@ function ReadyModulesSection(p: {
       )}
     </StateHolderWrapper>
   );
+}
+
+// The manifest's population stamp (SYSTEM_08 "population.csv"): what the
+// package's rate indicators were computed over. Rendered only when a formula
+// named a population, so an instance that never uses one sees nothing.
+function PopulationSection(p: { population: RunPopulation }) {
+  const level = () =>
+    t3(getAdminAreaLabelForLevel(p.population.adminAreaLevel));
+  return (
+    <CollapsibleSection
+      title={t3({ en: "Population", fr: "Population", pt: "População" })}
+    >
+      <div class="ui-pad ui-spy-sm">
+        <div class="text-sm">
+          <span class="text-base-content-muted">
+            {t3({ en: "Level", fr: "Niveau", pt: "Nível" })}
+          </span>
+          {`: ${level()}`}
+        </div>
+        <Show
+          when={p.population.coverage}
+          keyed
+          fallback={
+            <div class="text-base-content-muted text-sm">
+              {t3({
+                en: "Coverage not recorded for this package",
+                fr: "Couverture non enregistrée pour ce paquet",
+                pt: "Cobertura não registada para este pacote",
+              })}
+            </div>
+          }
+        >
+          {(coverage) => (
+            <For each={coverage}>
+              {(c) => (
+                <div class="text-sm">
+                  <span class="text-base-content-muted">
+                    {c.populationType}
+                  </span>
+                  {`: ${t3({
+                    en: `${c.areasCovered} of ${c.areasTotal} areas`,
+                    fr: `${c.areasCovered} zones sur ${c.areasTotal}`,
+                    pt: `${c.areasCovered} de ${c.areasTotal} áreas`,
+                  })}, ${coveredMonths(c.firstCoveredPeriodId, c.lastCoveredPeriodId)}`}
+                </div>
+              )}
+            </For>
+          )}
+        </Show>
+      </div>
+    </CollapsibleSection>
+  );
+}
+
+// Period ids are YYYYMM in the instance's own calendar, so the id's digits
+// are the month label.
+function coveredMonths(first: number | null, last: number | null): string {
+  if (first === null || last === null) {
+    return t3({
+      en: "no months covered",
+      fr: "aucun mois couvert",
+      pt: "nenhum mês coberto",
+    });
+  }
+  return t3({
+    en: `${formatPeriodId(first)} to ${formatPeriodId(last)}`,
+    fr: `${formatPeriodId(first)} à ${formatPeriodId(last)}`,
+    pt: `${formatPeriodId(first)} a ${formatPeriodId(last)}`,
+  });
+}
+
+function formatPeriodId(periodId: number): string {
+  return `${Math.floor(periodId / 100)}-${String(periodId % 100).padStart(2, "0")}`;
 }
 
 function ModuleSection(p: {

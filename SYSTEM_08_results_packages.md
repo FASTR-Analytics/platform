@@ -186,7 +186,8 @@ ONE mount for package reads: the `(run_id, module_id)` run-dir reads
 (`getRunModuleScript`/`getRunModuleLogs`/`listRunModuleFiles`),
 `getRunModuleWithConfigSelections` (one module's settings from the manifest)
 and `getRunDetail` (per-module settings resolved server-side from the
-manifest's `configSelections` + the outputs-dir file listing, via
+manifest's `configSelections` + the outputs-dir file listing + the
+population stamp, via
 `readRunDetail` in `server/runs/package_internals.ts`; manifest-gated, so
 ready runs only),
 gated on the INSTANCE data bits: `can_view_data`, `can_view_logs` for logs
@@ -222,6 +223,7 @@ the answer to the question lives inside the run directory, it is the same
 view for everyone who can see that package.** `ResultsPackageView`
 (`_shared/results_package/package_view.tsx`) renders a READY run's header
 (label · pin · status · provenance incl. disk size), summary line and
+Population card when the stamp is active ("population.csv"), and
 per-module cards (settings; Script/Logs viewers gated client-side by
 `canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`; files
 inline with download). A host adds only chrome through its slots: the
@@ -945,7 +947,13 @@ and m12-01-01 offers no `admin_area_3`/`admin_area_4` disaggregation or
 filter there (`deriveAvailableDisaggregationOptions` reads the columns
 present). A figure that groups or filters m012 by a level the package lacks
 cannot be updated to it: pressing the figure's Update reports
-`dimensions_not_in_package` (`lib/figure_package_issue.ts`). The script's
+`dimensions_not_in_package` (`lib/figure_package_issue.ts`) with
+`populationLevel` set, and the badge says the package's population data is
+at that level. The stamp is also on `RunDetail.population` and
+`RunAuthoringContext.population`, and the package view shows an active
+stamp as a Population card: level, and per type the areas covered and the
+first and last covered month. Neither surface mentions population when the
+stamp is inactive. The script's
 "deeper than the data" stop stays as a defensive check behind the capture
 refusal.
 
