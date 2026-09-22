@@ -1,7 +1,7 @@
 import {
+  getModuleFamilyLabel,
   MODULE_FAMILY_ORDER,
   t3,
-  type DatasetType,
   type ModuleId,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
@@ -52,12 +52,6 @@ export function StepModules(p: Props) {
     );
   }
 
-  const familyLabels: Record<DatasetType, string> = {
-    hmis: t3({ en: "HMIS", fr: "HMIS", pt: "HMIS" }),
-    hfa: t3({ en: "HFA", fr: "FOSA", pt: "HFA" }),
-    iceh: t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" }),
-  };
-
   // One section per family in family order, the primary module first and
   // the supporting analyses under their own subheading. The options arrive
   // in module order (compareModules), so grouping keeps it.
@@ -96,9 +90,7 @@ export function StepModules(p: Props) {
                     fr: "Nécessite des données non choisies à l'étape 1 :",
                     pt: "Requer dados não escolhidos no passo 1:",
                   })}{" "}
-                  {missingFamilies()
-                    .map((f) => familyLabels[f])
-                    .join(", ")}
+                  {missingFamilies().map(getModuleFamilyLabel).join(", ")}
                 </Show>
               </span>
             </Show>
@@ -149,7 +141,7 @@ export function StepModules(p: Props) {
         {(section) => (
           <div class="ui-spy-sm">
             <div class="ui-text-caption font-700">
-              {familyLabels[section.family]}
+              {getModuleFamilyLabel(section.family)}
             </div>
             <For each={section.primary}>{renderOption}</For>
             <Show when={section.secondary.length > 0}>

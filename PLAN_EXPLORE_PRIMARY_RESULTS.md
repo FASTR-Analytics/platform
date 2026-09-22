@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Fix 3.** Each session sets this line in its final commit.
+**Next step: Review 3.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -556,3 +556,4 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R3 | Finding: `step_1_metric.tsx:24` opens the picker on "Primary results" unconditionally, so a package with no primary module (every HMIS package built before m012, or an m001+m002-only package) opens on an empty grid. Fix: default to "All modules" when no module in the package is primary. A refinement of R15, not a contradiction. |
 | 2026-09-22 | R3 | The family label map is duplicated between `wizard/step_2_modules.tsx` and `insert_figure/module_sidebar.tsx`; stylistic, left for the fix session to fold into one `lib` helper if cheap. |
 | 2026-09-22 | R3 | Gates rerun: floor green (typecheck, 401 tests, validate_protocols). Step 3 reviewed: 1 finding. |
+| 2026-09-22 | F3 | The picker opens on "Primary results" only when a module in the package is primary, else on "All modules". The family label map is one `lib` helper, `getModuleFamilyLabel` beside the comparator, used by the wizard sections and the sidebar headings. Step 3 fixed. Floor green: typecheck, 401 tests, validate_protocols. |

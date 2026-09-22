@@ -4,6 +4,7 @@ import type {
   MetricWithStatus,
   ModuleTier,
 } from "./types/mod.ts";
+import { t3 } from "./translate/mod.ts";
 
 // The one module order: family (HMIS, HFA, ICEH), then the family's primary
 // module before its supporting analyses, then the declared sort order, then
@@ -15,6 +16,18 @@ export const MODULE_FAMILY_ORDER: readonly DatasetType[] = [
   "iceh",
 ];
 const FAMILY_ORDER: Record<DatasetType, number> = { hmis: 0, hfa: 1, iceh: 2 };
+
+// The family's name wherever modules are listed under it.
+export function getModuleFamilyLabel(family: DatasetType): string {
+  switch (family) {
+    case "hmis":
+      return t3({ en: "HMIS", fr: "HMIS", pt: "HMIS" });
+    case "hfa":
+      return t3({ en: "HFA", fr: "FOSA", pt: "HFA" });
+    case "iceh":
+      return t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" });
+  }
+}
 const TIER_ORDER: Record<ModuleTier, number> = { primary: 0, secondary: 1 };
 
 export type ModulePresentation = {

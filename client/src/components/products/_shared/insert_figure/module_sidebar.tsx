@@ -1,7 +1,7 @@
 import {
+  getModuleFamilyLabel,
   MODULE_FAMILY_ORDER,
   t3,
-  type DatasetType,
   type MetricsByModule,
 } from "lib";
 import { type ListEntry, type ListItem, SelectList } from "panther";
@@ -19,12 +19,6 @@ type Props = {
 };
 
 type ModuleItem = ListItem<string, number>;
-
-const FAMILY_LABELS: Record<DatasetType, () => string> = {
-  hmis: () => t3({ en: "HMIS", fr: "HMIS", pt: "HMIS" }),
-  hfa: () => t3({ en: "HFA", fr: "FOSA", pt: "HFA" }),
-  iceh: () => t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" }),
-};
 
 function metricCount(mod: MetricsByModule): number {
   return mod.metricGroups.reduce((sum, g) => sum + g.variants.length, 0);
@@ -53,7 +47,7 @@ export function ModuleSidebar(p: Props) {
       const mods = p.metricsByModule.filter((m) => m.family === family);
       if (mods.length === 0) return [];
       return [
-        { header: FAMILY_LABELS[family]() },
+        { header: getModuleFamilyLabel(family) },
         ...mods.map<ModuleItem>((mod) => ({
           id: mod.moduleId,
           label: mod.moduleLabel,
