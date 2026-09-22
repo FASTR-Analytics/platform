@@ -7,7 +7,7 @@
 
 import { fastrPageMapText, type FastrPagedResult, type ReportDetail } from "lib";
 import { createReportPaginator } from "~/components/products/_shared/mod.ts";
-import { createFigureSizeCache } from "~/components/products/_shared/mod.ts";
+import { createFigureSizeCache } from "~/generate_report/mod";
 import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
 
 const SIZE_WAIT_MS = 12_000;

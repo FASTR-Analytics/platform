@@ -8,12 +8,7 @@ export type { ReportPaginator, ReportPaginatorDeps } from "./paginate_report.ts"
 export { ProductSettings } from "./product_settings.tsx";
 export { applyRebasedEdits, formatLineRanges, rebaseProposedEdits } from "./rebase_edits.ts";
 export type { RebasedEdit, SkippedRange } from "./rebase_edits.ts";
-export { applyInkTheme, createFigureRasterCache, createFigureSizeCache, figureDarkInkForColors, figureInkThemeForStyle, figureRasterKey, GENERIC_DARK_INK, GENERIC_LIGHT_INK } from "./report_figure_raster.ts";
-export type { FigureInkTheme, FigureRasterCache, FigureSizeCache } from "./report_figure_raster.ts";
-export { buildReportBodyNodes, FASTR_THEME_STYLE_ATTR, interceptReportLinks, REPORT_BASE_CSS, wrapReportDocument, isDarkGroundBehind, materializeReportBackgrounds, materializeReportEmbeds, measureFigureGrounds, renderReportBodyHtml, sanitizeReportHtml, stripLazyLoading, TRANSPARENT_PIXEL_SRC } from "./report_html.ts";
-export type { FigureRasterState } from "./report_html.ts";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
-export { REPORT_MARKDOWN_STYLE } from "./report_markdown_style.ts";
 export { ReportStyleEditor } from "./report_style_editor.tsx";
 export type { ReportStyleEditorResult } from "./report_style_editor.tsx";
 export { ReportFigureEmbed } from "./ReportFigureEmbed.tsx";

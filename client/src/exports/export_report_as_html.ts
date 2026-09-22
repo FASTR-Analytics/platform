@@ -35,15 +35,15 @@ import {
 } from "panther";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { buildFigureInputs } from "~/generate_visualization/mod";
-import { figureInputsForDownload } from "./_report_export_maps";
-import { loadImageEntry } from "./_report_export_maps";
+import { figureInputsForDownload } from "~/generate_report/mod";
+import { loadImageEntry } from "~/generate_report/mod";
 import {
   applyInkTheme,
   figureDarkInkForColors,
   type FigureInkTheme,
   figureInkThemeForStyle,
   GENERIC_LIGHT_INK,
-} from "~/components/products/_shared/mod.ts";
+} from "~/generate_report/mod";
 import type { FigureBlock } from "lib";
 import {
   buildReportBodyNodes,
@@ -52,7 +52,7 @@ import {
   sanitizeReportHtml,
   stripLazyLoading,
   wrapReportDocument,
-} from "~/components/products/_shared/mod.ts";
+} from "~/generate_report/mod";
 
 // The standalone .html file and print-to-PDF, for BOTH html-format reports
 // (the body is the markup) and FASTR Markdown (the body compiles to markup and

@@ -27,7 +27,7 @@ import {
   loadFontsWithTimeout,
 } from "panther";
 import { buildFigureInputs } from "~/generate_visualization/mod";
-import { figureInputsForDownload } from "~/exports/_report_export_maps";
+import { figureInputsForDownload } from "./_report_export_maps";
 import type { FigureRasterState } from "./report_html";
 
 // Chart ink: rasters are transparent, so the report's CSS paints the ground

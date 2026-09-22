@@ -3,6 +3,7 @@ system: 10
 name: Figure Rendering & Export Engine
 globs:
   - client/src/exports/**
+  - client/src/generate_report/**
   - client/src/generate_slide_deck/**
   - client/src/generate_visualization/**
   - client/src/state/products/t2_images.ts
@@ -34,7 +35,9 @@ resolver `resolve_figure_from_metric.ts` +
 `resolve_bundle_from_metric_and_config.ts`, the stale predicate
 `figure_staleness.ts`, special chart modes, the conditional-formatting
 compile path, `GLOBAL_STYLE_OPTIONS`);
-`generate_slide_deck/**` (`convertSlideToPageInputs`); `client/src/exports/**`
+`generate_slide_deck/**` (`convertSlideToPageInputs`); `generate_report/**`
+(the report document model and its HTML rendering, below; S12's prose
+describes the pipeline, SYSTEMS.md §4.1); `client/src/exports/**`
 (incl. `get_table_export_aoa.ts`); lib render contracts (`_figure_bundle.ts`,
 `brand_presets.ts`, `key_colors.ts`, slide-font types);
 `state/products/t2_images.ts`; the two schema and predicate pins under
@@ -691,9 +694,29 @@ picker, `resolveColorThemeToPreset`, the deck-config schema, and the S2
 traffic-light palette + qualitative scales (15 consumer files, including the
 style builders and the legend builder `conditional_formatting.ts`).
 
+## Report document rendering (generate_report)
+
+The twin of `generate_slide_deck/` for reports: what the report editor, the
+version-history preview and the exporters all render through, so the preview
+and the file agree. Five files behind `mod.ts`:
+[report_html.ts](client/src/generate_report/report_html.ts) (sanitize →
+materialize embeds → base CSS, the one document builder),
+[report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts)
+(the content-keyed figure raster cache and the ink themes),
+`report_markdown_style.ts` (`REPORT_MARKDOWN_STYLE` for markdown-format
+reports), `_report_export_maps.ts` (the figure and image maps keyed by literal
+`figure:<id>` / `image:<id>` tokens, `figureInputsForDownload`) and
+`_media_placeholder.ts` (the localized "could not be displayed" placeholder and
+the token swap the report exporters run; `convertSlideToPageInputs` reads the
+placeholder too). The folder imports `generate_visualization/`, `state/`, lib
+and panther, and nothing from `exports/` or `components/`
+(PROTOCOL_UI_STRUCTURE layers). The formats themselves are S12's: its Reports
+section is the authoritative description of this pipeline, and S12 is the
+mandatory reader (SYSTEMS.md §4.1).
+
 ## The export engine (client/src/exports)
 
-13 files, ~1.6k LOC, no barrel (callers import files directly). Every heavy
+11 files, ~1.5k LOC, no barrel (callers import files directly). Every heavy
 engine is panther-side: `PageRenderer`,
 `createPdfRenderContextWithFontsBrowser`, `pagesToPptxBrowser`,
 `markdownToPdfBrowser` / `markdownToWordBrowser`. The app files are

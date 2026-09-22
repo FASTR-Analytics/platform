@@ -21,7 +21,7 @@ import {
   t3,
 } from "lib";
 import { type FigureStaleContext, ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
-import type { FigureInkTheme } from "~/components/products/_shared/mod.ts";
+import type { FigureInkTheme } from "~/generate_report/mod";
 
 export type EmbedKind = "figure" | "image";
 

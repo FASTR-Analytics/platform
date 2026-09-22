@@ -451,9 +451,9 @@ in SQL.
 `REPORT_PURIFY_CONFIG` (lib; `FORCE_BODY`, explicit `FORBID_TAGS`, the default
 URI regexp plus the `figure:`/`image:` schemes — pinned by
 `server/tests/report_html_sanitize_test.ts` on jsdom) → materialize embeds →
-base CSS ([report_html.ts](client/src/components/products/_shared/report_html.ts), the
-one builder for preview, version-history preview, `.html` download and
-print). The editor preview is a `sandbox="allow-same-origin"` srcdoc iframe
+base CSS ([report_html.ts](client/src/generate_report/report_html.ts) in S10's
+`generate_report/`, the one builder for preview, version-history preview,
+`.html` download and print). The editor preview is a `sandbox="allow-same-origin"` srcdoc iframe
 ([report_html_preview.tsx](client/src/components/products/_shared/report_html_preview.tsx))
 — scripts browser-blocked, the report's `<style>` scoped to its own document,
 blob:/asset URLs load because the frame keeps the parent origin; in-page
@@ -472,7 +472,7 @@ style, `GENERIC_LIGHT_INK` fallback, `applyInkTheme` at raster time); the
 `.html`/print export measures grounds by mounting the sanitized document in a
 hidden iframe (`measureFigureGrounds`); ink is part of the raster key) from a
 **content-keyed** cache
-([report_figure_raster.ts](client/src/components/products/_shared/report_figure_raster.ts):
+([report_figure_raster.ts](client/src/generate_report/report_figure_raster.ts):
 `metricId|snapshotAt|canonicalJson(config)`, NOT object identity — collab
 materializes fresh block objects on every remote update), serial with a frame
 yield, pending → placeholder, failure → "Missing visualization". Structural

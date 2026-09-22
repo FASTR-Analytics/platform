@@ -19,7 +19,7 @@ import {
 } from "lib";
 import { buildFigureInputs, isFigureBundleStale } from "~/generate_visualization/mod";
 import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
-import { applyInkTheme, type FigureInkTheme } from "./report_figure_raster";
+import { applyInkTheme, type FigureInkTheme } from "~/generate_report/mod";
 
 // What the report editor hands each embed so it can judge and update its own
 // figure (PLAN_PRODUCTS_RESTRUCTURE D4). Absent on surfaces that only display

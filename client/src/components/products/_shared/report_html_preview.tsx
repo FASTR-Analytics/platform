@@ -13,13 +13,13 @@ import {
   isDarkGroundBehind,
   renderReportBodyHtml,
   wrapReportDocument,
-} from "./report_html";
+} from "~/generate_report/mod";
 import {
   type FigureInkTheme,
   type FigureRasterCache,
   GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
-} from "./report_figure_raster";
+} from "~/generate_report/mod";
 import { iframeSurface, type PreviewSurface } from "./scroll_sync";
 
 // The rendered HTML report: a `sandbox="allow-same-origin"` srcdoc iframe

@@ -121,7 +121,7 @@ import {
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
 } from "./live_preview_extension";
-import { REPORT_MARKDOWN_STYLE } from "~/components/products/_shared/mod.ts";
+import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 import {
   ReportEmbedControls,
   ReportInsertEmbedButtons,
@@ -131,7 +131,7 @@ import { ReportImagePicker } from "./report_image_picker";
 import { ReportMarkdownDiff } from "./ReportMarkdownDiff";
 import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 import { DownloadReport } from "./download_report";
-import { isDarkGroundBehind } from "~/components/products/_shared/mod.ts";
+import { isDarkGroundBehind } from "~/generate_report/mod";
 import { ShareReport } from "./share_report";
 import { ReportThemeModal } from "./report_theme_modal";
 import { ReportStyleEditor } from "~/components/products/_shared/mod.ts";
@@ -154,7 +154,7 @@ import {
   figureInkThemeForStyle,
   GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
-} from "~/components/products/_shared/mod.ts";
+} from "~/generate_report/mod";
 import { VersionHistoryEditor } from "~/components/products/_shared/version_history/mod.ts";
 
 type EmbedKind = "figure" | "image";

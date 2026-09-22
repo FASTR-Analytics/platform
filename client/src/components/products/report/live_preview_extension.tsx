@@ -108,7 +108,7 @@ import {
 import {
   materializeReportBackgrounds,
   sanitizeReportHtml,
-} from "~/components/products/_shared/mod.ts";
+} from "~/generate_report/mod";
 import { fastrBlockLabel } from "./fastr_block_labels";
 import type { EmbedResolver } from "./figure_widget_extension";
 import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";

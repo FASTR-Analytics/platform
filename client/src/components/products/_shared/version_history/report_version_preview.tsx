@@ -21,12 +21,12 @@ import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { productById } from "~/state/instance/t1_store";
 import { ReportFigureEmbed } from "../mod.ts";
-import { REPORT_MARKDOWN_STYLE } from "../mod.ts";
+import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 import { ReportHtmlPreview } from "../mod.ts";
 import {
   createFigureRasterCache,
   type FigureInkTheme,
-} from "../mod.ts";
+} from "~/generate_report/mod";
 import { CopyVersionModal } from "./copy_version_modal";
 import {
   buildAuthorNames,
