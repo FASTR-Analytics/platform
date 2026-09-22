@@ -1,4 +1,4 @@
-export { FailedErrorDetail, ResultsPackageProvenanceLine, ResultsPackageView } from "./package_view.tsx";
+export { FamilyPane } from "./family_pane.tsx";
 export {
   canViewPackageContents,
   canViewPackageLogs,

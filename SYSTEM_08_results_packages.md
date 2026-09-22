@@ -76,8 +76,8 @@ types + `module_registry.ts`; client: `results_packages/**` (the
 catalogue list and the package page), the launch wizard `results_packages/wizard/**` (an
 ephemeral modal, the Upload-CSV pattern), and the T2 run-detail
 cache `state/instance/t2_runs.ts`. `results_packages/package_view/**` is
-what a package CONTAINS, rendered identically wherever a package is
-explored (`package_view.tsx` = `ResultsPackageView`, `status.tsx`,
+what a package CONTAINS, as the package page renders it (`family_pane.tsx`,
+`module_pane.tsx`, `visualizations.tsx`, `status.tsx`,
 `view_{script,logs,files}.tsx`). External: wb-fastr-modules repo, Docker images.
 
 ## Contract
@@ -114,9 +114,9 @@ re-litigate; the package-format invariants below are their file-level twins):
   package contents never depend on who is asking, only the chrome does. So
   reads are mounted ONCE (run-keyed, `routes/instance/run_generation.ts`)
   under the INSTANCE data bits (`can_view_data`; `can_view_logs` for logs),
-  and one shared view (`results_packages/package_view/package_view.tsx`) renders a
-  package identically wherever one is explored (the package page is its
-  one host). AI tools take
+  and one surface, the package page (`results_packages/package_page.tsx`,
+  its panes under `package_view/`), renders a package: nothing else
+  explores one. AI tools take
   a run RESOLVER, never a runId from the model.
 - **Retention.** No automatic or time-based GC, ever. Reclamation is ONLY the
   catalogue's guarded hard delete (row + dir), refused while referenced or
@@ -250,34 +250,41 @@ a package contains (`getRunDetail` with per-module settings and files,
 `/{runId}/outputs/…` download mount) is RUN-keyed on the instance mount and
 gated on the instance data bits: `can_view_data` for all but logs,
 `can_view_logs` for logs (global admins bypass). The rule that decides what
-belongs on the shared surface: **if
-the answer to the question lives inside the run directory, it is the same
-view for everyone who can see that package.** `ResultsPackageView`
-(`results_packages/package_view/package_view.tsx`) renders a READY run's header
-(label · pin · status · provenance incl. disk size), the **Visualizations**
-section (`package_view/visualizations.tsx`: one card per entry of the
-package's `RunAuthoringContext.presets`, in catalog order and unfiltered,
-each rendered through S11's shared `_shared/figure_preview.ts` helper
-under a page scope that starts national, is chosen through the shared
-`ScopePicker` and is never stored; a default whose metric is stamped
-unavailable shows the stamped reason in place of a figure and is not
-clickable. Clicking a card opens S11's `VisualizationEditor` as a viewer
-(`viewOnly`) through the page's own editor wrapper, with the default's
-metric and config, the page scope and the package's authoring context: the
-user can disaggregate it differently to look at, and closing returns
-nothing. The page keeps no draft; no storage, no route, no cache key, and
-no write of any kind from this section), then the
-Population card when the stamp is active ("population.csv"), and
-per-module cards in module order, each named from `RunDetail.modules[]`,
+belongs on the page: **if the answer to the question lives inside the run
+directory, it is the same view for everyone who can see that package.** The
+package page (`results_packages/package_page.tsx`, the package's one host)
+renders a READY run below its header row, provenance line, "in use by" line
+and Population card (when the stamp is active, "population.csv") as **one
+tab per family the package ran**, in family order (`TabsNavigation`, as the
+Data page): the families and the module order come from
+`RunAuthoringContext.modules` through `compareModules`, so a package with
+modules of one family has one tab. A family tab (`package_view/family_pane.tsx`)
+is a `SelectList` of the family's modules, the primary first and the
+secondaries under a "Supporting analyses" header, beside the selected
+module's pane (`package_view/module_pane.tsx`), which shows one module
+whole: the page scope picker (the shared `ScopePicker`; the scope starts
+national, is shared by every tab and module, and is never stored), the
+module's default visualizations (`package_view/visualizations.tsx`: the
+entries of `RunAuthoringContext.presets` whose metric the module produced,
+in preset order, each rendered through S11's shared
+`_shared/figure_preview.ts` helper under the page scope; a default whose
+metric is stamped unavailable shows the stamped reason in place of a figure
+and is not clickable; clicking a card opens S11's `VisualizationEditor` as
+a viewer (`viewOnly`) through the page's own editor wrapper, with the
+default's metric and config, the page scope and the package's authoring
+context, so the user can disaggregate it differently to look at, and
+closing returns nothing: no draft, no storage, no route, no cache key, no
+write of any kind), then its settings, Script and Logs viewers (gated
+client-side by `canViewPackageContents()`/`canViewPackageLogs()` in
+`status.tsx`) and output files with download, from `RunDetail.modules[]`,
 which `readRunDetail` fills from the manifest's own definition blob (label
-and the three presentation facts) and sorts with `compareModules` (settings;
-Script/Logs viewers gated client-side by
-`canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`; files
-inline with download). The registry label (`moduleLabel` in `status.tsx`)
-names modules only where there is no manifest: the generating and failed
-branches, the wizard's confirm step, and the unreadable-manifest fallback. A host adds only chrome through its slots: the
-package page puts pin/unpin/delete in `headerActions` and "in use by" in
-`headerNote`, and renders generating/failed runs itself. The detail is
+and the three presentation facts). The active family and the selected
+module per family (starts at the primary) are page signals that die with
+the page. Modules are named from the package's manifest on every ready
+surface; the registry label (`moduleLabel` in `status.tsx`) names modules
+only where there is no manifest: the page's generating and failed branches
+and the wizard's confirm step. A manifest the server cannot read fails both
+reads, and the page shows that error where the tabs would be. The detail is
 **T2, immutable-by-identity**
 (`state/instance/t2_runs.ts`, `createReactiveCache` keyed `[runId]`,
 `versionKey: () => "immutable"`, the `t2_images` shape: nothing ever
@@ -355,13 +362,12 @@ next per-module push: the `run_progress` listeners are page-local and
 signal spam is worse than a bounded-stale chip row (ruled). The listeners
 live in `results_packages.tsx`, which stays mounted under the open page, and
 the page reads them through accessor props. The package page is the ONLY
-surface that renders a non-ready run. Its generating/failed branches
-(progress chips + live R line; `FailedErrorDetail` + per-started-module
-Script/Logs/Files viewers, the last via `ViewFiles` since a failed run has no
-manifest) live here, not in the shared `ResultsPackageView`, which is
-ready-only because a product points only at a ready run (C2 ruling). A READY
-run is rendered by that shared view, identically wherever
-a package is explored (ruled).
+surface that renders a non-ready run, and the only surface that renders a
+package at all (a product points only at a ready run and never explores
+it, C2 ruling). Its generating branch is the progress chips and the live R
+line; its failed branch is `FailedErrorDetail` plus per-started-module
+Script/Logs/Files viewers, the last via `ViewFiles` since a failed run has
+no manifest; its ready branch is the family tabs above.
 
 **Prune** (`results_packages/prune.tsx` + `prune_plan.ts`, ruled)
 is the bulk form of the guarded delete: one rule, remove every

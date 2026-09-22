@@ -9,7 +9,7 @@ first and the supporting analyses under it, beside one pane that shows the
 selected module whole: its default visualizations under the page scope,
 then its settings, script, logs and output files.
 
-**Next step: Do 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 **Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS, which closed on 2026-09-22
 (its file is deleted; its last commit is `dc554836`). That plan gave
@@ -301,3 +301,8 @@ commit.
 
 | Date | Step | Entry |
 | --- | --- | --- |
+| 2026-09-22 | 1 | The unreadable-manifest fallback (a ready run whose `getRunDetail` fails listed `summary.moduleIds` with registry-named Script and Logs buttons) is gone. R7 confines `moduleLabel` to runs with no manifest, and both reads of a ready page (`getRunDetail`, `getRunAuthoringContext`) parse the manifest, so the page shows the read's error where the tabs would be. Recorded as a choice, not restored. |
+| 2026-09-22 | 1 | Both ready-page reads run in one `createQuery` (`ReadyPackageBody`, `package_page.tsx`) so the page has one loading and one error state; the two T2 caches are unchanged (R9). |
+| 2026-09-22 | 1 | `view_files.tsx` (outside the Surface) had a comment naming the deleted `ResultsPackageView`; the one line was reworded. No code changed there. |
+| 2026-09-22 | 1 | The `./run` gate: `pg` and `valkey-local` were up and mounted on this checkout, and a dev server already held port 8000, so the server booted on `PORT=8010` and answered `/health_check` with `"running":true` within 2 s, then was stopped. |
+| 2026-09-22 | 1 | Step 1 built. Floor green: `deno task typecheck`, `deno task test` (401 passed), `./validate_protocols`, the `./run` gate. |
