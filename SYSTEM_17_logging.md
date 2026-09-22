@@ -62,7 +62,7 @@ de-log the `getCurrentUser` route.
 ## Readers
 
 - `getAllUserLogs` (instance `can_view_logs`): the Users tab's log view and
-  "Last active" column (`instance_users.tsx`).
+  "Last active" column (`users/users.tsx`).
 - S15's unauthenticated health endpoints (`server/routes/instance/health.ts`):
   `/user_logs` (getCurrentUser trail), `/user_logs_all`,
   `/user_logs_aggregate`, plus `/health_check` and `/user_activity` derived

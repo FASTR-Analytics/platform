@@ -3,6 +3,7 @@ system: 15
 name: Instance Administration & Ops
 globs:
   - client/src/components/users/add_users.tsx
+  - client/src/components/users/mod.ts
   - client/src/components/users/batch_upload_users_form.tsx
   - client/src/components/users/bulk_edit_permissions_form.tsx
   - client/src/components/instance/change_email_modal.tsx
@@ -26,8 +27,9 @@ Small server surface, highest privilege.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
-`components/instance/**` except the files owned elsewhere (`instance.tsx`
-and the four header modals → S14, `logged_in_wrapper.tsx` → S1,
+`components/users/**`, and under `components/instance/` the profile,
+feedback, instance-meta and change-email forms (`instance.tsx`, its entry and
+the four header modals → S14, `logged_in_wrapper.tsx` → S1,
 `instance_assets.tsx` → S4, `instance_data.tsx` → S6,
 `ai_context_form.tsx` → S13). Server: `routes/instance/health.ts`,
 `utils/disk_space.ts` (`db/instance/user_logs.ts` → S17); cron jobs in
@@ -159,7 +161,7 @@ failures surface as user-facing route errors with GB figures.
 
 ## Admin UI
 
-- **Users tab** (`instance_users.tsx` + `user.tsx` + bulk forms; visibility
+- **Users tab** (`users/users.tsx` + `user.tsx` + bulk forms; visibility
   `admin || can_configure_users || can_view_users`): user table with last-active
   (from `getAllUserLogs`), admin toggle (server requires full admin: the bulk
   buttons show for `can_configure_users` and 403 at click, Open item), per-user
@@ -210,4 +212,4 @@ currently internet-exposed behind a shared password, PLAN_HARDEN_SECURITY).
   `can_configure_users` but the route requires full admin (403 at click).
 - **Legacy UUID project DBs stay on prod hosts** after consolidation; nothing
   drops them (see Production topology).
-- Cruft: dead `showCommingSoon` prop in `instance_users.tsx`.
+- Cruft: dead `showCommingSoon` prop in `users/users.tsx`.
