@@ -77,8 +77,9 @@ collabBinding? }`, resolves the metric's queryable shape
 and mounts `VisualizationEditorInner`. Three hosts open it: `slide_editor/slide_editor.tsx`
 (edits `figureBlock.bundle.config`, then re-queries items and rebuilds the
 bundle), `report/report.tsx` (rebuilds the figure block), and the package
-page's Visualizations section (`results_packages/package_view/visualizations.tsx`,
-S8), which opens it `viewOnly`: no collab binding, Back is the only way
+page's module pane (`ModuleVisualizations` in
+`results_packages/package_view/visualizations.tsx`, S8), which opens it
+`viewOnly`: no collab binding, Back is the only way
 out, and the draft never leaves the editor. The product hosts pass
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
 re-previews under the new package (S10 "The captured pair"); the package

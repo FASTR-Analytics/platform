@@ -50,6 +50,7 @@ import {
   canViewPackageContents,
   canViewPackageLogs,
   moduleLabel,
+  type OpenEditor,
 } from "./package_view/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "~/components/products/mod.ts";
 import {
@@ -62,7 +63,6 @@ import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getRunDetailFromCacheOrFetch } from "~/state/instance/t2_runs";
 
-type OpenEditor = ReturnType<typeof getEditorWrapper>["openEditor"];
 type Viewer = typeof ViewScript | typeof ViewLogs | typeof ViewFiles;
 type OpenViewer = (element: Viewer, moduleId: string) => void;
 
@@ -507,7 +507,6 @@ function FamilyTabs(p: {
           />
           <FamilyPane
             runId={p.runId}
-            family={family.family}
             modules={family.modules}
             selectedModuleId={selectedModuleId(family)}
             onSelectModule={(moduleId) =>

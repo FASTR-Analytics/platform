@@ -9,7 +9,7 @@ first and the supporting analyses under it, beside one pane that shows the
 selected module whole: its default visualizations under the page scope,
 then its settings, script, logs and output files.
 
-**Next step: Fix 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 **Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS, which closed on 2026-09-22
 (its file is deleted; its last commit is `dc554836`). That plan gave
@@ -311,3 +311,5 @@ commit.
 | 2026-09-22 | 1 | Review: `ReturnType<typeof getEditorWrapper>["openEditor"]` is written four times in the Surface (`package_page.tsx:65` and `module_pane.tsx:20` as `OpenEditor`, inline at `family_pane.tsx:30` and `visualizations.tsx:31`); define it once in `package_view/` and import it. |
 | 2026-09-22 | 1 | Review: `SYSTEM_11_viz_authoring.md:80` still calls the viewer's third host "the package page's Visualizations section"; it is now the module pane's default visualizations (`package_view/visualizations.tsx`, `ModuleVisualizations`). Outside this plan's Surface and inside PLAN_EXPLORE_PAGE's, so the Fix session reworks only that clause and stages nothing else in the file. |
 | 2026-09-22 | 1 | Step 1 reviewed: 3 findings. Surface diff: only `view_files.tsx` outside it (accepted above). R3 to R9 read as met in the code; the viewer opens `viewOnly` through the page's wrapper, the scope is one pair of signals in `ReadyPackageBody` shared by every tab and module, labels come from `RunAuthoringContext.modules[]` and `RunDetail.modules[]`, and both reads are the existing T2 caches. Floor green: `deno task typecheck`, `deno task test` (401 passed, 0 failed, 2 ignored), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the `./run` gate on `PORT=8010` (`"running":true`, then stopped). |
+| 2026-09-22 | 1 | Fix: the `family` prop is dropped from `FamilyPane`; `OpenEditor` is declared once in `package_view/visualizations.tsx` and imported by the panes and the page (exported through `package_view/mod.ts`); SYSTEM_11's third-host clause names the module pane's `ModuleVisualizations`, and nothing else in that file changed. |
+| 2026-09-22 | 1 | Step 1 fixed. Floor green: `deno task typecheck`, `deno task test` (401 passed), `./validate_protocols`, the `./run` gate on `PORT=8010`. |

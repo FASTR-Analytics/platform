@@ -10,3 +10,4 @@ export {
 export { ViewFiles } from "./view_files.tsx";
 export { ViewLogs } from "./view_logs.tsx";
 export { ViewScript } from "./view_script.tsx";
+export type { OpenEditor } from "./visualizations.tsx";

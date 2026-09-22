@@ -1,15 +1,15 @@
 import {
   t3,
-  type DatasetType,
   type InstalledModuleSummary,
   type PackageScope,
   type RunAuthoringContext,
   type RunDetail,
 } from "lib";
-import { SelectList, getEditorWrapper, type ListEntry } from "panther";
+import { SelectList, type ListEntry } from "panther";
 import { Show, createMemo } from "solid-js";
 import type { ScopeSelection } from "~/components/_shared/mod.ts";
 import { ModulePane } from "./module_pane";
+import type { OpenEditor } from "./visualizations";
 
 // One family tab of a READY package: the family's modules as a list, the
 // primary first and the supporting analyses under a header, beside the
@@ -18,7 +18,6 @@ import { ModulePane } from "./module_pane";
 // with the page.
 export function FamilyPane(p: {
   runId: string;
-  family: DatasetType;
   modules: InstalledModuleSummary[];
   selectedModuleId: string;
   onSelectModule: (moduleId: string) => void;
@@ -27,7 +26,7 @@ export function FamilyPane(p: {
   scope: PackageScope;
   selection: ScopeSelection;
   onChangeScope: (s: ScopeSelection) => void;
-  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
+  openEditor: OpenEditor;
 }) {
   const items = createMemo((): ListEntry<string>[] => {
     const primary = p.modules.filter((m) => m.tier === "primary");

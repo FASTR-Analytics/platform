@@ -16,6 +16,10 @@ import { For, Match, Show, Switch } from "solid-js";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import { createFigurePreview } from "~/components/_shared/mod.ts";
 
+// The package page's editor wrapper, which the viewers and the figure
+// viewer open into.
+export type OpenEditor = ReturnType<typeof getEditorWrapper>["openEditor"];
+
 // One module's default visualizations (the entries of the package's
 // `RunAuthoringContext.presets` whose metric the module produced, in preset
 // order), rendered under the page scope. A default whose metric is stamped
@@ -28,7 +32,7 @@ export function ModuleVisualizations(p: {
   presets: DerivedDefaultVisualization[];
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
+  openEditor: OpenEditor;
 }) {
   function openDefault(
     preset: DerivedDefaultVisualization,

@@ -5,7 +5,7 @@ import {
   type RunAuthoringContext,
   type RunDetail,
 } from "lib";
-import { Button, formatFileSize, getEditorWrapper } from "panther";
+import { Button, formatFileSize } from "panther";
 import { For, Show, createMemo } from "solid-js";
 import { ScopePicker, type ScopeSelection } from "~/components/_shared/mod.ts";
 import {
@@ -15,9 +15,7 @@ import {
 } from "./status";
 import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
-import { ModuleVisualizations } from "./visualizations";
-
-type OpenEditor = ReturnType<typeof getEditorWrapper>["openEditor"];
+import { ModuleVisualizations, type OpenEditor } from "./visualizations";
 
 // One module of a READY package, whole: the page scope picker, the module's
 // default visualizations under that scope, then its settings, Script and
