@@ -41,6 +41,7 @@ import {
   Select,
   StateHolder,
   applyDividerDragUpdate,
+  findHitTarget,
   findNodeInDraft,
   createItemNode,
   findById,
@@ -56,6 +57,7 @@ import {
   createSignal,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type * as Y from "yjs";
@@ -108,6 +110,24 @@ import { convertBlockType } from "../slide_transforms/mod.ts";
 import { convertSlideType } from "../slide_transforms/mod.ts";
 import { updateBlockInLayout } from "../slide_transforms/mod.ts";
 import { SlideEditorPanel } from "./editor_panel";
+import { InlineTextEditor, type InlineEditTarget } from "./inline_text_editor";
+
+// The title primitives panther draws, and the slide field each one shows.
+const INLINE_TITLE_FIELDS: Record<
+  string,
+  { field: string; slideType: SlideType }
+> = {
+  headerText: { field: "header", slideType: "content" },
+  subHeaderText: { field: "subHeader", slideType: "content" },
+  dateText: { field: "date", slideType: "content" },
+  footerText: { field: "footer", slideType: "content" },
+  coverTitle: { field: "title", slideType: "cover" },
+  coverSubTitle: { field: "subtitle", slideType: "cover" },
+  coverAuthor: { field: "presenter", slideType: "cover" },
+  coverDate: { field: "date", slideType: "cover" },
+  sectionTitle: { field: "sectionTitle", slideType: "section" },
+  sectionSubTitle: { field: "sectionSubtitle", slideType: "section" },
+};
 
 type SlideEditorInnerProps = {
   productId: string;
@@ -176,6 +196,110 @@ export function SlideEditor(p: Props) {
   const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
   const [measuredPage, setMeasuredPage] = createSignal<MeasuredPage>();
 
+  // ── Typing on the canvas ────────────────────────────────────────────────────
+  // Double-click a text block or title (or press Enter with one selected) to
+  // type straight onto the slide: see inline_text_editor.tsx. A fresh object
+  // per session remounts the editor for each one.
+  const [inlineEdit, setInlineEdit] = createSignal<
+    { target: InlineEditTarget; point?: { x: number; y: number } } | undefined
+  >();
+
+  function textOfTarget(t: InlineEditTarget): string | undefined {
+    if (t.kind === "block") {
+      if (tempSlide.type !== "content") return undefined;
+      const hit = findById(tempSlide.layout, t.id);
+      const data = hit?.node.type === "item" ? hit.node.data : undefined;
+      return data?.type === "text" ? data.markdown : undefined;
+    }
+    if (INLINE_TITLE_FIELDS[t.primitiveId]?.slideType !== tempSlide.type) {
+      return undefined;
+    }
+    return ((tempSlide as unknown as Record<string, unknown>)[t.field] as
+      | string
+      | undefined) ?? "";
+  }
+
+  function startInlineEdit(
+    target: InlineEditTarget,
+    point?: { x: number; y: number },
+  ) {
+    if (!canEdit() || textOfTarget(target) === undefined) return;
+    if (target.kind === "block") {
+      selectBlock(target.id);
+      setContentTab("block");
+    } else {
+      selectTextTarget(target.primitiveId);
+      setContentTab("slide");
+    }
+    setInlineEdit({ target, point });
+  }
+
+  function inlineTargetAt(x: number, y: number): InlineEditTarget | undefined {
+    const m = measuredPage();
+    if (!m) return undefined;
+    const hit = findHitTarget(buildHitRegions(m), x, y);
+    if (!hit) return undefined;
+    if (hit.type === "layoutItem") {
+      return { kind: "block", id: hit.node.id };
+    }
+    return titleTarget(hit.type);
+  }
+
+  function titleTarget(primitiveId: string): InlineEditTarget | undefined {
+    const f = INLINE_TITLE_FIELDS[primitiveId];
+    if (!f) return undefined;
+    // A deck-wide footer overrides the slide's own: not this slide's text.
+    if (
+      primitiveId === "footerText" &&
+      p.deckConfigSnapshot.globalFooterText !== undefined
+    ) {
+      return undefined;
+    }
+    return { kind: "title", field: f.field, primitiveId };
+  }
+
+  function handleCanvasDblClick(e: MouseEvent) {
+    if (inlineEdit()) return;
+    const r = document
+      .getElementById("SLIDE_EDITOR_CANVAS")
+      ?.getBoundingClientRect();
+    if (!r || r.width === 0) return;
+    const s = r.width / PAGE_WIDTH_DU;
+    const point = { x: (e.clientX - r.left) / s, y: (e.clientY - r.top) / s };
+    const target = inlineTargetAt(point.x, point.y);
+    if (!target) return;
+    e.preventDefault();
+    startInlineEdit(target, point);
+  }
+
+  function applyInlineText(target: InlineEditTarget, text: string) {
+    if (textOfTarget(target) === text) return;
+    if (target.kind === "block") {
+      manuallyUpdateTempSlide(
+        produce((draft) => {
+          if (draft.type !== "content") return;
+          const node = findNodeInDraft(draft.layout, target.id);
+          if (node?.type === "item" && node.data?.type === "text") {
+            node.data.markdown = text;
+          }
+        }),
+      );
+    } else {
+      manuallyUpdateTempSlide(
+        produce((draft) => {
+          (draft as unknown as Record<string, unknown>)[target.field] = text;
+        }),
+      );
+    }
+  }
+
+  // The block or field went away under the editor (deleted, retyped, a slide
+  // type switch, a peer's structural edit): stop editing it.
+  createEffect(() => {
+    const ie = inlineEdit();
+    if (ie && textOfTarget(ie.target) === undefined) setInlineEdit(undefined);
+  });
+
   // Live co-editing (Milestone 3). The editor keeps mutating `tempSlide`; a
   // bridge syncs it to a shared CRDT doc. Degrades gracefully: if the collab
   // socket/room is unavailable, the session never becomes ready, pushLocal is a
@@ -230,6 +354,27 @@ export function SlideEditor(p: Props) {
   // two different docs. CM textboxes handle Ctrl+Z via their own keymap
   // (popping this same shared stack); native inputs keep native undo.
   function handleEditorKeyDown(e: KeyboardEvent) {
+    if (
+      e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey &&
+      !inlineEdit() && subEditorOpen() === 0
+    ) {
+      const el = e.target as HTMLElement | null;
+      const typing = el?.closest(
+        ".cm-editor, input, textarea, select, button, [contenteditable='true'], [role='dialog']",
+      );
+      const block = selectedBlockId();
+      const title = selectedTextTarget();
+      const target: InlineEditTarget | undefined = block
+        ? { kind: "block", id: block }
+        : title
+        ? titleTarget(title)
+        : undefined;
+      if (!typing && target && textOfTarget(target) !== undefined) {
+        e.preventDefault();
+        startInlineEdit(target);
+        return;
+      }
+    }
     if (!undoMgr || !canUndoRedo() || subEditorOpen() > 0) return;
     const mod = e.ctrlKey || e.metaKey;
     if (!mod || e.key.toLowerCase() !== "z") return;
@@ -302,9 +447,15 @@ export function SlideEditor(p: Props) {
       skipId ? { skipFigureConfigForBlockIds: new Set([skipId]) } : undefined,
     );
 
-    // Re-render the preview for both local and remote changes.
+    // Re-render the preview for both local and remote changes. Typing on the
+    // canvas redraws at once: the canvas IS the text being typed.
     if (renderTimeout) {
       clearTimeout(renderTimeout);
+      renderTimeout = null;
+    }
+    if (untrack(inlineEdit)) {
+      void attemptGetPageInputs(unwrap(tempSlide));
+      return;
     }
     renderTimeout = setTimeout(() => {
       attemptGetPageInputs(unwrap(tempSlide));
@@ -1073,18 +1224,23 @@ export function SlideEditor(p: Props) {
                 </div>
               </div>
             </Show>
+            {/* Not keyed: PageHolder redraws in place on new inputs, which
+                typing on the canvas relies on (a remount per keystroke
+                blanks the canvas and loses its measured page). */}
             <Show
               when={
                 pageInputs().status === "ready"
                   ? (pageInputs() as { status: "ready"; data: PageInputs }).data
                   : undefined
               }
-              keyed
             >
-              {(keyedPageInputs) => (
-                <div class="ui-pad-lg bg-base-200 h-full w-full overflow-auto">
+              {(readyPageInputs) => (
+                <div
+                  class="ui-pad-lg bg-base-200 h-full w-full overflow-auto"
+                  onDblClick={handleCanvasDblClick}
+                >
                   <PageHolder
-                    pageInputs={keyedPageInputs}
+                    pageInputs={readyPageInputs()}
                     canvasElementId="SLIDE_EDITOR_CANVAS"
                     pageWidthDu={PAGE_WIDTH_DU}
                     pageHeightDu={PAGE_HEIGHT_DU}
@@ -1199,9 +1355,25 @@ export function SlideEditor(p: Props) {
                 </div>
               )}
             </Show>
-            {/* Figma-style live cursors. Outside the keyed <Show> above (which
-                recreates on every edit) so the sprites, and their transform
-                transitions, survive re-renders. */}
+            <Show when={inlineEdit()} keyed>
+              {(ie) => (
+                <InlineTextEditor
+                  target={ie.target}
+                  measured={measuredPage()}
+                  canvasId="SLIDE_EDITOR_CANVAS"
+                  session={session()}
+                  collabReady={collabReady()}
+                  initialText={untrack(() => textOfTarget(ie.target)) ?? ""}
+                  initialPoint={ie.point}
+                  onText={(text) => applyInlineText(ie.target, text)}
+                  onExit={() => setInlineEdit(undefined)}
+                  covered={subEditorOpen() > 0}
+                />
+              )}
+            </Show>
+            {/* Figma-style live cursors. Outside the <Show> above (which
+                unmounts while a render errors) so the sprites, and their
+                transform transitions, survive re-renders. */}
             <SlideEditorCursors
               slideId={p.slideId}
               awareness={() => session()?.awareness}

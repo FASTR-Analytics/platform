@@ -35,6 +35,7 @@ globs:
   - lib/report_fastr_markdown.ts
   - lib/report_fastr_paged.ts
   - lib/report_sections.ts
+  - lib/slide_text_offsets.ts
   - server/db/instance/report_styles.ts
   - server/db/products/**
   - server/report_pdf/**
@@ -52,6 +53,7 @@ globs:
   - server/tests/report_html_sanitize_test.ts
   - server/tests/report_pdf_render_test.ts
   - server/tests/report_sections_test.ts
+  - server/tests/slide_text_offsets_test.ts
   - server/utils/id_generation.ts
 docs_absorbed:
 ---
@@ -283,6 +285,31 @@ the `editing_slide` view's mutator context on the AI view controller (S13);
 the copilot host wraps whichever editor the Products page opens
 (`ProductCopilotHost`, D15: one mount site, one copilot per open product), so
 a slide editor opened inside a deck shares the deck's copilot.
+
+**Typing on the canvas.** Double-clicking a text block or a title primitive
+(or Enter with one selected) mounts
+[inline_text_editor.tsx](client/src/components/products/slide_deck/slide_editor/inline_text_editor.tsx):
+a hidden, focused CodeMirror bound by yCollab to the block's `markdown` /
+the root field's `Y.Text` (so merge, remote carets and the session's shared
+undo stack are unchanged), with the caret, selection and peers' carets painted
+over the canvas. The canvas stays the only renderer, so there is no second
+text layout to drift. The preview is therefore NOT keyed: `PageHolder` redraws
+in place, and while an inline edit is open the preview skips the 100ms
+debounce. Caret geometry
+([text_geometry.ts](client/src/components/products/slide_deck/slide_editor/text_geometry.ts))
+re-runs panther's public `MarkdownRenderer.measure` on the item's
+`(contentRpd, data)`, which is deterministic and so gives the drawn lines, and
+mirrors panther's `placeRuns`. The source offsets come from
+[lib/slide_text_offsets.ts](lib/slide_text_offsets.ts), which re-derives them
+from panther's own `parseMarkdown` plus markdown-it block maps, because panther
+keeps none and is not edited here. Body text is pure WYSIWYG. Typed markdown
+punctuation is escaped. Deletions keep inline syntax, so the formatting of what
+remains survives. Bold and italic re-serialize the touched lines. Every such
+edit is a set of whole-document candidates, and the first one whose re-parse
+renders the intended text and styles wins; an edit none of them renders is
+refused. Blocks holding tables, code fences or block images are not
+canvas-editable, and the side panel remains their editor (and every block's
+source view).
 
 **The per-slide save loop** (the no-room/offline path: while a collab
 session is live the editor never explicit-saves; the room checkpoints
