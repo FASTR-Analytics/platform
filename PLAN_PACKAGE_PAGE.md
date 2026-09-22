@@ -9,7 +9,7 @@ first and the supporting analyses under it, beside one pane that shows the
 selected module whole: its default visualizations under the page scope,
 then its settings, script, logs and output files.
 
-**Next step: Review 1.** Each session sets this line in its final commit.
+**Next step: Do 2.** Each session sets this line in its final commit.
 
 **Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS, which closed on 2026-09-22
 (its file is deleted; its last commit is `dc554836`). That plan gave
@@ -313,3 +313,4 @@ commit.
 | 2026-09-22 | 1 | Step 1 reviewed: 3 findings. Surface diff: only `view_files.tsx` outside it (accepted above). R3 to R9 read as met in the code; the viewer opens `viewOnly` through the page's wrapper, the scope is one pair of signals in `ReadyPackageBody` shared by every tab and module, labels come from `RunAuthoringContext.modules[]` and `RunDetail.modules[]`, and both reads are the existing T2 caches. Floor green: `deno task typecheck`, `deno task test` (401 passed, 0 failed, 2 ignored), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the `./run` gate on `PORT=8010` (`"running":true`, then stopped). |
 | 2026-09-22 | 1 | Fix: the `family` prop is dropped from `FamilyPane`; `OpenEditor` is declared once in `package_view/visualizations.tsx` and imported by the panes and the page (exported through `package_view/mod.ts`); SYSTEM_11's third-host clause names the module pane's `ModuleVisualizations`, and nothing else in that file changed. |
 | 2026-09-22 | 1 | Step 1 fixed. Floor green: `deno task typecheck`, `deno task test` (401 passed), `./validate_protocols`, the `./run` gate on `PORT=8010`. |
+| 2026-09-22 | 1 | Step 1 reviewed: pass. Re-review of `cb04acf6`: the `family` prop is gone from `FamilyPane` and its call site; `OpenEditor` is declared once (`package_view/visualizations.tsx:21`), exported through `package_view/mod.ts` and imported by the page and both panes; the SYSTEM_11 diff is the third-host clause alone. No file outside the Surface changed beyond the two accepted lines (`view_files.tsx`, SYSTEM_11). R3 to R9 re-read as met in the code. Floor green: `deno task typecheck`, `deno task test` (401 passed, 0 failed, 2 ignored), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the `./run` gate on `PORT=8010` (`"running":true` on the first poll, then stopped). |
