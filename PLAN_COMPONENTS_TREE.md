@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Fix 7.** Each session sets this line in its final commit.
+**Next step: Review 7.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -693,3 +693,5 @@ commit.
 | 2026-09-22 | 7 | Finding: `lib/collab/slide_crdt.ts:94`, the comment names `slide_editor index.tsx`, which `54049045` renamed to `products/slide_deck/slide_editor/slide_editor.tsx`. Review 7's grep used `slide_editor/index` with a slash and missed it; the re-review's bare-name grep found it. Same rule as the `onboarding/catalogue.ts` finding of Review 3: a comment naming a moved file moves with it. Rewrite to `slide_editor.tsx`. The file is outside the step's surface; the Fix touches that line only. |
 | 2026-09-22 | 7 | Reviewer's reading of Fix 7, no change needed. `9f7b6e32` touches the nine files findings 3 to 11 name plus the plan's two edits, with no em-dash added. Each line read: `SYSTEM_11:49-53` no longer claims `_editor_snapshot.ts` and `conflict_resolution_modal.tsx` and says S12 owns them under its slide deck glob, `:76` and `:78` name `slide_editor/slide_editor.tsx` and `report/report.tsx`; `SYSTEM_16:55` says "the per-surface cursor files", `:417`, `:473`, `:1240` link text matches the targets; `SYSTEM_12:243`, `:257`, `:276`, `:1346` link text matches the targets and `:934` says `report.tsx`; `SYSTEM_13:337` says `copilot.tsx`; `SYSTEM_10:279` and `:608` name `report/report.tsx` and `slide_editor/slide_editor.tsx`; `SYSTEM_08:373` and `:414` name `products/products.tsx` and `products/_shared/scope_picker.tsx`; `PROTOCOL_APP_UI_CONVENTIONS.md:132` names `products/products.tsx`; `SYSTEM_05:1234` names `products/_shared/insert_figure/metric_card.tsx`; `lib/ai_tools/content_validators.ts:14` names `products/copilot/_shared/content_validators.ts`. Every `[x](client/src/components/...)` link in the eight docs resolves; the bare-name grep over `*.md` (excluding `PLAN_*.md` and `panther/`) and `lib/**/*.ts` is empty apart from the finding above. Floor green at `9f7b6e32`: `deno task typecheck`, `deno task test` (397 passed), `./validate_protocols`, `cd client && npm run build`. |
 | 2026-09-22 | 7 | Step 7 reviewed: 1 finding. |
+| 2026-09-22 | 7 | Fix: `lib/collab/slide_crdt.ts:94` names `slide_editor/slide_editor.tsx`. |
+| 2026-09-22 | 7 | Step 7 fixed. |
