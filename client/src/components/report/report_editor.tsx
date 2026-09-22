@@ -51,8 +51,8 @@ import {
 } from "lib";
 import type { ReportEditorSelection } from "~/components/copilot/types";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
-import type { FigureStaleContext } from "./ReportFigureEmbed";
-import type { FigureInkTheme } from "./report_figure_raster";
+import type { FigureStaleContext } from "~/components/products/_shared/ReportFigureEmbed";
+import type { FigureInkTheme } from "~/components/products/_shared/report_figure_raster";
 import {
   type EditorPagination,
   FM_LIVE_SCOPE_CLASS,
@@ -65,7 +65,7 @@ import {
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
 import { createPagedEditSurface, type PagedSurface } from "./paged_edit_surface";
-import { rebaseProposedEdits, type SkippedRange } from "./rebase_edits";
+import { rebaseProposedEdits, type SkippedRange } from "~/components/products/_shared/rebase_edits";
 import { darkMode } from "~/state/t4_ui";
 
 const clamp = (n: number, lo: number, hi: number) =>

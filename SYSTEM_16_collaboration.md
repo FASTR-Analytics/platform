@@ -4,7 +4,7 @@ name: Realtime Collaboration & Version History
 globs:
   - server/collab/**
   - lib/collab/**
-  - client/src/components/version_history/**
+  - client/src/components/products/_shared/version_history/**
   - client/src/state/instance/collab.ts
   - lib/types/collab.ts
   - lib/types/versions.ts

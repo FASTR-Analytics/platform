@@ -17,7 +17,10 @@ globs:
   - client/src/components/_shared/presence_avatars.tsx
   - client/src/components/_shared/presence_toasts.tsx
   - client/src/components/layout_editor/**
-  - client/src/components/products/**
+  - client/src/components/products/*.ts
+  - client/src/components/products/*.tsx
+  - client/src/components/products/_shared/*.ts
+  - client/src/components/products/_shared/*.tsx
   - client/src/components/report/**
   - client/src/components/slide_deck/*.ts
   - client/src/components/slide_deck/*.tsx

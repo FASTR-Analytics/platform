@@ -21,7 +21,7 @@ import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { DeckVersionPreview } from "./deck_version_preview";
 import { editorDisplayName } from "./diff_segments";
 import { ReportVersionPreview } from "./report_version_preview";
-import type { FigureInkTheme } from "../report/report_figure_raster";
+import type { FigureInkTheme } from "../report_figure_raster";
 
 export type VersionHistoryKind = "report" | "deck";
 

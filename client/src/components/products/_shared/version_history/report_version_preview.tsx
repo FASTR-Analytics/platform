@@ -20,13 +20,13 @@ import {
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { productById } from "~/state/instance/t1_store";
-import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
-import { REPORT_MARKDOWN_STYLE } from "../report/report_markdown_style";
-import { ReportHtmlPreview } from "../report/report_html_preview";
+import { ReportFigureEmbed } from "../ReportFigureEmbed";
+import { REPORT_MARKDOWN_STYLE } from "../report_markdown_style";
+import { ReportHtmlPreview } from "../report_html_preview";
 import {
   createFigureRasterCache,
   type FigureInkTheme,
-} from "../report/report_figure_raster";
+} from "../report_figure_raster";
 import { CopyVersionModal } from "./copy_version_modal";
 import {
   buildAuthorNames,

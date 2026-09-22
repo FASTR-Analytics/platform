@@ -27,7 +27,7 @@ import {
 } from "panther";
 import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { ReportFigureEmbed } from "../report/ReportFigureEmbed";
+import { ReportFigureEmbed } from "../ReportFigureEmbed";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { productById } from "~/state/instance/t1_store";
 import { CopyVersionModal } from "./copy_version_modal";

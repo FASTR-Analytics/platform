@@ -5,7 +5,7 @@ globs:
   - client/src/components/_editor_snapshot.ts
   - client/src/components/explore/**
   - client/src/components/_shared/figure_editor/**
-  - client/src/components/figures/**
+  - client/src/components/products/_shared/insert_figure/**
   - client/src/components/forms_editors/conflict_resolution_modal.tsx
   - client/src/state/instance/_util_disaggregation_label.ts
   - lib/convert_visualization_type.ts
