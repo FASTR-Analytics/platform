@@ -2,7 +2,7 @@ import { AIToolFailure, createAITool, createAskUserQuestionsTool } from "panther
 import { z } from "zod";
 import { extractRIdentifiers, nextHfaIndicatorId, serialiseMultiMembershipValues, type HfaDictionaryForValidation, type HfaIndicator, type HfaIndicatorCode, type HfaIndicatorVariantCode } from "lib";
 import { serverActions } from "~/server_actions";
-import { checkRCodeResultType, hasRCodeErrors, validateRCode } from "../_shared/hfa_r_code_validator";
+import { checkRCodeResultType, hasRCodeErrors, validateRCode } from "../_shared/mod.ts";
 
 // ---------------------------------------------------------------------------
 // Loaders: always read fresh so the AI acts on current state, and so writes

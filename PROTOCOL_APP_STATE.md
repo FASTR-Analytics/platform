@@ -325,7 +325,7 @@ the page's `createSignal<StateHolder>`, refetched by a `createEffect` on
 import runs (`data/hfa/imports/`), ICEH import runs
 (`instance_dataset_iceh/imports/`), user logs, HMIS version history modal,
 HFA indicator R code
-(`indicator_manager_hfa/hfa_indicator_code_editor.tsx`), user-permission
+(`data/hfa/indicators/hfa_indicator_code_editor.tsx`), user-permission
 editors, instance meta modal, profile refresh, the results-package wizard's
 module options + defaults
 (`instance_results_packages/_wizard/index.tsx`, read once per open,

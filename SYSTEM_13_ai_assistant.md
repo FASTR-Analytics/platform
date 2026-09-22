@@ -47,7 +47,7 @@ re-sync). Guards themselves are **S1**; the daily token counters are columns on
 `users` (`db/instance/users.ts` is S1-owned with S13 a mandatory reader, per
 SYSTEMS.md §4.1). The unguarded health routes that surface usage are **S15**.
 The HFA indicator-manager assistant client
-(`client/src/components/indicator_manager_hfa/ai/**`) is an **S5-owned
+(`client/src/components/data/hfa/indicators/ai/**`) is an **S5-owned
 satellite**: S13 owns the `/ai-instance` proxy it talks to, the panther engine
 contract, and the tool-schema conventions it must follow; S5 owns the tool
 semantics. The slide/figure shapes the slide_ai helpers produce are **S10/S12**;
@@ -157,7 +157,7 @@ registry), mounted in [main.ts:174-175](main.ts#L174-L175):
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Route                  | `POST /ai/v1/messages` ([copilot_ai_proxy.ts](server/routes/instance/copilot_ai_proxy.ts))                                        | `POST /ai-instance/v1/messages` ([ai_proxy.ts](server/routes/instance/ai_proxy.ts))                             |
 | Guard                  | `requireApprovedUser()` and nothing finer: every approved user is a full editor of every product (D2)                             | `requireGlobalPermission("can_configure_data")`                                                                 |
-| Client                 | the copilot ([defaults.ts](client/src/components/copilot/ai_configs/defaults.ts))                                                 | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/indicator_manager_hfa/ai/sdk_client.ts)) |
+| Client                 | the copilot ([defaults.ts](client/src/components/copilot/ai_configs/defaults.ts))                                                 | HFA indicator-manager assistant ([sdk_client.ts](client/src/components/data/hfa/indicators/ai/sdk_client.ts)) |
 
 The shared flow:
 
@@ -264,7 +264,7 @@ tools, the pattern the HFA indicator manager already uses. Each mount builds
 one panther `AIChatProvider` config, validated in dev by panther's no-mount
 construction check: both assistants call `validateAIChatConfig(config)` under
 `import.meta.env.DEV` at config assembly (HFA
-[ai/index.tsx:39-41](client/src/components/indicator_manager_hfa/ai/index.tsx#L39-L41)):
+[ai/ai_wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/ai_wrapper.tsx#L39-L41)):
 
 - **sdkClient**
   ([defaults.ts](client/src/components/copilot/ai_configs/defaults.ts)):
@@ -661,7 +661,7 @@ parts S13 relies on, verified this cycle:
 
 ## The HFA satellite (S5-owned, S13-governed)
 
-`client/src/components/indicator_manager_hfa/ai/` is a second, fully isolated
+`client/src/components/data/hfa/indicators/ai/` is a second, fully isolated
 assistant: same panther engine, own conversation scope (`hfa-indicators`), own
 SDK client pointed at `/ai-instance` (duplicates the 429-localizing fetch
 wrapper), its own `modelConfig` (`max_tokens: 4096`, where the copilot omits
@@ -671,11 +671,11 @@ declare `approval.propose` with `presentation: "modal"` (panther owns the
 propose → modal diff → commit lifecycle; the old hand-rolled `confirmChain`
 serializer is deleted), and the config sets `approvalPolicy: { requireForKind:
 "write", requireKind: true }`
-([ai/index.tsx:36](client/src/components/indicator_manager_hfa/ai/index.tsx#L36)).
+([ai/ai_wrapper.tsx:36](client/src/components/data/hfa/indicators/ai/ai_wrapper.tsx#L36)).
 A write tool without approval, or any tool without a `kind`, fails at
 construction. Every anticipated failure throws `AIToolFailure` (zero
 plain-`Error` throws in
-[tools.ts](client/src/components/indicator_manager_hfa/ai/tools.ts), the
+[tools.ts](client/src/components/data/hfa/indicators/ai/tools.ts), the
 failure-channel ruling above). The system prompt deliberately embeds no live
 state (the model reads through tools, avoiding staleness with its own edits).
 Write commits do whole-object load → propose → save, last write wins: the
@@ -772,7 +772,7 @@ Remaining:
   error implies none were.
 - **Indicator-assistant hardening** (S–M, from the retired HFA plan). The first
   pass is shipped: a self-contained assistant in
-  [client/src/components/indicator_manager_hfa/ai/](client/src/components/indicator_manager_hfa/ai/),
+  [client/src/components/data/hfa/indicators/ai/](client/src/components/data/hfa/indicators/ai/),
   instance proxy
   [server/routes/instance/ai_proxy.ts](server/routes/instance/ai_proxy.ts), all
   three tool tiers with a per-write confirm gate. Remaining, in priority order:

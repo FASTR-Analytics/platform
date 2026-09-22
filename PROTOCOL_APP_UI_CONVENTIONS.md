@@ -120,7 +120,7 @@ are panther exports.)
 | B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `instance_population/_population_grid.tsx`     |
 | C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `instance_results_packages/index.tsx`          |
 | D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `figure_editor/visualization_editor_inner.tsx` |
-| E: split columns      | `div.flex` halves with `w-1/2` + `border-r`        | `indicator_manager_hfa/*` managers             |
+| E: split columns      | `div.flex` halves with `w-1/2` + `border-r`        | `data/hfa/indicators/*` managers               |
 
 Pattern specifics, from the live pages:
 

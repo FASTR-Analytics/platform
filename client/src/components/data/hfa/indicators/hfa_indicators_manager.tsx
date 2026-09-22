@@ -46,12 +46,12 @@ import { HfaCategoriesManager } from "./hfa_categories_manager";
 import { HfaServiceCategoriesManager } from "./hfa_service_categories_manager";
 import { HfaVariantGroupsManager } from "./hfa_variant_groups_manager";
 import { buildHfaWorkbookBlob } from "./_xlsx_workbook";
-import { hasRCodeErrors, validateRCode } from "./_shared/hfa_r_code_validator";
+import { hasRCodeErrors, validateRCode } from "./_shared/mod.ts";
 import {
   HfaUnusedVariablesModal,
   type UnusedVariablesByTimePoint,
 } from "./hfa_unused_variables_modal";
-import { HfaIndicatorAiWrapper } from "./ai/ai_wrapper";
+import { HfaIndicatorAiWrapper } from "./ai/mod.ts";
 
 type Props = {
   close: (v: undefined) => void;
