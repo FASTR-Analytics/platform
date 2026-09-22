@@ -129,7 +129,7 @@ Pattern specifics, from the live pages:
 - **C (list pages):**
   `FrameLeftResizable startingWidth={300} minWidth={150}
   maxWidth={400}` around a `SelectList`. The product explorer
-  (`products/index.tsx`) is the search-and-sort variant without the side
+  (`products/products.tsx`) is the search-and-sort variant without the side
   panel: `HeadingBar` carries `searchText`/`setSearchText`, a `centerChildren`
   with the type-filter `ButtonGroup`, `SortControl`
   (`components/products/sort_control.tsx`) and the view-mode `ButtonGroup`, and

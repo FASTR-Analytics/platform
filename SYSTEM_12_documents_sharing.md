@@ -240,7 +240,7 @@ The layout tree is a recursive Zod union embedding the strict
 config text without re-validation.
 
 **The deck editor** (`SlideDeckEditor` in
-[slide_deck/index.tsx](client/src/components/products/slide_deck/slide_deck.tsx)) takes
+[slide_deck/slide_deck.tsx](client/src/components/products/slide_deck/slide_deck.tsx)) takes
 `{ productId }`: label, package and scope come from `productById` on the T1
 store (D16), the authoring context from S9's immutable
 `t2_run_authoring_context.ts` keyed by the LIVE `runId`, so a reattach or
@@ -254,7 +254,7 @@ the figures the candidate pair would leave stale; the overflow menu opens
 chip read-only.
 
 **The slide editor**
-([slide_editor/index.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
+([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
 opens via `openEditor` with `snapshotForSlideEditor` (the deck config only,
 structuredClone-severed) plus the product id, the live pair and its
 authoring context passed down. Left panel switches per slide type
@@ -273,7 +273,7 @@ through `updateSlide` with its `expectedLastUpdated`. Slide-type switching
 keeps a per-type cache so switching back restores prior state (same idiom
 per-block for block-type switches). The layout tree is manipulated exclusively
 through panther node ops via `buildLayoutContextMenu`
-([layout_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
+([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and
 canvas right-click. Figure blocks have ONE authoring path (D3): insert and
 replace open `InsertFigureModal` (the product package's presets and the
@@ -931,7 +931,7 @@ taller than a page that has not been rendered lays out whole until it is
 
 Print follows: `fastrForcedBreaksCss` emits `[data-line="N"]
 { break-before: page !important }` for the editor's page starts
-(`paged.pageStarts` on `buildStandaloneReportHtml`), which index.tsx hands
+(`paged.pageStarts` on `buildStandaloneReportHtml`), which report.tsx hands
 to Download and Email through `registerReportPageLayout`
 (export_report_as_paged_pdf.ts) when the body the export fetched is the
 body the editor laid out; otherwise Paged.js decides by the same rules.
@@ -1343,7 +1343,7 @@ a ground that is already a hue, so the three hue grounds clear the heading
 background. Both rules stay: a custom style can do either.
 
 **Editor** (`ReportEditor` in
-[report/index.tsx](client/src/components/products/report/report.tsx), ~2,300 LOC, over
+[report/report.tsx](client/src/components/products/report/report.tsx), ~2,300 LOC, over
 `ReportBodyEditor` in `report_editor.tsx`): takes `{ productId }` and reads
 label, package and scope live from the T1 row like the deck editor (the
 product id is also the collab document id, since a report IS its product), so

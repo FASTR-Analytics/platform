@@ -334,7 +334,7 @@ only: a write-only wire, one format for every model.
 (`defineAIInteractions`, 6 typed interactions) replaced the hand-rolled
 pendingInteractions queue + `reduceInteractions` pipeline. Producers call
 `copilotViewController.notify(...)`: the INSTANCE SSE side-channel
-([index.tsx](client/src/components/products/copilot/copilot.tsx)), which carries two
+([copilot.tsx](client/src/components/products/copilot/copilot.tsx)), which carries two
 things (the per-row `products_upserted` summary, as `product_updated`, and
 `last_updated("slides")`, as `edited_slide`), and the editors and selection UIs
 (`edited_*_locally`, `selected_slides`, and `draft_added_to_deck`, the

@@ -276,7 +276,7 @@ The `resolve_figure_from_metric` resolver:
 `generate_visualization/resolve_figure_from_metric.ts` (+
 `resolve_bundle_from_metric_and_config.ts`) is the shared
 snapshot-a-figure-into-FigureBlock core consumed by the report editor
-(`report/index.tsx`) and the slide editor; the same-named file under
+(`report/report.tsx`) and the slide editor; the same-named file under
 `products/copilot/slide_ai/` is a thin S13 AI adapter that delegates to it.
 
 ## Special chart modes: the style pipeline
@@ -605,7 +605,7 @@ Two files:
 (578 LOC) and `get_overlay_image.ts` (49 LOC). One transform,
 `convertSlideToPageInputs(slide, slideIndex, config) →
 APIResponse<PageInputs>`,
-serves all its call sites: screen (`slide_editor/index.tsx`,
+serves all its call sites: screen (`slide_editor/slide_editor.tsx`,
 `slide_card.tsx`, `slide_presenter.tsx`, the deck version preview), AI
 previews (`DraftSlidePreview.tsx`, `ai_tools/tools/drafts.tsx`), and the
 three deck exports, so a slide renders byte-identically everywhere. Every

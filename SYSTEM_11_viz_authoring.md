@@ -46,11 +46,12 @@ PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
 staleness"). `components/products/_shared/insert_figure/**` (the insert-figure wizard
 and the preset gallery it renders, below). `components/explore/explore.tsx`
 (the instance Explore tab's page, S14 mounts it: empty until the results
-explorer plan fills it, D6). `_editor_snapshot.ts` (`snapshotForSlideEditor`,
-the one thing the slide editor freezes at open), the
+explorer plan fills it, D6). The
 figure modals in `_shared/figure_editor/` (download, results-file viewer,
-custom series styles; `forms_editors/conflict_resolution_modal.tsx` is consumed
-by S12's slide editor). Lib config semantics
+custom series styles). `products/slide_deck/_editor_snapshot.ts`
+(`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
+`products/slide_deck/slide_editor/conflict_resolution_modal.tsx` are S12's
+now, under its slide deck glob. Lib config semantics
 (`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
 families, the conditional-formatting family). `withReplicant` lives in
 kernel-owned `lib/utils.ts` (S00).
@@ -73,9 +74,9 @@ Neither carries a hand-enumerated dependency list; do not add one.
 takes `{ label, scope, metric, configSnapshot, authoringContext,
 collabBinding? }`, resolves the metric's queryable shape
 (`resultsValueInfo`, S9's scope-keyed `t2_figure_data.ts`) under the pair,
-and mounts `VisualizationEditorInner`. Two hosts open it: `slide_editor/index.tsx`
+and mounts `VisualizationEditorInner`. Two hosts open it: `slide_editor/slide_editor.tsx`
 (edits `figureBlock.bundle.config`, then re-queries items and rebuilds the
-bundle) and `report/index.tsx` (rebuilds the figure block). The host passes
+bundle) and `report/report.tsx` (rebuilds the figure block). The host passes
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
 re-previews under the new package (S10 "The captured pair").
 

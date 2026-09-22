@@ -52,7 +52,7 @@ See the `globs:` frontmatter (the lint-enforced manifest) and the S16 row in
   version routes ride **S12**'s files (`server/db/products/{reports,slides,
   slide_decks,versions}.ts`, `server/routes/products/{reports,slide_decks,
   slides}.ts`, SYSTEMS.md §4.1). The collab client UI
-  (`_shared/live_cursors.tsx`, `_shared/cursors/`,
+  (`_shared/live_cursors.tsx`, the per-surface cursor files,
   `_shared/presence_toasts.tsx`, `_shared/connection_banner.tsx`,
   `_shared/collab_markdown_editor.tsx`, the presence avatars and editor
   overlays) lives inside S12's manifest globs.
@@ -414,7 +414,7 @@ bindings [slide_rooms.ts](server/collab/slide_rooms.ts) and
 
 ### Slide editor: tempSlide ⇄ session doc
 
-[slide_editor/index.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx)
+[slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx)
 keeps the pre-collab editing model (a local `tempSlide` Solid store driving
 the canvas) and bridges it to a per-slide session doc from
 `openSlideSession(productId, slideId, onRemote)` (which first destroys any
@@ -470,7 +470,7 @@ prior session for the same slide):
 
 ### Report editor
 
-[report/index.tsx](client/src/components/products/report/report.tsx) +
+[report/report.tsx](client/src/components/products/report/report.tsx) +
 [report_editor.tsx](client/src/components/products/report/report_editor.tsx): the
 CodeMirror view rebuilds once when the session becomes ready, swapping in
 `yCollab` + per-user undo; the latched `collabReady` turns the 800 ms REST
@@ -1237,7 +1237,7 @@ heading bar; "Version history" in the deck overflow menu.
 
   **The state.** A report's body text is undoable; its figure and image
   registries are not. `setFigures`/`setImages` + `persistFigures`/`persistImages`
-  in [report/index.tsx](client/src/components/products/report/report.tsx) bypass history
+  in [report/report.tsx](client/src/components/products/report/report.tsx) bypass history
   completely, so registry-only edits (the AI's `update_report_figure`, sidebar
   Edit/Switch, an image-file change) cannot be reversed by the user at all.
   (`handleDelete` is already token-only, so undoing a _delete_ does restore a

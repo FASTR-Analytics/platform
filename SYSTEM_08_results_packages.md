@@ -370,7 +370,7 @@ package and should not pin. Rulings, all deliberate:
 - **New products start on the pin.** `createProduct` resolves `run_id` from
   the pin inside the insert (national scope), so there is no read-then-write
   window. The bare `pinnedRunId` is instance T1, broadcast unfiltered (S3),
-  which is what lets the products surface (`products/index.tsx`, create
+  which is what lets the products surface (`products/products.tsx`, create
   gated on a ready pin) render the pin for users without
   `can_configure_data`.
 - **MCP reads the pin** (PLAN_MCP_PINNED_PACKAGE). The
@@ -411,7 +411,7 @@ Rulings:
   `admin_area_2`, a modules lockstep this design otherwise avoids.
 - **Mismatch is allowed, never auto-fixed.** A package without the
   product's AA2 attaches fine; area metrics degrade to empty. The scope is
-  never silently cleared: the scope picker (`_shared/scope_picker.tsx`)
+  never silently cleared: the scope picker (`products/_shared/scope_picker.tsx`)
   renders an orphaned stored value (a structure re-upload dropped the area)
   as an explicit annotated option.
 - **Write-time validation is schema-only** (non-empty string or null): no
