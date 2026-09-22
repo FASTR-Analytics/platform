@@ -18,6 +18,7 @@ globs:
   - server/runs/*.ts
   - server/server_only_funcs/**
   - server/tests/m012_expression_parity_test.ts
+  - server/tests/population_coverage_issue_test.ts
   - server/tests/run_input_transform_test.ts
   - server/tests/run_manifest_transform_test.ts
   - server/worker_routines/generate_run/**
