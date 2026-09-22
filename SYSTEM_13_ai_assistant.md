@@ -3,7 +3,7 @@ system: 13
 name: AI Copilot & Usage Governance
 globs:
   - client/src/components/copilot/**
-  - client/src/components/instance/ai_context_form.tsx
+  - client/src/components/data/general/ai_context_form.tsx
   - client/src/components/slide_deck/slide_ai/build_config_from_metric.ts
   - client/src/components/slide_deck/slide_ai/convert_ai_input_to_slide.ts
   - client/src/components/slide_deck/slide_ai/extract_blocks_from_layout.ts
