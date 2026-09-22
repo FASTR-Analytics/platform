@@ -9,7 +9,7 @@ first and the supporting analyses under it, beside one pane that shows the
 selected module whole: its default visualizations under the page scope,
 then its settings, script, logs and output files.
 
-**Next step: Fix 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 **Starts after:** PLAN_EXPLORE_PRIMARY_RESULTS, which closed on 2026-09-22
 (its file is deleted; its last commit is `dc554836`). That plan gave
@@ -327,3 +327,5 @@ commit.
 | 2026-09-22 | 2 | Review: `view_files.tsx:17` still says "the catalogue's failed branch", which step 2 removed; it is About's failed-package viewers. Outside the Surface (step 1 accepted the same file's line 18 on the same ground); the Fix session rewords that clause only. |
 | 2026-09-22 | 2 | Review: `tours.ts:611` carries the `report-insert-buttons` reflow the log above says was reverted; it is prettier's own output and whitespace only, so it stays. The log row is corrected here, not there. |
 | 2026-09-22 | 2 | Step 2 reviewed: 3 findings. Surface diff: nothing outside it. R1, R2 (as deviated: no family for a run without a manifest, verified against `lib/types/module_registry.ts`), R5, R7 (but for the dead path above), R8, R9 and R10 (as deviated: the shell wrapper hides the frame under an open page with `display-none`, `t4_ui.ts:53`, panther `generic_editor_wrapper.tsx:28`; `advanceOn` is a `TourStep` field and `resolveVisibleTarget` is exported by `@njwse/roadtrip`) read as met in the code; the ready reads re-run on the status flip, About renders for a null `progress`, no family tab exists before the reads land, the usage target renders on About for every status. Floor green: `deno task typecheck`, `deno task test` (401 passed, 0 failed, 2 ignored), `./validate_protocols` (0 tier-1, 0 new tier-2, 16 baselined), the `./run` gate on `PORT=8010` (`"running":true` on the second poll, then stopped). The tree held an unrelated edit to `PLAN_EXPLORE_PAGE.md` at session start (the parallel plan's), left unstaged. |
+| 2026-09-22 | 2 | Fix: About's ready branch is `ctx.modules` in module order grouped by family, each status from `progress.moduleStatus` (`about.tsx`); the `ran` filter and the registry-named `unknown` group are gone. The tab content is a `Switch` with an explicit `Match` for About (ready, under the reads' wrapper; not ready) and a keyed `Match` for the family (`package_page.tsx`). `view_files.tsx:17` names About's viewers; nothing else in that file changed. |
+| 2026-09-22 | 2 | Step 2 fixed. Floor green: `deno task typecheck`, `deno task test` (401 passed), `./validate_protocols` (0 new flags), the `./run` gate on `PORT=8010`. |

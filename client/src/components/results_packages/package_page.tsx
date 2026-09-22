@@ -348,58 +348,57 @@ function PackageBody(p: {
         }
       >
         <div class="ui-pad h-full overflow-y-auto">
-          <Show
-            when={activeFamily()}
-            keyed
-            fallback={
-              <Switch>
-                <Match when={p.run.status === "ready"}>
-                  <StateHolderWrapper state={reads()} noPad>
-                    {(data: ReadyReads) => (
-                      <About
-                        run={p.run}
-                        progress={progress()}
-                        latestRLine={p.latestRLine}
-                        ctx={data.ctx}
-                        openEditor={p.openEditor}
-                      />
-                    )}
-                  </StateHolderWrapper>
-                </Match>
-                <Match when={p.run.status !== "ready"}>
+          <Switch>
+            <Match
+              when={activeFamily() === undefined && p.run.status === "ready"}
+            >
+              <StateHolderWrapper state={reads()} noPad>
+                {(data: ReadyReads) => (
                   <About
                     run={p.run}
                     progress={progress()}
                     latestRLine={p.latestRLine}
-                    ctx={undefined}
+                    ctx={data.ctx}
                     openEditor={p.openEditor}
                   />
-                </Match>
-              </Switch>
-            }
-          >
-            {(family) => (
-              <FamilyPane
-                runId={p.run.id}
-                modules={family.modules}
-                selectedModuleId={
-                  chosenModule()[family.family] ?? family.modules[0].id
-                }
-                onSelectModule={(moduleId) =>
-                  setChosenModule((prev) => ({
-                    ...prev,
-                    [family.family]: moduleId,
-                  }))
-                }
-                detail={family.detail}
-                ctx={family.ctx}
-                scope={scope()}
-                selection={selection()}
-                onChangeScope={changeScope}
+                )}
+              </StateHolderWrapper>
+            </Match>
+            <Match
+              when={activeFamily() === undefined && p.run.status !== "ready"}
+            >
+              <About
+                run={p.run}
+                progress={progress()}
+                latestRLine={p.latestRLine}
+                ctx={undefined}
                 openEditor={p.openEditor}
               />
-            )}
-          </Show>
+            </Match>
+            <Match when={activeFamily()} keyed>
+              {(family) => (
+                <FamilyPane
+                  runId={p.run.id}
+                  modules={family.modules}
+                  selectedModuleId={
+                    chosenModule()[family.family] ?? family.modules[0].id
+                  }
+                  onSelectModule={(moduleId) =>
+                    setChosenModule((prev) => ({
+                      ...prev,
+                      [family.family]: moduleId,
+                    }))
+                  }
+                  detail={family.detail}
+                  ctx={family.ctx}
+                  scope={scope()}
+                  selection={selection()}
+                  onChangeScope={changeScope}
+                  openEditor={p.openEditor}
+                />
+              )}
+            </Match>
+          </Switch>
         </div>
       </FrameTop>
     </FrameTop>

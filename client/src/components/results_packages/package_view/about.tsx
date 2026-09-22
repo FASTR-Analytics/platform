@@ -67,41 +67,23 @@ export function About(p: {
         },
       ];
     }
-    const ran = new Set(progress.moduleOrder);
-    const known = ctx.modules
-      .filter((m) => ran.has(m.id))
-      .toSorted(compareModules);
-    const unknown = progress.moduleOrder.filter(
-      (id) => !ctx.modules.some((m) => m.id === id),
-    );
-    return [
-      ...MODULE_FAMILY_ORDER.flatMap((family) => {
-        const modules = known.filter((m) => m.family === family);
-        if (modules.length === 0) return [];
-        return [
-          {
-            heading: getModuleFamilyLabel(family),
-            modules: modules.map((m) => ({
-              id: m.id,
-              label: m.label,
-              status: status(m.id),
-            })),
-          },
-        ];
-      }),
-      ...(unknown.length > 0
-        ? [
-            {
-              heading: undefined,
-              modules: unknown.map((id) => ({
-                id,
-                label: moduleLabel(id),
-                status: status(id),
-              })),
-            },
-          ]
-        : []),
-    ];
+    // The manifest's module list and `moduleOrder` are the same resolved
+    // set, so every ready module has a status.
+    const known = ctx.modules.toSorted(compareModules);
+    return MODULE_FAMILY_ORDER.flatMap((family) => {
+      const modules = known.filter((m) => m.family === family);
+      if (modules.length === 0) return [];
+      return [
+        {
+          heading: getModuleFamilyLabel(family),
+          modules: modules.map((m) => ({
+            id: m.id,
+            label: m.label,
+            status: status(m.id),
+          })),
+        },
+      ];
+    });
   });
 
   // A failed run's started modules keep their script, log and the partial
