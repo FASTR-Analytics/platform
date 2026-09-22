@@ -476,7 +476,7 @@ prior session for the same slide):
 ### Report editor
 
 [report/report.tsx](client/src/components/products/report/report.tsx) +
-[report_editor.tsx](client/src/components/products/report/report_editor.tsx): the
+[body_editor.tsx](client/src/components/products/report/body_editor.tsx): the
 CodeMirror view rebuilds once when the session becomes ready, swapping in
 `yCollab` + per-user undo; the latched `collabReady` turns the 800 ms REST
 autosave off for good (offline edits accumulate in the doc and the reconnect
@@ -553,7 +553,7 @@ The rendering engine is
 per-surface glue (coordinate mapping + scope gate) lives one file per surface:
 [slide_cursors.tsx](client/src/components/products/slide_deck/slide_editor/slide_cursors.tsx),
 [viz_editor_cursors.tsx](client/src/components/_shared/figure_editor/viz_editor_cursors.tsx) and
-[report_cursors.tsx](client/src/components/products/report/report_cursors.tsx).
+[cursors.tsx](client/src/components/products/report/cursors.tsx).
 
 **Awareness field registry** (one shared Awareness per session — do not
 collide): `cursor` = yCollab text caret (nulled on every CM blur and on view
@@ -1252,7 +1252,7 @@ heading bar; "Version history" in the deck overflow menu.
   CodeMirror transactions as `StateEffect`s and let `invertedEffects` +
   CM's own history undo "doc change + registry change" atomically. That only
   works where CM history is the authority, and it isn't:
-  [report_editor.tsx:180](client/src/components/products/report/report_editor.tsx#L180)
+  [body_editor.tsx:180](client/src/components/products/report/body_editor.tsx#L180)
   installs `yUndoManagerKeymap` ahead of `basicSetup` precisely because
   "yCollab's per-user undo takes precedence", and `yCollab` is installed at
   `:219`. `collabReady` latches at the first `report_sync`, so the editor

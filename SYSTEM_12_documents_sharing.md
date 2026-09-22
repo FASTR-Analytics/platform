@@ -397,7 +397,7 @@ fastr report stored on a retired theme opens on the default,
 `getFastrReportTheme` being total. **Creation asks nothing**: the products
 page mints the report the way it mints a deck, server-labelled and instantly
 open (D16). The look is chosen from INSIDE the report instead, by
-[report_theme_modal.tsx](client/src/components/products/report/report_theme_modal.tsx),
+[theme_modal.tsx](client/src/components/products/report/theme_modal.tsx),
 which the editor opens unprompted the first time a new report is opened and
 which the Page menu reaches after that. `config.themeChosen === false` is the
 mark of a report that has never been asked: it is written only at creation, so
@@ -1342,7 +1342,7 @@ background. Both rules stay: a custom style can do either.
 
 **Editor** (`ReportEditor` in
 [report/report.tsx](client/src/components/products/report/report.tsx), ~2,300 LOC, over
-`ReportBodyEditor` in `report_editor.tsx`): takes `{ productId }` and reads
+`ReportBodyEditor` in `body_editor.tsx`): takes `{ productId }` and reads
 label, package and scope live from the T1 row like the deck editor (the
 product id is also the collab document id, since a report IS its product), so
 rename and duplicate are the SHARED product surfaces (`ProductSettings`,
@@ -1370,7 +1370,7 @@ and the same iframe preview (the theme sheet lives in a `<style data-fm-theme>` 
 the frame HEAD so a re-theme never reloads the frame, which would drop the
 surface, the scroll position and every blob: raster).
 
-**The formatting toolbar** ([report_toolbar.tsx](client/src/components/products/report/report_toolbar.tsx),
+**The formatting toolbar** ([toolbar.tsx](client/src/components/products/report/toolbar.tsx),
 FASTR only) sits inside the same `FrameTop` panel as the `HeadingBar`
 — that panel is `flex-none overflow-auto` and sizes to content, so the strip
 just grows the header, and the `HeadingBar`'s slots (already seven controls,

@@ -63,7 +63,7 @@ type Props = {
   onSurface?: (surface: PreviewSurface) => void;
   onReady?: () => void;
   class?: string;
-  // e.g. "preview-content" — the live-cursor surface anchor (report_cursors).
+  // e.g. "preview-content" — the live-cursor surface anchor (report/cursors.tsx).
   dataReportCursor?: string;
 };
 

@@ -78,7 +78,7 @@ import { createReportPaginator } from "~/components/products/_shared/mod.ts";
 import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
-import { ReportEditorCursors } from "./report_cursors";
+import { ReportEditorCursors } from "./cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { productById } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -115,8 +115,8 @@ import {
   ReportBodyEditor,
   type ReportBlockContext,
   type ReportEditorApi,
-} from "./report_editor";
-import { ReportToolbar } from "./report_toolbar";
+} from "./body_editor";
+import { ReportToolbar } from "./toolbar";
 import {
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
@@ -126,14 +126,14 @@ import {
   ReportEmbedControls,
   ReportInsertEmbedButtons,
   type SelectedReportEmbed,
-} from "./report_embed_editor";
-import { ReportImagePicker } from "./report_image_picker";
-import { ReportMarkdownDiff } from "./report_markdown_diff";
+} from "./embed_editor";
+import { ReportImagePicker } from "./image_picker";
+import { ReportMarkdownDiff } from "./markdown_diff";
 import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 import { DownloadReport } from "./download_report";
 import { isDarkGroundBehind } from "~/generate_report/mod";
 import { ShareReport } from "./share_report";
-import { ReportThemeModal } from "./report_theme_modal";
+import { ReportThemeModal } from "./theme_modal";
 import { ReportStyleEditor } from "~/components/products/_shared/mod.ts";
 import { DuplicateProductsModal } from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
