@@ -2,15 +2,15 @@
 system: 15
 name: Instance Administration & Ops
 globs:
-  - client/src/components/instance/add_users.tsx
-  - client/src/components/instance/batch_upload_users_form.tsx
-  - client/src/components/instance/bulk_edit_permissions_form.tsx
+  - client/src/components/users/add_users.tsx
+  - client/src/components/users/batch_upload_users_form.tsx
+  - client/src/components/users/bulk_edit_permissions_form.tsx
   - client/src/components/instance/change_email_modal.tsx
   - client/src/components/instance/feedback_form.tsx
   - client/src/components/instance/instance_meta_form.tsx
-  - client/src/components/instance/instance_users.tsx
+  - client/src/components/users/users.tsx
   - client/src/components/instance/profile.tsx
-  - client/src/components/instance/user.tsx
+  - client/src/components/users/user.tsx
   - server/routes/instance/health.ts
   - server/utils/disk_space.ts
 docs_absorbed:

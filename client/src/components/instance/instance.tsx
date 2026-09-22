@@ -36,7 +36,7 @@ import { InstanceAssets } from "~/components/instance/instance_assets";
 import { InstanceData } from "~/components/instance/instance_data";
 import { Products } from "~/components/products";
 import { InstanceResultsPackages } from "~/components/instance_results_packages";
-import { InstanceUsers } from "~/components/instance/instance_users";
+import { InstanceUsers } from "~/components/users/users";
 import { instanceState } from "~/state/instance/t1_store";
 import {
   ShellEditorWrapper,
