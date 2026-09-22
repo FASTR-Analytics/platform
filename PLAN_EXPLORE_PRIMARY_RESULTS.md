@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Review 1.** Each session sets this line in its final commit.
+**Next step: Do 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -537,3 +537,4 @@ that passes deletes this file in its commit.
 | 2026-09-22 | R1 | Step 1 reviewed: 2 findings. |
 | 2026-09-22 | F1 | Harness committed: `server/tests/run_generation_module_options_test.ts` resolves every registry module through the wizard read and asserts unprefixed labels, skipped without `FASTR_MODULES_LOCAL_DIR`; claimed and pointed to in SYSTEM_08. Modules repo commit `c8acb8b` on `main`, pushed, rewords the two m012 comments; the build leaves the tree clean. |
 | 2026-09-22 | F1 | Step 1 fixed. Floor green: typecheck, 398 tests, validate_protocols, boot against the dev database on port 8001 (8000 held by a running dev server): 8 manifests checked, 0 unreadable. |
+| 2026-09-22 | R1 | Re-review of Fix 1 (scoped): the harness resolves every registry id through the wizard read and skips without `FASTR_MODULES_LOCAL_DIR`; modules commit `c8acb8b` is comment-only and the build leaves the tree clean; floor green (typecheck, 398 tests, validate_protocols). Step 1 reviewed: pass. |
