@@ -12,6 +12,7 @@ globs:
   - client/src/components/_shared/live_cursors.tsx
   - client/src/components/_shared/logo_section_editor.tsx
   - client/src/components/_shared/logo_selector.tsx
+  - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
   - client/src/components/_shared/presence_avatars.tsx
   - client/src/components/_shared/product_types.ts
@@ -91,9 +92,9 @@ generator, table-aware). The product plane: `server/db/products/**`,
 S1's `lib/api-routes/products/*`); on the client, the Products page and its
 surfaces (`client/src/components/products/**`: the explorer page, the pure
 `folder_tree.ts` derivations and their harness, the card and list views, the two
-menu builders, the folder and move modals, the type registry `product_types.ts`,
+menu builders, the folder and move modals, the type registry `_shared/product_types.ts`,
 `product_settings.tsx` for name and folder, `package_scope_chip.tsx` and
-`package_scope_modal.tsx` for the pair, the duplicate modal, `package_label.ts`) and the two
+`package_scope_modal.tsx` for the pair, the duplicate modal, `_shared/package_label.ts`) and the two
 editors (`slide_deck/**`, `report/**`), which take `{ productId }` and read
 label, package and scope live from the T1 products row. Lib: slide/report types,
 plus the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,

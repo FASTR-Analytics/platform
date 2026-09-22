@@ -10,7 +10,7 @@ import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import { CollabMarkdownEditor } from "~/components/_shared/collab_markdown_editor";
+import { CollabMarkdownEditor } from "../mod.ts";
 
 /** Live-collab binding for the caption fields (character co-editing + carets). */
 export type VizCaptionCollab = {

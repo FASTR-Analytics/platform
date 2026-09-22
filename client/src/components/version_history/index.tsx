@@ -17,7 +17,7 @@ import {
 import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { canEditProduct } from "~/state/instance/product_access";
-import { PresenceAvatars } from "~/components/_shared/presence_avatars";
+import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { DeckVersionPreview } from "./deck_version_preview";
 import { editorDisplayName } from "./diff_segments";
 import { ReportVersionPreview } from "./report_version_preview";

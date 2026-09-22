@@ -221,7 +221,7 @@ email, server-stamped, unspoofable: only the avatar URL is self-reported).
   Anything reading `collabState.peers` directly is asking about connections and
   must say why; `peersInProduct(productId)` is the product-filtered view.
   Consumers: the deck header + per-slide cards via
-  [presence_avatars.tsx](client/src/components/slide_deck/presence_avatars.tsx),
+  [presence_avatars.tsx](client/src/components/_shared/presence_avatars.tsx),
   the report header (same avatar stack filtered on `reportId`), the
   join/leave toasts
   ([presence_toasts.tsx](client/src/components/_shared/presence_toasts.tsx)),

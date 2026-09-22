@@ -28,7 +28,7 @@ import { createEffect, createSignal, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
-import { PresenceAvatars } from "~/components/_shared/presence_avatars";
+import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { otherPeers } from "~/state/instance/collab";
 import { setShowAi, showAi } from "~/state/t4_ui";
 import { copilotViewController } from "~/components/copilot/ai_views";

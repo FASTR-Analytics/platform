@@ -61,7 +61,7 @@ import { ListView } from "./list_view";
 import { MoveToFolderModal } from "./move_to_folder_modal";
 import { ProductCard } from "./product_card";
 import { buildProductMenu } from "./product_menu";
-import { PRODUCT_TYPE_REGISTRY } from "~/components/_shared/product_types";
+import { PRODUCT_TYPE_REGISTRY } from "~/components/_shared/mod.ts";
 import { ProductSettings } from "./product_settings";
 
 // The type-filter chips store null for "every type", so the chip group needs a

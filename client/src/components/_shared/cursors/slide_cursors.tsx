@@ -9,7 +9,7 @@ import {
   type PointerAwarenessState,
   viewportToDu,
   zonePointerAt,
-} from "../live_cursors";
+} from "../mod.ts";
 
 // =============================================================================
 // Live cursors on the slide editor canvas: "slide" surface

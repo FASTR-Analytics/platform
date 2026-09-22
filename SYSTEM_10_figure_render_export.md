@@ -787,7 +787,7 @@ Deck/report exports pass the raw DB label to `pdf.save`/`saveAs` (Open item).
 - Deck PDF loads only the deck family's font variants: a figure styled with
   another family hits "Font not found in map".
 - The figure editor's multi-replicant download is disabled (`allReplicants`
-  hard-coded false in `forms_editors/download_presentation_object.tsx`, its
+  hard-coded false in `_shared/figure_editor/download_presentation_object.tsx`, its
   selector commented out, and the editor has no multi-replicant branch).
   Revive or delete.
 - The editor PNG honors transparency only in the no-padding branch

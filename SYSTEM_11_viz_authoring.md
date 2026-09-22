@@ -50,8 +50,9 @@ and the preset gallery it renders, below). `components/explore/explore.tsx`
 (the instance Explore tab's page, S14 mounts it: empty until the results
 explorer plan fills it, D6). `_editor_snapshot.ts` (`snapshotForSlideEditor`,
 the one thing the slide editor freezes at open), the
-forms_editors figure modals (download, results-file viewer, custom series
-styles; `conflict_resolution_modal.tsx` is consumed by S12's slide editor). Lib config semantics
+figure modals in `_shared/figure_editor/` (download, results-file viewer,
+custom series styles; `forms_editors/conflict_resolution_modal.tsx` is consumed
+by S12's slide editor). Lib config semantics
 (`normalize_po_config.ts`, `convert_visualization_type.ts`, the PO config type
 families, the conditional-formatting family). `withReplicant` lives in
 kernel-owned `lib/utils.ts` (S00).
@@ -131,7 +132,7 @@ The "Live" badge, the undo/redo buttons and the "Not saving" pill read
 `isCollabLive()` (binding ready AND the socket open, `collabSocketOpen()`) and
 `docSaveFailing` for the HOST doc. Live cursors and the "who is on which
 tab" avatars ride the host session's awareness under a `fig:<figureId>` scope
-(`_shared/cursors/viz_cursors.tsx`; the `vizTab` field is cleared on unmount
+(`_shared/figure_editor/viz_cursors.tsx`; the `vizTab` field is cleared on unmount
 because the host's awareness outlives the editor). Without a live binding
 the editor is Apply/Cancel with no target; contract in
 [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md).

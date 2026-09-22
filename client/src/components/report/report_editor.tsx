@@ -11,7 +11,7 @@ import {
   attachSelectionNameHover,
   yCaretHygiene,
   darkMarkdownExtensions,
-} from "~/components/_shared/collab_markdown_editor";
+} from "~/components/_shared/mod.ts";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {

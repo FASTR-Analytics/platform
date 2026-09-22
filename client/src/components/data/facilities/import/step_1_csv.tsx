@@ -6,7 +6,7 @@ import {
 } from "lib";
 import { Button, StateHolderFormError, createFormAction } from "panther";
 import { serverActions } from "~/server_actions";
-import { FileUploadSelector } from "~/components/_shared/file_upload_selector";
+import { FileUploadSelector } from "~/components/_shared/mod.ts";
 
 type Props = {
   step1Result: StructureCsvStep1Result | undefined;

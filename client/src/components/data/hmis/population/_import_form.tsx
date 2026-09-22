@@ -20,7 +20,7 @@ import {
   type TableColumn,
 } from "panther";
 import { For, Match, Show, Switch, batch, createSignal } from "solid-js";
-import { FileUploadSelector } from "~/components/_shared/file_upload_selector";
+import { FileUploadSelector } from "~/components/_shared/mod.ts";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { instanceState } from "~/state/instance/t1_store";

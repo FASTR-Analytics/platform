@@ -1,6 +1,6 @@
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import { CollabMarkdownEditor as SharedCollabMarkdownEditor } from "~/components/_shared/collab_markdown_editor";
+import { CollabMarkdownEditor as SharedCollabMarkdownEditor } from "~/components/_shared/mod.ts";
 import { canEditProduct } from "~/state/instance/product_access";
 
 // Slide-editor wrapper around the shared CollabMarkdownEditor: injects the

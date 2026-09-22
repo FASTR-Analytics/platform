@@ -9,7 +9,7 @@ import {
   panelContentFromClient,
   type PointerAwarenessState,
   zonePointerAt,
-} from "../live_cursors";
+} from "../mod.ts";
 
 // =============================================================================
 // Live cursors in the visualization editor: "viz-preview" + "viz-panel"

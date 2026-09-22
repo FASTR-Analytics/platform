@@ -2,7 +2,7 @@ import type { ProductSummary } from "lib";
 import { Card, Icon } from "panther";
 import { Show } from "solid-js";
 import { PackageScopeChip } from "./package_scope_chip";
-import { PRODUCT_TYPE_REGISTRY } from "~/components/_shared/product_types";
+import { PRODUCT_TYPE_REGISTRY } from "~/components/_shared/mod.ts";
 
 type Props = {
   product: ProductSummary;

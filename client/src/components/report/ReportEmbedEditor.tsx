@@ -10,7 +10,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { FileUploadSelector } from "~/components/_shared/file_upload_selector";
+import { FileUploadSelector } from "~/components/_shared/mod.ts";
 
 // The currently-selected report embed.
 export type SelectedReportEmbed =

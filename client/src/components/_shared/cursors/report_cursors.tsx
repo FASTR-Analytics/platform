@@ -8,7 +8,7 @@ import {
   pointerFromPane,
   viewportFromPane,
   zonePointerAt,
-} from "../live_cursors";
+} from "../mod.ts";
 
 // =============================================================================
 // Live cursors in the report editor: "report-code" + "report-preview"

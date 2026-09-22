@@ -28,7 +28,7 @@ import {
 import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { FileUploadSelector } from "~/components/_shared/file_upload_selector";
+import { FileUploadSelector } from "~/components/_shared/mod.ts";
 
 export type CsvWizardProps = {
   runsQuery: Query<DatasetHmisImportRunSummary[]>;

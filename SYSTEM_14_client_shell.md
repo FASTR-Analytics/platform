@@ -330,7 +330,7 @@ via `mediaSize`. Types + `compareDottedVersions` live in
 `lib/types/whats_new.ts`. The three onboarding modals persist to Clerk
 `unsafeMetadata` only, with no localStorage writes.
 
-## Help buttons (`lib/help/**`, `HelpButton.tsx`)
+## Help buttons (`lib/help/**`, `_shared/figure_editor/help_button.tsx`)
 
 Docs-site-backed contextual help: content is authored as invisible
 `<!-- help#id -->` tags in the EN+FR markdown of the sibling `wb-fastr-site`
