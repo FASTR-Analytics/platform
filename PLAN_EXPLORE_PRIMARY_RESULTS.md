@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Review 4.** Each session sets this line in its final commit.
+**Next step: Fix 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -563,3 +563,7 @@ that passes deletes this file in its commit.
 | 2026-09-22 | 4 | Sandbox: panther's UI sandbox is the `panther-test` consumer app (panther's `testing_sandbox/` is Deno scripts). A `grid` board was added there (commit `e3ad8f9`) and, because that app imported a component panther had since removed, one stale usage was repointed to `MenuButton` (`62c9a2a`) so it boots. Rendered and driven in a browser: 40 rows, group headers spanning 3 and 2, sticky header and row-header column, coloured cells, sort ascending with empties last, hover and cell and row click each reporting row and column ids. |
 | 2026-09-22 | 4 | The sync commit `0d617062` is the auto-commit `./sync` makes and holds only `panther/**` (G7): the grid files, `tables/mod.ts`, the manifest, and three protocol files that had moved upstream since the last sync. This plan-log commit is separate so G7 and the two-things rule both hold. |
 | 2026-09-22 | 4 | Step 4 built. Floor green over the synced tree: typecheck, 401 tests, validate_protocols. |
+| 2026-09-22 | R4 | Finding: `data_grid.tsx` `groupSpans` merges adjacent columns by resolved label, so two ungrouped neighbours (both "") and two same-labelled groups merge. Fix: merge only when the group is known and the ids match. |
+| 2026-09-22 | R4 | Finding: hover is cleared only on tbody mouse-leave, so moving from a cell onto a row-header `th` keeps reporting the last cell. Fix: the row header clears the hover on enter. |
+| 2026-09-22 | R4 | Finding: `compareCells` is not transitive in a column mixing valued and value-less cells. Fix: valued cells order first by value, then value-less cells by text, then empties. |
+| 2026-09-22 | R4 | G7 held (sync commit lists only `panther/**`; panther commit lists only the grid, `tables/mod.ts` and `sync-configs.json`); floor green (typecheck, 401 tests, validate_protocols). Step 4 reviewed: 3 findings. |
