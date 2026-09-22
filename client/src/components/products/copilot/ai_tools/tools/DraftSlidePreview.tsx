@@ -25,9 +25,9 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { convertAiInputToSlide } from "~/components/products/copilot/slide_ai/convert_ai_input_to_slide";
+import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { copilotViewController } from "~/components/products/copilot/_shared/ai_views";
+import { copilotViewController } from "../../_shared/mod.ts";
 import { addSlideToDeck } from "./add_slide_to_deck";
 
 type SlideState = {

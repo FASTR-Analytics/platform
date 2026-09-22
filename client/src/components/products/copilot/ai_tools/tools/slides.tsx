@@ -13,28 +13,28 @@ import {
   type ContentBlock,
   type MetricWithStatus,
 } from "lib";
-import { convertAiInputToSlide } from "~/components/products/copilot/slide_ai/convert_ai_input_to_slide";
-import { extractBlocksFromLayout } from "~/components/products/copilot/slide_ai/extract_blocks_from_layout";
+import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
+import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
 import { createGetSlideTool } from "./get_slide";
-import type { ClientAIToolEnv } from "../../_shared/client_env";
-import { getSlideWithUpdatedBlocks } from "~/components/products/copilot/slide_ai/get_slide_with_updated_blocks";
-import { getDeckSummaryForAI } from "~/components/products/copilot/slide_ai/get_deck_summary";
+import type { ClientAIToolEnv } from "../../_shared/mod.ts";
+import { getSlideWithUpdatedBlocks } from "../../slide_ai/mod.ts";
+import { getDeckSummaryForAI } from "../../slide_ai/mod.ts";
 import {
   buildLayoutFromSpec,
   normalizeSpans,
-} from "~/components/products/copilot/slide_ai/layout_spec_helpers";
-import { resolveFigureFromMetric } from "~/components/products/copilot/slide_ai/resolve_figure_from_metric";
+} from "../../slide_ai/mod.ts";
+import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
   validateSlideTotalWordCount,
-} from "../../_shared/content_validators";
-import { assertSlidesNotBusy } from "../validators/presence_guard";
+} from "../../_shared/mod.ts";
+import { assertSlidesNotBusy } from "../validators/mod.ts";
 import {
   copilotViewController,
   copilotViews,
-} from "~/components/products/copilot/_shared/ai_views";
+} from "../../_shared/mod.ts";
 
 function throwSlideUpdateError(err: string): never {
   if (err === "CONFLICT") {

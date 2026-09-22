@@ -49,7 +49,7 @@ import {
   type FastrChartPalette,
   type FastrLayoutHint,
 } from "lib";
-import type { ReportEditorSelection } from "~/components/products/copilot/_shared/types";
+import type { ReportEditorSelection } from "~/components/products/copilot/mod.ts";
 import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
 import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type { FigureInkTheme } from "~/components/products/_shared/mod.ts";

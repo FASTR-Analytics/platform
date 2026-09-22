@@ -240,7 +240,7 @@ The same rule governs the AI tools: the shared tools' `AIToolEnv`
 never comes from the model. The SPA env is bound to the open product's pair
 for the life of its mount (D15); the `/mcp` env is bound to the pin resolved
 for that call. The SPA-only module tools (script/logs/settings:
-`client/src/components/copilot/ai_tools/tools/modules.ts`, getters on
+`client/src/components/products/copilot/ai_tools/tools/modules.ts`, getters on
 `ClientAIToolEnv`) read the run-keyed mount too
 (`getRunModuleScript`/`getRunModuleLogs`/`getRunModuleWithConfigSelections`,
 `can_view_data` on the settings read, so for a user without the instance bit

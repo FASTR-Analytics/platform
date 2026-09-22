@@ -71,7 +71,7 @@ endDate: z.number().optional(),
 - **Layer 2, data-dependent (runtime)**: anything requiring fetched data or
   runtime state. Is this disOpt available for THIS metric? do these filter
   values exist? is the range within real data bounds? Lives in
-  `client/src/components/copilot/ai_tools/validators/content_validators.ts`
+  `client/src/components/products/copilot/_shared/content_validators.ts`
   (and `report_validators.ts` for report bodies), called from handlers; the
   metric-query validators both surfaces run (the copilot and the `/mcp`
   endpoint) live in `lib/ai_tools/content_validators.ts`.

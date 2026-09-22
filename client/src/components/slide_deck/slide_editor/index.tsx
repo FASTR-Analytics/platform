@@ -73,7 +73,7 @@ import {
   copilotViewController,
   restoreCopilotView,
   type CopilotViewState,
-} from "~/components/products/copilot/_shared/ai_views";
+} from "~/components/products/copilot/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import {

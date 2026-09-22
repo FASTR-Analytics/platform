@@ -6,3 +6,4 @@ export type {
   FlattenedPrompt,
   ParseResult,
 } from "./types";
+export { SaveableUserTextRenderer } from "./SaveableUserTextRenderer";

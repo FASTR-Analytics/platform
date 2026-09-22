@@ -9,13 +9,13 @@ import type {
   RunAuthoringContext,
 } from "lib";
 import { createAskUserQuestionsTool } from "panther";
-import type { ClientAIToolEnv } from "./_shared/client_env";
-import { SPA_INFO_TOPICS } from "./_shared/client_info_topics";
-import { getClientToolsForDrafts } from "./ai_tools/tools/drafts";
-import { getClientToolsForModules } from "./ai_tools/tools/modules";
-import { getClientToolsForReportEditor } from "./ai_tools/tools/report_editor";
-import { getClientToolsForSlideEditor } from "./ai_tools/tools/slide_editor";
-import { getClientToolsForSlides } from "./ai_tools/tools/slides";
+import type { ClientAIToolEnv } from "./_shared/mod.ts";
+import { SPA_INFO_TOPICS } from "./_shared/mod.ts";
+import { getClientToolsForDrafts } from "./ai_tools/tools/mod.ts";
+import { getClientToolsForModules } from "./ai_tools/tools/mod.ts";
+import { getClientToolsForReportEditor } from "./ai_tools/tools/mod.ts";
+import { getClientToolsForSlideEditor } from "./ai_tools/tools/mod.ts";
+import { getClientToolsForSlides } from "./ai_tools/tools/mod.ts";
 
 // The copilot's tool set = the SHARED tools (lib/ai_tools: the same
 // definitions the /mcp surface exposes, over the env bound to the open

@@ -32,7 +32,7 @@ import {
   copilotViewController,
   restoreCopilotView,
   type CopilotViewState,
-} from "~/components/products/copilot/_shared/ai_views";
+} from "~/components/products/copilot/mod.ts";
 import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";

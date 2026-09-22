@@ -1,6 +1,6 @@
 import type { Slide } from "lib";
 import { serverActions } from "~/server_actions";
-import { copilotViewController } from "~/components/products/copilot/_shared/ai_views";
+import { copilotViewController } from "../../_shared/mod.ts";
 
 // The draft was resolved under the open product's pair, which is the open
 // deck's, so it is written as is.

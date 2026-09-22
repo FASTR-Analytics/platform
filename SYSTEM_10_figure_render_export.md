@@ -277,7 +277,7 @@ The `resolve_figure_from_metric` resolver:
 `resolve_bundle_from_metric_and_config.ts`) is the shared
 snapshot-a-figure-into-FigureBlock core consumed by the report editor
 (`report/index.tsx`) and the slide editor; the same-named file under
-`slide_deck/slide_ai/` is a thin S13 AI adapter that delegates to it.
+`products/copilot/slide_ai/` is a thin S13 AI adapter that delegates to it.
 
 ## Special chart modes: the style pipeline
 

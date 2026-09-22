@@ -688,7 +688,7 @@ peer border appears only once text exists.
 
 ## AI integration
 
-- [presence_guard.ts](client/src/components/copilot/ai_tools/validators/presence_guard.ts):
+- [presence_guard.ts](client/src/components/products/copilot/ai_tools/validators/presence_guard.ts):
   `assertSlidesNotBusy(slideIds)` throws (surfaced to the AI, relayed to its
   user) when any _other_ peer has a target slide open. Called by every
   slide-mutating AI tool; `create_slide`/`move_slides`/`duplicate_slides` are

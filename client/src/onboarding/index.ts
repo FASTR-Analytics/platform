@@ -31,7 +31,7 @@ import {
   tourLabels,
 } from "./tours";
 import { instanceState } from "~/state/instance/t1_store";
-import { copilotViewController } from "~/components/products/copilot/_shared/ai_views";
+import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import {
   pendingTourReplay,
   productsOpenFolder,

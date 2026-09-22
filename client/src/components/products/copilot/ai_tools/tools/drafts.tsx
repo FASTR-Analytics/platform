@@ -12,11 +12,11 @@ import {
 import {
   validateMaxContentBlocks,
   validateNoMarkdownTables,
-} from "../../_shared/content_validators";
-import { resolveFigureFromMetric } from "~/components/products/copilot/slide_ai/resolve_figure_from_metric";
-import { convertAiInputToSlide } from "~/components/products/copilot/slide_ai/convert_ai_input_to_slide";
+} from "../../_shared/mod.ts";
+import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
+import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
-import { copilotViewController } from "~/components/products/copilot/_shared/ai_views";
+import { copilotViewController } from "../../_shared/mod.ts";
 import { DraftSlidePreview } from "./DraftSlidePreview";
 
 // A draft resolves under the open product's pair, the only pair this copilot

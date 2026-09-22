@@ -14,7 +14,7 @@ import {
   ReportStyleEditor,
   type ReportStyleEditorResult,
 } from "~/components/products/_shared/mod.ts";
-import { createCopilotSDKClient } from "./ai_configs/defaults";
+import { createCopilotSDKClient } from "./ai_configs/mod.ts";
 
 // "Save this report's style…" (AI pane kebab menu, HTML reports only): a
 // one-shot Claude call distills the report's ACTUAL body/CSS into a reusable

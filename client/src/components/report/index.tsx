@@ -100,12 +100,12 @@ import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type {
   ReportEditProposalResult,
   ReportEditProposal,
-} from "~/components/products/copilot/_shared/types";
+} from "~/components/products/copilot/mod.ts";
 import {
   copilotViewController,
   restoreCopilotView,
   type CopilotViewState,
-} from "~/components/products/copilot/_shared/ai_views";
+} from "~/components/products/copilot/mod.ts";
 import { formatLineRanges, type SkippedRange } from "~/components/products/_shared/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";

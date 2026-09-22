@@ -35,12 +35,12 @@ import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/stat
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { describeReportPages } from "~/components/products/_shared/mod.ts";
 import { _SERVER_HOST } from "~/server_actions";
-import { copilotViews } from "~/components/products/copilot/_shared/ai_views";
+import { copilotViews } from "../../_shared/mod.ts";
 import { formatLineRanges } from "~/components/products/_shared/mod.ts";
-import { resolveFigureFromMetric } from "~/components/products/copilot/slide_ai/resolve_figure_from_metric";
-import { formatFigureConfigForAI } from "../../_shared/format_figure_config_for_ai";
+import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
+import { formatFigureConfigForAI } from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
-import type { ClientAIToolEnv } from "../../_shared/client_env";
+import type { ClientAIToolEnv } from "../../_shared/mod.ts";
 import {
   validateFastrContainers,
   validateFastrNewLiteralBackgrounds,
@@ -50,7 +50,7 @@ import {
   validateReportBodyForFormat,
   validateReportBodyLength,
   validateReportTokensResolve,
-} from "../validators/report_validators";
+} from "../validators/mod.ts";
 
 // Appended to a tool's ACCEPTED message when the accept-time rebase skipped
 // hunks that collided with a collaborator's concurrent edits: the AI must

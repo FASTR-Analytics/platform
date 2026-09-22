@@ -1,9 +1,9 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import type { MetricWithStatus } from "lib";
-import { simplifySlideForAI } from "~/components/products/copilot/slide_ai/extract_blocks_from_layout";
-import { copilotViews } from "~/components/products/copilot/_shared/ai_views";
-import type { ClientAIToolEnv } from "../../_shared/client_env";
+import { simplifySlideForAI } from "../../slide_ai/mod.ts";
+import { copilotViews } from "../../_shared/mod.ts";
+import type { ClientAIToolEnv } from "../../_shared/mod.ts";
 
 // Slide reads are scoped by the open deck's product id, which the deck and
 // slide views both carry.
