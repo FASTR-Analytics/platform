@@ -7,7 +7,7 @@ supporting analyses under it. Retire m003 and m004 from this app. Then fill
 the Explore tab with its first page: one package at one scope, a family
 tab, the family's scorecard, and a per-indicator detail.
 
-**Next step: Do 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app,
 `/Users/timroberton/projects/apps/wb-fastr-modules` (step 1 only) and
@@ -522,3 +522,9 @@ that passes deletes this file in its commit.
 
 | Date | Step | Entry |
 | --- | --- | --- |
+| 2026-09-22 | 1 | Modules repo commit `a15f890` on `main`, pushed. It was rebased over seven upstream commits (#36 to #42) that landed while the step was built, so m005's pinned asset hash comes from the updated `survey_data_unified.csv`. |
+| 2026-09-22 | 1 | Deviation: m003 and m004 left `MODULE_REGISTRY` in this step, not step 2. The wizard-options gate cannot pass with them registered: the strict GitHub schema rejects their frozen `definition.json` the moment it requires `family`, `tier` and `sortOrder`. Step 2's registry work is now the label renames only. |
+| 2026-09-22 | 1 | Harness for the wizard-options gate, run from the app root: a Deno script that imports `getRunGenerationModuleOptions` from `server/runs/mod.ts`, calls it with a null db (unused for local source), and prints the module ids with `--env-file`. Result: the eight registry modules with unprefixed labels. Not committed; a reviewer reruns it or reads the boot log. |
+| 2026-09-22 | 1 | v1 compatibility checked: every module in the deployed app's registry (m001 to m012 minus m007, m008) parses its pushed `definition.json` under that app's GitHub schema, with the three new keys stripped. Labels shown there lose their prefix (R11). |
+| 2026-09-22 | 1 | `vendor_schema` also refreshed a one-line comment in the vendored `conditional_formatting_standalone.ts`, which had drifted from the app's copy. m011 had no `pt` label; one was added so all eight labels exist in en, fr and pt. |
+| 2026-09-22 | 1 | Step 1 built. Modules repo: `a15f890`. App: this commit (the GitHub schema, the registry retirement). Floor green: typecheck, test, validate_protocols, boot against the dev database (8 manifests checked, 0 unreadable). |

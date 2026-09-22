@@ -20,26 +20,6 @@ export const MODULE_REGISTRY = [
     github: { owner: "FASTR-Analytics", repo: "modules", path: "m002" },
   },
   {
-    id: "m003",
-    label: {
-      en: "M3. Service utilization",
-      fr: "M3. Utilisation des services",
-      pt: "M3. Utilização dos serviços",
-    },
-    prerequisites: ["m001", "m002"],
-    github: { owner: "FASTR-Analytics", repo: "modules", path: "m003" },
-  },
-  {
-    id: "m004",
-    label: {
-      en: "M4. Coverage estimates",
-      fr: "M4. Estimations de couverture",
-      pt: "M4. Estimativas de cobertura",
-    },
-    prerequisites: ["m002"],
-    github: { owner: "FASTR-Analytics", repo: "modules", path: "m004" },
-  },
-  {
     id: "m005",
     label: {
       en: "M5. Coverage estimates ~ new, part 1",
