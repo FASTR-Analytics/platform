@@ -296,6 +296,7 @@ function SlideDeckEditorInner(p: {
   const [editorLoading, setEditorLoading] = createSignal(false);
   let editorApi: SlideEditorApi | undefined;
   let editorFetchId = 0;
+  const [toolbarHost, setToolbarHost] = createSignal<HTMLDivElement>();
 
   // Settles the open slide's draft, then makes `slideId` the open one; false
   // when the user kept an unsaved draft instead.
@@ -407,6 +408,7 @@ function SlideDeckEditorInner(p: {
           present={present}
           openVersionHistory={openVersionHistory}
           deckConfig={p.deckConfig}
+          onToolbarHost={setToolbarHost}
         >
           <Show
             when={editorKey()}
@@ -429,6 +431,7 @@ function SlideDeckEditorInner(p: {
                 scope={p.scope!}
                 authoringContext={p.authoringContext!}
                 returnToContext={p.deckViewState()}
+                toolbarHost={toolbarHost()}
                 deckContext={p.deckContext}
                 onApi={(api) => {
                   editorApi = api;

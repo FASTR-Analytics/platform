@@ -31,7 +31,6 @@ import type {
 import {
   APIResponseWithData,
   Button,
-  FrameTop,
   getQueryStateFromApiResponse,
   PageHolder,
   PageInputs,
@@ -128,6 +127,10 @@ type SlideEditorInnerProps = {
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
   returnToContext?: CopilotViewState;
+  // Where the deck wants the slide's toolbar: the toolbar row under the
+  // deck's heading bar, spanning the rail and the slide (Google Slides). The
+  // toolbar is rendered there through a portal; it stays this editor's.
+  toolbarHost?: HTMLElement;
   // The deck the slide sits in, read live: the copilot's slide view carries
   // the deck's tools too, since the deck's rail is always beside the slide.
   deckContext: {
@@ -1171,71 +1174,71 @@ export function SlideEditor(p: Props) {
     return staleFigures().find((s) => s.blockId === blockId)?.bundle;
   };
 
+  const toolbarJsx = () => (
+    <div class="h-full w-full">
+      <Show when={canEdit()}>
+        <SlideToolbar
+          tempSlide={tempSlide}
+          setTempSlide={manuallyUpdateTempSlide}
+          showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover.showByDefault}
+          showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header.showByDefault}
+          showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer.showByDefault}
+          hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !== undefined}
+          canEdit={canEdit()}
+          canUndoRedo={canUndoRedo()}
+          onUndo={undo}
+          onRedo={redo}
+          onTypeChange={handleTypeChange}
+          selectedBlockId={selectedBlockId()}
+          selectedTextTarget={selectedTextTarget()}
+          editing={inlineEdit()?.target}
+          inlineApi={inlineApi()}
+          onEditText={(target) => startInlineEdit(target)}
+          onAddField={addTitleField}
+          onEditMarkdown={openMarkdownSource}
+          onShowLayoutMenu={handleShowLayoutMenu}
+          onBlockTypeChange={handleBlockTypeChange}
+          updateBlock={updateBlock}
+          staleFigureBundle={selectedStaleBundle()}
+          staleContext={staleContext()}
+          onFigureUpdated={(bundle) => {
+            const blockId = selectedBlockId();
+            if (blockId) setFigureBlockBundle(blockId, bundle);
+          }}
+          onEditVisualization={handleEditVisualization}
+          onCreateVisualization={handleCreateVisualization}
+        />
+      </Show>
+    </div>
+  );
+
   return (
     <EditorWrapper>
-      <FrameTop
-        panelChildren={
-          <div
-            class="h-full w-full"
-            data-cursor-zone="header"
-            data-tour="slide-editor-header"
-          >
-            {/* Room checkpoint health: edits relay live between peers, but
-                the server can't persist them right now. */}
-            <Show
-              when={
-                collabReady() &&
-                collabSocketOpen() &&
-                docSaveFailing("slide", p.slideId)
-              }
-            >
-              <div class="ui-text-caption border-b flex items-center gap-1.5 px-3 py-1">
-                <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
-                <span>
-                  {t3({
-                    en: "Not saving — retrying…",
-                    fr: "Non enregistré — nouvel essai…",
-                    pt: "Não está a guardar — a tentar novamente…",
-                  })}
-                </span>
-              </div>
-            </Show>
-            <Show when={canEdit()}>
-              <SlideToolbar
-                tempSlide={tempSlide}
-                setTempSlide={manuallyUpdateTempSlide}
-                showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover.showByDefault}
-                showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header.showByDefault}
-                showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer.showByDefault}
-                hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !== undefined}
-                canEdit={canEdit()}
-                canUndoRedo={canUndoRedo()}
-                onUndo={undo}
-                onRedo={redo}
-                onTypeChange={handleTypeChange}
-                selectedBlockId={selectedBlockId()}
-                selectedTextTarget={selectedTextTarget()}
-                editing={inlineEdit()?.target}
-                inlineApi={inlineApi()}
-                onEditText={(target) => startInlineEdit(target)}
-                onAddField={addTitleField}
-                onEditMarkdown={openMarkdownSource}
-                onShowLayoutMenu={handleShowLayoutMenu}
-                onBlockTypeChange={handleBlockTypeChange}
-                updateBlock={updateBlock}
-                staleFigureBundle={selectedStaleBundle()}
-                staleContext={staleContext()}
-                onFigureUpdated={(bundle) => {
-                  const blockId = selectedBlockId();
-                  if (blockId) setFigureBlockBundle(blockId, bundle);
-                }}
-                onEditVisualization={handleEditVisualization}
-                onCreateVisualization={handleCreateVisualization}
-              />
-            </Show>
+      <div class="flex h-full w-full flex-col">
+        <Show when={p.toolbarHost} fallback={<div data-cursor-zone="header">{toolbarJsx()}</div>}>
+          {(host) => <Portal mount={host()}>{toolbarJsx()}</Portal>}
+        </Show>
+        {/* Room checkpoint health: edits relay live between peers, but
+            the server can't persist them right now. */}
+        <Show
+          when={
+            collabReady() &&
+            collabSocketOpen() &&
+            docSaveFailing("slide", p.slideId)
+          }
+        >
+          <div class="ui-text-caption border-b flex items-center gap-1.5 px-3 py-1">
+            <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
+            <span>
+              {t3({
+                en: "Not saving — retrying…",
+                fr: "Non enregistré — nouvel essai…",
+                pt: "Não está a guardar — a tentar novamente…",
+              })}
+            </span>
           </div>
-        }
-      >
+        </Show>
+        <div class="min-h-0 flex-1">
           <div
             class="bg-base-200 h-full w-full overflow-auto"
             data-cursor-zone="canvas-area"
@@ -1419,7 +1422,8 @@ export function SlideEditor(p: Props) {
               covered={() => subEditorOpen() > 0}
             />
           </div>
-      </FrameTop>
+        </div>
+      </div>
     </EditorWrapper>
   );
 }

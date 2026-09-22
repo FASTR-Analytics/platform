@@ -58,6 +58,9 @@ type Props = {
   onSelectSlide: (slideId: string | undefined) => Promise<boolean>;
   // The editor (or its placeholder), filling the frame beside the rail.
   children: JSX.Element;
+  // The toolbar row under the heading bar, where the open slide's editor
+  // portals its toolbar (beside the deck's own Add slide).
+  onToolbarHost: (el: HTMLDivElement) => void;
   handleClose: () => Promise<void>;
   handleOpenSettings: () => Promise<void>;
   handleOpenProductSettings: () => Promise<void>;
@@ -641,9 +644,6 @@ export function SlideList(p: Props) {
                 onClick={() => void updateAllFigures()}
               />
             </Show>
-            <MenuButton position="bottom-end" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
-              {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-            </MenuButton>
             <Button
               id="deck-settings-button"
               iconName="settings"
@@ -664,13 +664,23 @@ export function SlideList(p: Props) {
             </Show>
           </div>
         </HeadingBar>
+        {/* The toolbar row (Google Slides): the deck's Add slide at the
+            left, then whatever the open slide's editor portals in. */}
+        <div class="border-b flex items-start" data-cursor-zone="header">
+          <div class="flex-none px-2 pt-0.5">
+            <MenuButton position="bottom-start" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
+              {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+            </MenuButton>
+          </div>
+          <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
+        </div>
         </div>
       }
     >
       <FrameLeftResizable
-        startingWidth={260}
-        minWidth={180}
-        maxWidth={520}
+        startingWidth={210}
+        minWidth={140}
+        maxWidth={420}
         panelChildren={
           <div
             class="bg-base-200 flex h-full w-full flex-col overflow-auto"
