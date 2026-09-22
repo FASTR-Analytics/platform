@@ -21,7 +21,7 @@ import {
   getDisplayDisaggregationLabel,
   getDisplayDisaggregationValueLabel,
 } from "~/state/instance/_util_disaggregation_label";
-import { StyleSection } from "../_shared/_style_components";
+import { StyleSection } from "../_shared/mod.ts";
 
 type Props = {
   resultsValueInfo: ResultsValueInfoForPresentationObject;

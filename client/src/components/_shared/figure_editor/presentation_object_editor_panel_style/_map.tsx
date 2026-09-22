@@ -10,8 +10,8 @@ import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { metricAllowsNegativeScale } from "~/generate_visualization/special_chart_checks";
 import { applyCfToTempConfig } from "./cf_store_helper";
-import { ConditionalFormattingEditor } from "../_shared/conditional_formatting_editor";
-import { StyleRevealGroup, StyleSection } from "../_shared/_style_components";
+import { ConditionalFormattingEditor } from "../_shared/mod.ts";
+import { StyleRevealGroup, StyleSection } from "../_shared/mod.ts";
 
 type Props = {
   metric: ResultsValue;

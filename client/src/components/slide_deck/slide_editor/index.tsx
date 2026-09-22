@@ -74,8 +74,8 @@ import {
   restoreCopilotView,
   type CopilotViewState,
 } from "~/components/copilot/ai_views";
-import { VisualizationEditor } from "~/components/_shared/figure_editor/visualization_editor";
-import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/visualization_editor";
+import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
+import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import {
   findStaleFiguresInLayout,
   resolveFigureBundleInteractively,
@@ -83,7 +83,7 @@ import {
 import {
   UpdateAllFiguresButton,
   updateFigureToScope,
-} from "~/components/_shared/figure_editor/stale_figure_badge";
+} from "~/components/_shared/figure_editor/mod.ts";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/products/t2_slides";
 import { setShowAi, showAi } from "~/state/t4_ui";

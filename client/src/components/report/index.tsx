@@ -92,7 +92,7 @@ import {
 import {
   UpdateAllFiguresButton,
   updateFigureToScope,
-} from "~/components/_shared/figure_editor/stale_figure_badge";
+} from "~/components/_shared/figure_editor/mod.ts";
 import { PackageScopeChip } from "~/components/products/package_scope_chip";
 import { PackageScopeModal } from "~/components/products/package_scope_modal";
 import { ProductSettings } from "~/components/products/product_settings";
@@ -107,8 +107,8 @@ import {
   type CopilotViewState,
 } from "../copilot/ai_views";
 import { formatLineRanges, type SkippedRange } from "./rebase_edits";
-import { VisualizationEditor } from "~/components/_shared/figure_editor/visualization_editor";
-import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/visualization_editor";
+import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
+import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import { InsertFigureModal } from "~/components/figures/insert_figure";
 import {
   EDITOR_PANE_MAX_REM,

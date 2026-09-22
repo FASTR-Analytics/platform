@@ -41,7 +41,7 @@ and no standalone editor since step 9a.
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1.
-`components/figure_editor/**`: the editor (`index.tsx` = `VisualizationEditor`,
+`components/_shared/figure_editor/**`: the editor (`visualization_editor.tsx` = `VisualizationEditor`,
 the wrapper the slide and report editors open; `visualization_editor_inner.tsx`
 + the three panel tabs and their sub-panels; `replicate_by_options.tsx`;
 `conditional_formatting_editor.tsx` + `cf_store_helper.ts`) and
@@ -73,7 +73,7 @@ Neither carries a hand-enumerated dependency list; do not add one.
 
 ## The embedded figure editor
 
-[components/figure_editor/index.tsx](client/src/components/figure_editor/index.tsx)
+[_shared/figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)
 takes `{ label, scope, metric, configSnapshot, authoringContext,
 collabBinding? }`, resolves the metric's queryable shape
 (`resultsValueInfo`, S9's scope-keyed `t2_figure_data.ts`) under the pair,
@@ -102,7 +102,7 @@ pair is deliberately NOT snapshotted (D16).
   store), skipping first run and auto-resolution; it gates the Apply button
   and nothing else.
 - **The refetch effect**
-  ([visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx))
+  ([visualization_editor_inner.tsx](client/src/components/_shared/figure_editor/visualization_editor_inner.tsx))
   re-queries items when `tempConfig.d` changes, via
   `trackStore(tempConfig.d)` plus a tracked read of the host's pair, so a
   reattach or rescope mid-edit re-previews under the new package. Superseded

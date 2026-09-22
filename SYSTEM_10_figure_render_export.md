@@ -317,7 +317,7 @@ Deno). `findStaleFiguresInLayout` and `findStaleFiguresInReport` walk a slide
 layout and a report's figure registry with it. Nothing rewrites a stored
 bundle behind the user: mixed-package documents are a visible state, and
 reattaching or rescoping never blocks and has no pre-flight. The affordance
-is S11's `StaleFigureBadge` (`components/figure_editor/stale_figure_badge.tsx`);
+is S11's `StaleFigureBadge` (`components/_shared/figure_editor/stale_figure_badge.tsx`);
 its update action re-resolves `{ metricId, config }` under the container's
 current pair through `resolveFigureBundleInteractively` (the human path:
 a stored replicant value missing under the new package is auto-defaulted,
@@ -382,7 +382,7 @@ remains.
 
 **The override contract (spans S10/S11).** The UI half lives in the style panel
 (S11 custody,
-`components/figure_editor/presentation_object_editor_panel_style/`): the panel
+`components/_shared/figure_editor/presentation_object_editor_panel_style/`): the panel
 gates each mode's toggle by `canUse*` (an active-but-no-longer-allowed mode is
 still listed so the user can switch away), and `setMode()` in `_timeseries.tsx`
 forces the hidden properties to safe defaults on every mode switch (e.g.

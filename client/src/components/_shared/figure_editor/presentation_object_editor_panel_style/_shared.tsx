@@ -2,7 +2,7 @@ import { PresentationObjectConfig, t3 } from "lib";
 import { Checkbox, Field, Slider } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { StyleRevealGroup } from "../_shared/_style_components";
+import { StyleRevealGroup } from "../_shared/mod.ts";
 
 type SharedTopProps = {
   tempConfig: PresentationObjectConfig;

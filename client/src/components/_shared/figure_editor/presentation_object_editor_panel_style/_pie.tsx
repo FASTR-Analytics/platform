@@ -15,7 +15,7 @@ import {
 } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { StyleRevealGroup, StyleSection } from "../_shared/_style_components";
+import { StyleRevealGroup, StyleSection } from "../_shared/mod.ts";
 
 type Props = {
   tempConfig: PresentationObjectConfig;

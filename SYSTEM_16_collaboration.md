@@ -487,10 +487,10 @@ and merge via CRDT.
 
 ### Figure editor
 
-[visualization_editor_inner.tsx](client/src/components/figure_editor/visualization_editor_inner.tsx)
+[visualization_editor_inner.tsx](client/src/components/_shared/figure_editor/visualization_editor_inner.tsx)
 co-edits a figure inside its host slide or report session. The host passes a
 `VizFigureCollabBinding`
-([figure_editor/index.tsx](client/src/components/figure_editor/index.tsx)):
+([figure_editor/visualization_editor.tsx](client/src/components/_shared/figure_editor/visualization_editor.tsx)):
 the figure's `figConfig` Y.Map, the host session's awareness, `isLive`,
 `canEdit`, a local origin, the host doc identity (so the editor reads
 `doc_save_state` for that doc), and `onCoherentBundle`, which pushes the

@@ -33,7 +33,7 @@ import { convertBlockType } from "../slide_transforms/convert_block_type";
 import { MarkdownGuide } from "~/components/_markdown_guide";
 import { CollabMarkdownEditor } from "./collab_markdown_editor";
 import { CollabTextField } from "./collab_text_field";
-import { StaleFigureBadge } from "~/components/_shared/figure_editor/stale_figure_badge";
+import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
 import type { SlideSession } from "~/state/instance/collab";
 import type * as Y from "yjs";
 
