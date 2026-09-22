@@ -6,7 +6,7 @@ them, `_shared/` scoped to the nearest common ancestor, one `mod.ts` entry
 per folder, and a lint that keeps it that way. The protocol that governs
 the tree is rewritten first so every rule is mechanically checkable.
 
-**Next step: Review 3.** Each session sets this line in its final commit.
+**Next step: Do 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 1 only).
@@ -633,3 +633,4 @@ commit.
 | 2026-09-22 | 3 | Step 3 reviewed: 2 findings. |
 | 2026-09-22 | 3 | Fix: the `onboarding/catalogue.ts` comment names `instance/instance.tsx`; the SYSTEMS.md §4.1 row is re-padded to the table width. |
 | 2026-09-22 | 3 | Step 3 fixed. |
+| 2026-09-22 | 3 | Step 3 reviewed: pass. Re-review after Fix 3: `client/src/onboarding/catalogue.ts:11` names `components/instance/instance.tsx`; `SYSTEMS.md:61` is 194 characters like its neighbours; `1b80c407` touches those two files and the plan only, with no em-dash added. Floor green at HEAD: `deno task typecheck`, `deno task test` (396 passed), `./validate_protocols`, `cd client && npm run build`. |
