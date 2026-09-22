@@ -268,9 +268,14 @@ user can disaggregate it differently to look at, and closing returns
 nothing. The page keeps no draft; no storage, no route, no cache key, and
 no write of any kind from this section), then the
 Population card when the stamp is active ("population.csv"), and
-per-module cards (settings; Script/Logs viewers gated client-side by
+per-module cards in module order, each named from `RunDetail.modules[]`,
+which `readRunDetail` fills from the manifest's own definition blob (label
+and the three presentation facts) and sorts with `compareModules` (settings;
+Script/Logs viewers gated client-side by
 `canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`; files
-inline with download). A host adds only chrome through its slots: the
+inline with download). The registry label (`moduleLabel` in `status.tsx`)
+names modules only where there is no manifest: the generating and failed
+branches, the wizard's confirm step, and the unreadable-manifest fallback. A host adds only chrome through its slots: the
 package page puts pin/unpin/delete in `headerActions` and "in use by" in
 `headerNote`, and renders generating/failed runs itself. The detail is
 **T2, immutable-by-identity**
@@ -719,7 +724,10 @@ pinned; per-module "Reset to definition defaults" is the unpin act, dropping
 that module's stored entry. Entries for modules not offerable here
 (country-filtered or removed) and stored keys a definition no longer declares
 pass through verbatim: the store tolerates unknowns by design. The editor
-enforces neither DAG closure nor data availability: the wizard sanitizes at
+enforces neither DAG closure nor data availability: the wizard's modules
+step renders one section per family in family order, the primary module
+first and the secondary modules under a "Supporting analyses" subheading,
+from the module-ordered options the read returns; the wizard sanitizes at
 read time (step 1 re-masks families by what is uploaded; the launched module
 set is the closure-completed, offerability-masked derivation of what is
 ticked, so a stored default whose family is absent simply never launches).

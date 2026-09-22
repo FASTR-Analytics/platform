@@ -9,7 +9,7 @@ import { createReactiveCache } from "../_infra/reactive_cache";
 // simply never read again. Bump the name whenever RunDetail changes shape
 // (CLAUDE.md: a cached payload's shape change needs a prefix bump).
 const _RUN_DETAIL_CACHE = createReactiveCache<{ runId: string }, RunDetail>({
-  name: "run_detail_v2",
+  name: "run_detail_v3",
   uniquenessKeys: (params) => [params.runId],
   versionKey: () => "immutable",
 });

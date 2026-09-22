@@ -133,8 +133,15 @@ export type ReadyPackage = {
 // Manifest-gated: generating/failed runs are served by the progress-derived
 // UI instead. Immutable per runId (client T2, `state/instance/t2_runs.ts`).
 export type RunDetail = {
+  // In module order (compareModules), named and placed from the manifest's
+  // own definition blob, so a module that has left the registry still reads
+  // as itself.
   modules: {
     moduleId: string;
+    label: string;
+    family: DatasetType;
+    tier: ModuleTier;
+    sortOrder: number;
     settings: { label: string; value: string }[];
     files: { name: string; sizeBytes: number }[];
   }[];

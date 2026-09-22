@@ -44,7 +44,7 @@ export function ResultsPackageView(p: {
   headerNote?: JSX.Element;
   openEditor: ReturnType<typeof getEditorWrapper>["openEditor"];
 }) {
-  const openViewer: OpenViewer = (element, moduleId) => {
+  const openViewer: OpenViewer = (element, moduleId, label) => {
     void p.openEditor({
       element,
       props: {
@@ -53,7 +53,7 @@ export function ResultsPackageView(p: {
         // read as text, so a module that has left the registry, or one from
         // a newer app, is still browsable (PLAN_1a §0 clause 3).
         moduleId,
-        moduleLabel: moduleLabel(moduleId),
+        moduleLabel: label,
       },
     });
   };
@@ -83,7 +83,7 @@ export function ResultsPackageView(p: {
 }
 
 type Viewer = typeof ViewScript | typeof ViewLogs;
-type OpenViewer = (element: Viewer, moduleId: string) => void;
+type OpenViewer = (element: Viewer, moduleId: string, label: string) => void;
 
 function ReadyModulesSection(p: {
   run: RunListingItem;
@@ -114,7 +114,8 @@ function ReadyModulesSection(p: {
   // A ready run whose manifest cannot be read (unreadable bytes, or written
   // by a newer server on a mixed-version fleet) must not lose the
   // script/log viewers: they are exactly what diagnoses it. Fall back to
-  // the summary's module list, which lives in the DB row. Each viewer is
+  // the summary's module list, which lives in the DB row, named from the
+  // registry because there is no manifest to name from. Each viewer is
   // offered only to a caller the server would let through (status.tsx).
   return (
     <StateHolderWrapper
@@ -131,7 +132,8 @@ function ReadyModulesSection(p: {
                   <Button
                     size="sm"
                     outline
-                    onClick={() => p.openViewer(ViewScript, moduleId)}
+                    onClick={() =>
+                      p.openViewer(ViewScript, moduleId, moduleLabel(moduleId))}
                   >
                     {t3({ en: "Script", fr: "Script", pt: "Script" })}
                   </Button>
@@ -140,7 +142,8 @@ function ReadyModulesSection(p: {
                   <Button
                     size="sm"
                     outline
-                    onClick={() => p.openViewer(ViewLogs, moduleId)}
+                    onClick={() =>
+                      p.openViewer(ViewLogs, moduleId, moduleLabel(moduleId))}
                   >
                     {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
                   </Button>
@@ -257,7 +260,7 @@ function ModuleSection(p: {
   openViewer: OpenViewer;
 }) {
   return (
-    <CollapsibleSection title={moduleLabel(p.module.moduleId)}>
+    <CollapsibleSection title={p.module.label}>
       <div class="ui-pad ui-spy">
         <div class="ui-spy-sm">
           <div class="ui-text-caption font-700">
@@ -300,7 +303,8 @@ function ModuleSection(p: {
               <Button
                 size="sm"
                 outline
-                onClick={() => p.openViewer(ViewScript, p.module.moduleId)}
+                onClick={() =>
+                  p.openViewer(ViewScript, p.module.moduleId, p.module.label)}
               >
                 {t3({ en: "Script", fr: "Script", pt: "Script" })}
               </Button>
@@ -309,7 +313,8 @@ function ModuleSection(p: {
               <Button
                 size="sm"
                 outline
-                onClick={() => p.openViewer(ViewLogs, p.module.moduleId)}
+                onClick={() =>
+                  p.openViewer(ViewLogs, p.module.moduleId, p.module.label)}
               >
                 {t3({ en: "Logs", fr: "Journaux", pt: "Registos" })}
               </Button>

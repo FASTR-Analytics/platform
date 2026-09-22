@@ -9,6 +9,11 @@ import type {
 // module before its supporting analyses, then the declared sort order, then
 // id. Every listing of modules sorts through this and nothing sorts modules
 // by id or label.
+export const MODULE_FAMILY_ORDER: readonly DatasetType[] = [
+  "hmis",
+  "hfa",
+  "iceh",
+];
 const FAMILY_ORDER: Record<DatasetType, number> = { hmis: 0, hfa: 1, iceh: 2 };
 const TIER_ORDER: Record<ModuleTier, number> = { primary: 0, secondary: 1 };
 
