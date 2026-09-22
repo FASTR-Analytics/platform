@@ -2,31 +2,23 @@
 system: 12
 name: Documents & Sharing
 globs:
-  - client/src/components/_markdown_guide.tsx
   - client/src/components/_shared/collab_markdown_editor.tsx
   - client/src/components/_shared/connection_banner.tsx
-  - client/src/components/_shared/cursors/**
+  - client/src/components/_shared/cursors/report_cursors.tsx
   - client/src/components/_shared/fastr_block_labels.ts
   - client/src/components/_shared/fastr_logos.ts
   - client/src/components/_shared/fastr_theme_labels.ts
   - client/src/components/_shared/live_cursors.tsx
-  - client/src/components/_shared/logo_section_editor.tsx
-  - client/src/components/_shared/logo_selector.tsx
   - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
   - client/src/components/_shared/presence_avatars.tsx
   - client/src/components/_shared/presence_toasts.tsx
-  - client/src/components/layout_editor/**
   - client/src/components/products/*.ts
   - client/src/components/products/*.tsx
   - client/src/components/products/_shared/*.ts
   - client/src/components/products/_shared/*.tsx
   - client/src/components/report/**
-  - client/src/components/slide_deck/*.ts
-  - client/src/components/slide_deck/*.tsx
-  - client/src/components/slide_deck/slide_editor/**
-  - client/src/components/slide_deck/slide_transforms/**
-  - client/src/components/slide_deck/style_editor/**
+  - client/src/components/products/slide_deck/**
   - client/src/state/products/t2_report_detail.ts
   - client/src/state/products/t2_slide_deck_detail.ts
   - client/src/state/products/t2_slides.ts

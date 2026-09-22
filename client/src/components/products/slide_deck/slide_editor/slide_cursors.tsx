@@ -9,7 +9,7 @@ import {
   type PointerAwarenessState,
   viewportToDu,
   zonePointerAt,
-} from "../mod.ts";
+} from "~/components/_shared/mod.ts";
 
 // =============================================================================
 // Live cursors on the slide editor canvas: "slide" surface

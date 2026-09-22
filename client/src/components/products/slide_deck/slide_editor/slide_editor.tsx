@@ -66,8 +66,8 @@ import {
   unwrap,
   type SetStoreFunction,
 } from "solid-js/store";
-import { ConflictResolutionModal } from "~/components/forms_editors/conflict_resolution_modal";
-import { buildLayoutContextMenu } from "~/components/layout_editor/build_context_menu";
+import { ConflictResolutionModal } from "./conflict_resolution_modal";
+import { buildLayoutContextMenu } from "./build_context_menu";
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
   copilotViewController,
@@ -97,7 +97,7 @@ import {
   type SlideSession,
 } from "~/state/instance/collab";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
-import { SlideEditorCursors } from "~/components/_shared/cursors/slide_cursors";
+import { SlideEditorCursors } from "./slide_cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { canEditProduct } from "~/state/instance/product_access";
 import { productById } from "~/state/instance/t1_store";

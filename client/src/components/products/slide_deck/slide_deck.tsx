@@ -21,7 +21,7 @@ import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_de
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { DownloadSlideDeck } from "./download_slide_deck";
 import { ShareSlideDeck } from "./share_slide_deck";
-import { SlideEditor } from "./slide_editor";
+import { SlideEditor } from "./slide_editor/slide_editor";
 import { SlideList } from "./slide_list";
 import { SlidePresenter } from "./slide_presenter";
 import {
@@ -33,7 +33,7 @@ import {
   restoreCopilotView,
   type CopilotViewState,
 } from "~/components/products/copilot/mod.ts";
-import { snapshotForSlideEditor } from "~/components/_editor_snapshot";
+import { snapshotForSlideEditor } from "./_editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
 import { setCollabAvatar, setCollabView } from "~/state/instance/collab";
 import { clerk } from "~/components/instance/mod.ts";
