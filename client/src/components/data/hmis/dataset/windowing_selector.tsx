@@ -29,7 +29,7 @@ import { Show, batch, createMemo, onMount } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
-import { PeriodSelector } from "../_shared/period_selector/period_selector";
+import { PeriodSelector } from "../_shared/mod.ts";
 
 type Props<T extends DatasetHmisWindowing> = {
   hmisVersionId: number;

@@ -10,6 +10,6 @@ export {
   indicatorTypeWord,
   matchesIndicatorSearch,
 } from "./indicator_display.ts";
-export { PeriodSelector } from "./period_selector/period_selector.tsx";
+export { PeriodSelector } from "./period_selector/mod.ts";
 export { IndicatorTypeBadge } from "./type_badge.tsx";
 export { WrapOnUnderscore } from "./wrap_on_underscore.tsx";
