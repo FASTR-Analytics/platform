@@ -1,1 +1,1 @@
-export { PopulationManager } from "./population_manager.tsx";
+export { PopulationManager } from "./manager.tsx";

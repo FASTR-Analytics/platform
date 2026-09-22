@@ -1,1 +1,1 @@
-export { IndicatorsManager } from "./indicators_manager.tsx";
+export { IndicatorsManager } from "./manager.tsx";
