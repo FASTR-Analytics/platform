@@ -30,7 +30,7 @@ import {
 } from "panther";
 import { Index, Show } from "solid-js";
 import { buildAutoValueFormatter } from "~/generate_visualization/conditional_formatting/compile";
-import { StyleRevealGroup } from "./presentation_object_editor_panel_style/_style_components";
+import { StyleRevealGroup } from "./_style_components";
 
 type Props = {
   value: ConditionalFormatting | undefined;

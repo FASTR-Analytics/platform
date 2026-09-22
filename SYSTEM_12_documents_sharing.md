@@ -3,7 +3,18 @@ system: 12
 name: Documents & Sharing
 globs:
   - client/src/components/_markdown_guide.tsx
-  - client/src/components/_shared/**
+  - client/src/components/_shared/collab_markdown_editor.tsx
+  - client/src/components/_shared/connection_banner.tsx
+  - client/src/components/_shared/cursors/**
+  - client/src/components/_shared/fastr_block_labels.ts
+  - client/src/components/_shared/fastr_logos.ts
+  - client/src/components/_shared/fastr_theme_labels.ts
+  - client/src/components/_shared/live_cursors.tsx
+  - client/src/components/_shared/logo_section_editor.tsx
+  - client/src/components/_shared/logo_selector.tsx
+  - client/src/components/_shared/presence_toasts.tsx
+  - client/src/components/_shared/scope_picker.tsx
+  - client/src/components/_shared/sort_control.tsx
   - client/src/components/layout_editor/**
   - client/src/components/products/**
   - client/src/components/report/**

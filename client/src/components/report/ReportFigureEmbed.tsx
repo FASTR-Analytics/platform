@@ -18,7 +18,7 @@ import {
   t3,
 } from "lib";
 import { buildFigureInputs, isFigureBundleStale } from "~/generate_visualization/mod";
-import { StaleFigureBadge } from "~/components/figure_editor/stale_figure_badge";
+import { StaleFigureBadge } from "~/components/_shared/figure_editor/stale_figure_badge";
 import { applyInkTheme, type FigureInkTheme } from "./report_figure_raster";
 
 // What the report editor hands each embed so it can judge and update its own

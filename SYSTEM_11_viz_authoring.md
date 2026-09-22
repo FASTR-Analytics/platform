@@ -4,7 +4,7 @@ name: Visualization Authoring UI
 globs:
   - client/src/components/_editor_snapshot.ts
   - client/src/components/explore/**
-  - client/src/components/figure_editor/**
+  - client/src/components/_shared/figure_editor/**
   - client/src/components/figures/**
   - client/src/components/forms_editors/conflict_resolution_modal.tsx
   - client/src/components/forms_editors/custom_series_styles.tsx

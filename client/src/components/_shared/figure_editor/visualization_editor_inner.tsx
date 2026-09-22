@@ -80,7 +80,7 @@ import {
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/products/t2_figure_data";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import type { FigureEditorResult, VizFigureCollabBinding } from ".";
+import type { FigureEditorResult, VizFigureCollabBinding } from "./visualization_editor";
 import { PresentationObjectEditorPanel } from "./presentation_object_editor_panel";
 
 // Input types with no native undo: they must not swallow the editor's Ctrl+Z.

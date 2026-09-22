@@ -16,7 +16,7 @@ import {
 import { Match, Show, Switch } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { ChartLikeControls } from "./_chart_like_controls";
-import { StyleRevealGroup, StyleSection } from "./_style_components";
+import { StyleRevealGroup, StyleSection } from "../_shared/_style_components";
 
 type Props = {
   metric: ResultsValue;

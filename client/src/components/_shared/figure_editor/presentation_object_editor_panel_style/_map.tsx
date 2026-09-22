@@ -9,9 +9,9 @@ import { Checkbox, RadioGroup, getSelectOptions } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { metricAllowsNegativeScale } from "~/generate_visualization/special_chart_checks";
-import { applyCfToTempConfig } from "../cf_store_helper";
-import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
-import { StyleRevealGroup, StyleSection } from "./_style_components";
+import { applyCfToTempConfig } from "./cf_store_helper";
+import { ConditionalFormattingEditor } from "../_shared/conditional_formatting_editor";
+import { StyleRevealGroup, StyleSection } from "../_shared/_style_components";
 
 type Props = {
   metric: ResultsValue;

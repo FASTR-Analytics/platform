@@ -13,7 +13,7 @@ import {
 } from "./presentation_object_editor_panel_data/_1_summary";
 import { Filters } from "./presentation_object_editor_panel_data/_2_filters";
 import { DisaggregationSection } from "./presentation_object_editor_panel_data/_3_disaggregation";
-import { HelpButton } from "../HelpButton";
+import { HelpButton } from "~/components/HelpButton";
 
 type Props = {
   metric: ResultsValue;

@@ -9,9 +9,9 @@ import { metricAllowsNegativeScale } from "~/generate_visualization/special_char
 import { Checkbox, RadioGroup, getSelectOptions } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
-import { applyCfToTempConfig } from "../cf_store_helper";
-import { ConditionalFormattingEditor } from "../conditional_formatting_editor";
-import { StyleSection } from "./_style_components";
+import { applyCfToTempConfig } from "./cf_store_helper";
+import { ConditionalFormattingEditor } from "../_shared/conditional_formatting_editor";
+import { StyleSection } from "../_shared/_style_components";
 
 type Props = {
   metric: ResultsValue;

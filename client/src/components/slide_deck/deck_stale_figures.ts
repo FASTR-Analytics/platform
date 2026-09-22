@@ -8,7 +8,7 @@ import type {
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE, getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { findStaleFiguresInLayout } from "~/generate_visualization/mod";
-import { updateFigureToScope } from "~/components/figure_editor/stale_figure_badge";
+import { updateFigureToScope } from "~/components/_shared/figure_editor/stale_figure_badge";
 import { updateBlockInLayout } from "./slide_transforms/update_block_in_layout";
 
 // Deck-level staleness (PLAN_PRODUCTS_RESTRUCTURE D4): which figures across

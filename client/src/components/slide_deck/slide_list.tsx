@@ -34,7 +34,7 @@ import { setShowAi, showAi } from "~/state/t4_ui";
 import { copilotViewController } from "~/components/copilot/ai_views";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
-import { UpdateAllFiguresButton } from "~/components/figure_editor/stale_figure_badge";
+import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/stale_figure_badge";
 import { PackageScopeChip } from "~/components/products/package_scope_chip";
 import { PackageScopeModal } from "~/components/products/package_scope_modal";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
