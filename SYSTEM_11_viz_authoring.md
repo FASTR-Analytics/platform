@@ -10,6 +10,7 @@ globs:
   - lib/convert_visualization_type.ts
   - lib/derive_default_visualizations.ts
   - lib/disaggregation_labels.ts
+  - lib/explore_grid_query.ts
   - lib/format_nigeria_admin_label.ts
   - lib/get_disaggregator_display_prop.ts
   - lib/group_metrics.ts
@@ -23,6 +24,7 @@ globs:
   - lib/types/disaggregation_options.ts
   - lib/types/presentation_object_defaults.ts
   - lib/types/presentation_objects.ts
+  - server/tests/explore_grid_query_test.ts
 docs_absorbed:
 ---
 
@@ -310,6 +312,35 @@ draft, no copilot.
   of truth for "active replicant" (safe on raw config);
   `getDisaggregatorDisplayProp` / `hasDuplicateDisaggregatorDisplayOptions` are
   deliberately NOT filter-aware (they receive effective configs).
+
+### Grid query model
+
+`lib/explore_grid_query.ts` holds the Explore Data table's state as a
+`GridQuery` (family, unit, indicators, period, columns, grain) and the pure
+steps over it. `primaryMetricFor` is the family's primary module's first
+ready metric by id. `defaultGridQuery` opens at the scope's level plus one
+(national: admin area 2; an admin area 2 scope: 3), every indicator, HMIS on
+the last 12 months, HFA on its latest time point and ICEH on its first
+stratifier and latest year, columns Indicators. `resolveGridQuery` maps the
+query onto what the current package and scope can answer on every read and
+never rewrites the caller's state: an unoffered family becomes the first
+offered, a level becomes one the metric's `disaggregationOptions` carry and
+deeper than the scope (`levelOptionsFor`), a stratifier becomes an available
+one, indicators are intersected with the family's dictionary (the dropped ids
+are returned for the page's notice), and time values are intersected with
+the available ones. Time is never a column group: HFA survey rounds and ICEH
+years are never pooled, so HFA and ICEH in Indicators mode resolve to exactly
+one time point or year (the latest chosen, else the latest available), and
+`deriveGridConfig` returns undefined for such a query without one.
+`deriveGridConfig` takes the primary metric's first preset through
+`deriveConfigFromVizPreset` and replaces `d` whole with a table: the unit as
+`row` (admin levels carry `rollup: true`, position top; ICEH's `level` has
+no roll-up), then the indicator dimension as `col` in Indicators mode, or
+the time dimension as `col` and the indicator dimension as `colGroup` in
+Time mode; filters for the ICEH stratifier, chosen indicators and HFA or
+ICEH time values; HMIS windows as `periodFilter`. `periodChoicesFor` lists
+the period control's choices, offering HFA and ICEH "All" only in Time mode.
+Tested in `server/tests/explore_grid_query_test.ts`.
 
 ## Replicant machinery
 

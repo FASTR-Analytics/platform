@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Do 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -597,3 +597,22 @@ the `grid_items` cache prefix is new, so no entries need flushing and no
 ## 8. Build log
 
 Append-only, newest last.
+
+- Step 1, deviation: `defaultGridQuery(family, scope, ctx, available)` takes
+  the `available` lists, because ICEH's first stratifier and the HFA and ICEH
+  latest period are not in the authoring context.
+- Step 1, deviation: `deriveGridConfig(query, ctx, language)` takes the
+  language `deriveConfigFromVizPreset` requires. It returns undefined for an
+  HFA or ICEH Indicators-mode query without exactly one period (ruling 19).
+- Step 1, deviation: `UNIT_DIMENSION` is `unitDimension(unit)`: for HMIS and
+  HFA the unit dimension is the chosen level, not a per-family constant.
+  Also exported for step 4: `timeDimension`, `familiesOffered`,
+  `levelOptionsFor`, `periodChoiceId`, `GridAvailable`.
+- Step 1, deviation: `periodChoicesFor(family, columns, available)` takes the
+  columns mode, since HFA and ICEH offer "All" only in Time mode. HMIS "All"
+  is `{ kind: "values", values: [] }`.
+- Step 1, gate note: `./run` replaces and on exit stops the machine-global
+  `pg` and `valkey-local` containers, which Tim's own session uses. The boot
+  gate is run as its server half against the running containers:
+  `deno task dev` until `http://localhost:8000/` answers, then stop it.
+- Step 1 built.
