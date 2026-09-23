@@ -10,9 +10,7 @@ import {
   DEFAULT_THEME,
   setTheme,
   theme,
-  THEME_DENSITIES,
   THEME_RADII,
-  THEME_TEXT_SCALES,
   type Theme,
   type ThemeDarkPrimary,
   type ThemeInk,
@@ -27,12 +25,8 @@ function labelOf<T extends string>(items: Item<T>[], id: T): string {
   return items.find((i) => i.id === id)?.label ?? id;
 }
 
-// Numeric knobs ride the ButtonGroup's string ids: the label is the number
-// itself, and onChange maps the id back to the step.
-const percent = (v: number) => `${Math.round(v * 100)}%`;
-function numericItems(steps: readonly number[], label: (v: number) => string) {
-  return steps.map((v) => ({ id: String(v), label: label(v) }));
-}
+// Radius steps ride the ButtonGroup's string ids; onChange maps the id
+// back to the step.
 function stepOf<T extends number | string>(
   steps: readonly T[],
   id: string | undefined,
@@ -116,8 +110,6 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
       labelOf(statusItems, theme().status),
       labelOf(darkPrimaryItems, theme().darkPrimary),
       radiusLabel(theme().radius),
-      percent(theme().density),
-      percent(theme().textScale),
     ].join(" / ");
 
   return (
@@ -231,24 +223,6 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
           }))}
           value={String(theme().radius)}
           onChange={(v) => update("radius", stepOf(THEME_RADII, v))}
-          fullWidth
-        />
-        <ButtonGroup
-          label={t3({ en: "Density", fr: "Densité", pt: "Densidade" })}
-          items={numericItems(THEME_DENSITIES, percent)}
-          value={String(theme().density)}
-          onChange={(v) => update("density", stepOf(THEME_DENSITIES, v))}
-          fullWidth
-        />
-        <ButtonGroup
-          label={t3({
-            en: "Text size",
-            fr: "Taille du texte",
-            pt: "Tamanho do texto",
-          })}
-          items={numericItems(THEME_TEXT_SCALES, percent)}
-          value={String(theme().textScale)}
-          onChange={(v) => update("textScale", stepOf(THEME_TEXT_SCALES, v))}
           fullWidth
         />
         <div class="text-base-content-muted text-sm">{summary()}</div>

@@ -4,9 +4,9 @@ import { createSignal } from "solid-js";
 // <html>, which beat every stylesheet rule. Every knob is a short gradient of
 // sensible values, not a catalogue of contrasts: colors are light-dark() pairs
 // drawn only from the GFF brand guidelines (ENG_Branding
-// Guidelines_Secretariat.pdf); rounding, density and text scale write nothing
-// at their default step, so those stay what _fixed.css declares. Canvas
-// figures keep their fixed key colors; only the HTML UI follows.
+// Guidelines_Secretariat.pdf); rounding writes nothing at its default step, so
+// it stays what _fixed.css declares. Canvas figures keep their fixed key
+// colors; only the HTML UI follows.
 
 export const THEME_RAMPS = ["neutral", "tone", "cool"] as const;
 export type ThemeRamp = (typeof THEME_RAMPS)[number];
@@ -37,17 +37,8 @@ export type ThemeStatus = (typeof THEME_STATUSES)[number];
 export const THEME_DARK_PRIMARIES = ["teal", "sky"] as const;
 export type ThemeDarkPrimary = (typeof THEME_DARK_PRIMARIES)[number];
 
-// Fine steps, denser below the default: the reskin is expected to tighten
-// rather than loosen. Density and text scale are factors over the kit's rem
-// tables; 1 writes nothing.
 export const THEME_RADII = [0, 1, 2, 3, 4, 6, 8, 12, 20] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
-
-export const THEME_DENSITIES = [0.6, 0.7, 0.8, 0.9, 1, 1.15, 1.3] as const;
-export type ThemeDensity = (typeof THEME_DENSITIES)[number];
-
-export const THEME_TEXT_SCALES = [0.85, 0.9, 0.95, 1, 1.05, 1.1] as const;
-export type ThemeTextScale = (typeof THEME_TEXT_SCALES)[number];
 
 export type Theme = {
   ramp: ThemeRamp;
@@ -56,8 +47,6 @@ export type Theme = {
   status: ThemeStatus;
   darkPrimary: ThemeDarkPrimary;
   radius: ThemeRadius;
-  density: ThemeDensity;
-  textScale: ThemeTextScale;
 };
 
 export const DEFAULT_THEME: Theme = {
@@ -67,8 +56,6 @@ export const DEFAULT_THEME: Theme = {
   status: "kit",
   darkPrimary: "teal",
   radius: 4,
-  density: 1,
-  textScale: 1,
 };
 
 // Every ramp pins its hover and active states as literals rather than
@@ -240,40 +227,6 @@ const STATUSES: Record<ThemeStatus, Halves<StatusSet>> = {
   },
 };
 
-// Base values in rem, mirroring _fixed.css (and app.css for --text-5xl). A
-// factor of 1 sets nothing, so the kit's own defaults always win at default;
-// these tables only matter when the kit's values move and a scaled step
-// should move with them.
-const DENSITY_BASE_REM: Record<string, number> = {
-  "--ui-pad-sm-x": 0.5,
-  "--ui-pad-sm-y": 0.5,
-  "--ui-pad-x": 1,
-  "--ui-pad-y": 1,
-  "--ui-pad-lg-x": 2,
-  "--ui-pad-lg-y": 1.5,
-  "--ui-gap-sm": 0.5,
-  "--ui-gap": 1,
-  "--ui-gap-lg": 1.5,
-  "--ui-spy-sm": 0.5,
-  "--ui-spy": 1.5,
-  "--ui-spy-lg": 2,
-  "--ui-form-pad-x": 0.75,
-  "--ui-form-pad-y": 0.5,
-  "--ui-form-pad-sm-x": 0.5,
-  "--ui-form-pad-sm-y": 0.25,
-};
-
-const TEXT_BASE_REM: Record<string, number> = {
-  "--text-xs": 0.75,
-  "--text-sm": 0.875,
-  "--text-base": 1,
-  "--text-lg": 1.125,
-  "--text-xl": 1.25,
-  "--text-2xl": 1.5,
-  "--text-3xl": 1.875,
-  "--text-5xl": 3,
-};
-
 type ThemeVars = Record<string, string | null>;
 
 const pair = (light: string, dark: string) => `light-dark(${light}, ${dark})`;
@@ -304,22 +257,9 @@ function colorVars(t: Theme): ThemeVars {
   return vars;
 }
 
-function scaledRem(
-  vars: ThemeVars,
-  base: Record<string, number>,
-  factor: number,
-) {
-  for (const [name, rem] of Object.entries(base)) {
-    vars[name] =
-      factor === 1 ? null : `${Number((rem * factor).toFixed(4))}rem`;
-  }
-}
-
 function themeVars(t: Theme): ThemeVars {
   const vars = colorVars(t);
   vars["--radius"] = t.radius === DEFAULT_THEME.radius ? null : `${t.radius}px`;
-  scaledRem(vars, DENSITY_BASE_REM, t.density);
-  scaledRem(vars, TEXT_BASE_REM, t.textScale);
   return vars;
 }
 
@@ -358,8 +298,6 @@ function readStoredTheme(): Theme {
         DEFAULT_THEME.darkPrimary,
       ),
       radius: pick(THEME_RADII, v.radius, DEFAULT_THEME.radius),
-      density: pick(THEME_DENSITIES, v.density, DEFAULT_THEME.density),
-      textScale: pick(THEME_TEXT_SCALES, v.textScale, DEFAULT_THEME.textScale),
     };
   } catch {
     return DEFAULT_THEME;
