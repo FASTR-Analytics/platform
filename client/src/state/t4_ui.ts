@@ -90,34 +90,30 @@ export function ShellEditorWrapper(p: { children: JSX.Element }) {
 // shim; named here so the page and the tour catalogue spell it the same way.
 export const _PRODUCT_QUERY_PARAM = "product";
 
-// The explorer's location: null = the root, a folder id = inside that folder.
-// The path from the root is derived by walking `parentId` and never stored.
-const storedProductsOpenFolder = localStorage.getItem("productsOpenFolder");
-export const [productsOpenFolder, setProductsOpenFolderInternal] = createSignal<
-  string | null
->(storedProductsOpenFolder);
-export function setProductsOpenFolder(folderId: string | null) {
-  if (folderId === null) {
-    localStorage.removeItem("productsOpenFolder");
-  } else {
-    localStorage.setItem("productsOpenFolder", folderId);
+// The product explorer's open folders.
+function readStoredIds(key: string): ReadonlySet<string> {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((x): x is string => typeof x === "string")
+        : [],
+    );
+  } catch {
+    return new Set();
   }
-  setProductsOpenFolderInternal(folderId);
+}
+export const [productsExpandedFolders, setProductsExpandedFoldersInternal] =
+  createSignal<ReadonlySet<string>>(readStoredIds("productsExpandedFolders"));
+export function setProductsExpandedFolders(folderIds: ReadonlySet<string>) {
+  localStorage.setItem(
+    "productsExpandedFolders",
+    JSON.stringify([...folderIds]),
+  );
+  setProductsExpandedFoldersInternal(folderIds);
 }
 
-export type ProductsViewMode = "grid" | "list";
-const storedProductsViewMode = localStorage.getItem(
-  "productsViewMode",
-) as ProductsViewMode | null;
-export const [productsViewMode, setProductsViewModeInternal] =
-  createSignal<ProductsViewMode>(storedProductsViewMode ?? "grid");
-export function setProductsViewMode(mode: ProductsViewMode) {
-  localStorage.setItem("productsViewMode", mode);
-  setProductsViewModeInternal(mode);
-}
-
-// One sort vocabulary for the header Select and the list's clickable Name and
-// Last updated headers.
+// Set by the list's clickable Name and Last updated headers.
 const storedProductsSortMode = localStorage.getItem(
   "productsSortMode",
 ) as SortMode | null;
@@ -128,8 +124,7 @@ export function setProductsSortMode(mode: SortMode) {
   setProductsSortModeInternal(mode);
 }
 
-// null = every type. The chips filter products only; folders are always
-// visible in a location (D16).
+// null = every type. See `buildProductTree` for what the filter hides.
 const storedProductsTypeFilter = localStorage.getItem(
   "productsTypeFilter",
 ) as ProductType | null;

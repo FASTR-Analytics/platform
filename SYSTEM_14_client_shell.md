@@ -94,8 +94,7 @@ is owned by **S1** (this system a mandatory reader: it registers the
 browser server-action transport, resolves the language, and runs the version
 flush; the Clerk singleton itself is `state/_infra/clerk.ts`, S1's);
 `lib/translate/t-func.ts` is owned here with **S9** a mandatory reader (calendar
-semantics feed period labels); `components/products/sort_control.tsx` is
-**S12**'s but renders this system's sort prefs. Repo-root
+semantics feed period labels). Repo-root
 `build_help_buttons.ts` and `client/src/app.css` are outside the lint manifest
 but reviewed here.
 
@@ -250,11 +249,12 @@ then the signal: the rail's `navCollapsed`; the Data page's section tab
 `dataSection` (General / HMIS / HFA / ICEH); the Explore page's tab
 `exploreTab` (Data table / Visualization) and family `exploreFamily` (its
 package and scope are page signals, never stored); the
-product explorer's four (`productsOpenFolder`, the
-location, null = the root; `productsViewMode`; `productsSortMode`, `SortMode
-= "name" | "recent"` from `lib/types/sort.ts`, one vocabulary for every list;
-`productsTypeFilter`, null = every type). They are unvalidated on read: they
-only feed comparisons, and a value from a build that spelled one differently
+product explorer's three (`productsExpandedFolders`, the open folder ids as
+a JSON array; `productsSortMode`, `SortMode = "name" | "recent"` from
+`lib/types/sort.ts`, one vocabulary for every list; `productsTypeFilter`,
+null = every type). The open-folder set is parsed defensively (malformed
+JSON reads as empty); the rest are unvalidated on read: they only feed
+comparisons, and a value from a build that spelled one differently
 degrades to "no match" rather than throwing. Plus the scheme preference
 (`scheme`, tri-state on panther's data-scheme contract, applied at module
 scope before first paint; a stored `darkMode` boolean is mapped on read when
@@ -379,8 +379,5 @@ the PO editor's data panel).
   site-side `pt` tree before the app side can follow.
 - Help-button adoption is 1 of 43 generated targets. The machinery is built;
   the buttons were never rolled out.
-- `components/products/sort_control.tsx` custody: S12's manifest owns it but
-  it is shell furniture. Settle the custody (manifest or §4.1 exception)
-  rather than leaving prose and globs disagreeing.
 - Help generator hygiene: `.mdx` pages are silently skipped by the walk;
   `getHelpTarget` in `lib/help/mod.ts` is an unused export.

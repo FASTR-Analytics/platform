@@ -3,15 +3,13 @@ import type { MenuItem } from "panther";
 import { descendantIds } from "./_shared/mod.ts";
 import { buildQuickMoveEntries } from "./product_menu";
 
-// ONE folder menu: the grid tile's button, the list row's button and both
-// right-click menus render this. Folders act one at a time, never as a batch
-// (D16). The quick-move targets exclude the folder's own subtree, and so does
-// the picker behind "Move to folder…"; the server's FOLDER_CYCLE is still the
-// authority.
+// ONE folder menu: the list row's button and the right-click menu both
+// render this. The quick-move targets exclude the folder's own subtree, and so
+// does the picker behind "Move to folder…"; the server's FOLDER_CYCLE is still
+// the authority.
 export function buildFolderMenu(args: {
   folder: Folder;
   folders: Folder[];
-  location: string | null;
   onMoveTo: (parentId: string | null) => void;
   onMoveToFolder: () => void;
   onEdit: () => void;
@@ -20,16 +18,11 @@ export function buildFolderMenu(args: {
   return [
     ...buildQuickMoveEntries({
       folders: args.folders,
-      location: args.location,
+      parentId: args.folder.parentId,
       excludeIds: new Set([
         args.folder.id,
         ...descendantIds(args.folders, args.folder.id),
       ]),
-      moveToFolderLabel: t3({
-        en: "Move to folder…",
-        fr: "Déplacer vers un dossier…",
-        pt: "Mover para uma pasta…",
-      }),
       onMoveTo: args.onMoveTo,
       onMoveToFolder: args.onMoveToFolder,
     }),

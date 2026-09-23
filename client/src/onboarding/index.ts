@@ -35,9 +35,8 @@ import { instanceState } from "~/state/instance/t1_store";
 import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import {
   pendingTourReplay,
-  productsOpenFolder,
+  productsExpandedFolders,
   productsTypeFilter,
-  productsViewMode,
   setPendingTourReplay,
 } from "~/state/t4_ui";
 
@@ -72,7 +71,7 @@ export function setupTours(opts: {
 }): SolidTourManagerController {
   const onTab = (tab: InstanceTab) => () =>
     opts.instanceVisible() && opts.currentTab() === tab;
-  const productCardOnScreen = () =>
+  const productRowOnScreen = () =>
     document.querySelector('[data-tour="products-item"]') !== null;
   const slideCardOnScreen = () =>
     document.querySelector('[data-tour="deck-slide-card"]') !== null;
@@ -102,10 +101,11 @@ export function setupTours(opts: {
       tour: buildProductsCreateTour(),
     },
     // Deferred until the instance holds a product: merges into the intro's run
-    // when a card is on screen, or starts on the first visit where one is.
+    // when a product row is on screen, or starts on the first visit where one
+    // is.
     {
       page: "products",
-      when: productCardOnScreen,
+      when: productRowOnScreen,
       tour: buildProductsCardsTour(),
     },
     { page: "instance-data", tour: buildInstanceDataTour() },
@@ -171,9 +171,8 @@ export function setupTours(opts: {
     watch: [
       () => instanceState.products.length,
       () => instanceState.readyPackages.length,
-      productsOpenFolder,
+      productsExpandedFolders,
       productsTypeFilter,
-      productsViewMode,
       () => {
         const view = currentView();
         return view.id === "editing_slide_deck"

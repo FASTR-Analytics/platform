@@ -282,9 +282,9 @@ export function getTourCatalogue(
         pt: "Abrir e gerir produtos",
       }),
       description: t3({
-        en: "What a product card shows, and the actions behind a right-click.",
-        fr: "Ce que montre une carte de produit et les actions accessibles par clic droit.",
-        pt: "O que mostra um cartão de produto e as ações acessíveis com o botão direito.",
+        en: "What a product row shows, and the actions behind a right-click.",
+        fr: "Ce que montre une ligne de produit et les actions accessibles par clic droit.",
+        pt: "O que mostra uma linha de produto e as ações acessíveis com o botão direito.",
       }),
       available: () => hasProducts(),
       unavailableReason: reasonNeedProduct,

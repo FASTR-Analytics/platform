@@ -1,27 +1,27 @@
-import { t3, TC, type Folder, type ProductSummary } from "lib";
+import { t3, TC, type Folder } from "lib";
 import type { MenuItem } from "panther";
-import { sortBySortMode } from "./sort_control";
+import { sortBySortMode } from "./sort_by_sort_mode";
 import { productsSortMode } from "~/state/t4_ui";
 import { childFolders } from "./_shared/mod.ts";
 
 // The move affordances D16 gives both menus: quick hops within reach of the
-// current location, with the full picker as the catch-all. There is no
+// item's own folder, with the full picker as the catch-all. There is no
 // drag-and-drop, so these are the only way to move anything.
 const _MOVE_SUBMENU_CAP = 10;
 
 export function buildQuickMoveEntries(args: {
   folders: Folder[];
-  location: string | null;
+  // The folder the moved item is in; null = the top level.
+  parentId: string | null;
   // Targets to leave out: a moved folder's own subtree.
   excludeIds: Set<string>;
-  moveToFolderLabel: string;
   onMoveTo: (folderId: string | null) => void;
   onMoveToFolder: () => void;
 }): MenuItem[] {
   const entries: MenuItem[] = [];
 
   const targets = sortBySortMode(
-    childFolders(args.folders, args.location).filter(
+    childFolders(args.folders, args.parentId).filter(
       (f) => !args.excludeIds.has(f.id),
     ),
     productsSortMode(),
@@ -59,23 +59,23 @@ export function buildQuickMoveEntries(args: {
     });
   }
 
-  const locationFolder = args.folders.find((f) => f.id === args.location);
-  const parent =
-    locationFolder === undefined || locationFolder.parentId === null
+  const parentFolder = args.folders.find((f) => f.id === args.parentId);
+  const grandparent =
+    parentFolder === undefined || parentFolder.parentId === null
       ? undefined
-      : args.folders.find((f) => f.id === locationFolder.parentId);
-  if (parent !== undefined) {
+      : args.folders.find((f) => f.id === parentFolder.parentId);
+  if (grandparent !== undefined) {
     entries.push({
       label: t3({
-        en: `Move up to "${parent.label}"`,
-        fr: `Remonter vers « ${parent.label} »`,
-        pt: `Subir para "${parent.label}"`,
+        en: `Move up to "${grandparent.label}"`,
+        fr: `Remonter vers « ${grandparent.label} »`,
+        pt: `Subir para "${grandparent.label}"`,
       }),
-      onClick: () => args.onMoveTo(parent.id),
+      onClick: () => args.onMoveTo(grandparent.id),
     });
   }
 
-  if (args.location !== null) {
+  if (args.parentId !== null) {
     entries.push({
       label: t3({
         en: "Move to top level",
@@ -87,7 +87,11 @@ export function buildQuickMoveEntries(args: {
   }
 
   entries.push({
-    label: args.moveToFolderLabel,
+    label: t3({
+      en: "Move to folder…",
+      fr: "Déplacer vers un dossier…",
+      pt: "Mover para uma pasta…",
+    }),
     icon: "folder",
     onClick: args.onMoveToFolder,
   });
@@ -95,13 +99,12 @@ export function buildQuickMoveEntries(args: {
   return entries;
 }
 
-// ONE product menu: the grid tile, the list row's button and the right-click
-// menu all render this. Actions apply to the whole batch when the product is
-// part of a multi-selection.
+// ONE product menu: the list row's button and the right-click menu both
+// render this.
 export function buildProductMenu(args: {
-  batch: ProductSummary[];
   folders: Folder[];
-  location: string | null;
+  // The product's folder: the quick moves are relative to it.
+  parentId: string | null;
   onSettings: () => void;
   onPackageScope: () => void;
   onMoveToFolder: () => void;
@@ -109,25 +112,11 @@ export function buildProductMenu(args: {
   onDelete: () => void;
   onMoveTo: (folderId: string | null) => void;
 }): MenuItem[] {
-  const count = args.batch.length;
-  const many = count > 1;
-
   return [
     ...buildQuickMoveEntries({
       folders: args.folders,
-      location: args.location,
+      parentId: args.parentId,
       excludeIds: new Set(),
-      moveToFolderLabel: many
-        ? t3({
-            en: `Move ${count} products to folder…`,
-            fr: `Déplacer ${count} produits vers un dossier…`,
-            pt: `Mover ${count} produtos para uma pasta…`,
-          })
-        : t3({
-            en: "Move to folder…",
-            fr: "Déplacer vers un dossier…",
-            pt: "Mover para uma pasta…",
-          }),
       onMoveTo: args.onMoveTo,
       onMoveToFolder: args.onMoveToFolder,
     }),
@@ -135,9 +124,6 @@ export function buildProductMenu(args: {
     {
       label: t3(TC.settings),
       icon: "settings",
-      // Settings and the pair surface take one product; a batch has no single
-      // label, package or scope to show.
-      disabled: many,
       onClick: args.onSettings,
     },
     {
@@ -147,29 +133,16 @@ export function buildProductMenu(args: {
         pt: "Pacote de resultados e âmbito…",
       }),
       icon: "package",
-      disabled: many,
       onClick: args.onPackageScope,
     },
     {
-      label: many
-        ? t3({
-            en: `Duplicate ${count} products`,
-            fr: `Dupliquer ${count} produits`,
-            pt: `Duplicar ${count} produtos`,
-          })
-        : t3({ en: "Duplicate", fr: "Dupliquer", pt: "Duplicar" }),
+      label: t3({ en: "Duplicate", fr: "Dupliquer", pt: "Duplicar" }),
       icon: "copy",
       onClick: args.onDuplicate,
     },
     { type: "divider" },
     {
-      label: many
-        ? t3({
-            en: `Delete ${count} products`,
-            fr: `Supprimer ${count} produits`,
-            pt: `Eliminar ${count} produtos`,
-          })
-        : t3(TC.delete),
+      label: t3(TC.delete),
       icon: "trash",
       intent: "danger",
       onClick: args.onDelete,

@@ -14,6 +14,7 @@ export type ProductEditorComponent = (
 
 export type ProductTypeDefinition = {
   label: () => string;
+  pluralLabel: () => string;
   icon: IconName;
   editor: ProductEditorComponent;
   createLabel: () => string;
@@ -22,6 +23,8 @@ export type ProductTypeDefinition = {
 export const PRODUCT_TYPE_REGISTRY: Record<ProductType, ProductTypeDefinition> = {
   slide_deck: {
     label: () => t3({ en: "Deck", fr: "Présentation", pt: "Apresentação" }),
+    pluralLabel: () =>
+      t3({ en: "Decks", fr: "Présentations", pt: "Apresentações" }),
     icon: "presentation",
     editor: SlideDeckEditor,
     createLabel: () =>
@@ -29,6 +32,7 @@ export const PRODUCT_TYPE_REGISTRY: Record<ProductType, ProductTypeDefinition> =
   },
   report: {
     label: () => t3({ en: "Report", fr: "Rapport", pt: "Relatório" }),
+    pluralLabel: () => t3({ en: "Reports", fr: "Rapports", pt: "Relatórios" }),
     icon: "report",
     editor: ReportEditor,
     createLabel: () =>

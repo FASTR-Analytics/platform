@@ -791,20 +791,9 @@ export function buildProductsIntroTour(): TourDefinition {
           pt: "Apresentações ou relatórios",
         }),
         body: t3({
-          en: "Decks and reports share one list. Use these chips to show just one kind.",
-          fr: "Les présentations et les rapports partagent une seule liste. Utilisez ces filtres pour n'en afficher qu'un type.",
-          pt: "As apresentações e os relatórios partilham uma única lista. Utilize estes filtros para mostrar apenas um tipo.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "sort",
-        target: tourTarget("products-sort"),
-        title: t3({ en: "Sorting", fr: "Tri", pt: "Ordenação" }),
-        body: t3({
-          en: "Order products by name or by when they were last updated.",
-          fr: "Classez les produits par nom ou par date de dernière mise à jour.",
-          pt: "Ordene os produtos por nome ou pela data da última atualização.",
+          en: "Decks and reports share one list. Use this menu to show just one kind.",
+          fr: "Les présentations et les rapports partagent une seule liste. Utilisez ce menu pour n'en afficher qu'un type.",
+          pt: "As apresentações e os relatórios partilham uma única lista. Utilize este menu para mostrar apenas um tipo.",
         }),
         placement: "bottom",
       },
@@ -817,29 +806,14 @@ export function buildProductsIntroTour(): TourDefinition {
           pt: "Navegar por pasta",
         }),
         body: t3({
-          en: "Folders and products share one view. Click a folder to go inside it, and use the breadcrumb in the header to come back out. Folders can hold other folders.",
-          fr: "Les dossiers et les produits partagent une même vue. Cliquez sur un dossier pour y entrer, et utilisez le fil d'Ariane dans l'en-tête pour en ressortir. Les dossiers peuvent contenir d'autres dossiers.",
-          pt: "As pastas e os produtos partilham uma única vista. Clique numa pasta para entrar nela, e use o caminho no cabeçalho para voltar a sair. As pastas podem conter outras pastas.",
+          en: "Folders and products share one list, and folders can hold other folders. Click a folder to show its contents underneath it. The button beside the search box opens or closes every folder at once, and the Name and Last updated column headings change the order.",
+          fr: "Les dossiers et les produits partagent une même liste, et les dossiers peuvent contenir d'autres dossiers. Cliquez sur un dossier pour afficher son contenu en dessous. Le bouton à côté du champ de recherche ouvre ou ferme tous les dossiers en une fois, et les en-têtes de colonne Nom et Dernière modification changent l'ordre.",
+          pt: "As pastas e os produtos partilham uma única lista, e as pastas podem conter outras pastas. Clique numa pasta para mostrar o seu conteúdo por baixo dela. O botão ao lado da caixa de pesquisa abre ou fecha todas as pastas de uma vez, e os cabeçalhos das colunas Nome e Última atualização mudam a ordem.",
         }),
         placement: "top",
       },
       {
-        id: "view-mode",
-        target: tourTarget("products-view-mode"),
-        title: t3({
-          en: "Grid or list",
-          fr: "Grille ou liste",
-          pt: "Grelha ou lista",
-        }),
-        body: t3({
-          en: "Switch between the card grid and a compact list. Both show the same folders and products.",
-          fr: "Basculez entre la grille de cartes et une liste compacte. Les deux montrent les mêmes dossiers et produits.",
-          pt: "Alterne entre a grelha de cartões e uma lista compacta. Ambas mostram as mesmas pastas e produtos.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "grid",
+        id: "list",
         target: tourTarget("products-items"),
         title: t3({
           en: "Your products",
@@ -847,9 +821,9 @@ export function buildProductsIntroTour(): TourDefinition {
           pt: "Os seus produtos",
         }),
         body: t3({
-          en: "Every product in the current location appears here, with the results package it reads from and the area it covers.",
-          fr: "Tous les produits de l'emplacement actuel apparaissent ici, avec le paquet de résultats dont ils se servent et la zone qu'ils couvrent.",
-          pt: "Todos os produtos da localização atual aparecem aqui, com o pacote de resultados de que se servem e a área que abrangem.",
+          en: "Every product appears here, with the results package it reads from and the area it covers.",
+          fr: "Tous les produits apparaissent ici, avec le paquet de résultats dont ils se servent et la zone qu'ils couvrent.",
+          pt: "Todos os produtos aparecem aqui, com o pacote de resultados de que se servem e a área que abrangem.",
         }),
         placement: "top",
       },
@@ -864,47 +838,17 @@ export function buildProductsCreateTour(): TourDefinition {
     id: "products-create",
     steps: [
       {
-        id: "new-deck",
-        target: tourTarget("products-new-deck"),
+        id: "new",
+        target: tourTarget("products-new"),
         title: t3({
-          en: "Create a slide deck",
-          fr: "Créer une présentation",
-          pt: "Criar uma apresentação",
+          en: "Create a deck, report or folder",
+          fr: "Créer une présentation, un rapport ou un dossier",
+          pt: "Criar uma apresentação, um relatório ou uma pasta",
         }),
         body: t3({
-          en: "There is no dialog — the deck is created and its editor opens straight away. It starts from the instance's current results package, covering the whole country; both can be changed later in its settings.",
-          fr: "Aucune boîte de dialogue — la présentation est créée et son éditeur s'ouvre immédiatement. Elle part du paquet de résultats actuel de l'instance et couvre tout le pays ; les deux peuvent être modifiés ensuite dans ses paramètres.",
-          pt: "Não há caixa de diálogo — a apresentação é criada e o seu editor abre de imediato. Parte do pacote de resultados atual da instância e abrange todo o país; ambos podem ser alterados depois nas suas definições.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "new-report",
-        target: tourTarget("products-new-report"),
-        title: t3({
-          en: "Create a report",
-          fr: "Créer un rapport",
-          pt: "Criar um relatório",
-        }),
-        body: t3({
-          en: "The same for a report — a written document that carries visualizations inside the text.",
-          fr: "Idem pour un rapport — un document rédigé qui contient des visualisations au fil du texte.",
-          pt: "O mesmo para um relatório — um documento escrito que contém visualizações ao longo do texto.",
-        }),
-        placement: "bottom",
-      },
-      {
-        id: "new-folder",
-        target: tourTarget("products-new-folder"),
-        title: t3({
-          en: "Organise with folders",
-          fr: "Organisez avec des dossiers",
-          pt: "Organize com pastas",
-        }),
-        body: t3({
-          en: "New folder adds one in the current location. Every folder tile or row has a menu — right-click it — to rename it, move it with Move into, or delete it. Deleting a folder never deletes what is inside: everything moves up one level.",
-          fr: "Nouveau dossier en ajoute un à l'emplacement actuel. Chaque carte ou ligne de dossier a un menu — clic droit — pour le renommer, le déplacer avec Déplacer dans, ou le supprimer. Supprimer un dossier ne supprime jamais son contenu : tout remonte d'un niveau.",
-          pt: "Nova pasta acrescenta uma na localização atual. Cada cartão ou linha de pasta tem um menu — clique com o botão direito — para mudar o nome, movê-la com Mover para dentro de, ou eliminá-la. Eliminar uma pasta nunca elimina o seu conteúdo: tudo sobe um nível.",
+          en: "New creates a slide deck, a report or a folder. A new deck or report opens in its editor straight away. It uses the instance's current results package and covers the whole country, and you can change both later in its settings. New items go at the top level, and you can move them into a folder from their menu. Right-click a folder to rename, move or delete it. Deleting a folder never deletes what is inside: everything moves up one level.",
+          fr: "Nouveau crée une présentation, un rapport ou un dossier. Une nouvelle présentation ou un nouveau rapport s'ouvre immédiatement dans son éditeur. Il utilise le paquet de résultats actuel de l'instance et couvre tout le pays, et vous pouvez modifier les deux ensuite dans ses paramètres. Les nouveaux éléments sont placés au niveau supérieur, et vous pouvez les déplacer dans un dossier depuis leur menu. Faites un clic droit sur un dossier pour le renommer, le déplacer ou le supprimer. Supprimer un dossier ne supprime jamais son contenu : tout remonte d'un niveau.",
+          pt: "Novo cria uma apresentação, um relatório ou uma pasta. Uma nova apresentação ou um novo relatório abre de imediato no seu editor. Usa o pacote de resultados atual da instância e abrange todo o país, e pode alterar ambos depois nas suas definições. Os novos itens ficam no nível superior, e pode movê-los para uma pasta a partir do seu menu. Clique com o botão direito numa pasta para mudar o nome, movê-la ou eliminá-la. Eliminar uma pasta nunca elimina o seu conteúdo: tudo sobe um nível.",
         }),
         placement: "bottom",
       },
@@ -914,7 +858,7 @@ export function buildProductsCreateTour(): TourDefinition {
 
 // Deferred until the instance actually holds a product (entry-level `when` in
 // index.ts): held back without being marked seen, so it runs on the first
-// Products visit where a card exists, or merges into the intro run when
+// Products visit where a product row is on screen, or merges into the intro run when
 // products are already there.
 export function buildProductsCardsTour(): TourDefinition {
   return {
@@ -929,9 +873,9 @@ export function buildProductsCardsTour(): TourDefinition {
           pt: "Abrir um produto",
         }),
         body: t3({
-          en: "Click a card to open it. The icon says whether it is a deck or a report, and the caption names the results package it reads from — so you can always tell which numbers you are looking at.",
-          fr: "Cliquez sur une carte pour l'ouvrir. L'icône indique s'il s'agit d'une présentation ou d'un rapport, et la légende nomme le paquet de résultats dont elle se sert — vous savez ainsi toujours quels chiffres vous consultez.",
-          pt: "Clique num cartão para o abrir. O ícone indica se é uma apresentação ou um relatório, e a legenda nomeia o pacote de resultados de que se serve — assim sabe sempre que números está a ver.",
+          en: "Click a product to open it. The icon says whether it is a deck or a report, and the Package column names the results package it reads from, so you can always tell which numbers you are looking at.",
+          fr: "Cliquez sur un produit pour l'ouvrir. L'icône indique s'il s'agit d'une présentation ou d'un rapport, et la colonne Paquet nomme le paquet de résultats dont il se sert : vous savez ainsi toujours quels chiffres vous consultez.",
+          pt: "Clique num produto para o abrir. O ícone indica se é uma apresentação ou um relatório, e a coluna Pacote nomeia o pacote de resultados de que se serve, assim sabe sempre que números está a ver.",
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,
@@ -945,9 +889,9 @@ export function buildProductsCardsTour(): TourDefinition {
           pt: "Gerir produtos",
         }),
         body: t3({
-          en: "Right-click a product for its settings — name, folder, results package and area — or to duplicate or delete it. Use the selection circles to move or delete several at once.",
-          fr: "Faites un clic droit sur un produit pour ses paramètres — nom, dossier, paquet de résultats et zone — ou pour le dupliquer ou le supprimer. Utilisez les cercles de sélection pour en déplacer ou en supprimer plusieurs à la fois.",
-          pt: "Clique com o botão direito num produto para as suas definições — nome, pasta, pacote de resultados e área — ou para o duplicar ou eliminar. Utilize os círculos de seleção para mover ou eliminar vários ao mesmo tempo.",
+          en: "Right-click a product to change its settings (name, folder, results package and area), to move it, or to duplicate or delete it.",
+          fr: "Faites un clic droit sur un produit pour modifier ses paramètres (nom, dossier, paquet de résultats et zone), le déplacer, le dupliquer ou le supprimer.",
+          pt: "Clique com o botão direito num produto para alterar as suas definições (nome, pasta, pacote de resultados e área), movê-lo, duplicá-lo ou eliminá-lo.",
         }),
         placement: "bottom",
         waitForTargetTimeoutMs: 2000,

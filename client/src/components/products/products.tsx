@@ -8,21 +8,19 @@ import {
 } from "lib";
 import {
   Button,
-  ButtonGroup,
   FrameTop,
   HeadingBar,
+  Select,
   createButtonAction,
   createDeleteAction,
-  createSelectionController,
   getFirstString,
   openAlert,
   openComponent,
   showMenu,
-  type ListItem,
   type MenuItem,
+  type SelectOption,
 } from "panther";
 import {
-  For,
   Match,
   Show,
   Switch,
@@ -32,7 +30,7 @@ import {
   createSignal,
   type JSX,
 } from "solid-js";
-import { SortControl, sortBySortMode } from "./sort_control";
+import { sortBySortMode } from "./sort_by_sort_mode";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -40,47 +38,52 @@ import {
   _PRODUCT_QUERY_PARAM,
   openShellEditor,
   pendingEditorOpen,
-  productsOpenFolder,
+  productsExpandedFolders,
   productsSortMode,
   productsTypeFilter,
-  productsViewMode,
   setPendingEditorOpen,
-  setProductsOpenFolder,
+  setProductsExpandedFolders,
   setProductsSortMode,
   setProductsTypeFilter,
-  setProductsViewMode,
 } from "~/state/t4_ui";
 import { ProductCopilotHost } from "~/components/products/copilot/mod.ts";
 import { DuplicateProductsModal } from "./_shared/mod.ts";
 import { PackageScopeModal } from "./_shared/mod.ts";
 import { EditFolderModal } from "./edit_folder_modal";
-import { FolderCard, folderColor, topLevelLabel } from "./folder_card";
+import { topLevelLabel } from "./folder_labels";
 import { buildFolderMenu } from "./folder_menu";
-import { ancestors, childFolders, folderPathLabels } from "./_shared/mod.ts";
+import { buildProductTree, productTreeRows } from "./_shared/mod.ts";
 import { ListView } from "./list_view";
 import { MoveToFolderModal } from "./move_to_folder_modal";
-import { ProductCard } from "./product_card";
 import { buildProductMenu } from "./product_menu";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 import { ProductSettings } from "./_shared/mod.ts";
 
-// The type-filter chips store null for "every type", so the chip group needs a
+// The type filter stores null for "every type", so the Select needs a
 // sentinel of its own.
 const _ALL_TYPES = "_all_types";
 
 const _SEARCH_MIN_LENGTH = 3;
 
-// The breadcrumb always shows the root and the current folder; the folders
-// between them collapse into a menu once there are more than this many (D16).
-const _MAX_UNCOLLAPSED_ANCESTORS = 2;
-
 // The product explorer (D16): a file browser over the flat T1 products and
-// folders lists. The user is always inside one folder; the page shows that
-// folder's sub-folders and products and nothing else, and the path back to the
-// root is derived by walking `parentId`.
+// folders lists, shown as a tree from the top level with any number of folders
+// open in place.
 export function Products() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchText, setSearchText] = createSignal("");
+  // Folders the user opened or closed during this search,
+  // relative to the ones the search opens itself. Kept apart from the saved
+  // open folders so clearing the search restores the tree as it was.
+  const [searchToggles, setSearchToggles] = createSignal<ReadonlySet<string>>(
+    new Set(),
+  );
+
+  function updateSearchText(text: string) {
+    batch(() => {
+      setSearchText(text);
+      setSearchToggles(new Set<string>());
+    });
+  }
 
   async function openProduct(product: ProductSummary) {
     // The editors take the product id and read label, package and scope LIVE
@@ -140,60 +143,79 @@ export function Products() {
     void openProduct(product);
   });
 
-  // The explorer's location: null = the root, an id = inside that folder.
-  const location = () => productsOpenFolder();
-
-  // A folder deleted by another session must not strand the explorer inside a
-  // location that no longer exists. Gated on isReady so the persisted location
-  // survives hydration.
+  // Ids of deleted folders drop out of the saved open set, so they do not pile
+  // up in localStorage. Gated on isReady so the set survives hydration.
   createEffect(() => {
-    const openFolderId = productsOpenFolder();
+    const expanded = productsExpandedFolders();
     const folders = instanceState.folders;
     const isReady = instanceState.isReady;
-    if (openFolderId === null || !isReady) return;
-    if (!folders.some((f) => f.id === openFolderId)) {
-      setProductsOpenFolder(null);
-    }
+    if (!isReady) return;
+    const existing = new Set(folders.map((f) => f.id));
+    if ([...expanded].every((id) => existing.has(id))) return;
+    setProductsExpandedFolders(
+      new Set([...expanded].filter((id) => existing.has(id))),
+    );
   });
 
   const isSearching = () => searchText().length >= _SEARCH_MIN_LENGTH;
 
-  const pathLabels = createMemo(() => folderPathLabels(instanceState.folders));
-
-  // Search is global and flat: it escapes the location and matches folders and
-  // products from anywhere in the tree. The chips filter products only;
-  // folders are always visible in a location (D16).
-  const visibleFolders = createMemo(() => {
-    const folders = instanceState.folders;
-    const needle = searchText().toLowerCase();
-    const selected = isSearching()
-      ? folders.filter((f) => f.label.toLowerCase().includes(needle))
-      : childFolders(folders, location());
-    return sortBySortMode(
-      selected,
-      productsSortMode(),
-      (x) => x.label,
-      (x) => x.lastUpdated,
-    );
+  const productTree = createMemo(() => {
+    const sortMode = productsSortMode();
+    const sort = <T extends { label: string; lastUpdated: string }>(xs: T[]) =>
+      sortBySortMode(
+        xs,
+        sortMode,
+        (x) => x.label,
+        (x) => x.lastUpdated,
+      );
+    return buildProductTree({
+      folders: instanceState.folders,
+      products: instanceState.products,
+      typeFilter: productsTypeFilter(),
+      needle: isSearching() ? searchText().toLowerCase() : null,
+      sortFolders: sort,
+      sortProducts: sort,
+    });
   });
 
-  const visibleProducts = createMemo(() => {
-    const products = instanceState.products;
-    const typeFilter = productsTypeFilter();
-    const needle = searchText().toLowerCase();
-    const byType =
-      typeFilter === null
-        ? products
-        : products.filter((x) => x.type === typeFilter);
-    const selected = isSearching()
-      ? byType.filter((x) => x.label.toLowerCase().includes(needle))
-      : byType.filter((x) => x.folderId === location());
-    return sortBySortMode(
-      selected,
-      productsSortMode(),
-      (x) => x.label,
-      (x) => x.lastUpdated,
-    );
+  const openFolderIds = createMemo(
+    (): ReadonlySet<string> =>
+      isSearching()
+        ? symmetricDifference(productTree().matchAncestors, searchToggles())
+        : productsExpandedFolders(),
+  );
+
+  function setOpenFolderIds(next: ReadonlySet<string>) {
+    if (isSearching()) {
+      setSearchToggles(symmetricDifference(next, productTree().matchAncestors));
+    } else {
+      setProductsExpandedFolders(next);
+    }
+  }
+
+  function toggleFolder(folderId: string) {
+    const next = new Set(openFolderIds());
+    if (!next.delete(folderId)) next.add(folderId);
+    setOpenFolderIds(next);
+  }
+
+  // Every folder with something inside to open, as the tree currently shows.
+  const openableFolderIds = createMemo(() => {
+    const tree = productTree();
+    return [...tree.folders.values()]
+      .flat()
+      .filter((f) => tree.folders.has(f.id) || tree.products.has(f.id))
+      .map((f) => f.id);
+  });
+
+  const anyFolderOpen = () => {
+    const open = openFolderIds();
+    return openableFolderIds().some((id) => open.has(id));
+  };
+
+  const treeRows = createMemo(() => {
+    const open = openFolderIds();
+    return productTreeRows(productTree(), (id) => open.has(id));
   });
 
   // Every folder's DIRECT child counts in one pass: a per-row scan of both
@@ -226,29 +248,6 @@ export function Products() {
     );
   }
 
-  const selection = createSelectionController<string>({
-    ids: () => visibleProducts().map((x) => x.id),
-    mode: "multi",
-  });
-
-  function batchProducts(product: ProductSummary): ProductSummary[] {
-    const ids = new Set(selection.getBatchIds(product.id));
-    return instanceState.products.filter((x) => ids.has(x.id));
-  }
-
-  function openFolder(folderId: string | null) {
-    batch(() => {
-      setProductsOpenFolder(folderId);
-      selection.clear();
-      setSearchText("");
-    });
-  }
-
-  function goToParent() {
-    const current = instanceState.folders.find((f) => f.id === location());
-    openFolder(current?.parentId ?? null);
-  }
-
   // A new product's package is the pin, resolved server-side (D5), so with no
   // ready pinned package there is nothing to create against. T1 already knows
   // that, so the buttons say so BEFORE the click. The server's typed
@@ -272,17 +271,16 @@ export function Products() {
     }
   }
 
-  // ONE ACTION PER BUTTON: createButtonAction owns a state signal and a
-  // request-id guard that drops the callback of any but the most recent
-  // click. Shared, one click would spin both buttons and a second click while
-  // the first is in flight would discard the first product's open.
+  // ONE ACTION PER TYPE: createButtonAction owns a request-id guard that
+  // drops the callback of any but the most recent click, so a shared action
+  // would discard the first product's open when a second create starts while
+  // the first is in flight.
   const createDeck = createButtonAction(
-    () =>
-      serverActions.createProduct({ type: "slide_deck", folderId: location() }),
+    () => serverActions.createProduct({ type: "slide_deck", folderId: null }),
     openCreatedProduct,
   );
   const createReport = createButtonAction(
-    () => serverActions.createProduct({ type: "report", folderId: location() }),
+    () => serverActions.createProduct({ type: "report", folderId: null }),
     openCreatedProduct,
   );
 
@@ -300,13 +298,12 @@ export function Products() {
       props: {
         target: {
           kind: "products" as const,
-          productIds: batchProducts(product).map((x) => x.id),
+          productIds: [product.id],
           currentFolderId: product.folderId,
         },
         folders: instanceState.folders,
       },
     });
-    selection.clear();
   }
 
   // The quick moves have no modal, so a failure surfaces through openAlert;
@@ -315,16 +312,13 @@ export function Products() {
     product: ProductSummary,
     folderId: string | null,
   ) {
-    const productIds = batchProducts(product).map((x) => x.id);
     const res = await serverActions.moveProductsToFolder({
-      productIds,
+      productIds: [product.id],
       folderId,
     });
     if (!res.success) {
       await openAlert({ text: res.err, intent: "danger" });
-      return;
     }
-    selection.clear();
   }
 
   async function quickMoveFolder(folder: Folder, parentId: string | null) {
@@ -342,39 +336,28 @@ export function Products() {
   async function handleDuplicate(product: ProductSummary) {
     await openComponent({
       element: DuplicateProductsModal,
-      props: { products: batchProducts(product) },
+      props: { products: [product] },
     });
-    selection.clear();
   }
 
   async function handleDelete(product: ProductSummary) {
-    const productIds = batchProducts(product).map((x) => x.id);
-    // Hard delete, no trash (D16): the confirmation carries the count.
-    const confirmText =
-      productIds.length > 1
-        ? t3({
-            en: `Are you sure you want to delete ${productIds.length} products? This cannot be undone.`,
-            fr: `Êtes-vous sûr de vouloir supprimer ${productIds.length} produits ? Cette action est irréversible.`,
-            pt: `Tem a certeza de que pretende eliminar ${productIds.length} produtos? Esta ação é irreversível.`,
-          })
-        : t3({
-            en: "Are you sure you want to delete this product? This cannot be undone.",
-            fr: "Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.",
-            pt: "Tem a certeza de que pretende eliminar este produto? Esta ação é irreversível.",
-          });
+    // Hard delete, no trash (D16).
     const deleteAction = createDeleteAction(
-      confirmText,
-      () => serverActions.deleteProducts({ productIds }),
-      () => selection.clear(),
+      t3({
+        en: "Are you sure you want to delete this product? This cannot be undone.",
+        fr: "Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.",
+        pt: "Tem a certeza de que pretende eliminar este produto? Esta ação é irreversível.",
+      }),
+      () => serverActions.deleteProducts({ productIds: [product.id] }),
+      () => {},
     );
     await deleteAction.click();
   }
 
   function productMenuItems(product: ProductSummary): MenuItem[] {
     return buildProductMenu({
-      batch: batchProducts(product),
       folders: instanceState.folders,
-      location: location(),
+      parentId: product.folderId,
       onSettings: () => void openSettings(product),
       onPackageScope: () => void openPackageScope(product),
       onMoveToFolder: () => void handleMoveToFolder(product),
@@ -415,7 +398,6 @@ export function Products() {
     return buildFolderMenu({
       folder,
       folders: instanceState.folders,
-      location: location(),
       onMoveTo: (parentId) => void quickMoveFolder(folder, parentId),
       onMoveToFolder: () =>
         void openComponent({
@@ -442,144 +424,53 @@ export function Products() {
     });
   }
 
-  const typeFilterItems = (): ListItem<string>[] => [
-    { id: _ALL_TYPES, label: t3({ en: "All", fr: "Tous", pt: "Todos" }) },
+  const typeFilterOptions = (): SelectOption<string>[] => [
+    { value: _ALL_TYPES, label: t3({ en: "All", fr: "Tous", pt: "Todos" }) },
     ...PRODUCT_TYPES.map((type) => ({
-      id: type,
-      label: PRODUCT_TYPE_REGISTRY[type].label(),
+      value: type,
+      label: PRODUCT_TYPE_REGISTRY[type].pluralLabel(),
     })),
   ];
 
-  function crumbSeparator(): JSX.Element {
-    return <span class="text-base-content-faint flex-none">›</span>;
-  }
-
-  function crumbButton(folder: Folder): JSX.Element {
-    return (
-      <button
-        type="button"
-        class="ui-focusable text-base-content-muted hover:text-base-content max-w-40 cursor-pointer truncate"
-        title={folder.label}
-        onClick={() => openFolder(folder.id)}
-      >
-        {folder.label}
-      </button>
-    );
-  }
-
-  function openCollapsedCrumbsMenu(e: MouseEvent, middle: Folder[]) {
+  function openNewMenu(e: MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     showMenu({
       anchor: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-      items: middle.map(
-        (f): MenuItem => ({
-          label: f.label,
+      position: "bottom-end",
+      items: [
+        {
+          label: PRODUCT_TYPE_REGISTRY.slide_deck.createLabel(),
+          icon: PRODUCT_TYPE_REGISTRY.slide_deck.icon,
+          disabled: !canCreateProduct(),
+          onClick: () => void createDeck.click(),
+        },
+        {
+          label: PRODUCT_TYPE_REGISTRY.report.createLabel(),
+          icon: PRODUCT_TYPE_REGISTRY.report.icon,
+          disabled: !canCreateProduct(),
+          onClick: () => void createReport.click(),
+        },
+        { type: "divider" },
+        {
+          label: t3({
+            en: "New folder",
+            fr: "Nouveau dossier",
+            pt: "Nova pasta",
+          }),
           icon: "folder",
-          onClick: () => openFolder(f.id),
-        }),
-      ),
+          onClick: () =>
+            void openComponent({
+              element: EditFolderModal,
+              props: { folder: undefined, parentId: null },
+            }),
+        },
+      ],
     });
   }
 
-  const productsLabel = () =>
-    t3({ en: "Products", fr: "Produits", pt: "Produtos" });
-
-  const currentFolder = () =>
-    instanceState.folders.find((f) => f.id === location());
-
-  // The trail for the location row, shown only inside a folder: the
-  // ancestors, then the current folder. No root crumb: the bar above already
-  // names the page, and the Up button beside the trail reaches the root.
-  const breadcrumb = (folder: Folder): JSX.Element => {
-    const trail = ancestors(instanceState.folders, folder.id);
-    const collapsed = trail.length > _MAX_UNCOLLAPSED_ANCESTORS;
-    return (
-      <div
-        class="ui-gap-sm flex min-w-0 items-center"
-        data-tour="products-breadcrumb"
-      >
-        <Show
-          when={collapsed}
-          fallback={
-            <For each={trail}>
-              {(ancestor) => (
-                <>
-                  {crumbButton(ancestor)}
-                  {crumbSeparator()}
-                </>
-              )}
-            </For>
-          }
-        >
-          {crumbButton(trail[0])}
-          {crumbSeparator()}
-          <button
-            type="button"
-            class="ui-focusable text-base-content-muted hover:text-base-content cursor-pointer"
-            onClick={(e) => openCollapsedCrumbsMenu(e, trail.slice(1, -1))}
-          >
-            …
-          </button>
-          {crumbSeparator()}
-          {crumbButton(trail[trail.length - 1])}
-          {crumbSeparator()}
-        </Show>
-        <div class="ui-gap-sm flex min-w-0 items-center" title={folder.label}>
-          <div
-            class="h-2.5 w-2.5 flex-none rounded-full"
-            style={{ "background-color": folderColor(folder) }}
-          />
-          <span class="max-w-40 truncate">{folder.label}</span>
-        </div>
-      </div>
-    );
-  };
-
-  const matchCount = () => visibleFolders().length + visibleProducts().length;
-
-  function productSearchPath(product: ProductSummary): string | null {
-    if (!isSearching()) return null;
-    if (product.folderId === null) return topLevelLabel();
-    return pathLabels().get(product.folderId) ?? topLevelLabel();
-  }
-
-  function folderSearchPath(folder: Folder): string | null {
-    if (!isSearching()) return null;
-    if (folder.parentId === null) return topLevelLabel();
-    return pathLabels().get(folder.parentId) ?? topLevelLabel();
-  }
-
-  const createButtons = (
-    <div class="ui-gap-sm flex items-center">
-      <Show when={!canCreateProduct()}>
-        <span class="text-base-content-muted text-xs">
-          {t3({
-            en: "An admin must generate and pin a results package",
-            fr: "Un administrateur doit générer et épingler un paquet de résultats",
-            pt: "Um administrador tem de gerar e fixar um pacote de resultados",
-          })}
-        </span>
-      </Show>
-      <Button
-        data-tour="products-new-deck"
-        onClick={createDeck.click}
-        state={createDeck.state()}
-        disabled={!canCreateProduct()}
-        iconName="plus"
-      >
-        {PRODUCT_TYPE_REGISTRY.slide_deck.createLabel()}
-      </Button>
-      <Button
-        data-tour="products-new-report"
-        onClick={createReport.click}
-        state={createReport.state()}
-        disabled={!canCreateProduct()}
-        iconName="plus"
-      >
-        {PRODUCT_TYPE_REGISTRY.report.createLabel()}
-      </Button>
-    </div>
-  );
+  const isCreating = () =>
+    createDeck.state().status === "loading" ||
+    createReport.state().status === "loading";
 
   function emptyState(): JSX.Element {
     return (
@@ -590,24 +481,6 @@ export function Products() {
               en: "No matching products",
               fr: "Aucun produit correspondant",
               pt: "Nenhum produto correspondente",
-            })}
-          </div>
-        </Match>
-        <Match when={visibleFolders().length > 0}>
-          <div class="text-base-content-muted text-sm">
-            {t3({
-              en: "No products here yet",
-              fr: "Aucun produit ici pour le moment",
-              pt: "Ainda não há produtos aqui",
-            })}
-          </div>
-        </Match>
-        <Match when={location() !== null}>
-          <div class="text-base-content-muted text-sm">
-            {t3({
-              en: "No products in this folder. Create one here, or move products in from their menu.",
-              fr: "Aucun produit dans ce dossier. Créez-en un ici, ou déplacez-y des produits depuis leur menu.",
-              pt: "Nenhum produto nesta pasta. Crie um aqui, ou mova produtos para cá a partir do seu menu.",
             })}
           </div>
         </Match>
@@ -630,182 +503,108 @@ export function Products() {
         <div>
           <HeadingBar
             data-tour="products-header"
-            heading={productsLabel()}
-            subheading={
-              isSearching()
-                ? t3({
-                    en: `${matchCount()} results`,
-                    fr: `${matchCount()} résultats`,
-                    pt: `${matchCount()} resultados`,
-                  })
-                : undefined
-            }
             searchText={searchText()}
-            setSearchText={setSearchText}
+            setSearchText={updateSearchText}
+            centerLeftChildren={
+              <Button
+                outline
+                iconName={anyFolderOpen() ? "fold" : "unfold"}
+                disabled={openableFolderIds().length === 0}
+                ariaLabel={
+                  anyFolderOpen()
+                    ? t3({
+                        en: "Collapse all",
+                        fr: "Tout replier",
+                        pt: "Recolher tudo",
+                      })
+                    : t3({
+                        en: "Expand all",
+                        fr: "Tout déplier",
+                        pt: "Expandir tudo",
+                      })
+                }
+                onClick={() =>
+                  setOpenFolderIds(
+                    anyFolderOpen()
+                      ? new Set()
+                      : new Set(instanceState.folders.map((f) => f.id)),
+                  )
+                }
+              />
+            }
             centerChildren={
-              <div class="ui-gap-sm flex items-center">
-                <ButtonGroup
-                  data-tour="products-type-filter"
-                  value={productsTypeFilter() ?? _ALL_TYPES}
-                  onChange={(v) =>
-                    setProductsTypeFilter(
-                      v === undefined || v === _ALL_TYPES
-                        ? null
-                        : (v as ProductType),
-                    )
-                  }
-                  items={typeFilterItems()}
-                />
-                <SortControl
-                  data-tour="products-sort"
-                  value={productsSortMode()}
-                  onChange={setProductsSortMode}
-                />
-                <ButtonGroup
-                  data-tour="products-view-mode"
-                  value={productsViewMode()}
-                  onChange={(v) =>
-                    setProductsViewMode(v === "list" ? "list" : "grid")
-                  }
-                  items={[
-                    {
-                      id: "grid",
-                      label: "",
-                      iconName: "layoutGrid",
-                      labelText: t3({
-                        en: "Grid view",
-                        fr: "Vue en grille",
-                        pt: "Vista em grelha",
-                      }),
-                    },
-                    {
-                      id: "list",
-                      label: "",
-                      iconName: "clearAll",
-                      labelText: t3({
-                        en: "List view",
-                        fr: "Vue en liste",
-                        pt: "Vista em lista",
-                      }),
-                    },
-                  ]}
-                />
+              <div class="ui-gap flex items-center">
+                <div class="w-36">
+                  <Select
+                    data-tour="products-type-filter"
+                    fullWidth
+                    value={productsTypeFilter() ?? _ALL_TYPES}
+                    onChange={(v) =>
+                      setProductsTypeFilter(
+                        v === _ALL_TYPES ? null : (v as ProductType),
+                      )
+                    }
+                    options={typeFilterOptions()}
+                  />
+                </div>
+                <Show when={isSearching()}>
+                  <span class="text-base-content-muted text-sm text-nowrap">
+                    {t3({
+                      en: `${productTree().matchCount} results`,
+                      fr: `${productTree().matchCount} résultats`,
+                      pt: `${productTree().matchCount} resultados`,
+                    })}
+                  </span>
+                </Show>
               </div>
             }
           >
             <Show when={canEdit()}>
               <div class="ui-gap-sm flex items-center">
+                <Show when={!canCreateProduct()}>
+                  <span class="text-base-content-muted text-xs">
+                    {t3({
+                      en: "An admin must generate and pin a results package",
+                      fr: "Un administrateur doit générer et épingler un paquet de résultats",
+                      pt: "Um administrador tem de gerar e fixar um pacote de resultados",
+                    })}
+                  </span>
+                </Show>
                 <Button
-                  data-tour="products-new-folder"
+                  data-tour="products-new"
                   iconName="plus"
-                  outline
-                  onClick={() =>
-                    void openComponent({
-                      element: EditFolderModal,
-                      props: { folder: undefined, parentId: location() },
-                    })
-                  }
+                  loading={isCreating()}
+                  onClick={openNewMenu}
                 >
-                  {t3({
-                    en: "New folder",
-                    fr: "Nouveau dossier",
-                    pt: "Nova pasta",
-                  })}
+                  {t3({ en: "New", fr: "Nouveau", pt: "Novo" })}
                 </Button>
-                {createButtons}
               </div>
             </Show>
           </HeadingBar>
-          {/* Folder navigation only: absent at the root. The bar's own Back
-              is reserved for leaving a full-page view, so going up is this
-              row's button. */}
-          <Show when={currentFolder()} keyed>
-            {(folder) => (
-              <div class="ui-pad ui-gap flex items-center border-b">
-                <Button
-                  iconName="arrowUp"
-                  outline
-                  size="sm"
-                  ariaLabel={t3({
-                    en: "Up one level",
-                    fr: "Niveau supérieur",
-                    pt: "Nível acima",
-                  })}
-                  onClick={goToParent}
-                />
-                {breadcrumb(folder)}
-              </div>
-            )}
-          </Show>
         </div>
       }
     >
-      <Switch>
-        <Match when={productsViewMode() === "grid"}>
-          <div
-            class="ui-gap ui-pad grid h-full w-full grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] content-start items-start overflow-auto"
-            data-tour="products-items"
-            onClick={() => selection.clear()}
-          >
-            <For each={visibleFolders()}>
-              {(folder) => (
-                <FolderCard
-                  folder={folder}
-                  folderCount={countsForFolder(folder.id).folderCount}
-                  productCount={countsForFolder(folder.id).productCount}
-                  searchPath={folderSearchPath(folder)}
-                  onOpen={() => openFolder(folder.id)}
-                  onMenu={(e) => handleFolderMenu(e, folder)}
-                />
-              )}
-            </For>
-            <For each={visibleProducts()} fallback={emptyState()}>
-              {(product) => (
-                <ProductCard
-                  product={product}
-                  selected={selection.isSelected(product.id)}
-                  searchPath={productSearchPath(product)}
-                  onSelectToggle={(e) => selection.handleClick(product.id, e)}
-                  onOpen={(e) => {
-                    e?.stopPropagation();
-                    selection.handleClick(product.id, e, () =>
-                      openProduct(product),
-                    );
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    handleProductMenu(e, product);
-                  }}
-                />
-              )}
-            </For>
-          </div>
-        </Match>
-        <Match when={productsViewMode() === "list"}>
-          <ListView
-            folders={visibleFolders()}
-            products={visibleProducts()}
-            searching={isSearching()}
-            pathLabels={pathLabels()}
-            sortMode={productsSortMode()}
-            onSortMode={setProductsSortMode}
-            isSelected={(id) => selection.isSelected(id)}
-            onToggleSelect={(id) => selection.toggle(id)}
-            onRowClick={(product, e) => {
-              selection.handleClick(product.id, e, () =>
-                openProduct(product),
-              );
-            }}
-            onRowOpen={(product) => void openProduct(product)}
-            onOpenFolder={openFolder}
-            onProductMenu={handleProductMenu}
-            onFolderMenu={handleFolderMenu}
-            folderCounts={countsForFolder}
-            onBackgroundClick={() => selection.clear()}
-            fallback={emptyState()}
-          />
-        </Match>
-      </Switch>
+      <ListView
+        rows={treeRows()}
+        sortMode={productsSortMode()}
+        onSortMode={setProductsSortMode}
+        onOpenProduct={(product) => void openProduct(product)}
+        onToggleFolder={toggleFolder}
+        onProductMenu={handleProductMenu}
+        onFolderMenu={handleFolderMenu}
+        folderCounts={countsForFolder}
+        fallback={emptyState()}
+      />
     </FrameTop>
   );
+}
+
+function symmetricDifference(
+  a: ReadonlySet<string>,
+  b: ReadonlySet<string>,
+): Set<string> {
+  return new Set([
+    ...[...a].filter((x) => !b.has(x)),
+    ...[...b].filter((x) => !a.has(x)),
+  ]);
 }
