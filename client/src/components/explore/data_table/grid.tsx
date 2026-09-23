@@ -34,7 +34,6 @@ export function Grid(p: {
           rows={p.grid.rows}
           cells={p.grid.cells}
           rowHeaderLabel={p.rowHeaderLabel}
-          fitToAvailableHeight
           onCellHover={setHover}
           focusColumnId={p.focusColumnId}
         />
