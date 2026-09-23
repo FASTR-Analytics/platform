@@ -22,7 +22,7 @@ Cadence, session shapes, the two-things rule and the step rules are
   Floor, panther: `deno task typecheck`, `deno task test`.
 - Prerequisite: PLAN_BASE_TEXT_SIZE.md has closed (its file is deleted).
   Body text is then 14px, declared by panther.
-- Build log: §8. Last step: 4.
+- Build log: §8. Last step: 5.
 - A step reads, in order: `CLAUDE.md`, §2 and §3 of this plan, the step's own
   section in §4, and §8.
 
@@ -68,23 +68,44 @@ around it (icons, markdown).
 3. `ui-text-heading` becomes 16/700. `ui-text-title` and `ui-text-display`
    are deleted from panther.
 4. The six top-level pages have no title; the side nav names the page.
-5. _(proposed)_ A full-screen view (one with a back button) keeps a label that
-   says which package, user or module it shows, at the heading role. A
-   HeadingBar subheading is body size, muted.
+5. A full-screen view (one with a back button) keeps a label that says which
+   package, user or module it shows, at the heading role. A HeadingBar
+   subheading is body size, muted. The instance name in the shell is the
+   heading role.
 6. The two in-body titles under an indicators heading bar, "Indicators (N)"
    in HMIS indicators (`data/hmis/indicators/manager.tsx`) and HFA indicators
    (`data/hfa/indicators/manager.tsx`), become a plain body-size count beside
    the search box: "123 indicators", or "12 of 40" while searching.
 7. Data grids (DataGrid, the CSV table, PresenceGrid) are caption size
    throughout.
-8. _(proposed)_ Display tables (DisplayTable) and listings (the Products list,
-   the Results package list) use one cell size, body. Secondary values are
-   muted, not smaller. A second line stacked under a cell's main value is
-   caption. A listing's column header matches the DisplayTable header.
-9. _(proposed)_ Each size token carries its line-height again.
+8. Display tables (DisplayTable) and listings (the Products list, the
+   Results package list) use one cell size, body. Secondary values are
+   muted, not smaller; a name may be 700. A second line stacked under a
+   cell's main value is caption. A listing's column header matches the
+   DisplayTable header.
+9. Each size token carries Tailwind's default line-height again, and `body`
+   takes the `text-sm` pair, so unsized text and `text-sm` text agree:
+
+   ```css
+   --text-xs--line-height: calc(1 / 0.75);
+   --text-sm--line-height: calc(1.25 / 0.875);
+   --text-base--line-height: calc(1.5 / 1);
+   --text-lg--line-height: calc(1.75 / 1.125);
+   --text-xl--line-height: calc(1.75 / 1.25);
+   --text-2xl--line-height: calc(2 / 1.5);
+   --text-3xl--line-height: calc(2.25 / 1.875);
+
+   body {
+     line-height: var(--text-sm--line-height);
+   }
+   ```
+
+   This lands in its own step, before any size changes, so a vertical shift
+   is attributable to it alone.
 10. _(proposed)_ Icons in `sm` controls are drawn smaller inside their
     existing box, so no control changes height.
-11. _(proposed)_ Text currently below 12px moves to 12.
+11. Text currently below 12px moves to 12. If a badge or avatar is then
+    cramped, its container grows; there is no `em` exception.
 12. Control sizes (default vs `sm` buttons, inputs, selects) are out of this
     plan and stay case by case.
 13. A lint in `deno task typecheck` fails on any text size outside the token
@@ -92,14 +113,29 @@ around it (icons, markdown).
 
 ## 4. Steps
 
-### Step 1: panther, the roles
+### Step 1: panther, the line-heights
+
+**Surface.** In the panther repo: `modules/_303_components/_fixed.css`; then
+`./sync wb-fastr-v2`.
+
+**Deliverable.** Ruling 9: the seven line-height tokens in `@theme` beside
+the sizes they pair with, and the `body` line-height in `@layer base` beside
+the font-size PLAN_BASE_TEXT_SIZE.md added.
+
+**Not in this step.** Any size change.
+
+**Gates.** Panther floor, then the app floor after the sync.
+
+**Ends with.** One panther commit, then one app commit for the sync.
+
+### Step 2: panther, the roles
 
 **Surface.** Panther's `_303_components` and `_304_actions` type classes and
 the components that use them, `PROTOCOL_UI_STYLING.md` and the
 `_303_components` README; then `./sync wb-fastr-v2`.
 
-**Deliverable.** Rulings 3, 5 (HeadingBar heading and subheading), 9 and 10
-in panther. The EmptyState title and the delete-confirmation title use the
+**Deliverable.** Rulings 3, 5 (HeadingBar heading and subheading) and 10 in
+panther. The EmptyState title and the delete-confirmation title use the
 heading role. The protocol and README list the roles in §2 and no longer name
 the deleted classes.
 
@@ -109,14 +145,14 @@ the deleted classes.
 
 **Ends with.** One panther commit, then one app commit for the sync.
 
-### Step 2: app headings and titles
+### Step 3: app headings and titles
 
 **Surface.** App components in the shell and on the six pages, including the
 views, modals and wizards they open, that set a heading or title size.
 `PROTOCOL_APP_UI_CONVENTIONS.md`.
 
 **Deliverable.** Every heading uses `ui-text-heading`, including the instance
-name in the shell. Rulings 4 to 6 applied. No `text-lg`, `text-xl`,
+name in the shell (ruling 5). Rulings 4 to 6 applied. No `text-lg`, `text-xl`,
 `text-2xl` or `text-md` is left serving as a heading.
 
 **Not in this step.** Tables, pixel sizes, the lint.
@@ -125,20 +161,21 @@ name in the shell. Rulings 4 to 6 applied. No `text-lg`, `text-xl`,
 
 **Ends with.** One commit.
 
-### Step 3: app tables and listings
+### Step 4: app tables and listings
 
 **Surface.** The Products list, the Results package list, and display tables
 whose cells set their own size.
 
 **Deliverable.** Rulings 7 and 8.
 
-**Not in this step.** The kit's table components, which step 1 settles.
+**Not in this step.** The kit's table components, which step 2 settles.
 
 **Gates.** App floor.
 
-**Ends with.** One commit.
+**Ends with.** Two commits: the data grids, then the listings, so the
+listing change reverts alone.
 
-### Step 4: rem only, enforced
+### Step 5: rem only, enforced
 
 **Surface.** Every file with a pixel or arbitrary text size, a new root lint
 script, and `deno.json`.
@@ -159,7 +196,7 @@ miniature), which follows `PROTOCOL_ALL_SIZING.md`.
 | --- | --- |
 | Panther floor | Step 1 |
 | App floor | Step 1 |
-| Text-size lint | Step 4 |
+| Text-size lint | Step 5 |
 
 ## 6. Out of scope
 
@@ -170,9 +207,10 @@ Label wording and letter case.
 ## 7. Rollout and rollback
 
 Step 1 changes panther for every consumer that syncs its UI modules; their
-headings and titles shrink on their next sync. Nothing ships before step 4's
-review passes. Each step is its own commit or pair of commits and reverts
-cleanly; step 1 is undone by reverting the panther commit and re-syncing.
+line-heights, headings and titles change on their next sync. Nothing ships
+before step 5's review passes. Each step is its own commit or pair of commits
+and reverts cleanly; steps 1 and 2 are undone by reverting the panther commit
+and re-syncing.
 
 ## 8. Build log
 
