@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Fix 3.** Each session sets this line in its final commit.
+**Next step: Review 3.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -784,3 +784,12 @@ Append-only, newest last.
   clear on the left (for example `scroll-padding-left` on the container set
   to that column's measured width). Fix in the panther repo and re-sync.
 - Step 3 reviewed: 1 finding.
+- Step 3, fix: panther `5b285ba` sets the scroller's `scroll-padding-left`
+  to the sticky row-header cell's width before `scrollIntoView`, so a
+  column focused from the left lands just right of the row-header column.
+  Checked in a browser on a sticky-column table of the same structure
+  (a 200px row header, 120px columns): without the padding the column sat
+  at 1 to 123px under the header (1 to 203px); with it, at 203 to 325px; a
+  column to the right still lands at the right edge, and a visible column
+  does not move. App sync commit: the one before this row's commit.
+- Step 3 fixed.
