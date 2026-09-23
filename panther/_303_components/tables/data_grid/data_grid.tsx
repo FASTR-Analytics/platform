@@ -103,13 +103,19 @@ export function DataGrid(p: DataGridProps) {
   });
 
   const headerCells = new Map<string, HTMLTableCellElement>();
+  let scroller: HTMLDivElement | undefined;
+  let rowHeaderCell: HTMLTableCellElement | undefined;
   createEffect(() => {
     const id = p.focusColumnId;
     if (id === undefined || id === null) return;
-    headerCells.get(id)?.scrollIntoView({
-      inline: "nearest",
-      block: "nearest",
-    });
+    const target = headerCells.get(id);
+    if (target === undefined) return;
+    // The sticky row-header column covers the scroller's left edge, so a
+    // column scrolled to that edge would land underneath it.
+    if (scroller !== undefined && rowHeaderCell !== undefined) {
+      scroller.style.scrollPaddingLeft = `${rowHeaderCell.offsetWidth}px`;
+    }
+    target.scrollIntoView({ inline: "nearest", block: "nearest" });
   });
 
   const toggleSort = (columnId: string) => {
@@ -143,6 +149,7 @@ export function DataGrid(p: DataGridProps) {
 
   return (
     <div
+      ref={scroller}
       class={p.fitToAvailableHeight
         ? "h-full w-full overflow-auto rounded border"
         : "w-full overflow-x-auto rounded border"}
@@ -167,7 +174,10 @@ export function DataGrid(p: DataGridProps) {
             )}
           </Show>
           <tr>
-            <th class="bg-base-200 sticky left-0 z-30 border-b border-r px-1 py-1 text-left">
+            <th
+              ref={rowHeaderCell}
+              class="bg-base-200 sticky left-0 z-30 border-b border-r px-1 py-1 text-left"
+            >
               <button
                 type="button"
                 class={HEADER_BUTTON}
