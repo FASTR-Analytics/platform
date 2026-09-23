@@ -131,10 +131,9 @@ Pattern specifics, from the live pages:
   maxWidth={400}` around a `SelectList`. The product explorer
   (`products/products.tsx`) is the tree variant without the side panel:
   `HeadingBar` carries the expand/collapse toggle in `centerLeftChildren`,
-  `searchText`/`setSearchText`, the type-filter `Select` in `centerChildren`
-  and the New button, over a tree list whose column headers set the sort; open
-  folders / sort / type-filter state lives in `t4_ui` signals
-  (PROTOCOL_APP_STATE).
+  `searchText`/`setSearchText` and the New button, over a tree list whose
+  column headers set the sort and its direction; open folders and sort state
+  live in `t4_ui` signals (PROTOCOL_APP_STATE).
 - **D (editors):** opened full page, never routed. A view reached from a
   frame page (a product editor, module defaults, a Data sub-page, the user
   detail) opens through `openShellEditor` (`state/t4_ui.ts`), the shell's one

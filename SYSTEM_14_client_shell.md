@@ -249,7 +249,7 @@ then the signal: the rail's `navCollapsed`; the Data page's section tab
 `dataSection` (General / HMIS / HFA / ICEH); the Explore page's tab
 `exploreTab` (Data table / Visualization) and family `exploreFamily` (its
 package and scope are page signals, never stored); the
-product explorer's three (`productsExpandedFolders`, the open folder ids as
+product explorer's two (`productsExpandedFolders`, the open folder ids as
 a JSON array; `productsSort`, a `ListSort` (`SortMode = "name" | "recent"`
 plus a direction) from `lib/types/sort.ts`, one vocabulary for every list).
 The open-folder set and the sort
