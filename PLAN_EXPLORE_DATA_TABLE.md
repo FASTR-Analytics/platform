@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 4.** Each session sets this line in its final commit.
+**Next step: Fix 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -848,3 +848,52 @@ Append-only, newest last.
   indicator; none for an indicator without a rule or for HFA. No dev
   package carries HFA or ICEH.
 - Step 4 built.
+- Step 4, review: the surface matches, with `PROTOCOL_APP_STATE.md` added
+  for its products cache inventory row, which is accepted (the inventory
+  restates the caches, as SYSTEM_03's did in step 2). The recorded
+  deviations are accepted: the per-family queries held above the package
+  key are what ruling 9 requires, reaching the pivot through
+  `buildFigureInputs` is the canvas table's own call, and the tab rail
+  beneath the heading row matches the Data page. Nothing imports
+  `explore_query.ts`. Typecheck (with `lint:systems` and `lint:structure`),
+  test, `./validate_protocols` and the boot gate pass.
+- Step 4, review finding: `client/src/components/explore/data_table/data_table.tsx:272-287`
+  builds the grid from the current `derived()` and `resolved().query.columns`
+  paired with whatever `rows()` holds. When the query or scope changes, the
+  memo re-runs before the tracked query's effect sets loading, so it runs
+  `buildFigureInputs`, the pivot and the adapter over the previous read's
+  rows with the new config, and the keyed `Match` mounts a `DataGrid` for
+  that mismatched pair, only to unmount it in the same flush. Proved with a
+  Solid harness of the same shape: after a query change the memo logs
+  "rows for A, config B" and renders it before going to loading. It also
+  rebuilds and remounts the grid (losing the header sort) when `derived`
+  changes but the fetch config does not, as on Clear. Build the grid from
+  the config and columns the read was made for, captured in the tracked
+  query's source with the rows, so the grid depends only on the read's
+  result.
+- Step 4, review finding: `client/src/components/explore/data_table/data_table.tsx:200-204`
+  takes HFA's time points from `instanceState.hfaTimePoints`, the instance's
+  current list, while ICEH's years come from the package's metric info.
+  Resolution is against the current package (§2), so a package made before
+  the newest time point was imported opens HFA Indicators mode on a time
+  point it does not carry ("No data for this selection") and offers it in
+  the period select. The package's values are in
+  `disaggregationPossibleValues.time_point` of the same metric info
+  (`time_point` is a required disaggregation of `m10-01-01`). The order is
+  also its own (period id, then sort order) where every other time-point
+  list and query uses `sort_order`. Use the package's time points, in the
+  instance's `sortOrder` order.
+- Step 4, review finding: the two tabs restate each other.
+  `client/src/components/explore/visualization/visualization.tsx:30-45`
+  (`familiesInPackage`) re-derives what `familiesOffered` and
+  `primaryMetricFor` in `lib/explore_grid_query.ts` already compute, and
+  `client/src/components/explore/data_table/data_table.tsx:116-131`
+  (`unavailableReason`) repeats its "primary module's first metric by id"
+  lookup and fallback text. The "no primary module" message
+  (`data_table.tsx:79-84`, `visualization.tsx:78-82`), the "no metric"
+  message (`data_table.tsx:127-131`, `visualization.tsx:130-135`) and the
+  "no preset" message (`data_table/grid.tsx:66-70`,
+  `visualization.tsx:148-152`) are each written twice. Extract the family
+  lookup (into lib beside `primaryMetricFor`) and the shared empty states
+  (an `explore/_shared/`, which rule 4 admits since both children use it).
+- Step 4 reviewed: 3 findings.
