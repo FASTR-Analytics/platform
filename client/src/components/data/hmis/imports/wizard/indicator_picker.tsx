@@ -136,7 +136,7 @@ export function Dhis2IndicatorPicker(p: Props) {
               p.setSelectedIds(Array.from(keys) as string[])
             }
             paddingY="compact"
-            tableContentMaxHeight="500px"
+            maxHeight="500px"
             noRowsMessage={t3({
               en: "No indicators match",
               fr: "Aucun indicateur ne correspond",

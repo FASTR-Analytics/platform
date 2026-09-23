@@ -543,7 +543,7 @@ export function Step4Recode(p: Props) {
                   columns={buildTableColumns(rowsData.columns)}
                   keyField="facility_id"
                   paddingY="compact"
-                  tableContentMaxHeight="60vh"
+                  maxHeight="60vh"
                 />
 
                 <Show when={rowsData.total > rowsData.rows.length}>
