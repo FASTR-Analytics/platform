@@ -8,6 +8,11 @@
 // parse tokens ad hoc.
 // =============================================================================
 
+import {
+  FASTR_REPORT_TEMPLATES,
+  type FastrReportTemplate,
+  isFastrReportTemplate,
+} from "../fastr_report_templates.ts";
 import { z } from "zod";
 import {
   FASTR_REPORT_THEMES,
@@ -101,6 +106,11 @@ export type ReportConfig = {
   // report and sets it true. Absent on every older report, so none of them
   // is interrupted by a modal about a choice they were never offered.
   themeChosen?: boolean;
+  // fastr only: the template the report was started from (template_modal.tsx,
+  // offered after the theme while the body is still the new-report seed).
+  // Metadata for the AI, which is told what kind of document it is writing;
+  // the body carries the template's skeleton, never a reference to it.
+  template?: FastrReportTemplate;
 };
 
 export const reportConfigSchema = z
@@ -111,6 +121,7 @@ export const reportConfigSchema = z
     customStyle: reportCustomStyleSnapshotSchema.optional(),
     fastrTheme: z.enum(FASTR_REPORT_THEMES).optional(),
     themeChosen: z.boolean().optional(),
+    template: z.enum(FASTR_REPORT_TEMPLATES).optional(),
   })
   .passthrough();
 
@@ -158,6 +169,14 @@ export function getFastrReportTheme(
 ): FastrReportTheme {
   const v = config?.fastrTheme;
   return isFastrReportTheme(v) ? v : "default";
+}
+
+// Total, same rationale as getReportFormat. undefined = no template chosen.
+export function getFastrReportTemplate(
+  config: ReportConfig | null | undefined,
+): FastrReportTemplate | undefined {
+  const v = config?.template;
+  return isFastrReportTemplate(v) ? v : undefined;
 }
 
 // Total, same rationale as getReportFormat.

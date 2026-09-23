@@ -17,6 +17,10 @@ import {
   fastrChartPalette,
   fastrDocumentOutline,
   getReportCustomStyle,
+  getFastrReportTemplate,
+  getStartingBodyForReport,
+  fastrReportTemplateBody,
+  type FastrReportTemplate,
   getReportFormat,
   getReportHtmlStyle,
   type ImageBlock,
@@ -117,6 +121,7 @@ import {
   type ReportEditorApi,
 } from "./body_editor";
 import { ReportToolbar } from "./toolbar";
+import { ReportTemplateModal } from "./template_modal";
 import {
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
@@ -425,6 +430,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     string | undefined
   >(undefined);
   const [session, setSession] = createSignal<ReportSession | null>(null);
+  // The template the report was started from (fastr), for the AI.
+  const [template, setTemplate] = createSignal<FastrReportTemplate | undefined>();
   // Bumped when the session swaps its doc for one of the server's lineage
   // (collab.ts, onLineageReset): everything that binds to the doc re-reads it.
   const [lineage, setLineage] = createSignal(0);
@@ -1033,6 +1040,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const res = await getReportDetailFromCacheOrFetch(p.productId);
     if (res.success) {
       setFormat(getReportFormat(res.data.config));
+      setTemplate(getFastrReportTemplate(res.data.config));
       if (getReportFormat(res.data.config) === "fastr") setMode("edit");
       htmlStyle = getReportHtmlStyle(res.data.config);
       // Custom style: live ref + snapshot fallback (S12) — prefer the CURRENT
@@ -1197,6 +1205,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         // Read live from the T1 row: a reattach remounts the copilot on the new
         // pair, and the tools of that mount see the same pair here (D15).
         getScope: () => requireScope(),
+        getTemplate: () => template(),
         getBody: () => body(),
         getFigures: () => figures(),
         getImages: () => images(),
@@ -1290,6 +1299,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         );
       }
     }
+    // Never dispatch into a view mid-update (see ReportEditorApi.whenIdle).
+    await editorApi?.whenIdle();
     applyingProgrammaticEdit = true;
     const res = editorApi?.applyRebasedBody(baseBody, prop.newBody) ?? {
       applied: 0,
@@ -1573,7 +1584,52 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       setFastrColors(snap?.colors ?? undefined);
       applyFastrTheme(getFastrReportTheme(loadedConfig));
       bumpLastUpdated(res.applied.lastUpdated);
+      // A new report, still just its seed: offer a template next, the way a
+      // word processor does once you start a document.
+      if (bodyIsSeed() && canEditBody()) await openTemplateModal();
       return;
+    }
+  }
+
+  // Whether the body is still what a new report is created with (the title
+  // line alone, or nothing): the only state a template may replace.
+  function bodyIsSeed(): boolean {
+    const text = body().trim();
+    return text.length === 0 ||
+      text === getStartingBodyForReport(label(), "fastr").trim();
+  }
+
+  // The template gallery (template_modal.tsx), after the theme. The template's
+  // body goes in through the editor (one transaction: collaborators and undo
+  // see it like any edit) and the choice is stored on the config, where the
+  // AI's instructions read it.
+  async function openTemplateModal(): Promise<void> {
+    const snap = getReportCustomStyle(loadedConfig);
+    const res = await openComponent({
+      element: ReportTemplateModal,
+      props: {
+        reportLabel: label(),
+        fastrTheme: fastrTheme(),
+        customStyle: snap ? { id: snap.id, colors: snap.colors ?? null } : undefined,
+      },
+    });
+    if (!res) return;
+    // Someone may have started writing while the gallery was open.
+    if (!bodyIsSeed()) return;
+    const next = fastrReportTemplateBody(res.template, label());
+    await editorApi?.whenIdle();
+    editorApi?.applyRebasedBody(body(), next);
+    setTemplate(res.template);
+    const config = { ...loadedConfig, template: res.template };
+    const saved = await serverActions.updateReportConfig({
+      product_id: p.productId,
+      config,
+    });
+    if (saved.success) {
+      loadedConfig = config;
+      bumpLastUpdated(saved.data.lastUpdated);
+    } else {
+      setSaveError(saved.err);
     }
   }
 

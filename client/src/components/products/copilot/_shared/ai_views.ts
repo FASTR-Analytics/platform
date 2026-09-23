@@ -1,6 +1,6 @@
 import { createAIViewController, defineAIViews, view } from "panther";
 import type { AIViewController, AIViewState } from "panther";
-import { getEditingReportInstructions } from "lib";
+import { type FastrReportTemplate, getEditingReportInstructions } from "lib";
 import type {
   FigureBlock,
   ImageBlock,
@@ -93,6 +93,9 @@ export type EditingReportParams = {
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = OpenProductScope & {
+  // The template the report was started from (fastr only), read live: it is
+  // chosen after the view is set, from the template modal.
+  getTemplate: () => FastrReportTemplate | undefined;
   getBody: () => string;
   getFigures: () => Record<string, FigureBlock>;
   getImages: () => Record<string, ImageBlock>;
@@ -137,6 +140,7 @@ export const copilotViews = defineAIViews({
           params.format,
           params.htmlStyle,
           params.customStyle,
+          context.getTemplate(),
         )
       }\n\nreportId: ${params.reportId}`;
       const sel = context.getSelection();

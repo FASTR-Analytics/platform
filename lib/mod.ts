@@ -27,6 +27,7 @@ export * from "./slide_text_offsets.ts";
 export * from "./fastr_live_regions.ts";
 export * from "./fastr_markdown_blocks.ts";
 export * from "./fastr_markdown_spec.ts";
+export * from "./fastr_report_templates.ts";
 export * from "./report_fastr_css.ts";
 export * from "./report_fastr_markdown.ts";
 export * from "./report_fastr_paged.ts";

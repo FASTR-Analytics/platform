@@ -9,6 +9,10 @@ import { describeIndicatorFacts } from "./format_metric_data_for_ai.ts";
 import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ReportFormat, ReportHtmlStyle } from "../types/reports.ts";
 import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
+import {
+  fastrReportTemplateBrief,
+  type FastrReportTemplate,
+} from "../fastr_report_templates.ts";
 
 // The shared halves of the AI system prompt: what both surfaces (the SPA
 // copilot and the /mcp get_overview) ground the model with. Each surface
@@ -618,6 +622,8 @@ export function getEditingReportInstructions(
   format: ReportFormat = "markdown",
   htmlStyle: ReportHtmlStyle = "default",
   customStyle?: { label: string; brief: string; referenceCss?: string | null },
+  // fastr only: the template the user started the report from, if any.
+  template?: FastrReportTemplate,
 ): string {
   const common = `## How editing works
 
@@ -694,7 +700,7 @@ ${common}
 The user is editing a long-form report written in **FASTR Markdown** — ordinary markdown plus a small set of \`:::\` blocks — with embedded live figures. The user hand-edits this document, so keep the source clean and readable.
 
 **Whenever you write or restructure this report (rewrite_report, or a rewrite_section that adds new material), build it from the format's \`:::\` blocks** — open with a \`:::cover\` (choosing a \`layout\`), add a \`:::contents\` line when the report is long, put the headline numbers in a \`:::tiles\` row of \`:::stat\` blocks, mark the turning points with \`:::band\` — with the shape the "Composing a report" guidance below describes. Do this on the first write, without being asked: a plain run of headings and paragraphs wastes the format. Write plain only when the user asks for something plain.
-
+${template ? `\n${fastrReportTemplateBrief(template)}\n` : ""}
 ${common}
 
 ## Writing FASTR Markdown for this report

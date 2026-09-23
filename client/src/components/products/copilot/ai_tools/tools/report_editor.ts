@@ -213,6 +213,18 @@ export function getClientToolsForReportEditor(
               ? " — the theme supplies the design; never write CSS or a <style> block"
               : ""
           }`,
+          ...(() => {
+            const template = ctx.getTemplate();
+            return template === undefined ? [] : [
+              `Template: ${
+                template === "policy_brief"
+                  ? "Policy brief"
+                  : template === "long_form"
+                  ? "Long-form report"
+                  : "Empty"
+              } (write to its shape; see the template section in your instructions)`,
+            ];
+          })(),
           ``,
           `## Current body (${formatLabel})`,
           body,

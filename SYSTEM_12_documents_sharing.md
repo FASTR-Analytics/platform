@@ -28,6 +28,7 @@ globs:
   - lib/fastr_live_regions.ts
   - lib/fastr_markdown_blocks.ts
   - lib/fastr_markdown_edits.ts
+  - lib/fastr_report_templates.ts
   - lib/fastr_markdown_pages.ts
   - lib/fastr_markdown_spec.ts
   - lib/fastr_report_page_map.ts
@@ -1514,7 +1515,19 @@ or below when the caret stands at the region's very end, which is the only
 keyboard way past a stat row, a figure or a table at the end of a document.
 A natural cover opening ANY page is flush to the sheet's top in the editor
 as it is in print (`openPage`, no `isFirst`), where it used to sit under a
-band of top margin after a page break. STABLE TEXT METRICS
+band of top margin after a page break. TEMPLATES (2026-09-23): after
+the theme modal applies on a report whose body is still the new-report seed
+(the title line alone), the editor opens a template gallery
+(`template_modal.tsx`): Policy brief, Long-form report and Empty, each tile
+the template's real first page rendered under the look just chosen
+(`FastrTemplateMock`). The skeletons live in `lib/fastr_report_templates.ts`
+with placeholder guidance written as muted marks (`[What goes here]{.muted}`,
+bracketed text in attributes); the chosen body goes in through
+`applyRebasedBody` (one transaction, so collaborators and undo see it) and the
+choice is stored as `config.template`. The AI's editing instructions append
+`fastrReportTemplateBrief` for that template (shape, section order, the
+placeholder convention), read live from the view context's `getTemplate`,
+and `get_report_editor` names it. STABLE TEXT METRICS
 (2026-09-23, "when I write at the start of a new line the page jitters"):
 CodeMirror estimates every unrendered line's height from ONE sample, the
 first rendered line of at most 20 plain-text characters, and on this surface

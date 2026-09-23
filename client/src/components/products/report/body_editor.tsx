@@ -173,6 +173,9 @@ export type ReportEditorApi = {
   redo: () => void;
   // Re-measure (e.g. after the editor was hidden during a diff review).
   refresh: () => void;
+  // Resolves once CodeMirror is neither updating nor measuring: await before
+  // a dispatch that must be synchronous (applyRebasedBody).
+  whenIdle: () => Promise<void>;
   // Switch the page boxes on (a pagination with no pages: the editor lays
   // the document out itself, live_preview_extension's pageBoxPlugin) or
   // off (undefined). Live preview only; a no-op in Split.
@@ -902,16 +905,44 @@ export function ReportBodyEditor(p: Props) {
 
   function setPagination(pagination: EditorPagination | undefined) {
     wantedPagination = pagination;
-    view?.dispatch({ effects: setPaginationEffect.of(pagination) });
+    dispatchWhenIdle({ effects: setPaginationEffect.of(pagination) });
   }
 
   function setLayoutHints(hints: Map<string, FastrLayoutHint>) {
     wantedHints = hints;
-    view?.dispatch({ effects: setLayoutHintsEffect.of(hints) });
+    dispatchWhenIdle({ effects: setLayoutHintsEffect.of(hints) });
+  }
+
+  // CodeMirror refuses a dispatch while it is updating or measuring ("Calls
+  // to EditorView.update are not allowed while an update is in progress").
+  // The host-driven dispatches below have "eventually" semantics (page boxes,
+  // layout hints, embed sizes), so one that lands re-entrantly waits for the
+  // next tick instead of throwing. updateState is CodeMirror's own flag,
+  // 0 = idle.
+  function viewBusy(): boolean {
+    return view !== undefined &&
+      (view as unknown as { updateState: number }).updateState !== 0;
+  }
+  function dispatchWhenIdle(spec: Parameters<EditorView["dispatch"]>[0], attempt = 0) {
+    if (!view) return;
+    if (viewBusy() && attempt < 50) {
+      setTimeout(() => dispatchWhenIdle(spec, attempt + 1), 0);
+      return;
+    }
+    view.dispatch(spec);
+  }
+  function whenIdle(): Promise<void> {
+    return new Promise((resolve) => {
+      const tick = (attempt: number) => {
+        if (!viewBusy() || attempt >= 50) resolve();
+        else setTimeout(() => tick(attempt + 1), 0);
+      };
+      tick(0);
+    });
   }
 
   function refreshEmbedSizes() {
-    view?.dispatch({ effects: refreshEmbedSizesEffect.of(null) });
+    dispatchWhenIdle({ effects: refreshEmbedSizesEffect.of(null) });
   }
 
   function reapplyPagination() {
@@ -919,7 +950,7 @@ export function ReportBodyEditor(p: Props) {
     const effects = [];
     if (wantedPagination !== undefined) effects.push(setPaginationEffect.of(wantedPagination));
     if (wantedHints !== undefined) effects.push(setLayoutHintsEffect.of(wantedHints));
-    if (effects.length > 0) view.dispatch({ effects });
+    if (effects.length > 0) dispatchWhenIdle({ effects });
   }
 
   function getPageLayout(): ReportPageLayoutOut | undefined {
@@ -1027,6 +1058,7 @@ export function ReportBodyEditor(p: Props) {
       undo,
       redo,
       refresh,
+      whenIdle,
       setPagination,
       setLayoutHints,
       refreshEmbedSizes,

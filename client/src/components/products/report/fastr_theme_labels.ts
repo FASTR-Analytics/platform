@@ -1,4 +1,4 @@
-import { FASTR_REPORT_THEMES, type FastrReportTheme, t3 } from "lib";
+import { FASTR_REPORT_THEMES, type FastrReportTemplate, type FastrReportTheme, t3 } from "lib";
 
 // Display names + one-line characters for the FASTR Markdown themes, shared by
 // the creation picker and the report editor's theme switcher. The themes
@@ -107,4 +107,38 @@ export function fastrThemeOptions(): { value: FastrReportTheme; label: string }[
     value: t,
     label: fastrThemeLabel(t),
   }));
+}
+
+export function fastrTemplateLabel(template: FastrReportTemplate): string {
+  switch (template) {
+    case "policy_brief":
+      return t3({ en: "Policy brief", fr: "Note de politique", pt: "Nota de política" });
+    case "long_form":
+      return t3({ en: "Long-form report", fr: "Rapport complet", pt: "Relatório longo" });
+    case "empty":
+      return t3({ en: "Empty", fr: "Vide", pt: "Vazio" });
+  }
+}
+
+export function fastrTemplateCaption(template: FastrReportTemplate): string {
+  switch (template) {
+    case "policy_brief":
+      return t3({
+        en: "Two to four pages for decision-makers: key messages, options, recommendations",
+        fr: "Deux à quatre pages pour les décideurs : messages clés, options, recommandations",
+        pt: "Duas a quatro páginas para decisores: mensagens-chave, opções, recomendações",
+      });
+    case "long_form":
+      return t3({
+        en: "A formal report: title page, contents, numbered sections, annex",
+        fr: "Un rapport formel : page de titre, sommaire, sections numérotées, annexe",
+        pt: "Um relatório formal: página de título, índice, secções numeradas, anexo",
+      });
+    case "empty":
+      return t3({
+        en: "A blank page",
+        fr: "Une page blanche",
+        pt: "Uma página em branco",
+      });
+  }
 }
