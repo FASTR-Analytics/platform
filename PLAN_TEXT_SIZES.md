@@ -36,8 +36,8 @@ role:
   (`text-lg font-700`, bare `font-700`, `text-md`, `font-700 text-sm`,
   `ui-text-caption font-700`). `text-md` is not a token, so it emits nothing.
 - Titles are large: HeadingBar titles are 20, their subheadings inherit 20,
-  empty-state titles are 20, some pages repeat a 20px title under the heading
-  bar, and the instance name is 24.
+  empty-state titles are 20, the two indicators pages put a 20px
+  "Indicators (N)" title under the heading bar, and the instance name is 24.
 - Tables disagree: some display tables mix 12 and 14 cells, and the Products
   and Results listings use their own sizes.
 - Some text is sized in pixels (`text-[9px]` to `text-[11px]`, inline pixel
@@ -71,8 +71,10 @@ around it (icons, markdown).
 5. _(proposed)_ A full-screen view (one with a back button) keeps a label that
    says which package, user or module it shows, at the heading role. A
    HeadingBar subheading is body size, muted.
-6. _(proposed)_ A title under the heading bar that repeats it is removed.
-   A label that only repeats what the user clicked is removed.
+6. The two in-body titles under an indicators heading bar, "Indicators (N)"
+   in HMIS indicators (`data/hmis/indicators/manager.tsx`) and HFA indicators
+   (`data/hfa/indicators/manager.tsx`), become a plain body-size count beside
+   the search box: "123 indicators", or "12 of 40" while searching.
 7. Data grids (DataGrid, the CSV table, PresenceGrid) are caption size
    throughout.
 8. _(proposed)_ Display tables (DisplayTable) and listings (the Products list,
