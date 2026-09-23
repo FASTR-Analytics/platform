@@ -5,6 +5,11 @@
 
 import type { JSX } from "solid-js";
 import type { IconComponent, IconName } from "./icon_types.ts";
+// Tabler has no expand/collapse pair: its `fold` has no `unfold` partner, and
+// requests for one were closed unbuilt (tabler-icons issues #135, #1237). So
+// fold / unfold borrow Phosphor's arrows-in / arrows-out-line-vertical, a real
+// pair with a solid line.
+import { PhFold, PhUnfold } from "./icons_phosphor.tsx";
 
 // Tabler Icons (https://tabler.io/icons) -- MIT licensed. See TABLER_LICENSE.txt.
 // Stroked line glyphs on a 24 viewBox (vs Phosphor's filled 256 viewBox).
@@ -394,19 +399,6 @@ function FilterFilledIcon(p: { class?: string }) {
         fill="currentColor"
         stroke="none"
       />
-    </TablerWrapper>
-  );
-}
-
-function FoldIcon(p: { class?: string }) {
-  return (
-    <TablerWrapper class={p.class}>
-      <path d="M12 3v6l3 -3m-6 0l3 3" />
-      <path d="M12 21v-6l3 3m-6 0l3 -3" />
-      <path d="M4 12l1 0" />
-      <path d="M9 12l1 0" />
-      <path d="M14 12l1 0" />
-      <path d="M19 12l1 0" />
     </TablerWrapper>
   );
 }
@@ -889,16 +881,6 @@ function UndoIcon(p: { class?: string }) {
   );
 }
 
-function UnfoldIcon(p: { class?: string }) {
-  return (
-    <TablerWrapper class={p.class}>
-      <path d="M8 7l4 -4l4 4" />
-      <path d="M8 17l4 4l4 -4" />
-      <path d="M12 3l0 18" />
-    </TablerWrapper>
-  );
-}
-
 function UnlockIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
@@ -1018,7 +1000,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   file: FileIcon,
   filter: FilterIcon,
   filterFilled: FilterFilledIcon,
-  fold: FoldIcon,
+  fold: PhFold,
   folder: FolderIcon,
   gripVertical: GripVerticalIcon,
   help: HelpIcon,
@@ -1065,7 +1047,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   transform: TransformIcon,
   trash: TrashIcon,
   undo: UndoIcon,
-  unfold: UnfoldIcon,
+  unfold: PhUnfold,
   unlock: UnlockIcon,
   upload: UploadIcon,
   user: UserIcon,

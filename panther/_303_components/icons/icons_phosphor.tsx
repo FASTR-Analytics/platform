@@ -347,7 +347,9 @@ function PhFilterFilled(p: { class?: string }) {
   );
 }
 
-function PhFold(p: { class?: string }) {
+// arrows-in-line-vertical / arrows-out-line-vertical, a real pair. Exported
+// because the Tabler set borrows them for fold / unfold.
+export function PhFold(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM122.34,101.66a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32L136,76.69V16a8,8,0,0,0-16,0V76.69L101.66,58.34A8,8,0,0,0,90.34,69.66Zm11.32,52.68a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L120,179.31V240a8,8,0,0,0,16,0V179.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z" />
@@ -723,7 +725,7 @@ function PhUndo(p: { class?: string }) {
   );
 }
 
-function PhUnfold(p: { class?: string }) {
+export function PhUnfold(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM101.66,53.66,120,35.31V96a8,8,0,0,0,16,0V35.31l18.34,18.35a8,8,0,0,0,11.32-11.32l-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32Zm52.68,148.68L136,220.69V160a8,8,0,0,0-16,0v60.69l-18.34-18.35a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z" />
