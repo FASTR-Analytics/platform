@@ -194,19 +194,23 @@ export type GridQuery = {
 ```
 
 `indicators: []` means every indicator; `period: { kind: "values", values:
-[] }` means every time point or year. `grain` is read only when the family
-is HMIS and `columns` is `"time"`.
+[] }` means every time point or year (for HMIS, every month: no window).
+`grain` is read only when the family is HMIS and `columns` is `"time"`.
+Time is never a column group (ruling 19), so HFA and ICEH in Indicators mode
+read exactly one time point or year, which resolution supplies.
 
 The derived config starts from the primary metric's first preset through
 `deriveConfigFromVizPreset` (so `s` and `t` are valid and carry the family's
-decimals and formatting) and replaces `d`:
+decimals and formatting) and replaces `d` whole, with `type: "table"` and
+`valuesDisDisplayOpt: "col"` (ICEH's first preset is a chart):
 
 | Family, columns | `disaggregateBy` (in order) | `filterBy` | `periodFilter` |
 | --- | --- | --- | --- |
-| HMIS or HFA, indicators | unit level `row` with `rollup: true`, position top; indicator dim `col` | indicators when chosen; HFA time points when chosen | HMIS window |
-| HMIS or HFA, time | unit level `row` with `rollup: true`, position top; time dim `col`; indicator dim `colGroup` | as above | HMIS window |
-| ICEH, indicators | `level` `row`; `iceh_indicator` `col` | `strat` = the chosen stratifier; indicators; years when chosen | none |
-| ICEH, time | `level` `row`; `year` `col`; `iceh_indicator` `colGroup` | as above | none |
+| HMIS, indicators | unit level `row` with `rollup: true`, position top; indicator dim `col` | indicators when chosen | HMIS window |
+| HFA, indicators | as HMIS | indicators when chosen; `time_point` = the one resolved time point | none |
+| HMIS or HFA, time | unit level `row` with `rollup: true`, position top; time dim `col`; indicator dim `colGroup` | indicators when chosen; HFA time points when chosen | HMIS window |
+| ICEH, indicators | `level` `row`; `iceh_indicator` `col` | `strat` = the chosen stratifier; indicators; `year` = the one resolved year | none |
+| ICEH, time | `level` `row`; `year` `col`; `iceh_indicator` `colGroup` | `strat`; indicators; years when chosen | none |
 
 Resolution, applied on every read against the current package and scope:
 
@@ -217,6 +221,7 @@ Resolution, applied on every read against the current package and scope:
 | unit (strat) | not in the metric's possible values: the first value |
 | indicators | intersected with the package's dictionary for the family; the dropped ids stay in state |
 | period (values) | intersected with the available time points or years; empty means all |
+| period (HFA or ICEH, Indicators mode) | exactly one value: the latest of the chosen values that is available, else the latest available; the chosen set stays in state |
 | period (window) | unchanged; relative windows are always valid |
 
 The reads: the derived config goes through `getFetchConfigFromPO` as any
@@ -225,24 +230,36 @@ read shares the SQL path and the concurrency queue, but its cap is
 `GRID_MAX_CELLS` (500,000, ruling 6) and its payload is dictionary-encoded:
 
 ```ts
-type GridItemsHolder = RunVersionInfo & { dateRange: PeriodBounds | undefined } & (
+type GridItemsHolder = {
+  resultsObjectId: string;
+  fetchConfig: GenericLongFormFetchConfig;
+  runId: string;
+  scopeToken: string;
+  dateRange: PeriodBounds | undefined;
+} & (
   | {
     status: "ok";
     // One entry per groupBy in fetchConfig.groupBys order; each holds that
     // column's distinct values, and rows index into them.
     levels: string[][];
     rows: number[][];
-    // One per row, the fetch config's single value prop.
-    values: (number | null)[];
+    // Every returned column that is not a groupBy, in first-row key order
+    // (the metric's value column, and any __n_* column the server emits).
+    // The fetch config's `values` are ingredients, not these.
+    valueProps: string[];
+    // values[row][valueProp index]
+    values: (number | null)[][];
+    indicatorMetadata: IndicatorMetadataDisplay[];
   }
   | { status: "too_many_cells" }
   | { status: "no_data_available" }
 );
 ```
 
-`decodeGridItems(holder, fetchConfig)` in lib turns an `ok` holder back into
-the plain long-form array the canvas path consumes (`JsonArrayItem[]`, one
-key per groupBy plus the value prop). Encoding and decoding are one file,
+`decodeGridItems(holder)` in lib turns an `ok` holder back into the plain
+long-form array the canvas path consumes (`JsonArrayItem[]`, one key per
+groupBy plus each value prop). The holder's `indicatorMetadata` feeds the
+pivot's indicator labels and order as the items read's does. Encoding and decoding are one file,
 tested as a round trip.
 
 Rendering, in this order, none of it new except the adapter and the cell
@@ -276,7 +293,8 @@ function:
    stratifier select for that family.
 4. **The controls are exactly:** family, level or stratifier, indicators
    (`MultiSelectSearch`, empty = all), period (HMIS: last 12 months, last
-   quarter, last year, all; HFA: time points; ICEH: years), columns
+   quarter, last year, all; HFA: time points; ICEH: years; for HFA and ICEH
+   one value in Indicators mode, any set in Time mode), columns
    (`ButtonGroup`: Indicators | Time), grain (HMIS Time mode only: month,
    quarter, year), find, download. The package and area selects stay on the
    heading row as today.
@@ -334,6 +352,10 @@ function:
     replacements for indicators, dates and the roll-up row, and
     `instanceState.adminAreaLabels` where the canvas path reads them.
     Nigeria admin cleaning applies as it does in the editor.
+19. **Time is never a column group.** HFA and ICEH declare their time
+    dimension required and their values must never be pooled across rounds
+    or years, so Indicators mode reads one time point or year (resolution
+    in §2). Ruled (Tim, 2026-09-23).
 
 ## 4. Steps
 
@@ -356,8 +378,8 @@ function:
   - `primaryMetricFor(family, ctx)`: the primary module's first ready metric
     by id, else undefined.
   - `defaultGridQuery(family, scope, ctx)`: ruling 8's default level, empty
-    indicators, the family's default period (HMIS last 12 months, HFA all,
-    ICEH the latest year), columns `"indicators"`, grain `"period_id"`,
+    indicators, the family's default period (HMIS last 12 months, HFA the
+    latest time point, ICEH the latest year), columns `"indicators"`, grain `"period_id"`,
     ICEH's first stratifier.
   - `resolveGridQuery(query, scope, ctx, available)`: the table in §2, where
     `available` is `{ hfaTimePoints: string[]; icehYears: string[];
@@ -371,8 +393,9 @@ function:
   an admin area 2 scope; resolution dropping an indicator, clamping a level
   deeper than the metric offers, and mapping an unoffered family; the
   derived `disaggregateBy` for both columns modes, including the roll-up
-  flag on the unit entry for HMIS and HFA and its absence for ICEH; and the
-  ICEH stratifier filter. The test builds its authoring context by hand.
+  flag on the unit entry for HMIS and HFA and its absence for ICEH; the
+  ICEH stratifier filter; and HFA and ICEH Indicators mode resolving a
+  multi-value or empty period to one value (ruling 19). The test builds its authoring context by hand.
 
 **Not in this step.** No server read, no client file, no panther change.
 
@@ -398,7 +421,8 @@ function:
 - `server/routes/instance/run_generation.ts` (the mount)
 - `server/runs/delete_run.ts` (the prefix scan covers `grid_items`)
 - `server/tests/grid_items_test.ts` (new: the encode and decode round trip,
-  including a null value, a sentinel value and a blank)
+  including a null value, a sentinel value, a blank and a second value
+  column)
 - `SYSTEM_09_viz_query_cache.md` (globs: the new lib and server files and
   the test; prose: the Caching table gains a row, "Client query flow" names
   the read and the codec)
@@ -406,14 +430,15 @@ function:
 **Deliverable.**
 
 - `readRunGridItems` validates the fetch config, checks the module and the
-  required groupBys exactly as `readRunItems` does, builds the same SQL with
-  `limit: GRID_MAX_CELLS + 1`, and encodes the rows with `encodeGridItems`:
-  one distinct-value list per groupBy in `groupBys` order, each row as
-  indices into those lists, and one value per row from the fetch config's
-  single value prop. Sentinel rows (`__NATIONAL`, blank) pass through as
-  values of their column.
+  required groupBys and the catalog-evaluation guards exactly as
+  `readRunItems` does, builds the same SQL with `limit: GRID_MAX_CELLS + 1`,
+  and encodes the rows with `encodeGridItems`: one distinct-value list per
+  groupBy in `groupBys` order, each row as indices into those lists, and
+  per row one value for each non-groupBy column (§2). Sentinel rows
+  (`__NATIONAL`, blank) pass through as values of their column. The `ok`
+  holder carries the indicator metadata the items read carries.
 - `decodeGridItems` reproduces `JsonArrayItem[]` with one key per groupBy
-  and the value prop, so the canvas pivot consumes it unchanged.
+  and per value prop, so the canvas pivot consumes it unchanged.
 - Cached in `_GRID_ITEMS_CACHE` with the items cache's uniqueness shape
   (runId, results object, `hashFetchConfig`, scopeToken trailing) and
   `PO_CACHE_VERSION` as the version hash. No bump: the prefix is new.
@@ -437,7 +462,8 @@ case is added in this step and the build log says why.
 - Panther repo: `modules/_303_components/tables/data_grid/data_grid.tsx`,
   `modules/_303_components/tables/data_grid/types.ts`,
   `modules/_303_components/tables/data_grid/from_table_data.ts` (new),
-  `modules/_303_components/tables/data_grid/mod.ts`, and the component's
+  `modules/_303_components/tables/data_grid/mod.ts`,
+  `modules/_303_components/deps.ts` (re-export the table types), and the component's
   entry in panther's docs if `DOC_CODING_CONVENTIONS.md` requires one.
 - This app, sync commit only: `panther/_303_components/tables/data_grid/**`
   and whatever else the panther sync copies.
