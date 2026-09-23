@@ -351,10 +351,10 @@ T1 (`readyPackages`, D8), with no compatibility pre-flight (D4: reattach never
 blocks, staleness is per figure).
 
 **The instance catalogue is a list and a page** (ruled 2026-09-22,
-replacing the earlier master-detail pane): the Results packages tab is a plain
-newest-first list (`results_packages.tsx`; no search/sort/grouping, since
-there are dozens of rows, not hundreds, and no selection state), and a row
-opens that package's own page (`results_packages/package_page.tsx` =
+replacing the earlier master-detail pane): the Results packages tab is a
+panther `Table` (`results_packages.tsx`; newest first by default, with the
+heading bar's label search and usage filter, no selection state), and a row's
+View button opens that package's own page (`results_packages/package_page.tsx` =
 `ResultsPackagePage`) through the shell wrapper (`openShellEditor`) with the
 run id. The page reads its row live from `instanceState.runsCatalog`, waits
 for a freshly launched run's row to land (the wizard opens the page before
@@ -384,7 +384,7 @@ package at all (a product points only at a ready run and never explores
 it, C2 ruling): every status is the same heading and status bar over a
 body by status. The catalogue onboarding tour (`onboarding/tours.ts`,
 `instance-results-packages-catalogue`) walks from the list into a package:
-its first step spotlights a list row (`data-tour="instance-results-packages-card"`)
+its first step spotlights a row's View button (`data-tour="instance-results-packages-card"`)
 and completes on the click that opens the page, its second waits for the
 status bar's usage row (`-usage`); it auto-starts only while a row is
 rendered, not merely in the DOM, since an open page hides the list under

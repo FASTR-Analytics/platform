@@ -558,7 +558,8 @@ export function buildReportEditorIntroTour(): TourDefinition {
         placement: "bottom",
         // Only the older formats have the switch (a FASTR Markdown report is
         // its Edit pane alone).
-        when: () => document.querySelector('[data-tour="report-mode"]') !== null,
+        when: () =>
+          document.querySelector('[data-tour="report-mode"]') !== null,
       },
       {
         id: "code-pane",
@@ -1082,9 +1083,9 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
 // created instance holds no packages, so the first target does not exist, and
 // a tour that runs against nothing still writes its seen-flag. The tour walks
 // from the list into a package: the first step completes when the user clicks
-// the row, which opens that package's page, and the second waits for the
-// status bar's usage row there. The page covers the shell, so the list row
-// could not be shown after a page had been opened first.
+// a row's View button, which opens that package's page, and the second waits
+// for the status bar's usage row there. The page covers the shell, so the list
+// row could not be shown after a page had been opened first.
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
   return {
     id: "instance-results-packages-catalogue",
@@ -1098,9 +1099,9 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
           pt: "O catálogo de pacotes",
         }),
         body: t3({
-          en: "Every package this instance holds, newest first, with its status and which products use it. Click a package to open its page.",
-          fr: "Tous les paquets de cette instance, du plus récent au plus ancien, avec leur état et les produits qui les utilisent. Cliquez sur un paquet pour ouvrir sa page.",
-          pt: "Todos os pacotes desta instância, do mais recente ao mais antigo, com o seu estado e os produtos que os usam. Clique num pacote para abrir a sua página.",
+          en: "Every package this instance holds, newest first, with its status and which products use it. Click View to open a package's page.",
+          fr: "Tous les paquets de cette instance, du plus récent au plus ancien, avec leur état et les produits qui les utilisent. Cliquez sur Voir pour ouvrir la page d'un paquet.",
+          pt: "Todos os pacotes desta instância, do mais recente ao mais antigo, com o seu estado e os produtos que os usam. Clique em Ver para abrir a página de um pacote.",
         }),
         placement: "bottom",
         advanceOn: "click",

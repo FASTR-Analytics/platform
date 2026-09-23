@@ -8,6 +8,7 @@ export {
   ModuleProgressChip,
   PinnedBadge,
   RunStatusBadge,
+  runStatusLabel,
 } from "./status.tsx";
 export { ViewFiles } from "./view_files.tsx";
 export { ViewLogs } from "./view_logs.tsx";

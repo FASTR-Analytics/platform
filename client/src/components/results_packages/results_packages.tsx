@@ -8,17 +8,16 @@ import {
   Icon,
   openComponent,
   Select,
+  Table,
+  type TableColumn,
 } from "panther";
-import {
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import { createStore } from "solid-js/store";
-import { PinnedBadge, RunStatusBadge } from "./package_view/mod.ts";
+import {
+  PinnedBadge,
+  RunStatusBadge,
+  runStatusLabel,
+} from "./package_view/mod.ts";
 import { PruneResultsPackages } from "./prune";
 import { ResultsPackageWizard } from "./wizard/mod.ts";
 import { ResultsPackagePage } from "./package_page";
@@ -37,9 +36,9 @@ const _SEARCH_MIN_LENGTH = 3;
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
 // launch wizard is entered (an ephemeral modal, nothing persisted before
-// launch), and the catalogue of every package the instance holds, as a plain
-// newest-first list with no selection state; a row opens the package's own
-// page through the shell wrapper. The listing is T1
+// launch), and the catalogue of every package the instance holds, as a
+// newest-first table with no selection state; a row's View button opens the
+// package's own page through the shell wrapper. The listing is T1
 // (`instanceState.runsCatalog`, pushed on every catalogue mutation), so this
 // surface has no component fetch of its own. Products point at a package from
 // product settings. This surface owns the only act that ever reclaims a
@@ -106,12 +105,6 @@ export function InstanceResultsPackages() {
     });
   }
 
-  const sortedRuns = createMemo((): RunCatalogItem[] =>
-    [...instanceState.runsCatalog].sort((a, b) =>
-      b.createdAt.localeCompare(a.createdAt),
-    ),
-  );
-
   // Session-only: the list is short and a sticky filter is easy to forget.
   const [searchText, setSearchText] = createSignal("");
   const [usageFilter, setUsageFilter] = createSignal<UsageFilter>("all");
@@ -122,7 +115,7 @@ export function InstanceResultsPackages() {
     const needle = searchText().toLowerCase();
     const searching = isSearching();
     const usage = usageFilter();
-    return sortedRuns().filter((run) => {
+    return instanceState.runsCatalog.filter((run) => {
       const inUse = run.attachedProducts.length > 0;
       return (
         (usage === "all" || inUse === (usage === "in_use")) &&
@@ -156,6 +149,84 @@ export function InstanceResultsPackages() {
       fr: "Aucun paquet de résultats ne correspond.",
       pt: "Nenhum pacote de resultados corresponde.",
     });
+
+  const columns = (): TableColumn<RunCatalogItem>[] => [
+    {
+      key: "label",
+      header: t3({ en: "Package", fr: "Paquet", pt: "Pacote" }),
+      sortable: true,
+      render: (run) => <span class="font-700">{run.label}</span>,
+    },
+    {
+      key: "createdAt",
+      header: t3({ en: "Created", fr: "Créé", pt: "Criado" }),
+      sortable: true,
+      render: (run) => new Date(run.createdAt).toLocaleString(),
+    },
+    {
+      key: "createdBy",
+      header: t3({ en: "Created by", fr: "Créé par", pt: "Criado por" }),
+      sortable: true,
+      render: (run) => run.createdBy ?? "",
+    },
+    {
+      key: "status",
+      header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
+      sortable: true,
+      filterable: true,
+      filterValue: (run) => runStatusLabel(run.status),
+      render: (run) => (
+        <span class="ui-gap-sm inline-flex items-center">
+          <Show when={run.status === "failed"}>
+            <Badge intent="danger" variant="solid">
+              <Icon iconName="alertCircle" />
+            </Badge>
+          </Show>
+          <RunStatusBadge status={run.status} />
+        </span>
+      ),
+    },
+    {
+      key: "usage",
+      header: t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" }),
+      sortable: true,
+      sortValue: (run) => run.attachedProducts.length,
+      render: (run) => (
+        <span class="ui-gap-sm inline-flex items-center">
+          <Show when={run.id === instanceState.pinnedRunId}>
+            <PinnedBadge />
+          </Show>
+          <Show when={run.attachedProducts.length > 0}>
+            <Badge>
+              {t3({
+                en: `In use by ${run.attachedProducts.length}`,
+                fr: `Utilisé par ${run.attachedProducts.length}`,
+                pt: `Em uso por ${run.attachedProducts.length}`,
+              })}
+            </Badge>
+          </Show>
+        </span>
+      ),
+    },
+    {
+      key: "view",
+      header: "",
+      alignH: "right",
+      width: "1%",
+      render: (run) => (
+        <Button
+          data-tour="instance-results-packages-card"
+          size="sm"
+          outline
+          iconName="chevronRight"
+          iconPosition="right"
+          onClick={() => openPackagePage(run.id)}
+        >
+          {t3({ en: "View", fr: "Voir", pt: "Ver" })}
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <FrameTop
@@ -227,52 +298,18 @@ export function InstanceResultsPackages() {
       }
     >
       <Show
-        when={sortedRuns().length > 0}
+        when={instanceState.runsCatalog.length > 0}
         fallback={<EmptyState iconName="package" title={emptyMessage()} />}
       >
-        <Show
-          when={visibleRuns().length > 0}
-          fallback={<EmptyState iconName="search" title={noMatchMessage()} />}
-        >
-          <div class="ui-pad ui-spy-sm h-full overflow-y-auto">
-            <For each={visibleRuns()}>
-              {(run) => (
-                <div
-                  class="ui-hoverable-base-100 ui-gap flex cursor-pointer items-center rounded border px-3 py-2"
-                  data-tour="instance-results-packages-card"
-                  onClick={() => openPackagePage(run.id)}
-                >
-                  <div class="min-w-0 flex-1">
-                    <div class="font-700 truncate">{run.label}</div>
-                    <div class="ui-text-caption">
-                      {new Date(run.createdAt).toLocaleString()}
-                      {run.createdBy !== null ? ` · ${run.createdBy}` : ""}
-                    </div>
-                  </div>
-                  <Show when={run.status === "failed"}>
-                    <Badge intent="danger" variant="solid">
-                      <Icon iconName="alertCircle" />
-                    </Badge>
-                  </Show>
-                  <Show when={run.id === instanceState.pinnedRunId}>
-                    <PinnedBadge />
-                  </Show>
-                  <Show when={run.attachedProducts.length > 0}>
-                    <Badge>
-                      {t3({
-                        en: `In use by ${run.attachedProducts.length}`,
-                        fr: `Utilisé par ${run.attachedProducts.length}`,
-                        pt: `Em uso por ${run.attachedProducts.length}`,
-                      })}
-                    </Badge>
-                  </Show>
-                  <RunStatusBadge status={run.status} />
-                  <Icon iconName="chevronRight" />
-                </div>
-              )}
-            </For>
-          </div>
-        </Show>
+        <div class="ui-pad h-full w-full">
+          <Table
+            data={visibleRuns()}
+            columns={columns()}
+            keyField="id"
+            defaultSort={{ key: "createdAt", direction: "desc" }}
+            noRowsMessage={noMatchMessage()}
+          />
+        </div>
       </Show>
     </FrameTop>
   );

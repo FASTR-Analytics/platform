@@ -39,9 +39,9 @@ export function runOutputFileHref(
   moduleId: string,
   fileName: string,
 ): string {
-  return `${_SERVER_HOST}/${runId}/outputs/${moduleId}/${
-    encodeURIComponent(fileName)
-  }?t=${Date.now()}`;
+  return `${_SERVER_HOST}/${runId}/outputs/${moduleId}/${encodeURIComponent(
+    fileName,
+  )}?t=${Date.now()}`;
 }
 
 // The registry label: the only name a generating or failed run has, since
@@ -61,10 +61,14 @@ const RUN_STATUS_INTENT: Record<RunCatalogStatus, Intent> = {
   retired: "neutral",
 };
 
-function runStatusLabel(status: RunCatalogStatus): string {
+export function runStatusLabel(status: RunCatalogStatus): string {
   switch (status) {
     case "generating":
-      return t3({ en: "Generating", fr: "En cours de génération", pt: "A gerar" });
+      return t3({
+        en: "Generating",
+        fr: "En cours de génération",
+        pt: "A gerar",
+      });
     case "ready":
       return t3({ en: "Ready", fr: "Prêt", pt: "Pronto" });
     case "failed":
@@ -112,7 +116,9 @@ export function ModuleProgressChip(p: {
           <span class="animate-pulse">●</span>
         </Show>
         <Show when={p.status === "reused"}>
-          <span>({t3({ en: "reused", fr: "réutilisé", pt: "reutilizado" })})</span>
+          <span>
+            ({t3({ en: "reused", fr: "réutilisé", pt: "reutilizado" })})
+          </span>
         </Show>
       </span>
     </Badge>
