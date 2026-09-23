@@ -41,8 +41,11 @@ export function ListView(p: Props) {
     return (
       <button
         type="button"
-        class="ui-focusable hover:text-base-content cursor-pointer text-left"
-        classList={{ "font-700": p.sortMode === mode }}
+        class={`ui-focusable cursor-pointer text-left ${
+          p.sortMode === mode
+            ? "text-base-content"
+            : "text-base-content-muted hover:text-base-content"
+        }`}
         onClick={() => p.onSortMode(mode)}
       >
         {label}
@@ -131,17 +134,17 @@ export function ListView(p: Props) {
           )}
           <div class="font-700 min-w-0">{folder().label}</div>
         </div>
-        <div class="ui-pad-sm text-sm">
+        <div class="ui-pad-sm">
           {t3({ en: "Folder", fr: "Dossier", pt: "Pasta" })}
         </div>
-        <div class="ui-pad-sm ui-text-caption">
+        <div class="ui-pad-sm text-base-content-muted">
           {folderCountsLine(
             p.folderCounts(folder().id).folderCount,
             p.folderCounts(folder().id).productCount,
           )}
         </div>
         <div />
-        <div class="ui-pad-sm ui-text-caption">
+        <div class="ui-pad-sm text-base-content-muted">
           {dateLabel(folder().lastUpdated)}
         </div>
         <div class="ui-pad-sm">
@@ -182,19 +185,19 @@ export function ListView(p: Props) {
           )}
           <div class="min-w-0">{product().label}</div>
         </div>
-        <div class="ui-pad-sm text-sm">
+        <div class="ui-pad-sm">
           {PRODUCT_TYPE_REGISTRY[product().type].label()}
         </div>
-        <div class="ui-pad-sm text-sm">{packageLabel(product().runId)}</div>
+        <div class="ui-pad-sm">{packageLabel(product().runId)}</div>
         <div
-          class="ui-pad-sm text-sm"
+          class="ui-pad-sm"
           classList={{
             "text-base-content-muted": product().adminArea2 === null,
           }}
         >
           {scopeLabel(product().adminArea2)}
         </div>
-        <div class="ui-pad-sm ui-text-caption">
+        <div class="ui-pad-sm text-base-content-muted">
           {dateLabel(product().lastUpdated)}
         </div>
         <div class="ui-pad-sm">
@@ -212,7 +215,7 @@ export function ListView(p: Props) {
       data-tour="products-items"
     >
       <div
-        class={`${_ROW_GRID} ui-text-caption bg-base-100 sticky top-0 z-10 border-b`}
+        class={`${_ROW_GRID} font-700 text-xs uppercase tracking-wider bg-base-100 sticky top-0 z-10 border-b`}
       >
         <div class="ui-pad-sm">
           {headerSortButton(t3({ en: "Name", fr: "Nom", pt: "Nome" }), "name")}

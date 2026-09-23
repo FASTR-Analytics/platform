@@ -5,7 +5,7 @@ Brings every piece of UI text onto a small set of roles drawn from the rem
 scale, so the same kind of text is the same size everywhere, and adds a lint
 that keeps it that way.
 
-**Next step:** Do 4
+**Next step:** Review 4
 
 Branch: `version2` (app), `main` (panther). Repos: panther
 (`/Users/timroberton/projects/panther/timroberton-panther`) and this app.
@@ -250,3 +250,7 @@ and re-syncing.
 | 3 | Third fix: `geojson/upload_wizard/step_4.tsx:152` carries `text-warning-subtle-content` beside `ui-text-heading`. |
 | 3 | Step 3 fixed. 1 file. Floor: typecheck exit 0, tests exit 0, protocols exit 0. |
 | 3 | Step 3 reviewed: pass. Surface held: `c932c109` touches `client/src/components/data/geojson/upload_wizard/step_4.tsx` and this plan (2 in `git show --stat`). The one changed code line adds `text-warning-subtle-content` beside `ui-text-heading` at `step_4.tsx:152`, keeping `mb-1`, so the heading carries the box colour over `.ui-text-heading`'s `text-base-content`, as `chat_pane.tsx:486` carries `text-primary-content`; the plan diff is the Next step line and the two fix rows. Finding resolved. Floor: typecheck exit 0, tests exit 0 (428 passed, 2 ignored), protocols exit 0 (16 baselined). |
+| 4 | Ruling 7 was already true in the kit: DataGrid and the CSV table are `ui-text-small` and PresenceGrid is `text-xs`, all 12px. No app grid sets its own size. Nothing to change. |
+| 4 | Ruling 8, display tables: the per-cell `text-sm` and `text-xs` overrides came off in Users, Assets, Access tokens, HMIS indicators, population import, the ICEH and HFA dataset tabs, the DHIS2 indicator picker and the DHIS2 future-imports table. The DHIS2 label stacked under an indicator code and the error stacked under a status are `ui-text-caption`. The Access tokens table is under `client/src/routes`, a display table like the others. |
+| 4 | Ruling 8, listings: the Products list header takes the DisplayTable header's `font-700 text-xs uppercase tracking-wider`; with every header bold, the sorted column is marked by colour (`text-base-content` against muted) instead of weight. Its date and folder-count cells are body size, muted, no longer caption. The Results list already conformed (bold body label, caption line under it). |
+| 4 | Step 4 built. Commits: "Display table cells stop naming their own size" (24f19d42, 10 files), the Products list commit (1 file). Floor after each: typecheck exit 0, tests exit 0, protocols exit 0. |
