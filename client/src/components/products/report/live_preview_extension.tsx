@@ -5753,11 +5753,55 @@ const paginationPlugin = ViewPlugin.fromClass(
   },
 );
 
+// ── Stable text metrics ──────────────────────────────────────────────────────
+// CodeMirror estimates the height of every line it has not rendered from ONE
+// sample: the first rendered line of at most 20 characters whose children are
+// plain text (docView.measureTextSize). On this surface those short lines are
+// headings, kickers and the line being typed, each in its own font, so the
+// sampled character width flips as the rendered range shifts (7.6px, then
+// 12px, then 10.5px…). A change of more than 0.1px makes CodeMirror THROW
+// AWAY its whole height map and rebuild it from estimates, which then
+// converge over several frames: pressing Enter and typing at the start of a
+// new line made the page above the caret shuffle in line-height steps for a
+// second. A mark over the text of every short line turns its children into
+// mark views, which the sampler skips, so CodeMirror always falls back to its
+// dummy line (a plain cm-line in the body font, off-screen): one constant
+// measure. The mark carries no style.
+const noSampleMark = Decoration.mark({ class: "cm-fm-nosample" });
+const stableTextMetricsPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = this.build(view);
+    }
+    update(u: ViewUpdate) {
+      if (u.docChanged || u.viewportChanged) this.decorations = this.build(u.view);
+    }
+    build(view: EditorView): DecorationSet {
+      const builder = new RangeSetBuilder<Decoration>();
+      const doc = view.state.doc;
+      for (const { from, to } of view.visibleRanges) {
+        for (let pos = from; pos <= to;) {
+          const line = doc.lineAt(pos);
+          if (line.length > 0 && line.length <= 20) {
+            builder.add(line.from, line.to, noSampleMark);
+          }
+          if (line.to >= to) break;
+          pos = line.to + 1;
+        }
+      }
+      return builder.finish();
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
 export function livePreviewExtensions(
   resolver: EmbedResolver,
   collab?: PresenceDeps,
 ): Extension[] {
   return [
+    stableTextMetricsPlugin,
     printMetricsField,
     ...liveRegionExtensions(resolver),
     surfaceLineField,

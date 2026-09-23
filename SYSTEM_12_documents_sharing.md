@@ -1513,7 +1513,18 @@ or below when the caret stands at the region's very end, which is the only
 keyboard way past a stat row, a figure or a table at the end of a document.
 A natural cover opening ANY page is flush to the sheet's top in the editor
 as it is in print (`openPage`, no `isFirst`), where it used to sit under a
-band of top margin after a page break. Text colour is the SAME shape
+band of top margin after a page break. STABLE TEXT METRICS
+(2026-09-23, "when I write at the start of a new line the page jitters"):
+CodeMirror estimates every unrendered line's height from ONE sample, the
+first rendered line of at most 20 plain-text characters, and on this surface
+those are headings and the line being typed, each in its own font; a
+character-width change over 0.1px makes it throw the whole height map away
+and re-estimate, so Enter-then-type shuffled the page above the caret in
+line-height steps for a second (probe: the oracle's charWidth flipping
+7.56 → 12 → 10.5 → 8.3 → 7.25 while lineHeight held). `stableTextMetricsPlugin`
+marks the text of every short line (`cm-fm-nosample`, no style): mark views
+are skipped by the sampler, so CodeMirror always measures its own dummy line
+in the body font. Verified: charWidth constant, caret and scroll steady. Text colour is the SAME shape
 (`InkPanel`): the ink roles as preset swatches on top, the literal grid and
 hex field below (`LiteralColours`, shared with the ground panel); a literal
 writes `[x]{color=#hex}` — `color=` is a fourth mark attribute, gated by

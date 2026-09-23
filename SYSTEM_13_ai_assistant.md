@@ -455,7 +455,17 @@ would go stale. `validateFastrContainers`
 ([report_validators.ts](client/src/components/products/copilot/ai_tools/validators/report_validators.ts))
 rejects an unbalanced or misspelt `:::` before staging (an unclosed container
 runs to EOF) and it checks the SPLICED result, not the fragment, so a locally
-balanced `newBody` that unbalances the document is still caught.
+balanced `newBody` that unbalances the document is still caught. Since
+2026-09-23 the same brief ALSO rides `rewrite_report`'s description (cached
+in the system prompt, once per conversation): with the chat's one-shot
+`create_report` gone in v2, `rewrite_report` on a fresh report IS how a
+report gets written from a prompt, and the brief in the per-turn view
+section alone left the model writing plain markdown into FASTR reports (the
+lesson `create_report` had already learned on 2026-09-02). The contract is
+hard: `validateFastrRewriteUsesBlocks` refuses a FASTR body of twelve or more
+non-blank lines that uses no `:::` block unless the model passes
+`plain: true`, which it does only when the user asked for a plain document;
+`rewrite_section`'s description points at the same blocks for a section.
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level) and
 `update_report_figure` share one pipeline:

@@ -265,3 +265,29 @@ export function validateReportBodyDelta(
     );
   }
 }
+
+// FASTR Markdown: a whole-document rewrite that uses none of the format's
+// blocks is almost always the model writing plain markdown into a designed
+// document (observed after the v2 move: with the chat's create_report tool
+// gone, rewrite_report became the way a report is created, and the block
+// guidance rode only the per-turn view instructions). The syntax and
+// composition guide now rides the tool description too, and this makes the
+// contract hard: a plain body is refused unless the model DECLARES it plain,
+// which it does only when the user asked for a plain document. Short bodies
+// (a stub, a title page) are exempt: there is nothing to design yet.
+const FASTR_PLAIN_MIN_LINES = 12;
+
+export function validateFastrRewriteUsesBlocks(
+  body: string,
+  format: ReportFormat,
+  plain: boolean | undefined,
+): void {
+  if (format !== "fastr" || plain === true) return;
+  const lines = body.split("\n").filter((l) => l.trim().length > 0);
+  if (lines.length < FASTR_PLAIN_MIN_LINES) return;
+  const blocks = lines.filter((l) => /^:::(?!report\b)[a-z]/i.test(l.trim()));
+  if (blocks.length > 0) return;
+  throw new AIToolFailure(
+    "This is a FASTR Markdown report and the proposed body uses none of its blocks: it is a plain run of headings and paragraphs. Build it from the format (see rewrite_report's description): open with a `:::cover`, put the headline numbers in a `:::tiles` row of `:::stat` blocks, mark the turning points with `:::band`, put caveats in a `:::callout` and next steps in `:::steps`. Re-propose with the blocks — or, ONLY if the user explicitly asked for a plain document, re-propose unchanged with plain: true.",
+  );
+}

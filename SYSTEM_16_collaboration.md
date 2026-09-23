@@ -11,6 +11,7 @@ globs:
   - lib/types/collab.ts
   - lib/types/versions.ts
   - server/routes/instance/collab.ts
+  - server/tests/collab_lineage_test.ts
 ---
 
 # S16: Realtime Collaboration & Version History
