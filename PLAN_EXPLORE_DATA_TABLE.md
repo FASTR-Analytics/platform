@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 2.** Each session sets this line in its final commit.
+**Next step: Fix 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -713,3 +713,19 @@ Append-only, newest last.
 - Step 2, fix: the two route comments name the headless routes
   (`getRunPresentationObjectItems`, `getRunResultsValueInfo`).
 - Step 2 fixed.
+- Step 2, re-review: both findings are resolved. `rowsCacheOptions` keys
+  both caches, and its uniqueness hash and `parseData` hash join the same
+  four fields in the same order as `_PO_ITEMS_CACHE` at `d999eed3`, so
+  existing `po_items` entries still hit. Both route comments name
+  `getRunPresentationObjectItems` and `getRunResultsValueInfo`, which
+  match `HEADLESS_ALLOWED_ROUTE_NAMES`. Typecheck, test,
+  `./validate_protocols` and the boot gate pass.
+- Step 2, review finding: `server/run_query/run_data_reads.ts:160-165`
+  declares `RowsCacheKey`, a copy of `RowsCacheParams` at
+  `server/routes/caches/visualizations.ts:115-120`, so the key's shape is
+  still written in two files. Export `RowsCacheParams` beside
+  `PoDataVersionParams` and use it in `readRowsCached` and its `cacheKey`.
+- Step 2, review finding: `lib/api-routes/instance/run_generation.ts:120-122`
+  leaves a short line ("through the headless allowlist. Guarded") in the
+  middle of the comment. Reflow it.
+- Step 2 reviewed: 2 findings.
