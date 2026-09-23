@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Do 3.** Each session sets this line in its final commit.
+**Next step: Review 3.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -742,3 +742,28 @@ Append-only, newest last.
   purge) raises nothing new. Typecheck, test, `./validate_protocols` and the
   boot gate pass.
 - Step 2 reviewed: pass.
+- Step 3, panther commit: `1789731` in
+  `/Users/timroberton/projects/panther/timroberton-panther` ("DataGrid: an
+  adapter from the canvas table's pivot, and focusColumnId"). App sync
+  commit: the one before this row's commit, holding only `panther/` files.
+- Step 3, deviation (ruling 14's cell function): the pivot's item ids
+  repeat across groups (the same period under every indicator in Time
+  mode), so a bare column id cannot identify a cell's indicator and would
+  collide in `DataGrid`. Column and row ids are group-qualified
+  (`group::item`, with the id, label, index fallback at each level) when
+  the axis has groups, and the cell function is
+  `(value, { rowId, rowGroupId, colId, colGroupId }) => DataGridCell |
+  undefined` with the pivot's own ids. `value` is the pivot's matrix entry
+  (`string | number`), undefined where the pivot has no value (its `.`
+  placeholder). Exported types: `DataGridCellFunction`,
+  `DataGridCellPosition`.
+- Step 3, note: `focusColumnId` marks the header with `bg-base-200-hover`,
+  the colour `ui-hoverable-base-200` uses on hover. Panther's
+  `DOC_CODING_CONVENTIONS.md` asks for no per-component doc entry, so none
+  was added. Panther's `tests/` admits only five-gate tests, so the adapter
+  was exercised by a throwaway harness (grouped Time-mode pivot and a flat
+  pivot: qualified ids, positions and missing cells as expected).
+- Step 3, note: the sync also carried panther's three AI proxy commits made
+  since the last sync (`cbf0a5a`, `9816ab3`, `8a15e95`), as the sync copies
+  the working tree wholesale.
+- Step 3 built.
