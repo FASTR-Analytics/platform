@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 3.** Each session sets this line in its final commit.
+**Next step: Fix 3.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -767,3 +767,20 @@ Append-only, newest last.
   since the last sync (`cbf0a5a`, `9816ab3`, `8a15e95`), as the sync copies
   the working tree wholesale.
 - Step 3 built.
+- Step 3, review: the surface matches. Panther `1789731` touches only the
+  four data_grid files and `_303_components/deps.ts`; the sync commit holds
+  only `panther/` files, and each synced data_grid file, `deps.ts` and the
+  three `_221_ai_proxy` files equal panther at `1789731` once the header is
+  dropped. The adapter, exercised by a harness (grouped Time-mode and
+  row-grouped pivots), gives qualified ids, the pivot's own ids in each
+  position and undefined for missing cells. Panther typecheck, the app's
+  typecheck, test, `./validate_protocols` and the boot gate pass.
+- Step 3, review finding (panther change): `data_grid.tsx:100-108` scrolls
+  with `inline: "nearest"`, which aligns a column left of the viewport to the
+  scroller's left edge, underneath the sticky row-header column
+  (`data_grid.tsx:165`). Checked in a browser: with a 200px sticky column,
+  the focused column lands at 8-90px under a sticky column spanning 8-210px,
+  so it is fully hidden. The scroll must leave the row-header column's width
+  clear on the left (for example `scroll-padding-left` on the container set
+  to that column's measured width). Fix in the panther repo and re-sync.
+- Step 3 reviewed: 1 finding.
