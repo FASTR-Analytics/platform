@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Fix 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -705,3 +705,11 @@ Append-only, newest last.
   two" routes of the block; `getRunGridItems` is now second in both and is
   not in `HEADLESS_ALLOWED_ROUTE_NAMES`. Name the two routes instead.
 - Step 2 reviewed: 2 findings.
+- Step 2, fix: `server/routes/caches/visualizations.ts` keys both row
+  caches through one `rowsCacheOptions` (the uniqueness hash is written
+  once and `parseData` reuses it). Checked against a live Valkey: both
+  caches store and hit under keys of the same form as before
+  (`runId|resultsObjectId|hashFetchConfig|scopeToken`).
+- Step 2, fix: the two route comments name the headless routes
+  (`getRunPresentationObjectItems`, `getRunResultsValueInfo`).
+- Step 2 fixed.

@@ -112,85 +112,51 @@ export type PoDataVersionParams = {
   runId: string;
 };
 
+type RowsCacheParams = {
+  runId: string;
+  resultsObjectId: string;
+  fetchConfig: GenericLongFormFetchConfig;
+  scopeToken: string;
+};
+
+// The one keying of the two row caches: the items read and the grid read
+// answer the same request, so they share uniqueness and version rules and
+// differ only in prefix and payload.
+function rowsCacheOptions<T extends RowsCacheParams>() {
+  const uniquenessHash = (p: RowsCacheParams) =>
+    [
+      p.runId,
+      p.resultsObjectId,
+      hashFetchConfig(p.fetchConfig),
+      p.scopeToken,
+    ].join("|");
+  return {
+    uniquenessHashFromParams: uniquenessHash,
+    versionHashFromParams: () => PO_CACHE_VERSION,
+    parseData: (res: APIResponseWithData<T>) =>
+      res.success === false
+        ? { shouldStore: false, uniquenessHash: "", versionHash: "" }
+        : {
+          shouldStore: true,
+          uniquenessHash: uniquenessHash(res.data),
+          versionHash: PO_CACHE_VERSION,
+        },
+  };
+}
+
 export const _PO_ITEMS_CACHE = new TimCacheC<
-  {
-    runId: string;
-    resultsObjectId: string;
-    fetchConfig: GenericLongFormFetchConfig;
-    scopeToken: string;
-  },
+  RowsCacheParams,
   PoDataVersionParams,
   APIResponseWithData<ItemsHolderPresentationObject>
->("po_items", {
-  uniquenessHashFromParams: (params) =>
-    [
-      params.runId,
-      params.resultsObjectId,
-      hashFetchConfig(params.fetchConfig),
-      params.scopeToken,
-    ].join("|"),
-  versionHashFromParams: () => PO_CACHE_VERSION,
-  parseData: (res) => {
-    if (res.success === false) {
-      return {
-        shouldStore: false,
-        uniquenessHash: "",
-        versionHash: "",
-      };
-    }
-    return {
-      shouldStore: true,
-      uniquenessHash: [
-        res.data.runId,
-        res.data.resultsObjectId,
-        hashFetchConfig(res.data.fetchConfig),
-        res.data.scopeToken,
-      ].join("|"),
-      versionHash: PO_CACHE_VERSION,
-    };
-  },
-});
+>("po_items", rowsCacheOptions<ItemsHolderPresentationObject>());
 
 // The Explore grid read: the items read's rows under a higher cap,
-// dictionary-encoded. Keyed exactly like po_items, under its own prefix.
+// dictionary-encoded.
 export const _GRID_ITEMS_CACHE = new TimCacheC<
-  {
-    runId: string;
-    resultsObjectId: string;
-    fetchConfig: GenericLongFormFetchConfig;
-    scopeToken: string;
-  },
+  RowsCacheParams,
   PoDataVersionParams,
   APIResponseWithData<GridItemsHolder>
->("grid_items", {
-  uniquenessHashFromParams: (params) =>
-    [
-      params.runId,
-      params.resultsObjectId,
-      hashFetchConfig(params.fetchConfig),
-      params.scopeToken,
-    ].join("|"),
-  versionHashFromParams: () => PO_CACHE_VERSION,
-  parseData: (res) => {
-    if (res.success === false) {
-      return {
-        shouldStore: false,
-        uniquenessHash: "",
-        versionHash: "",
-      };
-    }
-    return {
-      shouldStore: true,
-      uniquenessHash: [
-        res.data.runId,
-        res.data.resultsObjectId,
-        hashFetchConfig(res.data.fetchConfig),
-        res.data.scopeToken,
-      ].join("|"),
-      versionHash: PO_CACHE_VERSION,
-    };
-  },
-});
+>("grid_items", rowsCacheOptions<GridItemsHolder>());
 
 export const _METRIC_INFO_CACHE = new TimCacheC<
   {

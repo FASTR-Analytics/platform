@@ -230,7 +230,8 @@ defineRoute(
 // `null` adminArea2 means national. getReadyRunReadContext shape-checks the
 // run id (it becomes a path) and gates on runs.status = 'ready'; the
 // registry schema bounds adminArea2 and the read path escapes it. /mcp
-// reaches the first two at national scope through the headless allowlist.
+// reaches getRunPresentationObjectItems and getRunResultsValueInfo at
+// national scope through the headless allowlist.
 // Guard: requireApprovedUser(), so package data is an instance-level
 // resource any approved user can read at any scope.
 

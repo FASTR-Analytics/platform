@@ -118,7 +118,8 @@ export const runGenerationRouteRegistry = {
   // supplies the (runId, adminArea2) pair its product carries, and `null`
   // adminArea2 means national. The reads require runs.status = 'ready';
   // adminArea2 is shape-validated here and escaped server-side. /mcp reaches
-  // the first two at national scope through the headless allowlist. Guarded
+  // getRunPresentationObjectItems and getRunResultsValueInfo at national scope
+  // through the headless allowlist. Guarded
   // requireApprovedUser(): package data is an instance-level resource.
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
