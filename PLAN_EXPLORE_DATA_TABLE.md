@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 4.** Each session sets this line in its final commit.
+**Next step: Fix 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -917,3 +917,10 @@ Append-only, newest last.
   Indicators to Time and back, and a province scope (admin area 3 with the
   "GAZA — All areas" row), with no console errors.
 - Step 4 fixed.
+- Step 4, review finding: `SYSTEM_11_viz_authoring.md:250-251` says "the
+  first three" empty states are the shared `explore/_shared/empty_state.tsx`,
+  but the first of those three, no ready package, is written in
+  `client/src/components/explore/explore.tsx:86-93` and is not in
+  `EmptyState`. The shared ones are no primary module, the unavailable
+  metric and no preset; name them.
+- Step 4 reviewed: 1 finding.
