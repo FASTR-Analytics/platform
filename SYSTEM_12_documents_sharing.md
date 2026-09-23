@@ -321,8 +321,7 @@ icon slot: a chevron for a folder, the type icon for a product. Clicking a
 folder row opens or closes it, clicking a product row opens its editor, and
 there is no selection. One heading-bar button, left of the search field (the
 `centerLeftChildren` slot), opens every folder, or closes them all once all
-are open. Folders show direct-child counts (computed for
-every folder in one pass, not a scan per row).
+are open. A folder row leaves the Package and Area columns empty.
 Search at 3+ characters keeps each match in its place in the tree, opens the
 folders above the matches, and shows a matching folder closed with all its
 contents; folders the user opens or closes during a search are held apart

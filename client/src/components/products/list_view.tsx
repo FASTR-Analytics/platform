@@ -1,7 +1,6 @@
 import { t3, type Folder, type ListSort, type ProductSummary, type SortMode } from "lib";
 import { Button, Icon, type IconName } from "panther";
 import { Index, Match, Switch, type JSX } from "solid-js";
-import { folderCountsLine } from "./folder_labels";
 import { packageLabel, scopeLabel } from "~/components/_shared/mod.ts";
 import type { ProductTreeRow } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
@@ -19,8 +18,6 @@ const _ROW_GRID =
 
 const _INDENT_REM_PER_LEVEL = 1.75;
 
-type FolderCounts = { folderCount: number; productCount: number };
-
 type FolderRow = Extract<ProductTreeRow, { kind: "folder" }>;
 type ProductRow = Extract<ProductTreeRow, { kind: "product" }>;
 
@@ -32,7 +29,6 @@ type Props = {
   onToggleFolder: (folderId: string) => void;
   onProductMenu: (evt: MouseEvent, product: ProductSummary) => void;
   onFolderMenu: (evt: MouseEvent, folder: Folder) => void;
-  folderCounts: (folderId: string) => FolderCounts;
   fallback: JSX.Element;
 };
 
@@ -146,12 +142,7 @@ export function ListView(p: Props) {
         <div class="ui-pad-sm">
           {t3({ en: "Folder", fr: "Dossier", pt: "Pasta" })}
         </div>
-        <div class="ui-pad-sm text-base-content-muted">
-          {folderCountsLine(
-            p.folderCounts(folder().id).folderCount,
-            p.folderCounts(folder().id).productCount,
-          )}
-        </div>
+        <div />
         <div />
         <div class="ui-pad-sm text-base-content-muted">
           {dateLabel(folder().lastUpdated)}

@@ -207,34 +207,6 @@ export function Products() {
     return productTreeRows(productTree(), (id) => open.has(id));
   });
 
-  // Every folder's DIRECT child counts in one pass: a per-row scan of both
-  // lists would be quadratic.
-  const folderCounts = createMemo(() => {
-    const counts = new Map<string, { folderCount: number; productCount: number }>();
-    const entry = (folderId: string) => {
-      const existing = counts.get(folderId);
-      if (existing !== undefined) return existing;
-      const created = { folderCount: 0, productCount: 0 };
-      counts.set(folderId, created);
-      return created;
-    };
-    for (const folder of instanceState.folders) {
-      entry(folder.id);
-      if (folder.parentId !== null) entry(folder.parentId).folderCount += 1;
-    }
-    for (const product of instanceState.products) {
-      if (product.folderId === null) continue;
-      entry(product.folderId).productCount += 1;
-    }
-    return counts;
-  });
-
-  function countsForFolder(folderId: string) {
-    return (
-      folderCounts().get(folderId) ?? { folderCount: 0, productCount: 0 }
-    );
-  }
-
   // A new product's package is the pin, resolved server-side (D5), so with no
   // ready pinned package there is nothing to create against. T1 already knows
   // that, so the buttons say so BEFORE the click. The server's typed
@@ -363,7 +335,13 @@ export function Products() {
   }
 
   async function handleDeleteFolder(folder: Folder) {
-    const counts = countsForFolder(folder.id);
+    const counts = {
+      folderCount: instanceState.folders.filter((f) => f.parentId === folder.id)
+        .length,
+      productCount: instanceState.products.filter(
+        (pr) => pr.folderId === folder.id,
+      ).length,
+    };
     const parent = instanceState.folders.find((f) => f.id === folder.parentId);
     const destination = parent?.label ?? topLevelLabel();
     // Deleting a folder reparents one level and never cascades (D16), so the
@@ -558,7 +536,6 @@ export function Products() {
         onToggleFolder={toggleFolder}
         onProductMenu={handleProductMenu}
         onFolderMenu={handleFolderMenu}
-        folderCounts={countsForFolder}
         fallback={emptyState()}
       />
     </FrameTop>
