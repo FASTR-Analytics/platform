@@ -213,11 +213,7 @@ export function Table<
   });
 
   return (
-    <div
-      class={p.fitTableToAvailableHeight
-        ? "flex h-full w-full flex-col"
-        : "w-full"}
-    >
+    <div class="flex max-h-full w-full flex-col">
       <Show when={showBulkActionBar()}>
         <div class="ui-pad ui-gap bg-base-100 mb-4 flex items-center rounded border">
           <span class="font-700 flex-none text-sm">
@@ -257,36 +253,15 @@ export function Table<
           </div>
         </div>
       </Show>
-      <div
-        class={p.fitTableToAvailableHeight
-          ? "min-h-0 flex-shrink overflow-hidden"
-          : "overflow-hidden"}
-      >
+      <div class="flex min-h-0 flex-col overflow-hidden">
         <div
           ref={scrollContainerRef}
           onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
-          class={p.fitTableToAvailableHeight
-            ? "h-full overflow-x-auto overflow-y-auto rounded border"
-            : "overflow-x-auto rounded border"}
-          style={{
-            ...(p.tableContentMaxHeight && {
-              "max-height": p.tableContentMaxHeight,
-              "overflow-y": "auto",
-            }),
-          }}
+          class="min-h-0 overflow-auto rounded border"
+          style={{ "max-height": p.tableContentMaxHeight }}
         >
           <table class="min-w-full table-auto border-collapse">
-            <thead
-              class="bg-base-200"
-              style={{
-                ...((p.tableContentMaxHeight ||
-                  p.fitTableToAvailableHeight) && {
-                  position: "sticky",
-                  top: "0",
-                  "z-index": "10",
-                }),
-              }}
-            >
+            <thead class="bg-base-200 sticky top-0 z-10">
               <tr>
                 <Show when={enableSelection()}>
                   <th
