@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 2.** Each session sets this line in its final commit.
+**Next step: Fix 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -680,3 +680,28 @@ Append-only, newest last.
   of the grid read equal to the items read's rows on every one, at 21 to
   34% of its JSON size. No dev package carries HFA or ICEH.
 - Step 2 built.
+- Step 2, review: the surface deviations are accepted. `run_read.ts` and
+  `presentation_object_items_core.ts` carry the scope filters and the
+  catalog evaluation the grid rows must follow, so a separate
+  `grid_items_core.ts` would have copied them; `server/run_query/mod.ts` is
+  the module's export file; SYSTEM_03's catalog restates the caches.
+  `readRunItems` is unchanged in behaviour: same checks in the same order
+  before the cache, same log lines, and the one move (`getRunVersionInfo`
+  after the checks) is a pure field read.
+- Step 2, review: `./validate_queries` verified as not attributable to this
+  step. Unmodified it throws in `moduleFamilyFromDefinition` on every case;
+  with `family`, `tier` and `sortOrder` added to the rig's module definition
+  (temporary, restored), both `d999eed3` and `d7234917` give 1 failing of
+  76, the same case ("scope: an admin RO whose scope cannot be derived fails
+  CLOSED", expected `no_data_available`, got `ok`). Recorded, left for Tim.
+- Step 2, review finding: `server/routes/caches/visualizations.ts:156-193`
+  copies `_PO_ITEMS_CACHE`'s options verbatim, so the
+  `runId|resultsObjectId|hashFetchConfig|scopeToken` key is now written four
+  times across two caches that are meant to be keyed identically. Extract
+  one key function (or one options factory) that both caches use in
+  `uniquenessHashFromParams` and `parseData`.
+- Step 2, review finding: `server/routes/instance/run_generation.ts:233` and
+  `lib/api-routes/instance/run_generation.ts:121` say /mcp "reaches the first
+  two" routes of the block; `getRunGridItems` is now second in both and is
+  not in `HEADLESS_ALLOWED_ROUTE_NAMES`. Name the two routes instead.
+- Step 2 reviewed: 2 findings.
