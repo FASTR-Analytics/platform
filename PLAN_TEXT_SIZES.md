@@ -120,7 +120,7 @@ around it (icons, markdown).
 
 **Deliverable.** Ruling 9: the seven line-height tokens in `@theme` beside
 the sizes they pair with, and the `body` line-height in `@layer base` beside
-the font-size PLAN_BASE_TEXT_SIZE.md added.
+the font-size rule PLAN_BASE_TEXT_SIZE.md added.
 
 **Not in this step.** Any size change.
 
@@ -172,7 +172,7 @@ whose cells set their own size.
 
 **Gates.** App floor.
 
-**Ends with.** Two commits: the data grids, then the listings, so the
+**Ends with.** Two commits: the display tables, then the listings, so the
 listing change reverts alone.
 
 ### Step 5: rem only, enforced
