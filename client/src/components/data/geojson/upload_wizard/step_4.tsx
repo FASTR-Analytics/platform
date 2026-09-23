@@ -98,7 +98,7 @@ export function Step4(p: Props) {
       when={!saveCounts()}
       fallback={
         <div class="ui-spy">
-          <div class="font-700">{t3({ en: "Map saved", fr: "Carte enregistrée", pt: "Mapa guardado" })}</div>
+          <div class="ui-text-heading">{t3({ en: "Map saved", fr: "Carte enregistrée", pt: "Mapa guardado" })}</div>
           <Show when={saveCounts()} keyed>
             {(counts) => (
               <div class="text-base-content-muted ui-spy-sm text-sm">
@@ -126,7 +126,7 @@ export function Step4(p: Props) {
     >
     <div class="ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-700">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
+        <div class="ui-text-heading">{t3({ en: "Step 4: Confirm and save", fr: "Étape 4 : Confirmer et enregistrer", pt: "Passo 4: Confirmar e guardar" })}</div>
       </div>
 
       <div class="text-base-content-muted ui-spy-sm text-sm">

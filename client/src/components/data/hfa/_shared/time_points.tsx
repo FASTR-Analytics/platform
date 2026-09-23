@@ -138,7 +138,7 @@ export function HfaTimePointsEditor() {
     <div class="ui-spy max-w-3xl">
       <Show when={editing() !== null}>
         <div class="ui-spy rounded border p-4">
-          <div class="font-700">
+          <div class="ui-text-heading">
             {editing() === ""
               ? t3({ en: "Add time point", fr: "Ajouter un point temporel", pt: "Adicionar ponto temporal" })
               : t3({ en: "Edit time point", fr: "Modifier le point temporel", pt: "Editar ponto temporal" })}

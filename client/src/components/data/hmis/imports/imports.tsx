@@ -299,7 +299,7 @@ export function DatasetHmisImports(p: Props) {
                     }
                   >
                     <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
-                      <div class="font-700">
+                      <div class="ui-text-heading">
                         {t3({
                           en: "Scheduled import needs attention",
                           fr: "Une importation planifiée nécessite votre attention",

@@ -74,7 +74,7 @@ export function Step3(p: Props) {
   return (
     <div class="ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-700">
+        <div class="ui-text-heading">
           {t3({ en: "Step 3: Map GeoJSON features to admin areas", fr: "Étape 3 : Associer les entités GeoJSON aux unités administratives", pt: "Passo 3: Associar as entidades GeoJSON às zonas administrativas" })}
           {" "}AA{state.adminAreaLevel()}
         </div>

@@ -160,7 +160,7 @@ export function Step2(p: Props) {
       fallback={
         <div class="ui-spy">
           <div class="ui-spy-sm">
-            <div class="font-700">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
+            <div class="ui-text-heading">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
             <div class="text-base-content-muted text-sm">
               {t3({ en: "Select which admin area level to import and which DHIS2 level to use.", fr: "Sélectionnez le niveau administratif à importer et le niveau DHIS2 à utiliser.", pt: "Selecione o nível de zona administrativa a importar e o nível DHIS2 a utilizar." })}
             </div>
@@ -212,7 +212,7 @@ export function Step2(p: Props) {
     >
       <div class="ui-spy">
         <div class="ui-spy-sm">
-          <div class="font-700">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
+          <div class="ui-text-heading">{t3({ en: "Step 2: Configure", fr: "Étape 2 : Configurer", pt: "Passo 2: Configurar" })}</div>
           <Show when={state.analysisResult()} keyed>
             {(result) => (
               <div class="text-base-content-muted text-sm">

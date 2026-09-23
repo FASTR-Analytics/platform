@@ -113,7 +113,7 @@ function populationNotFetchedSummary(n: number): string {
 function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
   return (
     <div class="ui-spy-sm text-sm">
-      <div class="font-700">
+      <div class="ui-text-heading">
         {t3({
           en: "DHIS2 elements this import fetches",
           fr: "Éléments DHIS2 que cette importation récupère",

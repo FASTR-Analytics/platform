@@ -227,7 +227,7 @@ export function Dhis2RunDetail(
 
         <Show when={p.run.error}>
           <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
-            <div class="font-700">
+            <div class="ui-text-heading">
               {t3({ en: "Run error", fr: "Erreur de l'importation", pt: "Erro da importação" })}
             </div>
             <div class="text-sm wrap-break-word">{p.run.error}</div>
@@ -265,7 +265,7 @@ export function Dhis2RunDetail(
                 >
                   {(selection) => (
                     <div class="ui-pad ui-spy-sm rounded border text-sm">
-                      <div class="font-700">
+                      <div class="ui-text-heading">
                         {t3({
                           en: "Not fetched from this selection",
                           fr: "Non récupéré pour cette sélection",
@@ -309,7 +309,7 @@ export function Dhis2RunDetail(
 
                 <Show when={unknownIds.length > 0}>
                   <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
-                    <div class="font-700">
+                    <div class="ui-text-heading">
                       {t3({
                         en: "DHIS2 ids not found in DHIS2",
                         fr: "Identifiants DHIS2 introuvables dans DHIS2",
@@ -329,7 +329,7 @@ export function Dhis2RunDetail(
 
                 <Show when={dhis2IndicatorIds.length > 0}>
                   <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
-                    <div class="font-700">
+                    <div class="ui-text-heading">
                       {t3({
                         en: "DHIS2 indicators are not imported as values",
                         fr: "Les indicateurs DHIS2 ne sont pas importés comme valeurs",

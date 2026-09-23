@@ -238,7 +238,7 @@ export function NamingStep(p: {
     <div class="ui-spy">
       <Show when={p.state.elements.length > 0}>
         <div class="ui-spy-sm">
-          <div class="font-700">
+          <div class="ui-text-heading">
             {t3({ en: "Data elements", fr: "Éléments de données", pt: "Elementos de dados" })}
           </div>
           <div class="ui-text-caption">
@@ -254,7 +254,7 @@ export function NamingStep(p: {
 
       <Show when={p.state.calculated.length > 0}>
         <div class="ui-spy-sm">
-          <div class="font-700">
+          <div class="ui-text-heading">
             {t3({
               en: "Calculated indicators",
               fr: "Indicateurs calculés",

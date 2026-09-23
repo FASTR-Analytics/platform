@@ -159,7 +159,7 @@ export function IndicatorTypesModal(p: AlertComponentProps<{}, undefined>) {
         <For each={HMIS_INDICATOR_TYPES}>
           {(type) => (
             <div class="ui-spy-sm">
-              <div class="font-700">{indicatorTypeWord(type)}</div>
+              <div class="ui-text-heading">{indicatorTypeWord(type)}</div>
               <TypeFactsList type={type} />
             </div>
           )}

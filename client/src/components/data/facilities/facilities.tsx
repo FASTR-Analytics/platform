@@ -50,7 +50,7 @@ function AdminAreaSummary(p: { family: FacilityFamily }) {
       {(keyedCounts) => (
         <Show when={keyedCounts.adminArea1s > 0}>
           <div class="ui-spy-sm border-t pt-3 text-sm">
-            <div class="font-700">
+            <div class="ui-text-heading">
               {t3({
                 en: "Admin areas",
                 fr: "Unités administratives",

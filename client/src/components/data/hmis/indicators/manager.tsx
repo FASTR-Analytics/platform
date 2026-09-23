@@ -784,7 +784,7 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
     >
       <div class="ui-spy text-sm">
         <div class="ui-spy-sm">
-          <div class="font-700">
+          <div class="ui-text-heading">
             {t3({
               en: "Special indicators",
               fr: "Indicateurs spéciaux",
@@ -812,7 +812,7 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
         </div>
         <div class="ui-spy-sm">
-          <div class="font-700">
+          <div class="ui-text-heading">
             {t3({
               en: "Population terms",
               fr: "Termes de population",
@@ -833,7 +833,7 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
         </div>
         <div class="ui-spy-sm">
-          <div class="font-700">
+          <div class="ui-text-heading">
             {t3({
               en: "Reserved words",
               fr: "Mots réservés",

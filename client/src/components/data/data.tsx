@@ -129,7 +129,7 @@ export function InstanceData(p: Props) {
               <Show when={canConfigureSettings()}>
                 <Card onClick={() => openSubPage(AdminAreaLabels, {})}>
                   <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
+                    <div class="ui-text-heading pb-2">
                       {t3({
                         en: "Admin area labels",
                         fr: "Libellés des unités administratives",
@@ -187,7 +187,7 @@ export function InstanceData(p: Props) {
               <Show when={canConfigureSettings()}>
                 <Card onClick={openAiContext}>
                   <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
+                    <div class="ui-text-heading pb-2">
                       {t3({
                         en: "AI context",
                         fr: "Contexte IA",
@@ -228,7 +228,7 @@ export function InstanceData(p: Props) {
                   }
                 >
                   <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
+                    <div class="ui-text-heading pb-2">
                       {t3({
                         en: "Configuration",
                         fr: "Configuration",
@@ -269,7 +269,7 @@ export function InstanceData(p: Props) {
               <Show when={canConfigureData()}>
                 <Card onClick={openDhis2Credentials}>
                   <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
+                    <div class="ui-text-heading pb-2">
                       {t3({
                         en: "DHIS2 connection",
                         fr: "Connexion DHIS2",
@@ -310,7 +310,7 @@ export function InstanceData(p: Props) {
                 onClick={() => openSubPage(Facilities, { family: "hmis" })}
               >
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Facilities",
                       fr: "Établissements",
@@ -375,7 +375,7 @@ export function InstanceData(p: Props) {
               </Card>
               <Card onClick={() => openSubPage(IndicatorsManager, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Indicators",
                       fr: "Indicateurs",
@@ -418,7 +418,7 @@ export function InstanceData(p: Props) {
               </Card>
               <Card onClick={() => openSubPage(InstanceDatasetHmis, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({ en: "Data", fr: "Données", pt: "Dados" })}
                   </div>
                   <Show
@@ -449,7 +449,7 @@ export function InstanceData(p: Props) {
                 }
               >
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "GeoJSON maps",
                       fr: "Cartes GeoJSON",
@@ -481,7 +481,7 @@ export function InstanceData(p: Props) {
               </Card>
               <Card onClick={() => openSubPage(PopulationManager, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Population",
                       fr: "Population",
@@ -557,7 +557,7 @@ export function InstanceData(p: Props) {
                   }
                 >
                   <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
+                    <div class="ui-text-heading pb-2">
                       {t3({
                         en: "Configuration",
                         fr: "Configuration",
@@ -599,7 +599,7 @@ export function InstanceData(p: Props) {
                 onClick={() => openSubPage(Facilities, { family: "hfa" })}
               >
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Facilities",
                       fr: "Établissements",
@@ -664,7 +664,7 @@ export function InstanceData(p: Props) {
               </Card>
               <Card onClick={() => openSubPage(InstanceHfaTimePoints, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Time points",
                       fr: "Points temporels",
@@ -703,7 +703,7 @@ export function InstanceData(p: Props) {
               </Card>
               <Card onClick={() => openSubPage(HfaWeights, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Sampling weights",
                       fr: "Pondérations d'échantillonnage",
@@ -749,7 +749,7 @@ export function InstanceData(p: Props) {
               </Card>
               <Card onClick={() => openSubPage(HfaIndicatorsManager, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Indicators",
                       fr: "Indicateurs",
@@ -792,7 +792,7 @@ export function InstanceData(p: Props) {
               </Card>
               <Card onClick={() => openSubPage(InstanceDatasetHfa, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({ en: "Data", fr: "Données", pt: "Dados" })}
                   </div>
                   <Show
@@ -821,7 +821,7 @@ export function InstanceData(p: Props) {
                 onClick={() => openSubPage(GeoJsonManager, { family: "hfa" })}
               >
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "GeoJSON maps",
                       fr: "Cartes GeoJSON",
@@ -861,7 +861,7 @@ export function InstanceData(p: Props) {
             >
               <Card onClick={() => openSubPage(InstanceDatasetIceh, {})}>
                 <div class="ui-spy-sm">
-                  <div class="font-700 pb-2 text-sm">
+                  <div class="ui-text-heading pb-2">
                     {t3({
                       en: "Equity data",
                       fr: "Données d'équité",

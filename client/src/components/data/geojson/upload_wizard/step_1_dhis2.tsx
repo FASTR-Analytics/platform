@@ -37,7 +37,7 @@ export function Step1Dhis2(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="font-700">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2", pt: "Passo 1: Ligar ao DHIS2" })}</div>
+      <div class="ui-text-heading">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2", pt: "Passo 1: Ligar ao DHIS2" })}</div>
 
       <Show when={!connected()}>
         <Show

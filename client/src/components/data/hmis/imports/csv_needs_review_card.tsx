@@ -58,7 +58,7 @@ export function CsvNeedsReviewCard(p: Props) {
 
   return (
     <div class="border-warning ui-pad ui-spy-sm rounded border">
-      <div class="font-700">
+      <div class="ui-text-heading">
         {t3({
           en: "CSV import needs review",
           fr: "Importation CSV à vérifier",

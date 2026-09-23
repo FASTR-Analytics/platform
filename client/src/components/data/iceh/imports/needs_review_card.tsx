@@ -48,7 +48,7 @@ export function IcehNeedsReviewCard(p: Props) {
 
   return (
     <div class="border-warning ui-pad ui-spy-sm rounded border">
-      <div class="font-700">
+      <div class="ui-text-heading">
         {t3({ en: "Import needs review", fr: "Importation à vérifier", pt: "Importação a rever" })}
         <span class="font-400 ml-2 font-mono text-sm">{p.run.zipFileName}</span>
       </div>

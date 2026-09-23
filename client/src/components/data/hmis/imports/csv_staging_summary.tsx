@@ -39,7 +39,7 @@ export function CsvStagingSummary(p: Props) {
       </div>
 
       <div class="ui-pad bg-base-200 rounded">
-        <div class="font-700 mb-3">{t3({ en: "CSV Import Statistics", fr: "Statistiques d'importation CSV", pt: "Estatísticas de importação CSV" })}</div>
+        <div class="ui-text-heading mb-3">{t3({ en: "CSV Import Statistics", fr: "Statistiques d'importation CSV", pt: "Estatísticas de importação CSV" })}</div>
         <div class="ui-spy-sm">
           <div class="flex justify-between">
             <span class="text-base-content">
@@ -155,7 +155,7 @@ export function CsvStagingSummary(p: Props) {
       </Show>
 
       <div class="ui-pad bg-base-200 rounded">
-        <div class="font-700 mb-3">{t3({ en: "Staged Data To Import", fr: "Données préparées à importer", pt: "Dados preparados para importar" })}</div>
+        <div class="ui-text-heading mb-3">{t3({ en: "Staged Data To Import", fr: "Données préparées à importer", pt: "Dados preparados para importar" })}</div>
         <div class="ui-spy-sm">
           <div class="flex justify-between">
             <span class="text-base-content">{t3({ en: "Total records:", fr: "Total des enregistrements :", pt: "Total de registos:" })}</span>

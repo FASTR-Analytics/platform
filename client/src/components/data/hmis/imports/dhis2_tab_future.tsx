@@ -206,7 +206,7 @@ export function Dhis2TabFuture(p: Props) {
         <div class="ui-spy">
           <Show when={recurring().length > 0}>
             <div class="ui-spy-sm">
-              <div class="font-700">
+              <div class="ui-text-heading">
                 {t3({ en: "Recurring imports", fr: "Importations récurrentes", pt: "Importações recorrentes" })}
               </div>
               <Table data={recurring()} columns={recurringColumns} keyField="id" />
@@ -214,7 +214,7 @@ export function Dhis2TabFuture(p: Props) {
           </Show>
           <Show when={oneTime().length > 0}>
             <div class="ui-spy-sm">
-              <div class="font-700">
+              <div class="ui-text-heading">
                 {t3({ en: "One-time imports", fr: "Importations ponctuelles", pt: "Importações pontuais" })}
               </div>
               <Table data={oneTime()} columns={oneTimeColumns} keyField="id" />

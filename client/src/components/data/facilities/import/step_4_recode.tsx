@@ -437,7 +437,7 @@ export function Step4Recode(p: Props) {
         <StateHolderWrapper state={valuesState()}>
           {(valuesData) => (
             <div class="ui-pad bg-base-200 ui-spy-sm rounded">
-              <div class="font-700">
+              <div class="ui-text-heading">
                 {t3({
                   en: "Which values need reassigning?",
                   fr: "Quelles valeurs faut-il réassigner ?",
