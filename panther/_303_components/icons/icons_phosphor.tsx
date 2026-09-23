@@ -15,13 +15,17 @@ import type { IconComponent, IconName } from "./icon_types.ts";
 //   - arrowsDiagonalMinimize2 -> arrows-in-simple (same as arrowsDiagonalMinimize)
 //   - arrowsUpDown -> arrows-down-up (Phosphor names the pair down-up)
 //   - badge -> seal (nearest award/badge shape)
+//   - bookmark -> bookmark-simple (plain ribbon, as Tabler's bookmark)
 //   - calendar -> calendar-blank (plain calendar has digits, too busy small)
 //   - clearAll -> list-dashes (nearest to staggered-lines glyph)
 //   - databaseImport -> tray-arrow-down (Phosphor has no database-import)
 //   - filter / filterFilled -> funnel regular / funnel fill (Phosphor names the glyph funnel)
+//   - fold / unfold -> arrows-in-line-vertical / arrows-out-line-vertical
 //   - helpSquare -> question (no square variant; same as help)
 //   - infoSmall -> info (no small variant; same as info)
 //   - infoSquare -> info (no square variant; same as info)
+//   - loader -> circle-notch (Phosphor's spinner arc)
+//   - pointerFilled -> cursor, fill weight
 //   - transform -> swap (nearest convert/transform glyph)
 
 function PhosphorWrapper(
@@ -139,6 +143,14 @@ function PhBell(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z" />
+    </PhosphorWrapper>
+  );
+}
+
+function PhBookmark(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M184,32H72A16,16,0,0,0,56,48V224a8,8,0,0,0,12.24,6.78L128,193.43l59.77,37.35A8,8,0,0,0,200,224V48A16,16,0,0,0,184,32Zm0,177.57-51.77-32.35a8,8,0,0,0-8.48,0L72,209.57V48H184Z" />
     </PhosphorWrapper>
   );
 }
@@ -335,6 +347,14 @@ function PhFilterFilled(p: { class?: string }) {
   );
 }
 
+function PhFold(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM122.34,101.66a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32L136,76.69V16a8,8,0,0,0-16,0V76.69L101.66,58.34A8,8,0,0,0,90.34,69.66Zm11.32,52.68a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L120,179.31V240a8,8,0,0,0,16,0V179.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z" />
+    </PhosphorWrapper>
+  );
+}
+
 function PhFolder(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
@@ -419,6 +439,14 @@ function PhLifebuoy(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm39.1,131.79a47.84,47.84,0,0,0,0-55.58l28.5-28.49a87.83,87.83,0,0,1,0,112.56ZM96,128a32,32,0,1,1,32,32A32,32,0,0,1,96,128Zm88.28-67.6L155.79,88.9a47.84,47.84,0,0,0-55.58,0L71.72,60.4a87.83,87.83,0,0,1,112.56,0ZM60.4,71.72l28.5,28.49a47.84,47.84,0,0,0,0,55.58L60.4,184.28a87.83,87.83,0,0,1,0-112.56ZM71.72,195.6l28.49-28.5a47.84,47.84,0,0,0,55.58,0l28.49,28.5a87.83,87.83,0,0,1-112.56,0Z" />
+    </PhosphorWrapper>
+  );
+}
+
+function PhLoader(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M232,128a104,104,0,0,1-208,0c0-41,23.81-78.36,60.66-95.27a8,8,0,0,1,6.68,14.54C60.15,61.59,40,93.27,40,128a88,88,0,0,0,176,0c0-34.73-20.15-66.41-51.34-80.73a8,8,0,0,1,6.68-14.54C208.19,49.64,232,87,232,128Z" />
     </PhosphorWrapper>
   );
 }
@@ -515,6 +543,14 @@ function PhPlus(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
       <path d="M224,128a8,8,0,0,1-8,8H136v80a8,8,0,0,1-16,0V136H40a8,8,0,0,1,0-16h80V40a8,8,0,0,1,16,0v80h80A8,8,0,0,1,224,128Z" />
+    </PhosphorWrapper>
+  );
+}
+
+function PhPointerFilled(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M220.49,207.8,207.8,220.49a12,12,0,0,1-17,0l-56.57-56.57L115,214.08l-.13.33A15.84,15.84,0,0,1,100.26,224l-.78,0a15.82,15.82,0,0,1-14.41-11L32.8,52.92A15.95,15.95,0,0,1,52.92,32.8L213,85.07a16,16,0,0,1,1.41,29.8l-.33.13-50.16,19.27,56.57,56.56A12,12,0,0,1,220.49,207.8Z" />
     </PhosphorWrapper>
   );
 }
@@ -687,6 +723,14 @@ function PhUndo(p: { class?: string }) {
   );
 }
 
+function PhUnfold(p: { class?: string }) {
+  return (
+    <PhosphorWrapper class={p.class}>
+      <path d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM101.66,53.66,120,35.31V96a8,8,0,0,0,16,0V35.31l18.34,18.35a8,8,0,0,0,11.32-11.32l-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32Zm52.68,148.68L136,220.69V160a8,8,0,0,0-16,0v60.69l-18.34-18.35a8,8,0,0,0-11.32,11.32l32,32a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z" />
+    </PhosphorWrapper>
+  );
+}
+
 function PhUnlock(p: { class?: string }) {
   return (
     <PhosphorWrapper class={p.class}>
@@ -765,6 +809,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   backspace: PhBackspace,
   badge: PhBadge,
   bell: PhBell,
+  bookmark: PhBookmark,
   box: PhBox,
   calendar: PhCalendar,
   chart: PhChart,
@@ -789,6 +834,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   file: PhFile,
   filter: PhFilter,
   filterFilled: PhFilterFilled,
+  fold: PhFold,
   folder: PhFolder,
   gripVertical: PhGripVertical,
   help: PhHelp,
@@ -800,6 +846,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   layoutDashboard: PhLayoutDashboard,
   layoutGrid: PhLayoutGrid,
   lifebuoy: PhLifebuoy,
+  loader: PhLoader,
   lock: PhLock,
   login: PhLogin,
   maximize: PhMaximize,
@@ -812,6 +859,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   pencil: PhPencil,
   photo: PhPhoto,
   plus: PhPlus,
+  pointerFilled: PhPointerFilled,
   presentation: PhPresentation,
   presentationAnalytics: PhPresentationAnalytics,
   print: PhPrint,
@@ -833,6 +881,7 @@ export const _ICON_MAP_PHOSPHOR: Record<IconName, IconComponent> = {
   transform: PhTransform,
   trash: PhTrash,
   undo: PhUndo,
+  unfold: PhUnfold,
   unlock: PhUnlock,
   upload: PhUpload,
   user: PhUser,

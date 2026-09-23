@@ -6,11 +6,15 @@
 import { For, Show } from "solid-js";
 import { IconRenderer } from "../../form_inputs/icon_renderer.tsx";
 import { Tooltip } from "../../special_state/tooltip.tsx";
-import { Badge } from "../../display/badge.tsx";
 import { Button } from "../../form_inputs/mod.ts";
 import { type DataAttrs, splitDataAttrs } from "../../data_attrs.ts";
 import type { ListItem } from "../../list_selection/list_item_types.ts";
 import { intentDotClass } from "../../_internal/intent_classes.ts";
+import {
+  horizontalTabClasses,
+  TabLabel,
+  tabLabelString,
+} from "./_internal/tab_label.tsx";
 
 type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   items: ListItem<T, M>[];
@@ -46,6 +50,9 @@ export function TabsNavigation<T extends string = string, M = never>(
   const isCollapsible = () => p.collapsible === true && isVertical();
   const isSmall = () => p.size === "sm";
   const hasPadX = () => p.noPad !== true;
+  // A panel strip at full size is a compact header: its height is the
+  // shared token and the tabs stretch to fill it instead of padding.
+  const isPanelHeader = () => hasPadX() && !isSmall();
 
   const isActive = (id: T) => id === p.value;
 
@@ -55,29 +62,18 @@ export function TabsNavigation<T extends string = string, M = never>(
 
   const getTabClasses = (id: T) => {
     if (!isVertical()) {
-      // A tab label is a text-only interactive: no hover surface, text colour
-      // carries the hover. The underline hugs the label (no horizontal
-      // padding; tabs are spaced by the strip's gap). It is an inset shadow,
-      // like the vertical mode's side accent, so it paints over the bottom of
-      // the padding instead of adding to it; -mb-px overlaps the tab's bottom
-      // pixel onto the rail so the underline sits on the line.
-      const baseClasses =
-        "ui-focusable relative -mb-px flex items-center justify-center ui-gap-sm font-700 cursor-pointer select-none";
-      const padClasses = hasPadX()
-        ? isSmall() ? "ui-pad-y-sm" : "ui-pad-y"
+      // -mb-px overlaps the tab's bottom pixel onto the rail so the underline
+      // sits on the line.
+      const padClasses = isPanelHeader()
+        ? ""
+        : hasPadX()
+        ? "ui-pad-y-sm"
         : isSmall()
         ? "ui-pad-b-sm"
         : "ui-pad-b";
-      const sizeClasses = `${padClasses} ${isSmall() ? "text-sm" : ""}`;
-
-      if (isActive(id)) {
-        return `${baseClasses} ${sizeClasses} text-primary ${
-          isSmall()
-            ? "shadow-[inset_0_-2px_0_0_var(--color-primary)]"
-            : "shadow-[inset_0_-3px_0_0_var(--color-primary)]"
-        }`;
-      }
-      return `${baseClasses} ${sizeClasses} text-base-content hover:text-primary`;
+      return `${
+        horizontalTabClasses(isActive(id), p.size)
+      } -mb-px ${padClasses}`;
     } else {
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
@@ -94,12 +90,8 @@ export function TabsNavigation<T extends string = string, M = never>(
     }
   };
 
-  const labelString = (item: ListItem<T, M>) =>
-    item.labelText ??
-      (typeof item.label === "string" ? item.label : String(item.id));
-
   const formatter = (item: ListItem<T, M>) =>
-    (p.tabLabelFormatter ?? labelString)(item);
+    (p.tabLabelFormatter ?? tabLabelString)(item);
 
   // Horizontal: the rail is the border-b of the strip (running through its
   // pad-x to the panel edge) or of the row (stopping at the pad-x); each
@@ -108,18 +100,23 @@ export function TabsNavigation<T extends string = string, M = never>(
 
   const containerClasses = () =>
     !isVertical()
-      ? `w-full ${railOnRow() ? "" : "border-b"} ${hasPadX() ? "ui-pad-x" : ""}`
+      ? `w-full ${railOnRow() ? "" : "border-b"} ${
+        hasPadX() ? "ui-pad-x" : ""
+      } ${
+        isPanelHeader()
+          ? "flex flex-col min-h-[var(--ui-heading-bar-compact-height)]"
+          : ""
+      }`
       : "bg-base-100 flex w-full flex-col h-full";
 
   const rowClasses = () =>
     !isVertical()
       ? `flex ${railOnRow() ? "border-b" : ""} ${
         isSmall() ? "ui-gap" : "ui-gap-lg"
-      }`
+      } ${isPanelHeader() ? "flex-1" : ""}`
       : "flex-1 overflow-y-auto";
 
   const renderTabContent = (item: ListItem<T, M>) => {
-    const badge = item.badge;
     const dot = item.dot;
     const icon = item.iconName;
 
@@ -136,28 +133,8 @@ export function TabsNavigation<T extends string = string, M = never>(
       );
     }
 
-    // Expanded mode: optional icon + label + badge/dot
     return (
-      <>
-        <div class="flex h-[1.25em] items-center gap-[0.75em]">
-          <Show when={icon}>
-            <span class="h-[1.25em] w-[1.25em] flex-none">
-              <IconRenderer iconName={icon!} />
-            </span>
-          </Show>
-          <span class="whitespace-nowrap leading-tight">
-            {formatter(item)}
-          </span>
-        </div>
-        <Show when={badge !== undefined}>
-          <span classList={{ "flex-none": isVertical() }}>
-            <Badge intent="base-300">{badge}</Badge>
-          </span>
-        </Show>
-        <Show when={dot}>
-          <span class={intentDotClass(dot!)} />
-        </Show>
-      </>
+      <TabLabel item={item} text={formatter(item)} vertical={isVertical()} />
     );
   };
 
@@ -181,7 +158,7 @@ export function TabsNavigation<T extends string = string, M = never>(
                   </button>
                 }
               >
-                <Tooltip content={labelString(item)} position="right">
+                <Tooltip content={tabLabelString(item)} position="right">
                   <button
                     type="button"
                     class={getTabClasses(item.id)}

@@ -306,6 +306,12 @@
   --ui-heading-bar-tonal-bg: var(--color-base-200);
   --ui-heading-bar-tonal-fg: var(--color-base-content);
 
+  /* The second header form, beside the titled bar: a HeadingBar with no
+     heading or with tabs, and a panel TabsNavigation strip, are all exactly
+     this tall, a tab label line with ui-pad-y above and below. Content is
+     centred in it rather than padded around. */
+  --ui-heading-bar-compact-height: calc(2 * var(--ui-pad-y) + 1.25rem);
+
   /* ============================================= */
   /* Modal sizing                                  */
   /* ============================================= */

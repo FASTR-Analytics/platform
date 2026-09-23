@@ -31,15 +31,15 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
 9. **`data-*` goes on the component, not a wrapper**: `Button`, `Card`,
    `HeadingBar`, `CollapsibleSection`, `Field`, `Select`, `Input`, `TextArea`,
    `Slider`, `ButtonGroup`, `TabsNavigation`, `MenuButton`, `ActionMenuButton`
-   and `CopyToClipboardButton` forward `data-*` attributes to their root
-   element; put tour anchors, test hooks and other DOM markers there instead of
-   wrapping in a `<div data-*="...">`. `data-*` only: anything else (`class`,
-   `style`, `id`, event handlers) is a real prop or needs a wrapper; it will NOT
-   forward, by design. On every other component a `data-*` attribute compiles
-   but is silently dropped (TypeScript exempts hyphenated JSX attribute names),
-   so this list is the source of truth. Inside the kit, a component's own
-   attributes are always written after `{...dataAttrs}`, so they win on a key
-   collision.
+   and `CopyToClipboardButton` forward `data-*` attributes to their root element
+   (`HeadingBar`'s `tabs` object also forwards its own to the tab strip); put
+   tour anchors, test hooks and other DOM markers there instead of wrapping in a
+   `<div data-*="...">`. `data-*` only: anything else (`class`, `style`, `id`,
+   event handlers) is a real prop or needs a wrapper; it will NOT forward, by
+   design. On every other component a `data-*` attribute compiles but is
+   silently dropped (TypeScript exempts hyphenated JSX attribute names), so this
+   list is the source of truth. Inside the kit, a component's own attributes are
+   always written after `{...dataAttrs}`, so they win on a key collision.
 10. **Horizontal `TabsNavigation` is placed, not wrapped**: as a `FrameTop`
     `panelChildren` or directly under a `HeadingBar`, pass it bare; it carries
     its own `ui-pad-x` and bottom border. Inside padded content pass `noPad`;
@@ -206,12 +206,30 @@ spacing/classes: `PROTOCOL_UI_STYLING.md`. User-facing strings: `t3` /
 
 ### `HeadingBar`: every header bar, no exceptions
 
-One component covers all of it: `heading`, optional inline `subheading`,
-`onBack`, `leftChildren`, `centerChildren`, right-hand `children`, and a
-built-in search field via `searchText` / `setSearchText`. Empty slots collapse,
-so the title gets the full width when nothing else is present, and the bar's
-height floor is a control's height: a bar holding only a title is exactly as
-tall as one holding buttons.
+One component covers all of it: optional `heading` with inline `subheading`,
+`onBack`, `leftChildren`, `tabs`, `centerLeftChildren`, `centerChildren`,
+right-hand `children`, and a built-in search field via `searchText` /
+`setSearchText`. Empty slots collapse, so the title gets the full width when
+nothing else is present.
+
+There are two header forms, each with one height, chosen by the call site:
+
+- **Standard** (default): padding around a control-height floor, so a bar
+  holding only a title is exactly as tall as one holding buttons.
+- **`compact`**: exactly `--ui-heading-bar-compact-height` tall, content centred
+  in it, whatever size its controls are (pair it with `size="sm"` controls). A
+  panel `TabsNavigation` strip at full size is the same height, so a bare tab
+  strip and a compact bar line up.
+
+With no heading, back button, `leftChildren` or `tabs`, the centre group (search
+and its neighbours) starts at the left edge, for pages whose title is already
+shown by the navigation that opened them.
+
+`tabs` (`{ items, value, onChange }`) puts a tab strip in the bar after the
+heading, with the bar's bottom edge as its rail. It needs `compact` (the type
+rejects it otherwise), so a header holding both tabs and controls is one bar,
+not a `HeadingBar` over a `TabsNavigation`. A header that is only tabs stays a
+bare `TabsNavigation`.
 
 `tonal` is the only surface control, and it also decides the divider:
 

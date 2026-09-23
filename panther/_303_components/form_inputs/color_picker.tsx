@@ -16,6 +16,7 @@ import {
 import { Color } from "../deps.ts";
 import type { PopoverPosition } from "../special_state/popover_menu.tsx";
 import { Field } from "./field.tsx";
+import { Icon } from "../icons/mod.ts";
 
 export type ColorSetName =
   | "standard"
@@ -289,17 +290,12 @@ function ColorSwatch(p: {
       title={p.color}
     >
       <Show when={p.selected}>
-        <svg
+        <span
           class="absolute inset-0 m-auto h-3.5 w-3.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke={checkColor()}
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+          style={{ color: checkColor() }}
         >
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
+          <Icon iconName="check" class="h-full w-full" />
+        </span>
       </Show>
     </button>
   );

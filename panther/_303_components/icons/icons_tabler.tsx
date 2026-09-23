@@ -159,6 +159,14 @@ function BellIcon(p: { class?: string }) {
   );
 }
 
+function BookmarkIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M18 7v14l-6 -4l-6 4v-14a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4" />
+    </TablerWrapper>
+  );
+}
+
 function BoxIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
@@ -390,6 +398,19 @@ function FilterFilledIcon(p: { class?: string }) {
   );
 }
 
+function FoldIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M12 3v6l3 -3m-6 0l3 3" />
+      <path d="M12 21v-6l3 3m-6 0l3 -3" />
+      <path d="M4 12l1 0" />
+      <path d="M9 12l1 0" />
+      <path d="M14 12l1 0" />
+      <path d="M19 12l1 0" />
+    </TablerWrapper>
+  );
+}
+
 function FolderIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
@@ -500,6 +521,14 @@ function LifebuoyIcon(p: { class?: string }) {
       <path d="M9 15l-3.35 3.35" />
       <path d="M5.65 5.65l3.35 3.35" />
       <path d="M18.35 5.65l-3.35 3.35" />
+    </TablerWrapper>
+  );
+}
+
+function LoaderIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M12 3a9 9 0 1 0 9 9" />
     </TablerWrapper>
   );
 }
@@ -624,6 +653,18 @@ function PlusIcon(p: { class?: string }) {
     <TablerWrapper class={p.class}>
       <path d="M12 5l0 14" />
       <path d="M5 12l14 0" />
+    </TablerWrapper>
+  );
+}
+
+function PointerFilledIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path
+        d="M3.039 4.277l3.904 13.563c.185 .837 .92 1.516 1.831 1.642l.17 .016a2.2 2.2 0 0 0 1.982 -1.006l.045 -.078l1.4 -2.072l4.05 4.05a2.067 2.067 0 0 0 2.924 0l1.047 -1.047c.388 -.388 .606 -.913 .606 -1.461l-.008 -.182a2.067 2.067 0 0 0 -.598 -1.28l-4.047 -4.048l2.103 -1.412c.726 -.385 1.18 -1.278 1.053 -2.189a2.2 2.2 0 0 0 -1.701 -1.845l-13.524 -3.89a1 1 0 0 0 -1.236 1.24z"
+        fill="currentColor"
+        stroke="none"
+      />
     </TablerWrapper>
   );
 }
@@ -761,15 +802,15 @@ function SettingsIcon(p: { class?: string }) {
 function SettingsCogIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
-      <path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-      <path d="M12 1v6" />
-      <path d="M12 17v6" />
-      <path d="M4.22 4.22l4.24 4.24" />
-      <path d="M15.54 15.54l4.24 4.24" />
-      <path d="M1 12h6" />
-      <path d="M17 12h6" />
-      <path d="M4.22 19.78l4.24 -4.24" />
-      <path d="M15.54 8.46l4.24 -4.24" />
+      <path d="M12.003 21c-.732 .001 -1.465 -.438 -1.678 -1.317a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c.886 .215 1.325 .957 1.318 1.694" />
+      <path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+      <path d="M17.001 19a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" />
+      <path d="M19.001 15.5v1.5" />
+      <path d="M19.001 21v1.5" />
+      <path d="M22.032 17.25l-1.299 .75" />
+      <path d="M17.27 20l-1.3 .75" />
+      <path d="M15.97 17.25l1.3 .75" />
+      <path d="M20.733 20l1.3 .75" />
     </TablerWrapper>
   );
 }
@@ -810,9 +851,8 @@ function SwitchHorizontalIcon(p: { class?: string }) {
 function TextIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
-      <path d="M5 4h14" />
-      <path d="M12 4v16" />
-      <path d="M9 20h6" />
+      <path d="M6 4l12 0" />
+      <path d="M12 4l0 16" />
     </TablerWrapper>
   );
 }
@@ -820,10 +860,10 @@ function TextIcon(p: { class?: string }) {
 function TransformIcon(p: { class?: string }) {
   return (
     <TablerWrapper class={p.class}>
-      <path d="M3 7v4a1 1 0 0 0 1 1h4" />
-      <path d="M7 3l4 4l-4 4" />
-      <path d="M21 17v-4a1 1 0 0 0 -1 -1h-4" />
-      <path d="M17 21l-4 -4l4 -4" />
+      <path d="M3 6a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
+      <path d="M21 11v-3a2 2 0 0 0 -2 -2h-6l3 3m0 -6l-3 3" />
+      <path d="M3 13v3a2 2 0 0 0 2 2h6l-3 -3m0 6l3 -3" />
+      <path d="M15 18a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />
     </TablerWrapper>
   );
 }
@@ -845,6 +885,16 @@ function UndoIcon(p: { class?: string }) {
     <TablerWrapper class={p.class}>
       <path d="M9 14l-4 -4l4 -4" />
       <path d="M5 10h11a4 4 0 1 1 0 8h-1" />
+    </TablerWrapper>
+  );
+}
+
+function UnfoldIcon(p: { class?: string }) {
+  return (
+    <TablerWrapper class={p.class}>
+      <path d="M8 7l4 -4l4 4" />
+      <path d="M8 17l4 4l4 -4" />
+      <path d="M12 3l0 18" />
     </TablerWrapper>
   );
 }
@@ -943,6 +993,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   backspace: BackspaceIcon,
   badge: BadgeIcon,
   bell: BellIcon,
+  bookmark: BookmarkIcon,
   box: BoxIcon,
   calendar: CalendarIcon,
   chart: ChartIcon,
@@ -967,6 +1018,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   file: FileIcon,
   filter: FilterIcon,
   filterFilled: FilterFilledIcon,
+  fold: FoldIcon,
   folder: FolderIcon,
   gripVertical: GripVerticalIcon,
   help: HelpIcon,
@@ -978,6 +1030,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   layoutDashboard: LayoutDashboardIcon,
   layoutGrid: LayoutGridIcon,
   lifebuoy: LifebuoyIcon,
+  loader: LoaderIcon,
   lock: LockIcon,
   login: LoginIcon,
   maximize: MaximizeIcon,
@@ -990,6 +1043,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   pencil: PencilIcon,
   photo: PhotoIcon,
   plus: PlusIcon,
+  pointerFilled: PointerFilledIcon,
   presentation: PresentationIcon,
   presentationAnalytics: PresentationAnalyticsIcon,
   print: PrintIcon,
@@ -1011,6 +1065,7 @@ export const _ICON_MAP_TABLER: Record<IconName, IconComponent> = {
   transform: TransformIcon,
   trash: TrashIcon,
   undo: UndoIcon,
+  unfold: UnfoldIcon,
   unlock: UnlockIcon,
   upload: UploadIcon,
   user: UserIcon,
