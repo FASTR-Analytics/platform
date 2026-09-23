@@ -5,7 +5,7 @@ Brings every piece of UI text onto a small set of roles drawn from the rem
 scale, so the same kind of text is the same size everywhere, and adds a lint
 that keeps it that way.
 
-**Next step:** Review 2
+**Next step:** Do 3
 
 Branch: `version2` (app), `main` (panther). Repos: panther
 (`/Users/timroberton/projects/panther/timroberton-panther`) and this app.
@@ -224,3 +224,4 @@ and re-syncing.
 | 2 | The delete confirmation keeps `text-danger` on top of `ui-text-heading`; the utility layer wins over the component class, as `alert.tsx:290` already relies on. |
 | 2 | After the sync, `client/src/components/data/hmis/indicators/manager.tsx:635` still names `ui-text-title`, which no longer exists, so that title renders at body size until step 3 (ruling 6) replaces it. |
 | 2 | Step 2 built. Panther commit "Three type roles: heading is 16/700, title and display are gone" (adf1f91); app sync commit 3d38ea6e. Panther floor: typecheck exit 0, 501 tests. App floor: typecheck exit 0, tests exit 0, protocols passed. |
+| 2 | Step 2 reviewed: pass. Surface held (panther: the seven files of adf1f91, all in `_303_components`, `_304_actions`, the README and `PROTOCOL_UI_STYLING.md`; app: those seven under `panther/` plus `.panther-manifest.json`). Ruling 3: `.ui-text-heading` is `font-700 text-base-content text-base` at `_fixed.css:1318`; `ui-text-title` and `ui-text-display` appear nowhere in panther. Ruling 5: `heading_bar.tsx:125` and `:128`. Ruling 10: `icon_renderer.tsx:25` keeps the `--ui-form-content-h-em` box and `:32` passes `h-[1em] w-[1em]` for `sm` only; `icon_types.ts:5` takes `class`, and `icons_tabler.tsx:17` uses it in place of the 1.25em default. EmptyState (`empty_state.tsx:21`) and the delete confirmation (`confirm_delete_form.tsx:36`) use `ui-text-heading`. README and protocol list the three roles and name neither deleted class. All seven app copies match panther adf1f91 apart from the sync header on the four `.tsx` files. Log claims hold: `.ui-text-heading` sits in `@layer components` (`_fixed.css:755`) so the `text-danger` utility wins, as `alert.tsx:290` relies on; `manager.tsx:635` is the only non-panther `ui-text-title` left in the app. Panther floor: typecheck exit 0, tests exit 0 (501 passed). App floor: typecheck exit 0, tests exit 0 (428 passed, 2 ignored), protocols exit 0. |
