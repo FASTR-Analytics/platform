@@ -2,6 +2,7 @@ import {
   type APIResponseWithData,
   type DisaggregationOption,
   type GenericLongFormFetchConfig,
+  type GridItemsHolder,
   hashFetchConfig,
   type ItemsHolderPresentationObject,
   type ResultsValueInfoForPresentationObject,
@@ -100,7 +101,7 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 const PO_CACHE_VERSION = "25";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
-// §2.5): it is the uniqueness scope for the three data caches, so two products
+// §2.5): it is the uniqueness scope for the four data caches, so two products
 // on the same run share entries. The scopeToken rides beside it: payloads are
 // computed under the caller's AA2 scope, so two products share entries only
 // when they share BOTH run and scope. Required on the uniqueness side so every
@@ -121,6 +122,47 @@ export const _PO_ITEMS_CACHE = new TimCacheC<
   PoDataVersionParams,
   APIResponseWithData<ItemsHolderPresentationObject>
 >("po_items", {
+  uniquenessHashFromParams: (params) =>
+    [
+      params.runId,
+      params.resultsObjectId,
+      hashFetchConfig(params.fetchConfig),
+      params.scopeToken,
+    ].join("|"),
+  versionHashFromParams: () => PO_CACHE_VERSION,
+  parseData: (res) => {
+    if (res.success === false) {
+      return {
+        shouldStore: false,
+        uniquenessHash: "",
+        versionHash: "",
+      };
+    }
+    return {
+      shouldStore: true,
+      uniquenessHash: [
+        res.data.runId,
+        res.data.resultsObjectId,
+        hashFetchConfig(res.data.fetchConfig),
+        res.data.scopeToken,
+      ].join("|"),
+      versionHash: PO_CACHE_VERSION,
+    };
+  },
+});
+
+// The Explore grid read: the items read's rows under a higher cap,
+// dictionary-encoded. Keyed exactly like po_items, under its own prefix.
+export const _GRID_ITEMS_CACHE = new TimCacheC<
+  {
+    runId: string;
+    resultsObjectId: string;
+    fetchConfig: GenericLongFormFetchConfig;
+    scopeToken: string;
+  },
+  PoDataVersionParams,
+  APIResponseWithData<GridItemsHolder>
+>("grid_items", {
   uniquenessHashFromParams: (params) =>
     [
       params.runId,

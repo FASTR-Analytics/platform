@@ -34,6 +34,7 @@ export * from "./fastr_report_page_map.ts";
 export * from "./report_document_shell.ts";
 export * from "./group_metrics.ts";
 export * from "./explore_grid_query.ts";
+export * from "./grid_items.ts";
 export * from "./h_users.ts";
 export * from "./help/mod.ts";
 export * from "./hmis_indicator_catalog.ts";

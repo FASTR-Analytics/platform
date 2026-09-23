@@ -19,6 +19,7 @@ import type {
   RunGenerationModuleOptions,
   RunModuleFileListing,
 } from "../../types/mod.ts";
+import type { GridItemsHolder } from "../../grid_items.ts";
 import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
 import { route } from "../route-utils.ts";
 
@@ -129,6 +130,20 @@ export const runGenerationRouteRegistry = {
       adminArea2: adminArea2Schema,
     }),
     response: {} as ItemsHolderPresentationObject,
+  }),
+  // The Explore Data table's read: the same body and rows as
+  // getRunPresentationObjectItems under a far higher cap, answered
+  // dictionary-encoded (lib/grid_items.ts).
+  getRunGridItems: route({
+    path: "/run_generation/run/:run_id/grid_items",
+    method: "POST",
+    params: z.object({ run_id: z.string() }),
+    body: z.object({
+      resultsObjectId: z.string(),
+      fetchConfig: genericLongFormFetchConfigSchema,
+      adminArea2: adminArea2Schema,
+    }),
+    response: {} as GridItemsHolder,
   }),
   getRunResultsValueInfo: route({
     path: "/run_generation/run/:run_id/results_value_info",

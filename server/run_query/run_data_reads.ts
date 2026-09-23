@@ -1,21 +1,31 @@
 import {
+  encodeGridItems,
   getPeriodFilterExactBounds,
   isValidDisaggregationOption,
   validateFetchConfig,
+  type APIResponseNoData,
   type APIResponseWithData,
   type DisaggregationOption,
   type GenericLongFormFetchConfig,
+  type GridItemsHolder,
   type ItemsHolderPresentationObject,
   type PeriodBounds,
+  type PeriodOption,
   type ResultsValueInfoForPresentationObject,
   type RunReplicantOptions,
 } from "lib";
 import {
+  _GRID_ITEMS_CACHE,
   _METRIC_INFO_CACHE,
   _PO_ITEMS_CACHE,
   _REPLICANT_OPTIONS_CACHE,
+  type PoDataVersionParams,
 } from "../routes/caches/visualizations.ts";
-import { exceedsMaxReplicantOptions } from "../server_only_funcs_presentation_objects/consts.ts";
+import type { TimCacheC } from "../valkey/cache_class_C.ts";
+import {
+  exceedsMaxReplicantOptions,
+  GRID_MAX_CELLS,
+} from "../server_only_funcs_presentation_objects/consts.ts";
 import { RequestQueue } from "../utils/request_queue.ts";
 import { getCatalogEvaluationForResultsObject } from "./catalog_expression_items.ts";
 import {
@@ -32,7 +42,7 @@ import {
   type RunReadContext,
 } from "./run_read.ts";
 
-// The three package-data reads the run-keyed instance routes serve
+// The package-data reads the run-keyed instance routes serve
 // (routes/instance/run_generation.ts, the caller supplying the (runId,
 // adminArea2) pair its product carries), written once over a RunReadContext.
 // Cache check before the queue (a
@@ -52,16 +62,13 @@ function queueStats(queue: RequestQueue): string {
   return `[Queue: ${stats.running}/${stats.maxConcurrent} running, ${stats.queued} waiting]`;
 }
 
-export async function readRunItems(
+// The checks both row reads run before touching a cache: the results object
+// exists and its module ran, every required groupBy is present, and a
+// catalog-evaluated results object is asked only for its SUMmed ingredients.
+function checkRowsRequest(
   runCtx: RunReadContext,
-  body: {
-    resultsObjectId: string;
-    fetchConfig: GenericLongFormFetchConfig;
-  },
-): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
-  const t0 = performance.now();
-  const tag = `[SERVER] PO Items ${body.resultsObjectId.slice(0, 8)}`;
-  console.log(`${tag}: REQUEST received`);
+  body: RowsRequestBody,
+): APIResponseNoData {
   validateFetchConfig(body.fetchConfig);
 
   const moduleId = getModuleIdForResultsObjectFromRun(
@@ -77,7 +84,6 @@ export async function readRunItems(
   if (!moduleHasRun(runCtx, moduleId)) {
     return { success: false, err: "Module not found or has not run yet" };
   }
-  const versionParams = getRunVersionInfo(runCtx);
 
   const missingRequired = findMissingRequiredGroupBys(
     runCtx,
@@ -129,6 +135,52 @@ export async function readRunItems(
       }
     }
   }
+  return { success: true };
+}
+
+// Derived from the manifest, never from the client: the value shapes
+// period-bound resolution but is absent from the cache hash, so a stale
+// client detail (from a previously attached run) would poison this run's
+// shared cache entry. physicalTimeColumn IS the most granular period column
+// (the derivation inferMostGranularTimePeriodColumn reduces to it on the run
+// plane).
+function firstPeriodOptionFor(
+  runCtx: RunReadContext,
+  resultsObjectId: string,
+): PeriodOption | undefined {
+  return runCtx.manifest.resultsObjects.find((ro) => ro.id === resultsObjectId)
+    ?.physicalTimeColumn ?? undefined;
+}
+
+type RowsRequestBody = {
+  resultsObjectId: string;
+  fetchConfig: GenericLongFormFetchConfig;
+};
+
+type RowsCacheKey = {
+  runId: string;
+  resultsObjectId: string;
+  fetchConfig: GenericLongFormFetchConfig;
+  scopeToken: string;
+};
+
+// The two row reads differ only in their cache and in what they compute on
+// a miss.
+async function readRowsCached<T>(
+  label: string,
+  cache: TimCacheC<RowsCacheKey, PoDataVersionParams, APIResponseWithData<T>>,
+  runCtx: RunReadContext,
+  body: RowsRequestBody,
+  compute: (firstPeriodOption: PeriodOption | undefined) => Promise<
+    APIResponseWithData<T>
+  >,
+): Promise<APIResponseWithData<T>> {
+  const t0 = performance.now();
+  const tag = `[SERVER] ${label} ${body.resultsObjectId.slice(0, 8)}`;
+  console.log(`${tag}: REQUEST received`);
+  const check = checkRowsRequest(runCtx, body);
+  if (check.success === false) return check;
+  const versionParams = getRunVersionInfo(runCtx);
 
   const cacheKey = {
     runId: runCtx.runId,
@@ -136,7 +188,7 @@ export async function readRunItems(
     fetchConfig: body.fetchConfig,
     scopeToken: runCtx.scopeToken,
   };
-  const existing = await _PO_ITEMS_CACHE.get(cacheKey, versionParams);
+  const existing = await cache.get(cacheKey, versionParams);
   if (existing && existing.success === true) {
     console.log(
       `${tag}: HIT (${(performance.now() - t0).toFixed(0)}ms) ${
@@ -153,22 +205,10 @@ export async function readRunItems(
         (performance.now() - t0).toFixed(0)
       }ms in queue)`,
     );
-    // Derived from the manifest, never from the client: the value shapes
-    // period-bound resolution but is absent from the cache hash, so a stale
-    // client detail (from a previously attached run) would poison this
-    // run's shared cache entry. physicalTimeColumn IS the most granular
-    // period column (the derivation inferMostGranularTimePeriodColumn
-    // reduces to it on the run plane).
-    const firstPeriodOption = runCtx.manifest.resultsObjects.find(
-      (ro) => ro.id === body.resultsObjectId,
-    )?.physicalTimeColumn ?? undefined;
-    const newPromise = getPresentationObjectItemsFromRun(
-      runCtx,
-      body.resultsObjectId,
-      body.fetchConfig,
-      firstPeriodOption,
+    const newPromise = compute(
+      firstPeriodOptionFor(runCtx, body.resultsObjectId),
     );
-    _PO_ITEMS_CACHE.setPromise(newPromise, cacheKey, versionParams);
+    cache.setPromise(newPromise, cacheKey, versionParams);
     const res = await newPromise;
     console.log(
       `${tag}: MISS (${(performance.now() - t0).toFixed(0)}ms) ${
@@ -177,6 +217,74 @@ export async function readRunItems(
     );
     return res;
   });
+}
+
+export function readRunItems(
+  runCtx: RunReadContext,
+  body: RowsRequestBody,
+): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
+  return readRowsCached(
+    "PO Items",
+    _PO_ITEMS_CACHE,
+    runCtx,
+    body,
+    (firstPeriodOption) =>
+      getPresentationObjectItemsFromRun(
+        runCtx,
+        body.resultsObjectId,
+        body.fetchConfig,
+        firstPeriodOption,
+      ),
+  );
+}
+
+// The Explore grid read: the items read's rows under GRID_MAX_CELLS instead
+// of MAX_ITEMS, dictionary-encoded (lib/grid_items.ts).
+export function readRunGridItems(
+  runCtx: RunReadContext,
+  body: RowsRequestBody,
+): Promise<APIResponseWithData<GridItemsHolder>> {
+  return readRowsCached(
+    "Grid Items",
+    _GRID_ITEMS_CACHE,
+    runCtx,
+    body,
+    async (firstPeriodOption) => {
+      const res = await getPresentationObjectItemsFromRun(
+        runCtx,
+        body.resultsObjectId,
+        body.fetchConfig,
+        firstPeriodOption,
+        GRID_MAX_CELLS,
+      );
+      return res.success
+        ? { success: true, data: toGridItemsHolder(res.data) }
+        : res;
+    },
+  );
+}
+
+function toGridItemsHolder(ih: ItemsHolderPresentationObject): GridItemsHolder {
+  const base = {
+    resultsObjectId: ih.resultsObjectId,
+    fetchConfig: ih.fetchConfig,
+    runId: ih.runId,
+    scopeToken: ih.scopeToken,
+    dateRange: ih.dateRange,
+  };
+  switch (ih.status) {
+    case "ok":
+      return {
+        ...base,
+        status: "ok",
+        ...encodeGridItems(ih.items, ih.fetchConfig.groupBys),
+        indicatorMetadata: ih.indicatorMetadata,
+      };
+    case "too_many_items":
+      return { ...base, status: "too_many_cells" };
+    case "no_data_available":
+      return { ...base, status: "no_data_available" };
+  }
 }
 
 export async function readRunResultsValueInfo(

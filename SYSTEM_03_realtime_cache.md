@@ -310,19 +310,20 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
    SQL, payload semantics or payload shape_ change so old entries miss without
    a prefix migration.
 
-**The cache catalog**: four `_UPPER_SNAKE` module-level singletons (three in
+**The cache catalog**: five `_UPPER_SNAKE` module-level singletons (four in
 `server/routes/caches/visualizations.ts`, one in
-`server/routes/caches/dataset.ts`). The three data caches are run-scoped: two
+`server/routes/caches/dataset.ts`). The four data caches are run-scoped: two
 products on the same run and scope share entries.
 
 | Singleton                        | prefix           | uniquenessHash                                              | versionHash                            |
 | -------------------------------- | ---------------- | ----------------------------------------------------------- | -------------------------------------- |
 | `_PO_ITEMS_CACHE`                | `po_items`       | `runId\|resultsObjectId\|hashFetchConfig(fc)\|scopeToken`   | `PO_CACHE_VERSION`                     |
+| `_GRID_ITEMS_CACHE`              | `grid_items`     | `runId\|resultsObjectId\|hashFetchConfig(fc)\|scopeToken`   | `PO_CACHE_VERSION`                     |
 | `_METRIC_INFO_CACHE`             | `metric_info`    | `runId::metricId::scopeToken`                               | `PO_CACHE_VERSION`                     |
 | `_REPLICANT_OPTIONS_CACHE`       | `replicant_opts` | `runId::resultsObjectId::replicateBy::hash(fc)::scopeToken` | `PO_CACHE_VERSION`                     |
 | `_FETCH_CACHE_DATASET_HFA_ITEMS` | `ds_hfa_v2`      | constant `"hfa"` (instance-wide singleton)                  | `computeHfaCacheHash(hfa_time_points)` |
 
-Two key separators are live: `\|` (po_items) and `::` (metric_info,
+Two key separators are live: `\|` (po_items, grid_items) and `::` (metric_info,
 replicant_opts). There is no HMIS display cache (`ds_hmis`/`ds_hmis_v2`);
 the tombstone comment in `dataset.ts` records why: with vizItems in the
 import ledger the read takes a few milliseconds, and a cache only adds
@@ -333,14 +334,14 @@ liabilities (mid-run bypass dance, prefix-bump obligation).
 the one place that deliberately deletes entries rather than out-versioning them,
 and it is **disk reclamation, not correctness**: TTLs plus the version
 comparison in `get` already mean a dead run's entries are never served. Because
-`po_items`, `metric_info` and `replicant_opts` fold `runId` into their
+`po_items`, `grid_items`, `metric_info` and `replicant_opts` fold `runId` into their
 UNIQUENESS hash, they are swept by prefix (`scanUniquenessHashes(runId…)` →
 `clearByUniquenessHash`).
 
 **Rules.** Every cache is version-gated on a column bumped by _every_ write path
 to its data. Never `.clear()` on a normal write. `parseData` must derive the
 same hashes as the `*FromParams` functions: two computations of one key, keep
-them in lockstep. Never cache failures (`shouldStore: false`, all four do).
+them in lockstep. Never cache failures (`shouldStore: false`, all five do).
 Assume Valkey may be absent. Don't invent another caching mechanism: use
 `TimCacheC` for cross-process versioned read models; a process-local in-memory
 singleton (as the DHIS2 geojson session cache does, see SYSTEM_07) only for

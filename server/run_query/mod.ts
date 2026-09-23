@@ -13,6 +13,7 @@ export {
 export { deriveVirtualDefaults } from "./virtual_defaults.ts";
 export { buildRunAuthoringContext } from "./authoring_context.ts";
 export {
+  readRunGridItems,
   readRunItems,
   readRunReplicantOptions,
   readRunResultsValueInfo,

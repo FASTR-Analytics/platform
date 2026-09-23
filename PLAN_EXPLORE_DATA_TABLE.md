@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Do 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -643,3 +643,40 @@ Append-only, newest last.
   no choices to offer.
 - Step 1 fixed.
 - Step 1 reviewed: pass.
+- Step 2, fact wrong in the plan: the items read's scope filters and the
+  catalog-expression evaluation (which turns HMIS ingredient columns into
+  `value`) live in `getPresentationObjectItemsFromRun` in
+  `server/run_query/run_read.ts`, and encoding must follow them. A separate
+  `grid_items_core.ts` would have duplicated both the core and that wrapper.
+- Step 2, deviation (surface): the grid read reuses the items pipeline with
+  a row limit. `getPresentationObjectItemsCore` takes `maxItems` (default
+  `MAX_ITEMS`) and `getPresentationObjectItemsFromRun` passes it through;
+  both files are outside the listed surface, and `grid_items_core.ts` is not
+  created. The items read's behaviour and cache key are unchanged.
+  `server/run_query/mod.ts` exports `readRunGridItems`.
+- Step 2, deviation: in `run_data_reads.ts` the request checks (module,
+  required groupBys, catalog guards) are extracted to `checkRowsRequest`
+  and the cache-then-queue flow to `readRowsCached`, which `readRunItems`
+  and `readRunGridItems` both call, so neither is a copy of the other.
+- Step 2, deviation: cells keep the type SQL gave them (`GridCell`, string,
+  number or null) in both `levels` and `values`, so decoding reproduces the
+  items read's rows exactly rather than stringified levels and numeric
+  values. `decodeGridItems(encoded, groupBys)` takes the groupBys, which the
+  caller reads from the holder's `fetchConfig`.
+- Step 2, deviation (docs): SYSTEM_03's cache catalog restates the caches,
+  so it gains the `grid_items` row in this step.
+- Step 2, gate: `./validate_queries` fails at `d999eed3` (before this step)
+  and after it. Every case throws in `moduleFamilyFromDefinition`: commit
+  `e4919154` made `family`, `tier` and `sortOrder` required on installed
+  module definitions and `query_rig/build_package.ts` does not write them.
+  With those three fields added to the rig's module definition as a
+  temporary, uncommitted edit, both `d999eed3` and this step give 75 of 76
+  passing; the same case fails at both ("scope: an admin RO whose scope
+  cannot be derived fails CLOSED", expected `no_data_available`, got
+  `ok`). Both failures predate this plan and are outside its surface; they
+  are left for Tim.
+- Step 2, verification: a harness over the dev packages that carry m012
+  (HMIS Indicators mode, and Time mode by quarter) found `decodeGridItems`
+  of the grid read equal to the items read's rows on every one, at 21 to
+  34% of its JSON size. No dev package carries HFA or ICEH.
+- Step 2 built.

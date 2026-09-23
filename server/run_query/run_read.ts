@@ -806,6 +806,7 @@ export async function getPresentationObjectItemsFromRun(
   resultsObjectId: string,
   fetchConfig: GenericLongFormFetchConfig,
   firstPeriodOption: PeriodOption | undefined,
+  maxItems?: number,
 ): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
   const ro = findResultsObject(ctx.manifest, resultsObjectId);
   if (!ro) {
@@ -852,6 +853,7 @@ export async function getPresentationObjectItemsFromRun(
     effectiveFetchConfig,
     firstPeriodOption,
     getRunVersionInfo(ctx),
+    maxItems,
   );
   // Post-aggregation catalog evaluation (PLAN_1a §1.6): the engine returned
   // SUMmed ingredient columns for main AND roll-up rows; each row's own

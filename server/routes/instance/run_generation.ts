@@ -27,6 +27,7 @@ import {
   getReadyRunReadContext,
   getResultsObjectItemsFromRun,
   getRunReadContextForRun,
+  readRunGridItems,
   readRunItems,
   readRunReplicantOptions,
   readRunResultsValueInfo,
@@ -246,6 +247,26 @@ defineRoute(
     if (ctxRes.success === false) return c.json(ctxRes);
     return c.json(
       await readRunItems(ctxRes.data, {
+        resultsObjectId: body.resultsObjectId,
+        fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
+      }),
+    );
+  },
+);
+
+defineRoute(
+  routesRunGeneration,
+  "getRunGridItems",
+  requireApprovedUser(),
+  async (c, { params, body }) => {
+    const ctxRes = await getReadyRunReadContext(
+      c.var.mainDb,
+      params.run_id,
+      body.adminArea2,
+    );
+    if (ctxRes.success === false) return c.json(ctxRes);
+    return c.json(
+      await readRunGridItems(ctxRes.data, {
         resultsObjectId: body.resultsObjectId,
         fetchConfig: body.fetchConfig as GenericLongFormFetchConfig,
       }),
