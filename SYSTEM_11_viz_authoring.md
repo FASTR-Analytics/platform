@@ -82,8 +82,9 @@ bundle), `report/report.tsx` (rebuilds the figure block), and the package
 page's module pane (`ModuleVisualizations` in
 `results_packages/package_view/visualizations.tsx`, S8), which opens it
 `viewOnly`: no collab binding, Back is the only way
-out, and the draft never leaves the editor. A fourth, the Explore page
-(`components/explore/explore.tsx`), mounts it `viewOnly` and `inline`
+out, and the draft never leaves the editor. A fourth, the Explore page's
+Visualization tab (`components/explore/visualization/visualization.tsx`),
+mounts it `viewOnly` and `inline`
 inside the page: no Back, no copilot toggle, the draft lives as long as the
 mount. The product hosts pass
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
@@ -201,32 +202,58 @@ page is read-only and does not call it.
 
 ## The Explore page
 
-`components/explore/explore.tsx` renders one package at one scope, a family
-tab, and that family's one default visualization open in the figure editor,
-inline and read-only, for an approved user. The heading row carries a
-package `Select` over `instanceState.readyPackages`, opening on the pin,
-else the newest ready package, and an area `Select` over `listAdminArea2s`
-whose first option is National. Both are page signals, never stored, so a
-deleted package can never be a stored default; only the family tab persists
-(`exploreFamily`, S14). The family tabs (`TabsNavigation`, as the Data page)
-offer the families whose primary module is in the package, in family order
-(`familiesInPackage` in `explore_query.ts`, over the authoring context's
-module summaries), and a stored family the package does not offer falls
-back to the first offered. Per family the default is the primary module's
-first ready metric by id (its first metric by id when none is ready, so the
-stamped reason shows) and that metric's first preset, derived through
-`presetConfig` (the shared `deriveConfigFromVizPreset`). It mounts
-`VisualizationEditor` with `viewOnly` and `inline`: the Data, Style and
-Text panels are the user's controls, the header keeps Download and the
-height toggle and drops Back and the copilot toggle, and the draft is
-keyed on the pair and the metric, so a package, scope or family change
-remounts the editor on a fresh copy of the preset. Every read goes through
-`t2_run_authoring_context` and `t2_figure_data`, so the preset seen in the
-picker and on Explore under the same pair is one cache entry. Empty states
-are typed: no ready package, a package with no primary module, a family
-whose metric is unavailable (its stamped reason), and a metric with no
-preset. The page writes nothing: no insert into a product, no persisted
-draft, no copilot.
+`components/explore/explore.tsx` renders one package at one scope for an
+approved user: a heading row with a package `Select` over
+`instanceState.readyPackages` (opening on the pin, else the newest ready
+package) and an area `Select` over `listAdminArea2s` whose first option is
+National, then a `TabsNavigation` rail with **Data table** (the default) and
+**Visualization**. The package and area are page signals, never stored, so a
+deleted package can never be a stored default; the tab (`exploreTab`) and the
+family (`exploreFamily`) persist in `t4_ui` (S14). The authoring context is
+read through `t2_run_authoring_context`. The page writes nothing: no insert
+into a product, no persisted draft, no copilot, no help buttons.
+
+**Data table** (`explore/data_table/`) reads the family's primary metric
+(`primaryMetricFor`) as a grid whose rows are the unit (admin areas at one
+level, or an ICEH stratifier's levels) and whose columns are indicators or
+time. Its state is a `GridQuery` per family ("Grid query model" below),
+owned by the page so a package, scope or tab change never resets it; until
+the user edits a family's query it is `defaultGridQuery` for the current
+scope. Every read resolves the query first (`resolveGridQuery`); indicators
+the package lacks stay in state and a one-line notice above the grid offers
+Clear. The toolbar holds family, level or stratifier, indicators
+(`MultiSelectSearch`, empty means all), period (`periodChoicesFor`), columns
+(Indicators or Time), grain (HMIS Time mode only), a find box and Download.
+The reads are tracked (`createTrackedQuery`, `data_table/tracked_query.ts`),
+so they re-run on any change of the pair or the query: the metric info
+(`t2_figure_data`, for ICEH's years and stratifiers and for formats and
+rules) and the grid read (`t2_grid_items`, S9 "The grid read") on the fetch
+config of `deriveGridConfig`'s config. The decoded rows go through the
+canvas table's own pipeline, `buildFigureInputs` over a figure bundle built
+in memory, so the effective config, roll-up pin and label, label
+replacements (indicators, dates, Nigeria admin cleaning) and header order
+are the canvas table's; then panther's `getTableDataTransformed` pivot and
+`dataGridPropsFromTableData` with the cell function
+(`data_table/cell_function.ts`): each value formatted by its indicator's
+effective format (`resolveEffectiveIndicatorFacts`, `formatIndicatorValue`),
+the raw number as the sort key, and HMIS cells coloured by the indicator's
+own threshold rule; HFA and ICEH are uncoloured. `DataGrid` fills the height
+with a hover line beneath, sorts by header click (transient, never stored),
+and scrolls to the first column whose label contains the find text
+(`focusColumnId`). Download saves the grid's text as CSV, in the pivot's row
+order. Empty states are typed: no ready package, no primary module, a family
+whose metric is unavailable (its stamped reason), no preset, no data, and
+too many cells (narrow the indicators or coarsen the grain).
+
+**Visualization** (`explore/visualization/`) is a family tab over the
+families whose primary module is in the package and that family's first
+ready metric's first preset open in `VisualizationEditor` with `viewOnly`
+and `inline`: the Data, Style and Text panels are the user's controls, the
+header keeps Download and the height toggle and drops Back and the copilot
+toggle, and the draft is keyed on the pair and the metric, so a package,
+scope or family change remounts the editor on a fresh copy of the preset.
+Its empty states: no primary module, an unavailable metric (its stamped
+reason), and a metric with no preset.
 
 ## lib config semantics
 

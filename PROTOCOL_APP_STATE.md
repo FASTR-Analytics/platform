@@ -241,6 +241,7 @@ callback (no readiness gate; an absent stamp yields the `"unknown"` sentinel).
 | Slide deck detail             | `products/t2_slide_deck_detail.ts`   | `lastUpdated.products[productId]`                        | B       |
 | Report detail                 | `products/t2_report_detail.ts`       | `lastUpdated.products[productId]`                        | B       |
 | Figure data (PO items, metric info) | `products/t2_figure_data.ts`   | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
+| Explore grid rows             | `products/t2_grid_items.ts`          | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
 | Replicant options             | `products/t2_replicant_options.ts`   | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
 | Run authoring context         | `instance/t2_run_authoring_context.ts` | `[runId]` + constant `"immutable"`                     | A       |
 | Image blobs                   | `products/t2_images.ts`              | URL-keyed (`TimCacheD`, immutable, with failure backoff) | none    |

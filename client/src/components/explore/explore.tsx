@@ -1,12 +1,4 @@
-import {
-  getModuleFamilyLabel,
-  t3,
-  TC,
-  type DatasetType,
-  type MetricWithStatus,
-  type PackageScope,
-  type RunAuthoringContext,
-} from "lib";
+import { t3, TC, type PackageScope, type RunAuthoringContext } from "lib";
 import {
   createQuery,
   FrameTop,
@@ -15,23 +7,21 @@ import {
   StateHolderWrapper,
   TabsNavigation,
 } from "panther";
-import { createMemo, createSignal, Show } from "solid-js";
-import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
+import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
-import { exploreFamily, setExploreFamily } from "~/state/t4_ui";
-import { familiesInPackage, presetConfig, type FamilyPrimary } from "./explore_query";
+import { exploreTab, setExploreTab } from "~/state/t4_ui";
+import { DataTable, type QueriesByFamily } from "./data_table/mod.ts";
+import { Visualization } from "./visualization/mod.ts";
 
 const NATIONAL = "__national__";
 
-// The Explore tab's page: one package at one scope, a family tab, and that
-// family's one default visualization open in the figure editor, inline and
-// read-only, so the user reshapes it with the same panel a product uses.
-// The package starts at the pin (else the newest ready package) and the
-// scope national on every mount; neither is stored, so a deleted package can
-// never be a stored default. The family tab persists in t4_ui. Nothing here
-// is written anywhere.
+// The Explore tab's page: one package at one scope, read as a data table or
+// through the figure editor. The package starts at the pin (else the newest
+// ready package) and the scope national on every mount; neither is stored,
+// so a deleted package can never be a stored default. The page tab and the
+// family persist in t4_ui. Nothing here is written anywhere.
 export function Explore() {
   const [chosenPackageId, setChosenPackageId] = createSignal<string | null>(
     null,
@@ -46,6 +36,7 @@ export function Explore() {
       ?.id;
   });
   const [adminArea2, setAdminArea2] = createSignal<string | null>(null);
+  const [gridQueries, setGridQueries] = createSignal<QueriesByFamily>({});
   const areas = createQuery<string[]>(() => serverActions.listAdminArea2s({}));
   const areaOptions = createMemo(() => {
     const state = areas.state();
@@ -103,134 +94,70 @@ export function Explore() {
         }
       >
         {(runId) => (
-          <PackageExplorer scope={{ runId, adminArea2: adminArea2() }} />
+          <PackageExplorer
+            scope={{ runId, adminArea2: adminArea2() }}
+            gridQueries={gridQueries()}
+            setGridQueries={setGridQueries}
+          />
         )}
       </Show>
     </FrameTop>
   );
 }
 
-function PackageExplorer(p: { scope: PackageScope }) {
+function PackageExplorer(p: {
+  scope: PackageScope;
+  gridQueries: QueriesByFamily;
+  setGridQueries: (queries: QueriesByFamily) => void;
+}) {
   const context = createQuery(
     () => getRunAuthoringContextFromCacheOrFetch(p.scope.runId),
     t3(TC.loading),
   );
   return (
     <StateHolderWrapper state={context.state()}>
-      {(ctx: RunAuthoringContext) => <FamilyTabs ctx={ctx} scope={p.scope} />}
-    </StateHolderWrapper>
-  );
-}
-
-function FamilyTabs(p: { ctx: RunAuthoringContext; scope: PackageScope }) {
-  const families = createMemo(() => familiesInPackage(p.ctx));
-  const activeFamily = createMemo((): DatasetType | undefined => {
-    const offered = families();
-    return offered.some((f) => f.family === exploreFamily())
-      ? exploreFamily()
-      : offered[0]?.family;
-  });
-  const active = () => families().find((f) => f.family === activeFamily());
-
-  return (
-    <Show
-      when={active()}
-      keyed
-      fallback={
-        <div class="ui-pad text-base-content-muted text-sm">
-          {t3({
-            en: "This package has no primary module, so there are no results to explore. Generate a package that includes one.",
-            fr: "Ce paquet n'a aucun module principal, il n'y a donc aucun résultat à explorer. Générez un paquet qui en inclut un.",
-            pt: "Este pacote não tem nenhum módulo principal, pelo que não há resultados para explorar. Gere um pacote que inclua um.",
-          })}
-        </div>
-      }
-    >
-      {(primary) => (
+      {(ctx: RunAuthoringContext) => (
         <FrameTop
           panelChildren={
             <TabsNavigation
-              items={families().map((f) => ({
-                id: f.family,
-                label: getModuleFamilyLabel(f.family),
-              }))}
-              value={primary.family}
-              onChange={setExploreFamily}
-              insetRail
+              items={[
+                {
+                  id: "data_table" as const,
+                  label: t3({
+                    en: "Data table",
+                    fr: "Tableau de données",
+                    pt: "Tabela de dados",
+                  }),
+                },
+                {
+                  id: "visualization" as const,
+                  label: t3({
+                    en: "Visualization",
+                    fr: "Visualisation",
+                    pt: "Visualização",
+                  }),
+                },
+              ]}
+              value={exploreTab()}
+              onChange={setExploreTab}
             />
           }
         >
-          <FamilyDefault ctx={p.ctx} scope={p.scope} primary={primary} />
+          <Switch>
+            <Match when={exploreTab() === "data_table"}>
+              <DataTable
+                ctx={ctx}
+                scope={p.scope}
+                queries={p.gridQueries}
+                setQueries={p.setGridQueries}
+              />
+            </Match>
+            <Match when={exploreTab() === "visualization"}>
+              <Visualization ctx={ctx} scope={p.scope} />
+            </Match>
+          </Switch>
         </FrameTop>
       )}
-    </Show>
-  );
-}
-
-// The family's default open in the editor. The editor is keyed on the pair
-// and the metric, so a package, scope or family change remounts it on a
-// fresh copy of the preset.
-function FamilyDefault(p: {
-  ctx: RunAuthoringContext;
-  scope: PackageScope;
-  primary: FamilyPrimary;
-}) {
-  const ready = (): MetricWithStatus | undefined =>
-    p.primary.metric?.status === "ready" ? p.primary.metric : undefined;
-  const key = () => {
-    const metric = ready();
-    return metric === undefined
-      ? undefined
-      : `${p.scope.runId}|${p.scope.adminArea2 ?? ""}|${metric.id}`;
-  };
-
-  return (
-    <Show
-      when={key()}
-      keyed
-      fallback={
-        <div class="ui-pad text-base-content-muted text-sm">
-          {p.primary.metric?.statusReason ??
-            t3({
-              en: "This module produced no metric in this package",
-              fr: "Ce module n'a produit aucun indicateur dans ce paquet",
-              pt: "Este módulo não produziu nenhuma métrica neste pacote",
-            })}
-        </div>
-      }
-    >
-      {(_key: string) => {
-        const metric = ready()!;
-        const preset = metric.vizPresets?.[0];
-        return (
-          <Show
-            when={preset}
-            keyed
-            fallback={
-              <div class="ui-pad text-base-content-muted text-sm">
-                {t3({
-                  en: "This metric declares no visualization preset",
-                  fr: "Cet indicateur ne déclare aucune visualisation prédéfinie",
-                  pt: "Esta métrica não declara nenhuma visualização predefinida",
-                })}
-              </div>
-            }
-          >
-            {(keyedPreset) => (
-              <VisualizationEditor
-                label={metric.label}
-                scope={p.scope}
-                metric={metric}
-                configSnapshot={presetConfig(keyedPreset)}
-                authoringContext={p.ctx}
-                viewOnly
-                inline
-                close={() => {}}
-              />
-            )}
-          </Show>
-        );
-      }}
-    </Show>
+    </StateHolderWrapper>
   );
 }

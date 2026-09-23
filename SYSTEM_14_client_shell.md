@@ -169,8 +169,8 @@ Everything else is a **signal-driven switchboard**, never the URL:
 a permission-guarded derivation that selects Products / Explore / Results /
 Data / Assets / Users, in that nav order; Products (S12's
 `components/products/`) is first and the default, and Explore (S11's
-`components/explore/`, one package at one scope with the family's default
-visualization open in the figure editor, S11 "The Explore page") needs approval
+`components/explore/`, one package at one scope read as a data table or
+through the figure editor, S11 "The Explore page") needs approval
 only, which the whole nav already requires. The tab id union is `InstanceTab`
 in `onboarding/catalogue.ts` and the shell imports it.
 
@@ -247,8 +247,9 @@ Whether every literal is well-formed across the 241-file surface is the standing
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
 then the signal: the rail's `navCollapsed`; the Data page's section tab
-`dataSection` (General / HMIS / HFA / ICEH); the Explore page's family tab
-`exploreFamily` (its package and scope are page signals, never stored); the
+`dataSection` (General / HMIS / HFA / ICEH); the Explore page's tab
+`exploreTab` (Data table / Visualization) and family `exploreFamily` (its
+package and scope are page signals, never stored); the
 product explorer's four (`productsOpenFolder`, the
 location, null = the root; `productsViewMode`; `productsSortMode`, `SortMode
 = "name" | "recent"` from `lib/types/sort.ts`, one vocabulary for every list;

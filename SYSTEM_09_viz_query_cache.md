@@ -4,6 +4,7 @@ name: Visualization Query & Cache Service
 globs:
   - client/src/state/instance/t2_run_authoring_context.ts
   - client/src/state/products/t2_figure_data.ts
+  - client/src/state/products/t2_grid_items.ts
   - client/src/state/products/t2_replicant_options.ts
   - lib/rollup.ts
   - lib/convert_period_value.ts
@@ -810,7 +811,11 @@ indicator metadata. Over the cap it answers `too_many_cells`.
 `decodeGridItems` reproduces the items read's rows exactly, so the canvas
 table's pivot consumes them unchanged; `server/tests/grid_items_test.ts`
 proves the round trip. It is cached in `_GRID_ITEMS_CACHE` (`grid_items`),
-keyed as `po_items`, and purged with the run.
+keyed as `po_items`, and purged with the run. On the client,
+`t2_grid_items.ts` (`getGridRowsFromCacheOrFetch`) is the `t2_figure_data`
+idiom for it: `createReactiveCache` keyed `runId | scopeToken |
+resultsObjectId | hashFetchConfig` with version `"immutable"`, on the items
+queue, storing the encoded payload and handing callers the decoded rows.
 
 ## FigureBundle: the capture side
 

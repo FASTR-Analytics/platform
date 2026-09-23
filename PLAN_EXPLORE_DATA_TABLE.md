@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Do 4.** Each session sets this line in its final commit.
+**Next step: Review 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -808,3 +808,43 @@ Append-only, newest last.
   typecheck, the app's typecheck, test, `./validate_protocols` and the boot
   gate pass.
 - Step 3 reviewed: pass.
+- Step 4, deviation: the state is one `GridQuery` per family
+  (`QueriesByFamily`), owned by `Explore` above the package key rather than
+  by the Data table's mount. Held in the tab, a package change (which
+  remounts everything under the package key) or a tab switch would have
+  reset it, against ruling 9. A family with no stored query reads
+  `defaultGridQuery` for the current scope until the user edits it, so its
+  default level follows the scope.
+- Step 4, deviation: the canvas pipeline is reached through
+  `buildFigureInputs` over a figure bundle built in memory from the grid
+  rows, not by calling `getTableJsonDataConfigFromPresentationObjectConfig`
+  directly. That is exactly how the canvas table calls it (effective config,
+  indicator labels and order from the rows' indicator metadata, roll-up
+  label, date labels, Nigeria cleaning), and needs nothing exported from
+  `build_figure_inputs.ts`.
+- Step 4, deviation: the page tab rail sits beneath the heading row (a
+  `FrameTop` panel, as the Data page's tabs), not on it as §2's sketch
+  draws.
+- Step 4, decision: Download writes each cell's displayed text, in the
+  pivot's row order (the grid's header sort is transient and internal to
+  `DataGrid`); a column's header is its group label and its label joined by
+  " · "; the corner cell is blank (panther's `Csv`).
+- Step 4, decision: the find box focuses the first column whose full label
+  (group, then column) contains the text, case-insensitively.
+- Step 4, deviation (docs): `PROTOCOL_APP_STATE.md`'s products cache
+  inventory gains the `t2_grid_items.ts` row.
+- Step 4, verification (not a gate): the app was run against the dev
+  database with auth bypassed (server with `CLIENT_ORIGIN` set to a spare
+  Vite port, since :3000 was another project's). On the newest HMIS package:
+  Indicators mode (National roll-up row first, 13 provinces, 54 indicator
+  columns), Time mode (indicator column groups over months), the find box
+  (scrolls to and marks the first match), a province scope (level moves to
+  admin area 3, a "GAZA — All areas" roll-up row, Time mode kept across the
+  scope change), the Visualization tab (the editor as before) and back (the
+  query kept), and Download (a CSV of the grid's text). No console errors.
+  No dev package carries an indicator threshold, so the colouring path was
+  exercised in the browser by calling `gridCellFunction` with a rule:
+  bucket colours in Indicators mode, Time mode and a collapsed single
+  indicator; none for an indicator without a rule or for HFA. No dev
+  package carries HFA or ICEH.
+- Step 4 built.
