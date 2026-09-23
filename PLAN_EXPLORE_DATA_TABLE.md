@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Fix 2.** Each session sets this line in its final commit.
+**Next step: Review 2.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -729,3 +729,8 @@ Append-only, newest last.
   leaves a short line ("through the headless allowlist. Guarded") in the
   middle of the comment. Reflow it.
 - Step 2 reviewed: 2 findings.
+- Step 2, fix: `RowsCacheParams` is exported from
+  `server/routes/caches/visualizations.ts` and `readRowsCached` takes it,
+  so the key's shape is declared once; the figure-data route comment is
+  reflowed.
+- Step 2 fixed.

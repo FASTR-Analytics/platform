@@ -20,6 +20,7 @@ import {
   _PO_ITEMS_CACHE,
   _REPLICANT_OPTIONS_CACHE,
   type PoDataVersionParams,
+  type RowsCacheParams,
 } from "../routes/caches/visualizations.ts";
 import type { TimCacheC } from "../valkey/cache_class_C.ts";
 import {
@@ -157,18 +158,11 @@ type RowsRequestBody = {
   fetchConfig: GenericLongFormFetchConfig;
 };
 
-type RowsCacheKey = {
-  runId: string;
-  resultsObjectId: string;
-  fetchConfig: GenericLongFormFetchConfig;
-  scopeToken: string;
-};
-
 // The two row reads differ only in their cache and in what they compute on
 // a miss.
 async function readRowsCached<T>(
   label: string,
-  cache: TimCacheC<RowsCacheKey, PoDataVersionParams, APIResponseWithData<T>>,
+  cache: TimCacheC<RowsCacheParams, PoDataVersionParams, APIResponseWithData<T>>,
   runCtx: RunReadContext,
   body: RowsRequestBody,
   compute: (firstPeriodOption: PeriodOption | undefined) => Promise<

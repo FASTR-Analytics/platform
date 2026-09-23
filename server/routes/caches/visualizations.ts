@@ -112,7 +112,7 @@ export type PoDataVersionParams = {
   runId: string;
 };
 
-type RowsCacheParams = {
+export type RowsCacheParams = {
   runId: string;
   resultsObjectId: string;
   fetchConfig: GenericLongFormFetchConfig;
