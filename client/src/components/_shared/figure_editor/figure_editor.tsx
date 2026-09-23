@@ -774,7 +774,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 />
               </Show>
             </div>
-            <div class="font-700 flex flex-1 items-center truncate text-xl">
+            <div class="ui-text-heading flex flex-1 items-center truncate">
               <span class="font-400">{label}</span>
             </div>
             <div class="ui-gap-sm flex items-center">

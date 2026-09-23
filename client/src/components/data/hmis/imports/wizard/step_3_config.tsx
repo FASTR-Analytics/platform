@@ -25,7 +25,7 @@ export function Dhis2StepConfig(p: Props) {
       <Switch>
         <Match when={p.timeChoice === "now" || p.timeChoice === "later"}>
           <div>
-            <label class="font-700 mb-4 block text-base">
+            <label class="ui-text-heading mb-4 block">
               {t3({ en: "Select period range", fr: "Sélectionner la plage de périodes", pt: "Selecionar o intervalo de períodos" })}
             </label>
             <PeriodSelector

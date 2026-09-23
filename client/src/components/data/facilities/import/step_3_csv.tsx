@@ -30,7 +30,7 @@ export function Step3_Csv(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="font-700 text-lg">{t3({ en: "Ready to import from csv", fr: "Prêt à importer depuis le CSV", pt: "Pronto para importar a partir do CSV" })}</div>
+      <div class="ui-text-heading">{t3({ en: "Ready to import from csv", fr: "Prêt à importer depuis le CSV", pt: "Pronto para importar a partir do CSV" })}</div>
       <ProgressBar
         progressFrom0To100={progressFrom0To100()}
         progressMsg={progressMsg()}

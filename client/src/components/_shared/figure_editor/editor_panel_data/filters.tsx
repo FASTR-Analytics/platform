@@ -72,7 +72,7 @@ export function Filters(p: FiltersProps) {
 
   return (
     <div class="ui-spy-sm">
-      <div class="text-md font-700">{t3({ en: "Filter (subset)", fr: "Filtre (sous-ensemble)", pt: "Filtro (subconjunto)" })}</div>
+      <div class="ui-text-heading">{t3({ en: "Filter (subset)", fr: "Filtre (sous-ensemble)", pt: "Filtro (subconjunto)" })}</div>
 
       <div class="ui-spy-sm">
         <Show when={p.metric.valueProps.length > 1}>

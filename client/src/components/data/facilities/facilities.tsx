@@ -174,7 +174,7 @@ export function Facilities(p: Props) {
           panelChildren={
             <Show when={instanceState.currentUserIsGlobalAdmin}>
               <div class="ui-pad ui-spy flex h-full w-64 flex-col overflow-auto">
-                <div class="font-700 text-lg">
+                <div class="ui-text-heading">
                   {t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
                 </div>
                 <Switch>

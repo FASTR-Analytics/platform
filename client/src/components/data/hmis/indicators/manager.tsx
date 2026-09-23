@@ -632,9 +632,18 @@ function IndicatorsTable(p: {
   return (
     <div class="flex h-full flex-col">
       <div class="ui-gap-sm flex items-center pb-4">
-        <div class="ui-text-title flex-1">
-          {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })} (
-          {p.indicators.length})
+        <div class="flex-1">
+          {search().trim()
+            ? t3({
+                en: `${visibleIndicators().length} of ${p.indicators.length}`,
+                fr: `${visibleIndicators().length} sur ${p.indicators.length}`,
+                pt: `${visibleIndicators().length} de ${p.indicators.length}`,
+              })
+            : t3({
+                en: `${p.indicators.length} indicators`,
+                fr: `${p.indicators.length} indicateurs`,
+                pt: `${p.indicators.length} indicadores`,
+              })}
         </div>
         <div class="w-72 xl:w-96">
           <Input

@@ -14,7 +14,7 @@ export function IcehStagingSummary(p: Props) {
   return (
     <div class="ui-spy">
       <div class="ui-pad bg-base-200 rounded">
-        <h3 class="font-700 mb-4 text-lg">
+        <h3 class="ui-text-heading mb-4">
           {t3({ en: "Row Statistics", fr: "Statistiques des lignes", pt: "Estatísticas das linhas" })}
         </h3>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
@@ -80,7 +80,7 @@ export function IcehStagingSummary(p: Props) {
       </div>
 
       <div class="ui-pad bg-base-200 rounded">
-        <h3 class="font-700 mb-4 text-lg">
+        <h3 class="ui-text-heading mb-4">
           {t3({ en: "Data to Import", fr: "Données à importer", pt: "Dados a importar" })}
         </h3>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">

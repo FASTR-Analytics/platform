@@ -198,7 +198,7 @@ export function InsertFigureModal(
       noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg">
+          <div class="ui-text-heading">
             {t3({ en: "Insert visualization", fr: "Insérer une visualisation", pt: "Inserir visualização" })}
           </div>
           <StepperChipsWithTitles

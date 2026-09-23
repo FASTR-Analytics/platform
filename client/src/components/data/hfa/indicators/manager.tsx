@@ -1014,16 +1014,18 @@ export function HfaIndicatorsManager(p: Props) {
                 {(keyedIndicators) => (
                   <div class="flex h-full flex-col">
                     <div class="ui-gap-sm flex flex-none items-center pb-4">
-                      <div class="font-700 flex-1 truncate text-xl">
-                        {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })} (
+                      <div class="flex-1 truncate">
                         {searchText().trim()
                           ? t3({
                               en: `${filteredIndicators().length} of ${keyedIndicators.length}`,
                               fr: `${filteredIndicators().length} sur ${keyedIndicators.length}`,
                               pt: `${filteredIndicators().length} de ${keyedIndicators.length}`,
                             })
-                          : keyedIndicators.length}
-                        )
+                          : t3({
+                              en: `${keyedIndicators.length} indicators`,
+                              fr: `${keyedIndicators.length} indicateurs`,
+                              pt: `${keyedIndicators.length} indicadores`,
+                            })}
                       </div>
                       <div class="w-72 flex-none">
                         <Input

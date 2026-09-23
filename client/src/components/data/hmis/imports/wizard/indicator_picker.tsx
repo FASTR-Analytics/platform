@@ -95,7 +95,7 @@ export function Dhis2IndicatorPicker(p: Props) {
       {(keyedIndicators) => (
         <div class="ui-spy-sm">
           <div class="ui-gap flex items-center justify-between">
-            <div class="font-700 text-lg">
+            <div class="ui-text-heading">
               {p.selectedIds().length === 1
                 ? t3({
                     en: "1 selected indicator",

@@ -174,7 +174,7 @@ export function Dhis2TabCurrent(p: Props) {
 
       <Show when={p.queuedRuns.length > 0}>
         <div class="ui-spy-sm">
-          <div class="font-700 text-lg">
+          <div class="ui-text-heading">
             {t3({
               en: "Queued imports",
               fr: "Importations en file d'attente",

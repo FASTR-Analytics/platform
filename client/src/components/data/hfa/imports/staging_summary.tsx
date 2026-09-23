@@ -31,7 +31,7 @@ export function HfaStagingSummary(p: Props) {
       </div>
 
       <div class="ui-pad bg-base-200 rounded">
-        <h3 class="font-700 mb-4 text-lg">
+        <h3 class="ui-text-heading mb-4">
           {t3({ en: "Row Statistics", fr: "Statistiques des lignes", pt: "Estatísticas das linhas" })}
         </h3>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
@@ -104,7 +104,7 @@ export function HfaStagingSummary(p: Props) {
       </div>
 
       <div class="ui-pad bg-base-200 rounded">
-        <h3 class="font-700 mb-4 text-lg">
+        <h3 class="ui-text-heading mb-4">
           {t3({ en: "Data Dictionary", fr: "Dictionnaire de données", pt: "Dicionário de dados" })}
         </h3>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">

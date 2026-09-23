@@ -32,7 +32,7 @@ export function Step1_Dhis2(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-700 text-lg">
+        <div class="ui-text-heading">
           {t3({ en: "DHIS2 Connection", fr: "Connexion DHIS2", pt: "Ligação DHIS2" })}
         </div>
         <div class="ui-spy rounded border p-4">

@@ -167,7 +167,7 @@ export function Dhis2RunDetail(
     >
       <div class="ui-pad ui-spy h-full w-full overflow-auto">
         <div class="ui-pad ui-spy-sm rounded border text-sm">
-          <div class="font-700 text-base">
+          <div class="ui-text-heading">
             {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
           </div>
           <div class="flex items-baseline">
@@ -349,7 +349,7 @@ export function Dhis2RunDetail(
 
                 <Show when={skippedPairStats.length > 0}>
                   <div class="ui-spy-sm">
-                    <div class="font-700 text-lg">
+                    <div class="ui-text-heading">
                       {t3({ en: "Skipped values", fr: "Valeurs ignorées", pt: "Valores ignorados" })}{" "}
                       ({toNum0(totalSkippedValues)})
                     </div>
@@ -371,7 +371,7 @@ export function Dhis2RunDetail(
                 <Show when={failedPairStats.length > 0}>
                   <div class="ui-spy-sm">
                     <div class="ui-gap flex items-center">
-                      <div class="font-700 text-lg">
+                      <div class="ui-text-heading">
                         {t3({ en: "Failed pairs", fr: "Paires en échec", pt: "Pares falhados" })}{" "}
                         ({toNum0(failedPairStats.length)})
                       </div>

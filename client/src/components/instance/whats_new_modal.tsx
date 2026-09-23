@@ -196,7 +196,7 @@ function WhatsNewPageContent(p: {
       fallback={
         <div class="ui-spy">
           <Show when={rt(p.page.title)}>
-            <h3 class="font-700 text-base-content text-lg">
+            <h3 class="ui-text-heading">
               {rt(p.page.title)}
             </h3>
           </Show>
@@ -261,7 +261,7 @@ function WhatsNewPageContent(p: {
           }}
         >
           <Show when={rt(p.page.title)}>
-            <h3 class="font-700 mb-2 text-xl">{rt(p.page.title)}</h3>
+            <h3 class="ui-text-heading mb-2">{rt(p.page.title)}</h3>
           </Show>
           <MarkdownPresentationJsx markdown={rt(p.page.body)} />
         </div>

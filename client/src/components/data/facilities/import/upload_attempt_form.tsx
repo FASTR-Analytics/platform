@@ -491,7 +491,7 @@ function ImportInProgress(p: ImportInProgressProps) {
         <div class="h-6 w-6 flex-none">
           <Spinner intent="primary" />
         </div>
-        <div class="font-700 text-lg">
+        <div class="ui-text-heading">
           {t3({
             en: "A structure import is running...",
             fr: "Une importation de structure est en cours...",

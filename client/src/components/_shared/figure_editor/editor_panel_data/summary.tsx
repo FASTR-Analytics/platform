@@ -20,7 +20,7 @@ type DataValuesSummaryProps = {
 export function DataValuesSummary(p: DataValuesSummaryProps) {
   return (
     <div class="">
-      <div class="text-md font-700 pb-1">
+      <div class="ui-text-heading pb-1">
         {t3({ en: "Metric", fr: "Indicateur", pt: "Métrica" })}
       </div>
       <div class="text-sm">{p.metric.label}</div>
@@ -62,7 +62,7 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
 
   return (
     <div class="">
-      <div class="text-md font-700 pb-1">
+      <div class="ui-text-heading pb-1">
         {t3({ en: "Presentation type", fr: "Type de présentation", pt: "Tipo de apresentação" })}
       </div>
       <Select

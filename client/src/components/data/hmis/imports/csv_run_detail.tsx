@@ -67,7 +67,7 @@ export function CsvRunDetail(
     >
       <div class="ui-pad ui-spy h-full w-full overflow-auto">
         <div class="ui-pad ui-spy-sm rounded border text-sm">
-          <div class="font-700 text-base">
+          <div class="ui-text-heading">
             {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
           </div>
           <div class="flex items-baseline">

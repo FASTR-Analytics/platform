@@ -509,7 +509,7 @@ function ReconcileStep(p: {
 
   return (
     <>
-      <div class="font-700 text-base">
+      <div class="ui-text-heading">
         {t3({ en: "Map time points", fr: "Mapper les points temporels", pt: "Mapear pontos temporais" })}
       </div>
       <div class="text-base-content-muted text-sm">

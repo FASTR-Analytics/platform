@@ -320,7 +320,7 @@ export function CsvWizard(
       noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg">
+          <div class="ui-text-heading">
             {t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}
           </div>
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />

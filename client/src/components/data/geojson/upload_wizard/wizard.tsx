@@ -127,7 +127,7 @@ export function GeoJsonUploadWizard(p: Props) {
 
   return (
     <div class="ui-pad-lg ui-spy" style={{ "min-width": "700px", "max-height": "80vh", "overflow-y": "auto" }}>
-      <div class="font-700 text-lg">
+      <div class="ui-text-heading">
         {t3({ en: "Import GeoJSON", fr: "Importer GeoJSON", pt: "Importar GeoJSON" })}
         {" — "}
         {p.family === "hmis"

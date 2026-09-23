@@ -245,7 +245,7 @@ export function Step5Import(p: Props) {
       <Match when={importSummary()} keyed>
         {(summary) => (
           <div class="ui-spy ui-pad">
-            <div class="font-700 text-success text-lg">
+            <div class="ui-text-heading text-success">
               {t3({ en: "Import complete", fr: "Importation terminée", pt: "Importação concluída" })}
             </div>
             <div class="ui-pad bg-base-200 ui-spy-sm rounded">
@@ -304,7 +304,7 @@ export function Step5Import(p: Props) {
       <Match when={true}>
         <div class="ui-spy ui-pad">
           <div class="ui-spy">
-            <div class="font-700 text-lg">
+            <div class="ui-text-heading">
               {t3({ en: "Staging Complete", fr: "Préparation terminée", pt: "Preparação concluída" })}
             </div>
 

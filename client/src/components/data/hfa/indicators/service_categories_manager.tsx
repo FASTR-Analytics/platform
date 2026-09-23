@@ -80,7 +80,7 @@ export function HfaServiceCategoriesManager(p: Props) {
   return (
     <div class="flex h-full w-1/2 flex-col">
       <div class="ui-gap-sm flex flex-none items-center pb-4">
-        <div class="font-700 flex-1 text-xl">
+        <div class="ui-text-heading flex-1">
           {t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" })} (
           {items.length})
         </div>

@@ -154,7 +154,7 @@ function GroupsPane(p: {
   return (
     <>
       <div class="ui-gap-sm flex flex-none items-center pb-4">
-        <div class="font-700 flex-1 text-xl">
+        <div class="ui-text-heading flex-1">
           {t3({ en: "Variant groups", fr: "Groupes de variantes", pt: "Grupos de variantes" })} ({items.length})
         </div>
         <Show when={isAdmin()}>
@@ -335,7 +335,7 @@ function ItemsPane(p: {
   return (
     <>
       <div class="ui-gap-sm flex flex-none items-center pb-4">
-        <div class="font-700 min-w-0 flex-1 truncate text-xl">
+        <div class="ui-text-heading min-w-0 flex-1 truncate">
           {t3({ en: "Items", fr: "Éléments", pt: "Itens" })} ({items.length})
         </div>
         <Show when={isAdmin()}>

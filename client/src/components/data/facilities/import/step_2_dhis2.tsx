@@ -61,7 +61,7 @@ export function Step2_Dhis2(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
-        <div class="font-700 pb-4 text-lg">
+        <div class="ui-text-heading pb-4">
           {t3({ en: "Select Organization Unit Levels to Import", fr: "Sélectionner les niveaux d'unités organisationnelles à importer", pt: "Selecionar os níveis de unidades organizacionais a importar" })}
         </div>
 

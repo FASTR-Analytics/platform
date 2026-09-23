@@ -52,7 +52,7 @@ export function ModulePane(p: {
 
   return (
     <div class="ui-spy">
-      <div class="font-700 text-lg">{p.module.label}</div>
+      <div class="ui-text-heading">{p.module.label}</div>
       <ScopePicker selection={p.selection} onChange={p.onChangeScope} />
       <ModuleVisualizations
         presets={presets()}

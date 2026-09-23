@@ -30,7 +30,7 @@ export function Step3_Dhis2(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="font-700 text-lg">{t3({ en: "Ready to import from DHIS2", fr: "Prêt à importer depuis DHIS2", pt: "Pronto para importar a partir do DHIS2" })}</div>
+      <div class="ui-text-heading">{t3({ en: "Ready to import from DHIS2", fr: "Prêt à importer depuis DHIS2", pt: "Pronto para importar a partir do DHIS2" })}</div>
       <ProgressBar
         progressFrom0To100={progressFrom0To100()}
         progressMsg={progressMsg()}

@@ -208,7 +208,7 @@ export default function Instance(p: Props) {
           panelChildren={
             <div class="ui-pad ui-gap bg-base-100 text-base-content flex items-center justify-between border-b">
               <div class="flex flex-0 items-center">
-                <div class="font-700 border-r pr-4 text-2xl text-nowrap antialiased">
+                <div class="ui-text-heading border-r pr-4 text-nowrap antialiased">
                   {instanceState.instanceName}
                 </div>
                 <div class="w-24 flex-none pl-4">

@@ -143,7 +143,7 @@ function CategoriesPane(p: {
   return (
     <>
       <div class="ui-gap-sm flex flex-none items-center pb-4">
-        <div class="font-700 flex-1 text-xl">
+        <div class="ui-text-heading flex-1">
           {t3({ en: "Categories", fr: "Catégories", pt: "Categorias" })} ({items.length})
         </div>
         <Show when={isAdmin()}>
@@ -311,7 +311,7 @@ function SubCategoriesPane(p: {
   return (
     <>
       <div class="ui-gap-sm flex flex-none items-center pb-4">
-        <div class="font-700 min-w-0 flex-1 truncate text-xl">
+        <div class="ui-text-heading min-w-0 flex-1 truncate">
           {t3({ en: "Sub-categories", fr: "Sous-catégories", pt: "Subcategorias" })} ({items.length})
         </div>
         <Show when={isAdmin()}>

@@ -483,8 +483,8 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
   return (
     <div class="flex h-full w-full flex-col">
       <div class="ui-pad ui-gap border-primary-active bg-primary text-primary-content flex items-center justify-between border-b">
-        <h3 class="flex items-baseline gap-2 truncate text-base">
-          <span class="font-700">{t3({ en: "AI", fr: "IA", pt: "IA" })}</span>
+        <h3 class="ui-text-heading text-primary-content flex items-baseline gap-2 truncate">
+          <span>{t3({ en: "AI", fr: "IA", pt: "IA" })}</span>
           <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
         </h3>
         <div class="ui-gap-sm flex items-center">

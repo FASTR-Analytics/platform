@@ -161,7 +161,7 @@ export function DatasetIcehImports(p: Props) {
               </Show>
 
               <div class="ui-spy-sm">
-                <div class="font-700 text-lg">
+                <div class="ui-text-heading">
                   {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
                 </div>
                 <Table

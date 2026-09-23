@@ -397,7 +397,7 @@ export function Step4Recode(p: Props) {
 
   return (
     <div class="ui-spy ui-pad">
-      <div class="font-700 text-lg">
+      <div class="ui-text-heading">
         {t3({
           en: "Review and reassign values",
           fr: "Vérifier et réassigner les valeurs",

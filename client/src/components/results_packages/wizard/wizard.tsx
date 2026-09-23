@@ -284,7 +284,7 @@ function WizardInner(p: InnerProps) {
       height="lg"
       topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg">{t3(HEADING)}</div>
+          <div class="ui-text-heading">{t3(HEADING)}</div>
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
       }

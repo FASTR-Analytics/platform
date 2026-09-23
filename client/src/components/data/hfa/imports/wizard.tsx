@@ -260,7 +260,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg">
+          <div class="ui-text-heading">
             {t3({ en: "New HFA import", fr: "Nouvelle importation HFA", pt: "Nova importação HFA" })}
           </div>
           <StepperChipsWithTitles
@@ -304,7 +304,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       <div class="ui-pad ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
           <div class="ui-spy">
-            <h3 class="font-700 text-lg">
+            <h3 class="ui-text-heading">
               {t3({ en: "CSV Data File", fr: "Fichier de données CSV", pt: "Ficheiro de dados CSV" })}
             </h3>
             <FileUploadSelector
@@ -319,7 +319,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
               }}
               allowedFileTypes={[".csv"]}
             />
-            <h3 class="font-700 text-lg">
+            <h3 class="ui-text-heading">
               {t3({ en: "XLSForm Questionnaire File", fr: "Fichier questionnaire XLSForm", pt: "Ficheiro de questionário XLSForm" })}
             </h3>
             <FileUploadSelector
@@ -343,7 +343,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
         <Show when={currentStepKind() === "mappings"}>
           <div class="ui-spy">
             <div>
-              <h3 class="font-700 mb-2 text-lg">
+              <h3 class="ui-text-heading mb-2">
                 {t3({ en: "Facility ID Column", fr: "Colonne ID établissement", pt: "Coluna do ID do estabelecimento" })}
               </h3>
               <div class="w-80">
@@ -360,7 +360,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
               </div>
             </div>
             <div>
-              <h3 class="font-700 mb-2 text-lg">
+              <h3 class="ui-text-heading mb-2">
                 {t3({ en: "Time Point", fr: "Point temporel", pt: "Ponto temporal" })}
               </h3>
               <div class="w-96">
@@ -374,7 +374,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
               </div>
             </div>
             <div>
-              <h3 class="font-700 mb-2 text-lg">
+              <h3 class="ui-text-heading mb-2">
                 {t3({ en: "Row Filter (optional)", fr: "Filtre de lignes (facultatif)", pt: "Filtro de linhas (opcional)" })}
               </h3>
               <div class="text-base-content-muted mb-3 text-sm">

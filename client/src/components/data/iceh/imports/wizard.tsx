@@ -133,7 +133,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
       noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg">
+          <div class="ui-text-heading">
             {t3({ en: "New ICEH import", fr: "Nouvelle importation ICEH", pt: "Nova importação ICEH" })}
           </div>
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
@@ -170,7 +170,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
       <div class="ui-pad ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
           <div class="ui-spy">
-            <h3 class="font-700 text-lg">
+            <h3 class="ui-text-heading">
               {t3({ en: "ICEH Zip File", fr: "Fichier Zip ICEH", pt: "Ficheiro Zip ICEH" })}
             </h3>
             <p class="text-base-content-muted">
@@ -205,7 +205,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
 
         <Show when={currentStepKind() === "review"}>
           <div class="ui-spy">
-            <h3 class="font-700 text-lg">
+            <h3 class="ui-text-heading">
               {t3({ en: "Confirm import", fr: "Confirmer l'importation", pt: "Confirmar a importação" })}
             </h3>
             <Show when={preview()} keyed>

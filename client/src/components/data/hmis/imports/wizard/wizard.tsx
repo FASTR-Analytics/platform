@@ -522,7 +522,7 @@ function Dhis2WizardInner(p: InnerProps) {
       noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
-          <div class="font-700 text-lg">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
+          <div class="ui-text-heading">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
       }

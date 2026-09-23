@@ -54,7 +54,7 @@ export function Step1_Csv(p: Props) {
         onChange={updateSelectedFileName}
       />
       <Show when={p.family === "hfa"}>
-        <h3 class="font-700 text-lg">
+        <h3 class="ui-text-heading">
           {t3({
             en: "ODK questionnaire (XLSForm) — optional",
             fr: "Questionnaire ODK (XLSForm) — facultatif",

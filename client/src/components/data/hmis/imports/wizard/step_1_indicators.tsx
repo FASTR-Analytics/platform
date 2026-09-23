@@ -49,7 +49,7 @@ export function Dhis2StepIndicators(p: Props) {
   const unknownDrops = () => idsWithReason("unknown");
   return (
     <div class="ui-spy">
-      <div class="font-700 text-base">
+      <div class="ui-text-heading">
         {t3({
           en: "Select the indicators to import",
           fr: "Sélectionner les indicateurs à importer",

@@ -36,7 +36,7 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
 
   return (
     <div class="ui-spy-sm">
-      <div class="text-md font-700">
+      <div class="ui-text-heading">
         {t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)", pt: "Apresentação (desagregar)" })}
       </div>
 

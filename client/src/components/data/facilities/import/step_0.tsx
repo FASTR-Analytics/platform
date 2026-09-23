@@ -39,7 +39,7 @@ export function Step0(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="font-700 mb-4 text-lg">{t3({ en: "Select Import Method", fr: "Sélectionner la méthode d'importation", pt: "Selecionar o método de importação" })}</div>
+      <div class="ui-text-heading mb-4">{t3({ en: "Select Import Method", fr: "Sélectionner la méthode d'importation", pt: "Selecionar o método de importação" })}</div>
       <div class="w-96">
         <RadioGroup
           options={[

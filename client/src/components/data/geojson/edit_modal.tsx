@@ -177,7 +177,7 @@ export function GeoJsonEditModal(p: Props) {
 
   return (
     <div class="ui-pad-lg ui-spy" style={{ "min-width": "600px", "max-height": "80vh", "overflow-y": "auto" }}>
-      <div class="font-700 text-lg">
+      <div class="ui-text-heading">
         {t3({ en: "Edit GeoJSON Mapping", fr: "Modifier le mappage GeoJSON", pt: "Editar a associação GeoJSON" })}
         {" — "}
         {p.family === "hmis"
