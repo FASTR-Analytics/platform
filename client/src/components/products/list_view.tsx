@@ -41,14 +41,16 @@ export function ListView(p: Props) {
     return (
       <button
         type="button"
-        class={`ui-focusable cursor-pointer text-left ${
-          p.sortMode === mode
-            ? "text-base-content"
-            : "text-base-content-muted hover:text-base-content"
-        }`}
+        class="ui-focusable inline-flex cursor-pointer items-center text-left"
         onClick={() => p.onSortMode(mode)}
       >
         {label}
+        <span
+          class="ml-1 inline-flex"
+          classList={{ "opacity-40": p.sortMode !== mode }}
+        >
+          <Icon iconName={p.sortMode === mode ? "arrowDown" : "arrowsUpDown"} />
+        </span>
       </button>
     );
   }
