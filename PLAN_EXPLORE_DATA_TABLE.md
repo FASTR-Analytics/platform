@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 1.** Each session sets this line in its final commit.
+**Next step: Fix 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -616,3 +616,19 @@ Append-only, newest last.
   gate is run as its server half against the running containers:
   `deno task dev` until `http://localhost:8000/` answers, then stop it.
 - Step 1 built.
+- Step 1, review finding: `lib/explore_grid_query.ts:13`, `:159`, `:272`
+  and `:346` cite this plan ("PLAN_EXPLORE_DATA_TABLE §2", "§2", "ruling
+  19"). The plan is deleted when it closes, so these pointers will dangle.
+  The reason is already stated in place at `:159` and `:346`, so drop the
+  citations, and point `:13` and `:272` at SYSTEM_11 "Grid query model" or
+  drop them.
+- Step 1, review finding: `lib/explore_grid_query.ts:105-106` and `:405`
+  are comments that restate what the code does. Delete them.
+- Step 1, review finding: `lib/explore_grid_query.ts:125-128` makes a choice
+  the rulings do not cover, and the build log does not record it. When no
+  level is valid under the scope (a package aggregated at level 2, read
+  under an admin area 2 scope), §2's "shallowest valid level" does not
+  exist. The code then falls back to the deepest level the metric offers,
+  which is not deeper than the scope, and `levelOptionsFor` returns `[]` for
+  that same case. Record the choice in this log. No code change.
+- Step 1 reviewed: 3 findings.
