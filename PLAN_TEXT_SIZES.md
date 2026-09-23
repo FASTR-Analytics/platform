@@ -5,7 +5,7 @@ Brings every piece of UI text onto a small set of roles drawn from the rem
 scale, so the same kind of text is the same size everywhere, and adds a lint
 that keeps it that way.
 
-**Next step:** Do 2
+**Next step:** Review 2
 
 Branch: `version2` (app), `main` (panther). Repos: panther
 (`/Users/timroberton/projects/panther/timroberton-panther`) and this app.
@@ -219,3 +219,8 @@ and re-syncing.
 | 1 | `./sync wb-fastr-v2` runs `deno fmt` on panther before copying and commits its own result in the app, so a panther step runs `deno fmt` before its commit and the app's sync commit is the tool's. |
 | 1 | Step 1 built. Panther commit "Give each text size token its line-height back" (40e0db0); app sync commit 6245a1c7. Panther floor: typecheck clean, 501 tests. App floor: typecheck clean, 428 tests, protocols passed. |
 | 1 | Step 1 reviewed: pass. Surface held (panther: `_fixed.css` only; app: the sync's two files under `panther/`). Ruling 9 present in `@theme` after the `--text-*: initial;` reset and in the `@layer base` body rule; app copy byte-identical to panther 40e0db0; Tailwind 4.1.17 emits `line-height` from `text-*` only when `--text-<size>--line-height` resolves. Panther floor: typecheck exit 0, 501 tests. App floor: typecheck clean, 428 tests, protocols passed. |
+| 2 | Ruling 10 implemented as: IconRenderer centres the icon in its `--ui-form-content-h-em` box and, for `sm`, passes the icon `h-[1em] w-[1em]` (12px glyph in a 15px box). The default size is unchanged. |
+| 2 | Ruling 5: the HeadingBar subheading is `text-sm text-base-content-muted font-400`; `text-sm` is needed because it sits inside the 16px heading and cannot inherit body. |
+| 2 | The delete confirmation keeps `text-danger` on top of `ui-text-heading`; the utility layer wins over the component class, as `alert.tsx:290` already relies on. |
+| 2 | After the sync, `client/src/components/data/hmis/indicators/manager.tsx:635` still names `ui-text-title`, which no longer exists, so that title renders at body size until step 3 (ruling 6) replaces it. |
+| 2 | Step 2 built. Panther commit "Three type roles: heading is 16/700, title and display are gone" (adf1f91); app sync commit 3d38ea6e. Panther floor: typecheck exit 0, 501 tests. App floor: typecheck exit 0, tests exit 0, protocols passed. |
