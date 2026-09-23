@@ -227,8 +227,9 @@ export function countPayloadBreakpoints(
 //   reject it with a 400: drop the config.
 // - An explicit {type: "disabled"} must be KEPT where accepted — on Opus 5
 //   and Sonnet 5 omitting the field silently enables adaptive thinking,
-//   which the caller explicitly asked to avoid. Only Fable 5 / Mythos 5
-//   (always-on thinking) reject explicit disabled, so it is dropped there.
+//   which the caller explicitly asked to avoid. Only Fable 5 / Mythos 5 and
+//   Opus 5.5 (always-on thinking) reject explicit disabled, so it is dropped
+//   there.
 //   Opus 5 accepts disabled only at effort "high" or below — that
 //   cross-parameter constraint is enforced in resolveOutputConfig, which
 //   takes the resolved thinking config.
