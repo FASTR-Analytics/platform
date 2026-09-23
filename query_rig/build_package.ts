@@ -67,19 +67,20 @@ export async function buildFixturePackage(
     name,
     duckDbType: "VARCHAR",
   }));
-  await exportRowsToParquet(
-    fx.facilities.map((row) =>
-      Object.fromEntries(
-        RUN_FACILITY_COLUMN_NAMES.map((name) => [name, row[name] ?? null]),
-      )
-    ),
-    facilityColumns,
-    join(tmpDir, "inputs", `${facilitiesTable}.parquet`),
-  );
-  extraInputFiles.push(`inputs/${facilitiesTable}.parquet`);
-  const facilitiesTables: RunFacilitiesTable[] = [
-    { tableName: facilitiesTable, columns: facilityColumns },
-  ];
+  const facilitiesTables: RunFacilitiesTable[] = [];
+  if (fx.facilities !== null) {
+    await exportRowsToParquet(
+      fx.facilities.map((row) =>
+        Object.fromEntries(
+          RUN_FACILITY_COLUMN_NAMES.map((name) => [name, row[name] ?? null]),
+        )
+      ),
+      facilityColumns,
+      join(tmpDir, "inputs", `${facilitiesTable}.parquet`),
+    );
+    extraInputFiles.push(`inputs/${facilitiesTable}.parquet`);
+    facilitiesTables.push({ tableName: facilitiesTable, columns: facilityColumns });
+  }
 
   const writeMirror = async (fileName: string, rows: unknown[]) => {
     await Deno.writeTextFile(
@@ -112,6 +113,9 @@ export async function buildFixturePackage(
     id: fx.moduleId,
     moduleDefinition: JSON.stringify({
       ...fx.moduleDefinition,
+      family: fx.family,
+      tier: "primary",
+      sortOrder: 0,
       resultsObjects: [{
         id: fx.resultsObjectId,
         createTableStatementPossibleColumns: Object.fromEntries(
