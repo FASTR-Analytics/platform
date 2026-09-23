@@ -149,7 +149,7 @@ export function Step4(p: Props) {
 
       <Show when={duplicateNames().length > 0}>
         <div class="bg-warning-subtle border-warning text-warning-subtle-content rounded border p-3 text-sm">
-          <div class="ui-text-heading mb-1">
+          <div class="ui-text-heading text-warning-subtle-content mb-1">
             {t3({ en: "Warning: Duplicate admin area names", fr: "Attention : Noms de zones administratives en double", pt: "Atenção: nomes de zonas administrativas duplicados" })}
           </div>
           <div>
