@@ -1528,7 +1528,16 @@ bracketed text in attributes); the chosen body goes in through
 choice is stored as `config.template`. The AI's editing instructions append
 `fastrReportTemplateBrief` for that template (shape, section order, the
 placeholder convention), read live from the view context's `getTemplate`,
-and `get_report_editor` names it. STABLE TEXT METRICS
+and `get_report_editor` names it. LINE BREAKS IN BLOCKS
+(2026-09-23): in a paragraph island inside a card, column, callout, band,
+quote or cover, Enter (and Shift+Enter) inserts a newline in the same text,
+a `<br>` under `breaks: true`, instead of closing the island or (on the
+pages) splitting a new paragraph; steps keep Enter for a new step and
+top-level prose on the pages keeps it for a new paragraph. The newline goes
+in as a text node (Chrome's insertText turns it into markup textContent
+drops), a trailing one is not committed until text follows (a blank last
+line would end the paragraph), and a rebuilt island re-opens with the caret
+at its source offset rather than at the end. STABLE TEXT METRICS
 (2026-09-23, "when I write at the start of a new line the page jitters"):
 CodeMirror estimates every unrendered line's height from ONE sample, the
 first rendered line of at most 20 plain-text characters, and on this surface
