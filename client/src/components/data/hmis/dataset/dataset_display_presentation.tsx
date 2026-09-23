@@ -179,19 +179,19 @@ export function DatasetDisplayPresentation(p: Props) {
               })}
               items={[
                 {
-                  id: "line",
-                  label: t3({
-                    en: "Line graph",
-                    fr: "Graphique linéaire",
-                    pt: "Gráfico de linhas",
-                  }),
-                },
-                {
                   id: "heat_map",
                   label: t3({
                     en: "Heat map",
                     fr: "Carte de chaleur",
                     pt: "Mapa de calor",
+                  }),
+                },
+                {
+                  id: "line",
+                  label: t3({
+                    en: "Line graph",
+                    fr: "Graphique linéaire",
+                    pt: "Gráfico de linhas",
                   }),
                 },
               ]}

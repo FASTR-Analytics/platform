@@ -79,7 +79,7 @@ export function InstanceDatasetHmis(p: Props) {
   >({ status: "loading", msg: FETCHING_DATA() });
   const [vizConfig, setVizConfig] = createStore<VizConfig>({
     value: "count",
-    figureType: "line",
+    figureType: "heat_map",
     indicators: [],
     heatMapAxis: "year-month",
   });
