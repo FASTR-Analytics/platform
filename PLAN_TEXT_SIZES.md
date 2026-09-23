@@ -5,7 +5,7 @@ Brings every piece of UI text onto a small set of roles drawn from the rem
 scale, so the same kind of text is the same size everywhere, and adds a lint
 that keeps it that way.
 
-**Next step:** Do 1
+**Next step:** Review 1
 
 Branch: `version2` (app), `main` (panther). Repos: panther
 (`/Users/timroberton/projects/panther/timroberton-panther`) and this app.
@@ -216,3 +216,5 @@ and re-syncing.
 
 | Step | Row |
 | --- | --- |
+| 1 | `./sync wb-fastr-v2` runs `deno fmt` on panther before copying and commits its own result in the app, so a panther step runs `deno fmt` before its commit and the app's sync commit is the tool's. |
+| 1 | Step 1 built. Panther commit "Give each text size token its line-height back" (40e0db0); app sync commit 6245a1c7. Panther floor: typecheck clean, 501 tests. App floor: typecheck clean, 428 tests, protocols passed. |
