@@ -570,16 +570,21 @@ function assertSchemaAcceptsUnknownKeys(
   }
 }
 
-// z.toJSONSchema does not emit `additionalProperties: false` for a plain
-// z.object, which is why the field is optional in ObjectJsonSchema. It
-// becomes mandatory the day `strict: true` tool use is adopted: strict mode
-// requires a real `additionalProperties: false` in the wire schema, which
-// itself conflicts with the accept-unknown-keys invariant enforced above.
-// Resolve both together before adopting strict mode. These schemas also
-// serve the remote MCP endpoint's tools/list (_220), so any change ripples
+// Emitted with io: "input", the same mode assertSchemaAcceptsUnknownKeys
+// walks, so the guard and the wire describe one schema: a plain z.object
+// stays open (no additionalProperties, which is why the field is optional
+// in ObjectJsonSchema), .default() fields are optional on the wire, and
+// .transform() inputs are representable. Output io would close every
+// object and list defaulted fields as required, contradicting the
+// accept-unknown-keys invariant enforced above. One known laxity: a
+// z.preprocess field is advertised optional, so its fn must tolerate
+// undefined or parse rejects what the wire allowed. `additionalProperties`
+// becomes mandatory the day `strict: true` tool use is adopted, which
+// conflicts with the same invariant: resolve both together. These schemas
+// also serve the remote MCP endpoint's tools/list (_220), so any change ripples
 // to MCP clients and must re-run the mcp rigs.
 function zodToJsonSchema(zodSchema: zType.ZodType): ObjectJsonSchema {
-  const jsonSchema = z.toJSONSchema(zodSchema, { reused: "ref" });
+  const jsonSchema = z.toJSONSchema(zodSchema, { io: "input", reused: "ref" });
 
   if (jsonSchema.type !== "object") {
     throw new Error(`Zod schema must be an object, but got ${jsonSchema.type}`);
