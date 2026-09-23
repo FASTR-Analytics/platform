@@ -531,7 +531,7 @@ type EditPhaseProps = {
 function EditPhase(p: EditPhaseProps) {
   return (
     <div class="flex flex-1 flex-col">
-      <div class="font-700 mb-2">{p.prompt.title}</div>
+      <div class="ui-text-heading mb-2">{p.prompt.title}</div>
       <TextArea
         value={p.editedContent}
         onChange={p.onContentChange}

@@ -232,7 +232,7 @@ export function StructureUploadAttemptForm(p: Props) {
                     <div class="border-danger bg-danger-subtle ui-spy-sm m-4 rounded border p-4">
                       <div class="ui-gap flex items-start">
                         <div class="ui-spy-sm flex-1">
-                          <div class="text-danger font-700">
+                          <div class="text-danger ui-text-heading">
                             {t3({ en: "The last import step failed", fr: "La dernière étape d'importation a échoué", pt: "A última etapa de importação falhou" })}
                           </div>
                           <div class="text-danger text-sm">{errorMsg}</div>

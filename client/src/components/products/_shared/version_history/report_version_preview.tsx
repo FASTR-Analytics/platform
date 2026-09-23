@@ -387,7 +387,7 @@ function SessionEdits(p: {
                 class="mx-auto w-full max-w-4xl"
                 classList={{ "mt-6": hasChanges }}
               >
-                <div class="mb-2 text-sm font-semibold">
+                <div class="mb-2 ui-text-heading">
                   {t3({
                     en: "Visualization & image changes",
                     fr: "Modifications des visualisations et des images",

@@ -94,7 +94,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
   function previewPanel(result: IcehStep1Result) {
     return (
       <div class="rounded border p-4">
-        <h4 class="font-700 mb-2">
+        <h4 class="ui-text-heading mb-2">
           {t3({ en: "Zip Contents", fr: "Contenu du zip", pt: "Conteúdo do zip" })}
         </h4>
         <div class="text-sm">

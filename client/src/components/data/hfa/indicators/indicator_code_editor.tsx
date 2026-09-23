@@ -631,7 +631,7 @@ function EditorInner(p: {
 
       <div class="flex min-h-0 flex-1">
         <div class="flex h-full w-48 flex-none flex-col overflow-auto border-r">
-          <div class="ui-pad-sm font-700 text-sm">
+          <div class="ui-pad-sm ui-text-heading">
             {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
           </div>
           <For each={p.dictionary.timePoints}>
@@ -823,7 +823,7 @@ function EditorInner(p: {
 
                 <Show when={currentGroupItems().length > 0}>
                   <div class="ui-spy-sm border-t pt-3">
-                    <div class="font-700 text-sm">
+                    <div class="ui-text-heading">
                       {t3({
                         en: "Variant items (per-item numerator, shares this time point's filter code)",
                         fr: "Éléments de variante (numérateur par élément, partage le code filtre de ce point temporel)",
@@ -981,7 +981,7 @@ function EditorInner(p: {
                     )}
                   </Show>
                   <Show when={otherIndicators.length > 0}>
-                    <div class="font-700 mt-3 mb-1 text-sm">
+                    <div class="ui-text-heading mt-3 mb-1">
                       {t3({
                         en: "Other indicators",
                         fr: "Autres indicateurs",

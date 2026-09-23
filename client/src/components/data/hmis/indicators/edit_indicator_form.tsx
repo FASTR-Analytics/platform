@@ -747,7 +747,7 @@ export function EditIndicatorForm(
 
       <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(24rem,1fr))] items-start">
         <div class="ui-spy-sm">
-          <div class="font-700 text-base-content text-sm">
+          <div class="ui-text-heading">
             {t3({ en: "Definition", fr: "Définition", pt: "Definição" })}
           </div>
 
@@ -955,7 +955,7 @@ export function EditIndicatorForm(
         </div>
 
         <div class="ui-spy-sm">
-          <div class="font-700 text-base-content text-sm">
+          <div class="ui-text-heading">
             {t3({ en: "Analysis and display", fr: "Analyse et affichage", pt: "Análise e apresentação" })}
           </div>
           <Checkbox

@@ -91,7 +91,7 @@ export function CsvStagingSummary(p: Props) {
       >
         {(validation) => (
           <div class="ui-pad border-danger bg-base-200 rounded">
-            <div class="font-700 text-danger mb-3">
+            <div class="ui-text-heading text-danger mb-3">
               {t3({ en: "Validation Issues", fr: "Problèmes de validation", pt: "Problemas de validação" })}
             </div>
             <div class="ui-spy-sm">

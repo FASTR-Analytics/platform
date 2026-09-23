@@ -808,7 +808,7 @@ function ExpandedVersionSlideModal(
       </div>
       <Show when={p.rows && p.rows.length > 0}>
         <div class="mt-3 flex max-h-[30vh] flex-col gap-2 overflow-auto">
-          <div class="font-700 text-sm">
+          <div class="ui-text-heading">
             {t3({
               en: "Changes in this session",
               fr: "Modifications de cette session",

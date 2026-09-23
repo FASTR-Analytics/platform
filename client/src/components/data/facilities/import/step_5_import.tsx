@@ -310,7 +310,7 @@ export function Step5Import(p: Props) {
 
             {/* Facilities + match preview */}
             <div class="ui-pad bg-base-200 rounded">
-              <div class="font-700 mb-3">
+              <div class="ui-text-heading mb-3">
                 {t3({ en: "Health Facilities", fr: "Établissements de santé", pt: "Estabelecimentos de saúde" })}
               </div>
               <div class="flex justify-between">
@@ -367,7 +367,7 @@ export function Step5Import(p: Props) {
             >
               {(labelResolution) => (
                 <div class="ui-pad bg-base-200 rounded">
-                  <div class="font-700 mb-3">
+                  <div class="ui-text-heading mb-3">
                     {t3({
                       en: "ODK codes replaced with labels",
                       fr: "Codes ODK remplacés par des libellés",
@@ -411,7 +411,7 @@ export function Step5Import(p: Props) {
             {/* Review-step recode summary */}
             <Show when={recodeSummary().length > 0}>
               <div class="ui-pad bg-base-200 rounded">
-                <div class="font-700 mb-3">
+                <div class="ui-text-heading mb-3">
                   {t3({
                     en: "Reassigned values",
                     fr: "Valeurs réassignées",
@@ -436,7 +436,7 @@ export function Step5Import(p: Props) {
 
             {/* Integration Strategy Selection */}
             <div class="ui-pad bg-base-200 rounded">
-              <div class="font-700 mb-3">
+              <div class="ui-text-heading mb-3">
                 {t3({ en: "What should this import do?", fr: "Que doit faire cette importation ?", pt: "O que deve fazer esta importação?" })}
               </div>
               <RadioGroup

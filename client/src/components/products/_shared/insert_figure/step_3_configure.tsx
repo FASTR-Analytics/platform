@@ -53,7 +53,7 @@ export function Step3Configure(p: Props) {
   return (
     <div class="ui-pad ui-spy">
       <div>
-        <div class="font-700 mb-3">
+        <div class="ui-text-heading mb-3">
           {t3({ en: "Visualization type", fr: "Type de visualisation", pt: "Tipo de visualização" })}
         </div>
         <div class="ui-gap-sm grid grid-cols-5">
@@ -73,7 +73,7 @@ export function Step3Configure(p: Props) {
 
       <Show when={p.selectedType}>
         <div>
-          <div class="font-700 mb-3">
+          <div class="ui-text-heading mb-3">
             {t3({ en: "Disaggregate by", fr: "Désagréger par", pt: "Desagregar por" })}
           </div>
 
