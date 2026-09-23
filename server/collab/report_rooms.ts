@@ -44,9 +44,9 @@ const reportAdapter: DocRoomAdapter<ReportDocContent> = {
   notFoundMessage: "Report not found",
   seed: seedReportDoc,
   materialize: materializeReport,
-  msgSync: (reportId, update, stateVector) => ({
+  msgSync: (reportId, update, stateVector, epoch) => ({
     type: "report_sync",
-    data: { reportId, update, stateVector },
+    data: { reportId, update, stateVector, epoch },
   }),
   msgUpdate: (reportId, update) => ({
     type: "report_update",

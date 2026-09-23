@@ -21,7 +21,7 @@ import {
   stripTombstoneRuns,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { REPORT_NOT_FOUND, touchProduct } from "./_product_row.ts";
+import { carryReportCrdtStamps, REPORT_NOT_FOUND, touchProduct } from "./_product_row.ts";
 
 export function parseReportConfig(config: string | null): ReportConfig {
   if (config) {
@@ -211,6 +211,8 @@ export async function updateReportConfig(
           : {}),
       };
       const parsed = JSON.stringify(reportConfigSchema.parse(next));
+      // Config is not in the collab doc: keep its state current.
+      await carryReportCrdtStamps(sql, [productId], lastUpdated);
       await touchProduct(sql, productId, "report", lastUpdated);
       await sql`UPDATE reports SET config = ${parsed} WHERE id = ${productId}`;
     });
@@ -258,6 +260,7 @@ export async function setReportStyle(
         delete next.customStyle;
       }
       written = reportConfigSchema.parse(next) as ReportConfig;
+      await carryReportCrdtStamps(sql, [productId], lastUpdated);
       await touchProduct(sql, productId, "report", lastUpdated);
       await sql`UPDATE reports SET config = ${
         JSON.stringify(written)

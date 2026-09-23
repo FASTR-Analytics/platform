@@ -37,3 +37,33 @@ export async function touchProduct(
     throw new Error(NOT_FOUND_BY_TYPE[type]);
   }
 }
+
+// A product-level write that changes NOTHING inside a report's collab doc
+// (label, folder, scope, config, theme) carries the report's CRDT stamp
+// forward to the product's new last_updated. The persisted Yjs state is
+// trusted only while the two stamps match, so without this every such write
+// left the state "stale", the next room open re-seeded a fresh lineage of
+// the same text, and a client reconnecting with the old lineage merged the
+// two: the whole body twice. Runs BEFORE touchProduct in the same
+// transaction (it compares against the product's CURRENT stamp); a stamp
+// already stale, or a deck id, matches no row and stays as it is. Only
+// body, figure and image writes outside a room should invalidate the state,
+// and those never call this.
+export async function carryReportCrdtStamps(
+  sql: Sql,
+  productIds: readonly string[],
+  lastUpdated: string,
+): Promise<void> {
+  if (productIds.length === 0) {
+    return;
+  }
+  await sql`
+    UPDATE reports r
+    SET crdt_state_last_updated = ${lastUpdated}
+    FROM products p
+    WHERE r.id = ANY(${[...productIds]})
+      AND p.id = r.id
+      AND r.crdt_state IS NOT NULL
+      AND r.crdt_state_last_updated = p.last_updated
+  `;
+}

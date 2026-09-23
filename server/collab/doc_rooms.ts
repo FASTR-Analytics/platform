@@ -40,6 +40,7 @@ import {
   bytesToBase64,
   COLLAB_NO_EDIT_PERMISSION,
   type CollabServerMessage,
+  ensureDocEpoch,
   type VersionEditor,
 } from "lib";
 
@@ -76,7 +77,12 @@ export type DocRoomAdapter<T> = {
   notFoundMessage: string;
   seed: (doc: Y.Doc, content: T) => void;
   materialize: (doc: Y.Doc) => T;
-  msgSync: (docId: string, update: string, stateVector: string) => CollabServerMessage;
+  msgSync: (
+    docId: string,
+    update: string,
+    stateVector: string,
+    epoch: string,
+  ) => CollabServerMessage;
   msgUpdate: (docId: string, update: string) => CollabServerMessage;
   /** `fatal` ⇔ the document/room is gone (deleted, replaced, not found): the
    *  client session must stop editing. See CollabServerMessage. */
@@ -397,6 +403,12 @@ export async function subscribeDoc<T>(
       };
       rooms.set(key, room);
       attachDoc(room);
+      // The doc's lineage epoch (crdt_util.ts): a seeded doc gets a new one,
+      // a restored doc carries its own. Assigned AFTER attachDoc so a
+      // restored pre-epoch doc is marked dirty and checkpointed with it,
+      // else every later restore would name a new epoch and force clients
+      // to re-adopt a doc that never changed.
+      ensureDocEpoch(doc);
       adapter.onDocCreated?.(docId, doc);
     }
   }
@@ -442,9 +454,10 @@ export async function subscribeDoc<T>(
     sync = Y.encodeStateAsUpdate(room.doc);
   }
   const stateVector = Y.encodeStateVector(room.doc);
+  const epoch = ensureDocEpoch(room.doc).epoch;
   try {
     conn.send(
-      adapter.msgSync(docId, bytesToBase64(sync), bytesToBase64(stateVector)),
+      adapter.msgSync(docId, bytesToBase64(sync), bytesToBase64(stateVector), epoch),
     );
   } catch {
     // A dead socket is cleaned up by its own close/error handler.

@@ -1001,7 +1001,7 @@ export function ReportBodyEditor(p: Props) {
     // Re-evaluate the centering pad threshold whenever the scroller resizes.
     ro = new ResizeObserver(() => applyCenterTheme());
     const collab = p.collab?.();
-    bindKey = `${collab ? "collab" : "plain"}:${p.canEdit()}:${darkMode()}`;
+    bindKey = bindKeyOf(collab);
     buildView(collab);
 
     p.ref?.({
@@ -1068,9 +1068,15 @@ export function ReportBodyEditor(p: Props) {
   // after open), the edit permission flips (permissions can arrive late), or
   // the theme toggles (darkMarkdownExtensions is baked into the extension
   // list and must be re-evaluated in this tracked scope).
+  // The key names the DOC the view is bound to (its Y.Doc guid), not just
+  // "collab": a lineage reset (collab.ts) swaps the session's doc for a
+  // fresh one of the server's lineage, and the view must rebind to it.
+  function bindKeyOf(collab: { yText: Y.Text } | undefined): string {
+    return `${collab ? `collab:${collab.yText.doc?.guid ?? ""}` : "plain"}:${p.canEdit()}:${darkMode()}`;
+  }
   createEffect(() => {
     const collab = p.collab?.();
-    const key = `${collab ? "collab" : "plain"}:${p.canEdit()}:${darkMode()}`;
+    const key = bindKeyOf(collab);
     if (!view) return; // pre-mount; onMount builds with current values
     if (key === bindKey) return;
     bindKey = key;

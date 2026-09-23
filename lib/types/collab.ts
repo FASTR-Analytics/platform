@@ -249,9 +249,11 @@ export type CollabServerMessage =
   // CRDT document sync (Milestone 2). `stateVector` is the server room's current
   // state vector, so the client can reply with any updates the server is missing
   // (local edits whose slide_update failed to send before a reconnect).
+  // `epoch` names the room doc's LINEAGE (see ensureDocEpoch): a client whose
+  // session doc carries a different epoch must not merge this sync into it.
   | {
     type: "slide_sync";
-    data: { slideId: string; update: string; stateVector: string };
+    data: { slideId: string; update: string; stateVector: string; epoch?: string };
   }
   | { type: "slide_update"; data: { slideId: string; update: string } }
   | {
@@ -263,7 +265,7 @@ export type CollabServerMessage =
   // Report CRDT sync (parallel family: see the client message note).
   | {
     type: "report_sync";
-    data: { reportId: string; update: string; stateVector: string };
+    data: { reportId: string; update: string; stateVector: string; epoch?: string };
   }
   | { type: "report_update"; data: { reportId: string; update: string } }
   | {

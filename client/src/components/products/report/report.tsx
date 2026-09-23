@@ -425,6 +425,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     string | undefined
   >(undefined);
   const [session, setSession] = createSignal<ReportSession | null>(null);
+  // Bumped when the session swaps its doc for one of the server's lineage
+  // (collab.ts, onLineageReset): everything that binds to the doc re-reads it.
+  const [lineage, setLineage] = createSignal(0);
   // Content as fetched at mount, for the first-sync merge rule.
   let loadedSnapshot: ReportDocContent | undefined;
   let removeLastUpdatedListener: (() => void) | undefined;
@@ -1146,6 +1149,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               });
             }
           }
+        },
+        () => {
+          // The room re-seeded its doc (a fresh lineage of the same text) and
+          // the session adopted it instead of merging: rebind the editor.
+          setLineage((n) => n + 1);
         },
       );
       setSession(s);
@@ -2073,6 +2081,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               centered={() => mode() === "edit"}
               collab={() => {
                 const s = session();
+                lineage();
                 return collabReady() && s
                   ? { yText: findReportBodyText(s.doc), awareness: s.awareness }
                   : undefined;

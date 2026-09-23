@@ -662,10 +662,33 @@ peer border appears only once text exists.
   `slide_deck_versions` tables.
 - **Staleness rule**: the CRDT state is only trusted when
   `crdt_state_last_updated === last_updated`. The checkpoint stamps them
-  equal; any non-collab write bumps `last_updated` alone, invalidating the
-  state so the next room open re-seeds from content. (With the
-  `apply*ToLiveRoom` chokepoints, non-collab writes during a live room go
-  through the room anyway.) Both checkpoints additionally stamp the
+  equal; a non-collab write to what the doc HOLDS (body, figures, images)
+  bumps `last_updated` alone, invalidating the state so the next room open
+  re-seeds from content. (With the `apply*ToLiveRoom` chokepoints, non-collab
+  writes during a live room go through the room anyway.) A product-level
+  write that changes nothing in the doc (rename, folder move, scope,
+  `updateReportConfig`, `setReportStyle`) CARRIES the report's stamp forward
+  with the product's new `last_updated` (`carryReportCrdtStamps`, first in the
+  same transaction), since 2026-09-23: before that, changing a theme or a
+  label with no room live (or with a clean room, which finalize does not
+  re-checkpoint) left the state stale for no reason.
+- **Lineage epoch** (2026-09-23): a re-seeded room holds a FRESH doc of the
+  same text, i.e. a new Yjs lineage; a client still holding the old lineage
+  (its socket reconnecting after the room finalized) used to merge the sync
+  into its doc, keep both lineages, push its copy back through the two-way
+  catch-up, and the checkpoint persisted the whole body twice. Every room doc
+  now carries an epoch in `doc.getMap("meta")` (`ensureDocEpoch`, assigned on
+  seed, kept by restore since it is part of `crdt_state`, assigned lazily to
+  a pre-epoch restored doc and checkpointed with it), and every `*_sync`
+  carries it. A client session remembers the epoch of its first sync; a
+  later sync with another epoch is ADOPTED, never merged: the session swaps
+  in a fresh doc with the sync applied (`resetReportLineage` /
+  `resetSlideLineage` in `collab.ts`, the handle's `doc`/`awareness`/
+  `undoManager` are getters) and tells its host through `onLineageReset`
+  (the report editor's bind key is the doc guid; the slide editor rebinds
+  undo, drops an open inline editor and adopts the doc). Edits made while
+  the socket was down go with the old doc. `collab_lineage_test.ts` covers
+  the doubling and the room's epoch behaviour. Both checkpoints additionally stamp the
   state untrusted (NULL) whenever the doc does NOT materialize to exactly the
   stored content (dropped schema-invalid transients, parse-stripped keys).
   Restoring such a doc would make every editor open adopt a state that

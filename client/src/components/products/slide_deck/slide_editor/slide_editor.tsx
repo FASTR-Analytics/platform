@@ -455,6 +455,7 @@ export function SlideEditor(p: Props) {
   // collaborator's edit.
   let undoMgr: Y.UndoManager | undefined;
   let detachUndoPop: (() => void) | undefined;
+  let onLineageReset: (() => void) | undefined;
   const canEdit = () => canEditProduct(p.productId);
   const canUndoRedo = () => !!session() && collabReady() && canEdit();
 
@@ -670,10 +671,10 @@ export function SlideEditor(p: Props) {
           }
         }
       },
+      () => onLineageReset?.(),
     );
     setSession(s);
 
-    undoMgr = s.undoManager;
     // Undo/redo mutate the shared doc DIRECTLY (not tempSlide), so pull the
     // result back into the store: the same adopt path a remote change takes.
     // The push the tracking effect then fires is idempotent (the doc already
@@ -681,8 +682,22 @@ export function SlideEditor(p: Props) {
     const onUndoPop = () => {
       manuallyUpdateTempSlide(reconcile(materializeSlide(s.doc) as Slide));
     };
-    s.undoManager.on("stack-item-popped", onUndoPop);
-    detachUndoPop = () => s.undoManager.off("stack-item-popped", onUndoPop);
+    const bindUndo = () => {
+      undoMgr = s.undoManager;
+      s.undoManager.on("stack-item-popped", onUndoPop);
+      detachUndoPop = () => s.undoManager.off("stack-item-popped", onUndoPop);
+    };
+    bindUndo();
+    // The room re-seeded and the session swapped its doc for the server's
+    // lineage (collab.ts resetSlideLineage): the undo manager is new, an
+    // inline editor still open is bound to the old doc, and the store adopts
+    // the doc as it now stands.
+    onLineageReset = () => {
+      detachUndoPop?.();
+      bindUndo();
+      setInlineEdit(undefined);
+      manuallyUpdateTempSlide(reconcile(materializeSlide(s.doc) as Slide));
+    };
     document.addEventListener("keydown", handleEditorKeyDown);
 
     // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
