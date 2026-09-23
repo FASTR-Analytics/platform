@@ -247,8 +247,9 @@ and scrolls to the first column whose label contains the find text
 (`focusColumnId`). Download saves the grid's text as CSV, in the pivot's row
 order. Empty states are typed: no ready package, no primary module, a family
 whose metric is unavailable (its stamped reason), no preset, no data, and
-too many cells (narrow the indicators or coarsen the grain); the first three
-and the no-preset state are the tabs' shared `explore/_shared/empty_state.tsx`.
+too many cells (narrow the indicators or coarsen the grain). No primary
+module, the unavailable metric and no preset are the tabs' shared
+`explore/_shared/empty_state.tsx`; no ready package is `explore.tsx`'s own.
 
 **Visualization** (`explore/visualization/`) is a family tab over the
 families whose primary module is in the package and that family's first
