@@ -4,7 +4,7 @@ Status: ready. Makes 14px the size every unsized piece of UI text renders at,
 declared once in panther's stylesheet from the existing type scale, and removes
 the app's own 16px body rule.
 
-**Next step:** Do 2
+**Next step:** Review 2
 
 Branch: `version2` (app), `main` (panther). Repos: panther
 (`/Users/timroberton/projects/panther/timroberton-panther`) and this app.
@@ -176,3 +176,6 @@ commit and re-sync, then revert the app's deletion commit.
 | 1 | `--ui-text-body` is listed in the protocol's "Public density vars" table, the only public-var table the protocol has, rather than a new table. |
 | 1 | Step 1 built. Panther commit: "Declare the body text size once, as --ui-text-body". |
 | 1 | Step 1 reviewed: pass. Panther floor: typecheck clean, 501 tests passed. |
+| 2 | `./sync wb-fastr-v2` commits its own result in the app ("panther sync 2 files at ..."), so the sync commit was made by the tool, not by hand. It touched `_fixed.css`, `PROTOCOL_UI_STYLING.md` and `.panther-manifest.json`. |
+| 2 | The gate grep matches `text-base-content` at `app.css:455`, a colour class, not a size. No body size rule remains. |
+| 2 | Step 2 built. App commits: "Drop the app's own body text size" (826d2262), "panther sync 2 files" (cf5985b0). Floor: typecheck clean, 428 tests passed, protocols passed. |
