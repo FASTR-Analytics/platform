@@ -10,8 +10,8 @@ import type { DisaggregationOption } from "./types/presentation_objects.ts";
 import type { RunAuthoringContext } from "./types/run_authoring_context.ts";
 import type { PackageScope } from "./types/scope.ts";
 
-// The Explore Data table's whole state (PLAN_EXPLORE_DATA_TABLE §2). Controls
-// edit it; the figure config is derived from it and never held.
+// The Explore Data table's whole state (SYSTEM_11 "Grid query model").
+// Controls edit it; the figure config is derived from it and never held.
 
 export type GridColumns = "indicators" | "time";
 export type GridGrain = "period_id" | "quarter_id" | "year";
@@ -102,8 +102,6 @@ function levelNumber(level: AdminLevel): number {
   return ADMIN_LEVELS.indexOf(level) + 2;
 }
 
-// The admin levels a metric can answer under a scope: carried by its
-// disaggregation options and deeper than the scope's own level.
 export function levelOptionsFor(
   metric: MetricWithStatus | undefined,
   scope: PackageScope,
@@ -156,7 +154,7 @@ function availableTimeValues(
   }
 }
 
-// Time is never a column group (ruling 19): HFA and ICEH values must never
+// Time is never a column group: HFA and ICEH values must never
 // be pooled across rounds or years, so Indicators mode reads one of them.
 function needsOnePeriod(query: Pick<GridQuery, "family" | "columns">): boolean {
   return query.family !== "hmis" && query.columns === "indicators";
@@ -269,7 +267,7 @@ type DisaggregateByEntry = PresentationObjectConfig["d"]["disaggregateBy"][
 type FilterByEntry = PresentationObjectConfig["d"]["filterBy"][number];
 
 // The figure config a resolved query reads through: the primary metric's
-// first preset with `d` replaced (§2). Undefined when the family has no
+// first preset with `d` replaced. Undefined when the family has no
 // ready metric or it declares no preset, or when a query that must read one
 // period carries none (resolution supplies it).
 export function deriveGridConfig(
@@ -343,7 +341,7 @@ export type GridPeriodChoice = {
 };
 
 // HFA and ICEH offer "All" only where every value is readable at once:
-// Time mode (ruling 19).
+// Time mode.
 export function periodChoicesFor(
   family: DatasetType,
   columns: GridColumns,
@@ -402,7 +400,6 @@ export function periodChoicesFor(
   return needsOnePeriod({ family, columns }) ? values : [...values, all];
 }
 
-// The choice a period is showing, when it is one of them.
 export function periodChoiceId(
   period: GridPeriod,
   choices: GridPeriodChoice[],

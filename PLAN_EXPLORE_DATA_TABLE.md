@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Fix 1.** Each session sets this line in its final commit.
+**Next step: Review 1.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -632,3 +632,13 @@ Append-only, newest last.
   which is not deeper than the scope, and `levelOptionsFor` returns `[]` for
   that same case. Record the choice in this log. No code change.
 - Step 1 reviewed: 3 findings.
+- Step 1, fix: the plan citations are gone; the file header points at
+  SYSTEM_11 "Grid query model", the other two sites keep their stated
+  reason. The two restating comments are deleted.
+- Step 1, decision (review finding 3): when no admin level is deeper than
+  the scope (a package aggregated at level 2 read under an admin area 2
+  scope), resolution falls back to the deepest level the metric offers, so
+  the table still answers with the scoped area's own row rather than
+  nothing; `levelOptionsFor` is then empty and the page's level select has
+  no choices to offer.
+- Step 1 fixed.
