@@ -6,7 +6,7 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import type { DatasetType, ListSort, ProductType, SlideType } from "lib";
+import type { DatasetType, ListSort, SlideType } from "lib";
 
 // ============================================================================
 // Instance shell
@@ -134,20 +134,6 @@ export function setProductsSort(sort: ListSort) {
   setProductsSortInternal(sort);
 }
 
-// null = every type. See `buildProductTree` for what the filter hides.
-const storedProductsTypeFilter = localStorage.getItem(
-  "productsTypeFilter",
-) as ProductType | null;
-export const [productsTypeFilter, setProductsTypeFilterInternal] =
-  createSignal<ProductType | null>(storedProductsTypeFilter);
-export function setProductsTypeFilter(type: ProductType | null) {
-  if (type === null) {
-    localStorage.removeItem("productsTypeFilter");
-  } else {
-    localStorage.setItem("productsTypeFilter", type);
-  }
-  setProductsTypeFilterInternal(type);
-}
 
 // ============================================================================
 // Appearance

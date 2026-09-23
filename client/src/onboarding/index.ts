@@ -36,7 +36,6 @@ import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import {
   pendingTourReplay,
   productsExpandedFolders,
-  productsTypeFilter,
   setPendingTourReplay,
 } from "~/state/t4_ui";
 
@@ -172,7 +171,6 @@ export function setupTours(opts: {
       () => instanceState.products.length,
       () => instanceState.readyPackages.length,
       productsExpandedFolders,
-      productsTypeFilter,
       () => {
         const view = currentView();
         return view.id === "editing_slide_deck"

@@ -783,21 +783,6 @@ export function buildProductsIntroTour(): TourDefinition {
         placement: "bottom",
       },
       {
-        id: "type-filter",
-        target: tourTarget("products-type-filter"),
-        title: t3({
-          en: "Decks or reports",
-          fr: "Présentations ou rapports",
-          pt: "Apresentações ou relatórios",
-        }),
-        body: t3({
-          en: "Decks and reports share one list. Use this menu to show just one kind.",
-          fr: "Les présentations et les rapports partagent une seule liste. Utilisez ce menu pour n'en afficher qu'un type.",
-          pt: "As apresentações e os relatórios partilham uma única lista. Utilize este menu para mostrar apenas um tipo.",
-        }),
-        placement: "bottom",
-      },
-      {
         id: "folders",
         target: tourTarget("products-items"),
         title: t3({

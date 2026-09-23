@@ -1,16 +1,13 @@
 import { useSearchParams } from "@solidjs/router";
 import {
-  PRODUCT_TYPES,
   t3,
   type Folder,
   type ProductSummary,
-  type ProductType,
 } from "lib";
 import {
   Button,
   FrameTop,
   HeadingBar,
-  Select,
   createButtonAction,
   createDeleteAction,
   getFirstString,
@@ -18,7 +15,6 @@ import {
   openComponent,
   showMenu,
   type MenuItem,
-  type SelectOption,
 } from "panther";
 import {
   Match,
@@ -40,11 +36,9 @@ import {
   pendingEditorOpen,
   productsExpandedFolders,
   productsSort,
-  productsTypeFilter,
   setPendingEditorOpen,
   setProductsExpandedFolders,
   setProductsSort,
-  setProductsTypeFilter,
 } from "~/state/t4_ui";
 import { ProductCopilotHost } from "~/components/products/copilot/mod.ts";
 import { DuplicateProductsModal } from "./_shared/mod.ts";
@@ -58,10 +52,6 @@ import { MoveToFolderModal } from "./move_to_folder_modal";
 import { buildProductMenu } from "./product_menu";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 import { ProductSettings } from "./_shared/mod.ts";
-
-// The type filter stores null for "every type", so the Select needs a
-// sentinel of its own.
-const _ALL_TYPES = "_all_types";
 
 const _SEARCH_MIN_LENGTH = 3;
 
@@ -171,7 +161,6 @@ export function Products() {
     return buildProductTree({
       folders: instanceState.folders,
       products: instanceState.products,
-      typeFilter: productsTypeFilter(),
       needle: isSearching() ? searchText().toLowerCase() : null,
       sortFolders: sort,
       sortProducts: sort,
@@ -219,9 +208,8 @@ export function Products() {
   });
 
   // Every folder's DIRECT child counts in one pass: a per-row scan of both
-  // lists would be quadratic. The product half reflects the type filter (D16).
+  // lists would be quadratic.
   const folderCounts = createMemo(() => {
-    const typeFilter = productsTypeFilter();
     const counts = new Map<string, { folderCount: number; productCount: number }>();
     const entry = (folderId: string) => {
       const existing = counts.get(folderId);
@@ -236,7 +224,6 @@ export function Products() {
     }
     for (const product of instanceState.products) {
       if (product.folderId === null) continue;
-      if (typeFilter !== null && product.type !== typeFilter) continue;
       entry(product.folderId).productCount += 1;
     }
     return counts;
@@ -424,14 +411,6 @@ export function Products() {
     });
   }
 
-  const typeFilterOptions = (): SelectOption<string>[] => [
-    { value: _ALL_TYPES, label: t3({ en: "All", fr: "Tous", pt: "Todos" }) },
-    ...PRODUCT_TYPES.map((type) => ({
-      value: type,
-      label: PRODUCT_TYPE_REGISTRY[type].pluralLabel(),
-    })),
-  ];
-
   function openNewMenu(e: MouseEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     showMenu({
@@ -534,19 +513,6 @@ export function Products() {
             }
             centerChildren={
               <div class="ui-gap flex items-center">
-                <div class="w-36">
-                  <Select
-                    data-tour="products-type-filter"
-                    fullWidth
-                    value={productsTypeFilter() ?? _ALL_TYPES}
-                    onChange={(v) =>
-                      setProductsTypeFilter(
-                        v === _ALL_TYPES ? null : (v as ProductType),
-                      )
-                    }
-                    options={typeFilterOptions()}
-                  />
-                </div>
                 <Show when={isSearching()}>
                   <span class="text-base-content-muted text-sm text-nowrap">
                     {t3({

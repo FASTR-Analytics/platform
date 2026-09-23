@@ -303,7 +303,7 @@ over the two flat T1 lists (`instanceState.products` and
 `instanceState.folders`, both maintained per row off the instance channel),
 shown as a **tree** from the top level where any number of folders are open at
 once. The open folders are an id set in localStorage
-(`productsExpandedFolders`) beside the sort mode and the type filter
+(`productsExpandedFolders`) beside the sort
 (`state/t4_ui.ts`); ids of deleted folders drop out through an effect gated on
 `isReady`, so the persisted set survives hydration. The tree is **derived**,
 never stored, by `folder_tree.ts` (`childFolders`, `folderPathLabels`,
@@ -322,8 +322,7 @@ folder row opens or closes it, clicking a product row opens its editor, and
 there is no selection. One heading-bar button, left of the search field (the
 `centerLeftChildren` slot), opens every folder, or closes them all once all
 are open. Folders show direct-child counts (computed for
-every folder in one pass, not a scan per row) that follow the type filter, and
-a type filter also hides folders with nothing of that type anywhere inside.
+every folder in one pass, not a scan per row).
 Search at 3+ characters keeps each match in its place in the tree, opens the
 folders above the matches, and shows a matching folder closed with all its
 contents; folders the user opens or closes during a search are held apart

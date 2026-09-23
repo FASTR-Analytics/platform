@@ -1,4 +1,4 @@
-import type { Folder, ProductSummary, ProductType } from "lib";
+import type { Folder, ProductSummary } from "lib";
 
 // Pure derivations over the flat T1 `Folder[]` (D16): the tree is derived
 // where it is needed and never mutated into state. The server refuses cycles
@@ -110,21 +110,19 @@ export type ProductTree = {
   matchCount: number;
 };
 
-// A product is shown when it passes the type filter and, while searching,
-// when its label matches or it sits under a folder whose label matches. A
-// folder is shown when it holds anything shown, or, with no type filter, when
-// it is not searching or matches (itself or through an ancestor). So a type
-// filter hides folders with nothing of that type anywhere inside them.
+// While searching, a product is shown when its label matches or it sits under
+// a folder whose label matches. A folder is shown when it holds anything
+// shown, or when it is not searching or matches (itself or through an
+// ancestor).
 export function buildProductTree(args: {
   folders: Folder[];
   products: ProductSummary[];
-  typeFilter: ProductType | null;
   // Lowercased search text, or null when not searching.
   needle: string | null;
   sortFolders: (folders: Folder[]) => Folder[];
   sortProducts: (products: ProductSummary[]) => ProductSummary[];
 }): ProductTree {
-  const { needle, typeFilter } = args;
+  const { needle } = args;
   const matches = (label: string) =>
     needle !== null && label.toLowerCase().includes(needle);
   const foldersByParent = groupBy(args.folders, (f) => f.parentId);
@@ -140,9 +138,7 @@ export function buildProductTree(args: {
   // Returns whether anything shown inside `parentId` is itself a match.
   function visit(parentId: string | null, underMatch: boolean): boolean {
     const shownProducts = (productsByFolder.get(parentId) ?? []).filter(
-      (p) =>
-        (typeFilter === null || p.type === typeFilter) &&
-        (needle === null || underMatch || matches(p.label)),
+      (p) => needle === null || underMatch || matches(p.label),
     );
     const matchedProducts = shownProducts.filter((p) => matches(p.label));
     tree.matchCount += matchedProducts.length;
@@ -156,8 +152,7 @@ export function buildProductTree(args: {
       const hasContents =
         (tree.folders.get(folder.id)?.length ?? 0) > 0 ||
         (tree.products.get(folder.id)?.length ?? 0) > 0;
-      const eligible =
-        typeFilter === null && (needle === null || underMatch || selfMatch);
+      const eligible = needle === null || underMatch || selfMatch;
       if (!eligible && !hasContents) continue;
       shownFolders.push(folder);
       if (selfMatch) tree.matchCount += 1;

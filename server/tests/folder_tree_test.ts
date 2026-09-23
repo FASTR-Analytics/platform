@@ -159,12 +159,11 @@ const byLabel = <T extends { label: string }>(xs: T[]) =>
   [...xs].sort((x, y) => x.label.localeCompare(y.label));
 
 function tree(
-  opts: { typeFilter?: ProductType; needle?: string; folders?: Folder[] } = {},
+  opts: { needle?: string; folders?: Folder[] } = {},
 ) {
   return buildProductTree({
     folders: opts.folders ?? TREE,
     products: PRODUCTS,
-    typeFilter: opts.typeFilter ?? null,
     needle: opts.needle ?? null,
     sortFolders: byLabel,
     sortProducts: byLabel,
@@ -199,14 +198,6 @@ Deno.test("tree rows: an empty folder is shown but has no contents to open", () 
   assertEquals(d?.kind === "folder" && [d.hasContents, d.expanded], [
     false,
     false,
-  ]);
-});
-
-Deno.test("tree: a type filter hides folders with nothing of that type inside", () => {
-  assertEquals(rowIds(tree({ typeFilter: "report" }), ["a", "b"]), [
-    "a",
-    "  b",
-    "    r1",
   ]);
 });
 
