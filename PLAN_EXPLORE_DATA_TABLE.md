@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 2.** Each session sets this line in its final commit.
+**Next step: Do 3.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -734,3 +734,11 @@ Append-only, newest last.
   so the key's shape is declared once; the figure-data route comment is
   reflowed.
 - Step 2 fixed.
+- Step 2, re-review: both findings are resolved. `RowsCacheParams` is
+  declared once, in `server/routes/caches/visualizations.ts`, and types both
+  row caches and `readRowsCached`'s cache parameter; the figure-data route
+  comment reads without a short line. The step read as a whole again (codec,
+  shared checks and cache flow, `maxItems` threading, route, mount, run
+  purge) raises nothing new. Typecheck, test, `./validate_protocols` and the
+  boot gate pass.
+- Step 2 reviewed: pass.
