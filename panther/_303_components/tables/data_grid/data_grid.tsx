@@ -127,9 +127,7 @@ export function DataGrid(p: DataGridProps) {
   return (
     <div
       ref={scroller}
-      class={p.fitToAvailableHeight
-        ? "h-full w-full overflow-auto rounded border"
-        : "w-full overflow-x-auto rounded border"}
+      class="w-fit max-w-full max-h-full overflow-auto rounded border"
     >
       <table class="ui-text-small border-separate border-spacing-0">
         <thead class="bg-base-200 sticky top-0 z-20">

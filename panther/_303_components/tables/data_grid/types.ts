@@ -42,8 +42,6 @@ export type DataGridProps = {
   onCellHover?: (hit: DataGridHit | null) => void;
   onCellClick?: (hit: DataGridHit) => void;
   onRowClick?: (rowId: string) => void;
-  // Fills the parent's height and scrolls inside it; otherwise grows.
-  fitToAvailableHeight?: boolean;
   // A known column is scrolled into view and its header marked; an unknown
   // id or null does nothing.
   focusColumnId?: string | null;
