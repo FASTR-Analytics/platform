@@ -18,7 +18,6 @@ import {
   fastrDocumentOutline,
   getReportCustomStyle,
   getFastrReportTemplate,
-  getStartingBodyForReport,
   fastrReportTemplateBody,
   type FastrReportTemplate,
   getReportFormat,
@@ -121,7 +120,6 @@ import {
   type ReportEditorApi,
 } from "./body_editor";
 import { ReportToolbar } from "./toolbar";
-import { ReportTemplateModal } from "./template_modal";
 import {
   FM_LIVE_SCOPE_CLASS,
   type PageBoxGeometry,
@@ -1566,6 +1564,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           reportLabel: label(),
           fastrTheme: fastrTheme(),
           customStyleId: getReportCustomStyle(loadedConfig)?.id,
+          // A report still holding only its title: the template gallery is
+          // the modal's step 2.
+          offerTemplates: bodyIsSeed() && canEditBody(),
         },
       });
       if (!res) return;
@@ -1584,43 +1585,31 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       setFastrColors(snap?.colors ?? undefined);
       applyFastrTheme(getFastrReportTheme(loadedConfig));
       bumpLastUpdated(res.applied.lastUpdated);
-      // A new report, still just its seed: offer a template next, the way a
-      // word processor does once you start a document.
-      if (bodyIsSeed() && canEditBody()) await openTemplateModal();
+      if (res.template !== undefined) await applyTemplate(res.template);
       return;
     }
   }
 
-  // Whether the body is still what a new report is created with (the title
-  // line alone, or nothing): the only state a template may replace.
+  // Whether the body is still what a new report is created with, a title
+  // line alone (whatever the title now says) or nothing: the only state a
+  // template may replace.
   function bodyIsSeed(): boolean {
     const text = body().trim();
-    return text.length === 0 ||
-      text === getStartingBodyForReport(label(), "fastr").trim();
+    return text.length === 0 || /^#\s[^\n]*$/.test(text);
   }
 
-  // The template gallery (template_modal.tsx), after the theme. The template's
-  // body goes in through the editor (one transaction: collaborators and undo
-  // see it like any edit) and the choice is stored on the config, where the
-  // AI's instructions read it.
-  async function openTemplateModal(): Promise<void> {
-    const snap = getReportCustomStyle(loadedConfig);
-    const res = await openComponent({
-      element: ReportTemplateModal,
-      props: {
-        reportLabel: label(),
-        fastrTheme: fastrTheme(),
-        customStyle: snap ? { id: snap.id, colors: snap.colors ?? null } : undefined,
-      },
-    });
-    if (!res) return;
+  // Step 2 of the theme modal picked a template: its body goes in through
+  // the editor (one transaction, so collaborators and undo see it like any
+  // edit) and the choice is stored on the config, where the AI's
+  // instructions read it.
+  async function applyTemplate(chosen: FastrReportTemplate): Promise<void> {
     // Someone may have started writing while the gallery was open.
     if (!bodyIsSeed()) return;
-    const next = fastrReportTemplateBody(res.template, label());
+    const next = fastrReportTemplateBody(chosen, label());
     await editorApi?.whenIdle();
     editorApi?.applyRebasedBody(body(), next);
-    setTemplate(res.template);
-    const config = { ...loadedConfig, template: res.template };
+    setTemplate(chosen);
+    const config = { ...loadedConfig, template: chosen };
     const saved = await serverActions.updateReportConfig({
       product_id: p.productId,
       config,

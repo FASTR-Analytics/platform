@@ -1515,10 +1515,11 @@ or below when the caret stands at the region's very end, which is the only
 keyboard way past a stat row, a figure or a table at the end of a document.
 A natural cover opening ANY page is flush to the sheet's top in the editor
 as it is in print (`openPage`, no `isFirst`), where it used to sit under a
-band of top margin after a page break. TEMPLATES (2026-09-23): after
-the theme modal applies on a report whose body is still the new-report seed
-(the title line alone), the editor opens a template gallery
-(`template_modal.tsx`): Policy brief, Long-form report and Empty, each tile
+band of top margin after a page break. TEMPLATES (2026-09-23): on a
+report whose body is still a title line alone, the theme modal is step 1 of
+2 (`offerTemplates`): Next applies the theme and step 2 is a template gallery
+(`template_gallery.tsx`, Back returns, Skip keeps the theme and the title):
+Policy brief, Long-form report and Empty, each tile
 the template's real first page rendered under the look just chosen
 (`FastrTemplateMock`). The skeletons live in `lib/fastr_report_templates.ts`
 with placeholder guidance written as muted marks (`[What goes here]{.muted}`,
