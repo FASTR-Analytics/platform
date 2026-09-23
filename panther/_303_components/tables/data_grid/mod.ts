@@ -11,10 +11,7 @@ export {
 } from "./from_table_data.ts";
 export type {
   DataGridCell,
-  DataGridColumn,
-  DataGridColumnGroup,
   DataGridHit,
   DataGridProps,
-  DataGridRow,
   DataGridSort,
 } from "./types.ts";

@@ -11,6 +11,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
+import { computeGroupSpans } from "../_internal/group_spans.ts";
 import { HeaderGlyph } from "../display_table/header_glyph.tsx";
 import type {
   DataGridCell,
@@ -72,35 +73,11 @@ export function DataGrid(p: DataGridProps) {
     });
   });
 
-  // Contiguous runs of one group id, in column order, so a group header spans
-  // exactly the columns beneath it.
-  const groupSpans = createMemo(() => {
-    const groups = p.columnGroups;
-    if (groups === undefined) return undefined;
-    const labelById = new Map(groups.map((g) => [g.id, g.label]));
-    const spans: {
-      groupId: string | undefined;
-      label: string;
-      span: number;
-    }[] = [];
-    for (const column of p.columns) {
-      const groupId = column.groupId !== undefined &&
-          labelById.has(column.groupId)
-        ? column.groupId
-        : undefined;
-      const last = spans.at(-1);
-      if (groupId !== undefined && last?.groupId === groupId) {
-        last.span += 1;
-      } else {
-        spans.push({
-          groupId,
-          label: groupId === undefined ? "" : labelById.get(groupId)!,
-          span: 1,
-        });
-      }
-    }
-    return spans;
-  });
+  const groupSpans = createMemo(() =>
+    p.columnGroups === undefined
+      ? undefined
+      : computeGroupSpans(p.columns, p.columnGroups)
+  );
 
   const headerCells = new Map<string, HTMLTableCellElement>();
   let scroller: HTMLDivElement | undefined;

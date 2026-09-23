@@ -4,13 +4,8 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { TableDataTransformed } from "../../deps.ts";
-import type {
-  DataGridCell,
-  DataGridColumn,
-  DataGridColumnGroup,
-  DataGridProps,
-  DataGridRow,
-} from "./types.ts";
+import type { GridColumn, GridColumnGroup, GridRow } from "../grid_types.ts";
+import type { DataGridCell, DataGridProps } from "./types.ts";
 
 // A cell's position in the pivot, by the pivot's own ids: the caller's
 // formatting and colouring may depend on any axis (a column's group is the
@@ -56,7 +51,7 @@ export function dataGridPropsFromTableData(
   const hasColGroups = data.colGroups.some((g) => g.id !== undefined);
   const hasRowGroups = data.rowGroups.some((g) => g.id !== undefined);
 
-  const columnGroups: DataGridColumnGroup[] = data.colGroups.map((g, i) => ({
+  const columnGroups: GridColumnGroup[] = data.colGroups.map((g, i) => ({
     id: headerId(g.id, g.label, i),
     label: g.label ?? "",
   }));
@@ -64,7 +59,7 @@ export function dataGridPropsFromTableData(
   const columnEntries = data.colGroups.flatMap((g, gi) =>
     g.cols.map((c) => {
       const groupId = hasColGroups ? columnGroups[gi].id : undefined;
-      const column: DataGridColumn = {
+      const column: GridColumn = {
         id: qualifiedId(groupId, headerId(c.id, c.label, c.index)),
         label: c.label ?? "",
         ...(groupId === undefined ? {} : { groupId }),
@@ -77,7 +72,7 @@ export function dataGridPropsFromTableData(
     g.rows.map((r) => {
       const groupId = hasRowGroups ? headerId(g.id, g.label, gi) : undefined;
       const label = r.label ?? "";
-      const row: DataGridRow = {
+      const row: GridRow = {
         id: qualifiedId(groupId, headerId(r.id, r.label, r.index)),
         label: hasRowGroups && g.label ? `${g.label} · ${label}` : label,
       };

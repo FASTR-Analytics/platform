@@ -192,6 +192,26 @@ no-rows fallback. A filterable column gets a funnel button in its header that
 lists the column's distinct values as check rows; `defaultFilters` and
 `onFilterChange` persist the unchecked values.
 
+Two matrix grids draw rows × columns with a sticky row-header column and share
+the grid contract: `GridColumn { id, label, groupId? }`,
+`GridColumnGroup { id, label }`, `GridRow { id, label }`, and
+`cells[rowIndex][columnIndex]` aligned with `rows` and `columns`. `DataGrid`
+draws numeric cells and sorts; `PresenceGrid` draws a swatch per boolean cell.
+Each has an adapter that builds the contract from a source panther already
+knows: `dataGridPropsFromTableData` from the canvas table's pivot, and
+`presenceGridColumnsFromPeriods` from an inclusive range of month period ids
+(months or quarters grouped by year, or ungrouped years, per the `PeriodType`).
+
+```tsx
+<PresenceGrid
+  columns={columns} // GridColumn[]
+  columnGroups={groups} // present: one header row of group labels
+  rows={rows} // GridRow[]
+  cells={cells()} // boolean[][], cells[rowIndex][columnIndex]
+  cellWidth="fixed" // a 16px swatch; "stretch" fills the column
+/>;
+```
+
 ## CSS Public API
 
 `_fixed.css` holds the `@theme` token block and the `ui-*` classes. Public

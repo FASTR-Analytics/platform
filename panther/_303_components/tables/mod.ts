@@ -6,3 +6,5 @@
 export * from "./csv_table/table_from_csv.tsx";
 export * from "./data_grid/mod.ts";
 export * from "./display_table/mod.ts";
+export type * from "./grid_types.ts";
+export * from "./presence_grid/mod.ts";

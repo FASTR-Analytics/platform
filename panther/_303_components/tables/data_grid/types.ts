@@ -3,6 +3,8 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import type { GridColumn, GridColumnGroup, GridRow } from "../grid_types.ts";
+
 // A numeric matrix as the caller has already formatted and coloured it: the
 // grid draws text and colours it is given and computes nothing. `value` is
 // the sort key, since text alone cannot order numbers; a cell without one
@@ -12,22 +14,6 @@ export type DataGridCell = {
   value?: number;
   bg?: string;
   fg?: string;
-};
-
-export type DataGridColumn = {
-  id: string;
-  label: string;
-  groupId?: string;
-};
-
-export type DataGridColumnGroup = {
-  id: string;
-  label: string;
-};
-
-export type DataGridRow = {
-  id: string;
-  label: string;
 };
 
 export type DataGridSort = {
@@ -43,11 +29,11 @@ export type DataGridHit = {
 };
 
 export type DataGridProps = {
-  columns: DataGridColumn[];
+  columns: GridColumn[];
   // Present: a first header row of group labels, each spanning its
   // contiguous columns. A column whose group is unknown spans alone.
-  columnGroups?: DataGridColumnGroup[];
-  rows: DataGridRow[];
+  columnGroups?: GridColumnGroup[];
+  rows: GridRow[];
   // cells[rowIndex][columnIndex], aligned with `rows` and `columns`.
   cells: (DataGridCell | undefined)[][];
   rowHeaderLabel?: string;

@@ -177,8 +177,8 @@ showMenu({ anchor: rect, items })        // right-click / card context menus onl
   `HeadingBar`, `TabsNavigation`, `getStepper` + `StepperChipsWithTitles`,
   collapsible sections.
 - **Display:** `Badge`, `Card`, `EmptyState`.
-- **Data:** `Table` (sortable/filterable/selectable), `FigureHolder`,
-  `PageHolder`.
+- **Data:** `Table` (sortable/filterable/selectable), `DataGrid`,
+  `PresenceGrid`, `FigureHolder`, `PageHolder`.
 - **State/feedback:** `StateHolderWrapper`, `StateHolderFormError`, editor/alert
   helpers, `ModalContainer` (with `actions` / `onCancel`), `MenuButton` /
   `ActionMenuButton`, loading/progress indicators.
