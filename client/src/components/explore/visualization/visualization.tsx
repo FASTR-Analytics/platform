@@ -1,10 +1,9 @@
 import {
   deriveConfigFromVizPreset,
+  familiesOffered,
   getModuleFamilyLabel,
-  MODULE_FAMILY_ORDER,
-  t3,
+  primaryModuleMetrics,
   type DatasetType,
-  type InstalledModuleSummary,
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
@@ -15,32 +14,23 @@ import { FrameTop, getLanguage, TabsNavigation } from "panther";
 import { createMemo, Show } from "solid-js";
 import { unwrap } from "solid-js/store";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
+import { EmptyState } from "../_shared/mod.ts";
 import { exploreFamily, setExploreFamily } from "~/state/t4_ui";
 
 type FamilyPrimary = {
   family: DatasetType;
-  module: InstalledModuleSummary;
   // The family's one default: the primary module's first ready metric by id,
   // or its first metric by id when none is ready, so the stamped reason shows.
   metric: MetricWithStatus | undefined;
 };
 
-// The families offered: those whose primary module is in the package, in
-// family order.
 function familiesInPackage(ctx: RunAuthoringContext): FamilyPrimary[] {
-  return MODULE_FAMILY_ORDER.flatMap((family) => {
-    const module = ctx.modules.find((m) =>
-      m.family === family && m.tier === "primary"
-    );
-    if (module === undefined) return [];
-    const metrics = ctx.metrics
-      .filter((m) => m.moduleId === module.id)
-      .toSorted((a, b) => a.id.localeCompare(b.id));
-    return [{
+  return familiesOffered(ctx).map((family) => {
+    const metrics = primaryModuleMetrics(family, ctx);
+    return {
       family,
-      module,
       metric: metrics.find((m) => m.status === "ready") ?? metrics[0],
-    }];
+    };
   });
 }
 
@@ -74,12 +64,8 @@ export function Visualization(p: {
       when={active()}
       keyed
       fallback={
-        <div class="ui-pad text-base-content-muted text-sm">
-          {t3({
-            en: "This package has no primary module, so there are no results to explore. Generate a package that includes one.",
-            fr: "Ce paquet n'a aucun module principal, il n'y a donc aucun résultat à explorer. Générez un paquet qui en inclut un.",
-            pt: "Este pacote não tem nenhum módulo principal, pelo que não há resultados para explorar. Gere um pacote que inclua um.",
-          })}
+        <div class="ui-pad">
+          <EmptyState kind="no_primary_module" />
         </div>
       }
     >
@@ -126,13 +112,8 @@ function FamilyDefault(p: {
       when={key()}
       keyed
       fallback={
-        <div class="ui-pad text-base-content-muted text-sm">
-          {p.primary.metric?.statusReason ??
-            t3({
-              en: "This module produced no metric in this package",
-              fr: "Ce module n'a produit aucun indicateur dans ce paquet",
-              pt: "Este módulo não produziu nenhuma métrica neste pacote",
-            })}
+        <div class="ui-pad">
+          <EmptyState kind="no_metric" reason={p.primary.metric?.statusReason} />
         </div>
       }
     >
@@ -144,12 +125,8 @@ function FamilyDefault(p: {
             when={preset}
             keyed
             fallback={
-              <div class="ui-pad text-base-content-muted text-sm">
-                {t3({
-                  en: "This metric declares no visualization preset",
-                  fr: "Cet indicateur ne déclare aucune visualisation prédéfinie",
-                  pt: "Esta métrica não declara nenhuma visualização predefinida",
-                })}
+              <div class="ui-pad">
+                <EmptyState kind="no_preset" />
               </div>
             }
           >

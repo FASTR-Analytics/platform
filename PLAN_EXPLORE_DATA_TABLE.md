@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Fix 4.** Each session sets this line in its final commit.
+**Next step: Review 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -897,3 +897,23 @@ Append-only, newest last.
   lookup (into lib beside `primaryMetricFor`) and the shared empty states
   (an `explore/_shared/`, which rule 4 admits since both children use it).
 - Step 4 reviewed: 3 findings.
+- Step 4, fix (finding 1): a grid read now carries the config and columns
+  mode it was issued for (`ReadSpec`, a memo equal by fetch-config hash and
+  columns), and the grid is built only from the read's own rows, config,
+  columns and scope, so a newer query is never paired with older rows. A
+  change that leaves the fetch config and columns alone (Clear, for one)
+  makes no new read and keeps the grid, and its header sort, mounted.
+- Step 4, fix (finding 2): HFA time points come from the package (the
+  metric info's `time_point` values), ordered by the instance's declared
+  `sortOrder`, with any the instance no longer lists last.
+- Step 4, fix (finding 3): `primaryModuleMetrics` in
+  `lib/explore_grid_query.ts` is the one family-to-metrics lookup;
+  `primaryMetricFor`, the Visualization tab's family list and the Data
+  table's unavailable reason read through it. The shared empty states (no
+  primary module, no metric with its stamped reason, no preset) are
+  `explore/_shared/empty_state.tsx`, used by both tabs. SYSTEM_11 prose
+  updated.
+- Step 4, verification (not a gate): rerun in the browser after the fix:
+  Indicators to Time and back, and a province scope (admin area 3 with the
+  "GAZA — All areas" row), with no console errors.
+- Step 4 fixed.

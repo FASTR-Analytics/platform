@@ -8,6 +8,7 @@ import {
   levelOptionsFor,
   periodChoicesFor,
   primaryMetricFor,
+  primaryModuleMetrics,
   resolveEffectiveIndicatorFacts,
   resolveGridQuery,
   t3,
@@ -17,6 +18,7 @@ import {
   type FigureBundle,
   type GenericLongFormFetchConfig,
   type GridAvailable,
+  type GridColumns,
   type GridQuery,
   type MetricWithStatus,
   type PackageScope,
@@ -36,6 +38,7 @@ import {
   StateHolderWrapper,
 } from "panther";
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
+import { EmptyState } from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
@@ -76,12 +79,8 @@ export function DataTable(p: {
       when={family()}
       keyed
       fallback={
-        <div class="ui-pad text-base-content-muted text-sm">
-          {t3({
-            en: "This package has no primary module, so there are no results to explore. Generate a package that includes one.",
-            fr: "Ce paquet n'a aucun module principal, il n'y a donc aucun résultat à explorer. Générez un paquet qui en inclut un.",
-            pt: "Este pacote não tem nenhum módulo principal, pelo que não há resultados para explorar. Gere um pacote que inclua um.",
-          })}
+        <div class="ui-pad">
+          <EmptyState kind="no_primary_module" />
         </div>
       }
     >
@@ -90,8 +89,11 @@ export function DataTable(p: {
           when={primaryMetricFor(f, p.ctx)}
           keyed
           fallback={
-            <div class="ui-pad text-base-content-muted text-sm">
-              {unavailableReason(f, p.ctx)}
+            <div class="ui-pad">
+              <EmptyState
+                kind="no_metric"
+                reason={primaryModuleMetrics(f, p.ctx)[0]?.statusReason}
+              />
             </div>
           }
         >
@@ -110,25 +112,6 @@ export function DataTable(p: {
       )}
     </Show>
   );
-}
-
-// The stamped reason on the primary module's first metric by id.
-function unavailableReason(
-  family: DatasetType,
-  ctx: RunAuthoringContext,
-): string {
-  const module = ctx.modules.find((m) =>
-    m.family === family && m.tier === "primary"
-  );
-  const first = ctx.metrics
-    .filter((m) => m.moduleId === module?.id)
-    .toSorted((a, b) => a.id.localeCompare(b.id))[0];
-  return first?.statusReason ??
-    t3({
-      en: "This module produced no metric in this package",
-      fr: "Ce module n'a produit aucun indicateur dans ce paquet",
-      pt: "Este módulo não produziu nenhuma métrica neste pacote",
-    });
 }
 
 function FamilyTable(p: {
@@ -196,12 +179,13 @@ function ReadyFamilyTable(p: {
 }) {
   const [find, setFind] = createSignal("");
 
+  // The package's own time points and years, from the metric info. HFA
+  // rounds take the instance's declared order; one the instance no longer
+  // lists goes last.
   const available = createMemo((): GridAvailable => ({
-    hfaTimePoints: instanceState.hfaTimePoints
-      .toSorted((a, b) =>
-        a.periodId.localeCompare(b.periodId) || a.sortOrder - b.sortOrder
-      )
-      .map((tp) => tp.label),
+    hfaTimePoints: hfaTimePointsInOrder(
+      possibleValues(p.info, "time_point").map((v) => v.id),
+    ),
     icehYears: possibleValues(p.info, "year")
       .map((v) => v.id)
       .toSorted((a, b) => Number(a) - Number(b)),
@@ -234,30 +218,36 @@ function ReadyFamilyTable(p: {
   const derived = createMemo(() =>
     deriveGridConfig(resolved().query, p.ctx, getLanguage())
   );
-  const fetchConfig = createMemo(
-    (): APIResponseWithData<GenericLongFormFetchConfig> | undefined => {
-      const d = derived();
-      return d === undefined
-        ? undefined
-        : getFetchConfigFromPresentationObjectConfig(d.metric, d.config);
-    },
-    undefined,
-    { equals: sameFetchConfig },
-  );
+  // What one grid read is for. Only a change of fetch config or columns
+  // makes a new one, and the grid is built from the config and columns its
+  // rows were read for, never from a newer query paired with older rows.
+  const readSpec = createMemo((): ReadSpec | undefined => {
+    const d = derived();
+    return d === undefined ? undefined : {
+      fetchConfig: getFetchConfigFromPresentationObjectConfig(d.metric, d.config),
+      config: d.config,
+      columns: resolved().query.columns,
+    };
+  }, undefined, { equals: sameReadSpec });
 
-  const rows = createTrackedQuery((): Promise<APIResponseWithData<GridRows>> => {
-    const fc = fetchConfig();
-    if (fc === undefined) {
+  const read = createTrackedQuery((): Promise<APIResponseWithData<GridRead>> => {
+    const spec = readSpec();
+    const scope = p.scope;
+    if (spec === undefined) {
       return Promise.resolve({
-        success: true,
-        data: { status: "no_data_available" },
+        success: false,
+        err: "No read without a config",
       });
     }
-    if (fc.success === false) return Promise.resolve(fc);
+    if (spec.fetchConfig.success === false) {
+      return Promise.resolve(spec.fetchConfig);
+    }
     return getGridRowsFromCacheOrFetch(
-      p.scope,
+      scope,
       p.metric.resultsObjectId,
-      fc.data,
+      spec.fetchConfig.data,
+    ).then((res) =>
+      res.success ? { success: true, data: { rows: res.data, spec, scope } } : res
     );
   });
 
@@ -270,19 +260,19 @@ function ReadyFamilyTable(p: {
   });
 
   const grid = createMemo((): GridBuild | undefined => {
-    const state = rows();
-    const d = derived();
-    if (state.status !== "ready" || state.data.status !== "ok" || !d) {
+    const state = read();
+    if (state.status !== "ready" || state.data.rows.status !== "ok") {
       return undefined;
     }
+    const { rows, spec, scope } = state.data;
     return buildGrid({
-      rows: state.data,
-      config: d.config,
+      rows,
+      config: spec.config,
+      columns: spec.columns,
       metric: p.metric,
       info: p.info,
-      scope: p.scope,
+      scope,
       family: p.family,
-      columns: resolved().query.columns,
     });
   });
   const readyGrid = (): GridProps | undefined => {
@@ -358,19 +348,15 @@ function ReadyFamilyTable(p: {
     >
       <div class="ui-pad h-full">
         <Show
-          when={derived()}
-          fallback={
-            <GridMessage
-              status={(p.metric.vizPresets?.length ?? 0) === 0
-                ? "no_preset"
-                : "no_data_available"}
-            />
-          }
+          when={readSpec()}
+          fallback={(p.metric.vizPresets?.length ?? 0) === 0
+            ? <EmptyState kind="no_preset" />
+            : <GridMessage status="no_data_available" />}
         >
-          <StateHolderWrapper state={rows()} noPad>
+          <StateHolderWrapper state={read()} noPad>
             {(data) => (
               <Switch>
-                <Match when={data.status !== "ok" && data.status}>
+                <Match when={data.rows.status !== "ok" && data.rows.status}>
                   {(status) => <GridMessage status={status()} />}
                 </Match>
                 <Match when={grid()} keyed>
@@ -396,15 +382,36 @@ function ReadyFamilyTable(p: {
   );
 }
 
-function sameFetchConfig(
-  a: APIResponseWithData<GenericLongFormFetchConfig> | undefined,
-  b: APIResponseWithData<GenericLongFormFetchConfig> | undefined,
+type ReadSpec = {
+  fetchConfig: APIResponseWithData<GenericLongFormFetchConfig>;
+  config: PresentationObjectConfig;
+  columns: GridColumns;
+};
+
+type GridRead = { rows: GridRows; spec: ReadSpec; scope: PackageScope };
+
+function sameReadSpec(
+  a: ReadSpec | undefined,
+  b: ReadSpec | undefined,
 ): boolean {
   if (a === undefined || b === undefined) return a === b;
-  if (a.success && b.success) {
-    return hashFetchConfig(a.data) === hashFetchConfig(b.data);
+  if (a.columns !== b.columns) return false;
+  const fa = a.fetchConfig;
+  const fb = b.fetchConfig;
+  if (fa.success && fb.success) {
+    return hashFetchConfig(fa.data) === hashFetchConfig(fb.data);
   }
-  return !a.success && !b.success && a.err === b.err;
+  return !fa.success && !fb.success && fa.err === fb.err;
+}
+
+function hfaTimePointsInOrder(ids: string[]): string[] {
+  const order = new Map(
+    instanceState.hfaTimePoints.map((tp) => [tp.label, tp.sortOrder]),
+  );
+  return ids.toSorted((a, b) =>
+    (order.get(a) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(b) ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b)
+  );
 }
 
 type GridBuild = { ok: true; grid: GridProps } | { ok: false; err: string };
@@ -419,7 +426,7 @@ function buildGrid(args: {
   info: ResultsValueInfoForPresentationObject;
   scope: PackageScope;
   family: DatasetType;
-  columns: GridQuery["columns"];
+  columns: GridColumns;
 }): GridBuild {
   const { rows, config, metric, info } = args;
   const bundle: FigureBundle = {

@@ -52,7 +52,7 @@ export function Grid(p: {
 }
 
 export function GridMessage(p: {
-  status: "no_data_available" | "too_many_cells" | "no_preset";
+  status: "no_data_available" | "too_many_cells";
 }) {
   return (
     <div class="text-base-content-muted text-sm">
@@ -61,12 +61,6 @@ export function GridMessage(p: {
           en: "This selection has too many values to show. Choose fewer indicators, or a coarser time grain.",
           fr: "Cette sélection contient trop de valeurs pour être affichée. Choisissez moins d'indicateurs ou un pas de temps plus large.",
           pt: "Esta seleção tem demasiados valores para mostrar. Escolha menos indicadores ou uma granularidade temporal maior.",
-        })
-        : p.status === "no_preset"
-        ? t3({
-          en: "This metric declares no visualization preset",
-          fr: "Cet indicateur ne déclare aucune visualisation prédéfinie",
-          pt: "Esta métrica não declara nenhuma visualização predefinida",
         })
         : t3({
           en: "No data for this selection",

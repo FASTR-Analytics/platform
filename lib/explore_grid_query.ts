@@ -73,19 +73,27 @@ export function timeDimension(
   }
 }
 
-// The Data table's metric: the family's primary module's first ready metric
-// by id.
+// The family's primary module's metrics by id; empty when the package has
+// no primary module for the family.
+export function primaryModuleMetrics(
+  family: DatasetType,
+  ctx: RunAuthoringContext,
+): MetricWithStatus[] {
+  const module = ctx.modules.find((m) =>
+    m.family === family && m.tier === "primary"
+  );
+  return module === undefined ? [] : ctx.metrics
+    .filter((m) => m.moduleId === module.id)
+    .toSorted((a, b) => a.id.localeCompare(b.id));
+}
+
+// Explore's metric for a family: the primary module's first ready metric by
+// id.
 export function primaryMetricFor(
   family: DatasetType,
   ctx: RunAuthoringContext,
 ): MetricWithStatus | undefined {
-  const module = ctx.modules.find((m) =>
-    m.family === family && m.tier === "primary"
-  );
-  if (module === undefined) return undefined;
-  return ctx.metrics
-    .filter((m) => m.moduleId === module.id && m.status === "ready")
-    .toSorted((a, b) => a.id.localeCompare(b.id))[0];
+  return primaryModuleMetrics(family, ctx).find((m) => m.status === "ready");
 }
 
 export function familiesOffered(ctx: RunAuthoringContext): DatasetType[] {
