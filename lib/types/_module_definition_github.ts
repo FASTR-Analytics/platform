@@ -35,10 +35,12 @@ const translatableStringGithub = z.object({
 // stored module-definition blobs parse forever.
 const scriptGenerationTypeGithub = z.enum(["template", "hfa"]);
 
+const datasetTypeGithub = z.enum(["hmis", "hfa", "iceh"]);
+
 const dataSourceDatasetGithub = z.object({
   sourceType: z.literal("dataset"),
   replacementString: z.string(),
-  datasetType: z.enum(["hmis", "hfa", "iceh"]),
+  datasetType: datasetTypeGithub,
 });
 
 const dataSourceResultsObjectGithub = z.object({
@@ -379,9 +381,18 @@ const assetToImportGithub = z.union([z.string(), repoAssetToImportGithub]);
 
 // ── moduleDefinition (github: full file) ───────────────────────────
 
+// Presentation facts, declared by the module and never inferred: the family
+// whose results the module carries, whether it is that family's one primary
+// module or a supporting analysis, and its position among its tier's modules.
+// Every surface orders modules by family, tier, sortOrder, id.
+const moduleTierGithub = z.enum(["primary", "secondary"]);
+
 export const moduleDefinitionGithubSchema = z
   .object({
     label: translatableStringGithub,
+    family: datasetTypeGithub,
+    tier: moduleTierGithub,
+    sortOrder: z.number().int().positive(),
     prerequisites: z.array(z.string()),
     scriptGenerationType: scriptGenerationTypeGithub,
     dataSources: z.array(dataSourceGithub),
@@ -459,6 +470,8 @@ export type ResultsObjectDefinitionGithub = z.infer<
 // ── Alias types (for wb-fastr-modules compatibility) ────────────────
 
 export type TranslatableString = z.infer<typeof translatableStringGithub>;
+export type ModuleFamily = z.infer<typeof datasetTypeGithub>;
+export type ModuleTier = z.infer<typeof moduleTierGithub>;
 export type ScriptGenerationType = z.infer<typeof scriptGenerationTypeGithub>;
 export type DataSource = z.infer<typeof dataSourceGithub>;
 export type DataSourceDataset = z.infer<typeof dataSourceDatasetGithub>;
@@ -488,6 +501,9 @@ export type ModuleDefinitionCore =
   & Pick<
     ModuleDefinitionGithub,
     | "label"
+    | "family"
+    | "tier"
+    | "sortOrder"
     | "prerequisites"
     | "scriptGenerationType"
     | "dataSources"

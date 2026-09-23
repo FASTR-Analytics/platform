@@ -1,5 +1,11 @@
-import type { InstalledModuleSummary, MetricWithStatus } from "lib";
+import {
+  compareModules,
+  type InstalledModuleSummary,
+  type MetricWithStatus,
+} from "lib";
 
+// Modules in module order (compareModules), each with its family and tier,
+// so the model meets each family's primary result first.
 export function formatModulesListForAI(
   modules: InstalledModuleSummary[],
   metrics: MetricWithStatus[],
@@ -18,9 +24,15 @@ export function formatModulesListForAI(
     return lines.join("\n");
   }
 
-  for (const module of modules) {
+  for (const module of modules.toSorted(compareModules)) {
     lines.push(`ID: ${module.id}`);
     lines.push(`Name: ${module.label}`);
+    lines.push(`Family: ${module.family}`);
+    lines.push(
+      `Tier: ${
+        module.tier === "primary" ? "primary result" : "supporting analysis"
+      }`,
+    );
     lines.push(`Has Parameters: ${module.hasParameters}`);
     lines.push(`Last Run: ${module.lastRunAt ?? "never"}`);
 

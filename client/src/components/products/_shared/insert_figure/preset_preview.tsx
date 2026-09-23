@@ -4,18 +4,9 @@ import {
   type PackageScope,
   type PresentationObjectConfig,
 } from "lib";
-import {
-  FigureHolder,
-  LoadingIndicator,
-  type FigureInputs,
-  type StateHolder,
-} from "panther";
-import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
-import {
-  buildFigureInputs,
-  makeFigureBundleFromFetchedData,
-} from "~/generate_visualization/mod";
-import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
+import { FigureHolder, LoadingIndicator, type FigureInputs } from "panther";
+import { For, Match, Show, Switch } from "solid-js";
+import { createFigurePreview } from "~/components/_shared/mod.ts";
 
 export const CUSTOM_OPTION = "__custom__";
 
@@ -40,33 +31,11 @@ type Props = {
 // same scope-keyed items read as any inserted figure, so a gallery of
 // previews and the figure a user then inserts share cache entries.
 export function PresetPreview(p: Props) {
-  const [state, setState] = createSignal<StateHolder<FigureInputs>>({
-    status: "loading",
-  });
-
-  let version = 0;
-
-  createEffect(() => {
-    const scope = p.scope;
-    const metric = p.metric;
-    const config = p.config;
-    const thisVersion = ++version;
-    setState({ status: "loading" });
-
-    fetchPreview(scope, metric, config).then(
-      (result) => {
-        if (version === thisVersion) setState(result);
-      },
-      (err) => {
-        if (version === thisVersion) {
-          setState({
-            status: "error",
-            err: err instanceof Error ? err.message : "Error",
-          });
-        }
-      },
-    );
-  });
+  const state = createFigurePreview(() => ({
+    scope: p.scope,
+    metric: p.metric,
+    config: p.config,
+  }));
 
   return (
     <div
@@ -170,47 +139,4 @@ export function PresetSelector(p: PresetSelectorProps) {
       </div>
     </div>
   );
-}
-
-async function fetchPreview(
-  scope: PackageScope,
-  metric: MetricWithStatus,
-  config: PresentationObjectConfig,
-): Promise<StateHolder<FigureInputs>> {
-  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(scope, metric, config);
-  if (!itemsRes.success) {
-    return { status: "error", err: itemsRes.err };
-  }
-  const { ih, config: effectiveConfig } = itemsRes.data;
-  if (ih.status !== "ok") {
-    return {
-      status: "error",
-      err:
-        ih.status === "too_many_items"
-          ? t3({
-              en: "Too many data points",
-              fr: "Trop de points de données",
-              pt: "Demasiados pontos de dados",
-            })
-          : t3({
-              en: "No data available",
-              fr: "Aucune donnée disponible",
-              pt: "Nenhum dado disponível",
-            }),
-    };
-  }
-
-  try {
-    const bundle = makeFigureBundleFromFetchedData(scope, {
-      resultsValue: metric,
-      ih,
-      effectiveConfig,
-    });
-    return { status: "ready" as const, data: buildFigureInputs(bundle) };
-  } catch (e) {
-    return {
-      status: "error" as const,
-      err: e instanceof Error ? e.message : "Render error",
-    };
-  }
 }

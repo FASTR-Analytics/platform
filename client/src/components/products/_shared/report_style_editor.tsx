@@ -251,9 +251,9 @@ export function ReportStyleEditor(p: Props) {
             mono
             fullWidth
             placeholder={t3({
-              en: "Fonts (via @import), palette, structure (masthead, sections, cards, tables), figure treatment…",
-              fr: "Polices (via @import), palette, structure (manchette, sections, cartes, tableaux), traitement des figures…",
-              pt: "Tipos de letra (via @import), paleta, estrutura (cabeçalho, secções, cartões, tabelas), tratamento das figuras…",
+              en: "Fonts (via @import), palette, structure (masthead, sections, cards, tables), visualization treatment…",
+              fr: "Polices (via @import), palette, structure (manchette, sections, cartes, tableaux), traitement des visualisations…",
+              pt: "Tipos de letra (via @import), paleta, estrutura (cabeçalho, secções, cartões, tabelas), tratamento das visualizações…",
             })}
           />
           <TextArea

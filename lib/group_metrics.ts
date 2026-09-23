@@ -1,4 +1,53 @@
-import type { MetricWithStatus, InstalledModuleSummary } from "./types/mod.ts";
+import type {
+  DatasetType,
+  InstalledModuleSummary,
+  MetricWithStatus,
+  ModuleTier,
+} from "./types/mod.ts";
+import { t3 } from "./translate/mod.ts";
+
+// The one module order: family (HMIS, HFA, ICEH), then the family's primary
+// module before its supporting analyses, then the declared sort order, then
+// id. Every listing of modules sorts through this and nothing sorts modules
+// by id or label.
+export const MODULE_FAMILY_ORDER: readonly DatasetType[] = [
+  "hmis",
+  "hfa",
+  "iceh",
+];
+const FAMILY_ORDER: Record<DatasetType, number> = { hmis: 0, hfa: 1, iceh: 2 };
+
+// The family's name wherever modules are listed under it.
+export function getModuleFamilyLabel(family: DatasetType): string {
+  switch (family) {
+    case "hmis":
+      return t3({ en: "HMIS", fr: "HMIS", pt: "HMIS" });
+    case "hfa":
+      return t3({ en: "HFA", fr: "FOSA", pt: "HFA" });
+    case "iceh":
+      return t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" });
+  }
+}
+const TIER_ORDER: Record<ModuleTier, number> = { primary: 0, secondary: 1 };
+
+export type ModulePresentation = {
+  id: string;
+  family: DatasetType;
+  tier: ModuleTier;
+  sortOrder: number;
+};
+
+export function compareModules(
+  a: ModulePresentation,
+  b: ModulePresentation,
+): number {
+  return (
+    FAMILY_ORDER[a.family] - FAMILY_ORDER[b.family] ||
+    TIER_ORDER[a.tier] - TIER_ORDER[b.tier] ||
+    a.sortOrder - b.sortOrder ||
+    a.id.localeCompare(b.id)
+  );
+}
 
 export type MetricGroup = {
   label: string;
@@ -10,6 +59,8 @@ export type MetricsByModule = {
   // (PLAN_1a §0 clause 3).
   moduleId: string;
   moduleLabel: string;
+  family: DatasetType;
+  tier: ModuleTier;
   metricGroups: MetricGroup[];
 };
 
@@ -72,12 +123,14 @@ export function groupMetricsByModule(
   }
 
   const result: MetricsByModule[] = [];
-  for (const mod of modules) {
+  for (const mod of modules.toSorted(compareModules)) {
     const moduleMetrics = moduleMap.get(mod.id);
     if (moduleMetrics && moduleMetrics.length > 0) {
       result.push({
         moduleId: mod.id,
         moduleLabel: mod.label,
+        family: mod.family,
+        tier: mod.tier,
         metricGroups: groupMetricsByLabel(moduleMetrics),
       });
     }

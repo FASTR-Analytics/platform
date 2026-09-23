@@ -7,7 +7,10 @@ import type {
 } from "../types/mod.ts";
 import { AiMetricQuerySchema } from "../types/ai_input.ts";
 import { getMetricDataForAI } from "./format_metric_data_for_ai.ts";
-import { formatMetricsListForAI } from "./format_metrics_list_for_ai.ts";
+import {
+  formatMetricsListForAI,
+  type ModuleForAI,
+} from "./format_metrics_list_for_ai.ts";
 import { validateAiMetricQuery } from "./content_validators.ts";
 import type { AIToolEnv } from "./env.ts";
 
@@ -16,6 +19,7 @@ type IcehIndicator = { id: string; label: string; category: string };
 export function getSharedToolsForMetrics(
   env: AIToolEnv,
   metrics: MetricWithStatus[],
+  modules: ModuleForAI[],
   icehIndicators: IcehIndicator[],
   hfaTaxonomy: HfaTaxonomyForAI,
 ) {
@@ -26,7 +30,12 @@ export function getSharedToolsForMetrics(
         "Get all available metrics from installed modules. Returns metric IDs, labels, summaries, disaggregation options, and visualization presets. Use get_metric_data for detailed information about a specific metric.",
       inputSchema: z.object({}),
       handler: async () => {
-        return formatMetricsListForAI(metrics, icehIndicators, hfaTaxonomy);
+        return formatMetricsListForAI(
+          metrics,
+          modules,
+          icehIndicators,
+          hfaTaxonomy,
+        );
       },
       inProgressLabel: "Getting available metrics...",
       // Thunk, not template: the host builds tools at boot when `metrics` is

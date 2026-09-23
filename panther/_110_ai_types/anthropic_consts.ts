@@ -49,11 +49,23 @@ export type ModelPricing = {
 };
 
 export const MODEL_PRICING: Record<string, ModelPricing> = {
+  "claude-fable-5-1": {
+    inputPer1M: 10.00,
+    outputPer1M: 50.00,
+    cacheWritePer1M: 12.50,
+    cacheReadPer1M: 0.25,
+  },
   "claude-fable-5": {
     inputPer1M: 10.00,
     outputPer1M: 50.00,
     cacheWritePer1M: 12.50,
     cacheReadPer1M: 1.00,
+  },
+  "claude-opus-5-5": {
+    inputPer1M: 4.00,
+    outputPer1M: 20.00,
+    cacheWritePer1M: 5.00,
+    cacheReadPer1M: 0.20,
   },
   "claude-opus-5": {
     inputPer1M: 5.00,
@@ -289,7 +301,9 @@ export function getMaxOutputTokens(model: AnthropicModel): number {
 // Matched by prefix so dated snapshot IDs are covered.
 // (claude-mythos-5 is the Project Glasswing sibling of claude-fable-5 with
 // identical API behavior — verified against the Anthropic migration guide,
-// 2026-07.)
+// 2026-07.) Prefix matching is deliberate: "claude-opus-5" also covers
+// claude-opus-5-5 and "claude-fable-5" covers claude-fable-5-1, which share
+// these rules.
 const ADAPTIVE_ONLY_MODEL_PREFIXES = [
   "claude-opus-4-7",
   "claude-opus-4-8",
@@ -299,12 +313,15 @@ const ADAPTIVE_ONLY_MODEL_PREFIXES = [
   "claude-mythos-5",
 ];
 
-// Fable 5 / Mythos 5 have always-on thinking: an explicit
-// thinking: {type: "disabled"} is also rejected with a 400 — the parameter
-// must be omitted entirely. All other models accept explicit disabled.
+// Fable 5 / Mythos 5 (and their 5.1 successors) and Opus 5.5 have always-on
+// thinking: an explicit thinking: {type: "disabled"} is also rejected with a
+// 400 at every effort level — the parameter must be omitted entirely. All
+// other models accept explicit disabled. Opus 5.5 must be listed explicitly:
+// it shares the "claude-opus-5" prefix with Opus 5, which accepts disabled.
 const ALWAYS_ON_THINKING_MODEL_PREFIXES = [
   "claude-fable-5",
   "claude-mythos-5",
+  "claude-opus-5-5",
 ];
 
 function isAdaptiveOnlyModel(model: AnthropicModel): boolean {
@@ -325,8 +342,9 @@ export function supportsDisabledThinking(model: AnthropicModel): boolean {
 
 // Opus 5 accepts thinking: {type: "disabled"} only at effort "high" or
 // below — pairing it with "xhigh" or "max" is rejected with a 400,
-// validated per request. (Fable 5 / Mythos 5 reject disabled entirely, see
-// above; earlier adaptive-only models accept disabled at any effort.)
+// validated per request. (Fable 5 / Mythos 5 / Opus 5.5 reject disabled
+// entirely, see above, so the prefix match on Opus 5.5 never applies;
+// earlier adaptive-only models accept disabled at any effort.)
 const DISABLED_THINKING_EFFORT_CAPPED_MODEL_PREFIXES = [
   "claude-opus-5",
 ];

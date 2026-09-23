@@ -42,7 +42,8 @@ export type Fixture = {
   moduleDefinition: Record<string, unknown>;
   resultsObjectId: string;
   facilityColumns: Record<string, boolean>;
-  facilities: Record<string, string | null>[];
+  // null: the package carries no facilities parquet for the family.
+  facilities: Record<string, string | null>[] | null;
   roColumns: RoColumn[];
   roRows: Record<string, string | number | null>[];
   indicators: { indicator_common_id: string; indicator_common_label: string }[];
@@ -602,29 +603,19 @@ export const F14_HMIS_ADMIN3_ONLY: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F15: F14's shape in a package where the derivation CANNOT run: the
-// module's data sources are all upstream results objects, so its family is
-// undeclarable and no facilities parquet can serve the lookup (the one the
-// builder writes for the seeded family is never claimed by this module). The
-// scope must fail CLOSED (a never-matching sentinel), never unfiltered.
-export const F15_ADMIN3_NO_FAMILY: Fixture = {
-  name: "admin3_no_family",
+// F15: F14's shape in a package where the derivation CANNOT run: the package
+// carries no facilities parquet for the family, so nothing can resolve
+// A2_south to its child areas. The scope must fail CLOSED (a never-matching
+// sentinel), never unfiltered.
+export const F15_ADMIN3_NO_FACILITIES: Fixture = {
+  name: "admin3_no_facilities",
   family: "hmis",
   adminDepth: 4,
   moduleId: "m_admin3_derived",
-  moduleDefinition: {
-    scriptGenerationType: "standard",
-    dataSources: [
-      {
-        sourceType: "resultsObject",
-        moduleId: "m_admin3",
-        resultsObjectId: "77777777-8888-9999-aaaa-bbbbbbbbbbbb",
-      },
-    ],
-  },
+  moduleDefinition: hmisModule(),
   resultsObjectId: "88888888-9999-aaaa-bbbb-cccccccccccc",
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
-  facilities: F1_HMIS_MONTHLY.facilities,
+  facilities: null,
   roColumns: [
     { name: "admin_area_3", type: "TEXT" },
     { name: "value", type: "NUMERIC" },
@@ -652,5 +643,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F12_HMIS_SCORECARD,
   F13_HFA_DIVERGENT_SCHEMA,
   F14_HMIS_ADMIN3_ONLY,
-  F15_ADMIN3_NO_FAMILY,
+  F15_ADMIN3_NO_FACILITIES,
 ];

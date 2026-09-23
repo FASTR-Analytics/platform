@@ -36,6 +36,7 @@ export function buildCopilotTools(
     ...getSharedToolsForMetrics(
       env,
       ctx.metrics,
+      ctx.modules,
       ctx.icehIndicators,
       hfaTaxonomy,
     ),

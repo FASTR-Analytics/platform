@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-09-20T06:44:38.284Z",
-  "pantherGitCommit": "21b1caf",
-  "pantherGitDirty": true,
+  "timestamp": "2026-09-23T05:52:49.731Z",
+  "pantherGitCommit": "849664f",
+  "pantherGitDirty": false,
   "mode": "both",
-  "configName": "wb-fastr",
+  "configName": "wb-fastr-v2",
   "protocols": [
     "README.md",
     "PROTOCOL_ALL_TYPESCRIPT.md",
@@ -19,5 +19,7 @@
     "PROTOCOL_UI_STRUCTURE.md",
     "PROTOCOL_UI_AI_CHAT.md"
   ],
-  "exclude": []
+  "exclude": [
+    "_237_deck"
+  ]
 }

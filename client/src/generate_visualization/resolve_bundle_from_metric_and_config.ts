@@ -109,9 +109,9 @@ export async function resolveFigureBundleInteractively(
       return {
         ok: false,
         reason: t3({
-          en: "No data available for this figure with the current package, scope and filters.",
-          fr: "Aucune donnée disponible pour cette figure avec le package, la portée et les filtres actuels.",
-          pt: "Não há dados disponíveis para esta figura com o pacote, âmbito e filtros atuais.",
+          en: "No data available for this visualization with the current package, scope and filters.",
+          fr: "Aucune donnée disponible pour cette visualisation avec le package, la portée et les filtres actuels.",
+          pt: "Não há dados disponíveis para esta visualização com o pacote, âmbito e filtros atuais.",
         }),
       };
     }

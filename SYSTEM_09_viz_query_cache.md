@@ -4,11 +4,12 @@ name: Visualization Query & Cache Service
 globs:
   - client/src/state/instance/t2_run_authoring_context.ts
   - client/src/state/products/t2_figure_data.ts
+  - client/src/state/products/t2_grid_items.ts
   - client/src/state/products/t2_replicant_options.ts
   - lib/rollup.ts
   - lib/convert_period_value.ts
-  - lib/dataset_family.ts
   - lib/get_fetch_config_from_po.ts
+  - lib/grid_items.ts
   - lib/sample_n.ts
   - lib/types/run_authoring_context.ts
   - lib/validate_fetch_config.ts
@@ -16,6 +17,7 @@ globs:
   - server/routes/caches/visualizations.ts
   - server/run_query/**
   - server/server_only_funcs_presentation_objects/**
+  - server/tests/grid_items_test.ts
 ---
 
 # S9: Visualization Query & Cache Service
@@ -182,7 +184,8 @@ through `CTEManager`.
   through `items` to the table renderer (naming in
   [lib/sample_n.ts](lib/sample_n.ts), emission in `buildSampleNColumns`).
   Emitted only when `emitsSampleN(queryContext)`: `datasetFamily === "hfa"`
-  **and** `queryContext.hasFacilityId`. n is a survey concept: an HMIS count
+  (the module's declared family, read from the manifest's module blob by
+  `getDatasetFamilyFromRun`) **and** `queryContext.hasFacilityId`. n is a survey concept: an HMIS count
   over a table not grouped by period returns facility-months (40 facilities × 36
   months = 1440), and ICEH rows arrive pre-aggregated. Always
   `COUNT(DISTINCT <sourceTable>.facility_id)`, never a row count: HFA rows are
@@ -686,7 +689,7 @@ this basis.
 
 ## Caching
 
-**Server (Valkey, S3's `TimCacheC`).** Three instances in
+**Server (Valkey, S3's `TimCacheC`).** Four instances in
 [routes/caches/visualizations.ts](server/routes/caches/visualizations.ts),
 consumed by the shared read handlers (`run_query/run_data_reads.ts`) and the
 run delete (`runs/delete_run.ts`):
@@ -694,10 +697,11 @@ run delete (`runs/delete_run.ts`):
 | Cache            | Uniqueness                                                              | Version hash                        |
 | ---------------- | ----------------------------------------------------------------------- | ----------------------------------- |
 | `po_items`       | runId + resultsObject + `hashFetchConfig` + scopeToken                  | `PO_CACHE_VERSION`                  |
+| `grid_items`     | runId + resultsObject + `hashFetchConfig` + scopeToken                  | `PO_CACHE_VERSION`                  |
 | `metric_info`    | runId + metric + scopeToken                                             | `PO_CACHE_VERSION`                  |
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken    | `PO_CACHE_VERSION`                  |
 
-The three caches key on the immutable run, not on any caller (two callers on one
+The four caches key on the immutable run, not on any caller (two callers on one
 run share entries), plus the **scopeToken** (`scopeToken`,
 `lib/types/scope.ts`): payloads are computed under the caller's AA2
 scope, so sharing requires BOTH run and scope to match. The run id leads and the
@@ -793,6 +797,25 @@ replicant lives on a **copy** yielded to the caller, never a mutation of the
 passed-in config (the editor's unwrapped live store; a raw write would bypass
 subscribers and turn the user's next identical click into a silent no-op). Promise-shaped wrappers
 (`getApiResponseFromGenerator`) serve non-streaming callers.
+
+**The grid read.** The Explore Data table reads through
+`getRunGridItems` (`readRunGridItems`), not the items read: the same body,
+the same checks (`checkRowsRequest`), the same SQL through
+`getPresentationObjectItemsFromRun` and the same queue, but capped at
+`GRID_MAX_CELLS` (500,000 rows, one value each) instead of `MAX_ITEMS`, and
+answered as a `GridItemsHolder` (`lib/grid_items.ts`): each groupBy's
+distinct values once, rows as indices into them, and one value per returned
+non-groupBy column (the metric's value and any `__n_*` column; the fetch
+config's `values` are ingredients, not these), plus the items read's
+indicator metadata. Over the cap it answers `too_many_cells`.
+`decodeGridItems` reproduces the items read's rows exactly, so the canvas
+table's pivot consumes them unchanged; `server/tests/grid_items_test.ts`
+proves the round trip. It is cached in `_GRID_ITEMS_CACHE` (`grid_items`),
+keyed as `po_items`, and purged with the run. On the client,
+`t2_grid_items.ts` (`getGridRowsFromCacheOrFetch`) is the `t2_figure_data`
+idiom for it: `createReactiveCache` keyed `runId | scopeToken |
+resultsObjectId | hashFetchConfig` with version `"immutable"`, on the items
+queue, storing the encoded payload and handing callers the decoded rows.
 
 ## FigureBundle: the capture side
 

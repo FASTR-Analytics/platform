@@ -1,5 +1,6 @@
 import type { Sql } from "postgres";
 import {
+  compareModules,
   getValidatedModuleId,
   MODULE_REGISTRY,
   type APIResponseWithData,
@@ -77,6 +78,9 @@ export async function getRunGenerationModuleOptions(
         return {
           id: entry.id,
           label: detail.label,
+          family: detail.family,
+          tier: detail.tier,
+          sortOrder: detail.sortOrder,
           prerequisites: detail.prerequisites.map(getValidatedModuleId),
           datasetTypes,
           moduleDependencies,
@@ -84,7 +88,10 @@ export async function getRunGenerationModuleOptions(
         };
       }),
     );
-    return { success: true, data: { gitRef, modules } };
+    return {
+      success: true,
+      data: { gitRef, modules: modules.toSorted(compareModules) },
+    };
   } catch (e) {
     return {
       success: false,

@@ -55,7 +55,11 @@ import {
 // 12: the hfa_indicators_snapshot mirror's rows carry `indicator_id` instead
 // of `var_name` (input block 2, PLAN_HFA_ID_VOCABULARY); the manifest's own
 // shape is unchanged and block 10 only stamps.
-export const RUN_MANIFEST_SCHEMA_VERSION = 12;
+// 13: every `modules[].moduleDefinition` blob carries the module's declared
+// `family`, `tier` and `sortOrder` (stamped for legacy blobs from the frozen
+// LEGACY_MODULE_PRESENTATION map, block 11), and `metrics[].datasetFamily`
+// is the module's declared family, non-null.
+export const RUN_MANIFEST_SCHEMA_VERSION = 13;
 
 // Typed against DatasetType so the enum cannot drift from the union.
 export const runDatasetFamilySchema: z.ZodType<DatasetType> = z.enum([
@@ -106,10 +110,10 @@ export type RunModule = z.infer<typeof runModuleSchema>;
 
 // Metric catalog entry: the module definition's metric row verbatim
 // (snake_case field names are the definition's own vocabulary), plus the
-// build-time datasetFamily stamp (camelCase marks it as derived at
-// finalize via getDatasetFamily, not a DB column; null = no single family).
+// module's declared family (camelCase marks it as stamped at finalize, not
+// a definition column).
 export const runMetricSchema = z.object({
-  datasetFamily: runDatasetFamilySchema.nullable(),
+  datasetFamily: runDatasetFamilySchema,
   id: z.string(),
   module_id: z.string(),
   label: z.string(),

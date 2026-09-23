@@ -27,6 +27,7 @@ export async function getPresentationObjectItemsCore(
   fetchConfig: GenericLongFormFetchConfig,
   firstPeriodOption: PeriodOption | undefined,
   versionInfo: RunVersionInfo,
+  maxItems: number = MAX_ITEMS,
 ): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
   return await tryCatchDatabaseAsync(async () => {
     // Precise half of the roll-up eligibility rule that validateFetchConfig
@@ -120,14 +121,14 @@ export async function getPresentationObjectItemsCore(
       tableName,
       fetchConfig: resolvedFetchConfig,
       queryContext,
-      limit: MAX_ITEMS + 1, // Fetch one extra to detect if limit exceeded
+      limit: maxItems + 1, // Fetch one extra to detect if limit exceeded
     });
 
     // Execute the query
     const rawItems = await deps.execute(sqlQuery);
 
     // Check for special states
-    if (rawItems.length > MAX_ITEMS) {
+    if (rawItems.length > maxItems) {
       const ih: ItemsHolderPresentationObject = {
         resultsObjectId,
         fetchConfig,

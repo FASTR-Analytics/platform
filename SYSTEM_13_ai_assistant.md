@@ -65,7 +65,13 @@ the query pipeline the data tools call is **S9**.
    what both surfaces can act on: `from_metric` authoring guidance is the SPA
    prompt's and block schema's contract, never a shared formatter's; the
    metrics listing keeps its per-metric presets (grain, filters, replicant
-   requirement) as reference data about the metric. `get_info` topics are
+   requirement) as reference data about the metric, and lists metrics in
+   module order (`compareModules`: family, the primary module first, then
+   declared sort order) under one heading line per module, so both
+   `getSharedToolsForMetrics` callers pass the package's module summaries
+   (the SPA from the authoring context, MCP from
+   `getModuleSummariesFromManifest`); the copilot's `get_available_modules`
+   lists modules in the same order with their family and tier. `get_info` topics are
    inputs, split by location like tools: `INFO_TOPICS` (lib, shared:
    `iceh`) and the client's `SPA_INFO_TOPICS` (shared + the equity-profile
    report recipe); each surface passes its ONE list to both

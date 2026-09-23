@@ -30,6 +30,7 @@ import {
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getMetricsWithStatusFromManifest,
+  getModuleSummariesFromManifest,
   getRunDatasetsFromManifest,
 } from "../run_query/mod.ts";
 import { createMcpAIToolEnv } from "./env.ts";
@@ -299,6 +300,7 @@ export async function resolvePackageContext(
   const sessionTools: AIToolWithMetadata<any>[] = getSharedToolsForMetrics(
     env,
     metrics,
+    getModuleSummariesFromManifest(manifest),
     icehIndicators,
     hfaTaxonomy,
   ).map((tool) => withSourceHeader(tool, run));

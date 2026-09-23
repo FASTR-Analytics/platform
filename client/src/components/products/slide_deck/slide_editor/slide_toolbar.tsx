@@ -105,7 +105,7 @@ const IMAGE_ALIGNS = [
 
 function blockTypeLabel(type: BlockType | undefined): string {
   return type === "figure"
-    ? t3({ en: "Figure", fr: "Figure", pt: "Figura" })
+    ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
     : type === "image"
     ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
     : t3({ en: "Text", fr: "Texte", pt: "Texto" });
@@ -734,19 +734,19 @@ function FigureControls(p: Props & { blockId: string; block: FigureBlock }) {
       <Show when={hasBundle()}>
         <TextButton onClick={() => p.onEditVisualization()}>
           <Icon iconName="pencil" class="h-4 w-4" />
-          {t3({ en: "Edit figure", fr: "Modifier la figure", pt: "Editar figura" })}
+          {t3({ en: "Edit visualization", fr: "Modifier la visualisation", pt: "Editar visualização" })}
         </TextButton>
       </Show>
       <TextButton onClick={() => p.onCreateVisualization()}>
         <Icon iconName="chart" class="h-4 w-4" />
         {hasBundle()
-          ? t3({ en: "Replace figure", fr: "Remplacer la figure", pt: "Substituir figura" })
-          : t3({ en: "Insert figure", fr: "Insérer une figure", pt: "Inserir figura" })}
+          ? t3({ en: "Replace visualization", fr: "Remplacer la visualisation", pt: "Substituir visualização" })
+          : t3({ en: "Insert visualization", fr: "Insérer une visualisation", pt: "Inserir visualização" })}
       </TextButton>
       <Show when={hasBundle()}>
         <TextButton danger onClick={() => p.updateBlock(p.blockId, () => ({ type: "figure" }))}>
           <Icon iconName="trash" class="h-4 w-4" />
-          {t3({ en: "Remove figure", fr: "Supprimer la figure", pt: "Remover figura" })}
+          {t3({ en: "Remove visualization", fr: "Supprimer la visualisation", pt: "Remover visualização" })}
         </TextButton>
       </Show>
     </>

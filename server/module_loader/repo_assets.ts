@@ -1,10 +1,7 @@
 import { join } from "@std/path";
 import { MODULE_REGISTRY, type RepoAssetToImport } from "lib";
-import {
-  _ASSETS_DIR_PATH,
-  _GITHUB_TOKEN,
-  _MODULES_LOCAL_DIR,
-} from "../exposed_env_vars.ts";
+import { _ASSETS_DIR_PATH, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+import { githubFetch } from "../github/fetch_module.ts";
 import { MODULE_SOURCE } from "./module_source.ts";
 
 // Content-addressed cache of pinned modules-repo assets (PLAN_RESULTS_RUNS
@@ -70,11 +67,7 @@ async function fetchPinnedBytes(
   const url = `https://raw.githubusercontent.com/${owner}/${repo}/${
     gitRef ?? "main"
   }/${pin.repoPath}`;
-  const headers: Record<string, string> = {};
-  if (_GITHUB_TOKEN) {
-    headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;
-  }
-  const res = await fetch(url, { headers });
+  const res = await githubFetch(url);
   if (!res.ok) {
     throw new Error(
       `Failed to fetch pinned repo asset "${pin.name}" (${url}): ${res.status} ${res.statusText}`,

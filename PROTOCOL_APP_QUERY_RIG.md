@@ -185,7 +185,7 @@ changes. `git checkout` would discard parallel work.
 | `hmis_scorecard` (F12) | `denominator` is BOTH a PAE ingredient and a disaggregation option | the PAE groupBy/value-prop collision (`paeCollidingGroupBys`): den=20 spans two rows so raw-binding (40/20 = 2) diverges from the correct aggregate binding (40/40 = 1) |
 | `hfa_divergent_schema` (F13) | HFA depth 2, `includeTypes` on, seeded beside a divergent HMIS row | the per-family structure-schema split; also the metric-info half of the scope cases |
 | `hmis_admin3_only` (F14) | HMIS, `admin_area_3` and NO `admin_area_2`, F1's facilities | the scope DERIVATION: A2_south resolves to its child areas out of the facilities parquet, by name; an unknown area derives nothing and injects the never-matching sentinel |
-| `admin3_no_family` (F15) | F14's shape under a module whose sources are all upstream results objects | the fail-CLOSED branch: the family is undeclarable, so no facilities parquet can serve the lookup and a scoped read returns no rows rather than national rows |
+| `admin3_no_facilities` (F15) | F14's shape in a package with no facilities parquet (`facilities: null`) | the fail-CLOSED branch: nothing can derive the scope's child areas, so a scoped read returns no rows rather than national rows |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and

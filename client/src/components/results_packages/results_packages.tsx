@@ -1,28 +1,27 @@
-import { t3, type RunCatalogItem, type RunProgress } from "lib";
+import { type RunCatalogItem, type RunProgress, t3 } from "lib";
 import {
   Badge,
   Button,
   EmptyState,
-  FrameLeftResizable,
   FrameTop,
   HeadingBar,
   Icon,
-  SelectList,
   openComponent,
+  Select,
 } from "panther";
 import {
-  Show,
-  createEffect,
   createMemo,
   createSignal,
+  For,
   onCleanup,
   onMount,
+  Show,
 } from "solid-js";
 import { createStore } from "solid-js/store";
-import { PinnedBadge } from "./package_view/mod.ts";
+import { PinnedBadge, RunStatusBadge } from "./package_view/mod.ts";
 import { PruneResultsPackages } from "./prune";
 import { ResultsPackageWizard } from "./wizard/mod.ts";
-import { RunCatalogDetailPane } from "./detail";
+import { ResultsPackagePage } from "./package_page";
 import { ModuleDefaultsEditor } from "./module_defaults";
 import {
   addInstanceRScriptListener,
@@ -31,47 +30,29 @@ import {
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
 
+type UsageFilter = "all" | "in_use" | "unused";
+
+const _SEARCH_MIN_LENGTH = 3;
+
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
 // launch wizard is entered (an ephemeral modal, nothing persisted before
-// launch), and the catalogue of every package the instance holds, as a
-// master–detail (sidebar list + detail pane). The listing is T1
+// launch), and the catalogue of every package the instance holds, as a plain
+// newest-first list with no selection state; a row opens the package's own
+// page through the shell wrapper. The listing is T1
 // (`instanceState.runsCatalog`, pushed on every catalogue mutation), so this
 // surface has no component fetch of its own. Products point at a package from
 // product settings. This surface owns the only act that ever reclaims a
 // package's disk.
 export function InstanceResultsPackages() {
-  // A launched run is pinned before it reaches the listing: the SSE refetch
-  // lands it moments later and the selection is already waiting for it.
-  async function openWizard(): Promise<void> {
-    const launchedRunId = await openComponent({
-      element: ResultsPackageWizard,
-      props: {},
-    });
-    if (launchedRunId !== undefined) {
-      setSelectedId(launchedRunId);
-    }
-  }
-
-  // Prune needs nothing back: the sidebar shrinks over SSE and the pin
-  // effect re-selects when the selected run vanishes.
-  async function openPrune(): Promise<void> {
-    await openComponent({ element: PruneResultsPackages, props: {} });
-  }
-
-  async function openModuleDefaults(): Promise<void> {
-    await openShellEditor({
-      element: ModuleDefaultsEditor,
-      props: {},
-    });
-  }
-
   // Live generation state over instance SSE (Q-B ruling (a) and (e)):
-  // progress patches the pane in place and the R line is keyed by RUN as
+  // progress patches the page in place and the R line is keyed by RUN as
   // well as module, so two concurrent generations never overwrite each
-  // other's line. The listing itself is T1: every catalogue mutation
-  // signals runs_catalog_updated and the SSE boundary refetches the store,
-  // so this page never fetches the listing.
+  // other's line. The listeners live here, which stays mounted under the
+  // open package page; the page reads them through accessors. The listing
+  // itself is T1: every catalogue mutation signals runs_catalog_updated and
+  // the SSE boundary refetches the store, so this page never fetches the
+  // listing.
   const [liveProgress, setLiveProgress] = createSignal<
     Record<string, RunProgress>
   >({});
@@ -90,46 +71,90 @@ export function InstanceResultsPackages() {
     });
   });
 
+  function openPackagePage(runId: string): void {
+    void openShellEditor({
+      element: ResultsPackagePage,
+      props: {
+        runId,
+        liveProgress: () => liveProgress()[runId],
+        latestRLine: (moduleId: string) => rLogs[`${runId}|${moduleId}`],
+      },
+    });
+  }
+
+  // A launched run is opened before it reaches the listing: the SSE refetch
+  // lands it moments later and the page is already waiting for it.
+  async function openWizard(): Promise<void> {
+    const launchedRunId = await openComponent({
+      element: ResultsPackageWizard,
+      props: {},
+    });
+    if (launchedRunId !== undefined) {
+      openPackagePage(launchedRunId);
+    }
+  }
+
+  // Prune needs nothing back: the list shrinks over SSE.
+  async function openPrune(): Promise<void> {
+    await openComponent({ element: PruneResultsPackages, props: {} });
+  }
+
+  async function openModuleDefaults(): Promise<void> {
+    await openShellEditor({
+      element: ModuleDefaultsEditor,
+      props: {},
+    });
+  }
+
   const sortedRuns = createMemo((): RunCatalogItem[] =>
     [...instanceState.runsCatalog].sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt),
     ),
   );
 
-  // Selection is T5 and never jumps (ruling 4, amended): the effect PINS the
-  // newest run's id whenever nothing is pinned: first non-empty render, and
-  // after the selected run is deleted (falling to newest was the ruled
-  // behavior there). Without the pin, the derived fallback re-resolved to
-  // another admin's freshly launched run and the keyed <Show> remounted the
-  // pane mid-read. The `?? sortedRuns()[0]` fallback stays as the same-tick
-  // bridge until the effect runs.
-  const [selectedId, setSelectedId] = createSignal<string | undefined>(
-    undefined,
-  );
-  createEffect(() => {
-    const first = sortedRuns()[0];
-    if (selectedId() === undefined && first !== undefined) {
-      setSelectedId(first.id);
-    }
-  });
-  const selectedRun = (): RunCatalogItem | undefined =>
-    instanceState.runsCatalog.find((r) => r.id === selectedId()) ??
-    sortedRuns()[0];
+  // Session-only: the list is short and a sticky filter is easy to forget.
+  const [searchText, setSearchText] = createSignal("");
+  const [usageFilter, setUsageFilter] = createSignal<UsageFilter>("all");
 
-  // "Latest" is DERIVED (the newest ready package), never stored and never a
-  // consumer-facing pointer (SYSTEM_08 "Latest is derived, pinned is
-  // stored"). The stored, explicit concept is the pin, read from the one
-  // instance T1 field every surface uses (`instanceState.pinnedRunId`).
-  const latestReadyId = createMemo(
-    (): string | undefined =>
-      sortedRuns().find((r) => r.status === "ready")?.id,
-  );
+  const isSearching = () => searchText().length >= _SEARCH_MIN_LENGTH;
+
+  const visibleRuns = createMemo((): RunCatalogItem[] => {
+    const needle = searchText().toLowerCase();
+    const searching = isSearching();
+    const usage = usageFilter();
+    return sortedRuns().filter((run) => {
+      const inUse = run.attachedProducts.length > 0;
+      return (
+        (usage === "all" || inUse === (usage === "in_use")) &&
+        (!searching || run.label.toLowerCase().includes(needle))
+      );
+    });
+  });
+
+  const usageOptions = (): { value: UsageFilter; label: string }[] => [
+    { value: "all", label: t3({ en: "All", fr: "Tous", pt: "Todos" }) },
+    {
+      value: "in_use",
+      label: t3({ en: "In use", fr: "Utilisé", pt: "Em uso" }),
+    },
+    {
+      value: "unused",
+      label: t3({ en: "Unused", fr: "Non utilisé", pt: "Não utilizado" }),
+    },
+  ];
 
   const emptyMessage = () =>
     t3({
       en: "No results packages yet.",
       fr: "Aucun paquet de résultats pour l'instant.",
       pt: "Ainda não existem pacotes de resultados.",
+    });
+
+  const noMatchMessage = () =>
+    t3({
+      en: "No results packages match.",
+      fr: "Aucun paquet de résultats ne correspond.",
+      pt: "Nenhum pacote de resultados corresponde.",
     });
 
   return (
@@ -143,6 +168,28 @@ export function InstanceResultsPackages() {
               fr: "Paquets de résultats",
               pt: "Pacotes de resultados",
             })}
+            subheading={
+              isSearching()
+                ? t3({
+                    en: `${visibleRuns().length} results`,
+                    fr: `${visibleRuns().length} résultats`,
+                    pt: `${visibleRuns().length} resultados`,
+                  })
+                : undefined
+            }
+            searchText={searchText()}
+            setSearchText={setSearchText}
+            centerChildren={
+              <div class="w-36">
+                <Select
+                  data-tour="instance-results-packages-usage-filter"
+                  value={usageFilter()}
+                  onChange={setUsageFilter}
+                  options={usageOptions()}
+                  fullWidth
+                />
+              </div>
+            }
           >
             <div class="ui-gap-sm flex items-center">
               <Button
@@ -182,68 +229,54 @@ export function InstanceResultsPackages() {
         </div>
       }
     >
-      <FrameLeftResizable
-        startingWidth={300}
-        minWidth={150}
-        maxWidth={400}
-        panelChildren={
-          <div class="ui-pad h-full overflow-auto">
-            <SelectList<string, RunCatalogItem>
-              items={sortedRuns().map((r) => ({
-                id: r.id,
-                label: r.label,
-                meta: r,
-              }))}
-              value={selectedRun()?.id}
-              onChange={setSelectedId}
-              fullWidth
-              emptyMessage={emptyMessage()}
-              renderItem={(item) => (
-                <Show when={item.meta} keyed fallback={item.label}>
-                  {(run) => (
-                    <div class="my-0.5">
-                      <div class="ui-gap-sm flex items-center overflow-hidden">
-                        <div class="min-w-16 flex-1 truncate">
-                          {run.label}
-                        </div>
-                        <Show when={run.status === "failed"}>
-                          <Badge intent="danger" variant="solid">
-                            <Icon iconName="alertCircle" />
-                          </Badge>
-                        </Show>
-                        <Show when={run.id === instanceState.pinnedRunId}>
-                          <PinnedBadge />
-                        </Show>
-                        <Show when={run.attachedProducts.length > 0}>
-                          <Badge>{run.attachedProducts.length}</Badge>
-                        </Show>
-                      </div>
-                      <div class="ui-text-caption">
-                        {new Date(run.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  )}
-                </Show>
-              )}
-            />
-          </div>
-        }
+      <Show
+        when={sortedRuns().length > 0}
+        fallback={<EmptyState iconName="package" title={emptyMessage()} />}
       >
         <Show
-          when={selectedRun()}
-          keyed
-          fallback={<EmptyState iconName="package" title={emptyMessage()} />}
+          when={visibleRuns().length > 0}
+          fallback={<EmptyState iconName="search" title={noMatchMessage()} />}
         >
-          {(run) => (
-            <RunCatalogDetailPane
-              run={run}
-              liveProgress={liveProgress()[run.id]}
-              latestRLine={(moduleId) => rLogs[`${run.id}|${moduleId}`]}
-              openEditor={openShellEditor}
-            />
-          )}
+          <div class="ui-pad ui-spy-sm h-full overflow-y-auto">
+            <For each={visibleRuns()}>
+              {(run) => (
+                <div
+                  class="ui-hoverable-base-100 ui-gap flex cursor-pointer items-center rounded border px-3 py-2"
+                  data-tour="instance-results-packages-card"
+                  onClick={() => openPackagePage(run.id)}
+                >
+                  <div class="min-w-0 flex-1">
+                    <div class="font-700 truncate">{run.label}</div>
+                    <div class="ui-text-caption">
+                      {new Date(run.createdAt).toLocaleString()}
+                      {run.createdBy !== null ? ` · ${run.createdBy}` : ""}
+                    </div>
+                  </div>
+                  <Show when={run.status === "failed"}>
+                    <Badge intent="danger" variant="solid">
+                      <Icon iconName="alertCircle" />
+                    </Badge>
+                  </Show>
+                  <Show when={run.id === instanceState.pinnedRunId}>
+                    <PinnedBadge />
+                  </Show>
+                  <Show when={run.attachedProducts.length > 0}>
+                    <Badge>
+                      {t3({
+                        en: `In use by ${run.attachedProducts.length}`,
+                        fr: `Utilisé par ${run.attachedProducts.length}`,
+                        pt: `Em uso por ${run.attachedProducts.length}`,
+                      })}
+                    </Badge>
+                  </Show>
+                  <RunStatusBadge status={run.status} />
+                  <Icon iconName="chevronRight" />
+                </div>
+              )}
+            </For>
+          </div>
         </Show>
-      </FrameLeftResizable>
+      </Show>
     </FrameTop>
   );
 }

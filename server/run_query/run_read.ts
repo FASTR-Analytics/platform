@@ -1,14 +1,15 @@
 import { z } from "zod";
 import type { Sql } from "postgres";
 import {
+  compareModules,
   composeHfaIndicatorLabel,
   disaggregationOption,
-  getDatasetFamily,
   getDisaggregationAllowedPresentationOptions,
   getEnabledOptionalFacilityColumns,
   getHfaIndicatorMeasure,
   getStartingModuleConfigSelections,
   metricAIDescriptionInstalled,
+  moduleDefinitionInstalledStrict,
   parseInstalledModuleDefinition,
   parsePresentationObjectConfig,
   catalogExpressionEvaluationStrict,
@@ -595,7 +596,7 @@ export function resolveMetricFromRun(
 
 // ── The run-derived catalog as the client sees it (T1 store) ─────────────────
 
-// The manifest module catalog → InstalledModuleSummary[], sorted by id.
+// The manifest module catalog → InstalledModuleSummary[], in module order.
 export function getModuleSummariesFromManifest(
   manifest: RunManifest,
 ): InstalledModuleSummary[] {
@@ -605,6 +606,9 @@ export function getModuleSummariesFromManifest(
       return {
         id: mod.id,
         label: def.label,
+        family: def.family,
+        tier: def.tier,
+        sortOrder: def.sortOrder,
         hasParameters: (def.configRequirements?.parameters?.length ?? 0) > 0,
         lastRunAt: mod.lastRunAt,
         lastRunGitRef: mod.lastRunGitRef ?? undefined,
@@ -613,7 +617,7 @@ export function getModuleSummariesFromManifest(
           .map((ro) => ro.id),
       };
     })
-    .toSorted((a, b) => a.id.toLowerCase().localeCompare(b.id.toLowerCase()));
+    .toSorted(compareModules);
 }
 
 // Metric status = the finalize-computed availability stamp (§2.2); readers
@@ -667,12 +671,20 @@ export function getModuleWithConfigSelectionsFromManifest(
   };
 }
 
+// The declared family alone, off the per-request read path: the full blob
+// (script included) is parsed only where a summary is built.
+const moduleFamilyOnly = moduleDefinitionInstalledStrict.pick({ family: true });
+
+function moduleFamilyFromDefinition(moduleDefinition: string): DatasetType {
+  return moduleFamilyOnly.parse(JSON.parse(moduleDefinition)).family;
+}
+
 export function getDatasetFamilyFromRun(
   ctx: RunReadContext,
   moduleId: string,
 ): DatasetType | undefined {
   const mod = findModule(ctx.manifest, moduleId);
-  return mod ? getDatasetFamily(mod.moduleDefinition) : undefined;
+  return mod ? moduleFamilyFromDefinition(mod.moduleDefinition) : undefined;
 }
 
 export function getModuleIdForResultsObjectFromRun(
@@ -794,6 +806,7 @@ export async function getPresentationObjectItemsFromRun(
   resultsObjectId: string,
   fetchConfig: GenericLongFormFetchConfig,
   firstPeriodOption: PeriodOption | undefined,
+  maxItems?: number,
 ): Promise<APIResponseWithData<ItemsHolderPresentationObject>> {
   const ro = findResultsObject(ctx.manifest, resultsObjectId);
   if (!ro) {
@@ -840,6 +853,7 @@ export async function getPresentationObjectItemsFromRun(
     effectiveFetchConfig,
     firstPeriodOption,
     getRunVersionInfo(ctx),
+    maxItems,
   );
   // Post-aggregation catalog evaluation (PLAN_1a §1.6): the engine returned
   // SUMmed ingredient columns for main AND roll-up rows; each row's own

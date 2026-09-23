@@ -55,7 +55,7 @@ export function DownloadPresentationObject(
         <RadioGroup
           label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
           options={[
-            { value: "image", label: t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" }) },
+            { value: "image", label: t3({ en: "Image", fr: "Image", pt: "Imagem" }) },
             ...(p.isTable
               ? [
                   {

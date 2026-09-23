@@ -59,6 +59,7 @@ const TEMPLATE_TOOLS: AnyTool[] = getSharedToolsForMetrics(
   TEMPLATE_ENV,
   [],
   [],
+  [],
   structuredClone(EMPTY_HFA_TAXONOMY),
 );
 

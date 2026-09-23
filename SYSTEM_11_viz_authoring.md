@@ -4,11 +4,13 @@ name: Visualization Authoring UI
 globs:
   - client/src/components/explore/**
   - client/src/components/_shared/figure_editor/**
+  - client/src/components/_shared/figure_preview.ts
   - client/src/components/products/_shared/insert_figure/**
   - client/src/state/instance/_util_disaggregation_label.ts
   - lib/convert_visualization_type.ts
   - lib/derive_default_visualizations.ts
   - lib/disaggregation_labels.ts
+  - lib/explore_grid_query.ts
   - lib/format_nigeria_admin_label.ts
   - lib/get_disaggregator_display_prop.ts
   - lib/group_metrics.ts
@@ -22,6 +24,7 @@ globs:
   - lib/types/disaggregation_options.ts
   - lib/types/presentation_object_defaults.ts
   - lib/types/presentation_objects.ts
+  - server/tests/explore_grid_query_test.ts
 docs_absorbed:
 ---
 
@@ -44,9 +47,8 @@ the wrapper the slide and report editors open; `figure_editor.tsx`
 <package>" action and the "Update all figures" header button of
 PLAN_PRODUCTS_RESTRUCTURE D4, the contract being S10's "The captured pair and
 staleness"). `components/products/_shared/insert_figure/**` (the insert-figure wizard
-and the preset gallery it renders, below). `components/explore/explore.tsx`
-(the instance Explore tab's page, S14 mounts it: empty until the results
-explorer plan fills it, D6). The
+and the preset gallery it renders, below). `components/explore/**` (the
+instance Explore tab's page, S14 mounts it: "The Explore page" below). The
 figure modals in `_shared/figure_editor/` (download, results-file viewer,
 custom series styles). `products/slide_deck/editor_snapshot.ts`
 (`snapshotForSlideEditor`, the one thing the slide editor freezes at open) and
@@ -74,11 +76,20 @@ Neither carries a hand-enumerated dependency list; do not add one.
 takes `{ label, scope, metric, configSnapshot, authoringContext,
 collabBinding? }`, resolves the metric's queryable shape
 (`resultsValueInfo`, S9's scope-keyed `t2_figure_data.ts`) under the pair,
-and mounts `VisualizationEditorInner`. Two hosts open it: `slide_editor/slide_editor.tsx`
+and mounts `VisualizationEditorInner`. Three hosts open it: `slide_editor/slide_editor.tsx`
 (edits `figureBlock.bundle.config`, then re-queries items and rebuilds the
-bundle) and `report/report.tsx` (rebuilds the figure block). The host passes
+bundle), `report/report.tsx` (rebuilds the figure block), and the package
+page's module pane (`ModuleVisualizations` in
+`results_packages/package_view/visualizations.tsx`, S8), which opens it
+`viewOnly`: no collab binding, Back is the only way
+out, and the draft never leaves the editor. A fourth, the Explore page's
+Visualization tab (`components/explore/visualization/visualization.tsx`),
+mounts it `viewOnly` and `inline`
+inside the page: no Back, no copilot toggle, the draft lives as long as the
+mount. The product hosts pass
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
-re-previews under the new package (S10 "The captured pair").
+re-previews under the new package (S10 "The captured pair"); the package
+page's scope cannot change while the editor covers it.
 
 **Snapshot isolation.** The draft is `createStore(structuredClone(p.configSnapshot))`,
 so editor writes never reach the host's store.
@@ -154,7 +165,11 @@ scope: PackageScope, context: Pick<RunAuthoringContext, "metrics" |
 "modules">, preselectedMetricId }`: the metrics and modules come from the
 package's authoring context (S9's `t2_run_authoring_context.ts`) and the pair
 is used only by the preset previews. It is a 3-step stepper: **Metric** (module
-sidebar + `MetricCard` grid; a card is selectable only when single-variant and
+sidebar + `MetricCard` grid; the sidebar opens on "Primary results", the
+primary modules' metrics of every family in the package, then "All modules",
+then the modules under a family heading in module order, since
+`groupMetricsByModule` sorts with `compareModules`; a card is selectable only
+when single-variant and
 `status === "ready"`; multi-variant metrics render per-variant chips) →
 **Presets** (`PresetSelector`: one live-rendered `PresetPreview` per
 `metric.vizPresets` entry + an always-appended `CUSTOM_OPTION` card; selecting
@@ -167,18 +182,84 @@ excluded). The wizard derives every preset's config ONCE through
 the `t` TranslatableStrings at insertion time; stored figure text fields are
 plain strings), after cloning the preset to plain data because the context may
 be a Solid store; the previews render that list and the inserted figure is
-picked from it by id, so preview and figure cannot drift. A preview reads its
-rows through the scope-keyed `state/products/t2_figure_data.ts` (S9) and
-assembles them with `makeFigureBundleFromFetchedData(scope, ...)` +
+picked from it by id, so preview and figure cannot drift. A preview renders
+through the one shared helper, `components/_shared/figure_preview.ts`
+(`fetchFigureInputs`, and `createFigurePreview`, the tracked signal over it):
+it reads its rows through the scope-keyed `state/products/t2_figure_data.ts`
+(S9) and assembles them with `makeFigureBundleFromFetchedData(scope, ...)` +
 `buildFigureInputs`, so reopening a preset under the same `(runId,
-scopeToken)` is a cache hit and a preset is never a row (D6). Custom configs
+scopeToken)` is a cache hit and a preset is never a row (D6). The package
+page's default-visualization cards (S8) render through the same helper, so a
+default seen there and later inserted under the same pair is one cache
+entry. Custom configs
 go through `getStartingConfigForPresentationObject` (type defaults from
 `VIZ_TYPE_CONFIG`, display slots assigned via
 `getNextAvailableDisaggregationDisplayOption`). **The wizard never persists**.
 It closes with `InsertFigureResult = { metric, config }` (a figure IS `{
 metricId, config }`, D3) and its two callers, the slide and report editors,
-build a figure block directly from their live pair and context; the results
-explorer will be the third caller when it lands.
+build a figure block directly from their live pair and context; the Explore
+page is read-only and does not call it.
+
+## The Explore page
+
+`components/explore/explore.tsx` renders one package at one scope for an
+approved user: a heading row with a package `Select` over
+`instanceState.readyPackages` (opening on the pin, else the newest ready
+package) and an area `Select` over `listAdminArea2s` whose first option is
+National, then a `TabsNavigation` rail with **Data table** (the default) and
+**Visualization**. The package and area are page signals, never stored, so a
+deleted package can never be a stored default; the tab (`exploreTab`) and the
+family (`exploreFamily`) persist in `t4_ui` (S14). The authoring context is
+read through `t2_run_authoring_context`. The page writes nothing: no insert
+into a product, no persisted draft, no copilot, no help buttons.
+
+**Data table** (`explore/data_table/`) reads the family's primary metric
+(`primaryMetricFor`) as a grid whose rows are the unit (admin areas at one
+level, or an ICEH stratifier's levels) and whose columns are indicators or
+time. Its state is a `GridQuery` per family ("Grid query model" below),
+owned by the page so a package, scope or tab change never resets it; until
+the user edits a family's query it is `defaultGridQuery` for the current
+scope. Every read resolves the query first (`resolveGridQuery`); indicators
+the package lacks stay in state and a one-line notice above the grid offers
+Clear. The toolbar holds family, level or stratifier, indicators
+(`MultiSelectSearch`, empty means all), period (`periodChoicesFor`), columns
+(Indicators or Time), grain (HMIS Time mode only), a find box and Download.
+The reads are tracked (`createTrackedQuery`, `data_table/tracked_query.ts`),
+so they re-run on any change of the pair or the query: the metric info
+(`t2_figure_data`, for the package's HFA time points, in the instance's
+declared order, ICEH's years and stratifiers, and formats and rules) and the
+grid read (`t2_grid_items`, S9 "The grid read") on the fetch config of
+`deriveGridConfig`'s config. A read carries the config and columns mode it
+was issued for, and the grid is built from those, so a newer query is
+never paired with older rows; a change that leaves the fetch config and
+columns alone makes no new read. The decoded rows go through the
+canvas table's own pipeline, `buildFigureInputs` over a figure bundle built
+in memory, so the effective config, roll-up pin and label, label
+replacements (indicators, dates, Nigeria admin cleaning) and header order
+are the canvas table's; then panther's `getTableDataTransformed` pivot and
+`dataGridPropsFromTableData` with the cell function
+(`data_table/cell_function.ts`): each value formatted by its indicator's
+effective format (`resolveEffectiveIndicatorFacts`, `formatIndicatorValue`),
+the raw number as the sort key, and HMIS cells coloured by the indicator's
+own threshold rule; HFA and ICEH are uncoloured. `DataGrid` fills the height
+with a hover line beneath, sorts by header click (transient, never stored),
+and scrolls to the first column whose label contains the find text
+(`focusColumnId`). Download saves the grid's text as CSV, in the pivot's row
+order. Empty states are typed: no ready package, no primary module, a family
+whose metric is unavailable (its stamped reason), no preset, no data, and
+too many cells (narrow the indicators or coarsen the grain). No primary
+module, the unavailable metric and no preset are the tabs' shared
+`explore/_shared/empty_state.tsx`; no ready package is `explore.tsx`'s own.
+
+**Visualization** (`explore/visualization/`) is a family tab over the
+families whose primary module is in the package and that family's first
+ready metric's first preset open in `VisualizationEditor` with `viewOnly`
+and `inline`: the Data, Style and Text panels are the user's controls, the
+header keeps Download and the height toggle and drops Back and the copilot
+toggle, and the draft is keyed on the pair and the metric, so a package,
+scope or family change remounts the editor on a fresh copy of the preset.
+Its empty states: no primary module, an unavailable metric (its stamped
+reason), and a metric with no preset.
 
 ## lib config semantics
 
@@ -265,12 +346,42 @@ explorer will be the third caller when it lands.
   `getDisaggregatorDisplayProp` / `hasDuplicateDisaggregatorDisplayOptions` are
   deliberately NOT filter-aware (they receive effective configs).
 
+### Grid query model
+
+`lib/explore_grid_query.ts` holds the Explore Data table's state as a
+`GridQuery` (family, unit, indicators, period, columns, grain) and the pure
+steps over it. `primaryModuleMetrics` is the family's primary module's
+metrics by id and `primaryMetricFor` the first ready one; both Explore tabs
+read their family's metric through them. `defaultGridQuery` opens at the scope's level plus one
+(national: admin area 2; an admin area 2 scope: 3), every indicator, HMIS on
+the last 12 months, HFA on its latest time point and ICEH on its first
+stratifier and latest year, columns Indicators. `resolveGridQuery` maps the
+query onto what the current package and scope can answer on every read and
+never rewrites the caller's state: an unoffered family becomes the first
+offered, a level becomes one the metric's `disaggregationOptions` carry and
+deeper than the scope (`levelOptionsFor`), a stratifier becomes an available
+one, indicators are intersected with the family's dictionary (the dropped ids
+are returned for the page's notice), and time values are intersected with
+the available ones. Time is never a column group: HFA survey rounds and ICEH
+years are never pooled, so HFA and ICEH in Indicators mode resolve to exactly
+one time point or year (the latest chosen, else the latest available), and
+`deriveGridConfig` returns undefined for such a query without one.
+`deriveGridConfig` takes the primary metric's first preset through
+`deriveConfigFromVizPreset` and replaces `d` whole with a table: the unit as
+`row` (admin levels carry `rollup: true`, position top; ICEH's `level` has
+no roll-up), then the indicator dimension as `col` in Indicators mode, or
+the time dimension as `col` and the indicator dimension as `colGroup` in
+Time mode; filters for the ICEH stratifier, chosen indicators and HFA or
+ICEH time values; HMIS windows as `periodFilter`. `periodChoicesFor` lists
+the period control's choices, offering HFA and ICEH "All" only in Time mode.
+Tested in `server/tests/explore_grid_query_test.ts`.
+
 ## Replicant machinery
 
 `replicate_by_options.tsx` exports a sidebar `SelectList` variant
 (`ReplicateByOptionsList`, the editor's) and a `Select` dropdown variant
-(`ReplicateByOptionsSelect`, no consumer since 9a took the inline selector and
-the slide picker; Open item). Both fetch replicant options through the S9
+(`ReplicateByOptionsSelect`, exported through the editor folder's entry;
+no consumer since the Explore page moved onto the editor). Both fetch replicant options through the S9
 scope-keyed cache (`getReplicantOptionsFromCacheOrFetch`) with
 `excludeReplicantFilter: true` and deep-tracked `filterBy`/`periodFilter`
 reads; statuses `too_many_values` (>500) / `no_values_available` / `error` are
@@ -280,9 +391,6 @@ something.
 
 ## Open items
 
-- **`ReplicateByOptionsSelect` has no consumer.** Delete it, or keep it for the
-  results explorer's replicant picker; both variants share the
-  `createReplicantOptions` loader.
 - **Custom value orders are never pruned: ruling pending.**
   `normalizePOConfigForStorage` canonicalizes roll-up flags at apply but does not
   touch `s.customValueOrder`, so entries survive for dimensions that were

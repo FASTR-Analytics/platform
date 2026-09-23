@@ -1,7 +1,10 @@
 import { z } from "zod";
 import type { DatasetType } from "./datasets.ts";
 import type { DisaggregationOption } from "./disaggregation_options.ts";
-import type { ModuleParameter } from "./_module_definition_installed.ts";
+import type {
+  ModuleParameter,
+  ModuleTier,
+} from "./_module_definition_installed.ts";
 import type { ModuleId } from "./module_registry.ts";
 import type { ProductType } from "./products.ts";
 import type {
@@ -74,6 +77,9 @@ export type RunGenerationDefaults = z.infer<typeof runGenerationDefaultsSchema>;
 export type RunGenerationModuleOption = {
   id: ModuleId;
   label: string;
+  family: DatasetType;
+  tier: ModuleTier;
+  sortOrder: number;
   prerequisites: ModuleId[];
   datasetTypes: DatasetType[];
   moduleDependencies: ModuleId[];
@@ -127,8 +133,15 @@ export type ReadyPackage = {
 // Manifest-gated: generating/failed runs are served by the progress-derived
 // UI instead. Immutable per runId (client T2, `state/instance/t2_runs.ts`).
 export type RunDetail = {
+  // In module order (compareModules), named and placed from the manifest's
+  // own definition blob, so a module that has left the registry still reads
+  // as itself.
   modules: {
     moduleId: string;
+    label: string;
+    family: DatasetType;
+    tier: ModuleTier;
+    sortOrder: number;
     settings: { label: string; value: string }[];
     files: { name: string; sizeBytes: number }[];
   }[];

@@ -74,16 +74,16 @@ function describePackageIssue(issue: FigurePackageIssue, runId: string): string 
   const dims = issue.disaggregationOptions.join(", ");
   if (issue.populationLevel === undefined) {
     return t3({
-      en: `${pkg} has no ${dims} for this figure`,
-      fr: `${pkg} n'a pas de ${dims} pour cette figure`,
-      pt: `${pkg} não tem ${dims} para esta figura`,
+      en: `${pkg} has no ${dims} for this visualization`,
+      fr: `${pkg} n'a pas de ${dims} pour cette visualisation`,
+      pt: `${pkg} não tem ${dims} para esta visualização`,
     });
   }
   const level = t3(getAdminAreaLabelForLevel(issue.populationLevel));
   return t3({
-    en: `${pkg} has no ${dims} for this figure because its population data is at ${level}`,
-    fr: `${pkg} n'a pas de ${dims} pour cette figure car ses données de population sont au niveau ${level}`,
-    pt: `${pkg} não tem ${dims} para esta figura porque os seus dados de população estão ao nível ${level}`,
+    en: `${pkg} has no ${dims} for this visualization because its population data is at ${level}`,
+    fr: `${pkg} n'a pas de ${dims} pour cette visualisation car ses données de population sont au niveau ${level}`,
+    pt: `${pkg} não tem ${dims} para esta visualização porque os seus dados de população estão ao nível ${level}`,
   });
 }
 
@@ -167,9 +167,9 @@ export function UpdateAllFiguresButton(p: UpdateAllProps) {
     <Show when={p.count > 0}>
       <Button outline iconName="refresh" onClick={p.onClick} loading={p.busy}>
         {t3({
-          en: `Update all figures (${p.count})`,
-          fr: `Mettre à jour toutes les figures (${p.count})`,
-          pt: `Atualizar todas as figuras (${p.count})`,
+          en: `Update all visualizations (${p.count})`,
+          fr: `Mettre à jour toutes les visualisations (${p.count})`,
+          pt: `Atualizar todas as visualizações (${p.count})`,
         })}
       </Button>
     </Show>

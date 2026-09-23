@@ -42,8 +42,11 @@ predicate excludes the editing views, so a list tour never fires behind an
 editor. Deferred parts (a card on screen, a slide in the deck, a figure in
 the report) use entry-level `when` gates plus `watch` triggers over the T1
 list lengths, the explorer's location, filter and view signals, and the open
-view's slide or figure count. The same directory hosts the tour catalogue
-modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the Help
+view's slide or figure count. A tour may walk across a page boundary: the
+results-package catalogue tour's first step completes on the user's click
+of a list row (`advanceOn`), which opens the package page over the shell,
+and its second step waits for a target on that page (S8). The same
+directory hosts the tour catalogue modal (`tour_catalogue_modal.tsx` + `catalogue.ts`, opened from the Help
 menu, always offered), which lists every tour by area (Products, Slide
 decks, Reports, Instance) with availability computed over T1 only
 (`instanceState.products`, `readyPackages`, the permissions; the three
@@ -165,7 +168,8 @@ Everything else is a **signal-driven switchboard**, never the URL:
 a permission-guarded derivation that selects Products / Explore / Results /
 Data / Assets / Users, in that nav order; Products (S12's
 `components/products/`) is first and the default, and Explore (S11's
-`components/explore/`, empty until the results explorer plan) needs approval
+`components/explore/`, one package at one scope read as a data table or
+through the figure editor, S11 "The Explore page") needs approval
 only, which the whole nav already requires. The tab id union is `InstanceTab`
 in `onboarding/catalogue.ts` and the shell imports it.
 
@@ -242,7 +246,10 @@ Whether every literal is well-formed across the 241-file surface is the standing
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
 then the signal: the rail's `navCollapsed`; the Data page's section tab
-`dataSection` (General / HMIS / HFA / ICEH); the product explorer's four (`productsOpenFolder`, the
+`dataSection` (General / HMIS / HFA / ICEH); the Explore page's tab
+`exploreTab` (Data table / Visualization) and family `exploreFamily` (its
+package and scope are page signals, never stored); the
+product explorer's four (`productsOpenFolder`, the
 location, null = the root; `productsViewMode`; `productsSortMode`, `SortMode
 = "name" | "recent"` from `lib/types/sort.ts`, one vocabulary for every list;
 `productsTypeFilter`, null = every type). They are unvalidated on read: they

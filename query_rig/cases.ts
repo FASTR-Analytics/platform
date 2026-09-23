@@ -1178,7 +1178,7 @@ const SCOPE_CASES: Case[] = [
   },
   {
     name: "scope: derivation-less package is national when unscoped",
-    fixture: "admin3_no_family",
+    fixture: "admin3_no_facilities",
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
     expect: {
       status: "ok",
@@ -1190,13 +1190,12 @@ const SCOPE_CASES: Case[] = [
   },
   {
     name: "scope: an admin RO whose scope cannot be derived fails CLOSED",
-    fixture: "admin3_no_family",
+    fixture: "admin3_no_facilities",
     adminArea2: "A2_south",
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
-    // The module's sources are all upstream results objects, so its family,
-    // and with it the facilities parquet the derivation needs, is
-    // undeclarable. The sentinel filter matches nothing: blank is wrong
-    // visibly, national data under a regional heading is wrong silently.
+    // No facilities parquet, so no derivation. The sentinel filter matches
+    // nothing: blank is wrong visibly, national data under a regional heading
+    // is wrong silently.
     expect: { status: "no_data_available" },
   },
   {

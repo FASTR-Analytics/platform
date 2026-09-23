@@ -10,7 +10,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // A guarded pass-through to the Anthropic API with the server-held key and
-// the one fleet-wide request sanitizer for the current model surface.
+// the per-model request sanitizer that shares _110's model policy with the
+// browser client.
 
 export { createAIProxyHandler } from "./ai_proxy_handler.ts";
 export type { AIProxyHandlerConfig } from "./ai_proxy_handler.ts";

@@ -1,7 +1,9 @@
 import { join } from "@std/path";
 import {
   type APIResponseWithData,
+  compareModules,
   type ModuleConfigSelections,
+  parseInstalledModuleDefinition,
   type RunDetail,
   type RunModuleFileListing,
 } from "lib";
@@ -172,12 +174,20 @@ export async function readRunDetail(
       if (filesRes.success === false) {
         return filesRes;
       }
+      const def = parseInstalledModuleDefinition(mod.moduleDefinition);
       modules.push({
         moduleId: mod.id,
+        label: def.label,
+        family: def.family,
+        tier: def.tier,
+        sortOrder: def.sortOrder,
         settings: resolveModuleSettings(mod.configSelections),
         files: filesRes.data.files,
       });
     }
+    modules.sort((a, b) =>
+      compareModules({ ...a, id: a.moduleId }, { ...b, id: b.moduleId })
+    );
     return { success: true, data: { modules, population: manifest.population } };
   } catch (e) {
     return {

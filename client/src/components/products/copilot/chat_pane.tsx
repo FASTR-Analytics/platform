@@ -372,6 +372,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
           element: AIDebugPanel,
           props: {
             metrics: p.authoringContext.metrics,
+            modules: p.authoringContext.modules,
             icehIndicators: p.authoringContext.icehIndicators,
             hfaTaxonomy: p.hfaTaxonomy,
           },

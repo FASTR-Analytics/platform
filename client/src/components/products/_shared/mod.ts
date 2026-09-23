@@ -14,8 +14,6 @@ export { ReportStyleEditor } from "./report_style_editor.tsx";
 export type { ReportStyleEditorResult } from "./report_style_editor.tsx";
 export { ReportFigureEmbed } from "./report_figure_embed.tsx";
 export type { FigureStaleContext } from "./report_figure_embed.tsx";
-export { ScopePicker, scopeSelectionFromStored, storedValueFromScopeSelection } from "./scope_picker.tsx";
-export type { ScopeSelection } from "./scope_picker.tsx";
 export { divSurface, iframeSurface, isSurfaceAtBottom, lineToPreviewTop, previewTopToLine, scrollSurfaceToBottom } from "./scroll_sync.ts";
 export type { PreviewAnchor, PreviewSurface, PreviewSurfaceEvent } from "./scroll_sync.ts";
 export { InsertFigureModal } from "./insert_figure/mod.ts";

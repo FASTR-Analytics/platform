@@ -425,11 +425,16 @@ callback re-parses the new bytes).
   `DatasetDisplayPresentation` over the display cache below, its rows read
   under `indicator_common_id`, the server column: one figure at a time by
   a radio, the panther timeseries line graph (count or sum of records per
-  indicator and month) or the presence heat map
-  (`presence_heat_map.tsx`, a DOM table of indicator × month or year,
-  a cell filled where the indicator has a record in the period, hover from
-  the cell's title; no figure package and no server call), with the
-  indicator multi-select applied to both. Ledger is
+  indicator and month) or the presence heat map (panther's `PresenceGrid`,
+  a DOM grid of indicator × month or year, a cell filled where the
+  indicator has a record in the period, hover from the cell's title; no
+  figure package and no server call). The presentation builds the grid's
+  columns through panther's `presenceGridColumnsFromPeriods` over the
+  display cache's period bounds and the `heatMapAxis` period type, its rows
+  from the selected indicators and their label replacements, and its cells
+  from the rows' `period_id` mapped to a column id; the look is the app's
+  earlier local table, unchanged. The indicator multi-select applies to
+  both figures. Ledger is
   `ledger_table.tsx`: the import ledger pivoted by data id (its key),
   each row labelled through the T2 indicators cache (indicator id and
   label beside a "DHIS2 id" column that shows the key only under a DHIS2

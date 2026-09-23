@@ -1,6 +1,7 @@
 import {
+  getModuleFamilyLabel,
+  MODULE_FAMILY_ORDER,
   t3,
-  type DatasetType,
   type ModuleId,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
@@ -51,10 +52,70 @@ export function StepModules(p: Props) {
     );
   }
 
-  const familyLabels: Record<DatasetType, string> = {
-    hmis: t3({ en: "HMIS", fr: "HMIS", pt: "HMIS" }),
-    hfa: t3({ en: "HFA", fr: "FOSA", pt: "HFA" }),
-    iceh: t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" }),
+  // One section per family in family order, the primary module first and
+  // the supporting analyses under their own subheading. The options arrive
+  // in module order (compareModules), so grouping keeps it.
+  const sections = createMemo(() =>
+    MODULE_FAMILY_ORDER.flatMap((family) => {
+      const options = p.options.modules.filter((o) => o.family === family);
+      return options.length === 0 ? [] : [{
+        family,
+        primary: options.filter((o) => o.tier === "primary"),
+        secondary: options.filter((o) => o.tier === "secondary"),
+      }];
+    })
+  );
+
+  const renderOption = (option: RunGenerationModuleOption) => {
+    const missingFamilies = () =>
+      missingFamiliesFor(p.graph, option.id, familySet());
+    const dependents = () => checkedDependentsOf(option.id);
+    return (
+      <Checkbox
+        label={
+          <span class="ui-gap-sm flex items-center">
+            <span>{option.label}</span>
+            <Show when={!offerable(option.id)}>
+              <span class="text-base-content-muted text-sm">
+                <Show
+                  when={missingFamilies().length > 0}
+                  fallback={t3({
+                    en: "Not available for this instance",
+                    fr: "Non disponible pour cette instance",
+                    pt: "Não disponível para esta instância",
+                  })}
+                >
+                  {t3({
+                    en: "Requires data not chosen in step 1:",
+                    fr: "Nécessite des données non choisies à l'étape 1 :",
+                    pt: "Requer dados não escolhidos no passo 1:",
+                  })}{" "}
+                  {missingFamilies().map(getModuleFamilyLabel).join(", ")}
+                </Show>
+              </span>
+            </Show>
+            <Show when={isChecked(option.id) && dependents().length > 0}>
+              <span class="text-base-content-muted text-sm">
+                {t3({
+                  en: "Required by:",
+                  fr: "Requis par :",
+                  pt: "Requerido por:",
+                })}{" "}
+                {dependents()
+                  .map((o) => o.label)
+                  .join(", ")}
+              </span>
+            </Show>
+          </span>
+        }
+        checked={isChecked(option.id)}
+        onChange={(v) => p.setSelected(option.id, v)}
+        disabled={
+          !offerable(option.id) ||
+          (isChecked(option.id) && dependents().length > 0)
+        }
+      />
+    );
   };
 
   return (
@@ -76,65 +137,26 @@ export function StepModules(p: Props) {
         </div>
       </div>
 
-      <div class="ui-spy-sm">
-        <For each={p.options.modules}>
-          {(option) => {
-            const missingFamilies = () =>
-              missingFamiliesFor(p.graph, option.id, familySet());
-            const dependents = () => checkedDependentsOf(option.id);
-            return (
-              <Checkbox
-                label={
-                  <span class="ui-gap-sm flex items-center">
-                    <span>{option.label}</span>
-                    <Show when={!offerable(option.id)}>
-                      <span class="text-base-content-muted text-sm">
-                        <Show
-                          when={missingFamilies().length > 0}
-                          fallback={t3({
-                            en: "Not available for this instance",
-                            fr: "Non disponible pour cette instance",
-                            pt: "Não disponível para esta instância",
-                          })}
-                        >
-                          {t3({
-                            en: "Requires data not chosen in step 1:",
-                            fr: "Nécessite des données non choisies à l'étape 1 :",
-                            pt: "Requer dados não escolhidos no passo 1:",
-                          })}{" "}
-                          {missingFamilies()
-                            .map((f) => familyLabels[f])
-                            .join(", ")}
-                        </Show>
-                      </span>
-                    </Show>
-                    <Show
-                      when={isChecked(option.id) && dependents().length > 0}
-                    >
-                      <span class="text-base-content-muted text-sm">
-                        {t3({
-                          en: "Required by:",
-                          fr: "Requis par :",
-                          pt: "Requerido por:",
-                        })}{" "}
-                        {dependents()
-                          .map((o) => o.label)
-                          .join(", ")}
-                      </span>
-                    </Show>
-                  </span>
-                }
-                checked={isChecked(option.id)}
-                onChange={(v) => p.setSelected(option.id, v)}
-                disabled={
-                  !offerable(option.id) ||
-                  (isChecked(option.id) && dependents().length > 0)
-                }
-              />
-            );
-          }}
-        </For>
-      </div>
+      <For each={sections()}>
+        {(section) => (
+          <div class="ui-spy-sm">
+            <div class="ui-text-caption font-700">
+              {getModuleFamilyLabel(section.family)}
+            </div>
+            <For each={section.primary}>{renderOption}</For>
+            <Show when={section.secondary.length > 0}>
+              <div class="text-base-content-muted pt-1 text-sm">
+                {t3({
+                  en: "Supporting analyses",
+                  fr: "Analyses complémentaires",
+                  pt: "Análises complementares",
+                })}
+              </div>
+              <For each={section.secondary}>{renderOption}</For>
+            </Show>
+          </div>
+        )}
+      </For>
 
       <Show when={p.invalidDefaultLabels.length > 0}>
         <div class="text-danger text-sm">

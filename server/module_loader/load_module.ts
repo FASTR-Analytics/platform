@@ -16,9 +16,9 @@ import {
   SAMPLE_N_PREFIX,
 } from "lib";
 import { z } from "zod";
-import { stripFrontmatter } from "../github/fetch_module.ts";
+import { githubFetch, stripFrontmatter } from "../github/fetch_module.ts";
 
-import { _GITHUB_TOKEN, _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
+import { _MODULES_LOCAL_DIR } from "../exposed_env_vars.ts";
 import { MODULE_SOURCE } from "./module_source.ts";
 import { ensureRepoAssetCached } from "./repo_assets.ts";
 
@@ -57,18 +57,12 @@ export async function fetchModuleFiles(
 
   const { owner, repo, path } = registryEntry.github;
 
-  const headers: Record<string, string> = {};
-  if (_GITHUB_TOKEN) {
-    headers["Authorization"] = `Bearer ${_GITHUB_TOKEN}`;
-  }
-
   // Pinned or HEAD commit SHA for this path
   let gitRef: string | undefined = pinnedGitRef;
   if (gitRef === undefined) {
     try {
-      const commitsRes = await fetch(
+      const commitsRes = await githubFetch(
         `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`,
-        { headers },
       );
       if (commitsRes.ok) {
         const commits = await commitsRes.json();
@@ -87,8 +81,8 @@ export async function fetchModuleFiles(
     `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
 
   const [defRes, scriptRes] = await Promise.all([
-    fetch(`${baseUrl}/definition.json`, { headers }),
-    fetch(`${baseUrl}/script.R`, { headers }),
+    githubFetch(`${baseUrl}/definition.json`),
+    githubFetch(`${baseUrl}/script.R`),
   ]);
 
   if (!defRes.ok) {
@@ -238,6 +232,9 @@ export async function getModuleDefinitionDetail(
     const translatedModule: ModuleDefinitionDetail = {
       id,
       label: resolveTS(definition.label, language),
+      family: definition.family,
+      tier: definition.tier,
+      sortOrder: definition.sortOrder,
       prerequisites: definition.prerequisites as ModuleId[],
       lastScriptUpdate: new Date().toISOString(),
       dataSources: definition.dataSources,

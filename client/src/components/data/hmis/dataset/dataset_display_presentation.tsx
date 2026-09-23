@@ -16,16 +16,17 @@ import {
   type CustomFigureStyleOptions,
   FrameTop,
   ButtonGroup,
+  PresenceGrid,
+  presenceGridColumnsFromPeriods,
 } from "panther";
 import { Show, createMemo } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
-import { PresenceHeatMap, type HeatMapAxis } from "./presence_heat_map";
 
 export type VizConfig = {
   value: "count" | "sum";
   figureType: "line" | "heat_map";
   indicators: string[];
-  heatMapAxis: HeatMapAxis;
+  heatMapAxis: "year-month" | "year";
 };
 
 type Props = {
@@ -112,6 +113,44 @@ export function DatasetDisplayPresentation(p: Props) {
 
   const isLine = () => p.vizConfig.figureType === "line";
 
+  const presenceColumns = createMemo(() =>
+    presenceGridColumnsFromPeriods(
+      p.displayItems.periodBounds,
+      p.vizConfig.heatMapAxis,
+      getCalendar(),
+    ),
+  );
+
+  const presenceRows = createMemo(() =>
+    p.displayItems.indicators
+      .map((ind) => ind.value)
+      .filter((id) => p.vizConfig.indicators.includes(id))
+      .map((id) => ({
+        id,
+        label: p.displayItems.indicatorLabelReplacements[id] ?? id,
+      })),
+  );
+
+  // Presence, not magnitude (PLAN_A8 ruling 3): a cell is filled where the
+  // indicator has at least one record in the period. Column ids are the
+  // period ids as strings, the year being the month id's leading four digits.
+  const presenceCells = createMemo(() => {
+    const columnIdOf =
+      p.vizConfig.heatMapAxis === "year-month"
+        ? (periodId: number) => String(periodId)
+        : (periodId: number) => String(Math.floor(periodId / 100));
+    const filled = new Set<string>();
+    for (const row of filteredVizItems()) {
+      filled.add(
+        `${row["indicator_common_id"]}|${columnIdOf(Number(row["period_id"]))}`,
+      );
+    }
+    const columns = presenceColumns().columns;
+    return presenceRows().map((row) =>
+      columns.map((column) => filled.has(`${row.id}|${column.id}`)),
+    );
+  });
+
   return (
     <FrameTop
       // startingWidth={300}
@@ -133,7 +172,11 @@ export function DatasetDisplayPresentation(p: Props) {
           </div>
           <div class="ui-gap flex">
             <ButtonGroup
-              label={t3({ en: "Figure", fr: "Figure", pt: "Figura" })}
+              label={t3({
+                en: "Visualization",
+                fr: "Visualisation",
+                pt: "Visualização",
+              })}
               items={[
                 {
                   id: "line",
@@ -187,7 +230,7 @@ export function DatasetDisplayPresentation(p: Props) {
                 label={t3({ en: "Periods", fr: "Périodes", pt: "Períodos" })}
                 items={[
                   {
-                    id: "month",
+                    id: "year-month",
                     label: t3({
                       en: "By month",
                       fr: "Par mois",
@@ -205,7 +248,7 @@ export function DatasetDisplayPresentation(p: Props) {
                 ]}
                 value={p.vizConfig.heatMapAxis}
                 onChange={(v) =>
-                  p.setVizConfig("heatMapAxis", v as HeatMapAxis)
+                  p.setVizConfig("heatMapAxis", v as VizConfig["heatMapAxis"])
                 }
               />
             </Show>
@@ -229,14 +272,10 @@ export function DatasetDisplayPresentation(p: Props) {
           <Show
             when={isLine()}
             fallback={
-              <PresenceHeatMap
-                vizItems={filteredVizItems()}
-                indicators={p.displayItems.indicators
-                  .map((ind) => ind.value)
-                  .filter((id) => p.vizConfig.indicators.includes(id))}
-                labelReplacements={p.displayItems.indicatorLabelReplacements}
-                periodBounds={p.displayItems.periodBounds}
-                axis={p.vizConfig.heatMapAxis}
+              <PresenceGrid
+                {...presenceColumns()}
+                rows={presenceRows()}
+                cells={presenceCells()}
               />
             }
           >

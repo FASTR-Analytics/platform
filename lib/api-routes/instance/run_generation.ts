@@ -19,6 +19,7 @@ import type {
   RunGenerationModuleOptions,
   RunModuleFileListing,
 } from "../../types/mod.ts";
+import type { GridItemsHolder } from "../../grid_items.ts";
 import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
 import { route } from "../route-utils.ts";
 
@@ -113,12 +114,12 @@ export const runGenerationRouteRegistry = {
     params: runModuleParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
   }),
-  // The figure-data mount (S9): the caller
-  // supplies the (runId, adminArea2) pair its product carries, and `null`
-  // adminArea2 means national. The reads require runs.status = 'ready';
-  // adminArea2 is shape-validated here and escaped server-side. /mcp reaches
-  // the first two at national scope through the headless allowlist. Guarded
-  // requireApprovedUser(): package data is an instance-level resource.
+  // The figure-data mount (S9): the caller supplies the (runId, adminArea2)
+  // pair its product carries, and `null` adminArea2 means national. The reads
+  // require runs.status = 'ready'; adminArea2 is shape-validated here and
+  // escaped server-side. /mcp reaches getRunPresentationObjectItems and
+  // getRunResultsValueInfo at national scope through the headless allowlist.
+  // Guarded requireApprovedUser(): package data is an instance-level resource.
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
     method: "POST",
@@ -129,6 +130,20 @@ export const runGenerationRouteRegistry = {
       adminArea2: adminArea2Schema,
     }),
     response: {} as ItemsHolderPresentationObject,
+  }),
+  // The Explore Data table's read: the same body and rows as
+  // getRunPresentationObjectItems under a far higher cap, answered
+  // dictionary-encoded (lib/grid_items.ts).
+  getRunGridItems: route({
+    path: "/run_generation/run/:run_id/grid_items",
+    method: "POST",
+    params: z.object({ run_id: z.string() }),
+    body: z.object({
+      resultsObjectId: z.string(),
+      fetchConfig: genericLongFormFetchConfigSchema,
+      adminArea2: adminArea2Schema,
+    }),
+    response: {} as GridItemsHolder,
   }),
   getRunResultsValueInfo: route({
     path: "/run_generation/run/:run_id/results_value_info",

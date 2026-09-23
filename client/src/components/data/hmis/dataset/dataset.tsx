@@ -81,7 +81,7 @@ export function InstanceDatasetHmis(p: Props) {
     value: "count",
     figureType: "line",
     indicators: [],
-    heatMapAxis: "month",
+    heatMapAxis: "year-month",
   });
 
   let displayRequestId = 0;

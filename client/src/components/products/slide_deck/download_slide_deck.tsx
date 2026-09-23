@@ -73,7 +73,7 @@ export function DownloadSlideDeck(
         <div class="">PPTX</div>
         <RadioGroup
           options={[
-            { value: "pptx", label: t3({ en: "Native PPTX with raster figures", fr: "PPTX natif avec figures matricielles", pt: "PPTX nativo com figuras rasterizadas" }) },
+            { value: "pptx", label: t3({ en: "Native PPTX with raster visualizations", fr: "PPTX natif avec visualisations matricielles", pt: "PPTX nativo com visualizações rasterizadas" }) },
           ]}
           value={exportFormat()}
           onChange={setExportFormat}

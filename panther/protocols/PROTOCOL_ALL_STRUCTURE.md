@@ -15,12 +15,12 @@
 
 ## File Naming
 
-| Type             | Convention        | Example           |
-| ---------------- | ----------------- | ----------------- |
-| General files    | snake_case        | `measure_text.ts` |
-| Components       | snake_case        | `data_table.tsx`  |
-| Route pages      | Underscore prefix | `_4_marking.tsx`  |
-| Internal modules | Underscore prefix, outside `components/` | `_internal/` |
+| Type             | Convention                               | Example           |
+| ---------------- | ---------------------------------------- | ----------------- |
+| General files    | snake_case                               | `measure_text.ts` |
+| Components       | snake_case                               | `data_table.tsx`  |
+| Route pages      | Underscore prefix                        | `_4_marking.tsx`  |
+| Internal modules | Underscore prefix, outside `components/` | `_internal/`      |
 
 ## Directory Patterns
 
@@ -41,9 +41,9 @@ src/
 └── utils/             # Business logic
 ```
 
-For the rules inside `components/` (the tree mirrors the nav, `mod.ts`
-entries, scoped `_shared/`, one-way layers, and the lint check that verifies
-each), see `PROTOCOL_UI_STRUCTURE.md`.
+For the rules inside `components/` (the tree mirrors the nav, `mod.ts` entries,
+scoped `_shared/`, one-way layers, and the lint check that verifies each), see
+`PROTOCOL_UI_STRUCTURE.md`.
 
 ### Full-Stack App (both mode)
 

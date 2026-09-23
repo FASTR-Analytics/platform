@@ -18,7 +18,7 @@ import {
   scopeSelectionFromStored,
   storedValueFromScopeSelection,
   type ScopeSelection,
-} from "./scope_picker";
+} from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -166,9 +166,9 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
           {(n) => (
             <Callout intent="warning" pad="sm">
               {t3({
-                en: `${n} figure(s) were built under the current package and scope. After saving they show as stale until you update them.`,
-                fr: `${n} figure(s) ont été construites avec le paquet et la portée actuels. Après l'enregistrement, elles apparaîtront comme obsolètes jusqu'à leur mise à jour.`,
-                pt: `${n} figura(s) foram construídas com o pacote e o âmbito atuais. Depois de guardar, aparecem como desatualizadas até serem atualizadas.`,
+                en: `${n} visualization(s) were built under the current package and scope. After saving they show as stale until you update them.`,
+                fr: `${n} visualisation(s) ont été construites avec le paquet et la portée actuels. Après l'enregistrement, elles apparaîtront comme obsolètes jusqu'à leur mise à jour.`,
+                pt: `${n} visualização(s) foram construídas com o pacote e o âmbito atuais. Depois de guardar, aparecem como desatualizadas até serem atualizadas.`,
               })}
             </Callout>
           )}

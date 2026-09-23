@@ -1,11 +1,26 @@
-import type { HfaTaxonomyForAI, MetricWithStatus } from "../types/mod.ts";
+import type {
+  HfaTaxonomyForAI,
+  InstalledModuleSummary,
+  MetricWithStatus,
+} from "../types/mod.ts";
 import { ICEH_STRAT_INFO } from "../types/iceh_strats.ts";
 import { getReplicateByProp } from "../get_disaggregator_display_prop.ts";
+import { compareModules } from "../group_metrics.ts";
 
 type IcehIndicator = { id: string; label: string; category: string };
 
+export type ModuleForAI = Pick<
+  InstalledModuleSummary,
+  "id" | "label" | "family" | "tier" | "sortOrder"
+>;
+
+// Metrics are listed in module order (compareModules: family, the primary
+// module first, declared sort order), each module introduced by one heading
+// line, so the model meets each family's primary result before its
+// supporting analyses. A metric whose module is not in the list goes last.
 export function formatMetricsListForAI(
   metrics: MetricWithStatus[],
+  modules: ModuleForAI[],
   icehIndicators: IcehIndicator[],
   hfaTaxonomy: HfaTaxonomyForAI,
 ): string {
@@ -32,9 +47,28 @@ export function formatMetricsListForAI(
     return lines.join("\n");
   }
 
-  const sorted = [...readyMetrics].sort((a, b) => a.id.localeCompare(b.id));
+  const orderedModules = modules.toSorted(compareModules);
+  const modulePosition = new Map(orderedModules.map((m, i) => [m.id, i]));
+  const position = (m: MetricWithStatus) =>
+    modulePosition.get(m.moduleId) ?? orderedModules.length;
+  const sorted = [...readyMetrics].sort((a, b) =>
+    position(a) - position(b) || a.id.localeCompare(b.id)
+  );
 
+  let currentModuleId: string | undefined = undefined;
   for (const metric of sorted) {
+    if (metric.moduleId !== currentModuleId) {
+      currentModuleId = metric.moduleId;
+      const mod = orderedModules.find((m) => m.id === metric.moduleId);
+      lines.push(
+        mod === undefined
+          ? `MODULE ${metric.moduleId}`
+          : `MODULE ${mod.id}: ${mod.label} [${mod.family}, ${
+            mod.tier === "primary" ? "primary result" : "supporting analysis"
+          }]`,
+      );
+      lines.push("");
+    }
     const label = metric.variantLabel
       ? `${metric.label} [${metric.variantLabel}]`
       : metric.label;

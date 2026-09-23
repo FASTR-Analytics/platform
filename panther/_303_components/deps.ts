@@ -8,6 +8,8 @@ export type { SizingMode } from "../_000_consts/mod.ts";
 export {
   clamp,
   createArray,
+  decodePeriod,
+  formatPeriod,
   getLanguage,
   getSortedAlphabetical,
   normalizeTo01,
@@ -16,7 +18,12 @@ export {
   toNum0,
   toPct3,
 } from "../_000_utils/mod.ts";
-export type { Language, ZonedDateTime } from "../_000_utils/mod.ts";
+export type {
+  CalendarType,
+  Language,
+  PeriodType,
+  ZonedDateTime,
+} from "../_000_utils/mod.ts";
 export { Color, runWithDarkKeyColors } from "../_001_color/mod.ts";
 export { loadFontsWithTimeout } from "../_001_font/mod.ts";
 export { RectCoordsDims } from "../_001_geometry/mod.ts";
@@ -28,6 +35,7 @@ export type {
   MeasuredColsLayoutNode,
   MeasuredLayoutNode,
 } from "../_008_layouter/mod.ts";
+export type { TableDataTransformed } from "../_010_table/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { Csv } from "../_100_csv/mod.ts";

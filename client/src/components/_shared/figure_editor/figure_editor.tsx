@@ -107,6 +107,10 @@ type InnerProps = {
   resultsValueInfo: ResultsValueInfoForPresentationObject;
   /** Live co-editing of the figure inside the host doc; absent means Apply/Cancel. */
   collabBinding?: VizFigureCollabBinding;
+  /** Back only: the draft never leaves the editor. */
+  viewOnly?: boolean;
+  /** Mounted inside a page rather than over it: no Back, no copilot toggle. */
+  inline?: boolean;
   onClose: (result: FigureEditorResult) => void;
 };
 
@@ -731,12 +735,12 @@ export function VisualizationEditorInner(p: InnerProps) {
             class="ui-pad ui-gap flex items-center border-b"
             data-cursor-zone="header"
           >
-            <div class="ui-gap-sm flex items-center">
+            <div class="ui-gap-sm flex items-center" classList={{ hidden: p.inline }}>
               <Show
                 when={isCollabLive()}
                 fallback={
                   <Show
-                    when={needsSave()}
+                    when={needsSave() && !p.viewOnly}
                     fallback={
                       <Button iconName="chevronLeft" onClick={cancel} />
                     }
@@ -814,7 +818,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                 iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
                 outline
               ></Button>
-              <Show when={!showAi()}>
+              <Show when={!showAi() && !p.inline}>
                 <Button
                   onClick={() => setShowAi(true)}
                   iconName="chevronLeft"

@@ -2,6 +2,7 @@ import type { Sql } from "postgres";
 import type { APIResponseNoData } from "lib";
 import { deleteRunCatalogRow } from "../db/instance/run_generation.ts";
 import {
+  _GRID_ITEMS_CACHE,
   _METRIC_INFO_CACHE,
   _PO_ITEMS_CACHE,
   _REPLICANT_OPTIONS_CACHE,
@@ -54,16 +55,20 @@ export async function deleteRun(
 
 // Disk reclamation, not correctness (Q-D ruling): TimCacheC entries carry a
 // 15–30 day TTL and `get` compares version hashes, so a dead run's entries
-// are never served either way. The three caches below fold runId into their
+// are never served either way. The four caches below fold runId into their
 // UNIQUENESS hash, so they can be scanned by prefix.
 async function purgeRunCaches(runId: string): Promise<void> {
-  const [poItems, metricInfo, replicantOpts] = await Promise.all([
+  const [poItems, gridItems, metricInfo, replicantOpts] = await Promise.all([
     _PO_ITEMS_CACHE.scanUniquenessHashes(`${runId}|`),
+    _GRID_ITEMS_CACHE.scanUniquenessHashes(`${runId}|`),
     _METRIC_INFO_CACHE.scanUniquenessHashes(`${runId}::`),
     _REPLICANT_OPTIONS_CACHE.scanUniquenessHashes(`${runId}::`),
   ]);
   for (const hash of poItems) {
     _PO_ITEMS_CACHE.clearByUniquenessHash(hash);
+  }
+  for (const hash of gridItems) {
+    _GRID_ITEMS_CACHE.clearByUniquenessHash(hash);
   }
   for (const hash of metricInfo) {
     _METRIC_INFO_CACHE.clearByUniquenessHash(hash);

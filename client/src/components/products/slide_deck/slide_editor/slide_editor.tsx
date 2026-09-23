@@ -1018,9 +1018,9 @@ export function SlideEditor(p: Props) {
       if (!metric) {
         await openAlert({
           text: t3({
-            en: "This figure's metric is not in the product's package",
-            fr: "L'indicateur de cette figure n'est pas dans le paquet du produit",
-            pt: "A métrica desta figura não está no pacote do produto",
+            en: "This visualization's metric is not in the product's package",
+            fr: "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
+            pt: "A métrica desta visualização não está no pacote do produto",
           }),
           intent: "danger",
         });
@@ -1691,7 +1691,7 @@ function PeerSelectionOverlay(p: {
                       {e.name}
                       {e.editingFigure
                         ? " " +
-                          t3({ en: "✎ figure", fr: "✎ figure", pt: "✎ figura" })
+                          t3({ en: "✎ visualization", fr: "✎ visualisation", pt: "✎ visualização" })
                         : ""}
                     </div>
                   )}

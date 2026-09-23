@@ -121,18 +121,18 @@ export function DownloadReport(
         <Show when={isFastr}>
           <div class="text-base-content-muted text-xs">
             {t3({
-              en: "The PDF has exactly the pages the editor shows. The Word file keeps headings, text, tables and figures editable; covers, bands and tiles are pictures with their text in editable boxes on top (Word asks to update fields on opening when the report has a contents page, and a coloured page ground prints only with Word's 'Print background colours' on). The HTML file is self-contained (figures embedded as images) and reads as one continuous page.",
-              fr: "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier Word garde les titres, le texte, les tableaux et les figures modifiables ; les couvertures, bandeaux et tuiles sont des images avec leur texte dans des zones modifiables par-dessus (Word propose de mettre à jour les champs à l'ouverture si le rapport a une table des matières, et un fond de page coloré ne s'imprime qu'avec l'option « Imprimer les couleurs d'arrière-plan » de Word). Le fichier HTML est autonome (figures intégrées en images) et se lit comme une seule page continue.",
-              pt: "O PDF tem exatamente as páginas que o editor mostra. O ficheiro Word mantém títulos, texto, tabelas e figuras editáveis; capas, faixas e mosaicos são imagens com o seu texto em caixas editáveis por cima (o Word pede para atualizar os campos ao abrir quando o relatório tem um índice, e um fundo de página colorido só é impresso com a opção 'Imprimir cores de fundo' do Word). O ficheiro HTML é autónomo (figuras incorporadas como imagens) e lê-se como uma única página contínua.",
+              en: "The PDF has exactly the pages the editor shows. The Word file keeps headings, text, tables and visualizations editable; covers, bands and tiles are pictures with their text in editable boxes on top (Word asks to update fields on opening when the report has a contents page, and a coloured page ground prints only with Word's 'Print background colours' on). The HTML file is self-contained (visualizations embedded as images) and reads as one continuous page.",
+              fr: "Le PDF contient exactement les pages affichées dans l'éditeur. Le fichier Word garde les titres, le texte, les tableaux et les visualisations modifiables ; les couvertures, bandeaux et tuiles sont des images avec leur texte dans des zones modifiables par-dessus (Word propose de mettre à jour les champs à l'ouverture si le rapport a une table des matières, et un fond de page coloré ne s'imprime qu'avec l'option « Imprimer les couleurs d'arrière-plan » de Word). Le fichier HTML est autonome (visualisations intégrées en images) et se lit comme une seule page continue.",
+              pt: "O PDF tem exatamente as páginas que o editor mostra. O ficheiro Word mantém títulos, texto, tabelas e visualizações editáveis; capas, faixas e mosaicos são imagens com o seu texto em caixas editáveis por cima (o Word pede para atualizar os campos ao abrir quando o relatório tem um índice, e um fundo de página colorido só é impresso com a opção 'Imprimir cores de fundo' do Word). O ficheiro HTML é autónomo (visualizações incorporadas como imagens) e lê-se como uma única página contínua.",
             })}
           </div>
         </Show>
         <Show when={rendersAsHtml && !isFastr}>
           <div class="text-base-content-muted text-xs">
             {t3({
-              en: "The HTML file is self-contained (figures embedded as images). Print opens your browser's print dialog, where you can save as PDF.",
-              fr: "Le fichier HTML est autonome (figures intégrées en images). Imprimer ouvre la boîte de dialogue d'impression du navigateur, où vous pouvez enregistrer en PDF.",
-              pt: "O ficheiro HTML é autónomo (figuras incorporadas como imagens). Imprimir abre a caixa de diálogo de impressão do navegador, onde pode guardar como PDF.",
+              en: "The HTML file is self-contained (visualizations embedded as images). Print opens your browser's print dialog, where you can save as PDF.",
+              fr: "Le fichier HTML est autonome (visualisations intégrées en images). Imprimer ouvre la boîte de dialogue d'impression du navigateur, où vous pouvez enregistrer en PDF.",
+              pt: "O ficheiro HTML é autónomo (visualizações incorporadas como imagens). Imprimir abre a caixa de diálogo de impressão do navegador, onde pode guardar como PDF.",
             })}
           </div>
         </Show>

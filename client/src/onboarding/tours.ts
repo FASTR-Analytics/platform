@@ -444,9 +444,9 @@ export function buildSlideContentTour(): TourDefinition {
           pt: "Blocos no diapositivo",
         }),
         body: t3({
-          en: "Click a block to switch it between text, a figure or an image, and use Layout to split the slide into more blocks. Double-click text to type straight onto the slide.",
-          fr: "Cliquez sur un bloc pour le basculer entre texte, figure ou image, et utilisez Mise en page pour diviser la diapositive en plusieurs blocs. Double-cliquez sur un texte pour écrire directement sur la diapositive.",
-          pt: "Clique num bloco para o alternar entre texto, figura ou imagem, e utilize Disposição para dividir o diapositivo em mais blocos. Faça duplo clique num texto para escrever diretamente no diapositivo.",
+          en: "Click a block to switch it between text, a visualization or an image, and use Layout to split the slide into more blocks. Double-click text to type straight onto the slide.",
+          fr: "Cliquez sur un bloc pour le basculer entre texte, visualisation ou image, et utilisez Mise en page pour diviser la diapositive en plusieurs blocs. Double-cliquez sur un texte pour écrire directement sur la diapositive.",
+          pt: "Clique num bloco para o alternar entre texto, visualização ou imagem, e utilize Disposição para dividir o diapositivo em mais blocos. Faça duplo clique num texto para escrever diretamente no diapositivo.",
         }),
         placement: "left",
       },
@@ -469,9 +469,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
           pt: "Dentro de um relatório",
         }),
         body: t3({
-          en: "A report is a written document: you type the words, and drop in figures wherever they belong.",
-          fr: "Un rapport est un document rédigé : vous écrivez le texte et insérez des figures là où elles doivent apparaître.",
-          pt: "Um relatório é um documento escrito: escreve o texto e insere figuras onde elas fazem sentido.",
+          en: "A report is a written document: you type the words, and drop in visualizations wherever they belong.",
+          fr: "Un rapport est un document rédigé : vous écrivez le texte et insérez des visualisations là où elles doivent apparaître.",
+          pt: "Um relatório é um documento escrito: escreve o texto e insere visualizações onde elas fazem sentido.",
         }),
         placement: "bottom",
       },
@@ -529,9 +529,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
         id: "embed-panel",
         target: tourTarget("report-insert-buttons"),
         title: t3({
-          en: "Figures and images",
-          fr: "Figures et images",
-          pt: "Figuras e imagens",
+          en: "Visualizations and images",
+          fr: "Visualisations et images",
+          pt: "Visualizações e imagens",
         }),
         body: t3({
           en: "Insert a visualization or an image from here. Click one already in the report and these controls switch to editing it: swapping it for another, or removing it.",
@@ -541,7 +541,7 @@ export function buildReportEditorIntroTour(): TourDefinition {
         placement: "bottom",
         when: () =>
           document.querySelector('[data-tour="report-insert-buttons"]') !==
-            null,
+          null,
       },
       {
         id: "save-status",
@@ -563,9 +563,9 @@ export function buildReportEditorIntroTour(): TourDefinition {
         target: "#report-download-button",
         title: t3({ en: "Export it", fr: "Exportez-le", pt: "Exporte-o" }),
         body: t3({
-          en: "Download the report as a Word document or PDF, with the figures rendered in place.",
-          fr: "Téléchargez le rapport en document Word ou PDF, avec les figures rendues à leur place.",
-          pt: "Descarregue o relatório como documento Word ou PDF, com as figuras apresentadas no devido lugar.",
+          en: "Download the report as a Word document or PDF, with the visualizations rendered in place.",
+          fr: "Téléchargez le rapport en document Word ou PDF, avec les visualisations rendues à leur place.",
+          pt: "Descarregue o relatório como documento Word ou PDF, com as visualizações apresentadas no devido lugar.",
         }),
         placement: "bottom",
       },
@@ -613,14 +613,14 @@ export function buildReportEditorFiguresTour(): TourDefinition {
         id: "embed",
         target: "[data-embed-id]",
         title: t3({
-          en: "A figure in the text",
-          fr: "Une figure dans le texte",
-          pt: "Uma figura no texto",
+          en: "A visualization in the text",
+          fr: "Une visualisation dans le texte",
+          pt: "Uma visualização no texto",
         }),
         body: t3({
-          en: "Each figure sits in the text as a block. Click it to select it, then use the left panel to edit its caption, swap it, or take it out — it reads from the results package this report is set to.",
-          fr: "Chaque figure se place dans le texte comme un bloc. Cliquez dessus pour la sélectionner, puis utilisez le panneau de gauche pour modifier sa légende, la remplacer ou la retirer — elle se sert du paquet de résultats auquel ce rapport est rattaché.",
-          pt: "Cada figura fica no texto como um bloco. Clique nela para a selecionar e utilize o painel da esquerda para editar a legenda, substituí-la ou removê-la — serve-se do pacote de resultados a que este relatório está associado.",
+          en: "Each visualization sits in the text as a block. Click it to select it, then use the left panel to edit its caption, swap it, or take it out — it reads from the results package this report is set to.",
+          fr: "Chaque visualisation se place dans le texte comme un bloc. Cliquez dessus pour la sélectionner, puis utilisez le panneau de gauche pour modifier sa légende, la remplacer ou la retirer — elle se sert du paquet de résultats auquel ce rapport est rattaché.",
+          pt: "Cada visualização fica no texto como um bloco. Clique nela para a selecionar e utilize o painel da esquerda para editar a legenda, substituí-la ou removê-la — serve-se do pacote de resultados a que este relatório está associado.",
         }),
         placement: "right",
         waitForTargetTimeoutMs: 2000,
@@ -820,9 +820,9 @@ export function buildProductsCreateTour(): TourDefinition {
           pt: "Criar um relatório",
         }),
         body: t3({
-          en: "The same for a report — a written document that carries figures inside the text.",
-          fr: "Idem pour un rapport — un document rédigé qui contient des figures au fil du texte.",
-          pt: "O mesmo para um relatório — um documento escrito que contém figuras ao longo do texto.",
+          en: "The same for a report — a written document that carries visualizations inside the text.",
+          fr: "Idem pour un rapport — un document rédigé qui contient des visualisations au fil du texte.",
+          pt: "O mesmo para um relatório — um documento escrito que contém visualizações ao longo do texto.",
         }),
         placement: "bottom",
       },
@@ -1083,8 +1083,12 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
 }
 
 // Split from the intro for the same reason as the products cards tour: a freshly
-// created instance holds no packages, so neither target exists, and a tour
-// that runs against nothing still writes its seen-flag.
+// created instance holds no packages, so the first target does not exist, and
+// a tour that runs against nothing still writes its seen-flag. The tour walks
+// from the list into a package: the first step completes when the user clicks
+// the row, which opens that package's page, and the second waits for the
+// status bar's usage row there. The page covers the shell, so the list row
+// could not be shown after a page had been opened first.
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
   return {
     id: "instance-results-packages-catalogue",
@@ -1098,26 +1102,27 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
           pt: "O catálogo de pacotes",
         }),
         body: t3({
-          en: "Every package this instance holds, with its status, when it was generated, and how much disk it occupies. A package that is still generating shows its modules progressing live.",
-          fr: "Tous les paquets de cette instance, avec leur état, leur date de génération et l'espace disque occupé. Un paquet en cours de génération affiche la progression de ses modules en direct.",
-          pt: "Todos os pacotes desta instância, com o seu estado, quando foram gerados e quanto disco ocupam. Um pacote ainda em geração mostra os seus módulos a progredir em direto.",
+          en: "Every package this instance holds, newest first, with its status and which products use it. Click a package to open its page.",
+          fr: "Tous les paquets de cette instance, du plus récent au plus ancien, avec leur état et les produits qui les utilisent. Cliquez sur un paquet pour ouvrir sa page.",
+          pt: "Todos os pacotes desta instância, do mais recente ao mais antigo, com o seu estado e os produtos que os usam. Clique num pacote para abrir a sua página.",
         }),
-        placement: "top",
+        placement: "bottom",
+        advanceOn: "click",
       },
       {
         id: "usage",
         target: tourTarget("instance-results-packages-usage"),
         title: t3({
-          en: "Which products use it",
-          fr: "Quels produits l'utilisent",
-          pt: "Que produtos o usam",
+          en: "Inside a package",
+          fr: "Dans un paquet",
+          pt: "Dentro de um pacote",
         }),
         body: t3({
-          en: "A package in use cannot be deleted, and the button says so rather than disappearing. Deleting is one act — catalogue entry, files and cached results — and cannot be undone.",
-          fr: "Un paquet utilisé ne peut pas être supprimé, et le bouton l'indique au lieu de disparaître. La suppression est un seul acte — entrée du catalogue, fichiers et résultats en cache — et elle est irréversible.",
-          pt: "Um pacote em uso não pode ser eliminado, e o botão di-lo em vez de desaparecer. Eliminar é um único ato — entrada do catálogo, ficheiros e resultados em cache — e não pode ser anulado.",
+          en: "The bar under the heading shows how each module ran, which decks and reports use the package, and the population it was computed over; the tabs below hold each data family's results. A package in use cannot be deleted, and the button says so rather than disappearing. Deleting is one act — catalogue entry, files and cached results — and cannot be undone.",
+          fr: "La barre sous l'en-tête montre comment chaque module s'est exécuté, quelles présentations et quels rapports utilisent le paquet, et la population sur laquelle il a été calculé ; les onglets en dessous contiennent les résultats de chaque famille de données. Un paquet utilisé ne peut pas être supprimé, et le bouton l'indique au lieu de disparaître. La suppression est un seul acte — entrée du catalogue, fichiers et résultats en cache — et elle est irréversible.",
+          pt: "A barra sob o cabeçalho mostra como cada módulo correu, que apresentações e relatórios usam o pacote, e a população sobre a qual foi calculado; os separadores abaixo contêm os resultados de cada família de dados. Um pacote em uso não pode ser eliminado, e o botão di-lo em vez de desaparecer. Eliminar é um único ato — entrada do catálogo, ficheiros e resultados em cache — e não pode ser anulado.",
         }),
-        placement: "top",
+        placement: "bottom",
       },
     ],
   };

@@ -2,6 +2,7 @@ import {
   type APIResponseWithData,
   type DisaggregationOption,
   type GenericLongFormFetchConfig,
+  type GridItemsHolder,
   hashFetchConfig,
   type ItemsHolderPresentationObject,
   type ResultsValueInfoForPresentationObject,
@@ -94,10 +95,13 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "24" (2026-09-20): manifest schema v12 (the hfa_indicators_snapshot
 // mirror's `var_name` key reads `indicator_id`). No cached payload carries
 // the mirror row's keys; the bump is the same per-block rule.
-const PO_CACHE_VERSION = "24";
+// "25" (2026-09-22): manifest schema v13 (module blobs declare family, tier
+// and sortOrder; metrics[].datasetFamily is non-null). metric_info payloads
+// carry datasetFamily, so "24" entries may hold null where it is now declared.
+const PO_CACHE_VERSION = "25";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
-// §2.5): it is the uniqueness scope for the three data caches, so two products
+// §2.5): it is the uniqueness scope for the four data caches, so two products
 // on the same run share entries. The scopeToken rides beside it: payloads are
 // computed under the caller's AA2 scope, so two products share entries only
 // when they share BOTH run and scope. Required on the uniqueness side so every
@@ -108,44 +112,51 @@ export type PoDataVersionParams = {
   runId: string;
 };
 
+export type RowsCacheParams = {
+  runId: string;
+  resultsObjectId: string;
+  fetchConfig: GenericLongFormFetchConfig;
+  scopeToken: string;
+};
+
+// The one keying of the two row caches: the items read and the grid read
+// answer the same request, so they share uniqueness and version rules and
+// differ only in prefix and payload.
+function rowsCacheOptions<T extends RowsCacheParams>() {
+  const uniquenessHash = (p: RowsCacheParams) =>
+    [
+      p.runId,
+      p.resultsObjectId,
+      hashFetchConfig(p.fetchConfig),
+      p.scopeToken,
+    ].join("|");
+  return {
+    uniquenessHashFromParams: uniquenessHash,
+    versionHashFromParams: () => PO_CACHE_VERSION,
+    parseData: (res: APIResponseWithData<T>) =>
+      res.success === false
+        ? { shouldStore: false, uniquenessHash: "", versionHash: "" }
+        : {
+          shouldStore: true,
+          uniquenessHash: uniquenessHash(res.data),
+          versionHash: PO_CACHE_VERSION,
+        },
+  };
+}
+
 export const _PO_ITEMS_CACHE = new TimCacheC<
-  {
-    runId: string;
-    resultsObjectId: string;
-    fetchConfig: GenericLongFormFetchConfig;
-    scopeToken: string;
-  },
+  RowsCacheParams,
   PoDataVersionParams,
   APIResponseWithData<ItemsHolderPresentationObject>
->("po_items", {
-  uniquenessHashFromParams: (params) =>
-    [
-      params.runId,
-      params.resultsObjectId,
-      hashFetchConfig(params.fetchConfig),
-      params.scopeToken,
-    ].join("|"),
-  versionHashFromParams: () => PO_CACHE_VERSION,
-  parseData: (res) => {
-    if (res.success === false) {
-      return {
-        shouldStore: false,
-        uniquenessHash: "",
-        versionHash: "",
-      };
-    }
-    return {
-      shouldStore: true,
-      uniquenessHash: [
-        res.data.runId,
-        res.data.resultsObjectId,
-        hashFetchConfig(res.data.fetchConfig),
-        res.data.scopeToken,
-      ].join("|"),
-      versionHash: PO_CACHE_VERSION,
-    };
-  },
-});
+>("po_items", rowsCacheOptions<ItemsHolderPresentationObject>());
+
+// The Explore grid read: the items read's rows under a higher cap,
+// dictionary-encoded.
+export const _GRID_ITEMS_CACHE = new TimCacheC<
+  RowsCacheParams,
+  PoDataVersionParams,
+  APIResponseWithData<GridItemsHolder>
+>("grid_items", rowsCacheOptions<GridItemsHolder>());
 
 export const _METRIC_INFO_CACHE = new TimCacheC<
   {
