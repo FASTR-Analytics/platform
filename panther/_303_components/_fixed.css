@@ -67,6 +67,9 @@
   --text-2xl: 1.5rem; /* text-2xl */
   --text-3xl: 1.875rem; /* text-3xl */
 
+  /* Every element renders at this size unless it names another. */
+  --ui-text-body: var(--text-sm);
+
   /* ============================================= */
   /* Colors */
   /* ============================================= */
@@ -259,8 +262,8 @@
      of vars, so an app can theme the sm variant independently from the
      default if it wants.
 
-     Form text sizes default to the Tailwind text scale via `var()` so
-     they track body-text size changes automatically. Override either
+     The default form text size reads --ui-text-body, so it tracks the
+     body size; the sm size reads the Tailwind scale. Override either
      explicitly to decouple form text from body text.
 
      --ui-form-content-h is the authoring knob for a control's content
@@ -277,7 +280,7 @@
 
   --ui-form-pad-x: 0.75rem; /* px-3 */
   --ui-form-pad-y: 0.5rem; /* py-2 */
-  --ui-form-text-size: var(--text-sm); /* text-sm */
+  --ui-form-text-size: var(--ui-text-body);
   --ui-form-line-height: var(--ui-form-content-h);
   --ui-form-height: calc(
     2 * var(--ui-form-pad-y) + var(--ui-form-content-h) *
@@ -523,6 +526,10 @@
      color, and wrong on dark themes. */
   ::placeholder {
     color: var(--color-base-content-muted);
+  }
+
+  body {
+    font-size: var(--ui-text-body);
   }
 }
 
