@@ -28,7 +28,7 @@ export function PresenceAvatars(p: {
   showEditingPulse?: boolean;
 }) {
   const dim = () =>
-    (p.size ?? "md") === "sm" ? "h-5 w-5 text-[9px]" : "h-7 w-7 text-[11px]";
+    (p.size ?? "md") === "sm" ? "h-5 w-5 text-xs" : "h-7 w-7 text-xs";
   const max = () => p.max ?? 5;
   const shown = () => p.peers.slice(0, max());
   const overflow = () => Math.max(0, p.peers.length - max());

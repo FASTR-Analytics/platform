@@ -572,7 +572,7 @@ function ValueInput(p: {
               indicators change. The marker (or its disappearance) is how the
               user sees that switch. */}
           <Show when={p.formatAs === "rate_per_10k"}>
-            <span class="text-base-content-muted text-[10px] leading-tight">
+            <span class="text-base-content-muted text-xs leading-tight">
               {t3({ en: "per 10k", fr: "pour 10k", pt: "por 10k" })}
             </span>
           </Show>

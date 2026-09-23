@@ -148,10 +148,9 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
             >
               {seg.text}
               <span
-                class="pointer-events-none absolute left-0 z-10 rounded-sm px-1 font-sans whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100"
+                class="pointer-events-none absolute left-0 z-10 rounded-sm px-1 font-sans text-xs whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100"
                 style={{
                   top: "-1.05em",
-                  "font-size": "10.5px",
                   "background-color": color,
                   color: "#ffffff",
                 }}

@@ -185,7 +185,7 @@ export function ReportThemeModal(p: Props) {
                   <FastrCustomThemeMock style={style} />
                   <div class="text-base-content mt-1.5 flex items-center gap-1.5 text-sm font-semibold">
                     <span class="min-w-0 truncate">{style.label}</span>
-                    <span class="bg-base-300 text-base-content rounded px-1 text-[10px] font-normal">
+                    <span class="bg-base-300 text-base-content rounded px-1 text-xs font-normal">
                       {t3({ en: "custom", fr: "perso", pt: "próprio" })}
                     </span>
                   </div>

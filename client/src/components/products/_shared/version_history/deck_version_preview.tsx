@@ -752,7 +752,7 @@ function VersionSlideThumb(p: {
       <Show when={p.badge}>
         {(badge) => (
           <div
-            class="font-700 absolute top-2.5 left-2.5 z-10 cursor-help rounded px-1.5 py-0.5 text-[10px]"
+            class="font-700 absolute top-2.5 left-2.5 z-10 cursor-help rounded px-1.5 py-0.5 text-xs"
             style={{ "background-color": badge().color, color: "#ffffff" }}
             title={badge().title}
           >

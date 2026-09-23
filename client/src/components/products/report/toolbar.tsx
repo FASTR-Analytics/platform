@@ -1528,7 +1528,7 @@ function GroundPanel(p: {
               >
                 <span class={`${p.scopeClass} block h-full w-full`}>
                   <span
-                    class={`fm-tone fm-tone--${tone} flex h-full w-full items-center justify-center text-[10px]`}
+                    class={`fm-tone fm-tone--${tone} flex h-full w-full items-center justify-center text-xs`}
                   >
                     Aa
                   </span>
@@ -1578,7 +1578,7 @@ function InkPanel(p: {
                 p.onPick?.();
               }}
             >
-              <span class={`${p.scopeClass} flex h-full w-full items-center justify-center text-[11px]`}>
+              <span class={`${p.scopeClass} flex h-full w-full items-center justify-center text-xs`}>
                 <span class={`${roleClassOf(role)} font-600`}>Aa</span>
               </span>
             </button>

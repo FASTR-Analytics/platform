@@ -193,7 +193,7 @@ export function VersionHistoryEditor(p: Props) {
                                   )}
                                 </span>
                                 <Show when={row.restoredFromVersionId}>
-                                  <span class="bg-base-300 rounded px-1.5 py-0.5 text-[10px]">
+                                  <span class="bg-base-300 rounded px-1.5 py-0.5 text-xs">
                                     {t3({ en: "Restored", fr: "Restaurée", pt: "Restaurada" })}
                                   </span>
                                 </Show>

@@ -3217,7 +3217,7 @@ function regionPresencePlugin(deps: PresenceDeps): Extension {
           if (layer && !layer.querySelector(".fm-live-presence")) {
             const chip = document.createElement("div");
             chip.className =
-              "fm-live-presence pointer-events-none absolute -top-0 right-0 rounded px-1.5 text-[10px] text-white";
+              "fm-live-presence pointer-events-none absolute -top-0 right-0 rounded px-1.5 text-xs text-white";
             chip.style.background = color;
             chip.textContent = state.user.name ?? "";
             layer.appendChild(chip);

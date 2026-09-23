@@ -936,7 +936,7 @@ export function LiveCursorsOverlay(p: {
                 <Icon iconName="pointerFilled" class="h-[18px] w-[18px]" />
               </span>
               <div
-                class="font-700 absolute rounded px-1 text-[10px] whitespace-nowrap"
+                class="font-700 absolute rounded px-1 text-xs whitespace-nowrap"
                 style={{
                   left: "12px",
                   top: "15px",

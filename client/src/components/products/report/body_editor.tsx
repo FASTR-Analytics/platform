@@ -427,7 +427,7 @@ export function ReportBodyEditor(p: Props) {
         EditorView.theme({
           "&.cm-editor": { height: "100%" },
           // Fixed editor text size, independent of page size.
-          "&": { fontSize: "15px" },
+          "&": { fontSize: "var(--text-base)" },
           // Code-editor idiom: gutter on the left, text left-aligned full-width,
           // scrollbar at the pane edge. The gutter anchors the column so it
           // doesn't float.

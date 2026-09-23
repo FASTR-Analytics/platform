@@ -34,7 +34,7 @@ function hoverFlag(): HTMLDivElement {
     hoverFlagEl = document.createElement("div");
     hoverFlagEl.style.cssText =
       "position:fixed;z-index:95;padding:1px 6px;border-radius:4px;" +
-      "font-size:11px;font-weight:600;color:#fff;pointer-events:none;" +
+      "font-size:var(--text-xs);font-weight:600;color:#fff;pointer-events:none;" +
       "white-space:nowrap;display:none;";
     document.body.appendChild(hoverFlagEl);
   }
@@ -338,7 +338,7 @@ function buildExtensions(
     EditorView.lineWrapping,
     EditorView.theme({
       "&": {
-        fontSize: "14px",
+        fontSize: "var(--text-sm)",
         border: "1px solid rgba(0,0,0,0.15)",
         borderRadius: "6px",
         backgroundColor: "#fff",
