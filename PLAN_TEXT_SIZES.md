@@ -5,7 +5,7 @@ Brings every piece of UI text onto a small set of roles drawn from the rem
 scale, so the same kind of text is the same size everywhere, and adds a lint
 that keeps it that way.
 
-**Next step:** Review 3
+**Next step:** Do 4
 
 Branch: `version2` (app), `main` (panther). Repos: panther
 (`/Users/timroberton/projects/panther/timroberton-panther`) and this app.
@@ -249,3 +249,4 @@ and re-syncing.
 | 3 | Step 3 reviewed: 1 finding. Surface held: `5bc173f1` touches 12 files under `client/src/components/data` and `client/src/components/products` and this plan (13 in `git show --stat`). Every changed code line (19) converts `font-700` or `font-semibold` to `ui-text-heading`, dropping only `text-sm` and, at `edit_indicator_form.tsx:750,958`, the redundant `text-base-content`; the plan diff is the Next step line and the three fix rows. Finding 1 resolved at 11 of its 12 sites (`ai_document_selector_modal.tsx:162`, `prompt_library_modal.tsx:534`, `step_3_configure.tsx:56,76`, `iceh/imports/wizard.tsx:97`, `step_5_import.tsx:313,370,414,439`, and `csv_staging_summary.tsx:94` and `upload_attempt_form.tsx:235` with `text-danger` kept); the twelfth is the finding above. `dhis2_run_view.tsx:121` left as ruled. Finding 2 resolved at all seven sites it named (`edit_indicator_form.tsx:750,958`, `indicator_code_editor.tsx:634,826,984`, `deck_version_preview.tsx:811`, `report_version_preview.tsx:390`); the fix row's "seven `font-700 text-sm` (and one `font-semibold`)" reads as eight, but the finding named six `font-700 text-sm` and one `font-semibold`. The three muted sub-labels (`slide_deck/settings.tsx:211`, `logo_section_editor.tsx:33`, `markdown_guide.tsx:53`) are unchanged, as the review left them. Floor: typecheck exit 0, tests exit 0 (428 passed, 2 ignored), protocols exit 0 (16 baselined). |
 | 3 | Third fix: `geojson/upload_wizard/step_4.tsx:152` carries `text-warning-subtle-content` beside `ui-text-heading`. |
 | 3 | Step 3 fixed. 1 file. Floor: typecheck exit 0, tests exit 0, protocols exit 0. |
+| 3 | Step 3 reviewed: pass. Surface held: `c932c109` touches `client/src/components/data/geojson/upload_wizard/step_4.tsx` and this plan (2 in `git show --stat`). The one changed code line adds `text-warning-subtle-content` beside `ui-text-heading` at `step_4.tsx:152`, keeping `mb-1`, so the heading carries the box colour over `.ui-text-heading`'s `text-base-content`, as `chat_pane.tsx:486` carries `text-primary-content`; the plan diff is the Next step line and the two fix rows. Finding resolved. Floor: typecheck exit 0, tests exit 0 (428 passed, 2 ignored), protocols exit 0 (16 baselined). |
