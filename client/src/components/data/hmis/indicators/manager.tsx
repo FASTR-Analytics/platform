@@ -735,7 +735,6 @@ function IndicatorsTable(p: {
             pt: "indicador",
           })}
           paddingY="compact"
-          fitTableToAvailableHeight
         />
       </div>
     </div>

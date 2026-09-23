@@ -1142,7 +1142,6 @@ export function HfaIndicatorsManager(p: Props) {
                           fr: "indicateur",
                           pt: "indicador",
                         })}
-                        fitTableToAvailableHeight
                         initialScrollTop={indicatorsScrollTop}
                         onScrollTopChange={(v) => {
                           indicatorsScrollTop = v;

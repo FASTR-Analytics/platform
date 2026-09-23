@@ -181,7 +181,6 @@ export function ShareSlideDeck(
             setSelectedKeys={setSelectedKeys}
             selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
             paddingY="compact"
-            fitTableToAvailableHeight
           />
         </div>
         {/* </div>

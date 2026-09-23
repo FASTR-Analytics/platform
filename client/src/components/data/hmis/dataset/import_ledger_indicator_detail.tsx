@@ -203,7 +203,6 @@ export function ImportLedgerIndicatorDetail(
             fr: "Aucun mois dans la fenêtre",
             pt: "Nenhum mês na janela",
           })}
-          fitTableToAvailableHeight
         />
       </div>
     </FrameTop>

@@ -330,7 +330,6 @@ function AssetTable(p: {
       })}
       bulkActions={bulkActions()}
       selectionLabel={t3({ en: "asset", fr: "ressource", pt: "recurso" })}
-      fitTableToAvailableHeight
     />
   );
 }

@@ -506,7 +506,6 @@ function UserTable(p: {
       })}
       bulkActions={bulkActions()}
       selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
-      fitTableToAvailableHeight
     />
   );
 }

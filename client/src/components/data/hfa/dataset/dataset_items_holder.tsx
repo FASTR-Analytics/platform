@@ -153,7 +153,6 @@ function DatasetDisplayPresentation(p: {
           columns={columns}
           keyField="_key"
           noRowsMessage={t3({ en: "No variables found", fr: "Aucune variable trouvée", pt: "Nenhuma variável encontrada" })}
-          fitTableToAvailableHeight
           paddingY="compact"
         />
       </div>

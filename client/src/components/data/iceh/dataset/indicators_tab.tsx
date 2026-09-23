@@ -53,7 +53,6 @@ export function IndicatorsTab(p: { indicators: IcehIndicator[] }) {
           fr: "Aucun indicateur trouvé",
           pt: "Nenhum indicador encontrado",
         })}
-        fitTableToAvailableHeight
         paddingY="compact"
       />
     </div>

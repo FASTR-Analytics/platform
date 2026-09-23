@@ -212,7 +212,6 @@ export function LedgerTable(p: Props) {
                   void p.onOpenIndicator(rollup.dataId, rollup.items, window);
                 }
               }}
-              fitTableToAvailableHeight
             />
           </div>
         );

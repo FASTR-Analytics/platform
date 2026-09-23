@@ -49,7 +49,6 @@ export function StratifiersTab(p: { strats: DisplayRow[] }) {
           fr: "Aucun stratificateur trouvé",
           pt: "Nenhum estratificador encontrado",
         })}
-        fitTableToAvailableHeight
         paddingY="compact"
       />
     </div>

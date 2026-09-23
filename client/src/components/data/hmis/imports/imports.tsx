@@ -292,7 +292,7 @@ export function DatasetHmisImports(p: Props) {
           {(keyedRuns) => (
             <StateHolderWrapper state={scheduling.state()} noPad>
               {(schedulingInfo) => (
-                <div class="ui-pad ui-spy h-full w-full overflow-auto">
+                <div class="ui-pad ui-spy flex h-full w-full flex-col overflow-auto">
                   <Show
                     when={
                       attentionSchedulesOf(schedulingInfo.schedules).length > 0
@@ -376,14 +376,16 @@ export function DatasetHmisImports(p: Props) {
                       />
                     </Match>
                     <Match when={tab() === "history"}>
-                      <Dhis2TabHistory
-                        runs={keyedRuns.filter(
-                          (r) =>
-                            r.status !== "queued" &&
-                            r.status !== "needs_review",
-                        )}
-                        onOpenRun={openRunDetail}
-                      />
+                      <div class="min-h-0 flex-1">
+                        <Dhis2TabHistory
+                          runs={keyedRuns.filter(
+                            (r) =>
+                              r.status !== "queued" &&
+                              r.status !== "needs_review",
+                          )}
+                          onOpenRun={openRunDetail}
+                        />
+                      </div>
                     </Match>
                   </Switch>
                 </div>
