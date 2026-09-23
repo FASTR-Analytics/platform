@@ -37,19 +37,24 @@ type Props = {
 };
 
 export function ListView(p: Props) {
+  // Name sorts ascending and recent sorts newest first, so the active glyph
+  // points the way DisplayTable's does for that direction.
+  const sortGlyph = (mode: SortMode): IconName =>
+    p.sortMode !== mode ? "arrowsUpDown" : mode === "name" ? "arrowUp" : "arrowDown";
+
   function headerSortButton(label: string, mode: SortMode): JSX.Element {
     return (
       <button
         type="button"
-        class="ui-focusable inline-flex cursor-pointer items-center text-left"
+        class="ui-hoverable-base-100 ui-focusable -ml-1.5 inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-1 uppercase"
         onClick={() => p.onSortMode(mode)}
       >
         {label}
         <span
-          class="ml-1 inline-flex"
+          class="inline-flex"
           classList={{ "opacity-40": p.sortMode !== mode }}
         >
-          <Icon iconName={p.sortMode === mode ? "arrowDown" : "arrowsUpDown"} />
+          <Icon iconName={sortGlyph(mode)} />
         </span>
       </button>
     );
@@ -223,13 +228,13 @@ export function ListView(p: Props) {
           {headerSortButton(t3({ en: "Name", fr: "Nom", pt: "Nome" }), "name")}
         </div>
         <div class="ui-pad-sm">
-          {t3({ en: "Type", fr: "Type", pt: "Tipo" })}
+          <span class="-ml-1.5 px-1.5 py-1">{t3({ en: "Type", fr: "Type", pt: "Tipo" })}</span>
         </div>
         <div class="ui-pad-sm">
-          {t3({ en: "Package", fr: "Paquet", pt: "Pacote" })}
+          <span class="-ml-1.5 px-1.5 py-1">{t3({ en: "Package", fr: "Paquet", pt: "Pacote" })}</span>
         </div>
         <div class="ui-pad-sm">
-          {t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}
+          <span class="-ml-1.5 px-1.5 py-1">{t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}</span>
         </div>
         <div class="ui-pad-sm">
           {headerSortButton(
