@@ -4,7 +4,7 @@ Status: ready. Makes 14px the size every unsized piece of UI text renders at,
 declared once in panther's stylesheet from the existing type scale, and removes
 the app's own 16px body rule.
 
-**Next step:** Do 1
+**Next step:** Review 1
 
 Branch: `version2` (app), `main` (panther). Repos: panther
 (`/Users/timroberton/projects/panther/timroberton-panther`) and this app.
@@ -172,3 +172,6 @@ commit and re-sync, then revert the app's deletion commit.
 
 | Step | Row |
 | --- | --- |
+| 1 | The stale comment above `--ui-form-text-size` (`_fixed.css:265-267`) is rewritten with the token change, since it described the contract ruling 4 makes true. |
+| 1 | `--ui-text-body` is listed in the protocol's "Public density vars" table, the only public-var table the protocol has, rather than a new table. |
+| 1 | Step 1 built. Panther commit: "Declare the body text size once, as --ui-text-body". |
