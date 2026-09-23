@@ -13,7 +13,6 @@ import {
   type EditorComponentProps,
   type ListItem,
 } from "panther";
-import { HeadingBar } from "panther";
 import { For, Match, Show, Switch, type JSX } from "solid-js";
 import { InstanceDatasetIceh } from "./iceh/mod.ts";
 import { Facilities } from "./facilities/mod.ts";
@@ -115,638 +114,68 @@ export function InstanceData(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar heading={t3({ en: "Data", fr: "Données", pt: "Dados" })} />
+        <TabsNavigation
+          data-tour="instance-data-tabs"
+          items={sectionItems()}
+          value={activeSection()}
+          onChange={setDataSection}
+        />
       }
     >
-      <FrameTop
-        panelChildren={
-          <TabsNavigation
-            data-tour="instance-data-tabs"
-            items={sectionItems()}
-            value={activeSection()}
-            onChange={setDataSection}
-            insetRail
-          />
-        }
-      >
-        <div class="ui-pad">
-          <Switch>
-            <Match when={activeSection() === "general"}>
-              <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
-                <Show when={canConfigureSettings()}>
-                  <Card onClick={() => openSubPage(AdminAreaLabels, {})}>
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2 text-sm">
-                        {t3({
-                          en: "Admin area labels",
-                          fr: "Libellés des unités administratives",
-                          pt: "Rótulos das zonas administrativas",
-                        })}
-                      </div>
-                      {/* The names themselves, so the current naming is
-                        readable without opening the editor. Green marks a
-                        level the instance has actually named; unnamed
-                        levels fall back to the generic default. */}
-                      <Show
-                        when={hasCustomAdminAreaLabel()}
-                        fallback={
-                          <div class="text-danger text-xs">
-                            {t3({
-                              en: "Not set — using default names",
-                              fr: "Non définis — noms par défaut utilisés",
-                              pt: "Não definidos — a usar nomes predefinidos",
-                            })}
-                          </div>
-                        }
-                      >
-                        <div class="ui-spy-sm text-xs">
-                          <For
-                            each={ALL_ADMIN_AREA_LEVELS.filter(
-                              (level) => maxDepth() >= level,
-                            )}
-                          >
-                            {(level) => (
-                              <div
-                                class="ui-gap flex justify-between"
-                                classList={{
-                                  "text-success": isAdminAreaLabelSet(level),
-                                  "text-base-content-muted":
-                                    !isAdminAreaLabelSet(level),
-                                }}
-                              >
-                                <span>
-                                  {t3({
-                                    en: `Admin area ${level}`,
-                                    fr: `Unité administrative ${level}`,
-                                    pt: `Zona administrativa ${level}`,
-                                  })}
-                                  :
-                                </span>
-                                <span>{t3(getAdminAreaLabel(level))}</span>
-                              </div>
-                            )}
-                          </For>
-                        </div>
-                      </Show>
-                    </div>
-                  </Card>
-                </Show>
-                <Show when={canConfigureSettings()}>
-                  <Card onClick={openAiContext}>
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2 text-sm">
-                        {t3({
-                          en: "AI context",
-                          fr: "Contexte IA",
-                          pt: "Contexto de IA",
-                        })}
-                      </div>
-                      <Show
-                        when={instanceState.aiContext.trim()}
-                        fallback={
-                          <div class="text-base-content-muted text-xs">
-                            {t3({
-                              en: "Not set",
-                              fr: "Non défini",
-                              pt: "Não definido",
-                            })}
-                          </div>
-                        }
-                      >
-                        <div class="text-success line-clamp-4 text-xs">
-                          {instanceState.aiContext}
-                        </div>
-                      </Show>
-                    </div>
-                  </Card>
-                </Show>
-              </div>
-            </Match>
-
-            <Match when={activeSection() === "hmis"}>
-              <div
-                class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
-                data-tour="instance-data-hmis"
-              >
-                <Show when={canConfigureSettings()}>
-                  <Card
-                    onClick={() =>
-                      openSubPage(FamilyConfiguration, { family: "hmis" })
-                    }
-                  >
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2 text-sm">
-                        {t3({
-                          en: "Configuration",
-                          fr: "Configuration",
-                          pt: "Configuração",
-                        })}
-                      </div>
-                      <div class="ui-spy-sm text-success text-xs">
-                        <div class="ui-gap flex justify-between">
-                          <span>
-                            {t3({
-                              en: "Admin area depth",
-                              fr: "Profondeur des unités administratives",
-                              pt: "Profundidade das zonas administrativas",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">
-                            {structureSchemaForFamily("hmis").adminDepth}
-                          </span>
-                        </div>
-                        <div class="ui-gap flex justify-between">
-                          <span>
-                            {t3({
-                              en: "Facility columns",
-                              fr: "Colonnes des établissements",
-                              pt: "Colunas dos estabelecimentos",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">
-                            {toNum0(enabledColumnCount("hmis"))}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </Show>
-                <Show when={canConfigureData()}>
-                  <Card onClick={openDhis2Credentials}>
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2 text-sm">
-                        {t3({
-                          en: "DHIS2 connection",
-                          fr: "Connexion DHIS2",
-                          pt: "Ligação DHIS2",
-                        })}
-                      </div>
-                      <Show
-                        when={instanceState.dhis2ConnectionUrl}
-                        fallback={
-                          <div class="text-danger text-xs">
-                            {t3({
-                              en: "No connection configured",
-                              fr: "Aucune connexion configurée",
-                              pt: "Nenhuma ligação configurada",
-                            })}
-                          </div>
-                        }
-                        keyed
-                      >
-                        {(url) => (
-                          <div class="ui-gap text-success flex justify-between text-xs">
-                            <span>
-                              {t3({
-                                en: "Server",
-                                fr: "Serveur",
-                                pt: "Servidor",
-                              })}
-                              :
-                            </span>
-                            <span class="truncate">{url}</span>
-                          </div>
-                        )}
-                      </Show>
-                    </div>
-                  </Card>
-                </Show>
-                <Card
-                  onClick={() => openSubPage(Facilities, { family: "hmis" })}
-                >
+      <div class="ui-pad">
+        <Switch>
+          <Match when={activeSection() === "general"}>
+            <div class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+              <Show when={canConfigureSettings()}>
+                <Card onClick={() => openSubPage(AdminAreaLabels, {})}>
                   <div class="ui-spy-sm">
                     <div class="font-700 pb-2 text-sm">
                       {t3({
-                        en: "Facilities",
-                        fr: "Établissements",
-                        pt: "Estabelecimentos de saúde",
+                        en: "Admin area labels",
+                        fr: "Libellés des unités administratives",
+                        pt: "Rótulos das zonas administrativas",
                       })}
                     </div>
+                    {/* The names themselves, so the current naming is
+                      readable without opening the editor. Green marks a
+                      level the instance has actually named; unnamed
+                      levels fall back to the generic default. */}
                     <Show
-                      when={
-                        (instanceState.structure?.hmis.facilities ?? 0) > 0 &&
-                        instanceState.structure?.hmis.facilities
-                      }
+                      when={hasCustomAdminAreaLabel()}
                       fallback={
                         <div class="text-danger text-xs">
                           {t3({
-                            en: "No facilities imported",
-                            fr: "Aucun établissement importé",
-                            pt: "Nenhum estabelecimento de saúde importado",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedCount) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Facilities",
-                                fr: "Établissements",
-                                pt: "Estabelecimentos de saúde",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedCount)}</span>
-                          </div>
-                          {/* Admin areas are derived from these rows, so they
-                            are reported here rather than as their own card. */}
-                          <For
-                            each={ALL_ADMIN_AREA_LEVELS.filter(
-                              (level) =>
-                                structureSchemaForFamily("hmis").adminDepth >=
-                                level,
-                            )}
-                          >
-                            {(level) => (
-                              <div class="ui-gap flex justify-between">
-                                <span>{t3(getAdminAreaLabel(level))}:</span>
-                                <span class="font-mono">
-                                  {toNum0(
-                                    instanceState.structure?.hmis[
-                                      `adminArea${level}s`
-                                    ] ?? 0,
-                                  )}
-                                </span>
-                              </div>
-                            )}
-                          </For>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                </Card>
-                <Card onClick={() => openSubPage(IndicatorsManager, {})}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({
-                        en: "Indicators",
-                        fr: "Indicateurs",
-                        pt: "Indicadores",
-                      })}
-                    </div>
-                    <Show
-                      when={
-                        instanceState.indicators.hmisIndicators > 0 &&
-                        instanceState.indicators.hmisIndicators
-                      }
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No indicators",
-                            fr: "Aucun indicateur",
-                            pt: "Nenhum indicador",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedNumber) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Indicators",
-                                fr: "Indicateurs",
-                                pt: "Indicadores",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedNumber)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                </Card>
-                <Card onClick={() => openSubPage(InstanceDatasetHmis, {})}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({ en: "Data", fr: "Données", pt: "Dados" })}
-                    </div>
-                    <Show
-                      when={instanceState.datasetsWithData.includes("hmis")}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No data added",
-                            fr: "Aucune donnée ajoutée",
-                            pt: "Nenhum dado adicionado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
-                        {t3({
-                          en: "Has data",
-                          fr: "Contient des données",
-                          pt: "Contém dados",
-                        })}
-                      </div>
-                    </Show>
-                  </div>
-                </Card>
-                <Card
-                  onClick={() =>
-                    openSubPage(GeoJsonManager, { family: "hmis" })
-                  }
-                >
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({
-                        en: "GeoJSON maps",
-                        fr: "Cartes GeoJSON",
-                        pt: "Mapas GeoJSON",
-                      })}
-                    </div>
-                    <Show
-                      when={geojsonLevels("hmis").length > 0}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No GeoJSON maps uploaded",
-                            fr: "Aucune carte GeoJSON téléchargée",
-                            pt: "Nenhum mapa GeoJSON carregado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
-                        {t3({
-                          en: "Levels configured",
-                          fr: "Niveaux configurés",
-                          pt: "Níveis configurados",
-                        })}
-                        : {geojsonLevels("hmis").join(", ")}
-                      </div>
-                    </Show>
-                  </div>
-                </Card>
-                <Card onClick={() => openSubPage(PopulationManager, {})}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({
-                        en: "Population",
-                        fr: "Population",
-                        pt: "População",
-                      })}
-                    </div>
-                    <Show
-                      when={
-                        instanceState.populationRowCount > 0
-                          ? instanceState.populationLevel
-                          : undefined
-                      }
-                      keyed
-                      fallback={
-                        <div class="text-base-content-muted text-xs">
-                          {instanceState.populationLevel === undefined
-                            ? t3({
-                                en: "No population level set",
-                                fr: "Aucun niveau de population défini",
-                                pt: "Nenhum nível de população definido",
-                              })
-                            : t3({
-                                en: "No population data",
-                                fr: "Aucune donnée de população",
-                                pt: "Sem dados de população",
-                              })}
-                        </div>
-                      }
-                    >
-                      {(level) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Population level",
-                                fr: "Niveau de population",
-                                pt: "Nível de população",
-                              })}
-                              :
-                            </span>
-                            <span>{t3(getAdminAreaLabel(level))}</span>
-                          </div>
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Population types with data",
-                                fr: "Types de population renseignés",
-                                pt: "Tipos de população com dados",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">
-                              {toNum0(instanceState.populationCoverage.length)}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                </Card>
-              </div>
-            </Match>
-
-            <Match when={activeSection() === "hfa"}>
-              <div
-                class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
-                data-tour="instance-data-hfa"
-              >
-                <Show when={canConfigureSettings()}>
-                  <Card
-                    onClick={() =>
-                      openSubPage(FamilyConfiguration, { family: "hfa" })
-                    }
-                  >
-                    <div class="ui-spy-sm">
-                      <div class="font-700 pb-2 text-sm">
-                        {t3({
-                          en: "Configuration",
-                          fr: "Configuration",
-                          pt: "Configuração",
-                        })}
-                      </div>
-                      <div class="ui-spy-sm text-success text-xs">
-                        <div class="ui-gap flex justify-between">
-                          <span>
-                            {t3({
-                              en: "Admin area depth",
-                              fr: "Profondeur des unités administratives",
-                              pt: "Profundidade das zonas administrativas",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">
-                            {structureSchemaForFamily("hfa").adminDepth}
-                          </span>
-                        </div>
-                        <div class="ui-gap flex justify-between">
-                          <span>
-                            {t3({
-                              en: "Facility columns",
-                              fr: "Colonnes des établissements",
-                              pt: "Colunas dos estabelecimentos",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">
-                            {toNum0(enabledColumnCount("hfa"))}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </Show>
-                <Card
-                  onClick={() => openSubPage(Facilities, { family: "hfa" })}
-                >
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({
-                        en: "Facilities",
-                        fr: "Établissements",
-                        pt: "Estabelecimentos de saúde",
-                      })}
-                    </div>
-                    <Show
-                      when={
-                        (instanceState.structure?.hfa.facilities ?? 0) > 0 &&
-                        instanceState.structure?.hfa.facilities
-                      }
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No facilities imported",
-                            fr: "Aucun établissement importé",
-                            pt: "Nenhum estabelecimento de saúde importado",
-                          })}
-                        </div>
-                      }
-                      keyed
-                    >
-                      {(keyedCount) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "Facilities",
-                                fr: "Établissements",
-                                pt: "Estabelecimentos de saúde",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedCount)}</span>
-                          </div>
-                          {/* Admin areas are derived from these rows, so they
-                            are reported here rather than as their own card. */}
-                          <For
-                            each={ALL_ADMIN_AREA_LEVELS.filter(
-                              (level) =>
-                                structureSchemaForFamily("hfa").adminDepth >=
-                                level,
-                            )}
-                          >
-                            {(level) => (
-                              <div class="ui-gap flex justify-between">
-                                <span>{t3(getAdminAreaLabel(level))}:</span>
-                                <span class="font-mono">
-                                  {toNum0(
-                                    instanceState.structure?.hfa[
-                                      `adminArea${level}s`
-                                    ] ?? 0,
-                                  )}
-                                </span>
-                              </div>
-                            )}
-                          </For>
-                        </div>
-                      )}
-                    </Show>
-                  </div>
-                </Card>
-                <Card onClick={() => openSubPage(InstanceHfaTimePoints, {})}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({
-                        en: "Time points",
-                        fr: "Points temporels",
-                        pt: "Pontos temporais",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.hfaTimePoints.length > 0}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No time points (import data to create)",
-                            fr: "Aucun point temporel (importer des données pour créer)",
-                            pt: "Nenhum ponto temporal (importar dados para criar)",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="ui-spy-sm text-success text-xs">
-                        <div class="ui-gap flex justify-between">
-                          <span>
-                            {t3({
-                              en: "Time points",
-                              fr: "Points temporels",
-                              pt: "Pontos temporais",
-                            })}
-                            :
-                          </span>
-                          <span class="font-mono">
-                            {toNum0(instanceState.hfaTimePoints.length)}
-                          </span>
-                        </div>
-                      </div>
-                    </Show>
-                  </div>
-                </Card>
-                <Card onClick={() => openSubPage(HfaWeights, {})}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({
-                        en: "Sampling weights",
-                        fr: "Pondérations d'échantillonnage",
-                        pt: "Pesos de amostragem",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.hfaWeights.some(
-                        (tp) => tp.weightCount > 0,
-                      )}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No weights imported",
-                            fr: "Aucune pondération importée",
-                            pt: "Nenhum peso importado",
+                            en: "Not set — using default names",
+                            fr: "Non définis — noms par défaut utilisés",
+                            pt: "Não definidos — a usar nomes predefinidos",
                           })}
                         </div>
                       }
                     >
                       <div class="ui-spy-sm text-xs">
-                        <For each={instanceState.hfaWeights}>
-                          {(tp) => (
+                        <For
+                          each={ALL_ADMIN_AREA_LEVELS.filter(
+                            (level) => maxDepth() >= level,
+                          )}
+                        >
+                          {(level) => (
                             <div
-                              class="ui-gap text-success flex justify-between"
+                              class="ui-gap flex justify-between"
                               classList={{
-                                "text-warning":
-                                  tp.weightCount > 0 &&
-                                  tp.facilitiesWithDataAndWeight <
-                                    tp.facilitiesWithData,
+                                "text-success": isAdminAreaLabelSet(level),
+                                "text-base-content-muted":
+                                  !isAdminAreaLabelSet(level),
                               }}
                             >
-                              <span>{tp.timePoint}:</span>
-                              <span class="font-mono">
-                                {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
+                              <span>
+                                {t3({
+                                  en: `Admin area ${level}`,
+                                  fr: `Unité administrative ${level}`,
+                                  pt: `Zona administrativa ${level}`,
+                                })}
+                                :
                               </span>
+                              <span>{t3(getAdminAreaLabel(level))}</span>
                             </div>
                           )}
                         </For>
@@ -754,154 +183,717 @@ export function InstanceData(p: Props) {
                     </Show>
                   </div>
                 </Card>
-                <Card onClick={() => openSubPage(HfaIndicatorsManager, {})}>
+              </Show>
+              <Show when={canConfigureSettings()}>
+                <Card onClick={openAiContext}>
                   <div class="ui-spy-sm">
                     <div class="font-700 pb-2 text-sm">
                       {t3({
-                        en: "Indicators",
-                        fr: "Indicateurs",
-                        pt: "Indicadores",
+                        en: "AI context",
+                        fr: "Contexte IA",
+                        pt: "Contexto de IA",
                       })}
                     </div>
                     <Show
-                      when={
-                        instanceState.indicators.hfaIndicators > 0 &&
-                        instanceState.indicators.hfaIndicators
+                      when={instanceState.aiContext.trim()}
+                      fallback={
+                        <div class="text-base-content-muted text-xs">
+                          {t3({
+                            en: "Not set",
+                            fr: "Non défini",
+                            pt: "Não definido",
+                          })}
+                        </div>
                       }
+                    >
+                      <div class="text-success line-clamp-4 text-xs">
+                        {instanceState.aiContext}
+                      </div>
+                    </Show>
+                  </div>
+                </Card>
+              </Show>
+            </div>
+          </Match>
+
+          <Match when={activeSection() === "hmis"}>
+            <div
+              class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
+              data-tour="instance-data-hmis"
+            >
+              <Show when={canConfigureSettings()}>
+                <Card
+                  onClick={() =>
+                    openSubPage(FamilyConfiguration, { family: "hmis" })
+                  }
+                >
+                  <div class="ui-spy-sm">
+                    <div class="font-700 pb-2 text-sm">
+                      {t3({
+                        en: "Configuration",
+                        fr: "Configuration",
+                        pt: "Configuração",
+                      })}
+                    </div>
+                    <div class="ui-spy-sm text-success text-xs">
+                      <div class="ui-gap flex justify-between">
+                        <span>
+                          {t3({
+                            en: "Admin area depth",
+                            fr: "Profondeur des unités administratives",
+                            pt: "Profundidade das zonas administrativas",
+                          })}
+                          :
+                        </span>
+                        <span class="font-mono">
+                          {structureSchemaForFamily("hmis").adminDepth}
+                        </span>
+                      </div>
+                      <div class="ui-gap flex justify-between">
+                        <span>
+                          {t3({
+                            en: "Facility columns",
+                            fr: "Colonnes des établissements",
+                            pt: "Colunas dos estabelecimentos",
+                          })}
+                          :
+                        </span>
+                        <span class="font-mono">
+                          {toNum0(enabledColumnCount("hmis"))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </Show>
+              <Show when={canConfigureData()}>
+                <Card onClick={openDhis2Credentials}>
+                  <div class="ui-spy-sm">
+                    <div class="font-700 pb-2 text-sm">
+                      {t3({
+                        en: "DHIS2 connection",
+                        fr: "Connexion DHIS2",
+                        pt: "Ligação DHIS2",
+                      })}
+                    </div>
+                    <Show
+                      when={instanceState.dhis2ConnectionUrl}
                       fallback={
                         <div class="text-danger text-xs">
                           {t3({
-                            en: "No HFA indicators configured",
-                            fr: "Aucun indicateur HFA configuré",
-                            pt: "Nenhum indicador HFA configurado",
+                            en: "No connection configured",
+                            fr: "Aucune connexion configurée",
+                            pt: "Nenhuma ligação configurada",
                           })}
                         </div>
                       }
                       keyed
                     >
-                      {(keyedNumber) => (
-                        <div class="ui-spy-sm text-success text-xs">
-                          <div class="ui-gap flex justify-between">
-                            <span>
-                              {t3({
-                                en: "HFA indicators",
-                                fr: "Indicateurs Enquetes FOSA",
-                                pt: "Indicadores HFA",
-                              })}
-                              :
-                            </span>
-                            <span class="font-mono">{toNum0(keyedNumber)}</span>
-                          </div>
+                      {(url) => (
+                        <div class="ui-gap text-success flex justify-between text-xs">
+                          <span>
+                            {t3({
+                              en: "Server",
+                              fr: "Serveur",
+                              pt: "Servidor",
+                            })}
+                            :
+                          </span>
+                          <span class="truncate">{url}</span>
                         </div>
                       )}
                     </Show>
                   </div>
                 </Card>
-                <Card onClick={() => openSubPage(InstanceDatasetHfa, {})}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({ en: "Data", fr: "Données", pt: "Dados" })}
-                    </div>
-                    <Show
-                      when={instanceState.datasetsWithData.includes("hfa")}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No data added",
-                            fr: "Aucune donnée ajoutée",
-                            pt: "Nenhum dado adicionado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
+              </Show>
+              <Card
+                onClick={() => openSubPage(Facilities, { family: "hmis" })}
+              >
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Facilities",
+                      fr: "Établissements",
+                      pt: "Estabelecimentos de saúde",
+                    })}
+                  </div>
+                  <Show
+                    when={
+                      (instanceState.structure?.hmis.facilities ?? 0) > 0 &&
+                      instanceState.structure?.hmis.facilities
+                    }
+                    fallback={
+                      <div class="text-danger text-xs">
                         {t3({
-                          en: "Has data",
-                          fr: "Contient des données",
-                          pt: "Contém dados",
+                          en: "No facilities imported",
+                          fr: "Aucun établissement importé",
+                          pt: "Nenhum estabelecimento de saúde importado",
                         })}
                       </div>
-                    </Show>
+                    }
+                    keyed
+                  >
+                    {(keyedCount) => (
+                      <div class="ui-spy-sm text-success text-xs">
+                        <div class="ui-gap flex justify-between">
+                          <span>
+                            {t3({
+                              en: "Facilities",
+                              fr: "Établissements",
+                              pt: "Estabelecimentos de saúde",
+                            })}
+                            :
+                          </span>
+                          <span class="font-mono">{toNum0(keyedCount)}</span>
+                        </div>
+                        {/* Admin areas are derived from these rows, so they
+                          are reported here rather than as their own card. */}
+                        <For
+                          each={ALL_ADMIN_AREA_LEVELS.filter(
+                            (level) =>
+                              structureSchemaForFamily("hmis").adminDepth >=
+                              level,
+                          )}
+                        >
+                          {(level) => (
+                            <div class="ui-gap flex justify-between">
+                              <span>{t3(getAdminAreaLabel(level))}:</span>
+                              <span class="font-mono">
+                                {toNum0(
+                                  instanceState.structure?.hmis[
+                                    `adminArea${level}s`
+                                  ] ?? 0,
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    )}
+                  </Show>
+                </div>
+              </Card>
+              <Card onClick={() => openSubPage(IndicatorsManager, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Indicators",
+                      fr: "Indicateurs",
+                      pt: "Indicadores",
+                    })}
                   </div>
-                </Card>
+                  <Show
+                    when={
+                      instanceState.indicators.hmisIndicators > 0 &&
+                      instanceState.indicators.hmisIndicators
+                    }
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No indicators",
+                          fr: "Aucun indicateur",
+                          pt: "Nenhum indicador",
+                        })}
+                      </div>
+                    }
+                    keyed
+                  >
+                    {(keyedNumber) => (
+                      <div class="ui-spy-sm text-success text-xs">
+                        <div class="ui-gap flex justify-between">
+                          <span>
+                            {t3({
+                              en: "Indicators",
+                              fr: "Indicateurs",
+                              pt: "Indicadores",
+                            })}
+                            :
+                          </span>
+                          <span class="font-mono">{toNum0(keyedNumber)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </Show>
+                </div>
+              </Card>
+              <Card onClick={() => openSubPage(InstanceDatasetHmis, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({ en: "Data", fr: "Données", pt: "Dados" })}
+                  </div>
+                  <Show
+                    when={instanceState.datasetsWithData.includes("hmis")}
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No data added",
+                          fr: "Aucune donnée ajoutée",
+                          pt: "Nenhum dado adicionado",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="text-success text-xs">
+                      {t3({
+                        en: "Has data",
+                        fr: "Contient des données",
+                        pt: "Contém dados",
+                      })}
+                    </div>
+                  </Show>
+                </div>
+              </Card>
+              <Card
+                onClick={() =>
+                  openSubPage(GeoJsonManager, { family: "hmis" })
+                }
+              >
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "GeoJSON maps",
+                      fr: "Cartes GeoJSON",
+                      pt: "Mapas GeoJSON",
+                    })}
+                  </div>
+                  <Show
+                    when={geojsonLevels("hmis").length > 0}
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No GeoJSON maps uploaded",
+                          fr: "Aucune carte GeoJSON téléchargée",
+                          pt: "Nenhum mapa GeoJSON carregado",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="text-success text-xs">
+                      {t3({
+                        en: "Levels configured",
+                        fr: "Niveaux configurés",
+                        pt: "Níveis configurados",
+                      })}
+                      : {geojsonLevels("hmis").join(", ")}
+                    </div>
+                  </Show>
+                </div>
+              </Card>
+              <Card onClick={() => openSubPage(PopulationManager, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Population",
+                      fr: "Population",
+                      pt: "População",
+                    })}
+                  </div>
+                  <Show
+                    when={
+                      instanceState.populationRowCount > 0
+                        ? instanceState.populationLevel
+                        : undefined
+                    }
+                    keyed
+                    fallback={
+                      <div class="text-base-content-muted text-xs">
+                        {instanceState.populationLevel === undefined
+                          ? t3({
+                              en: "No population level set",
+                              fr: "Aucun niveau de population défini",
+                              pt: "Nenhum nível de população definido",
+                            })
+                          : t3({
+                              en: "No population data",
+                              fr: "Aucune donnée de população",
+                              pt: "Sem dados de população",
+                            })}
+                      </div>
+                    }
+                  >
+                    {(level) => (
+                      <div class="ui-spy-sm text-success text-xs">
+                        <div class="ui-gap flex justify-between">
+                          <span>
+                            {t3({
+                              en: "Population level",
+                              fr: "Niveau de population",
+                              pt: "Nível de população",
+                            })}
+                            :
+                          </span>
+                          <span>{t3(getAdminAreaLabel(level))}</span>
+                        </div>
+                        <div class="ui-gap flex justify-between">
+                          <span>
+                            {t3({
+                              en: "Population types with data",
+                              fr: "Types de population renseignés",
+                              pt: "Tipos de população com dados",
+                            })}
+                            :
+                          </span>
+                          <span class="font-mono">
+                            {toNum0(instanceState.populationCoverage.length)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </Show>
+                </div>
+              </Card>
+            </div>
+          </Match>
+
+          <Match when={activeSection() === "hfa"}>
+            <div
+              class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
+              data-tour="instance-data-hfa"
+            >
+              <Show when={canConfigureSettings()}>
                 <Card
-                  onClick={() => openSubPage(GeoJsonManager, { family: "hfa" })}
+                  onClick={() =>
+                    openSubPage(FamilyConfiguration, { family: "hfa" })
+                  }
                 >
                   <div class="ui-spy-sm">
                     <div class="font-700 pb-2 text-sm">
                       {t3({
-                        en: "GeoJSON maps",
-                        fr: "Cartes GeoJSON",
-                        pt: "Mapas GeoJSON",
+                        en: "Configuration",
+                        fr: "Configuration",
+                        pt: "Configuração",
                       })}
                     </div>
-                    <Show
-                      when={geojsonLevels("hfa").length > 0}
-                      fallback={
-                        <div class="text-danger text-xs">
+                    <div class="ui-spy-sm text-success text-xs">
+                      <div class="ui-gap flex justify-between">
+                        <span>
                           {t3({
-                            en: "No GeoJSON maps uploaded",
-                            fr: "Aucune carte GeoJSON téléchargée",
-                            pt: "Nenhum mapa GeoJSON carregado",
+                            en: "Admin area depth",
+                            fr: "Profondeur des unités administratives",
+                            pt: "Profundidade das zonas administrativas",
                           })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
-                        {t3({
-                          en: "Levels configured",
-                          fr: "Niveaux configurés",
-                          pt: "Níveis configurados",
-                        })}
-                        : {geojsonLevels("hfa").join(", ")}
+                          :
+                        </span>
+                        <span class="font-mono">
+                          {structureSchemaForFamily("hfa").adminDepth}
+                        </span>
                       </div>
-                    </Show>
+                      <div class="ui-gap flex justify-between">
+                        <span>
+                          {t3({
+                            en: "Facility columns",
+                            fr: "Colonnes des établissements",
+                            pt: "Colunas dos estabelecimentos",
+                          })}
+                          :
+                        </span>
+                        <span class="font-mono">
+                          {toNum0(enabledColumnCount("hfa"))}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </Card>
-              </div>
-            </Match>
-
-            <Match when={activeSection() === "iceh"}>
-              <div
-                class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
-                data-tour="instance-data-iceh"
+              </Show>
+              <Card
+                onClick={() => openSubPage(Facilities, { family: "hfa" })}
               >
-                <Card onClick={() => openSubPage(InstanceDatasetIceh, {})}>
-                  <div class="ui-spy-sm">
-                    <div class="font-700 pb-2 text-sm">
-                      {t3({
-                        en: "Equity data",
-                        fr: "Données d'équité",
-                        pt: "Dados de equidade",
-                      })}
-                    </div>
-                    <Show
-                      when={instanceState.datasetsWithData.includes("iceh")}
-                      fallback={
-                        <div class="text-danger text-xs">
-                          {t3({
-                            en: "No data added",
-                            fr: "Aucune donnée ajoutée",
-                            pt: "Nenhum dado adicionado",
-                          })}
-                        </div>
-                      }
-                    >
-                      <div class="text-success text-xs">
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Facilities",
+                      fr: "Établissements",
+                      pt: "Estabelecimentos de saúde",
+                    })}
+                  </div>
+                  <Show
+                    when={
+                      (instanceState.structure?.hfa.facilities ?? 0) > 0 &&
+                      instanceState.structure?.hfa.facilities
+                    }
+                    fallback={
+                      <div class="text-danger text-xs">
                         {t3({
-                          en: "Has data",
-                          fr: "Contient des données",
-                          pt: "Contém dados",
+                          en: "No facilities imported",
+                          fr: "Aucun établissement importé",
+                          pt: "Nenhum estabelecimento de saúde importado",
                         })}
                       </div>
-                    </Show>
+                    }
+                    keyed
+                  >
+                    {(keyedCount) => (
+                      <div class="ui-spy-sm text-success text-xs">
+                        <div class="ui-gap flex justify-between">
+                          <span>
+                            {t3({
+                              en: "Facilities",
+                              fr: "Établissements",
+                              pt: "Estabelecimentos de saúde",
+                            })}
+                            :
+                          </span>
+                          <span class="font-mono">{toNum0(keyedCount)}</span>
+                        </div>
+                        {/* Admin areas are derived from these rows, so they
+                          are reported here rather than as their own card. */}
+                        <For
+                          each={ALL_ADMIN_AREA_LEVELS.filter(
+                            (level) =>
+                              structureSchemaForFamily("hfa").adminDepth >=
+                              level,
+                          )}
+                        >
+                          {(level) => (
+                            <div class="ui-gap flex justify-between">
+                              <span>{t3(getAdminAreaLabel(level))}:</span>
+                              <span class="font-mono">
+                                {toNum0(
+                                  instanceState.structure?.hfa[
+                                    `adminArea${level}s`
+                                  ] ?? 0,
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </For>
+                      </div>
+                    )}
+                  </Show>
+                </div>
+              </Card>
+              <Card onClick={() => openSubPage(InstanceHfaTimePoints, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Time points",
+                      fr: "Points temporels",
+                      pt: "Pontos temporais",
+                    })}
                   </div>
-                </Card>
-              </div>
-            </Match>
-          </Switch>
-        </div>
-      </FrameTop>
+                  <Show
+                    when={instanceState.hfaTimePoints.length > 0}
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No time points (import data to create)",
+                          fr: "Aucun point temporel (importer des données pour créer)",
+                          pt: "Nenhum ponto temporal (importar dados para criar)",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="ui-spy-sm text-success text-xs">
+                      <div class="ui-gap flex justify-between">
+                        <span>
+                          {t3({
+                            en: "Time points",
+                            fr: "Points temporels",
+                            pt: "Pontos temporais",
+                          })}
+                          :
+                        </span>
+                        <span class="font-mono">
+                          {toNum0(instanceState.hfaTimePoints.length)}
+                        </span>
+                      </div>
+                    </div>
+                  </Show>
+                </div>
+              </Card>
+              <Card onClick={() => openSubPage(HfaWeights, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Sampling weights",
+                      fr: "Pondérations d'échantillonnage",
+                      pt: "Pesos de amostragem",
+                    })}
+                  </div>
+                  <Show
+                    when={instanceState.hfaWeights.some(
+                      (tp) => tp.weightCount > 0,
+                    )}
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No weights imported",
+                          fr: "Aucune pondération importée",
+                          pt: "Nenhum peso importado",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="ui-spy-sm text-xs">
+                      <For each={instanceState.hfaWeights}>
+                        {(tp) => (
+                          <div
+                            class="ui-gap text-success flex justify-between"
+                            classList={{
+                              "text-warning":
+                                tp.weightCount > 0 &&
+                                tp.facilitiesWithDataAndWeight <
+                                  tp.facilitiesWithData,
+                            }}
+                          >
+                            <span>{tp.timePoint}:</span>
+                            <span class="font-mono">
+                              {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
+                            </span>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+                </div>
+              </Card>
+              <Card onClick={() => openSubPage(HfaIndicatorsManager, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Indicators",
+                      fr: "Indicateurs",
+                      pt: "Indicadores",
+                    })}
+                  </div>
+                  <Show
+                    when={
+                      instanceState.indicators.hfaIndicators > 0 &&
+                      instanceState.indicators.hfaIndicators
+                    }
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No HFA indicators configured",
+                          fr: "Aucun indicateur HFA configuré",
+                          pt: "Nenhum indicador HFA configurado",
+                        })}
+                      </div>
+                    }
+                    keyed
+                  >
+                    {(keyedNumber) => (
+                      <div class="ui-spy-sm text-success text-xs">
+                        <div class="ui-gap flex justify-between">
+                          <span>
+                            {t3({
+                              en: "HFA indicators",
+                              fr: "Indicateurs Enquetes FOSA",
+                              pt: "Indicadores HFA",
+                            })}
+                            :
+                          </span>
+                          <span class="font-mono">{toNum0(keyedNumber)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </Show>
+                </div>
+              </Card>
+              <Card onClick={() => openSubPage(InstanceDatasetHfa, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({ en: "Data", fr: "Données", pt: "Dados" })}
+                  </div>
+                  <Show
+                    when={instanceState.datasetsWithData.includes("hfa")}
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No data added",
+                          fr: "Aucune donnée ajoutée",
+                          pt: "Nenhum dado adicionado",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="text-success text-xs">
+                      {t3({
+                        en: "Has data",
+                        fr: "Contient des données",
+                        pt: "Contém dados",
+                      })}
+                    </div>
+                  </Show>
+                </div>
+              </Card>
+              <Card
+                onClick={() => openSubPage(GeoJsonManager, { family: "hfa" })}
+              >
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "GeoJSON maps",
+                      fr: "Cartes GeoJSON",
+                      pt: "Mapas GeoJSON",
+                    })}
+                  </div>
+                  <Show
+                    when={geojsonLevels("hfa").length > 0}
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No GeoJSON maps uploaded",
+                          fr: "Aucune carte GeoJSON téléchargée",
+                          pt: "Nenhum mapa GeoJSON carregado",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="text-success text-xs">
+                      {t3({
+                        en: "Levels configured",
+                        fr: "Niveaux configurés",
+                        pt: "Níveis configurados",
+                      })}
+                      : {geojsonLevels("hfa").join(", ")}
+                    </div>
+                  </Show>
+                </div>
+              </Card>
+            </div>
+          </Match>
+
+          <Match when={activeSection() === "iceh"}>
+            <div
+              class="ui-gap grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))]"
+              data-tour="instance-data-iceh"
+            >
+              <Card onClick={() => openSubPage(InstanceDatasetIceh, {})}>
+                <div class="ui-spy-sm">
+                  <div class="font-700 pb-2 text-sm">
+                    {t3({
+                      en: "Equity data",
+                      fr: "Données d'équité",
+                      pt: "Dados de equidade",
+                    })}
+                  </div>
+                  <Show
+                    when={instanceState.datasetsWithData.includes("iceh")}
+                    fallback={
+                      <div class="text-danger text-xs">
+                        {t3({
+                          en: "No data added",
+                          fr: "Aucune donnée ajoutée",
+                          pt: "Nenhum dado adicionado",
+                        })}
+                      </div>
+                    }
+                  >
+                    <div class="text-success text-xs">
+                      {t3({
+                        en: "Has data",
+                        fr: "Contient des données",
+                        pt: "Contém dados",
+                      })}
+                    </div>
+                  </Show>
+                </div>
+              </Card>
+            </div>
+          </Match>
+        </Switch>
+      </div>
     </FrameTop>
   );
 }

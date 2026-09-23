@@ -1,5 +1,5 @@
 import { type Component } from "solid-js";
-import { createMarkdownIt, openComponent } from "panther";
+import { createMarkdownIt, openComponent, Icon } from "panther";
 import { SaveToPromptLibraryModal, type SaveToPromptLibraryResult } from "./save_to_prompt_library_modal";
 import { t3 } from "lib";
 
@@ -29,19 +29,7 @@ export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (prop
         onClick={handleSave}
         class="bg-base-100 text-base-content-muted hover:text-base-content mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded border opacity-0 transition-opacity group-hover:opacity-100"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
+        <Icon iconName="bookmark" class="h-3.5 w-3.5" />
       </button>
       <div
         class="bg-base-200 text-base-content min-w-0 flex-1 rounded px-4 py-3 text-left text-sm"

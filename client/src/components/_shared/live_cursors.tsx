@@ -1,3 +1,4 @@
+import { Icon } from "panther";
 import { PRESENCE_FALLBACK_COLOR, t3 } from "lib";
 import type { Awareness } from "y-protocols/awareness";
 import {
@@ -920,21 +921,20 @@ export function LiveCursorsOverlay(p: {
                   : { transition: "transform 100ms linear" }),
               }}
             >
-              {/* Figma-style arrow; hotspot at the SVG origin. */}
-              <svg
-                width="14"
-                height="18"
-                viewBox="0 0 14 18"
+              {/* The glyph's tip sits about 2px in from its box corner, so
+                  the box is pulled back to put the tip on the hotspot. The
+                  white glow stands in for an outline on same-colour
+                  backgrounds. */}
+              <span
+                class="block -translate-x-0.5 -translate-y-0.5"
+                style={{
+                  color: c.color,
+                  filter: "drop-shadow(0 0 1px #ffffff)",
+                }}
                 aria-hidden="true"
               >
-                <path
-                  d="M1 1 L1 13.5 L4.2 10.6 L6.4 15.8 L8.9 14.7 L6.7 9.6 L11 9.6 Z"
-                  fill={c.color}
-                  stroke="white"
-                  stroke-width="1.2"
-                  stroke-linejoin="round"
-                />
-              </svg>
+                <Icon iconName="pointerFilled" class="h-[18px] w-[18px]" />
+              </span>
               <div
                 class="font-700 absolute rounded px-1 text-[10px] whitespace-nowrap"
                 style={{

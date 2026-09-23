@@ -163,31 +163,28 @@ export function InstanceResultsPackages() {
         <div class="h-full w-full">
           <HeadingBar
             data-tour="instance-results-packages-header"
-            heading={t3({
-              en: "Results packages",
-              fr: "Paquets de résultats",
-              pt: "Pacotes de resultados",
-            })}
-            subheading={
-              isSearching()
-                ? t3({
-                    en: `${visibleRuns().length} results`,
-                    fr: `${visibleRuns().length} résultats`,
-                    pt: `${visibleRuns().length} resultados`,
-                  })
-                : undefined
-            }
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
-              <div class="w-36">
-                <Select
-                  data-tour="instance-results-packages-usage-filter"
-                  value={usageFilter()}
-                  onChange={setUsageFilter}
-                  options={usageOptions()}
-                  fullWidth
-                />
+              <div class="ui-gap flex items-center">
+                <div class="w-36">
+                  <Select
+                    data-tour="instance-results-packages-usage-filter"
+                    value={usageFilter()}
+                    onChange={setUsageFilter}
+                    options={usageOptions()}
+                    fullWidth
+                  />
+                </div>
+                <Show when={isSearching()}>
+                  <span class="text-base-content-muted text-sm text-nowrap">
+                    {t3({
+                      en: `${visibleRuns().length} results`,
+                      fr: `${visibleRuns().length} résultats`,
+                      pt: `${visibleRuns().length} resultados`,
+                    })}
+                  </span>
+                </Show>
               </div>
             }
           >

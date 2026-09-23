@@ -5,7 +5,6 @@ import {
   HeadingBar,
   Select,
   StateHolderWrapper,
-  TabsNavigation,
 } from "panther";
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -53,11 +52,33 @@ export function Explore() {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar
-          heading={t3({ en: "Explore", fr: "Explorer", pt: "Explorar" })}
-        >
-          <Show when={packageId()} keyed>
-            {(runId) => (
+        <Show when={packageId()} keyed>
+          {(runId) => (
+            <HeadingBar
+              compact
+              tabs={{
+                items: [
+                  {
+                    id: "data_table" as const,
+                    label: t3({
+                      en: "Data table",
+                      fr: "Tableau de données",
+                      pt: "Tabela de dados",
+                    }),
+                  },
+                  {
+                    id: "visualization" as const,
+                    label: t3({
+                      en: "Visualization",
+                      fr: "Visualisation",
+                      pt: "Visualização",
+                    }),
+                  },
+                ],
+                value: exploreTab(),
+                onChange: setExploreTab,
+              }}
+            >
               <div class="ui-gap-sm flex items-center">
                 <Select
                   value={runId}
@@ -75,9 +96,9 @@ export function Explore() {
                   size="sm"
                 />
               </div>
-            )}
-          </Show>
-        </HeadingBar>
+            </HeadingBar>
+          )}
+        </Show>
       }
     >
       <Show
@@ -117,46 +138,19 @@ function PackageExplorer(p: {
   return (
     <StateHolderWrapper state={context.state()}>
       {(ctx: RunAuthoringContext) => (
-        <FrameTop
-          panelChildren={
-            <TabsNavigation
-              items={[
-                {
-                  id: "data_table" as const,
-                  label: t3({
-                    en: "Data table",
-                    fr: "Tableau de données",
-                    pt: "Tabela de dados",
-                  }),
-                },
-                {
-                  id: "visualization" as const,
-                  label: t3({
-                    en: "Visualization",
-                    fr: "Visualisation",
-                    pt: "Visualização",
-                  }),
-                },
-              ]}
-              value={exploreTab()}
-              onChange={setExploreTab}
+        <Switch>
+          <Match when={exploreTab() === "data_table"}>
+            <DataTable
+              ctx={ctx}
+              scope={p.scope}
+              queries={p.gridQueries}
+              setQueries={p.setGridQueries}
             />
-          }
-        >
-          <Switch>
-            <Match when={exploreTab() === "data_table"}>
-              <DataTable
-                ctx={ctx}
-                scope={p.scope}
-                queries={p.gridQueries}
-                setQueries={p.setGridQueries}
-              />
-            </Match>
-            <Match when={exploreTab() === "visualization"}>
-              <Visualization ctx={ctx} scope={p.scope} />
-            </Match>
-          </Switch>
-        </FrameTop>
+          </Match>
+          <Match when={exploreTab() === "visualization"}>
+            <Visualization ctx={ctx} scope={p.scope} />
+          </Match>
+        </Switch>
       )}
     </StateHolderWrapper>
   );

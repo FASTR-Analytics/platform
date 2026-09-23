@@ -82,20 +82,14 @@ export function InstanceUsers(p: Props) {
     <FrameTop
       panelChildren={
         <div class="h-full w-full">
-          <HeadingBar
-            data-tour="instance-users-header"
-            heading={t3({
-              en: "Users",
-              fr: "Utilisateurs",
-              pt: "Utilizadores",
-            })}
-          >
+          <HeadingBar data-tour="instance-users-header" compact>
             <div class="ui-gap-sm flex items-center">
               <Show when={currentUserIsHUser()}>
                 <Button
                   onClick={() => setShowHUsers((v) => !v)}
                   iconName={showHUsers() ? "eyeOff" : "eye"}
                   outline
+                  size="sm"
                 >
                   {showHUsers()
                     ? t3({
@@ -115,6 +109,7 @@ export function InstanceUsers(p: Props) {
                   data-tour="instance-users-bulk"
                   onClick={downloadUsersCSV}
                   iconName="download"
+                  size="sm"
                 >
                   {t3({
                     en: "Download users",
@@ -122,7 +117,11 @@ export function InstanceUsers(p: Props) {
                     pt: "Transferir utilizadores",
                   })}
                 </Button>
-                <Button onClick={attemptBatchUploadUsers} iconName="upload">
+                <Button
+                  onClick={attemptBatchUploadUsers}
+                  iconName="upload"
+                  size="sm"
+                >
                   {t3({
                     en: "Batch import from CSV",
                     fr: "Importation groupée depuis CSV",
@@ -134,6 +133,7 @@ export function InstanceUsers(p: Props) {
                 data-tour="instance-users-add"
                 onClick={attemptAddUser}
                 iconName="plus"
+                size="sm"
               >
                 {t3({
                   en: "Add users",

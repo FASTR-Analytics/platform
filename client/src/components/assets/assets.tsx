@@ -2,7 +2,6 @@ import {
   Button,
   FrameTop,
   Table,
-  TabsNavigation,
   createDeleteAction,
   type BulkAction,
   type ListItem,
@@ -84,37 +83,6 @@ export function InstanceAssets() {
     await deleteAction.click();
   }
 
-  return (
-    <FrameTop
-      panelChildren={
-        <div class="h-full w-full">
-          <HeadingBar
-            data-tour="instance-assets-header"
-            heading={t3({ en: "Assets", fr: "Ressources", pt: "Recursos" })}
-          >
-            <Button id="select-file-button" iconName="upload">
-              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
-            </Button>
-          </HeadingBar>
-        </div>
-      }
-    >
-      <AssetFileSystem
-        assets={instanceState.assets}
-        currentUserEmail={instanceState.currentUserEmail}
-        isAdmin={instanceState.currentUserIsGlobalAdmin}
-        onDelete={attemptDeleteAssetFile}
-      />
-    </FrameTop>
-  );
-}
-
-function AssetFileSystem(p: {
-  assets: AssetInfo[];
-  currentUserEmail: string;
-  isAdmin: boolean;
-  onDelete: (fileName: string) => void;
-}) {
   const [selectedType, setSelectedType] = createSignal<FileType>("csv");
 
   const grouped = createMemo(() => {
@@ -122,7 +90,7 @@ function AssetFileSystem(p: {
     for (const type of FILE_TYPE_ORDER) {
       map.set(type, []);
     }
-    for (const asset of p.assets) {
+    for (const asset of instanceState.assets) {
       map.get(getFileType(asset))!.push(asset);
     }
     return map;
@@ -146,42 +114,58 @@ function AssetFileSystem(p: {
     })),
   );
 
+  const assetTabs = () => {
+    const active = activeType();
+    return active === undefined
+      ? undefined
+      : {
+          "data-tour": "instance-assets-tabs",
+          items: tabItems(),
+          value: active,
+          onChange: setSelectedType,
+        };
+  };
+
   return (
-    <Show
-      when={activeType()}
-      fallback={
-        <p class="text-base-content-muted ui-pad text-sm">
-          {t3({
-            en: "No assets uploaded yet",
-            fr: "Aucune ressource téléversée",
-            pt: "Ainda não foram carregados recursos",
-          })}
-        </p>
+    <FrameTop
+      panelChildren={
+        <div class="h-full w-full">
+          <HeadingBar
+            data-tour="instance-assets-header"
+            compact
+            tabs={assetTabs()}
+          >
+            <Button id="select-file-button" iconName="upload" size="sm">
+              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
+            </Button>
+          </HeadingBar>
+        </div>
       }
     >
-      {(active) => (
-        <FrameTop
-          panelChildren={
-            <TabsNavigation
-              data-tour="instance-assets-tabs"
-              items={tabItems()}
-              value={active()}
-              onChange={setSelectedType}
-              insetRail
-            />
-          }
-        >
+      <Show
+        when={activeType()}
+        fallback={
+          <p class="text-base-content-muted ui-pad text-sm">
+            {t3({
+              en: "No assets uploaded yet",
+              fr: "Aucune ressource téléversée",
+              pt: "Ainda não foram carregados recursos",
+            })}
+          </p>
+        }
+      >
+        {(active) => (
           <div class="ui-pad h-full w-full" data-tour="instance-assets-list">
             <AssetTable
               files={grouped().get(active()) ?? []}
-              currentUserEmail={p.currentUserEmail}
-              isAdmin={p.isAdmin}
-              onDelete={p.onDelete}
+              currentUserEmail={instanceState.currentUserEmail}
+              isAdmin={instanceState.currentUserIsGlobalAdmin}
+              onDelete={attemptDeleteAssetFile}
             />
           </div>
-        </FrameTop>
-      )}
-    </Show>
+        )}
+      </Show>
+    </FrameTop>
   );
 }
 
