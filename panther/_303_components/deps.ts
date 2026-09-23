@@ -28,6 +28,7 @@ export type {
   MeasuredColsLayoutNode,
   MeasuredLayoutNode,
 } from "../_008_layouter/mod.ts";
+export type { TableDataTransformed } from "../_010_table/mod.ts";
 export { FigureRenderer } from "../_011_figure_renderer/mod.ts";
 export type { FigureInputs } from "../_011_figure_renderer/mod.ts";
 export { Csv } from "../_100_csv/mod.ts";

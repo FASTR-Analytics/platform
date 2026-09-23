@@ -3,7 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { HeaderGlyph } from "../display_table/header_glyph.tsx";
 import type {
   DataGridCell,
@@ -95,6 +102,16 @@ export function DataGrid(p: DataGridProps) {
     return spans;
   });
 
+  const headerCells = new Map<string, HTMLTableCellElement>();
+  createEffect(() => {
+    const id = p.focusColumnId;
+    if (id === undefined || id === null) return;
+    headerCells.get(id)?.scrollIntoView({
+      inline: "nearest",
+      block: "nearest",
+    });
+  });
+
   const toggleSort = (columnId: string) => {
     const prev = sort();
     const next: DataGridSort = prev?.columnId === columnId
@@ -163,20 +180,29 @@ export function DataGrid(p: DataGridProps) {
               </button>
             </th>
             <For each={p.columns}>
-              {(column) => (
-                <th class="border-b border-r px-1 py-1 align-bottom">
-                  <button
-                    type="button"
-                    class={HEADER_BUTTON}
-                    onClick={() => toggleSort(column.id)}
+              {(column) => {
+                onCleanup(() => headerCells.delete(column.id));
+                return (
+                  <th
+                    ref={(el) => headerCells.set(column.id, el)}
+                    class="border-b border-r px-1 py-1 align-bottom"
                   >
-                    <span class="flex-1 whitespace-nowrap text-right font-700">
-                      {column.label}
-                    </span>
-                    {sortGlyph(column.id)}
-                  </button>
-                </th>
-              )}
+                    <button
+                      type="button"
+                      class={HEADER_BUTTON}
+                      classList={{
+                        "bg-base-200-hover": p.focusColumnId === column.id,
+                      }}
+                      onClick={() => toggleSort(column.id)}
+                    >
+                      <span class="flex-1 whitespace-nowrap text-right font-700">
+                        {column.label}
+                      </span>
+                      {sortGlyph(column.id)}
+                    </button>
+                  </th>
+                );
+              }}
             </For>
           </tr>
         </thead>
