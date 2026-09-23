@@ -122,13 +122,13 @@ function DatasetDisplayPresentation(p: {
       key: "questionnaireValues",
       header: t3({ en: "Questionnaire Values", fr: "Valeurs du questionnaire", pt: "Valores do questionário" }),
       sortable: false,
-      render: (item) => <span class="text-xs">{item.questionnaireValues}</span>,
+      render: (item) => <span>{item.questionnaireValues}</span>,
     },
     {
       key: "dataValues",
       header: t3({ en: "Data Values", fr: "Valeurs des données", pt: "Valores dos dados" }),
       sortable: false,
-      render: (item) => <span class="text-xs">{item.dataValues}</span>,
+      render: (item) => <span>{item.dataValues}</span>,
     },
   ];
 

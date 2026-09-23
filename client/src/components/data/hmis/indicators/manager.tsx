@@ -509,12 +509,12 @@ function IndicatorsTable(p: {
       sortable: true,
       sortValue: definedByText,
       render: (indicator) => (
-        <div class="text-xs">
+        <div>
           <div class="font-mono">
             <WrapOnUnderscore text={definedByText(indicator)} />
           </div>
           <Show when={dhis2LabelOf(indicator)}>
-            {(label) => <div class="text-base-content-muted">{label()}</div>}
+            {(label) => <div class="ui-text-caption">{label()}</div>}
           </Show>
         </div>
       ),
@@ -542,7 +542,7 @@ function IndicatorsTable(p: {
       render: (indicator) => (
         <Show when={statusOf(indicator)}>
           {(s) => (
-            <div class="text-xs">
+            <div>
               <Show when={s().problem}>
                 {(problem) => (
                   <div class="text-danger font-700">{problem()}</div>

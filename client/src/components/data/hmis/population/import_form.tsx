@@ -374,7 +374,7 @@ function PreviewTypeCoverage(p: { type: PopulationImportPreviewType }) {
       }),
       render: (row) => (
         <Show when={row.missingCount > 0}>
-          <span class="text-xs">
+          <span>
             {row.missingAreas.join("; ")}
             <Show when={row.missingCount > row.missingAreas.length}>
               {" "}

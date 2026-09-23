@@ -15,7 +15,7 @@ export function StratifiersTab(p: { strats: DisplayRow[] }) {
       key: "strat",
       header: t3({ en: "Stratifier", fr: "Stratificateur", pt: "Estratificador" }),
       sortable: true,
-      render: (item) => <span class="font-mono text-xs">{item.strat}</span>,
+      render: (item) => <span class="font-mono">{item.strat}</span>,
     },
     {
       key: "label",

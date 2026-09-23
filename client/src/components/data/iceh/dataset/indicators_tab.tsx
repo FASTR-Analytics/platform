@@ -15,7 +15,7 @@ export function IndicatorsTab(p: { indicators: IcehIndicator[] }) {
       header: t3({ en: "Code", fr: "Code", pt: "Código" }),
       sortable: true,
       render: (item) => (
-        <span class="font-mono text-xs">{item.indicatorCode}</span>
+        <span class="font-mono">{item.indicatorCode}</span>
       ),
     },
     {
@@ -32,13 +32,13 @@ export function IndicatorsTab(p: { indicators: IcehIndicator[] }) {
       key: "numerator",
       header: t3({ en: "Numerator", fr: "Numérateur", pt: "Numerador" }),
       sortable: false,
-      render: (item) => <span class="text-xs">{item.numerator}</span>,
+      render: (item) => <span>{item.numerator}</span>,
     },
     {
       key: "denominator",
       header: t3({ en: "Denominator", fr: "Dénominateur", pt: "Denominador" }),
       sortable: false,
-      render: (item) => <span class="text-xs">{item.denominator}</span>,
+      render: (item) => <span>{item.denominator}</span>,
     },
   ];
 

@@ -185,7 +185,7 @@ function AssetTable(p: {
       }),
       sortable: true,
       render: (asset) => (
-        <span class="font-mono text-sm">{asset.fileName}</span>
+        <span class="font-mono">{asset.fileName}</span>
       ),
     },
     {
@@ -193,7 +193,7 @@ function AssetTable(p: {
       header: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-base-content-muted text-sm">
+        <span class="text-base-content-muted">
           {formatFileSize(asset.size)}
         </span>
       ),
@@ -203,7 +203,7 @@ function AssetTable(p: {
       header: t3({ en: "Modified", fr: "Modifié", pt: "Modificado" }),
       sortable: true,
       render: (asset) => (
-        <span class="text-base-content-muted text-sm">
+        <span class="text-base-content-muted">
           {formatDate(asset.lastModified)}
         </span>
       ),
@@ -216,12 +216,12 @@ function AssetTable(p: {
         <Show
           when={asset.uploaderEmail}
           fallback={
-            <span class="text-base-content-muted text-sm italic">
+            <span class="text-base-content-muted italic">
               {t3({ en: "system", fr: "système", pt: "sistema" })}
             </span>
           }
         >
-          <span class="font-mono text-sm">{asset.uploaderEmail}</span>
+          <span class="font-mono">{asset.uploaderEmail}</span>
         </Show>
       ),
     },

@@ -277,9 +277,9 @@ function UserTable(p: {
       render: (user) => {
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
         return name ? (
-          <span class="text-sm">{name}</span>
+          <span>{name}</span>
         ) : (
-          <span class="text-base-content-muted text-sm">—</span>
+          <span class="text-base-content-muted">—</span>
         );
       },
     },
@@ -299,7 +299,7 @@ function UserTable(p: {
       render: (user) => {
         if (user.lastActiveTs === -1) {
           return (
-            <span class="text-base-content-muted text-sm">
+            <span class="text-base-content-muted">
               {p.logs === undefined
                 ? "..."
                 : t3({ en: "Never", fr: "Jamais", pt: "Nunca" })}
@@ -307,7 +307,7 @@ function UserTable(p: {
           );
         }
         return (
-          <span class="text-sm">
+          <span>
             {formatTimeAgo(new Date(user.lastActiveTs))}
           </span>
         );
@@ -320,7 +320,7 @@ function UserTable(p: {
       render: (user) => {
         if (user.isContactPerson) {
           return (
-            <span class="text-primary text-sm">
+            <span class="text-primary">
               {t3({
                 en: "Contact person",
                 fr: "Personne de contact",
@@ -331,7 +331,7 @@ function UserTable(p: {
         }
         if (user.isGlobalAdmin) {
           return (
-            <span class="text-primary text-sm">
+            <span class="text-primary">
               {t3({
                 en: "Instance administrator",
                 fr: "Administrateur d'instance",
@@ -342,7 +342,7 @@ function UserTable(p: {
         }
         return (
           <span
-            class={`text-sm ${!hasGlobalPermissions(user) ? "text-base-content-muted" : ""}`}
+            class={hasGlobalPermissions(user) ? "" : "text-base-content-muted"}
           >
             {getGlobalPermissionSummary(user)}
           </span>

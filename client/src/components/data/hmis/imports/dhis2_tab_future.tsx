@@ -142,7 +142,7 @@ export function Dhis2TabFuture(p: Props) {
               {s.lastFiredAt ? ` — ${new Date(s.lastFiredAt).toLocaleString()}` : ""}
             </span>
             <Show when={o.danger && s.lastError}>
-              <div class="text-danger text-xs">{s.lastError}</div>
+              <div class="ui-text-caption text-danger">{s.lastError}</div>
             </Show>
           </div>
         );
@@ -182,7 +182,7 @@ export function Dhis2TabFuture(p: Props) {
           <div>
             <span class={o.danger ? "text-danger font-700" : ""}>{o.text}</span>
             <Show when={o.danger && s.lastError}>
-              <div class="text-danger text-xs">{s.lastError}</div>
+              <div class="ui-text-caption text-danger">{s.lastError}</div>
             </Show>
           </div>
         );

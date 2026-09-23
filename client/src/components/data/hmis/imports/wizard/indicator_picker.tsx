@@ -78,7 +78,7 @@ export function Dhis2IndicatorPicker(p: Props) {
       key: "defined_by",
       header: t3({ en: "Defined by", fr: "Défini par", pt: "Definido por" }),
       render: (item) => (
-        <span class="font-mono text-xs">
+        <span class="font-mono">
           <WrapOnUnderscore text={definedByText(item)} />
         </span>
       ),

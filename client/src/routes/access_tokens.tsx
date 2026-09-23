@@ -100,20 +100,20 @@ function AccessTokensPanel(p: { email: string }) {
       key: "label",
       header: "Label",
       sortable: true,
-      render: (pat) => <span class="font-mono text-sm">{pat.label}</span>,
+      render: (pat) => <span class="font-mono">{pat.label}</span>,
     },
     {
       key: "createdAt",
       header: "Created",
       sortable: true,
-      render: (pat) => <span class="text-sm">{formatDate(pat.createdAt)}</span>,
+      render: (pat) => <span>{formatDate(pat.createdAt)}</span>,
     },
     {
       key: "lastUsedAt",
       header: "Last used",
       sortable: true,
       render: (pat) => (
-        <span class="text-sm">{formatDate(pat.lastUsedAt)}</span>
+        <span>{formatDate(pat.lastUsedAt)}</span>
       ),
     },
     {
