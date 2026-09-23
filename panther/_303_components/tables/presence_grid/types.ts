@@ -17,4 +17,7 @@ export type PresenceGridProps = {
   // "fixed": a 16px swatch per cell (dense, many columns).
   // "stretch": the swatch fills its column (few columns).
   cellWidth: "fixed" | "stretch";
+  // Caps the scroll box (e.g. "500px", "60vh") in place of the parent's
+  // height, for a parent that gives none.
+  maxHeight?: string;
 };

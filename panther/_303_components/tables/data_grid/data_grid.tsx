@@ -128,6 +128,7 @@ export function DataGrid(p: DataGridProps) {
     <div
       ref={scroller}
       class="w-fit max-w-full max-h-full overflow-auto rounded border"
+      style={{ "max-height": p.maxHeight }}
     >
       <table class="ui-text-small border-separate border-spacing-0">
         <thead class="bg-base-200 sticky top-0 z-20">

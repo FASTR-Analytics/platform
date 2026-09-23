@@ -258,7 +258,7 @@ export function Table<
           ref={scrollContainerRef}
           onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
           class="min-h-0 overflow-auto rounded border"
-          style={{ "max-height": p.tableContentMaxHeight }}
+          style={{ "max-height": p.maxHeight }}
         >
           <table class="min-w-full table-auto border-collapse">
             <thead class="bg-base-200 sticky top-0 z-10">

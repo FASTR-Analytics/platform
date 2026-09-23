@@ -54,9 +54,9 @@ export type TableProps<T, K extends keyof T = keyof T> = {
   noRowsMessage?: string;
   bulkActions?: BulkAction<T>[];
   selectionLabel?: string; // e.g. "user", "row", "item"
-  // Caps the body height (e.g. "400px", "50vh") where the parent gives none;
-  // a parent of definite height already caps it.
-  tableContentMaxHeight?: string;
+  // Caps the scroll box (e.g. "500px", "60vh") in place of the parent's
+  // height, for a parent that gives none.
+  maxHeight?: string;
   defaultSort?: SortConfig;
   onSortChange?: (config: SortConfig | null) => void;
   // Initial per-column excluded values, and the callback to persist them.

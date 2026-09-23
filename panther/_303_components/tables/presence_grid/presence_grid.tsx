@@ -25,7 +25,10 @@ export function PresenceGrid(p: PresenceGridProps) {
     p.cellWidth === "stretch" ? "w-full min-w-4" : "w-4";
 
   return (
-    <div class="w-fit max-w-full max-h-full overflow-auto">
+    <div
+      class="w-fit max-w-full max-h-full overflow-auto"
+      style={{ "max-height": p.maxHeight }}
+    >
       <table class="border-separate border-spacing-0 text-xs">
         <thead class="bg-base-100 sticky top-0 z-20">
           <tr class="h-5">

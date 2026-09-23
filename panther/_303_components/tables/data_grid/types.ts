@@ -45,4 +45,7 @@ export type DataGridProps = {
   // A known column is scrolled into view and its header marked; an unknown
   // id or null does nothing.
   focusColumnId?: string | null;
+  // Caps the scroll box (e.g. "500px", "60vh") in place of the parent's
+  // height, for a parent that gives none.
+  maxHeight?: string;
 };
