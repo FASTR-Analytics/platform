@@ -30,7 +30,7 @@ import {
   createSignal,
   type JSX,
 } from "solid-js";
-import { sortBySortMode } from "./sort_by_sort_mode";
+import { nextSort, sortBySortMode } from "./sort_by_sort_mode";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
@@ -39,11 +39,11 @@ import {
   openShellEditor,
   pendingEditorOpen,
   productsExpandedFolders,
-  productsSortMode,
+  productsSort,
   productsTypeFilter,
   setPendingEditorOpen,
   setProductsExpandedFolders,
-  setProductsSortMode,
+  setProductsSort,
   setProductsTypeFilter,
 } from "~/state/t4_ui";
 import { ProductCopilotHost } from "~/components/products/copilot/mod.ts";
@@ -160,11 +160,11 @@ export function Products() {
   const isSearching = () => searchText().length >= _SEARCH_MIN_LENGTH;
 
   const productTree = createMemo(() => {
-    const sortMode = productsSortMode();
+    const listSort = productsSort();
     const sort = <T extends { label: string; lastUpdated: string }>(xs: T[]) =>
       sortBySortMode(
         xs,
-        sortMode,
+        listSort,
         (x) => x.label,
         (x) => x.lastUpdated,
       );
@@ -586,8 +586,8 @@ export function Products() {
     >
       <ListView
         rows={treeRows()}
-        sortMode={productsSortMode()}
-        onSortMode={setProductsSortMode}
+        sort={productsSort()}
+        onSort={(mode) => setProductsSort(nextSort(productsSort(), mode))}
         onOpenProduct={(product) => void openProduct(product)}
         onToggleFolder={toggleFolder}
         onProductMenu={handleProductMenu}

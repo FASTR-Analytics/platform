@@ -1,7 +1,7 @@
 import { t3, TC, type Folder } from "lib";
 import type { MenuItem } from "panther";
 import { sortBySortMode } from "./sort_by_sort_mode";
-import { productsSortMode } from "~/state/t4_ui";
+import { productsSort } from "~/state/t4_ui";
 import { childFolders } from "./_shared/mod.ts";
 
 // The move affordances D16 gives both menus: quick hops within reach of the
@@ -24,7 +24,7 @@ export function buildQuickMoveEntries(args: {
     childFolders(args.folders, args.parentId).filter(
       (f) => !args.excludeIds.has(f.id),
     ),
-    productsSortMode(),
+    productsSort(),
     (x) => x.label,
     (x) => x.lastUpdated,
   );

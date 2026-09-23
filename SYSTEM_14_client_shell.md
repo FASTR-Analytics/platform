@@ -250,10 +250,11 @@ then the signal: the rail's `navCollapsed`; the Data page's section tab
 `exploreTab` (Data table / Visualization) and family `exploreFamily` (its
 package and scope are page signals, never stored); the
 product explorer's three (`productsExpandedFolders`, the open folder ids as
-a JSON array; `productsSortMode`, `SortMode = "name" | "recent"` from
-`lib/types/sort.ts`, one vocabulary for every list; `productsTypeFilter`,
-null = every type). The open-folder set is parsed defensively (malformed
-JSON reads as empty); the rest are unvalidated on read: they only feed
+a JSON array; `productsSort`, a `ListSort` (`SortMode = "name" | "recent"`
+plus a direction) from `lib/types/sort.ts`, one vocabulary for every list;
+`productsTypeFilter`, null = every type). The open-folder set and the sort
+are parsed defensively (malformed JSON reads as the default); the rest are
+unvalidated on read: they only feed
 comparisons, and a value from a build that spelled one differently
 degrades to "no match" rather than throwing. Plus the scheme preference
 (`scheme`, tri-state on panther's data-scheme contract, applied at module

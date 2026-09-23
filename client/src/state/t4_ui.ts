@@ -6,7 +6,7 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import type { DatasetType, ProductType, SlideType, SortMode } from "lib";
+import type { DatasetType, ListSort, ProductType, SlideType } from "lib";
 
 // ============================================================================
 // Instance shell
@@ -114,14 +114,24 @@ export function setProductsExpandedFolders(folderIds: ReadonlySet<string>) {
 }
 
 // Set by the list's clickable Name and Last updated headers.
-const storedProductsSortMode = localStorage.getItem(
-  "productsSortMode",
-) as SortMode | null;
-export const [productsSortMode, setProductsSortModeInternal] =
-  createSignal<SortMode>(storedProductsSortMode ?? "recent");
-export function setProductsSortMode(mode: SortMode) {
-  localStorage.setItem("productsSortMode", mode);
-  setProductsSortModeInternal(mode);
+function readStoredProductsSort(): ListSort {
+  const fallback: ListSort = { mode: "recent", direction: "desc" };
+  try {
+    const parsed = JSON.parse(localStorage.getItem("productsSort") ?? "");
+    return (parsed.mode === "name" || parsed.mode === "recent") &&
+        (parsed.direction === "asc" || parsed.direction === "desc")
+      ? { mode: parsed.mode, direction: parsed.direction }
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
+export const [productsSort, setProductsSortInternal] = createSignal<ListSort>(
+  readStoredProductsSort(),
+);
+export function setProductsSort(sort: ListSort) {
+  localStorage.setItem("productsSort", JSON.stringify(sort));
+  setProductsSortInternal(sort);
 }
 
 // null = every type. See `buildProductTree` for what the filter hides.

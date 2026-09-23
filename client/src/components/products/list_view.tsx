@@ -1,4 +1,4 @@
-import { t3, type Folder, type ProductSummary, type SortMode } from "lib";
+import { t3, type Folder, type ListSort, type ProductSummary, type SortMode } from "lib";
 import { Button, Icon, type IconName } from "panther";
 import { Index, Match, Switch, type JSX } from "solid-js";
 import { folderCountsLine } from "./folder_labels";
@@ -26,8 +26,8 @@ type ProductRow = Extract<ProductTreeRow, { kind: "product" }>;
 
 type Props = {
   rows: ProductTreeRow[];
-  sortMode: SortMode;
-  onSortMode: (mode: SortMode) => void;
+  sort: ListSort;
+  onSort: (mode: SortMode) => void;
   onOpenProduct: (product: ProductSummary) => void;
   onToggleFolder: (folderId: string) => void;
   onProductMenu: (evt: MouseEvent, product: ProductSummary) => void;
@@ -37,22 +37,24 @@ type Props = {
 };
 
 export function ListView(p: Props) {
-  // Name sorts ascending and recent sorts newest first, so the active glyph
-  // points the way DisplayTable's does for that direction.
   const sortGlyph = (mode: SortMode): IconName =>
-    p.sortMode !== mode ? "arrowsUpDown" : mode === "name" ? "arrowUp" : "arrowDown";
+    p.sort.mode !== mode
+      ? "arrowsUpDown"
+      : p.sort.direction === "asc"
+        ? "arrowUp"
+        : "arrowDown";
 
   function headerSortButton(label: string, mode: SortMode): JSX.Element {
     return (
       <button
         type="button"
         class="ui-hoverable-base-100 ui-focusable -ml-1.5 inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-1 uppercase"
-        onClick={() => p.onSortMode(mode)}
+        onClick={() => p.onSort(mode)}
       >
         {label}
         <span
           class="inline-flex"
-          classList={{ "opacity-40": p.sortMode !== mode }}
+          classList={{ "opacity-40": p.sort.mode !== mode }}
         >
           <Icon iconName={sortGlyph(mode)} />
         </span>
@@ -222,7 +224,7 @@ export function ListView(p: Props) {
       data-tour="products-items"
     >
       <div
-        class={`${_ROW_GRID} font-700 text-xs uppercase tracking-wider bg-base-100 sticky top-0 z-10 border-b`}
+        class={`${_ROW_GRID} font-700 text-xs uppercase tracking-wider bg-base-100 sticky top-0 z-10 border-b pt-1`}
       >
         <div class="ui-pad-sm">
           {headerSortButton(t3({ en: "Name", fr: "Nom", pt: "Nome" }), "name")}
