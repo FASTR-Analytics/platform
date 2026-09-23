@@ -5,7 +5,6 @@ import { t3, TC } from "lib";
 import {
   Button,
   ButtonGroup,
-  Checkbox,
   TextArea,
   ModalContainer,
   Card,
@@ -151,21 +150,6 @@ export function ProfileForm(
             setEditingOrganisation(false);
             return { success: true };
           });
-
-          const [optedIn, setOptedIn] = createSignal(
-            clerk.user?.unsafeMetadata?.emailOptIn === true,
-          );
-
-          async function toggleOptIn(next: boolean) {
-            setOptedIn(next);
-            await clerk.user?.update({
-              unsafeMetadata: {
-                ...clerk.user.unsafeMetadata,
-                emailOptIn: next,
-                emailOptInAsked: true,
-              },
-            });
-          }
 
           return (
             <>
@@ -454,27 +438,6 @@ export function ProfileForm(
                       );
                     }}
                   </StateHolderWrapper>
-                </div>
-              </Card>
-
-              {/* Mailing list */}
-              <Card
-                header={t3({
-                  en: "Mailing list",
-                  fr: "Liste de diffusion",
-                  pt: "Lista de distribuição",
-                })}
-              >
-                <div class="ui-spy-sm">
-                  <Checkbox
-                    checked={optedIn()}
-                    onChange={toggleOptIn}
-                    label={t3({
-                      en: "Receive email updates and announcements",
-                      fr: "Recevoir des mises à jour et annonces par email",
-                      pt: "Receber atualizações e anúncios por email",
-                    })}
-                  />
                 </div>
               </Card>
 

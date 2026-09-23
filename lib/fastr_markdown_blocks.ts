@@ -10,7 +10,6 @@
 //   :::columns{cols=2}  :::col{span=2} … :::      :::
 //   :::quote{cite="Dr N. Kamara"} … :::
 //   :::pagebreak                                    ← leaf, ends the printed page
-//   :::callout{break=before} … :::                  ← any block may start/end a page
 //
 // A container's design lives entirely in the theme stylesheet (report_fastr_css.ts)
 // — the body never carries CSS, which is what makes the format hand-editable and
@@ -49,6 +48,9 @@ export const FASTR_LEAF_BLOCK_NAMES: readonly string[] = [
 
 // `break=before|after` on any block: the printed page ends before or after it.
 // The paged stylesheet reads the data attribute; on screen it does nothing.
+// Legacy: neither the toolbar nor the AI brief offers it any more (a page
+// break is the `:::pagebreak` leaf), but documents that carry it still print
+// as they did.
 export const FASTR_BREAK_MODES = ["before", "after"] as const;
 export type FastrBreakMode = (typeof FASTR_BREAK_MODES)[number];
 

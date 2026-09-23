@@ -42,6 +42,7 @@ import {
   t3,
   setInlineSizeEdit,
   setInlineUnderlineEdit,
+  insertBlockEdit,
   tableSnippet,
   toggleInlineDelimiters,
   toggleLinePrefixEdit,
@@ -510,17 +511,13 @@ export function ReportBodyEditor(p: Props) {
 
   function insertBlockOnNewLine(token: string) {
     if (!view) return;
-    const sel = view.state.selection.main;
-    const line = view.state.doc.lineAt(sel.from);
-    // Place the token as its own block: break out of the current line, then
-    // leave a trailing blank line for continued typing.
-    const atLineStart = sel.from === line.from;
-    const prefix = atLineStart ? "" : "\n\n";
-    const insert = `${prefix}${token}\n\n`;
-    const at = atLineStart ? line.from : sel.from;
+    // The token as a block of its own, and never INSIDE another block: a
+    // caret parked in a card or a callout puts it after that whole region
+    // (insertBlockEdit), then leaves the caret on a blank line to type on.
+    const r = insertBlockEdit(view.state.doc.toString(), view.state.selection.main.from, token);
     view.dispatch({
-      changes: { from: at, insert },
-      selection: { anchor: at + insert.length },
+      changes: r.changes,
+      selection: r.selection,
       scrollIntoView: true,
     });
     view.focus();

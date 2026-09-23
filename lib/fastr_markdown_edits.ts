@@ -29,7 +29,7 @@ import {
   updateContainerFenceLine,
 } from "./fastr_markdown_blocks.ts";
 import type { FastrCoverLayout } from "./fastr_markdown_blocks.ts";
-import { isFastrEmbedLine } from "./fastr_live_regions.ts";
+import { fastrLiveRegions, isFastrEmbedLine } from "./fastr_live_regions.ts";
 
 export type TextEdit = { from: number; to: number; insert: string };
 
@@ -1375,3 +1375,84 @@ function inlineSpansOf(line: string): InlineSpan[] {
   return spans;
 }
 
+// ── Blocks as units ──────────────────────────────────────────────────────────
+// The editor renders every top-level region (a `:::` block with all it nests,
+// a leaf line, a table, a lone embed) as ONE widget, and the caret inside one
+// is parked, not typing. Two gestures treat the region as the unit it looks
+// like: an insert never lands inside it, and Enter opens a line beside it.
+
+export type FastrRegionSpan = {
+  kind: "container" | "leaf" | "table" | "embed";
+  name?: string;
+  // 1-based, inclusive.
+  from1: number;
+  to1: number;
+};
+
+// The top-level region that holds `line1`, or undefined for prose.
+export function fastrRegionAtLine(
+  doc: string,
+  line1: number,
+): FastrRegionSpan | undefined {
+  const r = fastrLiveRegions(doc.split("\n")).find((x) =>
+    x.startLine + 1 <= line1 && line1 <= x.endLine + 1
+  );
+  if (!r) return undefined;
+  return { kind: r.kind, name: r.fence?.name, from1: r.startLine + 1, to1: r.endLine + 1 };
+}
+
+// Insert `token` as a block of its own at `pos`. In prose it goes where the
+// caret is (breaking out of a line the caret is inside); with the caret in a
+// region — a callout, a card in a tiles row, a table cell — it goes AFTER the
+// whole top-level region, never inside it: a table inside a callout, or a
+// callout inside a column, is what the Insert menu used to produce from a
+// caret that happened to be parked there. The selection lands on the blank
+// line after the token, ready to type.
+export function insertBlockEdit(doc: string, pos: number, token: string): EditResult {
+  const line = lineAt(doc, pos);
+  const line1 = doc.slice(0, line.from).split("\n").length;
+  const region = fastrRegionAtLine(doc, line1);
+  if (region === undefined) {
+    // A blank line on either side of the token, using the ones that stand:
+    // at the start of a line the line before it must be blank (or there be
+    // none), and a blank current line is the one the caret lands on.
+    const atLineStart = pos === line.from;
+    const prevBlank = line1 === 1 || lineAt(doc, line.from - 1).text.trim().length === 0;
+    const curBlank = line.text.trim().length === 0;
+    const prefix = atLineStart ? (prevBlank ? "" : "\n") : "\n\n";
+    const suffix = atLineStart && curBlank ? "\n" : "\n\n";
+    const insert = `${prefix}${token}${suffix}`;
+    const at = atLineStart ? line.from : pos;
+    return { changes: [{ from: at, to: at, insert }], selection: { anchor: at + insert.length } };
+  }
+  const lines = doc.split("\n");
+  const at = lineStart(doc, region.to1) + lines[region.to1 - 1].length;
+  const next = lines[region.to1];
+  // A blank line already following the region is reused rather than doubled
+  // (every extra blank line is a line of space on the page); the caret lands
+  // on it. Otherwise one is opened: before the next line, or at the end.
+  const tail = next === undefined ? "\n\n" : next.trim().length > 0 ? "\n" : "";
+  const insert = `\n\n${token}${tail}`;
+  const anchor = at + insert.length + (tail === "" ? 1 : 0);
+  return { changes: [{ from: at, to: at, insert }], selection: { anchor } };
+}
+
+// Enter with the caret parked in a region: a new blank line BESIDE the
+// block — below it when the caret stands at the region's very end, else
+// above it (the block moves down, as a picture does in a word processor
+// when you press Enter in front of it). The caret lands on the new line.
+// Undefined when the caret is in prose (the editor's own Enter applies) or
+// on the `:::report` header, which must stay the first line.
+export function enterBesideRegionEdit(doc: string, pos: number): EditResult | undefined {
+  const line = lineAt(doc, pos);
+  const line1 = doc.slice(0, line.from).split("\n").length;
+  const region = fastrRegionAtLine(doc, line1);
+  if (region === undefined || region.name === "report") return undefined;
+  const lines = doc.split("\n");
+  const from = lineStart(doc, region.from1);
+  const to = lineStart(doc, region.to1) + lines[region.to1 - 1].length;
+  if (pos >= to) {
+    return { changes: [{ from: to, to, insert: "\n" }], selection: { anchor: to + 1 } };
+  }
+  return { changes: [{ from, to: from, insert: "\n" }], selection: { anchor: from } };
+}

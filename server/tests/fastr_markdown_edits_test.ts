@@ -6,6 +6,9 @@ import {
   columnsSnippet,
   applyTableCellAction,
   deleteFastrBlockEdit,
+  enterBesideRegionEdit,
+  fastrRegionAtLine,
+  insertBlockEdit,
   type EditResult,
   inlineMarkStateAt,
   insertLinkEdit,
@@ -840,4 +843,117 @@ Deno.test("table cell actions rebuild the table around the clicked cell", () => 
     applyTableCellAction(["| A |", "| --- |", "| a |"], 2, 0, "deleteCol"),
     undefined,
   );
+});
+
+// ── Blocks as units: inserts land outside, Enter opens a line beside ─────────
+
+const NESTED = [
+  ":::report{background=muted}",
+  "",
+  "Intro.",
+  "",
+  ":::tiles{cols=2}",
+  ":::card{title=\"A\"}",
+  "Inside a card.",
+  ":::",
+  ":::card{title=\"B\"}",
+  "Second card.",
+  ":::",
+  ":::",
+  "",
+  "After.",
+].join("\n");
+
+function posOfLine(doc: string, line1: number, col = 0): number {
+  const lines = doc.split("\n");
+  let pos = 0;
+  for (let i = 0; i < line1 - 1; i++) pos += lines[i].length + 1;
+  return pos + col;
+}
+
+Deno.test("fastrRegionAtLine: the outermost block, a leaf, prose", () => {
+  assertEquals(fastrRegionAtLine(NESTED, 7), { kind: "container", name: "tiles", from1: 5, to1: 12 });
+  assertEquals(fastrRegionAtLine(NESTED, 12), { kind: "container", name: "tiles", from1: 5, to1: 12 });
+  assertEquals(fastrRegionAtLine(NESTED, 1), { kind: "leaf", name: "report", from1: 1, to1: 1 });
+  assertEquals(fastrRegionAtLine(NESTED, 3), undefined);
+  assertEquals(fastrRegionAtLine(NESTED, 14), undefined);
+});
+
+Deno.test("insertBlockEdit: a caret inside a card puts the block after the whole tiles row", () => {
+  const r = insertBlockEdit(NESTED, posOfLine(NESTED, 7, 3), "| a | b |\n| - | - |\n| 1 | 2 |");
+  assertWellFormed(r);
+  const out = apply(NESTED, r);
+  const lines = out.split("\n");
+  // The tiles row is untouched and closed before the table begins.
+  assertEquals(lines.slice(4, 12), NESTED.split("\n").slice(4, 12));
+  assertEquals(lines[12], "");
+  assertEquals(lines[13], "| a | b |");
+  assertEquals(lines[15], "| 1 | 2 |");
+  // The blank line that already followed the row is reused, not doubled.
+  assertEquals(lines[16], "");
+  assertEquals(lines[17], "After.");
+  assertEquals(r.selection?.anchor, posOfLine(out, 17));
+});
+
+Deno.test("insertBlockEdit: parked on the open fence still lands after the block", () => {
+  const r = insertBlockEdit(NESTED, posOfLine(NESTED, 5), ":::pagebreak");
+  const lines = apply(NESTED, r).split("\n");
+  assertEquals(lines[4], ":::tiles{cols=2}");
+  assertEquals(lines[13], ":::pagebreak");
+});
+
+Deno.test("insertBlockEdit: at the end of the document a trailing blank line is added", () => {
+  const doc = "Text\n\n:::callout\nBody\n:::";
+  const r = insertBlockEdit(doc, posOfLine(doc, 4, 2), ":::pagebreak");
+  assertEquals(apply(doc, r), "Text\n\n:::callout\nBody\n:::\n\n:::pagebreak\n\n");
+});
+
+Deno.test("insertBlockEdit: in prose the token gets a blank line on both sides", () => {
+  const doc = "One\nTwo";
+  assertEquals(apply(doc, insertBlockEdit(doc, 0, ":::pagebreak")), ":::pagebreak\n\nOne\nTwo");
+  assertEquals(apply(doc, insertBlockEdit(doc, 2, ":::pagebreak")), "On\n\n:::pagebreak\n\ne\nTwo");
+  // At the start of a line under content: a blank line is opened above too.
+  assertEquals(apply(doc, insertBlockEdit(doc, 4, ":::pagebreak")), "One\n\n:::pagebreak\n\nTwo");
+  // On the blank line after a block: the token takes it, the caret lands on
+  // the blank line after the token, and nothing is doubled.
+  const spaced = "Text\n\n:::callout\nBody\n:::\n\nNext";
+  const r = insertBlockEdit(spaced, spaced.indexOf("\nNext"), ":::pagebreak");
+  assertEquals(apply(spaced, r), "Text\n\n:::callout\nBody\n:::\n\n:::pagebreak\n\nNext");
+  assertEquals(r.selection?.anchor, spaced.indexOf("\nNext") + ":::pagebreak\n\n".length);
+});
+
+Deno.test("insertBlockEdit: the report header is a region the token goes after", () => {
+  const r = insertBlockEdit(NESTED, 0, ":::pagebreak");
+  const lines = apply(NESTED, r).split("\n");
+  assertEquals(lines[0], ":::report{background=muted}");
+  assertEquals(lines[2], ":::pagebreak");
+});
+
+Deno.test("enterBesideRegionEdit: parked at the start opens a line above (the block moves down)", () => {
+  const r = enterBesideRegionEdit(NESTED, posOfLine(NESTED, 6));
+  assert(r);
+  const out = apply(NESTED, r);
+  assertEquals(out.split("\n")[4], "");
+  assertEquals(out.split("\n")[5], ":::tiles{cols=2}");
+  assertEquals(r.selection?.anchor, posOfLine(NESTED, 5));
+});
+
+Deno.test("enterBesideRegionEdit: at the region's very end opens a line below", () => {
+  const end = posOfLine(NESTED, 12, 3);
+  const r = enterBesideRegionEdit(NESTED, end);
+  assert(r);
+  const lines = apply(NESTED, r).split("\n");
+  assertEquals(lines[11], ":::");
+  assertEquals(lines[12], "");
+  assertEquals(lines[13], "");
+  assertEquals(r.selection?.anchor, end + 1);
+});
+
+Deno.test("enterBesideRegionEdit: prose and the report header are left alone", () => {
+  assertEquals(enterBesideRegionEdit(NESTED, posOfLine(NESTED, 3, 2)), undefined);
+  assertEquals(enterBesideRegionEdit(NESTED, 0), undefined);
+  // A leaf at the end of the document: Enter at its end appends a line.
+  const doc = "Text\n\n:::pagebreak";
+  const r = enterBesideRegionEdit(doc, doc.length);
+  assertEquals(r && apply(doc, r), "Text\n\n:::pagebreak\n");
 });

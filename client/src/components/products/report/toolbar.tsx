@@ -1092,43 +1092,6 @@ export function ReportToolbar(p: Props) {
                     :::{block().name}
                   </code>
 
-                  {/* Page breaks around the block (`break=before|after`): a
-                      page break IS the leaf that carries one, so it gets none. */}
-                  <Show when={block().name !== "pagebreak"}>
-                    <Popover
-                      label={attrValue("break") === "before"
-                        ? t3({ en: "Starts a new page", fr: "Commence une page", pt: "Começa uma página" })
-                        : attrValue("break") === "after"
-                        ? t3({ en: "Ends the page", fr: "Termine la page", pt: "Termina a página" })
-                        : t3({ en: "Page break", fr: "Saut de page", pt: "Quebra de página" })}
-                      title={t3({ en: "Page break", fr: "Saut de page", pt: "Quebra de página" })}
-                    >
-                      {(close) => (
-                        <div class="ui-spy-sm flex flex-col">
-                          <For
-                            each={[
-                              { value: undefined, label: t3({ en: "None", fr: "Aucun", pt: "Nenhum" }) },
-                              { value: "before", label: t3({ en: "Start on a new page", fr: "Commencer sur une nouvelle page", pt: "Começar numa nova página" }) },
-                              { value: "after", label: t3({ en: "New page after this block", fr: "Nouvelle page après ce bloc", pt: "Nova página depois deste bloco" }) },
-                            ]}
-                          >
-                            {(opt) => (
-                              <PopoverRow
-                                active={attrValue("break") === opt.value}
-                                onClick={() => {
-                                  patch("break", opt.value);
-                                  close();
-                                }}
-                              >
-                                {opt.label}
-                              </PopoverRow>
-                            )}
-                          </For>
-                        </div>
-                      )}
-                    </Popover>
-                  </Show>
-
                   <Show when={targetName()}>
                     {(name) => (
                       <For each={choiceControlsFor(name())}>
@@ -1172,57 +1135,62 @@ export function ReportToolbar(p: Props) {
                   </Show>
 
                   {/* One background menu: tone presets over literal colours.
-                      The trigger swatch shows whichever ground is active. */}
-                  <Popover
-                    label={
-                      <span class="flex items-center gap-1.5">
-                        <Show
-                          when={attrValue("bg")}
-                          fallback={
-                            <span class={scopeClass}>
+                      The trigger swatch shows whichever ground is active. Not
+                      on a tiles or columns GRID: a ground behind the whole row
+                      reads as a mistake (the cards and columns inside take
+                      their own), so the grid offers none. */}
+                  <Show when={block().name !== "tiles" && block().name !== "columns"}>
+                    <Popover
+                      label={
+                        <span class="flex items-center gap-1.5">
+                          <Show
+                            when={attrValue("bg")}
+                            fallback={
+                              <span class={scopeClass}>
+                                <span
+                                  class={`fm-tone fm-tone--${
+                                    attrValue(toneAttrFor(block().name)) ?? "default"
+                                  } inline-block h-3.5 w-3.5 rounded-full`}
+                                />
+                              </span>
+                            }
+                          >
+                            {(bg) => (
                               <span
-                                class={`fm-tone fm-tone--${
-                                  attrValue(toneAttrFor(block().name)) ?? "default"
-                                } inline-block h-3.5 w-3.5 rounded-full`}
+                                class="inline-block h-3.5 w-3.5 rounded-full border"
+                                style={{ "background-color": bg() }}
                               />
-                            </span>
-                          }
-                        >
-                          {(bg) => (
-                            <span
-                              class="inline-block h-3.5 w-3.5 rounded-full border"
-                              style={{ "background-color": bg() }}
-                            />
-                          )}
-                        </Show>
-                        {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-                      </span>
-                    }
-                    title={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-                  >
-                    {(close) => (
-                      <GroundPanel
-                        scopeClass={scopeClass}
-                        tone={attrValue("bg") !== undefined
-                          ? "literal"
-                          : fastrSurfaceTone(block().attrs) ?? "default"}
-                        literal={attrValue("bg")}
-                        onTone={(tone) =>
-                          patchGround({
-                            [toneAttrFor(block().name)]: tone === "default"
-                              ? undefined
-                              : tone,
-                            bg: undefined,
-                          })}
-                        onLiteral={(color) =>
-                          patchGround({
-                            [toneAttrFor(block().name)]: undefined,
-                            bg: color,
-                          })}
-                        onPick={close}
-                      />
-                    )}
-                  </Popover>
+                            )}
+                          </Show>
+                          {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
+                        </span>
+                      }
+                      title={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
+                    >
+                      {(close) => (
+                        <GroundPanel
+                          scopeClass={scopeClass}
+                          tone={attrValue("bg") !== undefined
+                            ? "literal"
+                            : fastrSurfaceTone(block().attrs) ?? "default"}
+                          literal={attrValue("bg")}
+                          onTone={(tone) =>
+                            patchGround({
+                              [toneAttrFor(block().name)]: tone === "default"
+                                ? undefined
+                                : tone,
+                              bg: undefined,
+                            })}
+                          onLiteral={(color) =>
+                            patchGround({
+                              [toneAttrFor(block().name)]: undefined,
+                              bg: color,
+                            })}
+                          onPick={close}
+                        />
+                      )}
+                    </Popover>
+                  </Show>
                 </div>
               </>
             )}

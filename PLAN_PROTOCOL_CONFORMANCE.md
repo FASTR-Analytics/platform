@@ -34,15 +34,14 @@ Protocol: loading state is a `StateHolder<T>` rendered through
 `createButtonAction` or `createFormAction`. Never raw `loading`, `error`,
 `data` signals.
 
-### Submit-in-flight flags (three modals)
+### Submit-in-flight flags (two modals)
 
 | File | Signal | Conforming rewrite | What changes |
 |---|---|---|---|
-| `email_opt_in_modal.tsx` | `loading` | `createButtonAction` taking the opt-in choice as its argument, close on success | A thrown Clerk update currently leaves an unhandled rejection and the modal open. The action would show an error alert instead. Both buttons stay disabled while in flight either way. |
 | `organisation_modal.tsx` | `loading` | `createButtonAction`, close on success. The empty-value guard becomes redundant with the disabled button | Same error-alert change. The Save button would show panther's spinner rather than only being disabled. |
 | `instance/pending_deletions.tsx` (`ForceDeleteModal`) | `loading` | `createButtonAction` around `forceDeleteProject`, close on success | Today the modal closes whether or not the delete succeeded and never inspects the response. The action would keep the modal open and alert on failure. This is the one entry in this group that is arguably a bug today. |
 
-Decision needed: accept the alert-on-failure behaviour for the three modals,
+Decision needed: accept the alert-on-failure behaviour for the two modals,
 or rule that a boolean in-flight flag is acceptable for a two-button modal and
 make these permanent exceptions.
 

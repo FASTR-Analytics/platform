@@ -26,7 +26,6 @@ import {
 } from "panther";
 import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/state/_infra/clerk";
-import { EmailOptInModal } from "./email_opt_in_modal";
 import { OrganisationModal } from "./organisation_modal";
 import { ThemeModal } from "./theme_modal";
 import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
@@ -154,14 +153,10 @@ export default function Instance(p: Props) {
     if (postLoginRanForUserId === clerk.user.id) return;
     postLoginRanForUserId = clerk.user.id;
     (async () => {
-      const isBrandNewUser = !clerk.user!.unsafeMetadata?.emailOptInAsked;
-      if (isBrandNewUser) {
-        await openComponent({ element: EmailOptInModal, props: undefined });
-      }
       if (!clerk.user!.unsafeMetadata?.organisation) {
         await openComponent({ element: OrganisationModal, props: undefined });
       }
-      await maybeShowWhatsNew(isBrandNewUser);
+      await maybeShowWhatsNew();
     })();
   });
 
@@ -501,11 +496,16 @@ async function markWhatsNewRead(postId: string) {
   await persistWhatsNewReadIds(new Set([...whatsNewReadIds(), postId]), posts);
 }
 
-async function maybeShowWhatsNew(isBrandNewUser: boolean) {
+async function maybeShowWhatsNew() {
   const userId = clerk.user?.id;
   if (!userId) {
     return;
   }
+  // No what's-new metadata of any kind = we have never recorded a release for
+  // this account, i.e. this is its first visit
+  const isBrandNewUser =
+    clerk.user?.unsafeMetadata?.whatsNewReadPostIds === undefined &&
+    clerk.user?.unsafeMetadata?.whatsNewSeenVersion === undefined;
   const res = await serverActions.getWhatsNewPosts({});
   if (!res.success || res.data.length === 0) {
     return;

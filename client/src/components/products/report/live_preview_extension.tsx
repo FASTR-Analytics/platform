@@ -2582,7 +2582,34 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
     },
   });
 
-  return [field, guard, boxLayer];
+  // Enter with the caret PARKED in a region (a click on a widget parks it
+  // on the block's first line; the guard refuses typing there): a blank
+  // line opens beside the block — above it, so the block moves down, or
+  // below it when the caret stands at the region's very end — and the
+  // caret lands on that line. Without this, a tiles row of stats, a figure
+  // or a table at the end of a document had no way to get a line after it
+  // from the keyboard. Dispatched without a userEvent, so the guard lets
+  // the insertion at the region's edge through; undo sees it as any edit.
+  const enterBeside = Prec.high(keymap.of([{
+    key: "Enter",
+    run: (view) => {
+      const sel = view.state.selection.main;
+      if (!sel.empty) return false;
+      const r = view.state.field(field).ranges.find((x) => x.from <= sel.head && sel.head <= x.to);
+      if (r === undefined) return false;
+      if (r.region.kind === "leaf" && r.region.fence?.name === "report") return false;
+      const below = sel.head >= r.to;
+      const at = below ? r.to : r.from;
+      view.dispatch({
+        changes: { from: at, insert: "\n" },
+        selection: { anchor: below ? at + 1 : at },
+        scrollIntoView: true,
+      });
+      return true;
+    },
+  }]));
+
+  return [field, guard, boxLayer, enterBeside];
 }
 
 // ── Surface lines (heading scale) ────────────────────────────────────────────

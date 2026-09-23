@@ -137,11 +137,10 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   in two columns. One line, no closing \`:::\`.
 
   :::pagebreak
-  Ends the printed page here. One line, no closing \`:::\`. Any block can
-  also take \`break=before\` (start it on a fresh page) or \`break=after\`
-  (end the page after it). Use these sparingly: every block already keeps
-  itself on one page and a heading always stays with what follows it, so a
-  break is for structure (a new chapter), not for tidiness.
+  Ends the printed page here. One line, no closing \`:::\`. Use it
+  sparingly: every block already keeps itself on one page and a heading
+  always stays with what follows it, so a break is for structure (a new
+  chapter), not for tidiness.
 
   :::report{background=muted numbering=sections pagesize=a4 orientation=portrait}
   The document header. \`numbering=sections\` numbers the TOP-LEVEL headings
@@ -154,7 +153,9 @@ Backgrounds — say the ROLE, not the colour:
 
   tone = paper | ink | accent | warm
 
-  Every block takes \`tone\`, and so does \`:::report\` (as \`background=\`).
+  Every block takes \`tone\`, and so does \`:::report\` (as \`background=\`)
+  — except the \`tiles\` and \`columns\` grids themselves: never tone a grid,
+  tone the cards or columns inside it.
   A theme is four colours, and the four tones are those colours as grounds,
   each with the type that reads on it: \`paper\` a pale panel, \`ink\` the
   dark band (light on a dark theme), \`accent\` the theme's own colour, and

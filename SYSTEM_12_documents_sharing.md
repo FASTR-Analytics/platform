@@ -1499,7 +1499,21 @@ preset swatches on top beside a struck-through "none" chip, the literal
 colour grid + hex field below — and keeps
 them mutually exclusive in a single fence rewrite, because a literal wins over
 a tone in the renderer and a stale one must not linger; the Page menu embeds
-the same panel for the document background. Text colour is the SAME shape
+the same panel for the document background. The block segment offers NO page
+break control (2026-09-23): `break=before|after` stays a legacy attribute
+the paged sheet honours, but neither the toolbar nor the AI brief writes it;
+a page break is the `:::pagebreak` leaf. Nor does a `tiles` or `columns`
+GRID get the Background menu (a ground behind the whole row reads as a
+mistake; its cards and columns keep theirs). Two gestures treat a region as
+the unit it looks like (`insertBlockEdit`, `enterBesideRegionEdit` in lib):
+an Insert-menu block or table with the caret parked inside a region lands
+AFTER that whole top-level region, never inside it, and Enter on a parked
+caret opens a blank line beside the block, above it (the block moves down)
+or below when the caret stands at the region's very end, which is the only
+keyboard way past a stat row, a figure or a table at the end of a document.
+A natural cover opening ANY page is flush to the sheet's top in the editor
+as it is in print (`openPage`, no `isFirst`), where it used to sit under a
+band of top margin after a page break. Text colour is the SAME shape
 (`InkPanel`): the ink roles as preset swatches on top, the literal grid and
 hex field below (`LiteralColours`, shared with the ground panel); a literal
 writes `[x]{color=#hex}` — `color=` is a fourth mark attribute, gated by
