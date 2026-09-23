@@ -143,7 +143,7 @@ failures surface as user-facing route errors with GB figures.
   `Deno.serve`; SIGINT/SIGTERM shutdown with an 8s forced-exit timer.
 - **`./run`**: backgrounds the Deno server + Vite client with prefixed output,
   killing both on INT/TERM.
-- **`./deploy`** (in order): typecheck gate (includes `lint:systems` and `lint:structure`) →
+- **`./deploy`** (in order): typecheck gate (includes `lint:systems`, `lint:structure` and `lint:text-sizes`) →
   `./validate_protocols` (a failure prompts to continue) → optional
   `./validate_migrations` → optional `./validate_queries` → minor/patch
   VERSION bump prompts → client build baked into `client_dist/` (with

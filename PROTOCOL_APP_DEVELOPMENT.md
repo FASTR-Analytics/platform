@@ -77,7 +77,7 @@ deno run --allow-all -c deno.json /tmp/check.ts   # absolute-path imports into l
 Plus the standing validators, each a real gate:
 
 ```bash
-deno task typecheck        # server + client + lint:systems + lint:structure
+deno task typecheck        # server + client + lint:systems + lint:structure + lint:text-sizes
 ./validate_protocols       # client/src SolidJS + state rules
 ./validate_migrations      # migration + data-transform boundaries
 ./validate_queries         # the viz query rig (PROTOCOL_APP_QUERY_RIG.md)

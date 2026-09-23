@@ -148,6 +148,7 @@ name; renaming the PO vocabulary in code is a separate refactor.
 ```
 deno task lint:systems
 deno task lint:structure
+deno task lint:text-sizes
 ```
 
 Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/`
@@ -165,3 +166,10 @@ parent and consumed by two or more of the parent's children, no import of
 `components/` from `state/`, `exports/` or `generate_*/`, no unreachable file,
 and no runtime cycle between folder entries. It resolves imports and has no
 baseline; an optional directory argument narrows which files are reported.
+
+`lint_text_sizes.ts` (task `lint:text-sizes`, chained after `lint:structure`)
+scans the tracked `.ts`, `.tsx` and `.css` files under `client/src/` and
+`panther/_303_components/` and fails on a text size outside the rem token
+scale: an arbitrary `text-[Npx]`, the non-token `text-md`, or an inline
+font-size in px or pt. Document and canvas rendering is exempt by file in the
+script.

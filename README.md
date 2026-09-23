@@ -102,7 +102,7 @@ The script performs the following steps:
    - Output goes to `./client_dist/` which the server serves in production
 
 3. **Typecheck Gate**
-   - Runs `deno task typecheck` (server + client + `lint:systems` + `lint:structure`)
+   - Runs `deno task typecheck` (server + client + `lint:systems` + `lint:structure` + `lint:text-sizes`)
 
 4. **Docker Image**
    - Builds Docker image tagged with version: `timroberton/comb:wb-fastr-server-v{version}`

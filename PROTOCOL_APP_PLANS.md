@@ -18,7 +18,7 @@
 - **The floor**, green at the end of every step:
 
   ```
-  deno task typecheck        # server + client + lint:systems + lint:structure
+  deno task typecheck        # server + client + lint:systems + lint:structure + lint:text-sizes
   deno task test
   ./validate_protocols
   ./run                      # starts against the dev database
