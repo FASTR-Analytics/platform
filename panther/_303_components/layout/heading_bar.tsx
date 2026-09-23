@@ -127,10 +127,12 @@ export function HeadingBar<T extends string = string>(p: Props<T>) {
               }}
             </Show>
             <Show when={p.heading !== undefined}>
-              <div class="ui-text-title truncate">
+              <div class="ui-text-heading truncate">
                 {p.heading}
                 <Show when={p.subheading}>
-                  <span class="font-400 ml-4">{p.subheading}</span>
+                  <span class="text-base-content-muted font-400 ml-4 text-sm">
+                    {p.subheading}
+                  </span>
                 </Show>
               </div>
             </Show>

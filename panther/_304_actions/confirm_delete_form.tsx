@@ -38,7 +38,7 @@ export function ConfirmDeleteForm<T>(
     <ModalContainer
       width="md"
       topPanel={
-        <div class="font-700 text-danger text-lg leading-none">
+        <div class="ui-text-heading text-danger leading-none">
           {t3({ en: "Warning", fr: "Avertissement", pt: "Aviso" })}
         </div>
       }

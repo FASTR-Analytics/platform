@@ -234,6 +234,7 @@ its whole density from one `@theme` block.
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Body text                                    | inherited `base-content` at `--ui-text-body`, the size `body` sets; no size class                                        |
 | Sublabels, captions, metadata, help text     | `text-base-content-muted` / `ui-text-caption`                                                                            |
+| Section, card, modal or view heading         | `ui-text-heading`; never a bare `text-lg` / `text-xl`                                                                    |
 | One step quieter still                       | `text-base-content-faint`                                                                                                |
 | Text on a solid fill                         | `text-{intent}-content`                                                                                                  |
 | Text on a wash                               | `text-{intent}-subtle-content`                                                                                           |
@@ -347,9 +348,11 @@ Usable from app code:
   `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`,
   `danger`), its outline sibling `ui-hoverable-outline-on-{token}` (same nine
   members), and `ui-focusable`
-- **Type:** `ui-text-display`, `ui-text-title`, `ui-text-heading`,
-  `ui-text-overline`, `ui-text-caption`, `ui-text-small`, `ui-form-text`,
-  `ui-label`
+- **Type:** three roles: body (14px, inherited from `body`, no size class),
+  `ui-text-caption` (12px, muted: metadata, help text, column headers, data grid
+  cells) and `ui-text-heading` (16px bold: section, card, modal and alert
+  headings, and a full-screen view's label). There is no title role. Also
+  `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
 - **Skins (only when building a control panther doesn't provide):**
   `ui-fill-{intent}`, `ui-outline-{intent}`
 

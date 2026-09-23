@@ -23,7 +23,7 @@ export function EmptyState(p: EmptyStateProps) {
           </span>
         )}
       </Show>
-      <p class="ui-text-title">{p.title}</p>
+      <p class="ui-text-heading">{p.title}</p>
       <Show when={p.description}>
         <p class="text-base-content-muted max-w-md text-sm">{p.description}</p>
       </Show>

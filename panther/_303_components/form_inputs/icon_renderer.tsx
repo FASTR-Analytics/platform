@@ -27,12 +27,15 @@ export function IconRenderer(p: IconRendererProps) {
           <span
             class={[
               textSizeClass(),
-              "relative h-[var(--ui-form-content-h-em)] w-[var(--ui-form-content-h-em)] flex-none overflow-clip rounded",
+              "relative flex h-[var(--ui-form-content-h-em)] w-[var(--ui-form-content-h-em)] flex-none items-center justify-center overflow-clip rounded",
               p.iconOnly && correctionClass(),
               p.invisible && "invisible",
             ].filter(Boolean).join(" ")}
           >
-            <Dynamic component={iconOrFallback(iconName)} />
+            <Dynamic
+              component={iconOrFallback(iconName)}
+              class={p.size === "sm" ? "h-[1em] w-[1em]" : undefined}
+            />
           </span>
         );
       }}

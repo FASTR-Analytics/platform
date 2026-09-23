@@ -1314,18 +1314,9 @@
     @apply text-base-content font-400 text-sm leading-tight;
   }
 
-  /* Hero/page-level display text */
-  .ui-text-display {
-    @apply font-700 text-2xl tracking-tight;
-  }
-
-  /* Page/section title (HeadingBar-level) */
-  .ui-text-title {
-    @apply font-700 text-xl;
-  }
-
+  /* Section, card, modal and alert headings, and a full-screen view's label */
   .ui-text-heading {
-    @apply font-700 text-base-content text-lg;
+    @apply font-700 text-base-content text-base;
   }
 
   /* Small-caps section label; color stays the caller's */

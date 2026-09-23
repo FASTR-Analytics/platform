@@ -226,9 +226,9 @@ surface for app code:
   `ui-icon-only-correction-sm`
 - **State** — the `ui-hoverable-{token}` family (`base-100`, `base-200`,
   `base-300`, `base-content`, and the five intents) and `ui-focusable`
-- **Type** — `ui-text-display`, `ui-text-title`, `ui-text-heading`,
-  `ui-text-overline`, `ui-text-caption`, `ui-text-small`, `ui-form-text`,
-  `ui-label`
+- **Type** — three roles: body (14px, inherited from `body`, no class),
+  `ui-text-caption` (12px, muted) and `ui-text-heading` (16px, bold); plus
+  `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
 - **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, for building a control
   the kit doesn't provide
 
