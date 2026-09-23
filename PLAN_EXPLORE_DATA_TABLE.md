@@ -12,7 +12,7 @@ with no 20,000-item cap, and the rows go through the canvas table's own pivot
 and a panther adapter into `DataGrid`, so the DOM table and a canvas table of
 the same query share every step but the last.
 
-**Next step: Review 3.** Each session sets this line in its final commit.
+**Next step: Do 4.** Each session sets this line in its final commit.
 
 Branch: `version2`. Repos touched: this app and
 `/Users/timroberton/projects/panther/timroberton-panther` (step 3 only).
@@ -793,3 +793,18 @@ Append-only, newest last.
   column to the right still lands at the right edge, and a visible column
   does not move. App sync commit: the one before this row's commit.
 - Step 3 fixed.
+- Step 3, re-review: the finding is resolved. Panther `5b285ba` sets the
+  scroller's `scroll-padding-left` to the sticky row-header cell's
+  `offsetWidth` before `scrollIntoView` (`data_grid.tsx:108-113`), with both
+  refs on the scroller and the row-header `th`. Checked in a browser on a
+  table of the same structure (200px sticky row header, 120px columns, a
+  column-group row, sticky head): a column focused from the left lands at
+  201 to 321px beside a header spanning 1 to 201px (1 to 121px, hidden,
+  without the padding); a column to the right lands at the right edge; a
+  visible column does not move; the vertical scroll is untouched. The sync
+  commit holds only `panther/` files and every data_grid file and
+  `_303_components/deps.ts` equal panther `5b285ba` once the header is
+  dropped. The step read as a whole again raises nothing new. Panther
+  typecheck, the app's typecheck, test, `./validate_protocols` and the boot
+  gate pass.
+- Step 3 reviewed: pass.
