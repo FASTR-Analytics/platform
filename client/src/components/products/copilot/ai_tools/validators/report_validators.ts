@@ -8,6 +8,7 @@ import {
   newHtmlDefect,
   type ReportFormat,
   validateHtmlFragment,
+  listFastrNestedStats,
 } from "lib";
 import { AIToolFailure } from "panther";
 
@@ -289,5 +290,21 @@ export function validateFastrRewriteUsesBlocks(
   if (blocks.length > 0) return;
   throw new AIToolFailure(
     "This is a FASTR Markdown report and the proposed body uses none of its blocks: it is a plain run of headings and paragraphs. Build it from the format (see rewrite_report's description): open with a `:::cover`, put the headline numbers in a `:::tiles` row of `:::stat` blocks, mark the turning points with `:::band`, put caveats in a `:::callout` and next steps in `:::steps`. Re-propose with the blocks — or, ONLY if the user explicitly asked for a plain document, re-propose unchanged with plain: true.",
+  );
+}
+
+// FASTR Markdown: a stat nested in a card or a column (see
+// listFastrNestedStats). Checked on the SPLICED body like the container
+// check, so a section rewrite cannot smuggle one in.
+export function validateFastrStatPlacement(
+  body: string,
+  format: ReportFormat,
+): void {
+  if (format !== "fastr") return;
+  const nested = listFastrNestedStats(body);
+  if (nested.length === 0) return;
+  const shown = nested.slice(0, 5).map((n) => `line ${n.line}: :::stat inside :::${n.parent}`).join("\n");
+  throw new AIToolFailure(
+    `The proposed body nests ${nested.length} stat${nested.length === 1 ? "" : "s"} inside a card or column:\n${shown}\nA stat is a tile of its own: put the stats DIRECTLY in a \`:::tiles\` row as bare \`:::stat\` lines (no \`:::card\` around them). Fix and re-propose.`,
   );
 }

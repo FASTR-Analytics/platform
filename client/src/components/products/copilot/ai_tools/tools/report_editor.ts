@@ -45,6 +45,7 @@ import type { ClientAIToolEnv } from "../../_shared/mod.ts";
 import {
   validateFastrContainers,
   validateFastrRewriteUsesBlocks,
+  validateFastrStatPlacement,
   validateFastrNewLiteralBackgrounds,
   validateReferenceCssReuse,
   validateStyledReportHasStylesheet,
@@ -536,6 +537,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           validateReportBodyLength(input.body);
           validateReportBodyForFormat(input.body, format);
           validateFastrContainers(input.body, format);
+          validateFastrStatPlacement(input.body, format);
           validateFastrRewriteUsesBlocks(input.body, format, input.plain);
           validateFastrNewLiteralBackgrounds(
             input.body,
@@ -619,6 +621,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           }
           validateReportBodyLength(result.newBody);
           validateFastrContainers(result.newBody, format);
+          validateFastrStatPlacement(result.newBody, format);
           validateFastrNewLiteralBackgrounds(
             result.newBody,
             ctx.getBody(),
@@ -685,6 +688,7 @@ ${FASTR_MD_SYNTAX_DOC}`,
           }
           validateReportBodyLength(result.newBody);
           validateFastrContainers(result.newBody, format);
+          validateFastrStatPlacement(result.newBody, format);
           validateFastrNewLiteralBackgrounds(
             result.newBody,
             base,

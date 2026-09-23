@@ -1165,6 +1165,29 @@ export type FastrContainerDefect = {
 
 // Unclosed containers, stray closes and unknown block names. Fences inside a
 // fenced code block are literal text and are skipped.
+// A `:::stat` inside a card or a column: the format wants stats as a bare
+// row of tiles (a stat IS a tile), and a stat wrapped in a card renders as a
+// box within a box. The editor never writes one; the AI used to, until its
+// brief said otherwise (2026-09-23), and its proposals are refused on this.
+export function listFastrNestedStats(body: string): { line: number; parent: string }[] {
+  const out: { line: number; parent: string }[] = [];
+  const open: string[] = [];
+  for (const { index, inCode, fence } of scanContainerLines(body.split("\n"))) {
+    if (inCode || fence === undefined) continue;
+    if (fence.kind === "close") {
+      open.pop();
+      continue;
+    }
+    if (fence.name === "stat") {
+      const parent = open[open.length - 1];
+      if (parent === "card" || parent === "col") out.push({ line: index + 1, parent });
+      continue;
+    }
+    if (!isFastrLeafBlock(fence.name)) open.push(fence.name);
+  }
+  return out;
+}
+
 export function listFastrContainerDefects(body: string): FastrContainerDefect[] {
   const defects: FastrContainerDefect[] = [];
   const open: { name: string; line: number }[] = [];

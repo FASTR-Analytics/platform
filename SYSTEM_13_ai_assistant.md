@@ -465,7 +465,10 @@ lesson `create_report` had already learned on 2026-09-02). The contract is
 hard: `validateFastrRewriteUsesBlocks` refuses a FASTR body of twelve or more
 non-blank lines that uses no `:::` block unless the model passes
 `plain: true`, which it does only when the user asked for a plain document;
-`rewrite_section`'s description points at the same blocks for a section.
+`rewrite_section`'s description points at the same blocks for a section. Same day, at Nick's request: a stat is a tile of its own, never
+nested in a card or a column (the brief used to say a stat "reads well
+inside a card"); `validateFastrStatPlacement` (over `listFastrNestedStats` in
+lib) refuses such a body on all three staged text tools.
 
 **Validate-before-commit.** `update_figure` (slide editor, deck level) and
 `update_report_figure` share one pipeline:

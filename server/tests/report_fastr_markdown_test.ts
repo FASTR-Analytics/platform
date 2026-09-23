@@ -22,6 +22,7 @@ import {
   isDarkCssColor,
   isFastrLeafBlock,
   listFastrContainerDefects,
+  listFastrNestedStats,
   listFastrLiteralBackgrounds,
   parseContainerAttrs,
   parseContainerFence,
@@ -1642,9 +1643,13 @@ Deno.test("the model-facing brief documents the marks it is allowed to write", (
     FASTR_MD_SYNTAX_DOC,
     "`stat`, `contents`, `pagebreak` and `report` are ONE-LINE",
   );
-  for (const needle of [":::pagebreak", "break=before", "pagesize", "orientation"]) {
+  for (const needle of [":::pagebreak", "pagesize", "orientation"]) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
   }
+  // `break=before|after` left the brief with the toolbar's page-break control
+  // (2026-09-23): a page break is the leaf, and the model is not told the
+  // legacy attribute exists.
+  assert(!FASTR_MD_SYNTAX_DOC.includes("break=before"));
   for (const role of FASTR_INK_ROLES) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, `.${role}`);
   }
@@ -1774,4 +1779,13 @@ Deno.test("the paged runner publishes on the agreed global and the title span is
     { size: "a4", orientation: "portrait", margin: "normal" },
     { title: "", pageWord: "Page", ofWord: "of" },
   )));
+});
+
+Deno.test("listFastrNestedStats: a stat inside a card or column is flagged, a bare tile is not", () => {
+  const good = ":::tiles{cols=2}\n:::stat{value=\"1\" label=\"a\"}\n:::stat{value=\"2\" label=\"b\"}\n:::";
+  assertEquals(listFastrNestedStats(good), []);
+  const bad = ":::tiles{cols=2}\n:::card{title=\"A\"}\n:::stat{value=\"1\" label=\"a\"}\n:::\n:::\n\n:::columns\n:::col\n:::stat{value=\"2\"}\n:::\n:::\n\n```\n:::card\n:::stat{value=\"3\"}\n```";
+  assertEquals(listFastrNestedStats(bad), [{ line: 3, parent: "card" }, { line: 9, parent: "col" }]);
+  // The brief says so, in words the model can act on.
+  assertStringIncludes(FASTR_MD_SYNTAX_DOC, "never inside a `card` or a `col`");
 });

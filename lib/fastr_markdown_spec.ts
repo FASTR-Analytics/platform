@@ -317,7 +317,9 @@ Rules:
 - \`band\` and \`cover\` are TOP-LEVEL sections; nesting one inside a card or a
   column cannot bleed correctly.
 - Blocks nest: \`card\` belongs inside \`tiles\`, \`col\` inside \`columns\`.
-  A stat reads well inside a card or a column.
+  A stat is a tile of its own: it sits DIRECTLY in a \`:::tiles\` row (a row
+  of bare \`:::stat\` lines), never inside a \`card\` or a \`col\` — a stat
+  nested that way is rejected.
 - Attribute values with spaces need quotes; a bare word is a flag.
 - Figures and images use the markdown embed token on its own line —
   ![caption](figure:<id>) — and render as a figure with the caption beneath.
