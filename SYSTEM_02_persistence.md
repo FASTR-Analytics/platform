@@ -297,12 +297,16 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    marked likewise.
 4. **Instance data transforms.** `INSTANCE_DATA_TRANSFORMS`, each a
    `(tx, countryIso3) => Promise<MigrationStats>` run in its own transaction,
-   in this order: `instance_config`, `runs_summary`, `slide_deck_config`,
-   `slide_config`, `reports`; any failure exits. `countryIso3` is
-   `_INSTANCE_COUNTRY_ISO3`, which the figure-block sweeps need and a boot
-   sweep cannot read from the live instance store. `runs_summary` strips the
+   in this order: `instance_config`, `runs_summary`, `runs_progress`,
+   `slide_deck_config`, `slide_config`, `reports`; any failure exits.
+   `countryIso3` is `_INSTANCE_COUNTRY_ISO3`, which the figure-block sweeps
+   need and a boot sweep cannot read from the live instance store. `runs_summary` strips the
    `backfillSourceProjectId` and `attachTargetProjectIds` keys from
    `runs.summary`, gated by a raw key scan because `RunSummary` has no schema.
+   `runs_progress` adds `stage: { kind: "ended" }` to a `runs.progress`
+   written before the stage existed (S8 "The stage"), gated by a raw key
+   scan because `stage` is required; a row that cannot be parsed or validated
+   is logged and skipped.
    The three product transforms bump the owning `products.last_updated` on
    every row they rewrite (`slide_config` also bumps `slides.last_updated`),
    and their figure-block conversions stamp each bundle with the owning

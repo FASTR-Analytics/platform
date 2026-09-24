@@ -5,6 +5,7 @@ globs:
   - client/src/state/instance/t2_runs.ts
   - client/src/components/results_packages/**
   - lib/figure_package_issue.ts
+  - lib/run_progress.ts
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
   - lib/types/module_registry.ts
@@ -22,6 +23,7 @@ globs:
   - server/tests/run_generation_module_options_test.ts
   - server/tests/run_input_transform_test.ts
   - server/tests/run_manifest_transform_test.ts
+  - server/tests/run_progress_test.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
   - server/worker_routines/worker_contract.ts

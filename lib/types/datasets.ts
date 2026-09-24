@@ -1,5 +1,4 @@
-// ============================================================================
-// Dataset Type Definitions
-// ============================================================================
+import { z } from "zod";
 
-export type DatasetType = "hmis" | "hfa" | "iceh";
+export const datasetTypeSchema = z.enum(["hmis", "hfa", "iceh"]);
+export type DatasetType = z.infer<typeof datasetTypeSchema>;

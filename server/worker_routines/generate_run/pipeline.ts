@@ -60,6 +60,7 @@ export async function runGenerationPipeline(
       std.step2Result.modules.map((m) => [m.moduleId, "pending" as const]),
     ),
     currentModuleId: null,
+    stage: { kind: "queued" },
     errorDetail: null,
   };
   const pushProgress = async () => {

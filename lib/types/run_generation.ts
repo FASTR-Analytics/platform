@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { DatasetType } from "./datasets.ts";
+import { type DatasetType, datasetTypeSchema } from "./datasets.ts";
 import type { DisaggregationOption } from "./disaggregation_options.ts";
 import type {
   ModuleParameter,
@@ -170,10 +170,29 @@ export type RunModuleProgressStatus = z.infer<
   typeof runModuleProgressStatusSchema
 >;
 
+// What the pipeline is doing right now (SYSTEM_08 "The stage"): set at every
+// stage boundary and pushed with the rest of the progress, never per R line
+// and never per results object. No English rides the wire: the client
+// translates each kind from its payload (lib/run_progress.ts). A failed run
+// keeps the stage it failed in; a run with no recorded stage reads `ended`.
+export const runStageSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("queued") }),
+  z.object({ kind: z.literal("exporting"), family: datasetTypeSchema }),
+  z.object({ kind: z.literal("converting"), family: datasetTypeSchema }),
+  z.object({ kind: z.literal("resolving") }),
+  z.object({ kind: z.literal("planning") }),
+  z.object({ kind: z.literal("module"), moduleId: z.string() }),
+  z.object({ kind: z.literal("finalizing"), moduleId: z.string().nullable() }),
+  z.object({ kind: z.literal("publishing") }),
+  z.object({ kind: z.literal("ended") }),
+]);
+export type RunStage = z.infer<typeof runStageSchema>;
+
 export const runProgressSchema = z.object({
   moduleOrder: z.array(z.string()),
   moduleStatus: z.record(z.string(), runModuleProgressStatusSchema),
   currentModuleId: z.string().nullable(),
+  stage: runStageSchema,
   errorDetail: z.string().nullable(),
 });
 export type RunProgress = z.infer<typeof runProgressSchema>;

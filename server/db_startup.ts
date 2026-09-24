@@ -29,6 +29,7 @@ import { migrateSlideConfigs } from "./db/migrations/data_transforms/slide_confi
 import { migrateReports } from "./db/migrations/data_transforms/reports.ts";
 import { migrateInstanceConfigs } from "./db/migrations/data_transforms/instance_config.ts";
 import { migrateRunsSummaries } from "./db/migrations/data_transforms/runs_summary.ts";
+import { migrateRunsProgress } from "./db/migrations/data_transforms/runs_progress.ts";
 
 export async function dbStartUp() {
   const sql = getPgConnectionFromCacheOrNew("postgres", "READ_AND_WRITE");
@@ -208,6 +209,7 @@ type InstanceMigrationFn = (
 const INSTANCE_DATA_TRANSFORMS: { name: string; fn: InstanceMigrationFn }[] = [
   { name: "instance_config", fn: migrateInstanceConfigs },
   { name: "runs_summary", fn: migrateRunsSummaries },
+  { name: "runs_progress", fn: migrateRunsProgress },
   { name: "slide_deck_config", fn: migrateSlideDeckConfigs },
   { name: "slide_config", fn: migrateSlideConfigs },
   { name: "reports", fn: migrateReports },

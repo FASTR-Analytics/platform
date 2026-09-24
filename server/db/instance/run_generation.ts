@@ -471,6 +471,7 @@ SELECT progress FROM runs WHERE id = ${runId}
       moduleOrder: [],
       moduleStatus: {},
       currentModuleId: null,
+      stage: { kind: "ended" },
       errorDetail: null,
     };
   if (progress.currentModuleId !== null) {
