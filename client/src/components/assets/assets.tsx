@@ -183,8 +183,7 @@ function AssetTable(p: {
           <div class="flex items-center justify-end">
             <Show when={canDownload}>
               <Button
-                ghost
-                intent="base-content"
+                intent="base-100"
                 size="sm"
                 iconName="download"
                 href={`${_SERVER_HOST}/${encodeURIComponent(asset.fileName)}`}
@@ -194,13 +193,9 @@ function AssetTable(p: {
             <Show when={canDelete}>
               <Button
                 iconName="trash"
-                ghost
-                intent="base-content"
+                intent="base-100"
                 size="sm"
-                onClick={(e: MouseEvent) => {
-                  e.stopPropagation();
-                  p.onDelete(asset.fileName);
-                }}
+                onClick={() => p.onDelete(asset.fileName)}
               />
             </Show>
           </div>
