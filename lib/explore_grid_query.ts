@@ -373,7 +373,8 @@ export function deriveGridConfig(
 // preset with `d` replaced by lines over the query's grain, one pane per
 // indicator in rows of three, the chosen indicators as a filter and the
 // window as the period filter. The preset's style is a table's, so the
-// content and the pane columns are set here. Undefined for HFA and ICEH,
+// content and the pane columns are set here, and its text is cleared: the
+// view's name is the caption. Undefined for HFA and ICEH,
 // whose time points and years are not period columns, and when the family
 // has no ready metric or no preset.
 export function deriveTimeseriesConfig(
@@ -390,6 +391,7 @@ export function deriveTimeseriesConfig(
     config: {
       ...fromPreset,
       s: { ...fromPreset.s, content: "lines", nColsInCellDisplay: 3 },
+      t: { ...fromPreset.t, caption: "", subCaption: "", footnote: "" },
       d: {
         type: "timeseries",
         timeseriesGrouping: query.grain,

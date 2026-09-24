@@ -260,7 +260,7 @@ function ReadyFamilyTable(p: {
         </div>
       }
     >
-      <div class="ui-pad h-full">
+      <div class="ui-pad-x h-full pb-4">
         <Show
           when={readSpec()}
           fallback={(p.metric.vizPresets?.length ?? 0) === 0

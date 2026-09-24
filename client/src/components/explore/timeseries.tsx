@@ -90,7 +90,7 @@ export function Timeseries(p: {
         </div>
       }
     >
-      <div class="ui-pad h-full w-full overflow-y-auto">
+      <div class="ui-pad-x h-full w-full overflow-y-auto pb-4">
         <Show when={derived()} fallback={<EmptyState kind="no_preset" />}>
           {(d) => {
             const figure = createFigurePreview(() => ({
