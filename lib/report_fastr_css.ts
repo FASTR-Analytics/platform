@@ -514,7 +514,7 @@ ${d}.fm-col > :last-child { margin-bottom: 0; }
 /* A column's first block (its heading, mostly) never carries its own top
    margin: the row has one, and a heading's would drop the column's text
    below its neighbour's the moment one column is coloured and the other not. */
-${d}.fm-col > :first-child { margin-top: 0; }
+${d}.fm-col > :first-child, ${d}.fm-col > .cm-fm-col-ghost + * { margin-top: 0; }
 /* A row with ANY coloured column is a set of panels: every column takes the
    panel inset, coloured or not, so the text of the two sides stays aligned
    and colouring one column never reflows the others'

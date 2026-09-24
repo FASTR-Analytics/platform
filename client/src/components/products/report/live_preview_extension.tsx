@@ -552,6 +552,24 @@ class RegionWidget extends WidgetType {
       if (fence.name === "card" || fence.name === "col") {
         attachTilesChildContextMenu(container, view, this.startLine + rel + 1);
       }
+      if (
+        fence.name === "col" && this.active &&
+        columnNeedsHeadingGhost(view.state.doc, this.startLine + rel + 1) &&
+        container.querySelector(":scope > .cm-fm-col-ghost") === null
+      ) {
+        const ghostEl = document.createElement("h3");
+        container.prepend(ghostEl);
+        const startLine = this.startLine;
+        attachColumnHeadingGhost(
+          ghostEl,
+          view,
+          this.startLine + rel + 1,
+          () =>
+            view.contentDOM.querySelector<HTMLElement>(
+              `[data-region-line="${startLine}"] [data-line="${rel}"] > .cm-fm-col-ghost`,
+            ),
+        );
+      }
       for (const [rootCls, childCls, attr, placeholder, ghost] of CHROME_ATTRS) {
         if (!container.classList.contains(rootCls)) continue;
         let el = container.querySelector<HTMLElement>(`:scope > .${childCls}`);
@@ -908,6 +926,76 @@ function frameLineMeta(
 // rewrites nothing — and Escape reverts. The commit dispatch carries no
 // userEvent, so the structure guard lets it through: this IS the specialised
 // way to edit what typing cannot reach.
+// A column without a heading grows a ghost heading to click into, the way a
+// kickerless cover grows a ghost kicker: in the live editor while the column's
+// region is active, on the pages on hover (the surface's ghost CSS). Unlike a
+// kicker the heading is not a fence attribute but a `### ` line, so the ghost
+// commits once, on Enter or blur, by inserting that line under the `:::col`
+// fence; from then on it is an ordinary heading island.
+export function columnNeedsHeadingGhost(
+  doc: { lines: number; line: (n: number) => { text: string } },
+  fenceLine1: number,
+): boolean {
+  if (fenceLine1 >= doc.lines) return false;
+  return !/^#{1,6}\s/.test(doc.line(fenceLine1 + 1).text);
+}
+export function attachColumnHeadingGhost(
+  el: HTMLElement,
+  view: EditorView,
+  fenceLine1: number,
+  locate?: () => HTMLElement | null | undefined,
+) {
+  el.classList.add("cm-fm-attr", "cm-fm-col-ghost");
+  el.setAttribute("data-placeholder", t3({ en: "Heading…", fr: "Titre…", pt: "Título…" }));
+  const activate = () => {
+    try {
+      el.contentEditable = "plaintext-only";
+    } catch {
+      el.contentEditable = "true";
+    }
+    el.focus();
+  };
+  (el as unknown as { _fmAttrActivate?: () => void })._fmAttrActivate = activate;
+  // As the labels: activate on MOUSEDOWN, after parking the caret on the
+  // fence (which may rebuild the widget: activate what stands there now).
+  el.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    if (el.isContentEditable) return;
+    if (fenceLine1 <= view.state.doc.lines) {
+      view.dispatch({ selection: { anchor: view.state.doc.line(fenceLine1).from } });
+    }
+    const next = locate?.() ?? el;
+    if (next !== el) e.preventDefault();
+    ((next as unknown as { _fmAttrActivate?: () => void })._fmAttrActivate ?? activate)();
+  });
+  el.addEventListener("click", (e) => e.stopPropagation());
+  const commit = () => {
+    if (!el.isContentEditable) return;
+    el.contentEditable = "false";
+    const value = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+    el.textContent = "";
+    const doc = view.state.doc;
+    if (value.length === 0 || fenceLine1 > doc.lines) return;
+    // The fence must still be this column's, and still headingless (a
+    // collaborator may have added one meanwhile).
+    if (fastrOpenFenceOnLine(doc.line(fenceLine1).text, fenceLine1)?.name !== "col") return;
+    if (!columnNeedsHeadingGhost(doc, fenceLine1)) return;
+    const at = doc.line(fenceLine1).to;
+    dispatchAfterUpdate(view, { changes: { from: at, insert: `\n### ${value}` } });
+  };
+  el.addEventListener("blur", commit);
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      el.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      el.textContent = "";
+      el.blur();
+    }
+  });
+}
+
 export function attachAttrEditor(
   el: HTMLElement,
   view: EditorView,
@@ -1357,6 +1445,25 @@ export function attachTextEditor(
     commitLive();
     stopMirror();
     el.contentEditable = "false";
+    // A heading inside a block cleared of its words leaves no empty heading
+    // behind: the line goes, and a column grows its ghost heading again.
+    if (
+      // Emptied with or without its marker (a select-all takes the hidden
+      // `### ` too).
+      /^H[1-6]$/.test(el.tagName) && /^(#{1,6})?\s*$/.test(committed) &&
+      el.closest(".fm-card, .fm-col, .fm-callout, .fm-band, .fm-quote") !== null
+    ) {
+      const doc = view.state.doc;
+      const line1 = regionStartLine + rel + 1;
+      if (line1 <= doc.lines && /^(#{1,6})?\s*$/.test(doc.line(line1).text)) {
+        const line = doc.line(line1);
+        dispatchAfterUpdate(view, {
+          changes: { from: line.from, to: Math.min(line.to + 1, doc.length), insert: "" },
+          effects: rebuildRegions.of(null),
+        });
+        return;
+      }
+    }
     if (committed === original) {
       restore();
       return;

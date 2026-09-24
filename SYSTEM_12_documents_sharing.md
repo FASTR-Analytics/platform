@@ -1541,7 +1541,12 @@ bg) is rendered `fm-columns--panels`, where every column takes the panel
 inset; colouring one column used to pad it alone and drop its heading, so
 its text no longer lined up with the plain column beside it. Inserted
 columns (the Insert picker, right-click add) are a `###` heading over a text
-line, the same two text boxes the AI writes. STABLE TEXT METRICS
+line, the same two text boxes the AI writes. A headingless column grows a ghost
+"Heading…" (`attachColumnHeadingGhost`), like a missing kicker: while its
+region is active in the live editor, on hover on the pages. Typing into it
+and pressing Enter (or leaving it) inserts a `### ` line under the `:::col`
+fence; a heading inside a block emptied of its words (with or without its
+hidden marker) loses its line on blur, so the ghost returns. STABLE TEXT METRICS
 (2026-09-23, "when I write at the start of a new line the page jitters"):
 CodeMirror estimates every unrendered line's height from ONE sample, the
 first rendered line of at most 20 plain-text characters, and on this surface
