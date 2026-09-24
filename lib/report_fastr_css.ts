@@ -511,6 +511,19 @@ ${d}.fm-columns--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 ${d}.fm-columns--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 ${d}.fm-columns--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 ${d}.fm-col > :last-child { margin-bottom: 0; }
+/* A column's first block (its heading, mostly) never carries its own top
+   margin: the row has one, and a heading's would drop the column's text
+   below its neighbour's the moment one column is coloured and the other not. */
+${d}.fm-col > :first-child { margin-top: 0; }
+/* A row with ANY coloured column is a set of panels: every column takes the
+   panel inset, coloured or not, so the text of the two sides stays aligned
+   and colouring one column never reflows the others'
+   (fm-columns--panels, set by the renderer). */
+${d}.fm-columns--panels > .fm-col {
+  padding: 1em 1.2em;
+  border-radius: var(--fm-radius);
+  align-self: stretch;
+}
 /* A toned or painted column is a panel: text flush with a coloured edge reads
    as a mistake, so it takes the same inset a toned grid does, and its first
    block sits at the top of the panel rather than under its own margin.

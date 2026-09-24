@@ -1625,6 +1625,7 @@ export function attachTilesChildContextMenu(
       tile: t3({ en: "New tile", fr: "Nouvelle tuile", pt: "Novo mosaico" }),
       card: t3({ en: "New card", fr: "Nouvelle carte", pt: "Novo cartão" }),
       body: t3({ en: "Text", fr: "Texte", pt: "Texto" }),
+      heading: t3({ en: "Heading", fr: "Titre", pt: "Título" }),
     };
     const run = (action: Parameters<typeof applyTilesChildAction>[2]) => {
       const r = applyTilesChildAction(doc, line1, action, labels);

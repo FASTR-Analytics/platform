@@ -41,6 +41,9 @@ import { escapeReportHtml } from "./types/reports.ts";
 type ContainerMeta = {
   name: string;
   attrs: FastrContainerAttrs;
+  // `:::columns` only: some direct child column is coloured, so the row is a
+  // set of panels and every column takes the panel inset (fm-columns--panels).
+  panels?: boolean;
   // Set by the fm_toc core rule on a `:::contents` token: the document's
   // outline, already trimmed to the depth that block asked for.
   toc?: FastrTocItem[];
@@ -107,6 +110,25 @@ export function createFastrMarkdownIt(): MarkdownIt {
       // swallowing the block silently; validateFastrContainers reports it.
       const contentEnd = leaf ? startLine + 1 : closeLine;
       const meta: ContainerMeta = { name: fence.name, attrs: fence.attrs };
+      if (fence.name === "columns" && !leaf) {
+        // Its DIRECT child columns, by depth, asked what the renderer would
+        // make of them (so a tone and a literal bg count alike).
+        let depth = 0;
+        for (let line = startLine + 1; line < contentEnd; line++) {
+          const s = state.bMarks[line] + state.tShift[line];
+          const f = parseContainerFence(state.src.slice(s, state.eMarks[line]));
+          if (!f) continue;
+          if (f.kind === "close") {
+            depth--;
+            continue;
+          }
+          if (depth === 0 && f.name === "col") {
+            const cls = containerHtmlFor("col", f.attrs).className;
+            if (/\bfm-(tone|has-bg)\b/.test(cls)) meta.panels = true;
+          }
+          if (!isFastrLeafBlock(f.name)) depth++;
+        }
+      }
       const tag = containerHtmlFor(fence.name, fence.attrs).tag;
 
       const open = state.push("fm_container_open", tag, 1);
@@ -198,7 +220,8 @@ export function createFastrMarkdownIt(): MarkdownIt {
     const inner = meta.name === "contents"
       ? renderFastrTocHtml(meta.toc ?? [], fastrTocOptions(meta.attrs))
       : h.leadingHtml;
-    return `<${h.tag} class="${h.className}"${style}${h.extraAttrs}${anchor}>\n${inner}`;
+    const className = meta.panels ? `${h.className} fm-columns--panels` : h.className;
+    return `<${h.tag} class="${className}"${style}${h.extraAttrs}${anchor}>\n${inner}`;
   };
 
   md.renderer.rules.fm_container_close = (tokens, idx) => {
