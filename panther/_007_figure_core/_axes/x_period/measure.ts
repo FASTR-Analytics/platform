@@ -13,16 +13,13 @@ import type {
 import type { YAxisWidthInfoBase } from "../../types.ts";
 import {
   calculateYearSkipInterval,
+  getLabelGap,
   getLargeLabelExemplar,
   getLargeLabelForms,
   getPeriodAxisInfo,
   labelFitsCell,
 } from "./helpers.ts";
 import type { XPeriodAxisMeasuredInfo } from "./types.ts";
-
-// Air kept between neighbouring year labels, in ems of the tick-label font so
-// it scales with the figure like everything else on the axis.
-const _LABEL_GAP_EM = 0.6;
 
 export function measureXPeriodAxis(
   rc: RenderContext,
@@ -51,9 +48,7 @@ export function measureXPeriodAxis(
     rc,
     periodType,
     axisStyle,
-    gridStyle,
     periodIncrementWidth,
-    sx.showEveryNthTick,
   );
 
   const heightIncludingXAxisStrokeWidth = gridStyle.axisStrokeWidth + maxTickH;
@@ -87,14 +82,17 @@ export function measureXPeriodAxis(
     : getPeriodsPerYear(periodType) *
       (periodIncrementWidth + gridStyle.gridStrokeWidth);
 
-  const labelGap = _LABEL_GAP_EM * sx.text.xPeriodAxisTickLabels.fontSize;
+  const labelGap = getLabelGap(sx);
   const yearSkipInterval = Math.max(
     sx.showEveryNthTick,
     calculateYearSkipInterval(widthPerYear, shortestFormW, labelGap),
   );
 
   const boundaryTicksEveryYear = !isYearCentered &&
-    labelFitsCell(shortestFormW, widthPerYear - gridStyle.gridStrokeWidth);
+    labelFitsCell(
+      shortestFormW,
+      widthPerYear - gridStyle.gridStrokeWidth - labelGap,
+    );
 
   return {
     subChartAreaWidth,

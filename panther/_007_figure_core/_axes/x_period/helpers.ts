@@ -7,7 +7,6 @@ import { decodePeriod, getLanguage } from "../../deps.ts";
 import type {
   CalendarType,
   Language,
-  MergedGridStyle,
   MergedXPeriodAxisStyle,
   PeriodType,
   RenderContext,
@@ -85,13 +84,6 @@ export function get_MONTHS_THREE_CHARS(calendar?: CalendarType) {
   return MONTHS_THREE_CHARS_BY_LANG[getLanguage()];
 }
 
-export function get_MONTHS_ONE_CHARS(calendar?: CalendarType) {
-  if (calendar === "ethiopian") {
-    return ["M", "T", "H", "T", "T", "Y", "M", "M", "G", "S", "H", "N"];
-  }
-  return ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-}
-
 const QUARTERS_TWO_CHARS_BY_LANG: Record<Language, string[]> = {
   en: ["Q1", "Q2", "Q3", "Q4"],
   fr: ["T1", "T2", "T3", "T4"],
@@ -101,8 +93,6 @@ const QUARTERS_TWO_CHARS_BY_LANG: Record<Language, string[]> = {
 export function get_QUARTERS_TWO_CHARS() {
   return QUARTERS_TWO_CHARS_BY_LANG[getLanguage()];
 }
-
-export const _QUARTERS_ONE_CHARS = ["1", "2", "3", "4"];
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
@@ -186,29 +176,12 @@ export function getSmallPeriodLabelIfAny(
     const { subPeriod } = decodePeriod(v, "year-month");
     return get_MONTHS_THREE_CHARS(calendar)[subPeriod - 1] ?? "?";
   }
-  if (periodAxisType === "month-one-year") {
-    const { subPeriod } = decodePeriod(v, "year-month");
-    return get_MONTHS_ONE_CHARS(calendar)[subPeriod - 1] ?? "?";
-  }
-  if (periodAxisType === "month-none-year") {
-    return undefined;
-  }
   if (periodAxisType === "quarter-two-year") {
     const { subPeriod } = decodePeriod(v, "year-quarter");
     const q = calendar === "gregorian-fy-july"
       ? getFiscalQuarter(subPeriod)
       : subPeriod;
     return get_QUARTERS_TWO_CHARS()[q - 1] ?? "?";
-  }
-  if (periodAxisType === "quarter-one-year") {
-    const { subPeriod } = decodePeriod(v, "year-quarter");
-    const q = calendar === "gregorian-fy-july"
-      ? getFiscalQuarter(subPeriod)
-      : subPeriod;
-    return _QUARTERS_ONE_CHARS[q - 1] ?? "?";
-  }
-  if (periodAxisType === "quarter-none-year") {
-    return undefined;
   }
   if (periodAxisType === "year-side") {
     return undefined;
@@ -272,17 +245,25 @@ type PeriodAxisInfo = {
   maxTickH: number;
 };
 
-const _PIXEL_PAD = 2;
 const _VERY_SMALL_TICK_H = 10;
+
+// Air kept between neighbouring year labels, between a small label and its
+// bounding ticks, and between a boundary tick and the year label that starts
+// at it. In ems of the tick-label font so it scales with the figure like
+// everything else on the axis.
+const _LABEL_GAP_EM = 0.6;
+
+export function getLabelGap(axisStyle: MergedXPeriodAxisStyle): number {
+  return _LABEL_GAP_EM * axisStyle.text.xPeriodAxisTickLabels.fontSize;
+}
 
 export function getPeriodAxisInfo(
   rc: RenderContext,
   periodType: PeriodType,
   axisStyle: MergedXPeriodAxisStyle,
-  gridStyle: MergedGridStyle,
   periodIncrementWidth: number,
-  _showEveryNthTick: number,
 ): PeriodAxisInfo {
+  const labelGap = getLabelGap(axisStyle);
   const smallLabelH = rc
     .mText(
       "Jan",
@@ -306,9 +287,8 @@ export function getPeriodAxisInfo(
 
   if (periodType === "year-month") {
     const _MONTHS_THREE_CHARS = get_MONTHS_THREE_CHARS(axisStyle.calendar);
-    const _MONTHS_ONE_CHARS = get_MONTHS_ONE_CHARS(axisStyle.calendar);
     if (
-      getMaxWidthWord(rc, axisStyle, _MONTHS_THREE_CHARS) + _PIXEL_PAD <
+      getMaxWidthWord(rc, axisStyle, _MONTHS_THREE_CHARS) + labelGap <
         periodIncrementWidth
     ) {
       const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
@@ -318,32 +298,6 @@ export function getPeriodAxisInfo(
         largeLabelH;
       return {
         periodAxisType: "month-three-year",
-        periodAxisSmallTickH,
-        maxTickH,
-      };
-    }
-    if (
-      getMaxWidthWord(rc, axisStyle, _MONTHS_ONE_CHARS) + _PIXEL_PAD <
-        periodIncrementWidth
-    ) {
-      const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
-        smallLabelH;
-      const maxTickH = periodAxisSmallTickH +
-        axisStyle.periodLabelLargeTopPadding +
-        largeLabelH;
-      return {
-        periodAxisType: "month-one-year",
-        periodAxisSmallTickH,
-        maxTickH,
-      };
-    }
-    if (gridStyle.gridStrokeWidth < periodIncrementWidth / 2) {
-      const periodAxisSmallTickH = _VERY_SMALL_TICK_H;
-      const maxTickH = periodAxisSmallTickH +
-        axisStyle.periodLabelLargeTopPadding +
-        largeLabelH;
-      return {
-        periodAxisType: "month-none-year",
         periodAxisSmallTickH,
         maxTickH,
       };
@@ -366,7 +320,7 @@ export function getPeriodAxisInfo(
   if (periodType === "year-quarter") {
     const _QUARTERS_TWO_CHARS = get_QUARTERS_TWO_CHARS();
     if (
-      getMaxWidthWord(rc, axisStyle, _QUARTERS_TWO_CHARS) + _PIXEL_PAD <
+      getMaxWidthWord(rc, axisStyle, _QUARTERS_TWO_CHARS) + labelGap <
         periodIncrementWidth
     ) {
       const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
@@ -376,32 +330,6 @@ export function getPeriodAxisInfo(
         largeLabelH;
       return {
         periodAxisType: "quarter-two-year",
-        periodAxisSmallTickH,
-        maxTickH,
-      };
-    }
-    if (
-      getMaxWidthWord(rc, axisStyle, _QUARTERS_ONE_CHARS) + _PIXEL_PAD <
-        periodIncrementWidth
-    ) {
-      const periodAxisSmallTickH = axisStyle.periodLabelSmallTopPadding +
-        smallLabelH;
-      const maxTickH = periodAxisSmallTickH +
-        axisStyle.periodLabelLargeTopPadding +
-        largeLabelH;
-      return {
-        periodAxisType: "quarter-one-year",
-        periodAxisSmallTickH,
-        maxTickH,
-      };
-    }
-    if (gridStyle.gridStrokeWidth < periodIncrementWidth / 2) {
-      const periodAxisSmallTickH = 10;
-      const maxTickH = periodAxisSmallTickH +
-        axisStyle.periodLabelLargeTopPadding +
-        largeLabelH;
-      return {
-        periodAxisType: "quarter-none-year",
         periodAxisSmallTickH,
         maxTickH,
       };
@@ -464,18 +392,18 @@ function getMaxWidthWord(
   return maxWidth;
 }
 
-// Year-label density and placement (non-year-centered rungs).
+// Year-label density and placement (non-year-centered rungs). A year label
+// starts labelGap to the right of its boundary tick, so the room a cell offers
+// a label is its width minus the tick stroke and that inset.
 //
 // Two independent decisions, both sized against the label ladder:
 //   - skip interval N: label every Nth year band, so adjacent labels keep
-//     labelGap of air between them (centre-to-centre distance N*bandW must
-//     clear label width + gap).
+//     labelGap of air between them (left-to-left distance N*bandW must clear
+//     label width + gap).
 //   - boundary ticks: a full-height tick at EVERY year start whenever the
-//     shortest label physically fits inside one band between two ticks. Only
-//     when it does not do we fall back to widening the labelled cell to N
-//     bands, which is the one case where a year boundary tick is dropped.
-// labelGap is em-based (see measure.ts) so it rides the figure's fit scale
-// exactly like the label it separates — never a raw pixel constant.
+//     shortest label physically fits inside one band. Only when it does not do
+//     we fall back to widening the labelled cell to N bands, which is the one
+//     case where a year boundary tick is dropped.
 
 const _SKIP_INTERVALS = [1, 2, 5, 10, 20, 50, 100];
 
@@ -497,8 +425,8 @@ export function labelFitsCell(labelW: number, cellInnerW: number): boolean {
   return labelW <= cellInnerW;
 }
 
-// Widest form that keeps the gap to its neighbours (labelSpan = centre-to-centre
-// distance of labelled bands) and fits inside its own cell between ticks.
+// Widest form that keeps the gap to its neighbours (labelSpan = left-to-left
+// distance of labelled bands) and fits in the room its own cell offers.
 export function pickLargeLabelForm(
   labelSpan: number,
   cellInnerW: number,

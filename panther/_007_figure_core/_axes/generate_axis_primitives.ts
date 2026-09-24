@@ -348,18 +348,6 @@ export function generateXPeriodAxisPrimitive(
       : sg.gridStrokeWidth + mx.periodIncrementWidth;
   }
 
-  // Add final tick (if not year-centered)
-  if (mx.periodAxisType !== "year-centered") {
-    ticks.push({
-      position: new Coordinates([currentX, tickY]),
-      tickLine: {
-        start: new Coordinates([currentX, tickY]),
-        end: new Coordinates([currentX, mx.xAxisRcd.bottomY()]),
-      },
-      value: "",
-    });
-  }
-
   if (prevLargeTickX !== undefined && prevLargeTickPeriodId !== undefined) {
     cells.push({
       leftX: prevLargeTickX,
@@ -368,18 +356,22 @@ export function generateXPeriodAxisPrimitive(
     });
   }
 
-  // Year labels, one per labelled cell, centred between its bounding ticks.
-  // Under boundaryTicksEveryYear only every Nth band is labelled; otherwise
-  // every cell is (its left tick was placed on label parity, except the axis
-  // start, which keeps its label as the reader's anchor). One form serves the
-  // whole axis: the widest that fits every cell able to take at least the
-  // shortest form. A cell too narrow even for that — a sliver of a partial
-  // band at either edge — goes unlabelled rather than dragging the form down.
+  // Year labels, one per labelled cell, starting labelGap right of the cell's
+  // boundary tick: the tick marks the instant the year begins and the label
+  // reads onward from it. Under boundaryTicksEveryYear only every Nth band is
+  // labelled; otherwise every cell is (its left tick was placed on label
+  // parity, except the axis start, which keeps its label as the reader's
+  // anchor). One form serves the whole axis: the widest that fits every cell
+  // able to take at least the shortest form. A cell too narrow even for that,
+  // a sliver of a partial band at either edge, goes unlabelled rather than
+  // dragging the form down.
   const shortestFormW = mx.largeLabelForms[mx.largeLabelForms.length - 1].w;
+  const labelInset = sg.gridStrokeWidth / 2 + mx.labelGap;
   const labelledCells = cells
     .map((cell) => ({
       ...cell,
-      innerW: cell.rightX - cell.leftX - sg.gridStrokeWidth,
+      labelX: cell.leftX + labelInset,
+      roomW: cell.rightX - sg.gridStrokeWidth / 2 - cell.leftX - labelInset,
     }))
     .filter((cell) =>
       (!mx.boundaryTicksEveryYear ||
@@ -389,11 +381,11 @@ export function generateXPeriodAxisPrimitive(
           mx.yearSkipInterval,
           sx.calendar,
         )) &&
-      labelFitsCell(shortestFormW, cell.innerW)
+      labelFitsCell(shortestFormW, cell.roomW)
     );
   const form = pickLargeLabelForm(
     mx.labelSpan,
-    Math.min(...labelledCells.map((cell) => cell.innerW)),
+    Math.min(...labelledCells.map((cell) => cell.roomW)),
     mx.labelGap,
     mx.largeLabelForms,
   );
@@ -403,11 +395,11 @@ export function generateXPeriodAxisPrimitive(
       sx.text.xPeriodAxisTickLabels,
       Number.POSITIVE_INFINITY,
     );
-    if (!labelFitsCell(mText.dims.w(), cell.innerW)) {
+    if (!labelFitsCell(mText.dims.w(), cell.roomW)) {
       continue;
     }
     const labelPos = new Coordinates([
-      (cell.leftX + cell.rightX) / 2,
+      cell.labelX,
       mx.xAxisRcd.bottomY() - mText.dims.h(),
     ]);
     // Pseudo-tick carrying the label (no tick line)
@@ -416,7 +408,7 @@ export function generateXPeriodAxisPrimitive(
       label: {
         mText,
         position: labelPos,
-        alignment: { h: "center", v: "top" },
+        alignment: { h: "left", v: "top" },
       },
       value: cell.periodId,
     });
