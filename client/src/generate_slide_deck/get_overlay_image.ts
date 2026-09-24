@@ -1,4 +1,8 @@
-import { SlideDeckConfig, resolveColorThemeToPreset } from "lib";
+import {
+  getSlideDeckThemeColorPreset,
+  getSlideDeckThemeSpec,
+  SlideDeckConfig,
+} from "lib";
 import {
   Color,
   getCoverTreatment,
@@ -10,8 +14,10 @@ import {
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
 
 function getCoverBackgroundColor(config: SlideDeckConfig): string {
-  const colorPreset = resolveColorThemeToPreset(config.colorTheme);
-  const coverTreatment = getCoverTreatment(config.coverAndSectionTreatment);
+  const colorPreset = getSlideDeckThemeColorPreset(config.theme);
+  const coverTreatment = getCoverTreatment(
+    getSlideDeckThemeSpec(config.theme).coverAndSectionTreatment,
+  );
   const background = coverTreatment.background;
   return colorPreset[background as keyof ColorPreset] as string;
 }
@@ -24,12 +30,13 @@ export type BackgroundDetail = {
 export async function getBackgroundDetail(
   config: SlideDeckConfig,
 ): Promise<BackgroundDetail> {
-  if (!config.overlay || config.overlay === "none" || config.overlay === "pattern-none") {
+  const overlay = getSlideDeckThemeSpec(config.theme).overlay;
+  if (overlay === "none" || overlay === "pattern-none") {
     return {};
   }
 
-  if (config.overlay.startsWith("pattern-")) {
-    const patternType = config.overlay.replace("pattern-", "") as PatternType;
+  if (overlay.startsWith("pattern-")) {
+    const patternType = overlay.replace("pattern-", "") as PatternType;
     const pattern = {
       type: patternType,
       ...getPatternDefaults(patternType),
@@ -39,7 +46,7 @@ export async function getBackgroundDetail(
 
   const bgColor = getCoverBackgroundColor(config);
   const lightOrDark = new Color(bgColor).isLight() ? "light" : "dark";
-  const filePath = `/images/${config.overlay}_for_${lightOrDark}_themes.png`;
+  const filePath = `/images/${overlay}_for_${lightOrDark}_themes.png`;
   const resImg = await getImgFromCacheOrFetch(filePath);
   if (resImg.success === false) {
     return {};

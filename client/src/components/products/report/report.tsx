@@ -25,7 +25,11 @@ import {
   type ImageBlock,
   materializeReport,
   type FastrFencePatch,
+  fastrLogoImageIds,
+  fastrLogoSrcAttr,
+  type FastrOpenFence,
   fastrOpenFenceOnLine,
+  logosSnippet,
   fastrPageMarginPx,
   fastrSheetPx,
   type PackageScope,
@@ -48,7 +52,7 @@ import {
   type EditorComponentProps,
   FrameTop,
   getEditorWrapper,
-  HeadingBar,
+  Icon,
   MarkdownPresentationJsx,
   openAlert,
   openComponent,
@@ -66,7 +70,8 @@ import {
   Show,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { serverActions, _SERVER_HOST } from "~/server_actions";
+import { serverActions } from "~/server_actions";
+import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import {
   collabSocketOpen,
   docSaveFailing,
@@ -131,6 +136,7 @@ import {
   type SelectedReportEmbed,
 } from "./embed_editor";
 import { ReportImagePicker } from "./image_picker";
+import { ReportLogoPicker } from "./logo_picker";
 import { ReportMarkdownDiff } from "./markdown_diff";
 import { ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
 import { DownloadReport } from "./download_report";
@@ -894,13 +900,17 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   const canEditBody = () => canConfigure() && !collabFatal();
 
   function assetUrl(imgFile: string) {
-    return `${_SERVER_HOST}/${imgFile}`;
+    return resolveLogoUrl(imgFile);
   }
 
   // Never rewind lastUpdated when out-of-order save responses resolve (M3).
   function bumpLastUpdated(ts: string) {
     setLastUpdated((prev) => (ts > prev ? ts : prev));
   }
+
+  // The report header hosts the toolbar's menu row under the name, the way
+  // the deck's header hosts the slide's (one header, Google Slides).
+  const [menuRowHost, setMenuRowHost] = createSignal<HTMLDivElement>();
 
   const saveIndicator = createMemo(() => {
     // The report/room is gone (deleted, not found): nothing persists anymore.
@@ -1744,6 +1754,57 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     setSelectedEmbed({ kind: "image", id });
   }
 
+  // A logos row's logos are image registry entries like any report image
+  // (the built-in FASTR logos too: resolveLogoUrl knows their files), so the
+  // editor, the prune and every export resolve them one way. An edit keeps
+  // the id of a logo the row already had.
+  async function registerLogos(
+    files: string[],
+    reuse: string[] = [],
+  ): Promise<string[]> {
+    const current = images();
+    const next = { ...current };
+    const free = reuse.filter((id) => current[id] !== undefined);
+    const ids = files.map((file) => {
+      const k = free.findIndex((id) => current[id].imgFile === file);
+      if (k >= 0) return free.splice(k, 1)[0];
+      const id = crypto.randomUUID();
+      next[id] = { type: "image", imgFile: file };
+      return id;
+    });
+    if (Object.keys(next).length !== Object.keys(current).length) {
+      setImages(next);
+      await persistImages(next);
+    }
+    return ids;
+  }
+
+  async function insertLogos() {
+    const files = await openComponent({
+      element: ReportLogoPicker,
+      props: { initial: [], editing: false },
+    });
+    if (!files || files.length === 0) return;
+    const ids = await registerLogos(files);
+    editorApi?.insertBlockOnNewLine(logosSnippet(ids));
+  }
+
+  async function editLogos(fence: FastrOpenFence) {
+    const had = fastrLogoImageIds(fence.attrs);
+    const files = await openComponent({
+      element: ReportLogoPicker,
+      props: {
+        initial: had.map((id) => images()[id]?.imgFile).filter(
+          (f): f is string => f !== undefined,
+        ),
+        editing: true,
+      },
+    });
+    if (!files || files.length === 0) return;
+    const ids = await registerLogos(files, had);
+    editorApi?.setBlockAttrs(fence.line, { src: fastrLogoSrcAttr(ids) });
+  }
+
   function handleUpdateCaption(id: string, caption: string) {
     const sel = selectedEmbed();
     if (!sel) return;
@@ -2121,6 +2182,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               assetUrl={assetUrl}
               onBodyChange={handleBodyChange}
               onSelectEmbed={(kind, id) => setSelectedEmbed({ kind, id })}
+              onEditLogos={(fence) => {
+                if (canConfigure() && mode() !== "view") void editLogos(fence);
+              }}
               selectedId={() => selectedEmbed()?.id}
               onScroll={onEditorScroll}
               centered={() => mode() === "edit"}
@@ -2163,20 +2227,47 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             class="h-full w-full"
             data-cursor-zone="header"
           >
-            <HeadingBar
+            {/* One header (the slide deck's shape): the name with the
+                document's menu row under it on the left; the package chip,
+                the save dot and the report's actions on the right, on that
+                same lower line; the formatting pill in its own row beneath. */}
+            <div
+              class="ui-pad-sm ui-gap border-b flex w-full items-center"
               data-tour="report-toolbar"
-              heading=""
-              leftChildren={
-                <div class="ui-gap-sm flex items-center">
+            >
+              <div class="ui-gap-sm flex min-w-0 flex-1 items-stretch">
+                {/* The report's own glyph sits on the name's line and back
+                    sits under it, on the menu row. */}
+                <div class="flex flex-none flex-col items-center">
+                  <div class="flex min-h-[var(--ui-form-height)] items-center">
+                    <Icon iconName="report" class="h-5 w-5" />
+                  </div>
                   <Button
                     id="report-back-button"
                     iconName="chevronLeft"
                     onClick={() => p.close(undefined)}
                   />
-                  <ProductTitle productId={p.productId} label={label()} />
                 </div>
-              }
-              centerChildren={
+                <div class="flex min-w-0 flex-1 flex-col">
+                  <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
+                    <ProductTitle productId={p.productId} label={label()} />
+                  </div>
+                  {/* The toolbar's menu row, portaled in under the name. */}
+                  <Show when={fileMenuShown()}>
+                    <div
+                      class="-ml-2 flex min-w-0 items-center gap-1 pt-2"
+                      ref={(el) => {
+                        setMenuRowHost(el);
+                        onCleanup(() => setMenuRowHost(undefined));
+                      }}
+                    />
+                  </Show>
+                </div>
+              </div>
+              {/* Bottom of the header (the menu row's line), but each
+                  control centred on the buttons' height: the save dot is
+                  15px against a 36px button. */}
+              <div class="ui-gap-sm flex flex-none items-center self-end">
                 <Show when={format() !== "fastr"}>
                   <ButtonGroup<ReportMode>
                     data-tour="report-mode"
@@ -2198,9 +2289,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                     onChange={(v) => v && setMode(v)}
                   />
                 </Show>
-              }
-            >
-              <div class="ui-gap-sm flex items-center">
                 <PackageScopeChip
                   product={product()}
                   onClick={canConfigure() ? () => void openPackageScope() : undefined}
@@ -2300,15 +2388,18 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                   </Button>
                 </Show>
               </div>
-            </HeadingBar>
-            {/* The formatting strip. A second row rather than more controls in
-                the HeadingBar's right slot, which already carries seven and is
-                anchored by onboarding tour steps. FrameTop's panel sizes to its
-                content, so the strip just grows the header. The embed controls
-                (insert visualization/image; the selected embed's actions) ride
-                the same row — the left sidebar they used to live in is gone. */}
+            </div>
+            {/* The formatting strip: the toolbar's PILL, under the header
+                whose menu row it portals into. A row of its own rather than
+                more controls in the header's right group, which already
+                carries seven and is anchored by onboarding tour steps.
+                FrameTop's panel sizes to its content, so the strip just grows
+                the header. The embed controls (insert visualization/image;
+                the selected embed's actions) ride the same row: the left
+                sidebar they used to live in is gone. */}
             <Show when={fileMenuShown()}>
               <ReportToolbar
+                menuRowHost={menuRowHost()}
                 api={() => editorApi}
                 showPages={showPages}
                 onToggleShowPages={toggleShowPages}
@@ -2341,6 +2432,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
                 canInsertEmbeds={() => canConfigure() && mode() !== "view"}
                 onInsertFigure={insertFigure}
                 onInsertImage={insertImage}
+                onInsertLogos={insertLogos}
+                onEditLogos={editLogos}
               />
             </Show>
             <Show

@@ -35,7 +35,8 @@ import {
   loadFontsWithTimeout,
   saveAs,
 } from "panther";
-import { _SERVER_HOST, serverActions } from "~/server_actions";
+import { serverActions } from "~/server_actions";
+import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { figureInputsForDownload } from "~/generate_report/mod";
 import { loadImageEntry } from "~/generate_report/mod";
@@ -244,7 +245,7 @@ export async function buildStandaloneReportHtml(
       if (url) imageUrls.set(id, url);
       continue;
     }
-    const entry = await loadImageEntry(`${_SERVER_HOST}/${block.imgFile}`);
+    const entry = await loadImageEntry(resolveLogoUrl(block.imgFile));
     if (entry) imageUrls.set(id, entry.dataUrl);
   }
   if (opts.collect) {

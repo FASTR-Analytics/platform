@@ -112,6 +112,15 @@ export function materializeReportEmbeds(
       span.textContent = missingText(kind, id);
       img.replaceWith(span);
     };
+    // A logo in a `:::logos` row: the row is the block, so a logo takes its
+    // file and nothing that makes it a selectable embed; a missing one
+    // leaves the row (its height is the sheet's either way).
+    if (kind === "image" && img.classList.contains("fm-logo")) {
+      const url = resolveImage(id);
+      if (url) img.setAttribute("src", url);
+      else img.remove();
+      continue;
+    }
     if (kind === "image") {
       const url = resolveImage(id);
       if (!url) {

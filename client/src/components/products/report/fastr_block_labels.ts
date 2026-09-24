@@ -2,6 +2,8 @@ import {
   type FastrBlockName,
   type FastrCoverLayout,
   type FastrInkRole,
+  type FastrLogoAlign,
+  type FastrLogoSize,
   type FastrTone,
   t3,
 } from "lib";
@@ -60,6 +62,8 @@ export function fastrBlockLabel(name: FastrBlockName): string {
         fr: "Saut de page",
         pt: "Quebra de página",
       });
+    case "logos":
+      return t3({ en: "Logos", fr: "Logos", pt: "Logótipos" });
     case "report":
       return t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" });
     case "card":
@@ -124,6 +128,12 @@ export function fastrBlockCaption(name: FastrBlockName): string {
         en: "The document's headings, listed and linked",
         fr: "Les titres du document, listés et liés",
         pt: "Os títulos do documento, listados e ligados",
+      });
+    case "logos":
+      return t3({
+        en: "A row of logos: yours, your partners', FASTR's",
+        fr: "Une rangée de logos : les vôtres, ceux des partenaires, celui de FASTR",
+        pt: "Uma linha de logótipos: os seus, os dos parceiros, o da FASTR",
       });
     case "report":
       return t3({
@@ -198,5 +208,29 @@ export function fastrCoverLayoutLabel(layout: FastrCoverLayout): string {
       return t3({ en: "Minimal", fr: "Minimale", pt: "Minimalista" });
     case "block":
       return t3({ en: "Block title", fr: "Titre en bloc", pt: "Título em bloco" });
+  }
+}
+
+export function fastrLogoAlignLabel(align: FastrLogoAlign): string {
+  switch (align) {
+    case "left":
+      return t3({ en: "Left", fr: "Gauche", pt: "Esquerda" });
+    case "center":
+      return t3({ en: "Centre", fr: "Centre", pt: "Centro" });
+    case "right":
+      return t3({ en: "Right", fr: "Droite", pt: "Direita" });
+    case "spread":
+      return t3({ en: "Spread across", fr: "Réparti", pt: "Distribuído" });
+  }
+}
+
+export function fastrLogoSizeLabel(size: FastrLogoSize): string {
+  switch (size) {
+    case "s":
+      return t3({ en: "Small", fr: "Petit", pt: "Pequeno" });
+    case "m":
+      return t3({ en: "Medium", fr: "Moyen", pt: "Médio" });
+    case "l":
+      return t3({ en: "Large", fr: "Grand", pt: "Grande" });
   }
 }

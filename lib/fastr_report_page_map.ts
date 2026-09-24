@@ -202,6 +202,8 @@ function regionLabel(r: FastrLiveRegion, lines: string[]): string {
       return "page break";
     case "stat":
       return "stat";
+    case "logos":
+      return "logos row";
     default:
       return `${name} block (${prose(inner)} words)`;
   }

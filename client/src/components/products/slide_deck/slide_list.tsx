@@ -14,9 +14,9 @@ import {
   Button,
   FrameLeftResizable,
   FrameTop,
+  Icon,
   LoadingIndicator,
   type MenuItem,
-  ActionMenuButton,
   MenuButton,
   createDeleteAction,
   openAlert,
@@ -35,6 +35,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
 import { PackageScopeChip, ProductTitle } from "~/components/products/_shared/mod.ts";
+import { DeckFileMenu, DeckMenu } from "./deck_menu";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
@@ -63,6 +64,9 @@ type Props = {
   // The header's menus line, where the open slide's editor portals its
   // Slide / Insert / Layout menus (under the deck's name, Google Slides).
   onMenuRowHost: (el: HTMLDivElement) => void;
+  // The header's right-hand group, where the open slide's editor portals its
+  // live/save dot (the report header's save status, for slides).
+  onStatusHost: (el: HTMLDivElement) => void;
   handleClose: () => Promise<void>;
   handleOpenSettings: () => Promise<void>;
   handleOpenProductSettings: () => Promise<void>;
@@ -519,6 +523,35 @@ export function SlideList(p: Props) {
 
   const canEditFigures = () => canEditProduct(p.productId);
 
+  // The Deck menu edits the deck's config with no Save button, so what it
+  // touches is shown at once and saved behind it; the deck's own refetch then
+  // lands on the same value and releases the override. A failed save drops
+  // the override, so the header snaps back to what the server actually holds.
+  const [configOverride, setConfigOverride] = createSignal<
+    SlideDeckConfig | undefined
+  >();
+  const deckConfig = () => configOverride() ?? p.deckConfig;
+  createEffect(
+    on(
+      () => p.deckConfig,
+      () => setConfigOverride(undefined),
+      { defer: true },
+    ),
+  );
+
+  async function patchDeckConfig(patch: Partial<SlideDeckConfig>) {
+    const next = { ...deckConfig(), ...patch };
+    setConfigOverride(next);
+    const res = await serverActions.updateSlideDeckConfig({
+      product_id: p.productId,
+      config: next,
+    });
+    if (res.success === false) {
+      setConfigOverride(undefined);
+      await openAlert({ text: res.err, intent: "danger" });
+    }
+  }
+
   // The chip opens the pair surface with a live count of what the candidate
   // pair would leave stale, walked over the same per-slide cache as above.
   async function openPackageScope() {
@@ -555,56 +588,6 @@ export function SlideList(p: Props) {
     });
   }
 
-  const menuItems = (): MenuItem[] => [
-    {
-      label: t3({
-        en: "Name and folder",
-        fr: "Nom et dossier",
-        pt: "Nome e pasta",
-      }),
-      icon: "pencil",
-      onClick: () => p.handleOpenProductSettings(),
-    },
-    {
-      label: t3(TC.download),
-      icon: "download",
-      onClick: () => p.download(),
-    },
-    {
-      label: t3({ en: "Share", fr: "Partager", pt: "Partilhar" }),
-      icon: "arrowRight",
-      onClick: () => p.share(),
-    },
-    {
-      label:
-        selectedIds().size > 0
-          ? t3({
-              en: `Copy ${selectedIds().size} slide(s) to deck…`,
-              fr: `Copier ${selectedIds().size} diapositive(s) vers une présentation…`,
-              pt: `Copiar ${selectedIds().size} diapositivo(s) para apresentação…`,
-            })
-          : t3({
-              en: "Copy to deck…",
-              fr: "Copier vers une présentation…",
-              pt: "Copiar para apresentação…",
-            }),
-      icon: "copy",
-      disabled: selectedIds().size === 0,
-      onClick: () => void copyToDeck(),
-    },
-    {
-      label: t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" }),
-      icon: "rotate",
-      onClick: () => p.openVersionHistory(),
-    },
-    // { type: "divider" },
-    // {
-    //   label: "Batch edit visualizations",
-    //   icon: "pencil",
-    //   onClick: () => {},
-    // },
-  ];
-
   return (
     <FrameTop
       panelChildren={
@@ -613,22 +596,71 @@ export function SlideList(p: Props) {
             it on the left, the deck's actions on the right, the toolbar row
             beneath. */}
         <div class="border-b w-full flex-none" data-tour="deck-toolbar">
-          <div class="ui-pad-sm ui-gap flex w-full items-start">
-            <div class="flex min-w-0 flex-1 flex-col">
-              <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
+          <div class="ui-pad-sm ui-gap flex w-full items-center">
+            {/* Back sits in its own column, so the name and the slide's menus
+                under it share one left margin; the deck's actions centre on
+                the whole two-row header. */}
+            <div class="ui-gap-sm flex min-w-0 flex-1 items-stretch">
+              {/* The deck's own glyph sits on the name's line and back sits
+                  under it, on the menu row, at the usual button size. */}
+              <div class="flex flex-none flex-col items-center">
+                <div class="flex min-h-[var(--ui-form-height)] items-center">
+                  <Icon iconName="presentation" class="h-5 w-5" />
+                </div>
                 <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
-                <ProductTitle productId={p.productId} label={p.deckLabel} />
+              </div>
+              <div class="flex min-w-0 flex-1 flex-col">
+                <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
+                  <ProductTitle productId={p.productId} label={p.deckLabel} />
+                  <PresenceAvatars
+                    peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
+                  />
+                </div>
+                {/* The row of menus: the deck's own first, then the open
+                    slide's (Slide, Insert...), portaled in here by the slide
+                    toolbar. The pull-back puts the first label on the deck
+                    name's left margin. */}
+                <div
+                  class="-ml-2 flex min-w-0 items-center gap-1 pt-2"
+                  ref={p.onMenuRowHost}
+                >
+                  <DeckFileMenu
+                    onDownload={() => void p.download()}
+                    onShare={() => void p.share()}
+                    onRename={() => void p.handleOpenProductSettings()}
+                    selectedCount={selectedIds().size}
+                    onCopyToDeck={() => void copyToDeck()}
+                  />
+                  <DeckMenu
+                    config={deckConfig()}
+                    canEdit={canEditFigures()}
+                    onPatch={(patch) => void patchDeckConfig(patch)}
+                    onOpenAllSettings={() => void p.handleOpenSettings()}
+                  />
+                </div>
+              </div>
+            </div>
+            {/* The deck's actions sit on the menu row's line, not the
+                name's, so the bar reads as one block that steps down. */}
+            <div class="ui-gap-sm flex flex-none items-center self-end">
+              {/* The package and scope, then the open slide's live/save dot
+                  (portaled in by its editor): the report header's pair. */}
+              <div class="flex items-center">
                 <PackageScopeChip
                   product={p.product}
                   onClick={canEditFigures() ? () => void openPackageScope() : undefined}
                 />
-                <PresenceAvatars
-                  peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
-                />
               </div>
-              <div class="flex min-w-0 items-center" ref={p.onMenuRowHost} />
-            </div>
-            <div class="ui-gap-sm flex flex-none items-center">
+              <div class="flex items-center" ref={p.onStatusHost} />
+              <MenuButton
+                position="bottom-end"
+                items={addSlideMenuItems}
+                id="deck-add-slide-button"
+                iconName="plus"
+                outline
+              >
+                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+              </MenuButton>
               <Show when={p.slideIds.length > 0}>
                 <Button
                   id="deck-present-button"
@@ -636,14 +668,6 @@ export function SlideList(p: Props) {
                   onClick={() => p.present()}
                 >
                   {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
-                </Button>
-                <Button
-                  id="deck-download-button"
-                  iconName="download"
-                  outline
-                  onClick={() => p.download()}
-                >
-                  {t3(TC.download)}
                 </Button>
               </Show>
               <Show when={canEditFigures()}>
@@ -654,14 +678,13 @@ export function SlideList(p: Props) {
                 />
               </Show>
               <Button
-                id="deck-settings-button"
-                iconName="settings"
+                id="deck-history-button"
+                iconName="rotate"
                 outline
-                onClick={() => p.handleOpenSettings()}
+                onClick={() => p.openVersionHistory()}
               >
-                {t3(TC.settings)}
+                {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
               </Button>
-              <ActionMenuButton id="deck-more-button" items={menuItems} outline />
               <Show when={!showAi()}>
                 <Button
                   onClick={() => setShowAi(true)}
@@ -675,12 +698,9 @@ export function SlideList(p: Props) {
           </div>
           {/* The toolbar row: the deck's Add slide at the left, then the open
               slide's formatting pill. */}
+          {/* The toolbar row: the open slide's formatting pill (Add slide
+              sits with the deck's actions above). */}
           <div class="border-t flex items-start" data-cursor-zone="header">
-            <div class="flex-none px-2 pt-1">
-              <MenuButton position="bottom-start" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
-                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-              </MenuButton>
-            </div>
             <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
           </div>
         </div>

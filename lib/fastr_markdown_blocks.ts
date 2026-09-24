@@ -10,6 +10,7 @@
 //   :::columns{cols=2}  :::col{span=2} … :::      :::
 //   :::quote{cite="Dr N. Kamara"} … :::
 //   :::pagebreak                                    ← leaf, ends the printed page
+//   :::logos{src="image:<id> image:<id>" align=center size=m} ← leaf, a logo row
 //
 // A container's design lives entirely in the theme stylesheet (report_fastr_css.ts)
 // — the body never carries CSS, which is what makes the format hand-editable and
@@ -32,6 +33,7 @@ export const FASTR_BLOCK_NAMES = [
   "steps",
   "contents",
   "pagebreak",
+  "logos",
   "report",
 ] as const;
 export type FastrBlockName = (typeof FASTR_BLOCK_NAMES)[number];
@@ -43,6 +45,7 @@ export const FASTR_LEAF_BLOCK_NAMES: readonly string[] = [
   "stat",
   "contents",
   "pagebreak",
+  "logos",
   "report",
 ];
 
@@ -783,6 +786,47 @@ export const FASTR_COVER_FILLS = ["page"] as const;
 export type FastrCoverFill = (typeof FASTR_COVER_FILLS)[number];
 const STAT_DIRS = ["up", "down", "flat"] as const;
 
+// A row of logos: `src` lists them in order, each an entry of the report's
+// image registry (an uploaded asset or one of the built-in FASTR logos,
+// registered the same way), so every surface resolves a logo exactly as it
+// resolves an inline image. The row's HEIGHT is the size's, whatever the
+// images turn out to be, so the page layout knows the block's box before a
+// logo has loaded.
+export const FASTR_LOGO_ALIGNS = ["left", "center", "right", "spread"] as const;
+export type FastrLogoAlign = (typeof FASTR_LOGO_ALIGNS)[number];
+export const FASTR_LOGO_SIZES = ["s", "m", "l"] as const;
+export type FastrLogoSize = (typeof FASTR_LOGO_SIZES)[number];
+const LOGO_SRC_RE = /^image:[A-Za-z0-9_-]+$/;
+
+// The `src` tokens that name an image, in order. Anything else is dropped
+// here and reported by listFastrContainerDefects.
+export function fastrLogoSources(attrs: FastrContainerAttrs): string[] {
+  return (attrText(attrs, "src") ?? "").split(/\s+/).filter((t) =>
+    LOGO_SRC_RE.test(t)
+  );
+}
+
+// The image ids of a logos fence, in order.
+export function fastrLogoImageIds(attrs: FastrContainerAttrs): string[] {
+  return fastrLogoSources(attrs).map((t) => t.slice("image:".length));
+}
+
+export function fastrLogoAlign(attrs: FastrContainerAttrs): FastrLogoAlign {
+  return oneOf(attrs, "align", FASTR_LOGO_ALIGNS, "left") as FastrLogoAlign;
+}
+
+export function fastrLogoSize(attrs: FastrContainerAttrs): FastrLogoSize {
+  return oneOf(attrs, "size", FASTR_LOGO_SIZES, "m") as FastrLogoSize;
+}
+
+export function fastrLogoSrcAttr(imageIds: readonly string[]): string {
+  return imageIds.map((id) => `image:${id}`).join(" ");
+}
+
+export function logosSnippet(imageIds: readonly string[]): string {
+  return `:::logos{src="${fastrLogoSrcAttr(imageIds)}"}`;
+}
+
 // Per-block markup, BEFORE the shared surface attributes are folded in.
 function blockShapeFor(
   name: string,
@@ -918,6 +962,22 @@ function blockShapeFor(
         leadingHtml: "",
         trailingHtml: "",
       };
+    case "logos": {
+      const align = fastrLogoAlign(attrs);
+      const size = fastrLogoSize(attrs);
+      const logos = fastrLogoSources(attrs);
+      return {
+        tag: "div",
+        className: [
+          `fm-logos fm-logos--${align} fm-logos--${size}`,
+          logos.length === 0 ? "fm-logos--empty" : "",
+        ].filter((c) => c.length > 0).join(" "),
+        leadingHtml: logos.map((src) =>
+          `<img class="fm-logo" src="${escapeReportHtml(src)}" alt="">`
+        ).join(""),
+        trailingHtml: "",
+      };
+    }
     // A forced page break. Renders as an empty marker: on screen the theme
     // sheet hides it, in the paged PDF it ends the page, and the editor draws
     // it as a labelled divider so the author can see and delete it.
@@ -1249,6 +1309,19 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
         line: i + 1,
         message: `Unknown break \`${brk}\`. Use break=before or break=after.`,
       });
+    }
+    // A logo is an uploaded image; anything else in `src` would vanish.
+    if (fence.name === "logos") {
+      const src = fence.attrs["src"];
+      const bad = (typeof src === "string" ? src : "").split(/\s+/).filter(
+        (t) => t.length > 0 && !LOGO_SRC_RE.test(t),
+      );
+      if (bad.length > 0) {
+        defects.push({
+          line: i + 1,
+          message: `\`${bad[0]}\` is not a logo. Each logo is an image the user placed: src="image:<id> image:<id>".`,
+        });
+      }
     }
     // A cover's `fill=` the sheet does not know would leave it a band.
     const fill = fence.attrs["fill"];

@@ -14,10 +14,17 @@
 // 4. Split treatment → coverAndSectionTreatment + freeformTreatment
 // 5. Add fontFamily default
 // 6. Migrate logo sizing numbers → semantic keys (size/spacing)
+// 7. Collapse the six style fields into one theme id
 //
 // =============================================================================
 
-import { _GFF_GREEN, findBrandPresetByHex, slideDeckConfigSchema } from "lib";
+import {
+  _GFF_GREEN,
+  applySlideDeckThemeToLegacyConfig,
+  findBrandPresetByHex,
+  LEGACY_SLIDE_DECK_STYLE_KEYS,
+  slideDeckConfigSchema,
+} from "lib";
 import {
   Color,
   COVER_TREATMENT_IDS,
@@ -103,6 +110,21 @@ function migrateLogoSizing(
   return out;
 }
 
+
+// Block 7's scorer lives in lib (applySlideDeckThemeToLegacyConfig), not here,
+// because the version-history read path has to give a snapshot saved before
+// themes existed the SAME answer this sweep gives the live deck. A restored
+// version that disagreed with the deck it came from would be a silent
+// re-theme. See the contract at the top of lib/types/_slide_deck_themes.ts.
+
+// The six keys block 7 deletes. Zod strips unknown keys rather than rejecting
+// them, so a row still carrying these would pass the sweep's skip gate and keep
+// its legacy style forever while the app read a theme that was never written.
+// See the Skip-Gate Gotcha in PROTOCOL_APP_MIGRATIONS.md.
+function rawJsonNeedsDeckThemeTransform(raw: string): boolean {
+  return LEGACY_SLIDE_DECK_STYLE_KEYS.some((k) => raw.includes(`"${k}"`));
+}
+
 export type { MigrationStats };
 
 export async function migrateSlideDeckConfigs(
@@ -119,8 +141,13 @@ export async function migrateSlideDeckConfigs(
 
     const config = JSON.parse(row.config);
 
-    // Already valid? Skip (unless we just changed treatment above).
-    if (slideDeckConfigSchema.safeParse(config).success) {
+    // Already valid? Skip, unless the row still carries one of the six legacy
+    // style keys: those are DELETED by block 7, and zod would call the row
+    // valid while quietly stripping the style the deck was actually saved in.
+    if (
+      slideDeckConfigSchema.safeParse(config).success &&
+      !rawJsonNeedsDeckThemeTransform(row.config)
+    ) {
       continue;
     }
 
@@ -263,6 +290,11 @@ export async function migrateSlideDeckConfigs(
         }
       }
     }
+
+    // Block 7: Collapse the six style fields into one theme id. Blocks 1-6
+    // above guarantee all six are present and in-vocabulary, so the scorer
+    // never sees a partial style.
+    applySlideDeckThemeToLegacyConfig(config);
 
     const validated = slideDeckConfigSchema.parse(config);
 

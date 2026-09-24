@@ -14,6 +14,7 @@ import { render } from "solid-js/web";
 import { Match, Show, Switch } from "solid-js";
 import {
   type FastrChartPalette,
+  type FastrOpenFence,
   type FigureBlock,
   type ImageBlock,
   parseReportEmbedLine,
@@ -33,6 +34,9 @@ export type EmbedResolver = {
   // Clicking an embed selects it (opens the left-side editor).
   onSelectEmbed: (kind: EmbedKind, id: string) => void;
   getSelectedId: () => string | undefined;
+  // A `:::logos` row asks for its picker (double-click, or a click on an
+  // empty row).
+  onEditLogos?: (fence: FastrOpenFence) => void;
   // The ink a figure takes on the ground behind `el` (dark on light, light
   // on dark), from the report's own palette.
   inkFor: (el: Element) => FigureInkTheme | undefined;

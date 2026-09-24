@@ -698,15 +698,15 @@ Deno.test("card grids get the same insert, delete and column following", () => {
 Deno.test("columns get the same picker snippet and column actions", () => {
   assertEquals(
     columnsSnippet(3, "Text"),
-    ":::columns{cols=3}\n:::col\nText\n:::\n:::col\nText\n:::\n:::col\nText\n:::\n:::",
+    ":::columns{cols=3}\n:::col\n### Heading\nText\n:::\n:::col\n### Heading\nText\n:::\n:::col\n### Heading\nText\n:::\n:::",
   );
   const doc = ":::columns{cols=2}\n:::col\nleft\n:::\n:::col\nright\n:::\n:::\nend";
-  const labels = { tile: "T", card: "C", body: "Text" };
+  const labels = { tile: "T", card: "C", body: "Text", heading: "Head" };
   const r = applyTilesChildAction(doc, 2, "insertAfter", labels);
   assertWellFormed(r);
   assertEquals(
     apply(doc, r),
-    ":::columns{cols=3}\n:::col\nleft\n:::\n:::col\nText\n:::\n:::col\nright\n:::\n:::\nend",
+    ":::columns{cols=3}\n:::col\nleft\n:::\n:::col\n### Head\nText\n:::\n:::col\nright\n:::\n:::\nend",
   );
   const r2 = applyTilesChildAction(doc, 5, "delete", labels);
   assertWellFormed(r2);
@@ -715,7 +715,7 @@ Deno.test("columns get the same picker snippet and column actions", () => {
   const lone = ":::card\n:::col\nx\n:::\n:::";
   assertEquals(
     apply(lone, applyTilesChildAction(lone, 2, "insertAfter", labels)),
-    ":::card\n:::col\nx\n:::\n:::col\nText\n:::\n:::",
+    ":::card\n:::col\nx\n:::\n:::col\n### Head\nText\n:::\n:::",
   );
 });
 
