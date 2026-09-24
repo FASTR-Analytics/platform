@@ -213,7 +213,13 @@ export function SlideToolbar(p: Props) {
       {...{ [INLINE_EDIT_KEEP_ATTR]: "" }}
       onMouseDown={keepFocus}
     >
-  <div class="flex flex-wrap items-center gap-1 px-2 pt-0.5">
+  {/* In the deck's header the row sits under the deck name, so the first
+      menu's own padding is pulled back to put its label on the name's left
+      margin (the same -mx trick ProductTitle uses). */}
+  <div
+    class="flex flex-wrap items-center gap-1 pt-0.5"
+    classList={{ "px-2": !p.menuRowHost, "-ml-2": !!p.menuRowHost }}
+  >
     <ToolbarPopover
       menu
       tour="slide-type-select"
