@@ -118,8 +118,9 @@ violation per check against a synthetic tree.
 
 `client/src/index.tsx` runs exactly three panther setters before
 `render(<App />)`: `setKeyColorsFromCss({ remapNearBlackOnDark: true })`,
-which reads both halves of every CSS `--color-*` token so a figure's key
-colours are the UI's in either scheme (the stored scheme is already on
+which reads both halves of every CSS `--color-*` token, as `t4_theme` has
+already applied them (imported for that effect), so a figure's key colours
+are the UI's themed ones in either scheme (the stored scheme is already on
 `<html>` by then, which is why the helper pins its probe's scheme rather
 than reading the document's), `setBaseText`,
 `setGlobalStyle(GLOBAL_STYLE_OPTIONS)`. The option objects of the latter two
@@ -294,7 +295,10 @@ mirrored in the module. Unlike the other T4 prefs the stored value is validated
 on read, because it feeds CSS rather than a comparison. The Theme button in the
 instance top bar opens `ThemeModal`, where every change applies immediately,
 the scheme toggle from the profile modal sits at the top as the mode rather
-than a theme knob, and a summary line names the current combination. Canvas figures keep their fixed key colors.
+than a theme knob, and a summary line names the current combination. Boot
+reads the canvas key colors from these tokens after the module has applied
+them ("Boot" above), so figures follow the theme in place at boot; a theme
+set later reaches only the HTML UI, since panther's key colors are set once.
 `THEME_SWITCHER_ENABLED` (false) hides the button and makes the module ignore
 the stored theme, so every device gets `DEFAULT_THEME`: the cool ramp, deep
 green, charcoal ink, maroon danger, teal dark primary, 3px radius. Radius

@@ -5,8 +5,10 @@ import { createSignal } from "solid-js";
 // sensible values, not a catalogue of contrasts: colors are light-dark() pairs
 // drawn only from the GFF brand guidelines (ENG_Branding
 // Guidelines_Secretariat.pdf); rounding writes nothing at the stylesheet's
-// step, so it stays what _fixed.css declares. Canvas figures keep their fixed
-// key colors; only the HTML UI follows.
+// step, so it stays what _fixed.css declares. Boot reads the canvas key
+// colors from these tokens after this module has applied them (index.tsx),
+// so figures follow the theme in place at boot; a theme set later reaches
+// only the HTML UI.
 
 // The chosen look ships as DEFAULT_THEME for everyone. While this is false the
 // Theme button is hidden and stored per-device themes are ignored; flip it to
