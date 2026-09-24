@@ -103,11 +103,14 @@ export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
           <ViewBody
             view={v()}
             viewSelect={
-              <Select
-                value={v().id}
-                options={views().map((x) => ({ value: x.id, label: x.label }))}
-                onChange={setChosen}
-              />
+              <div class="w-[32rem] max-w-full">
+                <Select
+                  value={v().id}
+                  options={views().map((x) => ({ value: x.id, label: x.label }))}
+                  onChange={setChosen}
+                  fullWidth
+                />
+              </div>
             }
             ctx={p.ctx}
             scope={p.scope}
