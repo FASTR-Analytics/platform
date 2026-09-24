@@ -10,7 +10,7 @@ bar with a stage sentence, pulses the chip of whichever module is current
 (reused or running), and a failed package names the stage it failed in.
 Panther's `ProgressBar` gains a `busy` prop for the stripe.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its
+**Next step: Review 1.** Each session sets this line in its final commit. Its
 values are `Do N`, `Review N` and `Fix N` for steps 1 to 3. The review of
 step 3 deletes the file.
 
@@ -431,3 +431,11 @@ is additive and needs no rollback for the app to revert.
 
 Append-only. One row per decision, deviation, correction or defect, plus one
 closing row per session.
+
+| When | Step | Row |
+| --- | --- | --- |
+| 2026-09-24 | 1 | Deviation from §2's CSS: the reduced-motion rule is nested inside the `@utility` (`@media (prefers-reduced-motion: reduce) { animation: none; }`), not a bare `.ui-progress-busy { animation: none; }` beside it. The fill selects the utility through the `data-[busy=true]:` variant, so Tailwind emits `.data-\[busy\=true\]\:ui-progress-busy[data-busy="true"]` and never a bare `.ui-progress-busy`; the plan's rule would have matched nothing. Proven by compiling the synced `_fixed.css` with the client's Tailwind (`tailwindcss/dist/lib.mjs`, candidates `data-[busy=true]:ui-progress-busy`): the variant rule carries the gradient, the animation and the nested reduced-motion `animation: none`, and `@keyframes ui-progress-busy` is emitted at top level. |
+| 2026-09-24 | 1 | Choice the plan did not cover: the keyframes are named `ui-progress-busy`, after panther's existing `ui-blink`, not §2's `uiProgressBusy`. Same name as the utility, one vocabulary. |
+| 2026-09-24 | 1 | The sync refused once: the app tree was dirty for a few seconds while a parallel session committed `4b75892c` (a results-package table change, outside this plan). The tree was clean at session start and clean again on the retry. Panther commit `ffe91cd`; sync commit here `e4b63705`, holding `_fixed.css`, `progress_bar.tsx` and the manifest only. |
+| 2026-09-24 | 1 | Gates green. Panther at `ffe91cd`: `deno task typecheck`, `deno run -A clean.ts --dry-run`, `deno task test` (501 passed), and `deno lint modules/` through the sync gate. Here at `e4b63705`: `deno task typecheck`. `ProgressBar` has no other caller in panther, and this app's eight callers pass no `busy`, so no existing render changes. |
+| 2026-09-24 | 1 | Step 1 built. |
