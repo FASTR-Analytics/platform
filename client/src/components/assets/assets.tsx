@@ -4,11 +4,10 @@ import {
   Table,
   createDeleteAction,
   type BulkAction,
-  type ListItem,
   type TableColumn,
 } from "panther";
 import { HeadingBar } from "panther";
-import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import { Show, createMemo, onCleanup, onMount } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
@@ -22,11 +21,11 @@ const FILE_TYPE_LABELS: Record<
   FileType,
   { en: string; fr: string; pt: string }
 > = {
-  csv: { en: "CSV files", fr: "Fichiers CSV", pt: "Ficheiros CSV" },
-  excel: { en: "Excel files", fr: "Fichiers Excel", pt: "Ficheiros Excel" },
-  image: { en: "Images", fr: "Images", pt: "Imagens" },
-  zip: { en: "ZIP files", fr: "Fichiers ZIP", pt: "Ficheiros ZIP" },
-  other: { en: "Other files", fr: "Autres fichiers", pt: "Outros ficheiros" },
+  csv: { en: "CSV", fr: "CSV", pt: "CSV" },
+  excel: { en: "Excel", fr: "Excel", pt: "Excel" },
+  image: { en: "Image", fr: "Image", pt: "Imagem" },
+  zip: { en: "ZIP", fr: "ZIP", pt: "ZIP" },
+  other: { en: "Other", fr: "Autre", pt: "Outro" },
 };
 
 const FILE_TYPE_ORDER: FileType[] = ["csv", "excel", "image", "zip", "other"];
@@ -80,88 +79,24 @@ export function InstanceAssets() {
     await deleteAction.click();
   }
 
-  const [selectedType, setSelectedType] = createSignal<FileType>("csv");
-
-  const grouped = createMemo(() => {
-    const map = new Map<FileType, AssetInfo[]>();
-    for (const type of FILE_TYPE_ORDER) {
-      map.set(type, []);
-    }
-    for (const asset of instanceState.assets) {
-      map.get(getFileType(asset))!.push(asset);
-    }
-    return map;
-  });
-
-  const nonEmptyTypes = createMemo(() =>
-    FILE_TYPE_ORDER.filter((t) => (grouped().get(t)?.length ?? 0) > 0),
-  );
-
-  const activeType = createMemo<FileType | undefined>(() => {
-    const types = nonEmptyTypes();
-    return types.includes(selectedType()) ? selectedType() : types[0];
-  });
-
-  const tabItems = createMemo<ListItem<FileType>[]>(() =>
-    nonEmptyTypes().map((type) => ({
-      id: type,
-      label: t3(FILE_TYPE_LABELS[type]),
-      // iconName: "folder",
-      // badge: grouped().get(type)?.length ?? 0,
-    })),
-  );
-
-  const assetTabs = () => {
-    const active = activeType();
-    return active === undefined
-      ? undefined
-      : {
-          "data-tour": "instance-assets-tabs",
-          items: tabItems(),
-          value: active,
-          onChange: setSelectedType,
-        };
-  };
-
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full">
-          <HeadingBar
-            data-tour="instance-assets-header"
-            compact
-            tabs={assetTabs()}
-          >
-            <Button id="select-file-button" iconName="upload" size="sm">
-              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
-            </Button>
-          </HeadingBar>
-        </div>
+        <HeadingBar data-tour="instance-assets-header" compact>
+          <Button id="select-file-button" iconName="upload" size="sm">
+            {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
+          </Button>
+        </HeadingBar>
       }
     >
-      <Show
-        when={activeType()}
-        fallback={
-          <p class="text-base-content-muted ui-pad text-sm">
-            {t3({
-              en: "No assets uploaded yet",
-              fr: "Aucune ressource téléversée",
-              pt: "Ainda não foram carregados recursos",
-            })}
-          </p>
-        }
-      >
-        {(active) => (
-          <div class="ui-pad h-full w-full" data-tour="instance-assets-list">
-            <AssetTable
-              files={grouped().get(active()) ?? []}
-              currentUserEmail={instanceState.currentUserEmail}
-              isAdmin={instanceState.currentUserIsGlobalAdmin}
-              onDelete={attemptDeleteAssetFile}
-            />
-          </div>
-        )}
-      </Show>
+      <div class="ui-pad h-full w-full" data-tour="instance-assets-list">
+        <AssetTable
+          files={instanceState.assets}
+          currentUserEmail={instanceState.currentUserEmail}
+          isAdmin={instanceState.currentUserIsGlobalAdmin}
+          onDelete={attemptDeleteAssetFile}
+        />
+      </div>
     </FrameTop>
   );
 }
@@ -182,6 +117,15 @@ function AssetTable(p: {
       }),
       sortable: true,
       render: (asset) => <span class="font-mono">{asset.fileName}</span>,
+    },
+    {
+      key: "fileType",
+      header: t3({ en: "Type", fr: "Type", pt: "Tipo" }),
+      sortable: true,
+      sortValue: (asset) => FILE_TYPE_ORDER.indexOf(getFileType(asset)),
+      filterable: true,
+      filterValue: (asset) => t3(FILE_TYPE_LABELS[getFileType(asset)]),
+      render: (asset) => t3(FILE_TYPE_LABELS[getFileType(asset)]),
     },
     {
       key: "size",
@@ -305,9 +249,9 @@ function AssetTable(p: {
       keyField="fileName"
       defaultSort={{ key: "fileName", direction: "asc" }}
       noRowsMessage={t3({
-        en: "No assets",
-        fr: "Aucune ressource",
-        pt: "Sem recursos",
+        en: "No assets uploaded yet",
+        fr: "Aucune ressource téléversée",
+        pt: "Ainda não foram carregados recursos",
       })}
       bulkActions={bulkActions()}
       selectionLabel={t3({ en: "asset", fr: "ressource", pt: "recurso" })}

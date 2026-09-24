@@ -1091,23 +1091,6 @@ export function buildInstanceAssetsTour(): TourDefinition {
         onTargetTimeout: "skip",
       },
       {
-        id: "tabs",
-        target: tourTarget("instance-assets-tabs"),
-        title: t3({
-          en: "Grouped by type",
-          fr: "Regroupées par type",
-          pt: "Agrupados por tipo",
-        }),
-        body: t3({
-          en: "Files are organized into tabs by type — images, CSVs, documents and so on — with a count on each.",
-          fr: "Les fichiers sont organisés en onglets par type — images, CSV, documents, etc. — avec un compteur sur chacun.",
-          pt: "Os ficheiros são organizados em separadores por tipo — imagens, CSV, documentos, etc. — com um contador em cada um.",
-        }),
-        placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
-      },
-      {
         id: "list",
         target: tourTarget("instance-assets-list"),
         title: t3({
@@ -1116,9 +1099,9 @@ export function buildInstanceAssetsTour(): TourDefinition {
           pt: "Gerir ficheiros",
         }),
         body: t3({
-          en: "Download any file from the table. You can delete your own uploads; admins can manage everyone's.",
-          fr: "Téléchargez n'importe quel fichier depuis le tableau. Vous pouvez supprimer vos propres téléversements ; les administrateurs peuvent gérer ceux de tout le monde.",
-          pt: "Descarregue qualquer ficheiro a partir da tabela. Pode eliminar os seus próprios carregamentos; os administradores podem gerir os de todos.",
+          en: "Filter by the Type column to show only CSVs, images and so on. Download any file from the table. You can delete your own uploads; admins can manage everyone's.",
+          fr: "Filtrez la colonne Type pour n'afficher que les CSV, les images, etc. Téléchargez n'importe quel fichier depuis le tableau. Vous pouvez supprimer vos propres téléversements ; les administrateurs peuvent gérer ceux de tout le monde.",
+          pt: "Filtre a coluna Tipo para mostrar apenas CSV, imagens, etc. Descarregue qualquer ficheiro a partir da tabela. Pode eliminar os seus próprios carregamentos; os administradores podem gerir os de todos.",
         }),
         placement: "top",
         waitForTargetTimeoutMs: 2000,
