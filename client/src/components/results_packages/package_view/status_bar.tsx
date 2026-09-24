@@ -25,6 +25,8 @@ type ModuleChip = {
 };
 type ChipGroup = { heading: string | undefined; modules: ModuleChip[] };
 
+const BAR_FLOOR_PERCENT = 10;
+
 // The package's facts, one bar between the heading and the tabs for every
 // status: while generating, a busy progress bar with the stage sentence
 // (SYSTEM_08 "The stage"); how each module ran (from `run.progress`, stored
@@ -48,7 +50,12 @@ export function StatusBar(p: {
     const progress = p.progress;
     if (progress === null) return undefined;
     const { done, total } = runProgressSteps(progress);
-    return { percent: (done / total) * 100, label: runStageLabel(progress) };
+    // The stripe rides the fill, so an honest 0% during prepare (the longest
+    // stage) shows nothing moving. The floor keeps the bar visibly busy.
+    return {
+      percent: Math.max(BAR_FLOOR_PERCENT, (done / total) * 100),
+      label: runStageLabel(progress),
+    };
   });
   const groups = createMemo((): ChipGroup[] => {
     const progress = p.progress;

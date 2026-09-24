@@ -261,9 +261,11 @@ line as its subheading: created, by whom, `synthetic-backfill` when so, disk
 size), a **status bar** under it (`package_view/status_bar.tsx`), and the
 body. The status bar is the package's facts for every status. While
 generating it opens with a full-width panther `ProgressBar small busy`:
-the width is `runProgressSteps` over `p.progress`, the message is
-`runStageLabel` ("The stage" below), both read in one memo before any
-branch and rendered under a `Show` on the generating status. Then the
+the width is `runProgressSteps` over `p.progress` with a 10% floor (the
+stripe rides the fill, so an honest 0% during prepare would show nothing
+moving), the message is `runStageLabel` ("The stage" below), both read in
+one memo before any branch and rendered under a `Show` on the generating
+status. Then the
 labelled rows: one `ModuleProgressChip` per module of
 `run.progress.moduleOrder` with its `moduleStatus` (the final progress is
 stored at publish, so a ready package has chips too: done and reused),
