@@ -90,7 +90,7 @@ export function Timeseries(p: {
         </div>
       }
     >
-      <div class="ui-pad h-full w-full">
+      <div class="ui-pad h-full w-full overflow-y-auto">
         <Show when={derived()} fallback={<EmptyState kind="no_preset" />}>
           {(d) => {
             const figure = createFigurePreview(() => ({
@@ -100,7 +100,7 @@ export function Timeseries(p: {
             }));
             return (
               <StateHolderWrapper state={figure()} noPad>
-                {(inputs) => <FigureHolder figureInputs={inputs} height="flex" />}
+                {(inputs) => <FigureHolder figureInputs={inputs} height="ideal" />}
               </StateHolderWrapper>
             );
           }}

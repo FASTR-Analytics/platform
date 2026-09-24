@@ -275,9 +275,10 @@ primary preset with `d` replaced by type `timeseries`, the query's grain as
 indicators as a filter and the window as `periodFilter`. The figure is
 fetched and built through `createFigurePreview` (S11's one path for a figure
 that is not a row, so it shares the scope-keyed items cache with products)
-and rendered by panther's `FigureHolder` with `height="flex"` and the
-default `sizing="reflow"`, which lays the figure out at the container width
-so one design unit is one CSS pixel and lines are as crisp as the UI. Its
+and rendered by panther's `FigureHolder` at its ideal height in a pane that
+scrolls, with the default `sizing="reflow"`, which lays the figure out at
+the container width so one design unit is one CSS pixel and lines are as
+crisp as the UI. Its
 controls are indicators, period and grain; the level control is the table's
 alone, since the lines are the scope's total. HMIS only: HFA time points
 and ICEH years are not period columns.
