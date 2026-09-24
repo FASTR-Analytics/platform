@@ -18,6 +18,7 @@ import {
 } from "panther";
 import { createMemo, type JSX, Show } from "solid-js";
 import { createFigurePreview } from "~/components/_shared/mod.ts";
+import { liveFigureStyle } from "~/generate_visualization/mod";
 import {
   DroppedIndicatorsNotice,
   EmptyState,
@@ -100,7 +101,12 @@ export function Timeseries(p: {
             }));
             return (
               <StateHolderWrapper state={figure()} noPad>
-                {(inputs) => <FigureHolder figureInputs={inputs} height="ideal" />}
+                {(inputs) => (
+                  <FigureHolder
+                    figureInputs={{ ...inputs, style: liveFigureStyle(inputs.style) }}
+                    height="ideal"
+                  />
+                )}
               </StateHolderWrapper>
             );
           }}

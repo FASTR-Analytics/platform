@@ -280,8 +280,9 @@ that is not a row, so it shares the scope-keyed items cache with products)
 and rendered by panther's `FigureHolder` at its ideal height in a pane that
 scrolls, with the default `sizing="reflow"`, which lays the figure out at
 the container width so one design unit is one CSS pixel and lines are as
-crisp as the UI. Its
-controls are indicators, period and grain; the level control is the table's
+crisp as the UI, under S10's `liveFigureStyle` (one-pixel strokes, base-200
+grid, 12pt text, abbreviated ticks). Its controls are indicators, period and
+grain; the level control is the table's
 alone, since the lines are the scope's total. HMIS only: HFA time points
 and ICEH years are not period columns.
 

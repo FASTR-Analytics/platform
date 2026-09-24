@@ -425,7 +425,7 @@ callback re-parses the new bytes).
   `DatasetDisplayPresentation` over the display cache below, its rows read
   under `indicator_common_id`, the server column: one figure at a time by
   a radio, the panther timeseries line graph (count or sum of records per
-  indicator and month) or the presence heat map (panther's `PresenceGrid`,
+  indicator and month, under S10's `liveFigureStyle`) or the presence heat map (panther's `PresenceGrid`,
   a DOM grid of indicator × month or year, a cell filled where the
   indicator has a record in the period, hover from the cell's title; no
   figure package and no server call). The presentation builds the grid's

@@ -10,3 +10,4 @@ export { applyFigureConfigPatch, CONDITIONALLY_APPLIED_FIELDS } from "./apply_fi
 export { describeFigureConfigPatchEffect } from "./describe_figure_config_patch_effect";
 export { assertNoSlotCollision, validateFigureConfigEdit, validateValuesFilter } from "./validate_figure_config_edit";
 export { getMapJsonDataConfigFromPresentationObjectConfig } from "./get_data_config_for_map";
+export { liveFigureStyle } from "./live_figure_style";

@@ -12,7 +12,6 @@ import {
   RadioGroup,
   StateHolder,
   StateHolderWrapper,
-  toNum0,
   type CustomFigureStyleOptions,
   FrameTop,
   ButtonGroup,
@@ -20,6 +19,7 @@ import {
   presenceGridColumnsFromPeriods,
 } from "panther";
 import { Show, createMemo } from "solid-js";
+import { liveFigureStyle } from "~/generate_visualization/mod";
 import type { SetStoreFunction } from "solid-js/store";
 
 export type VizConfig = {
@@ -57,7 +57,7 @@ export function DatasetDisplayPresentation(p: Props) {
     const showLegend =
       p.vizConfig.indicators.length > 0 && p.vizConfig.indicators.length < 6;
 
-    const style: CustomFigureStyleOptions = {
+    const style: CustomFigureStyleOptions = liveFigureStyle({
       surrounds: {
         legendPosition: showLegend ? undefined : "none",
       },
@@ -65,9 +65,6 @@ export function DatasetDisplayPresentation(p: Props) {
         maxLegendItemsInOneColumn: 1,
       },
       seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
-      yScaleAxis: {
-        tickLabelFormatter: toNum0,
-      },
       xPeriodAxis: {
         calendar: getCalendar(),
       },
@@ -80,7 +77,7 @@ export function DatasetDisplayPresentation(p: Props) {
           },
         },
       },
-    };
+    });
 
     const figureData: FigureInputs = {
       figureType: "timeseries",
