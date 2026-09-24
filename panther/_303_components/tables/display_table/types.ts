@@ -46,29 +46,46 @@ export type BulkAction<T> = {
 
 export type TablePadding = "compact" | "normal" | "comfortable";
 
-export type TableProps<T, K extends keyof T = keyof T> = {
-  data: T[];
-  columns: TableColumn<T>[];
-  keyField: K;
-  onRowClick?: (item: T) => void;
-  noRowsMessage?: string;
-  bulkActions?: BulkAction<T>[];
-  selectionLabel?: string; // e.g. "user", "row", "item"
-  // Caps the scroll box (e.g. "500px", "60vh") in place of the parent's
-  // height, for a parent that gives none.
-  maxHeight?: string;
-  defaultSort?: SortConfig;
-  onSortChange?: (config: SortConfig | null) => void;
-  // Initial per-column excluded values, and the callback to persist them.
-  defaultFilters?: FilterConfig;
-  onFilterChange?: (filters: FilterConfig) => void;
-  // Controlled selection; both or neither.
-  selectedKeys?: Accessor<Set<T[K]>>;
-  setSelectedKeys?: (keys: Set<T[K]>) => void;
-  paddingX?: TablePadding;
-  paddingY?: TablePadding;
-  // Restore the scroll container to this offset on mount, and report it as it
-  // changes; hoist it to survive remounts.
-  initialScrollTop?: number;
-  onScrollTopChange?: (scrollTop: number) => void;
-};
+export type TableProps<T, K extends keyof T = keyof T> =
+  & {
+    data: T[];
+    columns: TableColumn<T>[];
+    keyField: K;
+    onRowClick?: (item: T) => void;
+    noRowsMessage?: string;
+    // Caps the scroll box (e.g. "500px", "60vh") in place of the parent's
+    // height, for a parent that gives none.
+    maxHeight?: string;
+    defaultSort?: SortConfig;
+    onSortChange?: (config: SortConfig | null) => void;
+    // Initial per-column excluded values, and the callback to persist them.
+    defaultFilters?: FilterConfig;
+    onFilterChange?: (filters: FilterConfig) => void;
+    paddingX?: TablePadding;
+    paddingY?: TablePadding;
+    // Restore the scroll container to this offset on mount, and report it as it
+    // changes; hoist it to survive remounts.
+    initialScrollTop?: number;
+    onScrollTopChange?: (scrollTop: number) => void;
+  }
+  & TableHeaderForm<T, K>;
+
+// Selection needs the header, where its select-all checkbox lives, so the type
+// admits a hidden header only on a table without selection. Sort and filter
+// controls live there too: a headerless table is a static list.
+type TableHeaderForm<T, K extends keyof T> =
+  | {
+    hideHeader?: false;
+    bulkActions?: BulkAction<T>[];
+    selectionLabel?: string; // e.g. "user", "row", "item"
+    // Controlled selection; both or neither.
+    selectedKeys?: Accessor<Set<T[K]>>;
+    setSelectedKeys?: (keys: Set<T[K]>) => void;
+  }
+  | {
+    hideHeader: true;
+    bulkActions?: undefined;
+    selectionLabel?: undefined;
+    selectedKeys?: undefined;
+    setSelectedKeys?: undefined;
+  };
