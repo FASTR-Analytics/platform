@@ -167,8 +167,8 @@ Everything else is a **signal-driven switchboard**, never the URL:
 a permission-guarded derivation that selects Products / Explore / Results /
 Data / Assets / Users, in that nav order; Products (S12's
 `components/products/`) is first and the default, and Explore (S11's
-`components/explore/`, one package at one scope, a family's metrics in a
-nav and a view per metric, S11 "The Explore page") needs approval
+`components/explore/`, one package at one scope, a family's modules in a
+nav and a view per module, S11 "The Explore page") needs approval
 only, which the whole nav already requires. The tab id union is `InstanceTab`
 in `onboarding/catalogue.ts` and the shell imports it.
 
@@ -246,12 +246,12 @@ Whether every literal is well-formed across the 241-file surface is the standing
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
 then the signal: the rail's `navCollapsed`; the Data page's section tab
 `dataSection` (General / HMIS / HFA / ICEH); the Explore page's family
-`exploreFamily` and its metric group per family `exploreMetrics`, a JSON
+`exploreFamily` and its module per family `exploreModules`, a JSON
 object (its package and scope are page signals, never stored); the
 product explorer's two (`productsExpandedFolders`, the open folder ids as
 a JSON array; `productsSort`, a `ListSort` (`SortMode = "name" | "recent"`
 plus a direction) from `lib/types/sort.ts`, one vocabulary for every list).
-The open-folder set, the sort and the Explore metrics
+The open-folder set, the sort and the Explore modules
 are parsed defensively (malformed JSON reads as the default); the rest are
 unvalidated on read: they only feed
 comparisons, and a value from a build that spelled one differently

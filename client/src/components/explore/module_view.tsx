@@ -3,40 +3,70 @@ import {
   primaryMetricFor,
   t3,
   type DatasetType,
+  type GridColumns,
   type GridQuery,
+  type InstalledModuleSummary,
   type MetricWithStatus,
   type PackageScope,
   type RunAuthoringContext,
 } from "lib";
-import { ButtonGroup, FrameTop } from "panther";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { Select } from "panther";
+import { createMemo, createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { EmptyState } from "./_shared/mod.ts";
 import { DataTable } from "./data_table/mod.ts";
-import type { MetricNavGroup } from "./metric_nav";
 
-// A view is one way of reading a metric group. The data table is offered for
-// the HMIS primary module's first ready metric and no other group has one
-// yet. When module definitions declare views, `viewsFor` reads them instead
-// and the rest of the page stands.
-type ExploreView = { kind: "data_table"; label: string; metric: MetricWithStatus };
-type ExploreViewKind = ExploreView["kind"];
+// A view is one named reading of a module: a metric bound to a presentation.
+// The HMIS primary module offers its first ready metric as counts and over
+// time, and no other module has a view yet. When module definitions declare
+// views, `viewsFor` reads them instead and the rest of the page stands.
+type ExploreView = {
+  id: string;
+  label: string;
+  kind: "data_table";
+  metric: MetricWithStatus;
+  columns: GridColumns;
+};
 
 function viewsFor(
-  group: MetricNavGroup,
+  module: InstalledModuleSummary,
   family: DatasetType,
   ctx: RunAuthoringContext,
 ): ExploreView[] {
   const primary = family === "hmis" ? primaryMetricFor(family, ctx) : undefined;
-  const metric = group.variants.find((m) => m.id === primary?.id);
-  return metric === undefined ? [] : [{
-    kind: "data_table",
-    label: t3({
-      en: "Data table",
-      fr: "Tableau de données",
-      pt: "Tabela de dados",
-    }),
-    metric,
-  }];
+  if (primary === undefined || primary.moduleId !== module.id) return [];
+  return [
+    {
+      id: "indicator_values_counts",
+      label: t3({
+        en: "Indicator values as counts",
+        fr: "Valeurs des indicateurs en effectifs",
+        pt: "Valores dos indicadores em contagens",
+      }),
+      kind: "data_table",
+      metric: primary,
+      columns: "indicators",
+    },
+    {
+      id: "indicator_values_over_time",
+      label: t3({
+        en: "Indicator values over time",
+        fr: "Valeurs des indicateurs dans le temps",
+        pt: "Valores dos indicadores ao longo do tempo",
+      }),
+      kind: "data_table",
+      metric: primary,
+      columns: "time",
+    },
+  ];
+}
+
+function moduleMetrics(
+  module: InstalledModuleSummary,
+  ctx: RunAuthoringContext,
+): MetricWithStatus[] {
+  return ctx.metrics
+    .filter((m) => m.moduleId === module.id)
+    .toSorted((a, b) => a.id.localeCompare(b.id));
 }
 
 type ViewProps = {
@@ -47,95 +77,94 @@ type ViewProps = {
   setQuery: (query: GridQuery) => void;
 };
 
-// The chosen group's views: a toggle when it has more than one, the first
-// otherwise, and a placeholder when it has none. A group with no ready
-// variant shows its stamped reason instead.
-export function MetricView(p: ViewProps & { group: MetricNavGroup }) {
-  const views = createMemo(() => viewsFor(p.group, p.family, p.ctx));
-  const [chosen, setChosen] = createSignal<ExploreViewKind | undefined>();
+// The chosen module's views behind a `Select` over their names, which the
+// view places first in its own control row; a placeholder listing the
+// module's metrics when it has none. A module with no ready metric shows
+// the stamped reason instead.
+export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
+  const metrics = createMemo(() => moduleMetrics(p.module, p.ctx));
+  const views = createMemo(() => viewsFor(p.module, p.family, p.ctx));
+  const [chosen, setChosen] = createSignal<string | undefined>();
   const view = createMemo(() =>
-    views().find((v) => v.kind === chosen()) ?? views()[0]
+    views().find((v) => v.id === chosen()) ?? views()[0]
   );
 
   return (
     <Show
-      when={p.group.variants.some((m) => m.status === "ready")}
+      when={metrics().some((m) => m.status === "ready")}
       fallback={
         <div class="ui-pad">
-          <EmptyState
-            kind="no_metric"
-            reason={p.group.variants[0]?.statusReason}
-          />
+          <EmptyState kind="no_metric" reason={metrics()[0]?.statusReason} />
         </div>
       }
     >
-      <Show when={view()} keyed fallback={<Placeholder group={p.group} />}>
+      <Show
+        when={view()}
+        fallback={<Placeholder module={p.module} metrics={metrics()} />}
+      >
         {(v) => (
-          <FrameTop
-            panelChildren={
-              <Show when={views().length > 1}>
-                <div class="ui-pad">
-                  <ButtonGroup
-                    value={v.kind}
-                    items={views().map((x) => ({ id: x.kind, label: x.label }))}
-                    onChange={(kind) => {
-                      if (kind !== undefined) setChosen(kind);
-                    }}
-                    size="sm"
-                  />
-                </div>
-              </Show>
+          <ViewBody
+            view={v()}
+            viewSelect={
+              <Select
+                value={v().id}
+                options={views().map((x) => ({ value: x.id, label: x.label }))}
+                onChange={setChosen}
+                size="sm"
+              />
             }
-          >
-            <ViewBody
-              view={v}
-              ctx={p.ctx}
-              scope={p.scope}
-              family={p.family}
-              query={p.query}
-              setQuery={p.setQuery}
-            />
-          </FrameTop>
+            ctx={p.ctx}
+            scope={p.scope}
+            family={p.family}
+            query={p.query}
+            setQuery={p.setQuery}
+          />
         )}
       </Show>
     </Show>
   );
 }
 
-function ViewBody(p: ViewProps & { view: ExploreView }) {
-  switch (p.view.kind) {
-    case "data_table":
-      return (
-        <DataTable
-          ctx={p.ctx}
-          scope={p.scope}
-          family={p.family}
-          metric={p.view.metric}
-          query={p.query}
-          setQuery={p.setQuery}
-        />
-      );
-  }
+function ViewBody(p: ViewProps & { view: ExploreView; viewSelect: JSX.Element }) {
+  return (
+    <Switch>
+      <Match when={p.view.kind === "data_table" ? p.view : undefined}>
+        {(v) => (
+          <DataTable
+            ctx={p.ctx}
+            scope={p.scope}
+            family={p.family}
+            metric={v().metric}
+            columns={v().columns}
+            viewSelect={p.viewSelect}
+            query={p.query}
+            setQuery={p.setQuery}
+          />
+        )}
+      </Match>
+    </Switch>
+  );
 }
 
-function Placeholder(p: { group: MetricNavGroup }) {
+function Placeholder(p: {
+  module: InstalledModuleSummary;
+  metrics: MetricWithStatus[];
+}) {
   return (
     <div class="ui-pad ui-spy-sm text-sm">
-      <div class="font-700">{p.group.label}</div>
+      <div class="font-700">{p.module.label}</div>
       <div class="text-base-content-muted">
         {t3({
-          en: "No view is built for this metric yet.",
-          fr: "Aucune vue n'est encore construite pour cette métrique.",
-          pt: "Ainda não há nenhuma vista construída para esta métrica.",
+          en: "No view is built for this module yet. Its metrics:",
+          fr: "Aucune vue n'est encore construite pour ce module. Ses métriques :",
+          pt: "Ainda não há nenhuma vista construída para este módulo. As suas métricas:",
         })}
       </div>
-      <Show when={p.group.variants.length > 1}>
-        <ul class="text-base-content-muted">
-          <For each={p.group.variants}>
-            {(m) => <li>{getMetricDisplayLabel(m)}</li>}
-          </For>
-        </ul>
-      </Show>
+      <ul class="text-base-content-muted">
+        <For each={p.metrics}>
+          {(m) => <li>{getMetricDisplayLabel(m)}</li>}
+        </For>
+      </ul>
     </div>
   );
 }

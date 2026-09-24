@@ -205,37 +205,39 @@ package has any module for, in `MODULE_FAMILY_ORDER`, with a package
 newest ready package) and an area `Select` over `listAdminArea2s` whose
 first option is National. The package and area are page signals, never
 stored, so a deleted package can never be a stored default; the family
-(`exploreFamily`) and the chosen metric group per family (`exploreMetrics`)
+(`exploreFamily`) and the chosen module per family (`exploreModules`)
 persist in `t4_ui` (S14) and are resolved against the package on every read,
 so a stored choice the package lacks falls back to the first offered. The
 authoring context is read through `t2_run_authoring_context`. The page
 writes nothing: no insert into a product, no persisted draft, no copilot, no
 help buttons.
 
-Under a family tab, `FrameLeft` holds the metric nav (`metric_nav.tsx`) and
-the chosen group's view (`metric_view.tsx`). The nav is the family's metrics
-grouped by label (`groupMetricsByModule`, the wizard's unit), a section per
-tier (Primary results, Supporting analyses) and a `SelectList` header per
-module; a group is keyed by its first variant's id. `viewsFor` in
-`metric_view.tsx` is the one place that says which views a group offers: a
-data table for the HMIS primary module's first ready metric
-(`primaryMetricFor`) and nothing for any other group. A group with more than
-one view gets a `ButtonGroup` toggle above the view, a group with none shows
-a placeholder naming it and its variants, and a group with no ready variant
-shows its stamped reason. When module definitions declare views, `viewsFor`
-reads them and nothing else on the page changes.
+Under a family tab, `FrameLeft` holds the module nav (`module_nav.tsx`) and
+the chosen module's view (`module_view.tsx`). The nav is the family's
+modules in module order (`compareModules`), a `SelectList` per tier (Primary
+results, Supporting analyses). A view is one named reading of a module, a
+metric bound to a presentation, and `viewsFor` in `module_view.tsx` is the
+one place that says which views a module offers: "Indicator values as
+counts" (columns Indicators) and "Indicator values over time" (columns
+Time) for the HMIS primary module's first ready metric (`primaryMetricFor`),
+and nothing for any other module. A `Select` over the module's view names is
+always shown; the view places it first in its own control row. A module with
+no view shows a placeholder listing its metrics, and a module with no ready
+metric shows the stamped reason. When module definitions declare views,
+`viewsFor` reads them and nothing else on the page changes.
 
 **Data table** (`explore/data_table/`) reads its metric as a grid whose rows
 are the unit (admin areas at one level, or an ICEH stratifier's levels) and
-whose columns are indicators or time. Its state is a `GridQuery` per family
-("Grid query model" below), owned by the page so a package, scope or metric
+whose columns are indicators or time, the view's choice. Its controls' state
+is a `GridQuery` per family
+("Grid query model" below), owned by the page so a package, scope or module
 change never resets it; until the user edits a family's query it is
 `defaultGridQuery` for the current scope. Every read resolves the query
 first (`resolveGridQuery`); indicators the package lacks stay in state and a
-one-line notice above the grid offers Clear. The toolbar holds level or
-stratifier, indicators (`MultiSelectSearch`, empty means all), period
-(`periodChoicesFor`), columns (Indicators or Time), grain (HMIS Time mode
-only), a find box and Download. The reads are tracked (`createTrackedQuery`,
+one-line notice above the grid offers Clear. The toolbar holds the view
+`Select` first, then level or stratifier, indicators (`MultiSelectSearch`,
+empty means all), period (`periodChoicesFor`), grain (HMIS Time mode only),
+a find box and Download. The reads are tracked (`createTrackedQuery`,
 `data_table/tracked_query.ts`), so they re-run on any change of the pair or
 the query: the metric info (`t2_figure_data`, for the package's HFA time
 points, in the instance's declared order, ICEH's years and stratifiers, and
@@ -348,14 +350,15 @@ no ready package is `explore.tsx`'s own.
 
 ### Grid query model
 
-`lib/explore_grid_query.ts` holds the Explore Data table's state as a
-`GridQuery` (family, unit, indicators, period, columns, grain) and the pure
-steps over it. `primaryMetricFor` is the family's primary module's first
+`lib/explore_grid_query.ts` holds the Explore Data table's controls' state
+as a `GridQuery` (family, unit, indicators, period, grain) and the pure
+steps over it; the columns mode (Indicators or Time) is the view's and is
+passed beside the query to `resolveGridQuery` and `deriveGridConfig`. `primaryMetricFor` is the family's primary module's first
 ready metric by id, the one metric the page offers a data table for.
 `defaultGridQuery` opens at the scope's level plus one
 (national: admin area 2; an admin area 2 scope: 3), every indicator, HMIS on
 the last 12 months, HFA on its latest time point and ICEH on its first
-stratifier and latest year, columns Indicators. `resolveGridQuery` maps the
+stratifier and latest year. `resolveGridQuery` maps the
 query onto what the current package and scope can answer on every read and
 never rewrites the caller's state: an unoffered family becomes the first
 offered, a level becomes one the metric's `disaggregationOptions` carry and

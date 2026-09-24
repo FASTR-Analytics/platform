@@ -37,10 +37,9 @@ export function setDataSection(section: DataSection) {
   setDataSectionInternal(section);
 }
 
-// The Explore page's family tab and, per family, the chosen metric group (its
-// first variant's id), persisted like the Data page's section and resolved
-// against the package on read. The package and scope are page signals, never
-// stored (SYSTEM_11).
+// The Explore page's family tab and, per family, the chosen module id,
+// persisted like the Data page's section and resolved against the package on
+// read. The package and scope are page signals, never stored (SYSTEM_11).
 const storedExploreFamily = localStorage.getItem(
   "exploreFamily",
 ) as DatasetType | null;
@@ -52,11 +51,11 @@ export function setExploreFamily(family: DatasetType) {
   setExploreFamilyInternal(family);
 }
 
-type ExploreMetrics = Partial<Record<DatasetType, string>>;
-function readStoredExploreMetrics(): ExploreMetrics {
+type ExploreModules = Partial<Record<DatasetType, string>>;
+function readStoredExploreModules(): ExploreModules {
   try {
     const parsed: unknown = JSON.parse(
-      localStorage.getItem("exploreMetrics") ?? "{}",
+      localStorage.getItem("exploreModules") ?? "{}",
     );
     if (typeof parsed !== "object" || parsed === null) return {};
     return Object.fromEntries(
@@ -69,13 +68,13 @@ function readStoredExploreMetrics(): ExploreMetrics {
     return {};
   }
 }
-export const [exploreMetrics, setExploreMetricsInternal] = createSignal<
-  ExploreMetrics
->(readStoredExploreMetrics());
-export function setExploreMetric(family: DatasetType, metricId: string) {
-  const next = { ...exploreMetrics(), [family]: metricId };
-  localStorage.setItem("exploreMetrics", JSON.stringify(next));
-  setExploreMetricsInternal(next);
+export const [exploreModules, setExploreModulesInternal] = createSignal<
+  ExploreModules
+>(readStoredExploreModules());
+export function setExploreModule(family: DatasetType, moduleId: string) {
+  const next = { ...exploreModules(), [family]: moduleId };
+  localStorage.setItem("exploreModules", JSON.stringify(next));
+  setExploreModulesInternal(next);
 }
 
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole

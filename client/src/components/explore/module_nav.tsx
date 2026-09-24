@@ -1,36 +1,21 @@
 import {
-  groupMetricsByModule,
+  compareModules,
   t3,
   type DatasetType,
-  type MetricGroup,
+  type InstalledModuleSummary,
   type ModuleTier,
   type RunAuthoringContext,
 } from "lib";
-import { type ListEntry, SelectList } from "panther";
+import { SelectList } from "panther";
 import { For, Show } from "solid-js";
 
-// A nav entry is one metric label group (the wizard's unit), keyed by its
-// first variant's id, under its module and the module's tier.
-export type MetricNavGroup = MetricGroup & {
-  id: string;
-  moduleId: string;
-  moduleLabel: string;
-  tier: ModuleTier;
-};
-
-export function metricNavGroups(
+// The family's modules in module order (tier, then sortOrder).
+export function modulesInFamily(
   family: DatasetType,
   ctx: RunAuthoringContext,
-): MetricNavGroup[] {
-  const modules = ctx.modules.filter((m) => m.family === family);
-  return groupMetricsByModule(ctx.metrics, modules).flatMap((mod) =>
-    mod.metricGroups.map((group) => ({
-      ...group,
-      id: group.variants[0].id,
-      moduleId: mod.moduleId,
-      moduleLabel: mod.moduleLabel,
-      tier: mod.tier,
-    }))
+): InstalledModuleSummary[] {
+  return ctx.modules.filter((m) => m.family === family).toSorted(
+    compareModules,
   );
 }
 
@@ -50,34 +35,23 @@ function tierLabel(tier: ModuleTier): string {
     });
 }
 
-function tierEntries(groups: MetricNavGroup[]): ListEntry<string>[] {
-  const entries: ListEntry<string>[] = [];
-  let moduleId: string | undefined;
-  for (const group of groups) {
-    if (group.moduleId !== moduleId) {
-      entries.push({ header: group.moduleLabel });
-      moduleId = group.moduleId;
-    }
-    entries.push({ id: group.id, label: group.label });
-  }
-  return entries;
-}
-
-// The family's metric groups, a section per tier and a header per module.
-export function MetricNav(p: {
-  groups: MetricNavGroup[];
+// The family's modules, a section per tier.
+export function ModuleNav(p: {
+  modules: InstalledModuleSummary[];
   value: string | undefined;
-  onChange: (id: string) => void;
+  onChange: (moduleId: string) => void;
 }) {
   return (
     <div class="ui-spy">
       <For each={TIERS}>
         {(tier) => (
-          <Show when={p.groups.some((g) => g.tier === tier)}>
+          <Show when={p.modules.some((m) => m.tier === tier)}>
             <div class="ui-spy-sm">
               <div class="text-sm font-700">{tierLabel(tier)}</div>
               <SelectList
-                items={tierEntries(p.groups.filter((g) => g.tier === tier))}
+                items={p.modules
+                  .filter((m) => m.tier === tier)
+                  .map((m) => ({ id: m.id, label: m.label }))}
                 value={p.value ?? ""}
                 onChange={p.onChange}
                 fullWidth

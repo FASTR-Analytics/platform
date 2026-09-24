@@ -10,8 +10,9 @@ import type { DisaggregationOption } from "./types/presentation_objects.ts";
 import type { RunAuthoringContext } from "./types/run_authoring_context.ts";
 import type { PackageScope } from "./types/scope.ts";
 
-// The Explore Data table's whole state (SYSTEM_11 "Grid query model").
-// Controls edit it; the figure config is derived from it and never held.
+// The Explore Data table's controls' state (SYSTEM_11 "Grid query model").
+// The columns mode is the view's and is passed beside it; the figure config
+// is derived from both and never held.
 
 export type GridColumns = "indicators" | "time";
 export type GridGrain = "period_id" | "quarter_id" | "year";
@@ -32,7 +33,6 @@ export type GridQuery = {
   unit: GridUnit;
   indicators: string[];
   period: GridPeriod;
-  columns: GridColumns;
   grain: GridGrain;
 };
 
@@ -164,12 +164,13 @@ function availableTimeValues(
 
 // Time is never a column group: HFA and ICEH values must never
 // be pooled across rounds or years, so Indicators mode reads one of them.
-function needsOnePeriod(query: Pick<GridQuery, "family" | "columns">): boolean {
-  return query.family !== "hmis" && query.columns === "indicators";
+function needsOnePeriod(family: DatasetType, columns: GridColumns): boolean {
+  return family !== "hmis" && columns === "indicators";
 }
 
 function resolvePeriod(
   query: GridQuery,
+  columns: GridColumns,
   available: GridAvailable,
 ): GridPeriod {
   if (query.family === "hmis") {
@@ -180,7 +181,9 @@ function resolvePeriod(
   const timeValues = availableTimeValues(query.family, available);
   const wanted = query.period.kind === "values" ? query.period.values : [];
   const chosen = timeValues.filter((v) => wanted.includes(v));
-  if (!needsOnePeriod(query)) return { kind: "values", values: chosen };
+  if (!needsOnePeriod(query.family, columns)) {
+    return { kind: "values", values: chosen };
+  }
   const latest = chosen.at(-1) ?? timeValues.at(-1);
   return { kind: "values", values: latest === undefined ? [] : [latest] };
 }
@@ -211,7 +214,6 @@ export function defaultGridQuery(
     unit,
     indicators: [],
     period,
-    columns: "indicators",
     grain: "period_id",
   };
 }
@@ -221,6 +223,7 @@ export function defaultGridQuery(
 // this on every change; dropped indicators are reported for the notice.
 export function resolveGridQuery(
   query: GridQuery,
+  columns: GridColumns,
   scope: PackageScope,
   ctx: RunAuthoringContext,
   available: GridAvailable,
@@ -263,7 +266,7 @@ export function resolveGridQuery(
       family,
       unit,
       indicators,
-      period: resolvePeriod({ ...base, family }, available),
+      period: resolvePeriod({ ...base, family }, columns, available),
     },
     droppedIndicators,
   };
@@ -280,6 +283,7 @@ type FilterByEntry = PresentationObjectConfig["d"]["filterBy"][number];
 // period carries none (resolution supplies it).
 export function deriveGridConfig(
   query: GridQuery,
+  columns: GridColumns,
   ctx: RunAuthoringContext,
   language: Language,
 ): { metric: MetricWithStatus; config: PresentationObjectConfig } | undefined {
@@ -287,7 +291,7 @@ export function deriveGridConfig(
   const preset = metric?.vizPresets?.[0];
   if (metric === undefined || preset === undefined) return undefined;
   if (
-    needsOnePeriod(query) &&
+    needsOnePeriod(query.family, columns) &&
     (query.period.kind !== "values" || query.period.values.length !== 1)
   ) {
     return undefined;
@@ -303,7 +307,7 @@ export function deriveGridConfig(
       rollupPosition: "top",
     }
     : { disOpt: "level", disDisplayOpt: "row" };
-  const disaggregateBy: DisaggregateByEntry[] = query.columns === "indicators"
+  const disaggregateBy: DisaggregateByEntry[] = columns === "indicators"
     ? [unitEntry, { disOpt: indicatorDim, disDisplayOpt: "col" }]
     : [
       unitEntry,
@@ -405,7 +409,7 @@ export function periodChoicesFor(
     label: value,
     period: { kind: "values", values: [value] },
   }));
-  return needsOnePeriod({ family, columns }) ? values : [...values, all];
+  return needsOnePeriod(family, columns) ? values : [...values, all];
 }
 
 export function periodChoiceId(

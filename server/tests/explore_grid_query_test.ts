@@ -7,6 +7,7 @@ import { assertEquals } from "@std/assert";
 import {
   defaultGridQuery,
   deriveGridConfig,
+  type GridColumns,
   type DatasetType,
   type DisaggregationOption,
   type GridAvailable,
@@ -125,12 +126,12 @@ function context(opts: { families: DatasetType[]; hmisLevels?: DisaggregationOpt
 
 const CTX = context({ families: ["hmis", "hfa", "iceh"] });
 
-function disaggregateBy(query: GridQuery, ctx = CTX) {
-  return deriveGridConfig(query, ctx, "en")?.config.d.disaggregateBy;
+function disaggregateBy(query: GridQuery, columns: GridColumns = "indicators", ctx = CTX) {
+  return deriveGridConfig(query, columns, ctx, "en")?.config.d.disaggregateBy;
 }
 
-function filterBy(query: GridQuery, ctx = CTX) {
-  return deriveGridConfig(query, ctx, "en")?.config.d.filterBy;
+function filterBy(query: GridQuery, columns: GridColumns = "indicators", ctx = CTX) {
+  return deriveGridConfig(query, columns, ctx, "en")?.config.d.filterBy;
 }
 
 // Defaults
@@ -141,7 +142,6 @@ Deno.test("default: HMIS national opens at level 2 on the last 12 months", () =>
     unit: { kind: "admin", level: "admin_area_2" },
     indicators: [],
     period: { kind: "window", filter: { filterType: "last_n_months", nMonths: 12 } },
-    columns: "indicators",
     grain: "period_id",
   });
 });
@@ -175,7 +175,7 @@ Deno.test("default: ICEH opens on the first stratifier and the latest year under
 
 Deno.test("resolve: an indicator missing from the dictionary is dropped and reported", () => {
   const q = { ...defaultGridQuery("hmis", NATIONAL, CTX, AVAILABLE), indicators: ["anc1", "gone"] };
-  const r = resolveGridQuery(q, NATIONAL, CTX, AVAILABLE);
+  const r = resolveGridQuery(q, "indicators", NATIONAL, CTX, AVAILABLE);
   assertEquals(r.query.indicators, ["anc1"]);
   assertEquals(r.droppedIndicators, ["gone"]);
 });
@@ -186,11 +186,11 @@ Deno.test("resolve: a level deeper than the metric offers clamps to the shallowe
     ...defaultGridQuery("hmis", NATIONAL, ctx, AVAILABLE),
     unit: { kind: "admin", level: "admin_area_4" },
   };
-  assertEquals(resolveGridQuery(q, NATIONAL, ctx, AVAILABLE).query.unit, {
+  assertEquals(resolveGridQuery(q, "indicators", NATIONAL, ctx, AVAILABLE).query.unit, {
     kind: "admin",
     level: "admin_area_2",
   });
-  assertEquals(resolveGridQuery(q, KANO, ctx, AVAILABLE).query.unit, {
+  assertEquals(resolveGridQuery(q, "indicators", KANO, ctx, AVAILABLE).query.unit, {
     kind: "admin",
     level: "admin_area_3",
   });
@@ -198,7 +198,7 @@ Deno.test("resolve: a level deeper than the metric offers clamps to the shallowe
 
 Deno.test("resolve: level 2 under an admin area 2 scope moves deeper", () => {
   const q = defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE);
-  assertEquals(resolveGridQuery(q, KANO, CTX, AVAILABLE).query.unit, {
+  assertEquals(resolveGridQuery(q, "indicators", KANO, CTX, AVAILABLE).query.unit, {
     kind: "admin",
     level: "admin_area_3",
   });
@@ -207,7 +207,7 @@ Deno.test("resolve: level 2 under an admin area 2 scope moves deeper", () => {
 Deno.test("resolve: a family the package does not offer maps to the first offered", () => {
   const ctx = context({ families: ["hfa", "iceh"] });
   const q = defaultGridQuery("hmis", NATIONAL, CTX, AVAILABLE);
-  assertEquals(resolveGridQuery(q, NATIONAL, ctx, AVAILABLE).query.family, "hfa");
+  assertEquals(resolveGridQuery(q, "indicators", NATIONAL, ctx, AVAILABLE).query.family, "hfa");
 });
 
 Deno.test("resolve: an unknown stratifier maps to the first", () => {
@@ -215,7 +215,7 @@ Deno.test("resolve: an unknown stratifier maps to the first", () => {
     ...defaultGridQuery("iceh", NATIONAL, CTX, AVAILABLE),
     unit: { kind: "strat", strat: "gone" },
   };
-  assertEquals(resolveGridQuery(q, NATIONAL, CTX, AVAILABLE).query.unit, {
+  assertEquals(resolveGridQuery(q, "indicators", NATIONAL, CTX, AVAILABLE).query.unit, {
     kind: "strat",
     strat: "wealth_quintiles",
   });
@@ -224,10 +224,10 @@ Deno.test("resolve: an unknown stratifier maps to the first", () => {
 Deno.test("resolve: HFA and ICEH Indicators mode read exactly one period", () => {
   for (const family of ["hfa", "iceh"] as const) {
     const base = defaultGridQuery(family, NATIONAL, CTX, AVAILABLE);
-    const all = resolveGridQuery({ ...base, period: { kind: "values", values: [] } }, NATIONAL, CTX, AVAILABLE);
+    const all = resolveGridQuery({ ...base, period: { kind: "values", values: [] } }, "indicators", NATIONAL, CTX, AVAILABLE);
     assertEquals(all.query.period.kind === "values" && all.query.period.values.length, 1);
     const several = resolveGridQuery(
-      { ...base, period: { kind: "values", values: [...(family === "hfa" ? AVAILABLE.hfaTimePoints : AVAILABLE.icehYears)].reverse() } },
+      { ...base, period: { kind: "values", values: [...(family === "hfa" ? AVAILABLE.hfaTimePoints : AVAILABLE.icehYears)].reverse() } }, "indicators",
       NATIONAL,
       CTX,
       AVAILABLE,
@@ -240,13 +240,13 @@ Deno.test("resolve: HFA and ICEH Indicators mode read exactly one period", () =>
 });
 
 Deno.test("resolve: HFA Time mode keeps every chosen time point, and empty stays all", () => {
-  const base: GridQuery = { ...defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE), columns: "time" };
+  const base = defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE);
   assertEquals(
-    resolveGridQuery({ ...base, period: { kind: "values", values: ["Round 1", "Round 2", "Gone"] } }, NATIONAL, CTX, AVAILABLE).query.period,
+    resolveGridQuery({ ...base, period: { kind: "values", values: ["Round 1", "Round 2", "Gone"] } }, "time", NATIONAL, CTX, AVAILABLE).query.period,
     { kind: "values", values: ["Round 1", "Round 2"] },
   );
   assertEquals(
-    resolveGridQuery({ ...base, period: { kind: "values", values: [] } }, NATIONAL, CTX, AVAILABLE).query.period,
+    resolveGridQuery({ ...base, period: { kind: "values", values: [] } }, "time", NATIONAL, CTX, AVAILABLE).query.period,
     { kind: "values", values: [] },
   );
 });
@@ -255,7 +255,7 @@ Deno.test("resolve: HFA Time mode keeps every chosen time point, and empty stays
 
 Deno.test("derive: HMIS and HFA Indicators mode is the rolled-up unit by indicators", () => {
   for (const [family, dim] of [["hmis", "indicator_common_id"], ["hfa", "hfa_indicator"]] as const) {
-    const q = resolveGridQuery(defaultGridQuery(family, NATIONAL, CTX, AVAILABLE), NATIONAL, CTX, AVAILABLE).query;
+    const q = resolveGridQuery(defaultGridQuery(family, NATIONAL, CTX, AVAILABLE), "indicators", NATIONAL, CTX, AVAILABLE).query;
     assertEquals(disaggregateBy(q), [
       { disOpt: "admin_area_2", disDisplayOpt: "row", rollup: true, rollupPosition: "top" },
       { disOpt: dim, disDisplayOpt: "col" },
@@ -264,13 +264,13 @@ Deno.test("derive: HMIS and HFA Indicators mode is the rolled-up unit by indicat
 });
 
 Deno.test("derive: HMIS Time mode puts the grain in columns and indicators in column groups", () => {
-  const q: GridQuery = { ...defaultGridQuery("hmis", NATIONAL, CTX, AVAILABLE), columns: "time", grain: "quarter_id" };
-  assertEquals(disaggregateBy(q), [
+  const q: GridQuery = { ...defaultGridQuery("hmis", NATIONAL, CTX, AVAILABLE), grain: "quarter_id" };
+  assertEquals(disaggregateBy(q, "time"), [
     { disOpt: "admin_area_2", disDisplayOpt: "row", rollup: true, rollupPosition: "top" },
     { disOpt: "quarter_id", disDisplayOpt: "col" },
     { disOpt: "indicator_common_id", disDisplayOpt: "colGroup" },
   ]);
-  const config = deriveGridConfig(q, CTX, "en")?.config;
+  const config = deriveGridConfig(q, "time", CTX, "en")?.config;
   assertEquals(config?.d.type, "table");
   assertEquals(config?.d.periodFilter, { filterType: "last_n_months", nMonths: 12 });
 });
@@ -278,16 +278,15 @@ Deno.test("derive: HMIS Time mode puts the grain in columns and indicators in co
 Deno.test("derive: HFA Time mode uses time points and filters the chosen ones", () => {
   const q: GridQuery = {
     ...defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE),
-    columns: "time",
     indicators: ["hfa1"],
     period: { kind: "values", values: ["Round 1"] },
   };
-  assertEquals(disaggregateBy(q)?.map((d) => [d.disOpt, d.disDisplayOpt]), [
+  assertEquals(disaggregateBy(q, "time")?.map((d) => [d.disOpt, d.disDisplayOpt]), [
     ["admin_area_2", "row"],
     ["time_point", "col"],
     ["hfa_indicator", "colGroup"],
   ]);
-  assertEquals(filterBy(q), [
+  assertEquals(filterBy(q, "time"), [
     { disOpt: "hfa_indicator", values: ["hfa1"] },
     { disOpt: "time_point", values: ["Round 1"] },
   ]);
@@ -297,7 +296,7 @@ Deno.test("derive: HFA Indicators mode filters its one time point", () => {
   const q = defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE);
   assertEquals(filterBy(q), [{ disOpt: "time_point", values: ["Round 2"] }]);
   assertEquals(
-    deriveGridConfig({ ...q, period: { kind: "values", values: [] } }, CTX, "en"),
+    deriveGridConfig({ ...q, period: { kind: "values", values: [] } }, "indicators", CTX, "en"),
     undefined,
   );
 });
@@ -308,7 +307,7 @@ Deno.test("derive: ICEH rows are the stratifier's levels, never rolled up", () =
     { disOpt: "level", disDisplayOpt: "row" },
     { disOpt: "iceh_indicator", disDisplayOpt: "col" },
   ]);
-  assertEquals(disaggregateBy({ ...q, columns: "time", period: { kind: "values", values: [] } }), [
+  assertEquals(disaggregateBy({ ...q, period: { kind: "values", values: [] } }, "time"), [
     { disOpt: "level", disDisplayOpt: "row" },
     { disOpt: "year", disDisplayOpt: "col" },
     { disOpt: "iceh_indicator", disDisplayOpt: "colGroup" },
@@ -321,7 +320,7 @@ Deno.test("derive: ICEH filters the chosen stratifier and its one year", () => {
     { disOpt: "strat", values: ["wealth_quintiles"] },
     { disOpt: "year", values: ["2018"] },
   ]);
-  assertEquals(deriveGridConfig(q, CTX, "en")?.config.d.periodFilter, undefined);
+  assertEquals(deriveGridConfig(q, "indicators", CTX, "en")?.config.d.periodFilter, undefined);
 });
 
 Deno.test("periods: HFA and ICEH offer All only in Time mode", () => {

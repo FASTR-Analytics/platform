@@ -34,7 +34,7 @@ import {
   type SelectOption,
   StateHolderWrapper,
 } from "panther";
-import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
+import { createMemo, createSignal, type JSX, Match, Show, Switch } from "solid-js";
 import { EmptyState } from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
@@ -55,15 +55,18 @@ import { createTrackedQuery } from "./tracked_query";
 export type QueriesByFamily = Partial<Record<DatasetType, GridQuery>>;
 
 // The Data table view: a metric read as a grid of units by indicators or by
-// time. The state is one GridQuery per family, owned by the page so it
-// outlives a package, scope or metric change; each read resolves it against
-// the current package and scope, so such a change never rewrites what the
-// user chose.
+// time, the view's choice. The controls' state is one GridQuery per family,
+// owned by the page so it outlives a package, scope or module change; each
+// read resolves it against the current package and scope, so such a change
+// never rewrites what the user chose. `viewSelect` is the module's view
+// selector, placed first in the toolbar.
 export function DataTable(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
   family: DatasetType;
   metric: MetricWithStatus;
+  columns: GridColumns;
+  viewSelect: JSX.Element;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
 }) {
@@ -81,6 +84,8 @@ export function DataTable(p: {
           scope={p.scope}
           family={p.family}
           metric={p.metric}
+          columns={p.columns}
+          viewSelect={p.viewSelect}
           info={metricInfo}
           query={p.query}
           setQuery={p.setQuery}
@@ -115,6 +120,8 @@ function ReadyFamilyTable(p: {
   scope: PackageScope;
   family: DatasetType;
   metric: MetricWithStatus;
+  columns: GridColumns;
+  viewSelect: JSX.Element;
   info: ResultsValueInfoForPresentationObject;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
@@ -139,7 +146,7 @@ function ReadyFamilyTable(p: {
   const intent = (): GridQuery =>
     p.query ?? defaultGridQuery(p.family, p.scope, p.ctx, available());
   const resolved = createMemo(() =>
-    resolveGridQuery(intent(), p.scope, p.ctx, available())
+    resolveGridQuery(intent(), p.columns, p.scope, p.ctx, available())
   );
   const update = (patch: Partial<GridQuery>) =>
     p.setQuery({
@@ -158,7 +165,7 @@ function ReadyFamilyTable(p: {
   };
 
   const derived = createMemo(() =>
-    deriveGridConfig(resolved().query, p.ctx, getLanguage())
+    deriveGridConfig(resolved().query, p.columns, p.ctx, getLanguage())
   );
   // What one grid read is for. Only a change of fetch config or columns
   // makes a new one, and the grid is built from the config and columns its
@@ -168,7 +175,7 @@ function ReadyFamilyTable(p: {
     return d === undefined ? undefined : {
       fetchConfig: getFetchConfigFromPresentationObjectConfig(d.metric, d.config),
       config: d.config,
-      columns: resolved().query.columns,
+      columns: p.columns,
     };
   }, undefined, { equals: sameReadSpec });
 
@@ -249,6 +256,8 @@ function ReadyFamilyTable(p: {
       panelChildren={
         <div class="ui-pad ui-spy-sm">
           <Toolbar
+            viewSelect={p.viewSelect}
+            columns={p.columns}
             query={resolved().query}
             levelOptions={levelOptionsFor(p.metric, p.scope).map((level) => ({
               value: level,
@@ -259,11 +268,7 @@ function ReadyFamilyTable(p: {
               label: v.label,
             }))}
             indicatorOptions={indicatorOptions(p.family, p.ctx)}
-            periodChoices={periodChoicesFor(
-              p.family,
-              resolved().query.columns,
-              available(),
-            )}
+            periodChoices={periodChoicesFor(p.family, p.columns, available())}
             onChange={update}
             find={find()}
             onFind={setFind}

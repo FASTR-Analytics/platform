@@ -2,19 +2,19 @@ import {
   periodChoiceId,
   t3,
   type AdminLevel,
+  type GridColumns,
   type GridGrain,
   type GridPeriodChoice,
   type GridQuery,
 } from "lib";
 import {
   Button,
-  ButtonGroup,
   Input,
   MultiSelectSearch,
   Select,
   type SelectOption,
 } from "panther";
-import { Show } from "solid-js";
+import { type JSX, Show } from "solid-js";
 
 const GRAIN_OPTIONS = (): SelectOption<GridGrain>[] => [
   { value: "period_id", label: t3({ en: "Month", fr: "Mois", pt: "Mês" }) },
@@ -25,9 +25,12 @@ const GRAIN_OPTIONS = (): SelectOption<GridGrain>[] => [
   { value: "year", label: t3({ en: "Year", fr: "Année", pt: "Ano" }) },
 ];
 
-// The Data table's controls. Each edits the query through `onChange`; the
-// query shown is the resolved one, so every control shows what is read.
+// The Data table's controls, after the view selector. Each edits the query
+// through `onChange`; the query shown is the resolved one, so every control
+// shows what is read.
 export function Toolbar(p: {
+  viewSelect: JSX.Element;
+  columns: GridColumns;
   query: GridQuery;
   levelOptions: SelectOption<AdminLevel>[];
   stratOptions: SelectOption<string>[];
@@ -45,6 +48,7 @@ export function Toolbar(p: {
 
   return (
     <div class="ui-gap-sm flex flex-wrap items-end">
+      {p.viewSelect}
       <Show
         when={p.query.unit.kind === "admin" ? p.query.unit : undefined}
         keyed
@@ -92,24 +96,7 @@ export function Toolbar(p: {
         })}
         size="sm"
       />
-      <ButtonGroup
-        value={p.query.columns}
-        items={[
-          {
-            id: "indicators" as const,
-            label: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
-          },
-          {
-            id: "time" as const,
-            label: t3({ en: "Time", fr: "Temps", pt: "Tempo" }),
-          },
-        ]}
-        onChange={(columns) => {
-          if (columns !== undefined) p.onChange({ columns });
-        }}
-        size="sm"
-      />
-      <Show when={p.query.family === "hmis" && p.query.columns === "time"}>
+      <Show when={p.query.family === "hmis" && p.columns === "time"}>
         <Select
           value={p.query.grain}
           options={GRAIN_OPTIONS()}

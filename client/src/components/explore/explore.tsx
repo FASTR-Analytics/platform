@@ -22,14 +22,14 @@ import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import {
   exploreFamily,
-  exploreMetrics,
+  exploreModules,
   setExploreFamily,
-  setExploreMetric,
+  setExploreModule,
 } from "~/state/t4_ui";
 import { EmptyState } from "./_shared/mod.ts";
 import type { QueriesByFamily } from "./data_table/mod.ts";
-import { MetricNav, metricNavGroups } from "./metric_nav";
-import { MetricView } from "./metric_view";
+import { ModuleNav, modulesInFamily } from "./module_nav";
+import { ModuleView } from "./module_view";
 
 const NATIONAL = "__national__";
 
@@ -40,10 +40,10 @@ function familiesInPackage(ctx: RunAuthoringContext): DatasetType[] {
 }
 
 // The Explore page: one package at one scope, its families as tabs, each
-// family's metrics in a left nav and the chosen metric's views on the right.
+// family's modules in a left nav and the chosen module's views on the right.
 // The package starts at the pin (else the newest ready package) and the scope
 // national on every mount; neither is stored, so a deleted package can never
-// be a stored default. The family and the metric per family persist in
+// be a stored default. The family and the module per family persist in
 // t4_ui. Nothing here is written anywhere.
 export function Explore() {
   const [chosenPackageId, setChosenPackageId] = createSignal<string | null>(
@@ -180,9 +180,9 @@ function PackageExplorer(p: {
   );
 }
 
-// One family: its metric groups in the nav, the chosen one's views beside.
-// The stored choice is resolved against the package on every read; a group
-// the package lacks falls back to the family's first.
+// One family: its modules in the nav, the chosen one's views beside. The
+// stored choice is resolved against the package on every read; a module the
+// package lacks falls back to the family's first.
 function FamilyExplorer(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
@@ -190,39 +190,31 @@ function FamilyExplorer(p: {
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
 }) {
-  const groups = createMemo(() => metricNavGroups(p.family, p.ctx));
-  const group = createMemo(() => {
-    const wanted = exploreMetrics()[p.family];
-    return groups().find((g) => g.id === wanted) ?? groups()[0];
+  const modules = createMemo(() => modulesInFamily(p.family, p.ctx));
+  const module = createMemo(() => {
+    const wanted = exploreModules()[p.family];
+    return modules().find((m) => m.id === wanted) ?? modules()[0];
   });
 
   return (
     <FrameLeft
       panelChildren={
         <div class="ui-pad h-full w-64 overflow-y-auto">
-          <MetricNav
-            groups={groups()}
-            value={group()?.id}
-            onChange={(id) => setExploreMetric(p.family, id)}
+          <ModuleNav
+            modules={modules()}
+            value={module()?.id}
+            onChange={(id) => setExploreModule(p.family, id)}
           />
         </div>
       }
     >
-      <Show
-        when={group()}
-        keyed
-        fallback={
-          <div class="ui-pad">
-            <EmptyState kind="no_metric" />
-          </div>
-        }
-      >
-        {(g) => (
-          <MetricView
+      <Show when={module()} keyed>
+        {(m) => (
+          <ModuleView
             ctx={p.ctx}
             scope={p.scope}
             family={p.family}
-            group={g}
+            module={m}
             query={p.query}
             setQuery={p.setQuery}
           />
