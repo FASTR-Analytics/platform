@@ -3,7 +3,6 @@ import type { RenameEmailInstanceResult } from "lib";
 import type { EmailAddressResource } from "@clerk/types";
 import {
   type AlertComponentProps,
-  Button,
   ModalContainer,
   TextArea,
   createButtonAction,
@@ -241,12 +240,55 @@ export function ChangeEmailModal(
     </div>
   );
 
+  const footer = () => {
+    switch (phase()) {
+      case "enter":
+        return {
+          onCancel: () => p.close(undefined),
+          cancelDisabled: busy(),
+          actions: [{
+            label: t3({ en: "Continue", fr: "Continuer", pt: "Continuar" }),
+            onClick: start.click,
+            state: start.state(),
+            disabled: cleanNewEmail().length === 0,
+          }],
+        };
+      case "verify":
+        return {
+          onCancel: () => p.close(undefined),
+          cancelDisabled: busy(),
+          actions: [
+            {
+              label: t3({ en: "Resend code", fr: "Renvoyer le code", pt: "Reenviar o código" }),
+              onClick: resend.click,
+              state: resend.state(),
+              outline: true,
+            },
+            {
+              label: t3({ en: "Verify and rename everywhere", fr: "Vérifier et renommer partout", pt: "Verificar e renomear em todo o lado" }),
+              onClick: verify.click,
+              state: verify.state(),
+              intent: "danger" as const,
+              disabled: code().trim().length === 0,
+            },
+          ],
+        };
+      case "report":
+        return {
+          actions: allGreen(report()?.instances ?? []) && primaryDone() ? [] : [{
+            label: t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" }),
+            onClick: retry.click,
+            state: retry.state(),
+          }],
+        };
+    }
+  };
+
   return (
     <ModalContainer
       title={t3({ en: "Change email", fr: "Changer d'e-mail", pt: "Alterar e-mail" })}
       width="lg"
-      onCancel={phase() === "report" ? undefined : () => p.close(undefined)}
-      cancelDisabled={busy()}
+      {...footer()}
     >
       <Show when={phase() === "enter"}>
         <div class="flex flex-col gap-4">
@@ -279,16 +321,6 @@ export function ChangeEmailModal(
           <Show when={preview().length > 0}>
             <InstanceList items={preview()} />
           </Show>
-          <div>
-            <Button
-              onClick={start.click}
-              state={start.state()}
-              intent="primary"
-              disabled={cleanNewEmail().length === 0}
-            >
-              {t3({ en: "Continue", fr: "Continuer", pt: "Continuar" })}
-            </Button>
-          </div>
         </div>
       </Show>
 
@@ -323,19 +355,6 @@ export function ChangeEmailModal(
               }
             }}
           />
-          <div class="flex gap-2">
-            <Button
-              onClick={verify.click}
-              state={verify.state()}
-              intent="danger"
-              disabled={code().trim().length === 0}
-            >
-              {t3({ en: "Verify and rename everywhere", fr: "Vérifier et renommer partout", pt: "Verificar e renomear em todo o lado" })}
-            </Button>
-            <Button onClick={resend.click} state={resend.state()} outline>
-              {t3({ en: "Resend code", fr: "Renvoyer le code", pt: "Reenviar o código" })}
-            </Button>
-          </div>
         </div>
       </Show>
 
@@ -351,19 +370,12 @@ export function ChangeEmailModal(
               <Show
                 when={allGreen(rep()?.instances ?? []) && primaryDone()}
                 fallback={
-                  <div class="flex flex-col gap-2">
-                    <div class="text-warning text-sm">
-                      {t3({
-                        en: "Not everything was renamed yet. Your old address stays on your account until it completes — retrying is safe.",
-                        fr: "Tout n'a pas encore été renommé. Votre ancienne adresse reste sur votre compte jusqu'à la fin — réessayer est sans risque.",
-                        pt: "Ainda não foi tudo renomeado. O seu endereço antigo permanece na sua conta até à conclusão — tentar novamente é seguro.",
-                      })}
-                    </div>
-                    <div>
-                      <Button onClick={retry.click} state={retry.state()} intent="primary">
-                        {t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" })}
-                      </Button>
-                    </div>
+                  <div class="text-warning text-sm">
+                    {t3({
+                      en: "Not everything was renamed yet. Your old address stays on your account until it completes — retrying is safe.",
+                      fr: "Tout n'a pas encore été renommé. Votre ancienne adresse reste sur votre compte jusqu'à la fin — réessayer est sans risque.",
+                      pt: "Ainda não foi tudo renomeado. O seu endereço antigo permanece na sua conta até à conclusão — tentar novamente é seguro.",
+                    })}
                   </div>
                 }
               >

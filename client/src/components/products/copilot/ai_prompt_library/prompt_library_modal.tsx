@@ -1,7 +1,6 @@
 import { createSignal, createMemo, Show, For, onMount } from "solid-js";
 import {
   AlertComponentProps,
-  Button,
   CollapsibleSection,
   Input,
   LoadingIndicator,
@@ -223,6 +222,61 @@ export function PromptLibraryModal(
     }
   };
 
+  const footer = () => {
+    if (isLoading()) {
+      return {};
+    }
+    const onCancel = () => p.close(undefined);
+    if (!selectedPrompt()) {
+      return {
+        onCancel,
+        actions: [{
+          label: t3({
+            en: "Create custom prompt",
+            fr: "Créer un prompt personnalisé",
+            pt: "Criar prompt personalizado",
+          }),
+          onClick: handleNewCustomPrompt,
+          iconName: "plus" as const,
+        }],
+      };
+    }
+    return {
+      onCancel,
+      actions: [
+        {
+          label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+          onClick: handleBack,
+          outline: true,
+          iconName: "chevronLeft" as const,
+        },
+        {
+          label: t3({
+            en: "Save to library",
+            fr: "Sauvegarder dans la bibliothèque",
+            pt: "Guardar na biblioteca",
+          }),
+          onClick: () => void handleSaveToLibrary(),
+          outline: true,
+          iconName: "save" as const,
+        },
+        {
+          label: t3({ en: "Run as new chat", fr: "Exécuter dans un nouveau chat", pt: "Executar como nova conversa" }),
+          onClick: handleRunNew,
+          outline: true,
+        },
+        {
+          label: t3({
+            en: "Run in current chat",
+            fr: "Exécuter dans le chat actuel",
+            pt: "Executar na conversa atual",
+          }),
+          onClick: handleRunCurrent,
+        },
+      ],
+    };
+  };
+
   return (
     <ModalContainer
       title={
@@ -232,24 +286,7 @@ export function PromptLibraryModal(
       }
       width="xl"
       scroll="content"
-      onCancel={
-        !isLoading() && !selectedPrompt() ? () => p.close(undefined) : undefined
-      }
-      actions={[
-        ...(!isLoading() && !selectedPrompt()
-          ? [
-              {
-                label: t3({
-                  en: "Create custom prompt",
-                  fr: "Créer un prompt personnalisé",
-                  pt: "Criar prompt personalizado",
-                }),
-                onClick: handleNewCustomPrompt,
-                iconName: "plus" as const,
-              },
-            ]
-          : []),
-      ]}
+      {...footer()}
     >
       <Show when={isLoading()}>
         <div>
@@ -288,11 +325,6 @@ export function PromptLibraryModal(
               prompt={prompt()}
               editedContent={editedContent()}
               onContentChange={setEditedContent}
-              onBack={handleBack}
-              onRunCurrent={handleRunCurrent}
-              onRunNew={handleRunNew}
-              onCancel={() => p.close(undefined)}
-              onSaveToLibrary={handleSaveToLibrary}
             />
           )}
         </Show>
@@ -521,11 +553,6 @@ type EditPhaseProps = {
   prompt: FlattenedPrompt;
   editedContent: string;
   onContentChange: (v: string) => void;
-  onBack: () => void;
-  onRunCurrent: () => void;
-  onRunNew: () => void;
-  onCancel: () => void;
-  onSaveToLibrary: () => void;
 };
 
 function EditPhase(p: EditPhaseProps) {
@@ -538,32 +565,6 @@ function EditPhase(p: EditPhaseProps) {
         fullWidth
         height="300px"
       />
-      <div class="mt-4 flex gap-2">
-        <Button outline iconName="chevronLeft" onClick={p.onBack}>
-          {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
-        </Button>
-        <Button outline iconName="save" onClick={p.onSaveToLibrary}>
-          {t3({
-            en: "Save to library",
-            fr: "Sauvegarder dans la bibliothèque",
-            pt: "Guardar na biblioteca",
-          })}
-        </Button>
-        <div class="flex-1"></div>
-        <Button onClick={p.onRunCurrent} intent="primary">
-          {t3({
-            en: "Run in current chat",
-            fr: "Exécuter dans le chat actuel",
-            pt: "Executar na conversa atual",
-          })}
-        </Button>
-        <Button onClick={p.onRunNew} intent="success">
-          {t3({ en: "Run as new chat", fr: "Exécuter dans un nouveau chat", pt: "Executar como nova conversa" })}
-        </Button>
-        <Button onClick={p.onCancel} intent="neutral">
-          {t3({ en: "Cancel", fr: "Annuler", pt: "Cancelar" })}
-        </Button>
-      </div>
     </div>
   );
 }

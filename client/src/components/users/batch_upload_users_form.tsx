@@ -1,16 +1,14 @@
 import type Uppy from "@uppy/core";
 import { createSignal, onCleanup, onMount } from "solid-js";
-import { t3, TC } from "lib";
+import { t3 } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   Button,
   Select,
-  StateHolderFormError,
   getSelectOptions,
   createFormAction,
   type EditorComponentProps,
-  FrameTop,
-  HeadingBar,
+  ModalContainer,
   Checkbox,
 } from "panther";
 import {
@@ -74,19 +72,22 @@ export function BatchUploadUsersForm(p: Props) {
   });
 
   return (
-    <FrameTop
-      panelChildren={
-        <HeadingBar
-          heading={t3({
-            en: "Batch import users",
-            fr: "Importation groupée d'utilisateurs",
-            pt: "Importação em lote de utilizadores",
-          })}
-          onBack={() => p.close(undefined)}
-        />
-      }
+    <ModalContainer
+      title={t3({
+        en: "Batch import users",
+        fr: "Importation groupée d'utilisateurs",
+        pt: "Importação em lote de utilizadores",
+      })}
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Process CSV", fr: "Traiter le CSV", pt: "Processar CSV" }),
+        onClick: handleBatchUpload.click,
+        state: handleBatchUpload.state(),
+        disabled: !selectedFileName(),
+        iconName: "upload",
+      }]}
     >
-      <div class="ui-pad ui-spy">
+      <div class="ui-spy">
         <div class="text-sm">
           {t3({
             en: "Upload a CSV file with the following headers:",
@@ -140,28 +141,7 @@ export function BatchUploadUsersForm(p: Props) {
             onChange={setReplaceAllExisting}
           />
         </div>
-
-        <StateHolderFormError state={handleBatchUpload.state()} />
-
-        <div class="ui-gap-sm flex">
-          <Button
-            onClick={handleBatchUpload.click}
-            intent="primary"
-            state={handleBatchUpload.state()}
-            disabled={!selectedFileName()}
-            iconName="upload"
-          >
-            {t3({
-              en: "Process CSV",
-              fr: "Traiter le CSV",
-              pt: "Processar CSV",
-            })}
-          </Button>
-          <Button onClick={() => p.close(undefined)} intent="neutral">
-            {t3(TC.cancel)}
-          </Button>
-        </div>
       </div>
-    </FrameTop>
+    </ModalContainer>
   );
 }
