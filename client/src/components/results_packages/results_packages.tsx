@@ -5,9 +5,7 @@ import {
   EmptyState,
   FrameTop,
   HeadingBar,
-  Icon,
   openComponent,
-  Select,
   Table,
   type TableColumn,
 } from "panther";
@@ -28,8 +26,6 @@ import {
 } from "~/state/instance/t1_sse";
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
-
-type UsageFilter = "all" | "in_use" | "unused";
 
 const _SEARCH_MIN_LENGTH = 3;
 
@@ -107,34 +103,16 @@ export function InstanceResultsPackages() {
 
   // Session-only: the list is short and a sticky filter is easy to forget.
   const [searchText, setSearchText] = createSignal("");
-  const [usageFilter, setUsageFilter] = createSignal<UsageFilter>("all");
 
   const isSearching = () => searchText().length >= _SEARCH_MIN_LENGTH;
 
   const visibleRuns = createMemo((): RunCatalogItem[] => {
     const needle = searchText().toLowerCase();
     const searching = isSearching();
-    const usage = usageFilter();
-    return instanceState.runsCatalog.filter((run) => {
-      const inUse = run.attachedProducts.length > 0;
-      return (
-        (usage === "all" || inUse === (usage === "in_use")) &&
-        (!searching || run.label.toLowerCase().includes(needle))
-      );
-    });
+    return instanceState.runsCatalog.filter(
+      (run) => !searching || run.label.toLowerCase().includes(needle),
+    );
   });
-
-  const usageOptions = (): { value: UsageFilter; label: string }[] => [
-    { value: "all", label: t3({ en: "All", fr: "Tous", pt: "Todos" }) },
-    {
-      value: "in_use",
-      label: t3({ en: "In use", fr: "Utilisé", pt: "Em uso" }),
-    },
-    {
-      value: "unused",
-      label: t3({ en: "Unused", fr: "Non utilisé", pt: "Não utilizado" }),
-    },
-  ];
 
   const emptyMessage = () =>
     t3({
@@ -155,7 +133,7 @@ export function InstanceResultsPackages() {
       key: "label",
       header: t3({ en: "Package", fr: "Paquet", pt: "Pacote" }),
       sortable: true,
-      render: (run) => <span class="font-700">{run.label}</span>,
+      render: (run) => run.label,
     },
     {
       key: "createdAt",
@@ -175,22 +153,18 @@ export function InstanceResultsPackages() {
       sortable: true,
       filterable: true,
       filterValue: (run) => runStatusLabel(run.status),
-      render: (run) => (
-        <span class="ui-gap-sm inline-flex items-center">
-          <Show when={run.status === "failed"}>
-            <Badge intent="danger" variant="solid">
-              <Icon iconName="alertCircle" />
-            </Badge>
-          </Show>
-          <RunStatusBadge status={run.status} />
-        </span>
-      ),
+      render: (run) => <RunStatusBadge status={run.status} />,
     },
     {
       key: "usage",
       header: t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" }),
       sortable: true,
       sortValue: (run) => run.attachedProducts.length,
+      filterable: true,
+      filterValue: (run) =>
+        run.attachedProducts.length > 0
+          ? t3({ en: "In use", fr: "Utilisé", pt: "Em uso" })
+          : t3({ en: "Unused", fr: "Non utilisé", pt: "Não utilizado" }),
       render: (run) => (
         <span class="ui-gap-sm inline-flex items-center">
           <Show when={run.id === instanceState.pinnedRunId}>
@@ -217,8 +191,8 @@ export function InstanceResultsPackages() {
         <Button
           data-tour="instance-results-packages-card"
           size="sm"
-          // outline
-          intent="base-100"
+          ghost
+          intent="base-content"
           iconName="chevronRight"
           iconPosition="right"
           onClick={() => openPackagePage(run.id)}
@@ -235,34 +209,25 @@ export function InstanceResultsPackages() {
         <div class="h-full w-full">
           <HeadingBar
             data-tour="instance-results-packages-header"
+            compact
             searchText={searchText()}
             setSearchText={setSearchText}
             centerChildren={
-              <div class="ui-gap flex items-center">
-                <div class="w-36">
-                  <Select
-                    data-tour="instance-results-packages-usage-filter"
-                    value={usageFilter()}
-                    onChange={setUsageFilter}
-                    options={usageOptions()}
-                    fullWidth
-                  />
-                </div>
-                <Show when={isSearching()}>
-                  <span class="text-base-content-muted text-sm text-nowrap">
-                    {t3({
-                      en: `${visibleRuns().length} results`,
-                      fr: `${visibleRuns().length} résultats`,
-                      pt: `${visibleRuns().length} resultados`,
-                    })}
-                  </span>
-                </Show>
-              </div>
+              <Show when={isSearching()}>
+                <span class="text-base-content-muted text-sm text-nowrap">
+                  {t3({
+                    en: `${visibleRuns().length} results`,
+                    fr: `${visibleRuns().length} résultats`,
+                    pt: `${visibleRuns().length} resultados`,
+                  })}
+                </span>
+              </Show>
             }
           >
             <div class="ui-gap-sm flex items-center">
               <Button
                 data-tour="instance-results-packages-defaults"
+                size="sm"
                 onClick={openModuleDefaults}
                 outline
                 iconName="settings"
@@ -275,6 +240,7 @@ export function InstanceResultsPackages() {
               </Button>
               <Button
                 data-tour="instance-results-packages-prune"
+                size="sm"
                 onClick={openPrune}
                 outline
                 iconName="trash"
@@ -284,6 +250,7 @@ export function InstanceResultsPackages() {
               </Button>
               <Button
                 data-tour="instance-results-packages-generate"
+                size="sm"
                 onClick={openWizard}
                 iconName="package"
               >
@@ -309,6 +276,7 @@ export function InstanceResultsPackages() {
             keyField="id"
             defaultSort={{ key: "createdAt", direction: "desc" }}
             noRowsMessage={noMatchMessage()}
+            onRowClick={(run) => openPackagePage(run.id)}
           />
         </div>
       </Show>

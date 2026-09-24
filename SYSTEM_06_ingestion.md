@@ -481,7 +481,7 @@ callback re-parses the new bytes).
   "Import HMIS data from DHIS2" bulk action (S5), and takes only its entry
   from any of them: it reads the
   stored connection's URL from the SSE summary's `dhis2ConnectionUrl`,
-  shows a notice pointing to the Data page's DHIS2 connection card instead
+  shows a notice pointing to the Data page's DHIS2 connection row instead
   of the steps while none is stored, and reads the Start-vs-Queue fork from the SSE summary's
   `hmisImportRunActive`, live in every host. A `new` entry may carry
   `indicatorIds` to preselect; every seeded selection (those ids, or a

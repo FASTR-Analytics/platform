@@ -18,7 +18,6 @@ export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOHStyle } from "../_003_figure_style/mod.ts";
 export {
   calculateMinSubChartWidth,
-  calculatePaneGrid,
   estimateMinSurroundsWidth,
   estimateMinXAxisHeightForScale,
   estimateMinYTextAxisWidth,
@@ -42,6 +41,7 @@ export type {
   JsonArray,
   LegendInput,
   MeasuredSurrounds,
+  PaneGrid,
   PaneLayout,
   ResolveFloorPlotH,
   ResolveTargetPlotH,

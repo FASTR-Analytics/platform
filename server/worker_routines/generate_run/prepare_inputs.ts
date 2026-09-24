@@ -17,6 +17,7 @@ import {
   type RunGenerationStep1Result,
   type RunPopulation,
   type RunPopulationCoverage,
+  type RunStage,
 } from "lib";
 import {
   dbRowToHfaIndicator,
@@ -104,6 +105,7 @@ export async function prepareRunInputs(
   mainDb: Sql,
   step1: RunGenerationStep1Result,
   runId: string,
+  onStage: (stage: RunStage) => Promise<void>,
 ): Promise<PreparedRunInputs> {
   const tmpDir = runTmpDirPath(runId);
   await Deno.mkdir(join(tmpDir, "inputs", "datasets"), { recursive: true });
@@ -138,6 +140,7 @@ export async function prepareRunInputs(
 
   if (step1.hmis) {
     selectedFamilies.push("hmis");
+    await onStage({ kind: "exporting", family: "hmis" });
     const res = await computeDatasetHmisRunCapture(
       mainDb,
       runCsvTarget("hmis"),
@@ -177,6 +180,7 @@ export async function prepareRunInputs(
 
   if (step1.hfa) {
     selectedFamilies.push("hfa");
+    await onStage({ kind: "exporting", family: "hfa" });
     const res = await computeDatasetHfaRunCapture(
       mainDb,
       runCsvTarget("hfa"),
@@ -261,6 +265,7 @@ export async function prepareRunInputs(
 
   if (step1.iceh) {
     selectedFamilies.push("iceh");
+    await onStage({ kind: "exporting", family: "iceh" });
     const res = await computeDatasetIcehRunCapture(mainDb, runCsvTarget("iceh"));
     throwIfErrWithData(res);
     const capture = res.data;
@@ -279,6 +284,7 @@ export async function prepareRunInputs(
 
   const datasetExtractHashes = new Map<DatasetType, string>();
   for (const datasetType of selectedFamilies) {
+    await onStage({ kind: "converting", family: datasetType });
     const csvPath = runCsvTarget(datasetType).denoPath;
     const headers = await readCsvHeaders(csvPath);
     await writeParquetFromCsv({

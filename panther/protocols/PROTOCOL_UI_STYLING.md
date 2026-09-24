@@ -153,6 +153,21 @@ selected arm keeps that meaning while the unselected arm keeps the affordance.
 names that surface so the rest matches it. Hover and press are a tint of the
 control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
 
+### Buttons inside a row that hovers
+
+```tsx
+// ❌ DON'T: an opaque rest shows as a pale block once the row takes its hover pair
+<Button intent="base-100" size="sm" iconName="pencil" onClick={edit} />
+
+// ✅ DO: a ghost has no rest surface, and its tint composes over the row's
+<Button ghost intent="base-content" size="sm" iconName="pencil" onClick={edit} />
+```
+
+**Why:** Filled and outline buttons paint an opaque rest, and `onBackground` can
+name only one surface where a hovering row has two. A ghost
+(`ui-hoverable-ghost`) rests on nothing and hovers with a `currentColor` tint
+over whatever is behind it.
+
 ### Controls in callouts
 
 ```tsx
@@ -214,6 +229,54 @@ containers are border-only, and shadow means "this left the document flow".
 **Why:** The `ui-*` utilities resolve through density vars, so an app can retune
 its whole density from one `@theme` block.
 
+### Type
+
+Every UI text size is a rem token from the `--text-*` scale, and text takes one
+of three roles:
+
+| Role    | Size    | Class                        | Used for                                                                                                                        |
+| ------- | ------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Caption | 12      | `ui-text-caption`, `text-xs` | Metadata, dates, badges, help text under a control, column headers, every cell of a data grid                                   |
+| Body    | 14      | none: inherited from `body`  | Everything else: body text, list and table cells, buttons, inputs, tabs, menus, dialog text, empty and loading messages, errors |
+| Heading | 16, 700 | `ui-text-heading`            | Section, card, modal and alert headings, and the label of a full-screen view                                                    |
+
+There is no title role. The body size is `--ui-text-body` (`text-sm`), set once
+on `body`; form text reads the same token, so controls and body text cannot
+drift.
+
+- **Do** leave body text unsized. A `text-sm` on body text is a no-op that will
+  not survive a change to `--ui-text-body`.
+- **Don't** size text in pixels, `text-[Npx]`, or a class that is not a token
+  (`text-md` emits nothing). 12px is the floor: if a badge or avatar is cramped,
+  its container grows.
+- **Don't** use `em` for UI text. It is for text that must follow the size
+  around it: icons, and markdown rendered inside a document.
+- **Line-height** comes with the token: each `--text-*` carries Tailwind's
+  default pair (`--text-sm--line-height` and so on), and `body` takes the
+  `text-sm` pair, so unsized text and `text-sm` text share a rhythm. A
+  `leading-*` utility overrides it where a control needs to.
+- **Tables.** Data grids (`DataGrid`, the CSV table, `PresenceGrid`) are caption
+  size throughout. `DisplayTable` and hand-built listings use one cell size,
+  body: a secondary value is muted, not smaller; a second line stacked under a
+  cell's main value is caption; a listing's column header is the `DisplayTable`
+  header (`font-700 text-xs uppercase tracking-wider`).
+- **Icons in `sm` controls** draw at 1.125em inside the control's
+  `--ui-form-content-h-em` box, so no control changes height.
+- **Mono** (`font-mono`, the `mono` prop on `Input`, `TextArea`, `Select` and
+  the search selects) is for text a machine reads back: identifiers and codes,
+  file names, formulas, code, logs and diffs, and any literal the user must type
+  exactly. Names, emails, body text and numbers are sans: `body` sets
+  `tabular-nums`, so counts align without a face change, and a stat's emphasis
+  is `font-700`, not mono and not a larger size. Mono inherits the size of the
+  text it sits in; the one mono size class is `text-xs` on a code or log block
+  that is caption throughout.
+- **Italic** is a content style: emphasis inside a document or user-authored
+  text. It is never a UI signal. A status, note or reason is muted. In a table,
+  an absent value is an empty cell; an absence that means something ("Never",
+  "system") is a muted word. No dashes, no italic. The one exception is the AI
+  chat (`_305_ai`), whose transient status lines (thinking, tool progress,
+  decisions) keep their italic.
+
 ### Text case
 
 ```tsx
@@ -257,6 +320,7 @@ its whole density from one `@theme` block.
 | Clickable card (whole card is the target)    | `Card onClick`: `cursor-pointer` + `hover:border-primary` at the frame                                                   |
 | Focus                                        | `ui-focusable`                                                                                                           |
 | Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`                                                      |
+| Quiet action in a row that hovers itself     | `ghost` (+ `intent`): no rest surface, currentColor tint on hover; needs no `onBackground`                               |
 
 Status intents: `success` complete/positive · `warning` caution · `danger`
 error/destructive · `neutral` running/queued/pending · `primary`
@@ -347,14 +411,14 @@ Usable from app code:
 - **State:** the `ui-hoverable-{token}` family (`base-100`, `base-200`,
   `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`,
   `danger`), its outline sibling `ui-hoverable-outline-on-{token}` (same nine
-  members), and `ui-focusable`
+  members), `ui-hoverable-ghost` (one member), and `ui-focusable`
 - **Type:** three roles: body (14px, inherited from `body`, no size class),
   `ui-text-caption` (12px, muted: metadata, help text, column headers, data grid
   cells) and `ui-text-heading` (16px bold: section, card, modal and alert
   headings, and a full-screen view's label). There is no title role. Also
   `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
 - **Skins (only when building a control panther doesn't provide):**
-  `ui-fill-{intent}`, `ui-outline-{intent}`
+  `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`
 
 Every other `ui-*` class is internal and may change without notice.
 
@@ -406,6 +470,12 @@ foreground is not derived from the background.
 - [ ] No named font-weight aliases (`font-normal`, `font-medium`,
       `font-semibold`, `font-bold`): they are wiped no-ops; use `font-400` /
       `font-700` or an app-declared weight
+- [ ] `font-mono` only on identifiers, codes, file names, formulas, code, logs
+      and diffs; never on names, emails or counts, and never with a size class
+      other than `text-xs` on a caption-size block
+- [ ] No `italic` outside document or user-authored content (the AI chat's
+      status lines excepted); an empty or special table value is empty or a
+      muted word, never a dash
 - [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case

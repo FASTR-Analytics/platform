@@ -19,6 +19,7 @@ import {
   type RunModule,
   type RunPopulation,
   type RunResultsObject,
+  type RunStage,
   type RunSummary,
   type StructureSchema,
 } from "lib";
@@ -72,6 +73,7 @@ export async function buildRunPackageIntoTmp(
   runId: string,
   tmpDir: string,
   opts: RunBuildOptions,
+  onStage: (stage: RunStage) => Promise<void>,
 ): Promise<{ manifest: RunManifest; summary: RunSummary }> {
   const resSchemaHmis = await getStructureSchema(mainDb, "hmis");
   if (resSchemaHmis.success === false) {
@@ -112,6 +114,7 @@ export async function buildRunPackageIntoTmp(
     };
     const moduleFamilySchema = schemaByFamily(def.family);
     if ((def.resultsObjects ?? []).length > 0) {
+      await onStage({ kind: "finalizing", moduleId: mod.id });
       await Deno.mkdir(join(tmpDir, "outputs", mod.id), { recursive: true });
     }
     for (const ro of def.resultsObjects ?? []) {

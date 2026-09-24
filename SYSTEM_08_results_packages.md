@@ -5,6 +5,7 @@ globs:
   - client/src/state/instance/t2_runs.ts
   - client/src/components/results_packages/**
   - lib/figure_package_issue.ts
+  - lib/run_progress.ts
   - lib/types/_module_definition_github.ts
   - lib/types/_module_definition_installed.ts
   - lib/types/module_registry.ts
@@ -22,6 +23,7 @@ globs:
   - server/tests/run_generation_module_options_test.ts
   - server/tests/run_input_transform_test.ts
   - server/tests/run_manifest_transform_test.ts
+  - server/tests/run_progress_test.ts
   - server/worker_routines/generate_run/**
   - server/worker_routines/instantiate_worker_generic.ts
   - server/worker_routines/worker_contract.ts
@@ -257,21 +259,32 @@ is one shape for every status: a heading bar (the label, the pinned and
 status badges, Pin or Unpin and the guarded Delete, with the provenance
 line as its subheading: created, by whom, `synthetic-backfill` when so, disk
 size), a **status bar** under it (`package_view/status_bar.tsx`), and the
-body. The status bar is the package's facts for every status, as labelled
-rows: one `ModuleProgressChip` per module of `run.progress.moduleOrder`
-with its `moduleStatus` (the final progress is stored at publish, so a
-ready package has chips too: done and reused), the live R line while
-generating, "in use by", and the population stamp when active
-("population.csv", read from the authoring context). A ready package's
+body. The status bar is the package's facts for every status. While
+generating it opens with a full-width panther `ProgressBar small busy`:
+the width is `runProgressSteps` over `p.progress` with a 10% floor (the
+stripe rides the fill, so an honest 0% during prepare would show nothing
+moving), the message is `runStageLabel` ("The stage" below), both read in
+one memo before any branch and rendered under a `Show` on the generating
+status. Then the
+labelled rows: one `ModuleProgressChip` per module of
+`run.progress.moduleOrder` with its `moduleStatus` (the final progress is
+stored at publish, so a ready package has chips too: done and reused),
+pulsing on the chip whose module is `currentModuleId` whatever its status,
+so a reused module's copy shows activity, and only while generating; the
+"Running" row with the live R line, shown only in a `module` stage; "in use
+by"; and the population stamp when active ("population.csv", read from the
+authoring context). A ready package's
 chips are grouped under family labels from `RunAuthoringContext.modules`
 in module order; a generating or failed run has no manifest and the
 registry declares no family, so its chips stay flat in execution order and
 are named from the registry. The body is by status: a READY package's is a
-tab bar (`TabsNavigation`, as the Data page) of **one tab per family the
+tab bar (`TabsNavigation`) of **one tab per family the
 package ran**, in family order (from `RunAuthoringContext.modules` through
 `compareModules`, so a package with modules of one family has one tab); a
-FAILED package's is `package_view/failed_detail.tsx`, the error detail and
-each started module's Script, Logs and Files viewers (the last via
+FAILED package's is `package_view/failed_detail.tsx`, the stage sentence
+the run died in above the error detail (omitted for a stored `ended`, the
+transform's stamp on a run that recorded no stage) and each started
+module's Script, Logs and Files viewers (the last via
 `ViewFiles`, since a failed run has no manifest); a GENERATING package's is
 a line saying results appear once generation completes. A family tab (`package_view/family_pane.tsx`)
 is a `SelectList` of the family's modules, the primary first and the
@@ -373,10 +386,11 @@ package's products (`setProductPackage`, `deleteProducts`, `duplicateProduct`).
 product to a package and send no nonce, so an open catalogue's "in use by"
 list lags until its next refetch. The delete guard reads the database, so it
 stays correct.
-A visitor arriving mid-generation sees launch-time progress chips until the
-next per-module push: the `run_progress` listeners are page-local and
-`updateRunProgress` deliberately does not signal the catalogue: per-module
-signal spam is worse than a bounded-stale chip row (ruled). The listeners
+A visitor arriving mid-generation sees the stored progress (the stage and
+chips as of the last push) until the next stage push: the `run_progress`
+listeners are page-local and `updateRunProgress` deliberately does not
+signal the catalogue: per-push signal spam is worse than a bounded-stale
+chip row (ruled). The listeners
 live in `results_packages.tsx`, which stays mounted under the open page, and
 the page reads them through accessor props. The package page is the ONLY
 surface that renders a non-ready run, and the only surface that renders a
@@ -796,6 +810,38 @@ inputKeys searched catalog-wide across every ready run, newest first, with no
 base run at all: reused modules copy raw CSVs and skip R); finalize
 (`server/runs/build_run_package.ts`'s `buildRunPackageIntoTmp`, parquet +
 manifest rebuilt fresh every generation).
+
+**The stage.** `runs.progress` (`RunProgress`, `lib/types/run_generation.ts`)
+carries a required `stage`, a discriminated union with no free text: `queued`,
+`exporting {family}`, `converting {family}`, `resolving`, `planning`,
+`module {moduleId}`, `finalizing {moduleId | null}`, `publishing`, `ended`.
+The pipeline sets it at every stage boundary and pushes it through the one
+`pushProgress` (one `updateRunProgress` and one `notifyInstanceRunProgress`):
+launch mints the row `queued`; `prepareRunInputs` reports `exporting` before
+each family capture and `converting` before each parquet write through its
+`onStage` parameter; the pipeline pushes `resolving` before
+`resolveRunModules`, `planning` before `createReuseSearch`, `module` at the
+top of each module iteration (before the input hashing and the reuse lookup,
+so a reused module's copy shows activity too), `finalizing null` with
+`currentModuleId` cleared after the loop, and `publishing` before the rename;
+`buildRunPackageIntoTmp` reports `finalizing {moduleId}` through its
+`onStage` before each module's results objects (only a module that declares
+some); `publishReadyRun` stores `ended`. A push happens per boundary, never
+per R line and never per results object: about sixty row updates for a
+twelve-module run, since each module iteration also pushes its status
+changes. `markRunGenerationFailed` leaves the stage as it finds
+it, so a failed run names the stage it died in; its fallback for an
+unparsable blob is `ended`. The pipeline is the only caller of both
+`onStage` parameters, and the three capture functions take no progress
+callback of their own. Everything derived from the stage lives in
+`lib/run_progress.ts`: `runProgressSteps` gives the fraction as equal-weighted
+steps (prepare, resolve plus plan, each module, finalize: `moduleOrder.length
++ 3` in total) from the stage alone, so it is monotonic whatever the reuse
+plan pre-marks (pinned by `server/tests/run_progress_test.ts`), and
+`runStageLabel` gives the translated sentence from the kind and payload
+(family names from `getModuleFamilyLabel`, module names from the registry).
+Rows written before the stage existed are brought forward at boot by the
+`runs_progress` data transform (S2), which stamps `ended`.
 Boot recovery: `markInterruptedGeneratingRuns` + `.tmp-` sweep.
 Generations run concurrently: a generation writes only its own run dir and
 catalog row, so no two launches can conflict. The host's `GENERATING_BY_RUN`
@@ -1085,6 +1131,10 @@ refuses any run a product points at.
   can't drift (`server/server_only_funcs/get_script_with_parameters*.ts`).
 - **Naming drift:** the worker preambles differ in their `console.error`
   prefix (converges under enforcement item 8).
+- **Two copies of the registry label lookup**: `moduleLabel` in
+  `client/src/components/results_packages/package_view/status.tsx` and the
+  private `moduleLabel` in `lib/run_progress.ts` are the same four lines.
+  Export the lib one and have the client import it.
 - **Read-path mirror tolerance, two files**: `readInputRows` (`run_read.ts`)
   yields `[]` for any mirror absent from `manifest.inputFiles`, which for the
   two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`,

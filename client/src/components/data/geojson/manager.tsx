@@ -71,7 +71,7 @@ export function GeoJsonManager(p: Props) {
         pt: "Nível de zona administrativa",
       }),
       sortable: true,
-      render: (item) => <span class="font-mono">{item.adminAreaLevel}</span>,
+      render: (item) => <span>{item.adminAreaLevel}</span>,
     },
     {
       key: "uploadedAt",

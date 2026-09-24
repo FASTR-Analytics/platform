@@ -1,29 +1,29 @@
 import {
   H_USERS,
+  INSTANCE_PERMISSION_LABELS,
   t3,
   TC,
   USER_PERMISSIONS,
-  INSTANCE_PERMISSION_LABELS,
   type UserPermission,
 } from "lib";
 import {
   Button,
-  Csv,
-  FrameTop,
-  downloadCsv,
-  openAlert,
-  openComponent,
   createButtonAction,
   createDeleteAction,
   createQuery,
+  Csv,
+  downloadCsv,
+  FrameTop,
+  openAlert,
+  openComponent,
 } from "panther";
 import { HeadingBar } from "panther";
-import { Show, createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { AddUserForm } from "./add_user_form";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
 import { User } from "./user";
-import { Table, TableColumn, BulkAction } from "panther";
+import { BulkAction, Table, TableColumn } from "panther";
 import { serverActions } from "~/server_actions";
 import type { UserLog } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
@@ -186,18 +186,24 @@ function hasGlobalPermissions(user: UserData): boolean {
 
 function getGlobalPermissionSummary(user: UserData): string {
   const active = USER_PERMISSIONS.filter((k) => user[k]);
-  if (active.length === 0)
+  if (active.length === 0) {
     return t3({
       en: "No special permissions",
       fr: "Aucune permission spéciale",
       pt: "Sem permissões especiais",
     });
+  }
   const shown = active
     .slice(0, 5)
     .map((k) => t3(INSTANCE_PERMISSION_LABELS[k]))
     .join(", ");
-  if (active.length > 5)
-    return `${shown}, +${active.length - 5} ${t3({ en: "more", fr: "de plus", pt: "mais" })}`;
+  if (active.length > 5) {
+    return `${shown}, +${active.length - 5} ${t3({
+      en: "more",
+      fr: "de plus",
+      pt: "mais",
+    })}`;
+  }
   return shown;
 }
 
@@ -216,26 +222,30 @@ function formatTimeAgo(date: Date): string {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1)
+  if (diffMins < 1) {
     return t3({ en: "Just now", fr: "À l'instant", pt: "Agora mesmo" });
-  if (diffMins < 60)
+  }
+  if (diffMins < 60) {
     return t3({
       en: `${diffMins}m ago`,
       fr: `il y a ${diffMins}m`,
       pt: `há ${diffMins}m`,
     });
-  if (diffHours < 24)
+  }
+  if (diffHours < 24) {
     return t3({
       en: `${diffHours}h ago`,
       fr: `il y a ${diffHours}h`,
       pt: `há ${diffHours}h`,
     });
-  if (diffDays < 30)
+  }
+  if (diffDays < 30) {
     return t3({
       en: `${diffDays}d ago`,
       fr: `il y a ${diffDays}j`,
       pt: `há ${diffDays}d`,
     });
+  }
   return date.toLocaleDateString();
 }
 
@@ -352,12 +362,10 @@ function UserTable(p: {
       render: (user) => (
         <div class="flex justify-end gap-1">
           <Button
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              p.onUserClick(user);
-            }}
+            onClick={() => p.onUserClick(user)}
             iconName="pencil"
-            intent="base-100"
+            ghost
+            intent="base-content"
             size="sm"
           />
         </div>
@@ -501,6 +509,7 @@ function UserTable(p: {
         fr: "Aucun utilisateur",
         pt: "Sem utilizadores",
       })}
+      onRowClick={p.onUserClick}
       bulkActions={bulkActions()}
       selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
     />

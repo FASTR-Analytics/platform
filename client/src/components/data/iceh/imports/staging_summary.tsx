@@ -22,7 +22,7 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Total Rows in File", fr: "Total de lignes dans le fichier", pt: "Total de linhas no ficheiro" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nRowsTotal)}
             </span>
           </div>
@@ -30,7 +30,7 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Valid Rows", fr: "Lignes valides", pt: "Linhas válidas" })}
             </span>
-            <span class="font-700 text-success font-mono text-xl">
+            <span class="font-700 text-success">
               {toNum0(p.result.nRowsValid)}
             </span>
           </div>
@@ -38,7 +38,7 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Skipped: Missing Estimate (normal)", fr: "Ignorées : estimation manquante (normal)", pt: "Ignoradas: estimativa em falta (normal)" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nRowsSkippedMissingEstimate)}
             </span>
           </div>
@@ -46,11 +46,11 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Skipped: Unknown Disaggregator", fr: "Ignorées : désagrégateur inconnu", pt: "Ignoradas: desagregador desconhecido" })}
             </span>
-            <span class="font-700 text-danger font-mono text-xl">
+            <span class="font-700 text-danger">
               {toNum0(p.result.nRowsSkippedUnknownStrat)}
             </span>
             <Show when={p.result.skippedUnknownStratSamples.length > 0}>
-              <span class="text-base-content-muted font-mono text-sm">
+              <span class="text-base-content-muted font-mono">
                 {p.result.skippedUnknownStratSamples.join(", ")}
               </span>
             </Show>
@@ -59,7 +59,7 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Skipped: Invalid Year", fr: "Ignorées : année invalide", pt: "Ignoradas: ano inválido" })}
             </span>
-            <span class="font-700 text-danger font-mono text-xl">
+            <span class="font-700 text-danger">
               {toNum0(p.result.nRowsSkippedInvalidYear)}
             </span>
           </div>
@@ -67,11 +67,11 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Skipped: Indicator Not in indicators.xlsx", fr: "Ignorées : indicateur absent de indicators.xlsx", pt: "Ignoradas: indicador ausente de indicators.xlsx" })}
             </span>
-            <span class="font-700 text-danger font-mono text-xl">
+            <span class="font-700 text-danger">
               {toNum0(p.result.nRowsSkippedUnknownIndicator)}
             </span>
             <Show when={p.result.skippedUnknownIndicatorSamples.length > 0}>
-              <span class="text-base-content-muted font-mono text-sm">
+              <span class="text-base-content-muted font-mono">
                 {p.result.skippedUnknownIndicatorSamples.join(", ")}
               </span>
             </Show>
@@ -88,7 +88,7 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nIndicators)}
             </span>
           </div>
@@ -96,7 +96,7 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Disaggregators", fr: "Désagrégateurs", pt: "Desagregadores" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nDisaggregators)}
             </span>
           </div>
@@ -104,7 +104,7 @@ export function IcehStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Years", fr: "Années", pt: "Anos" })}
             </span>
-            <span class="font-mono text-base">
+            <span>
               {p.result.years.join(", ")}
             </span>
           </div>

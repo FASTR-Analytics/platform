@@ -129,8 +129,9 @@ are admin-delete-only); admins delete anything. Deletion removes the file
   _new_ file uploads it shows "Processing upload…" and waits for the asset to
   appear in the T1 store via SSE before selecting it (re-uploads of an existing
   name select immediately). Used by the S5/S6/S12 wizards.
-- **`assets/assets.tsx`** is the Assets admin page: type tabs
-  (CSV/Excel/Images/ZIP/Other), size/modified/owner columns, per-row download
+- **`assets/assets.tsx`** is the Assets admin page: one table of every
+  asset with a filterable type column (CSV/Excel/Image/ZIP/Other),
+  size/modified/owner columns, per-row download
   (root-path `GET`, S1 static serve) and delete; delete buttons and the
   admin-only bulk delete mirror the server's ownership rule.
 

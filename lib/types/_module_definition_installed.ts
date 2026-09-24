@@ -6,7 +6,7 @@
 // ============================================================================
 
 import { z } from "zod";
-import type { DatasetType } from "./datasets.ts";
+import { datasetTypeSchema } from "./datasets.ts";
 
 // ============================================================================
 // Module-specific atoms
@@ -26,17 +26,12 @@ export const scriptGenerationType = z.enum([
 // whose results the module carries, whether it is that family's one primary
 // module or a supporting analysis, and its position among its tier's modules.
 // Every surface orders modules through compareModules (lib/group_metrics.ts).
-export const moduleFamily: z.ZodType<DatasetType> = z.enum([
-  "hmis",
-  "hfa",
-  "iceh",
-]);
 export const moduleTier = z.enum(["primary", "secondary"]);
 
 export const dataSourceDataset = z.object({
   sourceType: z.literal("dataset"),
   replacementString: z.string(),
-  datasetType: z.enum(["hmis", "hfa", "iceh"]),
+  datasetType: datasetTypeSchema,
 });
 
 export const dataSourceResultsObject = z.object({
@@ -124,7 +119,7 @@ export const resultsObjectDefinitionInstalledStrict = z.object({
 export const moduleDefinitionInstalledStrict = z.object({
   id: z.string(),
   label: z.string(),
-  family: moduleFamily,
+  family: datasetTypeSchema,
   tier: moduleTier,
   sortOrder: z.number().int().positive(),
   prerequisites: z.array(z.string()),

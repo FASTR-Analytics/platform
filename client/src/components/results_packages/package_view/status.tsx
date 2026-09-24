@@ -104,15 +104,18 @@ const MODULE_PROGRESS_INTENT: Record<RunModuleProgressStatus, Intent> = {
   error: "danger",
 };
 
+// `active` is the caller's word that the pipeline is on this module now,
+// whatever its status: a reused module's copy pulses like a running script.
 export function ModuleProgressChip(p: {
   label: string;
   status: RunModuleProgressStatus;
+  active: boolean;
 }) {
   return (
     <Badge intent={MODULE_PROGRESS_INTENT[p.status]}>
       <span class="inline-flex items-center gap-1">
         {p.label}
-        <Show when={p.status === "running"}>
+        <Show when={p.active}>
           <span class="animate-pulse">●</span>
         </Show>
         <Show when={p.status === "reused"}>

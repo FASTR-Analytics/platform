@@ -32,7 +32,7 @@ export function CsvStagingSummary(p: Props) {
         </div>
         <div class="flex justify-between">
           <span class="text-base-content">{t3({ en: "Import Date:", fr: "Date d'importation :", pt: "Data de importação:" })}</span>
-          <span class="font-mono">
+          <span>
             {new Date(p.result.dateImported).toLocaleString()}
           </span>
         </div>
@@ -45,17 +45,17 @@ export function CsvStagingSummary(p: Props) {
             <span class="text-base-content">
               {t3({ en: "Raw csv rows processed:", fr: "Lignes CSV brutes traitées :", pt: "Linhas CSV brutas processadas:" })}
             </span>
-            <span class="font-mono">{toNum0(p.result.rawCsvRowCount)}</span>
+            <span>{toNum0(p.result.rawCsvRowCount)}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-base-content">
               {t3({ en: "Valid rows in the csv:", fr: "Lignes valides dans le CSV :", pt: "Linhas válidas no CSV:" })}
             </span>
-            <span class="font-mono">{toNum0(p.result.validCsvRowCount)}</span>
+            <span>{toNum0(p.result.validCsvRowCount)}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-base-content">{t3({ en: "Non-duplicate rows:", fr: "Lignes non dupliquées :", pt: "Linhas não duplicadas:" })}</span>
-            <span class="font-mono">{toNum0(p.result.dedupedRowCount)}</span>
+            <span>{toNum0(p.result.dedupedRowCount)}</span>
           </div>
           <Show when={p.result.validation?.skippedByMapping}>
             {(skipped) => (
@@ -63,7 +63,7 @@ export function CsvStagingSummary(p: Props) {
                 <span class="text-base-content">
                   {t3({ en: "Rows under values skipped in the mapping step:", fr: "Lignes sous des valeurs ignorées à l'étape de correspondance :", pt: "Linhas sob valores ignorados no passo de correspondência:" })}
                 </span>
-                <span class="font-mono">{toNum0(skipped().rowsDropped)}</span>
+                <span>{toNum0(skipped().rowsDropped)}</span>
               </div>
             )}
           </Show>
@@ -71,7 +71,7 @@ export function CsvStagingSummary(p: Props) {
             <span class="text-base-content">
               {t3({ en: "Final rows ready for integrating:", fr: "Lignes finales prêtes pour l'intégration :", pt: "Linhas finais prontas para integração:" })}
             </span>
-            <span class="font-700 text-success font-mono">
+            <span class="font-700 text-success">
               {toNum0(p.result.finalStagingRowCount)}
             </span>
           </div>
@@ -100,7 +100,7 @@ export function CsvStagingSummary(p: Props) {
                   <span>
                     {t3({ en: "Invalid rows in csv file (because of missing required fields):", fr: "Lignes invalides dans le fichier CSV (champs requis manquants) :", pt: "Linhas inválidas no ficheiro CSV (campos obrigatórios em falta):" })}
                   </span>
-                  <span class="font-mono">
+                  <span>
                     {toNum0(validation().missingRequiredFields.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
                   </span>
@@ -111,7 +111,7 @@ export function CsvStagingSummary(p: Props) {
                   <span>
                     {t3({ en: "Invalid rows in csv file (because of invalid values):", fr: "Lignes invalides dans le fichier CSV (valeurs invalides) :", pt: "Linhas inválidas no ficheiro CSV (valores inválidos):" })}
                   </span>
-                  <span class="font-mono">
+                  <span>
                     {toNum0(validation().invalidCounts.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
                   </span>
@@ -120,7 +120,7 @@ export function CsvStagingSummary(p: Props) {
               <Show when={validation().invalidPeriods?.rowsDropped}>
                 <div class="text-danger flex justify-between">
                   <span>{t3({ en: "Invalid periods:", fr: "Périodes invalides :", pt: "Períodos inválidos:" })}</span>
-                  <span class="font-mono">
+                  <span>
                     {toNum0(validation().invalidPeriods.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
                   </span>
@@ -129,7 +129,7 @@ export function CsvStagingSummary(p: Props) {
               <Show when={validation().invalidFacilities?.rowsDropped}>
                 <div class="text-danger flex justify-between">
                   <span>{t3({ en: "Invalid facilities:", fr: "Établissements invalides :", pt: "Estabelecimentos inválidos:" })}</span>
-                  <span class="font-mono">
+                  <span>
                     {toNum0(validation().invalidFacilities.rowsDropped)}{" "}
                     {t3({ en: "rows dropped", fr: "lignes supprimées", pt: "linhas descartadas" })}
                   </span>
@@ -159,15 +159,15 @@ export function CsvStagingSummary(p: Props) {
         <div class="ui-spy-sm">
           <div class="flex justify-between">
             <span class="text-base-content">{t3({ en: "Total records:", fr: "Total des enregistrements :", pt: "Total de registos:" })}</span>
-            <span class="font-700 font-mono">{toNum0(totalRecords())}</span>
+            <span class="font-700">{toNum0(totalRecords())}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-base-content">{t3({ en: "Unique periods:", fr: "Périodes uniques :", pt: "Períodos únicos:" })}</span>
-            <span class="font-mono">{uniquePeriods()}</span>
+            <span>{uniquePeriods()}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-base-content">{t3({ en: "Unique indicators:", fr: "Indicateurs uniques :", pt: "Indicadores únicos:" })}</span>
-            <span class="font-mono">{uniqueIndicators()}</span>
+            <span>{uniqueIndicators()}</span>
           </div>
         </div>
       </div>

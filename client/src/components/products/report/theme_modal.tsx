@@ -237,7 +237,7 @@ export function ReportThemeModal(p: Props) {
                   onDblClick={() => void apply(sel)}
                 >
                   <FastrThemeMock theme={theme} />
-                  <div class="text-base-content mt-1.5 text-sm font-semibold">
+                  <div class="text-base-content font-700 mt-1.5">
                     {fastrThemeLabel(theme)}
                   </div>
                   <div class="text-base-content-muted text-xs leading-snug">
@@ -262,7 +262,7 @@ export function ReportThemeModal(p: Props) {
                   onDblClick={() => void apply(sel)}
                 >
                   <FastrCustomThemeMock style={style} />
-                  <div class="text-base-content mt-1.5 flex items-center gap-1.5 text-sm font-semibold">
+                  <div class="text-base-content font-700 mt-1.5 flex items-center gap-1.5">
                     <span class="min-w-0 truncate">{style.label}</span>
                     <span class="bg-base-300 text-base-content rounded px-1 text-xs font-normal">
                       {t3({ en: "custom", fr: "perso", pt: "próprio" })}

@@ -138,6 +138,7 @@ export async function launchRunGeneration(
         moduleIds.map((id) => [id, "pending" as const]),
       ),
       currentModuleId: null,
+      stage: { kind: "queued" },
       errorDetail: null,
     };
     const summary: RunSummary = {

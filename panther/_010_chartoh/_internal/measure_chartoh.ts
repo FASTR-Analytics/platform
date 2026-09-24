@@ -7,6 +7,7 @@ import {
   CustomFigureStyle,
   measureChart,
   type MergedChartOHStyle,
+  type PaneGrid,
   type RectCoordsDims,
   type RenderContext,
   type SimplifiedChartConfig,
@@ -22,6 +23,7 @@ export function measureChartOH(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: ChartOHInputs,
+  paneGrid: PaneGrid,
   fitScale?: number,
   data?: ChartOHDataTransformed,
   // Skip content-primitive generation (probe-only); see measurePane.
@@ -69,6 +71,7 @@ export function measureChartOH(
       axisStyle: mergedStyle.yTextAxis,
     },
     orientation: "horizontal",
+    paneGrid,
   };
 
   return measureChart(

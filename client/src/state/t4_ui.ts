@@ -6,7 +6,7 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import type { DatasetType, ListSort, SlideType } from "lib";
+import { MODULE_FAMILY_ORDER, type DatasetType, type ListSort, type SlideType } from "lib";
 
 // ============================================================================
 // Instance shell
@@ -23,23 +23,8 @@ export function setNavCollapsed(collapsed: boolean) {
   setNavCollapsedInternal(collapsed);
 }
 
-// The Data page's section tab, persisted like the explorer's preferences so
-// it survives leaving the tab and a reload.
-export type DataSection = "general" | "hmis" | "hfa" | "iceh";
-const storedDataSection = localStorage.getItem(
-  "dataSection",
-) as DataSection | null;
-export const [dataSection, setDataSectionInternal] = createSignal<DataSection>(
-  storedDataSection ?? "hmis",
-);
-export function setDataSection(section: DataSection) {
-  localStorage.setItem("dataSection", section);
-  setDataSectionInternal(section);
-}
-
-// The Explore page's family, shared by its two tabs, and the tab itself,
-// persisted like the Data page's section. The package and scope are page
-// signals, never stored (SYSTEM_11).
+// The Explore page's family tab and, per family, the chosen module id,
+// persisted and resolved against the package on read. The package and scope are page signals, never stored (SYSTEM_11).
 const storedExploreFamily = localStorage.getItem(
   "exploreFamily",
 ) as DatasetType | null;
@@ -51,16 +36,30 @@ export function setExploreFamily(family: DatasetType) {
   setExploreFamilyInternal(family);
 }
 
-export type ExploreTab = "data_table" | "visualization";
-const storedExploreTab = localStorage.getItem("exploreTab") as
-  | ExploreTab
-  | null;
-export const [exploreTab, setExploreTabInternal] = createSignal<ExploreTab>(
-  storedExploreTab ?? "data_table",
-);
-export function setExploreTab(tab: ExploreTab) {
-  localStorage.setItem("exploreTab", tab);
-  setExploreTabInternal(tab);
+type ExploreModules = Partial<Record<DatasetType, string>>;
+function readStoredExploreModules(): ExploreModules {
+  try {
+    const parsed: unknown = JSON.parse(
+      localStorage.getItem("exploreModules") ?? "{}",
+    );
+    if (typeof parsed !== "object" || parsed === null) return {};
+    return Object.fromEntries(
+      MODULE_FAMILY_ORDER.flatMap((family) => {
+        const id = (parsed as Record<string, unknown>)[family];
+        return typeof id === "string" ? [[family, id]] : [];
+      }),
+    );
+  } catch {
+    return {};
+  }
+}
+export const [exploreModules, setExploreModulesInternal] = createSignal<
+  ExploreModules
+>(readStoredExploreModules());
+export function setExploreModule(family: DatasetType, moduleId: string) {
+  const next = { ...exploreModules(), [family]: moduleId };
+  localStorage.setItem("exploreModules", JSON.stringify(next));
+  setExploreModulesInternal(next);
 }
 
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole

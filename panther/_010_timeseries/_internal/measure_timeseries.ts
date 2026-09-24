@@ -7,6 +7,7 @@ import {
   CustomFigureStyle,
   measureChart,
   type MergedTimeseriesStyle,
+  type PaneGrid,
   type RectCoordsDims,
   type RenderContext,
   type SimplifiedChartConfig,
@@ -22,6 +23,7 @@ export function measureTimeseries(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: TimeseriesInputs,
+  paneGrid: PaneGrid,
   fitScale?: number,
   data?: TimeseriesDataTransformed,
   // Skip content-primitive generation (probe-only); see measurePane.
@@ -66,6 +68,7 @@ export function measureTimeseries(
       axisLabel: transformedData.yScaleAxisLabel,
     },
     orientation: "vertical",
+    paneGrid,
   };
 
   return measureChart(

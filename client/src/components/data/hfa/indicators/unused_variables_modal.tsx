@@ -41,8 +41,7 @@ export function HfaUnusedVariablesModal(
         pt: "Variáveis não utilizadas",
       })}
       width="lg"
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <Show
         when={p.timePoints.length > 0}

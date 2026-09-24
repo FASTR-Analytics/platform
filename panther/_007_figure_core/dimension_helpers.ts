@@ -9,6 +9,7 @@ import type {
   RenderContext,
   TextInfoUnkeyed,
 } from "./deps.ts";
+import type { ChartComponentSizes } from "./chart_size_helpers.ts";
 
 // Strings measured in place of real content when sizing before data is laid
 // out: wide enough to stand in for the typical case, not the worst.
@@ -22,15 +23,41 @@ export const SIZING_SAMPLE = {
 } as const;
 export const PANE_HEADER_SAMPLE_MAX_W = 400;
 
-export function calculatePaneGrid(
-  nPanes: number,
-  nColsSetting: number | "auto",
-): { nGCols: number; nGRows: number } {
-  const nGCols = nColsSetting === "auto"
-    ? Math.ceil(Math.sqrt(nPanes))
-    : nColsSetting;
-  const nGRows = Math.ceil(nPanes / nGCols);
-  return { nGCols, nGRows };
+export type PaneGrid = { nGCols: number; nGRows: number };
+
+export function calculatePaneGrid(nPanes: number, nGCols: number): PaneGrid {
+  return { nGCols, nGRows: Math.ceil(nPanes / nGCols) };
+}
+
+// One grid column at its legibility floor: a pane's sub-charts across its
+// lanes, the lane gaps and padding, and its y axis. yAxisWidth defaults to
+// the sample estimate; a probe-based caller passes the real width.
+export function calculateColumnMinWidth(
+  info: ChartComponentSizes,
+  yAxisWidth: number = info.minYAxisWidth,
+): number {
+  const lanes = info.mergedStyle.lanes;
+  return info.minSubChartWidth * info.nLanes +
+    (info.nLanes - 1) * lanes.gapX +
+    lanes.paddingLeft + lanes.paddingRight +
+    yAxisWidth;
+}
+
+// Under panes.nCols "auto", the grid packs as many columns as the frame's
+// available width holds at max(column floor, panes.minWidth), clamped to
+// [1, nPanes]. Resolved once per (fit scale, frame width) and handed to
+// every consumer, so the fit search, the ideal height and the measure agree.
+export function resolvePaneGrid(
+  info: ChartComponentSizes,
+  frameWidth: number,
+): PaneGrid {
+  const nPanes = info.paneHeaders.length;
+  const { nCols, minWidth, gapX } = info.mergedStyle.panes;
+  if (nCols !== "auto") return calculatePaneGrid(nPanes, nCols);
+  const available = frameWidth - info.surroundsMinWidth;
+  const columnTarget = Math.max(calculateColumnMinWidth(info), minWidth);
+  const fit = Math.floor((available + gapX) / (columnTarget + gapX));
+  return calculatePaneGrid(nPanes, Math.max(1, Math.min(nPanes, fit)));
 }
 
 export function calculateMinSubChartHeight(

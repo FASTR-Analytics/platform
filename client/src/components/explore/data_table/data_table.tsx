@@ -1,14 +1,11 @@
 import {
   defaultGridQuery,
   deriveGridConfig,
-  familiesOffered,
   getFetchConfigFromPresentationObjectConfig,
   hashFetchConfig,
   INDICATOR_DIMENSION,
   levelOptionsFor,
   periodChoicesFor,
-  primaryMetricFor,
-  primaryModuleMetrics,
   resolveEffectiveIndicatorFacts,
   resolveGridQuery,
   t3,
@@ -27,18 +24,21 @@ import {
   type RunAuthoringContext,
 } from "lib";
 import {
-  Button,
   Csv,
   dataGridPropsFromTableData,
   downloadCsv,
   FrameTop,
   getLanguage,
   getTableDataTransformed,
-  type SelectOption,
   StateHolderWrapper,
 } from "panther";
-import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
-import { EmptyState } from "../_shared/mod.ts";
+import { createMemo, createSignal, type JSX, Match, Show, Switch } from "solid-js";
+import {
+  DroppedIndicatorsNotice,
+  EmptyState,
+  indicatorOptions,
+  queryEditors,
+} from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
@@ -50,7 +50,6 @@ import {
   getGridRowsFromCacheOrFetch,
   type GridRows,
 } from "~/state/products/t2_grid_items";
-import { exploreFamily, setExploreFamily } from "~/state/t4_ui";
 import { gridCellFunction } from "./cell_function";
 import { columnLabel, Grid, GridMessage, type GridProps } from "./grid";
 import { Toolbar } from "./toolbar";
@@ -58,68 +57,19 @@ import { createTrackedQuery } from "./tracked_query";
 
 export type QueriesByFamily = Partial<Record<DatasetType, GridQuery>>;
 
-// The Data table tab: one family's primary metric read as a grid of units by
-// indicators or by time. The state is one GridQuery per family, owned by the
-// page so it outlives a package, scope or tab change; each read resolves it
-// against the current package and scope, so such a change never rewrites
-// what the user chose.
+// The Data table view: a metric read as a grid of units by indicators or by
+// time, the view's choice. The controls' state is one GridQuery per family,
+// owned by the page so it outlives a package, scope or module change; each
+// read resolves it against the current package and scope, so such a change
+// never rewrites what the user chose. `viewSelect` is the module's view
+// selector, placed first in the toolbar.
 export function DataTable(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  queries: QueriesByFamily;
-  setQueries: (queries: QueriesByFamily) => void;
-}) {
-  const offered = createMemo(() => familiesOffered(p.ctx));
-  const family = createMemo((): DatasetType | undefined =>
-    offered().includes(exploreFamily()) ? exploreFamily() : offered()[0]
-  );
-
-  return (
-    <Show
-      when={family()}
-      keyed
-      fallback={
-        <div class="ui-pad">
-          <EmptyState kind="no_primary_module" />
-        </div>
-      }
-    >
-      {(f) => (
-        <Show
-          when={primaryMetricFor(f, p.ctx)}
-          keyed
-          fallback={
-            <div class="ui-pad">
-              <EmptyState
-                kind="no_metric"
-                reason={primaryModuleMetrics(f, p.ctx)[0]?.statusReason}
-              />
-            </div>
-          }
-        >
-          {(metric) => (
-            <FamilyTable
-              ctx={p.ctx}
-              scope={p.scope}
-              family={f}
-              families={offered()}
-              metric={metric}
-              query={p.queries[f]}
-              setQuery={(q) => p.setQueries({ ...p.queries, [f]: q })}
-            />
-          )}
-        </Show>
-      )}
-    </Show>
-  );
-}
-
-function FamilyTable(p: {
-  ctx: RunAuthoringContext;
-  scope: PackageScope;
   family: DatasetType;
-  families: DatasetType[];
   metric: MetricWithStatus;
+  columns: GridColumns;
+  viewSelect: JSX.Element;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
 }) {
@@ -136,8 +86,9 @@ function FamilyTable(p: {
           ctx={p.ctx}
           scope={p.scope}
           family={p.family}
-          families={p.families}
           metric={p.metric}
+          columns={p.columns}
+          viewSelect={p.viewSelect}
           info={metricInfo}
           query={p.query}
           setQuery={p.setQuery}
@@ -155,24 +106,13 @@ function possibleValues(
   return status?.status === "ok" ? status.values : [];
 }
 
-function indicatorOptions(
-  family: DatasetType,
-  ctx: RunAuthoringContext,
-): SelectOption<string>[] {
-  const entries = family === "hmis"
-    ? ctx.hmisIndicators
-    : family === "hfa"
-    ? ctx.hfaTaxonomy.indicators
-    : ctx.icehIndicators;
-  return entries.map((i) => ({ value: i.id, label: i.label }));
-}
-
 function ReadyFamilyTable(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
   family: DatasetType;
-  families: DatasetType[];
   metric: MetricWithStatus;
+  columns: GridColumns;
+  viewSelect: JSX.Element;
   info: ResultsValueInfoForPresentationObject;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
@@ -197,26 +137,12 @@ function ReadyFamilyTable(p: {
   const intent = (): GridQuery =>
     p.query ?? defaultGridQuery(p.family, p.scope, p.ctx, available());
   const resolved = createMemo(() =>
-    resolveGridQuery(intent(), p.scope, p.ctx, available())
+    resolveGridQuery(intent(), p.columns, p.scope, p.ctx, available())
   );
-  const update = (patch: Partial<GridQuery>) =>
-    p.setQuery({
-      ...intent(),
-      ...patch,
-      ...(patch.indicators === undefined ? {} : {
-        indicators: [...patch.indicators, ...resolved().droppedIndicators],
-      }),
-    });
-  const clearDropped = () => {
-    const dropped = new Set(resolved().droppedIndicators);
-    p.setQuery({
-      ...intent(),
-      indicators: intent().indicators.filter((id) => !dropped.has(id)),
-    });
-  };
+  const { update, clearDropped } = queryEditors(intent, resolved, p.setQuery);
 
   const derived = createMemo(() =>
-    deriveGridConfig(resolved().query, p.ctx, getLanguage())
+    deriveGridConfig(resolved().query, p.columns, p.ctx, getLanguage())
   );
   // What one grid read is for. Only a change of fetch config or columns
   // makes a new one, and the grid is built from the config and columns its
@@ -226,7 +152,7 @@ function ReadyFamilyTable(p: {
     return d === undefined ? undefined : {
       fetchConfig: getFetchConfigFromPresentationObjectConfig(d.metric, d.config),
       config: d.config,
-      columns: resolved().query.columns,
+      columns: p.columns,
     };
   }, undefined, { equals: sameReadSpec });
 
@@ -307,8 +233,8 @@ function ReadyFamilyTable(p: {
       panelChildren={
         <div class="ui-pad ui-spy-sm">
           <Toolbar
-            families={p.families}
-            onFamily={setExploreFamily}
+            viewSelect={p.viewSelect}
+            columns={p.columns}
             query={resolved().query}
             levelOptions={levelOptionsFor(p.metric, p.scope).map((level) => ({
               value: level,
@@ -319,34 +245,22 @@ function ReadyFamilyTable(p: {
               label: v.label,
             }))}
             indicatorOptions={indicatorOptions(p.family, p.ctx)}
-            periodChoices={periodChoicesFor(
-              p.family,
-              resolved().query.columns,
-              available(),
-            )}
+            periodChoices={periodChoicesFor(p.family, p.columns, available())}
             onChange={update}
             find={find()}
             onFind={setFind}
             onDownload={download()}
           />
           <Show when={resolved().droppedIndicators.length > 0}>
-            <div class="ui-gap-sm flex items-center text-sm">
-              <span class="text-base-content-muted">
-                {t3({
-                  en: `${resolved().droppedIndicators.length} chosen indicator(s) are not in this package.`,
-                  fr: `${resolved().droppedIndicators.length} indicateur(s) choisi(s) ne figurent pas dans ce paquet.`,
-                  pt: `${resolved().droppedIndicators.length} indicador(es) escolhido(s) não estão neste pacote.`,
-                })}
-              </span>
-              <Button onClick={clearDropped} size="sm" outline>
-                {t3({ en: "Clear", fr: "Effacer", pt: "Limpar" })}
-              </Button>
-            </div>
+            <DroppedIndicatorsNotice
+              count={resolved().droppedIndicators.length}
+              onClear={clearDropped}
+            />
           </Show>
         </div>
       }
     >
-      <div class="ui-pad h-full">
+      <div class="ui-pad-x h-full pb-4">
         <Show
           when={readSpec()}
           fallback={(p.metric.vizPresets?.length ?? 0) === 0

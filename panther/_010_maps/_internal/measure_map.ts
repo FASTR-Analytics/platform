@@ -11,6 +11,7 @@ import {
   measureChart,
   type MergedMapStyle,
   type OutsideLabelPlacement,
+  type PaneGrid,
   type Primitive,
   type RectCoordsDims,
   type RenderContext,
@@ -53,6 +54,7 @@ export function measureMap(
   rc: RenderContext,
   bounds: RectCoordsDims,
   inputs: MapInputs,
+  paneGrid: PaneGrid,
   fitScale?: number,
 ): MeasuredMap {
   const customFigureStyle = new CustomFigureStyle(
@@ -85,6 +87,7 @@ export function measureMap(
         transformedData.valueRange,
       )
       : undefined,
+    paneGrid,
   };
 
   const chartMeasured = measureChart(

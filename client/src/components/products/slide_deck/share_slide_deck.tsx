@@ -143,19 +143,18 @@ export function ShareSlideDeck(
     <ModalContainer
       title={t3({ en: "Share slide deck", fr: "Partager la présentation", pt: "Partilhar apresentação" })}
       width="md"
-      onCancel={sent() || pct() === 0 ? () => p.close(undefined) : undefined}
-      cancelLabel={sent() ? t3(TC.done) : t3(TC.cancel)}
-      actions={[
-        ...(!sent() && pct() === 0
-          ? [
-              {
-                label: `${t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })} (${allRecipients().length})`,
-                onClick: handleSend,
-                iconName: "arrowRight" as const,
-              },
-            ]
-          : []),
-      ]}
+      {...(sent()
+        ? { onClose: { kind: "done" as const, onClick: () => p.close(undefined) } }
+        : {
+          onCancel: pct() === 0 ? () => p.close(undefined) : undefined,
+          actions: pct() === 0
+            ? [{
+              label: `${t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })} (${allRecipients().length})`,
+              onClick: handleSend,
+              iconName: "arrowRight" as const,
+            }]
+            : [],
+        })}
     >
       <Show when={sent()}>
         <div class="text-success py-4 text-center">

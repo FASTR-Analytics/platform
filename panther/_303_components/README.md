@@ -158,9 +158,13 @@ Dialogs stack: one opened over another layers on top, and each promise settles
 when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders
 Cancel, `actions` render right-aligned after it with the last one primary,
 `form` makes Enter click the primary action, and each action's error state
-renders under the body. `footer` is the left slot for non-action content. Menus:
-`MenuButton` for a button that opens a menu, `ActionMenuButton` for the
-three-dots preset, `showMenu` for context menus. Never hand-roll an overlay.
+renders under the body. A modal whose only button dismisses it passes
+`onClose={{ kind, onClick }}` instead: `"close"` for read-only content, `"done"`
+when the modal applied edits live with no Save step. It renders as the primary
+action; a lone button is never the outline Cancel. `footer` is the left slot for
+non-action content. Menus: `MenuButton` for a button that opens a menu,
+`ActionMenuButton` for the three-dots preset, `showMenu` for context menus.
+Never hand-roll an overlay.
 
 A popover that can open inside an `openAlert` or `openComponent` modal must stop
 Escape itself. `AlertProvider` closes the modal from a document-level `keydown`
@@ -225,12 +229,13 @@ surface for app code:
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`
 - **State** — the `ui-hoverable-{token}` family (`base-100`, `base-200`,
-  `base-300`, `base-content`, and the five intents) and `ui-focusable`
+  `base-300`, `base-content`, and the five intents), its outline sibling
+  `ui-hoverable-outline-on-{token}`, `ui-hoverable-ghost`, and `ui-focusable`
 - **Type** — three roles: body (14px, inherited from `body`, no class),
   `ui-text-caption` (12px, muted) and `ui-text-heading` (16px, bold); plus
   `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
-- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, for building a control
-  the kit doesn't provide
+- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`,
+  for building a control the kit doesn't provide
 
 Every other `ui-*` class is internal and may change without notice.
 

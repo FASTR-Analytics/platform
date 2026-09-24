@@ -175,6 +175,7 @@ export function HeadingBar<T extends string = string>(p: Props<T>) {
                 <Input
                   onChange={p.setSearchText}
                   value={p.searchText ?? ""}
+                  size={isCompact() ? "sm" : undefined}
                   fullWidth
                   searchIcon
                   clearable

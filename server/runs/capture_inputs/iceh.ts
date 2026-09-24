@@ -27,10 +27,8 @@ export type DatasetIcehRunCapture = {
 export async function computeDatasetIcehRunCapture(
   mainDb: Sql,
   csvTarget: DatasetCsvTarget,
-  onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<DatasetIcehRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
-    if (onProgress) await onProgress(0.1, "Validating data...");
     const dataCountRow = await mainDb<{ count: number }[]>`
       SELECT COUNT(*) as count FROM iceh_data
     `;
@@ -45,8 +43,6 @@ export async function computeDatasetIcehRunCapture(
     const icehCacheHash = await getIcehCacheHash(mainDb);
 
     await ensureDatasetCsvTargetDir(csvTarget);
-
-    if (onProgress) await onProgress(0.5, "Exporting ICEH data to CSV...");
 
     await mainDb.unsafe(`
       COPY (

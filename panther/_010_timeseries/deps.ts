@@ -55,6 +55,7 @@ export type {
   JsonArray,
   LegendInput,
   MeasuredSurrounds,
+  PaneGrid,
   PaneLayout,
   SimplifiedChartConfig,
   UncertaintyConfig,

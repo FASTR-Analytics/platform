@@ -1160,6 +1160,12 @@ export class CustomFigureStyle {
         d.panes.hideHeaders,
       ),
       nCols: m(c.panes?.nCols, g.panes?.nCols, d.panes.nCols),
+      minWidth: ms(
+        sf,
+        c.panes?.minWidth,
+        g.panes?.minWidth,
+        d.panes.minWidth,
+      ),
       gapX: ms(sf, c.panes?.gapX, g.panes?.gapX, d.panes.gapX),
       gapY: ms(sf, c.panes?.gapY, g.panes?.gapY, d.panes.gapY),
       padding: msPadding(

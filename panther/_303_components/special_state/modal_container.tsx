@@ -35,6 +35,22 @@ export type ModalAction = {
   ariaLabel?: string;
 };
 
+// The single button of a modal that only dismisses: "close" for read-only
+// content (a preview, a reference list), "done" when the modal applied edits
+// live with no Save step. It renders as the primary action, so it is never
+// the outline Cancel button.
+export type ModalClose = {
+  kind: "close" | "done";
+  onClick: () => void;
+  disabled?: boolean;
+};
+
+function closeLabel(kind: ModalClose["kind"]): string {
+  return kind === "done"
+    ? t3({ en: "Done", fr: "Terminé", pt: "Concluído" })
+    : t3({ en: "Close", fr: "Fermer", pt: "Fechar" });
+}
+
 type ModalContainerProps =
   & {
     children: JSX.Element;
@@ -42,13 +58,6 @@ type ModalContainerProps =
     title?: string;
     subtitle?: string;
     topPanel?: JSX.Element;
-    // The footer's action row, right-aligned: Cancel first, then actions in
-    // order, the last one being the primary action. An action's error state
-    // renders below the body.
-    actions?: ModalAction[];
-    onCancel?: () => void;
-    cancelLabel?: string;
-    cancelDisabled?: boolean;
     // Wraps the body and footer in a <form> so Enter in a text input clicks
     // the primary action (implicit submission); the other buttons are
     // type="button". The form itself never submits.
@@ -58,6 +67,25 @@ type ModalContainerProps =
     footer?: JSX.Element;
     noContentPadding?: boolean;
   }
+  & (
+    | {
+      // The footer's action row, right-aligned: Cancel first, then actions in
+      // order, the last one being the primary action. An action's error state
+      // renders below the body.
+      actions?: ModalAction[];
+      onCancel?: () => void;
+      cancelLabel?: string;
+      cancelDisabled?: boolean;
+      onClose?: never;
+    }
+    | {
+      onClose: ModalClose;
+      actions?: never;
+      onCancel?: never;
+      cancelLabel?: never;
+      cancelDisabled?: never;
+    }
+  )
   & (
     | { scroll?: "content"; height?: ModalContainerHeight }
     // A fixed height needs the content region to scroll; under page scroll
@@ -94,7 +122,14 @@ export function ModalContainer(p: ModalContainerProps) {
   // every read.
   const topPanel = children(() => p.topPanel);
   const hasTopPanel = () => topPanel.toArray().length > 0;
-  const actions = () => p.actions ?? [];
+  const actions = (): ModalAction[] =>
+    p.onClose
+      ? [{
+        label: closeLabel(p.onClose.kind),
+        onClick: p.onClose.onClick,
+        disabled: p.onClose.disabled,
+      }]
+      : p.actions ?? [];
   const hasFooter = () =>
     actions().length > 0 || p.onCancel !== undefined || p.footer !== undefined;
   const isPrimary = (i: number) => i === actions().length - 1;

@@ -37,8 +37,7 @@ export function TourCatalogueFrame(p: {
         fr: "Visites guidées",
         pt: "Visitas guiadas",
       })}
-      onCancel={() => p.close()}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close() }}
     >
       <div class="flex h-[min(650px,65vh)] gap-4">
         <div class="w-52 flex-none overflow-y-auto border-r pr-4">
@@ -107,7 +106,7 @@ export function TourRow(p: {
         <div class="text-base-content-muted mt-1 text-sm">{p.description}</div>
         {p.detail}
         <Show when={!p.available}>
-          <div class="text-base-content-muted mt-1 text-sm italic">
+          <div class="text-base-content-muted mt-1">
             {p.reason}
           </div>
         </Show>

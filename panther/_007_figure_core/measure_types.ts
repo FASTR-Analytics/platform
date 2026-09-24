@@ -15,6 +15,7 @@ import type {
 import type { LegendInput } from "./_legend/scale_legend_types.ts";
 import type { MeasuredSurrounds } from "./_surrounds/measure_surrounds.ts";
 import type { XAxisConfig, YAxisConfig } from "./_axes/axis_configs.ts";
+import type { PaneGrid } from "./dimension_helpers.ts";
 
 export type { MeasuredSurrounds };
 
@@ -87,6 +88,10 @@ export type SimplifiedChartConfig<
   yAxisConfig: YAxisConfig;
   orientation: "vertical" | "horizontal";
   resolvedLegend?: LegendInput;
+  // Resolved by the caller (resolvePaneGrid at the applied fit scale and the
+  // frame width), never here: the measured content width would not match
+  // the fit decision's estimate.
+  paneGrid: PaneGrid;
 };
 
 export type MeasurePaneConfig<TData> = {

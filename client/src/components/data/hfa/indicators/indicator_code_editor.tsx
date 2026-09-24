@@ -263,6 +263,15 @@ function EditorInner(p: {
     return dict.values.filter((v) => v.variableId === variableId);
   };
 
+  const referencedLabel = (id: string): string | undefined => {
+    const variable = currentTpDict()?.variables.find(
+      (v) => v.variableId === id,
+    );
+    if (variable) return variable.variableLabel;
+    const indicator = otherIndicators.find((i) => i.indicatorId === id);
+    return indicator ? composeHfaIndicatorLabel(indicator, "compact") : undefined;
+  };
+
   const roundsConsistency = () => {
     const nonEmpty = state.code.filter(
       (c) => c.rCode.trim() || c.rFilterCode.trim(),
@@ -712,15 +721,13 @@ function EditorInner(p: {
                       </For>
                       <For each={currentRCodeValidation().referencedIds}>
                         {(id) => {
-                          const variable = currentTpDict()?.variables.find(
-                            (v) => v.variableId === id,
-                          );
+                          const label = referencedLabel(id);
                           const vals = valuesForVariable(id);
                           return (
                             <div class="text-success text-xs">
                               <div>
                                 {id}
-                                {variable ? ` — ${variable.variableLabel}` : ""}
+                                {label ? ` — ${label}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
                                 <div class="text-base-content-muted ml-3">
@@ -793,15 +800,13 @@ function EditorInner(p: {
                       </For>
                       <For each={currentFilterValidation().referencedIds}>
                         {(id) => {
-                          const variable = currentTpDict()?.variables.find(
-                            (v) => v.variableId === id,
-                          );
+                          const label = referencedLabel(id);
                           const vals = valuesForVariable(id);
                           return (
                             <div class="text-success text-xs">
                               <div>
                                 {id}
-                                {variable ? ` — ${variable.variableLabel}` : ""}
+                                {label ? ` — ${label}` : ""}
                               </div>
                               <Show when={vals.length > 0}>
                                 <div class="text-base-content-muted ml-3">

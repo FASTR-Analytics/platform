@@ -7,6 +7,7 @@ import {
   CustomFigureStyle,
   measureChart,
   type MergedChartOVStyle,
+  type PaneGrid,
   type RectCoordsDims,
   type RenderContext,
   type SimplifiedChartConfig,
@@ -22,6 +23,7 @@ export function measureChartOV(
   rc: RenderContext,
   rcdWithSurrounds: RectCoordsDims,
   inputs: ChartOVInputs,
+  paneGrid: PaneGrid,
   fitScale?: number,
   data?: ChartOVDataTransformed,
   // Skip content-primitive generation (probe-only); see measurePane.
@@ -69,6 +71,7 @@ export function measureChartOV(
       axisLabel: transformedData.yScaleAxisLabel,
     },
     orientation: "vertical",
+    paneGrid,
   };
 
   return measureChart(

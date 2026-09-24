@@ -25,10 +25,9 @@ function HelpModal(p: AlertComponentProps<{ id: HelpId }, void>) {
     <ModalContainer
       width="md"
       title={t3(target.title)}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
       footer={
-        <Button intent="primary" href={getHelpUrl(target)} newTab>
+        <Button outline href={getHelpUrl(target)} newTab>
           {t3({ en: "Read more…", fr: "En savoir plus…", pt: "Ler mais…" })}
         </Button>
       }

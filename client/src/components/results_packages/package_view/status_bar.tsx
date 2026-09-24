@@ -2,6 +2,8 @@ import {
   MODULE_FAMILY_ORDER,
   compareModules,
   getModuleFamilyLabel,
+  runProgressSteps,
+  runStageLabel,
   t3,
   type RunAuthoringContext,
   type RunCatalogItem,
@@ -9,6 +11,7 @@ import {
   type RunPopulation,
   type RunProgress,
 } from "lib";
+import { ProgressBar } from "panther";
 import { For, Show, createMemo, type JSX } from "solid-js";
 import { PRODUCT_TYPE_REGISTRY } from "~/components/products/mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
@@ -18,13 +21,20 @@ type ModuleChip = {
   id: string;
   label: string;
   status: RunModuleProgressStatus;
+  active: boolean;
 };
 type ChipGroup = { heading: string | undefined; modules: ModuleChip[] };
 
+const BAR_FLOOR_PERCENT = 10;
+
 // The package's facts, one bar between the heading and the tabs for every
-// status: how each module ran (from `run.progress`, stored at publish, so a
-// ready package has them too), the live R line while generating, which
-// products use it, and the population stamp.
+// status: while generating, a busy progress bar with the stage sentence
+// (SYSTEM_08 "The stage"); how each module ran (from `run.progress`, stored
+// at publish, so a ready package has them too), the live R line while an R
+// script runs, which products use it, and the population stamp.
+//
+// The active chip is the pipeline's current module, whatever its status, so
+// a reused module's copy shows activity too; only a generating run has one.
 //
 // Chips are grouped under a family label only for a ready package, whose
 // authoring context carries each module's family; a generating or failed
@@ -36,10 +46,23 @@ export function StatusBar(p: {
   latestRLine: (moduleId: string) => string | undefined;
   ctx: RunAuthoringContext | undefined;
 }) {
+  const bar = createMemo(() => {
+    const progress = p.progress;
+    if (progress === null) return undefined;
+    const { done, total } = runProgressSteps(progress);
+    // The stripe rides the fill, so an honest 0% during prepare (the longest
+    // stage) shows nothing moving. The floor keeps the bar visibly busy.
+    return {
+      percent: Math.max(BAR_FLOOR_PERCENT, (done / total) * 100),
+      label: runStageLabel(progress),
+    };
+  });
   const groups = createMemo((): ChipGroup[] => {
     const progress = p.progress;
     if (progress === null) return [];
     const status = (id: string) => progress.moduleStatus[id] ?? "pending";
+    const active = (id: string) =>
+      p.run.status === "generating" && id === progress.currentModuleId;
     const ctx = p.ctx;
     if (ctx === undefined) {
       return [
@@ -49,6 +72,7 @@ export function StatusBar(p: {
             id,
             label: moduleLabel(id),
             status: status(id),
+            active: active(id),
           })),
         },
       ];
@@ -66,6 +90,7 @@ export function StatusBar(p: {
             id: m.id,
             label: m.label,
             status: status(m.id),
+            active: active(m.id),
           })),
         },
       ];
@@ -74,6 +99,14 @@ export function StatusBar(p: {
 
   return (
     <div class="ui-pad ui-spy-sm border-b text-sm">
+      <Show when={p.run.status === "generating" && bar() !== undefined}>
+        <ProgressBar
+          small
+          busy
+          progressFrom0To100={bar()?.percent ?? 0}
+          progressMsg={bar()?.label}
+        />
+      </Show>
       <Show when={groups().length > 0}>
         <Row label={t3({ en: "Modules", fr: "Modules", pt: "Módulos" })}>
           <div class="ui-gap-sm flex flex-wrap items-center">
@@ -90,6 +123,7 @@ export function StatusBar(p: {
                       <ModuleProgressChip
                         label={mod.label}
                         status={mod.status}
+                        active={mod.active}
                       />
                     )}
                   </For>
@@ -101,16 +135,16 @@ export function StatusBar(p: {
       </Show>
       <Show
         when={
-          p.run.status === "generating"
-            ? p.progress?.currentModuleId
+          p.run.status === "generating" && p.progress?.stage.kind === "module"
+            ? p.progress.stage.moduleId
             : undefined
         }
         keyed
       >
-        {(currentModuleId) => (
+        {(moduleId) => (
           <Row label={t3({ en: "Running", fr: "En cours", pt: "A correr" })}>
             <div class="ui-text-caption truncate font-mono">
-              {p.latestRLine(currentModuleId) ?? "..."}
+              {p.latestRLine(moduleId) ?? "..."}
             </div>
           </Row>
         )}

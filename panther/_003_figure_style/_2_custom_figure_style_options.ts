@@ -291,6 +291,8 @@ export type CustomFigureStyleOptions = {
     gapX?: number;
     gapY?: number;
     nCols?: number | "auto";
+    // The pane width the automatic column count packs to, in design units.
+    minWidth?: number;
   };
 
   simpleviz?: {

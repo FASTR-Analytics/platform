@@ -126,9 +126,11 @@ export function ProfileForm(
           outline: true,
           iconName: "arrowLeft",
         },
+        {
+          label: t3(TC.done),
+          onClick: () => p.close(undefined),
+        },
       ]}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3(TC.done)}
     >
       <StateHolderWrapper state={userDetails.state()} noPad>
         {(keyedUser) => {

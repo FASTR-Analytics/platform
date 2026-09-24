@@ -261,85 +261,90 @@ export function Table<
           style={{ "max-height": p.maxHeight }}
         >
           <table class="min-w-full table-auto border-collapse">
-            <thead class="bg-base-200 sticky top-0 z-10">
-              <tr>
-                <Show when={enableSelection()}>
-                  <th
-                    class={`text-base-content w-4 ${padding().px} py-3 text-left text-xs font-700 uppercase tracking-wider`}
-                  >
-                    <Checkbox
-                      checked={allSelected()}
-                      indeterminate={someSelected()}
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
-                </Show>
-                <For each={p.columns}>
-                  {(column) => {
-                    const margins = () =>
-                      getHeaderEdgeMargins(column.alignH, !!column.filterable);
-                    return (
-                      <th
-                        class={`${padding().px} py-2 font-700 text-base-content text-xs uppercase tracking-wider`}
-                        style={{ width: column.width }}
-                        aria-sort={column.sortable
-                          ? (sortConfig()?.key === column.key
-                            ? (sortConfig()?.direction === "asc"
-                              ? "ascending"
-                              : "descending")
-                            : "none")
-                          : undefined}
-                      >
-                        <div
-                          class={`flex items-stretch gap-0.5 ${
-                            getHeaderJustify(column.alignH)
-                          }`}
+            <Show when={!p.hideHeader}>
+              <thead class="bg-base-200 sticky top-0 z-10">
+                <tr>
+                  <Show when={enableSelection()}>
+                    <th
+                      class={`text-base-content w-4 ${padding().px} py-3 text-left text-xs font-700 uppercase tracking-wider`}
+                    >
+                      <Checkbox
+                        checked={allSelected()}
+                        indeterminate={someSelected()}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                  </Show>
+                  <For each={p.columns}>
+                    {(column) => {
+                      const margins = () =>
+                        getHeaderEdgeMargins(
+                          column.alignH,
+                          !!column.filterable,
+                        );
+                      return (
+                        <th
+                          class={`${padding().px} py-2 font-700 text-base-content text-xs uppercase tracking-wider`}
+                          style={{ width: column.width }}
+                          aria-sort={column.sortable
+                            ? (sortConfig()?.key === column.key
+                              ? (sortConfig()?.direction === "asc"
+                                ? "ascending"
+                                : "descending")
+                              : "none")
+                            : undefined}
                         >
-                          <Show
-                            when={column.sortable}
-                            fallback={
-                              <span
-                                class={`px-1.5 py-1 ${
+                          <div
+                            class={`flex items-stretch gap-0.5 ${
+                              getHeaderJustify(column.alignH)
+                            }`}
+                          >
+                            <Show
+                              when={column.sortable}
+                              fallback={
+                                <span
+                                  class={`px-1.5 py-1 ${
+                                    getCellAlignment(column.alignH)
+                                  } ${margins().label}`}
+                                >
+                                  {column.header}
+                                </span>
+                              }
+                            >
+                              <button
+                                type="button"
+                                class={`${HEADER_BUTTON} ${
                                   getCellAlignment(column.alignH)
                                 } ${margins().label}`}
+                                onClick={() => handleSort(column)}
                               >
                                 {column.header}
-                              </span>
-                            }
-                          >
-                            <button
-                              type="button"
-                              class={`${HEADER_BUTTON} ${
-                                getCellAlignment(column.alignH)
-                              } ${margins().label}`}
-                              onClick={() => handleSort(column)}
-                            >
-                              {column.header}
-                              <SortIcon
+                                <SortIcon
+                                  column={column}
+                                  sortConfig={sortConfig}
+                                />
+                              </button>
+                            </Show>
+                            <Show when={column.filterable}>
+                              <ColumnFilter
                                 column={column}
-                                sortConfig={sortConfig}
+                                data={p.data}
+                                excluded={filters().get(column.key) ??
+                                  EMPTY_EXCLUDED}
+                                onChange={(next) =>
+                                  updateFilter(column.key, next)}
+                                scrollContainer={() => scrollContainerRef}
+                                class={`${HEADER_BUTTON} ${margins().filter}`}
                               />
-                            </button>
-                          </Show>
-                          <Show when={column.filterable}>
-                            <ColumnFilter
-                              column={column}
-                              data={p.data}
-                              excluded={filters().get(column.key) ??
-                                EMPTY_EXCLUDED}
-                              onChange={(next) =>
-                                updateFilter(column.key, next)}
-                              scrollContainer={() => scrollContainerRef}
-                              class={`${HEADER_BUTTON} ${margins().filter}`}
-                            />
-                          </Show>
-                        </div>
-                      </th>
-                    );
-                  }}
-                </For>
-              </tr>
-            </thead>
+                            </Show>
+                          </div>
+                        </th>
+                      );
+                    }}
+                  </For>
+                </tr>
+              </thead>
+            </Show>
             <tbody class="bg-base-100">
               <Switch>
                 <Match when={p.data.length === 0}>
@@ -387,9 +392,10 @@ export function Table<
                 </Match>
                 <Match when={rows().length > 0}>
                   <For each={rows()}>
-                    {(item) => (
+                    {(item, i) => (
                       <TableRow
                         item={item}
+                        topBorder={!p.hideHeader || i() > 0}
                         columns={p.columns}
                         keyField={p.keyField}
                         enableSelection={enableSelection()}
@@ -441,6 +447,9 @@ type TableRowProps<T, K extends keyof T = keyof T> = {
   onToggleSelection: (key: T[K]) => void;
   onRowClick?: (item: T) => void;
   padding: { px: string; py: string };
+  // Off for the first row of a headerless table, where the scroll box's own
+  // border is the edge and a row border would double it.
+  topBorder: boolean;
 };
 
 function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
@@ -449,7 +458,7 @@ function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
   const key = () => p.item[p.keyField];
 
   const rowClasses = () => {
-    const classes = ["group", "border-t"];
+    const classes = p.topBorder ? ["group", "border-t"] : ["group"];
 
     if (p.onRowClick) {
       // Explicit pair, not ui-hoverable-base-100: the family carries
@@ -468,13 +477,16 @@ function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
     <tr
       class={rowClasses()}
       onClick={(e) => {
+        // A control in a cell owns its click, and a drag that selects cell
+        // text ends in a click too; neither opens the row.
         const target = e.target as HTMLElement;
         if (
-          !p.enableSelection ||
-          (target.tagName !== "INPUT" && !target.closest("label"))
+          target.closest("button, a, input, label, select, textarea") ||
+          (globalThis.getSelection()?.toString() ?? "") !== ""
         ) {
-          p.onRowClick?.(p.item);
+          return;
         }
+        p.onRowClick?.(p.item);
       }}
     >
       <Show when={p.enableSelection}>

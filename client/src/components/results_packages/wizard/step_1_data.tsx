@@ -73,7 +73,7 @@ export function StepData(p: Props) {
                   <span>{row.label}</span>
                   <Show when={p.blocked(row.family)}>
                     {(reason) => (
-                      <span class="text-base-content-faint ml-2 text-sm italic">
+                      <span class="text-base-content-muted ml-2">
                         {blockedNote[reason()]}
                       </span>
                     )}

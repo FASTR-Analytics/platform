@@ -145,8 +145,7 @@ export function IndicatorTypesModal(p: AlertComponentProps<{}, undefined>) {
         fr: "Types d'indicateurs",
         pt: "Tipos de indicadores",
       })}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <div class="ui-spy text-sm">
         <div class="text-xs">

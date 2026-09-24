@@ -1,26 +1,50 @@
-import { t3, TC, type PackageScope, type RunAuthoringContext } from "lib";
+import {
+  getModuleFamilyLabel,
+  MODULE_FAMILY_ORDER,
+  t3,
+  TC,
+  type DatasetType,
+  type GridQuery,
+  type PackageScope,
+  type RunAuthoringContext,
+} from "lib";
 import {
   createQuery,
+  FrameLeft,
   FrameTop,
   HeadingBar,
   Select,
   StateHolderWrapper,
 } from "panther";
-import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
+import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
-import { exploreTab, setExploreTab } from "~/state/t4_ui";
-import { DataTable, type QueriesByFamily } from "./data_table/mod.ts";
-import { Visualization } from "./visualization/mod.ts";
+import {
+  exploreFamily,
+  exploreModules,
+  setExploreFamily,
+  setExploreModule,
+} from "~/state/t4_ui";
+import { EmptyState } from "./_shared/mod.ts";
+import type { QueriesByFamily } from "./data_table/mod.ts";
+import { ModuleNav, modulesInFamily } from "./module_nav";
+import { ModuleView } from "./module_view";
 
 const NATIONAL = "__national__";
 
-// The Explore tab's page: one package at one scope, read as a data table or
-// through the figure editor. The package starts at the pin (else the newest
-// ready package) and the scope national on every mount; neither is stored,
-// so a deleted package can never be a stored default. The page tab and the
-// family persist in t4_ui. Nothing here is written anywhere.
+function familiesInPackage(ctx: RunAuthoringContext): DatasetType[] {
+  return MODULE_FAMILY_ORDER.filter((family) =>
+    ctx.modules.some((m) => m.family === family)
+  );
+}
+
+// The Explore page: one package at one scope, its families as tabs, each
+// family's modules in a left nav and the chosen module's views on the right.
+// The package starts at the pin (else the newest ready package) and the scope
+// national on every mount; neither is stored, so a deleted package can never
+// be a stored default. The family and the module per family persist in
+// t4_ui. Nothing here is written anywhere.
 export function Explore() {
   const [chosenPackageId, setChosenPackageId] = createSignal<string | null>(
     null,
@@ -50,84 +74,54 @@ export function Explore() {
   });
 
   return (
-    <FrameTop
-      panelChildren={
-        <Show when={packageId()} keyed>
-          {(runId) => (
-            <HeadingBar
-              compact
-              tabs={{
-                items: [
-                  {
-                    id: "data_table" as const,
-                    label: t3({
-                      en: "Data table",
-                      fr: "Tableau de données",
-                      pt: "Tabela de dados",
-                    }),
-                  },
-                  {
-                    id: "visualization" as const,
-                    label: t3({
-                      en: "Visualization",
-                      fr: "Visualisation",
-                      pt: "Visualização",
-                    }),
-                  },
-                ],
-                value: exploreTab(),
-                onChange: setExploreTab,
-              }}
-            >
-              <div class="ui-gap-sm flex items-center">
-                <Select
-                  value={runId}
-                  options={instanceState.readyPackages.map((pkg) => ({
-                    value: pkg.id,
-                    label: pkg.label,
-                  }))}
-                  onChange={setChosenPackageId}
-                  size="sm"
-                />
-                <Select
-                  value={adminArea2() ?? NATIONAL}
-                  options={areaOptions()}
-                  onChange={(v) => setAdminArea2(v === NATIONAL ? null : v)}
-                  size="sm"
-                />
-              </div>
-            </HeadingBar>
-          )}
-        </Show>
+    <Show
+      when={packageId()}
+      keyed
+      fallback={
+        <div class="ui-pad text-base-content-muted text-sm">
+          {t3({
+            en: "No results package is ready yet. Generate one from the Results packages page.",
+            fr: "Aucun paquet de résultats n'est encore prêt. Générez-en un depuis la page Paquets de résultats.",
+            pt: "Ainda não há nenhum pacote de resultados pronto. Gere um na página Pacotes de resultados.",
+          })}
+        </div>
       }
     >
-      <Show
-        when={packageId()}
-        keyed
-        fallback={
-          <div class="ui-pad text-base-content-muted text-sm">
-            {t3({
-              en: "No results package is ready yet. Generate one from the Results packages page.",
-              fr: "Aucun paquet de résultats n'est encore prêt. Générez-en un depuis la page Paquets de résultats.",
-              pt: "Ainda não há nenhum pacote de resultados pronto. Gere um na página Pacotes de resultados.",
-            })}
-          </div>
-        }
-      >
-        {(runId) => (
-          <PackageExplorer
-            scope={{ runId, adminArea2: adminArea2() }}
-            gridQueries={gridQueries()}
-            setGridQueries={setGridQueries}
-          />
-        )}
-      </Show>
-    </FrameTop>
+      {(runId) => (
+        <PackageExplorer
+          scope={{ runId, adminArea2: adminArea2() }}
+          controls={
+            <div class="ui-gap-sm flex items-center">
+              <Select
+                value={runId}
+                options={instanceState.readyPackages.map((pkg) => ({
+                  value: pkg.id,
+                  label: pkg.label,
+                }))}
+                onChange={setChosenPackageId}
+                size="sm"
+              />
+              <Select
+                value={adminArea2() ?? NATIONAL}
+                options={areaOptions()}
+                onChange={(v) => setAdminArea2(v === NATIONAL ? null : v)}
+                size="sm"
+              />
+            </div>
+          }
+          gridQueries={gridQueries()}
+          setGridQueries={setGridQueries}
+        />
+      )}
+    </Show>
   );
 }
 
+// The heading bar's family tabs come from the package, so the bar renders
+// them once the authoring context is in; the controls are there throughout.
 function PackageExplorer(p: {
   scope: PackageScope;
+  controls: JSX.Element;
   gridQueries: QueriesByFamily;
   setGridQueries: (queries: QueriesByFamily) => void;
 }) {
@@ -135,23 +129,97 @@ function PackageExplorer(p: {
     () => getRunAuthoringContextFromCacheOrFetch(p.scope.runId),
     t3(TC.loading),
   );
+  const families = createMemo((): DatasetType[] => {
+    const state = context.state();
+    return state.status === "ready" ? familiesInPackage(state.data) : [];
+  });
+  const family = createMemo((): DatasetType | undefined =>
+    families().includes(exploreFamily()) ? exploreFamily() : families()[0]
+  );
+  const tabs = () => {
+    const value = family();
+    return value === undefined ? undefined : {
+      items: families().map((f) => ({ id: f, label: getModuleFamilyLabel(f) })),
+      value,
+      onChange: setExploreFamily,
+    };
+  };
+
   return (
-    <StateHolderWrapper state={context.state()}>
-      {(ctx: RunAuthoringContext) => (
-        <Switch>
-          <Match when={exploreTab() === "data_table"}>
-            <DataTable
-              ctx={ctx}
-              scope={p.scope}
-              queries={p.gridQueries}
-              setQueries={p.setGridQueries}
-            />
-          </Match>
-          <Match when={exploreTab() === "visualization"}>
-            <Visualization ctx={ctx} scope={p.scope} />
-          </Match>
-        </Switch>
-      )}
-    </StateHolderWrapper>
+    <FrameTop
+      panelChildren={
+        <HeadingBar compact tabs={tabs()}>
+          {p.controls}
+        </HeadingBar>
+      }
+    >
+      <StateHolderWrapper state={context.state()}>
+        {(ctx: RunAuthoringContext) => (
+          <Show
+            when={family()}
+            keyed
+            fallback={
+              <div class="ui-pad">
+                <EmptyState kind="no_modules" />
+              </div>
+            }
+          >
+            {(f) => (
+              <FamilyExplorer
+                ctx={ctx}
+                scope={p.scope}
+                family={f}
+                query={p.gridQueries[f]}
+                setQuery={(q) => p.setGridQueries({ ...p.gridQueries, [f]: q })}
+              />
+            )}
+          </Show>
+        )}
+      </StateHolderWrapper>
+    </FrameTop>
+  );
+}
+
+// One family: its modules in the nav, the chosen one's views beside. The
+// stored choice is resolved against the package on every read; a module the
+// package lacks falls back to the family's first.
+function FamilyExplorer(p: {
+  ctx: RunAuthoringContext;
+  scope: PackageScope;
+  family: DatasetType;
+  query: GridQuery | undefined;
+  setQuery: (query: GridQuery) => void;
+}) {
+  const modules = createMemo(() => modulesInFamily(p.family, p.ctx));
+  const module = createMemo(() => {
+    const wanted = exploreModules()[p.family];
+    return modules().find((m) => m.id === wanted) ?? modules()[0];
+  });
+
+  return (
+    <FrameLeft
+      panelChildren={
+        <div class="ui-pad h-full w-64 overflow-y-auto">
+          <ModuleNav
+            modules={modules()}
+            value={module()?.id}
+            onChange={(id) => setExploreModule(p.family, id)}
+          />
+        </div>
+      }
+    >
+      <Show when={module()} keyed>
+        {(m) => (
+          <ModuleView
+            ctx={p.ctx}
+            scope={p.scope}
+            family={p.family}
+            module={m}
+            query={p.query}
+            setQuery={p.setQuery}
+          />
+        )}
+      </Show>
+    </FrameLeft>
   );
 }

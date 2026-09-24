@@ -491,6 +491,7 @@ const _DS = {
     gapX: 15,
     gapY: 15,
     nCols: typed<number | "auto">("auto"),
+    minWidth: 230,
   },
   // SimpleViz
   simpleviz: {

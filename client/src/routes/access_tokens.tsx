@@ -27,8 +27,8 @@ export default function AccessTokensPage() {
   );
 }
 
-function formatDate(iso: string | null): string {
-  return iso === null ? "—" : new Date(iso).toLocaleString();
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString();
 }
 
 function AccessTokensPanel(p: { email: string }) {
@@ -100,7 +100,7 @@ function AccessTokensPanel(p: { email: string }) {
       key: "label",
       header: "Label",
       sortable: true,
-      render: (pat) => <span class="font-mono">{pat.label}</span>,
+      render: (pat) => <span>{pat.label}</span>,
     },
     {
       key: "createdAt",
@@ -112,9 +112,10 @@ function AccessTokensPanel(p: { email: string }) {
       key: "lastUsedAt",
       header: "Last used",
       sortable: true,
-      render: (pat) => (
-        <span>{formatDate(pat.lastUsedAt)}</span>
-      ),
+      render: (pat) =>
+        pat.lastUsedAt === null
+          ? <span class="text-base-content-muted">Never</span>
+          : <span>{formatDate(pat.lastUsedAt)}</span>,
     },
     {
       key: "id",
@@ -132,7 +133,7 @@ function AccessTokensPanel(p: { email: string }) {
       <h1 class="ui-text-heading mb-2">Personal access tokens</h1>
       <p class="mb-6 text-sm">
         Tokens for headless clients (the MCP assistant). A token acts as{" "}
-        <span class="font-mono">{p.email}</span> with your permissions, on a
+        <span>{p.email}</span> with your permissions, on a
         restricted route allowlist. Treat it like a password; revoke it when you
         are done.
       </p>
@@ -161,7 +162,7 @@ function AccessTokensPanel(p: { email: string }) {
         {(fresh) => (
           <div class="border-border bg-base-200 mb-6 rounded border p-4">
             <p class="mb-2 text-sm">
-              Token for <span class="font-mono">{fresh().label}</span> — copy it
+              Token for <span>{fresh().label}</span> — copy it
               now, it is shown only once:
             </p>
             <div class="flex items-center gap-2">

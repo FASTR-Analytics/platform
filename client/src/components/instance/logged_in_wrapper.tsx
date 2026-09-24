@@ -231,7 +231,7 @@ function ClerkNewLogin() {
                     mode's light base-content doesn't wash it out. (Proper fix
                     is a light-scheme island per PLAN_DARK_MODE plank 3.) */}
                 <div
-                  class="font-800 text-5xl leading-tight"
+                  class="font-700 text-5xl leading-tight"
                   style={{ color: "#000716" }}
                 >
                   {m().instanceName}

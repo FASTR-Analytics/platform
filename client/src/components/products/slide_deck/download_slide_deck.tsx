@@ -48,7 +48,6 @@ export function DownloadSlideDeck(
       title={t3({ en: "Download slide deck", fr: "Télécharger la présentation", pt: "Transferir apresentação" })}
       width="sm"
       onCancel={pct() > 0 ? undefined : () => p.close(undefined)}
-      cancelLabel={t3(TC.done)}
       actions={[
         ...(pct() > 0
           ? []

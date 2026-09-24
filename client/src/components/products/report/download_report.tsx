@@ -99,7 +99,6 @@ export function DownloadReport(
       title={t3({ en: "Download report", fr: "Télécharger le rapport", pt: "Transferir relatório" })}
       width="sm"
       onCancel={pct() > 0 ? undefined : () => p.close(undefined)}
-      cancelLabel={t3(TC.done)}
       actions={[
         ...(pct() > 0
           ? []

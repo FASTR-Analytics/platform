@@ -73,6 +73,7 @@ server/db/migrations/
 └── data_transforms/       # JSON data transforms - one file per type
     ├── instance_config.ts
     ├── runs_summary.ts
+    ├── runs_progress.ts
     ├── slide_deck_config.ts
     ├── slide_config.ts
     ├── reports.ts
@@ -95,7 +96,8 @@ No `schema_migrations` tracking needed. The validation check itself determines i
 
 The functions are wired into `INSTANCE_DATA_TRANSFORMS` in
 `server/db_startup.ts` and run in its order: `instance_config`,
-`runs_summary`, `slide_deck_config`, `slide_config`, `reports`. Each has the
+`runs_summary`, `runs_progress`, `slide_deck_config`, `slide_config`,
+`reports`. Each has the
 signature `(tx: Sql, countryIso3: string) => Promise<MigrationStats>`; a
 function that does not need the country may declare `tx` alone. `tx` is the
 function's own transaction on `main`. `countryIso3` is the instance country,

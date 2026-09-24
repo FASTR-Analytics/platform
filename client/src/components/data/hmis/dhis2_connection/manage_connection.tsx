@@ -19,7 +19,7 @@ import { Dhis2CredentialsEditor } from "./dhis2_credentials_editor";
 type Props = {};
 
 // The one place a DHIS2 connection is set, replaced or deleted, opened only
-// from the Data page's DHIS2 connection card. Every DHIS2 flow uses the
+// from the Data page's DHIS2 connection row. Every DHIS2 flow uses the
 // stored connection.
 export function Dhis2ManageConnection(p: AlertComponentProps<Props, undefined>) {
   const infoQuery = createQuery(
@@ -39,8 +39,7 @@ export function Dhis2ManageConnection(p: AlertComponentProps<Props, undefined>) 
         fr: "Gérer la connexion DHIS2",
         pt: "Gerir a ligação DHIS2",
       })}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <StateHolderWrapper state={infoQuery.state()} noPad>
         {(info) => (

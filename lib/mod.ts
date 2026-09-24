@@ -22,6 +22,7 @@ export * from "./indicator_value_scale.ts";
 export * from "./traffic_light_rule.ts";
 export * from "./resolve_figure_calendar.ts";
 export * from "./report_sections.ts";
+export * from "./run_progress.ts";
 export * from "./fastr_markdown_edits.ts";
 export * from "./slide_text_offsets.ts";
 export * from "./fastr_live_regions.ts";

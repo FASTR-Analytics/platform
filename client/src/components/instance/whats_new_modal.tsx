@@ -488,8 +488,7 @@ export function WhatsNewFeedModal(
       width="md"
       scroll="content"
       title={t3({ en: "What's New", fr: "Nouveautés", pt: "Novidades" })}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <div class="ui-spy-sm">
         <For each={sorted()}>

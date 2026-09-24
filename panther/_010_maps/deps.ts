@@ -35,7 +35,6 @@ export {
   calculateChartIdealHeight,
   calculateChartMinWidth,
   calculateMinLabelPlotExtent,
-  calculatePaneGrid,
   collectHeaders,
   computeFloorScale,
   estimateMinSurroundsWidth,
@@ -53,6 +52,7 @@ export {
   resolveFigureAutofitOptions,
   resolveFlooredContentScale,
   resolveLabelPlacement,
+  resolvePaneGrid,
   scaledTrack,
   solveContentScale,
 } from "../_007_figure_core/mod.ts";
@@ -69,6 +69,7 @@ export type {
   LabelTrack,
   LegendInput,
   MeasuredChartBase,
+  PaneGrid,
   Point,
   Ring,
   SimplifiedChartConfig,

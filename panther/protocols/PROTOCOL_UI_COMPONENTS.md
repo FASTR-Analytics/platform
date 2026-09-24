@@ -150,11 +150,21 @@ inside another opens on top of it.
   onCancel={() => p.close(undefined)}
   actions={[{ label: "Save", onClick: save.click, state: save.state(), disabled: !ok() }]}
 >
+
+// ❌ DON'T: a lone Done or Close as the outline Cancel button
+<ModalContainer title="Preview" onCancel={close} cancelLabel="Close">
+
+// ✅ DO: onClose renders it as the primary action
+<ModalContainer title="Preview" onClose={{ kind: "close", onClick: close }}>
+<ModalContainer title="Theme" onClose={{ kind: "done", onClick: close }}>
 ```
 
 **Why:** the container decides button order and side (Cancel first, primary
 last, right-aligned), Cancel's look, and the error line under the body, once.
-`footer` is only for content that is not an action.
+`footer` is only for content that is not an action. A modal with a single button
+has one obvious thing to do, so that button is primary: `"close"` for read-only
+content, `"done"` when edits were applied live with no Save step. `cancelLabel`
+is for a Cancel that needs another name ("Skip"), never for the only button.
 
 ### Menu triggers
 

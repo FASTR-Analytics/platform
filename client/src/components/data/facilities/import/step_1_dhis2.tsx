@@ -17,7 +17,7 @@ type Props = {
 
 // Structure import is saved-only for DHIS2 (PLAN_DHIS2_CREDENTIAL_STORE_
 // CONSOLIDATION Phase 2): step 1 confirms the instance-wide stored
-// connection, which is set only in the Data page's DHIS2 connection card.
+// connection, which is set only in the Data page's DHIS2 connection row.
 export function Step1_Dhis2(p: Props) {
   const confirm = createFormAction(
     async () =>

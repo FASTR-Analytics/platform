@@ -7,7 +7,6 @@ import {
   calculateChartIdealHeight,
   calculateChartMinWidth,
   calculateMinLabelPlotExtent,
-  calculatePaneGrid,
   type ChartComponentSizes,
   computeFloorScale,
   CustomFigureStyle,
@@ -21,6 +20,7 @@ import {
   type Renderer,
   resolveAutoScaleLegend,
   resolveFigureAutofitOptions,
+  resolvePaneGrid,
 } from "./deps.ts";
 import type { MapDataTransformed, MapInputs, MeasuredMap } from "./types.ts";
 import type { MergedMapStyle } from "./deps.ts";
@@ -218,10 +218,8 @@ function getMapIdealHeight(
     ? projBounds.w / projBounds.h
     : 1;
 
-  const { nGCols } = calculatePaneGrid(
-    info.paneHeaders.length,
-    info.mergedStyle.panes.nCols,
-  );
+  const paneGrid = resolvePaneGrid(info, width);
+  const { nGCols } = paneGrid;
   const laneGapsWidth = (info.nLanes - 1) * info.mergedStyle.lanes.gapX *
     nGCols;
   const paneGapsWidth = (nGCols - 1) * info.mergedStyle.panes.gapX;
@@ -255,6 +253,7 @@ function getMapIdealHeight(
     width,
     { ...info, minSubChartHeight: cellH },
     item,
+    paneGrid,
   );
 
   const minComfortableWidth = calculateChartMinWidth(info);
@@ -275,7 +274,13 @@ function getMapIdealHeight(
       minFontSizeDu: autofitOpts.minFontSizeDu,
     });
     const infoFloor = getMapComponentSizes(rc, item, floorScale);
-    minH = calculateChartIdealHeight(rc, width, infoFloor, item);
+    minH = calculateChartIdealHeight(
+      rc,
+      width,
+      infoFloor,
+      item,
+      resolvePaneGrid(infoFloor, width),
+    );
   }
 
   return {

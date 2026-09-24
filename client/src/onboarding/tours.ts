@@ -1,7 +1,6 @@
 import { tourTarget } from "@njwse/roadtrip";
 import type { TourDefinition, TourLabels, TourStep } from "@njwse/roadtrip";
 import { t3 } from "lib";
-import { setDataSection } from "~/state/t4_ui";
 
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
@@ -862,19 +861,17 @@ export function buildInstanceDataTour(): TourDefinition {
       {
         id: "hmis",
         target: tourTarget("instance-data-hmis"),
-        beforeEnter: () => setDataSection("hmis"),
         title: t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" }),
         body: t3({
-          en: "The facility list, monthly routine service data, and the indicator dictionary that defines what's being counted. Click a card to inspect what has been uploaded or to import a new dataset.",
-          fr: "La liste des établissements, les données de routine mensuelles et le dictionnaire d'indicateurs qui définit ce qui est mesuré. Cliquez sur une carte pour consulter ce qui a été importé ou pour importer un nouveau jeu de données.",
-          pt: "A lista de estabelecimentos, os dados de rotina mensais e o dicionário de indicadores que define o que é medido. Clique num cartão para consultar o que foi carregado ou para importar um novo conjunto de dados.",
+          en: "The facility list, monthly routine service data, and the indicator dictionary that defines what's being counted. Click a row to inspect what has been uploaded or to import a new dataset.",
+          fr: "La liste des établissements, les données de routine mensuelles et le dictionnaire d'indicateurs qui définit ce qui est mesuré. Cliquez sur une ligne pour consulter ce qui a été importé ou pour importer un nouveau jeu de données.",
+          pt: "A lista de estabelecimentos, os dados de rotina mensais e o dicionário de indicadores que define o que é medido. Clique numa linha para consultar o que foi carregado ou para importar um novo conjunto de dados.",
         }),
         placement: "top",
       },
       {
         id: "hfa",
         target: tourTarget("instance-data-hfa"),
-        beforeEnter: () => setDataSection("hfa"),
         title: t3({
           en: "Health facility assessments",
           fr: "Enquêtes auprès des établissements",
@@ -890,7 +887,6 @@ export function buildInstanceDataTour(): TourDefinition {
       {
         id: "iceh",
         target: tourTarget("instance-data-iceh"),
-        beforeEnter: () => setDataSection("iceh"),
         title: t3({
           en: "Equity data (ICEH)",
           fr: "Données d'équité (ICEH)",
@@ -1039,23 +1035,6 @@ export function buildInstanceAssetsTour(): TourDefinition {
         onTargetTimeout: "skip",
       },
       {
-        id: "tabs",
-        target: tourTarget("instance-assets-tabs"),
-        title: t3({
-          en: "Grouped by type",
-          fr: "Regroupées par type",
-          pt: "Agrupados por tipo",
-        }),
-        body: t3({
-          en: "Files are organized into tabs by type — images, CSVs, documents and so on — with a count on each.",
-          fr: "Les fichiers sont organisés en onglets par type — images, CSV, documents, etc. — avec un compteur sur chacun.",
-          pt: "Os ficheiros são organizados em separadores por tipo — imagens, CSV, documentos, etc. — com um contador em cada um.",
-        }),
-        placement: "bottom",
-        waitForTargetTimeoutMs: 2000,
-        onTargetTimeout: "skip",
-      },
-      {
         id: "list",
         target: tourTarget("instance-assets-list"),
         title: t3({
@@ -1064,9 +1043,9 @@ export function buildInstanceAssetsTour(): TourDefinition {
           pt: "Gerir ficheiros",
         }),
         body: t3({
-          en: "Download any file from the table. You can delete your own uploads; admins can manage everyone's.",
-          fr: "Téléchargez n'importe quel fichier depuis le tableau. Vous pouvez supprimer vos propres téléversements ; les administrateurs peuvent gérer ceux de tout le monde.",
-          pt: "Descarregue qualquer ficheiro a partir da tabela. Pode eliminar os seus próprios carregamentos; os administradores podem gerir os de todos.",
+          en: "Filter by the Type column to show only CSVs, images and so on. Download any file from the table. You can delete your own uploads; admins can manage everyone's.",
+          fr: "Filtrez la colonne Type pour n'afficher que les CSV, les images, etc. Téléchargez n'importe quel fichier depuis le tableau. Vous pouvez supprimer vos propres téléversements ; les administrateurs peuvent gérer ceux de tout le monde.",
+          pt: "Filtre a coluna Tipo para mostrar apenas CSV, imagens, etc. Descarregue qualquer ficheiro a partir da tabela. Pode eliminar os seus próprios carregamentos; os administradores podem gerir os de todos.",
         }),
         placement: "top",
         waitForTargetTimeoutMs: 2000,

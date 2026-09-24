@@ -63,13 +63,11 @@ export type DatasetHfaRunCapture = {
 export async function computeDatasetHfaRunCapture(
   mainDb: Sql,
   csvTarget: DatasetCsvTarget,
-  onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<DatasetHfaRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // Validate and capture staleness metadata BEFORE the export: a hash
     // captured after it can mask a concurrent instance import (new hash
     // stored against pre-import CSV data).
-    if (onProgress) await onProgress(0.1, "Validating configuration...");
     const hasData = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_data LIMIT 1`)[0].count > 0;
     if (!hasData) {
       throw new Error("No HFA data available to generate from");
@@ -126,8 +124,6 @@ export async function computeDatasetHfaRunCapture(
       : undefined;
 
     await ensureDatasetCsvTargetDir(csvTarget);
-
-    if (onProgress) await onProgress(0.5, "Exporting HFA data to CSV...");
 
     // Admin columns up to the HFA registry's own depth: never a global max
     const adminAreaColumns = [];
