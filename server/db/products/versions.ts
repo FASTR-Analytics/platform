@@ -1,6 +1,7 @@
 import { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  applySlideDeckThemeToLegacyConfig,
   type AuthorRun,
   type SlideDeckSlideEditors,
   type SlideDeckVersionDetail,
@@ -66,6 +67,15 @@ function upgradeSnapshotFigures(
     transformFigureBlock(block as unknown as FigureBlockMut);
   }
   return figures;
+}
+
+// A deck config snapshotted before 2026-09-24 carries the six style fields and
+// no `theme`, and the current schema requires one. Scored with the SAME
+// function the slide_deck_config sweep used on the live decks, so a version and
+// the deck it was taken from resolve to the same theme.
+function upgradeSnapshotDeckConfig(config: SlideDeckConfig): SlideDeckConfig {
+  applySlideDeckThemeToLegacyConfig(config as unknown as Record<string, unknown>);
+  return config;
 }
 
 function upgradeSnapshotSlideConfig<T>(config: T): T {
@@ -553,7 +563,9 @@ export async function getSlideDeckVersion(
         sizeBytes: utf8Bytes(row.slide_deck_config) + utf8Bytes(row.slides),
         restoredFromVersionId: row.restored_from_version_id,
         label: row.label,
-        deckConfig: parseJsonOrThrow<SlideDeckConfig>(row.slide_deck_config),
+        deckConfig: upgradeSnapshotDeckConfig(
+          parseJsonOrThrow<SlideDeckConfig>(row.slide_deck_config),
+        ),
         slides,
         slideEditors: row.slide_editors
           ? parseJsonOrThrow<SlideDeckSlideEditors>(row.slide_editors)
@@ -718,7 +730,9 @@ export async function copySlideDeckFromVersion(
       throw new Error(VERSION_NOT_FOUND);
     }
 
-    const config = parseJsonOrThrow<SlideDeckConfig>(version.slide_deck_config);
+    const config = upgradeSnapshotDeckConfig(
+      parseJsonOrThrow<SlideDeckConfig>(version.slide_deck_config),
+    );
     config.label = args.label.trim();
     const slides = parseJsonOrThrow<SlideDeckVersionSlide[]>(version.slides)
       .slice()

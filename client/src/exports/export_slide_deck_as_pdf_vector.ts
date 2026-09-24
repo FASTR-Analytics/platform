@@ -5,7 +5,7 @@ import {
   createPdfRenderContextWithFontsBrowser,
   type FontInfo,
 } from "panther";
-import { type Slide, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { type Slide, getAllSlideFontVariants, getSlideDeckThemeSpec, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { serverActions } from "~/server_actions";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
@@ -34,7 +34,9 @@ export async function exportSlideDeckAsPdfVector(
     const pdfH = PAGE_HEIGHT_DU;
     const pdfOrientation = "landscape";
 
-    const fontFamily = resDeckDetail.data.config.fontFamily ?? "International Inter";
+    const fontFamily = getSlideDeckThemeSpec(
+      resDeckDetail.data.config.theme,
+    ).fontFamily;
     const fonts: FontInfo[] = getAllSlideFontVariants(fontFamily);
 
     progress(0.15);

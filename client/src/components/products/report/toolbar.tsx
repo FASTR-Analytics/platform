@@ -18,6 +18,8 @@ import {
   coverSnippet,
   FASTR_COVER_LAYOUTS,
   FASTR_COVER_PRESETS,
+  FASTR_LOGO_ALIGNS,
+  FASTR_LOGO_SIZES,
   FASTR_TOC_DEFAULT_DEPTH,
   type FastrCoverPreset,
   isFastrBlockName,
@@ -43,6 +45,7 @@ import {
   Switch,
 } from "solid-js";
 import { Button, Icon } from "panther";
+import { Portal } from "solid-js/web";
 import {
   MenuDivider,
   MenuFlyout,
@@ -55,6 +58,8 @@ import { fastrThemeLabel } from "./fastr_theme_labels";
 import {
   fastrBlockLabel,
   fastrCoverLayoutLabel,
+  fastrLogoAlignLabel,
+  fastrLogoSizeLabel,
   fastrRoleLabel,
   fastrToneLabel,
 } from "./fastr_block_labels";
@@ -127,12 +132,19 @@ type Props = {
   canInsertEmbeds: () => boolean;
   onInsertFigure: () => void;
   onInsertImage: () => void;
+  // A logos row: the picker, for a new row or the one at `fence`.
+  onInsertLogos: () => void;
+  onEditLogos: (fence: FastrOpenFence) => void;
   // The File menu's actions — whole-document operations the host owns (they
   // open modals over the editor), so the toolbar only names them.
   onDownload: () => void;
   onEmail: () => void;
   onRename: () => void;
   onDuplicate: () => void;
+  // Where the report wants the menu row: its header, under the name (the
+  // slide deck's layout). The row is rendered there through a portal; it
+  // stays this toolbar's. Absent, it sits above the pill as before.
+  menuRowHost?: HTMLElement;
 };
 
 // Blocks whose fence the toolbar offers to edit, and the enumerated attributes
@@ -241,6 +253,18 @@ function choiceControlsFor(name: FastrBlockName): ChoiceControl[] {
         label: t3({ en: "Depth", fr: "Profondeur", pt: "Profundidade" }),
         fallback: String(FASTR_TOC_DEFAULT_DEPTH),
         options: counts(4),
+      }];
+    case "logos":
+      return [{
+        attr: "align",
+        label: t3({ en: "Align", fr: "Alignement", pt: "Alinhamento" }),
+        fallback: "left",
+        options: FASTR_LOGO_ALIGNS.map((a) => ({ value: a, label: fastrLogoAlignLabel(a) })),
+      }, {
+        attr: "size",
+        label: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
+        fallback: "m",
+        options: FASTR_LOGO_SIZES.map((z) => ({ value: z, label: fastrLogoSizeLabel(z) })),
       }];
     case "report":
     case "card":
@@ -356,12 +380,14 @@ export function ReportToolbar(p: Props) {
       : `${t3({ en: "Heading", fr: "Titre", pt: "Título" })} ${level}`;
   };
 
-  return (
-    <div data-cursor-zone="header" data-tour="report-format-toolbar">
-      <style>{swatchCss()}</style>
-
-      {/* ── Menu row, Google Docs style ────────────────────────────────── */}
-      <div class="flex flex-wrap items-center gap-1 px-2 pt-0.5">
+  // ── Menu row, Google Docs style. Hosted, it is one item in the report
+  //    header's own row, which owns that row's padding; alone, it carries its
+  //    own and sits above the pill.
+  const menuRow = () => (
+    <div
+      class="flex flex-wrap items-center gap-1"
+      classList={{ "px-2 pt-0.5": !p.menuRowHost }}
+    >
         {/* File: the whole-document operations, as in Google Docs' File
             menu. Download moved here from the header. */}
         <Popover
@@ -434,6 +460,21 @@ export function ReportToolbar(p: Props) {
                       </PopoverRow>
                     }
                   >
+                  {/* Logos opens the picker: the FASTR logos and the
+                      instance's images, in the order they will sit. */}
+                  <Match when={row.name === "logos"}>
+                    <Show when={p.canInsertEmbeds()}>
+                      <PopoverRow
+                        active={false}
+                        onClick={() => {
+                          p.onInsertLogos();
+                          close();
+                        }}
+                      >
+                        {`${fastrBlockLabel(row.name)}…`}
+                      </PopoverRow>
+                    </Show>
+                  </Match>
                   {/* Cover page opens a flyout of the cover compositions,
                       each thumbnail the REAL cover under the current theme. */}
                   <Match when={row.name === "cover"}>
@@ -770,7 +811,16 @@ export function ReportToolbar(p: Props) {
             </div>
           )}
         </Popover>
-      </div>
+    </div>
+  );
+
+  return (
+    <div data-cursor-zone="header" data-tour="report-format-toolbar">
+      <style>{swatchCss()}</style>
+
+      <Show when={p.menuRowHost} fallback={menuRow()}>
+        {(host) => <Portal mount={host()}>{menuRow()}</Portal>}
+      </Show>
 
       {/* ── The toolbar row: text controls, block segment, or the selected
              embed's controls (which replace the text controls, as selecting
@@ -1133,6 +1183,15 @@ export function ReportToolbar(p: Props) {
                         )}
                       </For>
                     )}
+                  </Show>
+
+                  <Show when={block().name === "logos" && p.canInsertEmbeds()}>
+                    <ToolButton
+                      onClick={() => p.onEditLogos(block())}
+                      label={t3({ en: "Choose the logos", fr: "Choisir les logos", pt: "Escolher os logótipos" })}
+                    >
+                      {t3({ en: "Edit logos…", fr: "Modifier les logos…", pt: "Editar logótipos…" })}
+                    </ToolButton>
                   </Show>
 
                   {/* One background menu: tone presets over literal colours.

@@ -1,13 +1,7 @@
 import { t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import type { SlideDeckConfig } from "lib";
-import {
-  PageHolder,
-  validateBrandColor,
-  type PageInputs,
-  getBaseText,
-} from "panther";
-import { trackStore } from "@solid-primitives/deep";
-import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { PageHolder, type PageInputs, getBaseText } from "panther";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { FASTR_LOGO_VALUES } from "~/generate_slide_deck/fastr_logos";
 import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
@@ -119,12 +113,6 @@ export function ContentSlideMiniPreview(p: StylePreviewProps) {
 }
 
 export function StylePreview(p: StylePreviewProps) {
-  const colorError = () => {
-    if (p.config.colorTheme.type !== "custom") return null;
-    const v = validateBrandColor(p.config.colorTheme.primary);
-    return v.valid ? null : v.reason;
-  };
-
   const [bgDetail, setBgDetail] = createSignal<BackgroundDetail | undefined>(undefined);
   const [coverLogos, setCoverLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
   const [headerLogos, setHeaderLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
@@ -138,10 +126,10 @@ export function StylePreview(p: StylePreviewProps) {
   createEffect(() => {
     const config = p.config;
     // `config` is the bare store root (untracked): read getBackgroundDetail's
-    // actual inputs explicitly so the preview re-runs when they change
-    const _overlay = config.overlay;
-    trackStore(config.colorTheme);
-    const _treatment = config.coverAndSectionTreatment;
+    // actual input explicitly so the preview re-runs when it changes. All
+    // three of the things it used to track (overlay, palette, cover
+    // treatment) are now facets of the one theme id.
+    const _theme = config.theme;
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     async function load() {
@@ -200,51 +188,44 @@ export function StylePreview(p: StylePreviewProps) {
       <div class="ui-label">
         {t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" })}
       </div>
-      <Show when={colorError()}>
-        <div class="border border-danger rounded bg-danger-subtle flex items-center justify-center py-8">
-          <span class="text-danger text-sm">{colorError()}</span>
-        </div>
-      </Show>
-      <Show when={!colorError()}>
-        <div class="flex gap-4" style={{ "max-width": "1600px" }}>
-          <div class="flex-1">
-            <div class="ui-text-caption mb-1">
-              {t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
-            </div>
-            <div class="border rounded overflow-hidden">
-              <PageHolder
-                pageInputs={coverInputs()}
-                pageWidthDu={PAGE_WIDTH_DU}
-                pageHeightDu={PAGE_HEIGHT_DU}
-              />
-            </div>
+      <div class="flex gap-4" style={{ "max-width": "1600px" }}>
+        <div class="flex-1">
+          <div class="ui-text-caption mb-1">
+            {t3({ en: "Cover", fr: "Couverture", pt: "Capa" })}
           </div>
-          <div class="flex-1">
-            <div class="ui-text-caption mb-1">
-              {t3({ en: "Section", fr: "Section", pt: "Secção" })}
-            </div>
-            <div class="border rounded overflow-hidden">
-              <PageHolder
-                pageInputs={sectionInputs()}
-                pageWidthDu={PAGE_WIDTH_DU}
-                pageHeightDu={PAGE_HEIGHT_DU}
-              />
-            </div>
-          </div>
-          <div class="flex-1">
-            <div class="ui-text-caption mb-1">
-              {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
-            </div>
-            <div class="border rounded overflow-hidden">
-              <PageHolder
-                pageInputs={contentInputs()}
-                pageWidthDu={PAGE_WIDTH_DU}
-                pageHeightDu={PAGE_HEIGHT_DU}
-              />
-            </div>
+          <div class="border rounded overflow-hidden">
+            <PageHolder
+              pageInputs={coverInputs()}
+              pageWidthDu={PAGE_WIDTH_DU}
+              pageHeightDu={PAGE_HEIGHT_DU}
+            />
           </div>
         </div>
-      </Show>
+        <div class="flex-1">
+          <div class="ui-text-caption mb-1">
+            {t3({ en: "Section", fr: "Section", pt: "Secção" })}
+          </div>
+          <div class="border rounded overflow-hidden">
+            <PageHolder
+              pageInputs={sectionInputs()}
+              pageWidthDu={PAGE_WIDTH_DU}
+              pageHeightDu={PAGE_HEIGHT_DU}
+            />
+          </div>
+        </div>
+        <div class="flex-1">
+          <div class="ui-text-caption mb-1">
+            {t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" })}
+          </div>
+          <div class="border rounded overflow-hidden">
+            <PageHolder
+              pageInputs={contentInputs()}
+              pageWidthDu={PAGE_WIDTH_DU}
+              pageHeightDu={PAGE_HEIGHT_DU}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

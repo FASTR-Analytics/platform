@@ -425,10 +425,13 @@ class RegionWidget extends WidgetType {
       return img ? this.resolver.assetUrl(img.imgFile) : undefined;
     });
 
+    attachLogoRows(dom, view, this.resolver, (rel) => this.startLine + rel + 1);
+
     // Figures mount the LIVE component (same as the standalone embed widget) —
     // not the preview's raster path — inside the true themed <figure> chrome.
     const disposers: (() => void)[] = [];
     for (const img of Array.from(dom.querySelectorAll("img"))) {
+      if (img.classList.contains("fm-logo")) continue;
       const m = /^(figure|image):(.+)$/.exec(img.getAttribute("src") ?? "");
       if (!m) continue;
       const kind = m[1] as "figure" | "image";
@@ -792,6 +795,50 @@ function embedSizePlugin(resolver: EmbedResolver) {
       }
     },
   );
+}
+
+// A `:::logos` row: its logos resolve through the image registry like an
+// inline image, but the ROW is the block (no logo is a selectable embed, and
+// the row's height is the sheet's, so nothing waits on a load). A double-click,
+// or a press on a row with no logos yet, opens the picker. `lineOf` maps the
+// row's region-relative data-line to its 1-based document line.
+function attachLogoRows(
+  dom: HTMLElement,
+  view: EditorView,
+  resolver: EmbedResolver,
+  lineOf: (rel: number) => number,
+): void {
+  for (const row of Array.from(dom.querySelectorAll<HTMLElement>(".fm-logos[data-line]"))) {
+    for (const img of Array.from(row.querySelectorAll<HTMLImageElement>("img.fm-logo"))) {
+      const m = /^image:(.+)$/.exec(img.getAttribute("src") ?? "");
+      const entry = m ? resolver.getImage(m[1]) : undefined;
+      if (entry) img.setAttribute("src", resolver.assetUrl(entry.imgFile));
+      else img.remove();
+    }
+    const open = () => {
+      const line1 = lineOf(Number(row.getAttribute("data-line")));
+      if (!Number.isFinite(line1) || line1 < 1 || line1 > view.state.doc.lines) return;
+      const fence = fastrOpenFenceOnLine(view.state.doc.line(line1).text, line1);
+      if (fence?.name === "logos") resolver.onEditLogos?.(fence);
+    };
+    const empty = row.querySelector("img.fm-logo") === null;
+    // On the press, not dblclick/click: the first press activates the region
+    // and rebuilds this DOM, so the release (and a dblclick) land on a new
+    // element. A press always lands on the row that is there.
+    row.addEventListener("mousedown", (e) => {
+      if (e.button === 0 && (empty || e.detail >= 2)) open();
+    });
+    if (!empty) continue;
+    row.classList.add("fm-logos--empty");
+    const label = document.createElement("span");
+    label.className = "fm-logos__empty";
+    label.textContent = t3({
+      en: "Choose logos",
+      fr: "Choisir des logos",
+      pt: "Escolher logótipos",
+    });
+    row.append(label);
+  }
 }
 
 function missingNote(kind: string, id: string): HTMLElement {

@@ -19,6 +19,7 @@ globs:
   - client/src/state/products/t2_slides.ts
   - lib/types/_slide_config.ts
   - lib/types/_slide_deck_config.ts
+  - lib/types/_slide_deck_themes.ts
   - lib/types/products.ts
   - lib/types/reports.ts
   - lib/types/report_fastr_themes.ts
@@ -253,17 +254,20 @@ figure data, metrics and presets together and lights the stale badges
 without a remount; a product deleted under an open editor closes it. The
 header shows the `PackageScopeChip` ("package · scope" in the package accent
 from `app.css`), which for an editor opens `PackageScopeModal` with a count of
-the figures the candidate pair would leave stale; the overflow menu opens
-`ProductSettings` for name and folder; Present and Download are buttons on
-the bar.
+the figures the candidate pair would leave stale; Present and History are
+buttons on the bar, and the deck's File menu holds Download, Share,
+`ProductSettings` for name and folder, and copying selected slides to another
+deck (there is no overflow menu left).
 
 **One screen, Google-Slides style (2026-09-22).** The deck is ONE header:
-the name (with the back arrow, chip and presence) and, under it, the open
-slide's menu row (Slide / Insert / Layout, portaled there by `SlideToolbar`
-through `menuRowHost`) on the left, the deck's actions (Present, Download,
-Update figures, Settings, More, AI) on the right; beneath it a full-width
-TOOLBAR ROW (the deck's Add slide at the left, then the slide's formatting
-pill, portaled through `toolbarHost`), over a `FrameLeftResizable` (210px,
+the name (with the deck glyph over the back arrow, the chip and presence)
+and, under it, ONE menu row on the left; on the right, on that same lower
+line, the `PackageScopeChip`, the open slide's live/save dot (portaled in
+from the slide editor through `statusHost`, the report header's save
+indicator for slides) and the deck's actions (Add slide, Present, Update
+figures, History, AI); beneath it a full-width
+TOOLBAR ROW (the open slide's formatting pill, portaled through
+`toolbarHost`), over a `FrameLeftResizable` (210px,
 140-420): the RAIL on the left is the
 vertical slide list, and the slide clicked in it is open beside it. `SlideList`
 ([slide_list.tsx](client/src/components/products/slide_deck/slide_list.tsx))
@@ -283,6 +287,27 @@ open slide where it is. The copilot's `editing_slide` view carries the deck's
 context too (`EditingSlideContext` extends the deck's), so every deck tool is
 available while a slide is open, and the deck's view state is what the editor
 returns to between slides.
+
+**The Deck menu (2026-09-24).** The menu row is the deck's own menus first
+(`File`: Download, Share, name and folder, and copy-to-deck, as the report
+toolbar's File menu does; then `Deck`), then the open slide's (Slide / Insert / Split panel, portaled there
+by `SlideToolbar` through `menuRowHost`), and `SlideList` owns that row's
+padding and the pull-back that puts the first label on the deck name's left
+margin. `Deck`
+([deck_menu.tsx](client/src/components/products/slide_deck/deck_menu.tsx)) is
+the report toolbar's Page menu, for decks: Theme (the `ThemePicker` cards,
+live-previewing this deck), Logos (the custom list plus the cover, header and
+footer sections) and Footer and page numbers open as flyouts, and each
+control SAVES AS IT IS TOUCHED through `updateSlideDeckConfig`. There is no
+Save button: `SlideList` holds the patched config as an override so the
+header shows it at once, the deck's own refetch lands on the same value and
+releases the override, and a rejected save drops it. The footer's free text
+is the exception, committed on focus-out or when the menu closes, because
+every save remounts the keyed slide editor. The menu is rendered by
+`SlideList`, never by `SlideToolbar`, for that same reason: a menu inside the
+keyed editor would close on its own first click. The full settings screen
+(`SlideDeckSettings`, with the delete action) is still there, one row down
+the menu as "All deck settings"; name and folder sits in File.
 
 **The slide editor**
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
@@ -634,7 +659,8 @@ reflows and pastes into a ministry's own template: headings (with the
 paragraphs, lists, tables, callouts and steps as shaded one-cell tables,
 quotes as ruled paragraphs, `:::columns` as a continuous multi-column
 section, marks as run colours, `:::contents` as a Word TOC field with
-update-on-open, figures inline at the column's width under a Caption
+update-on-open, a `:::logos` row as one aligned paragraph of inline images
+at the row's height (scaled down whole if wider than the column), figures inline at the column's width under a Caption
 paragraph, the page ground as Word's page colour, and the PDF's running
 footer with PAGE/NUMPAGES fields. The decorative blocks (cover, band, tiles,
 card, stat) have no Word equivalent, so they are PICTURES with the text laid
@@ -1474,11 +1500,15 @@ the frame HEAD so a re-theme never reloads the frame, which would drop the
 surface, the scroll position and every blob: raster).
 
 **The formatting toolbar** ([toolbar.tsx](client/src/components/products/report/toolbar.tsx),
-FASTR only) sits inside the same `FrameTop` panel as the `HeadingBar`
-— that panel is `flex-none overflow-auto` and sizes to content, so the strip
-just grows the header, and the `HeadingBar`'s slots (already seven controls,
-anchored by onboarding tour steps) stay untouched. It is laid out like Google
-Docs: a MENU row (Insert and Page are dropdown menus — Insert carries the
+FASTR only) is split across the same `FrameTop` panel as the header, which is
+`flex-none overflow-auto` and sizes to content. Since 2026-09-24 the header IS
+the deck's (`HeadingBar` is gone from the report): the report glyph over the
+back button, the name on the top line, the toolbar's MENU ROW portaled in
+under it through `menuRowHost`, and the mode group, package chip, save dot and
+actions bottom-aligned on that same lower line; the PILL keeps its own strip
+below. The row's padding and the pull-back onto the name's left margin belong
+to the header, exactly as in the deck, and the toolbar carries them only when
+it renders alone. It is laid out like Google Docs: a MENU row (Insert and Page are dropdown menus — Insert carries the
 blocks, link, table and the embed pickers, with Table, Stat, Tiles and Columns
 opening hover flyouts that pick a size — a rows×columns grid, a 1–4 row that
 writes a `:::tiles` grid of stats or cards or a `:::columns` block; Page
@@ -1510,6 +1540,21 @@ AFTER that whole top-level region, never inside it, and Enter on a parked
 caret opens a blank line beside the block, above it (the block moves down)
 or below when the caret stands at the region's very end, which is the only
 keyboard way past a stat row, a figure or a table at the end of a document.
+A LOGOS row (`:::logos{src="image:<id> …" align size}`, a leaf, 2026-09-24)
+holds its logos as entries of the report's IMAGE REGISTRY, the built-in FASTR
+logos included (`imgFile` = their app-root path, which `resolveLogoUrl` in
+`generate_slide_deck/fastr_logos.ts` resolves; every report image URL goes
+through it), so the editor, the orphan prune (the `image:<id>` tokens in
+`src`), the preview, HTML, PDF and Word all resolve a logo as they resolve an
+inline image. Insert → Logos… and the block segment's "Edit logos…" open
+`logo_picker.tsx` (FASTR logos + the instance's image assets, upload, order);
+an edit keeps the id of a logo the row already had. The row's height is the
+size's (s/m/l = 2/3/4.5em), so its box is known before an image loads; a
+logo is never a selectable embed (`materializeReportEmbeds` and the region
+widget skip `.fm-logo`), a missing one drops out of the row, and a double
+press on a row (a single press on an empty one) opens the picker, on
+mousedown because the first press rebuilds the widget. The AI brief documents
+the block but forbids inventing ids: the user places logos.
 A natural cover opening ANY page is flush to the sheet's top in the editor
 as it is in print (`openPage`, no `isFirst`), where it used to sit under a
 band of top margin after a page break. TEMPLATES (2026-09-23): on a

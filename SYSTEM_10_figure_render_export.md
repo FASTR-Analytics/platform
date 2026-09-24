@@ -621,19 +621,25 @@ same frame: `PAGE_WIDTH_DU` 1400 × `PAGE_HEIGHT_DU` 788
 The `Slide` union (`cover | section | content`, `lib/types/slides.ts`) maps to
 panther `PageInputs` discriminants `cover | section | freeform`.
 
-**Style resolution order** (`buildStyleForSlide`): 1)
-`resolveColorThemeToPreset`: `custom` → panther `resolveColorTheme`, a brand id
+**Style resolution order** (`buildStyleForSlide`): 0) the deck config's single
+`theme` id is looked up in `SLIDE_DECK_THEME_SPECS`
+(`lib/types/_slide_deck_themes.ts`), which is where the palette, face, layout
+and two treatments come from; 1) `getSlideDeckThemeColorPreset`: a brand id
 (`gff` / `nigeria`) → `getBrandPreset`, else panther `getColorPreset`; 2)
-panther `resolvePageStyle(layout, treatments, preset, pattern?)`; 3) app
-overrides: per-slide title/subtitle/presenter/date font-size/bold/italic knobs
-with hardcoded defaults,
-`fontFamily = config.fontFamily ?? "International
-Inter"`, per-family letter
-spacing. A `DeckStyleContext = {fontFamily,
-colorPreset}` is created per content
-slide and threaded into `buildFigureInputs(bundle, deckStyle)` so embedded
-figures adopt the deck's font and palette (`getFigureFont` in
-`get_style_from_po/_0_common.ts`).
+panther `resolvePageStyle(layout, treatments, preset, pattern?)` on the spec's
+values; 3) app overrides: per-slide title/subtitle/presenter/date
+font-size/bold/italic knobs with hardcoded defaults, the spec's `fontFamily`,
+per-family letter spacing. A `DeckStyleContext = {fontFamily, colorPreset}` is
+created per content slide and threaded into `buildFigureInputs(bundle,
+deckStyle)` so embedded figures adopt the deck's font and palette
+(`getFigureFont` in `get_style_from_po/_0_common.ts`).
+
+Until 2026-09-24 those five values plus the overlay were six independent
+stored fields with six pickers in deck settings, and a colour could also be a
+raw hex (`ColorTheme`'s `custom` branch, hence the old
+`resolveColorThemeToPreset`). Block 7 of the `slide_deck_config` sweep scored
+every stored combination against the eleven themes and rewrote each deck to
+its nearest one.
 
 Other resolution steps, all in the same pass:
 
@@ -688,9 +694,10 @@ Inter (400/800), Fira Sans (400/800), Merriweather (400/700), Poppins (400/700).
 is 800).
 
 **Brand contracts:** [lib/brand_presets.ts](lib/brand_presets.ts) holds the two
-brand `ColorPreset`s (`gff` #09544F, `nigeria` #027D53) consumed by the theme
-picker, `resolveColorThemeToPreset`, the deck-config schema, and the S2
-`slide_deck_config` transform's legacy-hex repair.
+brand `ColorPreset`s (`gff` #09544F, `nigeria` #027D53). `gff` is the palette
+the `default` deck theme names, so `getSlideDeckThemeColorPreset` resolves it
+through `getBrandPreset`; the S2 `slide_deck_config` transform also reads both
+for its legacy-hex repair and for hue-scoring a deck onto its nearest theme.
 [lib/key_colors.ts](lib/key_colors.ts) is installed into panther at boot
 (`setKeyColors(_KEY_COLORS)`, `client/src/index.tsx`) and carries the CF
 traffic-light palette + qualitative scales (15 consumer files, including the

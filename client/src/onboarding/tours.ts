@@ -56,17 +56,17 @@ export function buildDeckEditorIntroTour(): TourDefinition {
         placement: "bottom",
       },
       {
-        id: "more",
-        target: "#deck-more-button",
+        id: "file",
+        target: tourTarget("deck-file-menu"),
         title: t3({
-          en: "Export, share and history",
-          fr: "Exporter, partager et historique",
-          pt: "Exportar, partilhar e histórico",
+          en: "Export and share",
+          fr: "Exporter et partager",
+          pt: "Exportar e partilhar",
         }),
         body: t3({
-          en: "This menu holds Download (PowerPoint or PDF), Share, and Version history — where you can look back at earlier versions and see who changed what.",
-          fr: "Ce menu contient Télécharger (PowerPoint ou PDF), Partager et Historique des versions — où vous pouvez consulter les versions précédentes et voir qui a modifié quoi.",
-          pt: "Este menu contém Descarregar (PowerPoint ou PDF), Partilhar e Histórico de versões — onde pode consultar versões anteriores e ver quem alterou o quê.",
+          en: "File holds everything that acts on the whole deck: Download (PowerPoint or PDF), Share, renaming it, and copying the slides you have selected into another deck.",
+          fr: "Fichier contient tout ce qui agit sur l'ensemble de la présentation : Télécharger (PowerPoint ou PDF), Partager, la renommer et copier les diapositives sélectionnées vers une autre présentation.",
+          pt: "Ficheiro contém tudo o que atua sobre toda a apresentação: Descarregar (PowerPoint ou PDF), Partilhar, mudar-lhe o nome e copiar os diapositivos selecionados para outra apresentação.",
         }),
         placement: "bottom",
       },
@@ -156,49 +156,28 @@ export function buildDeckEditorPresentTour(): TourDefinition {
   };
 }
 
-// Walks the user into the version-history overlay via the overflow menu, then
-// back out again: the final advanceOn matters, because the overlay covers the
-// toolbar that the settings part needs next.
+// Walks the user into the version-history overlay from the header's History
+// button, then back out again: the final advanceOn matters, because the
+// overlay covers the toolbar that the settings part needs next.
 export function buildDeckEditorHistoryTour(): TourDefinition {
   return {
     id: "deck-editor-history",
     steps: [
       {
-        id: "open-menu",
-        target: "#deck-more-button",
+        id: "open-history",
+        target: "#deck-history-button",
         title: t3({
           en: "Version history",
           fr: "Historique des versions",
           pt: "Histórico de versões",
         }),
         body: t3({
-          en: "Every deck keeps a history of earlier versions. Open this menu to find it.",
-          fr: "Chaque présentation conserve un historique des versions précédentes. Ouvrez ce menu pour le trouver.",
-          pt: "Cada apresentação mantém um histórico de versões anteriores. Abra este menu para o encontrar.",
+          en: "Every deck keeps a history of earlier versions. Click History to open it.",
+          fr: "Chaque présentation conserve un historique des versions précédentes. Cliquez sur Historique pour l'ouvrir.",
+          pt: "Cada apresentação mantém um histórico de versões anteriores. Clique em Histórico para o abrir.",
         }),
         placement: "bottom",
         advanceOn: "click",
-      },
-      {
-        id: "pick-version-history",
-        // The overflow menu is portal-rendered, so its rows can only be
-        // reached positionally: Download, Share, Version history.
-        target: () =>
-          document.querySelectorAll(".ui-popover-menu button")[2] ?? null,
-        title: t3({
-          en: "Open version history",
-          fr: "Ouvrir l'historique des versions",
-          pt: "Abrir o histórico de versões",
-        }),
-        body: t3({
-          en: "Click Version history to carry on.",
-          fr: "Cliquez sur Historique des versions pour continuer.",
-          pt: "Clique em Histórico de versões para continuar.",
-        }),
-        placement: "right",
-        advanceOn: "click",
-        waitForTargetTimeoutMs: 4000,
-        onTargetTimeout: "skip",
       },
       {
         id: "version-list",
@@ -236,54 +215,23 @@ export function buildDeckEditorHistoryTour(): TourDefinition {
 }
 
 // Ordered last so it merges after the intro/slides parts: the deck tour ends
-// by having the user actually open Settings, then explains what's in there.
+// on the Deck menu, where everything deck-wide now lives.
 export function buildDeckEditorSettingsTour(): TourDefinition {
   return {
     id: "deck-editor-settings",
     steps: [
       {
-        id: "open-settings",
-        target: "#deck-settings-button",
+        id: "deck-menu",
+        target: tourTarget("deck-menu"),
         title: t3({
           en: "Deck settings",
           fr: "Paramètres de la présentation",
           pt: "Definições da apresentação",
         }),
         body: t3({
-          en: "Settings control how the whole deck looks. Click it now to open them — the tour continues inside.",
-          fr: "Les paramètres contrôlent l'apparence de toute la présentation. Cliquez maintenant pour les ouvrir — la visite continue à l'intérieur.",
-          pt: "As definições controlam o aspeto de toda a apresentação. Clique agora para as abrir — a visita continua lá dentro.",
-        }),
-        placement: "bottom",
-        advanceOn: "click",
-      },
-      {
-        id: "settings-body",
-        target: tourTarget("deck-settings-body"),
-        title: t3({
-          en: "One look for every slide",
-          fr: "Une apparence pour toutes les diapositives",
-          pt: "Um aspeto para todos os diapositivos",
-        }),
-        body: t3({
-          en: "Colour theme, font, layout and cover treatment apply to the whole deck, and the Logos section decides which logos slides can show.",
-          fr: "Le thème de couleurs, la police, la mise en page et le traitement de la couverture s'appliquent à toute la présentation, et la section Logos détermine les logos que les diapositives peuvent afficher.",
-          pt: "O tema de cores, o tipo de letra, o layout e o tratamento da capa aplicam-se a toda a apresentação, e a secção Logótipos define quais os logótipos que os diapositivos podem mostrar.",
-        }),
-        placement: "right",
-      },
-      {
-        id: "settings-save",
-        target: "#deck-settings-save-button",
-        title: t3({
-          en: "Save or cancel",
-          fr: "Enregistrer ou annuler",
-          pt: "Guardar ou cancelar",
-        }),
-        body: t3({
-          en: "Save applies your changes to every slide at once. Cancel closes without changing anything — either one returns you to the slides.",
-          fr: "Enregistrer applique vos modifications à toutes les diapositives d'un coup. Annuler ferme sans rien changer — dans les deux cas vous revenez aux diapositives.",
-          pt: "Guardar aplica as suas alterações a todos os diapositivos de uma vez. Cancelar fecha sem alterar nada — em ambos os casos regressa aos diapositivos.",
+          en: "The Deck menu holds what applies to every slide at once: the theme, which logos slides can show, and the footer and page numbers. Each change applies straight away, and 'All deck settings' opens the full page.",
+          fr: "Le menu Présentation contient ce qui s'applique à toutes les diapositives : le thème, les logos que les diapositives peuvent afficher, ainsi que le pied de page et les numéros de page. Chaque modification s'applique immédiatement, et « Tous les paramètres » ouvre la page complète.",
+          pt: "O menu Apresentação contém o que se aplica a todos os diapositivos: o tema, os logótipos que os diapositivos podem mostrar e o rodapé e os números de página. Cada alteração aplica-se de imediato, e «Todas as definições» abre a página completa.",
         }),
         placement: "bottom",
       },

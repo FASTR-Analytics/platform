@@ -17,7 +17,7 @@ import type {
   PackageScope,
   SlideDeckConfig,
 } from "lib";
-import { slideConfigSchema, getAllSlideFontVariants, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { slideConfigSchema, getAllSlideFontVariants, getSlideDeckThemeSpec, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
@@ -106,7 +106,7 @@ export async function convertAiInputToSlide(
     },
     deckConfig,
   );
-  const fontFamily = deckConfig.fontFamily ?? "International Inter";
+  const fontFamily = getSlideDeckThemeSpec(deckConfig.theme).fontFamily;
   const fonts = getAllSlideFontVariants(fontFamily);
   await loadFontsWithTimeout(fonts);
 

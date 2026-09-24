@@ -156,6 +156,8 @@ export function ToolbarPopover(p: {
 export function PopoverRow(p: {
   active: boolean;
   onClick: () => void;
+  /** Greyed and inert, for a row whose action needs a selection first. */
+  disabled?: boolean;
   children: JSX.Element;
 }) {
   return (
@@ -164,8 +166,10 @@ export function PopoverRow(p: {
       class="ui-focusable flex w-full items-center rounded px-2 py-1 text-left text-sm"
       classList={{
         "border-primary bg-primary-subtle font-700": p.active,
-        "ui-hoverable-base-100": !p.active,
+        "ui-hoverable-base-100": !p.active && !p.disabled,
+        "text-base-content-muted cursor-not-allowed": p.disabled === true,
       }}
+      disabled={p.disabled}
       onClick={p.onClick}
     >
       {p.children}

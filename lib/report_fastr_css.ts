@@ -970,6 +970,43 @@ ${d}.fm-figure--full .fm-figure__caption {
   padding-inline: var(--fm-bleed-pad);
 }
 
+/* ── Logos (:::logos) ─────────────────────────────────────────────────────── */
+/* A row of logos at ONE height: the size sets the row's box, each logo takes
+   the height and its own width, so the block's height is known before any
+   image has loaded (the page layout measures it straight away). A logo that
+   would overflow the row shrinks with its aspect kept. */
+${d}.fm-logos {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.6em;
+  box-sizing: content-box;
+  height: 3em;
+  margin: 1.2em 0;
+  --fm-mt: 1.2em;
+  --fm-mb: 1.2em;
+}
+${d}.fm-logos--s { height: 2em; }
+${d}.fm-logos--l { height: 4.5em; }
+${d}.fm-logos--center { justify-content: center; }
+${d}.fm-logos--right { justify-content: flex-end; }
+${d}.fm-logos--spread { justify-content: space-between; }
+${d}.fm-logos > .fm-logo {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  margin: 0;
+  object-fit: contain;
+}
+${d}.fm-logos.fm-tone, ${d}.fm-logos.fm-has-bg, ${d}.fm-logos.fm-has-bgimage {
+  padding: 0.9em 1.1em;
+  border-radius: var(--fm-radius);
+}
+${d}.fm-tiles .fm-logos, ${d}.fm-columns .fm-logos { margin: 0; }
+
 /* ── Page break (:::pagebreak) ────────────────────────────────────────────── */
 /* Nothing on screen: the paged sheet (report_fastr_paged.ts) ends the page
    there, and the editor draws its own labelled divider. */
@@ -1700,6 +1737,19 @@ ${d}.fm-pagebreak.fm-pagebreak--editor::before, ${d}.fm-pagebreak.fm-pagebreak--
   flex: 1;
   border-top: 1px dashed var(--fm-ink-muted);
 }
+/* A logos row with nothing in it yet: a dashed slot the author clicks to
+   choose the logos (the widget adds the label). Border-box, so the slot is
+   print's box to the pixel. */
+${d}.fm-logos--empty {
+  justify-content: center;
+  border: 1px dashed var(--fm-ink-muted);
+  border-radius: var(--fm-radius);
+  box-sizing: border-box;
+  color: var(--fm-ink-muted);
+  font-family: var(--fm-font-body);
+  cursor: pointer;
+}
+${d}.fm-logos__empty { font-size: 0.8em; }
 /* A block the paginator had to split because it is taller than a page: a
    chip laid over the block's top corner, out of the flow, so the block's
    box is print's box and the layout that placed the seam is not moved by

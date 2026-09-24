@@ -20,6 +20,7 @@ import { dismissPopoverMenu } from "./dismiss_popover_menu";
 import * as Y from "yjs";
 import {
   FASTR_PAGED_GLOBAL,
+  type FastrOpenFence,
   type FastrPagedResult,
   fastrOpenFenceOnLine,
   fastrStripInlineSyntax,
@@ -48,6 +49,7 @@ export type PagedSurfaceDeps = {
   // label): what the PDF prints.
   buildHtml: (body: string) => Promise<string>;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
+  onEditLogos: (fence: FastrOpenFence) => void;
 };
 
 export type PagedSurface = {
@@ -100,7 +102,8 @@ html { background: #e5e7eb !important; overflow-y: scroll; }
 .fm-pagebreak::before { content: "${pageBreak}"; flex: 0; border: 0; }
 .fm-pagebreak::after { content: ""; }
 .fm-pagebreak > span { display: none; }
-img[data-embed-kind], .report-embed-pending, .report-embed-missing { cursor: pointer; }
+img[data-embed-kind], .report-embed-pending, .report-embed-missing, .fm-logos { cursor: pointer; }
+.fm-logos--empty { outline: 1px dashed var(--fm-ink-muted); outline-offset: -1px; }
 .fm-peer-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 20; }
 .fm-peer-caret { position: absolute; width: 2px; margin-left: -1px; border-radius: 1px; }
 .fm-peer-caret__name {
@@ -355,6 +358,20 @@ export function createPagedEditSurface(
         const rel = Number(pb.getAttribute("data-line"));
         if (!Number.isFinite(rel) || rel + 1 > view.state.doc.lines) return;
         view.dispatch({ selection: { anchor: view.state.doc.line(rel + 1).from } });
+      });
+    }
+    // A logos row is one block: pressing it parks the caret on its line (the
+    // toolbar's Align, Size and Edit logos), a double-click opens the picker.
+    for (const row of Array.from(doc.querySelectorAll<HTMLElement>(".fm-logos[data-line]"))) {
+      const line1 = Number(row.getAttribute("data-line")) + 1;
+      if (!Number.isFinite(line1) || line1 > view.state.doc.lines) continue;
+      row.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        view.dispatch({ selection: { anchor: view.state.doc.line(line1).from } });
+        if (e.button !== 0 || e.detail < 2) return;
+        const fence = fastrOpenFenceOnLine(view.state.doc.line(line1).text, line1);
+        if (fence?.name === "logos") deps.onEditLogos(fence);
       });
     }
     // Pressing the empty part of a page: a new paragraph at the end of the

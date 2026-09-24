@@ -18,7 +18,8 @@ import {
   StateHolderWrapper,
 } from "panther";
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
-import { _SERVER_HOST, serverActions } from "~/server_actions";
+import { serverActions } from "~/server_actions";
+import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import { productById } from "~/state/instance/t1_store";
 import { ReportFigureEmbed } from "../mod.ts";
 import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
@@ -99,7 +100,7 @@ export function ReportVersionPreview(p: {
         return ib ? (
           <img
             class="w-full"
-            src={`${_SERVER_HOST}/${ib.imgFile}`}
+            src={resolveLogoUrl(ib.imgFile)}
             alt={alt}
             data-line={line}
           />
@@ -265,7 +266,7 @@ function HtmlVersionPreview(p: {
         title={p.version.label}
         figures={p.version.figures}
         images={p.version.images}
-        assetUrl={(imgFile) => `${_SERVER_HOST}/${imgFile}`}
+        assetUrl={(imgFile) => resolveLogoUrl(imgFile)}
         rasters={rasters}
         rasterVersion={rasterTick()}
         lightInk={p.inkTheme}
@@ -415,14 +416,14 @@ function SessionEdits(p: {
                       old={ch.oldVal && (
                         <img
                           class="max-h-64 w-full object-contain"
-                          src={`${_SERVER_HOST}/${ch.oldVal.imgFile}`}
+                          src={resolveLogoUrl(ch.oldVal.imgFile)}
                           alt=""
                         />
                       )}
                       neu={ch.newVal && (
                         <img
                           class="max-h-64 w-full object-contain"
-                          src={`${_SERVER_HOST}/${ch.newVal.imgFile}`}
+                          src={resolveLogoUrl(ch.newVal.imgFile)}
                           alt=""
                         />
                       )}
