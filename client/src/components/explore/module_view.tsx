@@ -74,9 +74,9 @@ type ViewProps = {
   setQuery: (query: GridQuery) => void;
 };
 
-// The chosen module's views behind a `Select` over their names, which the
-// view places first in its own control row; a placeholder listing the
-// module's metrics when it has none. A module with no ready metric shows
+// The chosen module's views behind a `Select` over their names, the pane's
+// main control, which the view places on its top row; a placeholder listing
+// the module's metrics when it has none. A module with no ready metric shows
 // the stamped reason instead.
 export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
   const metrics = createMemo(() => moduleMetrics(p.module, p.ctx));
@@ -107,7 +107,6 @@ export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
                 value={v().id}
                 options={views().map((x) => ({ value: x.id, label: x.label }))}
                 onChange={setChosen}
-                size="sm"
               />
             }
             ctx={p.ctx}

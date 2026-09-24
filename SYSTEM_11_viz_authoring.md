@@ -221,8 +221,8 @@ one place that says which views a module offers: "Indicator values as
 counts" (the data table, columns Indicators) and "Indicator values over
 time" (the timeseries) for the HMIS primary module's first ready metric
 (`primaryMetricFor`), and nothing for any other module. A `Select` over the
-module's view names is always shown; the view places it first in its own
-control row. A module with no view shows a placeholder listing its metrics,
+module's view names, the pane's main control at the default size, is always
+shown; the view places it on its top row, with the query controls beneath. A module with no view shows a placeholder listing its metrics,
 and a module with no ready metric shows the stamped reason. When module
 definitions declare views, `viewsFor` reads them and nothing else on the
 page changes. The views share the family's `GridQuery` and the controls
@@ -238,10 +238,10 @@ is a `GridQuery` per family
 change never resets it; until the user edits a family's query it is
 `defaultGridQuery` for the current scope. Every read resolves the query
 first (`resolveGridQuery`); indicators the package lacks stay in state and a
-one-line notice above the grid offers Clear. The toolbar holds the view
-`Select` first, then level or stratifier, indicators (`MultiSelectSearch`,
-empty means all), period (`periodChoicesFor`), grain (HMIS Time mode only),
-a find box and Download. The reads are tracked (`createTrackedQuery`,
+one-line notice above the grid offers Clear. The toolbar's top row holds
+the view `Select` with a find box and Download on the right; the row
+beneath holds level or stratifier, indicators (`MultiSelectSearch`, empty
+means all), period (`periodChoicesFor`) and grain (HMIS Time mode only). The reads are tracked (`createTrackedQuery`,
 `data_table/tracked_query.ts`), so they re-run on any change of the pair or
 the query: the metric info (`t2_figure_data`, for the package's HFA time
 points, in the instance's declared order, ICEH's years and stratifiers, and

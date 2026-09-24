@@ -64,8 +64,8 @@ export function Timeseries(p: {
     <FrameTop
       panelChildren={
         <div class="ui-pad ui-spy-sm">
+          <div class="ui-gap-sm flex items-center">{p.viewSelect}</div>
           <div class="ui-gap-sm flex flex-wrap items-end">
-            {p.viewSelect}
             <IndicatorsControl
               values={resolved().query.indicators}
               options={indicatorOptions(p.family, p.ctx)}
