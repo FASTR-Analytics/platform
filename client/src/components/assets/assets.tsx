@@ -212,7 +212,7 @@ function AssetTable(p: {
           when={asset.uploaderEmail}
           fallback={
             <span class="text-base-content-muted">
-              {t3({ en: "system", fr: "système", pt: "sistema" })}
+              {t3({ en: "System", fr: "Système", pt: "Sistema" })}
             </span>
           }
         >
