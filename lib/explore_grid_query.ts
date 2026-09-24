@@ -371,9 +371,11 @@ export function deriveGridConfig(
 
 // The figure config a resolved HMIS query reads as a timeseries: the primary
 // preset with `d` replaced by lines over the query's grain, one pane per
-// indicator, the chosen indicators as a filter and the window as the period
-// filter. Undefined for HFA and ICEH, whose time points and years are not
-// period columns, and when the family has no ready metric or no preset.
+// indicator in rows of three, the chosen indicators as a filter and the
+// window as the period filter. The preset's style is a table's, so the
+// content and the pane columns are set here. Undefined for HFA and ICEH,
+// whose time points and years are not period columns, and when the family
+// has no ready metric or no preset.
 export function deriveTimeseriesConfig(
   query: GridQuery,
   ctx: RunAuthoringContext,
@@ -382,10 +384,12 @@ export function deriveTimeseriesConfig(
   if (query.family !== "hmis") return undefined;
   const found = primaryPreset(query.family, ctx);
   if (found === undefined) return undefined;
+  const fromPreset = deriveConfigFromVizPreset(found.preset, language);
   return {
     metric: found.metric,
     config: {
-      ...deriveConfigFromVizPreset(found.preset, language),
+      ...fromPreset,
+      s: { ...fromPreset.s, content: "lines", nColsInCellDisplay: 3 },
       d: {
         type: "timeseries",
         timeseriesGrouping: query.grain,
