@@ -10,6 +10,7 @@ import type { StateHolderFormAction } from "../special_state/mod.ts";
 type Props = {
   progressFrom0To100: number;
   small?: boolean;
+  busy?: boolean;
   progressMsg?: string;
   onlyShowWhenLoadingState?: StateHolderFormAction;
 };
@@ -26,7 +27,8 @@ export function ProgressBar(p: Props) {
           data-small={p.small}
         >
           <div
-            class="bg-primary h-12"
+            class="bg-primary h-12 data-[busy=true]:ui-progress-busy"
+            data-busy={p.busy}
             style={{ width: to100Pct0(p.progressFrom0To100) }}
           />
         </div>

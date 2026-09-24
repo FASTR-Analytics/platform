@@ -752,6 +752,31 @@
   color-scheme: light;
 }
 
+/* ---- Busy stripe ---- */
+/* A determinate bar whose fill is still moving: the width says how far, the
+   stripe says it has not stalled. Built from the primary pair so it holds on
+   both schemes with no token of its own. Worn by <ProgressBar busy>. */
+
+@utility ui-progress-busy {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklch, var(--color-primary-content) 20%, transparent) 0
+      0.75rem,
+    transparent 0.75rem 1.5rem
+  );
+  background-size: 2.12rem 100%;
+  animation: ui-progress-busy 0.8s linear infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes ui-progress-busy {
+  to {
+    background-position: 2.12rem 0;
+  }
+}
+
 @layer components {
   /* =============================================================
      Component-layer classes.
