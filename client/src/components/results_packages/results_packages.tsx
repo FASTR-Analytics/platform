@@ -155,7 +155,7 @@ export function InstanceResultsPackages() {
       key: "label",
       header: t3({ en: "Package", fr: "Paquet", pt: "Pacote" }),
       sortable: true,
-      render: (run) => <span class="font-700">{run.label}</span>,
+      render: (run) => run.label,
     },
     {
       key: "createdAt",
