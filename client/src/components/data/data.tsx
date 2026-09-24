@@ -418,7 +418,7 @@ export function InstanceData(p: Props) {
       }
     >
       <div class="ui-pad h-full w-full overflow-auto">
-        <div class="ui-spy-lg max-w-3xl">
+        <div class="ui-spy-lg">
           <DataSection
             data-tour="instance-data-hmis"
             heading={t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
