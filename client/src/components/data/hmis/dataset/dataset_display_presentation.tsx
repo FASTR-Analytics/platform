@@ -73,7 +73,7 @@ export function DatasetDisplayPresentation(p: Props) {
           joinAcrossGaps: false,
           func: {
             show: true,
-            color: showLegend ? 666 : { key: "base300" },
+            color: showLegend ? 666 : { key: "baseContent" },
           },
         },
       },
