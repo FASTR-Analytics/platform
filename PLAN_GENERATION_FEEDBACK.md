@@ -233,7 +233,8 @@ package generated before this plan. A data transform,
 `INSTANCE_DATA_TRANSFORMS` right after `runs_summary`, rewrites every row
 whose progress is non-null and lacks the `"stage"` key to carry
 `stage: { kind: "ended" }`. Its skip gate is that raw key scan (the
-Skip-Gate Gotcha in `PROTOCOL_APP_MIGRATIONS.md`). A run still generating at
+Skip-Gate Gotcha in `PROTOCOL_APP_MIGRATIONS.md`); a row it cannot parse or
+validate is skipped, not fatal (ruling 13). A run still generating at
 migration time is marked failed by boot recovery moments later and keeps
 `ended`, which is what a run with no recorded stage can honestly say.
 
@@ -296,9 +297,21 @@ component's existing `data-[small=true]:h-6`.
     never per results object.
 11. `lib/run_progress.ts` is claimed by `SYSTEM_08_results_packages.md`'s
     manifest in the same commit that creates it.
-12. _(proposed)_ `DatasetType` becomes `z.infer` of a new
-    `datasetTypeSchema` in `lib/types/datasets.ts`, the same three literals.
-    Stands unless overruled before `Do 2`.
+12. `DatasetType` becomes `z.infer` of a new `datasetTypeSchema` in
+    `lib/types/datasets.ts`, the same three literals, so the type is
+    unchanged for its 35 importers. `moduleFamily` and the inline enum in
+    `dataSourceDataset` (`lib/types/_module_definition_installed.ts`) become
+    references to it. The GitHub schema's own copy
+    (`_module_definition_github.ts`) stays independent: it is the external
+    boundary and is kept separate by design (PROTOCOL_APP_MIGRATIONS,
+    "GitHub-Authored Schemas"). Verified 2026-09-24: `datasets.ts` imports
+    nothing, so no cycle.
+13. The `runs_progress` transform is as tolerant as the read path. A row
+    whose progress JSON does not parse, or does not validate against
+    `runProgressSchema` once `stage` is added, is logged and skipped, never
+    thrown: `toRunListingItem` already degrades such a row to null chips so
+    an admin can still see and delete it, and a boot must not fail over it.
+    The `runs_summary` transform is the precedent.
 
 ## 4. Steps
 
@@ -326,7 +339,8 @@ the sync's auto-commit here.
 
 ### Step 2: the stage, the pushes, the transform, the helpers
 
-**Surface.** `lib/types/datasets.ts`, `lib/types/run_generation.ts`,
+**Surface.** `lib/types/datasets.ts`,
+`lib/types/_module_definition_installed.ts`, `lib/types/run_generation.ts`,
 `lib/run_progress.ts` (new), `lib/mod.ts` (export),
 `server/worker_routines/generate_run/launch.ts`,
 `server/worker_routines/generate_run/pipeline.ts`,
@@ -338,7 +352,7 @@ the sync's auto-commit here.
 `server/db_startup.ts`, `server/tests/run_progress_test.ts` (new),
 `SYSTEM_08_results_packages.md`, `PROTOCOL_APP_MIGRATIONS.md`.
 
-**Deliverable.** Rulings 1, 2, 3, 7, 10, 11, 12. The schema of §2; every
+**Deliverable.** Rulings 1, 2, 3, 7, 10, 11, 12, 13. The schema of §2; every
 `RunProgress` literal in the surface carries `stage` (`launch.ts`,
 `pipeline.ts`, the fallback in `markRunGenerationFailed`); the pushes at
 exactly the boundaries §2 tables, with `onStage` on `prepareRunInputs` and
