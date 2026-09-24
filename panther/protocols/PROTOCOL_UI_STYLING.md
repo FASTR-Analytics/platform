@@ -247,6 +247,14 @@ drift.
   header (`font-700 text-xs uppercase tracking-wider`).
 - **Icons in `sm` controls** draw at 1.125em inside the control's
   `--ui-form-content-h-em` box, so no control changes height.
+- **Mono** (`font-mono`, the `mono` prop on `Input`, `TextArea`, `Select` and
+  the search selects) is for text a machine reads back: identifiers and codes,
+  file names, formulas, code, logs and diffs, and any literal the user must type
+  exactly. Names, emails, body text and numbers are sans: `body` sets
+  `tabular-nums`, so counts align without a face change, and a stat's emphasis
+  is `font-700`, not mono and not a larger size. Mono inherits the size of the
+  text it sits in; the one mono size class is `text-xs` on a code or log block
+  that is caption throughout.
 
 ### Text case
 
@@ -440,6 +448,9 @@ foreground is not derived from the background.
 - [ ] No named font-weight aliases (`font-normal`, `font-medium`,
       `font-semibold`, `font-bold`): they are wiped no-ops; use `font-400` /
       `font-700` or an app-declared weight
+- [ ] `font-mono` only on identifiers, codes, file names, formulas, code, logs
+      and diffs; never on names, emails or counts, and never with a size class
+      other than `text-xs` on a caption-size block
 - [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case

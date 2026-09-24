@@ -45,7 +45,7 @@ export function ToolErrorRenderer(p: {
                   pt: "Rastreio da pilha:",
                 })}
               </div>
-              <pre class="text-danger-subtle-content bg-danger-subtle overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-[10px]">
+              <pre class="text-danger-subtle-content bg-danger-subtle overflow-x-auto whitespace-pre-wrap rounded p-2 font-mono text-xs">
                 {p.item.errorStack}
               </pre>
             </div>

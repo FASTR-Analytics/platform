@@ -209,7 +209,7 @@ export function MultiSelectSearch<T extends string>(
                 <CheckMark checked={selectedSet().has(opt.value)} />
                 <span
                   ref={labelRef}
-                  class="flex-1 select-none truncate data-[mono=true]:font-mono data-[mono=true]:text-xs"
+                  class="flex-1 select-none truncate data-[mono=true]:font-mono"
                   data-mono={p.mono}
                 >
                   {opt.label}
