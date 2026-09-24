@@ -186,6 +186,7 @@ function AssetTable(p: {
                 intent="base-100"
                 size="sm"
                 iconName="download"
+                ariaLabel={t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
                 href={`${_SERVER_HOST}/${encodeURIComponent(asset.fileName)}`}
                 download={asset.fileName}
               />
@@ -195,6 +196,7 @@ function AssetTable(p: {
                 iconName="trash"
                 intent="base-100"
                 size="sm"
+                ariaLabel={t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" })}
                 onClick={() => p.onDelete(asset.fileName)}
               />
             </Show>

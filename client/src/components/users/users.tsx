@@ -365,8 +365,8 @@ function UserTable(p: {
             onClick={() => p.onUserClick(user)}
             iconName="pencil"
             ghost
-            intent="base-content"
             size="sm"
+            ariaLabel={t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
           />
         </div>
       ),
