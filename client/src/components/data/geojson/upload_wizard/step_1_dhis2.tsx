@@ -86,7 +86,7 @@ export function Step1Dhis2(p: Props) {
           <For each={state.dhis2Levels()}>
             {(level) => (
               <div class="border-base-200 flex items-center border-b px-3 py-2 text-sm last:border-b-0">
-                <div class="w-1/4 font-mono">{level.level}</div>
+                <div class="w-1/4">{level.level}</div>
                 <div class="w-1/2">{level.name}</div>
                 <div class="w-1/4">{level.orgUnitCount}</div>
               </div>

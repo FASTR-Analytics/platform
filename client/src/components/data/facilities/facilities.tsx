@@ -61,7 +61,7 @@ function AdminAreaSummary(p: { family: FacilityFamily }) {
               {(level) => (
                 <div class="ui-gap flex justify-between">
                   <span>{t3(getAdminAreaLabel(level))}:</span>
-                  <span class="font-mono">
+                  <span>
                     {toNum0(keyedCounts[`adminArea${level}s`])}
                   </span>
                 </div>

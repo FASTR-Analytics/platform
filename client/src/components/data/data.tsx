@@ -245,7 +245,7 @@ export function InstanceData(p: Props) {
                           })}
                           :
                         </span>
-                        <span class="font-mono">
+                        <span>
                           {structureSchemaForFamily("hmis").adminDepth}
                         </span>
                       </div>
@@ -258,7 +258,7 @@ export function InstanceData(p: Props) {
                           })}
                           :
                         </span>
-                        <span class="font-mono">
+                        <span>
                           {toNum0(enabledColumnCount("hmis"))}
                         </span>
                       </div>
@@ -344,7 +344,7 @@ export function InstanceData(p: Props) {
                             })}
                             :
                           </span>
-                          <span class="font-mono">{toNum0(keyedCount)}</span>
+                          <span>{toNum0(keyedCount)}</span>
                         </div>
                         {/* Admin areas are derived from these rows, so they
                           are reported here rather than as their own card. */}
@@ -358,7 +358,7 @@ export function InstanceData(p: Props) {
                           {(level) => (
                             <div class="ui-gap flex justify-between">
                               <span>{t3(getAdminAreaLabel(level))}:</span>
-                              <span class="font-mono">
+                              <span>
                                 {toNum0(
                                   instanceState.structure?.hmis[
                                     `adminArea${level}s`
@@ -409,7 +409,7 @@ export function InstanceData(p: Props) {
                             })}
                             :
                           </span>
-                          <span class="font-mono">{toNum0(keyedNumber)}</span>
+                          <span>{toNum0(keyedNumber)}</span>
                         </div>
                       </div>
                     )}
@@ -533,7 +533,7 @@ export function InstanceData(p: Props) {
                             })}
                             :
                           </span>
-                          <span class="font-mono">
+                          <span>
                             {toNum0(instanceState.populationCoverage.length)}
                           </span>
                         </div>
@@ -574,7 +574,7 @@ export function InstanceData(p: Props) {
                           })}
                           :
                         </span>
-                        <span class="font-mono">
+                        <span>
                           {structureSchemaForFamily("hfa").adminDepth}
                         </span>
                       </div>
@@ -587,7 +587,7 @@ export function InstanceData(p: Props) {
                           })}
                           :
                         </span>
-                        <span class="font-mono">
+                        <span>
                           {toNum0(enabledColumnCount("hfa"))}
                         </span>
                       </div>
@@ -633,7 +633,7 @@ export function InstanceData(p: Props) {
                             })}
                             :
                           </span>
-                          <span class="font-mono">{toNum0(keyedCount)}</span>
+                          <span>{toNum0(keyedCount)}</span>
                         </div>
                         {/* Admin areas are derived from these rows, so they
                           are reported here rather than as their own card. */}
@@ -647,7 +647,7 @@ export function InstanceData(p: Props) {
                           {(level) => (
                             <div class="ui-gap flex justify-between">
                               <span>{t3(getAdminAreaLabel(level))}:</span>
-                              <span class="font-mono">
+                              <span>
                                 {toNum0(
                                   instanceState.structure?.hfa[
                                     `adminArea${level}s`
@@ -693,7 +693,7 @@ export function InstanceData(p: Props) {
                           })}
                           :
                         </span>
-                        <span class="font-mono">
+                        <span>
                           {toNum0(instanceState.hfaTimePoints.length)}
                         </span>
                       </div>
@@ -737,7 +737,7 @@ export function InstanceData(p: Props) {
                             }}
                           >
                             <span>{tp.timePoint}:</span>
-                            <span class="font-mono">
+                            <span>
                               {`${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(tp.facilitiesWithData)}`}
                             </span>
                           </div>
@@ -783,7 +783,7 @@ export function InstanceData(p: Props) {
                             })}
                             :
                           </span>
-                          <span class="font-mono">{toNum0(keyedNumber)}</span>
+                          <span>{toNum0(keyedNumber)}</span>
                         </div>
                       </div>
                     )}

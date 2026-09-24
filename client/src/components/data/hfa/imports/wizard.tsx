@@ -526,13 +526,13 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
               <div class="w-56 flex-none">
                 {t3({ en: "Columns in file", fr: "Colonnes du fichier", pt: "Colunas no ficheiro" })}
               </div>
-              <div class="flex-1 font-mono">{headers().length}</div>
+              <div class="flex-1">{headers().length}</div>
             </div>
             <div class="flex items-baseline">
               <div class="w-56 flex-none">
                 {t3({ en: "Time point", fr: "Point temporel", pt: "Ponto temporal" })}
               </div>
-              <div class="flex-1 font-mono">{mappings.timePoint}</div>
+              <div class="flex-1">{mappings.timePoint}</div>
             </div>
             <div class="flex items-baseline">
               <div class="w-56 flex-none">
@@ -544,13 +544,13 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
               <div class="w-56 flex-none">
                 {t3({ en: "Row filters", fr: "Filtres de lignes", pt: "Filtros de linhas" })}
               </div>
-              <div class="flex-1 font-mono">{mappings.rowFilters.length}</div>
+              <div class="flex-1">{mappings.rowFilters.length}</div>
             </div>
             <div class="flex items-baseline">
               <div class="w-56 flex-none">
                 {t3({ en: "Duplicate facilities", fr: "Établissements en double", pt: "Estabelecimentos duplicados" })}
               </div>
-              <div class="flex-1 font-mono">
+              <div class="flex-1">
                 {preview()?.groups.length ?? 0}
                 {mappings.dedupOverrides.length > 0
                   ? ` (${mappings.dedupOverrides.length} ${t3({ en: "manual", fr: "manuel(s)", pt: "manual(is)" })})`

@@ -159,7 +159,7 @@ export function Step4(p: Props) {
               pt: `${duplicateNames().length} zonas administrativas partilham o mesmo nome (em regiões-mãe diferentes). As visualizações de mapas podem apresentar dados incorretos para estas zonas:`,
             })}
           </div>
-          <div class="mt-1 font-mono text-xs">
+          <div class="mt-1 text-xs">
             {duplicateNames().slice(0, 5).join(", ")}
             {duplicateNames().length > 5 ? `, +${duplicateNames().length - 5} more` : ""}
           </div>

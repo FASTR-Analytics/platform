@@ -346,7 +346,7 @@ function PreviewTypeCoverage(p: { type: PopulationImportPreviewType }) {
     {
       key: "year",
       header: t3({ en: "Year", fr: "Année", pt: "Ano" }),
-      render: (row) => <span class="font-mono">{row.year}</span>,
+      render: (row) => <span>{row.year}</span>,
     },
     {
       key: "areas",
@@ -358,7 +358,6 @@ function PreviewTypeCoverage(p: { type: PopulationImportPreviewType }) {
       alignH: "right",
       render: (row) => (
         <span
-          class="font-mono"
           classList={{ "text-danger": row.missingCount > 0 }}
         >
           {toNum0(row.areasWithData)} / {toNum0(p.type.structureAreaCount)}

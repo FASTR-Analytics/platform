@@ -216,7 +216,7 @@ function AssetTable(p: {
             </span>
           }
         >
-          <span class="font-mono">{asset.uploaderEmail}</span>
+          <span>{asset.uploaderEmail}</span>
         </Show>
       ),
     },

@@ -17,7 +17,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Import Date", fr: "Date d'importation", pt: "Data de importação" })}
             </span>
-            <span class="font-mono text-base">
+            <span>
               {new Date(p.result.dateImported).toLocaleString()}
             </span>
           </div>
@@ -25,7 +25,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Time Point", fr: "Point temporel", pt: "Ponto temporal" })}
             </span>
-            <span class="font-mono text-base">{p.result.timePoint}</span>
+            <span>{p.result.timePoint}</span>
           </div>
         </div>
       </div>
@@ -39,7 +39,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Total Rows in File", fr: "Total de lignes dans le fichier", pt: "Total de linhas no ficheiro" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nRowsInFile)}
             </span>
           </div>
@@ -47,7 +47,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Valid Rows", fr: "Lignes valides", pt: "Linhas válidas" })}
             </span>
-            <span class="font-700 text-success font-mono text-xl">
+            <span class="font-700 text-success">
               {toNum0(p.result.nRowsValid)}
             </span>
           </div>
@@ -55,7 +55,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Total Values to Import (approx. equal to cols x rows)", fr: "Total de valeurs à importer (approx. colonnes x lignes)", pt: "Total de valores a importar (aprox. colunas x linhas)" })}
             </span>
-            <span class="font-700 text-primary font-mono text-xl">
+            <span class="font-700 text-primary">
               {toNum0(p.result.nRowsTotal)}
             </span>
           </div>
@@ -63,7 +63,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Invalid: Missing Facility ID", fr: "Invalide : identifiant d'établissement manquant", pt: "Inválido: ID do estabelecimento em falta" })}
             </span>
-            <span class="font-700 text-danger font-mono text-xl">
+            <span class="font-700 text-danger">
               {toNum0(p.result.nRowsInvalidMissingFacilityId)}
             </span>
           </div>
@@ -71,7 +71,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Invalid: Facility Not Found", fr: "Invalide : établissement introuvable", pt: "Inválido: estabelecimento não encontrado" })}
             </span>
-            <span class="font-700 text-danger font-mono text-xl">
+            <span class="font-700 text-danger">
               {toNum0(p.result.nRowsInvalidFacilityNotFound)}
             </span>
           </div>
@@ -79,7 +79,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Duplicate Rows", fr: "Lignes en double", pt: "Linhas duplicadas" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nRowsDuplicated)}
             </span>
             <span class="text-base-content-muted text-sm">
@@ -95,7 +95,7 @@ export function HfaStagingSummary(p: Props) {
               <span class="text-base-content text-sm">
                 {t3({ en: "Rows Removed by Filter", fr: "Lignes supprimées par le filtre", pt: "Linhas removidas pelo filtro" })}
               </span>
-              <span class="font-700 font-mono text-xl">
+              <span class="font-700">
                 {toNum0(p.result.nRowsFilteredOut)}
               </span>
             </div>
@@ -112,7 +112,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Variable labels extracted", fr: "Libellés de variables extraits", pt: "Etiquetas de variáveis extraídas" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nDictionaryVariables)}
             </span>
           </div>
@@ -120,7 +120,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "Value labels extracted", fr: "Libellés de valeurs extraits", pt: "Etiquetas de valores extraídas" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nDictionaryValues)}
             </span>
           </div>
@@ -128,7 +128,7 @@ export function HfaStagingSummary(p: Props) {
             <span class="text-base-content text-sm">
               {t3({ en: "select_multiple questions expanded", fr: "Questions select_multiple développées", pt: "Questões select_multiple expandidas" })}
             </span>
-            <span class="font-700 font-mono text-xl">
+            <span class="font-700">
               {toNum0(p.result.nSelectMultipleExpanded)}
             </span>
           </div>
@@ -137,7 +137,7 @@ export function HfaStagingSummary(p: Props) {
               <span class="text-base-content text-sm">
                 {t3({ en: "XLSForm questions not in CSV (ok)", fr: "Questions XLSForm absentes du CSV (ok)", pt: "Questões XLSForm ausentes do CSV (ok)" })}
               </span>
-              <span class="font-700 font-mono text-xl">
+              <span class="font-700">
                 {toNum0(p.result.nXlsFormQuestionsNotInCsv)}
               </span>
             </div>
@@ -147,7 +147,7 @@ export function HfaStagingSummary(p: Props) {
               <span class="text-base-content text-sm">
                 {t3({ en: "CSV columns not in XLSForm (skipped)", fr: "Colonnes CSV absentes du XLSForm (ignorées)", pt: "Colunas CSV ausentes do XLSForm (ignoradas)" })}
               </span>
-              <span class="font-700 font-mono text-xl">
+              <span class="font-700">
                 {toNum0(p.result.nCsvColsNotInXlsForm)}
               </span>
             </div>

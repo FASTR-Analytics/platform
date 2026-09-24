@@ -253,20 +253,20 @@ export function Step5Import(p: Props) {
                 <span class="text-base-content">
                   {t3({ en: "Facilities added:", fr: "Établissements ajoutés :", pt: "Estabelecimentos adicionados:" })}
                 </span>
-                <span class="font-700 font-mono">{toNum0(summary.inserted)}</span>
+                <span class="font-700">{toNum0(summary.inserted)}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-base-content">
                   {t3({ en: "Facilities updated:", fr: "Établissements mis à jour :", pt: "Estabelecimentos atualizados:" })}
                 </span>
-                <span class="font-700 font-mono">{toNum0(summary.updated)}</span>
+                <span class="font-700">{toNum0(summary.updated)}</span>
               </div>
               <Show when={summary.deleted > 0}>
                 <div class="flex justify-between">
                   <span class="text-base-content">
                     {t3({ en: "Facilities deleted:", fr: "Établissements supprimés :", pt: "Estabelecimentos eliminados:" })}
                   </span>
-                  <span class="text-danger font-700 font-mono">
+                  <span class="text-danger font-700">
                     {toNum0(summary.deleted)}
                   </span>
                 </div>
@@ -317,7 +317,7 @@ export function Step5Import(p: Props) {
                 <span class="text-base-content">
                   {t3({ en: "Facilities in your file:", fr: "Établissements dans votre fichier :", pt: "Estabelecimentos no seu ficheiro:" })}
                 </span>
-                <span class="font-700 font-mono">
+                <span class="font-700">
                   {toNum0(p.step3Result.facilitiesPreview)}
                 </span>
               </div>
@@ -329,7 +329,7 @@ export function Step5Import(p: Props) {
                         {t3({ en: "Already exist in the backbone:", fr: "Déjà présents dans la structure :", pt: "Já existem na estrutura:" })}
                       </span>
                       <span
-                        class="font-mono font-700"
+                        class="font-700"
                         classList={{ "text-danger": m.existing === 0 }}
                       >
                         {toNum0(m.existing)}
@@ -339,7 +339,7 @@ export function Step5Import(p: Props) {
                       <span class="text-base-content">
                         {t3({ en: "New (not in the backbone):", fr: "Nouveaux (absents de la structure) :", pt: "Novos (ausentes da estrutura):" })}
                       </span>
-                      <span class="font-mono">{toNum0(m.newCount)}</span>
+                      <span>{toNum0(m.newCount)}</span>
                     </div>
                     <Show when={m.existing === 0}>
                       <div class="text-danger text-sm">
