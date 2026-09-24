@@ -117,7 +117,11 @@ violation per check against a synthetic tree.
 ## Boot
 
 `client/src/index.tsx` runs exactly three panther setters before
-`render(<App />)`: `setKeyColors(_KEY_COLORS)`, `setBaseText`,
+`render(<App />)`: `setKeyColorsFromCss({ remapNearBlackOnDark: true })`,
+which reads both halves of every CSS `--color-*` token so a figure's key
+colours are the UI's in either scheme (the stored scheme is already on
+`<html>` by then, which is why the helper pins its probe's scheme rather
+than reading the document's), `setBaseText`,
 `setGlobalStyle(GLOBAL_STYLE_OPTIONS)`. The option objects of the latter two
 (`BASE_TEXT_OPTIONS`, `GLOBAL_STYLE_OPTIONS`) are **deep-imported from
 `generate_visualization/get_style_from_po/_0_common`** (S10-owned files), so

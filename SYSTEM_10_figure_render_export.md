@@ -700,9 +700,10 @@ is 800).
 brand `ColorPreset`s (`gff` #09544F, `nigeria` #027D53) consumed by the theme
 picker, `resolveColorThemeToPreset`, the deck-config schema, and the S2
 `slide_deck_config` transform's legacy-hex repair.
-[lib/key_colors.ts](lib/key_colors.ts) is installed into panther at boot
-(`setKeyColors(_KEY_COLORS)`, `client/src/index.tsx`) and carries the CF
-traffic-light palette + qualitative scales (15 consumer files, including the
+[lib/key_colors.ts](lib/key_colors.ts) mirrors the light halves of panther's
+CSS `--color-*` tokens for the deck presets, which resolve outside the DOM
+(the client's canvas keys are read from the CSS itself at boot, S14 "Boot"),
+and carries the CF traffic-light palette + qualitative scales (15 consumer files, including the
 style builders and the legend builder `conditional_formatting.ts`).
 
 ## Report document rendering (generate_report)

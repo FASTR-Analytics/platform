@@ -2,10 +2,13 @@ export const _PRIMARY_GFF = "#0E706C";
 export const _GFF_GREEN = "#09544F";
 export const _NIGERIA_GREEN = "#027D53";
 
+// The light halves of panther's CSS --color-* tokens, for the deck colour
+// presets that resolve outside the DOM. The client's canvas keys are read
+// from the CSS itself at boot (setKeyColorsFromCss).
 export const _KEY_COLORS = {
   base100: "white",
   base200: "#F2F2F2",
-  base300: "#CACACA",
+  base300: "#E4E4E4",
   baseContent: "#2A2A2A",
   primary: _PRIMARY_GFF,
   primaryContent: "white",
