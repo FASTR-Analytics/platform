@@ -16,18 +16,23 @@ import {
   Select,
   StateHolderWrapper,
 } from "panther";
-import { createMemo, createSignal, type JSX, Show } from "solid-js";
+import { createMemo, type JSX, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import {
+  exploreAdminArea2,
   exploreFamily,
   exploreModules,
+  explorePackageId,
+  exploreQueries,
+  setExploreAdminArea2,
   setExploreFamily,
   setExploreModule,
-} from "~/state/t4_ui";
+  setExplorePackageId,
+  setExploreQuery,
+} from "~/state/t4_explore";
 import { EmptyState } from "./_shared/mod.ts";
-import type { QueriesByFamily } from "./data_table/mod.ts";
 import { ModuleNav, modulesInFamily } from "./module_nav";
 import { ModuleView } from "./module_view";
 
@@ -41,25 +46,19 @@ function familiesInPackage(ctx: RunAuthoringContext): DatasetType[] {
 
 // The Explore page: one package at one scope, its families as tabs, each
 // family's modules in a left nav and the chosen module's views on the right.
-// The package starts at the pin (else the newest ready package) and the scope
-// national on every mount; neither is stored, so a deleted package can never
-// be a stored default. The family and the module per family persist in
-// t4_ui. Nothing here is written anywhere.
+// Every selection lives in t4_explore. The package falls back to the pin,
+// else the newest ready package, whenever the chosen one is not ready.
+// Nothing here is written anywhere.
 export function Explore() {
-  const [chosenPackageId, setChosenPackageId] = createSignal<string | null>(
-    null,
-  );
   const packageId = createMemo((): string | undefined => {
     const packages = instanceState.readyPackages;
-    const chosen = chosenPackageId();
+    const chosen = explorePackageId();
     if (chosen !== null && packages.some((p) => p.id === chosen)) return chosen;
     const pinned = instanceState.pinnedRunId;
     if (pinned !== null && packages.some((p) => p.id === pinned)) return pinned;
     return packages.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
       ?.id;
   });
-  const [adminArea2, setAdminArea2] = createSignal<string | null>(null);
-  const [gridQueries, setGridQueries] = createSignal<QueriesByFamily>({});
   const areas = createQuery<string[]>(() => serverActions.listAdminArea2s({}));
   const areaOptions = createMemo(() => {
     const state = areas.state();
@@ -89,7 +88,7 @@ export function Explore() {
     >
       {(runId) => (
         <PackageExplorer
-          scope={{ runId, adminArea2: adminArea2() }}
+          scope={{ runId, adminArea2: exploreAdminArea2() }}
           controls={
             <div class="ui-gap-sm flex items-center">
               <Select
@@ -98,19 +97,17 @@ export function Explore() {
                   value: pkg.id,
                   label: pkg.label,
                 }))}
-                onChange={setChosenPackageId}
+                onChange={setExplorePackageId}
                 size="sm"
               />
               <Select
-                value={adminArea2() ?? NATIONAL}
+                value={exploreAdminArea2() ?? NATIONAL}
                 options={areaOptions()}
-                onChange={(v) => setAdminArea2(v === NATIONAL ? null : v)}
+                onChange={(v) => setExploreAdminArea2(v === NATIONAL ? null : v)}
                 size="sm"
               />
             </div>
           }
-          gridQueries={gridQueries()}
-          setGridQueries={setGridQueries}
         />
       )}
     </Show>
@@ -122,8 +119,6 @@ export function Explore() {
 function PackageExplorer(p: {
   scope: PackageScope;
   controls: JSX.Element;
-  gridQueries: QueriesByFamily;
-  setGridQueries: (queries: QueriesByFamily) => void;
 }) {
   const context = createQuery(
     () => getRunAuthoringContextFromCacheOrFetch(p.scope.runId),
@@ -169,8 +164,8 @@ function PackageExplorer(p: {
                 ctx={ctx}
                 scope={p.scope}
                 family={f}
-                query={p.gridQueries[f]}
-                setQuery={(q) => p.setGridQueries({ ...p.gridQueries, [f]: q })}
+                query={exploreQueries()[f]}
+                setQuery={(q) => setExploreQuery(f, q)}
               />
             )}
           </Show>

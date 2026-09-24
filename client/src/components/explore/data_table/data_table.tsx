@@ -55,8 +55,6 @@ import { columnLabel, Grid, GridMessage, type GridProps } from "./grid";
 import { Toolbar } from "./toolbar";
 import { createTrackedQuery } from "./tracked_query";
 
-export type QueriesByFamily = Partial<Record<DatasetType, GridQuery>>;
-
 // The Data table view: a metric read as a grid of units by indicators or by
 // time, the view's choice. The controls' state is one GridQuery per family,
 // owned by the page so it outlives a package, scope or module change; each

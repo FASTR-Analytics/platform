@@ -6,7 +6,7 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import { MODULE_FAMILY_ORDER, type DatasetType, type ListSort, type SlideType } from "lib";
+import type { ListSort, SlideType } from "lib";
 
 // ============================================================================
 // Instance shell
@@ -21,45 +21,6 @@ export const [navCollapsed, setNavCollapsedInternal] = createSignal<boolean>(
 export function setNavCollapsed(collapsed: boolean) {
   localStorage.setItem("navCollapsed", String(collapsed));
   setNavCollapsedInternal(collapsed);
-}
-
-// The Explore page's family tab and, per family, the chosen module id,
-// persisted and resolved against the package on read. The package and scope are page signals, never stored (SYSTEM_11).
-const storedExploreFamily = localStorage.getItem(
-  "exploreFamily",
-) as DatasetType | null;
-export const [exploreFamily, setExploreFamilyInternal] = createSignal<
-  DatasetType
->(storedExploreFamily ?? "hmis");
-export function setExploreFamily(family: DatasetType) {
-  localStorage.setItem("exploreFamily", family);
-  setExploreFamilyInternal(family);
-}
-
-type ExploreModules = Partial<Record<DatasetType, string>>;
-function readStoredExploreModules(): ExploreModules {
-  try {
-    const parsed: unknown = JSON.parse(
-      localStorage.getItem("exploreModules") ?? "{}",
-    );
-    if (typeof parsed !== "object" || parsed === null) return {};
-    return Object.fromEntries(
-      MODULE_FAMILY_ORDER.flatMap((family) => {
-        const id = (parsed as Record<string, unknown>)[family];
-        return typeof id === "string" ? [[family, id]] : [];
-      }),
-    );
-  } catch {
-    return {};
-  }
-}
-export const [exploreModules, setExploreModulesInternal] = createSignal<
-  ExploreModules
->(readStoredExploreModules());
-export function setExploreModule(family: DatasetType, moduleId: string) {
-  const next = { ...exploreModules(), [family]: moduleId };
-  localStorage.setItem("exploreModules", JSON.stringify(next));
-  setExploreModulesInternal(next);
 }
 
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole

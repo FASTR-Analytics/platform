@@ -7,6 +7,7 @@ globs:
   - client/src/components/_shared/figure_preview.ts
   - client/src/components/products/_shared/insert_figure/**
   - client/src/state/instance/_util_disaggregation_label.ts
+  - client/src/state/t4_explore.ts
   - lib/convert_visualization_type.ts
   - lib/derive_default_visualizations.ts
   - lib/disaggregation_labels.ts
@@ -203,11 +204,14 @@ approved user: a compact `HeadingBar` whose tabs are the families the
 package has any module for, in `MODULE_FAMILY_ORDER`, with a package
 `Select` over `instanceState.readyPackages` (opening on the pin, else the
 newest ready package) and an area `Select` over `listAdminArea2s` whose
-first option is National. The package and area are page signals, never
-stored, so a deleted package can never be a stored default; the family
-(`exploreFamily`) and the chosen module per family (`exploreModules`)
-persist in `t4_ui` (S14) and are resolved against the package on every read,
-so a stored choice the package lacks falls back to the first offered. The
+first option is National. Every selection lives in `state/t4_explore.ts`,
+module level so it outlives the page's mount: the family (`exploreFamily`),
+the module per family (`exploreModules`) and the view per module
+(`exploreViews`) persist in localStorage; the package, the area and the
+per-family query (`exploreQueries`) last the session, so a deleted package
+can never be a stored default. Each is resolved against the package on every
+read: a choice the package lacks falls back to the first offered (the
+package to the pin, else the newest ready one) without being overwritten. The
 authoring context is read through `t2_run_authoring_context`. The page
 writes nothing: no insert into a product, no persisted draft, no copilot, no
 help buttons.
@@ -234,8 +238,8 @@ dropped indicators through a package switch).
 are the unit (admin areas at one level, or an ICEH stratifier's levels) and
 whose columns are indicators or time, the view's choice. Its controls' state
 is a `GridQuery` per family
-("Grid query model" below), owned by the page so a package, scope or module
-change never resets it; until the user edits a family's query it is
+("Grid query model" below), held in `t4_explore` so a package, scope or
+module change, or leaving the page, never resets it; until the user edits a family's query it is
 `defaultGridQuery` for the current scope. Every read resolves the query
 first (`resolveGridQuery`); indicators the package lacks stay in state and a
 one-line notice above the grid offers Clear. The toolbar's top row holds
@@ -381,9 +385,9 @@ passed beside the query to `resolveGridQuery` and `deriveGridConfig`.
 query ("Timeseries" above). `primaryMetricFor` is the family's primary module's first
 ready metric by id, the one metric the page offers a data table for.
 `defaultGridQuery` opens at the scope's level plus one
-(national: admin area 2; an admin area 2 scope: 3), every indicator, HMIS on
-the last 12 months, HFA on its latest time point and ICEH on its first
-stratifier and latest year. `resolveGridQuery` maps the
+(national: admin area 2; an admin area 2 scope: 3), every indicator, ICEH
+on its first stratifier, and every period ("All"); in Indicators mode HFA
+and ICEH resolve that to their latest time point or year. `resolveGridQuery` maps the
 query onto what the current package and scope can answer on every read and
 never rewrites the caller's state: an unoffered family becomes the first
 offered, a level becomes one the metric's `disaggregationOptions` carry and

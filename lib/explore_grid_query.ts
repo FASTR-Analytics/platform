@@ -206,15 +206,11 @@ export function defaultGridQuery(
         scope,
       ),
     };
-  const latest = availableTimeValues(family, available).at(-1);
-  const period: GridPeriod = family === "hmis"
-    ? { kind: "window", filter: { filterType: "last_n_months", nMonths: 12 } }
-    : { kind: "values", values: latest === undefined ? [] : [latest] };
   return {
     family,
     unit,
     indicators: [],
-    period,
+    period: { kind: "values", values: [] },
     grain: "period_id",
   };
 }

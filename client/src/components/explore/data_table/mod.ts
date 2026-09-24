@@ -1,1 +1,1 @@
-export { DataTable, type QueriesByFamily } from "./data_table.tsx";
+export { DataTable } from "./data_table.tsx";

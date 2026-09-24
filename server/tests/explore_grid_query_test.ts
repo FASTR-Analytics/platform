@@ -137,12 +137,12 @@ function filterBy(query: GridQuery, columns: GridColumns = "indicators", ctx = C
 
 // Defaults
 
-Deno.test("default: HMIS national opens at level 2 on the last 12 months", () => {
+Deno.test("default: HMIS national opens at level 2 on every period", () => {
   assertEquals(defaultGridQuery("hmis", NATIONAL, CTX, AVAILABLE), {
     family: "hmis",
     unit: { kind: "admin", level: "admin_area_2" },
     indicators: [],
-    period: { kind: "window", filter: { filterType: "last_n_months", nMonths: 12 } },
+    period: { kind: "values", values: [] },
     grain: "period_id",
   });
 });
@@ -154,21 +154,25 @@ Deno.test("default: HMIS under an admin area 2 scope opens at level 3", () => {
   });
 });
 
-Deno.test("default: HFA opens on its latest time point at the scope's level plus one", () => {
+Deno.test("default: HFA opens on every time point, resolved to the latest in Indicators mode", () => {
   const national = defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE);
   assertEquals(national.unit, { kind: "admin", level: "admin_area_2" });
-  assertEquals(national.period, { kind: "values", values: ["Round 2"] });
+  assertEquals(national.period, { kind: "values", values: [] });
+  assertEquals(
+    resolveGridQuery(national, "indicators", NATIONAL, CTX, AVAILABLE).query.period,
+    { kind: "values", values: ["Round 2"] },
+  );
   assertEquals(defaultGridQuery("hfa", KANO, CTX, AVAILABLE).unit, {
     kind: "admin",
     level: "admin_area_3",
   });
 });
 
-Deno.test("default: ICEH opens on the first stratifier and the latest year under any scope", () => {
+Deno.test("default: ICEH opens on the first stratifier and every year under any scope", () => {
   for (const scope of [NATIONAL, KANO]) {
     const q = defaultGridQuery("iceh", scope, CTX, AVAILABLE);
     assertEquals(q.unit, { kind: "strat", strat: "wealth_quintiles" });
-    assertEquals(q.period, { kind: "values", values: ["2018"] });
+    assertEquals(q.period, { kind: "values", values: [] });
   }
 });
 
@@ -273,7 +277,7 @@ Deno.test("derive: HMIS Time mode puts the grain in columns and indicators in co
   ]);
   const config = deriveGridConfig(q, "time", CTX, "en")?.config;
   assertEquals(config?.d.type, "table");
-  assertEquals(config?.d.periodFilter, { filterType: "last_n_months", nMonths: 12 });
+  assertEquals(config?.d.periodFilter, undefined);
 });
 
 Deno.test("derive: HFA Time mode uses time points and filters the chosen ones", () => {
@@ -294,7 +298,7 @@ Deno.test("derive: HFA Time mode uses time points and filters the chosen ones", 
 });
 
 Deno.test("derive: HFA Indicators mode filters its one time point", () => {
-  const q = defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE);
+  const q = resolveGridQuery(defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE), "indicators", NATIONAL, CTX, AVAILABLE).query;
   assertEquals(filterBy(q), [{ disOpt: "time_point", values: ["Round 2"] }]);
   assertEquals(
     deriveGridConfig({ ...q, period: { kind: "values", values: [] } }, "indicators", CTX, "en"),
@@ -303,7 +307,7 @@ Deno.test("derive: HFA Indicators mode filters its one time point", () => {
 });
 
 Deno.test("derive: ICEH rows are the stratifier's levels, never rolled up", () => {
-  const q = defaultGridQuery("iceh", NATIONAL, CTX, AVAILABLE);
+  const q = resolveGridQuery(defaultGridQuery("iceh", NATIONAL, CTX, AVAILABLE), "indicators", NATIONAL, CTX, AVAILABLE).query;
   assertEquals(disaggregateBy(q), [
     { disOpt: "level", disDisplayOpt: "row" },
     { disOpt: "iceh_indicator", disDisplayOpt: "col" },
@@ -316,7 +320,7 @@ Deno.test("derive: ICEH rows are the stratifier's levels, never rolled up", () =
 });
 
 Deno.test("derive: ICEH filters the chosen stratifier and its one year", () => {
-  const q = defaultGridQuery("iceh", NATIONAL, CTX, AVAILABLE);
+  const q = resolveGridQuery(defaultGridQuery("iceh", NATIONAL, CTX, AVAILABLE), "indicators", NATIONAL, CTX, AVAILABLE).query;
   assertEquals(filterBy(q), [
     { disOpt: "strat", values: ["wealth_quintiles"] },
     { disOpt: "year", values: ["2018"] },
@@ -332,7 +336,7 @@ Deno.test("derive: HMIS timeseries is lines over the grain with a pane per indic
   assertEquals(config?.d.valuesDisDisplayOpt, "series");
   assertEquals(config?.d.disaggregateBy, [{ disOpt: "indicator_common_id", disDisplayOpt: "cell" }]);
   assertEquals(config?.d.filterBy, []);
-  assertEquals(config?.d.periodFilter, { filterType: "last_n_months", nMonths: 12 });
+  assertEquals(config?.d.periodFilter, undefined);
   assertEquals(config?.s.content, "lines");
   assertEquals([config?.t.caption, config?.t.subCaption, config?.t.footnote], ["", "", ""]);
   assertEquals(deriveTimeseriesConfig(defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE), CTX, "en"), undefined);

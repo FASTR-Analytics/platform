@@ -11,7 +11,8 @@ import {
   type RunAuthoringContext,
 } from "lib";
 import { Select } from "panther";
-import { createMemo, createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
+import { createMemo, For, type JSX, Match, Show, Switch } from "solid-js";
+import { exploreViews, setExploreView } from "~/state/t4_explore";
 import { EmptyState } from "./_shared/mod.ts";
 import { DataTable } from "./data_table/mod.ts";
 import { Timeseries } from "./timeseries";
@@ -81,9 +82,8 @@ type ViewProps = {
 export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
   const metrics = createMemo(() => moduleMetrics(p.module, p.ctx));
   const views = createMemo(() => viewsFor(p.module, p.family, p.ctx));
-  const [chosen, setChosen] = createSignal<string | undefined>();
   const view = createMemo(() =>
-    views().find((v) => v.id === chosen()) ?? views()[0]
+    views().find((v) => v.id === exploreViews()[p.module.id]) ?? views()[0]
   );
 
   return (
@@ -107,7 +107,7 @@ export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
                 <Select
                   value={v().id}
                   options={views().map((x) => ({ value: x.id, label: x.label }))}
-                  onChange={setChosen}
+                  onChange={(id) => setExploreView(p.module.id, id)}
                   fullWidth
                 />
               </div>

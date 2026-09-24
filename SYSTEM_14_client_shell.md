@@ -250,13 +250,11 @@ Whether every literal is well-formed across the 241-file surface is the standing
 ## UI preferences (`state/t4_ui.ts`)
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
-then the signal: the rail's `navCollapsed`; the Explore page's family
-`exploreFamily` and its module per family `exploreModules`, a JSON
-object (its package and scope are page signals, never stored); the
+then the signal: the rail's `navCollapsed`; the
 product explorer's two (`productsExpandedFolders`, the open folder ids as
 a JSON array; `productsSort`, a `ListSort` (`SortMode = "name" | "recent"`
 plus a direction) from `lib/types/sort.ts`, one vocabulary for every list).
-The open-folder set, the sort and the Explore modules
+The open-folder set and the sort
 are parsed defensively (malformed JSON reads as the default); the rest are
 unvalidated on read: they only feed
 comparisons, and a value from a build that spelled one differently
