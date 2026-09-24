@@ -177,11 +177,15 @@ export function TabsNavigation<T extends string = string, M = never>(
       </div>
 
       <Show when={isCollapsible()}>
+        {
+          /* pr-2 plus the icon-only button's own 0.5rem inset puts the chevron
+            on the tabs' pr-4 line. */
+        }
         <div
           class="flex items-center py-4"
           classList={{
             "justify-center": isCollapsed(),
-            "pl-4": !isCollapsed(),
+            "justify-end pr-2": !isCollapsed(),
           }}
         >
           <Button
