@@ -276,6 +276,7 @@ export function InstanceResultsPackages() {
             keyField="id"
             defaultSort={{ key: "createdAt", direction: "desc" }}
             noRowsMessage={noMatchMessage()}
+            onRowClick={(run) => openPackagePage(run.id)}
           />
         </div>
       </Show>
