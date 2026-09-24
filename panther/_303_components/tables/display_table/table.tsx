@@ -477,13 +477,16 @@ function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
     <tr
       class={rowClasses()}
       onClick={(e) => {
+        // A control in a cell owns its click, and a drag that selects cell
+        // text ends in a click too; neither opens the row.
         const target = e.target as HTMLElement;
         if (
-          !p.enableSelection ||
-          (target.tagName !== "INPUT" && !target.closest("label"))
+          target.closest("button, a, input, label, select, textarea") ||
+          (globalThis.getSelection()?.toString() ?? "") !== ""
         ) {
-          p.onRowClick?.(p.item);
+          return;
         }
+        p.onRowClick?.(p.item);
       }}
     >
       <Show when={p.enableSelection}>
