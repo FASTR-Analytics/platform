@@ -6,6 +6,7 @@ import {
   type RunMetric,
   type RunModule,
   type RunProgress,
+  type RunStage,
 } from "lib";
 import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
 import { prepareModuleDefinitionForStorage } from "../../runs/module_config.ts";
@@ -67,9 +68,21 @@ export async function runGenerationPipeline(
     await updateRunProgress(mainDb, std.runId, progress);
     notifyInstanceRunProgress(std.runId, progress);
   };
+  // One push per stage boundary (SYSTEM_08 "The stage"): never per R line
+  // and never per results object.
+  const pushStage = async (stage: RunStage) => {
+    progress.stage = stage;
+    await pushProgress();
+  };
 
-  const prepared = await prepareRunInputs(mainDb, std.step1Result, std.runId);
+  const prepared = await prepareRunInputs(
+    mainDb,
+    std.step1Result,
+    std.runId,
+    pushStage,
+  );
 
+  await pushStage({ kind: "resolving" });
   const resolved = await resolveRunModules(
     mainDb,
     prepared,
@@ -78,6 +91,7 @@ export async function runGenerationPipeline(
   );
   progress.moduleOrder = resolved.map((m) => m.moduleId);
 
+  await pushStage({ kind: "planning" });
   const reuseSearch = await createReuseSearch(mainDb);
   const assetHashCache = new Map<string, string>();
   const planned = await planReuse(
@@ -100,6 +114,7 @@ export async function runGenerationPipeline(
   const upstreamOutputHashes = new Map<string, Record<string, string>>();
   for (const mod of resolved) {
     progress.currentModuleId = mod.moduleId;
+    await pushStage({ kind: "module", moduleId: mod.moduleId });
     const inputs = await computeModuleInputs(
       mod,
       prepared.inputHashes,
@@ -146,6 +161,7 @@ export async function runGenerationPipeline(
     await pushProgress();
   }
   progress.currentModuleId = null;
+  await pushStage({ kind: "finalizing", moduleId: null });
 
   // ONE finalize (§3.8): wholesale manifest + inputs capture via the package
   // builder. The catalog is handed to the builder from THIS generation's
@@ -163,9 +179,12 @@ export async function runGenerationPipeline(
       population: prepared.population,
       extraInputFiles: prepared.extraInputFiles,
     },
+    pushStage,
   );
 
+  await pushStage({ kind: "publishing" });
   await Deno.rename(tmpDir, runDirPath(std.runId));
+  progress.stage = { kind: "ended" };
   await publishReadyRun(mainDb, {
     runId: std.runId,
     summary,

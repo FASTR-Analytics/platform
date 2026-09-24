@@ -375,10 +375,11 @@ package's products (`setProductPackage`, `deleteProducts`, `duplicateProduct`).
 product to a package and send no nonce, so an open catalogue's "in use by"
 list lags until its next refetch. The delete guard reads the database, so it
 stays correct.
-A visitor arriving mid-generation sees launch-time progress chips until the
-next per-module push: the `run_progress` listeners are page-local and
-`updateRunProgress` deliberately does not signal the catalogue: per-module
-signal spam is worse than a bounded-stale chip row (ruled). The listeners
+A visitor arriving mid-generation sees the stored progress (the stage and
+chips as of the last push) until the next stage push: the `run_progress`
+listeners are page-local and `updateRunProgress` deliberately does not
+signal the catalogue: per-push signal spam is worse than a bounded-stale
+chip row (ruled). The listeners
 live in `results_packages.tsx`, which stays mounted under the open page, and
 the page reads them through accessor props. The package page is the ONLY
 surface that renders a non-ready run, and the only surface that renders a
@@ -798,6 +799,37 @@ inputKeys searched catalog-wide across every ready run, newest first, with no
 base run at all: reused modules copy raw CSVs and skip R); finalize
 (`server/runs/build_run_package.ts`'s `buildRunPackageIntoTmp`, parquet +
 manifest rebuilt fresh every generation).
+
+**The stage.** `runs.progress` (`RunProgress`, `lib/types/run_generation.ts`)
+carries a required `stage`, a discriminated union with no free text: `queued`,
+`exporting {family}`, `converting {family}`, `resolving`, `planning`,
+`module {moduleId}`, `finalizing {moduleId | null}`, `publishing`, `ended`.
+The pipeline sets it at every stage boundary and pushes it through the one
+`pushProgress` (one `updateRunProgress` and one `notifyInstanceRunProgress`):
+launch mints the row `queued`; `prepareRunInputs` reports `exporting` before
+each family capture and `converting` before each parquet write through its
+`onStage` parameter; the pipeline pushes `resolving` before
+`resolveRunModules`, `planning` before `createReuseSearch`, `module` at the
+top of each module iteration (before the input hashing and the reuse lookup,
+so a reused module's copy shows activity too), `finalizing null` with
+`currentModuleId` cleared after the loop, and `publishing` before the rename;
+`buildRunPackageIntoTmp` reports `finalizing {moduleId}` through its
+`onStage` before each module's results objects (only a module that declares
+some); `publishReadyRun` stores `ended`. A push happens per boundary, never
+per R line and never per results object: about thirty row updates for a
+twelve-module run. `markRunGenerationFailed` leaves the stage as it finds
+it, so a failed run names the stage it died in; its fallback for an
+unparsable blob is `ended`. The pipeline is the only caller of both
+`onStage` parameters, and the three capture functions take no progress
+callback of their own. Everything derived from the stage lives in
+`lib/run_progress.ts`: `runProgressSteps` gives the fraction as equal-weighted
+steps (prepare, resolve plus plan, each module, finalize: `moduleOrder.length
++ 3` in total) from the stage alone, so it is monotonic whatever the reuse
+plan pre-marks (pinned by `server/tests/run_progress_test.ts`), and
+`runStageLabel` gives the translated sentence from the kind and payload
+(family names from `getModuleFamilyLabel`, module names from the registry).
+Rows written before the stage existed are brought forward at boot by the
+`runs_progress` data transform (S2), which stamps `ended`.
 Boot recovery: `markInterruptedGeneratingRuns` + `.tmp-` sweep.
 Generations run concurrently: a generation writes only its own run dir and
 catalog row, so no two launches can conflict. The host's `GENERATING_BY_RUN`

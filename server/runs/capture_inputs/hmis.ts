@@ -110,7 +110,6 @@ export type DatasetHmisRunCapture = {
 export async function computeDatasetHmisRunCapture(
   mainDb: Sql,
   csvTarget: DatasetCsvTarget,
-  onProgress?: (progress: number, message: string) => Promise<void>
 ): Promise<APIResponseWithData<DatasetHmisRunCapture>> {
   return await tryCatchDatabaseAsync(async () => {
     // A per-pair DHIS2 run mutates dataset_hmis for hours; exporting during
@@ -125,7 +124,6 @@ export async function computeDatasetHmisRunCapture(
     // The version is also the staleness marker, so it is captured before
     // the export (a hash-after-export could be taken after a concurrent
     // instance import committed, masking the staleness forever).
-    if (onProgress) await onProgress(0.1, "Validating configuration...");
     const version = await getCurrentDatasetHmisVersion(mainDb);
     assertNotUndefined(version, "Cannot get hmis version");
 
@@ -178,7 +176,6 @@ export async function computeDatasetHmisRunCapture(
       analysed,
     );
 
-    if (onProgress) await onProgress(0.3, "Counting rows to export...");
     // Count total rows that will be exported
     const rowCountResult = await mainDb<{ count: string }[]>`
       SELECT COUNT(*) as count FROM (${mainDb.unsafe(exportStatement)}) as sq
@@ -208,7 +205,6 @@ export async function computeDatasetHmisRunCapture(
       countIndicatorsVersion,
     };
 
-    if (onProgress) await onProgress(0.5, "Exporting data to CSV...");
     // Use COPY with optimized settings for better performance
     await mainDb.unsafe(`
 COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADER true, FREEZE false)
