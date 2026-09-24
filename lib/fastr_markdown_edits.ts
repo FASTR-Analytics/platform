@@ -875,10 +875,11 @@ export function statTilesSnippet(cols: number, label = "Stat"): string {
   return [`:::tiles{cols=${c}}`, ...tiles, ":::"].join("\n");
 }
 
-// `:::columns{cols=N}` with N `:::col` blocks, each holding one body line.
-export function columnsSnippet(cols: number, body = "Text"): string {
+// `:::columns{cols=N}` with N `:::col` blocks, each a heading over one body
+// line: two text boxes, the shape the AI writes and the templates use.
+export function columnsSnippet(cols: number, body = "Text", heading = "Heading"): string {
   const c = Math.max(1, Math.min(TILES_MAX_COLS, cols));
-  const columns = Array.from({ length: c }, () => `:::col\n${body}\n:::`);
+  const columns = Array.from({ length: c }, () => `:::col\n### ${heading}\n${body}\n:::`);
   return [`:::columns{cols=${c}}`, ...columns, ":::"].join("\n");
 }
 
@@ -990,7 +991,7 @@ export function tilesChildInfo(
 
 // The new sibling's text: a stat's label, a card's title, and the body line
 // a new card or column starts with.
-export type TilesChildLabels = { tile: string; card: string; body: string };
+export type TilesChildLabels = { tile: string; card: string; body: string; heading?: string };
 
 // Add, remove or re-column the siblings around a stat tile or card. Inside a
 // grid the column count FOLLOWS the child count while it fits (three + one =
@@ -1016,7 +1017,7 @@ export function applyTilesChildAction(
     ? `:::stat{value="0" label="${labels.tile}"}`
     : info.kind === "card"
     ? `:::card{title="${labels.card}"}\n${labels.body}\n:::`
-    : `:::col\n${labels.body}\n:::`;
+    : `:::col\n### ${labels.heading ?? "Heading"}\n${labels.body}\n:::`;
   const changes: TextEdit[] = [];
   const nextCount = tiles ? tiles.count + (action === "delete" ? -1 : 1) : undefined;
   if (tiles && nextCount === 0) {

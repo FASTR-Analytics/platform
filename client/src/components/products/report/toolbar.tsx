@@ -498,6 +498,7 @@ export function ReportToolbar(p: Props) {
                                 ? columnsSnippet(
                                   n,
                                   t3({ en: "Text", fr: "Texte", pt: "Texto" }),
+                                  t3({ en: "Heading", fr: "Titre", pt: "Título" }),
                                 )
                                 : stepsSnippet(
                                   n,

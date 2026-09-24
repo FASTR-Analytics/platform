@@ -1837,3 +1837,14 @@ Deno.test("templates: the choice survives the config schema and reads back total
   assertEquals(r.getFastrReportTemplate({ template: "nonsense" as never }), undefined);
   assertEquals(r.getFastrReportTemplate(undefined), undefined);
 });
+
+Deno.test("a columns row with any coloured column is a row of panels", () => {
+  const cls = (body: string) => /class="([^"]*fm-columns[^"]*)"/.exec(renderFastrMarkdownToHtml(body, { lineAnchors: false }))?.[1] ?? "";
+  const row = (a: string, b: string) => `:::columns{cols=2}\n:::col${a}\n### H\nx\n:::\n:::col${b}\n### H\ny\n:::\n:::`;
+  assert(!cls(row("", "")).includes("fm-columns--panels"));
+  assert(cls(row("{tone=accent}", "")).includes("fm-columns--panels"));
+  assert(cls(row("", '{bg="#0b3d2e"}')).includes("fm-columns--panels"));
+  // tone=default is no colour; a coloured col nested deeper is not the row's.
+  assert(!cls(row("{tone=default}", "")).includes("fm-columns--panels"));
+  assert(!cls(":::columns{cols=1}\n:::col\n:::callout{tone=ink}\nz\n:::\n:::\n:::").includes("fm-columns--panels"));
+});
