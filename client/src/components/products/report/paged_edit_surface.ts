@@ -29,6 +29,8 @@ import {
 import {
   attachAttrEditor,
   attachCellContextMenu,
+  attachColumnHeadingGhost,
+  columnNeedsHeadingGhost,
   attachCellEditor,
   attachStatEditors,
   attachStepsChildContextMenu,
@@ -302,6 +304,16 @@ export function createPagedEditSurface(
       if (!fence) continue;
       if (fence.name === "card" || fence.name === "col") {
         attachTilesChildContextMenu(container, view, rel + 1);
+      }
+      // A headingless column: a ghost heading, shown on hover by the
+      // surface's ghost CSS like a missing kicker.
+      if (
+        fence.name === "col" && columnNeedsHeadingGhost(view.state.doc, rel + 1) &&
+        container.querySelector(":scope > .cm-fm-col-ghost") === null
+      ) {
+        const ghostEl = doc.createElement("h3");
+        container.prepend(ghostEl);
+        attachColumnHeadingGhost(ghostEl, view, rel + 1);
       }
       for (const [rootCls, childCls, attr, placeholder, ghost] of rows) {
         if (!container.classList.contains(rootCls)) continue;
