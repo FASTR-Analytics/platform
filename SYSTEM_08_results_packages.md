@@ -1129,6 +1129,10 @@ refuses any run a product points at.
   can't drift (`server/server_only_funcs/get_script_with_parameters*.ts`).
 - **Naming drift:** the worker preambles differ in their `console.error`
   prefix (converges under enforcement item 8).
+- **Two copies of the registry label lookup**: `moduleLabel` in
+  `client/src/components/results_packages/package_view/status.tsx` and the
+  private `moduleLabel` in `lib/run_progress.ts` are the same four lines.
+  Export the lib one and have the client import it.
 - **Read-path mirror tolerance, two files**: `readInputRows` (`run_read.ts`)
   yields `[]` for any mirror absent from `manifest.inputFiles`, which for the
   two HFA variant snapshots (`hfa_indicator_variant_groups_snapshot.json`,
