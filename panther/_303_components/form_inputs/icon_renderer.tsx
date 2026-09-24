@@ -34,7 +34,7 @@ export function IconRenderer(p: IconRendererProps) {
           >
             <Dynamic
               component={iconOrFallback(iconName)}
-              class={p.size === "sm" ? "h-[1em] w-[1em]" : undefined}
+              class={p.size === "sm" ? "h-[1.125em] w-[1.125em]" : undefined}
             />
           </span>
         );
