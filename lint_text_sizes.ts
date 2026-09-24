@@ -1,14 +1,15 @@
 #!/usr/bin/env -S deno run --allow-read --allow-run
 // Text-size lint: every UI text size comes from the rem token scale.
 //
-// Scans the tracked .ts, .tsx and .css files under client/src and
-// panther/_303_components and fails on an arbitrary Tailwind text size
-// (`text-[10px]`), the non-token class `text-md`, or an inline font-size in
-// px or pt. Canvas-rendered and document-rendered text is exempt below.
+// Scans the tracked .ts, .tsx and .css files under client/src,
+// panther/_303_components and panther/_305_ai and fails on an arbitrary
+// Tailwind text size (`text-[10px]`), the non-token class `text-md`, or an
+// inline font-size in px or pt. Canvas-rendered and document-rendered text
+// is exempt below.
 //
 // Run: deno task lint:text-sizes
 
-const ROOTS = ["client/src", "panther/_303_components"];
+const ROOTS = ["client/src", "panther/_303_components", "panther/_305_ai"];
 
 // Files whose text is a rendering of a document or a canvas, not UI, so a
 // pixel size is the contract (PROTOCOL_ALL_SIZING.md).

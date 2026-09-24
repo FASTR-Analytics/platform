@@ -223,12 +223,19 @@ have no title. An in-body count beside a search box is plain body text
 **Text sizes:** the three roles and the rem-only rule are PROTOCOL_UI_STYLING
 ("Type"). `lint:text-sizes` (chained into `deno task typecheck`) fails on an
 arbitrary `text-[Npx]`, `text-md`, or an inline pixel font-size under
-`client/src` and `panther/_303_components`. Document and canvas rendering is
+`client/src`, `panther/_303_components` and `panther/_305_ai`. Document and canvas rendering is
 exempt by file in `lint_text_sizes.ts`: the report page surface
 (`products/report/live_preview_extension.tsx`, pinned to its PDF's
 typography) and the theme miniature (`products/report/fastr_theme_mock.tsx`).
 Add a file there only when its text is a rendering of a document or a
 canvas, not UI.
+
+**Mono:** the face rule is PROTOCOL_UI_STYLING ("Type", Mono). In this app
+that means indicator, DHIS2, variable and category IDs, column names,
+formulas, file names, logs and R scripts are `font-mono`; emails, facility
+and area names, dates, periods and every count are sans, including the
+stats in the import staging summaries, whose emphasis is `font-700` at body
+size.
 
 **Form-draft signals:** draft state under edit uses a `temp*` prefix
 (`tempConfig`, `tempWindowing`); unsaved-changes tracking is a `needsSaving`
