@@ -52,9 +52,9 @@ const slideAdapter: DocRoomAdapter<Slide> = {
   notFoundMessage: "Slide not found",
   seed: seedSlideDoc,
   materialize: materializeSlide,
-  msgSync: (slideId, update, stateVector) => ({
+  msgSync: (slideId, update, stateVector, epoch) => ({
     type: "slide_sync",
-    data: { slideId, update, stateVector },
+    data: { slideId, update, stateVector, epoch },
   }),
   msgUpdate: (slideId, update) => ({
     type: "slide_update",

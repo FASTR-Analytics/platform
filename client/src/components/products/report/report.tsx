@@ -17,6 +17,9 @@ import {
   fastrChartPalette,
   fastrDocumentOutline,
   getReportCustomStyle,
+  getFastrReportTemplate,
+  fastrReportTemplateBody,
+  type FastrReportTemplate,
   getReportFormat,
   getReportHtmlStyle,
   type ImageBlock,
@@ -74,7 +77,7 @@ import {
   setCollabView,
 } from "~/state/instance/collab";
 import { fastrThemeOptions } from "./fastr_theme_labels";
-import { createReportPaginator } from "~/components/products/_shared/mod.ts";
+import { createReportPaginator, ProductTitle } from "~/components/products/_shared/mod.ts";
 import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
@@ -425,6 +428,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     string | undefined
   >(undefined);
   const [session, setSession] = createSignal<ReportSession | null>(null);
+  // The template the report was started from (fastr), for the AI.
+  const [template, setTemplate] = createSignal<FastrReportTemplate | undefined>();
+  // Bumped when the session swaps its doc for one of the server's lineage
+  // (collab.ts, onLineageReset): everything that binds to the doc re-reads it.
+  const [lineage, setLineage] = createSignal(0);
   // Content as fetched at mount, for the first-sync merge rule.
   let loadedSnapshot: ReportDocContent | undefined;
   let removeLastUpdatedListener: (() => void) | undefined;
@@ -1030,6 +1038,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const res = await getReportDetailFromCacheOrFetch(p.productId);
     if (res.success) {
       setFormat(getReportFormat(res.data.config));
+      setTemplate(getFastrReportTemplate(res.data.config));
       if (getReportFormat(res.data.config) === "fastr") setMode("edit");
       htmlStyle = getReportHtmlStyle(res.data.config);
       // Custom style: live ref + snapshot fallback (S12) — prefer the CURRENT
@@ -1147,6 +1156,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             }
           }
         },
+        () => {
+          // The room re-seeded its doc (a fresh lineage of the same text) and
+          // the session adopted it instead of merging: rebind the editor.
+          setLineage((n) => n + 1);
+        },
       );
       setSession(s);
 
@@ -1189,6 +1203,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         // Read live from the T1 row: a reattach remounts the copilot on the new
         // pair, and the tools of that mount see the same pair here (D15).
         getScope: () => requireScope(),
+        getTemplate: () => template(),
         getBody: () => body(),
         getFigures: () => figures(),
         getImages: () => images(),
@@ -1282,6 +1297,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         );
       }
     }
+    // Never dispatch into a view mid-update (see ReportEditorApi.whenIdle).
+    await editorApi?.whenIdle();
     applyingProgrammaticEdit = true;
     const res = editorApi?.applyRebasedBody(baseBody, prop.newBody) ?? {
       applied: 0,
@@ -1547,6 +1564,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           reportLabel: label(),
           fastrTheme: fastrTheme(),
           customStyleId: getReportCustomStyle(loadedConfig)?.id,
+          // A report still holding only its title: the template gallery is
+          // the modal's step 2.
+          offerTemplates: bodyIsSeed() && canEditBody(),
         },
       });
       if (!res) return;
@@ -1565,7 +1585,40 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       setFastrColors(snap?.colors ?? undefined);
       applyFastrTheme(getFastrReportTheme(loadedConfig));
       bumpLastUpdated(res.applied.lastUpdated);
+      if (res.template !== undefined) await applyTemplate(res.template);
       return;
+    }
+  }
+
+  // Whether the body is still what a new report is created with, a title
+  // line alone (whatever the title now says) or nothing: the only state a
+  // template may replace.
+  function bodyIsSeed(): boolean {
+    const text = body().trim();
+    return text.length === 0 || /^#\s[^\n]*$/.test(text);
+  }
+
+  // Step 2 of the theme modal picked a template: its body goes in through
+  // the editor (one transaction, so collaborators and undo see it like any
+  // edit) and the choice is stored on the config, where the AI's
+  // instructions read it.
+  async function applyTemplate(chosen: FastrReportTemplate): Promise<void> {
+    // Someone may have started writing while the gallery was open.
+    if (!bodyIsSeed()) return;
+    const next = fastrReportTemplateBody(chosen, label());
+    await editorApi?.whenIdle();
+    editorApi?.applyRebasedBody(body(), next);
+    setTemplate(chosen);
+    const config = { ...loadedConfig, template: chosen };
+    const saved = await serverActions.updateReportConfig({
+      product_id: p.productId,
+      config,
+    });
+    if (saved.success) {
+      loadedConfig = config;
+      bumpLastUpdated(saved.data.lastUpdated);
+    } else {
+      setSaveError(saved.err);
     }
   }
 
@@ -2073,6 +2126,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               centered={() => mode() === "edit"}
               collab={() => {
                 const s = session();
+                lineage();
                 return collabReady() && s
                   ? { yText: findReportBodyText(s.doc), awareness: s.awareness }
                   : undefined;
@@ -2111,13 +2165,16 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           >
             <HeadingBar
               data-tour="report-toolbar"
-              heading={label()}
+              heading=""
               leftChildren={
-                <Button
-                  id="report-back-button"
-                  iconName="chevronLeft"
-                  onClick={() => p.close(undefined)}
-                />
+                <div class="ui-gap-sm flex items-center">
+                  <Button
+                    id="report-back-button"
+                    iconName="chevronLeft"
+                    onClick={() => p.close(undefined)}
+                  />
+                  <ProductTitle productId={p.productId} label={label()} />
+                </div>
               }
               centerChildren={
                 <Show when={format() !== "fastr"}>

@@ -1133,7 +1133,9 @@ export function attachTextEditor(
     // A detached island (the widget was rebuilt under it) is stale DOM: the
     // document already holds everything it committed while it was live.
     if (!el.isContentEditable || !el.isConnected) return;
-    const next = (el.textContent ?? "").replace(/\r/g, "");
+    // A line break at the very end waits for the text after it: committed
+    // alone it would be a blank line, which ends the paragraph.
+    const next = (el.textContent ?? "").replace(/\r/g, "").replace(/\n+$/, "");
     if (next === committed) return;
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
@@ -1141,8 +1143,10 @@ export function attachTextEditor(
     if (endLine1 > doc.lines) return;
     // A change of LINE COUNT moves every island below this one, so the
     // widget must rebuild; the island is then re-opened on the rebuilt
-    // element, caret at the end (Shift+Enter is the only way here).
+    // element with the caret where it was (a line break typed mid-text
+    // keeps typing there, not at the end).
     const sameShape = next.split("\n").length === committed.split("\n").length;
+    const caretAt = sameShape ? undefined : caretOffset().at;
     committed = next;
     view.dispatch({
       changes: { from: doc.line(line1).from, to: doc.line(endLine1).to, insert: next },
@@ -1158,7 +1162,8 @@ export function attachTextEditor(
       stopMirror();
       const target = [...host.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`)]
         .find((n) => n.tagName === el.tagName);
-      (target as unknown as { _fmActivate?: () => void } | undefined)?._fmActivate?.();
+      (target as unknown as { _fmActivate?: (caretAt?: number) => void } | undefined)
+        ?._fmActivate?.(caretAt);
     }
   };
   el.classList.add("cm-fm-text-edit");
@@ -1226,7 +1231,7 @@ export function attachTextEditor(
     appendWithEmphasis(frag, rest.slice(last));
     el.append(frag);
   };
-  const activate = () => {
+  const activate = (caretAt?: number) => {
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
     if (opts?.paged) {
       // The frame is rendered from the doc as it was; the island edits the
@@ -1240,19 +1245,36 @@ export function attachTextEditor(
     } catch {
       el.contentEditable = "true";
     }
+    // A line break is a newline in the source: it must show as one while
+    // editing (the paged frame's paragraphs do not preserve newlines).
+    el.style.whiteSpace = "pre-wrap";
     el.focus();
-    // Caret at the end — the swap changed the text under the press, so a
-    // precise position is not meaningful.
+    // Caret at the end: the swap changed the text under the press, so a
+    // precise position is not meaningful. A re-open after a line break
+    // passes the source offset the caret stood at instead.
     const sel = winOf(el).getSelection();
     if (sel) {
       const range = docOf(el).createRange();
       range.selectNodeContents(el);
       range.collapse(false);
+      if (caretAt !== undefined) {
+        const walker = docOf(el).createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let remaining = caretAt;
+        let node: Text | null;
+        while ((node = walker.nextNode() as Text | null) !== null) {
+          if (remaining <= node.length) {
+            range.setStart(node, remaining);
+            range.collapse(true);
+            break;
+          }
+          remaining -= node.length;
+        }
+      }
       sel.removeAllRanges();
       sel.addRange(range);
     }
   };
-  (el as unknown as { _fmActivate?: () => void })._fmActivate = activate;
+  (el as unknown as { _fmActivate?: (caretAt?: number) => void })._fmActivate = activate;
   el.addEventListener("mousedown", (e) => {
     e.stopPropagation();
     if (el.isContentEditable) return;
@@ -1460,7 +1482,45 @@ export function attachTextEditor(
     pagedCaretIntent.pending = true;
     view.dispatch({ changes: { from, to: line.to, insert: "" }, selection: { anchor: from } });
   };
+  // Inside a block (a card in a tiles row, a column, a callout, a band, a
+  // quote, a cover), Enter is a LINE BREAK in the same text, as in a word
+  // processor's text box, not a new paragraph or the end of editing: a
+  // newline in the source, which renders as a break (`breaks: true`).
+  // Steps keep Enter for a new step; top-level prose on the pages keeps
+  // Enter for a new paragraph.
+  const inBlock = /^(P|LI)$/.test(el.tagName) &&
+    el.closest(".fm-card, .fm-col, .fm-callout, .fm-band, .fm-quote, .fm-cover") !== null;
+  // The newline goes in as a TEXT node (the browser's own editing commands
+  // turn it into markup that textContent, which is the source, drops), then
+  // commits like typing. At the very end a <br> after it makes the new line
+  // visible without entering the text; the commit waits for what follows.
+  const insertLineBreak = () => {
+    const sel = winOf(el).getSelection();
+    if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const nl = docOf(el).createTextNode("\n");
+    range.insertNode(nl);
+    const after = docOf(el).createRange();
+    after.setStartAfter(nl);
+    after.setEndAfter(el.lastChild ?? nl);
+    if (after.toString().length === 0 && el.lastChild?.nodeName !== "BR") {
+      el.appendChild(docOf(el).createElement("br"));
+    }
+    const caret = docOf(el).createRange();
+    caret.setStartAfter(nl);
+    caret.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(caret);
+    commitLive();
+  };
   el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && inBlock &&
+      !el.parentElement?.classList.contains("fm-steps")) {
+      e.preventDefault();
+      insertLineBreak();
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (el.tagName === "P" && el.parentElement?.classList.contains("fm-steps")) {
@@ -2582,7 +2642,34 @@ export function liveRegionExtensions(resolver: EmbedResolver): Extension[] {
     },
   });
 
-  return [field, guard, boxLayer];
+  // Enter with the caret PARKED in a region (a click on a widget parks it
+  // on the block's first line; the guard refuses typing there): a blank
+  // line opens beside the block — above it, so the block moves down, or
+  // below it when the caret stands at the region's very end — and the
+  // caret lands on that line. Without this, a tiles row of stats, a figure
+  // or a table at the end of a document had no way to get a line after it
+  // from the keyboard. Dispatched without a userEvent, so the guard lets
+  // the insertion at the region's edge through; undo sees it as any edit.
+  const enterBeside = Prec.high(keymap.of([{
+    key: "Enter",
+    run: (view) => {
+      const sel = view.state.selection.main;
+      if (!sel.empty) return false;
+      const r = view.state.field(field).ranges.find((x) => x.from <= sel.head && sel.head <= x.to);
+      if (r === undefined) return false;
+      if (r.region.kind === "leaf" && r.region.fence?.name === "report") return false;
+      const below = sel.head >= r.to;
+      const at = below ? r.to : r.from;
+      view.dispatch({
+        changes: { from: at, insert: "\n" },
+        selection: { anchor: below ? at + 1 : at },
+        scrollIntoView: true,
+      });
+      return true;
+    },
+  }]));
+
+  return [field, guard, boxLayer, enterBeside];
 }
 
 // ── Surface lines (heading scale) ────────────────────────────────────────────
@@ -5726,11 +5813,55 @@ const paginationPlugin = ViewPlugin.fromClass(
   },
 );
 
+// ── Stable text metrics ──────────────────────────────────────────────────────
+// CodeMirror estimates the height of every line it has not rendered from ONE
+// sample: the first rendered line of at most 20 characters whose children are
+// plain text (docView.measureTextSize). On this surface those short lines are
+// headings, kickers and the line being typed, each in its own font, so the
+// sampled character width flips as the rendered range shifts (7.6px, then
+// 12px, then 10.5px…). A change of more than 0.1px makes CodeMirror THROW
+// AWAY its whole height map and rebuild it from estimates, which then
+// converge over several frames: pressing Enter and typing at the start of a
+// new line made the page above the caret shuffle in line-height steps for a
+// second. A mark over the text of every short line turns its children into
+// mark views, which the sampler skips, so CodeMirror always falls back to its
+// dummy line (a plain cm-line in the body font, off-screen): one constant
+// measure. The mark carries no style.
+const noSampleMark = Decoration.mark({ class: "cm-fm-nosample" });
+const stableTextMetricsPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = this.build(view);
+    }
+    update(u: ViewUpdate) {
+      if (u.docChanged || u.viewportChanged) this.decorations = this.build(u.view);
+    }
+    build(view: EditorView): DecorationSet {
+      const builder = new RangeSetBuilder<Decoration>();
+      const doc = view.state.doc;
+      for (const { from, to } of view.visibleRanges) {
+        for (let pos = from; pos <= to;) {
+          const line = doc.lineAt(pos);
+          if (line.length > 0 && line.length <= 20) {
+            builder.add(line.from, line.to, noSampleMark);
+          }
+          if (line.to >= to) break;
+          pos = line.to + 1;
+        }
+      }
+      return builder.finish();
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
 export function livePreviewExtensions(
   resolver: EmbedResolver,
   collab?: PresenceDeps,
 ): Extension[] {
   return [
+    stableTextMetricsPlugin,
     printMetricsField,
     ...liveRegionExtensions(resolver),
     surfaceLineField,

@@ -70,7 +70,7 @@ export function getClientToolsForSlides(
         "Get the current state of the slide deck, including a summary outline of all slides. This provides essential context about the deck's structure, existing content, and slide order. ALWAYS call this tool first when starting a conversation or before making any changes to understand what's already in the deck." +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({}),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "read",
       handler: async (_input, view) => {
         return await getDeckSummaryForAI(view.params.deckId, view.context.getSlideIds());
@@ -78,7 +78,7 @@ export function getClientToolsForSlides(
       inProgressLabel: "Getting deck state...",
       completionMessage: () => {
         const view = copilotViewController.current();
-        if (view.id !== "editing_slide_deck") return "Retrieved deck";
+        if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") return "Retrieved deck";
         return `Retrieved deck with ${view.context.getSlideIds().length} slide(s)`;
       },
     }),
@@ -110,7 +110,7 @@ export function getClientToolsForSlides(
           ])
           .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array containing text and/or figures)."),
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         if (input.slide.type === "content") {
@@ -171,7 +171,7 @@ export function getClientToolsForSlides(
           ])
           .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -238,7 +238,7 @@ export function getClientToolsForSlides(
           newContent: AiContentBlockInputSchema.describe("The new content for this block: markdown text, or a figure built from a metric + preset. The block type can be changed."),
         })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -298,7 +298,7 @@ export function getClientToolsForSlides(
         slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
         newHeader: z.string().describe("The new header text for the content slide"),
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -356,7 +356,7 @@ export function getClientToolsForSlides(
           ),
         layout: LayoutSpecSchema,
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy([input.slideId]);
@@ -504,7 +504,7 @@ export function getClientToolsForSlides(
           .array(z.string())
           .describe("Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         assertSlidesNotBusy(input.slideIds);
@@ -549,7 +549,7 @@ export function getClientToolsForSlides(
           .array(z.string())
           .describe("Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {
@@ -600,7 +600,7 @@ export function getClientToolsForSlides(
           ])
           .describe("The destination position for the slides."),
       }),
-      availableIn: ["editing_slide_deck"],
+      availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {

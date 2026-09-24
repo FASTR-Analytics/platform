@@ -20,9 +20,9 @@ type Props = {
   slideId: string;
   index: number;
   isSelected: boolean;
+  // The slide open in the editor beside the rail.
+  isCurrent: boolean;
   selectedCount: number;
-  slideSize: number;
-  fillWidth: boolean;
   onCardClick: (event: MouseEvent | undefined, isCircleClick: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -122,16 +122,20 @@ export function SlideCard(p: Props) {
   return (
     <div
       classList={{ "sortable-selected": p.isSelected }}
-      style={{ width: p.fillWidth ? "100%" : `${p.slideSize}px` }}
+      class="flex w-full gap-2"
       data-tour="deck-slide-card"
     >
-      <div class="text-base-content mb-2 text-center text-sm">
+      <div
+        class="text-base-content-muted w-5 flex-none pt-1 text-right text-xs"
+        classList={{ "text-primary font-700": p.isCurrent }}
+      >
         {p.index + 1}
       </div>
       <div
-        class="slide-card-wrapper group/card bg-base-100 relative cursor-pointer overflow-clip rounded border"
+        class="slide-card-wrapper group/card bg-base-100 relative min-w-0 flex-1 cursor-pointer overflow-clip rounded border"
         classList={{
           "border-primary": p.isSelected,
+          "ring-primary ring-2": p.isCurrent,
           "hover:border-primary": !p.isSelected,
         }}
         onContextMenu={handleContextMenu}

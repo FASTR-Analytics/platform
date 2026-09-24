@@ -34,9 +34,9 @@ export function buildDeckEditorIntroTour(): TourDefinition {
           pt: "Dentro de uma apresentação",
         }),
         body: t3({
-          en: "This is the deck itself. The bar along the top holds everything you can do to the deck as a whole; the slides sit below it.",
-          fr: "Voici la présentation elle-même. La barre du haut regroupe tout ce que vous pouvez faire sur l'ensemble de la présentation ; les diapositives sont en dessous.",
-          pt: "Esta é a própria apresentação. A barra superior reúne tudo o que pode fazer à apresentação como um todo; os diapositivos ficam abaixo.",
+          en: "This is the deck itself. The bar along the top holds everything you can do to the deck as a whole; the slides run down the left, and the one you click opens beside them.",
+          fr: "Voici la présentation elle-même. La barre du haut regroupe tout ce que vous pouvez faire sur l'ensemble de la présentation ; les diapositives défilent à gauche, et celle que vous cliquez s'ouvre à côté.",
+          pt: "Esta é a própria apresentação. A barra superior reúne tudo o que pode fazer à apresentação como um todo; os diapositivos ficam à esquerda, e o que clicar abre-se ao lado.",
         }),
         placement: "bottom",
       },
@@ -90,26 +90,11 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
           pt: "Os seus diapositivos",
         }),
         body: t3({
-          en: "Slides appear in presentation order, numbered as they'll be shown. Drag a slide to move it, and everything you change is saved automatically for the whole team.",
-          fr: "Les diapositives apparaissent dans l'ordre de présentation, numérotées telles qu'elles seront affichées. Faites glisser une diapositive pour la déplacer ; tout ce que vous modifiez est enregistré automatiquement pour toute l'équipe.",
-          pt: "Os diapositivos aparecem na ordem de apresentação, numerados tal como serão mostrados. Arraste um diapositivo para o mover; tudo o que alterar é guardado automaticamente para toda a equipa.",
+          en: "Slides run down this list in presentation order, numbered as they'll be shown. Drag a slide to move it, and everything you change is saved automatically for the whole team.",
+          fr: "Les diapositives défilent dans cette liste, dans l'ordre de présentation, numérotées telles qu'elles seront affichées. Faites glisser une diapositive pour la déplacer ; tout ce que vous modifiez est enregistré automatiquement pour toute l'équipe.",
+          pt: "Os diapositivos seguem nesta lista pela ordem de apresentação, numerados tal como serão mostrados. Arraste um diapositivo para o mover; tudo o que alterar é guardado automaticamente para toda a equipa.",
         }),
         placement: "top",
-      },
-      {
-        id: "slide-size",
-        target: tourTarget("deck-slide-size"),
-        title: t3({
-          en: "Thumbnail size",
-          fr: "Taille des vignettes",
-          pt: "Tamanho das miniaturas",
-        }),
-        body: t3({
-          en: "Zoom the thumbnails to see more slides at once, or use the button beside it to fill the width with one slide.",
-          fr: "Ajustez la taille des vignettes pour voir plus de diapositives à la fois, ou utilisez le bouton à côté pour occuper toute la largeur avec une seule diapositive.",
-          pt: "Ajuste o tamanho das miniaturas para ver mais diapositivos ao mesmo tempo, ou utilize o botão ao lado para ocupar toda a largura com um diapositivo.",
-        }),
-        placement: "bottom",
       },
       {
         id: "slide-card",
@@ -120,9 +105,9 @@ export function buildDeckEditorSlidesTour(): TourDefinition {
           pt: "Trabalhar com um diapositivo",
         }),
         body: t3({
-          en: "Click a slide to edit it. Use the circle in its corner to select several at once, and right-click for duplicate, move and delete.",
-          fr: "Cliquez sur une diapositive pour la modifier. Utilisez le cercle dans son coin pour en sélectionner plusieurs à la fois, et faites un clic droit pour dupliquer, déplacer ou supprimer.",
-          pt: "Clique num diapositivo para o editar. Utilize o círculo no canto para selecionar vários ao mesmo tempo e clique com o botão direito para duplicar, mover e eliminar.",
+          en: "Click a slide to open it beside the list. Use the circle in its corner to select several at once, and right-click for duplicate, move and delete.",
+          fr: "Cliquez sur une diapositive pour l'ouvrir à côté de la liste. Utilisez le cercle dans son coin pour en sélectionner plusieurs à la fois, et faites un clic droit pour dupliquer, déplacer ou supprimer.",
+          pt: "Clique num diapositivo para o abrir ao lado da lista. Utilize o círculo no canto para selecionar vários ao mesmo tempo e clique com o botão direito para duplicar, mover e eliminar.",
         }),
         placement: "right",
         waitForTargetTimeoutMs: 2000,
@@ -322,24 +307,6 @@ function slideEditorIntroStep(body: string): TourStep {
   };
 }
 
-function slideEditorBackStep(): TourStep {
-  return {
-    id: "back",
-    target: "#slide-back-button",
-    title: t3({
-      en: "Back to the deck",
-      fr: "Retour à la présentation",
-      pt: "Voltar à apresentação",
-    }),
-    body: t3({
-      en: "There's no save button — your edits are saved as you type and shared with anyone else in the deck. This arrow takes you back to the slides.",
-      fr: "Il n'y a pas de bouton d'enregistrement — vos modifications sont enregistrées au fur et à mesure et partagées avec les autres personnes dans la présentation. Cette flèche vous ramène aux diapositives.",
-      pt: "Não há botão de guardar — as suas edições são guardadas à medida que escreve e partilhadas com quem mais estiver na apresentação. Esta seta leva-o de volta aos diapositivos.",
-    }),
-    placement: "bottom",
-  };
-}
-
 function slideTypeStep(): TourStep {
   return {
     id: "type",
@@ -350,9 +317,9 @@ function slideTypeStep(): TourStep {
       pt: "Tipo de diapositivo",
     }),
     body: t3({
-      en: "Switch this slide between Cover, Section and Content at any time — the editing options on the left change to match.",
-      fr: "Basculez cette diapositive entre Couverture, Section et Contenu à tout moment — les options d'édition à gauche s'adaptent.",
-      pt: "Alterne este diapositivo entre Capa, Secção e Conteúdo em qualquer momento — as opções de edição à esquerda ajustam-se.",
+      en: "The Slide menu switches this slide between Cover, Section and Content at any time, and sets which logos it shows.",
+      fr: "Le menu Diapositive bascule cette diapositive entre Couverture, Section et Contenu à tout moment, et choisit les logos affichés.",
+      pt: "O menu Diapositivo alterna este diapositivo entre Capa, Secção e Conteúdo em qualquer momento e define os logótipos que mostra.",
     }),
     placement: "bottom",
   };
@@ -368,9 +335,9 @@ function slideCanvasStep(): TourStep {
       pt: "Pré-visualização em direto",
     }),
     body: t3({
-      en: "This is exactly how the slide will look when presented or exported. It re-renders as you edit.",
-      fr: "Voici exactement l'apparence de la diapositive lors de la présentation ou de l'export. Elle se met à jour pendant que vous modifiez.",
-      pt: "É exatamente assim que o diapositivo ficará ao ser apresentado ou exportado. Atualiza-se enquanto edita.",
+      en: "This is exactly how the slide will look when presented or exported. Double-click any text to type straight onto it.",
+      fr: "Voici exactement l'apparence de la diapositive lors de la présentation ou de l'export. Double-cliquez sur un texte pour écrire directement dessus.",
+      pt: "É exatamente assim que o diapositivo ficará ao ser apresentado ou exportado. Faça duplo clique num texto para escrever diretamente nele.",
     }),
     placement: "left",
   };
@@ -390,21 +357,20 @@ export function buildSlideCoverTour(): TourDefinition {
       slideTypeStep(),
       {
         id: "cover-fields",
-        target: tourTarget("slide-cover-fields"),
+        target: tourTarget("slide-format-toolbar"),
         title: t3({
-          en: "Cover text and logos",
-          fr: "Texte et logos de couverture",
-          pt: "Texto e logótipos da capa",
+          en: "Cover text",
+          fr: "Texte de couverture",
+          pt: "Texto da capa",
         }),
         body: t3({
-          en: "Set the title, subtitle, presenter and date here, and choose which logos the cover shows. The button under each field adjusts its size and weight.",
-          fr: "Définissez ici le titre, le sous-titre, le présentateur et la date, et choisissez les logos affichés sur la couverture. Le bouton sous chaque champ ajuste sa taille et son épaisseur.",
-          pt: "Defina aqui o título, o subtítulo, o apresentador e a data, e escolha os logótipos que a capa mostra. O botão sob cada campo ajusta o tamanho e a espessura.",
+          en: "Type the title and other text straight onto the slide. The Insert menu adds a subtitle, presenter or date; select any of them to change its size, bold and italic here.",
+          fr: "Tapez le titre et les autres textes directement sur la diapositive. Le menu Insérer ajoute un sous-titre, un présentateur ou une date ; sélectionnez-en un pour ajuster ici sa taille, le gras et l'italique.",
+          pt: "Escreva o título e o restante texto diretamente no diapositivo. O menu Inserir adiciona um subtítulo, apresentador ou data; selecione um deles para ajustar aqui o tamanho, o negrito e o itálico.",
         }),
-        placement: "right",
+        placement: "bottom",
       },
       slideCanvasStep(),
-      slideEditorBackStep(),
     ],
   };
 }
@@ -423,21 +389,20 @@ export function buildSlideSectionTour(): TourDefinition {
       slideTypeStep(),
       {
         id: "section-fields",
-        target: tourTarget("slide-section-fields"),
+        target: tourTarget("slide-format-toolbar"),
         title: t3({
           en: "Section title",
           fr: "Titre de section",
           pt: "Título da secção",
         }),
         body: t3({
-          en: "A section slide is deliberately simple: just a title and an optional subtitle. The button beneath each one adjusts size, bold and italic.",
-          fr: "Une diapositive de section est volontairement simple : un titre et un sous-titre facultatif. Le bouton sous chacun ajuste la taille, le gras et l'italique.",
-          pt: "Um diapositivo de secção é deliberadamente simples: apenas um título e um subtítulo opcional. O botão sob cada um ajusta o tamanho, o negrito e o itálico.",
+          en: "A section slide is deliberately simple: a title and an optional subtitle (add it from the Insert menu). Type on the slide; select either one to adjust its size, bold and italic here.",
+          fr: "Une diapositive de section est volontairement simple : un titre et un sous-titre facultatif (ajoutez-le depuis le menu Insérer). Tapez sur la diapositive ; sélectionnez l'un ou l'autre pour ajuster ici la taille, le gras et l'italique.",
+          pt: "Um diapositivo de secção é deliberadamente simples: um título e um subtítulo opcional (adicione-o no menu Inserir). Escreva no diapositivo; selecione um deles para ajustar aqui o tamanho, o negrito e o itálico.",
         }),
-        placement: "right",
+        placement: "bottom",
       },
       slideCanvasStep(),
-      slideEditorBackStep(),
     ],
   };
 }
@@ -456,67 +421,35 @@ export function buildSlideContentTour(): TourDefinition {
       slideTypeStep(),
       slideCanvasStep(),
       {
-        id: "tabs",
-        target: tourTarget("slide-content-tabs"),
+        id: "toolbar",
+        target: tourTarget("slide-format-toolbar"),
         title: t3({
-          en: "Two sets of options",
-          fr: "Deux ensembles d'options",
-          pt: "Dois conjuntos de opções",
+          en: "The toolbar",
+          fr: "La barre d'outils",
+          pt: "A barra de ferramentas",
         }),
         body: t3({
-          en: "Header / Footer covers the frame around the slide; Content covers whatever sits in the middle.",
-          fr: "En-tête / Pied de page concerne le cadre autour de la diapositive ; Contenu concerne ce qui se trouve au milieu.",
-          pt: "Cabeçalho / Rodapé trata da moldura em torno do diapositivo; Conteúdo trata do que está no meio.",
-        }),
-        placement: "right",
-      },
-      {
-        id: "header-footer",
-        target: tourTarget("slide-panel"),
-        title: t3({
-          en: "Header and footer",
-          fr: "En-tête et pied de page",
-          pt: "Cabeçalho e rodapé",
-        }),
-        body: t3({
-          en: "Set the header, sub-header, date, footer and logos for this slide. Further down, Add split panel divides the slide so you can put text beside a chart.",
-          fr: "Définissez l'en-tête, le sous-titre, la date, le pied de page et les logos de cette diapositive. Plus bas, Ajouter un panneau divisé partage la diapositive pour placer du texte à côté d'un graphique.",
-          pt: "Defina o cabeçalho, o subcabeçalho, a data, o rodapé e os logótipos deste diapositivo. Mais abaixo, Adicionar painel dividido divide o diapositivo para colocar texto ao lado de um gráfico.",
-        }),
-        placement: "right",
-      },
-      {
-        id: "open-content-tab",
-        target: tourTarget("slide-content-tab-block"),
-        title: t3({
-          en: "Now the content",
-          fr: "Passons au contenu",
-          pt: "Agora o conteúdo",
-        }),
-        body: t3({
-          en: "Click the Content tab to carry on.",
-          fr: "Cliquez sur l'onglet Contenu pour continuer.",
-          pt: "Clique no separador Conteúdo para continuar.",
+          en: "The Insert menu adds a header, sub-header, date or footer; Split panel divides the slide so text can sit beside a chart. The row below follows what you select: formatting while you type, a block's options when you click one.",
+          fr: "Le menu Insérer ajoute un en-tête, un sous-titre, une date ou un pied de page ; Panneau divisé partage la diapositive pour placer du texte à côté d'un graphique. La ligne du dessous suit votre sélection : la mise en forme pendant la saisie, les options d'un bloc quand vous cliquez dessus.",
+          pt: "O menu Inserir adiciona um cabeçalho, subcabeçalho, data ou rodapé; Painel dividido divide o diapositivo para colocar texto ao lado de um gráfico. A linha de baixo acompanha o que seleciona: formatação enquanto escreve, as opções de um bloco quando clica nele.",
         }),
         placement: "bottom",
-        advanceOn: "click",
       },
       {
         id: "blocks",
-        target: tourTarget("slide-panel"),
+        target: tourTarget("slide-canvas"),
         title: t3({
           en: "Blocks on the slide",
           fr: "Les blocs de la diapositive",
           pt: "Blocos no diapositivo",
         }),
         body: t3({
-          en: "Click a block in the preview to edit it here: switch it between text, a visualization or an image, and use Layout to split the slide into more blocks.",
-          fr: "Cliquez sur un bloc dans l'aperçu pour le modifier ici : basculez-le entre texte, visualisation ou image, et utilisez Mise en page pour diviser la diapositive en plusieurs blocs.",
-          pt: "Clique num bloco na pré-visualização para o editar aqui: alterne entre texto, visualização ou imagem, e utilize Layout para dividir o diapositivo em mais blocos.",
+          en: "Click a block to switch it between text, a visualization or an image, and use Layout to split the slide into more blocks. Double-click text to type straight onto the slide.",
+          fr: "Cliquez sur un bloc pour le basculer entre texte, visualisation ou image, et utilisez Mise en page pour diviser la diapositive en plusieurs blocs. Double-cliquez sur un texte pour écrire directement sur la diapositive.",
+          pt: "Clique num bloco para o alternar entre texto, visualização ou imagem, e utilize Disposição para dividir o diapositivo em mais blocos. Faça duplo clique num texto para escrever diretamente no diapositivo.",
         }),
-        placement: "right",
+        placement: "left",
       },
-      slideEditorBackStep(),
     ],
   };
 }

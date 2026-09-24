@@ -81,7 +81,10 @@ export function setupTours(opts: {
     "instance-results-packages": onTab("results_packages"),
     "instance-assets": onTab("assets"),
     "instance-users": onTab("users"),
-    "deck-editor": () => currentView().id === "editing_slide_deck",
+    // The deck's rail is on screen in both views (a slide is open beside it
+    // whenever the deck has one).
+    "deck-editor": () =>
+      currentView().id === "editing_slide_deck" || currentView().id === "editing_slide",
     "slide-cover": () => editingSlideOfType("cover"),
     "slide-section": () => editingSlideOfType("section"),
     "slide-content": () => editingSlideOfType("content"),

@@ -24,6 +24,7 @@ import {
   rewriteReportEmbedToken,
   spliceReportSection,
 } from "lib";
+import { FASTR_MD_SYNTAX_DOC } from "lib";
 import {
   applyFigureConfigPatch,
   assertNoSlotCollision,
@@ -43,6 +44,8 @@ import { validateMetricInputs } from "lib";
 import type { ClientAIToolEnv } from "../../_shared/mod.ts";
 import {
   validateFastrContainers,
+  validateFastrRewriteUsesBlocks,
+  validateFastrStatPlacement,
   validateFastrNewLiteralBackgrounds,
   validateReferenceCssReuse,
   validateStyledReportHasStylesheet,
@@ -210,6 +213,18 @@ export function getClientToolsForReportEditor(
               ? " — the theme supplies the design; never write CSS or a <style> block"
               : ""
           }`,
+          ...(() => {
+            const template = ctx.getTemplate();
+            return template === undefined ? [] : [
+              `Template: ${
+                template === "policy_brief"
+                  ? "Policy brief"
+                  : template === "long_form"
+                  ? "Long-form report"
+                  : "Empty"
+              } (write to its shape; see the template section in your instructions)`,
+            ];
+          })(),
           ``,
           `## Current body (${formatLabel})`,
           body,
@@ -499,12 +514,25 @@ export function getClientToolsForReportEditor(
     createAITool({
       viewRegistry: copilotViews,
       name: "rewrite_report",
+      // The FASTR guide rides the description: with the chat's create_report
+      // tool gone (v2), this IS how a report gets written from a prompt, and
+      // the per-turn view instructions alone left the model writing plain
+      // markdown (the same lesson create_report learned on 2026-09-02). A
+      // tool description is in the cached system prompt, so the cost is paid
+      // once per conversation.
       description:
-        "Propose a full rewrite of the report body, written in the report's format (markdown, FASTR Markdown or HTML — see get_report_editor). The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. HTML bodies must be body-only, well-formed markup.",
+        `Propose a full rewrite of the report body, written in the report's format (markdown, FASTR Markdown or HTML — see get_report_editor). The user reviews a diff and accepts or rejects — nothing is applied silently. Keep all existing figure/image tokens you want to retain; you may only reference figure/image ids that already exist. HTML bodies must be body-only, well-formed markup.
+
+When the report's format is FASTR Markdown, the body MUST be built from the format's \`:::\` blocks — a plain run of headings and paragraphs is rejected unless you pass plain: true, which you do only when the user asked for a plain document. Before proposing, lay the draft out with get_report_pages (pass it as \`markdown\`) and fix every page it flags. The format:
+
+${FASTR_MD_SYNTAX_DOC}`,
       inputSchema: z.object({
         body: z.string(),
         allowLiteralColors: z.boolean().optional().describe(
           "FASTR Markdown only. Set true ONLY when the user explicitly asked for specific literal colours, gradients or image backgrounds (bg=...). Without it, newly-added literal bg= values are rejected — use tones, which follow the theme.",
+        ),
+        plain: z.boolean().optional().describe(
+          "FASTR Markdown only. Set true ONLY when the user explicitly asked for a plain document with none of the format's blocks. Without it, a body that uses no blocks is rejected.",
         ),
       }),
       availableIn: ["editing_report"],
@@ -521,6 +549,8 @@ export function getClientToolsForReportEditor(
           validateReportBodyLength(input.body);
           validateReportBodyForFormat(input.body, format);
           validateFastrContainers(input.body, format);
+          validateFastrStatPlacement(input.body, format);
+          validateFastrRewriteUsesBlocks(input.body, format, input.plain);
           validateFastrNewLiteralBackgrounds(
             input.body,
             ctx.getBody(),
@@ -571,7 +601,7 @@ export function getClientToolsForReportEditor(
       viewRegistry: copilotViews,
       name: "rewrite_section",
       description:
-        "Propose rewriting one heading-bounded section. Address by exact heading text; if the heading is not unique, pass occurrenceIndex (1-based). The section is exactly the range get_report_editor's headings index reports for that heading: markdown — from the heading line to the next heading of the same or higher level; HTML — either the heading's wrapper element (the <section>/<div> that starts with the heading and holds no other heading of that level — mode 'wrapper', and then newBody must START with that same wrapper tag and contain the whole element) or the flat run of siblings to the next such heading (mode 'flat', newBody starts with the heading). newBody replaces that WHOLE range, is written in the report's format and must include the heading. The user reviews a diff.",
+        "Propose rewriting one heading-bounded section. Address by exact heading text; if the heading is not unique, pass occurrenceIndex (1-based). The section is exactly the range get_report_editor's headings index reports for that heading: markdown — from the heading line to the next heading of the same or higher level; HTML — either the heading's wrapper element (the <section>/<div> that starts with the heading and holds no other heading of that level — mode 'wrapper', and then newBody must START with that same wrapper tag and contain the whole element) or the flat run of siblings to the next such heading (mode 'flat', newBody starts with the heading). newBody replaces that WHOLE range, is written in the report's format and must include the heading. In a FASTR Markdown report a section reaches for the format's blocks too — a stat row for its numbers, a callout for its caveat, a band for its turning point (the format is in rewrite_report's description). The user reviews a diff.",
       inputSchema: z.object({
         sectionHeading: z.string(),
         newBody: z.string(),
@@ -603,6 +633,7 @@ export function getClientToolsForReportEditor(
           }
           validateReportBodyLength(result.newBody);
           validateFastrContainers(result.newBody, format);
+          validateFastrStatPlacement(result.newBody, format);
           validateFastrNewLiteralBackgrounds(
             result.newBody,
             ctx.getBody(),
@@ -669,6 +700,7 @@ export function getClientToolsForReportEditor(
           }
           validateReportBodyLength(result.newBody);
           validateFastrContainers(result.newBody, format);
+          validateFastrStatPlacement(result.newBody, format);
           validateFastrNewLiteralBackgrounds(
             result.newBody,
             base,

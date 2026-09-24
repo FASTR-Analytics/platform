@@ -384,3 +384,34 @@ export function diffTextHunks(aStr: string, bStr: string): TextHunk[] {
   }
   return out;
 }
+
+// ── Document lineage (epoch) ─────────────────────────────────────────────────
+// A room that cannot restore its persisted Yjs state seeds a FRESH doc from
+// the stored content: the same characters as brand-new Yjs items, a new
+// lineage. A client still holding a doc of the old lineage (its socket
+// reconnecting after the room finalized) would merge the two and keep both
+// copies — the whole body twice, then checkpointed. The epoch names the
+// lineage: assigned once when a doc is created, stored IN the doc (so a
+// restore carries it and a re-seed does not), and sent with every sync so a
+// client can tell a resync of its own lineage from a different one.
+
+const META_KEY = "meta";
+const EPOCH_KEY = "epoch";
+
+/** The doc's lineage epoch, or undefined for a doc created before epochs. */
+export function readDocEpoch(doc: Y.Doc): string | undefined {
+  const v = doc.getMap<unknown>(META_KEY).get(EPOCH_KEY);
+  return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+/** The doc's epoch, assigning one when it has none (a freshly seeded doc, or
+ *  a restored doc from before epochs). `assigned` says a write happened. */
+export function ensureDocEpoch(doc: Y.Doc): { epoch: string; assigned: boolean } {
+  const existing = readDocEpoch(doc);
+  if (existing !== undefined) {
+    return { epoch: existing, assigned: false };
+  }
+  const epoch = crypto.randomUUID();
+  doc.getMap<unknown>(META_KEY).set(EPOCH_KEY, epoch);
+  return { epoch, assigned: true };
+}

@@ -22,6 +22,7 @@ import {
   isDarkCssColor,
   isFastrLeafBlock,
   listFastrContainerDefects,
+  listFastrNestedStats,
   listFastrLiteralBackgrounds,
   parseContainerAttrs,
   parseContainerFence,
@@ -1642,9 +1643,13 @@ Deno.test("the model-facing brief documents the marks it is allowed to write", (
     FASTR_MD_SYNTAX_DOC,
     "`stat`, `contents`, `pagebreak` and `report` are ONE-LINE",
   );
-  for (const needle of [":::pagebreak", "break=before", "pagesize", "orientation"]) {
+  for (const needle of [":::pagebreak", "pagesize", "orientation"]) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
   }
+  // `break=before|after` left the brief with the toolbar's page-break control
+  // (2026-09-23): a page break is the leaf, and the model is not told the
+  // legacy attribute exists.
+  assert(!FASTR_MD_SYNTAX_DOC.includes("break=before"));
   for (const role of FASTR_INK_ROLES) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, `.${role}`);
   }
@@ -1774,4 +1779,61 @@ Deno.test("the paged runner publishes on the agreed global and the title span is
     { size: "a4", orientation: "portrait", margin: "normal" },
     { title: "", pageWord: "Page", ofWord: "of" },
   )));
+});
+
+Deno.test("listFastrNestedStats: a stat inside a card or column is flagged, a bare tile is not", () => {
+  const good = ":::tiles{cols=2}\n:::stat{value=\"1\" label=\"a\"}\n:::stat{value=\"2\" label=\"b\"}\n:::";
+  assertEquals(listFastrNestedStats(good), []);
+  const bad = ":::tiles{cols=2}\n:::card{title=\"A\"}\n:::stat{value=\"1\" label=\"a\"}\n:::\n:::\n\n:::columns\n:::col\n:::stat{value=\"2\"}\n:::\n:::\n\n```\n:::card\n:::stat{value=\"3\"}\n```";
+  assertEquals(listFastrNestedStats(bad), [{ line: 3, parent: "card" }, { line: 9, parent: "col" }]);
+  // The brief says so, in words the model can act on.
+  assertStringIncludes(FASTR_MD_SYNTAX_DOC, "never inside a `card` or a `col`");
+});
+
+// ── Templates (lib/fastr_report_templates.ts) ────────────────────────────────
+
+Deno.test("templates: every skeleton is well-formed FASTR Markdown with real blocks", async () => {
+  const t = await import("../../lib/fastr_report_templates.ts");
+  const blocks = await import("../../lib/fastr_markdown_blocks.ts");
+  for (const template of t.FASTR_REPORT_TEMPLATES) {
+    const body = t.fastrReportTemplateBody(template, 'Q3 "review"');
+    if (template === "empty") {
+      assertEquals(body, "");
+      continue;
+    }
+    assertEquals(blocks.listFastrContainerDefects(body), [], template);
+    assertEquals(blocks.listFastrNestedStats(body), [], template);
+    assert(body.includes(`# Q3 "review"`), `${template} carries the report's title`);
+    assert(/^:::(cover|tiles|steps|callout|band)/m.test(body), `${template} uses blocks`);
+    assert(body.includes("]{.muted}"), `${template} marks its placeholders`);
+    // Every section heading is outside a block, so it stays addressable.
+    const outline = blocks.fastrDocumentOutline(body, 3).map((i) => i.level);
+    assert(outline.length >= 5, `${template} has sections`);
+  }
+  // Long-form numbers its sections and opens on a title page with contents.
+  const long = t.fastrReportTemplateBody("long_form", "R");
+  assert(long.startsWith(":::report{numbering=sections}"));
+  assert(long.includes("fill=page") && long.includes(":::contents"));
+  // A brief is short: no contents, no numbering.
+  const brief = t.fastrReportTemplateBody("policy_brief", "R");
+  assert(!brief.includes(":::contents") && !brief.includes("numbering="));
+});
+
+Deno.test("templates: the AI is told which one, and only for FASTR", async () => {
+  const { getEditingReportInstructions } = await import("../../lib/ai_tools/build_system_prompt.ts");
+  const withBrief = getEditingReportInstructions("R", "fastr", "default", undefined, "policy_brief");
+  assertStringIncludes(withBrief, "POLICY BRIEF");
+  assertStringIncludes(withBrief, "{.muted}");
+  assertStringIncludes(getEditingReportInstructions("R", "fastr", "default", undefined, "long_form"), "LONG-FORM REPORT");
+  assertStringIncludes(getEditingReportInstructions("R", "fastr", "default", undefined, "empty"), "blank page");
+  assert(!getEditingReportInstructions("R", "fastr").includes("POLICY BRIEF"));
+  assert(!getEditingReportInstructions("R", "markdown", "default", undefined, "policy_brief").includes("POLICY BRIEF"));
+});
+
+Deno.test("templates: the choice survives the config schema and reads back totally", async () => {
+  const r = await import("../../lib/types/reports.ts");
+  const parsed = r.reportConfigSchema.parse({ format: "fastr", template: "long_form" });
+  assertEquals(r.getFastrReportTemplate(parsed), "long_form");
+  assertEquals(r.getFastrReportTemplate({ template: "nonsense" as never }), undefined);
+  assertEquals(r.getFastrReportTemplate(undefined), undefined);
 });

@@ -10,7 +10,7 @@
 // The rules are the paged sheet's: every block keeps whole and moves to the
 // next page when it does not fit; a heading travels with the block after
 // it; `:::pagebreak` and break=before|after end or start a page; a cover
-// with fill=page takes a page alone, a natural cover opens page 1 flush to
+// with fill=page takes a page alone, a natural cover opens its page flush to
 // the sheet's top. A block taller than a page starts one and continues at
 // the inner boundaries its caller found (paragraphs of a band, rows of a
 // table), or, when it offers none, simply runs past the page. A block that
@@ -124,7 +124,7 @@ export function layoutFastrPages(
   const continued = new Set<number>();
   // A cover page keeps no safety: its content is the sheet itself.
   const areaOf = (p: OpenPage) => fastrPageArea(g, p) - (p.cover ? 0 : safety);
-  let page = openPage(blocks[0], pages.length === 0);
+  let page = openPage(blocks[0]);
   let area = areaOf(page);
   let first = 0;
   let used = 0;
@@ -165,7 +165,7 @@ export function layoutFastrPages(
     used = 0;
     for (let k = first; k < j; k++) used += footprint(k, first);
     close();
-    page = openPage(blocks[j], false);
+    page = openPage(blocks[j]);
     area = areaOf(page);
     first = j;
     used = 0;
@@ -290,7 +290,7 @@ export function layoutFastrPages(
     if ((b.pagebreak && i > first) || b.breakAfter || b.cover === "fill") {
       if (i + 1 < blocks.length) {
         close();
-        page = openPage(blocks[i + 1], false);
+        page = openPage(blocks[i + 1]);
         area = areaOf(page);
         first = i + 1;
         used = 0;
@@ -311,12 +311,16 @@ type OpenPage = {
   flushTop: boolean;
 };
 
-function openPage(b: FastrLayoutBlock, isFirst: boolean): OpenPage {
+// A natural cover opening ANY page is flush to the sheet's top: print pulls
+// it up through the page's top margin wherever it stands (report_fastr_paged
+// .ts, .fm-cover:not(.fm-cover--fill)), so a part-opening cover after a
+// page break is drawn as page 1's is, not under a band of margin.
+function openPage(b: FastrLayoutBlock): OpenPage {
   return {
     firstLine: b.line,
     lines: [b.line],
     cover: b.cover === "fill",
-    flushTop: isFirst && b.cover === "natural",
+    flushTop: b.cover === "natural",
   };
 }
 

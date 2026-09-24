@@ -1,5 +1,6 @@
 import {
   FASTR_REPORT_THEMES,
+  type FastrReportTemplate,
   type FastrReportTheme,
   type ReportConfig,
   type ReportCustomStyle,
@@ -7,6 +8,7 @@ import {
 } from "lib";
 import {
   type AlertComponentProps,
+  Button,
   Icon,
   ModalContainer,
   StateHolderFormError,
@@ -20,9 +22,11 @@ import {
 } from "./fastr_theme_labels";
 import {
   FastrCustomThemeMock,
+  fastrMockScopeClass,
   FastrThemeMock,
   FastrThemeMockStyles,
 } from "./fastr_theme_mock";
+import { ReportTemplateGallery } from "./template_gallery";
 
 // The report's look, chosen from inside the report. Every new report is FASTR
 // Markdown on the default theme, so this is the one place a report's design
@@ -33,6 +37,11 @@ import {
 // what separates this from an html report's style, which is fixed at creation
 // because the body IS the design.
 //
+// On a report that is still just its title (`offerTemplates`), the theme is
+// step 1 of 2: Next applies it and moves to a template gallery
+// (template_gallery.tsx), whose pick rides the result for the editor to
+// write into the body. Skip there keeps the theme and the plain title.
+//
 // Tiles are the real stylesheets (FastrThemeMock), so a preview is exactly
 // what the report becomes. A saved custom style contributes only its palette
 // here; its design brief and reference stylesheet are for the AI in html
@@ -42,7 +51,11 @@ export type ReportThemeModalResult =
   // The STORED config the write produced: the style snapshot is resolved
   // server-side, so the editor repaints from this rather than re-reading the
   // report, which would race the products SSE.
-  | { applied: { lastUpdated: string; config: ReportConfig } }
+  | {
+    applied: { lastUpdated: string; config: ReportConfig };
+    // Step 2's pick, when templates were offered and one was chosen.
+    template?: FastrReportTemplate;
+  }
   // Open the style editor. The caller runs it and re-opens this modal after:
   // panther has ONE alert slot, so the editor cannot stack on this one.
   | { editStyle: { style?: ReportCustomStyle } };
@@ -58,6 +71,9 @@ type Props = AlertComponentProps<
     // The report's current look, so the modal opens on what it already is.
     fastrTheme: FastrReportTheme;
     customStyleId?: string;
+    // A new report still holding only its title: the theme is step 1 of 2
+    // and the template gallery follows.
+    offerTemplates?: boolean;
   },
   ReportThemeModalResult
 >;
@@ -72,6 +88,22 @@ export function ReportThemeModal(p: Props) {
   const [saveState, setSaveState] = createSignal<StateHolderFormAction>({
     status: "ready",
   });
+  const [step, setStep] = createSignal<"theme" | "template">("theme");
+  // The theme write step 1 made: step 2 closes with it whatever it picks.
+  const [applied, setApplied] = createSignal<
+    { lastUpdated: string; config: ReportConfig } | undefined
+  >();
+  const [template, setTemplate] = createSignal<FastrReportTemplate>("policy_brief");
+  const templateScope = () => {
+    const sel = selected();
+    return sel?.kind === "custom"
+      ? fastrMockScopeClass("default", sel.style.id)
+      : fastrMockScopeClass(sel?.value ?? p.fastrTheme);
+  };
+  const finish = (t?: FastrReportTemplate) => {
+    const a = applied();
+    if (a) p.close(t === undefined ? { applied: a } : { applied: a, template: t });
+  };
 
   onMount(() => {
     void (async () => {
@@ -112,29 +144,76 @@ export function ReportThemeModal(p: Props) {
       setSaveState({ status: "error", err: res.err });
       return;
     }
+    if (p.offerTemplates) {
+      setApplied(res.data);
+      setSaveState({ status: "ready" });
+      setStep("template");
+      return;
+    }
     p.close({ applied: res.data });
   }
 
   return (
     <ModalContainer
       width="2xl"
-      title={t3({
-        en: `Choose a theme for “${p.reportLabel}”`,
-        fr: `Choisissez un thème pour « ${p.reportLabel} »`,
-        pt: `Escolha um tema para “${p.reportLabel}”`,
-      })}
-      onCancel={() => p.close(undefined)}
-      actions={[{
-        label: t3({ en: "Apply theme", fr: "Appliquer le thème", pt: "Aplicar tema" }),
-        onClick: () => void apply(selected()),
-        state: saveState(),
-        disabled: selected() === undefined,
-        iconName: "check" as const,
-        intent: "success" as const,
-      }]}
+      title={step() === "template"
+        ? t3({
+          en: `Start “${p.reportLabel}” from a template`,
+          fr: `Commencer « ${p.reportLabel} » à partir d'un modèle`,
+          pt: `Começar “${p.reportLabel}” a partir de um modelo`,
+        })
+        : t3({
+          en: `Choose a theme for “${p.reportLabel}”`,
+          fr: `Choisissez un thème pour « ${p.reportLabel} »`,
+          pt: `Escolha um tema para “${p.reportLabel}”`,
+        })}
+      subtitle={p.offerTemplates
+        ? step() === "theme"
+          ? t3({ en: "Step 1 of 2: theme", fr: "Étape 1 sur 2 : thème", pt: "Passo 1 de 2: tema" })
+          : t3({ en: "Step 2 of 2: template", fr: "Étape 2 sur 2 : modèle", pt: "Passo 2 de 2: modelo" })
+        : undefined}
+      // Step 2's cancel is Skip: the theme is already applied, so it closes
+      // with that and no template.
+      onCancel={() => step() === "template" ? finish() : p.close(undefined)}
+      cancelLabel={step() === "template"
+        ? t3({ en: "Skip", fr: "Passer", pt: "Saltar" })
+        : undefined}
+      footer={step() === "template"
+        ? (
+          <Button intent="neutral" outline iconName="chevronLeft" onClick={() => setStep("theme")}>
+            {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
+          </Button>
+        )
+        : undefined}
+      actions={step() === "template"
+        ? [{
+          label: t3({ en: "Use template", fr: "Utiliser le modèle", pt: "Usar modelo" }),
+          onClick: () => finish(template()),
+          iconName: "check" as const,
+          intent: "success" as const,
+        }]
+        : [{
+          label: p.offerTemplates
+            ? t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })
+            : t3({ en: "Apply theme", fr: "Appliquer le thème", pt: "Aplicar tema" }),
+          onClick: () => void apply(selected()),
+          state: saveState(),
+          disabled: selected() === undefined,
+          iconName: p.offerTemplates ? "chevronRight" as const : "check" as const,
+          intent: "success" as const,
+        }]}
     >
       <FastrThemeMockStyles customStyles={customStyles()} />
-      <div class="ui-spy-sm">
+      <Show when={step() === "template"}>
+        <ReportTemplateGallery
+          reportLabel={p.reportLabel}
+          scopeClass={templateScope()}
+          selected={template()}
+          onSelect={setTemplate}
+          onPick={(t) => finish(t)}
+        />
+      </Show>
+      <div class="ui-spy-sm" classList={{ hidden: step() !== "theme" }}>
         <div class="text-base-content-muted text-sm">
           {t3({
             en: "The theme is the report's real stylesheet, so these previews are exactly what you get. You can change it again at any time from the Page menu.",

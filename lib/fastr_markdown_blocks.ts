@@ -10,7 +10,6 @@
 //   :::columns{cols=2}  :::col{span=2} … :::      :::
 //   :::quote{cite="Dr N. Kamara"} … :::
 //   :::pagebreak                                    ← leaf, ends the printed page
-//   :::callout{break=before} … :::                  ← any block may start/end a page
 //
 // A container's design lives entirely in the theme stylesheet (report_fastr_css.ts)
 // — the body never carries CSS, which is what makes the format hand-editable and
@@ -49,6 +48,9 @@ export const FASTR_LEAF_BLOCK_NAMES: readonly string[] = [
 
 // `break=before|after` on any block: the printed page ends before or after it.
 // The paged stylesheet reads the data attribute; on screen it does nothing.
+// Legacy: neither the toolbar nor the AI brief offers it any more (a page
+// break is the `:::pagebreak` leaf), but documents that carry it still print
+// as they did.
 export const FASTR_BREAK_MODES = ["before", "after"] as const;
 export type FastrBreakMode = (typeof FASTR_BREAK_MODES)[number];
 
@@ -1163,6 +1165,29 @@ export type FastrContainerDefect = {
 
 // Unclosed containers, stray closes and unknown block names. Fences inside a
 // fenced code block are literal text and are skipped.
+// A `:::stat` inside a card or a column: the format wants stats as a bare
+// row of tiles (a stat IS a tile), and a stat wrapped in a card renders as a
+// box within a box. The editor never writes one; the AI used to, until its
+// brief said otherwise (2026-09-23), and its proposals are refused on this.
+export function listFastrNestedStats(body: string): { line: number; parent: string }[] {
+  const out: { line: number; parent: string }[] = [];
+  const open: string[] = [];
+  for (const { index, inCode, fence } of scanContainerLines(body.split("\n"))) {
+    if (inCode || fence === undefined) continue;
+    if (fence.kind === "close") {
+      open.pop();
+      continue;
+    }
+    if (fence.name === "stat") {
+      const parent = open[open.length - 1];
+      if (parent === "card" || parent === "col") out.push({ line: index + 1, parent });
+      continue;
+    }
+    if (!isFastrLeafBlock(fence.name)) open.push(fence.name);
+  }
+  return out;
+}
+
 export function listFastrContainerDefects(body: string): FastrContainerDefect[] {
   const defects: FastrContainerDefect[] = [];
   const open: { name: string; line: number }[] = [];

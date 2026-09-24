@@ -46,6 +46,7 @@ import {
 } from "../../db/instance/report_styles.ts";
 import {
   canRenderReportPdf,
+  rasterizeReportBlocks,
   renderReportPdf,
 } from "../../report_pdf/render_report_pdf.ts";
 import { defineRoute } from "../route-helpers.ts";
@@ -560,6 +561,35 @@ defineRoute(
         pdfBase64: encodeBase64(res.data.pdf),
         pages: res.data.pages,
       });
+    });
+  },
+);
+
+// The Word export's block pictures. Same Chrome, same gate and the same
+// viewing access as the PDF: the caller already holds the document it sends.
+defineRoute(
+  routesProductReports,
+  "rasterizeReportBlocks",
+  log("rasterizeReportBlocks"),
+  (c, { body }) => {
+    return streamResponse(c, async (writer) => {
+      if (!canRenderReportPdf()) {
+        await writer.error(
+          "This instance cannot export Word files yet: headless Chrome is not configured on the server.",
+        );
+        return;
+      }
+      await writer.progress(0.02, "Starting");
+      const res = await rasterizeReportBlocks(
+        body.html,
+        body.blocks,
+        (pct, message) => writer.progress(pct, message),
+      );
+      if (!res.success) {
+        await writer.error(res.err);
+        return;
+      }
+      await writer.complete({ blocks: res.data });
     });
   },
 );

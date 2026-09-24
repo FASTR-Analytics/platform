@@ -19,10 +19,10 @@ export const copilotInteractions = defineAIInteractions({
   edited_slide: interaction<{ slideId: string }>({
     relevantIn: ["editing_slide_deck", "editing_slide"],
     filter: (p, view) => {
-      if (view.id === "editing_slide_deck") {
-        const ctx = view.context as EditingSlideDeckContext;
-        return ctx.getSlideIds().includes(p.slideId);
-      }
+      // Both views know the deck's slides; the slide view also IS one of them.
+      const ctx = view.context as EditingSlideDeckContext;
+      if (ctx.getSlideIds().includes(p.slideId)) return true;
+      if (view.id !== "editing_slide") return false;
       const params = view.params as EditingSlideParams;
       return params.slideId === p.slideId;
     },
@@ -55,7 +55,7 @@ export const copilotInteractions = defineAIInteractions({
   // the view instructions; this reports the act of selecting since the last
   // message.
   selected_slides: interaction<{ slideIds: string[] }>({
-    relevantIn: ["editing_slide_deck"],
+    relevantIn: ["editing_slide_deck", "editing_slide"],
     format: (p) => `Selected slides: ${p.slideIds.join(", ")}`,
   }),
   edited_slide_locally: interaction({

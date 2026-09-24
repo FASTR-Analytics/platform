@@ -28,6 +28,7 @@ globs:
   - lib/fastr_live_regions.ts
   - lib/fastr_markdown_blocks.ts
   - lib/fastr_markdown_edits.ts
+  - lib/fastr_report_templates.ts
   - lib/fastr_markdown_pages.ts
   - lib/fastr_markdown_spec.ts
   - lib/fastr_report_page_map.ts
@@ -35,7 +36,9 @@ globs:
   - lib/report_fastr_css.ts
   - lib/report_fastr_markdown.ts
   - lib/report_fastr_paged.ts
+  - lib/report_fastr_word.ts
   - lib/report_sections.ts
+  - lib/slide_text_offsets.ts
   - server/db/instance/report_styles.ts
   - server/db/products/**
   - server/report_pdf/**
@@ -49,10 +52,13 @@ globs:
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/report_fastr_markdown_test.ts
+  - server/tests/report_fastr_word_test.ts
   - server/tests/report_format_helpers_test.ts
   - server/tests/report_html_sanitize_test.ts
   - server/tests/report_pdf_render_test.ts
+  - server/tests/report_word_raster_test.ts
   - server/tests/report_sections_test.ts
+  - server/tests/slide_text_offsets_test.ts
   - server/utils/id_generation.ts
 docs_absorbed:
 ---
@@ -248,17 +254,52 @@ without a remount; a product deleted under an open editor closes it. The
 header shows the `PackageScopeChip` ("package · scope" in the package accent
 from `app.css`), which for an editor opens `PackageScopeModal` with a count of
 the figures the candidate pair would leave stale; the overflow menu opens
-`ProductSettings` for name and folder. The slide editor header shows the same
-chip read-only.
+`ProductSettings` for name and folder; Present and Download are buttons on
+the bar.
+
+**One screen, Google-Slides style (2026-09-22).** The deck is ONE header:
+the name (with the back arrow, chip and presence) and, under it, the open
+slide's menu row (Slide / Insert / Layout, portaled there by `SlideToolbar`
+through `menuRowHost`) on the left, the deck's actions (Present, Download,
+Update figures, Settings, More, AI) on the right; beneath it a full-width
+TOOLBAR ROW (the deck's Add slide at the left, then the slide's formatting
+pill, portaled through `toolbarHost`), over a `FrameLeftResizable` (210px,
+140-420): the RAIL on the left is the
+vertical slide list, and the slide clicked in it is open beside it. `SlideList`
+([slide_list.tsx](client/src/components/products/slide_deck/slide_list.tsx))
+is that frame and takes the editor as its children; the deck component
+(`SlideDeckEditorInner`) owns `currentSlideId`, fetches the slide's content,
+and mounts the editor KEYED by slide id plus the deck config's JSON, so a
+click on another slide is a cleanup (the outgoing slide's collab session
+closes, an unsaved offline draft is flushed) and a fresh mount, while a
+refetch of an unchanged config remounts nothing. The rail follows the deck:
+the first slide opens when none is, the neighbour when the open one is gone;
+a new or duplicated slide opens; deleting the open slide moves the editor to
+its neighbour BEFORE the request, since the server closes the deleted slide's
+room with a fatal error that must never reach a mounted editor. The deck asks
+the editor to settle a draft before a swap (`onApi({ flush })`, the same
+conflict-modal path the old back button ran), and a refused flush leaves the
+open slide where it is. The copilot's `editing_slide` view carries the deck's
+context too (`EditingSlideContext` extends the deck's), so every deck tool is
+available while a slide is open, and the deck's view state is what the editor
+returns to between slides.
 
 **The slide editor**
 ([slide_editor/slide_editor.tsx](client/src/components/products/slide_deck/slide_editor/slide_editor.tsx))
-opens via `openEditor` with `snapshotForSlideEditor` (the deck config only,
+is mounted by the deck with `snapshotForSlideEditor` (the deck config only,
 structuredClone-severed) plus the product id, the live pair and its
-authoring context passed down. Left panel switches per slide type
-(cover/section/content; content = header/footer tab + a per-block Content
-tab with text/figure/image editors); right side is a live preview through
-S10's `convertSlideToPageInputs` debounced 100ms off `trackStore(tempSlide)`.
+authoring context passed down. There is no side panel: a toolbar under the
+header
+([slide_toolbar.tsx](client/src/components/products/slide_deck/slide_editor/slide_toolbar.tsx),
+built from the report toolbar's shared parts in
+`products/_shared/toolbar_primitives.tsx`) has a menu row (Slide: type and
+logos; Text: the slide type's title fields from `slide_fields.ts`, adding an
+absent one seeds it with its name and starts typing; Split panel) over one
+pill that follows the selection (text formatting while typing, a title's
+size/bold/italic, or the selected block's type, Layout menu, text background
+and markdown source, figure or image controls). Below it the canvas is a live
+preview through S10's `convertSlideToPageInputs`, debounced 100ms off
+`trackStore(tempSlide)` except while typing on it.
 Every figure it writes is stamped with the product's pair, a figure block
 whose bundle was resolved under another pair shows S11's stale badge in the
 block panel, and the header counts them with "Update all figures" (S10 "The
@@ -283,6 +324,31 @@ the `editing_slide` view's mutator context on the AI view controller (S13);
 the copilot host wraps whichever editor the Products page opens
 (`ProductCopilotHost`, D15: one mount site, one copilot per open product), so
 a slide editor opened inside a deck shares the deck's copilot.
+
+**Typing on the canvas.** Double-clicking a text block or a title primitive
+(or Enter with one selected) mounts
+[inline_text_editor.tsx](client/src/components/products/slide_deck/slide_editor/inline_text_editor.tsx):
+a hidden, focused CodeMirror bound by yCollab to the block's `markdown` /
+the root field's `Y.Text` (so merge, remote carets and the session's shared
+undo stack are unchanged), with the caret, selection and peers' carets painted
+over the canvas. The canvas stays the only renderer, so there is no second
+text layout to drift. The preview is therefore NOT keyed: `PageHolder` redraws
+in place, and while an inline edit is open the preview skips the 100ms
+debounce. Caret geometry
+([text_geometry.ts](client/src/components/products/slide_deck/slide_editor/text_geometry.ts))
+re-runs panther's public `MarkdownRenderer.measure` on the item's
+`(contentRpd, data)`, which is deterministic and so gives the drawn lines, and
+mirrors panther's `placeRuns`. The source offsets come from
+[lib/slide_text_offsets.ts](lib/slide_text_offsets.ts), which re-derives them
+from panther's own `parseMarkdown` plus markdown-it block maps, because panther
+keeps none and is not edited here. Body text is pure WYSIWYG. Typed markdown
+punctuation is escaped. Deletions keep inline syntax, so the formatting of what
+remains survives. Bold and italic re-serialize the touched lines. Every such
+edit is a set of whole-document candidates, and the first one whose re-parse
+renders the intended text and styles wins; an edit none of them renders is
+refused. Blocks holding tables, code fences or block images are not
+canvas-editable, and the side panel remains their editor (and every block's
+source view).
 
 **The per-slide save loop** (the no-room/offline path: while a collab
 session is live the editor never explicit-saves; the room checkpoints
@@ -553,9 +619,48 @@ contributes only its `colors` here — its `reference_css` targets AI-authored
 class names, not `fm-*`. Sections are the markdown `#`-line scan with a
 top-level mask (`fastrTopLevelLineMask`): headings inside a container or a
 code fence are NOT indexed, so `rewrite_section` can never splice a section
-that starts mid-block. Exports: `.html` (same builder as html) and a PAGED PDF
-— see "Paged PDF and page boxes" below; Word is absent because panther's
-markdown IR cannot represent the blocks and would silently drop every one.
+that starts mid-block. Exports: `.html` (same builder as html), a PAGED PDF
+(see "Paged PDF and page boxes" below) and, since 2026-09-22, a Word file
+(see "Word export" below). Panther's markdown-to-Word engine is NOT used for
+it: its IR cannot represent the blocks and would silently drop every one.
+
+**Word export (2026-09-22).** `lib/report_fastr_word.ts` builds the .docx from
+markdown-it's token stream (the same `createFastrMarkdownIt` the compiler
+uses, so container attrs arrive parsed) with the `docx` library, in the
+browser (`client/src/exports/export_report_as_fastr_word.ts`, `Packer.toBlob`
++ `saveAs`). Text-carrying blocks become native Word structures so the file
+reflows and pastes into a ministry's own template: headings (with the
+`numbering=sections` numbers baked into the text, so a live TOC agrees),
+paragraphs, lists, tables, callouts and steps as shaded one-cell tables,
+quotes as ruled paragraphs, `:::columns` as a continuous multi-column
+section, marks as run colours, `:::contents` as a Word TOC field with
+update-on-open, figures inline at the column's width under a Caption
+paragraph, the page ground as Word's page colour, and the PDF's running
+footer with PAGE/NUMPAGES fields. The decorative blocks (cover, band, tiles,
+card, stat) have no Word equivalent, so they are PICTURES with the text laid
+over them in editable boxes: the client posts the same standalone document
+the PDF prints, laid out at the print column by `buildFastrWordRasterCss`
+(bands bleed by the margin exactly as print), to `rasterizeReportBlocks`
+(`server/report_pdf/rasterize_blocks.ts`, on the PDF's shared browser via
+`withReportBrowser`); Chrome measures every text element of each block
+(`fastrWordMeasureJs`: content box, alignment, line height, per-run font,
+size, weight, colour with any alpha composited onto the ground, tracking,
+caps), hides the glyphs with `-webkit-text-fill-color: transparent` (so
+rules, pills, bullets and counters stay painted) and screenshots the block
+at 2x. The document anchors the PNG behind one exact-height paragraph and
+floats a VML text box per element (`FastrTextboxRun`: unfilled, unstroked,
+zero inset, grow-to-fit; docx's own `Textbox` can be none of those) at the
+measured offsets; a `fill=page` cover is its own zero-margin section with no
+footer, a natural cover is pulled up through the top margin like print. Only
+authored breaks (`:::pagebreak`, `break=`) are forced; Word paginates the
+rest, so page counts drift from the PDF by a page or so. The theme's faces
+are embedded from static TrueType files vendored under
+`client/public/fonts/word/` (one face per family; docx writes `embedRegular`
+only, so a heading family embedded at 700 is emitted unbolded). Same Chrome
+gate as the PDF, no degraded fallback: a report with no decorative block
+never calls the server. Tests: `server/tests/report_fastr_word_test.ts`
+(asserts on the .docx's own XML) and the Chrome-gated
+`server/tests/report_word_raster_test.ts`.
 
 **Paged PDF and page boxes (2026-09-08, inverted 2026-09-10).** A FASTR
 Markdown report has a real PDF, and the Edit pane shows where its pages fall.
@@ -1393,7 +1498,54 @@ preset swatches on top beside a struck-through "none" chip, the literal
 colour grid + hex field below — and keeps
 them mutually exclusive in a single fence rewrite, because a literal wins over
 a tone in the renderer and a stale one must not linger; the Page menu embeds
-the same panel for the document background. Text colour is the SAME shape
+the same panel for the document background. The block segment offers NO page
+break control (2026-09-23): `break=before|after` stays a legacy attribute
+the paged sheet honours, but neither the toolbar nor the AI brief writes it;
+a page break is the `:::pagebreak` leaf. Nor does a `tiles` or `columns`
+GRID get the Background menu (a ground behind the whole row reads as a
+mistake; its cards and columns keep theirs). Two gestures treat a region as
+the unit it looks like (`insertBlockEdit`, `enterBesideRegionEdit` in lib):
+an Insert-menu block or table with the caret parked inside a region lands
+AFTER that whole top-level region, never inside it, and Enter on a parked
+caret opens a blank line beside the block, above it (the block moves down)
+or below when the caret stands at the region's very end, which is the only
+keyboard way past a stat row, a figure or a table at the end of a document.
+A natural cover opening ANY page is flush to the sheet's top in the editor
+as it is in print (`openPage`, no `isFirst`), where it used to sit under a
+band of top margin after a page break. TEMPLATES (2026-09-23): on a
+report whose body is still a title line alone, the theme modal is step 1 of
+2 (`offerTemplates`): Next applies the theme and step 2 is a template gallery
+(`template_gallery.tsx`, Back returns, Skip keeps the theme and the title):
+Policy brief, Long-form report and Empty, each tile
+the template's real first page rendered under the look just chosen
+(`FastrTemplateMock`). The skeletons live in `lib/fastr_report_templates.ts`
+with placeholder guidance written as muted marks (`[What goes here]{.muted}`,
+bracketed text in attributes); the chosen body goes in through
+`applyRebasedBody` (one transaction, so collaborators and undo see it) and the
+choice is stored as `config.template`. The AI's editing instructions append
+`fastrReportTemplateBrief` for that template (shape, section order, the
+placeholder convention), read live from the view context's `getTemplate`,
+and `get_report_editor` names it. LINE BREAKS IN BLOCKS
+(2026-09-23): in a paragraph island inside a card, column, callout, band,
+quote or cover, Enter (and Shift+Enter) inserts a newline in the same text,
+a `<br>` under `breaks: true`, instead of closing the island or (on the
+pages) splitting a new paragraph; steps keep Enter for a new step and
+top-level prose on the pages keeps it for a new paragraph. The newline goes
+in as a text node (Chrome's insertText turns it into markup textContent
+drops), a trailing one is not committed until text follows (a blank last
+line would end the paragraph), and a rebuilt island re-opens with the caret
+at its source offset rather than at the end. STABLE TEXT METRICS
+(2026-09-23, "when I write at the start of a new line the page jitters"):
+CodeMirror estimates every unrendered line's height from ONE sample, the
+first rendered line of at most 20 plain-text characters, and on this surface
+those are headings and the line being typed, each in its own font; a
+character-width change over 0.1px makes it throw the whole height map away
+and re-estimate, so Enter-then-type shuffled the page above the caret in
+line-height steps for a second (probe: the oracle's charWidth flipping
+7.56 → 12 → 10.5 → 8.3 → 7.25 while lineHeight held). `stableTextMetricsPlugin`
+marks the text of every short line (`cm-fm-nosample`, no style): mark views
+are skipped by the sampler, so CodeMirror always measures its own dummy line
+in the body font. Verified: charWidth constant, caret and scroll steady. Text colour is the SAME shape
 (`InkPanel`): the ink roles as preset swatches on top, the literal grid and
 hex field below (`LiteralColours`, shared with the ground panel); a literal
 writes `[x]{color=#hex}` — `color=` is a fourth mark attribute, gated by

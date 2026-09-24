@@ -12,19 +12,18 @@ import {
 } from "lib";
 import {
   Button,
+  FrameLeftResizable,
   FrameTop,
-  HeadingBar,
   LoadingIndicator,
   type MenuItem,
   ActionMenuButton,
   MenuButton,
-  Slider,
   createDeleteAction,
   openAlert,
   openComponent,
 } from "panther";
 import { Sortable, SortableJs } from "panther";
-import { createEffect, createSignal, on, Show } from "solid-js";
+import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
@@ -35,7 +34,7 @@ import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
-import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
+import { PackageScopeChip, ProductTitle } from "~/components/products/_shared/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
@@ -50,7 +49,20 @@ type Props = {
   isLoading: boolean;
   deckLabel: string;
   setSelectedSlideIds: (ids: string[]) => void;
-  onEditSlide: (slideId: string) => Promise<void>;
+  // The slide open in the editor beside the rail, and how the rail changes
+  // it: a plain click, a new or duplicated slide, the neighbour of a deleted
+  // one. Resolves false when the switch was refused (an unsaved draft the
+  // user chose to keep editing), and the rail leaves things as they are.
+  currentSlideId: string | undefined;
+  onSelectSlide: (slideId: string | undefined) => Promise<boolean>;
+  // The editor (or its placeholder), filling the frame beside the rail.
+  children: JSX.Element;
+  // The toolbar row under the heading bar, where the open slide's editor
+  // portals its toolbar (beside the deck's own Add slide).
+  onToolbarHost: (el: HTMLDivElement) => void;
+  // The header's menus line, where the open slide's editor portals its
+  // Slide / Insert / Layout menus (under the deck's name, Google Slides).
+  onMenuRowHost: (el: HTMLDivElement) => void;
   handleClose: () => Promise<void>;
   handleOpenSettings: () => Promise<void>;
   handleOpenProductSettings: () => Promise<void>;
@@ -66,8 +78,6 @@ export function SlideList(p: Props) {
   const [lastSelectedIndex, setLastSelectedIndex] = createSignal<number | null>(
     null,
   );
-  const [slideSize, setSlideSize] = createSignal(400);
-  const [isFillWidth, setIsFillWidth] = createSignal(false);
 
   function updateSelection(newSelected: Set<string>) {
     setSelectedIds(newSelected);
@@ -202,9 +212,29 @@ export function SlideList(p: Props) {
       return;
     }
 
-    // Regular click - edit slide behavior
-    clearSelection();
-    p.onEditSlide(slideId);
+    // Regular click: this slide alone is selected, and it opens beside the
+    // rail (Google Slides).
+    const only = new Set([slideId]);
+    updateSelection(only);
+    setLastSelectedIndex(index);
+    syncSelectionWithSortableJS(only);
+    void p.onSelectSlide(slideId);
+  }
+
+  // The slide the editor should show once `ids` are gone: the one after the
+  // last of them, else the one before the first, else nothing.
+  function neighbourOf(ids: string[]): string | undefined {
+    const items = sortableSlideItems().map((i) => i.id);
+    const gone = new Set(ids);
+    const indexes = items.map((id, i) => (gone.has(id) ? i : -1)).filter((i) => i >= 0);
+    if (indexes.length === 0) return undefined;
+    for (let i = Math.max(...indexes) + 1; i < items.length; i++) {
+      if (!gone.has(items[i])) return items[i];
+    }
+    for (let i = Math.min(...indexes) - 1; i >= 0; i--) {
+      if (!gone.has(items[i])) return items[i];
+    }
+    return undefined;
   }
 
   function syncSelectionWithSortableJS(selectedSet: Set<string>) {
@@ -251,11 +281,21 @@ export function SlideList(p: Props) {
 
     const deleteAction = createDeleteAction(
       confirmText,
-      () =>
-        serverActions.deleteSlides({
+      async () => {
+        // The editor leaves a slide BEFORE the server closes its room, or
+        // the close would reach it as a fatal "this slide was deleted".
+        const current = p.currentSlideId;
+        if (current !== undefined && slideIdsToDelete.includes(current)) {
+          const moved = await p.onSelectSlide(neighbourOf(slideIdsToDelete));
+          if (!moved) {
+            return { success: false as const, err: t3({ en: "Delete cancelled.", fr: "Suppression annulée.", pt: "Eliminação cancelada." }) };
+          }
+        }
+        return await serverActions.deleteSlides({
           product_id: p.productId,
           slideIds: slideIdsToDelete,
-        }),
+        });
+      },
       () => {
         // Remove from local state immediately
         setSortableSlideItems((items) =>
@@ -300,6 +340,12 @@ export function SlideList(p: Props) {
         }
         return newItems;
       });
+      // The first duplicate opens, as a new slide does.
+      const first = res.data.newSlideIds[0];
+      if (first !== undefined) {
+        clearSelection();
+        void p.onSelectSlide(first);
+      }
     }
   }
 
@@ -396,6 +442,9 @@ export function SlideList(p: Props) {
         newItems.splice(afterIndex + 1, 0, { id: res.data.slideId });
         return newItems;
       });
+      // The new slide opens for editing.
+      clearSelection();
+      void p.onSelectSlide(res.data.slideId);
     }
   }
 
@@ -560,164 +609,175 @@ export function SlideList(p: Props) {
     <FrameTop
       panelChildren={
         <div class="h-full w-full" data-cursor-zone="header">
-        <HeadingBar
-          data-tour="deck-toolbar"
-          heading={p.deckLabel}
-          onBack={() => p.handleClose()}
-        >
-          <div class="ui-gap-sm flex items-center">
-            <PackageScopeChip
-              product={p.product}
-              onClick={canEditFigures() ? () => void openPackageScope() : undefined}
-            />
-            <PresenceAvatars
-              peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
-            />
-            <Show when={p.slideIds.length > 0}>
-              <div class="w-32">
-                <Slider
-                  data-tour="deck-slide-size"
-                  value={slideSize()}
-                  onChange={setSlideSize}
-                  min={200}
-                  max={800}
-                  step={50}
-                  fullWidth
-                  disabled={isFillWidth()}
+        {/* One header (Google Slides): the name with the slide's menus under
+            it on the left, the deck's actions on the right, the toolbar row
+            beneath. */}
+        <div class="border-b w-full flex-none" data-tour="deck-toolbar">
+          <div class="ui-pad-sm ui-gap flex w-full items-start">
+            <div class="flex min-w-0 flex-1 flex-col">
+              <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
+                <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
+                <ProductTitle productId={p.productId} label={p.deckLabel} />
+                <PackageScopeChip
+                  product={p.product}
+                  onClick={canEditFigures() ? () => void openPackageScope() : undefined}
+                />
+                <PresenceAvatars
+                  peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
                 />
               </div>
+              <div class="flex min-w-0 items-center" ref={p.onMenuRowHost} />
+            </div>
+            <div class="ui-gap-sm flex flex-none items-center">
+              <Show when={p.slideIds.length > 0}>
+                <Button
+                  id="deck-present-button"
+                  iconName="presentation"
+                  onClick={() => p.present()}
+                >
+                  {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
+                </Button>
+                <Button
+                  id="deck-download-button"
+                  iconName="download"
+                  outline
+                  onClick={() => p.download()}
+                >
+                  {t3(TC.download)}
+                </Button>
+              </Show>
+              <Show when={canEditFigures()}>
+                <UpdateAllFiguresButton
+                  count={staleCount()}
+                  busy={updatingFigures()}
+                  onClick={() => void updateAllFigures()}
+                />
+              </Show>
               <Button
-                iconName={isFillWidth() ? "minimize" : "maximize"}
+                id="deck-settings-button"
+                iconName="settings"
                 outline
-                onClick={() => setIsFillWidth(!isFillWidth())}
-              />
-              <Button
-                id="deck-present-button"
-                iconName="presentation"
-                onClick={() => p.present()}
+                onClick={() => p.handleOpenSettings()}
               >
-                {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
+                {t3(TC.settings)}
               </Button>
-            </Show>
-            <Show when={canEditFigures()}>
-              <UpdateAllFiguresButton
-                count={staleCount()}
-                busy={updatingFigures()}
-                onClick={() => void updateAllFigures()}
-              />
-            </Show>
-            <MenuButton position="bottom-end" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
-              {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-            </MenuButton>
-            <Button
-              id="deck-settings-button"
-              iconName="settings"
-              outline
-              onClick={() => p.handleOpenSettings()}
-            >
-              {t3(TC.settings)}
-            </Button>
-            <ActionMenuButton id="deck-more-button" items={menuItems} outline />
-            <Show when={!showAi()}>
-              <Button
-                onClick={() => setShowAi(true)}
-                iconName="chevronLeft"
-                outline
-              >
-                {t3({ en: "AI", fr: "IA", pt: "IA" })}
-              </Button>
-            </Show>
+              <ActionMenuButton id="deck-more-button" items={menuItems} outline />
+              <Show when={!showAi()}>
+                <Button
+                  onClick={() => setShowAi(true)}
+                  iconName="chevronLeft"
+                  outline
+                >
+                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
+                </Button>
+              </Show>
+            </div>
           </div>
-        </HeadingBar>
+          {/* The toolbar row: the deck's Add slide at the left, then the open
+              slide's formatting pill. */}
+          <div class="border-t flex items-start" data-cursor-zone="header">
+            <div class="flex-none px-2 pt-1">
+              <MenuButton position="bottom-start" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
+                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+              </MenuButton>
+            </div>
+            <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
+          </div>
+        </div>
         </div>
       }
     >
-      <div
-        class="ui-pad bg-base-200 h-full w-full overflow-auto"
-        onClick={(e) => {
-          // Clear selection when clicking outside slide cards
-          const target = e.target as HTMLElement;
-          const clickedOnSlide = target.closest(".slide-card-wrapper");
-          if (!clickedOnSlide) {
-            clearSelection();
-          }
-        }}
-      >
-        <Show when={p.isLoading}>
-          <LoadingIndicator
-            msg={t3({
-              en: "Loading slides...",
-              fr: "Chargement des diapositives...",
-              pt: "A carregar diapositivos...",
-            })}
-            noPad
-          />
-        </Show>
-        <Show when={!p.isLoading && p.slideIds.length === 0}>
-          <div class="text-base-content-muted w-full py-16 text-center">
-            {t3({
-              en: 'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
-              fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
-              pt: 'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
-            })}
-          </div>
-        </Show>
-        <Show when={!p.isLoading && p.slideIds.length > 0}>
-          {/* Wrapper exists so a tour can spotlight just the slides; the
-              scroll container above is full-height, which leaves a tour
-              popover nowhere to sit. */}
-          <div data-tour="deck-grid">
-          <Sortable
-            idField="id"
-            items={sortableSlideItems()}
-            setItems={(newItems: { id: string }[]) => {
-              const oldItems = sortableSlideItems();
-              setSortableSlideItems(newItems);
-              handleReorder(
-                oldItems.map((i) => i.id),
-                newItems.map((i) => i.id),
-              );
+      <FrameLeftResizable
+        startingWidth={210}
+        minWidth={140}
+        maxWidth={420}
+        panelChildren={
+          <div
+            class="bg-base-200 flex h-full w-full flex-col overflow-auto"
+            onClick={(e) => {
+              // Clear the multi-selection when the click misses every card;
+              // the open slide stays open.
+              const target = e.target as HTMLElement;
+              if (!target.closest(".slide-card-wrapper")) clearSelection();
             }}
-            class="flex flex-wrap justify-center gap-4"
-            multiDrag
-            avoidImplicitDeselect
-            selectedClass="sortable-selected"
-            animation={150}
-            ghostClass="opacity-50"
-            chosenClass="shadow-floating"
-            dragClass="cursor-grabbing"
-            fallbackTolerance={3}
           >
-            {(item: { id: string }) => {
-              const index = () =>
-                sortableSlideItems().findIndex((i) => i.id === item.id);
-              return (
-                <SlideCard
-                  productId={p.productId}
-                  slideId={item.id}
-                  index={index()}
-                  isSelected={selectedIds().has(item.id)}
-                  selectedCount={selectedIds().size}
-                  slideSize={slideSize()}
-                  fillWidth={isFillWidth()}
-                  onCardClick={(e, isCircleClick) =>
-                    handleSlideClick(index(), item.id, e, isCircleClick)
-                  }
-                  onEdit={() => {
-                    clearSelection();
-                    p.onEditSlide(item.id);
+            <Show when={p.isLoading}>
+              <LoadingIndicator
+                msg={t3({
+                  en: "Loading slides...",
+                  fr: "Chargement des diapositives...",
+                  pt: "A carregar diapositivos...",
+                })}
+              />
+            </Show>
+            <Show when={!p.isLoading && p.slideIds.length > 0}>
+              {/* The rail: the deck in order, one thumbnail per slide, dragged
+                  to reorder. The wrapper exists so a tour can spotlight it. */}
+              <div class="ui-pad-sm" data-tour="deck-grid">
+                <Sortable
+                  idField="id"
+                  items={sortableSlideItems()}
+                  setItems={(newItems: { id: string }[]) => {
+                    const oldItems = sortableSlideItems();
+                    setSortableSlideItems(newItems);
+                    handleReorder(
+                      oldItems.map((i) => i.id),
+                      newItems.map((i) => i.id),
+                    );
                   }}
-                  onDelete={() => handleDelete(item.id)}
-                  onDuplicate={() => handleDuplicate(item.id)}
-                  deckConfig={p.deckConfig}
-                  viewers={otherPeers().filter((pe) => pe.slideId === item.id)}
-                />
-              );
-            }}
-          </Sortable>
+                  class="flex flex-col gap-3"
+                  multiDrag
+                  avoidImplicitDeselect
+                  selectedClass="sortable-selected"
+                  animation={150}
+                  ghostClass="opacity-50"
+                  chosenClass="shadow-floating"
+                  dragClass="cursor-grabbing"
+                  fallbackTolerance={3}
+                >
+                  {(item: { id: string }) => {
+                    const index = () =>
+                      sortableSlideItems().findIndex((i) => i.id === item.id);
+                    return (
+                      <SlideCard
+                        productId={p.productId}
+                        slideId={item.id}
+                        index={index()}
+                        isSelected={selectedIds().has(item.id)}
+                        isCurrent={p.currentSlideId === item.id}
+                        selectedCount={selectedIds().size}
+                        onCardClick={(e, isCircleClick) =>
+                          handleSlideClick(index(), item.id, e, isCircleClick)
+                        }
+                        onEdit={() => void p.onSelectSlide(item.id)}
+                        onDelete={() => handleDelete(item.id)}
+                        onDuplicate={() => handleDuplicate(item.id)}
+                        deckConfig={p.deckConfig}
+                        viewers={otherPeers().filter((pe) => pe.slideId === item.id)}
+                      />
+                    );
+                  }}
+                </Sortable>
+              </div>
+            </Show>
           </div>
+        }
+      >
+        <Show
+          when={!(!p.isLoading && p.slideIds.length === 0)}
+          fallback={
+            <div class="text-base-content-muted flex h-full items-center justify-center p-16 text-center">
+              {t3({
+                en: 'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
+                fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
+                pt: 'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
+              })}
+            </div>
+          }
+        >
+          {p.children}
         </Show>
-      </div>
+      </FrameLeftResizable>
     </FrameTop>
   );
 }

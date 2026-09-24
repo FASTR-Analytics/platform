@@ -264,10 +264,16 @@ type InternalSlideSession = {
   localOrigin: object;
   undoManager: Y.UndoManager;
   ready: boolean;
+  /** The lineage epoch of the doc this session holds (from its first sync).
+   *  See resetLineage. */
+  epoch?: string;
   onRemote: () => void;
   /** `fatal` ⇔ the document/room is gone (deleted/replaced/not found): the
    *  editor must stop editing. See CollabServerMessage. */
   onError?: (message: string, fatal?: boolean) => void;
+  /** The session swapped its doc (and undo manager) for one of the server's
+   *  lineage: the host must rebind whatever it bound to the old doc. */
+  onLineageReset?: () => void;
 };
 
 const slideSessions = new Map<string, InternalSlideSession>();
@@ -412,37 +418,15 @@ function destroySlideSession(s: InternalSlideSession): void {
 }
 
 /** `productId` is the deck the slide belongs to: it keys the server room. */
-export function openSlideSession(
-  productId: string,
-  slideId: string,
-  onRemote: () => void,
-  onError?: (message: string, fatal?: boolean) => void,
-): SlideSession {
-  const prior = slideSessions.get(slideId);
-  if (prior) {
-    destroySlideSession(prior);
-  }
-
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  applySessionUser(awareness);
-  const localOrigin = {};
-  const s: InternalSlideSession = {
-    productId,
-    slideId,
-    doc,
-    awareness,
-    localOrigin,
-    undoManager: new Y.UndoManager(slideDocRoot(doc), {
-      trackedOrigins: new Set([localOrigin]),
-      captureTimeout: 500,
-    }),
-    ready: false,
-    onRemote,
-    onError,
-  };
-  slideSessions.set(slideId, s);
-
+// The session's outbound wiring: local doc updates and awareness changes go
+// to the server. A function, not inline in openSlideSession, because a
+// lineage reset re-wires a fresh doc the same way.
+function wireSlideDoc(
+  s: InternalSlideSession,
+  doc: Y.Doc,
+  awareness: Awareness,
+): void {
+  const { productId, slideId } = s;
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
     if (origin === SLIDE_REMOTE_ORIGIN) {
@@ -477,22 +461,120 @@ export function openSlideSession(
       });
     },
   );
+}
+
+// ── Lineage resets ───────────────────────────────────────────────────────────
+// A sync whose epoch differs from the one this session's doc carries comes
+// from a room that RE-SEEDED: a fresh Yjs doc of the same text (the stored
+// CRDT state had gone stale). Merging it into the doc we hold would keep both
+// lineages, i.e. every character twice, and the two-way catch-up would push
+// our copy back to the server to be checkpointed. Adopt the server's doc
+// instead: a fresh doc with the sync applied replaces ours. Edits made while
+// the socket was down are dropped with the old doc (they were never going to
+// land; the room that could have taken them is gone), which is the right
+// loss beside a doubled document.
+
+function teardownDoc(doc: Y.Doc, awareness: Awareness, what: string): void {
+  try {
+    removeAwarenessStates(awareness, [awareness.clientID], "local");
+    awareness.destroy();
+  } catch (err) {
+    console.error(`Collab: ${what} awareness destroy failed`, err);
+  }
+  try {
+    doc.destroy();
+  } catch (err) {
+    console.error(`Collab: ${what} doc destroy failed`, err);
+  }
+}
+
+function resetSlideLineage(
+  s: InternalSlideSession,
+  update: Uint8Array,
+  epoch: string,
+): void {
+  console.warn(
+    `Collab: slide ${s.slideId} room re-seeded (lineage ${s.epoch} → ${epoch}); adopting the server's document`,
+  );
+  const old = { doc: s.doc, awareness: s.awareness, undoManager: s.undoManager };
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, update, SLIDE_REMOTE_ORIGIN);
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  s.doc = doc;
+  s.awareness = awareness;
+  s.undoManager = new Y.UndoManager(slideDocRoot(doc), {
+    trackedOrigins: new Set([s.localOrigin]),
+    captureTimeout: 500,
+  });
+  s.epoch = epoch;
+  wireSlideDoc(s, doc, awareness);
+  try {
+    old.undoManager.destroy();
+  } catch (err) {
+    console.error("Collab: slide undo manager destroy failed", err);
+  }
+  teardownDoc(old.doc, old.awareness, "slide");
+  s.onLineageReset?.();
+}
+
+export function openSlideSession(
+  productId: string,
+  slideId: string,
+  onRemote: () => void,
+  onError?: (message: string, fatal?: boolean) => void,
+  onLineageReset?: () => void,
+): SlideSession {
+  const prior = slideSessions.get(slideId);
+  if (prior) {
+    destroySlideSession(prior);
+  }
+
+  const doc = new Y.Doc();
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  const localOrigin = {};
+  const s: InternalSlideSession = {
+    productId,
+    slideId,
+    doc,
+    awareness,
+    localOrigin,
+    undoManager: new Y.UndoManager(slideDocRoot(doc), {
+      trackedOrigins: new Set([localOrigin]),
+      captureTimeout: 500,
+    }),
+    ready: false,
+    onRemote,
+    onError,
+    onLineageReset,
+  };
+  slideSessions.set(slideId, s);
+  wireSlideDoc(s, doc, awareness);
 
   // Subscribe now if connected; otherwise socket.onopen re-subscribes all.
   subscribeSlideOnSocket(s);
 
   return {
-    doc,
-    awareness,
+    // Getters: a lineage reset swaps the session's doc, awareness and undo
+    // manager, and the host reads the current ones through this handle.
+    get doc() {
+      return s.doc;
+    },
+    get awareness() {
+      return s.awareness;
+    },
     localOrigin: s.localOrigin,
-    undoManager: s.undoManager,
+    get undoManager() {
+      return s.undoManager;
+    },
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (slide: Slide, opts?: SyncSlideOpts) => {
       if (!s.ready) {
         return;
       }
-      doc.transact(() => syncSlideToDoc(doc, slide, opts), s.localOrigin);
+      s.doc.transact(() => syncSlideToDoc(s.doc, slide, opts), s.localOrigin);
     },
     close: () => closeSlideSession(slideId),
   };
@@ -522,9 +604,13 @@ type InternalReportSession = {
   doc: Y.Doc;
   awareness: Awareness;
   ready: boolean;
+  /** See InternalSlideSession.epoch. */
+  epoch?: string;
   onRemote: () => void;
   /** See InternalSlideSession.onError. */
   onError?: (message: string, fatal?: boolean) => void;
+  /** See InternalSlideSession.onLineageReset. */
+  onLineageReset?: () => void;
 };
 
 const reportSessions = new Map<string, InternalReportSession>();
@@ -577,33 +663,13 @@ function destroyReportSession(s: InternalReportSession): void {
   }
 }
 
-/** A report IS its product, so `productId` equals `reportId`; both ride so
- *  the two families share one wire shape. */
-export function openReportSession(
-  productId: string,
-  reportId: string,
-  onRemote: () => void,
-  onError?: (message: string, fatal?: boolean) => void,
-): ReportSession {
-  const prior = reportSessions.get(reportId);
-  if (prior) {
-    destroyReportSession(prior);
-  }
-
-  const doc = new Y.Doc();
-  const awareness = new Awareness(doc);
-  applySessionUser(awareness);
-  const s: InternalReportSession = {
-    productId,
-    reportId,
-    doc,
-    awareness,
-    ready: false,
-    onRemote,
-    onError,
-  };
-  reportSessions.set(reportId, s);
-
+// See wireSlideDoc.
+function wireReportDoc(
+  s: InternalReportSession,
+  doc: Y.Doc,
+  awareness: Awareness,
+): void {
+  const { productId, reportId } = s;
   doc.on("update", (update: Uint8Array, origin: unknown) => {
     // Updates applied from the server must not be shipped back.
     if (origin === SLIDE_REMOTE_ORIGIN) {
@@ -636,26 +702,85 @@ export function openReportSession(
       });
     },
   );
+}
+
+// See resetSlideLineage: the report editor rebinds CodeMirror to the new
+// body text through onLineageReset (its bind key is the doc's guid).
+function resetReportLineage(
+  s: InternalReportSession,
+  update: Uint8Array,
+  epoch: string,
+): void {
+  console.warn(
+    `Collab: report ${s.reportId} room re-seeded (lineage ${s.epoch} → ${epoch}); adopting the server's document`,
+  );
+  const old = { doc: s.doc, awareness: s.awareness };
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, update, SLIDE_REMOTE_ORIGIN);
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  s.doc = doc;
+  s.awareness = awareness;
+  s.epoch = epoch;
+  wireReportDoc(s, doc, awareness);
+  teardownDoc(old.doc, old.awareness, "report");
+  s.onLineageReset?.();
+}
+
+/** A report IS its product, so `productId` equals `reportId`; both ride so
+ *  the two families share one wire shape. */
+export function openReportSession(
+  productId: string,
+  reportId: string,
+  onRemote: () => void,
+  onError?: (message: string, fatal?: boolean) => void,
+  onLineageReset?: () => void,
+): ReportSession {
+  const prior = reportSessions.get(reportId);
+  if (prior) {
+    destroyReportSession(prior);
+  }
+
+  const doc = new Y.Doc();
+  const awareness = new Awareness(doc);
+  applySessionUser(awareness);
+  const s: InternalReportSession = {
+    productId,
+    reportId,
+    doc,
+    awareness,
+    ready: false,
+    onRemote,
+    onError,
+    onLineageReset,
+  };
+  reportSessions.set(reportId, s);
+  wireReportDoc(s, doc, awareness);
 
   // Subscribe now if connected; otherwise socket.onopen re-subscribes all.
   subscribeReportOnSocket(s);
 
   return {
-    doc,
-    awareness,
+    // Getters: see the slide handle.
+    get doc() {
+      return s.doc;
+    },
+    get awareness() {
+      return s.awareness;
+    },
     isReady: () => s.ready,
     isLive: () => s.ready && !!ws && ws.readyState === WebSocket.OPEN,
     pushLocal: (content: ReportDocContent) => {
       if (!s.ready) {
         return;
       }
-      doc.transact(() => syncReportToDoc(doc, content));
+      s.doc.transact(() => syncReportToDoc(s.doc, content));
     },
     pushRegistries: (figures, images, opts) => {
       if (!s.ready) {
         return;
       }
-      doc.transact(() => syncReportRegistries(doc, figures, images, opts));
+      s.doc.transact(() => syncReportRegistries(s.doc, figures, images, opts));
     },
     close: () => closeReportSession(reportId),
   };
@@ -680,6 +805,17 @@ function handleReportServerMessage(msg: CollabServerMessage): boolean {
       // Sync resets save health; the server re-sends failing state right after
       // when the room is still failing.
       setDocSaveFailing("report", msg.data.reportId, false);
+      const epoch = msg.data.epoch;
+      if (epoch !== undefined && s.epoch !== undefined && s.epoch !== epoch) {
+        // Another lineage: adopt, never merge (see resetReportLineage).
+        resetReportLineage(s, base64ToBytes(msg.data.update), epoch);
+        s.ready = true;
+        s.onRemote();
+        return true;
+      }
+      if (epoch !== undefined) {
+        s.epoch = epoch;
+      }
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
       // Two-way sync: push anything the server is missing (guarded like the
@@ -743,6 +879,18 @@ function handleSlideServerMessage(msg: CollabServerMessage): boolean {
       // Sync resets save health; the server re-sends failing state right after
       // when the room is still failing.
       setDocSaveFailing("slide", msg.data.slideId, false);
+      const epoch = msg.data.epoch;
+      if (epoch !== undefined && s.epoch !== undefined && s.epoch !== epoch) {
+        // Another lineage: adopt, never merge (see resetSlideLineage). The
+        // fresh doc has nothing the server lacks, so no catch-up push.
+        resetSlideLineage(s, base64ToBytes(msg.data.update), epoch);
+        s.ready = true;
+        s.onRemote();
+        return true;
+      }
+      if (epoch !== undefined) {
+        s.epoch = epoch;
+      }
       Y.applyUpdate(s.doc, base64ToBytes(msg.data.update), SLIDE_REMOTE_ORIGIN);
       s.ready = true;
       // Two-way sync: push anything the server is missing, e.g. a local edit

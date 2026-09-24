@@ -15,6 +15,7 @@ import {
   insertNewSlideDeckDetail,
 } from "./slide_decks.ts";
 import { duplicateReportDetail, insertNewReportDetail } from "./reports.ts";
+import { carryReportCrdtStamps } from "./_product_row.ts";
 
 /** LOAD-BEARING message: version capture (NOT_FOUND_ERRORS in
  *  server/collab/version_capture.ts) matches it EXACTLY to tell "row is gone
@@ -210,12 +211,16 @@ export async function updateProductLabel(
 > {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const rows = await mainDb<{ type: ProductType }[]>`
-      UPDATE products
-      SET label = ${label.trim()}, last_updated = ${lastUpdated}
-      WHERE id = ${productId}
-      RETURNING type
-    `;
+    const rows = await mainDb.begin(async (sql) => {
+      // The label is not in a report's collab doc: keep its state current.
+      await carryReportCrdtStamps(sql, [productId], lastUpdated);
+      return await sql<{ type: ProductType }[]>`
+        UPDATE products
+        SET label = ${label.trim()}, last_updated = ${lastUpdated}
+        WHERE id = ${productId}
+        RETURNING type
+      `;
+    });
     if (rows.length === 0) {
       throw new Error(PRODUCT_NOT_FOUND);
     }
@@ -232,12 +237,15 @@ export async function moveProductsToFolder(
 ): Promise<APIResponseWithData<{ movedIds: string[]; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const rows = await mainDb<{ id: string }[]>`
-      UPDATE products
-      SET folder_id = ${folderId}, last_updated = ${lastUpdated}
-      WHERE id = ANY(${productIds})
-      RETURNING id
-    `;
+    const rows = await mainDb.begin(async (sql) => {
+      await carryReportCrdtStamps(sql, productIds, lastUpdated);
+      return await sql<{ id: string }[]>`
+        UPDATE products
+        SET folder_id = ${folderId}, last_updated = ${lastUpdated}
+        WHERE id = ANY(${productIds})
+        RETURNING id
+      `;
+    });
     return {
       success: true,
       data: { movedIds: rows.map((r) => r.id), lastUpdated },
@@ -289,12 +297,15 @@ export async function setProductScope(
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    const rows = await mainDb`
-      UPDATE products
-      SET admin_area_2 = ${adminArea2}, last_updated = ${lastUpdated}
-      WHERE id = ${productId}
-      RETURNING id
-    `;
+    const rows = await mainDb.begin(async (sql) => {
+      await carryReportCrdtStamps(sql, [productId], lastUpdated);
+      return await sql`
+        UPDATE products
+        SET admin_area_2 = ${adminArea2}, last_updated = ${lastUpdated}
+        WHERE id = ${productId}
+        RETURNING id
+      `;
+    });
     if (rows.length === 0) {
       throw new Error(PRODUCT_NOT_FOUND);
     }

@@ -15,6 +15,7 @@ import {
   COLLAB_NO_EDIT_PERMISSION,
   findSlideFigureConfigMap,
   getSlideTitle,
+  findNodeMap,
   materializeSlide,
   t3,
   PAGE_HEIGHT_DU,
@@ -28,19 +29,15 @@ import type {
   MeasuredPage,
 } from "panther";
 import {
-  AlertComponentProps,
   APIResponseWithData,
   Button,
-  FrameLeftResizable,
-  FrameTop,
   getQueryStateFromApiResponse,
-  HeadingBar,
   PageHolder,
   PageInputs,
   buildHitRegions,
-  Select,
   StateHolder,
   applyDividerDragUpdate,
+  findHitTarget,
   findNodeInDraft,
   createItemNode,
   findById,
@@ -56,6 +53,7 @@ import {
   createSignal,
   onCleanup,
   onMount,
+  untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import type * as Y from "yjs";
@@ -86,7 +84,6 @@ import {
 } from "~/components/_shared/figure_editor/mod.ts";
 import { serverActions } from "~/server_actions";
 import { _SLIDE_CACHE } from "~/state/products/t2_slides";
-import { setShowAi, showAi } from "~/state/t4_ui";
 import {
   collabSocketOpen,
   docSaveFailing,
@@ -96,18 +93,26 @@ import {
   setCollabView,
   type SlideSession,
 } from "~/state/instance/collab";
-import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { SlideEditorCursors } from "./slide_cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { canEditProduct } from "~/state/instance/product_access";
-import { productById } from "~/state/instance/t1_store";
-import { PackageScopeChip } from "~/components/products/_shared/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { convertBlockType } from "../slide_transforms/mod.ts";
 import { convertSlideType } from "../slide_transforms/mod.ts";
 import { updateBlockInLayout } from "../slide_transforms/mod.ts";
-import { SlideEditorPanel } from "./editor_panel";
+import { SlideToolbar } from "./slide_toolbar";
+import { SLIDE_TEXT_FIELDS, slideTextField } from "./slide_fields";
+import { MarkdownSourceModal } from "./markdown_source_modal";
+import {
+  InlineTextEditor,
+  type InlineEditTarget,
+  type InlineTextApi,
+} from "./inline_text_editor";
+
+// The title primitives panther draws, and the slide field each one shows.
+const INLINE_TITLE_FIELDS: Record<string, { field: string; slideType: SlideType }> =
+  Object.fromEntries(SLIDE_TEXT_FIELDS.map((f) => [f.primitiveId, f]));
 
 type SlideEditorInnerProps = {
   productId: string;
@@ -122,9 +127,30 @@ type SlideEditorInnerProps = {
   scope: PackageScope;
   authoringContext: RunAuthoringContext;
   returnToContext?: CopilotViewState;
+  // Where the deck wants the slide's toolbar: the toolbar row under the
+  // deck's heading bar, spanning the rail and the slide (Google Slides). The
+  // toolbar is rendered there through a portal; it stays this editor's.
+  toolbarHost?: HTMLElement;
+  menuRowHost?: HTMLElement;
+  // The deck the slide sits in, read live: the copilot's slide view carries
+  // the deck's tools too, since the deck's rail is always beside the slide.
+  deckContext: {
+    getDeckConfig: () => SlideDeckConfig;
+    getSlideIds: () => string[];
+    getSelectedSlideIds: () => string[];
+  };
+  // What the deck may ask of the mounted editor: `flush` settles an unsaved
+  // draft before the deck swaps the slide out (false = the user chose to keep
+  // editing, so the swap is off).
+  onApi?: (api: SlideEditorApi | undefined) => void;
 };
 
-type Props = AlertComponentProps<SlideEditorInnerProps, boolean>;
+export type SlideEditorApi = { flush: () => Promise<boolean> };
+
+// Mounted beside the deck's slide rail (slide_list.tsx), one instance per
+// open slide: the rail swaps it out by key, so a mount is "open" and a
+// cleanup is "close" — there is no back button and no Save.
+type Props = SlideEditorInnerProps;
 
 export function SlideEditor(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
@@ -173,8 +199,224 @@ export function SlideEditor(p: Props) {
     if (id) setSelectedTextTarget(undefined);
     setSelectedBlockId(id);
   }
-  const [contentTab, setContentTab] = createSignal<"slide" | "block">("slide");
   const [measuredPage, setMeasuredPage] = createSignal<MeasuredPage>();
+
+  // ── Typing on the canvas ────────────────────────────────────────────────────
+  // Double-click a text block or title (or press Enter with one selected) to
+  // type straight onto the slide: see inline_text_editor.tsx. A fresh object
+  // per session remounts the editor for each one.
+  const [inlineEdit, setInlineEdit] = createSignal<
+    | {
+      target: InlineEditTarget;
+      point?: { x: number; y: number };
+      selectAll?: boolean;
+    }
+    | undefined
+  >();
+  // The open inline editor's commands, for the toolbar's formatting buttons.
+  const [inlineApi, setInlineApi] = createSignal<InlineTextApi>();
+
+  function textOfTarget(t: InlineEditTarget): string | undefined {
+    if (t.kind === "block") {
+      if (tempSlide.type !== "content") return undefined;
+      const hit = findById(tempSlide.layout, t.id);
+      const data = hit?.node.type === "item" ? hit.node.data : undefined;
+      return data?.type === "text" ? data.markdown : undefined;
+    }
+    if (INLINE_TITLE_FIELDS[t.primitiveId]?.slideType !== tempSlide.type) {
+      return undefined;
+    }
+    return ((tempSlide as unknown as Record<string, unknown>)[t.field] as
+      | string
+      | undefined) ?? "";
+  }
+
+  function startInlineEdit(
+    target: InlineEditTarget,
+    point?: { x: number; y: number },
+    selectAll?: boolean,
+  ) {
+    if (!canEdit() || textOfTarget(target) === undefined) return;
+    if (target.kind === "block") {
+      selectBlock(target.id);
+    } else {
+      selectTextTarget(target.primitiveId);
+    }
+    setInlineEdit({ target, point, selectAll });
+  }
+
+  // Text menu → an absent title field: seed it with its name (an empty field
+  // draws nothing to click) and start typing over it.
+  function addTitleField(primitiveId: string) {
+    const f = slideTextField(primitiveId);
+    const target = titleTarget(primitiveId);
+    if (!f || !target || tempSlide.type !== f.slideType) return;
+    manuallyUpdateTempSlide(
+      produce((draft) => {
+        (draft as unknown as Record<string, unknown>)[f.field] = f.label();
+      }),
+    );
+    // Opened after the seeded text reaches the canvas, so the editor binds to
+    // it with the placeholder selected.
+    setInlineEdit(undefined);
+    queueMicrotask(() => startInlineEdit(target, undefined, true));
+  }
+
+  function inlineTargetAt(x: number, y: number): InlineEditTarget | undefined {
+    const m = measuredPage();
+    if (!m) return undefined;
+    const hit = findHitTarget(buildHitRegions(m), x, y);
+    if (!hit) return undefined;
+    if (hit.type === "layoutItem") {
+      return { kind: "block", id: hit.node.id };
+    }
+    return titleTarget(hit.type);
+  }
+
+  function titleTarget(primitiveId: string): InlineEditTarget | undefined {
+    const f = INLINE_TITLE_FIELDS[primitiveId];
+    if (!f) return undefined;
+    // A deck-wide footer overrides the slide's own: not this slide's text.
+    if (
+      primitiveId === "footerText" &&
+      p.deckConfigSnapshot.globalFooterText !== undefined
+    ) {
+      return undefined;
+    }
+    return { kind: "title", field: f.field, primitiveId };
+  }
+
+  // A click on nothing (the slide's empty ground, or the grey around it)
+  // deselects, so the toolbar returns to the slide's own row. PageHolder
+  // reports hits on its own click handler, which runs before this one
+  // bubbles; a drag that ends here is not a click.
+  let canvasHit = false;
+  let canvasPress: { x: number; y: number } | undefined;
+  function handleCanvasPointerDown(e: PointerEvent) {
+    canvasPress = { x: e.clientX, y: e.clientY };
+  }
+  function handleCanvasClick(e: MouseEvent) {
+    const press = canvasPress;
+    canvasPress = undefined;
+    const hit = canvasHit;
+    canvasHit = false;
+    if (hit) return;
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 4) return;
+    if (inlineEdit()) return;
+    selectBlock(undefined);
+    selectTextTarget(undefined);
+  }
+
+  function handleCanvasDblClick(e: MouseEvent) {
+    if (inlineEdit()) return;
+    const r = document
+      .getElementById("SLIDE_EDITOR_CANVAS")
+      ?.getBoundingClientRect();
+    if (!r || r.width === 0) return;
+    const s = r.width / PAGE_WIDTH_DU;
+    const point = { x: (e.clientX - r.left) / s, y: (e.clientY - r.top) / s };
+    const target = inlineTargetAt(point.x, point.y);
+    if (!target) return;
+    e.preventDefault();
+    startInlineEdit(target, point);
+  }
+
+  function applyInlineText(target: InlineEditTarget, text: string) {
+    if (textOfTarget(target) === text) return;
+    if (target.kind === "block") {
+      manuallyUpdateTempSlide(
+        produce((draft) => {
+          if (draft.type !== "content") return;
+          const node = findNodeInDraft(draft.layout, target.id);
+          if (node?.type === "item" && node.data?.type === "text") {
+            node.data.markdown = text;
+          }
+        }),
+      );
+    } else {
+      // An emptied optional field is removed, as the old side panel did.
+      const optional = slideTextField(target.primitiveId)?.optional ?? false;
+      manuallyUpdateTempSlide(
+        produce((draft) => {
+          (draft as unknown as Record<string, unknown>)[target.field] =
+            text === "" && optional ? undefined : text;
+        }),
+      );
+    }
+  }
+
+  // ── Block edits from the toolbar ──────────────────────────────────────────
+
+  function updateBlock(
+    blockId: string,
+    updater: (block: ContentBlock) => ContentBlock,
+  ) {
+    if (tempSlide.type !== "content") return;
+    // Path set, as setFigureBlockBundle below: a fresh reference on the path.
+    const layout = updateBlockInLayout(tempSlide.layout, blockId, updater);
+    (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)("layout", layout);
+  }
+
+  // Switching a block's type keeps what it held under the old type, so
+  // switching back restores it.
+  const blockTypeCache = new Map<string, ContentBlock>();
+  function handleBlockTypeChange(
+    blockId: string,
+    newType: "text" | "figure" | "image",
+  ) {
+    if (tempSlide.type !== "content") return;
+    const hit = findById(tempSlide.layout, blockId);
+    const current = hit?.node.type === "item" ? hit.node.data : undefined;
+    if (!current || current.type === newType) return;
+    blockTypeCache.set(`${blockId}_${current.type}`, unwrap(current));
+    const cached = blockTypeCache.get(`${blockId}_${newType}`);
+    if (cached) {
+      updateBlock(blockId, () => cached);
+    } else {
+      manuallyUpdateTempSlide(
+        reconcile({
+          ...unwrap(tempSlide),
+          layout: convertBlockType(
+            unwrap(tempSlide as ContentSlide).layout,
+            blockId,
+            newType,
+          ),
+        }),
+      );
+    }
+  }
+
+  // A text block's markdown source, for what typing on the canvas can't
+  // reach (code blocks, link targets) or anyone who prefers it.
+  function openMarkdownSource(blockId: string) {
+    setInlineEdit(undefined);
+    const s = session();
+    const yText = collabReady() && s
+      ? (findNodeMap(s.doc, blockId)?.get("markdown") as Y.Text | undefined)
+      : undefined;
+    const initial = textOfTarget({ kind: "block", id: blockId }) ?? "";
+    void withCanvasCovered(
+      openComponent({
+        element: MarkdownSourceModal,
+        props: {
+          productId: p.productId,
+          yText,
+          awareness: s?.awareness,
+          undoManager: s?.undoManager,
+          initial,
+          onText: (md: string) =>
+            applyInlineText({ kind: "block", id: blockId }, md),
+        },
+      }),
+    );
+  }
+
+  // The block or field went away under the editor (deleted, retyped, a slide
+  // type switch, a peer's structural edit): stop editing it.
+  createEffect(() => {
+    const ie = inlineEdit();
+    if (ie && textOfTarget(ie.target) === undefined) setInlineEdit(undefined);
+  });
 
   // Live co-editing (Milestone 3). The editor keeps mutating `tempSlide`; a
   // bridge syncs it to a shared CRDT doc. Degrades gracefully: if the collab
@@ -213,6 +455,7 @@ export function SlideEditor(p: Props) {
   // collaborator's edit.
   let undoMgr: Y.UndoManager | undefined;
   let detachUndoPop: (() => void) | undefined;
+  let onLineageReset: (() => void) | undefined;
   const canEdit = () => canEditProduct(p.productId);
   const canUndoRedo = () => !!session() && collabReady() && canEdit();
 
@@ -230,6 +473,27 @@ export function SlideEditor(p: Props) {
   // two different docs. CM textboxes handle Ctrl+Z via their own keymap
   // (popping this same shared stack); native inputs keep native undo.
   function handleEditorKeyDown(e: KeyboardEvent) {
+    if (
+      e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.altKey &&
+      !inlineEdit() && subEditorOpen() === 0
+    ) {
+      const el = e.target as HTMLElement | null;
+      const typing = el?.closest(
+        ".cm-editor, input, textarea, select, button, [contenteditable='true'], [role='dialog']",
+      );
+      const block = selectedBlockId();
+      const title = selectedTextTarget();
+      const target: InlineEditTarget | undefined = block
+        ? { kind: "block", id: block }
+        : title
+        ? titleTarget(title)
+        : undefined;
+      if (!typing && target && textOfTarget(target) !== undefined) {
+        e.preventDefault();
+        startInlineEdit(target);
+        return;
+      }
+    }
     if (!undoMgr || !canUndoRedo() || subEditorOpen() > 0) return;
     const mod = e.ctrlKey || e.metaKey;
     if (!mod || e.key.toLowerCase() !== "z") return;
@@ -302,9 +566,15 @@ export function SlideEditor(p: Props) {
       skipId ? { skipFigureConfigForBlockIds: new Set([skipId]) } : undefined,
     );
 
-    // Re-render the preview for both local and remote changes.
+    // Re-render the preview for both local and remote changes. Typing on the
+    // canvas redraws at once: the canvas IS the text being typed.
     if (renderTimeout) {
       clearTimeout(renderTimeout);
+      renderTimeout = null;
+    }
+    if (untrack(inlineEdit)) {
+      void attemptGetPageInputs(unwrap(tempSlide));
+      return;
     }
     renderTimeout = setTimeout(() => {
       attemptGetPageInputs(unwrap(tempSlide));
@@ -332,8 +602,12 @@ export function SlideEditor(p: Props) {
         getScope: () => p.scope,
         getTempSlide: () => tempSlide,
         setTempSlide,
+        getDeckConfig: () => p.deckContext.getDeckConfig(),
+        getSlideIds: () => p.deckContext.getSlideIds(),
+        getSelectedSlideIds: () => p.deckContext.getSelectedSlideIds(),
       },
     );
+    p.onApi?.({ flush });
 
     // Bind this slide to a shared CRDT document for live co-editing.
     const s = openSlideSession(
@@ -397,10 +671,10 @@ export function SlideEditor(p: Props) {
           }
         }
       },
+      () => onLineageReset?.(),
     );
     setSession(s);
 
-    undoMgr = s.undoManager;
     // Undo/redo mutate the shared doc DIRECTLY (not tempSlide), so pull the
     // result back into the store: the same adopt path a remote change takes.
     // The push the tracking effect then fires is idempotent (the doc already
@@ -408,8 +682,22 @@ export function SlideEditor(p: Props) {
     const onUndoPop = () => {
       manuallyUpdateTempSlide(reconcile(materializeSlide(s.doc) as Slide));
     };
-    s.undoManager.on("stack-item-popped", onUndoPop);
-    detachUndoPop = () => s.undoManager.off("stack-item-popped", onUndoPop);
+    const bindUndo = () => {
+      undoMgr = s.undoManager;
+      s.undoManager.on("stack-item-popped", onUndoPop);
+      detachUndoPop = () => s.undoManager.off("stack-item-popped", onUndoPop);
+    };
+    bindUndo();
+    // The room re-seeded and the session swapped its doc for the server's
+    // lineage (collab.ts resetSlideLineage): the undo manager is new, an
+    // inline editor still open is bound to the old doc, and the store adopts
+    // the doc as it now stands.
+    onLineageReset = () => {
+      detachUndoPop?.();
+      bindUndo();
+      setInlineEdit(undefined);
+      manuallyUpdateTempSlide(reconcile(materializeSlide(s.doc) as Slide));
+    };
     document.addEventListener("keydown", handleEditorKeyDown);
 
     // Keep the optimistic-save timestamp fresh as server-side checkpoints (or
@@ -438,6 +726,7 @@ export function SlideEditor(p: Props) {
   });
 
   onCleanup(() => {
+    p.onApi?.(undefined);
     if (renderTimeout) {
       clearTimeout(renderTimeout);
     }
@@ -570,11 +859,12 @@ export function SlideEditor(p: Props) {
     return { success: true, data: { lastUpdated: updateRes.data.lastUpdated } };
   }
 
-  async function handleCancel() {
-    // Edits autosave via the collab checkpoint; flush explicitly when collab
-    // isn't actually persisting RIGHT NOW: never synced, or synced but the
-    // socket has since dropped (isLive, not the latched collabReady: edits made
-    // while disconnected sit only in the local doc and die with it on close).
+  // Before the deck swaps this slide out. Edits autosave via the collab
+  // checkpoint; flush explicitly when collab isn't actually persisting RIGHT
+  // NOW: never synced, or synced but the socket has since dropped (isLive,
+  // not the latched collabReady: edits made while disconnected sit only in
+  // the local doc and die with it on close).
+  async function flush(): Promise<boolean> {
     if (needsSave() && !(session()?.isLive() ?? false)) {
       const res = await saveFunc();
       if (
@@ -582,15 +872,15 @@ export function SlideEditor(p: Props) {
         res.data.conflictResolutionDecision === "user_chose_cancel"
       ) {
         // The user chose to keep editing rather than resolve the conflict:
-        // don't close (closing would discard the draft they chose to keep).
-        return;
+        // the swap is off (it would discard the draft they chose to keep).
+        return false;
       }
       // Every other outcome resolved the draft (saved, saved-as-new, or
       // explicitly discarded in favor of theirs): clear the dirty flag so the
       // onCleanup last-chance flush doesn't re-save a resolved/discarded draft.
       setNeedsSave(false);
     }
-    p.close(false);
+    return true;
   }
 
   function handleDividerDrag(update: DividerDragUpdate) {
@@ -900,156 +1190,72 @@ export function SlideEditor(p: Props) {
     return staleFigures().find((s) => s.blockId === blockId)?.bundle;
   };
 
+  const toolbarJsx = () => (
+    <div class="h-full w-full">
+      <Show when={canEdit()}>
+        <SlideToolbar
+          tempSlide={tempSlide}
+          setTempSlide={manuallyUpdateTempSlide}
+          showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover.showByDefault}
+          showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header.showByDefault}
+          showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer.showByDefault}
+          hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !== undefined}
+          canEdit={canEdit()}
+          canUndoRedo={canUndoRedo()}
+          onUndo={undo}
+          onRedo={redo}
+          onTypeChange={handleTypeChange}
+          selectedBlockId={selectedBlockId()}
+          selectedTextTarget={selectedTextTarget()}
+          editing={inlineEdit()?.target}
+          inlineApi={inlineApi()}
+          onEditText={(target) => startInlineEdit(target)}
+          onAddField={addTitleField}
+          onEditMarkdown={openMarkdownSource}
+          onShowLayoutMenu={handleShowLayoutMenu}
+          menuRowHost={p.menuRowHost}
+          onBlockTypeChange={handleBlockTypeChange}
+          updateBlock={updateBlock}
+          staleFigureBundle={selectedStaleBundle()}
+          staleContext={staleContext()}
+          onFigureUpdated={(bundle) => {
+            const blockId = selectedBlockId();
+            if (blockId) setFigureBlockBundle(blockId, bundle);
+          }}
+          onEditVisualization={handleEditVisualization}
+          onCreateVisualization={handleCreateVisualization}
+        />
+      </Show>
+    </div>
+  );
+
   return (
     <EditorWrapper>
-      <FrameTop
-        panelChildren={
-          <div
-            class="h-full w-full"
-            data-cursor-zone="header"
-          >
-            <HeadingBar
-              data-tour="slide-editor-header"
-              heading={t3({
-                en: "Edit Slide",
-                fr: "Modifier la diapositive",
-                pt: "Editar diapositivo",
-              })}
-              leftChildren={
-                <Button
-                  id="slide-back-button"
-                  iconName="chevronLeft"
-                  onClick={handleCancel}
-                />
-              }
-            >
-              <div class="ui-gap-sm flex items-center">
-                {/* Read-only here: the pair is changed from the deck header. */}
-                <PackageScopeChip product={productById(p.productId)} />
-                {/* Who else is currently editing THIS slide (live presence). */}
-                <PresenceAvatars
-                  peers={otherPeers().filter((pe) => pe.slideId === p.slideId)}
-                  size="sm"
-                />
-                {/* Room checkpoint health: edits relay live between peers,
-                    but the server can't persist them right now. */}
-                <Show
-                  when={
-                    collabReady() &&
-                    collabSocketOpen() &&
-                    docSaveFailing("slide", p.slideId)
-                  }
-                >
-                  <div class="ui-text-caption flex items-center gap-1.5">
-                    <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
-                    <span>
-                      {t3({
-                        en: "Not saving — retrying…",
-                        fr: "Non enregistré — nouvel essai…",
-                        pt: "Não está a guardar — a tentar novamente…",
-                      })}
-                    </span>
-                  </div>
-                </Show>
-                {/* Per-user undo/redo of this client's own slide edits. */}
-                <Show when={canUndoRedo()}>
-                  <Button onClick={undo} iconName="undo" outline />
-                  <Button onClick={redo} iconName="redo" outline />
-                </Show>
-                <Show when={canEdit()}>
-                  <UpdateAllFiguresButton
-                    count={staleFigures().length}
-                    busy={updatingFigures()}
-                    onClick={() => void updateAllFiguresOnSlide()}
-                  />
-                </Show>
-                <Select
-                  data-tour="slide-type-select"
-                  options={[
-                    {
-                      value: "cover",
-                      label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
-                    },
-                    {
-                      value: "section",
-                      label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
-                    },
-                    {
-                      value: "content",
-                      label: t3({
-                        en: "Content",
-                        fr: "Contenu",
-                        pt: "Conteúdo",
-                      }),
-                    },
-                  ]}
-                  value={tempSlide.type}
-                  onChange={(v: string) =>
-                    handleTypeChange(v as "cover" | "section" | "content")
-                  }
-                />
-                <Show when={!showAi()}>
-                  <Button
-                    onClick={() => setShowAi(true)}
-                    iconName="chevronLeft"
-                    outline
-                  >
-                    {t3({ en: "AI", fr: "IA", pt: "IA" })}
-                  </Button>
-                </Show>
-              </div>
-            </HeadingBar>
-          </div>
-        }
-      >
-        <FrameLeftResizable
-          startingWidth={400}
-          minWidth={300}
-          maxWidth={600}
-          panelChildren={
-            <div
-              class="h-full w-full"
-              data-cursor-zone="panel"
-              data-tour="slide-panel"
-            >
-              <SlideEditorPanel
-                productId={p.productId}
-                staleContext={staleContext()}
-                staleFigureBundle={selectedStaleBundle()}
-                onFigureUpdated={(bundle) => {
-                  const blockId = selectedBlockId();
-                  if (blockId) setFigureBlockBundle(blockId, bundle);
-                }}
-                canEditFigures={canEdit()}
-                tempSlide={tempSlide}
-                setTempSlide={manuallyUpdateTempSlide}
-                selectedBlockId={selectedBlockId()}
-                setSelectedBlockId={setSelectedBlockId}
-                session={session()}
-                collabReady={collabReady()}
-                onSelectTextTarget={selectTextTarget}
-                openEditor={openEditor}
-                contentTab={contentTab()}
-                setContentTab={setContentTab}
-                onShowLayoutMenu={handleShowLayoutMenu}
-                onEditVisualization={handleEditVisualization}
-                onCreateVisualization={handleCreateVisualization}
-                showCoverLogosByDefault={
-                  p.deckConfigSnapshot.logos.cover.showByDefault
-                }
-                showHeaderLogosByDefault={
-                  p.deckConfigSnapshot.logos.header.showByDefault
-                }
-                showFooterLogosByDefault={
-                  p.deckConfigSnapshot.logos.footer.showByDefault
-                }
-                hasGlobalFooterText={
-                  p.deckConfigSnapshot.globalFooterText !== undefined
-                }
-              />
-            </div>
+      <div class="flex h-full w-full flex-col">
+        <Show when={p.toolbarHost} fallback={<div data-cursor-zone="header">{toolbarJsx()}</div>}>
+          {(host) => <Portal mount={host()}>{toolbarJsx()}</Portal>}
+        </Show>
+        {/* Room checkpoint health: edits relay live between peers, but
+            the server can't persist them right now. */}
+        <Show
+          when={
+            collabReady() &&
+            collabSocketOpen() &&
+            docSaveFailing("slide", p.slideId)
           }
         >
+          <div class="ui-text-caption border-b flex items-center gap-1.5 px-3 py-1">
+            <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
+            <span>
+              {t3({
+                en: "Not saving — retrying…",
+                fr: "Non enregistré — nouvel essai…",
+                pt: "Não está a guardar — a tentar novamente…",
+              })}
+            </span>
+          </div>
+        </Show>
+        <div class="min-h-0 flex-1">
           <div
             class="bg-base-200 h-full w-full overflow-auto"
             data-cursor-zone="canvas-area"
@@ -1073,18 +1279,25 @@ export function SlideEditor(p: Props) {
                 </div>
               </div>
             </Show>
+            {/* Not keyed: PageHolder redraws in place on new inputs, which
+                typing on the canvas relies on (a remount per keystroke
+                blanks the canvas and loses its measured page). */}
             <Show
               when={
                 pageInputs().status === "ready"
                   ? (pageInputs() as { status: "ready"; data: PageInputs }).data
                   : undefined
               }
-              keyed
             >
-              {(keyedPageInputs) => (
-                <div class="ui-pad-lg bg-base-200 h-full w-full overflow-auto">
+              {(readyPageInputs) => (
+                <div
+                  class="ui-pad-lg bg-base-200 h-full w-full overflow-auto"
+                  onPointerDown={handleCanvasPointerDown}
+                  onClick={handleCanvasClick}
+                  onDblClick={handleCanvasDblClick}
+                >
                   <PageHolder
-                    pageInputs={keyedPageInputs}
+                    pageInputs={readyPageInputs()}
                     canvasElementId="SLIDE_EDITOR_CANVAS"
                     pageWidthDu={PAGE_WIDTH_DU}
                     pageHeightDu={PAGE_HEIGHT_DU}
@@ -1097,9 +1310,9 @@ export function SlideEditor(p: Props) {
                       showLayoutBoundaries: true,
                     }}
                     onClick={(target) => {
+                      canvasHit = true;
                       if (target.type === "layoutItem") {
                         selectBlock(target.node.id);
-                        setContentTab("block");
                       } else if (
                         target.type === "headerText" ||
                         target.type === "subHeaderText" ||
@@ -1115,7 +1328,6 @@ export function SlideEditor(p: Props) {
                         // Clicking a title target on the canvas both switches to
                         // the slide tab and highlights it for collaborators.
                         selectTextTarget(target.type);
-                        setContentTab("slide");
                       }
                     }}
                     onDividerDrag={handleDividerDrag}
@@ -1146,7 +1358,6 @@ export function SlideEditor(p: Props) {
                               }),
                             );
                             setSelectedBlockId(blockId);
-                            setContentTab("block");
                           },
                           onConvertToFigure: (blockId) => {
                             const newLayout = convertBlockType(
@@ -1161,7 +1372,6 @@ export function SlideEditor(p: Props) {
                               }),
                             );
                             setSelectedBlockId(blockId);
-                            setContentTab("block");
                           },
                           onConvertToImage: (blockId) => {
                             const newLayout = convertBlockType(
@@ -1176,7 +1386,6 @@ export function SlideEditor(p: Props) {
                               }),
                             );
                             setSelectedBlockId(blockId);
-                            setContentTab("block");
                           },
                         },
                       );
@@ -1195,13 +1404,34 @@ export function SlideEditor(p: Props) {
                     measured={measuredPage()}
                     slideId={p.slideId}
                     suppressed={subEditorOpen() > 0}
+                    self={inlineEdit()
+                      ? { blockId: undefined, textTarget: undefined }
+                      : { blockId: selectedBlockId(), textTarget: selectedTextTarget() }}
                   />
                 </div>
               )}
             </Show>
-            {/* Figma-style live cursors. Outside the keyed <Show> above (which
-                recreates on every edit) so the sprites, and their transform
-                transitions, survive re-renders. */}
+            <Show when={inlineEdit()} keyed>
+              {(ie) => (
+                <InlineTextEditor
+                  target={ie.target}
+                  measured={measuredPage()}
+                  canvasId="SLIDE_EDITOR_CANVAS"
+                  session={session()}
+                  collabReady={collabReady()}
+                  initialText={untrack(() => textOfTarget(ie.target)) ?? ""}
+                  initialPoint={ie.point}
+                  onText={(text) => applyInlineText(ie.target, text)}
+                  onExit={() => setInlineEdit(undefined)}
+                  covered={subEditorOpen() > 0}
+                  selectAll={ie.selectAll}
+                  onApi={setInlineApi}
+                />
+              )}
+            </Show>
+            {/* Figma-style live cursors. Outside the <Show> above (which
+                unmounts while a render errors) so the sprites, and their
+                transform transitions, survive re-renders. */}
             <SlideEditorCursors
               slideId={p.slideId}
               awareness={() => session()?.awareness}
@@ -1209,8 +1439,8 @@ export function SlideEditor(p: Props) {
               covered={() => subEditorOpen() > 0}
             />
           </div>
-        </FrameLeftResizable>
-      </FrameTop>
+        </div>
+      </div>
     </EditorWrapper>
   );
 }
@@ -1259,25 +1489,52 @@ function buildIdRectMap(
 }
 
 // Draws a colored border around the block each remote peer has selected on the
-// slide currently being edited. A DOM overlay is required because panther's
-// canvas (PageHolder) is unmodifiable and exposes no highlight-by-id API. The
-// boxes are positioned in viewport coordinates inside a Portal so a transformed
-// modal ancestor cannot offset them, and recompute on resize/scroll.
+// slide currently being edited, and around this user's OWN selection in the
+// canvas's hover blue (the outline they saw while hovering stays once they
+// click, without the hover fill), so what a click selected is never in doubt.
+// It goes while the element is being typed into. A DOM overlay is required
+// because panther's canvas (PageHolder) is unmodifiable and exposes no
+// highlight-by-id API. The boxes are positioned in viewport coordinates
+// inside a Portal so a transformed modal ancestor cannot offset them, and
+// recompute on resize/scroll.
+const OWN_SELECTION_COLOR = "rgba(0, 112, 243, 0.8)";
+
 function PeerSelectionOverlay(p: {
   measured: MeasuredPage | undefined;
   slideId: string;
   suppressed: boolean;
+  // This user's selection on the slide (a body block, or a title field);
+  // neither while it is being typed into.
+  self: { blockId: string | undefined; textTarget: string | undefined };
 }) {
   const [tick, setTick] = createSignal(0);
   const bump = () => setTick((t) => t + 1);
 
+  // The covering backstop below only re-runs when something bumps, and a
+  // modal or editor opening over the canvas (the deck's settings, a modal in
+  // <body>) is a DOM change, not a resize or scroll: it left the frame
+  // showing until the next click. So DOM changes bump too, coalesced to one
+  // per frame (typing on the canvas mutates the DOM constantly).
+  let bodyObserver: MutationObserver | undefined;
+  let bumpFrame: number | undefined;
+  const bumpSoon = () => {
+    if (bumpFrame !== undefined) return;
+    bumpFrame = requestAnimationFrame(() => {
+      bumpFrame = undefined;
+      bump();
+    });
+  };
   onMount(() => {
     window.addEventListener("resize", bump);
     window.addEventListener("scroll", bump, true);
+    bodyObserver = new MutationObserver(bumpSoon);
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
   });
   onCleanup(() => {
     window.removeEventListener("resize", bump);
     window.removeEventListener("scroll", bump, true);
+    bodyObserver?.disconnect();
+    if (bumpFrame !== undefined) cancelAnimationFrame(bumpFrame);
   });
 
   const boxes = () => {
@@ -1290,7 +1547,8 @@ function PeerSelectionOverlay(p: {
         peer.slideId === p.slideId &&
         (peer.selectedBlockId || peer.selectedTextTarget),
     );
-    if (peers.length === 0) return [];
+    const own = p.self.blockId || p.self.textTarget ? p.self : undefined;
+    if (peers.length === 0 && !own) return [];
     const canvas = document.getElementById("SLIDE_EDITOR_CANVAS");
     if (!canvas) return [];
     const r = canvas.getBoundingClientRect();
@@ -1336,30 +1594,47 @@ function PeerSelectionOverlay(p: {
       top: number;
       width: number;
       height: number;
+      // The outer frame's colour: this user's own when the element is theirs.
+      color: string;
       editors: { name: string; color: string; editingFigure: boolean }[];
     }[] = [];
     const byTarget = new Map<string, (typeof out)[number]>();
-    for (const peer of peers) {
-      const targetKey = peer.selectedBlockId
-        ? `block:${peer.selectedBlockId}`
-        : `text:${peer.selectedTextTarget}`;
-      const rcd = peer.selectedBlockId
-        ? blockRects.get(peer.selectedBlockId)
-        : textRects.get(peer.selectedTextTarget!);
-      if (!rcd) continue;
+    const entryFor = (
+      blockId: string | undefined,
+      textTarget: string | undefined,
+      color: string,
+    ) => {
+      const targetKey = blockId ? `block:${blockId}` : `text:${textTarget}`;
+      const rcd = blockId ? blockRects.get(blockId) : textRects.get(textTarget!);
+      if (!rcd) return undefined;
       let entry = byTarget.get(targetKey);
       if (!entry) {
+        // A 2px border centred on the element's edge, where the canvas
+        // strokes its hover outline: one px out, one px in.
         entry = {
           key: targetKey,
-          left: r.left + rcd.x * sx,
-          top: r.top + rcd.y * sy,
-          width: rcd.w * sx,
-          height: rcd.h * sy,
+          left: r.left + rcd.x * sx - 1,
+          top: r.top + rcd.y * sy - 1,
+          width: rcd.w * sx + 2,
+          height: rcd.h * sy + 2,
+          color,
           editors: [],
         };
         byTarget.set(targetKey, entry);
         out.push(entry);
       }
+      return entry;
+    };
+    // This user's own frame first, so its colour is the outer border and a
+    // collaborator on the same element takes the inset ring.
+    if (own) entryFor(own.blockId, own.textTarget, OWN_SELECTION_COLOR);
+    for (const peer of peers) {
+      const entry = entryFor(
+        peer.selectedBlockId || undefined,
+        peer.selectedTextTarget || undefined,
+        peer.color,
+      );
+      if (!entry) continue;
       // Same user in two tabs = two connections; show their name once.
       if (!entry.editors.some((e) => e.name === peer.name)) {
         entry.editors.push({
@@ -1390,12 +1665,12 @@ function PeerSelectionOverlay(p: {
                 top: `${b.top}px`,
                 width: `${b.width}px`,
                 height: `${b.height}px`,
-                border: `2px solid ${b.editors[0].color}`,
+                border: `2px solid ${b.color}`,
               }}
             >
-              {/* Additional co-editors get concentric inset borders so every
-                  editor's color stays visible on the shared element. */}
-              <For each={b.editors.slice(1)}>
+              {/* Co-editors get concentric inset borders so every editor's
+                  colour stays visible on the shared element. */}
+              <For each={b.editors.filter((e) => e.color !== b.color)}>
                 {(e, i) => (
                   <div
                     class="pointer-events-none absolute rounded-sm"

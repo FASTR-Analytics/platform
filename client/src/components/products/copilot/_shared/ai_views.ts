@@ -1,6 +1,6 @@
 import { createAIViewController, defineAIViews, view } from "panther";
 import type { AIViewController, AIViewState } from "panther";
-import { getEditingReportInstructions } from "lib";
+import { type FastrReportTemplate, getEditingReportInstructions } from "lib";
 import type {
   FigureBlock,
   ImageBlock,
@@ -75,7 +75,9 @@ export type EditingSlideParams = {
   deckId: string;
   deckLabel: string;
 };
-export type EditingSlideContext = OpenProductScope & {
+// The slide editor sits beside the deck's slide rail, so this view carries
+// the deck's context too: every deck tool is available while a slide is open.
+export type EditingSlideContext = EditingSlideDeckContext & {
   getTempSlide: () => Slide;
   setTempSlide: SetStoreFunction<Slide>;
 };
@@ -91,6 +93,9 @@ export type EditingReportParams = {
 };
 // See ./types.ts for ReportEditProposal(Result) and ReportEditorSelection.
 export type EditingReportContext = OpenProductScope & {
+  // The template the report was started from (fastr only), read live: it is
+  // chosen after the view is set, from the template modal.
+  getTemplate: () => FastrReportTemplate | undefined;
   getBody: () => string;
   getFigures: () => Record<string, FigureBlock>;
   getImages: () => Record<string, ImageBlock>;
@@ -118,8 +123,13 @@ export const copilotViews = defineAIViews({
   }),
   editing_slide: view<EditingSlideParams, EditingSlideContext>({
     label: (params) => params.slideLabel,
-    instructions: (params) =>
-      `${getEditingSlideInstructions(params.slideLabel, params.deckLabel)}\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`,
+    instructions: (params, context) => {
+      const base =
+        `${getEditingSlideInstructions(params.slideLabel, params.deckLabel)}\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`;
+      const selected = context.getSelectedSlideIds();
+      if (selected.length === 0) return base;
+      return `${base}\n\n## User's current selection in the slide list\nSelected slide id(s): ${selected.join(", ")}`;
+    },
   }),
   editing_report: view<EditingReportParams, EditingReportContext>({
     label: (params) => params.reportLabel,
@@ -130,6 +140,7 @@ export const copilotViews = defineAIViews({
           params.format,
           params.htmlStyle,
           params.customStyle,
+          context.getTemplate(),
         )
       }\n\nreportId: ${params.reportId}`;
       const sel = context.getSelection();

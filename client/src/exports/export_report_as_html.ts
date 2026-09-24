@@ -6,6 +6,8 @@ import {
   type APIResponseNoData,
   buildFastrPagedCss,
   buildFastrReportCss,
+  buildFastrWordRasterCss,
+  type FastrPageSetup,
   FASTR_THEME_TOKENS,
   type FastrPagedFooter,
   fastrPagedRunnerJs,
@@ -103,6 +105,13 @@ export type StandaloneReportOptions = {
     figureRaster: (id: string, block: FigureBlock, ink: FigureInkTheme) => FigureRasterState;
     imageUrl: (id: string) => string | undefined;
   };
+  // The Word export's raster frame: the print column's geometry with no
+  // pagination (buildFastrWordRasterCss) and the source-line anchors on, so
+  // the server's Chrome can find and picture the decorative blocks.
+  rasterFrame?: { page: FastrPageSetup };
+  // Hand back the figure rasters and inlined images the document was built
+  // with, so the Word export embeds the same pixels without a second render.
+  collect?: { figures: Map<string, FigureRasterState>; images: Map<string, string> };
 };
 
 function pagedScriptsHtml(): string {
@@ -128,7 +137,8 @@ export async function buildStandaloneReportHtml(
   // A paged document (the PDF, the editor's layout frame) owns its breaks
   // and must carry none of the browser-print rules the .html download
   // needs; see BROWSER_PRINT_CSS.
-  const paged = opts.paged !== undefined || opts.layoutOnly !== undefined;
+  const paged = opts.paged !== undefined || opts.layoutOnly !== undefined ||
+    opts.rasterFrame !== undefined;
   let themeCss = isFastr
     ? buildFastrReportCss(fastrTheme, customColors ?? undefined, "", { omitPrintRules: paged })
     : undefined;
@@ -149,7 +159,9 @@ export async function buildStandaloneReportHtml(
   // in place through them, and the printed pixels are the same either way.
   const sanitized = isFastr
     ? sanitizeReportHtml(
-      renderFastrMarkdownToHtml(detail.body, { lineAnchors: opts.paged !== undefined }),
+      renderFastrMarkdownToHtml(detail.body, {
+        lineAnchors: opts.paged !== undefined || opts.rasterFrame !== undefined,
+      }),
     )
     : sanitizeReportHtml(detail.body);
   const docSettings = isFastr
@@ -235,6 +247,10 @@ export async function buildStandaloneReportHtml(
     const entry = await loadImageEntry(`${_SERVER_HOST}/${block.imgFile}`);
     if (entry) imageUrls.set(id, entry.dataUrl);
   }
+  if (opts.collect) {
+    for (const [id, r] of rasters) opts.collect.figures.set(id, r);
+    for (const [id, u] of imageUrls) opts.collect.images.set(id, u);
+  }
   progress(0.8);
   // Built in the APP document's inert <template> — nothing loads or applies
   // until the user opens the file.
@@ -268,7 +284,11 @@ function pagedDocumentParts(
     "pageCss" | "headExtraCss" | "bodyPrefixHtml" | "bodySuffixHtml"
   >
 > {
-  if (!opts.paged) return { pageCss: docSettings?.pageCss };
+  if (!opts.paged) {
+    return opts.rasterFrame
+      ? { headExtraCss: buildFastrWordRasterCss(opts.rasterFrame.page) }
+      : { pageCss: docSettings?.pageCss };
+  }
   // The paged sheet owns @page; an html-format report (no header) prints A4.
   const setup = docSettings?.page ?? readFastrDocumentSettings("").page;
   return {

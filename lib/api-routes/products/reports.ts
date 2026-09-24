@@ -7,6 +7,7 @@ import {
   reportStyleBodySchema,
 } from "../../types/mod.ts";
 import type { ReportConfig, ReportDetail } from "../../types/reports.ts";
+import { FASTR_WORD_RASTER_BLOCKS, type FastrWordRasterBlock } from "../../report_fastr_word.ts";
 import type { ReportCustomStyle } from "../../types/report_styles.ts";
 import type {
   ReportVersionDetail,
@@ -88,6 +89,28 @@ export const productReportRouteRegistry = {
     params: productIdParamsSchema,
     body: z.object({ html: z.string().max(80_000_000) }),
     response: {} as { pdfBase64: string; pages: number },
+    access: "view",
+    isStreaming: true,
+  }),
+
+  // Pictures of a FASTR Markdown report's decorative blocks (cover, band,
+  // tiles, card, stat) for the Word export, with the measured place of every
+  // text element in each. The client sends the same standalone document the
+  // PDF prints, laid out for the Word frame, and the fence lines of the
+  // blocks; the server's headless Chrome measures and screenshots them
+  // (server/report_pdf/rasterize_blocks.ts). Streaming, like the PDF.
+  rasterizeReportBlocks: route({
+    path: "/products/:product_id/report/rasters",
+    method: "POST",
+    params: productIdParamsSchema,
+    body: z.object({
+      html: z.string().max(80_000_000),
+      blocks: z.array(z.object({
+        id: z.number().int().nonnegative(),
+        kind: z.enum(FASTR_WORD_RASTER_BLOCKS),
+      })).max(200),
+    }),
+    response: {} as { blocks: FastrWordRasterBlock[] },
     access: "view",
     isStreaming: true,
   }),

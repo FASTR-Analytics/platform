@@ -43,6 +43,14 @@ import {
   Switch,
 } from "solid-js";
 import { Button, Icon } from "panther";
+import {
+  MenuDivider,
+  MenuFlyout,
+  PopoverRow,
+  ToolbarDivider as Divider,
+  ToolbarPopover as Popover,
+  ToolButton,
+} from "~/components/products/_shared/mod.ts";
 import { fastrThemeLabel } from "./fastr_theme_labels";
 import {
   fastrBlockLabel,
@@ -1084,43 +1092,6 @@ export function ReportToolbar(p: Props) {
                     :::{block().name}
                   </code>
 
-                  {/* Page breaks around the block (`break=before|after`): a
-                      page break IS the leaf that carries one, so it gets none. */}
-                  <Show when={block().name !== "pagebreak"}>
-                    <Popover
-                      label={attrValue("break") === "before"
-                        ? t3({ en: "Starts a new page", fr: "Commence une page", pt: "Começa uma página" })
-                        : attrValue("break") === "after"
-                        ? t3({ en: "Ends the page", fr: "Termine la page", pt: "Termina a página" })
-                        : t3({ en: "Page break", fr: "Saut de page", pt: "Quebra de página" })}
-                      title={t3({ en: "Page break", fr: "Saut de page", pt: "Quebra de página" })}
-                    >
-                      {(close) => (
-                        <div class="ui-spy-sm flex flex-col">
-                          <For
-                            each={[
-                              { value: undefined, label: t3({ en: "None", fr: "Aucun", pt: "Nenhum" }) },
-                              { value: "before", label: t3({ en: "Start on a new page", fr: "Commencer sur une nouvelle page", pt: "Começar numa nova página" }) },
-                              { value: "after", label: t3({ en: "New page after this block", fr: "Nouvelle page après ce bloc", pt: "Nova página depois deste bloco" }) },
-                            ]}
-                          >
-                            {(opt) => (
-                              <PopoverRow
-                                active={attrValue("break") === opt.value}
-                                onClick={() => {
-                                  patch("break", opt.value);
-                                  close();
-                                }}
-                              >
-                                {opt.label}
-                              </PopoverRow>
-                            )}
-                          </For>
-                        </div>
-                      )}
-                    </Popover>
-                  </Show>
-
                   <Show when={targetName()}>
                     {(name) => (
                       <For each={choiceControlsFor(name())}>
@@ -1164,57 +1135,62 @@ export function ReportToolbar(p: Props) {
                   </Show>
 
                   {/* One background menu: tone presets over literal colours.
-                      The trigger swatch shows whichever ground is active. */}
-                  <Popover
-                    label={
-                      <span class="flex items-center gap-1.5">
-                        <Show
-                          when={attrValue("bg")}
-                          fallback={
-                            <span class={scopeClass}>
+                      The trigger swatch shows whichever ground is active. Not
+                      on a tiles or columns GRID: a ground behind the whole row
+                      reads as a mistake (the cards and columns inside take
+                      their own), so the grid offers none. */}
+                  <Show when={block().name !== "tiles" && block().name !== "columns"}>
+                    <Popover
+                      label={
+                        <span class="flex items-center gap-1.5">
+                          <Show
+                            when={attrValue("bg")}
+                            fallback={
+                              <span class={scopeClass}>
+                                <span
+                                  class={`fm-tone fm-tone--${
+                                    attrValue(toneAttrFor(block().name)) ?? "default"
+                                  } inline-block h-3.5 w-3.5 rounded-full`}
+                                />
+                              </span>
+                            }
+                          >
+                            {(bg) => (
                               <span
-                                class={`fm-tone fm-tone--${
-                                  attrValue(toneAttrFor(block().name)) ?? "default"
-                                } inline-block h-3.5 w-3.5 rounded-full`}
+                                class="inline-block h-3.5 w-3.5 rounded-full border"
+                                style={{ "background-color": bg() }}
                               />
-                            </span>
-                          }
-                        >
-                          {(bg) => (
-                            <span
-                              class="inline-block h-3.5 w-3.5 rounded-full border"
-                              style={{ "background-color": bg() }}
-                            />
-                          )}
-                        </Show>
-                        {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-                      </span>
-                    }
-                    title={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-                  >
-                    {(close) => (
-                      <GroundPanel
-                        scopeClass={scopeClass}
-                        tone={attrValue("bg") !== undefined
-                          ? "literal"
-                          : fastrSurfaceTone(block().attrs) ?? "default"}
-                        literal={attrValue("bg")}
-                        onTone={(tone) =>
-                          patchGround({
-                            [toneAttrFor(block().name)]: tone === "default"
-                              ? undefined
-                              : tone,
-                            bg: undefined,
-                          })}
-                        onLiteral={(color) =>
-                          patchGround({
-                            [toneAttrFor(block().name)]: undefined,
-                            bg: color,
-                          })}
-                        onPick={close}
-                      />
-                    )}
-                  </Popover>
+                            )}
+                          </Show>
+                          {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
+                        </span>
+                      }
+                      title={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
+                    >
+                      {(close) => (
+                        <GroundPanel
+                          scopeClass={scopeClass}
+                          tone={attrValue("bg") !== undefined
+                            ? "literal"
+                            : fastrSurfaceTone(block().attrs) ?? "default"}
+                          literal={attrValue("bg")}
+                          onTone={(tone) =>
+                            patchGround({
+                              [toneAttrFor(block().name)]: tone === "default"
+                                ? undefined
+                                : tone,
+                              bg: undefined,
+                            })}
+                          onLiteral={(color) =>
+                            patchGround({
+                              [toneAttrFor(block().name)]: undefined,
+                              bg: color,
+                            })}
+                          onPick={close}
+                        />
+                      )}
+                    </Popover>
+                  </Show>
                 </div>
               </>
             )}
@@ -1269,22 +1245,6 @@ function TilesPicker(p: {
   );
 }
 
-// A menu row that opens a panel to its right on hover — the Insert menu's
-// picker pattern (pure CSS, so the flyout stays up while the pointer travels
-// over the row or the panel, both children of this wrapper).
-function MenuFlyout(p: { label: string; children: JSX.Element }) {
-  return (
-    <div class="group relative">
-      <PopoverRow active={false} onClick={() => {}}>
-        <span class="flex-1">{p.label}</span>
-        <span class="text-base-content-muted">▸</span>
-      </PopoverRow>
-      <div class="absolute top-0 left-full hidden pl-1 group-hover:block">
-        {p.children}
-      </div>
-    </div>
-  );
-}
 
 // Word count and the rest — what people open a File or Page menu looking for.
 function DetailRows(p: {
@@ -1655,155 +1615,4 @@ function normalizeHex(hex: string): string {
   if (!h.startsWith("#")) h = "#" + h;
   if (h.length === 4) h = "#" + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
   return h.toLowerCase();
-}
-
-function Divider() {
-  return <div class="bg-base-300 mx-1 h-4 w-px" />;
-}
-
-function MenuDivider() {
-  return <div class="bg-base-300 my-1 h-px w-full" />;
-}
-
-// A flat pill button, as in Google Docs: a hover tint only, a primary-subtle
-// fill while its state is active. Letterforms stand in for the glyphs
-// panther's IconName lacks (bold, italic, lists).
-function ToolButton(p: {
-  active?: () => boolean;
-  onClick: () => void;
-  label: string;
-  children: JSX.Element;
-}) {
-  return (
-    <button
-      type="button"
-      class="ui-focusable flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-sm"
-      classList={{
-        "bg-primary-subtle text-primary": p.active?.() === true,
-        "ui-hoverable-base-300": p.active?.() !== true,
-      }}
-      aria-label={p.label}
-      title={p.label}
-      onClick={p.onClick}
-    >
-      {p.children}
-    </button>
-  );
-}
-
-// Panther's showMenu takes string labels only — no swatch, no active tick — so
-// any dropdown that has to SHOW a colour is hand-composed, the same way
-// panther's own ColorPicker and the slide editor's TextStylePopover are.
-// The panel rides the browser's TOP LAYER (the native popover API, same as
-// panther's own menus): an inline-absolute panel is clipped by the header and
-// out-stacked by the editor sheet's own stacking contexts, no z-index wins.
-// `menu` renders the trigger as a plain menu-bar item (the Google Docs menu
-// row) instead of a flat pill button with a dropdown chevron (`chevron`
-// false drops the chevron, for the colour and size boxes).
-function Popover(p: {
-  label: JSX.Element;
-  title: string;
-  menu?: boolean;
-  chevron?: boolean;
-  tour?: string;
-  children: (close: () => void) => JSX.Element;
-}) {
-  const [open, setOpen] = createSignal(false);
-  const [anchor, setAnchor] = createSignal({ x: 0, y: 0 });
-  let wrap!: HTMLDivElement;
-
-  function onDocPointerDown(e: PointerEvent) {
-    if (!wrap.contains(e.target as Node)) close();
-  }
-  function close() {
-    setOpen(false);
-    document.removeEventListener("pointerdown", onDocPointerDown, true);
-  }
-  function toggle(e: MouseEvent) {
-    if (open()) return close();
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    // Clamp so a right-edge popover never runs off screen.
-    setAnchor({
-      x: Math.max(8, Math.min(r.left, window.innerWidth - 260)),
-      y: r.bottom + 4,
-    });
-    setOpen(true);
-    document.addEventListener("pointerdown", onDocPointerDown, true);
-  }
-  onCleanup(() => document.removeEventListener("pointerdown", onDocPointerDown, true));
-
-  return (
-    <div ref={wrap}>
-      <Show
-        when={p.menu}
-        fallback={
-          <button
-            type="button"
-            class="ui-focusable ui-hoverable-base-300 flex h-7 items-center gap-1 rounded px-2 text-sm"
-            aria-label={p.title}
-            title={p.title}
-            data-tour={p.tour}
-            onClick={toggle}
-          >
-            {p.label}
-            <Show when={p.chevron !== false}>
-              <Icon iconName="chevronDown" class="text-base-content-muted h-3 w-3" />
-            </Show>
-          </button>
-        }
-      >
-        <button
-          type="button"
-          class="ui-focusable ui-hoverable-base-100 rounded px-2 py-0.5 text-sm"
-          data-tour={p.tour}
-          onClick={toggle}
-        >
-          {p.label}
-        </button>
-      </Show>
-      <Show when={open()}>
-        <div
-          ref={(el) => {
-            // popover="manual": top layer without light-dismiss — the
-            // pointerdown listener owns closing, so in-panel clicks (which
-            // stay inside `wrap` in the DOM tree) keep it open.
-            queueMicrotask(() => el.showPopover?.());
-          }}
-          popover="manual"
-          class="bg-base-100 ui-pad-sm shadow-floating m-0 min-w-40 rounded border"
-          style={{
-            position: "fixed",
-            left: `${anchor().x}px`,
-            top: `${anchor().y}px`,
-            // The UA popover stylesheet sets overflow:auto, which would CLIP
-            // a submenu flyout (the table grid) into a scroll container
-            // instead of letting it float beside the panel.
-            overflow: "visible",
-          }}
-        >
-          {p.children(close)}
-        </div>
-      </Show>
-    </div>
-  );
-}
-
-function PopoverRow(p: {
-  active: boolean;
-  onClick: () => void;
-  children: JSX.Element;
-}) {
-  return (
-    <button
-      type="button"
-      class="ui-focusable flex w-full items-center rounded px-2 py-1 text-left text-sm"
-      classList={{
-        "border-primary bg-primary-subtle font-700": p.active,
-        "ui-hoverable-base-100": !p.active,
-      }}
-      onClick={p.onClick}
-    >
-      {p.children}
-    </button>
-  );
 }
