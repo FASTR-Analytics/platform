@@ -948,7 +948,7 @@ export function InlineTextEditor(p: Props) {
                     }}
                   >
                     <div
-                      class="font-700 absolute -top-[16px] left-0 rounded px-1 text-[10px] whitespace-nowrap text-white"
+                      class="font-700 absolute -top-[16px] left-0 rounded px-1 text-xs leading-4 whitespace-nowrap text-white"
                       style={{ "background-color": peer.color }}
                     >
                       {peer.name}
