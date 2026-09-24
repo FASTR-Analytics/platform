@@ -20,7 +20,7 @@
 // A row whose progress does not parse, or does not validate once the stage
 // is added, is logged and skipped, never thrown: the catalogue already
 // degrades such a row to null chips so an admin can still see and delete
-// it, and a boot must not fail over it (PLAN_GENERATION_FEEDBACK ruling 13).
+// it, and a boot must not fail over it.
 //
 // =============================================================================
 
