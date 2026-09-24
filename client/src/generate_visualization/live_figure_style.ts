@@ -31,7 +31,7 @@ const CHART_LABEL_KEYS: readonly ChartLabelKey[] = [
 
 // A live figure is one read on screen at one design unit per CSS pixel: the
 // Explore views and the HMIS dataset display. Over the figure's own style it
-// sets hairline strokes for axes, grid and lines, base-200 grid lines, every
+// sets hairline strokes for axes, grid and lines, base-300 grid lines, every
 // chart label at the data grid's text size, and abbreviated tick labels
 // (12k, 1.5m) on a numeric value axis; a percent or rate axis keeps its own
 // formatter.
@@ -46,7 +46,7 @@ export function liveFigureStyle(
       ...style.grid,
       axisStrokeWidth: 1,
       gridStrokeWidth: 1,
-      gridColor: { key: "base200" },
+      gridColor: { key: "base300" },
     },
     yScaleAxis: {
       ...style.yScaleAxis,
