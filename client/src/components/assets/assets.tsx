@@ -211,7 +211,7 @@ function AssetTable(p: {
         <Show
           when={asset.uploaderEmail}
           fallback={
-            <span class="text-base-content-muted italic">
+            <span class="text-base-content-muted">
               {t3({ en: "system", fr: "système", pt: "sistema" })}
             </span>
           }

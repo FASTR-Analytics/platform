@@ -106,7 +106,7 @@ export function TourRow(p: {
         <div class="text-base-content-muted mt-1 text-sm">{p.description}</div>
         {p.detail}
         <Show when={!p.available}>
-          <div class="text-base-content-muted mt-1 text-sm italic">
+          <div class="text-base-content-muted mt-1">
             {p.reason}
           </div>
         </Show>

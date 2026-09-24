@@ -27,8 +27,8 @@ export default function AccessTokensPage() {
   );
 }
 
-function formatDate(iso: string | null): string {
-  return iso === null ? "—" : new Date(iso).toLocaleString();
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString();
 }
 
 function AccessTokensPanel(p: { email: string }) {
@@ -112,9 +112,10 @@ function AccessTokensPanel(p: { email: string }) {
       key: "lastUsedAt",
       header: "Last used",
       sortable: true,
-      render: (pat) => (
-        <span>{formatDate(pat.lastUsedAt)}</span>
-      ),
+      render: (pat) =>
+        pat.lastUsedAt === null
+          ? <span class="text-base-content-muted">Never</span>
+          : <span>{formatDate(pat.lastUsedAt)}</span>,
     },
     {
       key: "id",

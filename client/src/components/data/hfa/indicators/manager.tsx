@@ -796,7 +796,7 @@ export function HfaIndicatorsManager(p: Props) {
       header: t3({ en: "Category", fr: "Catégorie", pt: "Categoria" }),
       sortable: true,
       render: (ind) => {
-        if (!ind.categoryId) return "—";
+        if (!ind.categoryId) return "";
         return categoryLabelById().get(ind.categoryId) ?? ind.categoryId;
       },
     },
@@ -805,7 +805,7 @@ export function HfaIndicatorsManager(p: Props) {
       header: t3({ en: "Sub-category", fr: "Sous-catégorie", pt: "Subcategoria" }),
       sortable: true,
       render: (ind) => {
-        if (!ind.subCategoryId) return "—";
+        if (!ind.subCategoryId) return "";
         return (
           subCategoryLabelById().get(ind.subCategoryId) ?? ind.subCategoryId
         );
@@ -816,7 +816,7 @@ export function HfaIndicatorsManager(p: Props) {
       header: t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" }),
       sortable: true,
       render: (ind) => {
-        if (ind.serviceCategoryIds.length === 0) return "—";
+        if (ind.serviceCategoryIds.length === 0) return "";
         const svcLabels = serviceCategoryLabelById();
         return ind.serviceCategoryIds
           .map((id) => svcLabels.get(id) ?? id)
