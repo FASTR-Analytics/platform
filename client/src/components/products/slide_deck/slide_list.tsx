@@ -613,20 +613,27 @@ export function SlideList(p: Props) {
             it on the left, the deck's actions on the right, the toolbar row
             beneath. */}
         <div class="border-b w-full flex-none" data-tour="deck-toolbar">
-          <div class="ui-pad-sm ui-gap flex w-full items-start">
-            <div class="flex min-w-0 flex-1 flex-col">
-              <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
+          <div class="ui-pad-sm ui-gap flex w-full items-center">
+            {/* Back sits in its own column, so the name and the slide's menus
+                under it share one left margin; the deck's actions centre on
+                the whole two-row header. */}
+            <div class="ui-gap-sm flex min-w-0 flex-1 items-stretch">
+              <div class="flex flex-none items-end">
                 <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
-                <ProductTitle productId={p.productId} label={p.deckLabel} />
-                <PackageScopeChip
-                  product={p.product}
-                  onClick={canEditFigures() ? () => void openPackageScope() : undefined}
-                />
-                <PresenceAvatars
-                  peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
-                />
               </div>
-              <div class="flex min-w-0 items-center" ref={p.onMenuRowHost} />
+              <div class="flex min-w-0 flex-1 flex-col">
+                <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
+                  <ProductTitle productId={p.productId} label={p.deckLabel} />
+                  <PackageScopeChip
+                    product={p.product}
+                    onClick={canEditFigures() ? () => void openPackageScope() : undefined}
+                  />
+                  <PresenceAvatars
+                    peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
+                  />
+                </div>
+                <div class="flex min-w-0 items-center" ref={p.onMenuRowHost} />
+              </div>
             </div>
             <div class="ui-gap-sm flex flex-none items-center">
               <Show when={p.slideIds.length > 0}>

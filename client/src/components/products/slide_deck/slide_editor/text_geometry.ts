@@ -81,9 +81,19 @@ export type TextGeometry = {
 export type CaretBox = { x: number; top: number; bottom: number };
 
 let measureCtx: CanvasRenderingContext2D | undefined;
+// Measuring happens on a canvas that is IN the document, because a detached
+// one measures some glyphs differently from the on-screen canvas panther
+// draws on: at a shrunk-to-fit size a space came out 5px there and 4px on
+// screen, so every space pushed the caret a pixel further along the line.
+// Off-screen and zero-sized, never display:none (that measures detached too).
 function ctx2d(): CanvasRenderingContext2D {
   if (!measureCtx) {
-    measureCtx = document.createElement("canvas").getContext("2d")!;
+    const c = document.createElement("canvas");
+    c.setAttribute("aria-hidden", "true");
+    c.style.cssText =
+      "position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none";
+    document.body.appendChild(c);
+    measureCtx = c.getContext("2d")!;
   }
   return measureCtx;
 }
