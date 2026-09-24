@@ -532,7 +532,6 @@ const DATA_ROW_COLUMNS = (): TableColumn<DataRow>[] => [
       <Button
         size="sm"
         ghost
-        intent="base-content"
         iconName="chevronRight"
         iconPosition="right"
         onClick={() => row.onClick()}

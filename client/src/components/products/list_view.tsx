@@ -69,8 +69,7 @@ export function ListView(p: Props) {
       <span class="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
         <Button
           size="sm"
-          // outline
-          intent="base-200"
+          ghost
           iconName="moreVertical"
           ariaLabel={t3({ en: "Menu", fr: "Menu", pt: "Menu" })}
           onClick={(e) => {
