@@ -189,7 +189,7 @@ export function InstanceResultsPackages() {
       width: "1%",
       render: (run) => (
         <Button
-          data-tour="instance-results-packages-card"
+          data-tour="instance-results-packages-view"
           size="sm"
           ghost
           iconName="chevronRight"

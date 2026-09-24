@@ -1020,8 +1020,8 @@ export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
     id: "instance-results-packages-catalogue",
     steps: [
       {
-        id: "card",
-        target: tourTarget("instance-results-packages-card"),
+        id: "view",
+        target: tourTarget("instance-results-packages-view"),
         title: t3({
           en: "The package catalogue",
           fr: "Le catalogue des paquets",

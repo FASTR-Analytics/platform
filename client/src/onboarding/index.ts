@@ -124,7 +124,7 @@ export function setupTours(opts: {
     {
       page: "instance-results-packages",
       when: () =>
-        resolveVisibleTarget(tourTarget("instance-results-packages-card")) !==
+        resolveVisibleTarget(tourTarget("instance-results-packages-view")) !==
         null,
       tour: buildInstanceResultsPackagesCatalogueTour(),
     },

@@ -398,7 +398,7 @@ package at all (a product points only at a ready run and never explores
 it, C2 ruling): every status is the same heading and status bar over a
 body by status. The catalogue onboarding tour (`onboarding/tours.ts`,
 `instance-results-packages-catalogue`) walks from the list into a package:
-its first step spotlights a row's View button (`data-tour="instance-results-packages-card"`)
+its first step spotlights a row's View button (`data-tour="instance-results-packages-view"`)
 and completes on the click that opens the page, its second waits for the
 status bar's usage row (`-usage`); it auto-starts only while a row is
 rendered, not merely in the DOM, since an open page hides the list under
