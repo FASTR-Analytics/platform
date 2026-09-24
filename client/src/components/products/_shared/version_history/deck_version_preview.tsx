@@ -664,7 +664,8 @@ export function DeckVersionPreview(p: {
               <Show when={totalPages > 1}>
                 <Button
                   iconName="chevronLeft"
-                  outline
+                  intent="base-100"
+                  ariaLabel={t3({ en: "Previous page", fr: "Page précédente", pt: "Página anterior" })}
                   disabled={page() === 0}
                   onClick={() => setPage(page() - 1)}
                 />
@@ -673,7 +674,8 @@ export function DeckVersionPreview(p: {
                 </span>
                 <Button
                   iconName="chevronRight"
-                  outline
+                  intent="base-100"
+                  ariaLabel={t3({ en: "Next page", fr: "Page suivante", pt: "Página seguinte" })}
                   disabled={page() >= totalPages - 1}
                   onClick={() => setPage(page() + 1)}
                 />

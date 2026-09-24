@@ -138,7 +138,12 @@ export function VersionHistoryEditor(p: Props) {
           }
         >
           <div class="ui-gap-sm flex items-center">
-            <Button iconName="refresh" outline onClick={versions.fetch} />
+            <Button
+              iconName="refresh"
+              intent="base-100"
+              ariaLabel={t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" })}
+              onClick={versions.fetch}
+            />
           </div>
         </HeadingBar>
       }
