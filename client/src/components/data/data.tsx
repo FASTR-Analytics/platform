@@ -462,7 +462,6 @@ export function InstanceData(p: Props) {
                 pt: "Comuns a todos os conjuntos de dados",
               })}
               rows={generalRows()}
-              hideReadyCount
             />
           </Show>
         </div>
@@ -475,26 +474,15 @@ function DataSection(p: {
   heading: string;
   subheading: string;
   rows: DataRow[];
-  hideReadyCount?: boolean;
   "data-tour"?: string;
 }) {
-  const readyCount = () => p.rows.filter((r) => r.status === "ready").length;
   return (
     <section class="ui-spy-sm" data-tour={p["data-tour"]}>
       <div class="ui-gap-sm flex items-baseline">
         <h2 class="ui-text-heading">{p.heading}</h2>
-        <span class="text-base-content-muted flex-1 truncate text-sm">
+        <span class="text-base-content-muted truncate text-sm">
           {p.subheading}
         </span>
-        <Show when={!p.hideReadyCount}>
-          <span class="text-base-content-muted text-sm text-nowrap">
-            {t3({
-              en: `${readyCount()} of ${p.rows.length} ready`,
-              fr: `${readyCount()} sur ${p.rows.length} prêts`,
-              pt: `${readyCount()} de ${p.rows.length} prontos`,
-            })}
-          </span>
-        </Show>
       </div>
       <Table
         data={p.rows}
