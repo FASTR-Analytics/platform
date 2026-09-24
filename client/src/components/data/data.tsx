@@ -5,14 +5,16 @@ import {
   t3,
 } from "lib";
 import {
+  Button,
   type EditorComponentProps,
   FrameTop,
   HeadingBar,
-  Icon,
   openComponent,
+  Table,
+  type TableColumn,
   toNum0,
 } from "panther";
-import { For, type JSX, Show } from "solid-js";
+import { type JSX, Show } from "solid-js";
 import { InstanceDatasetIceh } from "./iceh/mod.ts";
 import { Facilities } from "./facilities/mod.ts";
 import { FamilyConfiguration } from "./family_configuration";
@@ -494,30 +496,55 @@ function DataSection(p: {
           </span>
         </Show>
       </div>
-      <div class="rounded border">
-        <For each={p.rows}>
-          {(row, i) => (
-            <button
-              type="button"
-              class="ui-hoverable-base-100 ui-gap flex w-full items-center px-4 py-3 text-left"
-              classList={{ "border-t": i() > 0 }}
-              onClick={() => row.onClick()}
-            >
-              <span class="w-44 flex-none text-sm">{row.label}</span>
-              <span class="text-base-content-muted min-w-0 flex-1 truncate text-sm">
-                {row.summary}
-              </span>
-              <StatusMark status={row.status} />
-              <span class="text-base-content-faint w-4 flex-none">
-                <Icon iconName="chevronRight" />
-              </span>
-            </button>
-          )}
-        </For>
-      </div>
+      <Table
+        data={p.rows}
+        columns={DATA_ROW_COLUMNS()}
+        keyField="label"
+        hideHeader
+      />
     </section>
   );
 }
+
+// Fixed widths on the outer columns line the sections' separate tables up.
+const DATA_ROW_COLUMNS = (): TableColumn<DataRow>[] => [
+  {
+    key: "label",
+    header: "",
+    width: "12rem",
+    render: (row) => row.label,
+  },
+  {
+    key: "summary",
+    header: "",
+    render: (row) => (
+      <div class="text-base-content-muted line-clamp-2">{row.summary}</div>
+    ),
+  },
+  {
+    key: "status",
+    header: "",
+    width: "8rem",
+    render: (row) => <StatusMark status={row.status} />,
+  },
+  {
+    key: "view",
+    header: "",
+    alignH: "right",
+    width: "1%",
+    render: (row) => (
+      <Button
+        size="sm"
+        intent="base-100"
+        iconName="chevronRight"
+        iconPosition="right"
+        onClick={() => row.onClick()}
+      >
+        {t3({ en: "View", fr: "Voir", pt: "Ver" })}
+      </Button>
+    ),
+  },
+];
 
 const STATUS_DOT: Record<RowStatus, string> = {
   ready: "bg-success",
@@ -540,7 +567,7 @@ function StatusMark(p: { status: RowStatus }) {
     }
   };
   return (
-    <span class="text-base-content-muted ui-gap-sm inline-flex w-24 flex-none items-center text-sm">
+    <span class="text-base-content-muted ui-gap-sm inline-flex items-center text-nowrap">
       <span class={`h-2 w-2 flex-none rounded-full ${STATUS_DOT[p.status]}`} />
       {label()}
     </span>
