@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { For, Show } from "solid-js";
+import { t3 } from "../../deps.ts";
 import { IconRenderer } from "../../form_inputs/icon_renderer.tsx";
 import { Tooltip } from "../../special_state/tooltip.tsx";
 import { Button } from "../../form_inputs/mod.ts";
@@ -175,7 +176,6 @@ export function TabsNavigation<T extends string = string, M = never>(
         </For>
       </div>
 
-      {/* Collapse toggle button - styled as icon button with outline */}
       <Show when={isCollapsible()}>
         <div
           class="flex items-center py-4"
@@ -186,14 +186,20 @@ export function TabsNavigation<T extends string = string, M = never>(
         >
           <Button
             onClick={handleToggleCollapse}
-            aria-label={isCollapsed()
-              ? "Expand navigation"
-              : "Collapse navigation"}
-            outline
+            ariaLabel={isCollapsed()
+              ? t3({
+                en: "Expand navigation",
+                fr: "Développer la navigation",
+                pt: "Expandir a navegação",
+              })
+              : t3({
+                en: "Collapse navigation",
+                fr: "Réduire la navigation",
+                pt: "Recolher a navegação",
+              })}
             iconName={isCollapsed() ? "chevronRight" : "chevronLeft"}
-            intent="neutral"
-          >
-          </Button>
+            intent="base-100"
+          />
         </div>
       </Show>
     </div>
