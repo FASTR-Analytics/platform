@@ -2,19 +2,8 @@
 // Slide Deck Config: STORED SHAPE (slide_decks.config column)
 // =============================================================================
 
-import { COLOR_PRESET_IDS, COVER_TREATMENT_IDS, FREEFORM_TREATMENT_IDS, LAYOUT_PRESET_IDS } from "@timroberton/panther";
 import { z } from "zod";
-import { BRAND_PRESET_IDS } from "../brand_presets.ts";
-import { SLIDE_FONT_FAMILIES } from "./_slide_fonts.ts";
-
-const ALL_PRESET_IDS = [...COLOR_PRESET_IDS, ...BRAND_PRESET_IDS] as const;
-
-const colorThemeSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("preset"), id: z.enum(ALL_PRESET_IDS) }),
-  z.object({ type: z.literal("custom"), primary: z.string() }),
-]);
-
-export type ColorThemeFromSchema = z.infer<typeof colorThemeSchema>;
+import { SLIDE_DECK_THEMES } from "./_slide_deck_themes.ts";
 
 const logoSizeKeySchema = z.enum(["sm", "md", "lg", "xl"]);
 
@@ -45,17 +34,7 @@ export const slideDeckConfigSchema = z.object({
   headerSize: z.number(),
   useWatermark: z.boolean(),
   watermarkText: z.string(),
-  colorTheme: colorThemeSchema,
-  overlay: z.enum([
-    "none",
-    "dots", "rivers", "waves", "world",
-    "pattern-ovals", "pattern-circles", "pattern-dots", "pattern-lines",
-    "pattern-grid", "pattern-chevrons", "pattern-waves", "pattern-noise", "pattern-none",
-  ]).optional(),
-  layout: z.enum(LAYOUT_PRESET_IDS),
-  coverAndSectionTreatment: z.enum(COVER_TREATMENT_IDS),
-  freeformTreatment: z.enum(FREEFORM_TREATMENT_IDS),
-  fontFamily: z.enum(SLIDE_FONT_FAMILIES).optional(),
+  theme: z.enum(SLIDE_DECK_THEMES),
 });
 
 export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
@@ -94,11 +73,6 @@ const _completeDeckConfig: Required<SlideDeckConfig> = {
   headerSize: 1,
   useWatermark: false,
   watermarkText: "",
-  colorTheme: { type: "preset", id: "teal" },
-  overlay: "none",
-  layout: "default",
-  coverAndSectionTreatment: "bold",
-  freeformTreatment: "classic",
-  fontFamily: "International Inter",
+  theme: "default",
 };
 slideDeckConfigSchema.parse(_completeDeckConfig);

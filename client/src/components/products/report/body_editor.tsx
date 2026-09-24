@@ -219,6 +219,8 @@ type Props = {
   imageSize?: (id: string) => { width: number; height: number } | undefined;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
+  // A `:::logos` row asked for its picker.
+  onEditLogos?: (fence: FastrOpenFence) => void;
   selectedId: () => string | undefined;
   // rAF-throttled notification that the editor's scroll position changed.
   onScroll?: () => void;
@@ -336,6 +338,7 @@ export function ReportBodyEditor(p: Props) {
     getImage: (id) => p.images[id],
     assetUrl: (imgFile) => p.assetUrl(imgFile),
     onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
+    onEditLogos: (fence) => p.onEditLogos?.(fence),
     getSelectedId: () => p.selectedId(),
     inkFor: (el) => p.figureInkFor(el),
     chartPalette: () => p.figureChartPalette(),
@@ -1086,6 +1089,7 @@ export function ReportBodyEditor(p: Props) {
       view: () => view,
       buildHtml: build,
       onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
+      onEditLogos: (fence) => p.onEditLogos?.(fence),
     });
     createEffect(() => surface?.setActive(pagesOn()));
     createEffect(() => {

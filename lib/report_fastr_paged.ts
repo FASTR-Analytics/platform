@@ -70,6 +70,7 @@ export const FASTR_PAGED_ATOMIC_SELECTORS: readonly string[] = [
   ".fm-steps",
   ".fm-card",
   ".fm-stat",
+  ".fm-logos",
   ".fm-tiles",
   ".fm-columns",
   ".fm-cover",

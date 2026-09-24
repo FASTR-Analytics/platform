@@ -370,9 +370,9 @@ export function getTourCatalogue(
         pt: "Definições da apresentação",
       }),
       description: t3({
-        en: "The deck settings overlay. Opens your first slide deck.",
-        fr: "Le panneau des paramètres de la présentation. Ouvre votre première présentation.",
-        pt: "O painel de definições da apresentação. Abre a sua primeira apresentação.",
+        en: "The Deck menu: theme, logos, footer and page numbers. Opens your first slide deck.",
+        fr: "Le menu Présentation : thème, logos, pied de page et numéros de page. Ouvre votre première présentation.",
+        pt: "O menu Apresentação: tema, logótipos, rodapé e números de página. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0,
       unavailableReason: reasonNeedDeck,

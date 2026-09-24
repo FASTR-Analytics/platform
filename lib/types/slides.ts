@@ -1,22 +1,10 @@
 import type {
-  ColorPresetId,
-  CoverTreatmentId,
-  FreeformTreatmentId,
   LayoutNode,
-  LayoutPresetId,
   LogosSizingOptions as LogosSizingOptionsImport,
   PatternType,
 } from "@timroberton/panther";
-import type { BrandPresetId } from "../brand_presets.ts";
 import type { TextSizeKey } from "../consts.ts";
 import type { IndicatorMetadata } from "./indicators.ts";
-
-type ImageOverlayType = "dots" | "rivers" | "waves" | "world";
-type PatternOverlayType = `pattern-${PatternType}`;
-export type BackgroundDetailType =
-  | "none"
-  | ImageOverlayType
-  | PatternOverlayType;
 
 // Render-layer type (panther). Numbers, consumed by the page-style renderer.
 export type PantherLogosSizing = LogosSizingOptionsImport;
@@ -54,8 +42,6 @@ import type { PresentationObjectConfig } from "./presentation_objects.ts";
 import { _GFF_GREEN } from "../key_colors.ts";
 import { t3 } from "../translate/t-func.ts";
 
-export type AllPresetId = ColorPresetId | BrandPresetId;
-
 import { type SlideFontFamily } from "./_slide_fonts.ts";
 export {
   SLIDE_FONTS,
@@ -67,9 +53,28 @@ export {
   getLetterSpacing,
 } from "./_slide_fonts.ts";
 
-export type ColorTheme =
-  | { type: "preset"; id: AllPresetId }
-  | { type: "custom"; primary: string };
+// A deck's whole look is one theme id (see _slide_deck_themes.ts). The six
+// style fields that used to sit in the config, and the ColorTheme union that
+// let one of them be a raw hex, went with the pickers that wrote them.
+import {
+  getSlideDeckThemeColorPreset,
+  getSlideDeckThemeSpec,
+  type SlideDeckTheme,
+} from "./_slide_deck_themes.ts";
+export {
+  applySlideDeckThemeToLegacyConfig,
+  getSlideDeckThemeColorPreset,
+  getSlideDeckThemeSpec,
+  LEGACY_SLIDE_DECK_STYLE_KEYS,
+  nearestSlideDeckTheme,
+  SLIDE_DECK_THEME_SPECS,
+  SLIDE_DECK_THEMES,
+  type AllPresetId,
+  type BackgroundDetailType,
+  type LegacySlideDeckStyle,
+  type SlideDeckTheme,
+  type SlideDeckThemeSpec,
+} from "./_slide_deck_themes.ts";
 
 // Re-export schemas from underscore-prefixed files (stored data validation)
 export { slideDeckConfigSchema } from "./_slide_deck_config.ts";
@@ -97,12 +102,7 @@ export type SlideDeckConfig = {
   headerSize: number;
   useWatermark: boolean;
   watermarkText: string;
-  colorTheme: ColorTheme;
-  overlay: BackgroundDetailType | undefined;
-  layout: LayoutPresetId;
-  coverAndSectionTreatment: CoverTreatmentId;
-  freeformTreatment: FreeformTreatmentId;
-  fontFamily?: SlideFontFamily;
+  theme: SlideDeckTheme;
 };
 
 export function getTextColorForBackground(bgColor: string): string {
@@ -117,22 +117,7 @@ export function getPrimaryColor(primaryColor?: string): string {
   return primaryColor || _GFF_GREEN;
 }
 
-import {
-  type ColorPreset,
-  getColorPreset,
-  resolveColorTheme as resolveColorThemeCore,
-} from "@timroberton/panther";
-import { getBrandPreset, isBrandPresetId } from "../brand_presets.ts";
-
-export function resolveColorThemeToPreset(theme: ColorTheme): ColorPreset {
-  if (theme.type === "custom") {
-    return resolveColorThemeCore(theme);
-  }
-  if (isBrandPresetId(theme.id)) {
-    return getBrandPreset(theme.id);
-  }
-  return getColorPreset(theme.id);
-}
+import { type ColorPreset } from "@timroberton/panther";
 
 export type DeckStyleContext = {
   fontFamily: SlideFontFamily;
@@ -143,8 +128,8 @@ export function createDeckStyleContext(
   config: SlideDeckConfig,
 ): DeckStyleContext {
   return {
-    fontFamily: config.fontFamily ?? "International Inter",
-    colorPreset: resolveColorThemeToPreset(config.colorTheme),
+    fontFamily: getSlideDeckThemeSpec(config.theme).fontFamily,
+    colorPreset: getSlideDeckThemeColorPreset(config.theme),
   };
 }
 
@@ -163,12 +148,7 @@ export function getStartingConfigForSlideDeck(label: string): SlideDeckConfig {
     headerSize: 1,
     useWatermark: false,
     watermarkText: "",
-    colorTheme: { type: "preset", id: "gff" },
-    overlay: "none",
-    layout: "default",
-    coverAndSectionTreatment: "bold",
-    freeformTreatment: "default",
-    fontFamily: "International Inter",
+    theme: "default",
   };
 }
 

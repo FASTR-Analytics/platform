@@ -64,6 +64,9 @@ import {
 import {
   type FastrContainerAttrs,
   fastrBreakMode,
+  fastrLogoAlign,
+  fastrLogoImageIds,
+  fastrLogoSize,
   fastrPageMarginPx,
   type FastrPageSetup,
   fastrSheetPx,
@@ -1260,6 +1263,9 @@ class Builder {
       case "columns":
         this.columns(i, close);
         break;
+      case "logos":
+        this.logos(attrs);
+        break;
       default:
         // col outside columns, or an unknown name: its content, plainly.
         this.walk(i + 1, close);
@@ -1608,6 +1614,48 @@ class Builder {
       }));
       this.spaceAfter(BODY_PX * 1.6);
     });
+  }
+
+  // A logos row: its logos side by side at the row's height, as the sheet
+  // lays them out (report_fastr_css.ts .fm-logos). A row wider than the
+  // column scales down whole, aspects kept.
+  private logos(attrs: FastrContainerAttrs): void {
+    const heightEm = { s: 2, m: 3, l: 4.5 }[fastrLogoSize(attrs)];
+    const gap = BODY_PX * 1.6;
+    const figs = fastrLogoImageIds(attrs)
+      .map((id) => this.input.image(id))
+      .filter((f): f is FastrWordFigure => f !== undefined && f.width > 0 && f.height > 0);
+    if (figs.length === 0) return;
+    let h = BODY_PX * heightEm;
+    const widths = () => figs.map((f) => h * f.width / f.height);
+    const total = widths().reduce((a, b) => a + b, 0) + gap * (figs.length - 1);
+    if (total > this.width) h *= (this.width - gap * (figs.length - 1)) / (total - gap * (figs.length - 1));
+    const children: ParagraphChild[] = [];
+    figs.forEach((f, k) => {
+      if (k > 0) {
+        children.push(new TextRun({ text: "\u00a0".repeat(6), size: fastrWordHalfPoints(BODY_PX) }));
+      }
+      children.push(new ImageRun({
+        type: f.type,
+        data: f.bytes,
+        transformation: { width: Math.round(h * f.width / f.height), height: Math.round(h) },
+      }));
+    });
+    const align = fastrLogoAlign(attrs);
+    this.push(this.paragraph(children, {
+      alignment: align === "center"
+        ? AlignmentType.CENTER
+        : align === "right"
+        ? AlignmentType.RIGHT
+        : align === "spread"
+        ? AlignmentType.DISTRIBUTE
+        : AlignmentType.LEFT,
+      keepLines: true,
+    }, {
+      before: fastrWordTwips(BODY_PX * 1.2),
+      after: fastrWordTwips(BODY_PX * 1.2),
+      line: 240,
+    }));
   }
 
   private contents(attrs: FastrContainerAttrs): void {

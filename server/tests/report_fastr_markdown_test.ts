@@ -22,6 +22,8 @@ import {
   isDarkCssColor,
   isFastrLeafBlock,
   listFastrContainerDefects,
+  logosSnippet,
+  fastrLogoImageIds,
   listFastrNestedStats,
   listFastrLiteralBackgrounds,
   parseContainerAttrs,
@@ -143,8 +145,8 @@ Deno.test("containerHtmlFor: attribute text is entity-escaped", () => {
   assert(!h.leadingHtml.includes("<script>"));
 });
 
-Deno.test("stat, contents, pagebreak and report are leaf blocks: one line, no closing fence", () => {
-  const leaves = ["stat", "contents", "pagebreak", "report"];
+Deno.test("stat, contents, pagebreak, logos and report are leaf blocks: one line, no closing fence", () => {
+  const leaves = ["stat", "contents", "pagebreak", "logos", "report"];
   for (const name of leaves) assert(isFastrLeafBlock(name));
   for (const name of FASTR_BLOCK_NAMES) {
     if (!leaves.includes(name)) assert(!isFastrLeafBlock(name));
@@ -1641,9 +1643,9 @@ Deno.test("the model-facing brief documents the marks it is allowed to write", (
   // The one-line rule names every leaf, or the model closes a contents block.
   assertStringIncludes(
     FASTR_MD_SYNTAX_DOC,
-    "`stat`, `contents`, `pagebreak` and `report` are ONE-LINE",
+    "`stat`, `contents`, `pagebreak`, `logos` and `report` are ONE-LINE",
   );
-  for (const needle of [":::pagebreak", "pagesize", "orientation"]) {
+  for (const needle of [":::pagebreak", "pagesize", "orientation", ":::logos", "never invent"]) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
   }
   // `break=before|after` left the brief with the toolbar's page-break control
@@ -1847,4 +1849,34 @@ Deno.test("a columns row with any coloured column is a row of panels", () => {
   // tone=default is no colour; a coloured col nested deeper is not the row's.
   assert(!cls(row("{tone=default}", "")).includes("fm-columns--panels"));
   assert(!cls(":::columns{cols=1}\n:::col\n:::callout{tone=ink}\nz\n:::\n:::\n:::").includes("fm-columns--panels"));
+});
+
+// ── Logos ────────────────────────────────────────────────────────────────────
+
+Deno.test("logos: a row of registry images, aligned and sized, one line", () => {
+  const html = render(
+    `:::logos{src="image:a1 image:b-2" align=center size=l}\n\nAfter.\n`,
+  );
+  assertStringIncludes(html, `<div class="fm-logos fm-logos--center fm-logos--l"`);
+  assertStringIncludes(
+    html,
+    `<img class="fm-logo" src="image:a1" alt=""><img class="fm-logo" src="image:b-2" alt="">`,
+  );
+  // One line: the paragraph after it is not inside the row.
+  assert(html.indexOf("After.") > html.indexOf("</div>"));
+  // Defaults: left, medium; nothing chosen yet is the empty slot.
+  assertStringIncludes(render(`:::logos\n`), `class="fm-logos fm-logos--left fm-logos--m fm-logos--empty"`);
+  // The prune scan keeps every logo's image alive.
+  const refs = referencedReportEmbedIds(`:::logos{src="image:a1 image:b-2"}`, "any");
+  assertEquals([...refs.images].sort(), ["a1", "b-2"]);
+  // A logo that is not an image is reported, and never reaches the markup.
+  const bad = `:::logos{src="image:a1 https://x.org/l.png"}\n`;
+  assertEquals(listFastrContainerDefects(bad).length, 1);
+  assert(!render(bad).includes("x.org"));
+  assertEquals(listFastrContainerDefects(`:::logos{src="image:a1"}\nText.\n`), []);
+  assertEquals(
+    logosSnippet(["a1", "b-2"]),
+    `:::logos{src="image:a1 image:b-2"}`,
+  );
+  assertEquals(fastrLogoImageIds({ src: "image:a1  image:b-2 junk" }), ["a1", "b-2"]);
 });

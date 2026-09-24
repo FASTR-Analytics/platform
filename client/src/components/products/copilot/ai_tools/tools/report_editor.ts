@@ -35,7 +35,7 @@ import {
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
 import { describeReportPages } from "./report_page_map";
-import { _SERVER_HOST } from "~/server_actions";
+import { resolveLogoUrl } from "~/generate_slide_deck/fastr_logos";
 import { copilotViews } from "../../_shared/mod.ts";
 import { formatLineRanges } from "~/components/products/_shared/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
@@ -506,7 +506,7 @@ export function getClientToolsForReportEditor(
         }
         return await describeReportPages(
           detail,
-          (imgFile) => `${_SERVER_HOST}/${imgFile}`,
+          (imgFile) => resolveLogoUrl(imgFile),
         );
       },
     }),

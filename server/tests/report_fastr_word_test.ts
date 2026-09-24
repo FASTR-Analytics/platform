@@ -261,3 +261,20 @@ Deno.test("embedded fonts, page ground and a natural cover", async () => {
   // The heading after it keeps its own top margin.
   assertStringIncludes(xml, '<w:pStyle w:val="Heading2"/>');
 });
+
+Deno.test("a logos row: its logos side by side in one aligned paragraph", async () => {
+  const body = `Intro.\n\n:::logos{src="image:a image:gone image:b" align=center size=l}\n\nAfter.`;
+  const { xml } = await build(body, {
+    image: (id) =>
+      id === "gone" ? undefined : dataUrlToWordImage(`data:image/png;base64,${PNG_1X1}`, id === "a" ? 200 : 100, 50),
+  });
+  // Two drawings (the missing logo drops out), in one centred paragraph.
+  assertEquals(count(xml, "<w:drawing>"), 2);
+  const para = xml.split("<w:p>").find((p) => p.includes("<w:drawing>")) ?? "";
+  assertEquals(count(para, "<w:drawing>"), 2);
+  assertStringIncludes(para, '<w:jc w:val="center"/>');
+  // Size l is 4.5em at 16px: 72px tall, widths by aspect (288 and 144).
+  assertStringIncludes(para, `cy="${72 * 9525}"`);
+  assertStringIncludes(para, `cx="${288 * 9525}"`);
+  assertStringIncludes(para, `cx="${144 * 9525}"`);
+});

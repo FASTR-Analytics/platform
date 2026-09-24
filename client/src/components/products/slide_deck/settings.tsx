@@ -1,5 +1,4 @@
 import { SlideDeckConfig, t3, TC } from "lib";
-import { validateBrandColor } from "@timroberton/panther";
 import {
   APIResponseWithData,
   Button,
@@ -17,16 +16,8 @@ import {
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { instanceState } from "~/state/instance/t1_store";
-import { ColorThemePicker } from "./style_editor/mod.ts";
-import { FontPicker } from "./style_editor/mod.ts";
-import { LayoutPicker } from "./style_editor/mod.ts";
-import { OverlayPicker } from "./style_editor/mod.ts";
-import {
-  CoverTreatmentPicker,
-  FreeformTreatmentPicker,
-} from "./style_editor/mod.ts";
 import { LogoSectionEditor } from "./logo_section_editor";
-import { StylePreview } from "./style_editor/mod.ts";
+import { StylePreview, ThemePicker } from "./style_editor/mod.ts";
 
 export type SlideDeckSettingsProps = {
   config: SlideDeckConfig;
@@ -78,12 +69,6 @@ export function SlideDeckSettings(p: Props) {
   const save = createButtonAction(
     async () => {
       const raw = unwrap(tempConfig);
-      if (raw.colorTheme.type === "custom") {
-        const v = validateBrandColor(raw.colorTheme.primary);
-        if (!v.valid) {
-          return { success: false, err: v.reason };
-        }
-      }
       // Drop empty custom-logo rows before saving: on a fresh copy, never by
       // mutating the unwrapped store data.
       const newConfig: typeof raw = {
@@ -176,30 +161,10 @@ export function SlideDeckSettings(p: Props) {
           <div class="ui-spy-sm">
             <div class="ui-spy">
               <StylePreview config={tempConfig} />
-              <ColorThemePicker
-                value={tempConfig.colorTheme}
+              <ThemePicker
+                value={tempConfig.theme}
                 config={tempConfig}
-                onChange={(v) => setTempConfig("colorTheme", v)}
-              />
-              <FontPicker
-                value={tempConfig.fontFamily}
-                onChange={(v) => setTempConfig("fontFamily", v)}
-              />
-              <LayoutPicker
-                value={tempConfig.layout}
-                onChange={(v) => setTempConfig("layout", v)}
-              />
-              <CoverTreatmentPicker
-                value={tempConfig.coverAndSectionTreatment}
-                onChange={(v) => setTempConfig("coverAndSectionTreatment", v)}
-              />
-              <FreeformTreatmentPicker
-                value={tempConfig.freeformTreatment}
-                onChange={(v) => setTempConfig("freeformTreatment", v)}
-              />
-              <OverlayPicker
-                value={tempConfig.overlay}
-                onChange={(v) => setTempConfig("overlay", v)}
+                onChange={(v) => setTempConfig("theme", v)}
               />
             </div>
           </div>

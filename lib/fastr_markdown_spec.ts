@@ -45,6 +45,10 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
         `:::cover{tone=ink}\n# Quarterly review\nMinistry of Health · Q3 2026\n:::`,
     },
     {
+      name: "logos",
+      snippet: `:::logos{align=center}`,
+    },
+    {
       name: "steps",
       snippet:
         `:::steps\nInvestigate the two weakest regions first.\n\nDocument what the strongest region changed.\n\nRe-read this once a full year of data is in.\n:::`,
@@ -141,6 +145,14 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
   sparingly: every block already keeps itself on one page and a heading
   always stays with what follows it, so a break is for structure (a new
   chapter), not for tidiness.
+
+  :::logos{src="image:<id> image:<id>" align=left|center|right|spread size=s|m|l}
+  A row of logos: the ministry's, the partners', FASTR's. One line, no
+  closing \`:::\`. Each logo is an image the USER placed from Insert → Logos,
+  so never invent an \`image:\` id: keep, move or re-align a logos line that
+  is already there, and when the user asks for logos you cannot see, leave
+  the line out and tell them to add it from Insert → Logos. It sits well as
+  the first or last line inside a cover, or inside the closing band.
 
   :::report{background=muted numbering=sections pagesize=a4 orientation=portrait}
   The document header. \`numbering=sections\` numbers the TOP-LEVEL headings
@@ -294,7 +306,7 @@ Composing a report — this matters as much as the syntax:
     cover 60 (page 1 only; fill=page takes the whole page), a tiles row
     22, a band of two or three lines 25, a columns pair of a few lines a
     side 30, a callout 8 plus 4 a line, a steps block 12 a step, a figure
-    50, a table 6 a row plus 6, a contents block 13 plus 3.5 an entry (from
+    50, a table 6 a row plus 6, a logos row 8, a contents block 13 plus 3.5 an entry (from
     14 entries it runs in two columns: 13 plus 1.75 an entry).
   Lay the report out page by page to between 85 and 95 units each: page 1
   is the cover, the standfirst paragraph and the tiles row; every page
@@ -311,7 +323,7 @@ Composing a report — this matters as much as the syntax:
   the last page its section.
 
 Rules:
-- \`stat\`, \`contents\`, \`pagebreak\` and \`report\` are ONE-LINE blocks:
+- \`stat\`, \`contents\`, \`pagebreak\`, \`logos\` and \`report\` are ONE-LINE blocks:
   they take no closing \`:::\`. Every other block must be closed.
 - \`report\` is the document header — put it on the first line, once.
 - \`band\` and \`cover\` are TOP-LEVEL sections; nesting one inside a card or a

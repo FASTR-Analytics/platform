@@ -15,8 +15,9 @@ import {
   DEFAULT_TEXT_SIZE_KEY,
   getLetterSpacing,
   getSlideFontInfo,
+  getSlideDeckThemeColorPreset,
+  getSlideDeckThemeSpec,
   getTextColorForBackground,
-  resolveColorThemeToPreset,
   resolveLogoSizing,
   TEXT_SIZE_REL,
 } from "lib";
@@ -78,11 +79,12 @@ export function buildStyleForSlide(
   config: SlideDeckConfig,
   pattern?: Omit<PatternConfig, "baseColor">,
 ): CustomPageStyleOptions {
-  const preset = resolveColorThemeToPreset(config.colorTheme);
+  const themeSpec = getSlideDeckThemeSpec(config.theme);
+  const preset = getSlideDeckThemeColorPreset(config.theme);
   const { style: presetStyle } = resolvePageStyle(
-    config.layout,
-    config.coverAndSectionTreatment,
-    config.freeformTreatment,
+    themeSpec.layout,
+    themeSpec.coverAndSectionTreatment,
+    themeSpec.freeformTreatment,
     preset,
     pattern ? { pattern } : undefined,
   );
@@ -102,7 +104,7 @@ export function buildStyleForSlide(
       ? (config.globalFooterText ?? slide.footer)
       : undefined;
   const hasFooter = !!footerText?.trim();
-  const fontFamily = config.fontFamily ?? "International Inter";
+  const fontFamily = themeSpec.fontFamily;
 
   return {
     text: {
@@ -352,7 +354,7 @@ export async function convertSlideToPageInputs(
     };
   }
 
-  const preset = resolveColorThemeToPreset(config.colorTheme);
+  const preset = getSlideDeckThemeColorPreset(config.theme);
   const deckStyle = createDeckStyleContext(config);
   const convertedLayout = await convertLayoutNode(
     slide.layout,

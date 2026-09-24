@@ -50,6 +50,7 @@ import {
   For,
   Show,
   createEffect,
+  createMemo,
   createSignal,
   onCleanup,
   onMount,
@@ -132,6 +133,9 @@ type SlideEditorInnerProps = {
   // toolbar is rendered there through a portal; it stays this editor's.
   toolbarHost?: HTMLElement;
   menuRowHost?: HTMLElement;
+  // Where the deck wants the slide's live/save dot: its header, beside the
+  // deck's own actions (the report header's save status, for slides).
+  statusHost?: HTMLElement;
   // The deck the slide sits in, read live: the copilot's slide view carries
   // the deck's tools too, since the deck's rail is always beside the slide.
   deckContext: {
@@ -1229,16 +1233,80 @@ export function SlideEditor(p: Props) {
     </div>
   );
 
+  // The open slide's connection and save state, in the deck's header: the
+  // report's save indicator, for slides. Collab supersedes the REST save
+  // path, so "Live" means edits are streaming to the room AND the room is
+  // checkpointing them.
+  const saveIndicator = createMemo(() => {
+    if (collabReady() && collabSocketOpen()) {
+      if (docSaveFailing("slide", p.slideId)) {
+        return {
+          text: t3({
+            en: "Not saving — retrying…",
+            fr: "Non enregistré — nouvel essai…",
+            pt: "Não está a guardar — a tentar novamente…",
+          }),
+          dot: "bg-danger",
+        };
+      }
+      return {
+        text: t3({ en: "Live", fr: "En direct", pt: "Em direto" }),
+        dot: "bg-success",
+      };
+    }
+    if (collabReady()) {
+      return {
+        text: t3({
+          en: "Offline — reconnecting…",
+          fr: "Hors ligne — reconnexion…",
+          pt: "Offline — a reconectar…",
+        }),
+        dot: "bg-warning",
+      };
+    }
+    return needsSave()
+      ? {
+        text: t3({
+          en: "Unsaved changes",
+          fr: "Modifications non enregistrées",
+          pt: "Alterações não guardadas",
+        }),
+        dot: "bg-base-300",
+      }
+      : {
+        text: t3({ en: "Connecting…", fr: "Connexion…", pt: "A ligar…" }),
+        dot: "bg-base-300",
+      };
+  });
+
+  const statusJsx = () => (
+    <div
+      class="ui-text-caption flex items-center gap-1.5 whitespace-nowrap"
+      data-tour="slide-save-status"
+    >
+      <div
+        class="h-1.5 w-1.5 flex-none rounded-full"
+        classList={{ [saveIndicator().dot]: true }}
+      />
+      <span>{saveIndicator().text}</span>
+    </div>
+  );
+
   return (
     <EditorWrapper>
       <div class="flex h-full w-full flex-col">
         <Show when={p.toolbarHost} fallback={<div data-cursor-zone="header">{toolbarJsx()}</div>}>
           {(host) => <Portal mount={host()}>{toolbarJsx()}</Portal>}
         </Show>
-        {/* Room checkpoint health: edits relay live between peers, but
-            the server can't persist them right now. */}
+        <Show when={p.statusHost}>
+          {(host) => <Portal mount={host()}>{statusJsx()}</Portal>}
+        </Show>
+        {/* Room checkpoint health, for a slide editor with nowhere to put the
+            dot: edits relay live between peers, but the server can't persist
+            them right now. */}
         <Show
           when={
+            !p.statusHost &&
             collabReady() &&
             collabSocketOpen() &&
             docSaveFailing("slide", p.slideId)
