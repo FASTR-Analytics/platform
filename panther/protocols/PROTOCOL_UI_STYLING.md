@@ -24,8 +24,9 @@ the full token catalog, and the theming mechanics, see
    labels) hover on text color; clickable cards (content containers) hover at
    the frame: `cursor-pointer` + `hover:border-primary` (prefer `Card`).
 5. **`ui-hoverable-{token}` is the state pattern**: every interactive opaque
-   surface uses it. Explicit `hover:`/`active:` pairs only for selectable text
-   or a transparent rest. Clickable cards use the frame idiom instead (rule 4).
+   surface uses it. Explicit `hover:`/`active:` pairs only for selectable text;
+   a transparent rest takes `ui-hoverable-ghost`. Clickable cards use the frame
+   idiom instead (rule 4).
 6. **Never stack `bg-*` on a family-classed element**: the utility wins and
    kills the states. Scope the family per `classList` arm instead.
 7. **Declare `onBackground`**: any outline `Button` / `ButtonGroup` not sitting
@@ -160,7 +161,7 @@ control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
 <Button intent="base-100" size="sm" iconName="pencil" onClick={edit} />
 
 // ✅ DO: a ghost has no rest surface, and its tint composes over the row's
-<Button ghost intent="base-content" size="sm" iconName="pencil" onClick={edit} />
+<Button ghost size="sm" iconName="pencil" onClick={edit} />
 ```
 
 **Why:** Filled and outline buttons paint an opaque rest, and `onBackground` can
@@ -320,7 +321,7 @@ drift.
 | Clickable card (whole card is the target)    | `Card onClick`: `cursor-pointer` + `hover:border-primary` at the frame                                                   |
 | Focus                                        | `ui-focusable`                                                                                                           |
 | Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`                                                      |
-| Quiet action in a row that hovers itself     | `ghost` (+ `intent`): no rest surface, currentColor tint on hover; needs no `onBackground`                               |
+| Quiet action in a row that hovers itself     | `ghost` (body-coloured by default): no rest surface, currentColor tint on hover; needs no `onBackground`                 |
 
 Status intents: `success` complete/positive · `warning` caution · `danger`
 error/destructive · `neutral` running/queued/pending · `primary`
@@ -455,8 +456,8 @@ foreground is not derived from the background.
       frame)
 - [ ] Interactive surfaces use `ui-hoverable-{token}`; no utility `bg-*` on the
       same element
-- [ ] Explicit `hover:bg-*` pairs only for selectable text or transparent-rest
-      affordances
+- [ ] Explicit `hover:bg-*` pairs only for selectable text; a transparent-rest
+      affordance takes `ui-hoverable-ghost`
 - [ ] Outline `Button` / `ButtonGroup` off `base-100` declares `onBackground`
 - [ ] No `-subtle` wash on a clickable's rest surface, hover target, or hover
       destination, except a selected arm's pin

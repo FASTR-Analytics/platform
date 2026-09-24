@@ -801,7 +801,9 @@
      ui-outline-{intent} skins below and their states from the
      ui-hoverable-outline-on-{token} family named by their onBackground
      token (rest = that surface, hover/press = a currentColor tint over
-     it). ---- */
+     it). Ghost interactives wear a ui-ghost-{intent} skin with the
+     one-member ui-hoverable-ghost family: no rest, the same tint over
+     transparent. ---- */
   .ui-hoverable-base-100,
   .ui-hoverable-base-200,
   .ui-hoverable-base-300,
@@ -850,24 +852,6 @@
   }
   .ui-hoverable-base-content:active {
     background-color: color-mix(in oklab, var(--color-base-content), var(--color-base-100) 14%);
-  }
-
-  /* ---- Ghost hoverable — public. The state bundle worn by a ghost
-     control: no rest surface, so hover/press are the outline family's
-     currentColor tint composed over transparent, and the control holds on
-     any backdrop, including one that changes state itself (a hovered
-     table row). One member: with nothing to rest on there is no surface
-     token to name. Pairs with a ui-ghost-{intent} skin, which sets the
-     currentColor the tint mixes. Same amounts as the outline family. ---- */
-  .ui-hoverable-ghost {
-    @apply cursor-pointer select-none bg-transparent;
-    transition: background-color var(--ui-dur-fast) var(--ui-ease);
-  }
-  .ui-hoverable-ghost:hover {
-    background-color: color-mix(in oklab, currentColor 8%, transparent);
-  }
-  .ui-hoverable-ghost:active {
-    background-color: color-mix(in oklab, currentColor 14%, transparent);
   }
 
   /* ---- Outline hoverable family — public. The state pattern for an
@@ -944,6 +928,28 @@
     background-color: color-mix(in oklab, currentColor 14%, var(--ui-outline-surface));
   }
 
+  /* ---- Ghost hoverable — public. The state bundle worn by a ghost
+     control: no rest surface, so hover/press are the outline family's
+     currentColor tint composed over transparent, and the control holds on
+     any backdrop, including one that changes state itself (a hovered
+     table row). One member: with nothing to rest on there is no surface
+     token to name. Pairs with a ui-ghost-{intent} skin, which sets the
+     currentColor the tint mixes. The amounts are the surface ramp's own
+     (base-100-hover 6%, -active 10%), not the outline family's 8%/14%: a
+     ghost's tint stacks on its backdrop's own state, so on a plain surface
+     it hovers as that surface would, and on a hovered row it lands one
+     rung further, at the row's active shade. ---- */
+  .ui-hoverable-ghost {
+    @apply cursor-pointer select-none bg-transparent;
+    transition: background-color var(--ui-dur-fast) var(--ui-ease);
+  }
+  .ui-hoverable-ghost:hover {
+    background-color: color-mix(in oklab, currentColor 6%, transparent);
+  }
+  .ui-hoverable-ghost:active {
+    background-color: color-mix(in oklab, currentColor 10%, transparent);
+  }
+
   /* Focus States — one focus signal, everywhere: 2px outline in
      --color-focus with a genuinely transparent 2px gap (outlines don't
      paint the offset, so there is no offset color to name — the old
@@ -1011,49 +1017,6 @@
     @apply bg-base-300 text-base-content border-base-300;
   }
 
-  /* Ghost skins — intent-colored text, no bg, and a transparent border so
-     a ghost Button keeps the box of its filled and outline siblings (the
-     shared base classes draw a 1px border). Pure appearance, like the
-     other skins; a ghost Button pairs one with ui-hoverable-ghost. */
-  .ui-ghost-primary,
-  .ui-ghost-neutral,
-  .ui-ghost-success,
-  .ui-ghost-warning,
-  .ui-ghost-danger,
-  .ui-ghost-base-content,
-  .ui-ghost-base-100,
-  .ui-ghost-base-200,
-  .ui-ghost-base-300 {
-    @apply border-transparent;
-  }
-  .ui-ghost-primary {
-    @apply text-primary;
-  }
-  .ui-ghost-neutral {
-    @apply text-neutral;
-  }
-  .ui-ghost-success {
-    @apply text-success;
-  }
-  .ui-ghost-warning {
-    @apply text-warning;
-  }
-  .ui-ghost-danger {
-    @apply text-danger;
-  }
-  .ui-ghost-base-content {
-    @apply text-base-content;
-  }
-  .ui-ghost-base-100 {
-    @apply text-base-100;
-  }
-  .ui-ghost-base-200 {
-    @apply text-base-200;
-  }
-  .ui-ghost-base-300 {
-    @apply text-base-300;
-  }
-
   /* Outline skins — intent-colored text on a currentColor border. No bg
      here: an outline Button's rest surface comes from its
      ui-hoverable-outline-on-{onBackground} family class (the declared
@@ -1097,6 +1060,49 @@
     @apply text-base-200;
   }
   .ui-outline-base-300 {
+    @apply text-base-300;
+  }
+
+  /* Ghost skins — intent-colored text, no bg, and a transparent border so
+     a ghost Button keeps the box of its filled and outline siblings (the
+     shared base classes draw a 1px border). Pure appearance, like the
+     other skins; a ghost Button pairs one with ui-hoverable-ghost. */
+  .ui-ghost-primary,
+  .ui-ghost-neutral,
+  .ui-ghost-success,
+  .ui-ghost-warning,
+  .ui-ghost-danger,
+  .ui-ghost-base-content,
+  .ui-ghost-base-100,
+  .ui-ghost-base-200,
+  .ui-ghost-base-300 {
+    @apply border-transparent;
+  }
+  .ui-ghost-primary {
+    @apply text-primary;
+  }
+  .ui-ghost-neutral {
+    @apply text-neutral;
+  }
+  .ui-ghost-success {
+    @apply text-success;
+  }
+  .ui-ghost-warning {
+    @apply text-warning;
+  }
+  .ui-ghost-danger {
+    @apply text-danger;
+  }
+  .ui-ghost-base-content {
+    @apply text-base-content;
+  }
+  .ui-ghost-base-100 {
+    @apply text-base-100;
+  }
+  .ui-ghost-base-200 {
+    @apply text-base-200;
+  }
+  .ui-ghost-base-300 {
     @apply text-base-300;
   }
 

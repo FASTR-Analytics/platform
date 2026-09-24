@@ -31,9 +31,11 @@ function getButtonClasses(
     // the outline family mixes currentColor, which the outline skin sets.
     // Ghost buttons have no rest surface at all and tint the same way, so
     // they hold on a surface that changes under them (a hovered table row).
+    // A ghost is a quiet action in body colour, so it defaults to
+    // base-content, not primary, which would make every ghost a link.
     "ui-focusable",
     ...(ghost
-      ? [`ui-ghost-${intent ?? "primary"}`, "ui-hoverable-ghost"]
+      ? [`ui-ghost-${intent ?? "base-content"}`, "ui-hoverable-ghost"]
       : outline
       ? [
         `ui-outline-${intent ?? "primary"}`,
@@ -133,7 +135,11 @@ export function Button(p: ButtonProps) {
       <Show when={isLoading()}>
         <span class="pointer-events-none absolute inset-0 flex items-center justify-center py-1.5">
           <Spinner
-            intent={p.outline || p.ghost ? (p.intent ?? "primary") : "base-100"}
+            intent={p.ghost
+              ? (p.intent ?? "base-content")
+              : p.outline
+              ? (p.intent ?? "primary")
+              : "base-100"}
           />
         </span>
       </Show>
