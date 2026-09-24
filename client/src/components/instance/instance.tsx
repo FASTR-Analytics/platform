@@ -50,6 +50,10 @@ import { TourCatalogueModal } from "~/onboarding/tour_catalogue_modal";
 import { setupTours } from "~/onboarding";
 import type { InstanceTab } from "~/onboarding/catalogue";
 
+// The Instance Information button (versions icon) is hidden for now; flip
+// this to show it again.
+const INSTANCE_META_BUTTON_ENABLED = false;
+
 // Generation is instance-admin only (can_configure_data: the same guard the
 // run_generation routes use).
 function canConfigureData(): boolean {
@@ -217,6 +221,62 @@ export default function Instance(p: Props) {
                     {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
                   </Button>
                 </Show>
+                <Show when={instanceState.currentUserApproved}>
+                  <MenuButton
+                    data-tour="instance-topbar-help"
+                    items={() => {
+                      const items: MenuItem[] = [];
+                      items.push({
+                        label: t3({
+                          en: "Guided tours",
+                          fr: "Visites guidées",
+                          pt: "Visitas guiadas",
+                        }),
+                        icon: "slideshow",
+                        onClick: () => void openTours(),
+                      });
+                      items.push({
+                        label: t3({
+                          en: "Ask for help",
+                          fr: "Demander de l'aide",
+                          pt: "Pedir ajuda",
+                        }),
+                        icon: "lifebuoy",
+                        onClick: () => void openFeedback("help"),
+                      });
+                      items.push({
+                        label: t3({
+                          en: "Send feedback",
+                          fr: "Envoyer un commentaire",
+                          pt: "Enviar comentários",
+                        }),
+                        icon: "pencil",
+                        onClick: () => void openFeedback(),
+                      });
+                      items.push({
+                        label: t3({
+                          en: "Documentation",
+                          fr: "Documentation",
+                          pt: "Documentação",
+                        }),
+                        icon: "document",
+                        onClick: () =>
+                          window.open(getDocsOverviewUrl(), "_blank"),
+                      });
+                      return items;
+                    }}
+                    position="bottom-end"
+                    intent="base-100"
+                  >
+                    {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+                  </MenuButton>
+                  <Show when={INSTANCE_META_BUTTON_ENABLED}>
+                    <Button
+                      onClick={openInstanceMeta}
+                      iconName="versions"
+                      intent="base-100"
+                    />
+                  </Show>
                 <MenuButton
                   data-tour="instance-topbar-language"
                   items={
@@ -269,60 +329,6 @@ export default function Instance(p: Props) {
                     </Show>
                   </div>
                 </Show>
-                <Show when={instanceState.currentUserApproved}>
-                  <MenuButton
-                    data-tour="instance-topbar-help"
-                    items={() => {
-                      const items: MenuItem[] = [];
-                      items.push({
-                        label: t3({
-                          en: "Guided tours",
-                          fr: "Visites guidées",
-                          pt: "Visitas guiadas",
-                        }),
-                        icon: "slideshow",
-                        onClick: () => void openTours(),
-                      });
-                      items.push({
-                        label: t3({
-                          en: "Ask for help",
-                          fr: "Demander de l'aide",
-                          pt: "Pedir ajuda",
-                        }),
-                        icon: "lifebuoy",
-                        onClick: () => void openFeedback("help"),
-                      });
-                      items.push({
-                        label: t3({
-                          en: "Send feedback",
-                          fr: "Envoyer un commentaire",
-                          pt: "Enviar comentários",
-                        }),
-                        icon: "pencil",
-                        onClick: () => void openFeedback(),
-                      });
-                      items.push({
-                        label: t3({
-                          en: "Documentation",
-                          fr: "Documentation",
-                          pt: "Documentação",
-                        }),
-                        icon: "document",
-                        onClick: () =>
-                          window.open(getDocsOverviewUrl(), "_blank"),
-                      });
-                      return items;
-                    }}
-                    position="bottom-end"
-                    intent="base-100"
-                  >
-                    {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                  </MenuButton>
-                  <Button
-                    onClick={openInstanceMeta}
-                    iconName="versions"
-                    intent="base-100"
-                  />
                 </Show>
                 <div
                   class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
