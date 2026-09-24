@@ -425,7 +425,12 @@ export function labelFitsCell(labelW: number, cellInnerW: number): boolean {
   return labelW <= cellInnerW;
 }
 
-// Widest form that keeps the gap to its neighbours (labelSpan = left-to-left
+// A form is only used when the span leaves at least its own width of air to
+// the next label, so labels never crowd; the gap rule remains as a floor for
+// forms narrow enough that it is the stricter test.
+const _FORM_SPAN_FACTOR = 2;
+
+// Widest form that keeps the air to its neighbours (labelSpan = left-to-left
 // distance of labelled bands) and fits in the room its own cell offers.
 export function pickLargeLabelForm(
   labelSpan: number,
@@ -434,7 +439,11 @@ export function pickLargeLabelForm(
   forms: { form: LargeLabelForm; w: number }[],
 ): LargeLabelForm {
   for (const f of forms) {
-    if (f.w + labelGap <= labelSpan && labelFitsCell(f.w, cellInnerW)) {
+    if (
+      f.w * _FORM_SPAN_FACTOR <= labelSpan &&
+      f.w + labelGap <= labelSpan &&
+      labelFitsCell(f.w, cellInnerW)
+    ) {
       return f.form;
     }
   }
