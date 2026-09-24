@@ -1,4 +1,4 @@
-import { t3, type RunProgress } from "lib";
+import { runStageLabel, t3, type RunProgress } from "lib";
 import { Button } from "panther";
 import { For, Show, createSignal } from "solid-js";
 import {
@@ -26,6 +26,12 @@ export function FailedDetail(p: {
     p.progress?.moduleOrder.filter(
       (id) => (p.progress?.moduleStatus[id] ?? "pending") !== "pending",
     ) ?? [];
+  // The stage the run died in, above its error. A stored `ended` is the
+  // transform's stamp on a run that recorded no stage, not a place it died.
+  const stage = () =>
+    p.progress === null || p.progress.stage.kind === "ended"
+      ? null
+      : runStageLabel(p.progress);
 
   function openViewer(element: Viewer, moduleId: string): void {
     void p.openEditor({
@@ -40,7 +46,10 @@ export function FailedDetail(p: {
 
   return (
     <div class="ui-spy">
-      <ErrorDetail errorDetail={p.progress?.errorDetail ?? null} />
+      <ErrorDetail
+        stage={stage()}
+        errorDetail={p.progress?.errorDetail ?? null}
+      />
       <For each={started()}>
         {(moduleId) => (
           <div class="ui-gap-sm flex items-center text-sm">
@@ -84,7 +93,7 @@ export function FailedDetail(p: {
 // the stored detail stays intact.
 const ERROR_CLAMP_CHARS = 280;
 
-function ErrorDetail(p: { errorDetail: string | null }) {
+function ErrorDetail(p: { stage: string | null; errorDetail: string | null }) {
   const [expanded, setExpanded] = createSignal(false);
   const detail = () =>
     p.errorDetail ??
@@ -96,6 +105,9 @@ function ErrorDetail(p: { errorDetail: string | null }) {
   const isLong = () => detail().length > ERROR_CLAMP_CHARS;
   return (
     <div class="ui-spy-sm text-danger text-sm">
+      <Show when={p.stage} keyed>
+        {(stage) => <div class="font-700">{stage}</div>}
+      </Show>
       <div class="whitespace-pre-wrap">
         {expanded() || !isLong()
           ? detail()

@@ -259,12 +259,19 @@ is one shape for every status: a heading bar (the label, the pinned and
 status badges, Pin or Unpin and the guarded Delete, with the provenance
 line as its subheading: created, by whom, `synthetic-backfill` when so, disk
 size), a **status bar** under it (`package_view/status_bar.tsx`), and the
-body. The status bar is the package's facts for every status, as labelled
-rows: one `ModuleProgressChip` per module of `run.progress.moduleOrder`
-with its `moduleStatus` (the final progress is stored at publish, so a
-ready package has chips too: done and reused), the live R line while
-generating, "in use by", and the population stamp when active
-("population.csv", read from the authoring context). A ready package's
+body. The status bar is the package's facts for every status. While
+generating it opens with a full-width panther `ProgressBar small busy`:
+the width is `runProgressSteps` over `p.progress`, the message is
+`runStageLabel` ("The stage" below), both read in one memo before any
+branch and rendered under a `Show` on the generating status. Then the
+labelled rows: one `ModuleProgressChip` per module of
+`run.progress.moduleOrder` with its `moduleStatus` (the final progress is
+stored at publish, so a ready package has chips too: done and reused),
+pulsing on the chip whose module is `currentModuleId` whatever its status,
+so a reused module's copy shows activity, and only while generating; the
+"Running" row with the live R line, shown only in a `module` stage; "in use
+by"; and the population stamp when active ("population.csv", read from the
+authoring context). A ready package's
 chips are grouped under family labels from `RunAuthoringContext.modules`
 in module order; a generating or failed run has no manifest and the
 registry declares no family, so its chips stay flat in execution order and
@@ -272,8 +279,10 @@ are named from the registry. The body is by status: a READY package's is a
 tab bar (`TabsNavigation`, as the Data page) of **one tab per family the
 package ran**, in family order (from `RunAuthoringContext.modules` through
 `compareModules`, so a package with modules of one family has one tab); a
-FAILED package's is `package_view/failed_detail.tsx`, the error detail and
-each started module's Script, Logs and Files viewers (the last via
+FAILED package's is `package_view/failed_detail.tsx`, the stage sentence
+the run died in above the error detail (omitted for a stored `ended`, the
+transform's stamp on a run that recorded no stage) and each started
+module's Script, Logs and Files viewers (the last via
 `ViewFiles`, since a failed run has no manifest); a GENERATING package's is
 a line saying results appear once generation completes. A family tab (`package_view/family_pane.tsx`)
 is a `SelectList` of the family's modules, the primary first and the
@@ -816,8 +825,9 @@ so a reused module's copy shows activity too), `finalizing null` with
 `buildRunPackageIntoTmp` reports `finalizing {moduleId}` through its
 `onStage` before each module's results objects (only a module that declares
 some); `publishReadyRun` stores `ended`. A push happens per boundary, never
-per R line and never per results object: about thirty row updates for a
-twelve-module run. `markRunGenerationFailed` leaves the stage as it finds
+per R line and never per results object: about sixty row updates for a
+twelve-module run, since each module iteration also pushes its status
+changes. `markRunGenerationFailed` leaves the stage as it finds
 it, so a failed run names the stage it died in; its fallback for an
 unparsable blob is `ended`. The pipeline is the only caller of both
 `onStage` parameters, and the three capture functions take no progress
