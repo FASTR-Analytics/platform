@@ -306,11 +306,7 @@ function UserTable(p: {
             </span>
           );
         }
-        return (
-          <span>
-            {formatTimeAgo(new Date(user.lastActiveTs))}
-          </span>
-        );
+        return <span>{formatTimeAgo(new Date(user.lastActiveTs))}</span>;
       },
     },
     {
@@ -362,6 +358,7 @@ function UserTable(p: {
             }}
             iconName="pencil"
             intent="base-100"
+            size="sm"
           />
         </div>
       ),

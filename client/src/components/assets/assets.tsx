@@ -12,10 +12,7 @@ import { Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
-import {
-  createUppyInstance,
-  cleanupUppy,
-} from "~/components/_shared/mod.ts";
+import { createUppyInstance, cleanupUppy } from "~/components/_shared/mod.ts";
 import type Uppy from "@uppy/core";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -184,9 +181,7 @@ function AssetTable(p: {
         pt: "Nome do ficheiro",
       }),
       sortable: true,
-      render: (asset) => (
-        <span class="font-mono">{asset.fileName}</span>
-      ),
+      render: (asset) => <span class="font-mono">{asset.fileName}</span>,
     },
     {
       key: "size",
@@ -241,10 +236,11 @@ function AssetTable(p: {
           instanceState.currentUserPermissions.can_view_data ||
           instanceState.currentUserPermissions.can_configure_data;
         return (
-          <div class="ui-gap-sm flex items-center justify-end">
+          <div class="flex items-center justify-end">
             <Show when={canDownload}>
               <Button
                 intent="base-100"
+                size="sm"
                 iconName="download"
                 href={`${_SERVER_HOST}/${encodeURIComponent(asset.fileName)}`}
                 download={asset.fileName}
@@ -254,6 +250,7 @@ function AssetTable(p: {
               <Button
                 iconName="trash"
                 intent="base-100"
+                size="sm"
                 onClick={(e: MouseEvent) => {
                   e.stopPropagation();
                   p.onDelete(asset.fileName);

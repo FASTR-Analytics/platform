@@ -1,4 +1,10 @@
-import { t3, type Folder, type ListSort, type ProductSummary, type SortMode } from "lib";
+import {
+  t3,
+  type Folder,
+  type ListSort,
+  type ProductSummary,
+  type SortMode,
+} from "lib";
 import { Button, Icon, type IconName } from "panther";
 import { Index, Match, Switch, type JSX } from "solid-js";
 import { packageLabel, scopeLabel } from "~/components/_shared/mod.ts";
@@ -63,7 +69,8 @@ export function ListView(p: Props) {
       <span class="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
         <Button
           size="sm"
-          outline
+          // outline
+          intent="base-200"
           iconName="moreVertical"
           ariaLabel={t3({ en: "Menu", fr: "Menu", pt: "Menu" })}
           onClick={(e) => {
@@ -215,19 +222,25 @@ export function ListView(p: Props) {
       data-tour="products-items"
     >
       <div
-        class={`${_ROW_GRID} font-700 text-xs uppercase tracking-wider bg-base-100 sticky top-0 z-10 border-b pt-1`}
+        class={`${_ROW_GRID} font-700 bg-base-100 sticky top-0 z-10 border-b pt-1 text-xs tracking-wider uppercase`}
       >
         <div class="ui-pad-sm">
           {headerSortButton(t3({ en: "Name", fr: "Nom", pt: "Nome" }), "name")}
         </div>
         <div class="ui-pad-sm">
-          <span class="-ml-1.5 px-1.5 py-1">{t3({ en: "Type", fr: "Type", pt: "Tipo" })}</span>
+          <span class="-ml-1.5 px-1.5 py-1">
+            {t3({ en: "Type", fr: "Type", pt: "Tipo" })}
+          </span>
         </div>
         <div class="ui-pad-sm">
-          <span class="-ml-1.5 px-1.5 py-1">{t3({ en: "Package", fr: "Paquet", pt: "Pacote" })}</span>
+          <span class="-ml-1.5 px-1.5 py-1">
+            {t3({ en: "Package", fr: "Paquet", pt: "Pacote" })}
+          </span>
         </div>
         <div class="ui-pad-sm">
-          <span class="-ml-1.5 px-1.5 py-1">{t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}</span>
+          <span class="-ml-1.5 px-1.5 py-1">
+            {t3({ en: "Scope", fr: "Portée", pt: "Âmbito" })}
+          </span>
         </div>
         <div class="ui-pad-sm">
           {headerSortButton(
