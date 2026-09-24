@@ -618,7 +618,9 @@ export function SlideList(p: Props) {
                 under it share one left margin; the deck's actions centre on
                 the whole two-row header. */}
             <div class="ui-gap-sm flex min-w-0 flex-1 items-stretch">
-              <div class="flex flex-none items-end">
+              {/* Full height of the name + menus block, so it reads as the
+                  header's own control rather than a row button. */}
+              <div class="flex flex-none items-stretch">
                 <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
               </div>
               <div class="flex min-w-0 flex-1 flex-col">
@@ -636,6 +638,15 @@ export function SlideList(p: Props) {
               </div>
             </div>
             <div class="ui-gap-sm flex flex-none items-center">
+              <MenuButton
+                position="bottom-end"
+                items={addSlideMenuItems}
+                id="deck-add-slide-button"
+                iconName="plus"
+                outline
+              >
+                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+              </MenuButton>
               <Show when={p.slideIds.length > 0}>
                 <Button
                   id="deck-present-button"
@@ -682,12 +693,9 @@ export function SlideList(p: Props) {
           </div>
           {/* The toolbar row: the deck's Add slide at the left, then the open
               slide's formatting pill. */}
+          {/* The toolbar row: the open slide's formatting pill (Add slide
+              sits with the deck's actions above). */}
           <div class="border-t flex items-start" data-cursor-zone="header">
-            <div class="flex-none px-2 pt-1">
-              <MenuButton position="bottom-start" items={addSlideMenuItems} id="deck-add-slide-button" iconName="plus">
-                {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-              </MenuButton>
-            </div>
             <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
           </div>
         </div>
