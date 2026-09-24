@@ -153,6 +153,21 @@ selected arm keeps that meaning while the unselected arm keeps the affordance.
 names that surface so the rest matches it. Hover and press are a tint of the
 control's own colour over that surface (`ui-hoverable-outline-on-{token}`).
 
+### Buttons inside a row that hovers
+
+```tsx
+// ❌ DON'T: an opaque rest shows as a pale block once the row takes its hover pair
+<Button intent="base-100" size="sm" iconName="pencil" onClick={edit} />
+
+// ✅ DO: a ghost has no rest surface, and its tint composes over the row's
+<Button ghost intent="base-content" size="sm" iconName="pencil" onClick={edit} />
+```
+
+**Why:** Filled and outline buttons paint an opaque rest, and `onBackground` can
+name only one surface where a hovering row has two. A ghost
+(`ui-hoverable-ghost`) rests on nothing and hovers with a `currentColor` tint
+over whatever is behind it.
+
 ### Controls in callouts
 
 ```tsx
@@ -305,6 +320,7 @@ drift.
 | Clickable card (whole card is the target)    | `Card onClick`: `cursor-pointer` + `hover:border-primary` at the frame                                                   |
 | Focus                                        | `ui-focusable`                                                                                                           |
 | Main action / secondary action / destructive | `intent="primary"` / `outline` + `onBackground` / `intent="danger"`                                                      |
+| Quiet action in a row that hovers itself     | `ghost` (+ `intent`): no rest surface, currentColor tint on hover; needs no `onBackground`                               |
 
 Status intents: `success` complete/positive · `warning` caution · `danger`
 error/destructive · `neutral` running/queued/pending · `primary`
@@ -395,14 +411,14 @@ Usable from app code:
 - **State:** the `ui-hoverable-{token}` family (`base-100`, `base-200`,
   `base-300`, `base-content`, `primary`, `neutral`, `success`, `warning`,
   `danger`), its outline sibling `ui-hoverable-outline-on-{token}` (same nine
-  members), and `ui-focusable`
+  members), `ui-hoverable-ghost` (one member), and `ui-focusable`
 - **Type:** three roles: body (14px, inherited from `body`, no size class),
   `ui-text-caption` (12px, muted: metadata, help text, column headers, data grid
   cells) and `ui-text-heading` (16px bold: section, card, modal and alert
   headings, and a full-screen view's label). There is no title role. Also
   `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
 - **Skins (only when building a control panther doesn't provide):**
-  `ui-fill-{intent}`, `ui-outline-{intent}`
+  `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`
 
 Every other `ui-*` class is internal and may change without notice.
 

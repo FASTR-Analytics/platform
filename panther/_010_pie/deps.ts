@@ -56,6 +56,7 @@ export {
   resolveFigureAutofitOptions,
   resolveFlooredContentScale,
   resolveLabelPlacement,
+  resolvePaneGrid,
   SIZING_SAMPLE,
   solveContentScale,
   validateDataInput,
@@ -71,6 +72,7 @@ export type {
   LabelMode,
   LegendInput,
   MeasuredChartBase,
+  PaneGrid,
   ProcessedHeaders,
   SimplifiedChartConfig,
 } from "../_007_figure_core/mod.ts";

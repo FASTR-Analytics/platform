@@ -13,6 +13,7 @@ import {
   getChartHeightConstraintsByMeasure,
   type HeightConstraints,
   measureChartWithAutofit,
+  type PaneGrid,
   type PaneLayout,
   RectCoordsDims,
   type RenderContext,
@@ -33,12 +34,13 @@ function buildOVProbe(
   width: number,
   item: ChartOVInputs,
   data: ChartOVDataTransformed,
-): (probeH: number, scale?: number) => PaneLayout[] {
-  return (probeH, scale) =>
+): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
+  return (probeH, paneGrid, scale) =>
     measureChartOV(
       rc,
       new RectCoordsDims([0, 0, width, probeH]),
       item,
+      paneGrid,
       scale,
       data,
       true,
@@ -57,7 +59,8 @@ function measureOV(
     bounds,
     item,
     (scale) => getChartOVComponentSizes(rc, item, data, scale),
-    (rc2, b, inp, fitScale) => measureChartOV(rc2, b, inp, fitScale, data),
+    (rc2, b, inp, paneGrid, fitScale) =>
+      measureChartOV(rc2, b, inp, paneGrid, fitScale, data),
     buildOVProbe(rc, w, item, data),
     resolveScaleAxisPlotHeight,
     resolveScaleAxisFloorPlotH,

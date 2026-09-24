@@ -13,6 +13,7 @@ import {
   getChartHeightConstraintsByMeasure,
   type HeightConstraints,
   measureChartWithAutofit,
+  type PaneGrid,
   type PaneLayout,
   RectCoordsDims,
   type RenderContext,
@@ -32,12 +33,13 @@ function buildTimeseriesProbe(
   width: number,
   item: TimeseriesInputs,
   data: TimeseriesDataTransformed,
-): (probeH: number, scale?: number) => PaneLayout[] {
-  return (probeH, scale) =>
+): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
+  return (probeH, paneGrid, scale) =>
     measureTimeseries(
       rc,
       new RectCoordsDims([0, 0, width, probeH]),
       item,
+      paneGrid,
       scale,
       data,
       true,
@@ -56,7 +58,8 @@ function measureTS(
     bounds,
     item,
     (scale) => getTimeseriesComponentSizes(rc, item, data, scale),
-    (rc2, b, inp, fitScale) => measureTimeseries(rc2, b, inp, fitScale, data),
+    (rc2, b, inp, paneGrid, fitScale) =>
+      measureTimeseries(rc2, b, inp, paneGrid, fitScale, data),
     buildTimeseriesProbe(rc, w, item, data),
     resolveScaleAxisPlotHeight,
   );

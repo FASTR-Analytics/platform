@@ -10,13 +10,13 @@ import {
   getChartOHSizingData,
 } from "./_internal/get_size_info.ts";
 import {
-  calculatePaneGrid,
   type ChartComponentSizes,
   getChartHeightConstraintsByMeasure,
   type HeightConstraints,
   maxProportionalPanePlotExtent,
   maxVisibleCount,
   measureChartWithAutofit,
+  type PaneGrid,
   type PaneLayout,
   proportionalTotalSlots,
   RectCoordsDims,
@@ -131,7 +131,7 @@ function buildOHResolveTarget(
   rc: RenderContext,
   data: ChartOHDataTransformed,
 ): ResolveTargetPlotH {
-  return (info, probeLayouts) => {
+  return (info, probeLayouts, { nGRows, nGCols }) => {
     // Unbalanced membership: size for the fullest pane, not the global union.
     const nIndicators = maxVisibleCount(
       data.visibleIndicatorsByPane,
@@ -143,10 +143,6 @@ function buildOHResolveTarget(
     const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
       ? nSeries
       : 1;
-    const { nGRows, nGCols } = calculatePaneGrid(
-      info.paneHeaders.length,
-      info.mergedStyle.panes.nCols,
-    );
     // Proportional band layout: the thickness decay sees the true ragged
     // bar-row total (per grid column, matching the uniform formula's
     // one-column semantics); otherwise the uniform product.
@@ -228,15 +224,11 @@ function buildOHResolveTargetSlotT(
   rc: RenderContext,
   data: ChartOHDataTransformed,
 ): ResolveTargetPlotH {
-  return (info, probeLayouts) => {
+  return (info, probeLayouts, { nGCols }) => {
     const ohStyle = info.mergedStyle as MergedChartOHStyle;
     const nBarsPerIndicator = shouldConsiderNSeries(ohStyle, data)
       ? data.seriesHeaders.length
       : 1;
-    const { nGCols } = calculatePaneGrid(
-      info.paneHeaders.length,
-      info.mergedStyle.panes.nCols,
-    );
     const raggedSlots = data.visibleIndicatorsByPaneBand
       ? proportionalTotalSlots(data.visibleIndicatorsByPaneBand)
       : data.indicatorHeaders.length * info.nTiers *
@@ -274,12 +266,13 @@ function buildOHProbe(
   width: number,
   item: ChartOHInputs,
   data: ChartOHDataTransformed,
-): (probeH: number, scale?: number) => PaneLayout[] {
-  return (probeH, scale) =>
+): (probeH: number, paneGrid: PaneGrid, scale?: number) => PaneLayout[] {
+  return (probeH, paneGrid, scale) =>
     measureChartOH(
       rc,
       new RectCoordsDims([0, 0, width, probeH]),
       item,
+      paneGrid,
       scale,
       data,
       true,
@@ -298,7 +291,8 @@ function measureOH(
     bounds,
     item,
     (scale) => getChartOHComponentSizes(rc, item, data, scale),
-    (rc2, b, inp, fitScale) => measureChartOH(rc2, b, inp, fitScale, data),
+    (rc2, b, inp, paneGrid, fitScale) =>
+      measureChartOH(rc2, b, inp, paneGrid, fitScale, data),
     buildOHProbe(rc, w, item, data),
     buildOHResolveTarget(rc, data),
     buildOHResolveFloor(rc, data),

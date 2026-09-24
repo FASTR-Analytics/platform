@@ -14,7 +14,6 @@ import {
   RectCoordsDims,
   type RenderContext,
 } from "./deps.ts";
-import { calculatePaneGrid } from "./dimension_helpers.ts";
 import { resolveDefaultLegend } from "./_legend/utils.ts";
 import { measurePane } from "./measure_pane.ts";
 import type {
@@ -71,10 +70,7 @@ export function measureChart<
 
   const contentRcd = measuredSurrounds.contentRcd;
 
-  const { nGCols, nGRows } = calculatePaneGrid(
-    dataProps.paneHeaders.length,
-    mergedStyle.panes.nCols,
-  );
+  const { nGCols, nGRows } = config.paneGrid;
 
   const paneWidth = (contentRcd.w() - (nGCols - 1) * mergedStyle.panes.gapX) /
     nGCols;

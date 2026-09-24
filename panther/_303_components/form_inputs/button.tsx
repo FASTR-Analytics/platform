@@ -20,6 +20,7 @@ function getButtonClasses(
   intent?: Intent,
   outline?: boolean,
   onBackground?: Intent,
+  ghost?: boolean,
 ) {
   return [
     // Component classes (defined in CSS): the per-intent skin, then the
@@ -28,8 +29,12 @@ function getButtonClasses(
     // that token; the opaque rest is what makes the button safe over busy
     // content) and hover/press with a tint of their own colour over it —
     // the outline family mixes currentColor, which the outline skin sets.
+    // Ghost buttons have no rest surface at all and tint the same way, so
+    // they hold on a surface that changes under them (a hovered table row).
     "ui-focusable",
-    ...(outline
+    ...(ghost
+      ? [`ui-ghost-${intent ?? "primary"}`, "ui-hoverable-ghost"]
+      : outline
       ? [
         `ui-outline-${intent ?? "primary"}`,
         `ui-hoverable-outline-on-${onBackground ?? "base-100"}`,
@@ -80,15 +85,19 @@ type ButtonPropsBase = {
   fullWidth?: boolean;
   loading?: boolean;
   state?: StateHolderButtonAction | StateHolderFormAction;
-  outline?: boolean;
-  onBackground?: Intent;
   iconName?: IconName;
   iconPosition?: "left" | "right";
   ariaLabel?: string;
   size?: "sm";
 };
 
-type ButtonPropsButton = ButtonPropsBase & {
+// A ghost has no surface, so it neither outlines nor rests on a backdrop;
+// the type refuses the combination.
+type ButtonPropsSurface =
+  | { ghost?: false; outline?: boolean; onBackground?: Intent }
+  | { ghost: true; outline?: undefined; onBackground?: undefined };
+
+type ButtonPropsButton = ButtonPropsBase & ButtonPropsSurface & {
   onClick?: JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent>;
   onPointerDown?: JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent>;
   type?: HTMLButtonElement["type"];
@@ -100,7 +109,7 @@ type ButtonPropsButton = ButtonPropsBase & {
   newTab?: never;
 };
 
-type ButtonPropsLink = ButtonPropsBase & {
+type ButtonPropsLink = ButtonPropsBase & ButtonPropsSurface & {
   href: string;
   download?: boolean | string;
   newTab?: boolean;
@@ -123,7 +132,9 @@ export function Button(p: ButtonProps) {
     <>
       <Show when={isLoading()}>
         <span class="pointer-events-none absolute inset-0 flex items-center justify-center py-1.5">
-          <Spinner intent={p.outline ? (p.intent ?? "primary") : "base-100"} />
+          <Spinner
+            intent={p.outline || p.ghost ? (p.intent ?? "primary") : "base-100"}
+          />
         </span>
       </Show>
       {/* Icon & Text */}
@@ -183,7 +194,13 @@ export function Button(p: ButtonProps) {
       <Match when={!p.href}>
         <button
           {...dataAttrs}
-          class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
+          class={getButtonClasses(
+            p.size,
+            p.intent,
+            p.outline,
+            p.onBackground,
+            p.ghost,
+          )}
           onClick={p.onClick}
           onPointerDown={p.onPointerDown}
           id={p.id}
@@ -200,7 +217,13 @@ export function Button(p: ButtonProps) {
       <Match when={p.href}>
         <a
           {...dataAttrs}
-          class={getButtonClasses(p.size, p.intent, p.outline, p.onBackground)}
+          class={getButtonClasses(
+            p.size,
+            p.intent,
+            p.outline,
+            p.onBackground,
+            p.ghost,
+          )}
           href={p.href}
           id={p.id}
           data-width={p.fullWidth}

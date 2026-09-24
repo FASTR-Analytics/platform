@@ -229,12 +229,13 @@ surface for app code:
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`
 - **State** — the `ui-hoverable-{token}` family (`base-100`, `base-200`,
-  `base-300`, `base-content`, and the five intents) and `ui-focusable`
+  `base-300`, `base-content`, and the five intents), its outline sibling
+  `ui-hoverable-outline-on-{token}`, `ui-hoverable-ghost`, and `ui-focusable`
 - **Type** — three roles: body (14px, inherited from `body`, no class),
   `ui-text-caption` (12px, muted) and `ui-text-heading` (16px, bold); plus
   `ui-text-overline`, `ui-text-small`, `ui-form-text`, `ui-label`
-- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, for building a control
-  the kit doesn't provide
+- **Skins** — `ui-fill-{intent}`, `ui-outline-{intent}`, `ui-ghost-{intent}`,
+  for building a control the kit doesn't provide
 
 Every other `ui-*` class is internal and may change without notice.
 

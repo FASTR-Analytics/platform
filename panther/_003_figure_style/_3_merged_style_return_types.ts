@@ -320,6 +320,7 @@ export type MergedGridStyle = {
 export type MergedPaneStyle = {
   hideHeaders: boolean;
   nCols: number | "auto";
+  minWidth: number;
   gapX: number;
   gapY: number;
   padding: Padding;

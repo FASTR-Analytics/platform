@@ -10,6 +10,7 @@ import type {
   MeasuredText,
   MergedPieStyle,
   OutsideLabelPlacement,
+  PaneGrid,
   Primitive,
   RenderContext,
   SimplifiedChartConfig,
@@ -60,6 +61,7 @@ export function measurePie(
   rc: RenderContext,
   bounds: RectCoordsDims,
   inputs: PieInputs,
+  paneGrid: PaneGrid,
   fitScale?: number,
 ): MeasuredPie {
   const customFigureStyle = new CustomFigureStyle(inputs.style, fitScale);
@@ -87,6 +89,7 @@ export function measurePie(
     xAxisConfig: { type: "none" },
     yAxisConfig: { type: "none" },
     orientation: "vertical",
+    paneGrid,
   };
 
   const chartMeasured = measureChart(rc, bounds, inputs, config, fitScale);
