@@ -218,13 +218,17 @@ modules in module order (`compareModules`), a `SelectList` per tier (Primary
 results, Supporting analyses). A view is one named reading of a module, a
 metric bound to a presentation, and `viewsFor` in `module_view.tsx` is the
 one place that says which views a module offers: "Indicator values as
-counts" (columns Indicators) and "Indicator values over time" (columns
-Time) for the HMIS primary module's first ready metric (`primaryMetricFor`),
-and nothing for any other module. A `Select` over the module's view names is
-always shown; the view places it first in its own control row. A module with
-no view shows a placeholder listing its metrics, and a module with no ready
-metric shows the stamped reason. When module definitions declare views,
-`viewsFor` reads them and nothing else on the page changes.
+counts" (the data table, columns Indicators) and "Indicator values over
+time" (the timeseries) for the HMIS primary module's first ready metric
+(`primaryMetricFor`), and nothing for any other module. A `Select` over the
+module's view names is always shown; the view places it first in its own
+control row. A module with no view shows a placeholder listing its metrics,
+and a module with no ready metric shows the stamped reason. When module
+definitions declare views, `viewsFor` reads them and nothing else on the
+page changes. The views share the family's `GridQuery` and the controls
+over it (`explore/_shared/query_controls.tsx`: indicators, period, grain,
+the dropped-indicators notice and the `queryEditors` pair that keeps
+dropped indicators through a package switch).
 
 **Data table** (`explore/data_table/`) reads its metric as a grid whose rows
 are the unit (admin areas at one level, or an ICEH stratifier's levels) and
@@ -262,6 +266,21 @@ order. Its empty states are typed: no preset, no data, and too many cells
 (narrow the indicators or coarsen the grain). No preset, no modules and the
 unavailable metric are the page's shared `explore/_shared/empty_state.tsx`;
 no ready package is `explore.tsx`'s own.
+
+**Timeseries** (`explore/timeseries.tsx`) reads the same metric as lines
+over time, one pane per indicator: `deriveTimeseriesConfig` over the
+resolved query (columns Time, so every window is readable) gives the
+primary preset with `d` replaced by type `timeseries`, the query's grain as
+`timeseriesGrouping`, the indicator dimension as `cell`, the chosen
+indicators as a filter and the window as `periodFilter`. The figure is
+fetched and built through `createFigurePreview` (S11's one path for a figure
+that is not a row, so it shares the scope-keyed items cache with products)
+and rendered by panther's `FigureHolder` with `height="flex"` and the
+default `sizing="reflow"`, which lays the figure out at the container width
+so one design unit is one CSS pixel and lines are as crisp as the UI. Its
+controls are indicators, period and grain; the level control is the table's
+alone, since the lines are the scope's total. HMIS only: HFA time points
+and ICEH years are not period columns.
 
 ## lib config semantics
 
@@ -353,7 +372,9 @@ no ready package is `explore.tsx`'s own.
 `lib/explore_grid_query.ts` holds the Explore Data table's controls' state
 as a `GridQuery` (family, unit, indicators, period, grain) and the pure
 steps over it; the columns mode (Indicators or Time) is the view's and is
-passed beside the query to `resolveGridQuery` and `deriveGridConfig`. `primaryMetricFor` is the family's primary module's first
+passed beside the query to `resolveGridQuery` and `deriveGridConfig`.
+`deriveTimeseriesConfig` derives the timeseries view's config from the same
+query ("Timeseries" above). `primaryMetricFor` is the family's primary module's first
 ready metric by id, the one metric the page offers a data table for.
 `defaultGridQuery` opens at the scope's level plus one
 (national: admin area 2; an admin area 2 scope: 3), every indicator, HMIS on

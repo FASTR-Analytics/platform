@@ -5,6 +5,7 @@ import { t3, type Language } from "./translate/mod.ts";
 import type { DatasetType } from "./types/datasets.ts";
 import type { PeriodFilter } from "./types/_metric_installed.ts";
 import type { MetricWithStatus } from "./types/modules.ts";
+import type { VizPreset } from "./types/_metric_installed.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { DisaggregationOption } from "./types/presentation_objects.ts";
 import type { RunAuthoringContext } from "./types/run_authoring_context.ts";
@@ -26,8 +27,8 @@ export type GridPeriod =
   | { kind: "window"; filter: NonNullable<PeriodFilter> }
   | { kind: "values"; values: string[] };
 
-// `indicators: []` is every indicator. `grain` is read only for HMIS in
-// Time mode.
+// `indicators: []` is every indicator. `grain` is read only for HMIS over
+// time: the table's Time mode and the timeseries.
 export type GridQuery = {
   family: DatasetType;
   unit: GridUnit;
@@ -277,19 +278,43 @@ type DisaggregateByEntry = PresentationObjectConfig["d"]["disaggregateBy"][
 ];
 type FilterByEntry = PresentationObjectConfig["d"]["filterBy"][number];
 
-// The figure config a resolved query reads through: the primary metric's
-// first preset with `d` replaced. Undefined when the family has no
-// ready metric or it declares no preset, or when a query that must read one
-// period carries none (resolution supplies it).
+type DerivedConfig = {
+  metric: MetricWithStatus;
+  config: PresentationObjectConfig;
+};
+
+// The family's primary metric and its first preset, the base every derived
+// config replaces `d` on.
+function primaryPreset(
+  family: DatasetType,
+  ctx: RunAuthoringContext,
+): { metric: MetricWithStatus; preset: VizPreset } | undefined {
+  const metric = primaryMetricFor(family, ctx);
+  const preset = metric?.vizPresets?.[0];
+  return metric === undefined || preset === undefined
+    ? undefined
+    : { metric, preset };
+}
+
+function indicatorFilter(query: GridQuery): FilterByEntry[] {
+  return query.indicators.length > 0
+    ? [{ disOpt: INDICATOR_DIMENSION[query.family], values: query.indicators }]
+    : [];
+}
+
+// The figure config a resolved query reads as a table: the primary preset
+// with `d` replaced. Undefined when the family has no ready metric or it
+// declares no preset, or when a query that must read one period carries
+// none (resolution supplies it).
 export function deriveGridConfig(
   query: GridQuery,
   columns: GridColumns,
   ctx: RunAuthoringContext,
   language: Language,
-): { metric: MetricWithStatus; config: PresentationObjectConfig } | undefined {
-  const metric = primaryMetricFor(query.family, ctx);
-  const preset = metric?.vizPresets?.[0];
-  if (metric === undefined || preset === undefined) return undefined;
+): DerivedConfig | undefined {
+  const found = primaryPreset(query.family, ctx);
+  if (found === undefined) return undefined;
+  const { metric, preset } = found;
   if (
     needsOnePeriod(query.family, columns) &&
     (query.period.kind !== "values" || query.period.values.length !== 1)
@@ -319,9 +344,7 @@ export function deriveGridConfig(
     ...(query.unit.kind === "strat"
       ? [{ disOpt: "strat" as const, values: [query.unit.strat] }]
       : []),
-    ...(query.indicators.length > 0
-      ? [{ disOpt: indicatorDim, values: query.indicators }]
-      : []),
+    ...indicatorFilter(query),
     ...(query.family !== "hmis" && query.period.kind === "values" &&
         query.period.values.length > 0
       ? [{ disOpt: timeDim, values: query.period.values }]
@@ -339,6 +362,40 @@ export function deriveGridConfig(
         disaggregateBy,
         filterBy,
         periodFilter: query.family === "hmis" && query.period.kind === "window"
+          ? query.period.filter
+          : undefined,
+      },
+    },
+  };
+}
+
+// The figure config a resolved HMIS query reads as a timeseries: the primary
+// preset with `d` replaced by lines over the query's grain, one pane per
+// indicator, the chosen indicators as a filter and the window as the period
+// filter. Undefined for HFA and ICEH, whose time points and years are not
+// period columns, and when the family has no ready metric or no preset.
+export function deriveTimeseriesConfig(
+  query: GridQuery,
+  ctx: RunAuthoringContext,
+  language: Language,
+): DerivedConfig | undefined {
+  if (query.family !== "hmis") return undefined;
+  const found = primaryPreset(query.family, ctx);
+  if (found === undefined) return undefined;
+  return {
+    metric: found.metric,
+    config: {
+      ...deriveConfigFromVizPreset(found.preset, language),
+      d: {
+        type: "timeseries",
+        timeseriesGrouping: query.grain,
+        valuesDisDisplayOpt: "series",
+        disaggregateBy: [{
+          disOpt: INDICATOR_DIMENSION[query.family],
+          disDisplayOpt: "cell",
+        }],
+        filterBy: indicatorFilter(query),
+        periodFilter: query.period.kind === "window"
           ? query.period.filter
           : undefined,
       },

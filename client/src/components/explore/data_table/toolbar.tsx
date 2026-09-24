@@ -1,29 +1,17 @@
 import {
-  periodChoiceId,
   t3,
   type AdminLevel,
   type GridColumns,
-  type GridGrain,
   type GridPeriodChoice,
   type GridQuery,
 } from "lib";
-import {
-  Button,
-  Input,
-  MultiSelectSearch,
-  Select,
-  type SelectOption,
-} from "panther";
+import { Button, Input, Select, type SelectOption } from "panther";
 import { type JSX, Show } from "solid-js";
-
-const GRAIN_OPTIONS = (): SelectOption<GridGrain>[] => [
-  { value: "period_id", label: t3({ en: "Month", fr: "Mois", pt: "Mês" }) },
-  {
-    value: "quarter_id",
-    label: t3({ en: "Quarter", fr: "Trimestre", pt: "Trimestre" }),
-  },
-  { value: "year", label: t3({ en: "Year", fr: "Année", pt: "Ano" }) },
-];
+import {
+  GrainControl,
+  IndicatorsControl,
+  PeriodControl,
+} from "../_shared/mod.ts";
 
 // The Data table's controls, after the view selector. Each edits the query
 // through `onChange`; the query shown is the resolved one, so every control
@@ -41,11 +29,6 @@ export function Toolbar(p: {
   onFind: (find: string) => void;
   onDownload: (() => void) | undefined;
 }) {
-  const setPeriod = (id: string) => {
-    const choice = p.periodChoices.find((c) => c.id === id);
-    if (choice !== undefined) p.onChange({ period: choice.period });
-  };
-
   return (
     <div class="ui-gap-sm flex flex-wrap items-end">
       {p.viewSelect}
@@ -71,37 +54,20 @@ export function Toolbar(p: {
           />
         )}
       </Show>
-      <div class="w-64">
-        <MultiSelectSearch
-          values={p.query.indicators}
-          options={p.indicatorOptions}
-          onChange={(indicators) => p.onChange({ indicators })}
-          placeholder={t3({
-            en: `All indicators (${p.indicatorOptions.length})`,
-            fr: `Tous les indicateurs (${p.indicatorOptions.length})`,
-            pt: `Todos os indicadores (${p.indicatorOptions.length})`,
-          })}
-          fullWidth
-          size="sm"
-        />
-      </div>
-      <Select
-        value={periodChoiceId(p.query.period, p.periodChoices)}
-        options={p.periodChoices.map((c) => ({ value: c.id, label: c.label }))}
-        onChange={setPeriod}
-        placeholder={t3({
-          en: "Chosen periods",
-          fr: "Périodes choisies",
-          pt: "Períodos escolhidos",
-        })}
-        size="sm"
+      <IndicatorsControl
+        values={p.query.indicators}
+        options={p.indicatorOptions}
+        onChange={(indicators) => p.onChange({ indicators })}
+      />
+      <PeriodControl
+        period={p.query.period}
+        choices={p.periodChoices}
+        onChange={(period) => p.onChange({ period })}
       />
       <Show when={p.query.family === "hmis" && p.columns === "time"}>
-        <Select
+        <GrainControl
           value={p.query.grain}
-          options={GRAIN_OPTIONS()}
           onChange={(grain) => p.onChange({ grain })}
-          size="sm"
         />
       </Show>
       <div class="ml-auto w-48">

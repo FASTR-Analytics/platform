@@ -24,18 +24,21 @@ import {
   type RunAuthoringContext,
 } from "lib";
 import {
-  Button,
   Csv,
   dataGridPropsFromTableData,
   downloadCsv,
   FrameTop,
   getLanguage,
   getTableDataTransformed,
-  type SelectOption,
   StateHolderWrapper,
 } from "panther";
 import { createMemo, createSignal, type JSX, Match, Show, Switch } from "solid-js";
-import { EmptyState } from "../_shared/mod.ts";
+import {
+  DroppedIndicatorsNotice,
+  EmptyState,
+  indicatorOptions,
+  queryEditors,
+} from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
@@ -103,18 +106,6 @@ function possibleValues(
   return status?.status === "ok" ? status.values : [];
 }
 
-function indicatorOptions(
-  family: DatasetType,
-  ctx: RunAuthoringContext,
-): SelectOption<string>[] {
-  const entries = family === "hmis"
-    ? ctx.hmisIndicators
-    : family === "hfa"
-    ? ctx.hfaTaxonomy.indicators
-    : ctx.icehIndicators;
-  return entries.map((i) => ({ value: i.id, label: i.label }));
-}
-
 function ReadyFamilyTable(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
@@ -148,21 +139,7 @@ function ReadyFamilyTable(p: {
   const resolved = createMemo(() =>
     resolveGridQuery(intent(), p.columns, p.scope, p.ctx, available())
   );
-  const update = (patch: Partial<GridQuery>) =>
-    p.setQuery({
-      ...intent(),
-      ...patch,
-      ...(patch.indicators === undefined ? {} : {
-        indicators: [...patch.indicators, ...resolved().droppedIndicators],
-      }),
-    });
-  const clearDropped = () => {
-    const dropped = new Set(resolved().droppedIndicators);
-    p.setQuery({
-      ...intent(),
-      indicators: intent().indicators.filter((id) => !dropped.has(id)),
-    });
-  };
+  const { update, clearDropped } = queryEditors(intent, resolved, p.setQuery);
 
   const derived = createMemo(() =>
     deriveGridConfig(resolved().query, p.columns, p.ctx, getLanguage())
@@ -275,18 +252,10 @@ function ReadyFamilyTable(p: {
             onDownload={download()}
           />
           <Show when={resolved().droppedIndicators.length > 0}>
-            <div class="ui-gap-sm flex items-center text-sm">
-              <span class="text-base-content-muted">
-                {t3({
-                  en: `${resolved().droppedIndicators.length} chosen indicator(s) are not in this package.`,
-                  fr: `${resolved().droppedIndicators.length} indicateur(s) choisi(s) ne figurent pas dans ce paquet.`,
-                  pt: `${resolved().droppedIndicators.length} indicador(es) escolhido(s) não estão neste pacote.`,
-                })}
-              </span>
-              <Button onClick={clearDropped} size="sm" outline>
-                {t3({ en: "Clear", fr: "Effacer", pt: "Limpar" })}
-              </Button>
-            </div>
+            <DroppedIndicatorsNotice
+              count={resolved().droppedIndicators.length}
+              onClear={clearDropped}
+            />
           </Show>
         </div>
       }

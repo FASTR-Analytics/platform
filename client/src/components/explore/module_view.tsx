@@ -14,18 +14,16 @@ import { Select } from "panther";
 import { createMemo, createSignal, For, type JSX, Match, Show, Switch } from "solid-js";
 import { EmptyState } from "./_shared/mod.ts";
 import { DataTable } from "./data_table/mod.ts";
+import { Timeseries } from "./timeseries";
 
 // A view is one named reading of a module: a metric bound to a presentation.
-// The HMIS primary module offers its first ready metric as counts and over
-// time, and no other module has a view yet. When module definitions declare
+// The HMIS primary module offers its first ready metric as a table of counts
+// and as a timeseries, and no other module has a view yet. When module definitions declare
 // views, `viewsFor` reads them instead and the rest of the page stands.
-type ExploreView = {
-  id: string;
-  label: string;
-  kind: "data_table";
-  metric: MetricWithStatus;
-  columns: GridColumns;
-};
+type ExploreView = { id: string; label: string; metric: MetricWithStatus } & (
+  | { kind: "data_table"; columns: GridColumns }
+  | { kind: "timeseries" }
+);
 
 function viewsFor(
   module: InstalledModuleSummary,
@@ -53,9 +51,8 @@ function viewsFor(
         fr: "Valeurs des indicateurs dans le temps",
         pt: "Valores dos indicadores ao longo do tempo",
       }),
-      kind: "data_table",
+      kind: "timeseries",
       metric: primary,
-      columns: "time",
     },
   ];
 }
@@ -136,6 +133,19 @@ function ViewBody(p: ViewProps & { view: ExploreView; viewSelect: JSX.Element })
             family={p.family}
             metric={v().metric}
             columns={v().columns}
+            viewSelect={p.viewSelect}
+            query={p.query}
+            setQuery={p.setQuery}
+          />
+        )}
+      </Match>
+      <Match when={p.view.kind === "timeseries" ? p.view : undefined}>
+        {(v) => (
+          <Timeseries
+            ctx={p.ctx}
+            scope={p.scope}
+            family={p.family}
+            metric={v().metric}
             viewSelect={p.viewSelect}
             query={p.query}
             setQuery={p.setQuery}

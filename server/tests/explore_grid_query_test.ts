@@ -7,6 +7,7 @@ import { assertEquals } from "@std/assert";
 import {
   defaultGridQuery,
   deriveGridConfig,
+  deriveTimeseriesConfig,
   type GridColumns,
   type DatasetType,
   type DisaggregationOption,
@@ -321,6 +322,18 @@ Deno.test("derive: ICEH filters the chosen stratifier and its one year", () => {
     { disOpt: "year", values: ["2018"] },
   ]);
   assertEquals(deriveGridConfig(q, "indicators", CTX, "en")?.config.d.periodFilter, undefined);
+});
+
+Deno.test("derive: HMIS timeseries is lines over the grain with a pane per indicator", () => {
+  const q: GridQuery = { ...defaultGridQuery("hmis", NATIONAL, CTX, AVAILABLE), grain: "quarter_id" };
+  const config = deriveTimeseriesConfig(q, CTX, "en")?.config;
+  assertEquals(config?.d.type, "timeseries");
+  assertEquals(config?.d.timeseriesGrouping, "quarter_id");
+  assertEquals(config?.d.valuesDisDisplayOpt, "series");
+  assertEquals(config?.d.disaggregateBy, [{ disOpt: "indicator_common_id", disDisplayOpt: "cell" }]);
+  assertEquals(config?.d.filterBy, []);
+  assertEquals(config?.d.periodFilter, { filterType: "last_n_months", nMonths: 12 });
+  assertEquals(deriveTimeseriesConfig(defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE), CTX, "en"), undefined);
 });
 
 Deno.test("periods: HFA and ICEH offer All only in Time mode", () => {
