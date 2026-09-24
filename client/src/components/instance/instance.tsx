@@ -28,6 +28,7 @@ import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { clerk } from "~/state/_infra/clerk";
 import { OrganisationModal } from "./organisation_modal";
 import { ThemeModal } from "./theme_modal";
+import { THEME_SWITCHER_ENABLED } from "~/state/t4_theme";
 import { WhatsNewFeedModal, WhatsNewModal } from "./whats_new_modal";
 import { serverActions } from "~/server_actions";
 import { Explore } from "~/components/explore/mod.ts";
@@ -211,9 +212,11 @@ export default function Instance(p: Props) {
                 </div>
               </div>
               <div class="ui-gap-sm flex flex-0 items-center justify-end">
-                <Button intent="base-100" onClick={openTheme}>
-                  {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
-                </Button>
+                <Show when={THEME_SWITCHER_ENABLED}>
+                  <Button intent="base-100" onClick={openTheme}>
+                    {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
+                  </Button>
+                </Show>
                 <MenuButton
                   data-tour="instance-topbar-language"
                   items={

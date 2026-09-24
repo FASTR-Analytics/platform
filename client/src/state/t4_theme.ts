@@ -4,9 +4,14 @@ import { createSignal } from "solid-js";
 // <html>, which beat every stylesheet rule. Every knob is a short gradient of
 // sensible values, not a catalogue of contrasts: colors are light-dark() pairs
 // drawn only from the GFF brand guidelines (ENG_Branding
-// Guidelines_Secretariat.pdf); rounding writes nothing at its default step, so
-// it stays what _fixed.css declares. Canvas figures keep their fixed key
-// colors; only the HTML UI follows.
+// Guidelines_Secretariat.pdf); rounding writes nothing at the stylesheet's
+// step, so it stays what _fixed.css declares. Canvas figures keep their fixed
+// key colors; only the HTML UI follows.
+
+// The chosen look ships as DEFAULT_THEME for everyone. While this is false the
+// Theme button is hidden and stored per-device themes are ignored; flip it to
+// bring the switcher back.
+export const THEME_SWITCHER_ENABLED = false;
 
 export const THEME_RAMPS = ["neutral", "tone", "cool"] as const;
 export type ThemeRamp = (typeof THEME_RAMPS)[number];
@@ -50,13 +55,15 @@ export type Theme = {
 };
 
 export const DEFAULT_THEME: Theme = {
-  ramp: "neutral",
-  primary: "current",
+  ramp: "cool",
+  primary: "deep-green",
   ink: "charcoal",
-  status: "kit",
+  status: "brand-danger",
   darkPrimary: "teal",
-  radius: 4,
+  radius: 3,
 };
+
+const STYLESHEET_RADIUS = 4;
 
 // Every ramp pins its hover and active states as literals rather than
 // trusting the kit's formula (a mix toward the ink), which already makes a
@@ -259,7 +266,7 @@ function colorVars(t: Theme): ThemeVars {
 
 function themeVars(t: Theme): ThemeVars {
   const vars = colorVars(t);
-  vars["--radius"] = t.radius === DEFAULT_THEME.radius ? null : `${t.radius}px`;
+  vars["--radius"] = t.radius === STYLESHEET_RADIUS ? null : `${t.radius}px`;
   return vars;
 }
 
@@ -304,7 +311,9 @@ function readStoredTheme(): Theme {
   }
 }
 
-export const [theme, setThemeInternal] = createSignal<Theme>(readStoredTheme());
+export const [theme, setThemeInternal] = createSignal<Theme>(
+  THEME_SWITCHER_ENABLED ? readStoredTheme() : DEFAULT_THEME,
+);
 
 export function setTheme(next: Theme) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));

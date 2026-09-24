@@ -49,11 +49,12 @@ Today's app-level additions:
   `bg-base-100 text-base-content`, `font-variant-numeric: tabular-nums` for
   aligned numeric columns.
 
-A third, runtime layer sits above both while the reskin is being chosen: the
-Theme modal (`client/src/state/t4_theme.ts`, S14) writes brand color, radius,
-density and text-scale tokens as inline properties on `<html>`. Its default
-reproduces the shipped look, except that ramps pin their hover and active
-states; the two CSS files remain the source of truth for what ships.
+A third, runtime layer sits above both: the theme module
+(`client/src/state/t4_theme.ts`, S14) writes brand color and radius tokens as
+inline properties on `<html>`. Its default is the chosen brand look (cool
+ramp, deep green, maroon danger, 3px radius) and the Theme modal that edits it
+is hidden behind `THEME_SWITCHER_ENABLED`; the two CSS files remain the source
+of truth for everything the module does not write.
 
 ## Dark mode
 

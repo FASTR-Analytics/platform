@@ -290,6 +290,11 @@ on read, because it feeds CSS rather than a comparison. The Theme button in the
 instance top bar opens `ThemeModal`, where every change applies immediately,
 the scheme toggle from the profile modal sits at the top as the mode rather
 than a theme knob, and a summary line names the current combination. Canvas figures keep their fixed key colors.
+`THEME_SWITCHER_ENABLED` (false) hides the button and makes the module ignore
+the stored theme, so every device gets `DEFAULT_THEME`: the cool ramp, deep
+green, charcoal ink, maroon danger, teal dark primary, 3px radius. Radius
+writes nothing only at the stylesheet's 4px step, so the 3px default is
+written. Flip the flag to bring the switcher back.
 
 ## Connection monitoring (`state/t4_connection_monitor.ts`)
 
