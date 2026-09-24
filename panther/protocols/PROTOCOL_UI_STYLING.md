@@ -255,6 +255,12 @@ drift.
   is `font-700`, not mono and not a larger size. Mono inherits the size of the
   text it sits in; the one mono size class is `text-xs` on a code or log block
   that is caption throughout.
+- **Italic** is a content style: emphasis inside a document or user-authored
+  text. It is never a UI signal. A status, note or reason is muted. In a table,
+  an absent value is an empty cell; an absence that means something ("Never",
+  "system") is a muted word. No dashes, no italic. The one exception is the AI
+  chat (`_305_ai`), whose transient status lines (thinking, tool progress,
+  decisions) keep their italic.
 
 ### Text case
 
@@ -451,6 +457,9 @@ foreground is not derived from the background.
 - [ ] `font-mono` only on identifiers, codes, file names, formulas, code, logs
       and diffs; never on names, emails or counts, and never with a size class
       other than `text-xs` on a caption-size block
+- [ ] No `italic` outside document or user-authored content (the AI chat's
+      status lines excepted); an empty or special table value is empty or a
+      muted word, never a dash
 - [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case
