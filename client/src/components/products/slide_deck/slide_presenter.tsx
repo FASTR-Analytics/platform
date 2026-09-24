@@ -269,7 +269,7 @@ export function SlidePresenter(p: Props) {
   return (
     <div
       ref={rootEl!}
-      class="fixed inset-0 z-50 flex items-center justify-center select-none"
+      class="ui-scheme-light fixed inset-0 z-50 flex items-center justify-center select-none"
       style={{ background: "#000000" }}
       onClick={goNext}
       onPointerMove={pokeControls}
@@ -327,15 +327,26 @@ export function SlidePresenter(p: Props) {
         }}
       >
         <div
-          class="ui-gap-sm pointer-events-auto absolute top-4 right-4 flex items-center"
+          class="ui-gap-sm pointer-events-auto absolute top-4 right-4 flex items-center rounded-full px-3 py-2"
+          style={{ background: "rgb(0 0 0 / 0.6)" }}
           onClick={(e) => e.stopPropagation()}
         >
           <Button
+            ghost
+            intent="base-100"
             iconName={isFullscreen() ? "minimize" : "maximize"}
-            outline
+            ariaLabel={isFullscreen()
+              ? t3({ en: "Exit full screen", fr: "Quitter le plein écran", pt: "Sair do ecrã inteiro" })
+              : t3({ en: "Full screen", fr: "Plein écran", pt: "Ecrã inteiro" })}
             onClick={toggleFullscreen}
           />
-          <Button iconName="x" outline onClick={close} />
+          <Button
+            ghost
+            intent="base-100"
+            iconName="x"
+            ariaLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+            onClick={close}
+          />
         </div>
 
         <Show when={total() > 0}>
@@ -345,8 +356,10 @@ export function SlidePresenter(p: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <Button
+              ghost
+              intent="base-100"
               iconName="chevronLeft"
-              outline
+              ariaLabel={t3({ en: "Previous slide", fr: "Diapositive précédente", pt: "Diapositivo anterior" })}
               disabled={currentIndex() === 0}
               onClick={goPrev}
             />
@@ -354,8 +367,10 @@ export function SlidePresenter(p: Props) {
               {currentIndex() + 1} / {total()}
             </div>
             <Button
+              ghost
+              intent="base-100"
               iconName="chevronRight"
-              outline
+              ariaLabel={t3({ en: "Next slide", fr: "Diapositive suivante", pt: "Diapositivo seguinte" })}
               disabled={currentIndex() === total() - 1}
               onClick={goNext}
             />
