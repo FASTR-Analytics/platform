@@ -5,7 +5,6 @@ import {
   EmptyState,
   FrameTop,
   HeadingBar,
-  Icon,
   openComponent,
   Select,
   Table,
@@ -175,16 +174,7 @@ export function InstanceResultsPackages() {
       sortable: true,
       filterable: true,
       filterValue: (run) => runStatusLabel(run.status),
-      render: (run) => (
-        <span class="ui-gap-sm inline-flex items-center">
-          <Show when={run.status === "failed"}>
-            <Badge intent="danger" variant="solid">
-              <Icon iconName="alertCircle" />
-            </Badge>
-          </Show>
-          <RunStatusBadge status={run.status} />
-        </span>
-      ),
+      render: (run) => <RunStatusBadge status={run.status} />,
     },
     {
       key: "usage",
