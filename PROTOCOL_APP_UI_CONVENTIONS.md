@@ -213,9 +213,10 @@ through `createDeleteAction` (confirmation built in); async buttons pass
 **Modal forms:** `openComponent()` + `AlertFormHolder` + `createFormAction`.
 Validate inside the action and return `{ success: false, err }`; fields spaced
 `ui-spy-sm`; `autoFocus` the first input. Settings pages: `ui-pad ui-spy` page,
-`ui-text-heading` section headings, fields `ui-spy-sm`. Every heading, the
-instance name in the shell and a full-screen view's label included, is
-`ui-text-heading`; never a bare `text-lg` / `text-xl`. The six top-level pages
+`ui-text-heading` section headings, fields `ui-spy-sm`. Every heading, a
+full-screen view's label included, is `ui-text-heading`; never a bare
+`text-lg` / `text-xl`. The one exception is the instance name in the shell's
+top bar, `text-xl font-700`: it names the site, not a section. The six top-level pages
 have no title. An in-body count beside a search box is plain body text
 ("123 indicators", "12 of 40"). Modal widths are
 `ModalContainer`'s `width` tokens (panther).
