@@ -272,8 +272,8 @@ over time, one pane per indicator: `deriveTimeseriesConfig` over the
 resolved query (columns Time, so every window is readable) gives the
 primary preset with `d` replaced by type `timeseries`, the query's grain as
 `timeseriesGrouping`, the indicator dimension as `cell`, the chosen
-indicators as a filter and the window as `periodFilter`, `s` set to lines
-in three pane columns, since the preset's style is a table's, and `t`
+indicators as a filter and the window as `periodFilter`, `s` set to lines,
+since the preset's style is a table's, and `t`
 cleared, since the view's name is the caption. The figure is
 fetched and built through `createFigurePreview` (S11's one path for a figure
 that is not a row, so it shares the scope-keyed items cache with products)
