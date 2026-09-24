@@ -73,8 +73,7 @@ export function ReportVersionCompare(
         fr: "Modifications depuis cette version",
         pt: "Alterações desde esta versão",
       })}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <StateHolderWrapper state={lineage.state()}>
         {(steps) => {

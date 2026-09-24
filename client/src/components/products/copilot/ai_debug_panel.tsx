@@ -32,8 +32,7 @@ export function AIDebugPanel(p: Props) {
       title={t3({ en: "AI debug — available metrics (get_available_metrics)", fr: "Débogage IA — métriques disponibles (get_available_metrics)", pt: "Depuração da IA — métricas disponíveis (get_available_metrics)" })}
       width="lg"
       scroll="content"
-      onCancel={() => p.close()}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close() }}
     >
       <pre class="whitespace-pre-wrap break-words text-xs">{content()}</pre>
     </ModalContainer>

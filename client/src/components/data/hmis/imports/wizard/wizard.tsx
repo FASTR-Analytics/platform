@@ -127,8 +127,7 @@ export function Dhis2Wizard(
         <ModalContainer
           width="md"
           title={t3(DHIS2_DATA_IMPORT_TITLE)}
-          onCancel={() => p.close(undefined)}
-          cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+          onClose={{ kind: "close", onClick: () => p.close(undefined) }}
         >
           <div class="text-danger">{t3(NO_STORED_DHIS2_CONNECTION)}</div>
         </ModalContainer>

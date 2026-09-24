@@ -779,8 +779,7 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
         fr: "Indicateurs spéciaux et mots réservés",
         pt: "Indicadores especiais e palavras reservadas",
       })}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Done", fr: "Terminé", pt: "Concluído" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <div class="ui-spy text-sm">
         <div class="ui-spy-sm">

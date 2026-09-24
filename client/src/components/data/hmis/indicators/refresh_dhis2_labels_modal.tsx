@@ -5,7 +5,7 @@ import {
   createButtonAction,
 } from "panther";
 import { createSignal, Show } from "solid-js";
-import { type Dhis2LabelRefresh, t3, TC } from "lib";
+import { type Dhis2LabelRefresh, t3 } from "lib";
 import { serverActions } from "~/server_actions";
 
 // The DHIS2 name refresh, explained before it runs and reported after: one
@@ -30,24 +30,17 @@ export function RefreshDhis2LabelsModal(p: Props) {
         fr: "Actualiser les noms DHIS2",
         pt: "Atualizar nomes DHIS2",
       })}
-      actions={
-        result()
-          ? []
-          : [
-              {
-                label: t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" }),
-                onClick: refresh.click,
-                state: refresh.state(),
-                iconName: "refresh",
-              },
-            ]
-      }
-      onCancel={() => p.close(undefined)}
-      cancelLabel={
-        result()
-          ? t3({ en: "Done", fr: "Terminé", pt: "Concluído" })
-          : undefined
-      }
+      {...(result()
+        ? { onClose: { kind: "done" as const, onClick: () => p.close(undefined) } }
+        : {
+          onCancel: () => p.close(undefined),
+          actions: [{
+            label: t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" }),
+            onClick: refresh.click,
+            state: refresh.state(),
+            iconName: "refresh" as const,
+          }],
+        })}
     >
       <div class="ui-spy text-sm">
         <Show when={result()} fallback={<Explanation elementCount={p.elementCount} />}>

@@ -1,4 +1,4 @@
-import { t3, TC } from "lib";
+import { t3 } from "lib";
 import {
   Button,
   ModalContainer,
@@ -93,20 +93,17 @@ export function FeedbackForm(
         pt: "Ajuda e comentários",
       })}
       width="md"
-      actions={
-        sent()
-          ? []
-          : [
-              {
-                label: t3({ en: "Send", fr: "Envoyer", pt: "Enviar" }),
-                onClick: handleSend,
-                iconName: "arrowRight",
-                disabled: sending(),
-              },
-            ]
-      }
-      onCancel={() => p.close(undefined)}
-      cancelLabel={sent() ? t3(TC.done) : undefined}
+      {...(sent()
+        ? { onClose: { kind: "done" as const, onClick: () => p.close(undefined) } }
+        : {
+          onCancel: () => p.close(undefined),
+          actions: [{
+            label: t3({ en: "Send", fr: "Envoyer", pt: "Enviar" }),
+            onClick: handleSend,
+            iconName: "arrowRight" as const,
+            disabled: sending(),
+          }],
+        })}
     >
       <Show when={sent()}>
         <div class="text-success py-4 text-center">

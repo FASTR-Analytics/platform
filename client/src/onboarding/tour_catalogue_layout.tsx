@@ -37,8 +37,7 @@ export function TourCatalogueFrame(p: {
         fr: "Visites guidées",
         pt: "Visitas guiadas",
       })}
-      onCancel={() => p.close()}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close() }}
     >
       <div class="flex h-[min(650px,65vh)] gap-4">
         <div class="w-52 flex-none overflow-y-auto border-r pr-4">

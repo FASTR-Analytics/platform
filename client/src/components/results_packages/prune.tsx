@@ -72,25 +72,20 @@ export function PruneResultsPackages(
     <ModalContainer
       width="md"
       title={t3(HEADING)}
-      onCancel={phase() === "running" ? undefined : () => p.close(undefined)}
-      cancelLabel={
-        phase() === "done"
-          ? t3({ en: "Close", fr: "Fermer", pt: "Fechar" })
-          : t3(TC.cancel)
-      }
-      actions={
-        phase() === "confirm"
-          ? [
-              {
-                label: t3(TC.delete),
-                onClick: run,
-                intent: "danger",
-                iconName: "trash",
-                disabled: plan().delete.length === 0,
-              },
-            ]
-          : []
-      }
+      {...(phase() === "done"
+        ? { onClose: { kind: "done" as const, onClick: () => p.close(undefined) } }
+        : {
+          onCancel: phase() === "confirm" ? () => p.close(undefined) : undefined,
+          actions: phase() === "confirm"
+            ? [{
+              label: t3(TC.delete),
+              onClick: run,
+              intent: "danger" as const,
+              iconName: "trash" as const,
+              disabled: plan().delete.length === 0,
+            }]
+            : [],
+        })}
     >
       <Switch>
         <Match when={phase() === "confirm"}>

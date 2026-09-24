@@ -39,8 +39,7 @@ export function Dhis2ManageConnection(p: AlertComponentProps<Props, undefined>) 
         fr: "Gérer la connexion DHIS2",
         pt: "Gerir a ligação DHIS2",
       })}
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <StateHolderWrapper state={infoQuery.state()} noPad>
         {(info) => (

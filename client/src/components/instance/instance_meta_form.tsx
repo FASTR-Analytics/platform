@@ -1,4 +1,4 @@
-import { t3, TC } from "lib";
+import { t3 } from "lib";
 import {
   ModalContainer,
   Card,
@@ -41,8 +41,7 @@ export function InstanceMetaForm(p: AlertComponentProps<{}, undefined>) {
         pt: "Informações da instância",
       })}
       width="lg"
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3(TC.done)}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <StateHolderWrapper state={instanceMeta.state()} noPad>
         {(keyedMeta) => {

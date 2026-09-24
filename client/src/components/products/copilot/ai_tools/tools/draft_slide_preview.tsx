@@ -197,18 +197,18 @@ function ExpandedSlideModal(
   return (
     <ModalContainer
       width="2xl"
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
-      actions={p.onAddToDeck === undefined ? [] : [
-        {
-          label: p.addToDeckLabel,
-          onClick: () => {
-            p.close(undefined);
-            p.onAddToDeck?.();
-          },
-          outline: true,
-        },
-      ]}
+      {...(p.onAddToDeck === undefined
+        ? { onClose: { kind: "close" as const, onClick: () => p.close(undefined) } }
+        : {
+          onCancel: () => p.close(undefined),
+          actions: [{
+            label: p.addToDeckLabel,
+            onClick: () => {
+              p.close(undefined);
+              p.onAddToDeck?.();
+            },
+          }],
+        })}
     >
       <div class="aspect-video overflow-hidden rounded border">
         <PageHolder
