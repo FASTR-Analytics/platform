@@ -214,6 +214,40 @@ containers are border-only, and shadow means "this left the document flow".
 **Why:** The `ui-*` utilities resolve through density vars, so an app can retune
 its whole density from one `@theme` block.
 
+### Type
+
+Every UI text size is a rem token from the `--text-*` scale, and text takes one
+of three roles:
+
+| Role    | Size    | Class                        | Used for                                                                                                                        |
+| ------- | ------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Caption | 12      | `ui-text-caption`, `text-xs` | Metadata, dates, badges, help text under a control, column headers, every cell of a data grid                                   |
+| Body    | 14      | none: inherited from `body`  | Everything else: body text, list and table cells, buttons, inputs, tabs, menus, dialog text, empty and loading messages, errors |
+| Heading | 16, 700 | `ui-text-heading`            | Section, card, modal and alert headings, and the label of a full-screen view                                                    |
+
+There is no title role. The body size is `--ui-text-body` (`text-sm`), set once
+on `body`; form text reads the same token, so controls and body text cannot
+drift.
+
+- **Do** leave body text unsized. A `text-sm` on body text is a no-op that will
+  not survive a change to `--ui-text-body`.
+- **Don't** size text in pixels, `text-[Npx]`, or a class that is not a token
+  (`text-md` emits nothing). 12px is the floor: if a badge or avatar is cramped,
+  its container grows.
+- **Don't** use `em` for UI text. It is for text that must follow the size
+  around it: icons, and markdown rendered inside a document.
+- **Line-height** comes with the token: each `--text-*` carries Tailwind's
+  default pair (`--text-sm--line-height` and so on), and `body` takes the
+  `text-sm` pair, so unsized text and `text-sm` text share a rhythm. A
+  `leading-*` utility overrides it where a control needs to.
+- **Tables.** Data grids (`DataGrid`, the CSV table, `PresenceGrid`) are caption
+  size throughout. `DisplayTable` and hand-built listings use one cell size,
+  body: a secondary value is muted, not smaller; a second line stacked under a
+  cell's main value is caption; a listing's column header is the `DisplayTable`
+  header (`font-700 text-xs uppercase tracking-wider`).
+- **Icons in `sm` controls** draw at 1.125em inside the control's
+  `--ui-form-content-h-em` box, so no control changes height.
+
 ### Text case
 
 ```tsx

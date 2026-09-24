@@ -158,9 +158,13 @@ Dialogs stack: one opened over another layers on top, and each promise settles
 when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders
 Cancel, `actions` render right-aligned after it with the last one primary,
 `form` makes Enter click the primary action, and each action's error state
-renders under the body. `footer` is the left slot for non-action content. Menus:
-`MenuButton` for a button that opens a menu, `ActionMenuButton` for the
-three-dots preset, `showMenu` for context menus. Never hand-roll an overlay.
+renders under the body. A modal whose only button dismisses it passes
+`onClose={{ kind, onClick }}` instead: `"close"` for read-only content, `"done"`
+when the modal applied edits live with no Save step. It renders as the primary
+action; a lone button is never the outline Cancel. `footer` is the left slot for
+non-action content. Menus: `MenuButton` for a button that opens a menu,
+`ActionMenuButton` for the three-dots preset, `showMenu` for context menus.
+Never hand-roll an overlay.
 
 A popover that can open inside an `openAlert` or `openComponent` modal must stop
 Escape itself. `AlertProvider` closes the modal from a document-level `keydown`

@@ -25,8 +25,7 @@ export function AIChatSystemPromptPanel(p: Props) {
       })}
       width="lg"
       scroll="content"
-      onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Close", fr: "Fermer", pt: "Fechar" })}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <pre class="whitespace-pre-wrap break-words text-xs">{text}</pre>
     </ModalContainer>
