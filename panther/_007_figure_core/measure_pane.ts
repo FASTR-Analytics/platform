@@ -281,9 +281,13 @@ export function measurePane<TData>(
 
   if (config.paneHeader) {
     const panePadding = new Padding(baseStyle.panes.padding);
+    // The header hugs its plot: the row's header strip may be taller than
+    // this header, and the slack belongs above it, not between it and the
+    // chart it names.
     const paneHeaderBounds = new RectCoordsDims({
       x: config.geometry.outerRcd.x() + panePadding.pl(),
-      y: config.geometry.outerRcd.y() + panePadding.pt(),
+      y: config.geometry.contentRcd.y() - baseStyle.panes.headerGap -
+        config.paneHeader.dims.h(),
       w: config.geometry.outerRcd.w() - panePadding.pl() - panePadding.pr(),
       h: config.paneHeader.dims.h(),
     });
