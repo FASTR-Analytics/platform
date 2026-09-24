@@ -600,7 +600,7 @@ model sees. AI data payloads exclude the admin-area roll-up row (double-counting
 guard, S9).
 
 The instance `ai_context` is one `instance_config` row (`ai_context`), edited
-from a card on the Data page behind `can_configure_settings`
+from a row on the Data page behind `can_configure_settings`
 ([ai_context_form.tsx](client/src/components/data/general/ai_context_form.tsx),
 `updateAiContextConfig`), and rides `InstanceState` with the rest of the config
 so the prompt reads it from T1 with no fetch.

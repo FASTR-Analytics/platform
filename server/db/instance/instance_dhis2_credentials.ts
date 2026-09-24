@@ -10,7 +10,7 @@ import type { DBInstanceDhis2Credentials } from "./_main_database_types.ts";
 // Single instance-wide stored DHIS2 credentials row, the only credentials
 // any DHIS2 flow uses (structure import, indicators, geojson, HMIS data:
 // PLAN_DHIS2_CREDENTIAL_STORE_CONSOLIDATION). It is set, replaced and
-// deleted only through the Data page's DHIS2 connection card. url + username are plaintext in the DB
+// deleted only through the Data page's DHIS2 connection row. url + username are plaintext in the DB
 // row, but only the URL ever leaves the server (the UI shows it so an admin
 // can see what is stored; the username stays server-side). The password is
 // AES-256-GCM encrypted with a key derived from the
@@ -82,7 +82,7 @@ export async function decryptDhis2Password(encrypted: string): Promise<string> {
     return new TextDecoder().decode(plainBytes);
   } catch {
     throw new Error(
-      "Could not decrypt the stored DHIS2 password: the encryption key has changed. Save the connection again in the DHIS2 connection card on the Data page.",
+      "Could not decrypt the stored DHIS2 password: the encryption key has changed. Save the connection again in the DHIS2 connection row on the Data page.",
     );
   }
 }

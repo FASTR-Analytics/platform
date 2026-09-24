@@ -288,9 +288,9 @@ credentials, so replacing the stored connection misses the cache.
 url/username/password inputs with a show/hide toggle, no persistence of
 its own. Its one caller is the manage-connection modal
 (`data/hmis/dhis2_connection/manage_connection.tsx`), opened only from the
-Data page's DHIS2 connection card: the one place a connection is set,
+Data page's DHIS2 connection row: the one place a connection is set,
 replaced or deleted. Every other DHIS2 flow uses the stored connection
-and, when none is stored, points to that card. All user-facing strings in
+and, when none is stored, points to that row. All user-facing strings in
 this system carry en/fr/pt.
 
 ## Consumers

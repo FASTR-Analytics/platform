@@ -278,7 +278,7 @@ chips are grouped under family labels from `RunAuthoringContext.modules`
 in module order; a generating or failed run has no manifest and the
 registry declares no family, so its chips stay flat in execution order and
 are named from the registry. The body is by status: a READY package's is a
-tab bar (`TabsNavigation`, as the Data page) of **one tab per family the
+tab bar (`TabsNavigation`) of **one tab per family the
 package ran**, in family order (from `RunAuthoringContext.modules` through
 `compareModules`, so a package with modules of one family has one tab); a
 FAILED package's is `package_view/failed_detail.tsx`, the stage sentence

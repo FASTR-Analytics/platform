@@ -1,7 +1,6 @@
 import { tourTarget } from "@njwse/roadtrip";
 import type { TourDefinition, TourLabels, TourStep } from "@njwse/roadtrip";
 import { t3 } from "lib";
-import { setDataSection } from "~/state/t4_ui";
 
 // Built as factories (not module-level constants) so t3() resolves after the
 // app language has been set.
@@ -914,19 +913,17 @@ export function buildInstanceDataTour(): TourDefinition {
       {
         id: "hmis",
         target: tourTarget("instance-data-hmis"),
-        beforeEnter: () => setDataSection("hmis"),
         title: t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" }),
         body: t3({
-          en: "The facility list, monthly routine service data, and the indicator dictionary that defines what's being counted. Click a card to inspect what has been uploaded or to import a new dataset.",
-          fr: "La liste des établissements, les données de routine mensuelles et le dictionnaire d'indicateurs qui définit ce qui est mesuré. Cliquez sur une carte pour consulter ce qui a été importé ou pour importer un nouveau jeu de données.",
-          pt: "A lista de estabelecimentos, os dados de rotina mensais e o dicionário de indicadores que define o que é medido. Clique num cartão para consultar o que foi carregado ou para importar um novo conjunto de dados.",
+          en: "The facility list, monthly routine service data, and the indicator dictionary that defines what's being counted. Click a row to inspect what has been uploaded or to import a new dataset.",
+          fr: "La liste des établissements, les données de routine mensuelles et le dictionnaire d'indicateurs qui définit ce qui est mesuré. Cliquez sur une ligne pour consulter ce qui a été importé ou pour importer un nouveau jeu de données.",
+          pt: "A lista de estabelecimentos, os dados de rotina mensais e o dicionário de indicadores que define o que é medido. Clique numa linha para consultar o que foi carregado ou para importar um novo conjunto de dados.",
         }),
         placement: "top",
       },
       {
         id: "hfa",
         target: tourTarget("instance-data-hfa"),
-        beforeEnter: () => setDataSection("hfa"),
         title: t3({
           en: "Health facility assessments",
           fr: "Enquêtes auprès des établissements",
@@ -942,7 +939,6 @@ export function buildInstanceDataTour(): TourDefinition {
       {
         id: "iceh",
         target: tourTarget("instance-data-iceh"),
-        beforeEnter: () => setDataSection("iceh"),
         title: t3({
           en: "Equity data (ICEH)",
           fr: "Données d'équité (ICEH)",

@@ -244,8 +244,7 @@ Whether every literal is well-formed across the 241-file surface is the standing
 ## UI preferences (`state/t4_ui.ts`)
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
-then the signal: the rail's `navCollapsed`; the Data page's section tab
-`dataSection` (General / HMIS / HFA / ICEH); the Explore page's family
+then the signal: the rail's `navCollapsed`; the Explore page's family
 `exploreFamily` and its module per family `exploreModules`, a JSON
 object (its package and scope are page signals, never stored); the
 product explorer's two (`productsExpandedFolders`, the open folder ids as

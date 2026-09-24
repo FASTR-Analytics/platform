@@ -1121,7 +1121,7 @@ this layer.
   (`getStructureDhis2ResolvedCredentials`), refusing loudly if the stored
   connection's URL has changed since step 1 was confirmed. The client
   panel shows the stored connection and, when none is stored, points to
-  the Data page's DHIS2 connection card, the only place a connection is
+  the Data page's DHIS2 connection row, the only place a connection is
   set, replaced or deleted. A successful integrate also reports geojson `area_id`s orphaned
   by the import in the step-4 summary.
 - Permissions: structure, weights and population reads are

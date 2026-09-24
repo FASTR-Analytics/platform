@@ -1,7 +1,7 @@
 // Cross-flow DHIS2 credential types (PLAN_DHIS2_CREDENTIAL_STORE_
 // CONSOLIDATION). Every DHIS2 flow (structure import, indicators, geojson,
 // HMIS data) uses the one instance-wide stored connection, encrypted at rest
-// and set only in the Data page's DHIS2 connection card.
+// and set only in the Data page's DHIS2 connection row.
 
 export type Dhis2Credentials = {
   url: string;
@@ -10,9 +10,9 @@ export type Dhis2Credentials = {
 };
 
 export const NO_STORED_DHIS2_CONNECTION = {
-  en: "No DHIS2 connection is stored. Set it in the DHIS2 connection card on the Data page.",
-  fr: "Aucune connexion DHIS2 n'est enregistrée. Définissez-la dans la carte Connexion DHIS2 de la page Données.",
-  pt: "Nenhuma ligação DHIS2 está guardada. Defina-a no cartão Ligação DHIS2 da página Dados.",
+  en: "No DHIS2 connection is stored. Set it under DHIS2 connection on the Data page.",
+  fr: "Aucune connexion DHIS2 n'est enregistrée. Définissez-la sous Connexion DHIS2, sur la page Données.",
+  pt: "Nenhuma ligação DHIS2 está guardada. Defina-a em Ligação DHIS2, na página Dados.",
 };
 
 // The safe projection of the stored instance credentials: neither the

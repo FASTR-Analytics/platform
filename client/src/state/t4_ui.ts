@@ -23,23 +23,8 @@ export function setNavCollapsed(collapsed: boolean) {
   setNavCollapsedInternal(collapsed);
 }
 
-// The Data page's section tab, persisted like the explorer's preferences so
-// it survives leaving the tab and a reload.
-export type DataSection = "general" | "hmis" | "hfa" | "iceh";
-const storedDataSection = localStorage.getItem(
-  "dataSection",
-) as DataSection | null;
-export const [dataSection, setDataSectionInternal] = createSignal<DataSection>(
-  storedDataSection ?? "hmis",
-);
-export function setDataSection(section: DataSection) {
-  localStorage.setItem("dataSection", section);
-  setDataSectionInternal(section);
-}
-
 // The Explore page's family tab and, per family, the chosen module id,
-// persisted like the Data page's section and resolved against the package on
-// read. The package and scope are page signals, never stored (SYSTEM_11).
+// persisted and resolved against the package on read. The package and scope are page signals, never stored (SYSTEM_11).
 const storedExploreFamily = localStorage.getItem(
   "exploreFamily",
 ) as DatasetType | null;
