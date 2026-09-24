@@ -14,6 +14,7 @@ export type {
   RenderContext,
   Renderer,
 } from "../_001_render_system/mod.ts";
+export { splitIntoBreakableChunks } from "../_002_canvas/mod.ts";
 export { CustomFigureStyle } from "../_003_figure_style/mod.ts";
 export type { MergedChartOVStyle } from "../_003_figure_style/mod.ts";
 export {

@@ -11,6 +11,21 @@ import {
 } from "../../deps.ts";
 import { setCtxFont } from "./set_ctx_font.ts";
 
+// The chunks a line may break between: words, and within a word the pieces
+// after each "_" or "-", so a joined name like SMI_CPN_Numero wraps instead
+// of overflowing its width. A chunk keeps its own separator (the "_" or "-",
+// or a trailing space) so joining chunks reproduces the text.
+export function splitIntoBreakableChunks(line: string): string[] {
+  const chunks: string[] = [];
+  for (const word of line.split(" ").map((t) => t.trim()).filter(Boolean)) {
+    const pieces = word.split(/(?<=[_-])/);
+    pieces.forEach((piece, i) => {
+      chunks.push(i === pieces.length - 1 ? `${piece} ` : piece);
+    });
+  }
+  return chunks;
+}
+
 export function measureText(
   ctx: CanvasRenderingContext2D,
   text: string | null | undefined,
@@ -66,18 +81,15 @@ export function measureText(
   let overallMaxWidth = 0;
 
   for (const rawLine of rawLines) {
-    const words = rawLine
-      .split(" ")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const chunks = splitIntoBreakableChunks(rawLine);
 
     let currentLine = "";
     let testLine = "";
     let currentW = 0;
 
-    for (let i = 0; i < words.length; i++) {
-      testLine += `${words[i]} `;
-      const trimmedTestLine = testLine.trim();
+    for (let i = 0; i < chunks.length; i++) {
+      testLine += chunks[i];
+      const trimmedTestLine = testLine.trimEnd();
       const metrics = ctx.measureText(trimmedTestLine);
       const testWidth = ctx.measureText(trimmedTestLine).width;
       const fontBoundingBoxAscent = metrics.fontBoundingBoxAscent;
@@ -91,24 +103,24 @@ export function measureText(
       if (testWidth > maxWidth && i > 0) {
         currentY += fontBoundingBoxAscent;
         lines.push({
-          text: currentLine.trim(),
+          text: currentLine.trimEnd(),
           w: currentW,
           y: currentY,
         });
         overallMaxWidth = Math.max(overallMaxWidth, currentW);
         currentY += fontBoundingBoxDescent + extraForLineHeight;
-        currentLine = `${words[i]} `;
-        testLine = `${words[i]} `;
-        currentW = ctx.measureText(currentLine.trim()).width;
+        currentLine = chunks[i];
+        testLine = chunks[i];
+        currentW = ctx.measureText(currentLine.trimEnd()).width;
       } else {
         currentLine = testLine;
         currentW = testWidth;
         overallMaxWidth = Math.max(overallMaxWidth, testWidth);
       }
-      if (i === words.length - 1) {
+      if (i === chunks.length - 1) {
         currentY += fontBoundingBoxAscent;
         lines.push({
-          text: currentLine.trim(),
+          text: currentLine.trimEnd(),
           w: currentW,
           y: currentY,
         });

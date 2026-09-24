@@ -81,32 +81,33 @@ export function measureChart<
   const nPanes = dataProps.paneHeaders.length;
 
   // Pane headers wrap at their pane's width (per-pane under proportional OV
-  // pane widths; the uniform width otherwise).
+  // pane widths; the uniform width otherwise). The header strip is the
+  // tallest header in the pane's grid row, so one long name costs its own
+  // row, not every row.
   const measurePaneHeaders = (
     paneWidths: number[] | undefined,
   ): {
     mCellHeaders: MeasuredText[];
-    maxColHeaderHeightAndHeaderGap: number;
+    headerStripByRow: number[];
   } => {
-    let maxColHeaderHeightAndHeaderGap = 0;
     const mCellHeaders: MeasuredText[] = [];
+    const headerStripByRow: number[] = new Array(nGRows).fill(0);
     if (!mergedStyle.panes.hideHeaders && nPanes > 1) {
       dataProps.paneHeaders.forEach((paneHeader, i) => {
-        mCellHeaders.push(
-          rc.mText(
-            paneHeader.label,
-            mergedStyle.text.paneHeaders,
-            (paneWidths ? paneWidths[i] : paneWidth) - panePadding.totalPx(),
-          ),
+        const m = rc.mText(
+          paneHeader.label,
+          mergedStyle.text.paneHeaders,
+          (paneWidths ? paneWidths[i] : paneWidth) - panePadding.totalPx(),
+        );
+        mCellHeaders.push(m);
+        const row = Math.floor(i / nGCols);
+        headerStripByRow[row] = Math.max(
+          headerStripByRow[row],
+          m.dims.h() + mergedStyle.panes.headerGap,
         );
       });
-      const maxPaneHeaderHeight = Math.max(
-        ...mCellHeaders.map((m) => m.dims.h()),
-      );
-      maxColHeaderHeightAndHeaderGap = maxPaneHeaderHeight +
-        mergedStyle.panes.headerGap;
     }
-    return { mCellHeaders, maxColHeaderHeightAndHeaderGap };
+    return { mCellHeaders, headerStripByRow };
   };
 
   const measureOnePane = (
@@ -116,18 +117,17 @@ export function measureChart<
     paneOuterRcd: RectCoordsDims,
     headers: {
       mCellHeaders: MeasuredText[];
-      maxColHeaderHeightAndHeaderGap: number;
+      headerStripByRow: number[];
     },
     slotT: number | undefined,
     lo: boolean | undefined,
   ) => {
+    const headerStrip = headers.headerStripByRow[i_pane_row] ?? 0;
     const paneContentRcd = new RectCoordsDims([
       paneOuterRcd.x() + panePadding.pl(),
-      paneOuterRcd.y() + panePadding.pt() +
-      headers.maxColHeaderHeightAndHeaderGap,
+      paneOuterRcd.y() + panePadding.pt() + headerStrip,
       paneOuterRcd.w() - panePadding.totalPx(),
-      paneOuterRcd.h() -
-      (panePadding.totalPy() + headers.maxColHeaderHeightAndHeaderGap),
+      paneOuterRcd.h() - (panePadding.totalPy() + headerStrip),
     ]);
     return measurePane(rc, {
       indices: {

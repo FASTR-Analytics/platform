@@ -6,3 +6,4 @@
 export { CanvasRenderContext } from "./canvas_render_context.ts";
 export { addPoint } from "./_internal/drawing/add_point.ts";
 export { type GfxCanvasImage, isGfxCanvasImage } from "./gfx_canvas_image.ts";
+export { splitIntoBreakableChunks } from "./_internal/text/measure_text.ts";

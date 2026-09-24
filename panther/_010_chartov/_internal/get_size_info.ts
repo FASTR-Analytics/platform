@@ -15,6 +15,7 @@ import {
   type RenderContext,
   resolveDefaultLegend,
   SIZING_SAMPLE,
+  splitIntoBreakableChunks,
 } from "../deps.ts";
 import { getChartOVDataTransformed } from "../get_chartov_data.ts";
 import type { ChartOVDataTransformed, ChartOVInputs } from "../types.ts";
@@ -71,9 +72,9 @@ export function getChartOVComponentSizes(
   //   - vertical (rotated) labels run UP the column, so a column only needs the
   //     label's horizontal footprint — one line-height — not the word width.
   //   - horizontal labels wrap at the column width, so a column must be at least
-  //     as wide as the widest single word or that word overflows/clips.
+  //     as wide as the widest unbreakable chunk or that chunk overflows/clips.
   // (Symmetric known limitation, like the horizontal branch ignoring soft-wrap
-  // beyond the widest word: a vertical label long enough to wrap past the height
+  // beyond the widest chunk: a vertical label long enough to wrap past the height
   // cap has a taller footprint than one line; that rare short-chart case is not
   // floored here.)
   let perColumnWidth = 0;
@@ -84,10 +85,9 @@ export function getChartOVComponentSizes(
     }
   } else {
     for (const header of indicatorHeaders) {
-      const words = header.label.split(/\s+/);
-      for (const word of words) {
-        if (word.length === 0) continue;
-        const mText = rc.mText(word, textStyle, Infinity);
+      const chunks = header.label.split("\n").flatMap(splitIntoBreakableChunks);
+      for (const chunk of chunks) {
+        const mText = rc.mText(chunk.trimEnd(), textStyle, Infinity);
         perColumnWidth = Math.max(perColumnWidth, mText.dims.w());
       }
     }
