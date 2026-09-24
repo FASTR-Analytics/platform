@@ -66,6 +66,8 @@ export type ReactiveCacheConfig<Params, Data> = {
 
 export interface ReactiveCache<Params, Data> {
   get(params: Params): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }>;
+  /** The in-memory hit only, synchronously; a miss says nothing about `get`. */
+  peekMemory(params: Params): Data | undefined;
   setPromise(
     promise: Promise<APIResponseWithData<Data>>,
     params: Params,
@@ -126,6 +128,22 @@ export function createReactiveCache<Params, Data>(
       _resolved.delete(oldestKey);
       _accessOrder.delete(oldestKey);
     }
+  }
+
+  /**
+   * The in-MEMORY hit only, read synchronously: no IndexedDB, no in-flight
+   * await. For a consumer that must decide within the click's own tick
+   * whether it already has the data (the deck's slide switch, which would
+   * otherwise unmount its editor for a frame and blink the toolbar).
+   * A miss here says nothing: `get` may still have it.
+   */
+  function peekMemory(params: Params): Data | undefined {
+    const version = currentVersion(params);
+    const cacheKey = `${hashKeys(config.uniquenessKeys(params))}::${version}`;
+    const existing = _resolved.get(cacheKey);
+    if (!existing) return undefined;
+    _accessOrder.set(cacheKey, Date.now());
+    return existing.data;
   }
 
   /** Get from cache - ALWAYS returns version, data is undefined on miss */
@@ -338,6 +356,7 @@ export function createReactiveCache<Params, Data>(
 
   return {
     get: getCached,
+    peekMemory,
     setPromise,
     clearEntry,
     clearEntriesWithPrefix,

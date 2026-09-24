@@ -21,7 +21,16 @@ import type {
 import { t3 } from "lib";
 import type { PatternType } from "panther";
 import { findById, Icon } from "panther";
-import { For, type JSX, Match, Show, Switch } from "solid-js";
+import {
+  createSignal,
+  For,
+  type JSX,
+  Match,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import type { SetStoreFunction } from "solid-js/store";
 import {
@@ -197,6 +206,17 @@ export function SlideToolbar(p: Props) {
 
   const imageAssets = () =>
     instanceState.assets.filter((f) => f.isImage).map((f) => f.fileName);
+
+  // A slide switch remounts this toolbar, and the slide's collab room syncs a
+  // beat later, so undo/redo are briefly unusable. Greying them for those two
+  // frames is a flash on every switch, so they only go grey once the wait is
+  // real; a click in the meantime is already a no-op in the editor.
+  const [waitedForUndo, setWaitedForUndo] = createSignal(false);
+  onMount(() => {
+    const timer = setTimeout(() => setWaitedForUndo(true), 600);
+    onCleanup(() => clearTimeout(timer));
+  });
+  const undoGreyed = () => !p.canUndoRedo && waitedForUndo();
 
   // While typing on the canvas, a click in the toolbar must not take focus
   // from the (hidden) text editor.
@@ -459,15 +479,24 @@ export function SlideToolbar(p: Props) {
       {/* ── The pill: follows the selection ────────────────────────────── */}
       <div class="px-2 pt-1 pb-2">
         <div class="bg-base-200 flex min-h-9 flex-wrap items-center gap-0.5 rounded-full px-3 py-1">
-          <Show when={p.canUndoRedo}>
-            <ToolButton label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })} onClick={p.onUndo}>
-              <Icon iconName="undo" class="h-4 w-4" />
-            </ToolButton>
-            <ToolButton label={t3({ en: "Redo", fr: "Rétablir", pt: "Refazer" })} onClick={p.onRedo}>
-              <Icon iconName="redo" class="h-4 w-4" />
-            </ToolButton>
-            <ToolbarDivider />
-          </Show>
+          {/* Undo and redo lead the pill and are ALWAYS here: a pair that
+              appeared once the room synced would shove the rest of the pill
+              sideways, which is the one thing a toolbar must not do. */}
+          <ToolButton
+            label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
+            disabled={undoGreyed()}
+            onClick={p.onUndo}
+          >
+            <Icon iconName="undo" class="h-4 w-4" />
+          </ToolButton>
+          <ToolButton
+            label={t3({ en: "Redo", fr: "Rétablir", pt: "Refazer" })}
+            disabled={undoGreyed()}
+            onClick={p.onRedo}
+          >
+            <Icon iconName="redo" class="h-4 w-4" />
+          </ToolButton>
+          <ToolbarDivider />
 
           <Switch
             fallback={

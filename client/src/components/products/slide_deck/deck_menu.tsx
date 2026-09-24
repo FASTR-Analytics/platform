@@ -43,6 +43,60 @@ function FlyoutPanel(p: { class: string; children: JSX.Element }) {
 // File: the whole-deck operations, as in Google Docs' File menu and the
 // report toolbar's. It replaced the header's overflow menu outright, so it
 // holds everything that menu did.
+// The footer's own text is the one control that must not save per keystroke:
+// each save remounts the slide editor. It is held locally and committed when
+// focus leaves the field, and again when this panel goes with the menu (a
+// textarea removed under the caret does not always fire focusout).
+function FooterPanel(p: {
+  config: SlideDeckConfig;
+  onPatch: (patch: Partial<SlideDeckConfig>) => void;
+}) {
+  const [draft, setDraft] = createSignal<string | undefined>();
+  function commit() {
+    const text = draft();
+    setDraft(undefined);
+    if (text === undefined || text === p.config.globalFooterText) return;
+    p.onPatch({ globalFooterText: text });
+  }
+  onCleanup(commit);
+
+  return (
+    <div class="ui-spy-sm" onFocusOut={commit}>
+      <Checkbox
+        label={t3({
+          en: "Global footer text on content slides",
+          fr: "Texte de pied de page global sur les diapositives de contenu",
+          pt: "Texto de rodapé global nos diapositivos de conteúdo",
+        })}
+        checked={p.config.globalFooterText !== undefined}
+        onChange={(v) => p.onPatch({ globalFooterText: v ? "" : undefined })}
+      />
+      <Show when={p.config.globalFooterText !== undefined}>
+        <TextArea
+          label={t3({
+            en: "Footer text",
+            fr: "Texte du pied de page",
+            pt: "Texto do rodapé",
+          })}
+          value={draft() ?? p.config.globalFooterText ?? ""}
+          onChange={setDraft}
+          fullWidth
+          height="40px"
+        />
+      </Show>
+      <Checkbox
+        label={t3({
+          en: "Show page numbers",
+          fr: "Afficher les numéros de page",
+          pt: "Mostrar números de página",
+        })}
+        checked={p.config.showPageNumbers}
+        onChange={(v) => p.onPatch({ showPageNumbers: v })}
+      />
+    </div>
+  );
+}
+
 export function DeckFileMenu(p: {
   onDownload: () => void;
   onShare: () => void;
@@ -157,18 +211,6 @@ export function DeckMenu(p: Props) {
       instanceState.assets.filter((f) => f.isImage).map((f) => f.fileName),
     );
 
-  // The footer's own text is the one control that must not save per keystroke:
-  // each save remounts the slide editor. It is held locally and committed when
-  // focus leaves the field, or when the menu closes on it.
-  const [footerDraft, setFooterDraft] = createSignal<string | undefined>();
-  function commitFooter() {
-    const draft = footerDraft();
-    setFooterDraft(undefined);
-    if (draft === undefined || draft === p.config.globalFooterText) return;
-    p.onPatch({ globalFooterText: draft });
-  }
-  onCleanup(commitFooter);
-
   return (
     <ToolbarPopover
       menu
@@ -277,40 +319,7 @@ export function DeckMenu(p: Props) {
               })}
             >
               <FlyoutPanel class="w-80">
-                <div class="ui-spy-sm" onFocusOut={commitFooter}>
-                  <Checkbox
-                    label={t3({
-                      en: "Global footer text on content slides",
-                      fr: "Texte de pied de page global sur les diapositives de contenu",
-                      pt: "Texto de rodapé global nos diapositivos de conteúdo",
-                    })}
-                    checked={p.config.globalFooterText !== undefined}
-                    onChange={(v) =>
-                      p.onPatch({ globalFooterText: v ? "" : undefined })}
-                  />
-                  <Show when={p.config.globalFooterText !== undefined}>
-                    <TextArea
-                      label={t3({
-                        en: "Footer text",
-                        fr: "Texte du pied de page",
-                        pt: "Texto do rodapé",
-                      })}
-                      value={footerDraft() ?? p.config.globalFooterText ?? ""}
-                      onChange={setFooterDraft}
-                      fullWidth
-                      height="40px"
-                    />
-                  </Show>
-                  <Checkbox
-                    label={t3({
-                      en: "Show page numbers",
-                      fr: "Afficher les numéros de page",
-                      pt: "Mostrar números de página",
-                    })}
-                    checked={p.config.showPageNumbers}
-                    onChange={(v) => p.onPatch({ showPageNumbers: v })}
-                  />
-                </div>
+                <FooterPanel config={p.config} onPatch={p.onPatch} />
               </FlyoutPanel>
             </MenuFlyout>
 

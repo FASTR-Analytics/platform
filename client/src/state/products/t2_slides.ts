@@ -32,3 +32,12 @@ export async function getSlideFromCacheOrFetch(
   _SLIDE_CACHE.setPromise(promise, { productId, slideId }, cached.version);
   return promise;
 }
+
+// The slide already in memory, if it is: lets the deck swap editors inside the
+// click, instead of unmounting one and mounting the other a tick apart.
+export function peekSlide(
+  productId: string,
+  slideId: string,
+): SlideWithMeta | undefined {
+  return _SLIDE_CACHE.peekMemory({ productId, slideId });
+}

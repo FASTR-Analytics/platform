@@ -288,6 +288,29 @@ context too (`EditingSlideContext` extends the deck's), so every deck tool is
 available while a slide is open, and the deck's view state is what the editor
 returns to between slides.
 
+**A slide switch must not move the header (2026-09-24).** The deck's header
+shows three things that belong to the OPEN SLIDE's editor and reach it by
+portal: the Slide/Insert/Split panel menus, the formatting pill and the
+live/save dot. The editor is keyed per slide, so a switch unmounts it, and
+`selectSlide` drops it deliberately (its collab session must close before a
+delete can reach it). Two things keep that from showing: the switch takes the
+slide from the slide cache's in-MEMORY hit when it is there (`peekSlide` over
+the cache's `peekMemory`, which the rail's own cards have usually already
+warmed), so the swap happens inside the click with no gap at all; and the
+toolbar row reserves the pill's height while the row's host reserves its
+width, so even a cold fetch leaves the header's geometry untouched. The dot
+itself waits as well: a freshly mounted editor's room has not synced, so its
+honest first state is "Connecting...", a wider word than "Live" shown for two
+frames. It stays BLANK until the room syncs, the slide has unsaved work, or
+600ms passes and the wait is worth reporting. Undo and redo are always in the
+pill for the same reason, rather than appearing beside the hint text and
+shoving it along once the room syncs; and they go grey on the same 600ms
+delay, since `canUndoRedo` waits on that room too and a pair that greys for
+two frames on every switch is the same flash in another form. A click in that
+window is already a no-op in the editor. Verified
+by sampling the header's box every frame across both a warm and a cold
+switch: one geometry, no variation.
+
 **The Deck menu (2026-09-24).** The menu row is the deck's own menus first
 (`File`: Download, Share, name and folder, and copy-to-deck, as the report
 toolbar's File menu does; then `Deck`), then the open slide's (Slide / Insert / Split panel, portaled there
@@ -1505,8 +1528,14 @@ FASTR only) is split across the same `FrameTop` panel as the header, which is
 the deck's (`HeadingBar` is gone from the report): the report glyph over the
 back button, the name on the top line, the toolbar's MENU ROW portaled in
 under it through `menuRowHost`, and the mode group, package chip, save dot and
-actions bottom-aligned on that same lower line; the PILL keeps its own strip
-below. The row's padding and the pull-back onto the name's left margin belong
+actions bottom-aligned on that same lower line (Settings went with it: the
+File menu renames, and the products page owns the rest); the PILL keeps its
+own strip below. BOTH headers build their `panelChildren` ONCE, into a const
+passed by reference: panther's `FrameTop` reads that prop twice (a `Show`'s
+`when`, then its child) and an inline JSX prop compiles to a getter, so an
+inline panel is built twice over. Only the second copy is inserted, but the
+first has already run every ref, and two toolbars then portal their menu row
+into whichever host ran last: two menu rows in one header. The row's padding and the pull-back onto the name's left margin belong
 to the header, exactly as in the deck, and the toolbar carries them only when
 it renders alone. It is laid out like Google Docs: a MENU row (Insert and Page are dropdown menus — Insert carries the
 blocks, link, table and the embed pickers, with Table, Stat, Tiles and Columns
