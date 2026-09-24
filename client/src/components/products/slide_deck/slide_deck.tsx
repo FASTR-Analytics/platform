@@ -18,7 +18,7 @@ import {
 } from "panther";
 import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
+import { getSlideFromCacheOrFetch, peekSlide } from "~/state/products/t2_slides";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { DownloadSlideDeck } from "./download_slide_deck";
@@ -305,9 +305,21 @@ function SlideDeckEditorInner(p: {
   async function selectSlide(slideId: string | undefined): Promise<boolean> {
     if (slideId === currentSlideId()) return true;
     if (editorApi !== undefined && !(await editorApi.flush())) return false;
-    // Unmount the outgoing editor NOW (its session closes synchronously), so
-    // a delete that follows never reaches it as a fatal room close.
-    setEditorSlide(undefined);
+    // The outgoing editor goes NOW (its session closes synchronously), so a
+    // delete that follows never reaches it as a fatal room close. When the
+    // incoming slide is already in memory (the rail's cards render from the
+    // same cache, so it usually is) the swap happens in this same tick:
+    // otherwise the editor is gone for a frame or two, and the header's menu
+    // row, its pill and the save dot - all portaled out of the editor - blink
+    // out and back while the fetch resolves.
+    const ready = slideId === undefined
+      ? undefined
+      : peekSlide(p.productId, slideId);
+    setEditorSlide(
+      ready && slideId !== undefined
+        ? { slideId, slide: ready.slide, lastUpdated: ready.lastUpdated }
+        : undefined,
+    );
     setCurrentSlideId(slideId);
     return true;
   }

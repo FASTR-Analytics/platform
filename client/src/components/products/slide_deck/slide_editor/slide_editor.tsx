@@ -1279,17 +1279,32 @@ export function SlideEditor(p: Props) {
       };
   });
 
+  // Every slide switch remounts this editor, and its room takes a moment to
+  // sync, so the honest first state is "Connecting...". Shown at once it is a
+  // two-frame flicker in the deck's header, and a wider word than "Live", so
+  // it shoves the buttons beside it. The dot therefore stays BLANK until the
+  // room syncs or the wait becomes worth reporting; the header holds its
+  // width meanwhile.
+  const [waitedForCollab, setWaitedForCollab] = createSignal(false);
+  onMount(() => {
+    const timer = setTimeout(() => setWaitedForCollab(true), 600);
+    onCleanup(() => clearTimeout(timer));
+  });
+  const statusShown = () => collabReady() || needsSave() || waitedForCollab();
+
   const statusJsx = () => (
-    <div
-      class="ui-text-caption flex items-center gap-1.5 whitespace-nowrap"
-      data-tour="slide-save-status"
-    >
+    <Show when={statusShown()}>
       <div
-        class="h-1.5 w-1.5 flex-none rounded-full"
-        classList={{ [saveIndicator().dot]: true }}
-      />
-      <span>{saveIndicator().text}</span>
-    </div>
+        class="ui-text-caption flex items-center gap-1.5 whitespace-nowrap"
+        data-tour="slide-save-status"
+      >
+        <div
+          class="h-1.5 w-1.5 flex-none rounded-full"
+          classList={{ [saveIndicator().dot]: true }}
+        />
+        <span>{saveIndicator().text}</span>
+      </div>
+    </Show>
   );
 
   return (

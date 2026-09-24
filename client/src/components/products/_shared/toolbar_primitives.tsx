@@ -37,6 +37,8 @@ export function ToolButton(p: {
   active?: () => boolean;
   onClick: () => void;
   label: string;
+  /** Greyed and inert, but still holding its place in the pill. */
+  disabled?: boolean;
   children: JSX.Element;
 }) {
   return (
@@ -45,10 +47,12 @@ export function ToolButton(p: {
       class="ui-focusable flex h-7 min-w-7 items-center justify-center rounded px-1.5 text-sm"
       classList={{
         "bg-primary-subtle text-primary": p.active?.() === true,
-        "ui-hoverable-base-300": p.active?.() !== true,
+        "ui-hoverable-base-300": p.active?.() !== true && p.disabled !== true,
+        "text-base-content-muted opacity-50": p.disabled === true,
       }}
       aria-label={p.label}
       title={p.label}
+      disabled={p.disabled}
       onClick={p.onClick}
     >
       {p.children}
