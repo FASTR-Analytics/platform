@@ -323,9 +323,7 @@ export function InstanceData(p: Props) {
     const weights = instanceState.hfaWeights;
     const hasWeights = weights.some((tp) => tp.weightCount > 0);
     const weightsPartial = weights.some(
-      (tp) =>
-        tp.weightCount > 0 &&
-        tp.facilitiesWithDataAndWeight < tp.facilitiesWithData,
+      (tp) => tp.facilitiesWithDataAndWeight < tp.facilitiesWithData,
     );
     const indicators = instanceState.indicators.hfaIndicators;
     rows.push(
