@@ -1,9 +1,7 @@
 import {
-  getModuleFamilyLabel,
   periodChoiceId,
   t3,
   type AdminLevel,
-  type DatasetType,
   type GridGrain,
   type GridPeriodChoice,
   type GridQuery,
@@ -30,8 +28,6 @@ const GRAIN_OPTIONS = (): SelectOption<GridGrain>[] => [
 // The Data table's controls. Each edits the query through `onChange`; the
 // query shown is the resolved one, so every control shows what is read.
 export function Toolbar(p: {
-  families: DatasetType[];
-  onFamily: (family: DatasetType) => void;
   query: GridQuery;
   levelOptions: SelectOption<AdminLevel>[];
   stratOptions: SelectOption<string>[];
@@ -49,15 +45,6 @@ export function Toolbar(p: {
 
   return (
     <div class="ui-gap-sm flex flex-wrap items-end">
-      <Select
-        value={p.query.family}
-        options={p.families.map((f) => ({
-          value: f,
-          label: getModuleFamilyLabel(f),
-        }))}
-        onChange={p.onFamily}
-        size="sm"
-      />
       <Show
         when={p.query.unit.kind === "admin" ? p.query.unit : undefined}
         keyed

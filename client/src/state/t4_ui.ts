@@ -6,7 +6,7 @@ import {
   type SchemePreference,
   setSchemePreference,
 } from "panther";
-import type { DatasetType, ListSort, SlideType } from "lib";
+import { MODULE_FAMILY_ORDER, type DatasetType, type ListSort, type SlideType } from "lib";
 
 // ============================================================================
 // Instance shell
@@ -37,9 +37,10 @@ export function setDataSection(section: DataSection) {
   setDataSectionInternal(section);
 }
 
-// The Explore page's family, shared by its two tabs, and the tab itself,
-// persisted like the Data page's section. The package and scope are page
-// signals, never stored (SYSTEM_11).
+// The Explore page's family tab and, per family, the chosen metric group (its
+// first variant's id), persisted like the Data page's section and resolved
+// against the package on read. The package and scope are page signals, never
+// stored (SYSTEM_11).
 const storedExploreFamily = localStorage.getItem(
   "exploreFamily",
 ) as DatasetType | null;
@@ -51,16 +52,30 @@ export function setExploreFamily(family: DatasetType) {
   setExploreFamilyInternal(family);
 }
 
-export type ExploreTab = "data_table" | "visualization";
-const storedExploreTab = localStorage.getItem("exploreTab") as
-  | ExploreTab
-  | null;
-export const [exploreTab, setExploreTabInternal] = createSignal<ExploreTab>(
-  storedExploreTab ?? "data_table",
-);
-export function setExploreTab(tab: ExploreTab) {
-  localStorage.setItem("exploreTab", tab);
-  setExploreTabInternal(tab);
+type ExploreMetrics = Partial<Record<DatasetType, string>>;
+function readStoredExploreMetrics(): ExploreMetrics {
+  try {
+    const parsed: unknown = JSON.parse(
+      localStorage.getItem("exploreMetrics") ?? "{}",
+    );
+    if (typeof parsed !== "object" || parsed === null) return {};
+    return Object.fromEntries(
+      MODULE_FAMILY_ORDER.flatMap((family) => {
+        const id = (parsed as Record<string, unknown>)[family];
+        return typeof id === "string" ? [[family, id]] : [];
+      }),
+    );
+  } catch {
+    return {};
+  }
+}
+export const [exploreMetrics, setExploreMetricsInternal] = createSignal<
+  ExploreMetrics
+>(readStoredExploreMetrics());
+export function setExploreMetric(family: DatasetType, metricId: string) {
+  const next = { ...exploreMetrics(), [family]: metricId };
+  localStorage.setItem("exploreMetrics", JSON.stringify(next));
+  setExploreMetricsInternal(next);
 }
 
 // The shell's one full-page wrapper. `ShellEditorWrapper` wraps the whole

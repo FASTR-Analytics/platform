@@ -75,7 +75,7 @@ export function timeDimension(
 
 // The family's primary module's metrics by id; empty when the package has
 // no primary module for the family.
-export function primaryModuleMetrics(
+function primaryModuleMetrics(
   family: DatasetType,
   ctx: RunAuthoringContext,
 ): MetricWithStatus[] {

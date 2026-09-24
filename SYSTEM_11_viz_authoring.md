@@ -82,11 +82,7 @@ bundle), `report/report.tsx` (rebuilds the figure block), and the package
 page's module pane (`ModuleVisualizations` in
 `results_packages/package_view/visualizations.tsx`, S8), which opens it
 `viewOnly`: no collab binding, Back is the only way
-out, and the draft never leaves the editor. A fourth, the Explore page's
-Visualization tab (`components/explore/visualization/visualization.tsx`),
-mounts it `viewOnly` and `inline`
-inside the page: no Back, no copilot toggle, the draft lives as long as the
-mount. The product hosts pass
+out, and the draft never leaves the editor. The product hosts pass
 the scope LIVE from the T1 products row, so a reattach or rescope mid-edit
 re-previews under the new package (S10 "The captured pair"); the package
 page's scope cannot change while the editor covers it.
@@ -203,41 +199,56 @@ page is read-only and does not call it.
 ## The Explore page
 
 `components/explore/explore.tsx` renders one package at one scope for an
-approved user: a heading row with a package `Select` over
-`instanceState.readyPackages` (opening on the pin, else the newest ready
-package) and an area `Select` over `listAdminArea2s` whose first option is
-National, then a `TabsNavigation` rail with **Data table** (the default) and
-**Visualization**. The package and area are page signals, never stored, so a
-deleted package can never be a stored default; the tab (`exploreTab`) and the
-family (`exploreFamily`) persist in `t4_ui` (S14). The authoring context is
-read through `t2_run_authoring_context`. The page writes nothing: no insert
-into a product, no persisted draft, no copilot, no help buttons.
+approved user: a compact `HeadingBar` whose tabs are the families the
+package has any module for, in `MODULE_FAMILY_ORDER`, with a package
+`Select` over `instanceState.readyPackages` (opening on the pin, else the
+newest ready package) and an area `Select` over `listAdminArea2s` whose
+first option is National. The package and area are page signals, never
+stored, so a deleted package can never be a stored default; the family
+(`exploreFamily`) and the chosen metric group per family (`exploreMetrics`)
+persist in `t4_ui` (S14) and are resolved against the package on every read,
+so a stored choice the package lacks falls back to the first offered. The
+authoring context is read through `t2_run_authoring_context`. The page
+writes nothing: no insert into a product, no persisted draft, no copilot, no
+help buttons.
 
-**Data table** (`explore/data_table/`) reads the family's primary metric
-(`primaryMetricFor`) as a grid whose rows are the unit (admin areas at one
-level, or an ICEH stratifier's levels) and whose columns are indicators or
-time. Its state is a `GridQuery` per family ("Grid query model" below),
-owned by the page so a package, scope or tab change never resets it; until
-the user edits a family's query it is `defaultGridQuery` for the current
-scope. Every read resolves the query first (`resolveGridQuery`); indicators
-the package lacks stay in state and a one-line notice above the grid offers
-Clear. The toolbar holds family, level or stratifier, indicators
-(`MultiSelectSearch`, empty means all), period (`periodChoicesFor`), columns
-(Indicators or Time), grain (HMIS Time mode only), a find box and Download.
-The reads are tracked (`createTrackedQuery`, `data_table/tracked_query.ts`),
-so they re-run on any change of the pair or the query: the metric info
-(`t2_figure_data`, for the package's HFA time points, in the instance's
-declared order, ICEH's years and stratifiers, and formats and rules) and the
-grid read (`t2_grid_items`, S9 "The grid read") on the fetch config of
-`deriveGridConfig`'s config. A read carries the config and columns mode it
-was issued for, and the grid is built from those, so a newer query is
-never paired with older rows; a change that leaves the fetch config and
-columns alone makes no new read. The decoded rows go through the
-canvas table's own pipeline, `buildFigureInputs` over a figure bundle built
-in memory, so the effective config, roll-up pin and label, label
-replacements (indicators, dates, Nigeria admin cleaning) and header order
-are the canvas table's; then panther's `getTableDataTransformed` pivot and
-`dataGridPropsFromTableData` with the cell function
+Under a family tab, `FrameLeft` holds the metric nav (`metric_nav.tsx`) and
+the chosen group's view (`metric_view.tsx`). The nav is the family's metrics
+grouped by label (`groupMetricsByModule`, the wizard's unit), a section per
+tier (Primary results, Supporting analyses) and a `SelectList` header per
+module; a group is keyed by its first variant's id. `viewsFor` in
+`metric_view.tsx` is the one place that says which views a group offers: a
+data table for the HMIS primary module's first ready metric
+(`primaryMetricFor`) and nothing for any other group. A group with more than
+one view gets a `ButtonGroup` toggle above the view, a group with none shows
+a placeholder naming it and its variants, and a group with no ready variant
+shows its stamped reason. When module definitions declare views, `viewsFor`
+reads them and nothing else on the page changes.
+
+**Data table** (`explore/data_table/`) reads its metric as a grid whose rows
+are the unit (admin areas at one level, or an ICEH stratifier's levels) and
+whose columns are indicators or time. Its state is a `GridQuery` per family
+("Grid query model" below), owned by the page so a package, scope or metric
+change never resets it; until the user edits a family's query it is
+`defaultGridQuery` for the current scope. Every read resolves the query
+first (`resolveGridQuery`); indicators the package lacks stay in state and a
+one-line notice above the grid offers Clear. The toolbar holds level or
+stratifier, indicators (`MultiSelectSearch`, empty means all), period
+(`periodChoicesFor`), columns (Indicators or Time), grain (HMIS Time mode
+only), a find box and Download. The reads are tracked (`createTrackedQuery`,
+`data_table/tracked_query.ts`), so they re-run on any change of the pair or
+the query: the metric info (`t2_figure_data`, for the package's HFA time
+points, in the instance's declared order, ICEH's years and stratifiers, and
+formats and rules) and the grid read (`t2_grid_items`, S9 "The grid read")
+on the fetch config of `deriveGridConfig`'s config. A read carries the
+config and columns mode it was issued for, and the grid is built from those,
+so a newer query is never paired with older rows; a change that leaves the
+fetch config and columns alone makes no new read. The decoded rows go
+through the canvas table's own pipeline, `buildFigureInputs` over a figure
+bundle built in memory, so the effective config, roll-up pin and label,
+label replacements (indicators, dates, Nigeria admin cleaning) and header
+order are the canvas table's; then panther's `getTableDataTransformed` pivot
+and `dataGridPropsFromTableData` with the cell function
 (`data_table/cell_function.ts`): each value formatted by its indicator's
 effective format (`resolveEffectiveIndicatorFacts`, `formatIndicatorValue`),
 the raw number as the sort key, and HMIS cells coloured by the indicator's
@@ -245,21 +256,10 @@ own threshold rule; HFA and ICEH are uncoloured. `DataGrid` fills the height
 with a hover line beneath, sorts by header click (transient, never stored),
 and scrolls to the first column whose label contains the find text
 (`focusColumnId`). Download saves the grid's text as CSV, in the pivot's row
-order. Empty states are typed: no ready package, no primary module, a family
-whose metric is unavailable (its stamped reason), no preset, no data, and
-too many cells (narrow the indicators or coarsen the grain). No primary
-module, the unavailable metric and no preset are the tabs' shared
-`explore/_shared/empty_state.tsx`; no ready package is `explore.tsx`'s own.
-
-**Visualization** (`explore/visualization/`) is a family tab over the
-families whose primary module is in the package and that family's first
-ready metric's first preset open in `VisualizationEditor` with `viewOnly`
-and `inline`: the Data, Style and Text panels are the user's controls, the
-header keeps Download and the height toggle and drops Back and the copilot
-toggle, and the draft is keyed on the pair and the metric, so a package,
-scope or family change remounts the editor on a fresh copy of the preset.
-Its empty states: no primary module, an unavailable metric (its stamped
-reason), and a metric with no preset.
+order. Its empty states are typed: no preset, no data, and too many cells
+(narrow the indicators or coarsen the grain). No preset, no modules and the
+unavailable metric are the page's shared `explore/_shared/empty_state.tsx`;
+no ready package is `explore.tsx`'s own.
 
 ## lib config semantics
 
@@ -350,9 +350,9 @@ reason), and a metric with no preset.
 
 `lib/explore_grid_query.ts` holds the Explore Data table's state as a
 `GridQuery` (family, unit, indicators, period, columns, grain) and the pure
-steps over it. `primaryModuleMetrics` is the family's primary module's
-metrics by id and `primaryMetricFor` the first ready one; both Explore tabs
-read their family's metric through them. `defaultGridQuery` opens at the scope's level plus one
+steps over it. `primaryMetricFor` is the family's primary module's first
+ready metric by id, the one metric the page offers a data table for.
+`defaultGridQuery` opens at the scope's level plus one
 (national: admin area 2; an admin area 2 scope: 3), every indicator, HMIS on
 the last 12 months, HFA on its latest time point and ICEH on its first
 stratifier and latest year, columns Indicators. `resolveGridQuery` maps the
@@ -381,7 +381,7 @@ Tested in `server/tests/explore_grid_query_test.ts`.
 `replicate_by_options.tsx` exports a sidebar `SelectList` variant
 (`ReplicateByOptionsList`, the editor's) and a `Select` dropdown variant
 (`ReplicateByOptionsSelect`, exported through the editor folder's entry;
-no consumer since the Explore page moved onto the editor). Both fetch replicant options through the S9
+no consumer). Both fetch replicant options through the S9
 scope-keyed cache (`getReplicantOptionsFromCacheOrFetch`) with
 `excludeReplicantFilter: true` and deep-tracked `filterBy`/`periodFilter`
 reads; statuses `too_many_values` (>500) / `no_values_available` / `error` are

@@ -1,14 +1,11 @@
 import {
   defaultGridQuery,
   deriveGridConfig,
-  familiesOffered,
   getFetchConfigFromPresentationObjectConfig,
   hashFetchConfig,
   INDICATOR_DIMENSION,
   levelOptionsFor,
   periodChoicesFor,
-  primaryMetricFor,
-  primaryModuleMetrics,
   resolveEffectiveIndicatorFacts,
   resolveGridQuery,
   t3,
@@ -50,7 +47,6 @@ import {
   getGridRowsFromCacheOrFetch,
   type GridRows,
 } from "~/state/products/t2_grid_items";
-import { exploreFamily, setExploreFamily } from "~/state/t4_ui";
 import { gridCellFunction } from "./cell_function";
 import { columnLabel, Grid, GridMessage, type GridProps } from "./grid";
 import { Toolbar } from "./toolbar";
@@ -58,67 +54,15 @@ import { createTrackedQuery } from "./tracked_query";
 
 export type QueriesByFamily = Partial<Record<DatasetType, GridQuery>>;
 
-// The Data table tab: one family's primary metric read as a grid of units by
-// indicators or by time. The state is one GridQuery per family, owned by the
-// page so it outlives a package, scope or tab change; each read resolves it
-// against the current package and scope, so such a change never rewrites
-// what the user chose.
+// The Data table view: a metric read as a grid of units by indicators or by
+// time. The state is one GridQuery per family, owned by the page so it
+// outlives a package, scope or metric change; each read resolves it against
+// the current package and scope, so such a change never rewrites what the
+// user chose.
 export function DataTable(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  queries: QueriesByFamily;
-  setQueries: (queries: QueriesByFamily) => void;
-}) {
-  const offered = createMemo(() => familiesOffered(p.ctx));
-  const family = createMemo((): DatasetType | undefined =>
-    offered().includes(exploreFamily()) ? exploreFamily() : offered()[0]
-  );
-
-  return (
-    <Show
-      when={family()}
-      keyed
-      fallback={
-        <div class="ui-pad">
-          <EmptyState kind="no_primary_module" />
-        </div>
-      }
-    >
-      {(f) => (
-        <Show
-          when={primaryMetricFor(f, p.ctx)}
-          keyed
-          fallback={
-            <div class="ui-pad">
-              <EmptyState
-                kind="no_metric"
-                reason={primaryModuleMetrics(f, p.ctx)[0]?.statusReason}
-              />
-            </div>
-          }
-        >
-          {(metric) => (
-            <FamilyTable
-              ctx={p.ctx}
-              scope={p.scope}
-              family={f}
-              families={offered()}
-              metric={metric}
-              query={p.queries[f]}
-              setQuery={(q) => p.setQueries({ ...p.queries, [f]: q })}
-            />
-          )}
-        </Show>
-      )}
-    </Show>
-  );
-}
-
-function FamilyTable(p: {
-  ctx: RunAuthoringContext;
-  scope: PackageScope;
   family: DatasetType;
-  families: DatasetType[];
   metric: MetricWithStatus;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
@@ -136,7 +80,6 @@ function FamilyTable(p: {
           ctx={p.ctx}
           scope={p.scope}
           family={p.family}
-          families={p.families}
           metric={p.metric}
           info={metricInfo}
           query={p.query}
@@ -171,7 +114,6 @@ function ReadyFamilyTable(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
   family: DatasetType;
-  families: DatasetType[];
   metric: MetricWithStatus;
   info: ResultsValueInfoForPresentationObject;
   query: GridQuery | undefined;
@@ -307,8 +249,6 @@ function ReadyFamilyTable(p: {
       panelChildren={
         <div class="ui-pad ui-spy-sm">
           <Toolbar
-            families={p.families}
-            onFamily={setExploreFamily}
             query={resolved().query}
             levelOptions={levelOptionsFor(p.metric, p.scope).map((level) => ({
               value: level,

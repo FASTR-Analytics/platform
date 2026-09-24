@@ -1,17 +1,17 @@
 import { t3 } from "lib";
 
-export type EmptyStateKind = "no_primary_module" | "no_metric" | "no_preset";
+export type EmptyStateKind = "no_modules" | "no_metric" | "no_preset";
 
-// The empty states both Explore tabs share. `no_metric` shows the metric's
-// stamped reason when it has one.
+// The Explore page's empty states. `no_metric` shows the metric's stamped
+// reason when it has one.
 export function EmptyState(p: { kind: EmptyStateKind; reason?: string }) {
   return (
     <div class="text-base-content-muted text-sm">
-      {p.kind === "no_primary_module"
+      {p.kind === "no_modules"
         ? t3({
-          en: "This package has no primary module, so there are no results to explore. Generate a package that includes one.",
-          fr: "Ce paquet n'a aucun module principal, il n'y a donc aucun résultat à explorer. Générez un paquet qui en inclut un.",
-          pt: "Este pacote não tem nenhum módulo principal, pelo que não há resultados para explorar. Gere um pacote que inclua um.",
+          en: "This package has no modules, so there are no results to explore.",
+          fr: "Ce paquet n'a aucun module, il n'y a donc aucun résultat à explorer.",
+          pt: "Este pacote não tem nenhum módulo, pelo que não há resultados para explorar.",
         })
         : p.kind === "no_preset"
         ? t3({
