@@ -191,8 +191,8 @@ export function InstanceResultsPackages() {
         <Button
           data-tour="instance-results-packages-card"
           size="sm"
-          // outline
-          intent="base-100"
+          ghost
+          intent="base-content"
           iconName="chevronRight"
           iconPosition="right"
           onClick={() => openPackagePage(run.id)}

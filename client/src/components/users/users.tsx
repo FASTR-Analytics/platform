@@ -364,7 +364,8 @@ function UserTable(p: {
           <Button
             onClick={() => p.onUserClick(user)}
             iconName="pencil"
-            intent="base-100"
+            ghost
+            intent="base-content"
             size="sm"
           />
         </div>
