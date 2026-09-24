@@ -1,5 +1,4 @@
 import {
-  _CF_GREEN,
   ItemsHolderDatasetHmisDisplay,
   getAbcQualScale,
   getCalendar,
@@ -74,7 +73,7 @@ export function DatasetDisplayPresentation(p: Props) {
           joinAcrossGaps: false,
           func: {
             show: true,
-            color: showLegend ? 666 : _CF_GREEN,
+            color: showLegend ? 666 : { key: "success" },
           },
         },
       },

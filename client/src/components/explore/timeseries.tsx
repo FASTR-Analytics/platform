@@ -103,7 +103,13 @@ export function Timeseries(p: {
               <StateHolderWrapper state={figure()} noPad>
                 {(inputs) => (
                   <FigureHolder
-                    figureInputs={{ ...inputs, style: liveFigureStyle(inputs.style) }}
+                    figureInputs={{
+                      ...inputs,
+                      style: liveFigureStyle({
+                        ...inputs.style,
+                        seriesColorFunc: () => ({ key: "success" }),
+                      }),
+                    }}
                     height="ideal"
                   />
                 )}
