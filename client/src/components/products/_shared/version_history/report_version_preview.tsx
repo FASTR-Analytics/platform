@@ -550,7 +550,7 @@ function VizChangeRow(p: {
       <div class="ui-text-caption mb-2">
         {whatLabel}
         <Show when={p.label}>
-          {" "}<span class="font-semibold">“{p.label}”</span>
+          {" "}<span class="font-700">“{p.label}”</span>
         </Show>
         {" "}— {kindLabel}
       </div>

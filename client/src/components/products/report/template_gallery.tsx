@@ -53,7 +53,7 @@ export function ReportTemplateGallery(p: {
               onDblClick={() => p.onPick(template)}
             >
               <FastrTemplateMock scopeClass={p.scopeClass} html={html(template)} />
-              <div class="text-base-content mt-1.5 text-sm font-semibold">
+              <div class="text-base-content font-700 mt-1.5">
                 {fastrTemplateLabel(template)}
               </div>
               <div class="text-base-content-muted text-xs leading-snug">

@@ -949,7 +949,7 @@ export function ReportToolbar(p: Props) {
               chevron={false}
               label={
                 <span
-                  class="rounded px-1 leading-none font-600"
+                  class="font-700 rounded px-1 leading-none"
                   style={marks()?.highlight !== undefined
                     ? { "background-color": marks()?.highlight }
                     : { "border-bottom": "3px solid #ffe08a" }}
@@ -996,7 +996,7 @@ export function ReportToolbar(p: Props) {
                   <span
                     class={`${
                       roleClassOf(marks()?.role)
-                    } border-b-2 border-current px-0.5 font-600 leading-none`}
+                    } font-700 border-b-2 border-current px-0.5 leading-none`}
                     style={marks()?.color !== undefined ? { color: marks()?.color } : undefined}
                   >
                     A
@@ -1539,7 +1539,7 @@ function InkPanel(p: {
               }}
             >
               <span class={`${p.scopeClass} flex h-full w-full items-center justify-center text-xs`}>
-                <span class={`${roleClassOf(role)} font-600`}>Aa</span>
+                <span class={`${roleClassOf(role)} font-700`}>Aa</span>
               </span>
             </button>
           )}
