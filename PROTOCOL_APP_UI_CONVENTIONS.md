@@ -220,6 +220,16 @@ have no title. An in-body count beside a search box is plain body text
 ("123 indicators", "12 of 40"). Modal widths are
 `ModalContainer`'s `width` tokens (panther).
 
+**Text sizes:** the three roles and the rem-only rule are PROTOCOL_UI_STYLING
+("Type"). `lint:text-sizes` (chained into `deno task typecheck`) fails on an
+arbitrary `text-[Npx]`, `text-md`, or an inline pixel font-size under
+`client/src` and `panther/_303_components`. Document and canvas rendering is
+exempt by file in `lint_text_sizes.ts`: the report page surface
+(`products/report/live_preview_extension.tsx`, pinned to its PDF's
+typography) and the theme miniature (`products/report/fastr_theme_mock.tsx`).
+Add a file there only when its text is a rendering of a document or a
+canvas, not UI.
+
 **Form-draft signals:** draft state under edit uses a `temp*` prefix
 (`tempConfig`, `tempWindowing`); unsaved-changes tracking is a `needsSaving`
 signal.
