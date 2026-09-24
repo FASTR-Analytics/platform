@@ -1,9 +1,5 @@
 import { useSearchParams } from "@solidjs/router";
-import {
-  t3,
-  type Folder,
-  type ProductSummary,
-} from "lib";
+import { t3, type Folder, type ProductSummary } from "lib";
 import {
   Button,
   FrameTop,
@@ -467,6 +463,7 @@ export function Products() {
                 outline
                 iconName={anyFolderOpen() ? "fold" : "unfold"}
                 disabled={openableFolderIds().length === 0}
+                // intent="neutral"
                 ariaLabel={
                   anyFolderOpen()
                     ? t3({
