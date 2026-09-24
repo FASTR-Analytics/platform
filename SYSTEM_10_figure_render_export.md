@@ -297,9 +297,12 @@ in `_0_common.ts`, which also owns `GLOBAL_STYLE_OPTIONS`, applied app-wide via
 `liveFigureStyle` (`live_figure_style.ts`) is the one transform for a figure
 read on screen at one design unit per CSS pixel (the Explore timeseries, S11;
 the HMIS dataset display, S6): over the figure's own style it sets one-pixel
-strokes on axes, grid and lines, base-200 grid lines, 16-unit (12pt) base
-text and abbreviated tick labels on a numeric value axis, leaving a percent
-or rate axis its own formatter.
+strokes on axes, grid and lines, base-200 grid lines, a 12-unit base (the
+data grid's `ui-text-small`, 12 CSS pixels) with every chart label key at
+relative size 1, and abbreviated tick labels on a numeric value axis,
+leaving a percent or rate axis its own formatter. It is the one deliberate
+per-surface text size in the app, against PROTOCOL_ALL_SIZING rule 3: a
+live figure's labels read beside a data grid at the grid's size.
 
 ### Roll-up row label under an AA2 scope
 
