@@ -304,7 +304,7 @@ export function InstanceData(p: Props) {
                 })
               : t3({
                   en: "No population data",
-                  fr: "Aucune donnée de população",
+                  fr: "Aucune donnée de population",
                   pt: "Sem dados de população",
                 }),
         status: populationLevel !== undefined ? "ready" : "unset",
