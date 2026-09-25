@@ -110,6 +110,7 @@ export function InstanceUsers(p: Props) {
                 data-tour="instance-users-bulk"
                 onClick={downloadUsersCSV}
                 iconName="download"
+                outline
                 size="sm"
               >
                 {t3({
@@ -121,6 +122,7 @@ export function InstanceUsers(p: Props) {
               <Button
                 onClick={attemptBatchUploadUsers}
                 iconName="upload"
+                outline
                 size="sm"
               >
                 {t3({
