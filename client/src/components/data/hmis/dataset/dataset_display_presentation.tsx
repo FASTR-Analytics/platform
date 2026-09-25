@@ -65,6 +65,9 @@ export function DatasetDisplayPresentation(p: Props) {
         maxLegendItemsInOneColumn: 1,
       },
       seriesColorFunc: (info: any) => getAbcQualScale(info.i_series),
+      yScaleAxis: {
+        tickLabelFormatter: "auto-number",
+      },
       xPeriodAxis: {
         calendar: getCalendar(),
       },

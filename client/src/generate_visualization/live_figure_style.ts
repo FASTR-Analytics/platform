@@ -2,7 +2,6 @@ import {
   type ChartSeriesInfoFunc,
   type CustomFigureStyleOptions,
   type GenericLineStyleOptions,
-  toAbbrev0,
 } from "panther";
 
 type FigureTextStyleOptions = NonNullable<CustomFigureStyleOptions["text"]>;
@@ -31,14 +30,11 @@ const CHART_LABEL_KEYS: readonly ChartLabelKey[] = [
 
 // A live figure is one read on screen at one design unit per CSS pixel: the
 // Explore views and the HMIS dataset display. Over the figure's own style it
-// sets hairline strokes for axes, grid and lines, base-300 grid lines, every
-// chart label at the data grid's text size, and abbreviated tick labels
-// (12k, 1.5m) on a numeric value axis; a percent or rate axis keeps its own
-// formatter.
+// sets hairline strokes for axes, grid and lines, base-300 grid lines, and
+// every chart label at the data grid's text size.
 export function liveFigureStyle(
   style: CustomFigureStyleOptions = {},
 ): CustomFigureStyleOptions {
-  const tickLabelFormatter = style.yScaleAxis?.tickLabelFormatter;
   return {
     ...style,
     text: liveText(style.text),
@@ -47,13 +43,6 @@ export function liveFigureStyle(
       axisStrokeWidth: 1,
       gridStrokeWidth: 1,
       gridColor: { key: "base300" },
-    },
-    yScaleAxis: {
-      ...style.yScaleAxis,
-      tickLabelFormatter:
-        tickLabelFormatter === undefined || tickLabelFormatter === "auto-number"
-          ? toAbbrev0
-          : tickLabelFormatter,
     },
     content: {
       ...style.content,
