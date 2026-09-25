@@ -17,7 +17,7 @@ import {
   Table,
   type TableColumn,
 } from "panther";
-import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   PinnedBadge,
@@ -34,8 +34,6 @@ import {
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
-
-const _SEARCH_MIN_LENGTH = 3;
 
 // The instance "Results packages" surface (PLAN_RESULTS_RUNS Phase 3 items 1
 // and 3): generation is an instance-level act, so this is both where the
@@ -160,31 +158,11 @@ export function InstanceResultsPackages() {
     });
   }
 
-  // Session-only: the list is short and a sticky filter is easy to forget.
-  const [searchText, setSearchText] = createSignal("");
-
-  const isSearching = () => searchText().length >= _SEARCH_MIN_LENGTH;
-
-  const visibleRuns = createMemo((): RunCatalogItem[] => {
-    const needle = searchText().toLowerCase();
-    const searching = isSearching();
-    return instanceState.runsCatalog.filter(
-      (run) => !searching || run.label.toLowerCase().includes(needle),
-    );
-  });
-
   const emptyMessage = () =>
     t3({
       en: "No results packages yet.",
       fr: "Aucun paquet de résultats pour l'instant.",
       pt: "Ainda não existem pacotes de resultados.",
-    });
-
-  const noMatchMessage = () =>
-    t3({
-      en: "No results packages match.",
-      fr: "Aucun paquet de résultats ne correspond.",
-      pt: "Nenhum pacote de resultados corresponde.",
     });
 
   const columns = (): TableColumn<RunCatalogItem>[] => [
@@ -271,19 +249,6 @@ export function InstanceResultsPackages() {
           <HeadingBar
             data-tour="instance-results-packages-header"
             compact
-            searchText={searchText()}
-            setSearchText={setSearchText}
-            centerChildren={
-              <Show when={isSearching()}>
-                <span class="text-base-content-muted text-sm text-nowrap">
-                  {t3({
-                    en: `${visibleRuns().length} results`,
-                    fr: `${visibleRuns().length} résultats`,
-                    pt: `${visibleRuns().length} resultados`,
-                  })}
-                </span>
-              </Show>
-            }
           >
             <div class="ui-gap-sm flex items-center">
               <Button
@@ -322,11 +287,10 @@ export function InstanceResultsPackages() {
       >
         <div class="ui-pad h-full w-full">
           <Table
-            data={visibleRuns()}
+            data={instanceState.runsCatalog}
             columns={columns()}
             keyField="id"
             defaultSort={{ key: "createdAt", direction: "desc" }}
-            noRowsMessage={noMatchMessage()}
             onRowClick={(run) => openPackagePage(run.id)}
             bulkActions={bulkActions()}
             selectionLabel={t3({ en: "package", fr: "paquet", pt: "pacote" })}
