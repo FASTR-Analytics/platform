@@ -4851,6 +4851,7 @@
           "npm:@codemirror/lang-markdown@6",
           "npm:@codemirror/merge@6",
           "npm:@codemirror/state@6",
+          "npm:@duckdb/node-api@1.5.4-r.1",
           "npm:@modelcontextprotocol/core@2",
           "npm:@modelcontextprotocol/server@2",
           "npm:@solidjs/router@0.15",
