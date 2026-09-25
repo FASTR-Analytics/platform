@@ -6,7 +6,6 @@ import {
   type BulkAction,
   type TableColumn,
 } from "panther";
-import { HeadingBar } from "panther";
 import { Show, createMemo, onCleanup, onMount } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
@@ -82,11 +81,14 @@ export function InstanceAssets() {
   return (
     <FrameTop
       panelChildren={
-        <HeadingBar data-tour="instance-assets-header" compact>
+        <div
+          class="ui-pad-x ui-pad-t flex justify-end"
+          data-tour="instance-assets-header"
+        >
           <Button id="select-file-button" iconName="upload" size="sm">
             {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
           </Button>
-        </HeadingBar>
+        </div>
       }
     >
       <div class="ui-pad h-full w-full" data-tour="instance-assets-list">

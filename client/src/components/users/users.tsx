@@ -17,7 +17,6 @@ import {
   openAlert,
   openComponent,
 } from "panther";
-import { HeadingBar } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
 import { AddUserForm } from "./add_user_form";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
@@ -81,68 +80,69 @@ export function InstanceUsers(p: Props) {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full">
-          <HeadingBar data-tour="instance-users-header" compact>
-            <div class="ui-gap-sm flex items-center">
-              <Show when={currentUserIsHUser()}>
-                <Button
-                  onClick={() => setShowHUsers((v) => !v)}
-                  iconName={showHUsers() ? "eyeOff" : "eye"}
-                  outline
-                  size="sm"
-                >
-                  {showHUsers()
-                    ? t3({
-                        en: "Hide system users",
-                        fr: "Masquer les utilisateurs système",
-                        pt: "Ocultar utilizadores do sistema",
-                      })
-                    : t3({
-                        en: "Show system users",
-                        fr: "Afficher les utilisateurs système",
-                        pt: "Mostrar utilizadores do sistema",
-                      })}
-                </Button>
-              </Show>
-              <div class="ui-gap-sm flex items-center">
-                <Button
-                  data-tour="instance-users-bulk"
-                  onClick={downloadUsersCSV}
-                  iconName="download"
-                  size="sm"
-                >
-                  {t3({
-                    en: "Download users",
-                    fr: "Télécharger les utilisateurs",
-                    pt: "Transferir utilizadores",
-                  })}
-                </Button>
-                <Button
-                  onClick={attemptBatchUploadUsers}
-                  iconName="upload"
-                  size="sm"
-                >
-                  {t3({
-                    en: "Batch import from CSV",
-                    fr: "Importation groupée depuis CSV",
-                    pt: "Importação em lote a partir de CSV",
-                  })}
-                </Button>
-              </div>
+        <div
+          class="ui-pad-x ui-pad-t flex justify-end"
+          data-tour="instance-users-header"
+        >
+          <div class="ui-gap-sm flex items-center">
+            <Show when={currentUserIsHUser()}>
               <Button
-                data-tour="instance-users-add"
-                onClick={attemptAddUser}
-                iconName="plus"
+                onClick={() => setShowHUsers((v) => !v)}
+                iconName={showHUsers() ? "eyeOff" : "eye"}
+                outline
+                size="sm"
+              >
+                {showHUsers()
+                  ? t3({
+                      en: "Hide system users",
+                      fr: "Masquer les utilisateurs système",
+                      pt: "Ocultar utilizadores do sistema",
+                    })
+                  : t3({
+                      en: "Show system users",
+                      fr: "Afficher les utilisateurs système",
+                      pt: "Mostrar utilizadores do sistema",
+                    })}
+              </Button>
+            </Show>
+            <div class="ui-gap-sm flex items-center">
+              <Button
+                data-tour="instance-users-bulk"
+                onClick={downloadUsersCSV}
+                iconName="download"
                 size="sm"
               >
                 {t3({
-                  en: "Add users",
-                  fr: "Ajouter des utilisateurs",
-                  pt: "Adicionar utilizadores",
+                  en: "Download users",
+                  fr: "Télécharger les utilisateurs",
+                  pt: "Transferir utilizadores",
+                })}
+              </Button>
+              <Button
+                onClick={attemptBatchUploadUsers}
+                iconName="upload"
+                size="sm"
+              >
+                {t3({
+                  en: "Batch import from CSV",
+                  fr: "Importation groupée depuis CSV",
+                  pt: "Importação em lote a partir de CSV",
                 })}
               </Button>
             </div>
-          </HeadingBar>
+            <Button
+              data-tour="instance-users-add"
+              onClick={attemptAddUser}
+              iconName="plus"
+              size="sm"
+            >
+              {t3({
+                en: "Add users",
+                fr: "Ajouter des utilisateurs",
+                pt: "Adicionar utilizadores",
+              })}
+            </Button>
+          </div>
         </div>
       }
     >

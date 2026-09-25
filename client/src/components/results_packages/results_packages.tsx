@@ -12,7 +12,6 @@ import {
   createDeleteAction,
   EmptyState,
   FrameTop,
-  HeadingBar,
   openComponent,
   Table,
   type TableColumn,
@@ -245,39 +244,37 @@ export function InstanceResultsPackages() {
   return (
     <FrameTop
       panelChildren={
-        <div class="h-full w-full">
-          <HeadingBar
-            data-tour="instance-results-packages-header"
-            compact
-          >
-            <div class="ui-gap-sm flex items-center">
-              <Button
-                data-tour="instance-results-packages-defaults"
-                size="sm"
-                onClick={openModuleDefaults}
-                outline
-                iconName="settings"
-              >
-                {t3({
-                  en: "Module defaults",
-                  fr: "Paramètres par défaut des modules",
-                  pt: "Predefinições dos módulos",
-                })}
-              </Button>
-              <Button
-                data-tour="instance-results-packages-generate"
-                size="sm"
-                onClick={openWizard}
-                iconName="package"
-              >
-                {t3({
-                  en: "Generate new results package",
-                  fr: "Générer un nouveau paquet de résultats",
-                  pt: "Gerar novo pacote de resultados",
-                })}
-              </Button>
-            </div>
-          </HeadingBar>
+        <div
+          class="ui-pad-x ui-pad-t flex justify-end"
+          data-tour="instance-results-packages-header"
+        >
+          <div class="ui-gap-sm flex items-center">
+            <Button
+              data-tour="instance-results-packages-defaults"
+              size="sm"
+              onClick={openModuleDefaults}
+              outline
+              iconName="settings"
+            >
+              {t3({
+                en: "Module defaults",
+                fr: "Paramètres par défaut des modules",
+                pt: "Predefinições dos módulos",
+              })}
+            </Button>
+            <Button
+              data-tour="instance-results-packages-generate"
+              size="sm"
+              onClick={openWizard}
+              iconName="package"
+            >
+              {t3({
+                en: "Generate new results package",
+                fr: "Générer un nouveau paquet de résultats",
+                pt: "Gerar novo pacote de resultados",
+              })}
+            </Button>
+          </div>
         </div>
       }
     >
