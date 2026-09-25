@@ -151,6 +151,10 @@ function AssetTable(p: {
       key: "uploaderEmail",
       header: t3({ en: "Owner", fr: "Propriétaire", pt: "Proprietário" }),
       sortable: true,
+      filterable: true,
+      filterValue: (asset) =>
+        asset.uploaderEmail ??
+          t3({ en: "System", fr: "Système", pt: "Sistema" }),
       render: (asset) => (
         <Show
           when={asset.uploaderEmail}
