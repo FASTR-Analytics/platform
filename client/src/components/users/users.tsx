@@ -126,9 +126,9 @@ export function InstanceUsers(p: Props) {
                 size="sm"
               >
                 {t3({
-                  en: "Batch import from CSV",
-                  fr: "Importation groupée depuis CSV",
-                  pt: "Importação em lote a partir de CSV",
+                  en: "Batch import",
+                  fr: "Importation groupée",
+                  pt: "Importação em lote",
                 })}
               </Button>
             </div>
