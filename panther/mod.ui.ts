@@ -36,6 +36,7 @@ export * from "./_011_figure_renderer/mod.ts";
 export * from "./_011_uncertainty_client/mod.ts";
 export * from "./_012_image_renderer/mod.ts";
 export * from "./_013_docs_core/mod.ts";
+export * from "./_014_long_table/mod.ts";
 export * from "./_100_csv/mod.ts";
 export * from "./_101_csv_query/mod.ts";
 export * from "./_105_markdown/mod.ts";

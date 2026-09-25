@@ -3,9 +3,15 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { decodePeriod, getLanguage } from "../../deps.ts";
+import {
+  decodePeriod,
+  getFiscalQuarter,
+  getFiscalYear,
+  getLanguage,
+} from "../../deps.ts";
 import type {
   CalendarType,
+  FiscalYearRule,
   Language,
   MergedXPeriodAxisStyle,
   PeriodType,
@@ -104,6 +110,7 @@ export function get_QUARTERS_TWO_CHARS() {
 // calendar-quarter boundary, so calendar Q3 is fiscal Q1. It applies to
 // year-quarter axes only — year-month and year fall through to gregorian.
 
+const _FY_JULY: FiscalYearRule = { startMonth: 7, namedBy: "start" };
 const _FY_JULY_START_QUARTER = 3;
 
 // Representative quarter id (2025 Q3 = the start of FY2025/26), used to size
@@ -124,14 +131,6 @@ export function isFiscalYearQuarterAxis(
   calendar: CalendarType,
 ): boolean {
   return calendar === "gregorian-fy-july" && periodType === "year-quarter";
-}
-
-function getFiscalYearStartYear(year: number, subPeriod: number): number {
-  return subPeriod < _FY_JULY_START_QUARTER ? year - 1 : year;
-}
-
-function getFiscalQuarter(subPeriod: number): number {
-  return ((subPeriod - _FY_JULY_START_QUARTER + 4) % 4) + 1;
 }
 
 // The large-label fallback ladder. A form fully determines both what the label
@@ -177,10 +176,9 @@ export function getSmallPeriodLabelIfAny(
     return get_MONTHS_THREE_CHARS(calendar)[subPeriod - 1] ?? "?";
   }
   if (periodAxisType === "quarter-two-year") {
-    const { subPeriod } = decodePeriod(v, "year-quarter");
     const q = calendar === "gregorian-fy-july"
-      ? getFiscalQuarter(subPeriod)
-      : subPeriod;
+      ? getFiscalQuarter(v, "year-quarter", _FY_JULY)
+      : decodePeriod(v, "year-quarter").subPeriod;
     return get_QUARTERS_TWO_CHARS()[q - 1] ?? "?";
   }
   if (periodAxisType === "year-side") {
@@ -202,8 +200,7 @@ export function getLargePeriodLabel(
   if (form === "year-two") {
     return String(v).slice(2, 4);
   }
-  const { year, subPeriod } = decodePeriod(v, "year-quarter");
-  const startYear = getFiscalYearStartYear(year, subPeriod);
+  const startYear = getFiscalYear(v, "year-quarter", _FY_JULY);
   const startFour = String(startYear);
   const endTwo = String(startYear + 1).slice(2, 4);
   if (form === "fy-short") {
@@ -456,9 +453,8 @@ export function shouldLabelYear(
   skipInterval: number,
   calendar: CalendarType,
 ): boolean {
-  const decoded = decodePeriod(v, periodType);
   const year = isFiscalYearQuarterAxis(periodType, calendar)
-    ? getFiscalYearStartYear(decoded.year, decoded.subPeriod)
-    : decoded.year;
+    ? getFiscalYear(v, "year-quarter", _FY_JULY)
+    : decodePeriod(v, periodType).year;
   return year % skipInterval === 0;
 }

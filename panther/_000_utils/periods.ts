@@ -305,3 +305,193 @@ export function formatPeriod(
   }
   return String(v);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+//                          Fiscal Years and Units                            //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
+// A fiscal year starts in `startMonth` and is named after the calendar year
+// it starts in or ends in. Stored periods stay calendar-encoded; the rule only
+// decides which quarter and which named year a period belongs to.
+export type FiscalYearRule = { startMonth: number; namedBy: "start" | "end" };
+
+export type PeriodBounds = { min: number; max: number };
+
+export type PeriodUnit = "period" | "month" | "quarter" | "year";
+export type FullPeriodUnit = "quarter" | "year";
+
+function assertRule(rule: FiscalYearRule): void {
+  assert(
+    Number.isInteger(rule.startMonth) && rule.startMonth >= 1 &&
+      rule.startMonth <= 12,
+    `Fiscal year start month ${rule.startMonth} must be between 1 and 12`,
+  );
+}
+
+// A rule applies to quarter ids only when its start month opens a calendar
+// quarter, since a quarter id cannot be split.
+function getFiscalStartQuarter(rule: FiscalYearRule): number {
+  assertRule(rule);
+  assert(
+    (rule.startMonth - 1) % 3 === 0,
+    `Fiscal year start month ${rule.startMonth} does not open a calendar quarter`,
+  );
+  return (rule.startMonth - 1) / 3 + 1;
+}
+
+function getNamedYearOffset(rule: FiscalYearRule): number {
+  return rule.namedBy === "end" ? 1 : 0;
+}
+
+export function getFiscalQuarter(
+  periodId: number | string,
+  grain: PeriodType,
+  rule: FiscalYearRule,
+): number {
+  if (grain === "year-month") {
+    assertRule(rule);
+    const { subPeriod: m } = decodePeriod(periodId, "year-month");
+    return Math.floor(((m - rule.startMonth + 12) % 12) / 3) + 1;
+  }
+  if (grain === "year-quarter") {
+    const startQuarter = getFiscalStartQuarter(rule);
+    const { subPeriod: q } = decodePeriod(periodId, "year-quarter");
+    return ((q - startQuarter + 4) % 4) + 1;
+  }
+  throw new Error("A year has no fiscal quarter");
+}
+
+export function getFiscalYear(
+  periodId: number | string,
+  grain: PeriodType,
+  rule: FiscalYearRule,
+): number {
+  const e = getNamedYearOffset(rule);
+  if (grain === "year-month") {
+    assertRule(rule);
+    const { year, subPeriod: m } = decodePeriod(periodId, "year-month");
+    return year + (m >= rule.startMonth ? e : e - 1);
+  }
+  if (grain === "year-quarter") {
+    const startQuarter = getFiscalStartQuarter(rule);
+    const { year, subPeriod: q } = decodePeriod(periodId, "year-quarter");
+    return year + (q >= startQuarter ? e : e - 1);
+  }
+  throw new Error("A year has no fiscal year");
+}
+
+export function getMonthComponent(periodId: number | string): number {
+  return decodePeriod(periodId, "year-month").subPeriod;
+}
+
+export function getQuarterComponent(
+  periodId: number | string,
+  grain: PeriodType,
+  rule?: FiscalYearRule,
+): number {
+  if (grain === "year-month") {
+    if (rule !== undefined) {
+      return getFiscalQuarter(periodId, grain, rule);
+    }
+    return Math.floor((decodePeriod(periodId, "year-month").subPeriod + 2) / 3);
+  }
+  if (grain === "year-quarter") {
+    assert(rule === undefined, "A quarter id carries no fiscal rule");
+    return decodePeriod(periodId, "year-quarter").subPeriod;
+  }
+  throw new Error("A year has no quarter component");
+}
+
+export function shiftPeriod(
+  periodId: number | string,
+  grain: PeriodType,
+  n: number,
+): number {
+  assert(Number.isInteger(n), `Period shift ${n} must be an integer`);
+  const time = getTimeFromPeriodId(periodId, grain) + n;
+  const shifted = getPeriodIdFromTime(time, grain);
+  getTimeFromPeriodId(shifted, grain);
+  return shifted;
+}
+
+// How many grain periods one unit holds; a unit finer than the grain is an
+// error.
+function getPeriodsPerUnit(grain: PeriodType, unit: PeriodUnit): number {
+  const k = unit === "period"
+    ? 1
+    : grain === "year-month"
+    ? (unit === "month" ? 1 : unit === "quarter" ? 3 : 12)
+    : grain === "year-quarter"
+    ? (unit === "month" ? undefined : unit === "quarter" ? 1 : 4)
+    : (unit === "year" ? 1 : undefined);
+  if (k === undefined) {
+    throw new Error(`Unit "${unit}" is finer than grain "${grain}"`);
+  }
+  return k;
+}
+
+// The `n × k` periods ending at `max`, clamped to the 1900 floor.
+export function getLastUnitsBounds(
+  max: number | string,
+  grain: PeriodType,
+  unit: PeriodUnit,
+  n: number,
+): PeriodBounds {
+  assert(Number.isInteger(n) && n >= 1, `Unit count ${n} must be at least 1`);
+  const k = getPeriodsPerUnit(grain, unit);
+  const maxTime = getTimeFromPeriodId(max, grain);
+  const minTime = Math.max(0, maxTime - n * k + 1);
+  return {
+    min: getPeriodIdFromTime(minTime, grain),
+    max: getPeriodIdFromTime(maxTime, grain),
+  };
+}
+
+// The last `n` complete units at or before `max`: a unit is complete iff its
+// last period is at or before `max`. Under a rule, units are fiscal quarters
+// and fiscal years. Undefined when every such unit lies below the 1900 floor.
+export function getLastFullUnitBounds(
+  max: number | string,
+  grain: PeriodType,
+  unit: FullPeriodUnit,
+  n: number,
+  rule?: FiscalYearRule,
+): PeriodBounds | undefined {
+  assert(Number.isInteger(n) && n >= 1, `Unit count ${n} must be at least 1`);
+  const k = getPeriodsPerUnit(grain, unit);
+  const offset = getUnitOffset(grain, rule);
+  const maxTime = getTimeFromPeriodId(max, grain);
+  // Unit blocks start at multiples of k in the shifted time space.
+  const shiftedMax = maxTime - offset;
+  const block = Math.floor(shiftedMax / k);
+  const lastBlock = shiftedMax === (block + 1) * k - 1 ? block : block - 1;
+  const maxShifted = (lastBlock + 1) * k - 1;
+  const minShifted = (lastBlock - n + 1) * k;
+  const maxUnitTime = maxShifted + offset;
+  if (maxUnitTime < 0) {
+    return undefined;
+  }
+  const minUnitTime = Math.max(0, minShifted + offset);
+  return {
+    min: getPeriodIdFromTime(minUnitTime, grain),
+    max: getPeriodIdFromTime(maxUnitTime, grain),
+  };
+}
+
+// Where the first period of a fiscal year falls relative to a calendar year
+// start, in grain periods.
+function getUnitOffset(grain: PeriodType, rule?: FiscalYearRule): number {
+  if (rule === undefined) {
+    return 0;
+  }
+  if (grain === "year-month") {
+    assertRule(rule);
+    return rule.startMonth - 1;
+  }
+  if (grain === "year-quarter") {
+    return getFiscalStartQuarter(rule) - 1;
+  }
+  throw new Error("A year table carries no fiscal rule");
+}

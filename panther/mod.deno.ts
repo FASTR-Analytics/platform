@@ -36,6 +36,7 @@ export * from "./_011_figure_renderer/mod.ts";
 export * from "./_011_uncertainty_client/mod.ts";
 export * from "./_012_image_renderer/mod.ts";
 export * from "./_013_docs_core/mod.ts";
+export * from "./_014_long_table/mod.ts";
 export * from "./_100_csv/mod.ts";
 export * from "./_101_csv_query/mod.ts";
 export * from "./_105_markdown/mod.ts";
@@ -114,6 +115,7 @@ export * from "./_233_pdf/mod.ts";
 export * from "./_234_word/mod.ts";
 export * from "./_235_pptx/mod.ts";
 export * from "./_236_video/mod.ts";
+export * from "./_238_duckdb/mod.ts";
 
 /////////////////////
 //                 //

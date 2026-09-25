@@ -220,7 +220,7 @@ const _DS = {
     paddingTop: 0,
     paddingBottom: 0,
     tickWidth: 5,
-    tickLabelGap: 5,
+    tickLabelGap: 3,
     maxTickLabelWidthAsPctOfChart: 0.5,
   },
   yScaleAxis: {
@@ -230,7 +230,7 @@ const _DS = {
     min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
     labelGap: 10,
     tickWidth: 5,
-    tickLabelGap: 5,
+    tickLabelGap: 3,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
     exactAxisX: typed<"none" | number>("none"),
