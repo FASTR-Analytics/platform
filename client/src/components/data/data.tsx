@@ -7,8 +7,6 @@ import {
 import {
   Button,
   type EditorComponentProps,
-  FrameTop,
-  HeadingBar,
   openComponent,
   Table,
   type TableColumn,
@@ -414,64 +412,55 @@ export function InstanceData(p: Props) {
   ];
 
   return (
-    <FrameTop
-      panelChildren={
-        <HeadingBar
-          compact
-          heading={t3({ en: "Data", fr: "Données", pt: "Dados" })}
+    <div class="ui-pad h-full w-full overflow-auto">
+      <div class="ui-spy-lg">
+        <DataSection
+          data-tour="instance-data-hmis"
+          heading={t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
+          subheading={t3({
+            en: "Health Management Information System",
+            fr: "Système d'information sanitaire",
+            pt: "Sistema de informação de saúde",
+          })}
+          rows={hmisRows()}
         />
-      }
-    >
-      <div class="ui-pad h-full w-full overflow-auto">
-        <div class="ui-spy-lg">
+        <DataSection
+          data-tour="instance-data-hfa"
+          heading={t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" })}
+          subheading={t3({
+            en: "Health facility assessments",
+            fr: "Enquêtes auprès des établissements",
+            pt: "Avaliações de unidades de saúde",
+          })}
+          rows={hfaRows()}
+        />
+        <DataSection
+          data-tour="instance-data-iceh"
+          heading={t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" })}
+          subheading={t3({
+            en: "Equity data",
+            fr: "Données d'équité",
+            pt: "Dados de equidade",
+          })}
+          rows={icehRows()}
+        />
+        <Show when={canConfigureSettings()}>
           <DataSection
-            data-tour="instance-data-hmis"
-            heading={t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })}
-            subheading={t3({
-              en: "Health Management Information System",
-              fr: "Système d'information sanitaire",
-              pt: "Sistema de informação de saúde",
+            heading={t3({
+              en: "Instance settings",
+              fr: "Paramètres de l'instance",
+              pt: "Definições da instância",
             })}
-            rows={hmisRows()}
-          />
-          <DataSection
-            data-tour="instance-data-hfa"
-            heading={t3({ en: "HFA", fr: "Enquêtes FOSA", pt: "HFA" })}
             subheading={t3({
-              en: "Health facility assessments",
-              fr: "Enquêtes auprès des établissements",
-              pt: "Avaliações de unidades de saúde",
+              en: "Shared by every dataset",
+              fr: "Communs à tous les jeux de données",
+              pt: "Comuns a todos os conjuntos de dados",
             })}
-            rows={hfaRows()}
+            rows={generalRows()}
           />
-          <DataSection
-            data-tour="instance-data-iceh"
-            heading={t3({ en: "ICEH", fr: "ICEH", pt: "ICEH" })}
-            subheading={t3({
-              en: "Equity data",
-              fr: "Données d'équité",
-              pt: "Dados de equidade",
-            })}
-            rows={icehRows()}
-          />
-          <Show when={canConfigureSettings()}>
-            <DataSection
-              heading={t3({
-                en: "Instance settings",
-                fr: "Paramètres de l'instance",
-                pt: "Definições da instância",
-              })}
-              subheading={t3({
-                en: "Shared by every dataset",
-                fr: "Communs à tous les jeux de données",
-                pt: "Comuns a todos os conjuntos de dados",
-              })}
-              rows={generalRows()}
-            />
-          </Show>
-        </div>
+        </Show>
       </div>
-    </FrameTop>
+    </div>
   );
 }
 
