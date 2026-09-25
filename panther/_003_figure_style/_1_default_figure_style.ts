@@ -219,19 +219,17 @@ const _DS = {
     tickPosition: typed<"sides" | "center">("sides"),
     paddingTop: 0,
     paddingBottom: 0,
-    tickWidth: 10,
-    tickLabelGap: 10,
+    tickWidth: 5,
+    tickLabelGap: 5,
     maxTickLabelWidthAsPctOfChart: 0.5,
   },
   yScaleAxis: {
     max: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
       "auto",
     ),
-    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(
-      0,
-    ),
+    min: typed<number | "auto" | "auto-zero" | ((i_pane: number) => number)>(0),
     labelGap: 10,
-    tickWidth: 10,
+    tickWidth: 5,
     tickLabelGap: 5,
     tickLabelFormatter: typed<"auto-number" | "auto-percent">("auto-percent"),
     tickLabelAlignment: typed<"center" | "inset">("center"),
