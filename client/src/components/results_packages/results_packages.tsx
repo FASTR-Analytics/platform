@@ -231,11 +231,13 @@ export function InstanceResultsPackages() {
           </Show>
           <Show when={run.attachedProducts.length > 0}>
             <Badge>
-              {t3({
-                en: `In use by ${run.attachedProducts.length}`,
-                fr: `Utilisé par ${run.attachedProducts.length}`,
-                pt: `Em uso por ${run.attachedProducts.length}`,
-              })}
+              {run.attachedProducts.length === 1
+                ? t3({ en: "1 product", fr: "1 produit", pt: "1 produto" })
+                : t3({
+                  en: `${run.attachedProducts.length} products`,
+                  fr: `${run.attachedProducts.length} produits`,
+                  pt: `${run.attachedProducts.length} produtos`,
+                })}
             </Badge>
           </Show>
         </span>
