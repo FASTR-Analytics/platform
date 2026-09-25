@@ -1,7 +1,15 @@
-import { type RunCatalogItem, type RunProgress, t3 } from "lib";
+import {
+  type APIResponseNoData,
+  type RunCatalogItem,
+  type RunProgress,
+  t3,
+  TC,
+} from "lib";
 import {
   Badge,
+  type BulkAction,
   Button,
+  createDeleteAction,
   EmptyState,
   FrameTop,
   HeadingBar,
@@ -16,7 +24,6 @@ import {
   RunStatusBadge,
   runStatusLabel,
 } from "./package_view/mod.ts";
-import { PruneResultsPackages } from "./prune";
 import { ResultsPackageWizard } from "./wizard/mod.ts";
 import { ResultsPackagePage } from "./package_page";
 import { ModuleDefaultsEditor } from "./module_defaults";
@@ -26,6 +33,7 @@ import {
 } from "~/state/instance/t1_sse";
 import { instanceState } from "~/state/instance/t1_store";
 import { openShellEditor } from "~/state/t4_ui";
+import { serverActions } from "~/server_actions";
 
 const _SEARCH_MIN_LENGTH = 3;
 
@@ -33,12 +41,12 @@ const _SEARCH_MIN_LENGTH = 3;
 // and 3): generation is an instance-level act, so this is both where the
 // launch wizard is entered (an ephemeral modal, nothing persisted before
 // launch), and the catalogue of every package the instance holds, as a
-// newest-first table with no selection state; a row's View button opens the
-// package's own page through the shell wrapper. The listing is T1
-// (`instanceState.runsCatalog`, pushed on every catalogue mutation), so this
-// surface has no component fetch of its own. Products point at a package from
-// product settings. This surface owns the only act that ever reclaims a
-// package's disk.
+// newest-first table; a row's View button opens the package's own page
+// through the shell wrapper, and the row checkboxes feed one bulk action,
+// delete. The listing is T1 (`instanceState.runsCatalog`, pushed on every
+// catalogue mutation), so this surface has no component fetch of its own.
+// Products point at a package from product settings. This surface owns the
+// only act that ever reclaims a package's disk.
 export function InstanceResultsPackages() {
   // Live generation state over instance SSE (Q-B ruling (a) and (e)):
   // progress patches the page in place and the R line is keyed by RUN as
@@ -89,10 +97,61 @@ export function InstanceResultsPackages() {
     }
   }
 
-  // Prune needs nothing back: the list shrinks over SSE.
-  async function openPrune(): Promise<void> {
-    await openComponent({ element: PruneResultsPackages, props: {} });
+  // Bulk form of the guarded delete (SYSTEM_08 "Bulk delete"): the guard is
+  // per package, so the selection goes through the single route in turn. A
+  // refusal (pinned, in use, still generating) is reported by label and the
+  // rest still go; nothing is refetched, every delete shrinks the list over
+  // SSE.
+  async function deleteRuns(
+    runs: RunCatalogItem[],
+  ): Promise<APIResponseNoData> {
+    const refused: string[] = [];
+    for (const run of runs) {
+      const res = await serverActions.deleteRun({ run_id: run.id });
+      if (!res.success) {
+        refused.push(`${run.label}: ${res.err}`);
+      }
+    }
+    return refused.length === 0
+      ? { success: true }
+      : { success: false, err: refused.join("; ") };
   }
+
+  async function handleBulkDelete(selected: RunCatalogItem[]): Promise<void> {
+    const deleteAction = createDeleteAction(
+      {
+        text: selected.length === 1
+          ? t3({
+            en:
+              "Delete this results package? Its files and cached results are permanently removed.",
+            fr:
+              "Supprimer ce paquet de résultats ? Ses fichiers et ses résultats mis en cache sont définitivement supprimés.",
+            pt:
+              "Eliminar este pacote de resultados? Os seus ficheiros e resultados em cache são removidos permanentemente.",
+          })
+          : t3({
+            en:
+              "Delete these results packages? Their files and cached results are permanently removed.",
+            fr:
+              "Supprimer ces paquets de résultats ? Leurs fichiers et leurs résultats mis en cache sont définitivement supprimés.",
+            pt:
+              "Eliminar estes pacotes de resultados? Os seus ficheiros e resultados em cache são removidos permanentemente.",
+          }),
+        itemList: selected.map((run) => run.label),
+      },
+      () => deleteRuns(selected),
+    );
+    await deleteAction.click();
+  }
+
+  const bulkActions = (): BulkAction<RunCatalogItem>[] => [
+    {
+      label: t3(TC.delete),
+      intent: "danger",
+      outline: true,
+      onClick: handleBulkDelete,
+    },
+  ];
 
   async function openModuleDefaults(): Promise<void> {
     await openShellEditor({
@@ -238,16 +297,6 @@ export function InstanceResultsPackages() {
                 })}
               </Button>
               <Button
-                data-tour="instance-results-packages-prune"
-                size="sm"
-                onClick={openPrune}
-                outline
-                iconName="trash"
-                disabled={instanceState.runsCatalog.length === 0}
-              >
-                {t3({ en: "Prune", fr: "Élaguer", pt: "Limpar" })}
-              </Button>
-              <Button
                 data-tour="instance-results-packages-generate"
                 size="sm"
                 onClick={openWizard}
@@ -276,6 +325,8 @@ export function InstanceResultsPackages() {
             defaultSort={{ key: "createdAt", direction: "desc" }}
             noRowsMessage={noMatchMessage()}
             onRowClick={(run) => openPackagePage(run.id)}
+            bulkActions={bulkActions()}
+            selectionLabel={t3({ en: "package", fr: "paquet", pt: "pacote" })}
           />
         </div>
       </Show>

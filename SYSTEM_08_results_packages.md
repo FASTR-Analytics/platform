@@ -404,20 +404,16 @@ status bar's usage row (`-usage`); it auto-starts only while a row is
 rendered, not merely in the DOM, since an open page hides the list under
 the shell wrapper.
 
-**Prune** (`results_packages/prune.tsx` + `prune_plan.ts`, ruled)
-is the bulk form of the guarded delete: one rule, remove every
-package not in use (not pinned, no product pointing at it, not generating;
-`planPrune` derives the set from the same T1 facts the list shows and the
-confirm lists what goes and what stays with its reason), then the SAME
-single `deleteRun` route, called in turn from the client with a progress
-bar and a per-package outcome list. No batch route: the guard is already
-per-package and atomic, each delete pushes the catalogue nonce so the
-list shrinks live, and a guard refusal mid-list (a product attached
-between confirm and that package's turn) is an outcome by label, never an
-abort. There is no "delete all": the pin is removed only by the explicit
-unpin on the package page. Further rules (keep-latest; all-except-pinned,
-which must first repoint every product onto the pin) are one more
-`PruneRule` member each, and the last needs its own instance route.
+**Bulk delete** (`results_packages/results_packages.tsx`, the listing's
+row checkboxes and their one bulk action) is the bulk form of the guarded
+delete: the user ticks packages in the catalogue, the confirm lists them by
+label, then the SAME single `deleteRun` route is called for each in turn.
+No batch route: the guard is already per-package and atomic, each delete
+pushes the catalogue nonce so the list shrinks live, and a guard refusal
+(pinned, in use, still generating) is reported by label in the confirm
+form's error while the rest still go. There is no rule-based prune and no
+"delete all": the pin is removed only by the explicit unpin on the package
+page.
 
 ## The pinned package
 
