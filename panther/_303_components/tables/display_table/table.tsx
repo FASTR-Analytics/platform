@@ -266,7 +266,7 @@ export function Table<
                 <tr>
                   <Show when={enableSelection()}>
                     <th
-                      class={`text-base-content w-4 ${padding().px} py-3 text-left text-xs font-700 uppercase tracking-wider`}
+                      class={`text-base-content w-4 ${padding().px} py-2 text-left text-xs font-700 uppercase tracking-wider`}
                     >
                       <Checkbox
                         checked={allSelected()}
