@@ -114,9 +114,9 @@ export function InstanceUsers(p: Props) {
                 size="sm"
               >
                 {t3({
-                  en: "Download users",
-                  fr: "Télécharger les utilisateurs",
-                  pt: "Transferir utilizadores",
+                  en: "Download",
+                  fr: "Télécharger",
+                  pt: "Transferir",
                 })}
               </Button>
               <Button
