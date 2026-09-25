@@ -9,7 +9,6 @@ import {
   type FastrChartPalette,
   PresentationObjectConfig,
   selectCf,
-  themeConditionalFormatting,
 } from "lib";
 import { compileCfToValuesColorFunc } from "../conditional_formatting/compile";
 import {
@@ -67,9 +66,9 @@ export function buildStandardStyle(
       ),
       config.s.decimalPlaces ?? 0,
     );
-  // A themed report's cell tints stand in for the stock traffic lights (the
-  // legend goes through the same function, so the two cannot disagree).
-  const cf = themeConditionalFormatting(selectCf(config.s), chartPalette);
+  // Conditional formatting keeps the standard traffic lights under every
+  // report theme: its colours carry the meaning, so they never re-tint.
+  const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
   const c = config.s.content;
   const showPoints =

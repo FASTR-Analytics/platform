@@ -9,7 +9,6 @@ import {
   PresentationObjectConfig,
   pickLang,
   selectCf,
-  themeConditionalFormatting,
   TranslatableString,
   type FigureLocalization,
 } from "lib";
@@ -202,9 +201,9 @@ export function getLegendFromConfig(
       { label: pickLang(language, { en: "Deficit", fr: "Déficit", pt: "Défice" }), color: deficitColor },
     ];
   }
-  // A themed report's cell tints stand in for the stock traffic lights (the
-  // style builder goes through the same function, so the two cannot disagree).
-  const cf = themeConditionalFormatting(selectCf(config.s), chartPalette);
+  // The standard traffic lights under every report theme, as the style
+  // builder draws them.
+  const cf = selectCf(config.s);
   if (cf.type === "none" || !figurePaintsCf(config)) return undefined;
   return compileCfToLegend(cf, formatAs, facts, language);
 }

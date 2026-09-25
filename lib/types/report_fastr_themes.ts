@@ -617,12 +617,6 @@ export type FastrChartPalette = FastrThemeChart & {
   strong: string;
   // The de-emphasised series behind it: the neutral faded toward the page.
   faint: string;
-  // Cell grounds for conditional formatting's traffic lights: good, warn and
-  // bad each faded 60% toward the page — the same tint the stock pastels are
-  // of the app's red, amber and green — so dark text still reads on them and
-  // a table's cells sit on the page rather than glowing off it. `none` is the
-  // page itself, for the no-data cell that stock CF paints white.
-  cells: { good: string; warn: string; bad: string; none: string };
 };
 
 export function fastrChartPalette(
@@ -652,12 +646,6 @@ export function fastrChartPalette(
     series,
     strong: ink,
     faint: tint(chart.neutral),
-    cells: {
-      good: tint(good),
-      warn: tint(chart.warn),
-      bad: tint(chart.bad),
-      none: page,
-    },
   };
 }
 

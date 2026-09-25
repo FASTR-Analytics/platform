@@ -52,8 +52,8 @@ async function closeBrowser(): Promise<void> {
   try {
     await b?.close();
   } catch {
-    // Already gone; nothing to release.
   }
+  // Already gone; nothing to release.
 }
 
 function scheduleIdleClose(): void {
