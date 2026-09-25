@@ -184,6 +184,24 @@ function hasGlobalPermissions(user: UserData): boolean {
   return USER_PERMISSIONS.some((k) => user[k]);
 }
 
+function getStatusLabel(user: UserData): string {
+  if (user.isContactPerson) {
+    return t3({
+      en: "Contact person",
+      fr: "Personne de contact",
+      pt: "Pessoa de contacto",
+    });
+  }
+  if (user.isGlobalAdmin) {
+    return t3({
+      en: "Instance administrator",
+      fr: "Administrateur d'instance",
+      pt: "Administrador da instância",
+    });
+  }
+  return getGlobalPermissionSummary(user);
+}
+
 function getGlobalPermissionSummary(user: UserData): string {
   const active = USER_PERMISSIONS.filter((k) => user[k]);
   if (active.length === 0) {
@@ -323,37 +341,19 @@ function UserTable(p: {
       key: "isGlobalAdmin",
       header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
       sortable: true,
-      render: (user) => {
-        if (user.isContactPerson) {
-          return (
-            <span class="text-primary">
-              {t3({
-                en: "Contact person",
-                fr: "Personne de contact",
-                pt: "Pessoa de contacto",
-              })}
-            </span>
-          );
-        }
-        if (user.isGlobalAdmin) {
-          return (
-            <span class="text-primary">
-              {t3({
-                en: "Instance administrator",
-                fr: "Administrateur d'instance",
-                pt: "Administrador da instância",
-              })}
-            </span>
-          );
-        }
-        return (
-          <span
-            class={hasGlobalPermissions(user) ? "" : "text-base-content-muted"}
-          >
-            {getGlobalPermissionSummary(user)}
-          </span>
-        );
-      },
+      filterable: true,
+      filterValue: getStatusLabel,
+      render: (user) => (
+        <span
+          class={user.isContactPerson || user.isGlobalAdmin
+            ? "text-primary"
+            : hasGlobalPermissions(user)
+            ? ""
+            : "text-base-content-muted"}
+        >
+          {getStatusLabel(user)}
+        </span>
+      ),
     },
     {
       key: "actions",
