@@ -204,6 +204,7 @@ export function InstanceResultsPackages() {
       key: "createdBy",
       header: t3({ en: "Created by", fr: "Créé par", pt: "Criado por" }),
       sortable: true,
+      filterable: true,
       render: (run) => run.createdBy ?? "",
     },
     {
