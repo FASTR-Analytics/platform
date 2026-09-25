@@ -52,19 +52,19 @@
     "jsr:@zip-js/zip-js@*": "2.8.26",
     "jsr:@zip-js/zip-js@^2.7.52": "2.8.26",
     "npm:@anthropic-ai/sdk@0.110": "0.110.0_zod@4.4.3",
-    "npm:@clerk/backend@^2.29.2": "2.33.3_react@19.2.8_react-dom@19.2.8__react@19.2.8",
-    "npm:@clerk/backend@^3.16.11": "3.16.11_react@19.2.8_react-dom@19.2.8__react@19.2.8",
-    "npm:@clerk/clerk-js@^5.56.0": "5.127.2_react@19.2.8_react-dom@19.2.8__react@19.2.8_@babel+core@7.29.7_@solana+web3.js@1.98.4__typescript@7.0.2_bs58@6.0.0_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_typescript@7.0.2_zod@4.4.3",
+    "npm:@clerk/backend@^2.29.2": "2.33.3_react@19.2.8_react-dom@19.2.8",
+    "npm:@clerk/backend@^3.16.11": "3.16.11_react@19.2.8_react-dom@19.2.8",
+    "npm:@clerk/clerk-js@^5.56.0": "5.127.2_react@19.2.8_react-dom@19.2.8_@babel+core@7.29.7_@solana+web3.js@1.98.4_bs58@6.0.0_react-native@0.87.1_typescript@7.0.2_zod@4.4.3",
     "npm:@codemirror/lang-markdown@6": "6.5.0",
     "npm:@codemirror/merge@6": "6.11.2",
     "npm:@codemirror/state@6": "6.5.2",
-    "npm:@duckdb/node-api@1.4.5-r.1": "1.4.5-r.1",
-    "npm:@hono/clerk-auth@^3.1.1": "3.1.1_react@19.2.8_react-dom@19.2.8__react@19.2.8",
+    "npm:@duckdb/node-api@1.5.4-r.1": "1.5.4-r.1",
+    "npm:@hono/clerk-auth@^3.1.1": "3.1.1_react@19.2.8_react-dom@19.2.8",
     "npm:@lezer/common@^1.2.0": "1.4.0",
     "npm:@lezer/html@^1.3.13": "1.3.13",
     "npm:@modelcontextprotocol/core@2": "2.0.0",
     "npm:@modelcontextprotocol/server@2": "2.0.0",
-    "npm:@solidjs/router@0.15": "0.15.4_solid-js@1.9.10__seroval@1.3.2",
+    "npm:@solidjs/router@0.15": "0.15.4_solid-js@1.9.10",
     "npm:@types/markdown-it@^14.1.2": "14.2.0",
     "npm:@types/node@*": "24.6.2",
     "npm:@types/papaparse@^5.3.15": "5.3.15",
@@ -429,29 +429,29 @@
         "zustand"
       ]
     },
-    "@clerk/backend@2.33.3_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@clerk/backend@2.33.3_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-cgkFVEYFG2nZn4QDuYBhiAwPtMdo8Yj7DAtq/SBQ5C/ainh3uxNRDgUj4bFn52qJkWLiCkraYJIw1b8dEUbUBg==",
       "dependencies": [
-        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8__react@19.2.8",
+        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8",
         "@clerk/types",
         "standardwebhooks",
         "tslib"
       ]
     },
-    "@clerk/backend@3.16.11_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@clerk/backend@3.16.11_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-fHfqNhqCywv1orN8Ug2VlYJQZcPMmzFmlTb5/kCMFhxJsV9yaDTf8BADiUO9WgTx3s+nKOx5an4t4h7aHM42MA==",
       "dependencies": [
-        "@clerk/shared@4.30.0_react@19.2.8_react-dom@19.2.8__react@19.2.8",
+        "@clerk/shared@4.30.0_react@19.2.8_react-dom@19.2.8",
         "standardwebhooks",
         "tslib"
       ]
     },
-    "@clerk/clerk-js@5.127.2_react@19.2.8_react-dom@19.2.8__react@19.2.8_@babel+core@7.29.7_@solana+web3.js@1.98.4__typescript@7.0.2_bs58@6.0.0_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_typescript@7.0.2_zod@4.4.3": {
+    "@clerk/clerk-js@5.127.2_react@19.2.8_react-dom@19.2.8_@babel+core@7.29.7_@solana+web3.js@1.98.4_bs58@6.0.0_react-native@0.87.1_typescript@7.0.2_zod@4.4.3": {
       "integrity": "sha512-3utdpDMDJVGC3DH1K6qC0JwyxOFhud6l5NZ2iDJeg4Je/ybFV6964GDxP56mqVwgKkdh1g/2wakQHfqlXN08Ww==",
       "dependencies": [
         "@base-org/account",
         "@clerk/localizations",
-        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8__react@19.2.8",
+        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8",
         "@coinbase/wallet-sdk",
         "@emotion/cache",
         "@emotion/react",
@@ -480,13 +480,13 @@
         "regenerator-runtime@0.14.1"
       ]
     },
-    "@clerk/localizations@3.37.8_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@clerk/localizations@3.37.8_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-ib/8WciLkflXsg72IM9BjMZgENUv3nfXx1BrygKkpDqFPb1Dshron1+u+sG7dD+quQpZOLn6iie2Vno5YJy3zQ==",
       "dependencies": [
         "@clerk/types"
       ]
     },
-    "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-cPURU1it/Eal4uXO9SOcHzw9sfE6Opi21W8EJUg+Ri80Q6JKtK8qBmyOpIyqgf09EanexhTzS4xrmYlvn2p7Iw==",
       "dependencies": [
         "csstype",
@@ -504,7 +504,7 @@
       ],
       "scripts": true
     },
-    "@clerk/shared@4.30.0_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@clerk/shared@4.30.0_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-T+b/LES4qRuMom0xZKqOEnfZc67ZYjLIL8cTvEyf5F5u82zTnG7UL22rc3tVNyfh7/p2Mg4+LarT7IoZqyhjkw==",
       "dependencies": [
         "@tanstack/query-core@5.102.3",
@@ -519,11 +519,12 @@
         "react-dom"
       ]
     },
-    "@clerk/types@4.101.26_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@clerk/types@4.101.26_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-tUeiElAZoXu9Dxom9t6IjkEfsfP7aWSVf5x5mCoHnSr2w+wV4EtEwoLl9vexT5LL0di4qidROSfcrOnorzczIQ==",
       "dependencies": [
-        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8__react@19.2.8"
-      ]
+        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8"
+      ],
+      "deprecated": true
     },
     "@codemirror/autocomplete@6.20.0": {
       "integrity": "sha512-bOwvTOIJcG5FVo5gUUupiwYh8MioPLQ4UcqbcRf7UQ98X90tCa9E1kZ3Z7tqwpZxYyOvh1YTYbmZE9RTfTp5hg==",
@@ -655,14 +656,14 @@
     "@csstools/color-helpers@5.1.0": {
       "integrity": "sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA=="
     },
-    "@csstools/css-calc@2.1.4_@csstools+css-parser-algorithms@3.0.5__@csstools+css-tokenizer@3.0.4_@csstools+css-tokenizer@3.0.4": {
+    "@csstools/css-calc@2.1.4_@csstools+css-parser-algorithms@3.0.5_@csstools+css-tokenizer@3.0.4": {
       "integrity": "sha512-3N8oaj+0juUw/1H3YwmDDJXCgTB1gKU6Hc/bB502u9zR0q2vd786XJH9QfrKIEgFlZmhZiq6epXl4rHqhzsIgQ==",
       "dependencies": [
         "@csstools/css-parser-algorithms",
         "@csstools/css-tokenizer"
       ]
     },
-    "@csstools/css-color-parser@3.1.0_@csstools+css-parser-algorithms@3.0.5__@csstools+css-tokenizer@3.0.4_@csstools+css-tokenizer@3.0.4": {
+    "@csstools/css-color-parser@3.1.0_@csstools+css-parser-algorithms@3.0.5_@csstools+css-tokenizer@3.0.4": {
       "integrity": "sha512-nbtKwh3a6xNVIp/VRuXV64yTKnb1IjTAEEh3irzS+HkKjAOYLTGNb9pmVNntZ8iVBHcWDA2Dof0QtPgFI1BaTA==",
       "dependencies": [
         "@csstools/color-helpers",
@@ -680,49 +681,64 @@
     "@csstools/css-tokenizer@3.0.4": {
       "integrity": "sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw=="
     },
-    "@duckdb/node-api@1.4.5-r.1": {
-      "integrity": "sha512-lXPfeJclmhTGhBBnfVXy4siuGNpa8QaUIQGAWlDirC92Dq5fELdITI/LihiFDh5Gz7aM8AN9stCGIH891uv1oQ==",
+    "@duckdb/node-api@1.5.4-r.1": {
+      "integrity": "sha512-3PYk/4//svuYmb9RYVM71cCoNa6ngoYWwrMhJaqbm010txzIMWbJCbxrFeqDl+krdIug+Hc/MNCeS0gHsTXSIw==",
       "dependencies": [
         "@duckdb/node-bindings"
       ]
     },
-    "@duckdb/node-bindings-darwin-arm64@1.4.5-r.1": {
-      "integrity": "sha512-daWqehxIQX5Fnlbkp+yTX2A7rrlXWzfMYNLqil+kZXI7zKG7D/EmT+gWcgSL8N9Jo0fR9RBo8CtzUlR/AaRL5Q==",
+    "@duckdb/node-bindings-darwin-arm64@1.5.4-r.1": {
+      "integrity": "sha512-fl8EC5xdmI7VAI7bX4W6D7lOGNtxyLvSxGjOY8Ov7viVEKwIcBXXKlMPgh3sw+PiVlwZhKlknuCI8BL5xXpSDg==",
       "os": ["darwin"],
       "cpu": ["arm64"]
     },
-    "@duckdb/node-bindings-darwin-x64@1.4.5-r.1": {
-      "integrity": "sha512-iTtnNyVXF8zbdlxOe+Rgjcbbv+4WCkWYGfK3ejCwhaqBc8DH07fWPP5ZGtSbUDs/LDOvV/4k3IGD9hXaNTBmPw==",
+    "@duckdb/node-bindings-darwin-x64@1.5.4-r.1": {
+      "integrity": "sha512-E8bECZ6abJqunPqVR1NA0Zho7qxanfDWWFuJrKMsU1NCUqyGLyhXqZwsRHAx7J6jrM+lhQ7wOZj1x/N4OVml3A==",
       "os": ["darwin"],
       "cpu": ["x64"]
     },
-    "@duckdb/node-bindings-linux-arm64@1.4.5-r.1": {
-      "integrity": "sha512-hDGBZDU5fum/4VDa/PFXUReZKb6ijOx63n10CZUKyY7tnZUV3K3/VpGdCpFyv+jwGuB2M27HpTwMtFYulRmGPQ==",
+    "@duckdb/node-bindings-linux-arm64-musl@1.5.4-r.1": {
+      "integrity": "sha512-96Pyk5Syy18S5DSN0CKkOQ7/CsyVGRML8ewox1qpFDjYvPH1VsULlQoIRwbpw7mkFEy17wuWmbwzb7oKu/nGMw==",
       "os": ["linux"],
       "cpu": ["arm64"]
     },
-    "@duckdb/node-bindings-linux-x64@1.4.5-r.1": {
-      "integrity": "sha512-/0lEDmIx3crdopnz9snXnJGm1tvf6pqowX/LvycMnKYMAfpeXiQDLjAqgCJ4+95O4Y6An+Fgy6e4m7WW7ZYxVg==",
+    "@duckdb/node-bindings-linux-arm64@1.5.4-r.1": {
+      "integrity": "sha512-4EsB+cgRqOE++mdPQ2ZoGJCg4ylmuqdbLDtmo3L19B+C5OzGmrhxlKD4o75eGEtfO52M+w+TdL0qhy0H5XvaKQ==",
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    },
+    "@duckdb/node-bindings-linux-x64-musl@1.5.4-r.1": {
+      "integrity": "sha512-tWgnttlKfWTktyv+m9YbxaedKBon5wmUoJ9DaIbE3D98KhhUaqmJhnjzso9O8hp6WUeRmwXR//hpT/X6Ft9nYA==",
       "os": ["linux"],
       "cpu": ["x64"]
     },
-    "@duckdb/node-bindings-win32-arm64@1.4.5-r.1": {
-      "integrity": "sha512-j+2s9yYlQW1lkGydObiZCPfmW6GzvqgYF42IPY0b9laENFvGz6tD5dwfZ8E41L5vwFSaK1AhjOZ6NFcCMQEPtg==",
+    "@duckdb/node-bindings-linux-x64@1.5.4-r.1": {
+      "integrity": "sha512-IldapRydno5kf4VkPCe8yK+j4pCg+j6Qs46UmLnKex/mtIdJa7ifhMYRkvdc5KIAFEC0eEL5c830QeuwcUROyg==",
+      "os": ["linux"],
+      "cpu": ["x64"]
+    },
+    "@duckdb/node-bindings-win32-arm64@1.5.4-r.1": {
+      "integrity": "sha512-77apmuNo51bPZzv8xjdeCp+hlU6JLwMPtS1CMViy83ONTsah+CGnpBx1lCnEqPL5Va0meufZyjSdZCVCijLdDA==",
       "os": ["win32"],
       "cpu": ["arm64"]
     },
-    "@duckdb/node-bindings-win32-x64@1.4.5-r.1": {
-      "integrity": "sha512-4a1FmopqCbJgtUwDswEAzozCbSOR+waiJyAl4K9LHfACV897e72w/XZQT9kHEw36GJE03uWJIyqHlcV+WA+tXA==",
+    "@duckdb/node-bindings-win32-x64@1.5.4-r.1": {
+      "integrity": "sha512-Wme7dScBGqjn2PUJ+RLFiFAblW1qQRBraX7SJc4uKtftZiUJJWZapEUh+doGfb68Qxvw8JhlMBSdaUsSUDJYsw==",
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "@duckdb/node-bindings@1.4.5-r.1": {
-      "integrity": "sha512-yIXjn8PcB/twK5qzlGyAYflWS7SOc+Pw2GSDzXOszL2uDWthozMj44c3kCWFVLx8P1lfjXw7N9Fjca+uBQpn6Q==",
+    "@duckdb/node-bindings@1.5.4-r.1": {
+      "integrity": "sha512-v834OZZKQ59yAvh8GOEmM+R1foPNgdMGL0VTBgHywgblgQNyq11HvWgT4QGJIUFfo/cQ9WFyf1MFhK0+hV1aiA==",
+      "dependencies": [
+        "detect-libc"
+      ],
       "optionalDependencies": [
         "@duckdb/node-bindings-darwin-arm64",
         "@duckdb/node-bindings-darwin-x64",
         "@duckdb/node-bindings-linux-arm64",
+        "@duckdb/node-bindings-linux-arm64-musl",
         "@duckdb/node-bindings-linux-x64",
+        "@duckdb/node-bindings-linux-x64-musl",
         "@duckdb/node-bindings-win32-arm64",
         "@duckdb/node-bindings-win32-x64"
       ]
@@ -817,7 +833,7 @@
         "@floating-ui/utils"
       ]
     },
-    "@floating-ui/react-dom@2.1.9_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@floating-ui/react-dom@2.1.9_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg==",
       "dependencies": [
         "@floating-ui/dom",
@@ -825,7 +841,7 @@
         "react-dom"
       ]
     },
-    "@floating-ui/react@0.27.12_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@floating-ui/react@0.27.12_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-kKlWNrpIQxF1B/a2MZvE0/uyKby4960yjO91W7nVyNKmmfNi62xU9HCjL1M1eWzx/LFj/VPSwJVbwQk9Pq/68A==",
       "dependencies": [
         "@floating-ui/react-dom",
@@ -841,11 +857,11 @@
     "@formkit/auto-animate@0.8.4": {
       "integrity": "sha512-DHHC01EJ1p70Q0z/ZFRBIY8NDnmfKccQoyoM84Tgb6omLMat6jivCdf272Y8k3nf4Lzdin/Y4R9q8uFtU0GbnA=="
     },
-    "@hono/clerk-auth@3.1.1_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "@hono/clerk-auth@3.1.1_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-wOQaxxaBsVPSNDajUkhpv+9QWwpzLp//Kjr2H3seTgbCmskhPG356GbQjH7/sjQHcgAQKnwCc0cPk4iWCIr24A==",
       "dependencies": [
-        "@clerk/backend@2.33.3_react@19.2.8_react-dom@19.2.8__react@19.2.8",
-        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8__react@19.2.8",
+        "@clerk/backend@2.33.3_react@19.2.8_react-dom@19.2.8",
+        "@clerk/shared@3.47.8_react@19.2.8_react-dom@19.2.8",
         "hono"
       ]
     },
@@ -995,7 +1011,7 @@
     "@noble/hashes@2.3.0": {
       "integrity": "sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ=="
     },
-    "@react-native-async-storage/async-storage@1.24.0_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_@babel+core@7.29.7_react@19.2.8": {
+    "@react-native-async-storage/async-storage@1.24.0_react-native@0.87.1_@babel+core@7.29.7_react@19.2.8": {
       "integrity": "sha512-W4/vbwUOYOjco0x3toB8QCr7EjIP6nE9G7o8PMguvvjYT5Awg09lyV4enACRx4s++PPulBiBSjL0KTFx2u0Z/g==",
       "dependencies": [
         "merge-options",
@@ -1062,7 +1078,7 @@
     "@react-native/normalize-colors@0.87.1": {
       "integrity": "sha512-8+AutemzX+a7cuKgTUyb7JUk3sFYgLyrSnlTLrL6LuW/LKDE+FYE8lJGWYhJPJcE51Ge1D8yRzxgQEdEFZtuIw=="
     },
-    "@react-native/virtualized-lists@0.87.1_react@19.2.8_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7": {
+    "@react-native/virtualized-lists@0.87.1_react@19.2.8_react-native@0.87.1": {
       "integrity": "sha512-qSZjeX3UJrDvyfjf7yc3E68rp1XnzE+5nu8ImklhkVC0+p/XiaHPb/KGkRqDdnQyWHN55BRYSsCMEwgVI6WRNQ==",
       "dependencies": [
         "invariant",
@@ -1130,14 +1146,14 @@
     "@sinclair/typebox@0.27.12": {
       "integrity": "sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g=="
     },
-    "@solana-mobile/mobile-wallet-adapter-protocol-web3js@2.3.0_@solana+web3.js@1.98.4__typescript@7.0.2_@babel+core@7.29.7_react@19.2.8_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_typescript@7.0.2": {
+    "@solana-mobile/mobile-wallet-adapter-protocol-web3js@2.3.0_@solana+web3.js@1.98.4_@babel+core@7.29.7_react@19.2.8_react-native@0.87.1_typescript@7.0.2": {
       "integrity": "sha512-zeSNc8CcyYlVIF6xOq1ff9tLn+rCkf99eDw9sVg0k5Vrl2YGQj7UsSqhHm7dl7XfVTXj0ca0AnDAiMugwIM/rA==",
       "dependencies": [
         "@solana-mobile/mobile-wallet-adapter-protocol",
         "@solana/web3.js"
       ]
     },
-    "@solana-mobile/mobile-wallet-adapter-protocol@2.3.0_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_@babel+core@7.29.7_react@19.2.8_typescript@7.0.2": {
+    "@solana-mobile/mobile-wallet-adapter-protocol@2.3.0_react-native@0.87.1_@babel+core@7.29.7_react@19.2.8_typescript@7.0.2": {
       "integrity": "sha512-NqAinVV9t+S65nvdUo41Z1npg4W1JjSp/K02w6xWFv2ywCdahPHpbbHYS177nDenQR2kf/8vshLOXiyV/J6HRw==",
       "dependencies": [
         "@noble/curves@2.3.0",
@@ -1149,7 +1165,7 @@
         "react-native"
       ]
     },
-    "@solana-mobile/wallet-adapter-mobile@2.3.0_@solana+web3.js@1.98.4__typescript@7.0.2_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_@babel+core@7.29.7_react@19.2.8_typescript@7.0.2": {
+    "@solana-mobile/wallet-adapter-mobile@2.3.0_@solana+web3.js@1.98.4_react-native@0.87.1_@babel+core@7.29.7_react@19.2.8_typescript@7.0.2": {
       "integrity": "sha512-b49j1xUyZH0HO6vJAVCoxIVsn3kBPi9Gb2vffu0kut5rEDRSkpuo7mLJB99c0mkTl4cM0QWo0MaFweWBMyy9nQ==",
       "dependencies": [
         "@solana-mobile/mobile-wallet-adapter-protocol",
@@ -1166,7 +1182,7 @@
         "@react-native-async-storage/async-storage"
       ]
     },
-    "@solana-mobile/wallet-standard-mobile@0.6.0_@babel+core@7.29.7_react@19.2.8_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_typescript@7.0.2": {
+    "@solana-mobile/wallet-standard-mobile@0.6.0_@babel+core@7.29.7_react@19.2.8_react-native@0.87.1_typescript@7.0.2": {
       "integrity": "sha512-abytKDEpjo2kRm4y5IChDrhqDUpPznvQJEw4IgK0GjLjC39R0XPUGC5Q0qLWM2pmw/DAQP+63neRiJFG5r7NsQ==",
       "dependencies": [
         "@solana-mobile/mobile-wallet-adapter-protocol",
@@ -1827,7 +1843,7 @@
         "typescript"
       ]
     },
-    "@solana/wallet-adapter-base@0.9.27_@solana+web3.js@1.98.4__typescript@7.0.2_typescript@7.0.2": {
+    "@solana/wallet-adapter-base@0.9.27_@solana+web3.js@1.98.4_typescript@7.0.2": {
       "integrity": "sha512-kXjeNfNFVs/NE9GPmysBRKQ/nf+foSaq3kfVSeMcO/iVgigyRmB551OjU3WyAolLG/1jeEfKLqF9fKwMCRkUqg==",
       "dependencies": [
         "@solana/wallet-standard-features",
@@ -1837,7 +1853,7 @@
         "eventemitter3"
       ]
     },
-    "@solana/wallet-adapter-react@0.15.39_@solana+web3.js@1.98.4__typescript@7.0.2_react@19.2.8_@babel+core@7.29.7_bs58@6.0.0_react-native@0.87.1__react@19.2.8__@babel+core@7.29.7_typescript@7.0.2": {
+    "@solana/wallet-adapter-react@0.15.39_@solana+web3.js@1.98.4_react@19.2.8_@babel+core@7.29.7_bs58@6.0.0_react-native@0.87.1_typescript@7.0.2": {
       "integrity": "sha512-WXtlo88ith5m22qB+qiGw301/Zb9r5pYr4QdXWmlXnRNqwST5MGmJWhG+/RVrzc+OG7kSb3z1gkVNv+2X/Y0Gg==",
       "dependencies": [
         "@solana-mobile/wallet-adapter-mobile",
@@ -1876,7 +1892,7 @@
         "@solana/wallet-standard-features"
       ]
     },
-    "@solana/wallet-standard-wallet-adapter-base@1.1.5_@solana+web3.js@1.98.4__typescript@7.0.2_bs58@6.0.0_typescript@7.0.2": {
+    "@solana/wallet-standard-wallet-adapter-base@1.1.5_@solana+web3.js@1.98.4_bs58@6.0.0_typescript@7.0.2": {
       "integrity": "sha512-dbk+4mJAsZ1a2R/v5/Qvp6SleviuSNWd9LnuQ0ekH0HRRJTOWyTBJsdQsVDdAymdPnLAaIN5J10ni1CT2Z+ERg==",
       "dependencies": [
         "@solana/wallet-adapter-base",
@@ -1891,7 +1907,7 @@
         "bs58@6.0.0"
       ]
     },
-    "@solana/wallet-standard-wallet-adapter-react@1.1.6_@solana+wallet-adapter-base@0.9.27__@solana+web3.js@1.98.4___typescript@7.0.2__typescript@7.0.2_react@19.2.8_@solana+web3.js@1.98.4__typescript@7.0.2_bs58@6.0.0_typescript@7.0.2": {
+    "@solana/wallet-standard-wallet-adapter-react@1.1.6_@solana+wallet-adapter-base@0.9.27_react@19.2.8_@solana+web3.js@1.98.4_bs58@6.0.0_typescript@7.0.2": {
       "integrity": "sha512-KOPrPFjFDyyDfOp2LqrNh2wZvFEYUtLpoX8ajyvtkGCCsid48OitxSp4EqmobZNTkzoBJoVHRp+KeK8YFB6jUA==",
       "dependencies": [
         "@solana/wallet-adapter-base",
@@ -1901,14 +1917,14 @@
         "react"
       ]
     },
-    "@solana/wallet-standard-wallet-adapter@1.1.6_@solana+wallet-adapter-base@0.9.27__@solana+web3.js@1.98.4___typescript@7.0.2__typescript@7.0.2_@solana+web3.js@1.98.4__typescript@7.0.2_bs58@6.0.0_react@19.2.8_typescript@7.0.2": {
+    "@solana/wallet-standard-wallet-adapter@1.1.6_@solana+wallet-adapter-base@0.9.27_@solana+web3.js@1.98.4_bs58@6.0.0_react@19.2.8_typescript@7.0.2": {
       "integrity": "sha512-A3OMEoKpLiACaL/TdjAF8LttmtfHRtv3O1IxWt/rnOGF0iuBrCqzflXNolqtBs6knCKoBn6US3CNhSgIr9So2A==",
       "dependencies": [
         "@solana/wallet-standard-wallet-adapter-base",
         "@solana/wallet-standard-wallet-adapter-react"
       ]
     },
-    "@solana/wallet-standard@1.1.4_@solana+wallet-adapter-base@0.9.27__@solana+web3.js@1.98.4___typescript@7.0.2__typescript@7.0.2_@solana+web3.js@1.98.4__typescript@7.0.2_bs58@6.0.0_react@19.2.8_typescript@7.0.2": {
+    "@solana/wallet-standard@1.1.4_@solana+wallet-adapter-base@0.9.27_@solana+web3.js@1.98.4_bs58@6.0.0_react@19.2.8_typescript@7.0.2": {
       "integrity": "sha512-NF+MI5tOxyvfTU4A+O5idh/gJFmjm52bMwsPpFGRSL79GECSN0XLmpVOO/jqTKJgac2uIeYDpQw/eMaQuWuUXw==",
       "dependencies": [
         "@solana/wallet-standard-core",
@@ -1935,7 +1951,7 @@
         "superstruct"
       ]
     },
-    "@solidjs/router@0.15.4_solid-js@1.9.10__seroval@1.3.2": {
+    "@solidjs/router@0.15.4_solid-js@1.9.10": {
       "integrity": "sha512-WOpgg9a9T638cR+5FGbFi/IV4l2FpmBs1GpIMSPa0Ce9vyJN7Wts+X2PqMf9IYn0zUj2MlSJtm1gp7/HI/n5TQ==",
       "dependencies": [
         "solid-js@1.9.10_seroval@1.3.2"
@@ -2598,6 +2614,9 @@
     "destroy@1.2.0": {
       "integrity": "sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg=="
     },
+    "detect-libc@2.1.2": {
+      "integrity": "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="
+    },
     "dijkstrajs@1.0.3": {
       "integrity": "sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA=="
     },
@@ -2896,7 +2915,7 @@
     "inherits@2.0.4": {
       "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=="
     },
-    "input-otp@1.4.2_react@19.2.8_react-dom@19.2.8__react@19.2.8": {
+    "input-otp@1.4.2_react@19.2.8_react-dom@19.2.8": {
       "integrity": "sha512-l3jWwYNvrEa6NTCt7BECfCm48GvwuZzkoeG3gBL2w4CHeOXW3eKFmf9UNYkNfYc3mxMrthMnxjIE07MT0zLBQA==",
       "dependencies": [
         "react",
@@ -4797,7 +4816,7 @@
       "jsr:@std/streams@^1.0.8",
       "npm:@anthropic-ai/sdk@0.110",
       "npm:@clerk/backend@^2.29.2",
-      "npm:@duckdb/node-api@1.4.5-r.1",
+      "npm:@duckdb/node-api@1.5.4-r.1",
       "npm:@hono/clerk-auth@^3.1.1",
       "npm:@lezer/common@^1.2.0",
       "npm:@lezer/html@^1.3.13",
