@@ -9,6 +9,7 @@ import {
   type MergedYScaleAxisStyle,
   type RectCoordsDims,
   type RenderContext,
+  toAbbrevAuto,
 } from "../../deps.ts";
 import { SIZING_SAMPLE } from "../../dimension_helpers.ts";
 import type {
@@ -98,10 +99,9 @@ export function measureYScaleAxisWidthInfo(
   const tickLabelFormatter: (v: number) => string =
     typeof formatterOption === "function"
       ? formatterOption
-      : buildAutoFormatter(
-        yAxisTickValues.flat(),
-        formatterOption === "auto-percent" ? "percent" : "number",
-      );
+      : formatterOption === "auto-percent"
+      ? buildAutoFormatter(yAxisTickValues.flat(), "percent")
+      : toAbbrevAuto;
 
   let maxYTickWidth = 0;
   for (const rowYTickVals of yAxisTickValues) {

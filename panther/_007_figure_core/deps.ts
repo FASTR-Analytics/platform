@@ -14,6 +14,7 @@ export {
   getValidNumberOrUndefined,
   isUnique,
   sum,
+  toAbbrevAuto,
 } from "../_000_utils/mod.ts";
 export type { CalendarType, Language, PeriodType } from "../_000_utils/mod.ts";
 export { getColor } from "../_001_color/mod.ts";

@@ -236,26 +236,49 @@ export function toPctAuto(
 
 // Abbrev
 
-function abbreviateNumber(num: number, decimals: number): string {
-  const sign = num < 0 ? "-" : "";
-  let abs = Math.abs(num);
-  const units = ["K", "M", "B"];
-  let unitIndex = -1;
-  while (unitIndex < units.length - 1 && abs >= 1000) {
-    abs = abs / 1000;
+const ABBREV_UNITS = ["", "K", "M", "B"];
+
+function splitAbbrev(abs: number): { mantissa: number; unitIndex: number } {
+  let mantissa = abs;
+  let unitIndex = 0;
+  while (unitIndex < ABBREV_UNITS.length - 1 && mantissa >= 1000) {
+    mantissa = mantissa / 1000;
     unitIndex++;
   }
-  if (unitIndex === -1) {
-    return sign + Math.round(abs).toFixed(0);
-  }
+  return { mantissa, unitIndex };
+}
+
+function abbreviateNumber(num: number, decimals: number): string {
+  const sign = num < 0 ? "-" : "";
+  const split = splitAbbrev(Math.abs(num));
   const factor = Math.pow(10, decimals);
-  let mantissa = Math.round(abs * factor) / factor;
+  let mantissa = Math.round(split.mantissa * factor) / factor;
+  let unitIndex = split.unitIndex;
   // Rounding can push the mantissa up into the next unit (e.g. 999_999 -> "1M").
-  if (mantissa >= 1000 && unitIndex < units.length - 1) {
+  if (mantissa >= 1000 && unitIndex < ABBREV_UNITS.length - 1) {
     mantissa = Math.round((mantissa / 1000) * factor) / factor;
     unitIndex++;
   }
-  return sign + mantissa.toFixed(decimals) + units[unitIndex];
+  return sign + mantissa.toFixed(decimals) + ABBREV_UNITS[unitIndex];
+}
+
+function exactDecimalPlaces(v: number): number {
+  for (let dp = 0; dp < 3; dp++) {
+    const factor = Math.pow(10, dp);
+    if (Math.abs(Math.round(v * factor) / factor - v) < 1e-9 * Math.max(1, v)) {
+      return dp;
+    }
+  }
+  return 3;
+}
+
+// Decimals are per value (0 to 3, the fewest that show it exactly), so mixed
+// units read "500K, 1M, 1.5M" rather than "500.0K, 1.0M, 1.5M".
+export function toAbbrevAuto(v: number): string {
+  return abbreviateNumber(
+    v,
+    exactDecimalPlaces(splitAbbrev(Math.abs(v)).mantissa),
+  );
 }
 
 function toAbbrevWithDecimals(
