@@ -290,7 +290,7 @@ export function DatasetHmisImports(p: Props) {
       >
         <StateHolderWrapper state={runs.state()}>
           {(keyedRuns) => (
-            <StateHolderWrapper state={scheduling.state()} noPad>
+            <StateHolderWrapper state={scheduling.state()}>
               {(schedulingInfo) => (
                 <div class="ui-pad ui-spy flex h-full w-full flex-col overflow-auto">
                   <Show

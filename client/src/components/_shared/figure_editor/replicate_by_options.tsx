@@ -170,7 +170,7 @@ export function ReplicateByOptionsList(p: ReplicateByOptionsProps) {
 
   return (
     <div class="ui-pad h-full max-w-[40rem] flex-none overflow-auto border-r">
-      <StateHolderWrapper state={replicantOptions()} noPad>
+      <StateHolderWrapper state={replicantOptions()}>
         {(keyedReplicantOptions) => (
           <Switch fallback={<ReplicantOptionsMessage status={keyedReplicantOptions.status} />}>
             <Match when={keyedReplicantOptions.status === "ok" && keyedReplicantOptions} keyed>

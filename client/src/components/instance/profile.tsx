@@ -132,7 +132,7 @@ export function ProfileForm(
         },
       ]}
     >
-      <StateHolderWrapper state={userDetails.state()} noPad>
+      <StateHolderWrapper state={userDetails.state()}>
         {(keyedUser) => {
           const [organisation, setOrganisation] = createSignal(
             (clerk.user?.unsafeMetadata?.organisation as string | undefined) ??
@@ -344,7 +344,7 @@ export function ProfileForm(
                 })}
               >
                 <div class="ui-spy-sm">
-                  <StateHolderWrapper state={aiUsage.state()} noPad>
+                  <StateHolderWrapper state={aiUsage.state()}>
                     {(usage) => {
                       const pct =
                         !usage.isUnlimited && usage.dailyTokenLimit !== null
@@ -403,7 +403,7 @@ export function ProfileForm(
                 })}
               >
                 <div class="ui-spy-sm">
-                  <StateHolderWrapper state={aiUsage.state()} noPad>
+                  <StateHolderWrapper state={aiUsage.state()}>
                     {(usage) => {
                       const pct =
                         usage.weeklyTokenLimit !== null

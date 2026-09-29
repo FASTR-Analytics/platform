@@ -100,7 +100,7 @@ export function Timeseries(p: {
               config: d().config,
             }));
             return (
-              <StateHolderWrapper state={figure()} noPad>
+              <StateHolderWrapper state={figure()}>
                 {(inputs) => (
                   <FigureHolder
                     figureInputs={{

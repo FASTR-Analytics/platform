@@ -317,7 +317,6 @@ export function CsvWizard(
   return (
     <ModalContainer
       width="4xl"
-      noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">
@@ -354,7 +353,7 @@ export function CsvWizard(
             ]),
       ]}
     >
-      <div class="ui-pad ui-spy min-h-[24rem]">
+      <div class="ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
           <FileUploadSelector
             buttonLabel={t3({ en: "Upload csv file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}

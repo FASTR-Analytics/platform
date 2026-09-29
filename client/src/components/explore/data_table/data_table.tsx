@@ -265,7 +265,7 @@ function ReadyFamilyTable(p: {
             ? <EmptyState kind="no_preset" />
             : <GridMessage status="no_data_available" />}
         >
-          <StateHolderWrapper state={read()} noPad>
+          <StateHolderWrapper state={read()}>
             {(data) => (
               <Switch>
                 <Match when={data.rows.status !== "ok" && data.rows.status}>

@@ -41,7 +41,7 @@ export function Dhis2ManageConnection(p: AlertComponentProps<Props, undefined>) 
       })}
       onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
-      <StateHolderWrapper state={infoQuery.state()} noPad>
+      <StateHolderWrapper state={infoQuery.state()}>
         {(info) => (
           <ConnectionEditor
             info={info}

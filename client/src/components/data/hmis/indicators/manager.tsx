@@ -247,7 +247,7 @@ export function IndicatorsManager(p: Props) {
         }
       >
         <div class="ui-pad ui-spy h-full w-full overflow-auto">
-          <StateHolderWrapper state={indicators()} noPad>
+          <StateHolderWrapper state={indicators()}>
             {(keyedIndicators) => (
               <div class="h-full">
                 <IndicatorsTable

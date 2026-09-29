@@ -152,7 +152,7 @@ function FigurePreview(p: {
     <Switch>
       <Match when={state().status === "loading"}>
         <div class="flex h-full items-center justify-center">
-          <LoadingIndicator noPad />
+          <LoadingIndicator />
         </div>
       </Match>
       <Match when={state().status === "error"}>

@@ -75,7 +75,7 @@ export function CsvNeedsReviewCard(p: Props) {
           pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As outras importações não ficam bloqueadas durante esta espera.",
         })}
       </div>
-      <StateHolderWrapper state={detail.state()} noPad>
+      <StateHolderWrapper state={detail.state()}>
         {(keyedDetail) => (
           <Show when={keyedDetail.csvStagingResult} keyed>
             {(result) => (

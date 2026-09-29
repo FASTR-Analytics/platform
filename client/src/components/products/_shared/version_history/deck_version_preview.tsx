@@ -769,7 +769,7 @@ function VersionSlideThumb(p: {
         <Switch>
           <Match when={state().status === "loading"}>
             <div class="aspect-video text-xs">
-              <LoadingIndicator noPad />
+              <LoadingIndicator />
             </div>
           </Match>
           <Match when={state().status === "error"}>

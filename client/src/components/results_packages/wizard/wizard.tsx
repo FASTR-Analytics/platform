@@ -82,7 +82,7 @@ export function ResultsPackageWizard(
             <div class="ui-text-heading leading-none">{t3(HEADING)}</div>
           }
         >
-          <LoadingIndicator msg={msg} noPad />
+          <LoadingIndicator msg={msg} />
         </ModalContainer>
       )}
       errorRenderer={(err) => (

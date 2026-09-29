@@ -65,7 +65,7 @@ export function Step2_Dhis2(p: Props) {
           {t3({ en: "Select Organization Unit Levels to Import", fr: "Sélectionner les niveaux d'unités organisationnelles à importer", pt: "Selecionar os níveis de unidades organizacionais a importar" })}
         </div>
 
-        <StateHolderWrapper state={orgUnitMetadata.state()} noPad>
+        <StateHolderWrapper state={orgUnitMetadata.state()}>
           {(metadata) => {
             return (
               <div class="ui-spy">

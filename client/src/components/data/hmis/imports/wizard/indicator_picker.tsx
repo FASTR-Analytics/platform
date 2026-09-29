@@ -91,7 +91,7 @@ export function Dhis2IndicatorPicker(p: Props) {
   const [search, setSearch] = createSignal("");
 
   return (
-    <StateHolderWrapper state={indicators.state()} noPad>
+    <StateHolderWrapper state={indicators.state()}>
       {(keyedIndicators) => (
         <div class="ui-spy-sm">
           <div class="ui-gap flex items-center justify-between">

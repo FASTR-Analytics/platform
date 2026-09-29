@@ -296,7 +296,6 @@ export function PromptLibraryModal(
               fr: "Chargement des prompts...",
               pt: "A carregar prompts...",
             })}
-            noPad
           />
         </div>
       </Show>
@@ -379,7 +378,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
               }
               defaultOpen={false}
               borderStyle="full"
-              padding="sm"
+              headerPad="sm"
             >
               <div>
                 <For each={p.myCustomPrompts}>
@@ -411,7 +410,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
               }
               defaultOpen={false}
               borderStyle="full"
-              padding="sm"
+              headerPad="sm"
             >
               <div>
                 <For each={p.countryCustomPrompts}>
@@ -457,7 +456,7 @@ function BrowsePhase(p: BrowsePhaseProps) {
                   }
                   defaultOpen={isSearching()}
                   borderStyle="full"
-                  padding="sm"
+                  headerPad="sm"
                 >
                   <div>
                     <For each={cat.prompts}>

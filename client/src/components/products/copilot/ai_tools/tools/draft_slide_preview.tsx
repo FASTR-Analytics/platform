@@ -164,7 +164,7 @@ function SlideStateWrapper(p: SlideStateWrapperProps) {
     <Switch>
       <Match when={p.state.status === "loading"}>
         <div class="aspect-video text-xs">
-          <LoadingIndicator msg={(p.state as { msg?: string }).msg} noPad />
+          <LoadingIndicator msg={(p.state as { msg?: string }).msg} />
         </div>
       </Match>
       <Match when={p.state.status === "error"}>

@@ -195,7 +195,7 @@ export function InsertFigureModal(
   return (
     <ModalContainer
       width="xl"
-      noContentPadding
+      pad="none"
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">

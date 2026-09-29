@@ -234,7 +234,7 @@ export function Dhis2RunDetail(
           </div>
         </Show>
 
-        <StateHolderWrapper state={detail.state()} noPad>
+        <StateHolderWrapper state={detail.state()}>
           {(keyedDetail) => {
             const unknownIds = keyedDetail.runStats?.classification.unknownIds ?? [];
             const dhis2IndicatorIds =

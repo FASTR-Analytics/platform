@@ -1010,7 +1010,7 @@ export function HfaIndicatorsManager(p: Props) {
         >
           <div class="ui-pad h-full w-full overflow-auto">
             <Show when={tab() === "indicators"}>
-              <StateHolderWrapper state={indicators()} noPad>
+              <StateHolderWrapper state={indicators()}>
                 {(keyedIndicators) => (
                   <div class="flex h-full flex-col">
                     <div class="ui-gap-sm flex flex-none items-center pb-4">
@@ -1155,9 +1155,9 @@ export function HfaIndicatorsManager(p: Props) {
               </StateHolderWrapper>
             </Show>
             <Show when={tab() === "categories"}>
-              <StateHolderWrapper state={categories()} noPad>
+              <StateHolderWrapper state={categories()}>
                 {(keyedCategories) => (
-                  <StateHolderWrapper state={subCategories()} noPad>
+                  <StateHolderWrapper state={subCategories()}>
                     {(keyedSubCategories) => (
                       <HfaCategoriesManager
                         categories={keyedCategories}
@@ -1171,7 +1171,7 @@ export function HfaIndicatorsManager(p: Props) {
               </StateHolderWrapper>
             </Show>
             <Show when={tab() === "service_categories"}>
-              <StateHolderWrapper state={serviceCategories()} noPad>
+              <StateHolderWrapper state={serviceCategories()}>
                 {(keyedServiceCategories) => (
                   <HfaServiceCategoriesManager
                     serviceCategories={keyedServiceCategories}
@@ -1180,9 +1180,9 @@ export function HfaIndicatorsManager(p: Props) {
               </StateHolderWrapper>
             </Show>
             <Show when={tab() === "variant_groups"}>
-              <StateHolderWrapper state={variantGroups()} noPad>
+              <StateHolderWrapper state={variantGroups()}>
                 {(keyedVariantGroups) => (
-                  <StateHolderWrapper state={variantItems()} noPad>
+                  <StateHolderWrapper state={variantItems()}>
                     {(keyedVariantItems) => (
                       <HfaVariantGroupsManager
                         variantGroups={keyedVariantGroups}

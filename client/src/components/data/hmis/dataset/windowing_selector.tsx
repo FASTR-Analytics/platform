@@ -67,7 +67,7 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
   );
 
   return (
-    <StateHolderWrapper state={itemsHolder.state()} noPad>
+    <StateHolderWrapper state={itemsHolder.state()}>
       {(keyedItemsHolder) => {
         const isDelete = p.includeOrDelete === "delete";
 

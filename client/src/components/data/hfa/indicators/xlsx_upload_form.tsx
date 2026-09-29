@@ -224,7 +224,6 @@ function DefaultStep(p: {
   return (
     <StateHolderWrapper
       state={workbook()}
-      noPad
       onErrorButton={{ label: t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" }), onClick: load }}
       onErrorSecondaryButton={{ label: t3(TC.cancel), onClick: p.onCancel }}
     >

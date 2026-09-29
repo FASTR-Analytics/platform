@@ -175,7 +175,7 @@ function AccessTokensPanel(p: { email: string }) {
         )}
       </Show>
 
-      <StateHolderWrapper state={tokensQuery.state()} noPad>
+      <StateHolderWrapper state={tokensQuery.state()}>
         {(tokens) => (
           <Table
             data={tokens}

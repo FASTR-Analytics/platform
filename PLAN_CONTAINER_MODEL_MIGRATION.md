@@ -6,7 +6,7 @@
 > `tim-branch`; this plan binds to `version2`, where the tree is today, and Tim
 > confirms which before Do 1.
 
-**Next step:** Do 1
+**Next step:** Review 1
 
 Panther's UI kit now puts a container's inset and stack spacing on its slot
 (`pad` / `spy` on every Frame content slot, `panelPad` / `panelSpy` on side
@@ -249,3 +249,11 @@ goes through the panther repo and a fresh sync.
 
 | When | Step | Row |
 | ---- | ---- | --- |
+| 2026-09-29 | 1 | Sync done by Tim before the session: `8b92d4e7f` (panther `5683c15`). The Explore plan's `a9f098143` landed between the sync and this step's commit, so `git log -3` does not show the two adjacent. |
+| 2026-09-29 | 1 | Counts: 27 `StateHolderWrapper` and 6 `LoadingIndicator` `noPad` sites (33), not 28 and 5. The sixth indicator is `prompt_library_modal.tsx:299`, whose tag sits more than three lines above the prop. |
+| 2026-09-29 | 1 | Ruling 2 gap: all four re-applying modal bodies (`hfa/imports/wizard.tsx`, `hmis/imports/csv_wizard.tsx`, `hmis/imports/wizard/wizard.tsx`, `iceh/imports/wizard.tsx`) also carry `min-h-[24rem]`, three with `ui-spy`, so the div does not exist only for the inset. Resolved as ruling 5 does for a Frame slot: the prop is gone, the body takes the default `md`, the div keeps its min-height and its own stack spacing. Render is unchanged (`ui-pad` moved one element up). |
+| 2026-09-29 | 1 | Ruling 2, the other two: `insert_figure.tsx` (a fixed-height picker) and `markdown_diff.tsx` (a CodeMirror mount) pass `pad="none"`, child untouched. |
+| 2026-09-29 | 1 | Floor, typecheck: red mid-session from `explore/module_view.tsx`, the Explore plan's uncommitted work in the same tree (outside this surface, not fixed); HEAD plus exactly this step's hunks typechecked clean in a scratch copy meanwhile. Green in the tree once that work landed as `95c8f4f3b`. |
+| 2026-09-29 | 1 | Floor, test: the first run failed 9 tests while `./run` (Tim's) was replacing the Postgres container; the rerun passed 469, 0 failed. `./validate_protocols` passes; its one stale baseline entry is `instance/email_opt_in_modal.tsx`, deleted on 2026-09-23 before this plan, not pruned. `./run` not started by this session: the app was already running from this tree on 8000 and 3000, and `./run` replaces the containers. |
+| 2026-09-29 | 1 | `explore/data_table/data_table.tsx` and `explore/timeseries.tsx` held both workstreams' edits during the session; the Explore hunks went out in `95c8f4f3b`, leaving only this step's one `noPad` hunk in each. |
+| 2026-09-29 | 1 | Step 1 built. |

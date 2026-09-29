@@ -43,7 +43,7 @@ export function InstanceMetaForm(p: AlertComponentProps<{}, undefined>) {
       width="lg"
       onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
-      <StateHolderWrapper state={instanceMeta.state()} noPad>
+      <StateHolderWrapper state={instanceMeta.state()}>
         {(keyedMeta) => {
           return (
             <>

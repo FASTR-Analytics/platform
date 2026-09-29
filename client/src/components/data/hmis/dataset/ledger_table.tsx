@@ -173,7 +173,7 @@ export function LedgerTable(p: Props) {
   }
 
   return (
-    <StateHolderWrapper state={p.ledger} noPad>
+    <StateHolderWrapper state={p.ledger}>
       {(keyedItems) => {
         const { rollups, window } = buildRollups(keyedItems);
         const failedCount = keyedItems.filter(

@@ -83,7 +83,7 @@ export function ReportMarkdownDiff(p: Props) {
   return (
     <ModalContainer
       width="4xl"
-      noContentPadding
+      pad="none"
       title={
         p.summary ??
         t3({

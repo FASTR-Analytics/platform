@@ -518,7 +518,6 @@ function Dhis2WizardInner(p: InnerProps) {
     <ModalContainer
       height="lg"
       width="3xl"
-      noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">{t3(DHIS2_DATA_IMPORT_TITLE)}</div>
@@ -553,7 +552,7 @@ function Dhis2WizardInner(p: InnerProps) {
             ]),
       ]}
     >
-      <div class="ui-pad min-h-[24rem]">
+      <div class="min-h-[24rem]">
         <Show when={currentStepKind() === "indicators"}>
           <Dhis2StepIndicators
             selectedIds={selectedIndicators}

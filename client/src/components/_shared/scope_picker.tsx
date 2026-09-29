@@ -64,7 +64,7 @@ export function ScopePicker(p: Props) {
           )}
       />
       <Show when={p.selection.mode === "single"}>
-        <StateHolderWrapper state={areasQuery.state()} noPad>
+        <StateHolderWrapper state={areasQuery.state()}>
           {(areas) => {
             // The options array must be referentially STABLE across picks: a
             // selection-dependent list would recreate every <option> node on

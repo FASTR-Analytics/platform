@@ -123,7 +123,7 @@ export function CsvRunDetail(
           </div>
         </Show>
 
-        <StateHolderWrapper state={detail.state()} noPad>
+        <StateHolderWrapper state={detail.state()}>
           {(keyedDetail) => (
             <Show when={keyedDetail.csvStagingResult} keyed>
               {(result) => <CsvStagingSummary result={result} />}

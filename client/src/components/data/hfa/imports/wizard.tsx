@@ -257,7 +257,6 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
   return (
     <ModalContainer
       width="2xl"
-      noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">
@@ -301,7 +300,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
             ]),
       ]}
     >
-      <div class="ui-pad ui-spy min-h-[24rem]">
+      <div class="ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
           <div class="ui-spy">
             <h3 class="ui-text-heading">

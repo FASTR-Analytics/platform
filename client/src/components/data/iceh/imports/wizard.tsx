@@ -130,7 +130,6 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
   return (
     <ModalContainer
       width="2xl"
-      noContentPadding
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">
@@ -167,7 +166,7 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
             ]),
       ]}
     >
-      <div class="ui-pad ui-spy min-h-[24rem]">
+      <div class="ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
           <div class="ui-spy">
             <h3 class="ui-text-heading">
