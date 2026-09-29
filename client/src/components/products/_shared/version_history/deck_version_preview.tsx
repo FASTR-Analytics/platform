@@ -206,7 +206,7 @@ export function DeckVersionPreview(p: {
   }
 
   return (
-    <StateHolderWrapper state={version.state()} spinner>
+    <StateHolderWrapper state={version.state()} spinner loadingAndErrorPad="md">
       {({ v, prev, prevFailed }) => {
         const orderedSlides = v.slides
           .slice()

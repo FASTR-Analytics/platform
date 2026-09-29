@@ -6,7 +6,7 @@
 > `tim-branch`; this plan binds to `version2`, where the tree is today, and Tim
 > confirms which before Do 1.
 
-**Next step:** Fix 2
+**Next step:** Review 2
 
 Panther's UI kit now puts a container's inset and stack spacing on its slot
 (`pad` / `spy` on every Frame content slot, `panelPad` / `panelSpy` on side
@@ -271,3 +271,7 @@ goes through the panther repo and a fresh sync.
 | 2026-09-29 | 2 | Review: `spinner` replaces only the indicator (`state_holder_wrapper.tsx:69-79`); the error block and the `ErrorBoundary` fallback still take `loadingAndErrorPad`, and the kit accepts both props together. None of the 17 `spinner` sites passes it, so their error blocks now sit bare at the slot edge where the old kit inset them, and two route ordinary outcomes through the error state: `data/facilities/with_csv.tsx:33-38` and `:50-53` ("No rows", "No structure data"), `data/hfa/dataset/dataset_items_holder.tsx:40-42` ("No data"). Ruling 4 and the DOC present `spinner` as the alternative to the pad, so the code follows the ruling. The fix needs Tim's ruling: `loadingAndErrorPad="md"` beside `spinner` at the 17 sites, or the kit insetting the error block under `spinner`. No code change under the rulings as written. |
 | 2026-09-29 | 2 | Review: surface clean (20 client files, each hunk a wrapper or indicator prop plus the `LoadingIndicator` to `Spinner` import swap in `copilot.tsx`, and this file). The added row matches the tree: 17 `spinner`, 2 `loadingAndErrorPad`, the four bare indicators; the deferred row's 7 (+1) sites read as hand-padded under `none` Frame slots. 44 of the 60 sites read with their parents; every `spinner` site sits in a Frame slot or a `h-full` / `flex-1` host with a pane-filling ready branch. Floor: typecheck exit 0; test 469 passed, 0 failed, 3 ignored on the first run; `./validate_protocols` passed with the one stale entry already logged. `./run` not started: `docker ps` showed `pg` and `valkey-local` up, deno on 8000 and vite on 3000 listening. |
 | 2026-09-29 | 2 | Step 2 reviewed: 3 findings. |
+| 2026-09-29 | 2 | Fix, finding 1: `figure_editor/figure_editor.tsx:908` passes `spinner` (its host row at `:849` is `h-full`). |
+| 2026-09-29 | 2 | Fix, finding 3, a choice ruling 4 does not cover, taken so the plan can proceed and open to Tim's overruling: every `spinner` site also passes `loadingAndErrorPad="md"`, since the kit's `spinner` replaces only the loading indicator and the error block would otherwise sit bare at the slot edge, a regression from the old kit at all of them and a visible one at `with_csv.tsx` and `hfa/dataset/dataset_items_holder.tsx`, which route "No data" through the error state. 19 sites: the 17 of step 2, `figure_editor.tsx:908`, and `logged_in_wrapper.tsx:155`, which per finding 2 now passes `spinner` too (`#app` is `h-full`) and keeps `"md"` for its error block. The alternative, insetting the error block under `spinner` in the kit, is a panther change and was not taken. Reverting this choice is one substitution: `spinner loadingAndErrorPad="md"` to `spinner` at the 19 sites. |
+| 2026-09-29 | 2 | Floor: `deno task typecheck` exit 0, `deno task test` 469 passed, `./validate_protocols` pass. `./run` not started: the app is still running from this tree. |
+| 2026-09-29 | 2 | Step 2 fixed. |

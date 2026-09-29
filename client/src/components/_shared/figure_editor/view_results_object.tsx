@@ -60,6 +60,7 @@ export function ViewResultsObject(
       <StateHolderWrapper
         state={items.state()}
         spinner
+        loadingAndErrorPad="md"
         onErrorButton={{
           onClick: () => p.close(undefined),
           label: t3({ en: "Back to module", fr: "Retour au module", pt: "Voltar ao módulo" }),

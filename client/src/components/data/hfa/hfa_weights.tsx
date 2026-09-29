@@ -138,7 +138,7 @@ function WeightsWithCsv(p: { onCsvReady?: (csv: Csv<any>) => void }) {
   });
 
   return (
-    <StateHolderWrapper state={state()} spinner>
+    <StateHolderWrapper state={state()} spinner loadingAndErrorPad="md">
       {(keyedData) => {
         return (
           <Show

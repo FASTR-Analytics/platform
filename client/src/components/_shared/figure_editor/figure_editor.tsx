@@ -905,7 +905,7 @@ export function VisualizationEditorInner(p: InnerProps) {
                   </div>
                 }
               >
-                <StateHolderWrapper state={itemsHolder()}>
+                <StateHolderWrapper state={itemsHolder()} spinner loadingAndErrorPad="md">
                   {(keyedItemsHolder) => {
                     return (
                       <Switch>

@@ -154,9 +154,9 @@ export function HfaIndicatorCodeEditor(
         </HeadingBar>
       }
     >
-      <StateHolderWrapper state={codeQuery.state()} spinner>
+      <StateHolderWrapper state={codeQuery.state()} spinner loadingAndErrorPad="md">
         {(codeSnippets) => (
-          <StateHolderWrapper state={variantCodeQuery.state()} spinner>
+          <StateHolderWrapper state={variantCodeQuery.state()} spinner loadingAndErrorPad="md">
             {(variantCodeSnippets) => (
               <EditorInner
                 indicator={p.indicator}

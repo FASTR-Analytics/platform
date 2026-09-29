@@ -53,7 +53,7 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
   });
 
   return (
-    <StateHolderWrapper state={itemsHolder()} spinner>
+    <StateHolderWrapper state={itemsHolder()} spinner loadingAndErrorPad="md">
       {(data) => <DatasetDisplayPresentation displayItems={data} />}
     </StateHolderWrapper>
   );

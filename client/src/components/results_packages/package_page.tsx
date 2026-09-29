@@ -300,7 +300,7 @@ function PackageBody(p: {
     >
       <Switch>
         <Match when={p.run.status === "ready"}>
-          <StateHolderWrapper state={reads()} spinner>
+          <StateHolderWrapper state={reads()} spinner loadingAndErrorPad="md">
             {(data: ReadyReads) => (
               <FamilyTabs
                 runId={p.run.id}
