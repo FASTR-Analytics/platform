@@ -243,6 +243,7 @@ export function InstanceResultsPackages() {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <div
           class="ui-pad-x ui-pad-t flex justify-end"
@@ -282,17 +283,15 @@ export function InstanceResultsPackages() {
         when={instanceState.runsCatalog.length > 0}
         fallback={<EmptyState iconName="package" title={emptyMessage()} />}
       >
-        <div class="ui-pad h-full w-full">
-          <Table
-            data={instanceState.runsCatalog}
-            columns={columns()}
-            keyField="id"
-            defaultSort={{ key: "createdAt", direction: "desc" }}
-            onRowClick={(run) => openPackagePage(run.id)}
-            bulkActions={bulkActions()}
-            selectionLabel={t3({ en: "package", fr: "paquet", pt: "pacote" })}
-          />
-        </div>
+        <Table
+          data={instanceState.runsCatalog}
+          columns={columns()}
+          keyField="id"
+          defaultSort={{ key: "createdAt", direction: "desc" }}
+          onRowClick={(run) => openPackagePage(run.id)}
+          bulkActions={bulkActions()}
+          selectionLabel={t3({ en: "package", fr: "paquet", pt: "pacote" })}
+        />
       </Show>
     </FrameTop>
   );
