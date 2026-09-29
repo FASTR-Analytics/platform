@@ -71,10 +71,11 @@ view (five of the six HMIS modules) is a dead end.
 
 ## 2. The model
 
-- **The selectors row.** One `ui-gap-sm flex items-center` row: the module
-  select, then the view select when the module has a view. It is the first
-  thing under the family tabs in every state of `ModuleView`: with a view,
-  with the placeholder, and with the no-metric empty state.
+- **The selectors row.** One `ui-gap-sm flex flex-wrap items-center` row:
+  the module select, then the view select when the module has a view. It is
+  the first thing under the family tabs in every state of `ModuleView`: with
+  a view, with the placeholder, and with the no-metric empty state. It wraps
+  because a `fitContent` select cannot shrink below its widest item.
 - **The module select** is a `SelectV2` over the family's modules in module
   order (`compareModules`), grouped under the tier labels as header entries.
   Its value is the resolved module, the same resolution `FamilyExplorer`
@@ -115,7 +116,11 @@ view (five of the six HMIS modules) is a dead end.
    width.
 5. The prop `viewSelect` on `DataTable`, `ReadyFamilyTable`, `Toolbar` and
    `Timeseries` is renamed `selectors`. Its placement does not change: first
-   on the toolbar's top row. _(proposed)_
+   on the toolbar's top row. `Timeseries` places it directly, dropping the
+   `flex` wrapper it draws around `viewSelect` today, since the row is now a
+   row itself. `Toolbar`'s top row gains `flex-wrap`, so at a narrow width
+   find and Download drop to a second line instead of overflowing; the view
+   select's `w-[32rem] max-w-full` cap was what kept that row in bounds.
 6. `ModuleView`'s `Placeholder` and no-metric `EmptyState` branches render
    inside `FrameTop` with the selectors row as `panelChildren` in a `ui-pad`
    wrapper, the same wrapper the views use, and their existing content as the
