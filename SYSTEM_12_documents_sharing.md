@@ -416,50 +416,67 @@ error (no overwrite path: the human editor's modal is the only override).
 over the two flat T1 lists (`instanceState.products` and
 `instanceState.folders`, both maintained per row off the instance channel),
 shown as a **tree** from the top level where any number of folders are open at
-once. The open folders are an id set in localStorage
+once. The root products (`folderId: null`) sit under **General**, one
+synthetic folder row (`GENERAL_ID` in `folder_tree.ts`) drawn after the root
+folders and only when there are root products to hold. General is
+presentation only: no `Folder` row, no colour, no date, no menu, never merged
+with a user folder of the same name, and folders are its siblings, never its
+children. The open folders are an id set in localStorage
 (`productsExpandedFolders`) beside the sort
 (`state/t4_ui.ts`); ids of deleted folders drop out through an effect gated on
-`isReady`, so the persisted set survives hydration. The tree is **derived**,
+`isReady`, so the persisted set survives hydration. General's state is its own
+saved flag (`productsGeneralClosed`), open by default and written only while
+the row is shown; it never enters the folder set. The tree is **derived**,
 never stored, by `folder_tree.ts` (`childFolders`, `folderPathLabels`,
 `descendantIds`, `folderPathOptions`, `buildProductTree`, `productTreeRows`:
 pure, type-import-only, every walk carrying a visited set so a corrupted cycle
-terminates, pinned by `server/tests/folder_tree_test.ts`).
+terminates, pinned by `server/tests/folder_tree_test.ts`). The labels for the
+root, General for products and "Top level" for folders, are
+`_shared/folder_labels.ts`.
 
 The list (`list_view.tsx`) is hand-built from panther parts on one CSS grid
 template shared by the header row and every body row, the sanctioned exception
 to PROTOCOL_UI_COMPONENTS rule 4, because the rows open editors, reveal
 per-row menus and mix two entity kinds. Its rows come from `buildProductTree`
 then `productTreeRows`: at each level the folders, each followed by its
-contents when open and indented one step, then the products. Each row has one
-icon slot: a chevron for a folder, the type icon for a product. Clicking a
-folder row opens or closes it, clicking a product row opens its editor, and
-there is no selection. One heading-bar button, left of the search field (the
-`centerLeftChildren` slot), opens every folder, or closes them all once all
-are open. A folder row leaves the Package and Area columns empty.
+contents when open and indented one step, then the products, which at the
+root are indented under the General row. Each row has one icon slot: a
+chevron for a folder or General, the type icon for a product. Clicking a
+folder or General row opens or closes it (also Enter, Space and the arrow
+keys), clicking a product row opens its editor, and there is no selection.
+One heading-bar button, left of the search field (the `centerLeftChildren`
+slot), opens every folder and General, or closes them all once all are open.
+A folder row leaves the Package and Area columns empty; General leaves the
+date and menu cells empty too, and right-click does nothing on it.
 Search at 3+ characters keeps each match in its place in the tree, opens the
-folders above the matches, and shows a matching folder closed with all its
-contents; folders the user opens or closes during a search are held apart
-from the saved open set, so clearing the search restores the tree. The list's
+folders above the matches (General, for a root product), and shows a matching
+folder closed with all its contents; folders the user opens or closes during
+a search are held apart from the saved open set, so clearing the search
+restores the tree. The list's
 clickable Name and Last updated headers set the sort (`SortMode`); folders
 sort by the same mode and always come first.
 
 One menu builder per kind (`product_menu.ts`, `folder_menu.ts`) serves the
 row's button and the right-click menu, and both share `buildQuickMoveEntries`,
 relative to the item's own folder: **Move into ▸** (its sibling folders,
-capped at 10, then More…), **Move up to "grandparent"**, **Move to top
-level**, **Move to folder…**. There is no drag-and-drop. The full picker
-(`move_to_folder_modal.tsx`) moves a product or a folder, lists flat full
-paths sorted by path with "No folder" first, and excludes a moved folder's own
-subtree; the server's typed `FOLDER_CYCLE` is still the authority.
+capped at 10, then More…), **Move up to "grandparent"**, the root entry
+(**Move to General** for a product, **Move to top level** for a folder, the
+label passed by each builder), **Move to folder…**. There is no
+drag-and-drop. The full picker (`move_to_folder_modal.tsx`) moves a product
+or a folder, lists flat full paths sorted by path with General first
+(`GENERAL_ID` as the option value for the root), and excludes a moved folder's
+own subtree; the server's typed `FOLDER_CYCLE` is still the authority.
 `edit_folder_modal.tsx` creates a folder at the top level and renames or
 recolours an existing one, sending its parent back unchanged because label,
 colour and parent are one `updateFolder` write. Deleting a folder
 **reparents one level and never cascades**, and the confirmation carries the
-direct counts and the destination.
+direct counts and the destination: the parent for a nested folder, and for a
+root folder the top level for its folders and General for its products.
 
 Create is one **New** button whose menu offers New deck, New report and New
-folder, with no modal for products. Everything is created at the top level
-and moved from its menu. The two product entries are separate
+folder, with no modal for products. Everything is created at the root, where
+a product shows under General, and moved from its menu. The two product
+entries are separate
 `createButtonAction`s over `createProduct` (separate, because one shared
 action's request-id guard would discard all but the most recent click's
 callback). The server mints the label and resolves the pin, and the product

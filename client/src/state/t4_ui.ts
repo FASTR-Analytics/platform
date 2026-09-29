@@ -73,6 +73,16 @@ export function setProductsExpandedFolders(folderIds: ReadonlySet<string>) {
   setProductsExpandedFoldersInternal(folderIds);
 }
 
+// The explorer's General row, open unless the user closed it. Not an id in
+// the set above: General is not a folder, and open by default means the
+// absence of a stored value has to read as open.
+export const [productsGeneralClosed, setProductsGeneralClosedInternal] =
+  createSignal<boolean>(localStorage.getItem("productsGeneralClosed") === "true");
+export function setProductsGeneralClosed(closed: boolean) {
+  localStorage.setItem("productsGeneralClosed", String(closed));
+  setProductsGeneralClosedInternal(closed);
+}
+
 // Set by the list's clickable Name and Last updated headers.
 function readStoredProductsSort(): ListSort {
   const fallback: ListSort = { mode: "recent", direction: "desc" };

@@ -6,8 +6,9 @@ import {
   type SortMode,
 } from "lib";
 import { Button, Icon, type IconName } from "panther";
-import { Index, Match, Switch, type JSX } from "solid-js";
+import { Index, Match, Show, Switch, type JSX } from "solid-js";
 import { packageLabel, scopeLabel } from "~/components/_shared/mod.ts";
+import { GENERAL_ID, generalLabel } from "./_shared/mod.ts";
 import type { ProductTreeRow } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
 
@@ -25,7 +26,20 @@ const _ROW_GRID =
 const _INDENT_REM_PER_LEVEL = 1.75;
 
 type FolderRow = Extract<ProductTreeRow, { kind: "folder" }>;
+type GeneralRow = Extract<ProductTreeRow, { kind: "general" }>;
 type ProductRow = Extract<ProductTreeRow, { kind: "product" }>;
+
+// What a row that opens and closes shows: a folder, or the synthetic General
+// row at the root, which has no date and no menu.
+type ExpandableRow = {
+  depth: number;
+  expanded: boolean;
+  hasContents: boolean;
+  label: string;
+  lastUpdated: string | undefined;
+  onToggle: () => void;
+  onMenu: ((evt: MouseEvent) => void) | undefined;
+};
 
 type Props = {
   rows: ProductTreeRow[];
@@ -102,24 +116,28 @@ export function ListView(p: Props) {
 
   const asFolderRow = (row: ProductTreeRow): FolderRow | undefined =>
     row.kind === "folder" ? row : undefined;
+  const asGeneralRow = (row: ProductTreeRow): GeneralRow | undefined =>
+    row.kind === "general" ? row : undefined;
   const asProductRow = (row: ProductTreeRow): ProductRow | undefined =>
     row.kind === "product" ? row : undefined;
 
-  function folderRow(r: () => FolderRow): JSX.Element {
-    const folder = () => r().folder;
+  function expandableRow(
+    tour: string | undefined,
+    r: () => ExpandableRow,
+  ): JSX.Element {
     return (
       <div
         class={`${_ROW_GRID} ui-hoverable-base-100 ui-focusable group border-b`}
-        data-tour="products-folder"
+        data-tour={tour}
         role="button"
         tabindex="0"
         aria-expanded={r().hasContents ? r().expanded : undefined}
         onClick={() => {
-          if (r().hasContents) p.onToggleFolder(folder().id);
+          if (r().hasContents) r().onToggle();
         }}
         onContextMenu={(e) => {
           e.preventDefault();
-          p.onFolderMenu(e, folder());
+          r().onMenu?.(e);
         }}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget || !r().hasContents) return;
@@ -130,7 +148,7 @@ export function ListView(p: Props) {
             (e.key === "ArrowLeft" && r().expanded);
           if (!toggles) return;
           e.preventDefault();
-          p.onToggleFolder(folder().id);
+          r().onToggle();
         }}
       >
         <div class="ui-pad-sm ui-gap-sm flex items-start">
@@ -143,7 +161,7 @@ export function ListView(p: Props) {
               ? "text-base-content-muted"
               : "text-base-content-faint",
           )}
-          <div class="font-700 min-w-0">{folder().label}</div>
+          <div class="font-700 min-w-0">{r().label}</div>
         </div>
         <div class="ui-pad-sm">
           {t3({ en: "Folder", fr: "Dossier", pt: "Pasta" })}
@@ -151,13 +169,40 @@ export function ListView(p: Props) {
         <div />
         <div />
         <div class="ui-pad-sm text-base-content-muted">
-          {dateLabel(folder().lastUpdated)}
+          <Show when={r().lastUpdated}>{(iso) => dateLabel(iso())}</Show>
         </div>
         <div class="ui-pad-sm">
-          {menuButton((e) => p.onFolderMenu(e, folder()))}
+          <Show when={r().onMenu}>
+            {(onMenu) => menuButton((e) => onMenu()(e))}
+          </Show>
         </div>
       </div>
     );
+  }
+
+  function folderRow(r: () => FolderRow): JSX.Element {
+    return expandableRow("products-folder", () => ({
+      depth: r().depth,
+      expanded: r().expanded,
+      hasContents: r().hasContents,
+      label: r().folder.label,
+      lastUpdated: r().folder.lastUpdated,
+      onToggle: () => p.onToggleFolder(r().folder.id),
+      onMenu: (e) => p.onFolderMenu(e, r().folder),
+    }));
+  }
+
+  // General is only emitted when it holds products, so it always opens.
+  function generalRow(r: () => GeneralRow): JSX.Element {
+    return expandableRow(undefined, () => ({
+      depth: 0,
+      expanded: r().expanded,
+      hasContents: true,
+      label: generalLabel(),
+      lastUpdated: undefined,
+      onToggle: () => p.onToggleFolder(GENERAL_ID),
+      onMenu: undefined,
+    }));
   }
 
   function productRow(r: () => ProductRow): JSX.Element {
@@ -259,6 +304,7 @@ export function ListView(p: Props) {
         {(row) => (
           <Switch>
             <Match when={asFolderRow(row())}>{(r) => folderRow(r)}</Match>
+            <Match when={asGeneralRow(row())}>{(r) => generalRow(r)}</Match>
             <Match when={asProductRow(row())}>{(r) => productRow(r)}</Match>
           </Switch>
         )}

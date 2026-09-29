@@ -3,7 +3,9 @@ export {
   generateUniqueBlockId,
 } from "./id_generation.ts";
 export { DuplicateProductsModal } from "./duplicate_products_modal.tsx";
+export { generalLabel, topLevelLabel } from "./folder_labels.ts";
 export {
+  GENERAL_ID,
   buildProductTree,
   childFolders,
   descendantIds,

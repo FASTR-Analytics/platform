@@ -9,9 +9,8 @@ import {
 import { createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { folderPathOptions } from "./folder_tree";
-
-const _NO_FOLDER = "_none";
+import { generalLabel } from "./folder_labels";
+import { GENERAL_ID, folderPathOptions } from "./folder_tree";
 
 type Props = {
   product: ProductSummary;
@@ -25,16 +24,13 @@ type ReturnType = { lastUpdated: string } | undefined;
 export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
   const [tempLabel, setTempLabel] = createSignal(p.product.label);
   const [tempFolderId, setTempFolderId] = createSignal(
-    p.product.folderId ?? _NO_FOLDER,
+    p.product.folderId ?? GENERAL_ID,
   );
 
-  // The same flat full-path list, sorted by path with "No folder" first, that
-  // the move picker shows (D16).
+  // The same flat full-path list, sorted by path with General (the root)
+  // first, that the move picker shows (D16).
   const folderOptions = createMemo(() => [
-    {
-      value: _NO_FOLDER,
-      label: t3({ en: "No folder", fr: "Aucun dossier", pt: "Sem pasta" }),
-    },
+    { value: GENERAL_ID, label: generalLabel() },
     ...folderPathOptions(instanceState.folders, {}),
   ]);
 
@@ -46,7 +42,7 @@ export function ProductSettings(p: AlertComponentProps<Props, ReturnType>) {
       if (!label) {
         return { success: false, err: t3(TC.mustEnterName) };
       }
-      const folderId = tempFolderId() === _NO_FOLDER ? null : tempFolderId();
+      const folderId = tempFolderId() === GENERAL_ID ? null : tempFolderId();
 
       // Only what actually changed is written; each write bumps the product's
       // version, and every open surface re-renders off the SSE echo.

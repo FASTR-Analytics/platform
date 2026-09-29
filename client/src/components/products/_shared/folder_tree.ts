@@ -10,6 +10,12 @@ import type { Folder, ProductSummary } from "lib";
 
 const _PATH_SEPARATOR = " › ";
 
+// The root, drawn as one synthetic folder row named General that holds the
+// products with `folderId: null`. It is not a `Folder`: no row, no colour, no
+// menu, and the root folders are its siblings. Also the picker value for
+// "move to the root".
+export const GENERAL_ID = "_general";
+
 export function childFolders(
   folders: Folder[],
   parentId: string | null,
@@ -103,8 +109,9 @@ export function folderPathOptions(
 export type ProductTree = {
   folders: Map<string | null, Folder[]>;
   products: Map<string | null, ProductSummary[]>;
-  // Folders with a search match somewhere below them: open while the search
-  // is active, whatever the user has open otherwise.
+  // Folders with a search match somewhere below them, and GENERAL_ID when a
+  // root product matches: open while the search is active, whatever the user
+  // has open otherwise.
   matchAncestors: Set<string>;
   // Shown folders and products whose own label matches the search.
   matchCount: number;
@@ -143,6 +150,7 @@ export function buildProductTree(args: {
     const matchedProducts = shownProducts.filter((p) => matches(p.label));
     tree.matchCount += matchedProducts.length;
     let containsMatch = matchedProducts.length > 0;
+    if (parentId === null && containsMatch) tree.matchAncestors.add(GENERAL_ID);
     const shownFolders: Folder[] = [];
     for (const folder of foldersByParent.get(parentId) ?? []) {
       if (visited.has(folder.id)) continue;
@@ -180,10 +188,12 @@ export type ProductTreeRow =
       expanded: boolean;
       hasContents: boolean;
     }
+  | { kind: "general"; expanded: boolean }
   | { kind: "product"; product: ProductSummary; depth: number };
 
 // The rows on screen, top to bottom: at each level the folders, each followed
-// by its contents when open, then the products.
+// by its contents when open, then the products. At the root the products sit
+// under the General row instead, which is emitted only when there are some.
 export function productTreeRows(
   tree: ProductTree,
   isExpanded: (folderId: string) => boolean,
@@ -197,7 +207,14 @@ export function productTreeRows(
       rows.push({ kind: "folder", folder, depth, expanded, hasContents });
       if (expanded) walk(folder.id, depth + 1);
     }
-    for (const product of tree.products.get(parentId) ?? []) {
+    const products = tree.products.get(parentId) ?? [];
+    if (parentId === null && products.length > 0) {
+      const expanded = isExpanded(GENERAL_ID);
+      rows.push({ kind: "general", expanded });
+      if (!expanded) return;
+      depth += 1;
+    }
+    for (const product of products) {
       rows.push({ kind: "product", product, depth });
     }
   }

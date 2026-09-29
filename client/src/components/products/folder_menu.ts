@@ -23,6 +23,11 @@ export function buildFolderMenu(args: {
         args.folder.id,
         ...descendantIds(args.folders, args.folder.id),
       ]),
+      moveToRootLabel: t3({
+        en: "Move to top level",
+        fr: "Déplacer au niveau supérieur",
+        pt: "Mover para o nível superior",
+      }),
       onMoveTo: args.onMoveTo,
       onMoveToFolder: args.onMoveToFolder,
     }),

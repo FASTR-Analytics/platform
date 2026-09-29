@@ -31,18 +31,25 @@ import {
   openShellEditor,
   pendingEditorOpen,
   productsExpandedFolders,
+  productsGeneralClosed,
   productsSort,
   setPendingEditorOpen,
   setProductsExpandedFolders,
+  setProductsGeneralClosed,
   setProductsSort,
 } from "~/state/t4_ui";
 import { ProductCopilotHost } from "~/components/products/copilot/mod.ts";
 import { DuplicateProductsModal } from "./_shared/mod.ts";
 import { PackageScopeModal } from "./_shared/mod.ts";
 import { EditFolderModal } from "./edit_folder_modal";
-import { topLevelLabel } from "./folder_labels";
 import { buildFolderMenu } from "./folder_menu";
-import { buildProductTree, productTreeRows } from "./_shared/mod.ts";
+import {
+  GENERAL_ID,
+  buildProductTree,
+  generalLabel,
+  productTreeRows,
+  topLevelLabel,
+} from "./_shared/mod.ts";
 import { ListView } from "./list_view";
 import { MoveToFolderModal } from "./move_to_folder_modal";
 import { buildProductMenu } from "./product_menu";
@@ -163,19 +170,30 @@ export function Products() {
     });
   });
 
-  const openFolderIds = createMemo(
-    (): ReadonlySet<string> =>
-      isSearching()
-        ? symmetricDifference(productTree().matchAncestors, searchToggles())
-        : productsExpandedFolders(),
-  );
+  const generalShown = () => productTree().products.has(null);
+
+  // One open set for the rows on screen. Outside a search, General's entry
+  // comes from its own saved flag, open by default, and never enters the
+  // saved folder set.
+  const openFolderIds = createMemo((): ReadonlySet<string> => {
+    if (isSearching()) {
+      return symmetricDifference(productTree().matchAncestors, searchToggles());
+    }
+    const saved = productsExpandedFolders();
+    return productsGeneralClosed() ? saved : new Set([...saved, GENERAL_ID]);
+  });
 
   function setOpenFolderIds(next: ReadonlySet<string>) {
     if (isSearching()) {
       setSearchToggles(symmetricDifference(next, productTree().matchAncestors));
-    } else {
-      setProductsExpandedFolders(next);
+      return;
     }
+    // Only a shown General row takes the write, so collapse-all with no
+    // root products does not close it unseen.
+    if (generalShown()) setProductsGeneralClosed(!next.has(GENERAL_ID));
+    setProductsExpandedFolders(
+      new Set([...next].filter((id) => id !== GENERAL_ID)),
+    );
   }
 
   function toggleFolder(folderId: string) {
@@ -184,13 +202,15 @@ export function Products() {
     setOpenFolderIds(next);
   }
 
-  // Every folder with something inside to open, as the tree currently shows.
+  // Every folder with something inside to open, as the tree currently shows,
+  // plus General when it is shown.
   const openableFolderIds = createMemo(() => {
     const tree = productTree();
-    return [...tree.folders.values()]
+    const folderIds = [...tree.folders.values()]
       .flat()
       .filter((f) => tree.folders.has(f.id) || tree.products.has(f.id))
       .map((f) => f.id);
+    return generalShown() ? [...folderIds, GENERAL_ID] : folderIds;
   });
 
   const anyFolderOpen = () => {
@@ -339,14 +359,22 @@ export function Products() {
       ).length,
     };
     const parent = instanceState.folders.find((f) => f.id === folder.parentId);
-    const destination = parent?.label ?? topLevelLabel();
     // Deleting a folder reparents one level and never cascades (D16), so the
-    // confirmation carries the direct counts and where the contents land.
-    const confirmText = t3({
-      en: `Delete "${folder.label}"? Its ${counts.folderCount} folder(s) and ${counts.productCount} product(s) move to ${destination}.`,
-      fr: `Supprimer « ${folder.label} » ? Ses ${counts.folderCount} dossier(s) et ${counts.productCount} produit(s) seront déplacés vers ${destination}.`,
-      pt: `Eliminar "${folder.label}"? As suas ${counts.folderCount} pasta(s) e ${counts.productCount} produto(s) serão movidos para ${destination}.`,
-    });
+    // confirmation carries the direct counts and where the contents land. At
+    // the root the two land in different places: folders at the top level,
+    // products under General.
+    const confirmText =
+      parent === undefined
+        ? t3({
+            en: `Delete "${folder.label}"? Its ${counts.folderCount} folder(s) move to ${topLevelLabel()} and its ${counts.productCount} product(s) move to ${generalLabel()}.`,
+            fr: `Supprimer « ${folder.label} » ? Ses ${counts.folderCount} dossier(s) seront déplacés vers ${topLevelLabel()} et ses ${counts.productCount} produit(s) vers ${generalLabel()}.`,
+            pt: `Eliminar "${folder.label}"? As suas ${counts.folderCount} pasta(s) serão movidas para ${topLevelLabel()} e os seus ${counts.productCount} produto(s) para ${generalLabel()}.`,
+          })
+        : t3({
+            en: `Delete "${folder.label}"? Its ${counts.folderCount} folder(s) and ${counts.productCount} product(s) move to ${parent.label}.`,
+            fr: `Supprimer « ${folder.label} » ? Ses ${counts.folderCount} dossier(s) et ${counts.productCount} produit(s) seront déplacés vers ${parent.label}.`,
+            pt: `Eliminar "${folder.label}"? As suas ${counts.folderCount} pasta(s) e ${counts.productCount} produto(s) serão movidos para ${parent.label}.`,
+          });
     const deleteAction = createDeleteAction(
       confirmText,
       () => serverActions.deleteFolder({ folder_id: folder.id }),
@@ -481,7 +509,10 @@ export function Products() {
                   setOpenFolderIds(
                     anyFolderOpen()
                       ? new Set()
-                      : new Set(instanceState.folders.map((f) => f.id)),
+                      : new Set([
+                          ...instanceState.folders.map((f) => f.id),
+                          GENERAL_ID,
+                        ]),
                   )
                 }
               />

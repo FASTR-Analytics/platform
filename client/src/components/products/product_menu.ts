@@ -2,7 +2,7 @@ import { t3, TC, type Folder } from "lib";
 import type { MenuItem } from "panther";
 import { sortBySortMode } from "./sort_by_sort_mode";
 import { productsSort } from "~/state/t4_ui";
-import { childFolders } from "./_shared/mod.ts";
+import { childFolders, generalLabel } from "./_shared/mod.ts";
 
 // The move affordances D16 gives both menus: quick hops within reach of the
 // item's own folder, with the full picker as the catch-all. There is no
@@ -15,6 +15,9 @@ export function buildQuickMoveEntries(args: {
   parentId: string | null;
   // Targets to leave out: a moved folder's own subtree.
   excludeIds: Set<string>;
+  // The entry that moves to the root: General for a product, the top level
+  // for a folder.
+  moveToRootLabel: string;
   onMoveTo: (folderId: string | null) => void;
   onMoveToFolder: () => void;
 }): MenuItem[] {
@@ -77,11 +80,7 @@ export function buildQuickMoveEntries(args: {
 
   if (args.parentId !== null) {
     entries.push({
-      label: t3({
-        en: "Move to top level",
-        fr: "Déplacer au niveau supérieur",
-        pt: "Mover para o nível superior",
-      }),
+      label: args.moveToRootLabel,
       onClick: () => args.onMoveTo(null),
     });
   }
@@ -117,6 +116,11 @@ export function buildProductMenu(args: {
       folders: args.folders,
       parentId: args.parentId,
       excludeIds: new Set(),
+      moveToRootLabel: t3({
+        en: `Move to ${generalLabel()}`,
+        fr: `Déplacer vers ${generalLabel()}`,
+        pt: `Mover para ${generalLabel()}`,
+      }),
       onMoveTo: args.onMoveTo,
       onMoveToFolder: args.onMoveToFolder,
     }),

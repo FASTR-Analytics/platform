@@ -7,9 +7,7 @@ import {
 } from "panther";
 import { createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { folderPathOptions } from "./_shared/mod.ts";
-
-const _NO_FOLDER = "_none";
+import { GENERAL_ID, folderPathOptions, generalLabel } from "./_shared/mod.ts";
 
 type Props = {
   // What is being moved: a batch of products, or one folder (folders are never
@@ -22,7 +20,8 @@ type Props = {
 
 type ReturnType = { lastUpdated: string } | undefined;
 
-// The full picker: flat full paths sorted by path, "No folder" first (D16).
+// The full picker: flat full paths sorted by path, General (the root) first
+// (D16).
 // A moved folder's own subtree is excluded outright, because a Select option
 // carries no disabled state; the server's typed FOLDER_CYCLE still comes back
 // through the envelope and is the authority.
@@ -30,14 +29,11 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   const [selectedFolderId, setSelectedFolderId] = createSignal<string>(
     (p.target.kind === "products"
       ? p.target.currentFolderId
-      : p.target.folder.parentId) ?? _NO_FOLDER,
+      : p.target.folder.parentId) ?? GENERAL_ID,
   );
 
   const folderOptions = createMemo(() => [
-    {
-      value: _NO_FOLDER,
-      label: t3({ en: "No folder", fr: "Aucun dossier", pt: "Sem pasta" }),
-    },
+    { value: GENERAL_ID, label: generalLabel() },
     ...folderPathOptions(p.folders, {
       excludeSubtree:
         p.target.kind === "folder" ? p.target.folder.id : undefined,
@@ -48,7 +44,7 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
     async (e: MouseEvent) => {
       e.preventDefault();
       const selected = selectedFolderId();
-      const folderId = selected === _NO_FOLDER ? null : selected;
+      const folderId = selected === GENERAL_ID ? null : selected;
 
       if (p.target.kind === "folder") {
         // A folder move is `updateFolder`: label, colour and parent are one

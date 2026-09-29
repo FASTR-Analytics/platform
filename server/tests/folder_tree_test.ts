@@ -1,14 +1,16 @@
-// Harness for PLAN_PRODUCTS_RESTRUCTURE step 7b's folder derivations: children,
-// path labels, descendant sets and picker options, each also run
-// over a tree with a deliberately corrupted cycle, where the requirement is
-// that the walk terminates. The client module's only import is a type, so it
-// loads under Deno as it is.
+// The product explorer's folder derivations: children, path labels,
+// descendant sets, picker options, the filtered tree and its rows (with the
+// synthetic General row over the root products), each also run over a tree
+// with a deliberately corrupted cycle, where the requirement is that the walk
+// terminates. The client module's only import is a type, so it loads under
+// Deno as it is.
 //
 //   deno test -A --env-file server/tests/folder_tree_test.ts
 
 import { assertEquals } from "@std/assert";
 import type { Folder, ProductSummary, ProductType } from "lib";
 import {
+  GENERAL_ID,
   buildProductTree,
   childFolders,
   descendantIds,
@@ -159,11 +161,12 @@ const byLabel = <T extends { label: string }>(xs: T[]) =>
   [...xs].sort((x, y) => x.label.localeCompare(y.label));
 
 function tree(
-  opts: { needle?: string; folders?: Folder[] } = {},
+  opts: { needle?: string; folders?: Folder[]; products?: ProductSummary[] } =
+    {},
 ) {
   return buildProductTree({
     folders: opts.folders ?? TREE,
-    products: PRODUCTS,
+    products: opts.products ?? PRODUCTS,
     needle: opts.needle ?? null,
     sortFolders: byLabel,
     sortProducts: byLabel,
@@ -174,22 +177,40 @@ function rowIds(t: ReturnType<typeof tree>, open: string[]): string[] {
   return productTreeRows(t, (id) => open.includes(id)).map((r) =>
     r.kind === "folder"
       ? `${"  ".repeat(r.depth)}${r.folder.id}`
+      : r.kind === "general"
+      ? "G"
       : `${"  ".repeat(r.depth)}${r.product.id}`
   );
 }
 
 Deno.test("tree rows: folders first per level, contents only when open", () => {
-  assertEquals(rowIds(tree(), []), ["a", "d", "p3"]);
-  assertEquals(rowIds(tree(), ["a", "b"]), [
+  assertEquals(rowIds(tree(), []), ["a", "d", "G"]);
+  assertEquals(rowIds(tree(), ["a", "b", GENERAL_ID]), [
     "a",
     "  b",
     "    c",
     "    r1",
     "  p1",
     "d",
-    "p3",
+    "G",
+    "  p3",
   ]);
-  assertEquals(rowIds(tree(), ["b"]), ["a", "d", "p3"]);
+  assertEquals(rowIds(tree(), ["b"]), ["a", "d", "G"]);
+});
+
+Deno.test("tree rows: General holds the root products, after the root folders, only when there are some", () => {
+  assertEquals(rowIds(tree(), [GENERAL_ID]), ["a", "d", "G", "  p3"]);
+  const filed = PRODUCTS.filter((p) => p.folderId !== null);
+  assertEquals(rowIds(tree({ products: filed }), [GENERAL_ID]), ["a", "d"]);
+  assertEquals(rowIds(tree({ products: filed }), ["a", "b", "c"]), [
+    "a",
+    "  b",
+    "    c",
+    "      p2",
+    "    r1",
+    "  p1",
+    "d",
+  ]);
 });
 
 Deno.test("tree rows: an empty folder is shown but has no contents to open", () => {
@@ -230,12 +251,21 @@ Deno.test("tree: a search with no match shows nothing", () => {
   assertEquals(rowIds(tree({ needle: "nothing" }), []), []);
 });
 
+Deno.test("tree: a root product match opens General, and a folder match does not", () => {
+  const t = tree({ needle: "loose" });
+  assertEquals(t.matchAncestors, new Set([GENERAL_ID]));
+  assertEquals(t.matchCount, 1);
+  assertEquals(rowIds(t, [...t.matchAncestors]), ["G", "  p3"]);
+  assertEquals(tree({ needle: "charlie" }).matchAncestors.has(GENERAL_ID), false);
+});
+
 Deno.test("tree: a cycle is unreachable from the top level and terminates", () => {
-  assertEquals(rowIds(tree({ folders: CYCLE }), ["a", "b", "c"]), [
+  assertEquals(rowIds(tree({ folders: CYCLE }), ["a", "b", "c", GENERAL_ID]), [
     "a",
     "  p1",
     "d",
-    "p3",
+    "G",
+    "  p3",
   ]);
 });
 
