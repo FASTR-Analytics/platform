@@ -61,6 +61,7 @@ export const ALL_LONG_TABLE_AGGREGATES = [
   "SUM",
   "AVG",
   "COUNT",
+  "COUNT_DISTINCT",
   "MIN",
   "MAX",
   "identity",
@@ -75,16 +76,26 @@ export type LongTableValue = {
 
 export type LongTableFilter = { dim: string; values: (string | number)[] };
 
+// A row-level bound on a numeric column, applied before aggregation.
+export type LongTableRange = { column: string; min?: number; max?: number };
+
 export type LongTableExpression = { name: string; expr: string };
+
+// An output column to order by: a groupBy entry, a value output name or an
+// expression name.
+export type LongTableOrder = { name: string; dir: "asc" | "desc" };
 
 export type LongTableQuery = {
   values: LongTableValue[];
   groupBy: string[];
   filters: LongTableFilter[];
+  ranges?: LongTableRange[];
   periodFilter?: PeriodFilter;
   expressions?: LongTableExpression[];
   rollup?: { dim: string };
   sampleN?: boolean;
+  orderBy?: LongTableOrder[];
+  limit?: number;
 };
 
 export type LongTableRow = JsonArrayItem;
@@ -117,6 +128,10 @@ export type DimensionValuesResult =
   | { status: "ok"; values: (string | number)[] }
   | { status: "too_many_values" }
   | { status: "no_values" };
+
+export type RowsResult =
+  | { status: "ok"; rows: LongTableRow[] }
+  | { status: "no_data" };
 
 // What a name in `groupBy` or a filter resolves to. The time column and the
 // derived dimensions are integer categories that never fold.

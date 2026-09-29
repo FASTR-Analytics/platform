@@ -15,6 +15,7 @@ export {
   zPeriodType,
   zUncertaintyConfig,
 } from "./shared.ts";
+export type { Conforms } from "./shared.ts";
 export {
   zTimeseriesData,
   zTimeseriesDataJson,

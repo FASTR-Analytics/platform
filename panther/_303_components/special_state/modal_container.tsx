@@ -5,7 +5,8 @@
 
 import { children, For, type JSX, Show } from "solid-js";
 import { t3 } from "../deps.ts";
-import type { Intent } from "../types.ts";
+import type { Intent, PadSize } from "../types.ts";
+import { padClass, spyClass } from "../_internal/pad_classes.ts";
 import type { IconName } from "../icons/mod.ts";
 import { Button } from "../form_inputs/button.tsx";
 import type {
@@ -65,7 +66,8 @@ type ModalContainerProps =
     // Left side of the footer, for content that is not an action (a pager, a
     // link).
     footer?: JSX.Element;
-    noContentPadding?: boolean;
+    pad?: PadSize;
+    spy?: PadSize;
   }
   & (
     | {
@@ -134,14 +136,16 @@ export function ModalContainer(p: ModalContainerProps) {
     actions().length > 0 || p.onCancel !== undefined || p.footer !== undefined;
   const isPrimary = (i: number) => i === actions().length - 1;
 
+  const bodyClass = () =>
+    [padClass(p.pad ?? "md"), spyClass(p.spy ?? "md")].filter(Boolean).join(
+      " ",
+    );
+
   const body = () => (
     <>
       <div
-        class="ui-spy"
-        classList={{
-          "px-6 py-5": !p.noContentPadding,
-          "min-h-0 flex-1 overflow-y-auto": scroll() === "content",
-        }}
+        class={bodyClass()}
+        classList={{ "min-h-0 flex-1 overflow-y-auto": scroll() === "content" }}
       >
         {p.children}
         <For each={actions()}>
@@ -153,7 +157,7 @@ export function ModalContainer(p: ModalContainerProps) {
         </For>
       </div>
       <Show when={hasFooter()}>
-        <div class="ui-gap-sm flex items-center border-t px-6 py-5">
+        <div class="ui-pad ui-gap-sm flex items-center border-t">
           <div class="ui-gap-sm flex flex-1 items-center">{p.footer}</div>
           <div class="ui-gap-sm flex flex-none items-center">
             <Show when={p.onCancel} keyed>
@@ -204,7 +208,7 @@ export function ModalContainer(p: ModalContainerProps) {
             that appears once loaded) does not jump. A title-only header
             keeps its natural height. */
         }
-        <div class="border-b px-6 py-5 leading-none">
+        <div class="ui-pad border-b leading-none">
           <div
             class="grid items-center"
             classList={{ "min-h-(--ui-form-height)": hasTopPanel() }}

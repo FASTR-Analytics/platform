@@ -6,6 +6,8 @@
 import { createSignal, type JSX, Show } from "solid-js";
 import { Icon } from "../icons/mod.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
+import type { PadSize } from "../types.ts";
+import { padClass, spyClass } from "../_internal/pad_classes.ts";
 
 export type CollapsibleSectionProps = DataAttrs & {
   title: string | JSX.Element;
@@ -17,7 +19,9 @@ export type CollapsibleSectionProps = DataAttrs & {
   children?: JSX.Element;
   class?: string;
   borderStyle?: "full" | "bottom" | "top" | "none";
-  padding?: "sm" | "md";
+  headerPad?: PadSize;
+  pad?: PadSize;
+  spy?: PadSize;
   boldHeader?: boolean;
 };
 
@@ -56,12 +60,10 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
       ].filter(Boolean).join(" ")}
     >
       <div
-        class="ui-hoverable-base-100 flex items-center"
-        classList={{
-          "ui-pad-sm": p.padding === "sm",
-          "ui-pad": p.padding !== "sm",
-          "font-700": !!p.boldHeader,
-        }}
+        class={`ui-hoverable-base-100 flex items-center ${
+          padClass(p.headerPad ?? "md")
+        }`}
+        classList={{ "font-700": !!p.boldHeader }}
         onClick={handleToggle}
       >
         <div class="flex-1">{p.title}</div>
@@ -70,7 +72,12 @@ export function CollapsibleSection(p: CollapsibleSectionProps) {
         </div>
       </div>
       <Show when={isOpen() && p.children} keyed>
-        <div class="border-t">{p.children}</div>
+        <div
+          class={["border-t", padClass(p.pad), spyClass(p.spy)].filter(Boolean)
+            .join(" ")}
+        >
+          {p.children}
+        </div>
       </Show>
     </div>
   );

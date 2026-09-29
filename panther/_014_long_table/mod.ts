@@ -24,7 +24,9 @@ export type {
   LongTableExpression,
   LongTableFilter,
   LongTableGrainNames,
+  LongTableOrder,
   LongTableQuery,
+  LongTableRange,
   LongTableRow,
   LongTableSchema,
   LongTableTime,
@@ -32,6 +34,7 @@ export type {
   PeriodBounds,
   PeriodFilter,
   ResolvedDimension,
+  RowsResult,
 } from "./types.ts";
 export {
   getColumnType,

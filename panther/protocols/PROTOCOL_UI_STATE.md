@@ -25,7 +25,13 @@ See `PROTOCOL_UI_SOLIDJS.md` for reactivity rules.
    `callWithApproval` + `openProposalPreview` instead: the server-computed
    preview IS the confirmation, so a client-side confirm dialog would be a
    second, weaker copy of it
-8. **StateHolderWrapper for rendering**: Handles loading/error/ready states
+8. **StateHolderWrapper for rendering**: Handles loading/error/ready states. It
+   renders no element of its own and takes its inset from the slot it sits in,
+   so all three states line up. Its two message blocks (the loading text and the
+   error block) take `loadingAndErrorPad` (default none): pass it, at the size
+   of the content's own inset, only where the ready branch is flush in a `none`
+   slot (`"md"` over a default `Table`, `"sm"` over a compact one), or pass
+   `spinner` for an indicator centred in the slot instead
 9. **Use `StateHolder` for loading state**: Via `createQuery` /
    `createLiveQuery`, or `createSignal<StateHolder<T>>` + `createEffect`
    (reactive). Never raw `loading`/`error`/`data` signals

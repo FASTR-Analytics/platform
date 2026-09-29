@@ -65,7 +65,9 @@ Display panther visualizations and pages in SolidJS apps.
 
 Cards clip their content to the rounded corners, hover at the frame
 (`hover:border-primary` — never a bg tint), and render selection via the
-integrated circle in marking-select mode. See
+integrated circle in marking-select mode. The body takes `pad` (default `md`;
+`pad="none"` for a flush table) and `spy` (default `none`); the header and
+footer rows keep their own inset. See
 **[DOC_UI_COLOR_AND_STATE.md](../../DOC_UI_COLOR_AND_STATE.md)** (selection
 idioms) and **[DOC_LIST_SELECTION.md](../../DOC_LIST_SELECTION.md)** (the
 controller).
@@ -78,6 +80,7 @@ controller).
 <Input value={value()} onChange={setValue} />
 <Select options={options} value={selected()} onChange={setSelected} />
 <SelectList items={items} value={selected()} onChange={setSelected} />
+<SelectV2 items={items} value={selected()} onChange={setSelected} />
 <ButtonGroup items={items} value={selected()} onChange={setSelected} />
 <Slider min={0} max={100} value={value()} onChange={setValue} />
 <Checkbox checked={checked()} onChange={setChecked} label="Enabled" />
@@ -96,18 +99,25 @@ is also the app-facing wrapper for a control the kit does not label itself.
 ### Layout (`layout/`)
 
 ```tsx
-<FrameTop panelChildren={<HeadingBar heading="Rows" />}>{content}</FrameTop>
-<FrameLeft panelChildren={<Sidebar />}>{content}</FrameLeft>
+<FrameTop pad="md" spy="md" panelChildren={<HeadingBar heading="Rows" />}>
+  {content}
+</FrameTop>
+<FrameLeft panelPad="sm" panelChildren={<Sidebar />}>{content}</FrameLeft>
 <TabsNavigation items={items} value={active()} onChange={setActive} vertical />
-<CollapsibleSection title="Advanced">{content}</CollapsibleSection>
+<CollapsibleSection title="Advanced" pad="md" spy="sm">{content}</CollapsibleSection>
 ```
 
 Frames: `FrameTop`, `FrameLeft`, `FrameRight`, plus `FrameLeftResizable`,
-`FrameRightResizable`, `FrameThreeColumnResizable`. Side frames own their
-panel/content divider (never add that edge's border yourself). Horizontal
-`TabsNavigation` is a `FrameTop` panel in its own right (it carries its own
-`ui-pad-x` and bottom border; no wrapper); inside padded content pass `noPad`;
-`size="sm"` is independent of placement. Steppers: `getStepper` with
+`FrameRightResizable`, `FrameThreeColumnResizable`. Every slot scrolls. A slot
+owns its inset and its stack spacing: `pad` / `spy` (a `PadSize`:
+`"none" | "sm" | "md" | "lg"`, default none) on the content slot, `panelPad` /
+`panelSpy` on a side frame's panel slot, so no padding `<div>` sits between a
+Frame and its content. Side frames own their panel/content divider (never add
+that edge's border yourself). Horizontal `TabsNavigation` is a `FrameTop` panel
+in its own right (it carries its own `ui-pad-x` and bottom border; no wrapper);
+inside padded content pass `noPad`; `size="sm"` is independent of placement.
+`CollapsibleSection`'s body takes `pad` and `spy` (default none) and its header
+row `headerPad` (default `md`). Steppers: `getStepper` with
 `StepperChipsWithTitles` or `StepperNavigationVisual`.
 
 `SelectList` / `TabsNavigation` / `ButtonGroup` share one `items`/`value`/
@@ -158,13 +168,21 @@ Dialogs stack: one opened over another layers on top, and each promise settles
 when its own layer closes. `ModalContainer` owns the footer: `onCancel` renders
 Cancel, `actions` render right-aligned after it with the last one primary,
 `form` makes Enter click the primary action, and each action's error state
-renders under the body. A modal whose only button dismisses it passes
-`onClose={{ kind, onClick }}` instead: `"close"` for read-only content, `"done"`
-when the modal applied edits live with no Save step. It renders as the primary
-action; a lone button is never the outline Cancel. `footer` is the left slot for
-non-action content. Menus: `MenuButton` for a button that opens a menu,
-`ActionMenuButton` for the three-dots preset, `showMenu` for context menus.
-Never hand-roll an overlay.
+renders under the body. The body takes `pad` and `spy`, both default `md`
+(`pad="none"` for a flush table or editor). A modal whose only button dismisses
+it passes `onClose={{ kind, onClick }}` instead: `"close"` for read-only
+content, `"done"` when the modal applied edits live with no Save step. It
+renders as the primary action; a lone button is never the outline Cancel.
+`footer` is the left slot for non-action content. Menus: `MenuButton` for a
+button that opens a menu, `ActionMenuButton` for the three-dots preset,
+`showMenu` for context menus. Never hand-roll an overlay.
+
+`StateHolderWrapper` renders no element of its own: its loading, error and ready
+branches land directly in the slot it sits in and take the slot's inset. Where
+the ready branch is flush in a `none` slot, `loadingAndErrorPad` insets the two
+message blocks to match the content (`"md"` over a default `Table`), or
+`spinner` centres an indicator instead. `LoadingIndicator` on its own takes the
+same knob as `pad`.
 
 A popover that can open inside an `openAlert` or `openComponent` modal must stop
 Escape itself. `AlertProvider` closes the modal from a document-level `keydown`
@@ -259,18 +277,16 @@ function MyApp() {
   const [value, setValue] = createSignal("");
 
   return (
-    <FrameLeft panelChildren={<Sidebar />}>
-      <div class="ui-pad ui-spy">
-        <Input
-          value={value()}
-          onChange={setValue}
-          searchIcon
-          placeholder="Search..."
-        />
-        <Card header="Results" pad="none">
-          <Table columns={columns} data={results()} keyField="id" />
-        </Card>
-      </div>
+    <FrameLeft pad="md" spy="md" panelChildren={<Sidebar />}>
+      <Input
+        value={value()}
+        onChange={setValue}
+        searchIcon
+        placeholder="Search..."
+      />
+      <Card header="Results" pad="none">
+        <Table columns={columns} data={results()} keyField="id" />
+      </Card>
     </FrameLeft>
   );
 }

@@ -4,13 +4,14 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import { t3 } from "../deps.ts";
-import type { Intent } from "../types.ts";
+import type { Intent, PadSize } from "../types.ts";
 import { INTENT_TEXT } from "../_internal/intent_classes.ts";
+import { padClass } from "../_internal/pad_classes.ts";
 import { Icon } from "../icons/mod.ts";
 
 type Props = {
   msg?: string;
-  noPad?: boolean;
+  pad?: PadSize;
 };
 
 type SpinnerProps = {
@@ -19,10 +20,7 @@ type SpinnerProps = {
 
 export function LoadingIndicator(p: Props) {
   return (
-    <div
-      class="data-[no-pad=false]:ui-pad h-full w-full"
-      data-no-pad={!!p.noPad}
-    >
+    <div class={padClass(p.pad)}>
       {p.msg ??
         t3({ en: "Loading...", fr: "Chargement...", pt: "A carregar..." })}
     </div>

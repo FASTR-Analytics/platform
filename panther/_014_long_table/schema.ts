@@ -286,7 +286,8 @@ function validateTime(
 // column whose every sampled value matches its grain is the time column
 // (first match wins, in the conventions' order); text, boolean, date and
 // timestamp columns are category dimensions (the engine's view casts the
-// last three to text); integer columns are both dimension and value; number
+// last three to text); integer columns are both dimension and value, except
+// the time column, which is neither (a period id is not a measure); number
 // columns are values; unsupported columns are omitted.
 export function inferLongTableSchema(
   columns: DescribedColumn[],
@@ -301,7 +302,10 @@ export function inferLongTableSchema(
       type: c.type === "integer" || c.type === "number" ? c.type : "text",
     })),
     values: usable
-      .filter((c) => c.type === "integer" || c.type === "number")
+      .filter((c) =>
+        (c.type === "integer" || c.type === "number") &&
+        c.name !== time?.column
+      )
       .map((c) => c.name),
     dimensions: usable
       .filter((c) => c.type !== "number" && c.name !== time?.column)

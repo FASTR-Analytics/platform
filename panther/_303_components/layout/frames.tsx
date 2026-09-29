@@ -16,10 +16,14 @@ import {
   untrack,
 } from "solid-js";
 import { clamp } from "../deps.ts";
+import type { PadSize } from "../types.ts";
+import { padClass, spyClass } from "../_internal/pad_classes.ts";
 
 type FrameBaseProps = {
   panelChildren?: JSX.Element;
   children: JSX.Element;
+  pad?: PadSize;
+  spy?: PadSize;
 };
 
 // A side frame creates the boundary between its panel and its content, so it
@@ -29,6 +33,8 @@ type FrameBaseProps = {
 // that knows its own tone (see HeadingBar) and owns its own bottom edge.
 type SideFrameProps = FrameBaseProps & {
   noBorder?: boolean;
+  panelPad?: PadSize;
+  panelSpy?: PadSize;
 };
 
 type ResizableFrameProps = SideFrameProps & {
@@ -53,7 +59,13 @@ type ThreeColumnResizableProps = {
   maxWidths?: [number, number];
   resetKey?: string | number;
   noBorder?: boolean;
+  pad?: PadSize;
+  spy?: PadSize;
 };
+
+function slotClass(base: string, pad?: PadSize, spy?: PadSize): string {
+  return [base, padClass(pad), spyClass(spy)].filter(Boolean).join(" ");
+}
 
 // The resize handle: a hit strip that paints nothing, with a 1px line inside
 // it sitting exactly on the boundary pixel — the same pixel the non-resizable
@@ -88,16 +100,26 @@ export function FrameLeft(p: SideFrameProps) {
   return (
     <Show
       when={p.panelChildren}
-      fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
+      fallback={
+        <div class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
+      }
     >
       <div class="flex h-full w-full">
         <div
-          class="h-full flex-none overflow-auto"
+          class={slotClass(
+            "h-full flex-none overflow-auto",
+            p.panelPad,
+            p.panelSpy,
+          )}
           classList={{ "border-r": !p.noBorder }}
         >
           {p.panelChildren}
         </div>
-        <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
+        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
       </div>
     </Show>
   );
@@ -107,12 +129,22 @@ export function FrameRight(p: SideFrameProps) {
   return (
     <Show
       when={p.panelChildren}
-      fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
+      fallback={
+        <div class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
+      }
     >
       <div class="flex h-full w-full">
-        <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
+        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
         <div
-          class="h-full flex-none overflow-auto"
+          class={slotClass(
+            "h-full flex-none overflow-auto",
+            p.panelPad,
+            p.panelSpy,
+          )}
           classList={{ "border-l": !p.noBorder }}
         >
           {p.panelChildren}
@@ -128,7 +160,9 @@ export function FrameTop(p: FrameBaseProps) {
       <Show when={p.panelChildren}>
         <div class="w-full flex-none overflow-auto">{p.panelChildren}</div>
       </Show>
-      <div class="h-0 w-full flex-1 overflow-auto">{p.children}</div>
+      <div class={slotClass("h-0 w-full flex-1 overflow-auto", p.pad, p.spy)}>
+        {p.children}
+      </div>
     </div>
   );
 }
@@ -272,7 +306,11 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
   return (
     <Show
       when={p.panelChildren}
-      fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
+      fallback={
+        <div class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
+      }
     >
       <div ref={setContainerRef} class="flex h-full w-full">
         <div
@@ -280,7 +318,7 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
           style={{ width: `${displayWidth()}px` }}
         >
           <div
-            class="h-full overflow-auto"
+            class={slotClass("h-full overflow-auto", p.panelPad, p.panelSpy)}
             classList={{ "mr-px": !p.noBorder }}
             style={{ display: p.isShown === false ? "none" : "block" }}
           >
@@ -296,7 +334,9 @@ export function FrameLeftResizable(p: ResizableFrameProps) {
             <ResizeHandleLine side="left" noBorder={p.noBorder} />
           </div>
         </div>
-        <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
+        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
       </div>
     </Show>
   );
@@ -309,10 +349,16 @@ export function FrameRightResizable(p: ResizableFrameProps) {
   return (
     <Show
       when={p.panelChildren}
-      fallback={<div class="h-full w-full overflow-auto">{p.children}</div>}
+      fallback={
+        <div class={slotClass("h-full w-full overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
+      }
     >
       <div ref={setContainerRef} class="flex h-full w-full">
-        <div class="h-full w-0 flex-1 overflow-auto">{p.children}</div>
+        <div class={slotClass("h-full w-0 flex-1 overflow-auto", p.pad, p.spy)}>
+          {p.children}
+        </div>
         <div
           class="relative h-full flex-none"
           style={{ width: `${displayWidth()}px` }}
@@ -327,7 +373,7 @@ export function FrameRightResizable(p: ResizableFrameProps) {
             <ResizeHandleLine side="right" noBorder={p.noBorder} />
           </div>
           <div
-            class="h-full overflow-auto"
+            class={slotClass("h-full overflow-auto", p.panelPad, p.panelSpy)}
             classList={{ "ml-px": !p.noBorder }}
             style={{ display: p.isShown === false ? "none" : "block" }}
           >
@@ -418,7 +464,7 @@ export function FrameThreeColumnResizable(p: ThreeColumnResizableProps) {
 
         <div class="relative h-full w-0 flex-1">
           <div
-            class="h-full overflow-auto"
+            class={slotClass("h-full overflow-auto", p.pad, p.spy)}
             classList={{ "mr-px": hasRight() && !p.noBorder }}
           >
             {p.centerChild}

@@ -38,7 +38,7 @@ export type ComboBoxPanelController = {
   closePanel: () => void;
   handleBlur: (e: FocusEvent) => void;
   handleKeyDown: (
-    e: KeyboardEvent & { currentTarget: HTMLInputElement },
+    e: KeyboardEvent & { currentTarget: HTMLElement },
   ) => void;
   handleInput: (value: string) => void;
   setWrapperRef: (el: HTMLDivElement) => void;
@@ -48,7 +48,7 @@ export type ComboBoxPanelController = {
 // The open/close mechanism shared by SelectSearch and MultiSelectSearch. It is
 // a manual popover: open/close is driven by focus/blur/Escape on the trigger
 // input, never by light dismiss. The panel's side (below/above) and max height
-// are measured once at open and pinned (ComboBoxFrame sets data-pinned, which
+// are measured once at open and pinned (ComboBoxPopover sets data-pinned, which
 // disables the CSS position-try fallbacks), so the corners where trigger and
 // panel meet can be squared off into one seamless unit and nothing flips or
 // jumps while the user types.
@@ -126,7 +126,7 @@ export function createComboBoxPanel(
   }
 
   function handleKeyDown(
-    e: KeyboardEvent & { currentTarget: HTMLInputElement },
+    e: KeyboardEvent & { currentTarget: HTMLElement },
   ) {
     if (!open()) {
       return;
@@ -208,9 +208,6 @@ type ComboBoxFrameProps = {
   onTriggerMouseEnter?: (
     e: MouseEvent & { currentTarget: HTMLInputElement },
   ) => void;
-  // The panel body, created only while the panel is open. The caller owns the
-  // scroll container (and any header row above it) so it can hold its own ref
-  // and roles.
   children: JSX.Element;
 };
 
@@ -285,30 +282,50 @@ export function ComboBoxFrame(p: ComboBoxFrameProps) {
           <Icon iconName={panel().open() ? "search" : "selector"} />
         </div>
       </div>
-      <div
-        ref={panel().setPanelRef}
-        popover="manual"
-        class="ui-popover"
-        data-position={panel().side() === "bottom"
-          ? "bottom-start"
-          : "top-start"}
-        data-pinned="true"
-        style={{
-          "position-anchor": panel().anchorName,
-          "width": "anchor-size(width)",
-        } as JSX.CSSProperties}
-        onMouseDown={(e) => e.preventDefault()}
-      >
-        <Show when={panel().open()}>
-          <div
-            class="bg-base-100 flex w-full flex-col overflow-hidden rounded border shadow-floating data-[side=bottom]:rounded-t-none data-[side=bottom]:border-t-0 data-[side=top]:rounded-b-none data-[side=top]:border-b-0"
-            data-side={panel().side()}
-            style={{ "max-height": `${panel().panelMaxHeight()}px` }}
-          >
-            {p.children}
-          </div>
-        </Show>
-      </div>
+      <ComboBoxPopover panel={panel()}>{p.children}</ComboBoxPopover>
     </Field>
+  );
+}
+
+type ComboBoxPopoverProps = {
+  panel: ComboBoxPanelController;
+  // The panel body, created only while the panel is open. The caller owns the
+  // scroll container (and any header row above it) so it can hold its own ref
+  // and roles.
+  children: JSX.Element;
+};
+
+// The anchored top-layer surface: a manual popover pinned to the trigger's
+// anchor at the trigger's width, whose inner panel squares off the corners
+// where it meets the trigger. ComboBoxFrame renders it under its input; a
+// trigger that is not that input renders it directly. The controller decides
+// the side and the height cap. mousedown is prevented so a click inside the
+// panel never moves focus off the trigger.
+export function ComboBoxPopover(p: ComboBoxPopoverProps) {
+  const panel = () => p.panel;
+
+  return (
+    <div
+      ref={panel().setPanelRef}
+      popover="manual"
+      class="ui-popover"
+      data-position={panel().side() === "bottom" ? "bottom-start" : "top-start"}
+      data-pinned="true"
+      style={{
+        "position-anchor": panel().anchorName,
+        "width": "anchor-size(width)",
+      } as JSX.CSSProperties}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <Show when={panel().open()}>
+        <div
+          class="bg-base-100 flex w-full flex-col overflow-hidden rounded border shadow-floating data-[side=bottom]:rounded-t-none data-[side=bottom]:border-t-0 data-[side=top]:rounded-b-none data-[side=top]:border-b-0"
+          data-side={panel().side()}
+          style={{ "max-height": `${panel().panelMaxHeight()}px` }}
+        >
+          {p.children}
+        </div>
+      </Show>
+    </div>
   );
 }

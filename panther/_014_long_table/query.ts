@@ -19,6 +19,7 @@ import type {
   LongTableColumnType,
   LongTableFilter,
   LongTableQuery,
+  LongTableRange,
   LongTableSchema,
   LongTableValue,
   PeriodFilter,
@@ -132,6 +133,9 @@ export function validateLongTableQuery(
   for (const filter of query.filters) {
     validateFilter(schema, filter);
   }
+  for (const range of query.ranges ?? []) {
+    validateRange(schema, range);
+  }
   if (query.periodFilter !== undefined) {
     if (schema.time === undefined) {
       fail("A period filter requires a time column");
@@ -143,6 +147,33 @@ export function validateLongTableQuery(
   }
   if (query.rollup !== undefined) {
     validateRollup(schema, query);
+  }
+  validateOrderBy(query, groupBy);
+  if (
+    query.limit !== undefined &&
+    (!Number.isInteger(query.limit) || query.limit < 1)
+  ) {
+    fail(`limit ${query.limit} must be a whole number of at least 1`);
+  }
+}
+
+// orderBy names output columns only; the upper bound on limit is checked by
+// the engine, which knows maxItems.
+function validateOrderBy(query: LongTableQuery, groupBy: Set<string>): void {
+  const outputs = new Set([
+    ...groupBy,
+    ...query.values.map(getValueOutputName),
+    ...(query.expressions ?? []).map((e) => e.name),
+  ]);
+  const seen = new Set<string>();
+  for (const order of query.orderBy ?? []) {
+    if (!outputs.has(order.name)) {
+      fail(`orderBy "${order.name}" is not an output column`);
+    }
+    if (seen.has(order.name)) {
+      fail(`orderBy names "${order.name}" twice`);
+    }
+    seen.add(order.name);
   }
 }
 
@@ -201,6 +232,37 @@ function validateFilter(
         );
       }
     }
+  }
+}
+
+// A range names a numeric column other than the time column, which the
+// period filter owns; a derived dimension is not a column and is rejected
+// by the column lookup.
+function validateRange(schema: LongTableSchema, range: LongTableRange): void {
+  const type = getColumnType(schema, range.column);
+  if (type === undefined) {
+    fail(`Range column "${range.column}" is not a column`);
+  }
+  if (type === "text") {
+    fail(`Range column "${range.column}" is a text column`);
+  }
+  if (schema.time?.column === range.column) {
+    fail(
+      `Range column "${range.column}" is the time column; use periodFilter`,
+    );
+  }
+  if (range.min === undefined && range.max === undefined) {
+    fail(`Range on "${range.column}" has no bound`);
+  }
+  for (const bound of [range.min, range.max]) {
+    if (bound !== undefined && !Number.isFinite(bound)) {
+      fail(`Range bound ${bound} on "${range.column}" is not a finite number`);
+    }
+  }
+  if (
+    range.min !== undefined && range.max !== undefined && range.min > range.max
+  ) {
+    fail(`Range on "${range.column}" has min above max`);
   }
 }
 
@@ -335,6 +397,17 @@ function dedupeValues(values: (string | number)[]): (string | number)[] {
   );
 }
 
+function rangeOf(range: LongTableRange): LongTableRange {
+  const out: LongTableRange = { column: range.column };
+  if (range.min !== undefined) {
+    out.min = range.min;
+  }
+  if (range.max !== undefined) {
+    out.max = range.max;
+  }
+  return out;
+}
+
 export function normalizeLongTableQuery(query: LongTableQuery): LongTableQuery {
   const values = query.values
     .map((v) => ({ column: v.column, func: v.func, as: getValueOutputName(v) }))
@@ -348,6 +421,12 @@ export function normalizeLongTableQuery(query: LongTableQuery): LongTableQuery {
     groupBy: [...query.groupBy],
     filters,
   };
+  if (query.ranges !== undefined && query.ranges.length > 0) {
+    normalized.ranges = query.ranges
+      .map((r, i) => ({ r: rangeOf(r), i }))
+      .sort((a, b) => compareByString(a.r.column, b.r.column) || a.i - b.i)
+      .map((x) => x.r);
+  }
   if (query.periodFilter !== undefined) {
     normalized.periodFilter = { ...query.periodFilter };
   }
@@ -361,6 +440,15 @@ export function normalizeLongTableQuery(query: LongTableQuery): LongTableQuery {
   }
   if (query.sampleN === true) {
     normalized.sampleN = true;
+  }
+  if (query.orderBy !== undefined && query.orderBy.length > 0) {
+    normalized.orderBy = query.orderBy.map((o) => ({
+      name: o.name,
+      dir: o.dir,
+    }));
+  }
+  if (query.limit !== undefined) {
+    normalized.limit = query.limit;
   }
   return normalized;
 }

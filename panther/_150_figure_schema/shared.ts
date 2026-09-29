@@ -78,9 +78,12 @@ export const zHeaderSortConfig: z.ZodType<HeaderSortConfig> = z.union([
   }),
 ]);
 
+// An absent cell is `.optional()` rather than `z.undefined()` in the union:
+// the two parse alike, but z.toJSONSchema refuses `undefined`, and _114
+// serializes every op output schema into the catalog and MCP tools/list.
 export const zJsonArrayItem: z.ZodType<JsonArrayItem> = z.record(
   z.string(),
-  z.union([z.string(), z.number(), z.undefined(), z.null()]),
+  z.union([z.string(), z.number(), z.null()]).optional(),
 );
 
 export const zJsonArray: z.ZodType<JsonArray> = z.array(zJsonArrayItem);

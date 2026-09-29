@@ -7,6 +7,8 @@ import { ErrorBoundary, type JSX, Match, Show, Switch } from "solid-js";
 import { t3 } from "../deps.ts";
 import { Button } from "../form_inputs/button.tsx";
 import { LoadingIndicator, Spinner } from "../form_inputs/mod.ts";
+import type { PadSize } from "../types.ts";
+import { padClass } from "../_internal/pad_classes.ts";
 import type {
   ButtonActionState,
   FormActionState,
@@ -54,13 +56,13 @@ type StateHolderWrapperProps<T> = {
       label: string;
       link: string;
     };
-  noPad?: boolean;
+  loadingAndErrorPad?: PadSize;
   spinner?: boolean;
 };
 
 export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
+  const messagePad = () => padClass(p.loadingAndErrorPad);
   return (
-    // <div class="h-full w-full bg-[red]">
     <Switch>
       <Match when={p.state.status === "loading"}>
         <Switch>
@@ -73,7 +75,7 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
           <Match when={!p.spinner}>
             <LoadingIndicator
               msg={(p.state as { msg?: string }).msg}
-              noPad={p.noPad}
+              pad={p.loadingAndErrorPad}
             />
           </Match>
         </Switch>
@@ -82,7 +84,7 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
         {p.errorRenderer!((p.state as { err: string }).err)}
       </Match>
       <Match when={p.state.status === "error"}>
-        <div class="data-[no-pad=false]:ui-pad ui-spy" data-no-pad={!!p.noPad}>
+        <div class={[messagePad(), "ui-spy"].filter(Boolean).join(" ")}>
           <div class="text-danger">
             {t3({ en: "Error: ", fr: "Erreur : ", pt: "Erro: " })}
             {(p.state as { err: string }).err}
@@ -182,7 +184,7 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
         {(keyedData) => (
           <ErrorBoundary
             fallback={(err) => (
-              <div class="data-[no-pad=false]:ui-pad" data-no-pad={!!p.noPad}>
+              <div class={messagePad()}>
                 <div class="text-danger">
                   {t3({ en: "Error: ", fr: "Erreur : ", pt: "Erro: " })}
                   {err instanceof Error ? err.message : String(err)}
@@ -195,6 +197,5 @@ export function StateHolderWrapper<T>(p: StateHolderWrapperProps<T>) {
         )}
       </Match>
     </Switch>
-    // </div>
   );
 }

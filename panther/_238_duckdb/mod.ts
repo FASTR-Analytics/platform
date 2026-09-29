@@ -15,10 +15,17 @@ export type { ParquetDescription } from "./describe.ts";
 export { writeParquetFromCsv } from "./write.ts";
 export {
   DEFAULT_MAX_ITEMS,
+  DEFAULT_MAX_ROWS,
   DEFAULT_MAX_VALUES,
+  DEFAULT_ROW_LIMIT,
   getDimensionValues,
   getItems,
   getPeriodBounds,
+  getRows,
 } from "./reads.ts";
-export type { LongTableItemsOptions, LongTableValuesOptions } from "./reads.ts";
+export type {
+  LongTableItemsOptions,
+  LongTableRowsOptions,
+  LongTableValuesOptions,
+} from "./reads.ts";
 export type { WriteParquetFromCsvOptions } from "./write.ts";

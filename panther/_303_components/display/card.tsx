@@ -6,6 +6,8 @@
 import { createMemo, type JSX, Match, Show, Switch } from "solid-js";
 import { SelectionCircle } from "../list_selection/selection_circle.tsx";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
+import type { PadSize } from "../types.ts";
+import { padClass, spyClass } from "../_internal/pad_classes.ts";
 
 // Clickable cards signal at the frame, not the fill: a card is a container of
 // arbitrary content, so repainting its ground on hover reads badly. The
@@ -31,7 +33,8 @@ type CardPropsBase = {
   header?: string | JSX.Element;
   headerRight?: JSX.Element;
   footer?: JSX.Element;
-  pad?: "sm" | "md" | "none";
+  pad?: PadSize;
+  spy?: PadSize;
   shaded?: boolean;
   selected?: boolean;
   onSelectToggle?: (evt?: MouseEvent) => void;
@@ -63,10 +66,8 @@ export function Card(p: CardProps) {
   // even at pad="none".
   const rowPad = () => (p.pad === "sm" ? "ui-pad-sm" : "ui-pad");
 
-  const bodyPad = () => {
-    const pad = p.pad ?? "md";
-    return pad === "none" ? "" : pad === "sm" ? "ui-pad-sm" : "ui-pad";
-  };
+  const bodyClass = () =>
+    [padClass(p.pad ?? "md"), spyClass(p.spy)].filter(Boolean).join(" ");
 
   const interactive = () => !!p.onClick || p.href !== undefined;
   const washPinned = () => !!p.selected && p.onSelectToggle === undefined;
@@ -130,7 +131,7 @@ export function Card(p: CardProps) {
           </Show>
         </div>
       </Show>
-      <div class={bodyPad()}>{p.children}</div>
+      <div class={bodyClass()}>{p.children}</div>
       <Show when={p.footer} keyed>
         {(keyedFooter) => (
           <div class={`${rowPad()} border-t`} onClick={guardRegion}>

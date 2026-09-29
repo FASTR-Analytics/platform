@@ -16,9 +16,11 @@ import type {
   ItemsResult,
   LongTableFilter,
   LongTableQuery,
+  LongTableRange,
   LongTableRow,
   PeriodBounds,
   PeriodFilter,
+  RowsResult,
 } from "./deps.ts";
 import type { LongTableHandle } from "./handle.ts";
 import { buildBoundsPlan } from "./_sql/bounds.ts";
@@ -26,6 +28,7 @@ import { emitQuery } from "./_sql/emit.ts";
 import { buildItemsPlan } from "./_sql/items.ts";
 import type { QueryPlan } from "./_sql/plan.ts";
 import { quoteIdentifier } from "./_sql/quote.ts";
+import { buildRowsPlan } from "./_sql/rows.ts";
 import {
   buildValuesPlan,
   OPTION_ALIAS,
@@ -33,10 +36,22 @@ import {
 } from "./_sql/values.ts";
 
 export type LongTableItemsOptions = { maxItems?: number };
-export type LongTableValuesOptions = { maxValues?: number };
+export type LongTableValuesOptions = {
+  maxValues?: number;
+  ranges?: LongTableRange[];
+};
+export type LongTableRowsOptions = {
+  filters?: LongTableFilter[];
+  ranges?: LongTableRange[];
+  periodFilter?: PeriodFilter;
+  limit?: number;
+  maxRows?: number;
+};
 
 export const DEFAULT_MAX_ITEMS = 20000;
 export const DEFAULT_MAX_VALUES = 500;
+export const DEFAULT_MAX_ROWS = 500;
+export const DEFAULT_ROW_LIMIT = 20;
 
 const COUNT_ALL: LongTableQuery["values"] = [{
   column: "*",
@@ -64,11 +79,12 @@ function source(handle: LongTableHandle): string {
   return quoteIdentifier(handle.viewName);
 }
 
-// MIN and MAX of the physical time column under the filters, or undefined
-// when the table has no time column or the filters select nothing.
+// MIN and MAX of the physical time column under the filters and ranges, or
+// undefined when the table has no time column or they select nothing.
 export async function getPeriodBounds(
   handle: LongTableHandle,
   filters: LongTableFilter[],
+  ranges: LongTableRange[] = [],
 ): Promise<PeriodBounds | undefined> {
   const time = handle.schema.time;
   if (time === undefined) {
@@ -78,11 +94,13 @@ export async function getPeriodBounds(
     values: COUNT_ALL,
     groupBy: [],
     filters,
+    ranges,
   });
   const plan = buildBoundsPlan(
     handle.schema,
     time.column,
     filters,
+    ranges,
     source(handle),
   );
   const [row] = await runPlan(handle, plan);
@@ -99,13 +117,14 @@ export async function getPeriodBounds(
 export async function resolveBounds(
   handle: LongTableHandle,
   filters: LongTableFilter[],
+  ranges: LongTableRange[],
   periodFilter: PeriodFilter | undefined,
 ): Promise<{ bounds: PeriodBounds | undefined; none: boolean }> {
   const time = handle.schema.time;
   if (time === undefined) {
     return { bounds: undefined, none: false };
   }
-  const data = await getPeriodBounds(handle, filters);
+  const data = await getPeriodBounds(handle, filters, ranges);
   if (data === undefined) {
     return { bounds: undefined, none: true };
   }
@@ -123,9 +142,15 @@ export async function getItems(
 ): Promise<ItemsResult> {
   validateLongTableQuery(handle.schema, query);
   const maxItems = opts.maxItems ?? DEFAULT_MAX_ITEMS;
+  if (query.limit !== undefined && query.limit > maxItems) {
+    throw new LongTableValidationError(
+      `limit ${query.limit} exceeds maxItems ${maxItems}`,
+    );
+  }
   const { bounds, none } = await resolveBounds(
     handle,
     query.filters,
+    query.ranges ?? [],
     query.periodFilter,
   );
   if (none) {
@@ -136,13 +161,14 @@ export async function getItems(
     query,
     query.periodFilter === undefined ? undefined : bounds,
     source(handle),
-    maxItems + 1,
+    // With a limit the fetch is the limit and too_many_items cannot occur.
+    query.limit ?? maxItems + 1,
   );
   const items = await runPlan(handle, plan);
   if (items.length === 0) {
     return { status: "no_data" };
   }
-  if (items.length > maxItems) {
+  if (query.limit === undefined && items.length > maxItems) {
     return { status: "too_many_items", ...withBounds(bounds) };
   }
   return { status: "ok", items, ...withBounds(bounds) };
@@ -164,10 +190,12 @@ export async function getDimensionValues(
   periodFilter?: PeriodFilter,
   opts: LongTableValuesOptions = {},
 ): Promise<DimensionValuesResult> {
+  const ranges = opts.ranges ?? [];
   validateLongTableQuery(handle.schema, {
     values: COUNT_ALL,
     groupBy: [],
     filters,
+    ranges,
     periodFilter,
   });
   const resolved = resolveOptionDimension(handle.schema, dim);
@@ -175,7 +203,12 @@ export async function getDimensionValues(
     throw new LongTableValidationError(`"${dim}" is not a dimension`);
   }
   const maxValues = opts.maxValues ?? DEFAULT_MAX_VALUES;
-  const { bounds, none } = await resolveBounds(handle, filters, periodFilter);
+  const { bounds, none } = await resolveBounds(
+    handle,
+    filters,
+    ranges,
+    periodFilter,
+  );
   if (none) {
     return { status: "no_values" };
   }
@@ -183,6 +216,7 @@ export async function getDimensionValues(
     handle.schema,
     resolved,
     filters,
+    ranges,
     periodFilter === undefined ? undefined : bounds,
     source(handle),
     maxValues + 2,
@@ -199,4 +233,47 @@ export async function getDimensionValues(
     return { status: "no_values" };
   }
   return { status: "ok", values: values.sort(compareOptionValues) };
+}
+
+// Raw rows under the shared WHERE, as stored and never folded: a peek at an
+// unfamiliar file before it is aggregated. A figure never calls this.
+export async function getRows(
+  handle: LongTableHandle,
+  opts: LongTableRowsOptions = {},
+): Promise<RowsResult> {
+  const filters = opts.filters ?? [];
+  const ranges = opts.ranges ?? [];
+  validateLongTableQuery(handle.schema, {
+    values: COUNT_ALL,
+    groupBy: [],
+    filters,
+    ranges,
+    periodFilter: opts.periodFilter,
+  });
+  const maxRows = opts.maxRows ?? DEFAULT_MAX_ROWS;
+  const limit = opts.limit ?? Math.min(DEFAULT_ROW_LIMIT, maxRows);
+  if (!Number.isInteger(limit) || limit < 1 || limit > maxRows) {
+    throw new LongTableValidationError(
+      `limit ${limit} must be a whole number from 1 to ${maxRows}`,
+    );
+  }
+  const { bounds, none } = await resolveBounds(
+    handle,
+    filters,
+    ranges,
+    opts.periodFilter,
+  );
+  if (none) {
+    return { status: "no_data" };
+  }
+  const plan = buildRowsPlan(
+    handle.schema,
+    filters,
+    ranges,
+    opts.periodFilter === undefined ? undefined : bounds,
+    source(handle),
+    limit,
+  );
+  const rows = await runPlan(handle, plan);
+  return rows.length === 0 ? { status: "no_data" } : { status: "ok", rows };
 }

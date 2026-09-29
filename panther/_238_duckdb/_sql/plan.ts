@@ -40,11 +40,20 @@ export type SelectColumn = {
   groupExpr?: string;
 };
 
+// A second SELECT over the same source and WHERE, UNION ALL-ed under the main
+// select: the roll-up branch, with its own columns and HAVING.
+export type UnionBranch = { columns: SelectColumn[]; having: string[] };
+
 export type QueryPlan = {
   ctes: { name: string; sql: string }[];
   source: string;
   columns: SelectColumn[];
   where: string[];
+  union?: UnionBranch;
+  // An outer select over the main select (and its union): the expression
+  // wrapper. It re-projects inner aliases under output names and adds the
+  // compiled expressions; ORDER BY and LIMIT then apply to it.
+  wrap?: SelectColumn[];
   orderBy: string[];
   limit?: string;
   binds: BindList;

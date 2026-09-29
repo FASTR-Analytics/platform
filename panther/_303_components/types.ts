@@ -13,3 +13,5 @@ export type Intent =
   | "base-100"
   | "base-200"
   | "base-300";
+
+export type PadSize = "none" | "sm" | "md" | "lg";

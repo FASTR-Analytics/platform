@@ -6,6 +6,7 @@
 import { BIGINT, resolveDimension } from "../deps.ts";
 import type {
   LongTableFilter,
+  LongTableRange,
   LongTableSchema,
   PeriodBounds,
   ResolvedDimension,
@@ -19,6 +20,7 @@ import {
   TRIM_CHARSET,
 } from "./predicates.ts";
 import { quoteIdentifier } from "./quote.ts";
+import { timeSource } from "./time.ts";
 
 export const OPTION_ALIAS = "v";
 
@@ -29,14 +31,30 @@ export function buildValuesPlan(
   schema: LongTableSchema,
   resolved: ResolvedDimension,
   filters: LongTableFilter[],
+  ranges: LongTableRange[],
   periodBounds: PeriodBounds | undefined,
-  source: string,
+  viewSource: string,
   limit: number,
 ): QueryPlan {
   const binds = new BindList();
   const literals = new LiteralList();
-  const where = buildWhere(schema, filters, periodBounds, binds, literals);
+  const where = buildWhere(
+    schema,
+    filters,
+    ranges,
+    periodBounds,
+    binds,
+    literals,
+  );
   const v = quoteIdentifier(OPTION_ALIAS);
+  const { ctes, source } = timeSource(
+    schema,
+    [
+      ...filters.map((f) => f.dim),
+      ...(resolved.kind === "derived" ? [resolved.derived.name] : []),
+    ],
+    viewSource,
+  );
   if (resolved.kind === "dimension" && resolved.dimension.kind === "set") {
     const inner = [
       `SELECT unnest(${
@@ -48,7 +66,7 @@ export function buildValuesPlan(
         : `WHERE ${where.map((p) => `(${p})`).join(" AND ")}`,
     ].filter((s) => s.length > 0).join(" ");
     return {
-      ctes: [{ name: "members", sql: inner }],
+      ctes: [...ctes, { name: "members", sql: inner }],
       source: quoteIdentifier("members"),
       columns: [{ alias: OPTION_ALIAS, expr: `DISTINCT ${v}` }],
       where: [
@@ -61,7 +79,7 @@ export function buildValuesPlan(
     };
   }
   return {
-    ctes: [],
+    ctes,
     source,
     columns: [{
       alias: OPTION_ALIAS,

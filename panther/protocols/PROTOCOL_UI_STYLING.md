@@ -65,6 +65,31 @@ the full token catalog, and the theming mechanics, see
 19. **Document surfaces wear `ui-scheme-light`**: slide canvases, page previews,
     print/export HTML pin `color-scheme` with the utility, never `bg-white`.
     Canvas twin: `<FigureHolder scheme="light">`.
+20. **A Frame slot scrolls; nothing inside it scrolls the slot again**: every
+    slot of every Frame is `overflow-auto`. A slot's direct child never sets
+    `overflow-*` to scroll the slot's content, and an `overflow-auto` wrapper as
+    a slot's direct child is redundant and goes. A scrolling box with no header
+    is `FrameTop` with no `panelChildren`; a scrolling sidebar with a divider is
+    `FrameLeft`; a hand-built flex column with a `flex-1 overflow-auto` region
+    is a `FrameTop` written by hand.
+21. **`h-full` on a slot's direct child only when it is the only child**: a
+    nested Frame, an `EmptyState` centred in the slot, a flex column. Beside a
+    sibling under `spy` it overflows the slot by the sibling's height plus the
+    gap, and the slot scrolls that much. Content that flows (a form, a stack of
+    cards) takes its natural height and the slot scrolls it.
+22. **Four scrollers inside a slot are content, not a slot written by hand**: a
+    kit table (`Table`, `DataGrid`, `PresenceGrid`, `TableFromCsv`), which owns
+    its scroll box and sticky header and scrolls inside itself as a slot's
+    direct child; a scroll element app code reads (scroll-sync, a cursor overlay
+    measured against it, a `data-*` hook on it); `overflow-y-scroll` for a
+    permanent scrollbar gutter, which the slot's `overflow-auto` does not
+    reproduce; and a sticky child's own scroller. A sticky child in a padded
+    slot sticks one inset below the slot's top edge, with content scrolling
+    through the gap above it, and cannot span the slot; it lives in a slot with
+    no `pad` or in an x-only padded scroller around it
+    (`ui-pad-x h-full w-full overflow-auto`). A bounded region inside content (a
+    `max-h-64 overflow-auto` list) and `overflow-hidden` on an aspect box
+    describe the content and are not slots.
 
 ## Do / Don't
 
@@ -229,6 +254,42 @@ containers are border-only, and shadow means "this left the document flow".
 
 **Why:** The `ui-*` utilities resolve through density vars, so an app can retune
 its whole density from one `@theme` block.
+
+### Scrolling
+
+```tsx
+// ❌ DON'T: a scroller inside a slot that already scrolls, and h-full beside a sibling
+<FrameTop pad="md" panelChildren={<HeadingBar heading="Rows" />}>
+  <div class="h-full w-full overflow-auto">{rows}</div>
+</FrameTop>
+<FrameTop spy="md">
+  <Callout intent="warning">{notice}</Callout>
+  <div class="h-full">{rows}</div>
+</FrameTop>
+
+// ✅ DO: the slot scrolls; flowing content takes its natural height
+<FrameTop pad="md" panelChildren={<HeadingBar heading="Rows" />}>
+  {rows}
+</FrameTop>
+<FrameTop spy="md">
+  <Callout intent="warning">{notice}</Callout>
+  {rows}
+</FrameTop>
+
+// ✅ DO: a sticky header keeps its own x-only padded scroller in a `none` slot
+<FrameTop panelChildren={<HeadingBar heading="Rows" />}>
+  <div class="ui-pad-x h-full w-full overflow-auto">
+    <div class="sticky top-0 bg-base-100">{toolbar}</div>
+    {rows}
+  </div>
+</FrameTop>
+```
+
+**Why:** the Frame is the kit's only scroll primitive, so a second scroller
+inside a slot either never scrolls or steals the slot's scroll; a `h-full` child
+beside a sibling overflows by the sibling and the gap; and a sticky child sticks
+one inset below a padded slot's edge with content scrolling through the gap
+above it.
 
 ### Type
 
@@ -478,5 +539,7 @@ foreground is not derived from the background.
       status lines excepted); an empty or special table value is empty or a
       muted word, never a dash
 - [ ] Spacing uses `ui-pad` / `ui-gap` / `ui-spy`, sizing uses `size="sm"`
+- [ ] No `overflow-auto` wrapper as a Frame slot's direct child; `h-full` on a
+      direct child only when it is the slot's only child
 - [ ] App CSS uses plain `@theme`, no `--color-*: initial`, palettes on `:root`
 - [ ] UI text in sentence case

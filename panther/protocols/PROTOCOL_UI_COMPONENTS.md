@@ -11,7 +11,11 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
 ## Rules
 
 1. **Panther components first**: Never hand-roll a `Button`, `Input`, `Select`,
-   `TextArea`, `Checkbox`, `RadioGroup`, table, or modal that panther provides.
+   `SelectV2`, `TextArea`, `Checkbox`, `RadioGroup`, table, or modal that
+   panther provides. A dropdown is `Select` (native list, flat options),
+   `SelectV2` (a styled list: headers, sublabels, icons, disabled rows, no
+   search) or `SelectSearch` (a long list that needs search); never a hand-built
+   menu.
 2. **Compose, don't replace**: When panther lacks something, build on top of its
    components rather than reimplementing them.
 3. **Custom only when justified**: Hand-write a component only when panther has
@@ -29,17 +33,18 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
 8. **Loading/error via `StateHolderWrapper`**: Render async data through it, not
    hand-written spinner/error branches (see `PROTOCOL_UI_STATE.md`).
 9. **`data-*` goes on the component, not a wrapper**: `Button`, `Card`,
-   `HeadingBar`, `CollapsibleSection`, `Field`, `Select`, `Input`, `TextArea`,
-   `Slider`, `ButtonGroup`, `TabsNavigation`, `MenuButton`, `ActionMenuButton`
-   and `CopyToClipboardButton` forward `data-*` attributes to their root element
-   (`HeadingBar`'s `tabs` object also forwards its own to the tab strip); put
-   tour anchors, test hooks and other DOM markers there instead of wrapping in a
-   `<div data-*="...">`. `data-*` only: anything else (`class`, `style`, `id`,
-   event handlers) is a real prop or needs a wrapper; it will NOT forward, by
-   design. On every other component a `data-*` attribute compiles but is
-   silently dropped (TypeScript exempts hyphenated JSX attribute names), so this
-   list is the source of truth. Inside the kit, a component's own attributes are
-   always written after `{...dataAttrs}`, so they win on a key collision.
+   `HeadingBar`, `CollapsibleSection`, `Field`, `Select`, `SelectV2`, `Input`,
+   `TextArea`, `Slider`, `ButtonGroup`, `TabsNavigation`, `MenuButton`,
+   `ActionMenuButton` and `CopyToClipboardButton` forward `data-*` attributes to
+   their root element (`HeadingBar`'s `tabs` object also forwards its own to the
+   tab strip); put tour anchors, test hooks and other DOM markers there instead
+   of wrapping in a `<div data-*="...">`. `data-*` only: anything else (`class`,
+   `style`, `id`, event handlers) is a real prop or needs a wrapper; it will NOT
+   forward, by design. On every other component a `data-*` attribute compiles
+   but is silently dropped (TypeScript exempts hyphenated JSX attribute names),
+   so this list is the source of truth. Inside the kit, a component's own
+   attributes are always written after `{...dataAttrs}`, so they win on a key
+   collision.
 10. **Horizontal `TabsNavigation` is placed, not wrapped**: as a `FrameTop`
     `panelChildren` or directly under a `HeadingBar`, pass it bare; it carries
     its own `ui-pad-x` and bottom border. Inside padded content pass `noPad`;
@@ -48,6 +53,17 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
     strip, which is the same as `insetRail`), and never put a `Callout` or other
     content above a panel strip; a notice goes below the rail as the first block
     of content.
+11. **A slot owns the space around its content and between its children, and a
+    Frame slot owns scrolling. The slot knob comes first; a raw element is for
+    what the slot cannot say**: choose the inset and the stack spacing once, on
+    the container (`pad` / `spy` on a Frame's content slot, `panelPad` /
+    `panelSpy` on a side frame's panel slot, `pad` / `spy` on `Card`,
+    `ModalContainer` and `CollapsibleSection`), and everything rendered into the
+    slot gets it, in every state. No padding `<div>` between a kit container and
+    its content. What a slot cannot say stays a raw element on the `ui-pad-*`
+    classes: an inset on one axis, a background that must fill the slot, a
+    scroller a sticky header needs, and a padded stack inside a plain parent.
+    The model is `DOC_CONTAINER_MODEL.md`.
 
 ## Do / Don't
 
@@ -166,6 +182,44 @@ has one obvious thing to do, so that button is primary: `"close"` for read-only
 content, `"done"` when edits were applied live with no Save step. `cancelLabel`
 is for a Cancel that needs another name ("Skip"), never for the only button.
 
+### Containers and their content
+
+```tsx
+// ❌ DON'T: a padding div between the container and its content; the loading
+// and error states render outside it and do not line up with the table
+<FrameTop panelChildren={<HeadingBar compact heading="Ops catalog" />}>
+  <StateHolderWrapper state={entries.state()}>
+    {(list) => (
+      <div class="ui-pad">
+        <Table data={list} columns={COLUMNS} keyField="name" />
+      </div>
+    )}
+  </StateHolderWrapper>
+</FrameTop>;
+
+// ✅ DO: the slot carries the inset; all three states get it, and the table
+// is the slot's direct child, so it scrolls inside itself with its header stuck
+<FrameTop pad="md" panelChildren={<HeadingBar compact heading="Ops catalog" />}>
+  <StateHolderWrapper state={entries.state()}>
+    {(list) => <Table data={list} columns={COLUMNS} keyField="name" />}
+  </StateHolderWrapper>
+</FrameTop>;
+
+// ✅ DO: a raw element for what the slot cannot say: an x-only inset around a
+// sticky toolbar, which needs its own scroller to stick at the top edge
+<FrameTop panelChildren={<HeadingBar compact heading="Rows" />}>
+  <div class="ui-pad-x h-full w-full overflow-auto">
+    <div class="sticky top-0 bg-base-100">{toolbar}</div>
+    {rows}
+  </div>
+</FrameTop>;
+```
+
+**Why:** a wrapper div chooses the space for one state only, and the kit's
+containers already own that space; a slot knob covers every branch the slot
+renders. A one-axis inset and a sticky child's scroller are not in the slot
+vocabulary, so they stay raw elements rather than growing the knobs.
+
 ### Menu triggers
 
 ```tsx
@@ -180,9 +234,9 @@ showMenu({ anchor: rect, items })        // right-click / card context menus onl
 
 ### Component catalog (prefer these)
 
-- **Form:** `Button`, `Input`, `TextArea`, `Select`, `MultiSelect`, `Checkbox`
-  (incl. `indeterminate`), `RadioGroup`, `Slider`, `ButtonGroup`, `FileInput`;
-  `Field` around any control the kit does not label.
+- **Form:** `Button`, `Input`, `TextArea`, `Select`, `SelectV2`, `MultiSelect`,
+  `Checkbox` (incl. `indeterminate`), `RadioGroup`, `Slider`, `ButtonGroup`,
+  `FileInput`; `Field` around any control the kit does not label.
 - **Layout:** `FrameTop`, `FrameLeft` / `FrameRight` (+ resizable variants),
   `HeadingBar`, `TabsNavigation`, `getStepper` + `StepperChipsWithTitles`,
   collapsible sections.
@@ -202,9 +256,10 @@ const query = createQuery(
 );
 
 <FrameTop
+  pad="md"
   panelChildren={<HeadingBar heading={t3({ en: "Rows", fr: "Lignes" })} />}
 >
-  <StateHolderWrapper state={query.state()} noPad>
+  <StateHolderWrapper state={query.state()}>
     {(rows) => <Table columns={columns} data={rows} />}
   </StateHolderWrapper>
 </FrameTop>;
@@ -282,5 +337,7 @@ Outline `Button`s placed in a `tonal` bar still declare their surface:
 - [ ] Dialogs use the editor/alert helpers; deletes use `createDeleteAction`
 - [ ] Component sizing uses the `size` prop / `ui-form-*`, not ad-hoc classes
 - [ ] Async data rendered through `StateHolderWrapper`
+- [ ] No padding `<div>` between a kit container and its content: the inset and
+      stack spacing are `pad` / `spy` on the slot
 - [ ] Custom components only where panther has no equivalent, built on panther
       parts

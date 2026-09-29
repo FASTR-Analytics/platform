@@ -15,6 +15,7 @@ import {
 import type {
   LongTableDimension,
   LongTableFilter,
+  LongTableRange,
   LongTableSchema,
   PeriodBounds,
   ResolvedDimension,
@@ -160,15 +161,35 @@ export function periodPredicate(
   }`;
 }
 
-// The WHERE every read shares: category, set and period predicates.
+// A row-level bound on a numeric column; a NULL cell fails it, as in SQL.
+export function rangePredicate(
+  range: LongTableRange,
+  binds: BindList,
+): string {
+  const ref = columnRef(range.column);
+  const parts: string[] = [];
+  if (range.min !== undefined) {
+    parts.push(`${ref} >= ${binds.add(range.min, DOUBLE)}`);
+  }
+  if (range.max !== undefined) {
+    parts.push(`${ref} <= ${binds.add(range.max, DOUBLE)}`);
+  }
+  return parts.join(" AND ");
+}
+
+// The WHERE every read shares: category, set, range and period predicates.
 export function buildWhere(
   schema: LongTableSchema,
   filters: LongTableFilter[],
+  ranges: LongTableRange[],
   periodBounds: PeriodBounds | undefined,
   binds: BindList,
   literals: LiteralList,
 ): string[] {
   const where = filters.map((f) => filterPredicate(schema, f, binds, literals));
+  for (const range of ranges) {
+    where.push(rangePredicate(range, binds));
+  }
   if (periodBounds !== undefined && schema.time !== undefined) {
     where.push(periodPredicate(schema.time.column, periodBounds, binds));
   }

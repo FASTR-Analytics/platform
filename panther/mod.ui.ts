@@ -93,6 +93,7 @@ export * from "./_121_page/mod.ts";
 export * from "./_122_pdf/mod.ts";
 export * from "./_122_pptx/mod.ts";
 export * from "./_150_figure_schema/mod.ts";
+export * from "./_151_long_table_schema/mod.ts";
 
 //////////////////////
 //                  //
