@@ -72,11 +72,13 @@ const TEXT_ISLANDS =
 // Editor-only additions to the printed document: the app's ground around the
 // sheets, the in-place editing affordances, ghost rows revealed on hover, the
 // page-break divider, peer carets. Nothing here changes a page's own pixels.
-function surfaceCss(): string {
+// `ground` is the app's resolved base-200 (appGround): the frame is its own
+// document and cannot read the app's tokens, so it is handed the colour.
+function surfaceCss(ground: string): string {
   const pageBreak = t3({ en: "page break", fr: "saut de page", pt: "quebra de página" })
     .replace(/["\\]/g, "");
   return `
-html { background: #e5e7eb !important; overflow-y: scroll; }
+html { background: ${ground} !important; overflow-y: scroll; }
 .pagedjs_pages { padding: 24px 0 48px; }
 .pagedjs_page { box-shadow: 0 1px 3px rgba(0,0,0,.25), 0 10px 28px rgba(0,0,0,.14); margin: 0 auto 28px; }
 .cm-fm-text-edit { cursor: text; }
@@ -181,12 +183,24 @@ export function createPagedEditSurface(
   // A placeholder paragraph was just added: select it whole once it renders.
   let pendingSelectAll = false;
 
+  // The ground the sheets lie on: the app's base-200, the slide editor's
+  // canvas ground, resolved to a concrete colour through a probe so it
+  // follows the app's light/dark scheme at the moment of each render.
+  function appGround(): string {
+    const probe = document.createElement("div");
+    probe.style.cssText = "display:none;background-color:var(--color-base-200)";
+    host.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  }
+
   function makeFrame(): HTMLIFrameElement {
     const f = document.createElement("iframe");
     f.setAttribute("sandbox", "allow-same-origin allow-scripts");
     f.setAttribute("title", "pages");
     f.style.cssText =
-      "position:absolute;inset:0;width:100%;height:100%;border:0;visibility:hidden;background:#e5e7eb;";
+      `position:absolute;inset:0;width:100%;height:100%;border:0;visibility:hidden;background:${appGround()};`;
     host.append(f);
     return f;
   }
@@ -217,7 +231,7 @@ export function createPagedEditSurface(
     try {
       const html = await deps.buildHtml(view.state.doc.toString());
       if (!active || disposed || !back) return;
-      const doc = await loadFrame(back, html.replace("</head>", `<style>${surfaceCss()}</style></head>`));
+      const doc = await loadFrame(back, html.replace("</head>", `<style>${surfaceCss(appGround())}</style></head>`));
       if (!active || disposed || doc === undefined) return;
       attach(doc);
       swap();

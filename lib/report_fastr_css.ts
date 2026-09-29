@@ -1648,7 +1648,7 @@ ${d}.fm-page-gutter__foot {
 ${d}.fm-page-gutter__band {
   display: block;
   height: 30px;
-  background: var(--color-base-100, #ffffff);
+  background: var(--color-base-200, #f2f2f2);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
     inset 0 -1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
