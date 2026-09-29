@@ -57,7 +57,7 @@ export function StructureWithCsv(p: Props) {
   });
 
   return (
-    <StateHolderWrapper state={structureItems()}>
+    <StateHolderWrapper state={structureItems()} spinner>
       {(keyedFacilitiesItems) => {
         const csv = createMemo(() => {
           const csvData = Csv.fromObjects(keyedFacilitiesItems.items);

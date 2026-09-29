@@ -163,7 +163,7 @@ export function VersionHistoryEditor(p: Props) {
                 {t3({ en: "Current version", fr: "Version actuelle", pt: "Versão atual" })}
               </div>
             </button>
-            <StateHolderWrapper state={versions.state()}>
+            <StateHolderWrapper state={versions.state()} loadingAndErrorPad="sm">
               {(rows) => (
                 <Show
                   when={rows.length > 0}

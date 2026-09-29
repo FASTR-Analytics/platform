@@ -96,7 +96,7 @@ export function ResultsPackagePage(p: Props) {
 
   return (
     <EditorWrapper>
-      <Show when={run()} fallback={<LoadingIndicator />}>
+      <Show when={run()} fallback={<LoadingIndicator pad="md" />}>
         {(run) => (
           <PackageBody
             run={run()}
@@ -300,7 +300,7 @@ function PackageBody(p: {
     >
       <Switch>
         <Match when={p.run.status === "ready"}>
-          <StateHolderWrapper state={reads()}>
+          <StateHolderWrapper state={reads()} spinner>
             {(data: ReadyReads) => (
               <FamilyTabs
                 runId={p.run.id}

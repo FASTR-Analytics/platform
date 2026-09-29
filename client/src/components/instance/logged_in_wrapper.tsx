@@ -152,7 +152,7 @@ export function LoggedInWrapper(p: Props) {
           }
 
           return (
-            <StateHolderWrapper state={loggedInInfo.state()}>
+            <StateHolderWrapper state={loggedInInfo.state()} loadingAndErrorPad="md">
               {(globalUserOrUndefined) => {
                 return (
                   <Show

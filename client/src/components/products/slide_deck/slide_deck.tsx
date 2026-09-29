@@ -433,6 +433,7 @@ function SlideDeckEditorInner(p: {
               <Show when={editorLoading()}>
                 <LoadingIndicator
                   msg={t3({ en: "Loading slide...", fr: "Chargement de la diapositive...", pt: "A carregar diapositivo..." })}
+                  pad="md"
                 />
               </Show>
             }

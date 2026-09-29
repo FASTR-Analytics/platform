@@ -776,6 +776,7 @@ export function SlideList(p: Props) {
                   fr: "Chargement des diapositives...",
                   pt: "A carregar diapositivos...",
                 })}
+                pad="md"
               />
             </Show>
             <Show when={!p.isLoading && p.slideIds.length > 0}>

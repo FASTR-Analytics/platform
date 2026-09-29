@@ -212,6 +212,7 @@ export function StructureUploadAttemptForm(p: Props) {
     >
       <StateHolderWrapper
         state={uploadAttempt.state()}
+        spinner
         onErrorButton={{
           label: t3({ en: "Back to structure", fr: "Retour à la structure", pt: "Voltar à estrutura" }),
           onClick: () => p.close(undefined),

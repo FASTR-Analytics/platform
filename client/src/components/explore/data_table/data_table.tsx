@@ -78,7 +78,7 @@ export function DataTable(p: {
     )
   );
   return (
-    <StateHolderWrapper state={info()}>
+    <StateHolderWrapper state={info()} spinner>
       {(metricInfo) => (
         <ReadyFamilyTable
           ctx={p.ctx}

@@ -169,7 +169,7 @@ export function ReportVersionPreview(p: {
   }
 
   return (
-    <StateHolderWrapper state={version.state()}>
+    <StateHolderWrapper state={version.state()} spinner>
       {(v) => (
         <div class="flex h-full min-h-0 flex-col">
           <div class="ui-pad flex items-center gap-4 border-b">
@@ -319,7 +319,7 @@ function SessionEdits(p: {
   );
 
   return (
-    <StateHolderWrapper state={previous.state()}>
+    <StateHolderWrapper state={previous.state()} spinner>
       {(prev) => {
         const segments = computeAttributedDiff([
           { body: prev.body, label: "" },

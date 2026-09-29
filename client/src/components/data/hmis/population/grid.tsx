@@ -225,7 +225,7 @@ function PopulationTypeGrid(p: {
         </HeadingBar>
       }
     >
-      <StateHolderWrapper state={store()}>
+      <StateHolderWrapper state={store()} spinner>
         {(data) => (
           <Show
             when={data.populationLevel !== undefined && data.years.length > 0}
