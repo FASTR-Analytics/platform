@@ -95,9 +95,9 @@ different name:
 9. The delete-folder confirmation for a folder at the root says that its
    subfolders move to the top level and its products move to General. For a
    nested folder it is unchanged and names the parent for both. _(proposed)_
-10. The tour texts that describe the top level are rewritten to match: the
-    "folders" step of the browse tour and the "new" step of the create
-    tour.
+10. Two tour texts are rewritten to name General: the "folders" step of the
+    browse tour, which describes the list, and the "new" step of the create
+    tour, which says where new items go.
 11. A user may still create a root folder labelled "General". It is a
     normal folder, shown beside the synthetic one, never merged with it.
     _(proposed)_
@@ -116,7 +116,9 @@ different name:
 - `client/src/components/products/list_view.tsx`
 - `client/src/components/products/products.tsx`
 - `client/src/components/products/product_menu.ts`
-- `client/src/components/products/folder_labels.ts`
+- `client/src/components/products/folder_menu.ts`
+- `client/src/components/products/folder_labels.ts`, which moves to
+  `client/src/components/products/_shared/folder_labels.ts`
 - `client/src/components/products/move_to_folder_modal.tsx`
 - `client/src/components/products/_shared/product_settings.tsx`
 - `client/src/onboarding/tours.ts`
@@ -140,10 +142,14 @@ different name:
   effect keeps it; expand-all includes it when General is shown;
   `openableFolderIds` counts it (ruling 5). The delete-folder confirmation
   follows ruling 9.
-- `folder_labels.ts` exports the General label (ruling 8) and, if the
-  delete confirmation still needs it, the top-level label.
-- `product_menu.ts`: the product menu's root entry reads "Move to General";
-  the folder menu's still reads "Move to top level" (ruling 8).
+- `folder_labels.ts` moves to `_shared/` and is exported from
+  `_shared/mod.ts`: `product_settings.tsx` lives there, and `_shared/` never
+  imports upward (PROTOCOL_UI_STRUCTURE, entry-only and cycle rules). It
+  exports the General label and the top-level label (rulings 8, 9).
+- `buildQuickMoveEntries` in `product_menu.ts` takes the root destination's
+  label from its caller: the product menu passes General, so its entry reads
+  "Move to General"; `folder_menu.ts` passes the top-level label, so its
+  entry still reads "Move to top level" (ruling 8).
 - `move_to_folder_modal.tsx` and `product_settings.tsx`: the null option is
   labelled General (ruling 8).
 - `tours.ts`: the two texts of ruling 10, in all three languages.
@@ -151,8 +157,9 @@ different name:
   root products under it, its absence when the root holds no product, and
   its presence in `matchAncestors` for a matching root product.
 - `SYSTEM_12_documents_sharing.md`: the "product explorer", list, menu and
-  create paragraphs describe General as this plan's §2 does. No file is
-  added or moved, so the manifest is unchanged.
+  create paragraphs describe General as this plan's §2 does. The moved
+  `folder_labels.ts` stays inside the manifest's `products/*.ts` and
+  `products/_shared/*.ts` globs, so the manifest is unchanged.
 
 **Not in this step.** Anything server-side. A stored General folder. A
 General inside nested folders. Drag-and-drop. Merging a user folder named
