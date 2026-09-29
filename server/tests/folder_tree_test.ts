@@ -36,6 +36,7 @@ function product(
   label: string,
   folderId: string | null,
   type: ProductType = "slide_deck",
+  lastUpdated = "2026-01-01T00:00:00.000Z",
 ): ProductSummary {
   const base = {
     id,
@@ -45,7 +46,7 @@ function product(
     adminArea2: null,
     createdBy: null,
     createdAt: null,
-    lastUpdated: "2026-01-01T00:00:00.000Z",
+    lastUpdated,
   };
   return type === "slide_deck"
     ? { ...base, type, firstSlideId: null }
@@ -160,16 +161,23 @@ const PRODUCTS: ProductSummary[] = [
 const byLabel = <T extends { label: string }>(xs: T[]) =>
   [...xs].sort((x, y) => x.label.localeCompare(y.label));
 
+const byDateDesc = <T extends { lastUpdated: string }>(xs: T[]) =>
+  [...xs].sort((x, y) => y.lastUpdated.localeCompare(x.lastUpdated));
+
 function tree(
-  opts: { needle?: string; folders?: Folder[]; products?: ProductSummary[] } =
-    {},
+  opts: {
+    needle?: string;
+    folders?: Folder[];
+    products?: ProductSummary[];
+    sort?: <T extends { label: string; lastUpdated: string }>(xs: T[]) => T[];
+  } = {},
 ) {
   return buildProductTree({
     folders: opts.folders ?? TREE,
     products: opts.products ?? PRODUCTS,
     needle: opts.needle ?? null,
-    sortFolders: byLabel,
-    sortProducts: byLabel,
+    generalLabel: "General",
+    sort: opts.sort ?? byLabel,
   });
 }
 
@@ -184,22 +192,22 @@ function rowIds(t: ReturnType<typeof tree>, open: string[]): string[] {
 }
 
 Deno.test("tree rows: folders first per level, contents only when open", () => {
-  assertEquals(rowIds(tree(), []), ["a", "d", "G"]);
+  assertEquals(rowIds(tree(), []), ["a", "G", "d"]);
   assertEquals(rowIds(tree(), ["a", "b", GENERAL_ID]), [
     "a",
     "  b",
     "    c",
     "    r1",
     "  p1",
-    "d",
     "G",
     "  p3",
+    "d",
   ]);
-  assertEquals(rowIds(tree(), ["b"]), ["a", "d", "G"]);
+  assertEquals(rowIds(tree(), ["b"]), ["a", "G", "d"]);
 });
 
-Deno.test("tree rows: General holds the root products, after the root folders, only when there are some", () => {
-  assertEquals(rowIds(tree(), [GENERAL_ID]), ["a", "d", "G", "  p3"]);
+Deno.test("tree rows: General holds the root products, sorted among the root folders, only when there are some", () => {
+  assertEquals(rowIds(tree(), [GENERAL_ID]), ["a", "G", "  p3", "d"]);
   const filed = PRODUCTS.filter((p) => p.folderId !== null);
   assertEquals(rowIds(tree({ products: filed }), [GENERAL_ID]), ["a", "d"]);
   assertEquals(rowIds(tree({ products: filed }), ["a", "b", "c"]), [
@@ -263,10 +271,35 @@ Deno.test("tree: a cycle is unreachable from the top level and terminates", () =
   assertEquals(rowIds(tree({ folders: CYCLE }), ["a", "b", "c", GENERAL_ID]), [
     "a",
     "  p1",
-    "d",
     "G",
     "  p3",
+    "d",
   ]);
+});
+
+Deno.test("dates: a folder's is the newest inside it, General's the root products', and Recent sorts by them", () => {
+  const dated: ProductSummary[] = [
+    product("p1", "Annual deck", "a"),
+    product("p2", "Quarterly deck", "c", "slide_deck", "2026-03-01T00:00:00.000Z"),
+    product("r1", "Budget report", "b", "report"),
+    product("p3", "Loose deck", null, "slide_deck", "2026-02-01T00:00:00.000Z"),
+  ];
+  const t = tree({ products: dated, sort: byDateDesc });
+  assertEquals(t.dates.get("c"), "2026-03-01T00:00:00.000Z");
+  assertEquals(t.dates.get("b"), "2026-03-01T00:00:00.000Z");
+  assertEquals(t.dates.get("a"), "2026-03-01T00:00:00.000Z");
+  assertEquals(t.dates.get("d"), "2026-01-01T00:00:00.000Z");
+  assertEquals(t.dates.get(GENERAL_ID), "2026-02-01T00:00:00.000Z");
+  assertEquals(rowIds(t, [GENERAL_ID]), ["a", "G", "  p3", "d"]);
+  const rows = productTreeRows(t, () => false);
+  assertEquals(
+    rows.map((r) => (r.kind === "product" ? undefined : r.lastUpdated)),
+    [
+      "2026-03-01T00:00:00.000Z",
+      "2026-02-01T00:00:00.000Z",
+      "2026-01-01T00:00:00.000Z",
+    ],
+  );
 });
 
 Deno.test("tree: a product match opens every folder above it", () => {

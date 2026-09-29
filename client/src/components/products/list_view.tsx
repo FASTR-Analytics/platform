@@ -30,13 +30,13 @@ type GeneralRow = Extract<ProductTreeRow, { kind: "general" }>;
 type ProductRow = Extract<ProductTreeRow, { kind: "product" }>;
 
 // What a row that opens and closes shows: a folder, or the synthetic General
-// row at the root, which has no date and no menu.
+// row at the root, which has no menu.
 type ExpandableRow = {
   depth: number;
   expanded: boolean;
   hasContents: boolean;
   label: string;
-  lastUpdated: string | undefined;
+  lastUpdated: string;
   onToggle: () => void;
   onMenu: ((evt: MouseEvent) => void) | undefined;
 };
@@ -169,7 +169,7 @@ export function ListView(p: Props) {
         <div />
         <div />
         <div class="ui-pad-sm text-base-content-muted">
-          <Show when={r().lastUpdated}>{(iso) => dateLabel(iso())}</Show>
+          {dateLabel(r().lastUpdated)}
         </div>
         <div class="ui-pad-sm">
           <Show when={r().onMenu}>
@@ -186,7 +186,7 @@ export function ListView(p: Props) {
       expanded: r().expanded,
       hasContents: r().hasContents,
       label: r().folder.label,
-      lastUpdated: r().folder.lastUpdated,
+      lastUpdated: r().lastUpdated,
       onToggle: () => p.onToggleFolder(r().folder.id),
       onMenu: (e) => p.onFolderMenu(e, r().folder),
     }));
@@ -199,7 +199,7 @@ export function ListView(p: Props) {
       expanded: r().expanded,
       hasContents: true,
       label: generalLabel(),
-      lastUpdated: undefined,
+      lastUpdated: r().lastUpdated,
       onToggle: () => p.onToggleFolder(GENERAL_ID),
       onMenu: undefined,
     }));

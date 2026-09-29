@@ -165,8 +165,8 @@ export function Products() {
       folders: instanceState.folders,
       products: instanceState.products,
       needle: isSearching() ? searchText().toLowerCase() : null,
-      sortFolders: sort,
-      sortProducts: sort,
+      generalLabel: generalLabel(),
+      sort,
     });
   });
 
@@ -206,8 +206,10 @@ export function Products() {
   // plus General when it is shown.
   const openableFolderIds = createMemo(() => {
     const tree = productTree();
-    const folderIds = [...tree.folders.values()]
-      .flat()
+    const rootFolders = tree.root.flatMap((item) =>
+      item.kind === "folder" ? [item.folder] : [],
+    );
+    const folderIds = [...rootFolders, ...[...tree.folders.values()].flat()]
       .filter((f) => tree.folders.has(f.id) || tree.products.has(f.id))
       .map((f) => f.id);
     return generalShown() ? [...folderIds, GENERAL_ID] : folderIds;

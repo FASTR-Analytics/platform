@@ -104,11 +104,24 @@ export function folderPathOptions(
     );
 }
 
+export type RootItem =
+  | { kind: "folder"; folder: Folder }
+  | { kind: "general"; lastUpdated: string };
+
 // The list view's tree: only the folders and products that pass the filters,
-// grouped by parent (null = the top level) and sorted per level.
+// grouped by parent and sorted per level.
 export type ProductTree = {
-  folders: Map<string | null, Folder[]>;
+  // The root level in order: the root folders and, when the root holds shown
+  // products, General, sorted together as one list.
+  root: RootItem[];
+  // A folder's shown subfolders, sorted.
+  folders: Map<string, Folder[]>;
+  // Shown products per folder, sorted; null holds the root's.
   products: Map<string | null, ProductSummary[]>;
+  // The date a folder shows and sorts by: the newest of its own and of
+  // everything inside it, filtered or not. GENERAL_ID holds the root
+  // products' newest.
+  dates: Map<string, string>;
   // Folders with a search match somewhere below them, and GENERAL_ID when a
   // root product matches: open while the search is active, whatever the user
   // has open otherwise.
@@ -116,6 +129,13 @@ export type ProductTree = {
   // Shown folders and products whose own label matches the search.
   matchCount: number;
 };
+
+type Sortable = { label: string; lastUpdated: string };
+
+// ISO 8601 timestamps, so the newer one is the greater string.
+function later(a: string | undefined, b: string): string {
+  return a === undefined || b > a ? b : a;
+}
 
 // While searching, a product is shown when its label matches or it sits under
 // a folder whose label matches. A folder is shown when it holds anything
@@ -126,8 +146,10 @@ export function buildProductTree(args: {
   products: ProductSummary[];
   // Lowercased search text, or null when not searching.
   needle: string | null;
-  sortFolders: (folders: Folder[]) => Folder[];
-  sortProducts: (products: ProductSummary[]) => ProductSummary[];
+  // General's label in the user's language: it sorts by it among the root
+  // folders. Passed in so this module stays type-import-only.
+  generalLabel: string;
+  sort: <T extends Sortable>(items: T[]) => T[];
 }): ProductTree {
   const { needle } = args;
   const matches = (label: string) =>
@@ -135,28 +157,54 @@ export function buildProductTree(args: {
   const foldersByParent = groupBy(args.folders, (f) => f.parentId);
   const productsByFolder = groupBy(args.products, (p) => p.folderId);
   const tree: ProductTree = {
+    root: [],
     folders: new Map(),
     products: new Map(),
+    dates: new Map(),
     matchAncestors: new Set(),
     matchCount: 0,
   };
   const visited = new Set<string>();
 
-  // Returns whether anything shown inside `parentId` is itself a match.
-  function visit(parentId: string | null, underMatch: boolean): boolean {
-    const shownProducts = (productsByFolder.get(parentId) ?? []).filter(
+  const dateOf = (folder: Folder) =>
+    tree.dates.get(folder.id) ?? folder.lastUpdated;
+  const sortFolders = (folders: Folder[]): Folder[] =>
+    args
+      .sort(
+        folders.map((folder) => ({
+          label: folder.label,
+          lastUpdated: dateOf(folder),
+          folder,
+        })),
+      )
+      .map((entry) => entry.folder);
+
+  // Returns whether anything shown inside `parentId` is itself a match, and
+  // the newest date of everything inside, shown or not.
+  function visit(
+    parentId: string | null,
+    underMatch: boolean,
+  ): { match: boolean; newest: string | undefined } {
+    const allProducts = productsByFolder.get(parentId) ?? [];
+    const shownProducts = allProducts.filter(
       (p) => needle === null || underMatch || matches(p.label),
     );
     const matchedProducts = shownProducts.filter((p) => matches(p.label));
     tree.matchCount += matchedProducts.length;
     let containsMatch = matchedProducts.length > 0;
     if (parentId === null && containsMatch) tree.matchAncestors.add(GENERAL_ID);
+    let newest: string | undefined;
+    for (const p of allProducts) newest = later(newest, p.lastUpdated);
+    const productsNewest = newest;
     const shownFolders: Folder[] = [];
     for (const folder of foldersByParent.get(parentId) ?? []) {
       if (visited.has(folder.id)) continue;
       visited.add(folder.id);
       const selfMatch = matches(folder.label);
-      const innerMatch = visit(folder.id, underMatch || selfMatch);
+      const inner = visit(folder.id, underMatch || selfMatch);
+      const date = later(inner.newest, folder.lastUpdated);
+      tree.dates.set(folder.id, date);
+      newest = later(newest, date);
       const hasContents =
         (tree.folders.get(folder.id)?.length ?? 0) > 0 ||
         (tree.products.get(folder.id)?.length ?? 0) > 0;
@@ -164,16 +212,33 @@ export function buildProductTree(args: {
       if (!eligible && !hasContents) continue;
       shownFolders.push(folder);
       if (selfMatch) tree.matchCount += 1;
-      if (innerMatch) tree.matchAncestors.add(folder.id);
-      containsMatch ||= selfMatch || innerMatch;
+      if (inner.match) tree.matchAncestors.add(folder.id);
+      containsMatch ||= selfMatch || inner.match;
     }
-    if (shownFolders.length > 0) {
-      tree.folders.set(parentId, args.sortFolders(shownFolders));
+    if (parentId === null) {
+      const entries: (Sortable & { item: RootItem })[] = shownFolders.map(
+        (folder) => ({
+          label: folder.label,
+          lastUpdated: dateOf(folder),
+          item: { kind: "folder", folder },
+        }),
+      );
+      if (shownProducts.length > 0 && productsNewest !== undefined) {
+        tree.dates.set(GENERAL_ID, productsNewest);
+        entries.push({
+          label: args.generalLabel,
+          lastUpdated: productsNewest,
+          item: { kind: "general", lastUpdated: productsNewest },
+        });
+      }
+      tree.root = args.sort(entries).map((entry) => entry.item);
+    } else if (shownFolders.length > 0) {
+      tree.folders.set(parentId, sortFolders(shownFolders));
     }
     if (shownProducts.length > 0) {
-      tree.products.set(parentId, args.sortProducts(shownProducts));
+      tree.products.set(parentId, args.sort(shownProducts));
     }
-    return containsMatch;
+    return { match: containsMatch, newest };
   }
 
   visit(null, false);
@@ -187,36 +252,55 @@ export type ProductTreeRow =
       depth: number;
       expanded: boolean;
       hasContents: boolean;
+      // The tree's date for the folder, not the folder's own.
+      lastUpdated: string;
     }
-  | { kind: "general"; expanded: boolean }
+  | { kind: "general"; expanded: boolean; lastUpdated: string }
   | { kind: "product"; product: ProductSummary; depth: number };
 
 // The rows on screen, top to bottom: at each level the folders, each followed
 // by its contents when open, then the products. At the root the products sit
-// under the General row instead, which is emitted only when there are some.
+// under the General row instead, which takes its place among the folders.
 export function productTreeRows(
   tree: ProductTree,
   isExpanded: (folderId: string) => boolean,
 ): ProductTreeRow[] {
   const rows: ProductTreeRow[] = [];
+  function pushProducts(parentId: string | null, depth: number) {
+    for (const product of tree.products.get(parentId) ?? []) {
+      rows.push({ kind: "product", product, depth });
+    }
+  }
   function walk(parentId: string | null, depth: number) {
-    for (const folder of tree.folders.get(parentId) ?? []) {
+    const items: RootItem[] =
+      parentId === null
+        ? tree.root
+        : (tree.folders.get(parentId) ?? []).map((folder) => ({
+            kind: "folder",
+            folder,
+          }));
+    for (const item of items) {
+      if (item.kind === "general") {
+        const expanded = isExpanded(GENERAL_ID);
+        rows.push({ kind: "general", expanded, lastUpdated: item.lastUpdated });
+        if (expanded) pushProducts(null, depth + 1);
+        continue;
+      }
+      const { folder } = item;
       const hasContents =
         tree.folders.has(folder.id) || tree.products.has(folder.id);
       const expanded = hasContents && isExpanded(folder.id);
-      rows.push({ kind: "folder", folder, depth, expanded, hasContents });
+      rows.push({
+        kind: "folder",
+        folder,
+        depth,
+        expanded,
+        hasContents,
+        lastUpdated: tree.dates.get(folder.id) ?? folder.lastUpdated,
+      });
       if (expanded) walk(folder.id, depth + 1);
     }
-    const products = tree.products.get(parentId) ?? [];
-    if (parentId === null && products.length > 0) {
-      const expanded = isExpanded(GENERAL_ID);
-      rows.push({ kind: "general", expanded });
-      if (!expanded) return;
-      depth += 1;
-    }
-    for (const product of products) {
-      rows.push({ kind: "product", product, depth });
-    }
+    if (parentId !== null) pushProducts(parentId, depth);
   }
   walk(null, 0);
   return rows;

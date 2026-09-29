@@ -417,9 +417,9 @@ over the two flat T1 lists (`instanceState.products` and
 `instanceState.folders`, both maintained per row off the instance channel),
 shown as a **tree** from the top level where any number of folders are open at
 once. The root products (`folderId: null`) sit under **General**, one
-synthetic folder row (`GENERAL_ID` in `folder_tree.ts`) drawn after the root
-folders and only when there are root products to hold. General is
-presentation only: no `Folder` row, no colour, no date, no menu, never merged
+synthetic folder row (`GENERAL_ID` in `folder_tree.ts`) sorted among the root
+folders like any of them and shown only when there are root products to hold.
+General is presentation only: no `Folder` row, no colour, no menu, never merged
 with a user folder of the same name, and folders are its siblings, never its
 children. The open folders are an id set in localStorage
 (`productsExpandedFolders`) beside the sort
@@ -447,7 +447,10 @@ keys), clicking a product row opens its editor, and there is no selection.
 One heading-bar button, left of the search field (the `centerLeftChildren`
 slot), opens every folder and General, or closes them all once any is open.
 A folder row leaves the Package and Area columns empty; General leaves the
-date and menu cells empty too, and right-click does nothing on it.
+menu cell empty too, and right-click does nothing on it. A folder's Last
+updated is the newest date of anything inside it, its own included, and
+General's is the root products' newest (`tree.dates`); the Recent sort uses
+the same dates, so a folder rises when something inside it changes.
 Search at 3+ characters keeps each match in its place in the tree, opens the
 folders above the matches (General, for a root product), and shows a matching
 folder closed with all its contents; folders the user opens or closes during
