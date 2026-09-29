@@ -173,7 +173,7 @@ a permission-guarded derivation that selects Products / Explore / Results /
 Data / Assets / Users, in that nav order; Products (S12's
 `components/products/`) is first and the default, and Explore (S11's
 `components/explore/`, one package at one scope, a family's modules in a
-nav and a view per module, S11 "The Explore page") needs approval
+select and a view per module, S11 "The Explore page") needs approval
 only, which the whole nav already requires. The tab id union is `InstanceTab`
 in `onboarding/catalogue.ts` and the shell imports it.
 

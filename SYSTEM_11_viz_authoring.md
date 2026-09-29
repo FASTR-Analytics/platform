@@ -250,8 +250,8 @@ module change, or leaving the page, never resets it; until the user edits a fami
 `defaultGridQuery` for the current scope. Every read resolves the query
 first (`resolveGridQuery`); indicators the package lacks stay in state and a
 one-line notice above the grid offers Clear. The toolbar's top row holds
-the view `Select` with a find box and Download on the right; the row
-beneath holds level or stratifier, indicators (`MultiSelectSearch`, empty
+the selectors row (the module and view `SelectV2`s) with a find box and
+Download on the right; the row beneath holds level or stratifier, indicators (`MultiSelectSearch`, empty
 means all), period (`periodChoicesFor`) and grain (HMIS Time mode only). The reads are tracked (`createTrackedQuery`,
 `data_table/tracked_query.ts`), so they re-run on any change of the pair or
 the query: the metric info (`t2_figure_data`, for the package's HFA time

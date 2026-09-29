@@ -12,7 +12,7 @@ left of the view select, so the row reads module then view and the table or
 chart gets the width back. Nothing about what is selectable, stored or
 resolved changes. Delete this file when the last review passes.
 
-**Next step: Fix 1**
+**Next step: Review 1**
 
 Branch: `version2`. Repos: this app only. Precondition: the panther sync that
 brings `panther/_303_components/form_inputs/select_v2.tsx` has been committed
@@ -220,3 +220,4 @@ deletes this file in the review commit.
 | 2026-09-29 | 1 | Review 1 finding: `SYSTEM_11_viz_authoring.md:253`, the Data table paragraph still says the toolbar's top row holds "the view `Select`"; it holds the selectors row, the module and view `SelectV2`s. Ruling 9 named the page paragraphs only, and this sentence describes the same contract. |
 | 2026-09-29 | 1 | Review 1 finding: `SYSTEM_14_client_shell.md:175`, the Explore pointer still says "a family's modules in a nav and a view per module"; the nav is gone. The Surface omitted this one-line pointer; the fix edits that line and nothing else in the file. |
 | 2026-09-29 | 1 | Step 1 reviewed: 2 findings |
+| 2026-09-29 | 1 | Step 1 fixed |
