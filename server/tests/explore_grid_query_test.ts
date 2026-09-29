@@ -338,6 +338,7 @@ Deno.test("derive: HMIS timeseries is lines over the grain with a pane per indic
   assertEquals(config?.d.filterBy, []);
   assertEquals(config?.d.periodFilter, undefined);
   assertEquals(config?.s.content, "lines");
+  assertEquals(config?.s.hideLegend, true);
   assertEquals([config?.t.caption, config?.t.subCaption, config?.t.footnote], ["", "", ""]);
   assertEquals(deriveTimeseriesConfig(defaultGridQuery("hfa", NATIONAL, CTX, AVAILABLE), CTX, "en"), undefined);
 });

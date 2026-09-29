@@ -385,7 +385,7 @@ export function deriveTimeseriesConfig(
     metric: found.metric,
     config: {
       ...fromPreset,
-      s: { ...fromPreset.s, content: "lines" },
+      s: { ...fromPreset.s, content: "lines", hideLegend: true },
       t: { ...fromPreset.t, caption: "", subCaption: "", footnote: "" },
       d: {
         type: "timeseries",
