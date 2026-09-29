@@ -11,7 +11,6 @@ import {
   EditorComponentProps,
   FrameTop,
   HeadingBar,
-  Spinner,
   StateHolderWrapper,
   StepperNavigationVisual,
   getStepper,
@@ -489,9 +488,6 @@ function ImportInProgress(p: ImportInProgressProps) {
   return (
     <div class="ui-pad ui-spy">
       <div class="ui-gap-sm flex items-center">
-        <div class="h-6 w-6 flex-none">
-          <Spinner intent="primary" />
-        </div>
         <div class="ui-text-heading">
           {t3({
             en: "A structure import is running...",
