@@ -8,16 +8,18 @@
 // now stores ONE id and this file says what that id means, exactly as
 // report_fastr_themes.ts does for FASTR Markdown.
 //
-// The names are deliberately the SAME ELEVEN as the FASTR Markdown themes, so
+// The names are deliberately the SAME TEN as the FASTR Markdown themes, so
 // a report and a deck set in "Ministry" are recognisably the same document
 // family. What a name means has to be re-read per medium (a markdown theme
 // says it in four colours plus a stylesheet, a deck says it in a palette plus
 // page furniture) but the CHARACTER each name promises is the one the report
 // theme of that name delivers.
 //
-// Adding a theme is safe. REMOVING one needs the retired-value treatment
-// (PROTOCOL_APP_MIGRATIONS.md + a transform block in
-// data_transforms/slide_deck_config.ts), because the id is stored.
+// Adding a theme is safe. REMOVING one needs the retired-value treatment,
+// because the id is stored: an entry in RETIRED_SLIDE_DECK_THEMES below (read
+// by the slide_deck_config sweep AND the version-history read path, through
+// applySlideDeckThemeToLegacyConfig), and its spec kept in
+// SCORED_SLIDE_DECK_THEMES so the frozen legacy scorer still answers the same.
 // =============================================================================
 
 import type {
@@ -61,7 +63,6 @@ export const SLIDE_DECK_THEMES = [
   "clinical",
   "editorial",
   "swiss",
-  "monochrome",
   // The artistic pair, matching the FASTR Markdown themes of the same names.
   "bauhaus",
   "broadsheet",
@@ -167,16 +168,6 @@ export const SLIDE_DECK_THEME_SPECS: Record<
     layout: "modern",
     coverAndSectionTreatment: "pure",
     freeformTreatment: "minimal",
-    overlay: "none",
-  },
-  // One hue, stated at full strength on the cover and withdrawn everywhere
-  // else. The only theme whose accent carries no meaning of its own.
-  monochrome: {
-    colorPresetId: "gray",
-    fontFamily: "Fira Sans",
-    layout: "default",
-    coverAndSectionTreatment: "bold",
-    freeformTreatment: "classic",
     overlay: "none",
   },
   // Primary colour, geometric type, and the one theme that uses a pattern:
@@ -307,26 +298,70 @@ function themeDistance(
   );
 }
 
+// Themes that have been removed, and the live theme a deck stored on one now
+// wears. Monochrome went 2026-09-29 (Nick); minimal is the other greyscale
+// theme, on the same gray palette.
+const RETIRED_SLIDE_DECK_THEMES: Record<string, SlideDeckTheme> = {
+  monochrome: "minimal",
+};
+
+// The theme a stored id means today: itself, its successor if retired, or the
+// house style if it is not a theme at all.
+export function resolveSlideDeckTheme(id: unknown): SlideDeckTheme {
+  if (typeof id !== "string") return "default";
+  if ((SLIDE_DECK_THEMES as readonly string[]).includes(id)) {
+    return id as SlideDeckTheme;
+  }
+  return RETIRED_SLIDE_DECK_THEMES[id] ?? "default";
+}
+
+// The candidates the 2026-09-24 sweep scored against, in its order (the
+// tie-break), INCLUDING themes retired since. Frozen with the weights: dropping
+// a retired theme from the scoring would move a legacy snapshot that scored it
+// to a different neighbour than the live deck, which scored it and was then
+// re-pointed through RETIRED_SLIDE_DECK_THEMES.
+const SCORED_SLIDE_DECK_THEMES: [string, SlideDeckThemeSpec][] = [
+  ["default", SLIDE_DECK_THEME_SPECS.default],
+  ["minimal", SLIDE_DECK_THEME_SPECS.minimal],
+  ["corporate", SLIDE_DECK_THEME_SPECS.corporate],
+  ["ministry", SLIDE_DECK_THEME_SPECS.ministry],
+  ["executive", SLIDE_DECK_THEME_SPECS.executive],
+  ["clinical", SLIDE_DECK_THEME_SPECS.clinical],
+  ["editorial", SLIDE_DECK_THEME_SPECS.editorial],
+  ["swiss", SLIDE_DECK_THEME_SPECS.swiss],
+  ["monochrome", {
+    colorPresetId: "gray",
+    fontFamily: "Fira Sans",
+    layout: "default",
+    coverAndSectionTreatment: "bold",
+    freeformTreatment: "classic",
+    overlay: "none",
+  }],
+  ["bauhaus", SLIDE_DECK_THEME_SPECS.bauhaus],
+  ["broadsheet", SLIDE_DECK_THEME_SPECS.broadsheet],
+];
+
 export function nearestSlideDeckTheme(
   style: LegacySlideDeckStyle,
 ): SlideDeckTheme {
-  let best: SlideDeckTheme = "default";
+  let best = "default";
   let bestDistance = Infinity;
-  // SLIDE_DECK_THEMES order is the tie-break and "default" is first, so a deck
+  // The list order is the tie-break and "default" is first, so a deck
   // equidistant from several themes keeps the house style.
-  for (const theme of SLIDE_DECK_THEMES) {
-    const d = themeDistance(style, SLIDE_DECK_THEME_SPECS[theme]);
+  for (const [theme, spec] of SCORED_SLIDE_DECK_THEMES) {
+    const d = themeDistance(style, spec);
     if (d < bestDistance) {
       bestDistance = d;
       best = theme;
     }
   }
-  return best;
+  return resolveSlideDeckTheme(best);
 }
 
 // Give a config object a `theme` and strip the six legacy keys, in place.
-// Idempotent: a config that already has a theme and no legacy keys is
-// untouched, and one that has both is re-scored to the same answer.
+// Idempotent: a config that already has a live theme and no legacy keys is
+// untouched, one on a retired theme moves to its successor, and one that has
+// both a theme and legacy keys is re-scored to the same answer.
 export function applySlideDeckThemeToLegacyConfig(
   config: Record<string, unknown>,
 ): void {
@@ -345,7 +380,5 @@ export function applySlideDeckThemeToLegacyConfig(
       delete config[key];
     }
   }
-  if (typeof config.theme !== "string") {
-    config.theme = "default";
-  }
+  config.theme = resolveSlideDeckTheme(config.theme);
 }

@@ -19,10 +19,12 @@ export const FASTR_REPORT_THEMES = [
   "clinical",
   "editorial",
   "swiss",
-  "monochrome",
   // The artistic pair, matching the html style briefs of the same names.
   "bauhaus",
   "broadsheet",
+  // The panther markdown look, for reports written before FASTR Markdown
+  // existed: see the theme's own note in FASTR_THEME_SPECS.
+  "legacy",
 ] as const;
 export type FastrReportTheme = (typeof FASTR_REPORT_THEMES)[number];
 
@@ -85,13 +87,49 @@ export type FastrThemeChart = {
   bad: string;
   // The caution tier between good and bad: the middle traffic light of a
   // thresholds table. An amber the theme would use (gold on Art Deco, the
-  // yellow ink on Risograph, a khaki on Monochrome).
+  // yellow ink on Risograph, a khaki on Minimal).
   warn: string;
   // The sequential scale's ends (the blue-green option), [from, to]: `to` is
   // the emphatic end — the one a lone series takes — and `from` the receding
   // one, so a light theme runs tint → shade and a dark theme dim → bright.
   ramp: [string, string];
 };
+
+// The six heading levels, as a theme may re-cut them. LOAD-BEARING: a
+// heading's SIZE, WEIGHT and LEADING decide its box height, and three sheets
+// have to agree on that box or the editor's page boxes break where print does
+// not — the structure sheet (report_fastr_css), the editor's own cm-fm-h*
+// lines (same file) and the Word export (report_fastr_word). Every one of
+// them reads these tokens, which is why a theme re-cuts a heading HERE and
+// never with a `h1 { font-size }` rule in its extraCss: margins and paddings
+// are measured off the live sheet at layout time (measurePrintMetrics) and so
+// may be overridden freely, but a font metric is not measured, it is read.
+export const FASTR_HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
+export type FastrHeadingTag = (typeof FASTR_HEADING_TAGS)[number];
+export type FastrHeadingStyle = {
+  // em of the body text.
+  size: string;
+  // A CSS font-weight, or "heading" for the theme's own headingWeight.
+  weight: string;
+  lineHeight: string;
+};
+
+const FASTR_HEADING_DEFAULTS: Record<FastrHeadingTag, FastrHeadingStyle> = {
+  h1: { size: "2.15em", weight: "heading", lineHeight: "1.2" },
+  h2: { size: "1.55em", weight: "heading", lineHeight: "1.2" },
+  h3: { size: "1.2em", weight: "heading", lineHeight: "1.2" },
+  h4: { size: "1em", weight: "heading", lineHeight: "1.2" },
+  h5: { size: "1em", weight: "heading", lineHeight: "1.2" },
+  h6: { size: "1em", weight: "heading", lineHeight: "1.2" },
+};
+
+// Total: a theme that says nothing about a level gets the default cut.
+export function fastrHeadingStyle(
+  tokens: Pick<FastrThemeSpec, "headings">,
+  tag: FastrHeadingTag,
+): FastrHeadingStyle {
+  return { ...FASTR_HEADING_DEFAULTS[tag], ...tokens.headings?.[tag] };
+}
 
 // A theme as written: its four colours, its type and its extra rules.
 export type FastrThemeSpec = {
@@ -111,6 +149,9 @@ export type FastrThemeSpec = {
   headingCase: string;
   // Body column width.
   measure: string;
+  // Per-level heading cuts, for the levels this theme does not take as they
+  // come (FASTR_HEADING_DEFAULTS). Read through fastrHeadingStyle.
+  headings?: Partial<Record<FastrHeadingTag, Partial<FastrHeadingStyle>>>;
   // Rules the token model cannot express. They may name the five as
   // --fm-paper, --fm-ink, --fm-accent and --fm-warm (and a
   // ground's type as --fm-<tone>-ground-ink), and never a literal colour.
@@ -290,8 +331,8 @@ thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
     headingTracking: "-0.01em",
     headingCase: "none",
     measure: "52rem",
+    headings: { h1: { size: "2.6em" } },
     extraCss: `
-h1 { font-size: 2.6em; }
 h2 { border-bottom: 1px solid var(--fm-accent); padding-bottom: 0.2em; }
 .fm-stat__value { font-family: var(--fm-font-heading); }
 /* Gold hairlines and display serif carry the whole theme. */
@@ -346,9 +387,10 @@ tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
     headingTracking: "-0.02em",
     headingCase: "none",
     measure: "50rem",
+    headings: { h2: { size: "1.25em" } },
     extraCss: `
 h1 { border-top: 4px solid var(--fm-ink); border-bottom: 1px solid var(--fm-ink); padding: 0.3em 0; }
-h2 { text-transform: uppercase; letter-spacing: 0.08em; font-size: 1.25em; border-bottom: 1px solid var(--fm-ink); padding-bottom: 0.2em; }
+h2 { text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--fm-ink); padding-bottom: 0.2em; }
 .fm-callout__title { text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.8em; }
 /* Magazine furniture: a big centred pull quote and ruled plates. */
 .fm-quote { border: none; border-top: 3px solid var(--fm-ink); border-bottom: 3px solid var(--fm-ink); padding: 0.9em 0; font-family: var(--fm-font-heading); font-size: 1.45em; line-height: 1.25; text-align: center; color: var(--fm-ink); }
@@ -395,32 +437,6 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; 
 .fm-kicker { letter-spacing: 0.3em; }
 `,
   },
-  monochrome: {
-    scheme: "light",
-    palette: { paper: "#f4f4f2", ink: "#262626", accent: "#5c5c5a", warm: "#7e6758" },
-    fontImport: googleFonts("family=Inter:wght@400;600;800"),
-    fontBody: `Inter, ${SYSTEM_SANS}`,
-    fontHeading: `Inter, ${SYSTEM_SANS}`,
-    radius: "2px",
-    borderWidth: "1px",
-    headingWeight: "800",
-    headingTracking: "-0.02em",
-    headingCase: "none",
-    measure: "52rem",
-    extraCss: `
-.fm-callout { background: var(--fm-surface); border-left-color: var(--fm-ink); }
-/* Every emphasis has to come from weight and tone, never from hue. */
-h2 { border-bottom: 3px solid var(--fm-ink); padding-bottom: 0.25em; }
-.fm-stat { border-left: 5px solid var(--fm-ink); border-radius: 0; }
-.fm-figure { background: var(--fm-surface-alt); padding: 1em; }
-.fm-figure__caption { font-weight: 700; }
-.fm-quote { border-left-width: 6px; border-left-color: var(--fm-ink); font-size: 1.2em; color: var(--fm-ink); }
-.fm-steps { background: var(--fm-surface); }
-.fm-steps > * { padding-left: 4.2em; }
-.fm-steps > *::before { background: var(--fm-ink); color: var(--fm-page); padding: 0.1em 0.45em; left: 1em; }
-thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none; }
-`,
-  },
   bauhaus: {
     scheme: "light",
     palette: { paper: "#f3efe6", ink: "#1c1c1c", accent: "#b6433a", warm: "#6b2b24" },
@@ -435,8 +451,8 @@ thead th { background: var(--fm-ink); color: var(--fm-page); border-bottom: none
     headingTracking: "-0.02em",
     headingCase: "uppercase",
     measure: "54rem",
+    headings: { h1: { size: "2.8em", lineHeight: "0.95" } },
     extraCss: `
-h1 { font-size: 2.8em; line-height: 0.95; }
 h2 { color: var(--fm-ink); }
 .fm-band { border-block: 5px solid var(--fm-ink); }
 .fm-stat__value { font-family: var(--fm-font-heading); }
@@ -467,10 +483,10 @@ th, td { border: 2px solid var(--fm-ink); }
     headingTracking: "-0.01em",
     headingCase: "none",
     measure: "52rem",
+    headings: { h1: { size: "3em" } },
     extraCss: `
 h1 {
   text-align: center;
-  font-size: 3em;
   border-top: 1px solid var(--fm-ink);
   border-bottom: 1px solid var(--fm-ink);
   padding: 0.2em 0;
@@ -487,6 +503,91 @@ h2 { text-align: center; border-bottom: 3px double var(--fm-ink); padding-bottom
 thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
 .fm-cover { text-align: center; }
 .fm-kicker { letter-spacing: 0.35em; }
+`,
+  },
+  // The look of the reports written BEFORE FASTR Markdown: plain markdown
+  // rendered by panther's own markdown style (client/src/generate_report/
+  // report_markdown_style.ts over panther's _004_markdown_style defaults),
+  // which is what View mode and the PDF/Word exports gave a markdown report.
+  // It exists so those reports can be converted to FASTR Markdown without
+  // their authors finding a different document: white page, near-black text,
+  // Inter, the link blue as the only colour in the file, panther's modest
+  // heading scale (h1 1.65 at weight 800, h2 1.25, h3 1.125, h4-h6 plain body
+  // text), tables ruled on every edge under a shaded header, and panther's
+  // block rhythm. Chosen deliberately, so a converted report keeps it and a
+  // new report is never started on it.
+  //
+  // What it CANNOT carry over, because these are the format's and not the
+  // theme's: the document is set at 16px/1.55 (REPORT_BASE_CSS) where panther
+  // set it at 14px/1.4, so the column holds fewer words per line; and figures
+  // are PNG rasters where panther drew them into the PDF as vectors.
+  legacy: {
+    scheme: "light",
+    // panther's own: base100 as the page, baseContent as the text, and the
+    // markdown style's link blue as the accent. That blue is the ONE colour a
+    // markdown report ever showed, and it is a full-saturation web blue where
+    // every other theme's hues are muted — kept anyway, and exempted in the
+    // muted-palette test, because a muted blue would simply be a different
+    // document. The warm pole is NOT panther's alarm red: nothing in a
+    // markdown report was ever warm (there were no callouts, stats or deltas
+    // to colour), so it is free, and a muted brick is the better neighbour
+    // for the blocks a converted report may gain later.
+    palette: { paper: "#ffffff", ink: "#2a2a2a", accent: "#0066cc", warm: "#9c5a4d" },
+    // The app set markdown in International Inter; Inter is its public twin
+    // and the one the default theme already inlines into the printed file.
+    // 800 is here for the h1 weight, which no other theme asks Inter for.
+    fontImport: googleFonts("family=Inter:wght@400;500;600;700;800"),
+    fontBody: `Inter, ${SYSTEM_SANS}`,
+    fontHeading: `Inter, ${SYSTEM_SANS}`,
+    radius: "4px",
+    borderWidth: "1px",
+    headingWeight: "700",
+    headingTracking: "0em",
+    headingCase: "none",
+    // panther rendered the report into the preview's max-w-4xl card.
+    measure: "56rem",
+    // panther's headingRelFontSizes with the report style's heavier h1, and
+    // h4-h6 as they were: base text, unbolded. Leading is the base text's
+    // 1.4, not the structure sheet's tighter 1.2.
+    headings: {
+      h1: { size: "1.65em", weight: "800", lineHeight: "1.4" },
+      h2: { size: "1.25em", lineHeight: "1.4" },
+      h3: { size: "1.125em", lineHeight: "1.4" },
+      h4: { weight: "400", lineHeight: "1.4" },
+      h5: { weight: "400", lineHeight: "1.4" },
+      h6: { weight: "400", lineHeight: "1.4" },
+    },
+    // panther's marginsEm verbatim: every block declares the gap ABOVE it and
+    // nothing below, so the space after a heading is whatever follows it
+    // asking for room (0.5em before a list, 1.5em before a quote). A
+    // paragraph keeps a bottom margin as well as its top, which collapsing
+    // makes a no-op between blocks and which the page layout needs — the
+    // editor reads a paragraph's rhythm off margin-BOTTOM (measurePrintMetrics
+    // pMargin), and a paragraph with none would close up every page.
+    extraCss: `
+h1, h2, h3, h4, h5, h6 { font-family: var(--fm-font-body); margin-bottom: 0; }
+h1 { margin-top: 0.9em; }
+h2 { margin-top: 0.95em; border-bottom: none; padding-bottom: 0; }
+h3, h4, h5, h6 { margin-top: 1em; }
+p { margin: 1em 0; }
+a { text-decoration: underline; }
+/* panther's own list indent (textIndentEm), markers and all: the structure
+   sheet draws them with a ::before at the negative of the padding, so the
+   two move together or the marker leaves the text. */
+ul, ol { margin: 0.5em 0; --fm-mt: 0.5em; --fm-mb: 0.5em; padding-left: 1.714em; }
+ul > li::before, ol:not(.fm-toc__list) > li::before { left: -1.714em; width: 1.714em; }
+li { margin: 0.5em 0 0; }
+li:first-child { margin-top: 0; }
+hr { margin: 1.5em 0; }
+pre { margin: 1.5em 0; padding: 1em; }
+blockquote { margin: 1.5em 0; --fm-mt: 1.5em; --fm-mb: 1.5em; padding: 0.25em 0 0.25em 0.75em; border-left: 3px solid var(--fm-ink); color: var(--fm-ink); }
+/* A ruled grid with a shaded header, sized by its content, not the structure
+   sheet's full-width underlined table. */
+table { width: auto; margin: 1em 0 1.5em; --fm-mt: 1em; --fm-mb: 1.5em; font-size: 1em; }
+th, td { border: 1px solid var(--fm-border); padding: 0.25em 0.5em; }
+thead th { background: var(--fm-surface-alt); border-bottom: 1px solid var(--fm-border); }
+/* An image was a bare image in the flow, never a card. */
+.fm-figure { margin: 1em 0 1.5em; --fm-mt: 1em; --fm-mb: 1.5em; }
 `,
   },
 };
@@ -511,7 +612,7 @@ export function hexLuminance(v: string): number | undefined {
 }
 
 // The hue a caution tier reads as, and the theme's own gold at it: the warm
-// pole's chroma and lightness carried to that hue, so Monochrome's warning is
+// pole's chroma and lightness carried to that hue, so Minimal's warning is
 // a whisper of gold and Bauhaus's is a real yellow. A warm pole that is
 // already golden (Broadsheet's sepia) would collide, so the gold steps
 // lighter to stay a tier of its own.

@@ -13,7 +13,7 @@ import {
   Button,
   FrameLeftResizable,
   FrameTop,
-  Icon,
+  HeadingBar,
   LoadingIndicator,
   type MenuItem,
   MenuButton,
@@ -22,7 +22,7 @@ import {
   openComponent,
 } from "panther";
 import { Sortable, SortableJs } from "panther";
-import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
+import { createEffect, createSignal, type JSX, on, Show, untrack } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
@@ -35,6 +35,7 @@ import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
 import { PackageScopeChip, ProductTitle } from "~/components/products/_shared/mod.ts";
 import { DeckFileMenu, DeckMenu } from "./deck_menu";
+import { SlideDeckThemeModal } from "./style_editor/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
@@ -551,6 +552,31 @@ export function SlideList(p: Props) {
     }
   }
 
+  // A deck nobody has chosen a look for yet: ask now, once per open, as a new
+  // report does. Only a deck minted since the modal existed carries
+  // `themeChosen: false`, so no older deck is interrupted. Editors only: a
+  // reader cannot answer it.
+  let themeAsked = false;
+  createEffect(() => {
+    const loading = p.isLoading;
+    const config = deckConfig();
+    const canEdit = canEditFigures();
+    if (themeAsked || loading || config.themeChosen !== false || !canEdit) {
+      return;
+    }
+    themeAsked = true;
+    const deckLabel = untrack(() => p.deckLabel);
+    void (async () => {
+      const theme = await openComponent({
+        element: SlideDeckThemeModal,
+        props: { deckLabel, config },
+      });
+      // Someone else may have answered while the modal was open.
+      if (theme === undefined || deckConfig().themeChosen !== false) return;
+      await patchDeckConfig({ theme, themeChosen: true });
+    })();
+  });
+
   // The chip opens the pair surface with a live count of what the candidate
   // pair would leave stale, walked over the same per-slide cache as above.
   async function openPackageScope() {
@@ -587,133 +613,119 @@ export function SlideList(p: Props) {
     });
   }
 
-  // Built ONCE and passed by reference: panther's FrameTop reads
-  // `panelChildren` twice (a Show's `when`, then its child), and an inline JSX
-  // prop compiles to a getter, so an inline panel would be BUILT twice, firing
-  // every ref (the toolbar hosts) and rendering the deck's menus twice over.
+  // Every piece of the header is built ONCE and passed by reference: panther's
+  // FrameTop reads `panelChildren` twice (a Show's `when`, then its child),
+  // and HeadingBar reads its slots the same way, while an inline JSX prop
+  // compiles to a getter, so an inline slot would be BUILT twice, firing every
+  // ref (the toolbar hosts) and rendering the deck's menus twice over.
+  // pl-1: the title's rename hover reaches 4px left of its text, and the bar
+  // clips its overflow.
+  const headerTitle = (
+    <div class="ui-gap-sm flex min-w-0 items-center pl-1">
+      <ProductTitle productId={p.productId} label={p.deckLabel} />
+      <PresenceAvatars
+        peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
+      />
+    </div>
+  );
+  const headerActions = (
+    <div class="ui-gap-sm flex items-center">
+      {/* The package and scope, then the open slide's live/save dot
+          (portaled in by its editor): the report header's pair. */}
+      <div class="flex items-center">
+        <PackageScopeChip
+          product={p.product}
+          onClick={canEditFigures() ? () => void openPackageScope() : undefined}
+        />
+      </div>
+      {/* Holds its width while empty, so the buttons do not shift when the
+          dot arrives. */}
+      <div class="flex min-w-16 items-center" ref={p.onStatusHost} />
+      <MenuButton
+        position="bottom-end"
+        items={addSlideMenuItems}
+        id="deck-add-slide-button"
+        iconName="plus"
+        outline
+      >
+        {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+      </MenuButton>
+      <Show when={p.slideIds.length > 0}>
+        <Button
+          id="deck-present-button"
+          iconName="presentation"
+          onClick={() => p.present()}
+        >
+          {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
+        </Button>
+      </Show>
+      <Show when={canEditFigures()}>
+        <UpdateAllFiguresButton
+          count={staleCount()}
+          busy={updatingFigures()}
+          onClick={() => void updateAllFigures()}
+        />
+      </Show>
+      <Button
+        id="deck-history-button"
+        iconName="rotate"
+        outline
+        onClick={() => p.openVersionHistory()}
+      >
+        {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
+      </Button>
+      <Show when={!showAi()}>
+        <Button
+          onClick={() => setShowAi(true)}
+          iconName="chevronLeft"
+          outline
+        >
+          {t3({ en: "AI", fr: "IA", pt: "IA" })}
+        </Button>
+      </Show>
+    </div>
+  );
+  // Three rows, each ruled off from the next (Google Slides): back, the name
+  // and the deck's actions in panther's HeadingBar; the menus (File, Deck,
+  // then the open slide's Slide, Insert..., portaled in by the slide
+  // toolbar); and the toolbar for whatever is selected.
   const headerPanel = (
-      <div class="h-full w-full" data-cursor-zone="header">
-      {/* One header (Google Slides): the name with the slide's menus under
-          it on the left, the deck's actions on the right, the toolbar row
-          beneath. */}
-      <div class="border-b w-full flex-none" data-tour="deck-toolbar">
-        <div class="ui-pad-sm ui-gap flex w-full items-center">
-          {/* Back sits in its own column, so the name and the slide's menus
-              under it share one left margin; the deck's actions centre on
-              the whole two-row header. */}
-          <div class="ui-gap-sm flex min-w-0 flex-1 items-stretch">
-            {/* The deck's own glyph sits on the name's line and back sits
-                under it, on the menu row, at the usual button size. */}
-            <div class="flex flex-none flex-col items-center">
-              <div class="flex min-h-[var(--ui-form-height)] items-center">
-                <Icon iconName="presentation" class="h-5 w-5" />
-              </div>
-              <Button iconName="chevronLeft" onClick={() => p.handleClose()} />
-            </div>
-            <div class="flex min-w-0 flex-1 flex-col">
-              <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
-                <ProductTitle productId={p.productId} label={p.deckLabel} />
-                <PresenceAvatars
-                  peers={otherPeers().filter((pe) => pe.deckId === p.productId)}
-                />
-              </div>
-              {/* The row of menus: the deck's own first, then the open
-                  slide's (Slide, Insert...), portaled in here by the slide
-                  toolbar. The pull-back puts the first label on the deck
-                  name's left margin. */}
-              <div
-                class="-ml-2 flex min-w-0 items-center gap-1 pt-2"
-                ref={p.onMenuRowHost}
-              >
-                <DeckFileMenu
-                  onDownload={() => void p.download()}
-                  onShare={() => void p.share()}
-                  onRename={() => void p.handleOpenProductSettings()}
-                  selectedCount={selectedIds().size}
-                  onCopyToDeck={() => void copyToDeck()}
-                />
-                <DeckMenu
-                  config={deckConfig()}
-                  canEdit={canEditFigures()}
-                  onPatch={(patch) => void patchDeckConfig(patch)}
-                  onOpenAllSettings={() => void p.handleOpenSettings()}
-                />
-              </div>
-            </div>
-          </div>
-          {/* The deck's actions sit on the menu row's line, not the
-              name's, so the bar reads as one block that steps down. */}
-          <div class="ui-gap-sm flex flex-none items-center self-end">
-            {/* The package and scope, then the open slide's live/save dot
-                (portaled in by its editor): the report header's pair. */}
-            <div class="flex items-center">
-              <PackageScopeChip
-                product={p.product}
-                onClick={canEditFigures() ? () => void openPackageScope() : undefined}
-              />
-            </div>
-            {/* Holds its width while empty, for the same reason. */}
-            <div class="flex min-w-16 items-center" ref={p.onStatusHost} />
-            <MenuButton
-              position="bottom-end"
-              items={addSlideMenuItems}
-              id="deck-add-slide-button"
-              iconName="plus"
-              outline
-            >
-              {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-            </MenuButton>
-            <Show when={p.slideIds.length > 0}>
-              <Button
-                id="deck-present-button"
-                iconName="presentation"
-                onClick={() => p.present()}
-              >
-                {t3({ en: "Present", fr: "Présenter", pt: "Apresentar" })}
-              </Button>
-            </Show>
-            <Show when={canEditFigures()}>
-              <UpdateAllFiguresButton
-                count={staleCount()}
-                busy={updatingFigures()}
-                onClick={() => void updateAllFigures()}
-              />
-            </Show>
-            <Button
-              id="deck-history-button"
-              iconName="rotate"
-              outline
-              onClick={() => p.openVersionHistory()}
-            >
-              {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
-            </Button>
-            <Show when={!showAi()}>
-              <Button
-                onClick={() => setShowAi(true)}
-                iconName="chevronLeft"
-                outline
-              >
-                {t3({ en: "AI", fr: "IA", pt: "IA" })}
-              </Button>
-            </Show>
+    <div class="h-full w-full border-b" data-cursor-zone="header">
+      <div class="w-full flex-none" data-tour="deck-toolbar">
+        <HeadingBar onBack={() => p.handleClose()} heading={headerTitle}>
+          {headerActions}
+        </HeadingBar>
+        {/* The pull-back puts the first menu's label on the bar's padding
+            edge, under the back button. */}
+        <div class="ui-pad-x flex min-h-10 items-center border-b py-1">
+          <div
+            class="-ml-2 flex min-w-0 flex-wrap items-center gap-1"
+            ref={p.onMenuRowHost}
+          >
+            <DeckFileMenu
+              onDownload={() => void p.download()}
+              onShare={() => void p.share()}
+              onRename={() => void p.handleOpenProductSettings()}
+              selectedCount={selectedIds().size}
+              onCopyToDeck={() => void copyToDeck()}
+            />
+            <DeckMenu
+              config={deckConfig()}
+              canEdit={canEditFigures()}
+              onPatch={(patch) => void patchDeckConfig(patch)}
+              onOpenAllSettings={() => void p.handleOpenSettings()}
+            />
           </div>
         </div>
-        {/* The toolbar row: the deck's Add slide at the left, then the open
-            slide's formatting pill. */}
-        {/* The toolbar row: the open slide's formatting pill (Add slide
-            sits with the deck's actions above). */}
-        {/* The row keeps the pill's height even while it is empty: a cold
-            slide switch unmounts the editor, and with it this portal, for a
-            frame or two, and a collapsing row would jump the canvas under the
-            cursor. */}
-        <div
-          class="border-t flex min-h-[calc(3rem+1px)] items-start"
-          data-cursor-zone="header"
-        >
+        {/* The open slide's formatting pill. The row keeps the pill's height
+            even while it is empty: a cold slide switch unmounts the editor,
+            and with it this portal, for a frame or two, and a collapsing row
+            would jump the canvas under the cursor. */}
+        <div class="flex min-h-12 items-start" data-cursor-zone="header">
           <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
         </div>
       </div>
-      </div>
+    </div>
   );
 
   return (

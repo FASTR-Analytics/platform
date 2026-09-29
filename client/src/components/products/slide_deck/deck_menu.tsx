@@ -231,7 +231,7 @@ export function DeckMenu(p: Props) {
                   value={p.config.theme}
                   config={p.config}
                   onChange={(theme) => {
-                    p.onPatch({ theme });
+                    p.onPatch({ theme, themeChosen: true });
                     close();
                   }}
                 />

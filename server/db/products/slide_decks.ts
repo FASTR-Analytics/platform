@@ -113,9 +113,11 @@ export async function insertNewSlideDeckDetail(
   productId: string,
   label: string,
 ): Promise<void> {
-  const config = slideDeckConfigSchema.parse(
-    getStartingConfigForSlideDeck(label),
-  );
+  // A new deck is asked for its theme the first time it is opened.
+  const config = slideDeckConfigSchema.parse({
+    ...getStartingConfigForSlideDeck(label),
+    themeChosen: false,
+  });
   await sql`
     INSERT INTO slide_decks (id, plan, config)
     VALUES (${productId}, '', ${JSON.stringify(config)})

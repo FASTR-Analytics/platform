@@ -35,6 +35,7 @@ export const slideDeckConfigSchema = z.object({
   useWatermark: z.boolean(),
   watermarkText: z.string(),
   theme: z.enum(SLIDE_DECK_THEMES),
+  themeChosen: z.boolean().optional(),
 });
 
 export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
@@ -74,5 +75,6 @@ const _completeDeckConfig: Required<SlideDeckConfig> = {
   useWatermark: false,
   watermarkText: "",
   theme: "default",
+  themeChosen: true,
 };
 slideDeckConfigSchema.parse(_completeDeckConfig);

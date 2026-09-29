@@ -1140,7 +1140,13 @@ export function ReportBodyEditor(p: Props) {
     <div class="relative h-full w-full">
       <div
         ref={parent}
-        class="bg-base-100 h-full w-full"
+        class="h-full w-full"
+        classList={{
+          // Around the live-preview sheet the pane is the slide editor's
+          // canvas ground; the plain code editor stays on the editor white.
+          "bg-base-200": p.livePreview?.() ?? false,
+          "bg-base-100": !(p.livePreview?.() ?? false),
+        }}
         style={pagesOn()
           ? "position:absolute;inset:0;visibility:hidden;pointer-events:none"
           : undefined}

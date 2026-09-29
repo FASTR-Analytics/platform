@@ -14,7 +14,7 @@ type ThemePickerProps = {
 
 // The whole of deck styling, in one control. It replaced six pickers (colour,
 // font, layout, cover treatment, freeform treatment, overlay) whose product was
-// tens of thousands of combinations; a theme is one of eleven considered points
+// tens of thousands of combinations; a theme is one of ten considered points
 // in that space, and the card shows the point rather than describing it.
 export function ThemePicker(p: ThemePickerProps) {
   const configForTheme = (theme: SlideDeckTheme): SlideDeckConfig => ({

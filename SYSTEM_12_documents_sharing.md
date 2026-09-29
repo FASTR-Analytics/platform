@@ -501,11 +501,13 @@ markdown IR. html reports additionally carry `htmlStyle?` — one of the
 executive, clinical, editorial, swiss, monochrome, bauhaus, blueprint,
 broadsheet, risograph, artdeco, japanese, terminal, brutalist; also fixed at
 creation, also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI
-authoring brief, never the render path. Six of those names have no FASTR theme
-any more (blueprint retired 2026-09-03; risograph, artdeco, japanese, terminal
-and brutalist 2026-09-17, as too loud for the reports people actually send):
-the html style stays so an html report written in one still renders, and a
-fastr report stored on a retired theme opens on the default,
+authoring brief, never the render path. Eight of those names have no FASTR
+theme any more (blueprint retired 2026-09-03; risograph, artdeco, japanese,
+terminal and brutalist 2026-09-17, as too loud for the reports people actually
+send; classic 2026-09-21; monochrome 2026-09-29, its stored reports moved to
+minimal, the other greyscale theme): the html style stays so an html report
+written in one still renders, and a fastr report stored on a retired theme
+opens on the default,
 `getFastrReportTheme` being total. **Creation asks nothing**: the products
 page mints the report the way it mints a deck, server-labelled and instantly
 open (D16). The look is chosen from INSIDE the report instead, by
@@ -633,8 +635,19 @@ is made safe by the same DOMPurify pass, not by the compiler.
 **Themes**
 ([lib/types/report_fastr_themes.ts](lib/types/report_fastr_themes.ts),
 [lib/report_fastr_css.ts](lib/report_fastr_css.ts)): ONE structure sheet plus
-a per-theme token block — **18 presets, one per `REPORT_HTML_STYLES` name**,
-so a report can be moved between formats without losing its look. A theme is
+a per-theme token block. **11 presets**: ten named for a
+`REPORT_HTML_STYLES` preset, so a report can be moved between formats without
+losing its look, plus **`legacy`**, which is not a design but a reproduction.
+It restates the panther markdown look (`REPORT_MARKDOWN_STYLE` over panther's
+`_004_markdown_style` defaults) that every markdown-format report renders in,
+so such a report can be converted to FASTR Markdown without becoming a
+different document: white page, panther's near-black ink, Inter, its link blue
+`#0066cc` (the one saturated accent in the set, exempted in the muted-palette
+test for that reason), its heading scale, its ruled tables and its block
+rhythm. Two things it cannot carry over, both the FORMAT's and not the
+theme's: the document is set at 16px/1.55 (`REPORT_BASE_CSS`) where panther
+set it at 14px/1.4, and figures are PNG rasters where panther drew vectors
+into the PDF. It is chosen deliberately and never seeded. A theme is
 ~700 chars of tokens plus 0-195 chars of its own rules against a shared 12k
 sheet, which is why every block, tone and background added since landed on all
 of them at once. Two WERE dark pages (blueprint, terminal, both retired), and
@@ -646,8 +659,15 @@ still make a page dark, and every theme left is light. Each theme declares
 reads, and every rule that establishes a ground of the other darkness (a tone
 the theme paints dark, `fm-ink--light`) re-points the set locally — pinned by
 a test, since the first attempt missed the ink tone and nothing else would
-have caught it. Tokens are projected into `--fm-*` custom properties;
-`buildFastrReportCss(theme, colors?, scope?, opts?)` is a pure string builder,
+have caught it. Tokens are projected into `--fm-*` custom properties.
+A theme's `extraCss` may override anything MEASURED off the live sheet at
+layout time (margins, paddings, list indents: `measurePrintMetrics`), which is
+how `legacy` restates panther's rhythm. It may never re-cut a heading, because
+font metrics are read rather than measured, by three sheets that have to agree
+on a heading's box: the structure sheet, the editor's own `cm-fm-h*` lines and
+the Word export. A re-cut goes in the spec's `headings` map (`fastrHeadingStyle`,
+`--fm-h<n>-size` / `-weight` / `-line-height`), which all three read; a test
+pins it. `buildFastrReportCss(theme, colors?, scope?, opts?)` is a pure string builder,
 so the same call serves the preview, the export AND the creation picker's
 tiles — which therefore show the real design, not an impression. Everything is
 in `em` so a tile shrinks the whole sheet by dropping its root font-size.
@@ -1400,7 +1420,7 @@ the six existing dark-ground rules work for marks with no rule of their own: an
 alias declared at `:root` would substitute at computed-value time and inherit the
 SUBSTITUTED colour. On a ground that is already that hue the mark returns to the
 ground's ink — colour the text or the panel, never both. And where a theme's
-accent cannot carry text (brutalist's yellow, or Minimal and Monochrome where the
+accent cannot carry text (brutalist's yellow, or Minimal where the
 accent IS the ink), `--fm-accent-text` degrades to ink by design, so those themes
 mark with weight instead: a control that silently does nothing is worse than one
 that does something modest.

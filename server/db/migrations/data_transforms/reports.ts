@@ -109,10 +109,15 @@ export async function migrateReports(
     }
 
     // Block 3: retired fastr themes (2026-09-03 — blueprint removed;
-    // 2026-09-21 — classic removed). Same
+    // 2026-09-21 — classic removed; 2026-09-29 — monochrome removed). Same
     // mechanics as Block 2: an out-of-enum value fails safeParse and routes
     // the row here; dropping the key falls the report back to the default
     // theme (the theme is a starting point, changeable in the editor).
+    // Monochrome instead lands on minimal, the other greyscale theme, since
+    // the default's blue would be a visible re-colour.
+    if (config.fastrTheme === "monochrome") {
+      config.fastrTheme = "minimal";
+    }
     if (
       typeof config.fastrTheme === "string" &&
       !(FASTR_REPORT_THEMES as readonly string[]).includes(config.fastrTheme)

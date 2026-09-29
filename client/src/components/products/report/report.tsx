@@ -52,7 +52,7 @@ import {
   type EditorComponentProps,
   FrameTop,
   getEditorWrapper,
-  Icon,
+  HeadingBar,
   MarkdownPresentationJsx,
   openAlert,
   openComponent,
@@ -2219,171 +2219,175 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     </div>
   );
 
-  // Built ONCE and passed by reference: panther's FrameTop reads
-  // `panelChildren` twice (a Show's `when`, then its child), and an inline JSX
-  // prop compiles to a getter, so an inline panel is BUILT twice. The second
+  // Every piece of the header is built ONCE and passed by reference:
+  // panther's FrameTop reads `panelChildren` twice (a Show's `when`, then its
+  // child), and HeadingBar reads its slots the same way, while an inline JSX
+  // prop compiles to a getter, so an inline piece is BUILT twice. The second
   // copy is the one inserted, but the first has already run its refs, and both
   // toolbars then portal their menu row into the host the last ref set: two
   // menu rows in one header.
+  // The back button keeps its id (tour anchor), so it rides the left slot
+  // rather than HeadingBar's own onBack button.
+  const headerBack = (
+    <Button
+      id="report-back-button"
+      iconName="chevronLeft"
+      onClick={() => p.close(undefined)}
+    />
+  );
+  // pl-1: the title's rename hover reaches 4px left of its text, and the bar
+  // clips its overflow.
+  const headerTitle = (
+    <div class="flex min-w-0 items-center pl-1">
+      <ProductTitle productId={p.productId} label={label()} />
+    </div>
+  );
+  // Each control centred on the buttons' height: the save dot is 15px
+  // against a 36px button.
+  const headerActions = (
+    <div class="ui-gap-sm flex items-center">
+      <Show when={format() !== "fastr"}>
+        <ButtonGroup<ReportMode>
+          data-tour="report-mode"
+          items={[
+            {
+              id: "edit",
+              label: t3({ en: "Edit", fr: "Édition", pt: "Editar" }),
+            },
+            {
+              id: "split",
+              label: t3({ en: "Split", fr: "Divisé", pt: "Dividido" }),
+            },
+            {
+              id: "view",
+              label: t3({ en: "View", fr: "Aperçu", pt: "Ver" }),
+            },
+          ]}
+          value={mode()}
+          onChange={(v) => v && setMode(v)}
+        />
+      </Show>
+      <PackageScopeChip
+        product={product()}
+        onClick={canConfigure() ? () => void openPackageScope() : undefined}
+      />
+      {/* FASTR Markdown carries no CSS in its body, so re-theming is
+          safe at any time, unlike an html report's style, which is
+          fixed at creation because the body IS the design. */}
+      {/* The FASTR toolbar's Page menu owns the theme; the header
+          keeps this select for the cases with no toolbar (View). */}
+      <Show when={format() === "fastr" && canEditBody() && !fileMenuShown()}>
+        <div data-tour="report-fastr-theme">
+          <Select<FastrReportTheme>
+            size="sm"
+            outline
+            value={fastrTheme()}
+            options={fastrThemeOptions()}
+            onChange={changeFastrTheme}
+          />
+        </div>
+      </Show>
+      {/* Who else is currently in THIS report (live presence). */}
+      <PresenceAvatars
+        peers={otherPeers().filter(
+          (pe) => pe.reportId === p.productId,
+        )}
+        size="sm"
+      />
+      <div
+        class="ui-text-caption mr-2 flex items-center gap-1.5"
+        data-tour="report-save-status"
+      >
+        <div
+          class="h-1.5 w-1.5 flex-none rounded-full"
+          classList={{
+            [saveIndicator().dot]: true,
+            "animate-pulse": saveStatus() === "saving",
+          }}
+        />
+        <span>{saveIndicator().text}</span>
+      </div>
+      {/* Undo/redo the body text. Hidden in View (the editor is
+          hidden there, so there is nothing to undo into) — and for
+          FASTR the toolbar pill carries the pair, Google Docs style. */}
+      <Show when={mode() !== "view" && canEditBody() && format() !== "fastr"}>
+        <Button
+          outline
+          iconName="undo"
+          onClick={() => editorApi?.undo()}
+        />
+        <Button
+          outline
+          iconName="redo"
+          onClick={() => editorApi?.redo()}
+        />
+      </Show>
+      <Show when={canConfigure()}>
+        <UpdateAllFiguresButton
+          count={staleFigures().length}
+          busy={updatingFigures()}
+          onClick={() => void updateAllFigures()}
+        />
+      </Show>
+      <Button
+        id="report-history-button"
+        outline
+        iconName="rotate"
+        onClick={openVersionHistory}
+      >
+        {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
+      </Button>
+      <Show when={!fileMenuShown()}>
+        <Button
+          id="report-download-button"
+          outline
+          iconName="download"
+          onClick={download}
+        >
+          {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
+        </Button>
+      </Show>
+      <Show when={!showAi()}>
+        <Button
+          id="report-ai-button"
+          outline
+          iconName="chevronLeft"
+          onClick={() => setShowAi(true)}
+        >
+          {t3({ en: "AI", fr: "IA", pt: "IA" })}
+        </Button>
+      </Show>
+    </div>
+  );
+  // Three rows, each ruled off from the next (the slide deck's shape): back,
+  // the name and the report's actions in panther's HeadingBar; the toolbar's
+  // menus (File, Page, Insert...), portaled into their own row; and the
+  // formatting pill for whatever is selected.
   const headerPanel = (
         <div
           class="h-full w-full"
           data-cursor-zone="header"
         >
-          {/* One header (the slide deck's shape): the name with the
-              document's menu row under it on the left; the package chip,
-              the save dot and the report's actions on the right, on that
-              same lower line; the formatting pill in its own row beneath. */}
-          <div
-            class="ui-pad-sm ui-gap border-b flex w-full items-center"
+          <HeadingBar
             data-tour="report-toolbar"
+            leftChildren={headerBack}
+            heading={headerTitle}
           >
-            <div class="ui-gap-sm flex min-w-0 flex-1 items-stretch">
-              {/* The report's own glyph sits on the name's line and back
-                  sits under it, on the menu row. */}
-              <div class="flex flex-none flex-col items-center">
-                <div class="flex min-h-[var(--ui-form-height)] items-center">
-                  <Icon iconName="report" class="h-5 w-5" />
-                </div>
-                <Button
-                  id="report-back-button"
-                  iconName="chevronLeft"
-                  onClick={() => p.close(undefined)}
-                />
-              </div>
-              <div class="flex min-w-0 flex-1 flex-col">
-                <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] items-center">
-                  <ProductTitle productId={p.productId} label={label()} />
-                </div>
-                {/* The toolbar's menu row, portaled in under the name. */}
-                <Show when={fileMenuShown()}>
-                  <div
-                    class="-ml-2 flex min-w-0 items-center gap-1 pt-2"
-                    ref={(el) => {
-                      setMenuRowHost(el);
-                      onCleanup(() => setMenuRowHost(undefined));
-                    }}
-                  />
-                </Show>
-              </div>
-            </div>
-            {/* Bottom of the header (the menu row's line), but each
-                control centred on the buttons' height: the save dot is
-                15px against a 36px button. */}
-            <div class="ui-gap-sm flex flex-none items-center self-end">
-              <Show when={format() !== "fastr"}>
-                <ButtonGroup<ReportMode>
-                  data-tour="report-mode"
-                  items={[
-                    {
-                      id: "edit",
-                      label: t3({ en: "Edit", fr: "Édition", pt: "Editar" }),
-                    },
-                    {
-                      id: "split",
-                      label: t3({ en: "Split", fr: "Divisé", pt: "Dividido" }),
-                    },
-                    {
-                      id: "view",
-                      label: t3({ en: "View", fr: "Aperçu", pt: "Ver" }),
-                    },
-                  ]}
-                  value={mode()}
-                  onChange={(v) => v && setMode(v)}
-                />
-              </Show>
-              <PackageScopeChip
-                product={product()}
-                onClick={canConfigure() ? () => void openPackageScope() : undefined}
-              />
-              {/* FASTR Markdown carries no CSS in its body, so re-theming is
-                  safe at any time, unlike an html report's style, which is
-                  fixed at creation because the body IS the design. */}
-              {/* The FASTR toolbar's Page menu owns the theme; the header
-                  keeps this select for the cases with no toolbar (View). */}
-              <Show when={format() === "fastr" && canEditBody() && !fileMenuShown()}>
-                <div data-tour="report-fastr-theme">
-                  <Select<FastrReportTheme>
-                    size="sm"
-                    outline
-                    value={fastrTheme()}
-                    options={fastrThemeOptions()}
-                    onChange={changeFastrTheme}
-                  />
-                </div>
-              </Show>
-              {/* Who else is currently in THIS report (live presence). */}
-              <PresenceAvatars
-                peers={otherPeers().filter(
-                  (pe) => pe.reportId === p.productId,
-                )}
-                size="sm"
-              />
+            {headerActions}
+          </HeadingBar>
+          {/* The toolbar's menu row. The pull-back puts the first menu's
+              label on the bar's padding edge, under the back button. */}
+          <Show when={fileMenuShown()}>
+            <div class="ui-pad-x flex min-h-10 items-center border-b py-1">
               <div
-                class="ui-text-caption mr-2 flex items-center gap-1.5"
-                data-tour="report-save-status"
-              >
-                <div
-                  class="h-1.5 w-1.5 flex-none rounded-full"
-                  classList={{
-                    [saveIndicator().dot]: true,
-                    "animate-pulse": saveStatus() === "saving",
-                  }}
-                />
-                <span>{saveIndicator().text}</span>
-              </div>
-              {/* Undo/redo the body text. Hidden in View (the editor is
-                  hidden there, so there is nothing to undo into) — and for
-                  FASTR the toolbar pill carries the pair, Google Docs style. */}
-              <Show when={mode() !== "view" && canEditBody() && format() !== "fastr"}>
-                <Button
-                  outline
-                  iconName="undo"
-                  onClick={() => editorApi?.undo()}
-                />
-                <Button
-                  outline
-                  iconName="redo"
-                  onClick={() => editorApi?.redo()}
-                />
-              </Show>
-              <Show when={canConfigure()}>
-                <UpdateAllFiguresButton
-                  count={staleFigures().length}
-                  busy={updatingFigures()}
-                  onClick={() => void updateAllFigures()}
-                />
-              </Show>
-              <Button
-                id="report-history-button"
-                outline
-                iconName="rotate"
-                onClick={openVersionHistory}
-              >
-                {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
-              </Button>
-              <Show when={!fileMenuShown()}>
-                <Button
-                  id="report-download-button"
-                  outline
-                  iconName="download"
-                  onClick={download}
-                >
-                  {t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
-                </Button>
-              </Show>
-              <Show when={!showAi()}>
-                <Button
-                  id="report-ai-button"
-                  outline
-                  iconName="chevronLeft"
-                  onClick={() => setShowAi(true)}
-                >
-                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
-                </Button>
-              </Show>
+                class="-ml-2 flex min-w-0 flex-wrap items-center gap-1"
+                ref={(el) => {
+                  setMenuRowHost(el);
+                  onCleanup(() => setMenuRowHost(undefined));
+                }}
+              />
             </div>
-          </div>
+          </Show>
           {/* The formatting strip: the toolbar's PILL, under the header
               whose menu row it portals into. A row of its own rather than
               more controls in the header's right group, which already
