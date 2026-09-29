@@ -361,7 +361,7 @@ export function InstanceDatasetHmis(p: Props) {
                     </div>
                   }
                 >
-                  <StateHolderWrapper state={itemsHolder()} spinner loadingAndErrorPad="md">
+                  <StateHolderWrapper state={itemsHolder()} loadingAndErrorPad="md">
                     {(keyedDatasetItems) => (
                       <DatasetDisplayPresentation
                         displayItems={keyedDatasetItems}

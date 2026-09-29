@@ -59,7 +59,6 @@ export function ViewResultsObject(
     >
       <StateHolderWrapper
         state={items.state()}
-        spinner
         loadingAndErrorPad="md"
         onErrorButton={{
           onClick: () => p.close(undefined),

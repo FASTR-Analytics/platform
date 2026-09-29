@@ -3,7 +3,7 @@ import {
   type AIChatConfig,
   type EditorComponentProps,
   FrameRightResizable,
-  Spinner,
+  LoadingIndicator,
   buildToolCatalog,
   validateAIChatConfig,
 } from "panther";
@@ -99,7 +99,7 @@ export function ProductCopilotHost(p: HostProps) {
       isShown={showAi()}
       onToggleShow={() => setShowAi(false)}
       panelChildren={
-        <Show when={binding()} keyed fallback={<Spinner />}>
+        <Show when={binding()} keyed fallback={<LoadingIndicator pad="md" />}>
           {(bound) => (
             <ProductCopilot
               productId={p.productId}

@@ -189,7 +189,7 @@ function PackageExplorer(p: {
         </HeadingBar>
       }
     >
-      <StateHolderWrapper state={context.state()} spinner loadingAndErrorPad="md">
+      <StateHolderWrapper state={context.state()} loadingAndErrorPad="md">
         {(ctx: RunAuthoringContext) => (
           <Show
             when={family()}

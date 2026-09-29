@@ -89,7 +89,7 @@ export function VisualizationEditor(
   );
 
   return (
-    <StateHolderWrapper state={resultsValueInfo.state()} spinner loadingAndErrorPad="md">
+    <StateHolderWrapper state={resultsValueInfo.state()} loadingAndErrorPad="md">
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => (
         <VisualizationEditorInner
           scope={p.scope}

@@ -51,7 +51,7 @@ export function DatasetItemsHolder() {
   ];
 
   return (
-    <StateHolderWrapper state={displayData()} spinner loadingAndErrorPad="md">
+    <StateHolderWrapper state={displayData()} loadingAndErrorPad="md">
       {(data) => {
         const stratsInData = createMemo(() => {
           const stratSet = new Set(data.dataRows.map((r) => r.strat));
