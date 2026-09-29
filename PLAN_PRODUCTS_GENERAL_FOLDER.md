@@ -8,7 +8,7 @@ one folder row named **General**. General is a presentation of the root, not
 a stored folder: no row is created, no product is rewritten, the server does
 not change. Delete this file when the last review passes.
 
-**Next step: Review 1**
+**Next step: Fix 1**
 
 Branch: `version2`. Repos: this app only. Read first: `CLAUDE.md`,
 `SYSTEMS.md`, `SYSTEM_12_documents_sharing.md` ("The product explorer" and
@@ -206,3 +206,6 @@ step's review passes. Rollback is reverting the one commit.
 | 1 | Choice: the move picker and product settings each had a private `_none` option value for the root. Both now use `GENERAL_ID`, so the client has one sentinel for the root. |
 | 1 | `./validate_protocols` passes and notes one stale baseline entry (`client/src/components/instance/email_opt_in_modal.tsx`, raw-loading-signal). Untouched by this step and outside its surface; left for a ruling. |
 | 1 | Step 1 built |
+| 1 | Finding: `SYSTEM_12_documents_sharing.md:448` says the heading-bar button "closes them all once all are open". `anyFolderOpen` (`products.tsx:216`) is `some`, so the button closes every folder once any openable one is open, and its label reads Collapse all from then. The wording predates the step, but the step rewrote the sentence and left the claim. |
+| 1 | Finding: `SYSTEM_14_client_shell.md:254` lists the product explorer's UI preferences as two (`productsExpandedFolders`, `productsSort`); the step added a third, `productsGeneralClosed`. The file is outside the Surface, which omitted it; the Fix session edits it and records the deviation. |
+| 1 | Step 1 reviewed: 2 findings |
