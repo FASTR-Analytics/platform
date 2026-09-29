@@ -1197,6 +1197,11 @@ export function buildFastrEditorSurfaceCss(scope: string): string {
    a scroller's own background paints below its negative-z children. */
 ${d}.cm-scroller {
   background: var(--fm-page);
+  /* The sheet's edge on the pane's base-200: a near-white page on a
+     near-white ground needs a drawn edge, not just the tone step. The same
+     edge as the paged surface's sheets (paged_edit_surface.ts). */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.16),
+    0 12px 32px rgba(0, 0, 0, 0.2);
   /* The scroller is a flex item: without an explicit width, auto margins
      would shrink it to fit content. */
   width: 100%;
