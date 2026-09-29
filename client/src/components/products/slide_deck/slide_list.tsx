@@ -41,7 +41,6 @@ import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
 import {
-  HeaderRows,
   MenuRow,
   PackageScopeChip,
   ProductTitle,
@@ -734,25 +733,26 @@ export function SlideList(p: Props) {
       <HeadingBar onBack={() => p.handleClose()} heading={headerTitle}>
         {headerActions}
       </HeadingBar>
-      <HeaderRows>
-        <MenuRow ref={p.onMenuRowHost}>
-          <DeckFileMenu
-            onDownload={() => void p.download()}
-            onShare={() => void p.share()}
-            onRename={() => void p.handleOpenProductSettings()}
-            selectedCount={selectedIds().size}
-            onCopyToDeck={() => void copyToDeck()}
-          />
-          <DeckMenu
-            config={deckConfig()}
-            canEdit={canEditFigures()}
-            onPatch={(patch) => void patchDeckConfig(patch)}
-            onOpenAllSettings={() => void p.handleOpenSettings()}
-          />
-        </MenuRow>
-        {/* The open slide's toolbar, portaled in by the slide editor. */}
-        <div ref={p.onToolbarHost} data-tour="slide-editor-header" />
-      </HeaderRows>
+      <MenuRow
+        ref={p.onMenuRowHost}
+        closesHeader={p.currentSlideId === undefined || !canEditFigures()}
+      >
+        <DeckFileMenu
+          onDownload={() => void p.download()}
+          onShare={() => void p.share()}
+          onRename={() => void p.handleOpenProductSettings()}
+          selectedCount={selectedIds().size}
+          onCopyToDeck={() => void copyToDeck()}
+        />
+        <DeckMenu
+          config={deckConfig()}
+          canEdit={canEditFigures()}
+          onPatch={(patch) => void patchDeckConfig(patch)}
+          onOpenAllSettings={() => void p.handleOpenSettings()}
+        />
+      </MenuRow>
+      {/* The open slide's toolbar, portaled in by the slide editor. */}
+      <div ref={p.onToolbarHost} data-tour="slide-editor-header" />
     </div>
   );
 
