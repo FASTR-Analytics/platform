@@ -509,14 +509,14 @@ function IndicatorsTable(p: {
       sortable: true,
       sortValue: definedByText,
       render: (indicator) => (
-        <div>
-          <div class="font-mono">
+        <span class="ui-gap-sm flex items-baseline">
+          <span class="font-mono">
             <WrapOnUnderscore text={definedByText(indicator)} />
-          </div>
+          </span>
           <Show when={dhis2LabelOf(indicator)}>
-            {(label) => <div class="ui-text-caption">{label()}</div>}
+            {(label) => <span class="ui-text-caption">{label()}</span>}
           </Show>
-        </div>
+        </span>
       ),
     },
     {
