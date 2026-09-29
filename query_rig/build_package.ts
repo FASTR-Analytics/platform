@@ -1,14 +1,17 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
-  scopeToken,
-  type RunManifestDataset,
   type RunFacilitiesTable,
+  type RunManifestDataset,
   type RunMetric,
   type RunModule,
+  scopeToken,
 } from "lib";
 import { RUN_FACILITY_COLUMN_NAMES } from "../server/runs/capture_inputs/hmis.ts";
-import { buildRunPackageIntoTmp, exportRowsToParquet } from "../server/runs/mod.ts";
+import {
+  buildRunPackageIntoTmp,
+  exportRowsToParquet,
+} from "../server/runs/mod.ts";
 import type { RunReadContext } from "../server/run_query/mod.ts";
 import type { Fixture } from "./fixtures.ts";
 
@@ -79,7 +82,10 @@ export async function buildFixturePackage(
       join(tmpDir, "inputs", `${facilitiesTable}.parquet`),
     );
     extraInputFiles.push(`inputs/${facilitiesTable}.parquet`);
-    facilitiesTables.push({ tableName: facilitiesTable, columns: facilityColumns });
+    facilitiesTables.push({
+      tableName: facilitiesTable,
+      columns: facilityColumns,
+    });
   }
 
   const writeMirror = async (fileName: string, rows: unknown[]) => {
@@ -93,7 +99,10 @@ export async function buildFixturePackage(
     await writeMirror("indicators.json", fx.indicators);
   }
   if (fx.hfaSnapshots) {
-    await writeMirror("hfa_indicators_snapshot.json", fx.hfaSnapshots.indicators);
+    await writeMirror(
+      "hfa_indicators_snapshot.json",
+      fx.hfaSnapshots.indicators,
+    );
     await writeMirror(
       "hfa_indicator_categories_snapshot.json",
       fx.hfaSnapshots.categories,
@@ -164,7 +173,7 @@ export async function buildFixturePackage(
     facilitiesTables,
     population: null,
     extraInputFiles,
-  });
+  }, async () => {});
   const runDir = join(runsDir, runId);
   await Deno.rename(tmpDir, runDir);
   return {
