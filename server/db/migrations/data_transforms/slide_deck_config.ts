@@ -14,7 +14,7 @@
 // 4. Split treatment → coverAndSectionTreatment + freeformTreatment
 // 5. Add fontFamily default
 // 6. Migrate logo sizing numbers → semantic keys (size/spacing)
-// 7. Collapse the six style fields into one theme id
+// 7. Collapse the six style fields into one theme id; resolve retired theme ids
 //
 // =============================================================================
 
@@ -110,7 +110,6 @@ function migrateLogoSizing(
   return out;
 }
 
-
 // Block 7's scorer lives in lib (applySlideDeckThemeToLegacyConfig), not here,
 // because the version-history read path has to give a snapshot saved before
 // themes existed the SAME answer this sweep gives the live deck. A restored
@@ -151,12 +150,22 @@ export async function migrateSlideDeckConfigs(
       continue;
     }
 
-    // Block 1: Add layout and treatment fields
-    if (!("layout" in config)) {
-      config.layout = "default";
-    }
-    if (!("treatment" in config)) {
-      config.treatment = "default";
+    // Blocks 1 and 3-5 build the six legacy style fields for block 7 to score,
+    // so they run only on a deck that is still in the legacy shape. A deck
+    // already on themes can land here too (a retired theme id fails the
+    // schema), and filling in style defaults for it would make block 7
+    // re-score it from those defaults instead of resolving its stored theme.
+    const legacyStyle = !("theme" in config) ||
+      rawJsonNeedsDeckThemeTransform(row.config);
+
+    if (legacyStyle) {
+      // Block 1: Add layout and treatment fields
+      if (!("layout" in config)) {
+        config.layout = "default";
+      }
+      if (!("treatment" in config)) {
+        config.treatment = "default";
+      }
     }
 
     // Block 2: Migrate logos structure
@@ -219,57 +228,60 @@ export async function migrateSlideDeckConfigs(
       delete config.deckFooter;
     }
 
-    // Block 3: Migrate primaryColor → colorTheme
-    // Priority: 1) Known brand color → brand preset, 2) Too light → nearest preset, 3) Custom
-    if ("primaryColor" in config && !("colorTheme" in config)) {
-      const primaryColor = config.primaryColor || _GFF_GREEN;
-      const brandPresetId = findBrandPresetByHex(primaryColor);
+    if (legacyStyle) {
+      // Block 3: Migrate primaryColor → colorTheme
+      // Priority: 1) Known brand color → brand preset, 2) Too light → nearest preset, 3) Custom
+      if ("primaryColor" in config && !("colorTheme" in config)) {
+        const primaryColor = config.primaryColor || _GFF_GREEN;
+        const brandPresetId = findBrandPresetByHex(primaryColor);
 
-      if (brandPresetId) {
-        config.colorTheme = { type: "preset", id: brandPresetId };
-      } else if (isColorTooLight(primaryColor)) {
-        config.colorTheme = {
-          type: "preset",
-          id: findNearestPresetByHue(primaryColor),
-        };
-      } else {
-        config.colorTheme = { type: "custom", primary: primaryColor };
+        if (brandPresetId) {
+          config.colorTheme = { type: "preset", id: brandPresetId };
+        } else if (isColorTooLight(primaryColor)) {
+          config.colorTheme = {
+            type: "preset",
+            id: findNearestPresetByHue(primaryColor),
+          };
+        } else {
+          config.colorTheme = { type: "custom", primary: primaryColor };
+        }
+
+        delete config.primaryColor;
       }
 
-      delete config.primaryColor;
-    }
+      // Fallback: if no colorTheme yet (very old data), use default
+      if (!("colorTheme" in config)) {
+        config.colorTheme = { type: "preset", id: "gff" };
+      }
 
-    // Fallback: if no colorTheme yet (very old data), use default
-    if (!("colorTheme" in config)) {
-      config.colorTheme = { type: "preset", id: "gff" };
-    }
+      // Block 4: Split treatment → coverAndSectionTreatment + freeformTreatment
+      // Also validate layout/treatment IDs against current preset arrays
+      if ("treatment" in config) {
+        delete config.treatment;
+      }
+      if (!COVER_TREATMENT_IDS.includes(config.coverAndSectionTreatment)) {
+        config.coverAndSectionTreatment = COVER_TREATMENT_IDS[0];
+      }
+      if (!FREEFORM_TREATMENT_IDS.includes(config.freeformTreatment)) {
+        config.freeformTreatment = FREEFORM_TREATMENT_IDS[0];
+      }
+      if (!LAYOUT_PRESET_IDS.includes(config.layout)) {
+        config.layout = LAYOUT_PRESET_IDS[0];
+      }
 
-    // Block 4: Split treatment → coverAndSectionTreatment + freeformTreatment
-    // Also validate layout/treatment IDs against current preset arrays
-    if ("treatment" in config) {
-      delete config.treatment;
-    }
-    if (!COVER_TREATMENT_IDS.includes(config.coverAndSectionTreatment)) {
-      config.coverAndSectionTreatment = COVER_TREATMENT_IDS[0];
-    }
-    if (!FREEFORM_TREATMENT_IDS.includes(config.freeformTreatment)) {
-      config.freeformTreatment = FREEFORM_TREATMENT_IDS[0];
-    }
-    if (!LAYOUT_PRESET_IDS.includes(config.layout)) {
-      config.layout = LAYOUT_PRESET_IDS[0];
-    }
-
-    // Block 5: Add fontFamily default
-    if (!("fontFamily" in config)) {
-      config.fontFamily = "International Inter";
-    }
-    if (
-      config.fontFamily &&
-      !["International Inter", "Fira Sans", "Merriweather", "Poppins"].includes(
-        config.fontFamily,
-      )
-    ) {
-      config.fontFamily = "International Inter";
+      // Block 5: Add fontFamily default
+      if (!("fontFamily" in config)) {
+        config.fontFamily = "International Inter";
+      }
+      if (
+        config.fontFamily &&
+        !["International Inter", "Fira Sans", "Merriweather", "Poppins"]
+          .includes(
+            config.fontFamily,
+          )
+      ) {
+        config.fontFamily = "International Inter";
+      }
     }
 
     // Block 6: Migrate logo sizing numbers → semantic keys
@@ -293,7 +305,9 @@ export async function migrateSlideDeckConfigs(
 
     // Block 7: Collapse the six style fields into one theme id. Blocks 1-6
     // above guarantee all six are present and in-vocabulary, so the scorer
-    // never sees a partial style.
+    // never sees a partial style. On a deck already on themes this only
+    // resolves the stored id (a retired theme moves to its successor:
+    // monochrome → minimal, 2026-09-29).
     applySlideDeckThemeToLegacyConfig(config);
 
     const validated = slideDeckConfigSchema.parse(config);

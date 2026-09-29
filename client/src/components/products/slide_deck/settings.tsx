@@ -164,7 +164,10 @@ export function SlideDeckSettings(p: Props) {
               <ThemePicker
                 value={tempConfig.theme}
                 config={tempConfig}
-                onChange={(v) => setTempConfig("theme", v)}
+                onChange={(v) => {
+                  setTempConfig("theme", v);
+                  setTempConfig("themeChosen", true);
+                }}
               />
             </div>
           </div>

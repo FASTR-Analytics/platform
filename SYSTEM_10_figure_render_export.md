@@ -650,6 +650,22 @@ raw hex (`ColorTheme`'s `custom` branch, hence the old
 every stored combination against the eleven themes and rewrote each deck to
 its nearest one.
 
+`monochrome` was retired 2026-09-29. `resolveSlideDeckTheme` maps a stored
+retired id to its successor (`RETIRED_SLIDE_DECK_THEMES`: monochrome →
+minimal) for both the sweep and the version-snapshot read path, and the legacy
+scorer still scores against the frozen eleven (`SCORED_SLIDE_DECK_THEMES`,
+retired specs included) before resolving, so a restored pre-theme snapshot
+lands where its live deck did. The sweep runs its legacy-shape blocks (1, 3-5)
+only on a deck without a `theme`: re-seeding style defaults onto a themed deck
+would make block 7 re-score it instead of resolving its id.
+
+A new deck is minted with `themeChosen: false`
+(`insertNewSlideDeckDetail`), and the deck editor opens
+[style_editor/theme_modal.tsx](client/src/components/products/slide_deck/style_editor/theme_modal.tsx)
+once on first open for an editor, as a new report is asked for its FASTR
+theme (S12). Choosing a theme anywhere (the modal, the Deck menu, settings)
+writes `themeChosen: true`; older decks carry no flag and are never asked.
+
 Other resolution steps, all in the same pass:
 
 - **Overlay/pattern** (cover/section only; content slides never get one):

@@ -103,6 +103,11 @@ export type SlideDeckConfig = {
   useWatermark: boolean;
   watermarkText: string;
   theme: SlideDeckTheme;
+  // `false` only on a deck minted since the first-open theme modal existed
+  // (insertNewSlideDeckDetail), and never yet answered: the editor asks once,
+  // as a new report does. Absent on every older deck, so none is interrupted
+  // about a choice it was never offered. Choosing a theme anywhere sets true.
+  themeChosen?: boolean;
 };
 
 export function getTextColorForBackground(bgColor: string): string {

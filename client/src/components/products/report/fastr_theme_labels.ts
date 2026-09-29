@@ -22,12 +22,12 @@ export function fastrThemeLabel(theme: FastrReportTheme): string {
       return t3({ en: "Editorial", fr: "Éditorial", pt: "Editorial" });
     case "swiss":
       return t3({ en: "Swiss", fr: "Suisse", pt: "Suíço" });
-    case "monochrome":
-      return t3({ en: "Monochrome", fr: "Monochrome", pt: "Monocromático" });
     case "bauhaus":
       return t3({ en: "Bauhaus", fr: "Bauhaus", pt: "Bauhaus" });
     case "broadsheet":
       return t3({ en: "Broadsheet", fr: "Grand format", pt: "Formato grande" });
+    case "legacy":
+      return t3({ en: "Legacy", fr: "Ancien", pt: "Antigo" });
   }
 }
 
@@ -81,12 +81,6 @@ export function fastrThemeCaption(theme: FastrReportTheme): string {
         fr: "Grille en capitales, filets épais, rouge",
         pt: "Grelha em maiúsculas, filetes espessos, vermelho",
       });
-    case "monochrome":
-      return t3({
-        en: "Greyscale only",
-        fr: "Niveaux de gris uniquement",
-        pt: "Apenas escala de cinzentos",
-      });
     case "bauhaus":
       return t3({
         en: "Geometric, heavy rules, primary red",
@@ -98,6 +92,12 @@ export function fastrThemeCaption(theme: FastrReportTheme): string {
         en: "Newspaper serif, centred masthead",
         fr: "Serif de presse, bandeau centré",
         pt: "Serifa de jornal, cabeçalho centrado",
+      });
+    case "legacy":
+      return t3({
+        en: "The look of the old markdown reports",
+        fr: "L'aspect des anciens rapports markdown",
+        pt: "O aspeto dos antigos relatórios markdown",
       });
   }
 }

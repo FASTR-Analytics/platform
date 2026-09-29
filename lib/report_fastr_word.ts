@@ -79,8 +79,11 @@ import {
 import { fastrAccentTextFor, fastrDerivedColorsFor } from "./report_fastr_css.ts";
 import type { FastrPagedFooter } from "./report_fastr_paged.ts";
 import {
+  FASTR_HEADING_TAGS,
   FASTR_THEME_TOKENS,
+  fastrHeadingStyle,
   type FastrGround,
+  type FastrHeadingTag,
   type FastrReportTheme,
   type FastrThemeColorOverride,
   type FastrThemeSemantic,
@@ -617,7 +620,26 @@ type ListFrame = {
   itemFresh: boolean;
 };
 
-const HEADING_EM: Record<string, number> = { h1: 2.15, h2: 1.55, h3: 1.2, h4: 1, h5: 1, h6: 1 };
+// The theme's heading cut, in the numbers Word needs: the size as a multiple
+// of the body text and the weight as a number. Same source as both
+// stylesheets (fastrHeadingStyle), so a re-cut heading travels into Word.
+type HeadingCut = { em: number; weight: number };
+function headingCuts(
+  tokens: { headings?: Parameters<typeof fastrHeadingStyle>[0]["headings"] },
+  headingWeight: number,
+): Record<FastrHeadingTag, HeadingCut> {
+  const out = {} as Record<FastrHeadingTag, HeadingCut>;
+  for (const tag of FASTR_HEADING_TAGS) {
+    const h = fastrHeadingStyle(tokens, tag);
+    out[tag] = {
+      em: Number.parseFloat(h.size) || 1,
+      weight: h.weight === "heading"
+        ? headingWeight
+        : Number.parseInt(h.weight, 10) || headingWeight,
+    };
+  }
+  return out;
+}
 const HEADING_LEVELS = [
   HeadingLevel.HEADING_1,
   HeadingLevel.HEADING_2,
@@ -723,6 +745,7 @@ class Builder {
   private readonly bodyFont: string;
   private readonly headingFont: string;
   private readonly headingWeight: number;
+  private readonly headingCuts: Record<FastrHeadingTag, HeadingCut>;
   private readonly headingTracking: string;
   private readonly headingCaps: boolean;
   private readonly numbered: boolean;
@@ -761,6 +784,7 @@ class Builder {
     this.bodyFont = firstFamily(tokens.fontBody);
     this.headingFont = firstFamily(tokens.fontHeading);
     this.headingWeight = Number.parseInt(tokens.headingWeight, 10) || 700;
+    this.headingCuts = headingCuts(tokens, this.headingWeight);
     this.headingTracking = tokens.headingTracking;
     this.headingCaps = tokens.headingCase === "uppercase";
     this.numbered = settings.className.includes("fm-doc--numbered");
@@ -1366,14 +1390,14 @@ class Builder {
     const open = this.tokens[i];
     const inline = this.tokens[i + 1];
     const level = Math.max(1, Math.min(6, Number.parseInt(open.tag.slice(1), 10) || 1));
-    const em = HEADING_EM[open.tag] ?? 1;
-    const px = BODY_PX * em;
+    const cut = this.headingCuts[open.tag as FastrHeadingTag] ?? { em: 1, weight: this.headingWeight };
+    const px = BODY_PX * cut.em;
     const p = this.pal;
     const base: RunStyle = {
       font: this.headingFont,
       size: fastrWordHalfPoints(px),
       color: hexOrUndefined(p.ink),
-      bold: this.headingWeight >= 600,
+      bold: cut.weight >= 600,
       allCaps: this.headingCaps,
       characterSpacing: trackingTwips(this.headingTracking, px),
     };
@@ -1907,8 +1931,9 @@ class Builder {
       };
     });
     const headingStyles = HEADING_LEVELS.map((id, k) => {
-      const tag = `h${k + 1}`;
-      const px = BODY_PX * (HEADING_EM[tag] ?? 1);
+      const tag = `h${k + 1}` as FastrHeadingTag;
+      const cut = this.headingCuts[tag];
+      const px = BODY_PX * cut.em;
       return {
         id,
         name: `Heading ${k + 1}`,
@@ -1918,7 +1943,7 @@ class Builder {
         run: {
           font: this.headingFont,
           size: fastrWordHalfPoints(px),
-          bold: this.headingWeight >= 600 && !this.embeddedIsBold(this.headingFont),
+          bold: cut.weight >= 600 && !this.embeddedIsBold(this.headingFont),
           color: hexOrUndefined(p.ink),
           allCaps: this.headingCaps,
           characterSpacing: trackingTwips(this.headingTracking, px),

@@ -26,8 +26,6 @@ export function slideDeckThemeLabel(theme: SlideDeckTheme): string {
       return t3({ en: "Editorial", fr: "Éditorial", pt: "Editorial" });
     case "swiss":
       return t3({ en: "Swiss", fr: "Suisse", pt: "Suíço" });
-    case "monochrome":
-      return t3({ en: "Monochrome", fr: "Monochrome", pt: "Monocromático" });
     case "bauhaus":
       return t3({ en: "Bauhaus", fr: "Bauhaus", pt: "Bauhaus" });
     case "broadsheet":
@@ -84,12 +82,6 @@ export function slideDeckThemeCaption(theme: SlideDeckTheme): string {
         en: "Red, grotesque, nothing but information",
         fr: "Rouge, grotesque, rien que l'information",
         pt: "Vermelho, grotesca, apenas informação",
-      });
-    case "monochrome":
-      return t3({
-        en: "Greyscale only",
-        fr: "Niveaux de gris uniquement",
-        pt: "Apenas escala de cinzentos",
       });
     case "bauhaus":
       return t3({

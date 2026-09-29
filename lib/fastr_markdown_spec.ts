@@ -172,7 +172,7 @@ Backgrounds — say the ROLE, not the colour:
   each with the type that reads on it: \`paper\` a pale panel, \`ink\` the
   dark band (light on a dark theme), \`accent\` the theme's own colour, and
   \`warm\` its warm pole, which is whatever that is ON THAT THEME: a rust, a
-  wine, a sepia, or on Monochrome a warm grey. A tone stays readable when the
+  wine, a sepia, or on Minimal a warm grey. A tone stays readable when the
   user switches themes. Prefer a tone.
 
   \`warm\` and \`accent\` also MEAN something: they are the colours the callout

@@ -14,8 +14,10 @@
 import { cssColorLuminance } from "./fastr_markdown_blocks.ts";
 import {
   FASTR_GROUNDS,
+  FASTR_HEADING_TAGS,
   type FastrGround,
   deriveFastrThemeColors,
+  fastrHeadingStyle,
   FASTR_THEME_TOKENS,
   type FastrDerivedColors,
   type FastrReportTheme,
@@ -183,6 +185,17 @@ export function buildFastrThemeVarsCss(
     `  --fm-${g}-ground: ${c.grounds[g].color};
   --fm-${g}-ground-ink: ${c.grounds[g].ink};`
   ).join("\n");
+  // The heading cut, one token trio per level, read by BOTH the structure
+  // sheet and the editor's cm-fm-h* lines so the two can never disagree about
+  // how tall a heading is (fastrHeadingStyle's note).
+  const headings = FASTR_HEADING_TAGS.map((tag) => {
+    const h = fastrHeadingStyle(tokens, tag);
+    return `  --fm-${tag}-size: ${h.size};
+  --fm-${tag}-weight: ${
+      h.weight === "heading" ? "var(--fm-heading-weight)" : h.weight
+    };
+  --fm-${tag}-line-height: ${h.lineHeight};`;
+  }).join("\n");
   return `${vars} {
   --fm-page: ${page};
   --fm-paper: ${page};
@@ -204,6 +217,7 @@ export function buildFastrThemeVarsCss(
   --fm-heading-case: ${tokens.headingCase};
   --fm-measure: ${tokens.measure};
   --fm-callout-color: ${accent};
+${headings}
 ${grounds}
   --fm-accent-text: ${accentText};
   --fm-mark-accent-weight: ${accentText === ink ? "700" : "inherit"};
@@ -234,11 +248,9 @@ ${root} {
 ${d}body { max-width: var(--fm-measure); background: transparent; }
 ${d}h1, ${d}h2, ${d}h3, ${d}h4, ${d}h5, ${d}h6 {
   font-family: var(--fm-font-heading);
-  font-weight: var(--fm-heading-weight);
   letter-spacing: var(--fm-heading-tracking);
   text-transform: var(--fm-heading-case);
   color: var(--fm-ink);
-  line-height: 1.2;
   margin: 1.8em 0 0.6em;
 }
 /* An h1 is a SECTION (the cover carries the title): the space above it
@@ -246,11 +258,13 @@ ${d}h1, ${d}h2, ${d}h3, ${d}h4, ${d}h5, ${d}h6 {
    taller than any other heading's). The document's first block has none
    (below, and the paged sheet's title rule); a cover's title sits where
    its layout puts it. */
-${d}h1 { font-size: 2.15em; margin-top: 1.3em; }
+${
+    FASTR_HEADING_TAGS.map((tag) =>
+      `${d}${tag} { font-size: var(--fm-${tag}-size); font-weight: var(--fm-${tag}-weight); line-height: var(--fm-${tag}-line-height); }`
+    ).join("\n")
+  }
+${d}h1 { margin-top: 1.3em; }
 ${d}body > :first-child { margin-top: 0; }
-${d}h2 { font-size: 1.55em; }
-${d}h3 { font-size: 1.2em; }
-${d}h4, ${d}h5, ${d}h6 { font-size: 1em; }
 ${d}p { margin: 0 0 1em; }
 /* A blank source line beyond the paragraph separator (report_fastr_markdown's
    fm_spaces): one line of the body's height, empty, exactly the height the
@@ -395,7 +409,7 @@ ${d}.fm-callout--danger { --fm-callout-color: var(--fm-danger); }
    works for marks, with no rule of its own. Doubled class for the same reason
    the tones double theirs — a theme's extraCss must not outrank a role. */
 /* An accent mark must never be a no-op. In a theme whose accent cannot carry
-   text on the page (Brutalist's yellow) or IS the ink (Minimal, Monochrome),
+   text on the page (Brutalist's yellow) or IS the ink (Minimal),
    --fm-accent-text degrades to ink by design — so those themes, and only
    those, mark the phrase with weight instead. */
 ${d}.fm-mark.fm-mark--accent {
@@ -1255,21 +1269,16 @@ ${scope} {
 ${d}.fm-cover { min-height: 544px; }
 ${d}.fm-cover.fm-cover--fill { min-height: var(--fm-page-h, 544px); }
 `;
-  const headings = [
-    { cls: "cm-fm-h1", size: "2.15em" },
-    { cls: "cm-fm-h2", size: "1.55em" },
-    { cls: "cm-fm-h3", size: "1.2em" },
-    { cls: "cm-fm-h4", size: "1em" },
-    { cls: "cm-fm-h5", size: "1em" },
-    { cls: "cm-fm-h6", size: "1em" },
-  ].map(({ cls, size }) =>
-    `${d}.${cls} {
+  // The same token trio the structure sheet reads, so an editor line and the
+  // printed heading are the same box whatever the theme cuts them at.
+  const headings = FASTR_HEADING_TAGS.map((tag) =>
+    `${d}.cm-fm-${tag} {
   font-family: var(--fm-font-heading);
-  font-weight: var(--fm-heading-weight);
+  font-weight: var(--fm-${tag}-weight);
   letter-spacing: var(--fm-heading-tracking);
   text-transform: var(--fm-heading-case);
-  font-size: ${size};
-  line-height: 1.2;
+  font-size: var(--fm-${tag}-size);
+  line-height: var(--fm-${tag}-line-height);
 }`
   ).join("\n");
   return `${sheet}

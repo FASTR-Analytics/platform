@@ -43,6 +43,8 @@ import {
   buildFastrCoverTileCss,
   buildFastrEditorSurfaceCss,
   buildFastrReportCss,
+  buildFastrStructureCss,
+  buildFastrThemeVarsCss,
   fastrAllFontImportsCss,
 } from "../../lib/report_fastr_css.ts";
 import {
@@ -701,7 +703,13 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
     assertEquals(Object.keys(t.palette).length, 4, `${theme} has ${Object.keys(t.palette).length} palette colours`);
     // Muted: no colour is saturated (HSL saturation), and the two hues
     // are neither near-white nor near-black.
-    for (const c of [t.palette.accent, t.palette.warm]) {
+    // Legacy is exempt on its accent alone: it is not a design but a
+    // reproduction of the panther markdown look, and that look's one colour
+    // is the link blue #0066cc, at full saturation. Muting it would make a
+    // converted report a different document, which is the only thing the
+    // theme exists not to do. Its warm pole takes the rule like any other.
+    const muted = theme === "legacy" ? [t.palette.warm] : [t.palette.accent, t.palette.warm];
+    for (const c of muted) {
       assert(satOf(c) <= 0.55, `${theme} ${c} is too saturated (${satOf(c).toFixed(2)})`);
     }
     // The roles are the four: the page is the paper, danger the warm pole,
@@ -737,6 +745,20 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
     }
     // A theme's extra rules name the four, never a colour of their own.
     assert(!/#[0-9a-f]{3,8}\b|rgba?\(|\b(white|black)\b/i.test(t.extraCss), `${theme} extraCss carries a literal colour`);
+    // …and they never re-cut a heading, because a heading's font metrics are
+    // READ by three sheets and measured by none: the editor's own cm-fm-h*
+    // lines would keep the default size and Edit would break its pages where
+    // print does not. A re-cut goes in `headings`, which all three read.
+    // (Margins, paddings and indents are measured off the live sheet, so
+    // extraCss may set those freely — legacy does.)
+    for (const line of t.extraCss.split("\n")) {
+      const sel = line.split("{")[0];
+      if (!/^h[1-6]\b|,\s*h[1-6]\b/.test(sel)) continue;
+      assert(
+        !/\b(font-size|line-height)\s*:/.test(line),
+        `${theme} re-cuts a heading in extraCss; use \`headings\`: ${line.trim()}`,
+      );
+    }
   }
 });
 
@@ -766,15 +788,11 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
     // Classic's gold) the two are both warm and the gap is in DEPTH instead,
     // which is the cost of a four-colour theme and is held to a number here
     // so it cannot quietly close.
-    // Monochrome is the third case: its accent is a true neutral, so hue
-    // distance from it is noise and what separates the two is that one of
-    // them HAS a hue at all.
     const goodHue = hueOf(chart.good);
     const gap = hueGapOf(badHue, goodHue);
     const dL = Math.abs(lStarOf(chart.good) - lStarOf(chart.bad));
-    const neutralVsTinted = satOf(chart.good) < 0.08 && satOf(chart.bad) >= 0.12;
     assert(
-      gap >= 60 || dL >= 12 || neutralVsTinted,
+      gap >= 60 || dL >= 12,
       `${theme} good ${chart.good} and bad ${chart.bad} are ${gap.toFixed(0)} degrees and ` +
         `${dL.toFixed(0)} L* apart: too close to tell apart`,
     );
@@ -1165,9 +1183,10 @@ Deno.test("all 11 themes build, and the html styles with no theme are the retire
   const themes = new Set<string>(FASTR_REPORT_THEMES);
   // A retired theme keeps its html style: an html report written in one still
   // renders. blueprint went 2026-09-03; the five loud ones 2026-09-17;
-  // classic 2026-09-21.
+  // classic 2026-09-21; monochrome 2026-09-29.
   assertEquals(REPORT_HTML_STYLES.filter((s) => !themes.has(s)), [
     "classic",
+    "monochrome",
     "blueprint",
     "risograph",
     "artdeco",
@@ -1596,10 +1615,35 @@ Deno.test("the editor surface sheet is scope-prefixed and token-driven", () => {
     );
   }
   // The heading scale mirrors the structure sheet, so Edit shows print sizes.
+  // Both read the SAME per-level tokens rather than each naming a size, which
+  // is what lets a theme re-cut a heading (legacy does) without Edit and
+  // print disagreeing about how tall it is.
   assertStringIncludes(css, ".cm-fm-h1");
-  assertStringIncludes(css, "font-size: 2.15em");
+  assertStringIncludes(css, "font-size: var(--fm-h1-size)");
+  assertStringIncludes(css, "font-weight: var(--fm-h1-weight)");
+  assertStringIncludes(css, "line-height: var(--fm-h1-line-height)");
   assertStringIncludes(css, "var(--fm-font-heading)");
   assertStringIncludes(css, ".cm-fm-link");
+  // …and the structure sheet reads them too, so the two cannot drift.
+  const structure = buildFastrStructureCss("");
+  for (const decl of [
+    "font-size: var(--fm-h1-size)",
+    "font-weight: var(--fm-h1-weight)",
+    "line-height: var(--fm-h1-line-height)",
+    "font-size: var(--fm-h6-size)",
+  ]) {
+    assertStringIncludes(structure, decl);
+  }
+  // Every level's tokens are declared, at the default cut for a theme that
+  // says nothing and at the theme's own where it does.
+  const def = buildFastrThemeVarsCss(FASTR_THEME_TOKENS.default);
+  const leg = buildFastrThemeVarsCss(FASTR_THEME_TOKENS.legacy);
+  assertStringIncludes(def, "--fm-h1-size: 2.15em;");
+  assertStringIncludes(def, "--fm-h1-weight: var(--fm-heading-weight);");
+  assertStringIncludes(def, "--fm-h6-line-height: 1.2;");
+  assertStringIncludes(leg, "--fm-h1-size: 1.65em;");
+  assertStringIncludes(leg, "--fm-h1-weight: 800;");
+  assertStringIncludes(leg, "--fm-h4-weight: 400;");
 });
 
 // ── Pagination: page breaks, break attributes and the paged sheet ────────────

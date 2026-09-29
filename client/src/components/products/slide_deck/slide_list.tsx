@@ -22,7 +22,7 @@ import {
   openComponent,
 } from "panther";
 import { Sortable, SortableJs } from "panther";
-import { createEffect, createSignal, type JSX, on, Show } from "solid-js";
+import { createEffect, createSignal, type JSX, on, Show, untrack } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
@@ -35,6 +35,7 @@ import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
 import { PackageScopeChip, ProductTitle } from "~/components/products/_shared/mod.ts";
 import { DeckFileMenu, DeckMenu } from "./deck_menu";
+import { SlideDeckThemeModal } from "./style_editor/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
 
@@ -550,6 +551,31 @@ export function SlideList(p: Props) {
       await openAlert({ text: res.err, intent: "danger" });
     }
   }
+
+  // A deck nobody has chosen a look for yet: ask now, once per open, as a new
+  // report does. Only a deck minted since the modal existed carries
+  // `themeChosen: false`, so no older deck is interrupted. Editors only: a
+  // reader cannot answer it.
+  let themeAsked = false;
+  createEffect(() => {
+    const loading = p.isLoading;
+    const config = deckConfig();
+    const canEdit = canEditFigures();
+    if (themeAsked || loading || config.themeChosen !== false || !canEdit) {
+      return;
+    }
+    themeAsked = true;
+    const deckLabel = untrack(() => p.deckLabel);
+    void (async () => {
+      const theme = await openComponent({
+        element: SlideDeckThemeModal,
+        props: { deckLabel, config },
+      });
+      // Someone else may have answered while the modal was open.
+      if (theme === undefined || deckConfig().themeChosen !== false) return;
+      await patchDeckConfig({ theme, themeChosen: true });
+    })();
+  });
 
   // The chip opens the pair surface with a live count of what the candidate
   // pair would leave stale, walked over the same per-slide cache as above.
