@@ -228,8 +228,8 @@ the page's navigation below the family tabs, and the query controls, find
 and Download beneath them stay `sm`. The row wraps, since the widths are
 fixed. A view is one named reading of a module, a metric bound to a
 presentation, and `viewsFor` in `module_view.tsx` is the one place that says
-which views a module offers: "Indicator values as counts" (the data table,
-columns Indicators) and "Indicator values over time" (the timeseries) for
+which views a module offers: "Service counts" (the data table, columns
+Indicators) and "Service counts over time" (the timeseries) for
 the HMIS primary module's first ready metric (`primaryMetricFor`), and
 nothing for any other module. A view takes the row as `selectors` and
 places it first on its toolbar's top row, with the query controls beneath. A

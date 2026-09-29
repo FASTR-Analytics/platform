@@ -35,22 +35,22 @@ function viewsFor(
   if (primary === undefined || primary.moduleId !== module.id) return [];
   return [
     {
-      id: "indicator_values_counts",
+      id: "service_counts",
       label: t3({
-        en: "Indicator values as counts",
-        fr: "Valeurs des indicateurs en effectifs",
-        pt: "Valores dos indicadores em contagens",
+        en: "Service counts",
+        fr: "Volumes de services",
+        pt: "Volumes de serviços",
       }),
       kind: "data_table",
       metric: primary,
       columns: "indicators",
     },
     {
-      id: "indicator_values_over_time",
+      id: "service_counts_over_time",
       label: t3({
-        en: "Indicator values over time",
-        fr: "Valeurs des indicateurs dans le temps",
-        pt: "Valores dos indicadores ao longo do tempo",
+        en: "Service counts over time",
+        fr: "Volumes de services dans le temps",
+        pt: "Volumes de serviços ao longo do tempo",
       }),
       kind: "timeseries",
       metric: primary,
