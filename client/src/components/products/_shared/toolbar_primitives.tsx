@@ -18,7 +18,7 @@ export function MenuRow(p: {
       // The left pad is the row's less a menu button's own, so the first
       // label ("File") starts on the header's padding edge, under the back
       // button.
-      class="flex flex-wrap items-center gap-1 border-b py-1.5 pr-[var(--ui-pad-x)] pl-[calc(var(--ui-pad-x)-var(--ui-pad-sm-x))]"
+      class="flex flex-wrap items-center gap-1 pt-1.5 pb-0.5 pr-[var(--ui-pad-x)] pl-[calc(var(--ui-pad-x)-var(--ui-pad-sm-x))]"
       data-cursor-zone="header"
     >
       {p.children}
@@ -37,7 +37,7 @@ export function ToolbarRow(
   const [local, rest] = splitProps(p, ["children"]);
   return (
     <div
-      class="flex flex-wrap items-center gap-0.5 border-b px-3 py-1.5"
+      class="flex flex-wrap items-center gap-0.5 border-b px-3 pt-0.5 pb-1.5"
       data-cursor-zone="header"
       {...rest}
     >
