@@ -5,8 +5,20 @@
 import { createSignal, type JSX, onCleanup, Show, splitProps } from "solid-js";
 import { Icon } from "panther";
 
+// The rows under a product's HeadingBar (the menu row, then the toolbar row
+// or its portal host), closed by one rule however many of them are filled:
+// a blank deck, a read-only slide and a cold slide switch have a menu row
+// and no toolbar, and the header must still end on a rule.
+export function HeaderRows(p: { children: JSX.Element }) {
+  return (
+    <div class="border-b" data-cursor-zone="header">
+      {p.children}
+    </div>
+  );
+}
+
 // The menu row (File, Insert, Page...) under the heading bar, the same in
-// both headers: a flat ruled row the header fills with its own menus, and the
+// both headers: a flat row the header fills with its own menus, and the
 // open document's toolbar portals its menus into (the ref is the portal host).
 export function MenuRow(p: {
   ref: (el: HTMLDivElement) => void;
@@ -18,7 +30,7 @@ export function MenuRow(p: {
       // The left pad is the row's less a menu button's own, so the first
       // label ("File") starts on the header's padding edge, under the back
       // button.
-      class="flex flex-wrap items-center gap-1 pt-1.5 pb-0.5 pr-[var(--ui-pad-x)] pl-[calc(var(--ui-pad-x)-var(--ui-pad-sm-x))]"
+      class="flex flex-wrap items-center gap-1 pt-1.5 pr-[var(--ui-pad-x)] pb-0.5 pl-[calc(var(--ui-pad-x)-var(--ui-pad-sm-x))]"
       data-cursor-zone="header"
     >
       {p.children}
@@ -27,7 +39,7 @@ export function MenuRow(p: {
 }
 
 // The formatting row itself, the root of both editors' toolbars so the two
-// cannot drift: a flat wrapping row that closes the header with a rule.
+// cannot drift: a flat wrapping row inside HeaderRows, which draws the rule.
 export function ToolbarRow(
   p: { children: JSX.Element } & Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
@@ -37,7 +49,7 @@ export function ToolbarRow(
   const [local, rest] = splitProps(p, ["children"]);
   return (
     <div
-      class="flex flex-wrap items-center gap-0.5 border-b px-3 pt-0.5 pb-1.5"
+      class="flex flex-wrap items-center gap-0.5 px-3 pt-0.5 pb-1.5"
       data-cursor-zone="header"
       {...rest}
     >

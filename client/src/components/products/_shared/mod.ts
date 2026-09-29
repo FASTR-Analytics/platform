@@ -51,6 +51,7 @@ export type { InsertFigureResult } from "./insert_figure/mod.ts";
 export {
   MenuDivider,
   MenuFlyout,
+  HeaderRows,
   MenuRow,
   PopoverRow,
   ToolbarDivider,
