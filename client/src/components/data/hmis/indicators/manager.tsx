@@ -558,38 +558,6 @@ function IndicatorsTable(p: {
     },
   ];
 
-  const allColumns = createMemo<TableColumn<HmisIndicator>[]>(() => {
-    if (!instanceState.currentUserIsGlobalAdmin) return columns;
-    return [
-      ...columns,
-      {
-        key: "actions",
-        header: "",
-        alignH: "right",
-        render: (indicator) => (
-          <div class="ui-gap-sm flex justify-end">
-            <Button
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                handleUpdateIndicator(indicator);
-              }}
-              iconName="pencil"
-              intent="base-100"
-            />
-            <Button
-              onClick={(e: MouseEvent) => {
-                e.stopPropagation();
-                handleDeleteIndicators([indicator]);
-              }}
-              iconName="trash"
-              intent="base-100"
-            />
-          </div>
-        ),
-      },
-    ];
-  });
-
   const bulkActions = createMemo<BulkAction<HmisIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
@@ -722,8 +690,13 @@ function IndicatorsTable(p: {
       <div class="h-0 w-full flex-1">
         <Table
           data={visibleIndicators()}
-          columns={allColumns()}
+          columns={columns}
           keyField="indicator_common_id"
+          onRowClick={
+            instanceState.currentUserIsGlobalAdmin
+              ? handleUpdateIndicator
+              : undefined
+          }
           noRowsMessage={
             search() === ""
               ? t3({
