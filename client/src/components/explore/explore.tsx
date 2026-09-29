@@ -242,12 +242,14 @@ function FamilyExplorer(p: {
           family={p.family}
           module={m}
           moduleSelect={
-            <SelectV2
-              items={moduleEntries(modules())}
-              value={m.id}
-              onChange={(id) => setExploreModule(p.family, id)}
-              fitContent
-            />
+            <div class="w-80 max-w-full">
+              <SelectV2
+                items={moduleEntries(modules())}
+                value={m.id}
+                onChange={(id) => setExploreModule(p.family, id)}
+                fullWidth
+              />
+            </div>
           }
           query={p.query}
           setQuery={p.setQuery}

@@ -223,10 +223,10 @@ the family has a module in (Primary results, Supporting analyses), then a
 `SelectV2` over the chosen module's views when it has any. The module select
 is built in `explore.tsx`, where the family's modules and the resolved module
 are, and passed to `ModuleView` as `moduleSelect`. Both selects are at the
-default size and take their widest item's width (`fitContent`): they are the
-page's navigation below the family tabs, and the query controls, find and
-Download beneath them stay `sm`. The row wraps, since a `fitContent` select
-cannot shrink. A view is one named reading of a module, a metric bound to a
+default size, `fullWidth` in fixed-width wrappers (20rem and 28rem): they are
+the page's navigation below the family tabs, and the query controls, find
+and Download beneath them stay `sm`. The row wraps, since the widths are
+fixed. A view is one named reading of a module, a metric bound to a
 presentation, and `viewsFor` in `module_view.tsx` is the one place that says
 which views a module offers: "Indicator values as counts" (the data table,
 columns Indicators) and "Indicator values over time" (the timeseries) for

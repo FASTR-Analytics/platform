@@ -78,7 +78,7 @@ type ViewProps = {
 // The chosen module's views under the selectors row: the module select the
 // page built, then a `SelectV2` over the view names. The row is the pane's
 // navigation below the family tabs, so both selects are at the default size
-// and each takes its widest item's width. A view places the row on its
+// in fixed-width wrappers. A view places the row on its
 // toolbar's top row; a module with no view shows a placeholder listing its
 // metrics, and one with no ready metric the stamped reason, each under the
 // same row.
@@ -116,12 +116,14 @@ export function ModuleView(
             selectors={
               <SelectorsRow>
                 {p.moduleSelect}
-                <SelectV2
-                  items={views().map((x) => ({ id: x.id, label: x.label }))}
-                  value={v().id}
-                  onChange={(id) => setExploreView(p.module.id, id)}
-                  fitContent
-                />
+                <div class="w-[28rem] max-w-full">
+                  <SelectV2
+                    items={views().map((x) => ({ id: x.id, label: x.label }))}
+                    value={v().id}
+                    onChange={(id) => setExploreView(p.module.id, id)}
+                    fullWidth
+                  />
+                </div>
               </SelectorsRow>
             }
             ctx={p.ctx}
@@ -136,7 +138,7 @@ export function ModuleView(
   );
 }
 
-// It wraps because a fitContent select cannot shrink below its widest item.
+// It wraps because the selects have fixed widths.
 function SelectorsRow(p: { children: JSX.Element }) {
   return (
     <div class="ui-gap-sm flex flex-wrap items-center">{p.children}</div>
