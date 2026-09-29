@@ -826,7 +826,7 @@ export function ReportToolbar(p: Props) {
              embed's controls (which replace the text controls, as selecting
              an image does in Google Docs) ─────────────────────────────────── */}
       <div class="px-2 pt-1 pb-2">
-        <div class="bg-base-200 flex flex-wrap items-center gap-0.5 rounded-full px-3 py-1">
+        <div class="bg-base-200 flex flex-wrap items-center gap-0.5 rounded px-3 py-1">
         <Show
           when={p.embedKind() === undefined}
           fallback={

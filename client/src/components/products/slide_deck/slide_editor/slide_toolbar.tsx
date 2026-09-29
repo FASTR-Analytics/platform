@@ -478,7 +478,7 @@ export function SlideToolbar(p: Props) {
 
       {/* ── The pill: follows the selection ────────────────────────────── */}
       <div class="px-2 pt-1 pb-2">
-        <div class="bg-base-200 flex min-h-9 flex-wrap items-center gap-0.5 rounded-full px-3 py-1">
+        <div class="bg-base-200 flex min-h-9 flex-wrap items-center gap-0.5 rounded px-3 py-1">
           {/* Undo and redo lead the pill and are ALWAYS here: a pair that
               appeared once the room synced would shove the rest of the pill
               sideways, which is the one thing a toolbar must not do. */}
