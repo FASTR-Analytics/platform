@@ -81,9 +81,12 @@ different name:
    settings still offer General so that products can be moved there.
    _(proposed)_
 5. General is opened and closed like any folder: click, Enter, Space, the
-   arrow keys, and the expand-all and collapse-all button. Its open state
-   is held in the same saved set under its sentinel id, and the effect that
-   prunes deleted folder ids from that set keeps the sentinel. _(proposed)_
+   arrow keys, and the expand-all and collapse-all button. It is open by
+   default. General is not a folder, so its state is not in the saved
+   folder set: it is one saved boolean in `state/t4_ui.ts`, closed only
+   when the user closed it. The folder set and the effect that prunes
+   deleted folder ids from it are untouched. During a search, the search
+   toggle set handles the sentinel like any folder id.
 6. General has no menu. Right-click and the row's menu button do nothing on
    it. It cannot be renamed, recoloured, moved or deleted. _(proposed)_
 7. During a search, a matching root product opens General, the same way a
@@ -122,6 +125,7 @@ different name:
 - `client/src/components/products/move_to_folder_modal.tsx`
 - `client/src/components/products/_shared/product_settings.tsx`
 - `client/src/onboarding/tours.ts`
+- `client/src/state/t4_ui.ts`
 - `server/tests/folder_tree_test.ts`
 - `SYSTEM_12_documents_sharing.md`
 - this file (§8 and the Next step line only)
@@ -138,10 +142,12 @@ different name:
   type cell, the General label, and empty package, scope, date and menu
   cells. The open, close and keyboard handling is the folder row's. There
   is no context menu and no menu button (rulings 5, 6).
-- `products.tsx`: the saved open set accepts the sentinel and the pruning
-  effect keeps it; expand-all includes it when General is shown;
-  `openableFolderIds` counts it (ruling 5). The delete-folder confirmation
-  follows ruling 9.
+- `t4_ui.ts`: a saved boolean for General closed, default open, beside the
+  folder set (ruling 5).
+- `products.tsx`: outside a search, the sentinel reads and writes that
+  boolean and every other id the folder set; expand-all opens General and
+  collapse-all closes it when General is shown; `openableFolderIds` counts
+  it (ruling 5). The delete-folder confirmation follows ruling 9.
 - `folder_labels.ts` moves to `_shared/` and is exported from
   `_shared/mod.ts`: `product_settings.tsx` lives there, and `_shared/` never
   imports upward (PROTOCOL_UI_STRUCTURE, entry-only and cycle rules). It
