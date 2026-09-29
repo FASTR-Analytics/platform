@@ -71,14 +71,19 @@ const TEXT_ISLANDS =
 
 // Editor-only additions to the printed document: the app's ground around the
 // sheets, the in-place editing affordances, ghost rows revealed on hover, the
-// page-break divider, peer carets. Nothing here changes a page's own pixels.
+// page-break divider, peer carets. Nothing here may change a page's own pixels.
 // `ground` is the app's resolved base-200 (appGround): the frame is its own
 // document and cannot read the app's tokens, so it is handed the colour.
 function surfaceCss(ground: string): string {
   const pageBreak = t3({ en: "page break", fr: "saut de page", pt: "quebra de página" })
     .replace(/["\\]/g, "");
   return `
-html { background: ${ground} !important; overflow-y: scroll; }
+/* The ground goes on BODY, never html: html carries the document's own page
+   colour, and the paged runner reads html's background as that ground and
+   paints every page box with it (report_fastr_paged.ts afterPageLayout), so a
+   surround set there turned every sheet into the surround. */
+html { overflow-y: scroll; }
+body { background: ${ground} !important; min-height: 100vh; }
 .pagedjs_pages { padding: 24px 0 48px; }
 .pagedjs_page { box-shadow: 0 1px 3px rgba(0,0,0,.25), 0 10px 28px rgba(0,0,0,.14); margin: 0 auto 28px; }
 .cm-fm-text-edit { cursor: text; }
