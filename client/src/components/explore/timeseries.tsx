@@ -47,7 +47,7 @@ export function Timeseries(p: {
   scope: PackageScope;
   family: DatasetType;
   metric: MetricWithStatus;
-  viewSelect: JSX.Element;
+  selectors: JSX.Element;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
 }) {
@@ -65,7 +65,7 @@ export function Timeseries(p: {
     <FrameTop
       panelChildren={
         <div class="ui-pad ui-spy-sm">
-          <div class="ui-gap-sm flex items-center">{p.viewSelect}</div>
+          {p.selectors}
           <div class="ui-gap-sm flex flex-wrap items-end">
             <IndicatorsControl
               values={resolved().query.indicators}

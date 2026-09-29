@@ -13,12 +13,12 @@ import {
   PeriodControl,
 } from "../_shared/mod.ts";
 
-// The Data table's controls: the view selector with find and Download on
+// The Data table's controls: the page's selectors with find and Download on
 // the top row, the query controls beneath. Each edits the query through
 // `onChange`; the query shown is the resolved one, so every control shows
 // what is read.
 export function Toolbar(p: {
-  viewSelect: JSX.Element;
+  selectors: JSX.Element;
   columns: GridColumns;
   query: GridQuery;
   levelOptions: SelectOption<AdminLevel>[];
@@ -32,8 +32,8 @@ export function Toolbar(p: {
 }) {
   return (
     <div class="ui-spy-sm">
-      <div class="ui-gap-sm flex items-center">
-        {p.viewSelect}
+      <div class="ui-gap-sm flex flex-wrap items-center">
+        {p.selectors}
         <div class="ui-gap-sm ml-auto flex items-center">
           <div class="w-48">
             <Input

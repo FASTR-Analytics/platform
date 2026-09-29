@@ -216,20 +216,27 @@ authoring context is read through `t2_run_authoring_context`. The page
 writes nothing: no insert into a product, no persisted draft, no copilot, no
 help buttons.
 
-Under a family tab, `FrameLeft` holds the module nav (`module_nav.tsx`) and
-the chosen module's view (`module_view.tsx`). The nav is the family's
-modules in module order (`compareModules`), a `SelectList` per tier (Primary
-results, Supporting analyses). A view is one named reading of a module, a
-metric bound to a presentation, and `viewsFor` in `module_view.tsx` is the
-one place that says which views a module offers: "Indicator values as
-counts" (the data table, columns Indicators) and "Indicator values over
-time" (the timeseries) for the HMIS primary module's first ready metric
-(`primaryMetricFor`), and nothing for any other module. A `Select` over the
-module's view names, the pane's main control at the default size, is always
-shown; the view places it on its top row, with the query controls beneath. A module with no view shows a placeholder listing its metrics,
-and a module with no ready metric shows the stamped reason. When module
-definitions declare views, `viewsFor` reads them and nothing else on the
-page changes. The views share the family's `GridQuery` and the controls
+Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its
+first row in every state is the selectors row: a `SelectV2` over the
+family's modules in module order (`compareModules`), a header entry per tier
+the family has a module in (Primary results, Supporting analyses), then a
+`SelectV2` over the chosen module's views when it has any. The module select
+is built in `explore.tsx`, where the family's modules and the resolved module
+are, and passed to `ModuleView` as `moduleSelect`. Both selects are at the
+default size and take their widest item's width (`fitContent`): they are the
+page's navigation below the family tabs, and the query controls, find and
+Download beneath them stay `sm`. The row wraps, since a `fitContent` select
+cannot shrink. A view is one named reading of a module, a metric bound to a
+presentation, and `viewsFor` in `module_view.tsx` is the one place that says
+which views a module offers: "Indicator values as counts" (the data table,
+columns Indicators) and "Indicator values over time" (the timeseries) for
+the HMIS primary module's first ready metric (`primaryMetricFor`), and
+nothing for any other module. A view takes the row as `selectors` and
+places it first on its toolbar's top row, with the query controls beneath. A
+module with no view shows a placeholder listing its metrics, and a module
+with no ready metric shows the stamped reason, each under the same row in a
+`FrameTop`. When module definitions declare views, `viewsFor` reads them and
+nothing else on the page changes. The views share the family's `GridQuery` and the controls
 over it (`explore/_shared/query_controls.tsx`: indicators, period, grain,
 the dropped-indicators notice and the `queryEditors` pair that keeps
 dropped indicators through a package switch).

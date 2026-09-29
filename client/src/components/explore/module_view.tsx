@@ -10,7 +10,7 @@ import {
   type PackageScope,
   type RunAuthoringContext,
 } from "lib";
-import { Select } from "panther";
+import { FrameTop, SelectV2 } from "panther";
 import { createMemo, For, type JSX, Match, Show, Switch } from "solid-js";
 import { exploreViews, setExploreView } from "~/state/t4_explore";
 import { EmptyState } from "./_shared/mod.ts";
@@ -75,11 +75,16 @@ type ViewProps = {
   setQuery: (query: GridQuery) => void;
 };
 
-// The chosen module's views behind a `Select` over their names, the pane's
-// main control, which the view places on its top row; a placeholder listing
-// the module's metrics when it has none. A module with no ready metric shows
-// the stamped reason instead.
-export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
+// The chosen module's views under the selectors row: the module select the
+// page built, then a `SelectV2` over the view names. The row is the pane's
+// navigation below the family tabs, so both selects are at the default size
+// and each takes its widest item's width. A view places the row on its
+// toolbar's top row; a module with no view shows a placeholder listing its
+// metrics, and one with no ready metric the stamped reason, each under the
+// same row.
+export function ModuleView(
+  p: ViewProps & { module: InstalledModuleSummary; moduleSelect: JSX.Element },
+) {
   const metrics = createMemo(() => moduleMetrics(p.module, p.ctx));
   const views = createMemo(() => viewsFor(p.module, p.family, p.ctx));
   const view = createMemo(() =>
@@ -90,27 +95,34 @@ export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
     <Show
       when={metrics().some((m) => m.status === "ready")}
       fallback={
-        <div class="ui-pad">
-          <EmptyState kind="no_metric" reason={metrics()[0]?.statusReason} />
-        </div>
+        <Fallback selectors={<SelectorsRow>{p.moduleSelect}</SelectorsRow>}>
+          <div class="ui-pad">
+            <EmptyState kind="no_metric" reason={metrics()[0]?.statusReason} />
+          </div>
+        </Fallback>
       }
     >
       <Show
         when={view()}
-        fallback={<Placeholder module={p.module} metrics={metrics()} />}
+        fallback={
+          <Fallback selectors={<SelectorsRow>{p.moduleSelect}</SelectorsRow>}>
+            <Placeholder module={p.module} metrics={metrics()} />
+          </Fallback>
+        }
       >
         {(v) => (
           <ViewBody
             view={v()}
-            viewSelect={
-              <div class="w-[32rem] max-w-full">
-                <Select
+            selectors={
+              <SelectorsRow>
+                {p.moduleSelect}
+                <SelectV2
+                  items={views().map((x) => ({ id: x.id, label: x.label }))}
                   value={v().id}
-                  options={views().map((x) => ({ value: x.id, label: x.label }))}
                   onChange={(id) => setExploreView(p.module.id, id)}
-                  fullWidth
+                  fitContent
                 />
-              </div>
+              </SelectorsRow>
             }
             ctx={p.ctx}
             scope={p.scope}
@@ -124,7 +136,24 @@ export function ModuleView(p: ViewProps & { module: InstalledModuleSummary }) {
   );
 }
 
-function ViewBody(p: ViewProps & { view: ExploreView; viewSelect: JSX.Element }) {
+// It wraps because a fitContent select cannot shrink below its widest item.
+function SelectorsRow(p: { children: JSX.Element }) {
+  return (
+    <div class="ui-gap-sm flex flex-wrap items-center">{p.children}</div>
+  );
+}
+
+// The placeholder and the no-metric state sit under the selectors row where
+// the views put it, so the module select is on screen in every branch.
+function Fallback(p: { selectors: JSX.Element; children: JSX.Element }) {
+  return (
+    <FrameTop panelChildren={<div class="ui-pad">{p.selectors}</div>}>
+      {p.children}
+    </FrameTop>
+  );
+}
+
+function ViewBody(p: ViewProps & { view: ExploreView; selectors: JSX.Element }) {
   return (
     <Switch>
       <Match when={p.view.kind === "data_table" ? p.view : undefined}>
@@ -135,7 +164,7 @@ function ViewBody(p: ViewProps & { view: ExploreView; viewSelect: JSX.Element })
             family={p.family}
             metric={v().metric}
             columns={v().columns}
-            viewSelect={p.viewSelect}
+            selectors={p.selectors}
             query={p.query}
             setQuery={p.setQuery}
           />
@@ -148,7 +177,7 @@ function ViewBody(p: ViewProps & { view: ExploreView; viewSelect: JSX.Element })
             scope={p.scope}
             family={p.family}
             metric={v().metric}
-            viewSelect={p.viewSelect}
+            selectors={p.selectors}
             query={p.query}
             setQuery={p.setQuery}
           />

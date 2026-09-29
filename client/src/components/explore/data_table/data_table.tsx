@@ -59,15 +59,15 @@ import { createTrackedQuery } from "./tracked_query";
 // time, the view's choice. The controls' state is one GridQuery per family,
 // owned by the page so it outlives a package, scope or module change; each
 // read resolves it against the current package and scope, so such a change
-// never rewrites what the user chose. `viewSelect` is the module's view
-// selector, placed first in the toolbar.
+// never rewrites what the user chose. `selectors` is the page's module and
+// view selects, placed first in the toolbar.
 export function DataTable(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
   family: DatasetType;
   metric: MetricWithStatus;
   columns: GridColumns;
-  viewSelect: JSX.Element;
+  selectors: JSX.Element;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
 }) {
@@ -86,7 +86,7 @@ export function DataTable(p: {
           family={p.family}
           metric={p.metric}
           columns={p.columns}
-          viewSelect={p.viewSelect}
+          selectors={p.selectors}
           info={metricInfo}
           query={p.query}
           setQuery={p.setQuery}
@@ -110,7 +110,7 @@ function ReadyFamilyTable(p: {
   family: DatasetType;
   metric: MetricWithStatus;
   columns: GridColumns;
-  viewSelect: JSX.Element;
+  selectors: JSX.Element;
   info: ResultsValueInfoForPresentationObject;
   query: GridQuery | undefined;
   setQuery: (query: GridQuery) => void;
@@ -231,7 +231,7 @@ function ReadyFamilyTable(p: {
       panelChildren={
         <div class="ui-pad ui-spy-sm">
           <Toolbar
-            viewSelect={p.viewSelect}
+            selectors={p.selectors}
             columns={p.columns}
             query={resolved().query}
             levelOptions={levelOptionsFor(p.metric, p.scope).map((level) => ({

@@ -12,7 +12,7 @@ left of the view select, so the row reads module then view and the table or
 chart gets the width back. Nothing about what is selectable, stored or
 resolved changes. Delete this file when the last review passes.
 
-**Next step: Do 1**
+**Next step: Review 1**
 
 Branch: `version2`. Repos: this app only. Precondition: the panther sync that
 brings `panther/_303_components/form_inputs/select_v2.tsx` has been committed
@@ -216,3 +216,4 @@ deletes this file in the review commit.
 
 | Date | Step | Row |
 | ---- | ---- | --- |
+| 2026-09-29 | 1 | Step 1 built |

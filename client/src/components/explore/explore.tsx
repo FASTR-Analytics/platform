@@ -1,20 +1,24 @@
 import {
+  compareModules,
   getModuleFamilyLabel,
   MODULE_FAMILY_ORDER,
   t3,
   TC,
   type DatasetType,
   type GridQuery,
+  type InstalledModuleSummary,
+  type ModuleTier,
   type PackageScope,
   type RunAuthoringContext,
 } from "lib";
 import {
   createQuery,
-  FrameLeft,
   FrameTop,
   HeadingBar,
   Select,
+  SelectV2,
   StateHolderWrapper,
+  type ListEntry,
 } from "panther";
 import { createMemo, type JSX, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -33,7 +37,6 @@ import {
   setExploreQuery,
 } from "~/state/t4_explore";
 import { EmptyState } from "./_shared/mod.ts";
-import { ModuleNav, modulesInFamily } from "./module_nav";
 import { ModuleView } from "./module_view";
 
 const NATIONAL = "__national__";
@@ -44,8 +47,46 @@ function familiesInPackage(ctx: RunAuthoringContext): DatasetType[] {
   );
 }
 
+// The family's modules in module order (tier, then sortOrder).
+function modulesInFamily(
+  family: DatasetType,
+  ctx: RunAuthoringContext,
+): InstalledModuleSummary[] {
+  return ctx.modules.filter((m) => m.family === family).toSorted(
+    compareModules,
+  );
+}
+
+const TIERS: readonly ModuleTier[] = ["primary", "secondary"];
+
+function tierLabel(tier: ModuleTier): string {
+  return tier === "primary"
+    ? t3({
+      en: "Primary results",
+      fr: "Résultats principaux",
+      pt: "Resultados principais",
+    })
+    : t3({
+      en: "Supporting analyses",
+      fr: "Analyses complémentaires",
+      pt: "Análises complementares",
+    });
+}
+
+// The module select's entries: a header per tier the family has a module in.
+function moduleEntries(modules: InstalledModuleSummary[]): ListEntry<string>[] {
+  return TIERS.flatMap((tier): ListEntry<string>[] => {
+    const inTier = modules.filter((m) => m.tier === tier);
+    return inTier.length === 0 ? [] : [
+      { header: tierLabel(tier) },
+      ...inTier.map((m) => ({ id: m.id, label: m.label })),
+    ];
+  });
+}
+
 // The Explore page: one package at one scope, its families as tabs, each
-// family's modules in a left nav and the chosen module's views on the right.
+// family's modules in a select on the pane's first row and the chosen
+// module's views beneath.
 // Every selection lives in t4_explore. The package falls back to the pin,
 // else the newest ready package, whenever the chosen one is not ready.
 // Nothing here is written anywhere.
@@ -175,9 +216,10 @@ function PackageExplorer(p: {
   );
 }
 
-// One family: its modules in the nav, the chosen one's views beside. The
-// stored choice is resolved against the package on every read; a module the
-// package lacks falls back to the family's first.
+// One family: the module select, built here where the family's modules and
+// the resolved module are, and the chosen module's views. The stored choice
+// is resolved against the package on every read; a module the package lacks
+// falls back to the family's first.
 function FamilyExplorer(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
@@ -192,29 +234,25 @@ function FamilyExplorer(p: {
   });
 
   return (
-    <FrameLeft
-      panelChildren={
-        <div class="ui-pad h-full w-64 overflow-y-auto">
-          <ModuleNav
-            modules={modules()}
-            value={module()?.id}
-            onChange={(id) => setExploreModule(p.family, id)}
-          />
-        </div>
-      }
-    >
-      <Show when={module()} keyed>
-        {(m) => (
-          <ModuleView
-            ctx={p.ctx}
-            scope={p.scope}
-            family={p.family}
-            module={m}
-            query={p.query}
-            setQuery={p.setQuery}
-          />
-        )}
-      </Show>
-    </FrameLeft>
+    <Show when={module()} keyed>
+      {(m) => (
+        <ModuleView
+          ctx={p.ctx}
+          scope={p.scope}
+          family={p.family}
+          module={m}
+          moduleSelect={
+            <SelectV2
+              items={moduleEntries(modules())}
+              value={m.id}
+              onChange={(id) => setExploreModule(p.family, id)}
+              fitContent
+            />
+          }
+          query={p.query}
+          setQuery={p.setQuery}
+        />
+      )}
+    </Show>
   );
 }
