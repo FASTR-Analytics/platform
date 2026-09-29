@@ -98,15 +98,21 @@ view (five of the six HMIS modules) is a dead end.
    modules and the resolved module, and passed to `ModuleView` as
    `moduleSelect: JSX.Element`. `ModuleView` composes the selectors row from
    it and its own view select. _(proposed)_
-3. Tier headers appear in the module select only when the family has modules
-   in more than one tier. A header over a single item is noise. The tier
+3. The module select has a header entry for each tier the family has a
+   module in, exactly as the nav shows a heading per tier today. The tier
    labels (en "Primary results" / "Supporting analyses", fr "Résultats
    principaux" / "Analyses complémentaires", pt "Resultados principais" /
    "Análises complementares") move from `module_nav.tsx` to `explore.tsx`
-   unchanged. _(proposed)_
-4. Both selects are `size="sm"`, matching every other control on the toolbar
-   rows, and each sits in a `w-72 max-w-full` wrapper with `fullWidth`. The
-   `w-[32rem]` wrapper and the default-size view select go. _(proposed)_
+   unchanged.
+4. Both selects are at the default size. The view select is today, and
+   SYSTEM_11 records why: it is the pane's main control. The module select
+   replaces a whole navigation column and carries the same weight. They are
+   the page's navigation below the family tabs; the query controls, find and
+   Download beneath them are secondary and stay `sm`. Each select takes the
+   width of its widest item through `SelectV2`'s `fitContent` mode (panther
+   `PLAN_SELECT_V2.md`, ruling 6), so no wrapper sets a width. This replaces
+   the `w-[32rem]` wrapper the view select has today, whose job was that
+   width.
 5. The prop `viewSelect` on `DataTable`, `ReadyFamilyTable`, `Toolbar` and
    `Timeseries` is renamed `selectors`. Its placement does not change: first
    on the toolbar's top row. _(proposed)_
@@ -144,8 +150,8 @@ view (five of the six HMIS modules) is a dead end.
 
 - `explore.tsx`: `FamilyExplorer` renders `ModuleView` directly, no
   `FrameLeft`. It builds the module select per rulings 2, 3 and 4 from
-  `modulesInFamily`, now local to this file, and passes it as `moduleSelect`.
-  Header entries appear only for a family with more than one tier.
+  `modulesInFamily`, now local to this file, and passes it as `moduleSelect`,
+  with a header entry per tier the family has (ruling 3).
 - `module_nav.tsx` is deleted and nothing imports it.
 - `module_view.tsx`: `ModuleView` takes `moduleSelect`, builds the view
   select as a `SelectV2` per ruling 4, composes the selectors row, and passes
