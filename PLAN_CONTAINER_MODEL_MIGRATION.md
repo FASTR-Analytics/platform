@@ -6,7 +6,7 @@
 > `tim-branch`; this plan binds to `version2`, where the tree is today, and Tim
 > confirms which before Do 1.
 
-**Next step:** Review 2
+**Next step:** Do 3
 
 Panther's UI kit now puts a container's inset and stack spacing on its slot
 (`pad` / `spy` on every Frame content slot, `panelPad` / `panelSpy` on side
@@ -275,3 +275,5 @@ goes through the panther repo and a fresh sync.
 | 2026-09-29 | 2 | Fix, finding 3, a choice ruling 4 does not cover, taken so the plan can proceed and open to Tim's overruling: every `spinner` site also passes `loadingAndErrorPad="md"`, since the kit's `spinner` replaces only the loading indicator and the error block would otherwise sit bare at the slot edge, a regression from the old kit at all of them and a visible one at `with_csv.tsx` and `hfa/dataset/dataset_items_holder.tsx`, which route "No data" through the error state. 19 sites: the 17 of step 2, `figure_editor.tsx:908`, and `logged_in_wrapper.tsx:155`, which per finding 2 now passes `spinner` too (`#app` is `h-full`) and keeps `"md"` for its error block. The alternative, insetting the error block under `spinner` in the kit, is a panther change and was not taken. Reverting this choice is one substitution: `spinner loadingAndErrorPad="md"` to `spinner` at the 19 sites. |
 | 2026-09-29 | 2 | Floor: `deno task typecheck` exit 0, `deno task test` 469 passed, `./validate_protocols` pass. `./run` not started: the app is still running from this tree. |
 | 2026-09-29 | 2 | Step 2 fixed. |
+| 2026-09-29 | 2 | Re-review after the fix: one commit since `64d63c58e` (`8142c4ddc`), 17 client files plus this file, every hunk a prop on a `StateHolderWrapper` tag, and the plan hunk only the Next step line and four appended rows. Finding 1: `figure_editor.tsx:908` passes `spinner loadingAndErrorPad="md"`, its host row `:849` is `flex h-full w-full`. Finding 2: `logged_in_wrapper.tsx:155` passes `spinner` and keeps `"md"`; `html`, `body`, `#app` are `h-full` (`app.css:450-453`). Finding 3: the row matches the tree, 19 `spinner` props (the twentieth grep hit is a comment in `hmis/indicators/refresh_dhis2_labels_modal.tsx:12`), each with `loadingAndErrorPad="md"` on the same tag (`view_results_object.tsx:62-63` and `upload_attempt_form.tsx:215-216` on adjacent lines), plus `version_history.tsx:166` `"sm"`: 20 pad sites, no `spinner` without the pad. The choice stays open to Tim as logged. The step 2 rows and the fix rows together name every site by file and line, and the deferred row holds the 7 (+1). Floor: typecheck exit 0; test 469 passed, 0 failed, 3 ignored on the first run; `./validate_protocols` passed with the one stale entry already logged. `./run` not started: `docker ps` showed `pg` and `valkey-local` up, deno on 8000 and vite on 3000 listening. |
+| 2026-09-29 | 2 | Step 2 reviewed: pass. |
