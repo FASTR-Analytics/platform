@@ -82,7 +82,7 @@ import {
   setCollabView,
 } from "~/state/instance/collab";
 import { fastrThemeOptions } from "./fastr_theme_labels";
-import { createReportPaginator, ProductTitle } from "~/components/products/_shared/mod.ts";
+import { createReportPaginator, MenuRow, ProductTitle } from "~/components/products/_shared/mod.ts";
 import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
@@ -2375,18 +2375,14 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           >
             {headerActions}
           </HeadingBar>
-          {/* The toolbar's menu row. The pull-back puts the first menu's
-              label on the bar's padding edge, under the back button. */}
+          {/* The toolbar's menu row: the toolbar portals its menus in. */}
           <Show when={fileMenuShown()}>
-            <div class="ui-pad-x flex min-h-10 items-center border-b py-1">
-              <div
-                class="-ml-2 flex min-w-0 flex-wrap items-center gap-1"
-                ref={(el) => {
-                  setMenuRowHost(el);
-                  onCleanup(() => setMenuRowHost(undefined));
-                }}
-              />
-            </div>
+            <MenuRow
+              ref={(el) => {
+                setMenuRowHost(el);
+                onCleanup(() => setMenuRowHost(undefined));
+              }}
+            />
           </Show>
           {/* The formatting strip: the toolbar's PILL, under the header
               whose menu row it portals into. A row of its own rather than

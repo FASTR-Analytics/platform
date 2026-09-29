@@ -1,22 +1,58 @@
-export { createIdGeneratorForLayout, generateUniqueBlockId } from "./id_generation.ts";
+export {
+  createIdGeneratorForLayout,
+  generateUniqueBlockId,
+} from "./id_generation.ts";
 export { DuplicateProductsModal } from "./duplicate_products_modal.tsx";
-export { buildProductTree, childFolders, descendantIds, folderPathOptions, productTreeRows } from "./folder_tree.ts";
+export {
+  buildProductTree,
+  childFolders,
+  descendantIds,
+  folderPathOptions,
+  productTreeRows,
+} from "./folder_tree.ts";
 export type { ProductTreeRow } from "./folder_tree.ts";
 export { PackageScopeChip } from "./package_scope_chip.tsx";
 export { PackageScopeModal } from "./package_scope_modal.tsx";
 export { createReportPaginator } from "./paginate_report.ts";
-export type { ReportPaginator, ReportPaginatorDeps } from "./paginate_report.ts";
+export type {
+  ReportPaginator,
+  ReportPaginatorDeps,
+} from "./paginate_report.ts";
 export { ProductSettings } from "./product_settings.tsx";
 export { ProductTitle } from "./product_title.tsx";
-export { applyRebasedEdits, formatLineRanges, rebaseProposedEdits } from "./rebase_edits.ts";
+export {
+  applyRebasedEdits,
+  formatLineRanges,
+  rebaseProposedEdits,
+} from "./rebase_edits.ts";
 export type { RebasedEdit, SkippedRange } from "./rebase_edits.ts";
 export { ReportHtmlPreview } from "./report_html_preview.tsx";
 export { ReportStyleEditor } from "./report_style_editor.tsx";
 export type { ReportStyleEditorResult } from "./report_style_editor.tsx";
 export { ReportFigureEmbed } from "./report_figure_embed.tsx";
 export type { FigureStaleContext } from "./report_figure_embed.tsx";
-export { divSurface, iframeSurface, isSurfaceAtBottom, lineToPreviewTop, previewTopToLine, scrollSurfaceToBottom } from "./scroll_sync.ts";
-export type { PreviewAnchor, PreviewSurface, PreviewSurfaceEvent } from "./scroll_sync.ts";
+export {
+  divSurface,
+  iframeSurface,
+  isSurfaceAtBottom,
+  lineToPreviewTop,
+  previewTopToLine,
+  scrollSurfaceToBottom,
+} from "./scroll_sync.ts";
+export type {
+  PreviewAnchor,
+  PreviewSurface,
+  PreviewSurfaceEvent,
+} from "./scroll_sync.ts";
 export { InsertFigureModal } from "./insert_figure/mod.ts";
 export type { InsertFigureResult } from "./insert_figure/mod.ts";
-export { MenuDivider, MenuFlyout, PopoverRow, ToolbarDivider, ToolbarPopover, ToolButton } from "./toolbar_primitives.tsx";
+export {
+  MenuDivider,
+  MenuFlyout,
+  MenuRow,
+  PopoverRow,
+  ToolbarDivider,
+  ToolbarPopover,
+  ToolbarRow,
+  ToolButton,
+} from "./toolbar_primitives.tsx";

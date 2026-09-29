@@ -1,5 +1,5 @@
 // The slide editor's toolbar, laid out like the FASTR report toolbar (Google
-// Docs style): a menu row (Slide, Text, Split panel) above one pill that
+// Docs style): a menu row (Slide, Text, Split panel) above one row that
 // follows the selection: text formatting while typing on the canvas, a title's
 // size and weight, or the selected block's type, layout and figure/image
 // controls. It replaces the old left-hand panel; text itself is edited on the
@@ -38,6 +38,7 @@ import {
   PopoverRow,
   ToolbarDivider,
   ToolbarPopover,
+  ToolbarRow,
   ToolButton,
 } from "~/components/products/_shared/mod.ts";
 import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
@@ -77,7 +78,10 @@ type Props = {
   // Where the deck wants the menu row (its header); absent, it renders here.
   menuRowHost?: HTMLElement;
   onBlockTypeChange: (blockId: string, type: BlockType) => void;
-  updateBlock: (blockId: string, updater: (b: ContentBlock) => ContentBlock) => void;
+  updateBlock: (
+    blockId: string,
+    updater: (b: ContentBlock) => ContentBlock,
+  ) => void;
   staleFigureBundle: FigureBundle | undefined;
   staleContext: { scope: PackageScope; authoringContext: RunAuthoringContext };
   onFigureUpdated: (bundle: FigureBundle) => void;
@@ -87,41 +91,95 @@ type Props = {
 
 const TEXT_BACKGROUNDS = [
   { value: "none", label: () => t3({ en: "None", fr: "Aucun", pt: "Nenhum" }) },
-  { value: "primary", label: () => t3({ en: "Theme color", fr: "Couleur du thème", pt: "Cor do tema" }) },
-  { value: "grey", label: () => t3({ en: "Light grey", fr: "Gris clair", pt: "Cinzento claro" }) },
-  { value: "success", label: () => t3({ en: "Green", fr: "Vert", pt: "Verde" }) },
-  { value: "danger", label: () => t3({ en: "Red", fr: "Rouge", pt: "Vermelho" }) },
+  {
+    value: "primary",
+    label: () =>
+      t3({ en: "Theme color", fr: "Couleur du thème", pt: "Cor do tema" }),
+  },
+  {
+    value: "grey",
+    label: () =>
+      t3({ en: "Light grey", fr: "Gris clair", pt: "Cinzento claro" }),
+  },
+  {
+    value: "success",
+    label: () => t3({ en: "Green", fr: "Vert", pt: "Verde" }),
+  },
+  {
+    value: "danger",
+    label: () => t3({ en: "Red", fr: "Rouge", pt: "Vermelho" }),
+  },
 ];
 
 const PATTERNS: { value: PatternType; label: () => string }[] = [
-  { value: "ovals", label: () => t3({ en: "Ovals", fr: "Ovales", pt: "Ovais" }) },
-  { value: "circles", label: () => t3({ en: "Circles", fr: "Cercles", pt: "Círculos" }) },
-  { value: "dots", label: () => t3({ en: "Dots", fr: "Points", pt: "Pontos" }) },
-  { value: "lines", label: () => t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }) },
-  { value: "grid", label: () => t3({ en: "Grid", fr: "Grille", pt: "Grelha" }) },
-  { value: "chevrons", label: () => t3({ en: "Chevrons", fr: "Chevrons", pt: "Galões" }) },
-  { value: "waves", label: () => t3({ en: "Waves", fr: "Vagues", pt: "Ondas" }) },
-  { value: "noise", label: () => t3({ en: "Noise", fr: "Bruit", pt: "Ruído" }) },
+  {
+    value: "ovals",
+    label: () => t3({ en: "Ovals", fr: "Ovales", pt: "Ovais" }),
+  },
+  {
+    value: "circles",
+    label: () => t3({ en: "Circles", fr: "Cercles", pt: "Círculos" }),
+  },
+  {
+    value: "dots",
+    label: () => t3({ en: "Dots", fr: "Points", pt: "Pontos" }),
+  },
+  {
+    value: "lines",
+    label: () => t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }),
+  },
+  {
+    value: "grid",
+    label: () => t3({ en: "Grid", fr: "Grille", pt: "Grelha" }),
+  },
+  {
+    value: "chevrons",
+    label: () => t3({ en: "Chevrons", fr: "Chevrons", pt: "Galões" }),
+  },
+  {
+    value: "waves",
+    label: () => t3({ en: "Waves", fr: "Vagues", pt: "Ondas" }),
+  },
+  {
+    value: "noise",
+    label: () => t3({ en: "Noise", fr: "Bruit", pt: "Ruído" }),
+  },
 ];
 
 const IMAGE_ALIGNS = [
-  { value: "center", label: () => t3({ en: "Center", fr: "Centre", pt: "Centro" }) },
+  {
+    value: "center",
+    label: () => t3({ en: "Center", fr: "Centre", pt: "Centro" }),
+  },
   { value: "top", label: () => t3({ en: "Top", fr: "Haut", pt: "Cima" }) },
-  { value: "bottom", label: () => t3({ en: "Bottom", fr: "Bas", pt: "Baixo" }) },
-  { value: "left", label: () => t3({ en: "Left", fr: "Gauche", pt: "Esquerda" }) },
-  { value: "right", label: () => t3({ en: "Right", fr: "Droite", pt: "Direita" }) },
+  {
+    value: "bottom",
+    label: () => t3({ en: "Bottom", fr: "Bas", pt: "Baixo" }),
+  },
+  {
+    value: "left",
+    label: () => t3({ en: "Left", fr: "Gauche", pt: "Esquerda" }),
+  },
+  {
+    value: "right",
+    label: () => t3({ en: "Right", fr: "Droite", pt: "Direita" }),
+  },
 ] as const;
 
 function blockTypeLabel(type: BlockType | undefined): string {
   return type === "figure"
     ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
     : type === "image"
-    ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
-    : t3({ en: "Text", fr: "Texte", pt: "Texto" });
+      ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
+      : t3({ en: "Text", fr: "Texte", pt: "Texto" });
 }
 
 function Caption(p: { children: JSX.Element }) {
-  return <div class="text-base-content-muted px-2 pt-1 pb-0.5 text-xs">{p.children}</div>;
+  return (
+    <div class="text-base-content-muted px-2 pt-1 pb-0.5 text-xs">
+      {p.children}
+    </div>
+  );
 }
 
 function Check(p: { on: boolean }) {
@@ -161,29 +219,52 @@ export function SlideToolbar(p: Props) {
 
   const selectedBlock = (): ContentBlock | undefined => {
     if (p.tempSlide.type !== "content" || !p.selectedBlockId) return undefined;
-    const hit = findById((p.tempSlide as ContentSlide).layout, p.selectedBlockId);
+    const hit = findById(
+      (p.tempSlide as ContentSlide).layout,
+      p.selectedBlockId,
+    );
     return hit?.node.type === "item" ? hit.node.data : undefined;
   };
 
-  // The title whose size/weight the pill shows: the one being typed into,
+  // The title whose size/weight the toolbar shows: the one being typed into,
   // else the selected one.
   const activeTitle = () => {
     const e = p.editing;
-    const id = e?.kind === "title" ? e.primitiveId : e ? undefined : p.selectedTextTarget;
+    const id =
+      e?.kind === "title"
+        ? e.primitiveId
+        : e
+          ? undefined
+          : p.selectedTextTarget;
     return id ? slideTextField(id) : undefined;
   };
 
   const logoRows = (field: string, showByDefault: boolean) => {
-    const cur = () => (slideRec()[field] as LogoVisibility | undefined) ?? "inherit";
+    const cur = () =>
+      (slideRec()[field] as LogoVisibility | undefined) ?? "inherit";
     const opts = [
       {
         value: "inherit",
         label: showByDefault
-          ? t3({ en: "Default (show)", fr: "Défaut (afficher)", pt: "Predefinição (mostrar)" })
-          : t3({ en: "Default (hide)", fr: "Défaut (masquer)", pt: "Predefinição (ocultar)" }),
+          ? t3({
+              en: "Default (show)",
+              fr: "Défaut (afficher)",
+              pt: "Predefinição (mostrar)",
+            })
+          : t3({
+              en: "Default (hide)",
+              fr: "Défaut (masquer)",
+              pt: "Predefinição (ocultar)",
+            }),
       },
-      { value: "show", label: t3({ en: "Show", fr: "Afficher", pt: "Mostrar" }) },
-      { value: "hide", label: t3({ en: "Hide", fr: "Masquer", pt: "Ocultar" }) },
+      {
+        value: "show",
+        label: t3({ en: "Show", fr: "Afficher", pt: "Mostrar" }),
+      },
+      {
+        value: "hide",
+        label: t3({ en: "Hide", fr: "Masquer", pt: "Ocultar" }),
+      },
     ];
     return (
       <For each={opts}>
@@ -202,7 +283,9 @@ export function SlideToolbar(p: Props) {
   };
 
   const split = () =>
-    p.tempSlide.type === "content" ? (p.tempSlide as ContentSlide).split : undefined;
+    p.tempSlide.type === "content"
+      ? (p.tempSlide as ContentSlide).split
+      : undefined;
 
   const imageAssets = () =>
     instanceState.assets.filter((f) => f.isImage).map((f) => f.fileName);
@@ -221,480 +304,647 @@ export function SlideToolbar(p: Props) {
   // While typing on the canvas, a click in the toolbar must not take focus
   // from the (hidden) text editor.
   const keepFocus = (e: MouseEvent) => {
-    if (p.editing && (e.target as Element).closest("button")) e.preventDefault();
+    if (p.editing && (e.target as Element).closest("button"))
+      e.preventDefault();
   };
 
   // The menu row (Slide, Insert, Layout…). The deck renders it beside its
   // own name and menus (Google Slides' one header) through `menuRowHost`;
-  // alone, it sits above the pill.
+  // alone, it sits above the toolbar row.
+  // The menus flow as items of the deck header's MenuRow, after the deck's
+  // own; this wrapper only keeps the inline editor's focus on a menu click.
   const menuRow = () => (
     <div
-      data-cursor-zone="header"
+      class="contents"
       {...{ [INLINE_EDIT_KEEP_ATTR]: "" }}
       onMouseDown={keepFocus}
     >
-  {/* Hosted, the row is one item in the deck header's menu row (the deck's
-      own menu comes first), which owns that row's padding and its pull-back
-      onto the deck name's left margin. Alone, it carries its own. */}
-  <div
-    class="flex flex-wrap items-center gap-1"
-    classList={{ "px-2 pt-0.5": !p.menuRowHost }}
-  >
-    <ToolbarPopover
-      menu
-      tour="slide-type-select"
-      label={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
-      title={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
-    >
-      {(close) => (
-        <div class="w-56">
-          <Caption>{t3({ en: "Slide type", fr: "Type de diapositive", pt: "Tipo de diapositivo" })}</Caption>
-          <For
-            each={[
-              { value: "cover" as const, label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }) },
-              { value: "section" as const, label: t3({ en: "Section", fr: "Section", pt: "Secção" }) },
-              { value: "content" as const, label: t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" }) },
-            ]}
-          >
-            {(o) => (
-              <PopoverRow
-                active={p.tempSlide.type === o.value}
-                onClick={() => {
-                  p.onTypeChange(o.value);
-                  close();
-                }}
-              >
-                {o.label}
-              </PopoverRow>
-            )}
-          </For>
-          <Switch>
-            <Match when={p.tempSlide.type === "cover"}>
-              <MenuDivider />
-              <Caption>{t3({ en: "Cover logos", fr: "Logos de couverture", pt: "Logótipos da capa" })}</Caption>
-              {logoRows("showLogos", p.showCoverLogosByDefault)}
-            </Match>
-            <Match when={p.tempSlide.type === "content"}>
-              <MenuDivider />
-              <Caption>{t3({ en: "Header logos", fr: "Logos d'en-tête", pt: "Logótipos do cabeçalho" })}</Caption>
-              {logoRows("showHeaderLogos", p.showHeaderLogosByDefault)}
-              <MenuDivider />
-              <Caption>{t3({ en: "Footer logos", fr: "Logos de pied de page", pt: "Logótipos do rodapé" })}</Caption>
-              {logoRows("showFooterLogos", p.showFooterLogosByDefault)}
-            </Match>
-          </Switch>
-        </div>
-      )}
-    </ToolbarPopover>
-
-    <ToolbarPopover
-      menu
-      tour="slide-text-fields"
-      label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-      title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-    >
-      {(close) => (
-        <div class="w-56">
-          <Caption>
-            {t3({
-              en: "Click text on the slide to edit it",
-              fr: "Cliquez sur un texte de la diapositive pour le modifier",
-              pt: "Clique num texto do diapositivo para o editar",
-            })}
-          </Caption>
-          <For each={SLIDE_TEXT_FIELDS.filter((f) => f.slideType === p.tempSlide.type)}>
-            {(f) => {
-              const present = () => !!(slideRec()[f.field] as string | undefined)?.trim();
-              const deckFooter = () => f.primitiveId === "footerText" && p.hasGlobalFooterText;
-              return (
-                <Show
-                  when={!deckFooter()}
-                  fallback={
-                    <Caption>
-                      {t3({
-                        en: "Footer text is set for the whole deck",
-                        fr: "Le pied de page est défini pour toute la présentation",
-                        pt: "O rodapé é definido para toda a apresentação",
-                      })}
-                    </Caption>
-                  }
-                >
-                  <PopoverRow
-                    active={false}
-                    onClick={() => {
-                      close();
-                      if (present()) {
-                        p.onEditText({ kind: "title", field: f.field, primitiveId: f.primitiveId });
-                      } else {
-                        p.onAddField(f.primitiveId);
-                      }
-                    }}
-                  >
-                    <Check on={present()} />
-                    <span class="flex-1">{f.label()}</span>
-                    <Show when={!present()}>
-                      <span class="text-base-content-muted text-xs">
-                        {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-                      </span>
-                    </Show>
-                  </PopoverRow>
-                </Show>
-              );
-            }}
-          </For>
-        </div>
-      )}
-    </ToolbarPopover>
-
-    <Show when={p.tempSlide.type === "content"}>
       <ToolbarPopover
         menu
-        tour="slide-split-menu"
-        label={t3({ en: "Split panel", fr: "Panneau divisé", pt: "Painel dividido" })}
-        title={t3({ en: "Split panel", fr: "Panneau divisé", pt: "Painel dividido" })}
+        tour="slide-type-select"
+        label={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
+        title={t3({ en: "Slide", fr: "Diapositive", pt: "Diapositivo" })}
       >
-        {() => (
-          <div class="w-60">
-            <PopoverRow active={!split()} onClick={() => p.setTempSlide("split", undefined)}>
-              {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
-            </PopoverRow>
-            <For each={["left", "right"] as const}>
-              {(side) => (
+        {(close) => (
+          <div class="w-56">
+            <Caption>
+              {t3({
+                en: "Slide type",
+                fr: "Type de diapositive",
+                pt: "Tipo de diapositivo",
+              })}
+            </Caption>
+            <For
+              each={[
+                {
+                  value: "cover" as const,
+                  label: t3({ en: "Cover", fr: "Couverture", pt: "Capa" }),
+                },
+                {
+                  value: "section" as const,
+                  label: t3({ en: "Section", fr: "Section", pt: "Secção" }),
+                },
+                {
+                  value: "content" as const,
+                  label: t3({ en: "Content", fr: "Contenu", pt: "Conteúdo" }),
+                },
+              ]}
+            >
+              {(o) => (
                 <PopoverRow
-                  active={split()?.placement === side}
-                  onClick={() =>
-                    split()
-                      ? p.setTempSlide("split", "placement", side)
-                      : p.setTempSlide("split", {
-                        placement: side,
-                        sizeAsPct: 15,
-                        fill: { type: "plain" },
-                      } satisfies ContentSlideSplit)}
+                  active={p.tempSlide.type === o.value}
+                  onClick={() => {
+                    p.onTypeChange(o.value);
+                    close();
+                  }}
                 >
-                  {side === "left"
-                    ? t3({ en: "Left", fr: "Gauche", pt: "Esquerda" })
-                    : t3({ en: "Right", fr: "Droite", pt: "Direita" })}
+                  {o.label}
                 </PopoverRow>
               )}
             </For>
-            <Show when={split()}>
-              {(sp) => (
-                <>
-                  <MenuDivider />
-                  <Caption>{t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}</Caption>
-                  <div class="grid grid-cols-5 gap-0.5 px-1">
-                    <For each={[5, 10, 15, 20, 25, 30, 35, 40, 45, 50]}>
-                      {(pct) => (
-                        <PopoverRow
-                          active={sp().sizeAsPct === pct}
-                          onClick={() => p.setTempSlide("split", "sizeAsPct", pct)}
-                        >
-                          {pct}%
-                        </PopoverRow>
-                      )}
-                    </For>
-                  </div>
-                  <MenuDivider />
-                  <Caption>{t3({ en: "Fill", fr: "Remplissage", pt: "Preenchimento" })}</Caption>
-                  <PopoverRow
-                    active={sp().fill.type === "plain"}
-                    onClick={() => p.setTempSlide("split", "fill", { type: "plain" })}
-                  >
-                    {t3({ en: "Plain", fr: "Uni", pt: "Liso" })}
-                  </PopoverRow>
-                  <PopoverRow
-                    active={sp().fill.type === "pattern"}
-                    onClick={() =>
-                      sp().fill.type !== "pattern" &&
-                      p.setTempSlide("split", "fill", { type: "pattern", patternType: "ovals" })}
-                  >
-                    {t3({ en: "Pattern", fr: "Motif", pt: "Padrão" })}
-                  </PopoverRow>
-                  <PopoverRow
-                    active={sp().fill.type === "image"}
-                    onClick={() =>
-                      sp().fill.type !== "image" &&
-                      p.setTempSlide("split", "fill", { type: "image", imgFile: "" })}
-                  >
-                    {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
-                  </PopoverRow>
-                  <Show when={sp().fill.type === "pattern"}>
-                    <div class="grid grid-cols-2 gap-0.5 px-1 pt-1">
-                      <For each={PATTERNS}>
-                        {(pat) => (
-                          <PopoverRow
-                            active={(sp().fill as { patternType?: PatternType }).patternType === pat.value}
-                            onClick={() =>
-                              p.setTempSlide("split", "fill", { type: "pattern", patternType: pat.value })}
-                          >
-                            {pat.label()}
-                          </PopoverRow>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                  <Show when={sp().fill.type === "image"}>
-                    <div class="max-h-48 overflow-auto px-1 pt-1">
-                      <For
-                        each={imageAssets()}
-                        fallback={
-                          <Caption>
-                            {t3({ en: "No images uploaded", fr: "Aucune image téléversée", pt: "Nenhuma imagem carregada" })}
-                          </Caption>
-                        }
-                      >
-                        {(file) => (
-                          <PopoverRow
-                            active={(sp().fill as { imgFile?: string }).imgFile === file}
-                            onClick={() => p.setTempSlide("split", "fill", { type: "image", imgFile: file })}
-                          >
-                            <span class="truncate">{file}</span>
-                          </PopoverRow>
-                        )}
-                      </For>
-                    </div>
-                  </Show>
-                </>
-              )}
-            </Show>
+            <Switch>
+              <Match when={p.tempSlide.type === "cover"}>
+                <MenuDivider />
+                <Caption>
+                  {t3({
+                    en: "Cover logos",
+                    fr: "Logos de couverture",
+                    pt: "Logótipos da capa",
+                  })}
+                </Caption>
+                {logoRows("showLogos", p.showCoverLogosByDefault)}
+              </Match>
+              <Match when={p.tempSlide.type === "content"}>
+                <MenuDivider />
+                <Caption>
+                  {t3({
+                    en: "Header logos",
+                    fr: "Logos d'en-tête",
+                    pt: "Logótipos do cabeçalho",
+                  })}
+                </Caption>
+                {logoRows("showHeaderLogos", p.showHeaderLogosByDefault)}
+                <MenuDivider />
+                <Caption>
+                  {t3({
+                    en: "Footer logos",
+                    fr: "Logos de pied de page",
+                    pt: "Logótipos do rodapé",
+                  })}
+                </Caption>
+                {logoRows("showFooterLogos", p.showFooterLogosByDefault)}
+              </Match>
+            </Switch>
           </div>
         )}
       </ToolbarPopover>
-    </Show>
-  </div>
+
+      <ToolbarPopover
+        menu
+        tour="slide-text-fields"
+        label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
+        title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
+      >
+        {(close) => (
+          <div class="w-56">
+            <Caption>
+              {t3({
+                en: "Click text on the slide to edit it",
+                fr: "Cliquez sur un texte de la diapositive pour le modifier",
+                pt: "Clique num texto do diapositivo para o editar",
+              })}
+            </Caption>
+            <For
+              each={SLIDE_TEXT_FIELDS.filter(
+                (f) => f.slideType === p.tempSlide.type,
+              )}
+            >
+              {(f) => {
+                const present = () =>
+                  !!(slideRec()[f.field] as string | undefined)?.trim();
+                const deckFooter = () =>
+                  f.primitiveId === "footerText" && p.hasGlobalFooterText;
+                return (
+                  <Show
+                    when={!deckFooter()}
+                    fallback={
+                      <Caption>
+                        {t3({
+                          en: "Footer text is set for the whole deck",
+                          fr: "Le pied de page est défini pour toute la présentation",
+                          pt: "O rodapé é definido para toda a apresentação",
+                        })}
+                      </Caption>
+                    }
+                  >
+                    <PopoverRow
+                      active={false}
+                      onClick={() => {
+                        close();
+                        if (present()) {
+                          p.onEditText({
+                            kind: "title",
+                            field: f.field,
+                            primitiveId: f.primitiveId,
+                          });
+                        } else {
+                          p.onAddField(f.primitiveId);
+                        }
+                      }}
+                    >
+                      <Check on={present()} />
+                      <span class="flex-1">{f.label()}</span>
+                      <Show when={!present()}>
+                        <span class="text-base-content-muted text-xs">
+                          {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
+                        </span>
+                      </Show>
+                    </PopoverRow>
+                  </Show>
+                );
+              }}
+            </For>
+          </div>
+        )}
+      </ToolbarPopover>
+
+      <Show when={p.tempSlide.type === "content"}>
+        <ToolbarPopover
+          menu
+          tour="slide-split-menu"
+          label={t3({
+            en: "Split panel",
+            fr: "Panneau divisé",
+            pt: "Painel dividido",
+          })}
+          title={t3({
+            en: "Split panel",
+            fr: "Panneau divisé",
+            pt: "Painel dividido",
+          })}
+        >
+          {() => (
+            <div class="w-60">
+              <PopoverRow
+                active={!split()}
+                onClick={() => p.setTempSlide("split", undefined)}
+              >
+                {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
+              </PopoverRow>
+              <For each={["left", "right"] as const}>
+                {(side) => (
+                  <PopoverRow
+                    active={split()?.placement === side}
+                    onClick={() =>
+                      split()
+                        ? p.setTempSlide("split", "placement", side)
+                        : p.setTempSlide("split", {
+                            placement: side,
+                            sizeAsPct: 15,
+                            fill: { type: "plain" },
+                          } satisfies ContentSlideSplit)
+                    }
+                  >
+                    {side === "left"
+                      ? t3({ en: "Left", fr: "Gauche", pt: "Esquerda" })
+                      : t3({ en: "Right", fr: "Droite", pt: "Direita" })}
+                  </PopoverRow>
+                )}
+              </For>
+              <Show when={split()}>
+                {(sp) => (
+                  <>
+                    <MenuDivider />
+                    <Caption>
+                      {t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
+                    </Caption>
+                    <div class="grid grid-cols-5 gap-0.5 px-1">
+                      <For each={[5, 10, 15, 20, 25, 30, 35, 40, 45, 50]}>
+                        {(pct) => (
+                          <PopoverRow
+                            active={sp().sizeAsPct === pct}
+                            onClick={() =>
+                              p.setTempSlide("split", "sizeAsPct", pct)
+                            }
+                          >
+                            {pct}%
+                          </PopoverRow>
+                        )}
+                      </For>
+                    </div>
+                    <MenuDivider />
+                    <Caption>
+                      {t3({
+                        en: "Fill",
+                        fr: "Remplissage",
+                        pt: "Preenchimento",
+                      })}
+                    </Caption>
+                    <PopoverRow
+                      active={sp().fill.type === "plain"}
+                      onClick={() =>
+                        p.setTempSlide("split", "fill", { type: "plain" })
+                      }
+                    >
+                      {t3({ en: "Plain", fr: "Uni", pt: "Liso" })}
+                    </PopoverRow>
+                    <PopoverRow
+                      active={sp().fill.type === "pattern"}
+                      onClick={() =>
+                        sp().fill.type !== "pattern" &&
+                        p.setTempSlide("split", "fill", {
+                          type: "pattern",
+                          patternType: "ovals",
+                        })
+                      }
+                    >
+                      {t3({ en: "Pattern", fr: "Motif", pt: "Padrão" })}
+                    </PopoverRow>
+                    <PopoverRow
+                      active={sp().fill.type === "image"}
+                      onClick={() =>
+                        sp().fill.type !== "image" &&
+                        p.setTempSlide("split", "fill", {
+                          type: "image",
+                          imgFile: "",
+                        })
+                      }
+                    >
+                      {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
+                    </PopoverRow>
+                    <Show when={sp().fill.type === "pattern"}>
+                      <div class="grid grid-cols-2 gap-0.5 px-1 pt-1">
+                        <For each={PATTERNS}>
+                          {(pat) => (
+                            <PopoverRow
+                              active={
+                                (sp().fill as { patternType?: PatternType })
+                                  .patternType === pat.value
+                              }
+                              onClick={() =>
+                                p.setTempSlide("split", "fill", {
+                                  type: "pattern",
+                                  patternType: pat.value,
+                                })
+                              }
+                            >
+                              {pat.label()}
+                            </PopoverRow>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                    <Show when={sp().fill.type === "image"}>
+                      <div class="max-h-48 overflow-auto px-1 pt-1">
+                        <For
+                          each={imageAssets()}
+                          fallback={
+                            <Caption>
+                              {t3({
+                                en: "No images uploaded",
+                                fr: "Aucune image téléversée",
+                                pt: "Nenhuma imagem carregada",
+                              })}
+                            </Caption>
+                          }
+                        >
+                          {(file) => (
+                            <PopoverRow
+                              active={
+                                (sp().fill as { imgFile?: string }).imgFile ===
+                                file
+                              }
+                              onClick={() =>
+                                p.setTempSlide("split", "fill", {
+                                  type: "image",
+                                  imgFile: file,
+                                })
+                              }
+                            >
+                              <span class="truncate">{file}</span>
+                            </PopoverRow>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                  </>
+                )}
+              </Show>
+            </div>
+          )}
+        </ToolbarPopover>
+      </Show>
     </div>
   );
 
   return (
-    <div
-      data-cursor-zone="header"
+    <ToolbarRow
       data-tour="slide-format-toolbar"
       {...{ [INLINE_EDIT_KEEP_ATTR]: "" }}
       onMouseDown={keepFocus}
     >
       <Show when={p.menuRowHost} fallback={menuRow()}>
-        {(host) => <Portal mount={host()}>{menuRow()}</Portal>}
+        {(host) => (
+          <Portal mount={host()} ref={(el) => el.classList.add("contents")}>
+            {menuRow()}
+          </Portal>
+        )}
       </Show>
 
-      {/* ── The pill: follows the selection ────────────────────────────── */}
-      <div class="px-2 pt-1 pb-2">
-        <div class="bg-base-200 flex min-h-9 flex-wrap items-center gap-0.5 rounded px-3 py-1">
-          {/* Undo and redo lead the pill and are ALWAYS here: a pair that
-              appeared once the room synced would shove the rest of the pill
-              sideways, which is the one thing a toolbar must not do. */}
-          <ToolButton
-            label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
-            disabled={undoGreyed()}
-            onClick={p.onUndo}
-          >
-            <Icon iconName="undo" class="h-4 w-4" />
-          </ToolButton>
-          <ToolButton
-            label={t3({ en: "Redo", fr: "Rétablir", pt: "Refazer" })}
-            disabled={undoGreyed()}
-            onClick={p.onRedo}
-          >
-            <Icon iconName="redo" class="h-4 w-4" />
-          </ToolButton>
-          <ToolbarDivider />
+      {/* Undo and redo lead the toolbar and are ALWAYS here: a pair that
+            appeared once the room synced would shove the rest of the row
+            sideways, which is the one thing a toolbar must not do. */}
+      <ToolButton
+        label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
+        disabled={undoGreyed()}
+        onClick={p.onUndo}
+      >
+        <Icon iconName="undo" class="h-4 w-4" />
+      </ToolButton>
+      <ToolButton
+        label={t3({ en: "Redo", fr: "Rétablir", pt: "Refazer" })}
+        disabled={undoGreyed()}
+        onClick={p.onRedo}
+      >
+        <Icon iconName="redo" class="h-4 w-4" />
+      </ToolButton>
+      <ToolbarDivider />
 
-          <Switch
-            fallback={
-              <span class="text-base-content-muted px-1 text-sm">
-                {t3({
-                  en: "Double-click text on the slide to type, or click a block for its options",
-                  fr: "Double-cliquez sur un texte pour écrire, ou cliquez sur un bloc pour ses options",
-                  pt: "Faça duplo clique num texto para escrever, ou clique num bloco para as suas opções",
+      <Switch
+        fallback={
+          <span class="text-base-content-muted px-1 text-sm">
+            {t3({
+              en: "Double-click text on the slide to type, or click a block for its options",
+              fr: "Double-cliquez sur un texte pour écrire, ou cliquez sur un bloc pour ses options",
+              pt: "Faça duplo clique num texto para escrever, ou clique num bloco para as suas opções",
+            })}
+          </span>
+        }
+      >
+        {/* Typing in a text block: character and paragraph formatting. */}
+        <Match
+          when={
+            p.editing?.kind === "block" && p.inlineApi?.isMarkdown
+              ? p.inlineApi
+              : undefined
+          }
+        >
+          {(api) => (
+            <>
+              <ToolButton
+                label={t3({
+                  en: "Bold (Ctrl+B)",
+                  fr: "Gras (Ctrl+B)",
+                  pt: "Negrito (Ctrl+B)",
                 })}
-              </span>
-            }
-          >
-            {/* Typing in a text block: character and paragraph formatting. */}
-            <Match when={p.editing?.kind === "block" && p.inlineApi?.isMarkdown ? p.inlineApi : undefined}>
-              {(api) => (
-                <>
-                  <ToolButton
-                    label={t3({ en: "Bold (Ctrl+B)", fr: "Gras (Ctrl+B)", pt: "Negrito (Ctrl+B)" })}
-                    active={() => api().marks().bold}
-                    onClick={() => api().toggleStyle("bold")}
-                  >
-                    <span class="font-700">B</span>
-                  </ToolButton>
-                  <ToolButton
-                    label={t3({ en: "Italic (Ctrl+I)", fr: "Italique (Ctrl+I)", pt: "Itálico (Ctrl+I)" })}
-                    active={() => api().marks().italic}
-                    onClick={() => api().toggleStyle("italic")}
-                  >
-                    <span class="italic">I</span>
-                  </ToolButton>
-                  <ToolbarDivider />
-                  <ToolButton
-                    label={t3({ en: "Bulleted list", fr: "Liste à puces", pt: "Lista com marcadores" })}
-                    active={() => api().marks().list === "bullet"}
-                    onClick={() => api().toggleList(false)}
-                  >
-                    •
-                  </ToolButton>
-                  <ToolButton
-                    label={t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" })}
-                    active={() => api().marks().list === "numbered"}
-                    onClick={() => api().toggleList(true)}
-                  >
-                    <span class="text-xs">1.</span>
-                  </ToolButton>
-                  <ToolbarDivider />
-                  <TextBlockControls {...p} blockId={(p.editing as { id: string }).id} />
-                </>
-              )}
-            </Match>
+                active={() => api().marks().bold}
+                onClick={() => api().toggleStyle("bold")}
+              >
+                <span class="font-700">B</span>
+              </ToolButton>
+              <ToolButton
+                label={t3({
+                  en: "Italic (Ctrl+I)",
+                  fr: "Italique (Ctrl+I)",
+                  pt: "Itálico (Ctrl+I)",
+                })}
+                active={() => api().marks().italic}
+                onClick={() => api().toggleStyle("italic")}
+              >
+                <span class="italic">I</span>
+              </ToolButton>
+              <ToolbarDivider />
+              <ToolButton
+                label={t3({
+                  en: "Bulleted list",
+                  fr: "Liste à puces",
+                  pt: "Lista com marcadores",
+                })}
+                active={() => api().marks().list === "bullet"}
+                onClick={() => api().toggleList(false)}
+              >
+                •
+              </ToolButton>
+              <ToolButton
+                label={t3({
+                  en: "Numbered list",
+                  fr: "Liste numérotée",
+                  pt: "Lista numerada",
+                })}
+                active={() => api().marks().list === "numbered"}
+                onClick={() => api().toggleList(true)}
+              >
+                <span class="text-xs">1.</span>
+              </ToolButton>
+              <ToolbarDivider />
+              <TextBlockControls
+                {...p}
+                blockId={(p.editing as { id: string }).id}
+              />
+            </>
+          )}
+        </Match>
 
-            {/* A cover/section title, being typed into or selected. */}
-            <Match when={activeTitle()?.style ? activeTitle() : undefined}>
-              {(f) => {
-                const st = () => f().style!;
-                const size = () => (slideRec()[st().size] as number | undefined) ?? st().sizeDefault;
-                const bold = () => (slideRec()[st().bold] as boolean | undefined) ?? st().boldDefault;
-                const italic = () => (slideRec()[st().italic] as boolean | undefined) ?? false;
-                const setSize = (n: number) =>
-                  p.setTempSlide(st().size, Math.max(st().min, Math.min(st().max, n)));
-                return (
-                  <>
-                    <span class="text-base-content-muted px-1 text-sm">{f().label()}</span>
-                    <ToolbarDivider />
-                    <ToolButton
-                      label={t3({ en: "Smaller", fr: "Plus petit", pt: "Mais pequeno" })}
-                      onClick={() => setSize(size() - 1)}
-                    >
-                      <Icon iconName="minus" class="h-4 w-4" />
-                    </ToolButton>
-                    <span class="border-base-300 bg-base-100 flex h-6 w-8 items-center justify-center rounded border text-sm">
-                      {size()}
-                    </span>
-                    <ToolButton
-                      label={t3({ en: "Larger", fr: "Plus grand", pt: "Maior" })}
-                      onClick={() => setSize(size() + 1)}
-                    >
-                      <Icon iconName="plus" class="h-4 w-4" />
-                    </ToolButton>
-                    <ToolbarDivider />
-                    <ToolButton
-                      label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
-                      active={bold}
-                      onClick={() => p.setTempSlide(st().bold, !bold())}
-                    >
-                      <span class="font-700">B</span>
-                    </ToolButton>
-                    <ToolButton
-                      label={t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
-                      active={italic}
-                      onClick={() => p.setTempSlide(st().italic, !italic())}
-                    >
-                      <span class="italic">I</span>
-                    </ToolButton>
-                    <ToolbarDivider />
-                    <ToolButton
-                      label={t3({ en: "Reset to default", fr: "Réinitialiser", pt: "Repor predefinição" })}
-                      onClick={() => {
-                        p.setTempSlide(st().size, undefined);
-                        p.setTempSlide(st().bold, undefined);
-                        p.setTempSlide(st().italic, undefined);
-                      }}
-                    >
-                      <Icon iconName="refresh" class="h-4 w-4" />
-                    </ToolButton>
-                  </>
-                );
-              }}
-            </Match>
-
-            {/* Header / sub header / date / footer: plain text, no styles. */}
-            <Match when={p.editing?.kind === "title" || (!p.editing && p.selectedTextTarget) ? activeTitle() : undefined}>
-              {(f) => (
+        {/* A cover/section title, being typed into or selected. */}
+        <Match when={activeTitle()?.style ? activeTitle() : undefined}>
+          {(f) => {
+            const st = () => f().style!;
+            const size = () =>
+              (slideRec()[st().size] as number | undefined) ?? st().sizeDefault;
+            const bold = () =>
+              (slideRec()[st().bold] as boolean | undefined) ??
+              st().boldDefault;
+            const italic = () =>
+              (slideRec()[st().italic] as boolean | undefined) ?? false;
+            const setSize = (n: number) =>
+              p.setTempSlide(
+                st().size,
+                Math.max(st().min, Math.min(st().max, n)),
+              );
+            return (
+              <>
                 <span class="text-base-content-muted px-1 text-sm">
                   {f().label()}
-                  {" · "}
-                  {t3({
-                    en: "styled by the deck theme",
-                    fr: "mise en forme par le thème",
-                    pt: "estilo definido pelo tema",
-                  })}
                 </span>
-              )}
-            </Match>
+                <ToolbarDivider />
+                <ToolButton
+                  label={t3({
+                    en: "Smaller",
+                    fr: "Plus petit",
+                    pt: "Mais pequeno",
+                  })}
+                  onClick={() => setSize(size() - 1)}
+                >
+                  <Icon iconName="minus" class="h-4 w-4" />
+                </ToolButton>
+                <span class="border-base-300 bg-base-100 flex h-6 w-8 items-center justify-center rounded border text-sm">
+                  {size()}
+                </span>
+                <ToolButton
+                  label={t3({
+                    en: "Larger",
+                    fr: "Plus grand",
+                    pt: "Maior",
+                  })}
+                  onClick={() => setSize(size() + 1)}
+                >
+                  <Icon iconName="plus" class="h-4 w-4" />
+                </ToolButton>
+                <ToolbarDivider />
+                <ToolButton
+                  label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
+                  active={bold}
+                  onClick={() => p.setTempSlide(st().bold, !bold())}
+                >
+                  <span class="font-700">B</span>
+                </ToolButton>
+                <ToolButton
+                  label={t3({
+                    en: "Italic",
+                    fr: "Italique",
+                    pt: "Itálico",
+                  })}
+                  active={italic}
+                  onClick={() => p.setTempSlide(st().italic, !italic())}
+                >
+                  <span class="italic">I</span>
+                </ToolButton>
+                <ToolbarDivider />
+                <ToolButton
+                  label={t3({
+                    en: "Reset to default",
+                    fr: "Réinitialiser",
+                    pt: "Repor predefinição",
+                  })}
+                  onClick={() => {
+                    p.setTempSlide(st().size, undefined);
+                    p.setTempSlide(st().bold, undefined);
+                    p.setTempSlide(st().italic, undefined);
+                  }}
+                >
+                  <Icon iconName="refresh" class="h-4 w-4" />
+                </ToolButton>
+              </>
+            );
+          }}
+        </Match>
 
-            {/* A selected layout block. */}
-            <Match when={p.selectedBlockId && selectedBlock() ? p.selectedBlockId : undefined}>
-              {(blockId) => {
-                const block = () => selectedBlock();
-                return (
-                  <>
-                    <ToolbarPopover
-                      tour="slide-block-type"
-                      label={<span>{blockTypeLabel(block()?.type)}</span>}
-                      title={t3({ en: "Content type", fr: "Type de contenu", pt: "Tipo de conteúdo" })}
-                    >
-                      {(close) => (
-                        <For each={["text", "figure", "image"] as BlockType[]}>
-                          {(bt) => (
-                            <PopoverRow
-                              active={block()?.type === bt}
-                              onClick={() => {
-                                p.onBlockTypeChange(blockId(), bt);
-                                close();
-                              }}
-                            >
-                              {blockTypeLabel(bt)}
-                            </PopoverRow>
-                          )}
-                        </For>
-                      )}
-                    </ToolbarPopover>
-                    <TextButton
-                      tour="slide-layout-button"
-                      title={t3({ en: "Split, add, move or delete blocks", fr: "Diviser, ajouter, déplacer ou supprimer des blocs", pt: "Dividir, adicionar, mover ou eliminar blocos" })}
-                      onClick={(e) => {
-                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        p.onShowLayoutMenu(r.left, r.bottom);
-                      }}
-                    >
-                      <Icon iconName="layoutGrid" class="h-4 w-4" />
-                      {t3({ en: "Layout", fr: "Mise en page", pt: "Disposição" })}
-                    </TextButton>
-                    <ToolbarDivider />
-                    <Switch>
-                      <Match when={block()?.type === "text"}>
-                        <TextButton
-                          onClick={() => p.onEditText({ kind: "block", id: blockId() })}
+        {/* Header / sub header / date / footer: plain text, no styles. */}
+        <Match
+          when={
+            p.editing?.kind === "title" || (!p.editing && p.selectedTextTarget)
+              ? activeTitle()
+              : undefined
+          }
+        >
+          {(f) => (
+            <span class="text-base-content-muted px-1 text-sm">
+              {f().label()}
+              {" · "}
+              {t3({
+                en: "styled by the deck theme",
+                fr: "mise en forme par le thème",
+                pt: "estilo definido pelo tema",
+              })}
+            </span>
+          )}
+        </Match>
+
+        {/* A selected layout block. */}
+        <Match
+          when={
+            p.selectedBlockId && selectedBlock() ? p.selectedBlockId : undefined
+          }
+        >
+          {(blockId) => {
+            const block = () => selectedBlock();
+            return (
+              <>
+                <ToolbarPopover
+                  tour="slide-block-type"
+                  label={<span>{blockTypeLabel(block()?.type)}</span>}
+                  title={t3({
+                    en: "Content type",
+                    fr: "Type de contenu",
+                    pt: "Tipo de conteúdo",
+                  })}
+                >
+                  {(close) => (
+                    <For each={["text", "figure", "image"] as BlockType[]}>
+                      {(bt) => (
+                        <PopoverRow
+                          active={block()?.type === bt}
+                          onClick={() => {
+                            p.onBlockTypeChange(blockId(), bt);
+                            close();
+                          }}
                         >
-                          <Icon iconName="pencil" class="h-4 w-4" />
-                          {t3({ en: "Edit text", fr: "Modifier le texte", pt: "Editar texto" })}
-                        </TextButton>
-                        <TextBlockControls {...p} blockId={blockId()} />
-                      </Match>
-                      <Match when={block()?.type === "figure"}>
-                        <FigureControls
-                          {...p}
-                          blockId={blockId()}
-                          block={block() as FigureBlock}
-                        />
-                      </Match>
-                      <Match when={block()?.type === "image"}>
-                        <ImageControls
-                          {...p}
-                          blockId={blockId()}
-                          block={block() as ImageBlock}
-                          assets={imageAssets()}
-                        />
-                      </Match>
-                    </Switch>
-                  </>
-                );
-              }}
-            </Match>
-          </Switch>
-        </div>
-      </div>
-    </div>
+                          {blockTypeLabel(bt)}
+                        </PopoverRow>
+                      )}
+                    </For>
+                  )}
+                </ToolbarPopover>
+                <TextButton
+                  tour="slide-layout-button"
+                  title={t3({
+                    en: "Split, add, move or delete blocks",
+                    fr: "Diviser, ajouter, déplacer ou supprimer des blocs",
+                    pt: "Dividir, adicionar, mover ou eliminar blocos",
+                  })}
+                  onClick={(e) => {
+                    const r = (
+                      e.currentTarget as HTMLElement
+                    ).getBoundingClientRect();
+                    p.onShowLayoutMenu(r.left, r.bottom);
+                  }}
+                >
+                  <Icon iconName="layoutGrid" class="h-4 w-4" />
+                  {t3({
+                    en: "Layout",
+                    fr: "Mise en page",
+                    pt: "Disposição",
+                  })}
+                </TextButton>
+                <ToolbarDivider />
+                <Switch>
+                  <Match when={block()?.type === "text"}>
+                    <TextButton
+                      onClick={() =>
+                        p.onEditText({ kind: "block", id: blockId() })
+                      }
+                    >
+                      <Icon iconName="pencil" class="h-4 w-4" />
+                      {t3({
+                        en: "Edit text",
+                        fr: "Modifier le texte",
+                        pt: "Editar texto",
+                      })}
+                    </TextButton>
+                    <TextBlockControls {...p} blockId={blockId()} />
+                  </Match>
+                  <Match when={block()?.type === "figure"}>
+                    <FigureControls
+                      {...p}
+                      blockId={blockId()}
+                      block={block() as FigureBlock}
+                    />
+                  </Match>
+                  <Match when={block()?.type === "image"}>
+                    <ImageControls
+                      {...p}
+                      blockId={blockId()}
+                      block={block() as ImageBlock}
+                      assets={imageAssets()}
+                    />
+                  </Match>
+                </Switch>
+              </>
+            );
+          }}
+        </Match>
+      </Switch>
+    </ToolbarRow>
   );
 }
 
@@ -702,7 +952,8 @@ function TextBlockControls(p: Props & { blockId: string }) {
   const bg = () => {
     if (p.tempSlide.type !== "content") return "none";
     const hit = findById((p.tempSlide as ContentSlide).layout, p.blockId);
-    const data = hit?.node.type === "item" ? (hit.node.data as TextBlock) : undefined;
+    const data =
+      hit?.node.type === "item" ? (hit.node.data as TextBlock) : undefined;
     return data?.style?.textBackground ?? "none";
   };
   return (
@@ -713,7 +964,11 @@ function TextBlockControls(p: Props & { blockId: string }) {
             {t3({ en: "Background", fr: "Arrière-plan", pt: "Fundo" })}
           </span>
         }
-        title={t3({ en: "Text background", fr: "Arrière-plan du texte", pt: "Fundo do texto" })}
+        title={t3({
+          en: "Text background",
+          fr: "Arrière-plan du texte",
+          pt: "Fundo do texto",
+        })}
       >
         {(close) => (
           <For each={TEXT_BACKGROUNDS}>
@@ -723,7 +978,10 @@ function TextBlockControls(p: Props & { blockId: string }) {
                 onClick={() => {
                   p.updateBlock(p.blockId, (b) => {
                     const tb = b as TextBlock;
-                    return { ...tb, style: { ...tb.style, textBackground: o.value } };
+                    return {
+                      ...tb,
+                      style: { ...tb.style, textBackground: o.value },
+                    };
                   });
                   close();
                 }}
@@ -769,19 +1027,38 @@ function FigureControls(p: Props & { blockId: string; block: FigureBlock }) {
       <Show when={hasBundle()}>
         <TextButton onClick={() => p.onEditVisualization()}>
           <Icon iconName="pencil" class="h-4 w-4" />
-          {t3({ en: "Edit visualization", fr: "Modifier la visualisation", pt: "Editar visualização" })}
+          {t3({
+            en: "Edit visualization",
+            fr: "Modifier la visualisation",
+            pt: "Editar visualização",
+          })}
         </TextButton>
       </Show>
       <TextButton onClick={() => p.onCreateVisualization()}>
         <Icon iconName="chart" class="h-4 w-4" />
         {hasBundle()
-          ? t3({ en: "Replace visualization", fr: "Remplacer la visualisation", pt: "Substituir visualização" })
-          : t3({ en: "Insert visualization", fr: "Insérer une visualisation", pt: "Inserir visualização" })}
+          ? t3({
+              en: "Replace visualization",
+              fr: "Remplacer la visualisation",
+              pt: "Substituir visualização",
+            })
+          : t3({
+              en: "Insert visualization",
+              fr: "Insérer une visualisation",
+              pt: "Inserir visualização",
+            })}
       </TextButton>
       <Show when={hasBundle()}>
-        <TextButton danger onClick={() => p.updateBlock(p.blockId, () => ({ type: "figure" }))}>
+        <TextButton
+          danger
+          onClick={() => p.updateBlock(p.blockId, () => ({ type: "figure" }))}
+        >
           <Icon iconName="trash" class="h-4 w-4" />
-          {t3({ en: "Remove visualization", fr: "Supprimer la visualisation", pt: "Remover visualização" })}
+          {t3({
+            en: "Remove visualization",
+            fr: "Supprimer la visualisation",
+            pt: "Remover visualização",
+          })}
         </TextButton>
       </Show>
     </>
@@ -802,10 +1079,19 @@ function ImageControls(
       <ToolbarPopover
         label={
           <span class="max-w-40 truncate">
-            {p.block.imgFile || t3({ en: "Choose image", fr: "Choisir une image", pt: "Escolher imagem" })}
+            {p.block.imgFile ||
+              t3({
+                en: "Choose image",
+                fr: "Choisir une image",
+                pt: "Escolher imagem",
+              })}
           </span>
         }
-        title={t3({ en: "Image file", fr: "Fichier image", pt: "Ficheiro de imagem" })}
+        title={t3({
+          en: "Image file",
+          fr: "Fichier image",
+          pt: "Ficheiro de imagem",
+        })}
       >
         {(close) => (
           <div class="max-h-64 w-60 overflow-auto">
@@ -813,7 +1099,11 @@ function ImageControls(
               each={p.assets}
               fallback={
                 <Caption>
-                  {t3({ en: "No images uploaded", fr: "Aucune image téléversée", pt: "Nenhuma imagem carregada" })}
+                  {t3({
+                    en: "No images uploaded",
+                    fr: "Aucune image téléversée",
+                    pt: "Nenhuma imagem carregada",
+                  })}
                 </Caption>
               }
             >
@@ -821,7 +1111,10 @@ function ImageControls(
                 <PopoverRow
                   active={p.block.imgFile === file}
                   onClick={() => {
-                    p.updateBlock(p.blockId, (b) => ({ ...(b as ImageBlock), imgFile: file }));
+                    p.updateBlock(p.blockId, (b) => ({
+                      ...(b as ImageBlock),
+                      imgFile: file,
+                    }));
                     close();
                   }}
                 >
@@ -841,7 +1134,11 @@ function ImageControls(
                 : t3({ en: "Fit inside", fr: "Ajuster", pt: "Ajustar" })}
             </span>
           }
-          title={t3({ en: "Image fit", fr: "Ajustement de l'image", pt: "Ajuste da imagem" })}
+          title={t3({
+            en: "Image fit",
+            fr: "Ajustement de l'image",
+            pt: "Ajuste da imagem",
+          })}
         >
           {(close) => (
             <>
@@ -852,7 +1149,11 @@ function ImageControls(
                   close();
                 }}
               >
-                {t3({ en: "Cover whole area", fr: "Couvrir toute la zone", pt: "Cobrir toda a área" })}
+                {t3({
+                  en: "Cover whole area",
+                  fr: "Couvrir toute la zone",
+                  pt: "Cobrir toda a área",
+                })}
               </PopoverRow>
               <PopoverRow
                 active={fit() === "contain"}
@@ -861,7 +1162,11 @@ function ImageControls(
                   close();
                 }}
               >
-                {t3({ en: "Fit inside area", fr: "Adapter à l'intérieur de la zone", pt: "Ajustar dentro da área" })}
+                {t3({
+                  en: "Fit inside area",
+                  fr: "Adapter à l'intérieur de la zone",
+                  pt: "Ajustar dentro da área",
+                })}
               </PopoverRow>
             </>
           )}
@@ -870,7 +1175,9 @@ function ImageControls(
           <ToolbarPopover
             label={
               <span>
-                {IMAGE_ALIGNS.find((a) => a.value === (p.block.style?.imgAlign ?? "center"))?.label()}
+                {IMAGE_ALIGNS.find(
+                  (a) => a.value === (p.block.style?.imgAlign ?? "center"),
+                )?.label()}
               </span>
             }
             title={t3({ en: "Alignment", fr: "Alignement", pt: "Alinhamento" })}

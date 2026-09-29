@@ -52,6 +52,7 @@ import {
   PopoverRow,
   ToolbarDivider as Divider,
   ToolbarPopover as Popover,
+  ToolbarRow,
   ToolButton,
 } from "~/components/products/_shared/mod.ts";
 import { fastrThemeLabel } from "./fastr_theme_labels";
@@ -71,13 +72,37 @@ import type { ReportBlockContext, ReportEditorApi } from "./body_editor";
 // Six per row, matching the grid below: blues, reds, greens, yellows and
 // purples, then greys and the two extremes.
 const FIXED_COLORS: string[] = [
-  "#e3f2fd", "#90caf9", "#42a5f5", "#1e88e5", "#1565c0", "#0d47a1",
-  "#ffcdd2", "#ef9a9a", "#ef5350", "#e53935", "#ff7043", "#ff9800",
-  "#c8e6c9", "#81c784", "#4caf50", "#2e7d32", "#ffee58", "#fdd835",
-  "#e1bee7", "#ab47bc", "#7b1fa2", "#4e342e", "#e0e0e0", "#bdbdbd",
-  "#9e9e9e", "#757575", "#424242", "#212121", "#ffffff", "#000000",
+  "#e3f2fd",
+  "#90caf9",
+  "#42a5f5",
+  "#1e88e5",
+  "#1565c0",
+  "#0d47a1",
+  "#ffcdd2",
+  "#ef9a9a",
+  "#ef5350",
+  "#e53935",
+  "#ff7043",
+  "#ff9800",
+  "#c8e6c9",
+  "#81c784",
+  "#4caf50",
+  "#2e7d32",
+  "#ffee58",
+  "#fdd835",
+  "#e1bee7",
+  "#ab47bc",
+  "#7b1fa2",
+  "#4e342e",
+  "#e0e0e0",
+  "#bdbdbd",
+  "#9e9e9e",
+  "#757575",
+  "#424242",
+  "#212121",
+  "#ffffff",
+  "#000000",
 ];
-
 
 // The FASTR Markdown toolbar, under the report header — laid out like Google
 // Docs: a MENU row (Insert and Page open dropdown menus) above ONE persistent
@@ -168,104 +193,159 @@ function choiceControlsFor(name: FastrBlockName): ChoiceControl[] {
     })).slice(0, n);
   switch (name) {
     case "callout":
-      return [{
-        attr: "kind",
-        label: t3({ en: "Kind", fr: "Type", pt: "Tipo" }),
-        fallback: "note",
-        options: [
-          { value: "note", label: t3({ en: "Note", fr: "Remarque", pt: "Nota" }) },
-          { value: "info", label: t3({ en: "Info", fr: "Info", pt: "Info" }) },
-          {
-            value: "success",
-            label: t3({ en: "Good news", fr: "Bonne nouvelle", pt: "Boas notícias" }),
-          },
-          {
-            value: "warning",
-            label: t3({ en: "Caution", fr: "Prudence", pt: "Atenção" }),
-          },
-          {
-            value: "danger",
-            label: t3({ en: "Bad news", fr: "Mauvaise nouvelle", pt: "Más notícias" }),
-          },
-        ],
-      }];
+      return [
+        {
+          attr: "kind",
+          label: t3({ en: "Kind", fr: "Type", pt: "Tipo" }),
+          fallback: "note",
+          options: [
+            {
+              value: "note",
+              label: t3({ en: "Note", fr: "Remarque", pt: "Nota" }),
+            },
+            {
+              value: "info",
+              label: t3({ en: "Info", fr: "Info", pt: "Info" }),
+            },
+            {
+              value: "success",
+              label: t3({
+                en: "Good news",
+                fr: "Bonne nouvelle",
+                pt: "Boas notícias",
+              }),
+            },
+            {
+              value: "warning",
+              label: t3({ en: "Caution", fr: "Prudence", pt: "Atenção" }),
+            },
+            {
+              value: "danger",
+              label: t3({
+                en: "Bad news",
+                fr: "Mauvaise nouvelle",
+                pt: "Más notícias",
+              }),
+            },
+          ],
+        },
+      ];
     case "tiles":
-      return [{
-        attr: "cols",
-        label: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
-        fallback: "3",
-        options: counts(4),
-      }];
+      return [
+        {
+          attr: "cols",
+          label: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+          fallback: "3",
+          options: counts(4),
+        },
+      ];
     case "columns":
-      return [{
-        attr: "cols",
-        label: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
-        fallback: "2",
-        options: counts(4),
-      }];
+      return [
+        {
+          attr: "cols",
+          label: t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
+          fallback: "2",
+          options: counts(4),
+        },
+      ];
     case "col":
-      return [{
-        attr: "span",
-        label: t3({ en: "Span", fr: "Étendue", pt: "Extensão" }),
-        fallback: "1",
-        options: counts(4),
-      }];
+      return [
+        {
+          attr: "span",
+          label: t3({ en: "Span", fr: "Étendue", pt: "Extensão" }),
+          fallback: "1",
+          options: counts(4),
+        },
+      ];
     case "stat":
-      return [{
-        attr: "dir",
-        label: t3({ en: "Change", fr: "Évolution", pt: "Variação" }),
-        fallback: "flat",
-        options: [
-          { value: "up", label: t3({ en: "Up", fr: "Hausse", pt: "Subida" }) },
-          { value: "down", label: t3({ en: "Down", fr: "Baisse", pt: "Descida" }) },
-          { value: "flat", label: t3({ en: "Flat", fr: "Stable", pt: "Estável" }) },
-        ],
-      }];
+      return [
+        {
+          attr: "dir",
+          label: t3({ en: "Change", fr: "Évolution", pt: "Variação" }),
+          fallback: "flat",
+          options: [
+            {
+              value: "up",
+              label: t3({ en: "Up", fr: "Hausse", pt: "Subida" }),
+            },
+            {
+              value: "down",
+              label: t3({ en: "Down", fr: "Baisse", pt: "Descida" }),
+            },
+            {
+              value: "flat",
+              label: t3({ en: "Flat", fr: "Stable", pt: "Estável" }),
+            },
+          ],
+        },
+      ];
     // `report` is unreachable here — its line is hidden and atomic, and the
     // Page menu edits it instead.
     case "cover":
-      return [{
-        attr: "layout",
-        label: t3({ en: "Layout", fr: "Mise en page", pt: "Disposição" }),
-        fallback: "classic",
-        options: FASTR_COVER_LAYOUTS.map((l) => ({
-          value: l,
-          label: fastrCoverLayoutLabel(l),
-        })),
-      }, {
-        attr: "fill",
-        label: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
-        fallback: "auto",
-        options: [
-          {
-            value: "auto",
-            label: t3({ en: "Natural height", fr: "Hauteur naturelle", pt: "Altura natural" }),
-          },
-          {
-            value: "page",
-            label: t3({ en: "Fill the page", fr: "Remplir la page", pt: "Preencher a página" }),
-          },
-        ],
-      }];
+      return [
+        {
+          attr: "layout",
+          label: t3({ en: "Layout", fr: "Mise en page", pt: "Disposição" }),
+          fallback: "classic",
+          options: FASTR_COVER_LAYOUTS.map((l) => ({
+            value: l,
+            label: fastrCoverLayoutLabel(l),
+          })),
+        },
+        {
+          attr: "fill",
+          label: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
+          fallback: "auto",
+          options: [
+            {
+              value: "auto",
+              label: t3({
+                en: "Natural height",
+                fr: "Hauteur naturelle",
+                pt: "Altura natural",
+              }),
+            },
+            {
+              value: "page",
+              label: t3({
+                en: "Fill the page",
+                fr: "Remplir la page",
+                pt: "Preencher a página",
+              }),
+            },
+          ],
+        },
+      ];
     case "contents":
-      return [{
-        attr: "depth",
-        label: t3({ en: "Depth", fr: "Profondeur", pt: "Profundidade" }),
-        fallback: String(FASTR_TOC_DEFAULT_DEPTH),
-        options: counts(4),
-      }];
+      return [
+        {
+          attr: "depth",
+          label: t3({ en: "Depth", fr: "Profondeur", pt: "Profundidade" }),
+          fallback: String(FASTR_TOC_DEFAULT_DEPTH),
+          options: counts(4),
+        },
+      ];
     case "logos":
-      return [{
-        attr: "align",
-        label: t3({ en: "Align", fr: "Alignement", pt: "Alinhamento" }),
-        fallback: "left",
-        options: FASTR_LOGO_ALIGNS.map((a) => ({ value: a, label: fastrLogoAlignLabel(a) })),
-      }, {
-        attr: "size",
-        label: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
-        fallback: "m",
-        options: FASTR_LOGO_SIZES.map((z) => ({ value: z, label: fastrLogoSizeLabel(z) })),
-      }];
+      return [
+        {
+          attr: "align",
+          label: t3({ en: "Align", fr: "Alignement", pt: "Alinhamento" }),
+          fallback: "left",
+          options: FASTR_LOGO_ALIGNS.map((a) => ({
+            value: a,
+            label: fastrLogoAlignLabel(a),
+          })),
+        },
+        {
+          attr: "size",
+          label: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
+          fallback: "m",
+          options: FASTR_LOGO_SIZES.map((z) => ({
+            value: z,
+            label: fastrLogoSizeLabel(z),
+          })),
+        },
+      ];
     case "report":
     case "card":
     case "quote":
@@ -325,10 +405,11 @@ export function ReportToolbar(p: Props) {
   // reproduce). The scope root also paints --fm-page and --fm-ink, so every
   // swatch shows the DOCUMENT's colours whatever the app's own theme is doing.
   const scopeClass = `fm-tb-${createUniqueId().replace(/[^a-zA-Z0-9]/g, "")}`;
-  const swatchCss = createMemo(() =>
-    buildFastrReportCss(p.theme(), p.colors(), `.${scopeClass}`, {
-      omitFontImport: true,
-    }) + buildFastrCoverTileCss(`.${scopeClass}`)
+  const swatchCss = createMemo(
+    () =>
+      buildFastrReportCss(p.theme(), p.colors(), `.${scopeClass}`, {
+        omitFontImport: true,
+      }) + buildFastrCoverTileCss(`.${scopeClass}`),
   );
 
   // Page-setup attribute accessors — the `:::report` fence's attrs, with the
@@ -369,7 +450,10 @@ export function ReportToolbar(p: Props) {
   // Step from what the box shows, so + on a 26pt heading gives 27, never 13.
   const stepSize = (delta: number) => {
     const cur = shownSize() ?? 12;
-    const next = Math.max(1, Math.min(400, Math.round((cur + delta) * 10) / 10));
+    const next = Math.max(
+      1,
+      Math.min(400, Math.round((cur + delta) * 10) / 10),
+    );
     p.api()?.setInlineSize(next);
   };
 
@@ -380,86 +464,90 @@ export function ReportToolbar(p: Props) {
       : `${t3({ en: "Heading", fr: "Titre", pt: "Título" })} ${level}`;
   };
 
-  // ── Menu row, Google Docs style. Hosted, it is one item in the report
-  //    header's own row, which owns that row's padding; alone, it carries its
-  //    own and sits above the pill.
+  // ── Menu row, Google Docs style: the menus, portaled into the report
+  //    header's MenuRow.
   const menuRow = () => (
-    <div
-      class="flex flex-wrap items-center gap-1"
-      classList={{ "px-2 pt-0.5": !p.menuRowHost }}
-    >
-        {/* File: the whole-document operations, as in Google Docs' File
+    <>
+      {/* File: the whole-document operations, as in Google Docs' File
             menu. Download moved here from the header. */}
-        <Popover
-          menu
-          label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-          title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
-        >
-          {(close) => (
-            <div class="ui-spy-sm flex w-56 flex-col">
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  p.onDownload();
-                  close();
-                }}
-              >
-                {t3({ en: "Download…", fr: "Télécharger…", pt: "Transferir…" })}
-              </PopoverRow>
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  p.onEmail();
-                  close();
-                }}
-              >
-                {t3({ en: "Email this file…", fr: "Envoyer par email…", pt: "Enviar por email…" })}
-              </PopoverRow>
-              <MenuDivider />
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  p.onRename();
-                  close();
-                }}
-              >
-                {t3({ en: "Rename…", fr: "Renommer…", pt: "Mudar o nome…" })}
-              </PopoverRow>
-              <PopoverRow
-                active={false}
-                onClick={() => {
-                  p.onDuplicate();
-                  close();
-                }}
-              >
-                {t3({ en: "Make a copy…", fr: "Créer une copie…", pt: "Criar uma cópia…" })}
-              </PopoverRow>
-            </div>
-          )}
-        </Popover>
-        <Popover
-          menu
-          label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-          title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-          tour="report-insert-buttons"
-        >
-          {(close) => (
-            <div class="ui-spy-sm flex w-56 flex-col">
-              <For each={FASTR_BLOCK_SNIPPETS.filter((r) => r.name !== "report")}>
-                {(row) => (
-                  <Switch
-                    fallback={
-                      <PopoverRow
-                        active={false}
-                        onClick={() => {
-                          p.api()?.insertBlockOnNewLine(row.snippet);
-                          close();
-                        }}
-                      >
-                        {fastrBlockLabel(row.name)}
-                      </PopoverRow>
-                    }
-                  >
+      <Popover
+        menu
+        label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+        title={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+      >
+        {(close) => (
+          <div class="ui-spy-sm flex w-56 flex-col">
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                p.onDownload();
+                close();
+              }}
+            >
+              {t3({ en: "Download…", fr: "Télécharger…", pt: "Transferir…" })}
+            </PopoverRow>
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                p.onEmail();
+                close();
+              }}
+            >
+              {t3({
+                en: "Email this file…",
+                fr: "Envoyer par email…",
+                pt: "Enviar por email…",
+              })}
+            </PopoverRow>
+            <MenuDivider />
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                p.onRename();
+                close();
+              }}
+            >
+              {t3({ en: "Rename…", fr: "Renommer…", pt: "Mudar o nome…" })}
+            </PopoverRow>
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                p.onDuplicate();
+                close();
+              }}
+            >
+              {t3({
+                en: "Make a copy…",
+                fr: "Créer une copie…",
+                pt: "Criar uma cópia…",
+              })}
+            </PopoverRow>
+          </div>
+        )}
+      </Popover>
+      <Popover
+        menu
+        label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
+        title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
+        tour="report-insert-buttons"
+      >
+        {(close) => (
+          <div class="ui-spy-sm flex w-56 flex-col">
+            <For each={FASTR_BLOCK_SNIPPETS.filter((r) => r.name !== "report")}>
+              {(row) => (
+                <Switch
+                  fallback={
+                    <PopoverRow
+                      active={false}
+                      onClick={() => {
+                        p.api()?.insertBlockOnNewLine(row.snippet);
+                        close();
+                      }}
+                    >
+                      {fastrBlockLabel(row.name)}
+                    </PopoverRow>
+                  }
+                >
                   {/* Logos opens the picker: the FASTR logos and the
                       instance's images, in the order they will sit. */}
                   <Match when={row.name === "logos"}>
@@ -480,460 +568,582 @@ export function ReportToolbar(p: Props) {
                   <Match when={row.name === "cover"}>
                     <MenuFlyout label={fastrBlockLabel(row.name)}>
                       <CoverPicker
-                          scopeClass={scopeClass}
-                          onPick={(preset) => {
-                            p.api()?.insertBlockOnNewLine(
-                              coverSnippet(preset, {
-                                kicker: t3({
-                                  en: "Organisation · Period",
-                                  fr: "Organisation · Période",
-                                  pt: "Organização · Período",
-                                }),
-                                title: t3({
-                                  en: "Report title",
-                                  fr: "Titre du rapport",
-                                  pt: "Título do relatório",
-                                }),
-                                sub: t3({
-                                  en: "What this report covers, and for whom",
-                                  fr: "Ce que couvre ce rapport, et pour qui",
-                                  pt: "O que este relatório cobre, e para quem",
-                                }),
+                        scopeClass={scopeClass}
+                        onPick={(preset) => {
+                          p.api()?.insertBlockOnNewLine(
+                            coverSnippet(preset, {
+                              kicker: t3({
+                                en: "Organisation · Period",
+                                fr: "Organisation · Période",
+                                pt: "Organização · Período",
                               }),
-                            );
+                              title: t3({
+                                en: "Report title",
+                                fr: "Titre du rapport",
+                                pt: "Título do relatório",
+                              }),
+                              sub: t3({
+                                en: "What this report covers, and for whom",
+                                fr: "Ce que couvre ce rapport, et pour qui",
+                                pt: "O que este relatório cobre, e para quem",
+                              }),
+                            }),
+                          );
                           close();
                         }}
                       />
                     </MenuFlyout>
                   </Match>
                   <Match
-                    when={row.name === "stat" || row.name === "tiles" ||
-                      row.name === "columns" || row.name === "steps"}
+                    when={
+                      row.name === "stat" ||
+                      row.name === "tiles" ||
+                      row.name === "columns" ||
+                      row.name === "steps"
+                    }
                   >
                     {/* Stat, the card grid, Columns and Steps open a count
                         flyout, like Table's grid: hover picks how many
                         (across, or steps down), a click inserts the block. */}
                     <MenuFlyout label={fastrBlockLabel(row.name)}>
                       <TilesPicker
-                          max={row.name === "steps" ? STEPS_MAX_PICK : undefined}
-                          caption={row.name === "steps"
+                        max={row.name === "steps" ? STEPS_MAX_PICK : undefined}
+                        caption={
+                          row.name === "steps"
                             ? (n) =>
-                              n === 1
-                                ? t3({ en: "1 step", fr: "1 étape", pt: "1 passo" })
-                                : `${n} ${t3({ en: "steps", fr: "étapes", pt: "passos" })}`
-                            : undefined}
-                          onPick={(n) => {
-                            p.api()?.insertBlockOnNewLine(
-                              row.name === "stat"
-                                ? statTilesSnippet(
+                                n === 1
+                                  ? t3({
+                                      en: "1 step",
+                                      fr: "1 étape",
+                                      pt: "1 passo",
+                                    })
+                                  : `${n} ${t3({ en: "steps", fr: "étapes", pt: "passos" })}`
+                            : undefined
+                        }
+                        onPick={(n) => {
+                          p.api()?.insertBlockOnNewLine(
+                            row.name === "stat"
+                              ? statTilesSnippet(
                                   n,
-                                  t3({ en: "Stat", fr: "Chiffre", pt: "Indicador" }),
+                                  t3({
+                                    en: "Stat",
+                                    fr: "Chiffre",
+                                    pt: "Indicador",
+                                  }),
                                 )
-                                : row.name === "tiles"
+                              : row.name === "tiles"
                                 ? cardTilesSnippet(
-                                  n,
-                                  t3({ en: "Card", fr: "Carte", pt: "Cartão" }),
-                                  t3({ en: "Text", fr: "Texte", pt: "Texto" }),
-                                )
+                                    n,
+                                    t3({
+                                      en: "Card",
+                                      fr: "Carte",
+                                      pt: "Cartão",
+                                    }),
+                                    t3({
+                                      en: "Text",
+                                      fr: "Texte",
+                                      pt: "Texto",
+                                    }),
+                                  )
                                 : row.name === "columns"
-                                ? columnsSnippet(
-                                  n,
-                                  t3({ en: "Text", fr: "Texte", pt: "Texto" }),
-                                  t3({ en: "Heading", fr: "Titre", pt: "Título" }),
-                                )
-                                : stepsSnippet(
-                                  n,
-                                  t3({ en: "Step", fr: "Étape", pt: "Passo" }),
-                                ),
-                            );
+                                  ? columnsSnippet(
+                                      n,
+                                      t3({
+                                        en: "Text",
+                                        fr: "Texte",
+                                        pt: "Texto",
+                                      }),
+                                      t3({
+                                        en: "Heading",
+                                        fr: "Titre",
+                                        pt: "Título",
+                                      }),
+                                    )
+                                  : stepsSnippet(
+                                      n,
+                                      t3({
+                                        en: "Step",
+                                        fr: "Étape",
+                                        pt: "Passo",
+                                      }),
+                                    ),
+                          );
                           close();
                         }}
                       />
                     </MenuFlyout>
                   </Match>
-                  </Switch>
-                )}
-              </For>
+                </Switch>
+              )}
+            </For>
+            <MenuDivider />
+            <PopoverRow
+              active={false}
+              onClick={() => {
+                p.api()?.insertLink();
+                close();
+              }}
+            >
+              {t3({ en: "Link", fr: "Lien", pt: "Ligação" })}
+            </PopoverRow>
+            {/* Table opens a grid picker flyout, Google Docs style: hover
+                  sets the size, a click inserts. */}
+            <MenuFlyout
+              label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
+            >
+              <TableGridPicker
+                onPick={(cols, rows) => {
+                  p.api()?.insertTable(cols, rows);
+                  close();
+                }}
+              />
+            </MenuFlyout>
+            <Show when={p.canInsertEmbeds()}>
               <MenuDivider />
               <PopoverRow
                 active={false}
                 onClick={() => {
-                  p.api()?.insertLink();
+                  p.onInsertFigure();
                   close();
                 }}
               >
-                {t3({ en: "Link", fr: "Lien", pt: "Ligação" })}
+                {t3({
+                  en: "Visualization…",
+                  fr: "Visualisation…",
+                  pt: "Visualização…",
+                })}
               </PopoverRow>
-              {/* Table opens a grid picker flyout, Google Docs style: hover
-                  sets the size, a click inserts. */}
-              <MenuFlyout label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}>
-                <TableGridPicker
-                  onPick={(cols, rows) => {
-                    p.api()?.insertTable(cols, rows);
-                    close();
-                  }}
-                />
-              </MenuFlyout>
-              <Show when={p.canInsertEmbeds()}>
-                <MenuDivider />
-                <PopoverRow
-                  active={false}
-                  onClick={() => {
-                    p.onInsertFigure();
-                    close();
-                  }}
-                >
-                  {t3({
-                    en: "Visualization…",
-                    fr: "Visualisation…",
-                    pt: "Visualização…",
-                  })}
-                </PopoverRow>
-                <PopoverRow
-                  active={false}
-                  onClick={() => {
-                    p.onInsertImage();
-                    close();
-                  }}
-                >
-                  {t3({ en: "Image…", fr: "Image…", pt: "Imagem…" })}
-                </PopoverRow>
-              </Show>
-            </div>
-          )}
-        </Popover>
+              <PopoverRow
+                active={false}
+                onClick={() => {
+                  p.onInsertImage();
+                  close();
+                }}
+              >
+                {t3({ en: "Image…", fr: "Image…", pt: "Imagem…" })}
+              </PopoverRow>
+            </Show>
+          </div>
+        )}
+      </Popover>
 
-        <Popover
-          menu
-          label={t3({ en: "Page", fr: "Page", pt: "Página" })}
-          title={t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" })}
-        >
-          {(close) => (
-            <div class="ui-spy-sm flex w-56 flex-col">
-              {/* Theme and Background open flyouts, the way Insert's pickers
+      <Popover
+        menu
+        label={t3({ en: "Page", fr: "Page", pt: "Página" })}
+        title={t3({
+          en: "Page setup",
+          fr: "Mise en page",
+          pt: "Configuração da página",
+        })}
+      >
+        {(close) => (
+          <div class="ui-spy-sm flex w-56 flex-col">
+            {/* Theme and Background open flyouts, the way Insert's pickers
                   do: the menu stays one short list of names. */}
-              <MenuFlyout label={t3({ en: "Theme", fr: "Thème", pt: "Tema" })}>
-                {/* A FASTR body carries no CSS, so re-theming is safe at any
+            <MenuFlyout label={t3({ en: "Theme", fr: "Thème", pt: "Tema" })}>
+              {/* A FASTR body carries no CSS, so re-theming is safe at any
                     time. Each tile is the theme's own palette and heading
                     face, drawn straight from its tokens. */}
-                <div class="bg-base-100 ui-pad-sm shadow-floating max-h-80 w-64 overflow-y-auto rounded border">
-                  <div class="grid grid-cols-2 gap-1">
-                    <For each={FASTR_REPORT_THEMES}>
-                      {(theme) => (
-                        <button
-                          type="button"
-                          class="ui-hoverable-base-200 flex flex-col gap-1 rounded p-1 text-left"
-                          classList={{ "bg-primary-subtle": p.theme() === theme }}
-                          onClick={() => {
-                            p.onSelectTheme(theme);
-                            close();
-                          }}
-                        >
-                          <ThemeChip theme={theme} />
-                          <span class="truncate text-xs">
-                            {fastrThemeLabel(theme)}
-                          </span>
-                        </button>
-                      )}
-                    </For>
-                  </div>
-                  <PopoverRow
-                    active={false}
-                    onClick={() => {
-                      close();
-                      p.onOpenThemeModal();
-                    }}
-                  >
-                    {t3({
-                      en: "All themes and saved styles…",
-                      fr: "Tous les thèmes et styles enregistrés…",
-                      pt: "Todos os temas e estilos guardados…",
-                    })}
-                  </PopoverRow>
-                </div>
-              </MenuFlyout>
-              <MenuFlyout
-                label={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-              >
-                <div class="bg-base-100 ui-pad-sm shadow-floating rounded border">
-                  <GroundPanel
-                    scopeClass={scopeClass}
-                    tone={psTone()}
-                    literal={psLiteral()}
-                    onTone={(tone) =>
-                      p.onPatchPageSetup({
-                        background: tone === "default" ? undefined : tone,
-                        bg: undefined,
-                      })}
-                    onLiteral={(color) =>
-                      p.onPatchPageSetup({ bg: color, background: undefined })}
-                    onPick={close}
-                  />
-                  {/* A PHOTO as the page ground, with the overlay that keeps
-                      text legible on it — the format's `bg=image:<id>`. */}
-                  <div class="border-base-300 mt-2 border-t pt-2">
-                    <div class="text-base-content-muted pb-1 text-xs">
-                      {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
-                    </div>
-                    <div class="ui-gap-sm flex items-center">
-                      <Button
-                        size="sm"
-                        outline
-                        iconName="photo"
-                        onClick={async () => {
-                          const id = await p.onPickPageImage();
-                          if (id === undefined) return;
-                          p.onPatchPageSetup({
-                            bg: `image:${id}`,
-                            background: undefined,
-                          });
+              <div class="bg-base-100 ui-pad-sm shadow-floating max-h-80 w-64 overflow-y-auto rounded border">
+                <div class="grid grid-cols-2 gap-1">
+                  <For each={FASTR_REPORT_THEMES}>
+                    {(theme) => (
+                      <button
+                        type="button"
+                        class="ui-hoverable-base-200 flex flex-col gap-1 rounded p-1 text-left"
+                        classList={{ "bg-primary-subtle": p.theme() === theme }}
+                        onClick={() => {
+                          p.onSelectTheme(theme);
                           close();
                         }}
                       >
-                        {t3({ en: "Choose…", fr: "Choisir…", pt: "Escolher…" })}
-                      </Button>
-                      <Show when={psImageId() !== undefined}>
-                        <Button
-                          size="sm"
-                          outline
-                          intent="danger"
-                          iconName="trash"
-                          onClick={() => {
-                            p.onPatchPageSetup({ bg: undefined, overlay: undefined });
-                            close();
-                          }}
-                        />
-                      </Show>
-                    </div>
+                        <ThemeChip theme={theme} />
+                        <span class="truncate text-xs">
+                          {fastrThemeLabel(theme)}
+                        </span>
+                      </button>
+                    )}
+                  </For>
+                </div>
+                <PopoverRow
+                  active={false}
+                  onClick={() => {
+                    close();
+                    p.onOpenThemeModal();
+                  }}
+                >
+                  {t3({
+                    en: "All themes and saved styles…",
+                    fr: "Tous les thèmes et styles enregistrés…",
+                    pt: "Todos os temas e estilos guardados…",
+                  })}
+                </PopoverRow>
+              </div>
+            </MenuFlyout>
+            <MenuFlyout
+              label={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
+            >
+              <div class="bg-base-100 ui-pad-sm shadow-floating rounded border">
+                <GroundPanel
+                  scopeClass={scopeClass}
+                  tone={psTone()}
+                  literal={psLiteral()}
+                  onTone={(tone) =>
+                    p.onPatchPageSetup({
+                      background: tone === "default" ? undefined : tone,
+                      bg: undefined,
+                    })
+                  }
+                  onLiteral={(color) =>
+                    p.onPatchPageSetup({ bg: color, background: undefined })
+                  }
+                  onPick={close}
+                />
+                {/* A PHOTO as the page ground, with the overlay that keeps
+                      text legible on it — the format's `bg=image:<id>`. */}
+                <div class="border-base-300 mt-2 border-t pt-2">
+                  <div class="text-base-content-muted pb-1 text-xs">
+                    {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
+                  </div>
+                  <div class="ui-gap-sm flex items-center">
+                    <Button
+                      size="sm"
+                      outline
+                      iconName="photo"
+                      onClick={async () => {
+                        const id = await p.onPickPageImage();
+                        if (id === undefined) return;
+                        p.onPatchPageSetup({
+                          bg: `image:${id}`,
+                          background: undefined,
+                        });
+                        close();
+                      }}
+                    >
+                      {t3({ en: "Choose…", fr: "Choisir…", pt: "Escolher…" })}
+                    </Button>
                     <Show when={psImageId() !== undefined}>
-                      <div class="text-base-content-muted pt-2 pb-1 text-xs">
-                        {t3({ en: "Overlay", fr: "Voile", pt: "Sobreposição" })}
-                      </div>
-                      <For each={["dark", "light", "none"] as const}>
-                        {(mode) => (
-                          <PopoverRow
-                            active={(psAttr("overlay") ?? "dark") === mode}
-                            onClick={() => p.onPatchPageSetup({ overlay: mode })}
-                          >
-                            {mode === "dark"
-                              ? t3({ en: "Darken", fr: "Assombrir", pt: "Escurecer" })
-                              : mode === "light"
-                              ? t3({ en: "Lighten", fr: "Éclaircir", pt: "Clarear" })
-                              : t3({ en: "None", fr: "Aucun", pt: "Nenhuma" })}
-                          </PopoverRow>
-                        )}
-                      </For>
+                      <Button
+                        size="sm"
+                        outline
+                        intent="danger"
+                        iconName="trash"
+                        onClick={() => {
+                          p.onPatchPageSetup({
+                            bg: undefined,
+                            overlay: undefined,
+                          });
+                          close();
+                        }}
+                      />
                     </Show>
                   </div>
+                  <Show when={psImageId() !== undefined}>
+                    <div class="text-base-content-muted pt-2 pb-1 text-xs">
+                      {t3({ en: "Overlay", fr: "Voile", pt: "Sobreposição" })}
+                    </div>
+                    <For each={["dark", "light", "none"] as const}>
+                      {(mode) => (
+                        <PopoverRow
+                          active={(psAttr("overlay") ?? "dark") === mode}
+                          onClick={() => p.onPatchPageSetup({ overlay: mode })}
+                        >
+                          {mode === "dark"
+                            ? t3({
+                                en: "Darken",
+                                fr: "Assombrir",
+                                pt: "Escurecer",
+                              })
+                            : mode === "light"
+                              ? t3({
+                                  en: "Lighten",
+                                  fr: "Éclaircir",
+                                  pt: "Clarear",
+                                })
+                              : t3({ en: "None", fr: "Aucun", pt: "Nenhuma" })}
+                        </PopoverRow>
+                      )}
+                    </For>
+                  </Show>
                 </div>
-              </MenuFlyout>
-              <PopoverRow
-                active={psAttr("numbering") === "sections"}
-                onClick={() =>
-                  p.onPatchPageSetup({
-                    numbering: psAttr("numbering") === "sections" ? undefined : "sections",
-                  })}
-              >
-                <span class="flex-1">
-                  {t3({ en: "Numbered sections", fr: "Sections numérotées", pt: "Secções numeradas" })}
-                </span>
-                <Show when={psAttr("numbering") === "sections"}>
-                  <Icon iconName="check" class="h-3.5 w-3.5" />
-                </Show>
-              </PopoverRow>
-              {/* The printed sheet: what the PDF is printed on and what the
+              </div>
+            </MenuFlyout>
+            <PopoverRow
+              active={psAttr("numbering") === "sections"}
+              onClick={() =>
+                p.onPatchPageSetup({
+                  numbering:
+                    psAttr("numbering") === "sections" ? undefined : "sections",
+                })
+              }
+            >
+              <span class="flex-1">
+                {t3({
+                  en: "Numbered sections",
+                  fr: "Sections numérotées",
+                  pt: "Secções numeradas",
+                })}
+              </span>
+              <Show when={psAttr("numbering") === "sections"}>
+                <Icon iconName="check" class="h-3.5 w-3.5" />
+              </Show>
+            </PopoverRow>
+            {/* The printed sheet: what the PDF is printed on and what the
                   editor's page boxes show. Margins stay at their default. */}
-              <MenuFlyout label={t3({ en: "Page size", fr: "Format de page", pt: "Tamanho da página" })}>
-                <div class="bg-base-100 ui-spy-sm shadow-floating flex w-40 flex-col rounded border p-1">
-                  <For
-                    each={[
-                      { value: "a4", label: "A4" },
-                      { value: "letter", label: t3({ en: "Letter", fr: "Lettre US", pt: "Carta" }) },
-                    ]}
-                  >
-                    {(opt) => (
-                      <PopoverRow
-                        active={(psAttr("pagesize") ?? "a4") === opt.value}
-                        onClick={() =>
-                          p.onPatchPageSetup({
-                            pagesize: opt.value === "a4" ? undefined : opt.value,
-                          })}
+            <MenuFlyout
+              label={t3({
+                en: "Page size",
+                fr: "Format de page",
+                pt: "Tamanho da página",
+              })}
+            >
+              <div class="bg-base-100 ui-spy-sm shadow-floating flex w-40 flex-col rounded border p-1">
+                <For
+                  each={[
+                    { value: "a4", label: "A4" },
+                    {
+                      value: "letter",
+                      label: t3({ en: "Letter", fr: "Lettre US", pt: "Carta" }),
+                    },
+                  ]}
+                >
+                  {(opt) => (
+                    <PopoverRow
+                      active={(psAttr("pagesize") ?? "a4") === opt.value}
+                      onClick={() =>
+                        p.onPatchPageSetup({
+                          pagesize: opt.value === "a4" ? undefined : opt.value,
+                        })
+                      }
+                    >
+                      <span class="flex-1">{opt.label}</span>
+                      <Show when={(psAttr("pagesize") ?? "a4") === opt.value}>
+                        <Icon iconName="check" class="h-3.5 w-3.5" />
+                      </Show>
+                    </PopoverRow>
+                  )}
+                </For>
+              </div>
+            </MenuFlyout>
+            <MenuFlyout
+              label={t3({
+                en: "Orientation",
+                fr: "Orientation",
+                pt: "Orientação",
+              })}
+            >
+              <div class="bg-base-100 ui-spy-sm shadow-floating flex w-40 flex-col rounded border p-1">
+                <For
+                  each={[
+                    {
+                      value: "portrait",
+                      label: t3({
+                        en: "Portrait",
+                        fr: "Portrait",
+                        pt: "Vertical",
+                      }),
+                    },
+                    {
+                      value: "landscape",
+                      label: t3({
+                        en: "Landscape",
+                        fr: "Paysage",
+                        pt: "Horizontal",
+                      }),
+                    },
+                  ]}
+                >
+                  {(opt) => (
+                    <PopoverRow
+                      active={
+                        (psAttr("orientation") ?? "portrait") === opt.value
+                      }
+                      onClick={() =>
+                        p.onPatchPageSetup({
+                          orientation:
+                            opt.value === "portrait" ? undefined : opt.value,
+                        })
+                      }
+                    >
+                      <span class="flex-1">{opt.label}</span>
+                      <Show
+                        when={
+                          (psAttr("orientation") ?? "portrait") === opt.value
+                        }
                       >
-                        <span class="flex-1">{opt.label}</span>
-                        <Show when={(psAttr("pagesize") ?? "a4") === opt.value}>
-                          <Icon iconName="check" class="h-3.5 w-3.5" />
-                        </Show>
-                      </PopoverRow>
-                    )}
-                  </For>
-                </div>
-              </MenuFlyout>
-              <MenuFlyout label={t3({ en: "Orientation", fr: "Orientation", pt: "Orientação" })}>
-                <div class="bg-base-100 ui-spy-sm shadow-floating flex w-40 flex-col rounded border p-1">
-                  <For
-                    each={[
-                      { value: "portrait", label: t3({ en: "Portrait", fr: "Portrait", pt: "Vertical" }) },
-                      { value: "landscape", label: t3({ en: "Landscape", fr: "Paysage", pt: "Horizontal" }) },
-                    ]}
-                  >
-                    {(opt) => (
-                      <PopoverRow
-                        active={(psAttr("orientation") ?? "portrait") === opt.value}
-                        onClick={() =>
-                          p.onPatchPageSetup({
-                            orientation: opt.value === "portrait" ? undefined : opt.value,
-                          })}
-                      >
-                        <span class="flex-1">{opt.label}</span>
-                        <Show when={(psAttr("orientation") ?? "portrait") === opt.value}>
-                          <Icon iconName="check" class="h-3.5 w-3.5" />
-                        </Show>
-                      </PopoverRow>
-                    )}
-                  </For>
-                </div>
-              </MenuFlyout>
-              <PopoverRow active={p.showPages()} onClick={() => p.onToggleShowPages()}>
-                <span class="flex-1">
-                  {t3({ en: "Edit on rendered pages (experimental)", fr: "Modifier sur les pages rendues (expérimental)", pt: "Editar nas páginas renderizadas (experimental)" })}
-                </span>
-                <Show when={p.showPages()}>
-                  <Icon iconName="check" class="h-3.5 w-3.5" />
-                </Show>
-              </PopoverRow>
-              <MenuFlyout
-                label={t3({ en: "Document details", fr: "Détails du document", pt: "Detalhes do documento" })}
-              >
-                <div class="bg-base-100 ui-pad-sm shadow-floating w-56 rounded border">
-                  <DetailRows stats={p.documentStats()} />
-                </div>
-              </MenuFlyout>
-            </div>
-          )}
-        </Popover>
-    </div>
+                        <Icon iconName="check" class="h-3.5 w-3.5" />
+                      </Show>
+                    </PopoverRow>
+                  )}
+                </For>
+              </div>
+            </MenuFlyout>
+            <PopoverRow
+              active={p.showPages()}
+              onClick={() => p.onToggleShowPages()}
+            >
+              <span class="flex-1">
+                {t3({
+                  en: "Edit on rendered pages (experimental)",
+                  fr: "Modifier sur les pages rendues (expérimental)",
+                  pt: "Editar nas páginas renderizadas (experimental)",
+                })}
+              </span>
+              <Show when={p.showPages()}>
+                <Icon iconName="check" class="h-3.5 w-3.5" />
+              </Show>
+            </PopoverRow>
+            <MenuFlyout
+              label={t3({
+                en: "Document details",
+                fr: "Détails du document",
+                pt: "Detalhes do documento",
+              })}
+            >
+              <div class="bg-base-100 ui-pad-sm shadow-floating w-56 rounded border">
+                <DetailRows stats={p.documentStats()} />
+              </div>
+            </MenuFlyout>
+          </div>
+        )}
+      </Popover>
+    </>
   );
 
   return (
-    <div data-cursor-zone="header" data-tour="report-format-toolbar">
+    <ToolbarRow data-tour="report-format-toolbar">
       <style>{swatchCss()}</style>
 
       <Show when={p.menuRowHost} fallback={menuRow()}>
-        {(host) => <Portal mount={host()}>{menuRow()}</Portal>}
+        {(host) => (
+          <Portal mount={host()} ref={(el) => el.classList.add("contents")}>
+            {menuRow()}
+          </Portal>
+        )}
       </Show>
 
       {/* ── The toolbar row: text controls, block segment, or the selected
              embed's controls (which replace the text controls, as selecting
              an image does in Google Docs) ─────────────────────────────────── */}
-      <div class="px-2 pt-1 pb-2">
-        <div class="bg-base-200 flex flex-wrap items-center gap-0.5 rounded px-3 py-1">
-        <Show
-          when={p.embedKind() === undefined}
-          fallback={
-            <div class="ui-gap-sm flex flex-wrap items-center">
-              {p.embedControls}
-            </div>
-          }
-        >
-          {/* Undo / redo lead the pill, as in Google Docs. The report
+      <Show
+        when={p.embedKind() === undefined}
+        fallback={
+          <div class="ui-gap-sm flex flex-wrap items-center">
+            {p.embedControls}
+          </div>
+        }
+      >
+        {/* Undo / redo lead the pill, as in Google Docs. The report
               header carries its own pair for the other formats only. */}
-          <div class="flex items-center gap-0.5">
-            <ToolButton
-              label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
-              onClick={() => p.api()?.undo()}
-            >
-              <Icon iconName="undo" class="h-4 w-4" />
-            </ToolButton>
-            <ToolButton
-              label={t3({ en: "Redo", fr: "Rétablir", pt: "Refazer" })}
-              onClick={() => p.api()?.redo()}
-            >
-              <Icon iconName="redo" class="h-4 w-4" />
-            </ToolButton>
-          </div>
+        <div class="flex items-center gap-0.5">
+          <ToolButton
+            label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
+            onClick={() => p.api()?.undo()}
+          >
+            <Icon iconName="undo" class="h-4 w-4" />
+          </ToolButton>
+          <ToolButton
+            label={t3({ en: "Redo", fr: "Rétablir", pt: "Refazer" })}
+            onClick={() => p.api()?.redo()}
+          >
+            <Icon iconName="redo" class="h-4 w-4" />
+          </ToolButton>
+        </div>
 
-          <Divider />
+        <Divider />
 
-          <div class="flex items-center gap-0.5">
-            <Popover
-              label={<span class="w-24 truncate text-left">{headingStyleFace()}</span>}
-              title={t3({ en: "Text style", fr: "Style de texte", pt: "Estilo de texto" })}
-            >
-              {(close) => (
-                <div class="ui-spy-sm flex flex-col">
-                  <For each={[0, 1, 2, 3, 4]}>
-                    {(level) => (
-                      <PopoverRow
-                        active={(marks()?.headingLevel ?? 0) === level}
-                        onClick={() => {
-                          p.api()?.setHeadingLevel(level);
-                          close();
-                        }}
-                      >
-                        {level === 0
-                          ? t3({ en: "Normal text", fr: "Texte normal", pt: "Texto normal" })
-                          : `${t3({ en: "Heading", fr: "Titre", pt: "Título" })} ${level}`}
-                      </PopoverRow>
-                    )}
-                  </For>
-                </div>
-              )}
-            </Popover>
-          </div>
+        <div class="flex items-center gap-0.5">
+          <Popover
+            label={
+              <span class="w-24 truncate text-left">{headingStyleFace()}</span>
+            }
+            title={t3({
+              en: "Text style",
+              fr: "Style de texte",
+              pt: "Estilo de texto",
+            })}
+          >
+            {(close) => (
+              <div class="ui-spy-sm flex flex-col">
+                <For each={[0, 1, 2, 3, 4]}>
+                  {(level) => (
+                    <PopoverRow
+                      active={(marks()?.headingLevel ?? 0) === level}
+                      onClick={() => {
+                        p.api()?.setHeadingLevel(level);
+                        close();
+                      }}
+                    >
+                      {level === 0
+                        ? t3({
+                            en: "Normal text",
+                            fr: "Texte normal",
+                            pt: "Texto normal",
+                          })
+                        : `${t3({ en: "Heading", fr: "Titre", pt: "Título" })} ${level}`}
+                    </PopoverRow>
+                  )}
+                </For>
+              </div>
+            )}
+          </Popover>
+        </div>
 
-          <Divider />
+        <Divider />
 
-          <div class="flex items-center gap-0.5">
-            <ToolButton
-              active={() => marks()?.bold === true}
-              onClick={() => p.api()?.toggleInlineMark("**", "**")}
-              label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
-            >
-              <span class="font-700">B</span>
-            </ToolButton>
-            <ToolButton
-              active={() => marks()?.italic === true}
-              onClick={() => p.api()?.toggleInlineMark("*", "*")}
-              label={t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
-            >
-              <span class="italic">I</span>
-            </ToolButton>
-            <ToolButton
-              active={() => marks()?.underline === true}
-              onClick={() => p.api()?.setInlineUnderline(marks()?.underline !== true)}
-              label={t3({ en: "Underline", fr: "Souligné", pt: "Sublinhado" })}
-            >
-              <span class="underline">U</span>
-            </ToolButton>
-            {/* Text size — `[phrase]{size=N}`, points like a word processor,
+        <div class="flex items-center gap-0.5">
+          <ToolButton
+            active={() => marks()?.bold === true}
+            onClick={() => p.api()?.toggleInlineMark("**", "**")}
+            label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
+          >
+            <span class="font-700">B</span>
+          </ToolButton>
+          <ToolButton
+            active={() => marks()?.italic === true}
+            onClick={() => p.api()?.toggleInlineMark("*", "*")}
+            label={t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
+          >
+            <span class="italic">I</span>
+          </ToolButton>
+          <ToolButton
+            active={() => marks()?.underline === true}
+            onClick={() =>
+              p.api()?.setInlineUnderline(marks()?.underline !== true)
+            }
+            label={t3({ en: "Underline", fr: "Souligné", pt: "Sublinhado" })}
+          >
+            <span class="underline">U</span>
+          </ToolButton>
+          {/* Text size — `[phrase]{size=N}`, points like a word processor,
                 as Google Docs' − N + stepper. With no explicit mark the box
                 shows the size the text actually RENDERS at (measured from the
                 DOM by the editor, so a theme's heading scale is honoured), and
                 the stepper steps from that. */}
-            <div class="flex items-center">
-              <ToolButton
-                label={t3({
-                  en: "Decrease text size",
-                  fr: "Réduire la taille du texte",
-                  pt: "Diminuir o tamanho do texto",
-                })}
-                onClick={() => stepSize(-1)}
-              >
-                <Icon iconName="minus" class="h-3.5 w-3.5" />
-              </ToolButton>
-              <Popover
-                chevron={false}
-                label={
-                  <span class="bg-base-100 inline-block w-8 rounded border text-center text-xs leading-5">
-                    {shownSize() ?? "–"}
-                  </span>
-                }
-                title={t3({
-                  en: "Text size",
-                  fr: "Taille du texte",
-                  pt: "Tamanho do texto",
-                })}
-              >
+          <div class="flex items-center">
+            <ToolButton
+              label={t3({
+                en: "Decrease text size",
+                fr: "Réduire la taille du texte",
+                pt: "Diminuir o tamanho do texto",
+              })}
+              onClick={() => stepSize(-1)}
+            >
+              <Icon iconName="minus" class="h-3.5 w-3.5" />
+            </ToolButton>
+            <Popover
+              chevron={false}
+              label={
+                <span class="bg-base-100 inline-block w-8 rounded border text-center text-xs leading-5">
+                  {shownSize() ?? "–"}
+                </span>
+              }
+              title={t3({
+                en: "Text size",
+                fr: "Taille du texte",
+                pt: "Tamanho do texto",
+              })}
+            >
               {(close) => {
                 const apply = (raw: string) => {
                   const n = Number(raw);
@@ -950,7 +1160,11 @@ export function ReportToolbar(p: Props) {
                         close();
                       }}
                     >
-                      {t3({ en: "Default", fr: "Par défaut", pt: "Predefinido" })}
+                      {t3({
+                        en: "Default",
+                        fr: "Par défaut",
+                        pt: "Predefinido",
+                      })}
                     </PopoverRow>
                     <For each={[8, 9, 10, 11, 12, 14, 18, 24, 36]}>
                       {(n) => (
@@ -971,7 +1185,11 @@ export function ReportToolbar(p: Props) {
                       max="400"
                       step="0.5"
                       class="mt-1 w-full rounded border px-2 py-1 text-sm"
-                      placeholder={t3({ en: "Custom", fr: "Autre", pt: "Outro" })}
+                      placeholder={t3({
+                        en: "Custom",
+                        fr: "Autre",
+                        pt: "Outro",
+                      })}
                       value={shownSize() ?? ""}
                       // Enter only — a blur-apply would fire (and close the
                       // panel) before a preset row's own click could land.
@@ -983,282 +1201,315 @@ export function ReportToolbar(p: Props) {
                 );
               }}
             </Popover>
-              <ToolButton
-                label={t3({
-                  en: "Increase text size",
-                  fr: "Augmenter la taille du texte",
-                  pt: "Aumentar o tamanho do texto",
-                })}
-                onClick={() => stepSize(1)}
-              >
-                <Icon iconName="plus" class="h-3.5 w-3.5" />
-              </ToolButton>
-            </div>
-            {/* Highlight: the same panel shape as the ground and ink
+            <ToolButton
+              label={t3({
+                en: "Increase text size",
+                fr: "Augmenter la taille du texte",
+                pt: "Aumentar o tamanho do texto",
+              })}
+              onClick={() => stepSize(1)}
+            >
+              <Icon iconName="plus" class="h-3.5 w-3.5" />
+            </ToolButton>
+          </div>
+          {/* Highlight: the same panel shape as the ground and ink
                 pickers, but only literal colours — a stripe IS the colour. */}
-            <Popover
-              chevron={false}
-              label={
-                <span
-                  class="font-700 rounded px-1 leading-none"
-                  style={marks()?.highlight !== undefined
+          <Popover
+            chevron={false}
+            label={
+              <span
+                class="font-700 rounded px-1 leading-none"
+                style={
+                  marks()?.highlight !== undefined
                     ? { "background-color": marks()?.highlight }
-                    : { "border-bottom": "3px solid #ffe08a" }}
+                    : { "border-bottom": "3px solid #ffe08a" }
+                }
+              >
+                H
+              </span>
+            }
+            title={t3({ en: "Highlight", fr: "Surlignage", pt: "Realce" })}
+          >
+            {(close) => (
+              <div class="flex w-56 flex-col">
+                <PopoverRow
+                  active={marks()?.highlight === undefined}
+                  onClick={() => {
+                    p.api()?.setInlineHighlight(undefined);
+                    close();
+                  }}
                 >
-                  H
+                  {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
+                </PopoverRow>
+                <LiteralColours
+                  literal={marks()?.highlight}
+                  onLiteral={(c) => p.api()?.setInlineHighlight(c)}
+                  onPick={close}
+                />
+              </div>
+            )}
+          </Popover>
+          <ToolButton
+            label={`${t3({ en: "Link", fr: "Lien", pt: "Ligação" })} (Ctrl+K)`}
+            onClick={() => p.api()?.insertLink()}
+          >
+            {/* panther's icon set has no chain glyph, so the link button
+                  uses a letterform like B/I/U do. */}
+            <span class="underline">↗</span>
+          </ToolButton>
+          <Popover
+            chevron={false}
+            label={
+              <span class={scopeClass}>
+                {/* border-current: the bar under the A takes the role's
+                      own colour — or the literal — as Google Docs' colour
+                      button does. */}
+                <span
+                  class={`${roleClassOf(
+                    marks()?.role,
+                  )} font-700 border-b-2 border-current px-0.5 leading-none`}
+                  style={
+                    marks()?.color !== undefined
+                      ? { color: marks()?.color }
+                      : undefined
+                  }
+                >
+                  A
                 </span>
-              }
-              title={t3({ en: "Highlight", fr: "Surlignage", pt: "Realce" })}
+              </span>
+            }
+            title={t3({
+              en: "Text colour",
+              fr: "Couleur du texte",
+              pt: "Cor do texto",
+            })}
+          >
+            {(close) => (
+              <InkPanel
+                scopeClass={scopeClass}
+                role={marks()?.role}
+                literal={marks()?.color}
+                onRole={(role) => p.api()?.setInlineRole(role)}
+                onLiteral={(color) => p.api()?.setInlineColor(color)}
+                onPick={close}
+              />
+            )}
+          </Popover>
+        </div>
+
+        <Divider />
+
+        <div class="flex items-center gap-0.5">
+          <ToolButton
+            active={() => marks()?.list === "bullet"}
+            onClick={() => p.api()?.toggleLinePrefix("bullet")}
+            label={t3({
+              en: "Bulleted list",
+              fr: "Liste à puces",
+              pt: "Lista com marcas",
+            })}
+          >
+            <span>•</span>
+          </ToolButton>
+          <ToolButton
+            active={() => marks()?.list === "ordered"}
+            onClick={() => p.api()?.toggleLinePrefix("ordered")}
+            label={t3({
+              en: "Numbered list",
+              fr: "Liste numérotée",
+              pt: "Lista numerada",
+            })}
+          >
+            <span class="text-xs">1.</span>
+          </ToolButton>
+          <ToolButton
+            active={() => marks()?.quote === true}
+            onClick={() => p.api()?.toggleLinePrefix("quote")}
+            label={t3({ en: "Quote", fr: "Citation", pt: "Citação" })}
+          >
+            <span class="font-700">"</span>
+          </ToolButton>
+        </div>
+
+        {/* The caret is in a TABLE: rows and columns, in the pill rather
+              than only behind a right-click. */}
+        <Show when={p.context()?.table !== undefined}>
+          <Divider />
+          <div class="flex items-center gap-0.5">
+            <Popover
+              label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
+              title={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
             >
               {(close) => (
-                <div class="flex w-56 flex-col">
-                  <PopoverRow
-                    active={marks()?.highlight === undefined}
-                    onClick={() => {
-                      p.api()?.setInlineHighlight(undefined);
-                      close();
-                    }}
-                  >
-                    {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
-                  </PopoverRow>
-                  <LiteralColours
-                    literal={marks()?.highlight}
-                    onLiteral={(c) => p.api()?.setInlineHighlight(c)}
-                    onPick={close}
-                  />
+                <div class="ui-spy-sm flex w-56 flex-col">
+                  <For each={TABLE_ACTIONS()}>
+                    {(row) => (
+                      <>
+                        <Show when={row.divider}>
+                          <MenuDivider />
+                        </Show>
+                        <PopoverRow
+                          active={false}
+                          onClick={() => {
+                            p.api()?.applyTableAction(row.action);
+                            close();
+                          }}
+                        >
+                          {row.label}
+                        </PopoverRow>
+                      </>
+                    )}
+                  </For>
                 </div>
               )}
             </Popover>
-            <ToolButton
-              label={`${t3({ en: "Link", fr: "Lien", pt: "Ligação" })} (Ctrl+K)`}
-              onClick={() => p.api()?.insertLink()}
-            >
-              {/* panther's icon set has no chain glyph, so the link button
-                  uses a letterform like B/I/U do. */}
-              <span class="underline">↗</span>
-            </ToolButton>
-            <Popover
-              chevron={false}
-              label={
-                <span class={scopeClass}>
-                  {/* border-current: the bar under the A takes the role's
-                      own colour — or the literal — as Google Docs' colour
-                      button does. */}
-                  <span
-                    class={`${
-                      roleClassOf(marks()?.role)
-                    } font-700 border-b-2 border-current px-0.5 leading-none`}
-                    style={marks()?.color !== undefined ? { color: marks()?.color } : undefined}
-                  >
-                    A
-                  </span>
-                </span>
-              }
-              title={t3({ en: "Text colour", fr: "Couleur du texte", pt: "Cor do texto" })}
-            >
-              {(close) => (
-                <InkPanel
-                  scopeClass={scopeClass}
-                  role={marks()?.role}
-                  literal={marks()?.color}
-                  onRole={(role) => p.api()?.setInlineRole(role)}
-                  onLiteral={(color) => p.api()?.setInlineColor(color)}
-                  onPick={close}
-                />
-              )}
-            </Popover>
           </div>
+        </Show>
 
-          <Divider />
-
-          <div class="flex items-center gap-0.5">
-            <ToolButton
-              active={() => marks()?.list === "bullet"}
-              onClick={() => p.api()?.toggleLinePrefix("bullet")}
-              label={t3({ en: "Bulleted list", fr: "Liste à puces", pt: "Lista com marcas" })}
-            >
-              <span>•</span>
-            </ToolButton>
-            <ToolButton
-              active={() => marks()?.list === "ordered"}
-              onClick={() => p.api()?.toggleLinePrefix("ordered")}
-              label={t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" })}
-            >
-              <span class="text-xs">1.</span>
-            </ToolButton>
-            <ToolButton
-              active={() => marks()?.quote === true}
-              onClick={() => p.api()?.toggleLinePrefix("quote")}
-              label={t3({ en: "Quote", fr: "Citation", pt: "Citação" })}
-            >
-              <span class="font-700">"</span>
-            </ToolButton>
-          </div>
-
-          {/* The caret is in a TABLE: rows and columns, in the pill rather
-              than only behind a right-click. */}
-          <Show when={p.context()?.table !== undefined}>
-            <Divider />
-            <div class="flex items-center gap-0.5">
-              <Popover
-                label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
-                title={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
+        {/* The block under the cursor — its fence attributes append here. */}
+        <Show when={target()}>
+          {(block) => (
+            <>
+              <Divider />
+              <div
+                class="flex flex-wrap items-center gap-0.5"
+                data-tour="report-block-controls"
               >
-                {(close) => (
-                  <div class="ui-spy-sm flex w-56 flex-col">
-                    <For each={TABLE_ACTIONS()}>
-                      {(row) => (
-                        <>
-                          <Show when={row.divider}>
-                            <MenuDivider />
-                          </Show>
-                          <PopoverRow
-                            active={false}
-                            onClick={() => {
-                              p.api()?.applyTableAction(row.action);
-                              close();
-                            }}
-                          >
-                            {row.label}
-                          </PopoverRow>
-                        </>
+                <code class="bg-base-100 text-base-content-muted shrink-0 rounded-full border px-2 py-0.5 font-mono text-xs">
+                  :::{block().name}
+                </code>
+
+                <Show when={targetName()}>
+                  {(name) => (
+                    <For each={choiceControlsFor(name())}>
+                      {(control) => (
+                        <Popover
+                          label={`${control.label}: ${
+                            control.options.find(
+                              (o) =>
+                                o.value ===
+                                (attrValue(control.attr) ?? control.fallback),
+                            )?.label ?? control.fallback
+                          }`}
+                          title={control.label}
+                        >
+                          {(close) => (
+                            <div class="ui-spy-sm flex flex-col">
+                              <For each={control.options}>
+                                {(option) => (
+                                  <PopoverRow
+                                    active={
+                                      (attrValue(control.attr) ??
+                                        control.fallback) === option.value
+                                    }
+                                    onClick={() => {
+                                      patch(
+                                        control.attr,
+                                        option.value === control.fallback
+                                          ? undefined
+                                          : option.value,
+                                      );
+                                      close();
+                                    }}
+                                  >
+                                    {option.label}
+                                  </PopoverRow>
+                                )}
+                              </For>
+                            </div>
+                          )}
+                        </Popover>
                       )}
                     </For>
-                  </div>
-                )}
-              </Popover>
-            </div>
-          </Show>
+                  )}
+                </Show>
 
-          {/* The block under the cursor — its fence attributes append here. */}
-          <Show when={target()}>
-            {(block) => (
-              <>
-                <Divider />
-                <div
-                  class="flex flex-wrap items-center gap-0.5"
-                  data-tour="report-block-controls"
-                >
-                  <code class="bg-base-100 text-base-content-muted shrink-0 rounded-full border px-2 py-0.5 font-mono text-xs">
-                    :::{block().name}
-                  </code>
+                <Show when={block().name === "logos" && p.canInsertEmbeds()}>
+                  <ToolButton
+                    onClick={() => p.onEditLogos(block())}
+                    label={t3({
+                      en: "Choose the logos",
+                      fr: "Choisir les logos",
+                      pt: "Escolher os logótipos",
+                    })}
+                  >
+                    {t3({
+                      en: "Edit logos…",
+                      fr: "Modifier les logos…",
+                      pt: "Editar logótipos…",
+                    })}
+                  </ToolButton>
+                </Show>
 
-                  <Show when={targetName()}>
-                    {(name) => (
-                      <For each={choiceControlsFor(name())}>
-                        {(control) => (
-                          <Popover
-                            label={`${control.label}: ${
-                              control.options.find(
-                                (o) =>
-                                  o.value === (attrValue(control.attr) ?? control.fallback),
-                              )?.label ?? control.fallback
-                            }`}
-                            title={control.label}
-                          >
-                            {(close) => (
-                              <div class="ui-spy-sm flex flex-col">
-                                <For each={control.options}>
-                                  {(option) => (
-                                    <PopoverRow
-                                      active={(attrValue(control.attr) ??
-                                        control.fallback) === option.value}
-                                      onClick={() => {
-                                        patch(
-                                          control.attr,
-                                          option.value === control.fallback
-                                            ? undefined
-                                            : option.value,
-                                        );
-                                        close();
-                                      }}
-                                    >
-                                      {option.label}
-                                    </PopoverRow>
-                                  )}
-                                </For>
-                              </div>
-                            )}
-                          </Popover>
-                        )}
-                      </For>
-                    )}
-                  </Show>
-
-                  <Show when={block().name === "logos" && p.canInsertEmbeds()}>
-                    <ToolButton
-                      onClick={() => p.onEditLogos(block())}
-                      label={t3({ en: "Choose the logos", fr: "Choisir les logos", pt: "Escolher os logótipos" })}
-                    >
-                      {t3({ en: "Edit logos…", fr: "Modifier les logos…", pt: "Editar logótipos…" })}
-                    </ToolButton>
-                  </Show>
-
-                  {/* One background menu: tone presets over literal colours.
+                {/* One background menu: tone presets over literal colours.
                       The trigger swatch shows whichever ground is active. Not
                       on a tiles or columns GRID: a ground behind the whole row
                       reads as a mistake (the cards and columns inside take
                       their own), so the grid offers none. */}
-                  <Show when={block().name !== "tiles" && block().name !== "columns"}>
-                    <Popover
-                      label={
-                        <span class="flex items-center gap-1.5">
-                          <Show
-                            when={attrValue("bg")}
-                            fallback={
-                              <span class={scopeClass}>
-                                <span
-                                  class={`fm-tone fm-tone--${
-                                    attrValue(toneAttrFor(block().name)) ?? "default"
-                                  } inline-block h-3.5 w-3.5 rounded-full`}
-                                />
-                              </span>
-                            }
-                          >
-                            {(bg) => (
+                <Show
+                  when={block().name !== "tiles" && block().name !== "columns"}
+                >
+                  <Popover
+                    label={
+                      <span class="flex items-center gap-1.5">
+                        <Show
+                          when={attrValue("bg")}
+                          fallback={
+                            <span class={scopeClass}>
                               <span
-                                class="inline-block h-3.5 w-3.5 rounded-full border"
-                                style={{ "background-color": bg() }}
+                                class={`fm-tone fm-tone--${
+                                  attrValue(toneAttrFor(block().name)) ??
+                                  "default"
+                                } inline-block h-3.5 w-3.5 rounded-full`}
                               />
-                            )}
-                          </Show>
-                          {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-                        </span>
-                      }
-                      title={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
-                    >
-                      {(close) => (
-                        <GroundPanel
-                          scopeClass={scopeClass}
-                          tone={attrValue("bg") !== undefined
+                            </span>
+                          }
+                        >
+                          {(bg) => (
+                            <span
+                              class="inline-block h-3.5 w-3.5 rounded-full border"
+                              style={{ "background-color": bg() }}
+                            />
+                          )}
+                        </Show>
+                        {t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
+                      </span>
+                    }
+                    title={t3({ en: "Background", fr: "Fond", pt: "Fundo" })}
+                  >
+                    {(close) => (
+                      <GroundPanel
+                        scopeClass={scopeClass}
+                        tone={
+                          attrValue("bg") !== undefined
                             ? "literal"
-                            : fastrSurfaceTone(block().attrs) ?? "default"}
-                          literal={attrValue("bg")}
-                          onTone={(tone) =>
-                            patchGround({
-                              [toneAttrFor(block().name)]: tone === "default"
-                                ? undefined
-                                : tone,
-                              bg: undefined,
-                            })}
-                          onLiteral={(color) =>
-                            patchGround({
-                              [toneAttrFor(block().name)]: undefined,
-                              bg: color,
-                            })}
-                          onPick={close}
-                        />
-                      )}
-                    </Popover>
-                  </Show>
-                </div>
-              </>
-            )}
-          </Show>
+                            : (fastrSurfaceTone(block().attrs) ?? "default")
+                        }
+                        literal={attrValue("bg")}
+                        onTone={(tone) =>
+                          patchGround({
+                            [toneAttrFor(block().name)]:
+                              tone === "default" ? undefined : tone,
+                            bg: undefined,
+                          })
+                        }
+                        onLiteral={(color) =>
+                          patchGround({
+                            [toneAttrFor(block().name)]: undefined,
+                            bg: color,
+                          })
+                        }
+                        onPick={close}
+                      />
+                    )}
+                  </Popover>
+                </Show>
+              </div>
+            </>
+          )}
         </Show>
-        </div>
-      </div>
-    </div>
+      </Show>
+    </ToolbarRow>
   );
 }
 
@@ -1279,11 +1530,18 @@ function TilesPicker(p: {
 }) {
   const [hover, setHover] = createSignal(1);
   const caption = (n: number) =>
-    p.caption ? p.caption(n) : `${n} ${t3({ en: "across", fr: "en largeur", pt: "lado a lado" })}`;
+    p.caption
+      ? p.caption(n)
+      : `${n} ${t3({ en: "across", fr: "en largeur", pt: "lado a lado" })}`;
   return (
     <div class="bg-base-100 ui-pad-sm shadow-floating rounded border">
       <div class="flex gap-0.5">
-        <For each={Array.from({ length: p.max ?? TILES_MAX_COLS }, (_, i) => i + 1)}>
+        <For
+          each={Array.from(
+            { length: p.max ?? TILES_MAX_COLS },
+            (_, i) => i + 1,
+          )}
+        >
           {(n) => (
             <button
               type="button"
@@ -1305,7 +1563,6 @@ function TilesPicker(p: {
   );
 }
 
-
 // Word count and the rest — what people open a File or Page menu looking for.
 function DetailRows(p: {
   stats: {
@@ -1317,18 +1574,37 @@ function DetailRows(p: {
   };
 }) {
   const rows = () => [
-    { label: t3({ en: "Words", fr: "Mots", pt: "Palavras" }), value: String(p.stats.words) },
-    { label: t3({ en: "Headings", fr: "Titres", pt: "Títulos" }), value: String(p.stats.headings) },
     {
-      label: t3({ en: "Visualizations", fr: "Visualisations", pt: "Visualizações" }),
+      label: t3({ en: "Words", fr: "Mots", pt: "Palavras" }),
+      value: String(p.stats.words),
+    },
+    {
+      label: t3({ en: "Headings", fr: "Titres", pt: "Títulos" }),
+      value: String(p.stats.headings),
+    },
+    {
+      label: t3({
+        en: "Visualizations",
+        fr: "Visualisations",
+        pt: "Visualizações",
+      }),
       value: String(p.stats.figures),
     },
-    { label: t3({ en: "Images", fr: "Images", pt: "Imagens" }), value: String(p.stats.images) },
+    {
+      label: t3({ en: "Images", fr: "Images", pt: "Imagens" }),
+      value: String(p.stats.images),
+    },
     ...(p.stats.lastSaved
-      ? [{
-        label: t3({ en: "Last saved", fr: "Dernier enregistrement", pt: "Última gravação" }),
-        value: p.stats.lastSaved,
-      }]
+      ? [
+          {
+            label: t3({
+              en: "Last saved",
+              fr: "Dernier enregistrement",
+              pt: "Última gravação",
+            }),
+            value: p.stats.lastSaved,
+          },
+        ]
       : []),
   ];
   return (
@@ -1354,29 +1630,53 @@ function TABLE_ACTIONS(): {
   return [
     {
       action: "insertRowAbove",
-      label: t3({ en: "Insert row above", fr: "Insérer une ligne au-dessus", pt: "Inserir linha acima" }),
+      label: t3({
+        en: "Insert row above",
+        fr: "Insérer une ligne au-dessus",
+        pt: "Inserir linha acima",
+      }),
     },
     {
       action: "insertRowBelow",
-      label: t3({ en: "Insert row below", fr: "Insérer une ligne en dessous", pt: "Inserir linha abaixo" }),
+      label: t3({
+        en: "Insert row below",
+        fr: "Insérer une ligne en dessous",
+        pt: "Inserir linha abaixo",
+      }),
     },
     {
       action: "insertColLeft",
-      label: t3({ en: "Insert column left", fr: "Insérer une colonne à gauche", pt: "Inserir coluna à esquerda" }),
+      label: t3({
+        en: "Insert column left",
+        fr: "Insérer une colonne à gauche",
+        pt: "Inserir coluna à esquerda",
+      }),
       divider: true,
     },
     {
       action: "insertColRight",
-      label: t3({ en: "Insert column right", fr: "Insérer une colonne à droite", pt: "Inserir coluna à direita" }),
+      label: t3({
+        en: "Insert column right",
+        fr: "Insérer une colonne à droite",
+        pt: "Inserir coluna à direita",
+      }),
     },
     {
       action: "deleteRow",
-      label: t3({ en: "Delete row", fr: "Supprimer la ligne", pt: "Eliminar linha" }),
+      label: t3({
+        en: "Delete row",
+        fr: "Supprimer la ligne",
+        pt: "Eliminar linha",
+      }),
       divider: true,
     },
     {
       action: "deleteCol",
-      label: t3({ en: "Delete column", fr: "Supprimer la colonne", pt: "Eliminar coluna" }),
+      label: t3({
+        en: "Delete column",
+        fr: "Supprimer la colonne",
+        pt: "Eliminar coluna",
+      }),
     },
   ];
 }
@@ -1393,7 +1693,10 @@ function ThemeChip(p: { theme: FastrReportTheme }) {
     >
       <span
         class="text-sm leading-none"
-        style={{ "font-family": tok().fontHeading, "font-weight": tok().headingWeight }}
+        style={{
+          "font-family": tok().fontHeading,
+          "font-weight": tok().headingWeight,
+        }}
       >
         Aa
       </span>
@@ -1424,9 +1727,17 @@ function CoverPicker(p: {
   onPick: (preset: FastrCoverPreset) => void;
 }) {
   const tileText = () => ({
-    kicker: t3({ en: "Ministry · 2026", fr: "Ministère · 2026", pt: "Ministério · 2026" }),
+    kicker: t3({
+      en: "Ministry · 2026",
+      fr: "Ministère · 2026",
+      pt: "Ministério · 2026",
+    }),
     title: t3({ en: "Report title", fr: "Titre du rapport", pt: "Título" }),
-    sub: t3({ en: "What this report covers", fr: "Ce que couvre ce rapport", pt: "O que este relatório cobre" }),
+    sub: t3({
+      en: "What this report covers",
+      fr: "Ce que couvre ce rapport",
+      pt: "O que este relatório cobre",
+    }),
   });
   return (
     <div class="bg-base-100 ui-pad-sm shadow-floating w-80 rounded border">
@@ -1467,7 +1778,9 @@ function TableGridPicker(p: { onPick: (cols: number, rows: number) => void }) {
     <div class="bg-base-100 ui-pad-sm shadow-floating rounded border">
       <div
         class="grid gap-0.5"
-        style={{ "grid-template-columns": `repeat(${TABLE_PICKER_COLS}, 1rem)` }}
+        style={{
+          "grid-template-columns": `repeat(${TABLE_PICKER_COLS}, 1rem)`,
+        }}
       >
         <For each={cells}>
           {(cell) => (
@@ -1492,7 +1805,6 @@ function TableGridPicker(p: { onPick: (cols: number, rows: number) => void }) {
     </div>
   );
 }
-
 
 function roleClassOf(role: FastrInkRole | undefined): string {
   return role === undefined ? "" : `fm-mark fm-mark--${role}`;
@@ -1526,7 +1838,8 @@ function GroundPanel(p: {
               type="button"
               class="ui-focusable h-6 cursor-pointer overflow-hidden rounded"
               classList={{
-                "ring-2 ring-primary": p.literal === undefined && p.tone === tone,
+                "ring-2 ring-primary":
+                  p.literal === undefined && p.tone === tone,
               }}
               title={fastrToneLabel(tone)}
               onClick={() => {
@@ -1558,7 +1871,11 @@ function GroundPanel(p: {
           )}
         </For>
       </div>
-      <LiteralColours literal={p.literal} onLiteral={p.onLiteral} onPick={p.onPick} />
+      <LiteralColours
+        literal={p.literal}
+        onLiteral={p.onLiteral}
+        onPick={p.onPick}
+      />
     </div>
   );
 }
@@ -1579,7 +1896,11 @@ function InkPanel(p: {
   return (
     <div class="flex w-56 flex-col">
       <div class="text-base-content-muted pb-1 text-xs">
-        {t3({ en: "Theme colours", fr: "Couleurs du thème", pt: "Cores do tema" })}
+        {t3({
+          en: "Theme colours",
+          fr: "Couleurs du thème",
+          pt: "Cores do tema",
+        })}
       </div>
       <div class="grid grid-cols-7 gap-1">
         <For each={presets}>
@@ -1588,24 +1909,33 @@ function InkPanel(p: {
               type="button"
               class="ui-focusable h-6 cursor-pointer overflow-hidden rounded border"
               classList={{
-                "ring-2 ring-primary": p.literal === undefined && p.role === role,
+                "ring-2 ring-primary":
+                  p.literal === undefined && p.role === role,
               }}
-              title={role === undefined
-                ? t3({ en: "None", fr: "Aucune", pt: "Nenhuma" })
-                : fastrRoleLabel(role)}
+              title={
+                role === undefined
+                  ? t3({ en: "None", fr: "Aucune", pt: "Nenhuma" })
+                  : fastrRoleLabel(role)
+              }
               onClick={() => {
                 p.onRole(role);
                 p.onPick?.();
               }}
             >
-              <span class={`${p.scopeClass} flex h-full w-full items-center justify-center text-xs`}>
+              <span
+                class={`${p.scopeClass} flex h-full w-full items-center justify-center text-xs`}
+              >
                 <span class={`${roleClassOf(role)} font-700`}>Aa</span>
               </span>
             </button>
           )}
         </For>
       </div>
-      <LiteralColours literal={p.literal} onLiteral={p.onLiteral} onPick={p.onPick} />
+      <LiteralColours
+        literal={p.literal}
+        onLiteral={p.onLiteral}
+        onPick={p.onPick}
+      />
     </div>
   );
 }
@@ -1635,7 +1965,8 @@ function LiteralColours(p: {
               type="button"
               class="ui-focusable h-6 cursor-pointer rounded border"
               classList={{
-                "ring-2 ring-primary": p.literal !== undefined &&
+                "ring-2 ring-primary":
+                  p.literal !== undefined &&
                   p.literal.toLowerCase() === color.toLowerCase(),
               }}
               style={{ "background-color": color }}

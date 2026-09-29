@@ -85,7 +85,7 @@ function surfaceCss(ground: string): string {
 html { overflow-y: scroll; }
 body { background: ${ground} !important; min-height: 100vh; }
 .pagedjs_pages { padding: 24px 0 48px; }
-.pagedjs_page { box-shadow: 0 0 0 1px rgba(0,0,0,.16), 0 2px 6px rgba(0,0,0,.16), 0 12px 32px rgba(0,0,0,.2); margin: 0 auto 28px; }
+.pagedjs_page { box-shadow: 0 0 0 1px var(--color-border, #cacaca), 0 2px 6px rgba(0,0,0,.16), 0 12px 32px rgba(0,0,0,.2); margin: 0 auto 28px; }
 .cm-fm-text-edit { cursor: text; }
 .cm-fm-text-edit:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
 .cm-fm-text-edit:focus { outline: 1px dashed var(--fm-accent-text); outline-offset: 2px; text-decoration: none; }

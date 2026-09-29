@@ -1,9 +1,50 @@
 // The Google Docs style toolbar parts shared by the report and slide editors:
-// a menu-bar row of popover menus above one pill of flat tool buttons. See
+// a menu-bar row of popover menus above one row of flat tool buttons. See
 // report/toolbar.tsx and slide_deck/slide_editor/slide_toolbar.tsx.
 
-import { createSignal, type JSX, onCleanup, Show } from "solid-js";
+import { createSignal, type JSX, onCleanup, Show, splitProps } from "solid-js";
 import { Icon } from "panther";
+
+// The menu row (File, Insert, Page...) under the heading bar, the same in
+// both headers: a flat ruled row the header fills with its own menus, and the
+// open document's toolbar portals its menus into (the ref is the portal host).
+export function MenuRow(p: {
+  ref: (el: HTMLDivElement) => void;
+  children?: JSX.Element;
+}) {
+  return (
+    <div
+      ref={p.ref}
+      // The left pad is the row's less a menu button's own, so the first
+      // label ("File") starts on the header's padding edge, under the back
+      // button.
+      class="flex flex-wrap items-center gap-1 border-b py-1.5 pr-[var(--ui-pad-x)] pl-[calc(var(--ui-pad-x)-var(--ui-pad-sm-x))]"
+      data-cursor-zone="header"
+    >
+      {p.children}
+    </div>
+  );
+}
+
+// The formatting row itself, the root of both editors' toolbars so the two
+// cannot drift: a flat wrapping row that closes the header with a rule.
+export function ToolbarRow(
+  p: { children: JSX.Element } & Omit<
+    JSX.HTMLAttributes<HTMLDivElement>,
+    "class" | "classList"
+  >,
+) {
+  const [local, rest] = splitProps(p, ["children"]);
+  return (
+    <div
+      class="flex flex-wrap items-center gap-0.5 border-b px-3 py-1.5"
+      data-cursor-zone="header"
+      {...rest}
+    >
+      {local.children}
+    </div>
+  );
+}
 
 // A menu row that opens a panel to its right on hover — the Insert menu's
 // picker pattern (pure CSS, so the flyout stays up while the pointer travels
@@ -99,7 +140,9 @@ export function ToolbarPopover(p: {
     setOpen(true);
     document.addEventListener("pointerdown", onDocPointerDown, true);
   }
-  onCleanup(() => document.removeEventListener("pointerdown", onDocPointerDown, true));
+  onCleanup(() =>
+    document.removeEventListener("pointerdown", onDocPointerDown, true),
+  );
 
   return (
     <div ref={wrap}>
@@ -116,7 +159,10 @@ export function ToolbarPopover(p: {
           >
             {p.label}
             <Show when={p.chevron !== false}>
-              <Icon iconName="chevronDown" class="text-base-content-muted h-3 w-3" />
+              <Icon
+                iconName="chevronDown"
+                class="text-base-content-muted h-3 w-3"
+              />
             </Show>
           </button>
         }

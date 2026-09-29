@@ -1183,30 +1183,39 @@ export const FM_PAGE_PAD_X = 24;
 
 export function buildFastrEditorSurfaceCss(scope: string): string {
   const d = `${scope} `;
-  // The SHEET: the page ground lives on the content column only — the pane
-  // around it stays app chrome, exactly like View's bounded page. The scope
-  // root's own structure background is overridden back to transparent (this
-  // sheet is appended last, so the tie resolves here).
-  const sheet = `${scope} { background: transparent; }
-/* The SHEET is the scroller: the printed sheet at 96dpi (the host sets
+  // The SHEET: the page ground lives on the content column only. Around it
+  // the pane is the app's base-200 ground, exactly like View's bounded page,
+  // painted on the scope root over the theme's own structure background
+  // (this sheet is appended last, so the tie resolves here).
+  const sheet = `${scope} { background: var(--color-base-200, #f2f2f2); }
+/* The EDITOR is the sheet: the printed sheet at 96dpi (the host sets
    --fm-sheet, 794px for A4, and --fm-measure so the column below is the
    printed column, 1:1, so lines wrap here exactly as they wrap in print),
-   centered, painted with the page ground.
-   The ground must live HERE and not on .cm-content: the box layer draws at
-   negative z, and an in-flow element's background would paint OVER it —
-   a scroller's own background paints below its negative-z children. */
+   centered on the ground. Capping the editor element itself, not just its
+   scroller, keeps the ground beside the sheet outside CodeMirror: a click
+   there lands on the pane, not on the document. */
+${d}.cm-editor {
+  background: transparent;
+  width: 100%;
+  max-width: var(--fm-sheet, 896px);
+  margin-inline: auto;
+}
+/* CodeMirror's dotted focus outline would ring the whole sheet. */
+${d}.cm-editor.cm-focused { outline: none; }
+/* The scroller paints the page ground. It must live HERE and not on
+   .cm-content: the box layer draws at negative z, and an in-flow element's
+   background would paint OVER it — a scroller's own background paints below
+   its negative-z children. */
 ${d}.cm-scroller {
   background: var(--fm-page);
   /* The sheet's edge on the pane's base-200: a near-white page on a
      near-white ground needs a drawn edge, not just the tone step. The same
      edge as the paged surface's sheets (paged_edit_surface.ts). */
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.16),
+  box-shadow: 0 0 0 1px var(--color-border, #cacaca), 0 2px 6px rgba(0, 0, 0, 0.16),
     0 12px 32px rgba(0, 0, 0, 0.2);
-  /* The scroller is a flex item: without an explicit width, auto margins
-     would shrink it to fit content. */
+  /* The scroller is a flex item: without an explicit width it would shrink
+     to fit content. */
   width: 100%;
-  max-width: var(--fm-sheet, 896px);
-  margin-inline: auto;
   /* The centering theme pads the scroller right to align the column past the
      app's floating sidebar. On the SHEET that padding would shrink the content
      area and paint the ground under the sidebar — neutralise it and take the
