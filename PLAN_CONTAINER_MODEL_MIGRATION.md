@@ -6,7 +6,7 @@
 > `tim-branch`; this plan binds to `version2`, where the tree is today, and Tim
 > confirms which before Do 1.
 
-**Next step:** Fix 3
+**Next step:** Review 3
 
 Panther's UI kit now puts a container's inset and stack spacing on its slot
 (`pad` / `spy` on every Frame content slot, `panelPad` / `panelSpy` on side
@@ -290,3 +290,6 @@ goes through the panther repo and a fresh sync.
 | 2026-09-29 | 3 | Review, fact: moving `ui-pad` off a div that keeps a width changes the width, since Tailwind's preflight makes the div border-box and the old inset was inside it. `insert_figure/step_1_metric.tsx:59`: the module sidebar's panel is 16rem wide, not 14rem (`w-56` plus the panel's inset either side). `family_configuration.tsx:207`, `admin_area_labels.tsx:71`, `xlsx_upload_form.tsx:130`, `import_form.tsx:133` (`max-w-3xl`) and `hfa_weights.tsx:219` (`max-w-xl`): the content's maximum is 2rem wider. Same shape as the step 1 `min-h-[24rem]` row; ruling 5 stands, no code change. |
 | 2026-09-29 | 3 | Review, floor: `deno task typecheck` exit 0; `deno task test` 469 passed, 0 failed, 3 ignored on the first run; `./validate_protocols` passed with the one stale baseline entry already logged. `./run` not started: `docker ps` showed `pg` and `valkey-local` up, deno on 8000 and vite on 3000 listening. |
 | 2026-09-29 | 3 | Step 3 reviewed: 2 findings. |
+| 2026-09-29 | 3 | Fix, finding 1: the "Grouping sidebar" scaffold in `PROTOCOL_APP_UI_CONVENTIONS.md` now says `panelPad="md"` on the frame with the `SelectList` bare, no wrapper. Finding 2 changed no code: the eight padded branches beside a flush one stay as ruling 5 says; `results_packages.tsx:285` is left for Tim, as the review put it. |
+| 2026-09-29 | 3 | Floor: `deno task typecheck` exit 0, `deno task test` 469 passed, `./validate_protocols` pass. `./run` not started: the app is still running from this tree. |
+| 2026-09-29 | 3 | Step 3 fixed. |

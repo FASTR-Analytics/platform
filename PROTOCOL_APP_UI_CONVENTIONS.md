@@ -201,8 +201,8 @@ outline action buttons.
 **Grouping sidebar** (inside Pattern C's resizable panel): the frame draws the
 edge, so don't add one. With a controls section (e.g. a `Select` for group-by):
 full-height column, controls `ui-pad border-b`, list `ui-pad flex-1
-overflow-auto` around the `SelectList`. Without one: just
-`ui-pad h-full overflow-auto` around the `SelectList`, no column wrapper.
+overflow-auto` around the `SelectList`. Without one: `panelPad="md"` on the
+frame and the `SelectList` bare in the panel, no wrapper.
 
 **Context menu:** panther
 `showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items })`,
