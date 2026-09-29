@@ -8,7 +8,7 @@ one folder row named **General**. General is a presentation of the root, not
 a stored folder: no row is created, no product is rewritten, the server does
 not change. Delete this file when the last review passes.
 
-**Next step: Fix 1**
+**Next step: Review 1**
 
 Branch: `version2`. Repos: this app only. Read first: `CLAUDE.md`,
 `SYSTEMS.md`, `SYSTEM_12_documents_sharing.md` ("The product explorer" and
@@ -209,3 +209,5 @@ step's review passes. Rollback is reverting the one commit.
 | 1 | Finding: `SYSTEM_12_documents_sharing.md:448` says the heading-bar button "closes them all once all are open". `anyFolderOpen` (`products.tsx:216`) is `some`, so the button closes every folder once any openable one is open, and its label reads Collapse all from then. The wording predates the step, but the step rewrote the sentence and left the claim. |
 | 1 | Finding: `SYSTEM_14_client_shell.md:254` lists the product explorer's UI preferences as two (`productsExpandedFolders`, `productsSort`); the step added a third, `productsGeneralClosed`. The file is outside the Surface, which omitted it; the Fix session edits it and records the deviation. |
 | 1 | Step 1 reviewed: 2 findings |
+| 1 | Deviation: `SYSTEM_14_client_shell.md` is outside the Surface, which missed that its UI-preferences paragraph enumerates the explorer's saved signals. Edited on the review's finding so the docs move with the code. |
+| 1 | Step 1 fixed |

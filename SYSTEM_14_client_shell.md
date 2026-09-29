@@ -251,9 +251,11 @@ Whether every literal is well-formed across the 241-file surface is the standing
 
 Signal + localStorage pairs, each with a `set*` wrapper that writes localStorage
 then the signal: the rail's `navCollapsed`; the
-product explorer's two (`productsExpandedFolders`, the open folder ids as
-a JSON array; `productsSort`, a `ListSort` (`SortMode = "name" | "recent"`
-plus a direction) from `lib/types/sort.ts`, one vocabulary for every list).
+product explorer's three (`productsExpandedFolders`, the open folder ids as
+a JSON array; `productsGeneralClosed`, whether the user closed the General
+row, absent meaning open; `productsSort`, a `ListSort` (`SortMode = "name" |
+"recent"` plus a direction) from `lib/types/sort.ts`, one vocabulary for
+every list).
 The open-folder set and the sort
 are parsed defensively (malformed JSON reads as the default); the rest are
 unvalidated on read: they only feed

@@ -445,7 +445,7 @@ chevron for a folder or General, the type icon for a product. Clicking a
 folder or General row opens or closes it (also Enter, Space and the arrow
 keys), clicking a product row opens its editor, and there is no selection.
 One heading-bar button, left of the search field (the `centerLeftChildren`
-slot), opens every folder and General, or closes them all once all are open.
+slot), opens every folder and General, or closes them all once any is open.
 A folder row leaves the Package and Area columns empty; General leaves the
 date and menu cells empty too, and right-click does nothing on it.
 Search at 3+ characters keeps each match in its place in the tree, opens the
