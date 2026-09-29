@@ -1142,9 +1142,9 @@ export function ReportBodyEditor(p: Props) {
         ref={parent}
         class="h-full w-full"
         classList={{
-          // Around the live-preview sheet the pane is the slide editor's
-          // canvas ground; the plain code editor stays on the editor white.
-          "bg-base-200": p.livePreview?.() ?? false,
+          // The live-preview sheet's base-200 ground is painted by the live
+          // surface CSS (buildFastrEditorSurfaceCss); the plain code editor
+          // stays on the editor white.
           "bg-base-100": !(p.livePreview?.() ?? false),
         }}
         style={pagesOn()

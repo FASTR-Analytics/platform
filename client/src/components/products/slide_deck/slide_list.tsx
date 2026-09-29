@@ -22,7 +22,14 @@ import {
   openComponent,
 } from "panther";
 import { Sortable, SortableJs } from "panther";
-import { createEffect, createSignal, type JSX, on, Show, untrack } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  type JSX,
+  on,
+  Show,
+  untrack,
+} from "solid-js";
 import { serverActions } from "~/server_actions";
 import { CopySlidesToDeckModal } from "./copy_slides_to_deck_modal";
 import { SlideCard } from "./slide_card";
@@ -33,11 +40,18 @@ import { copilotViewController } from "~/components/products/copilot/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { UpdateAllFiguresButton } from "~/components/_shared/figure_editor/mod.ts";
-import { PackageScopeChip, ProductTitle } from "~/components/products/_shared/mod.ts";
+import {
+  MenuRow,
+  PackageScopeChip,
+  ProductTitle,
+} from "~/components/products/_shared/mod.ts";
 import { DeckFileMenu, DeckMenu } from "./deck_menu";
 import { SlideDeckThemeModal } from "./style_editor/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
-import { collectDeckStaleFigures, updateAllDeckFigures } from "./deck_stale_figures";
+import {
+  collectDeckStaleFigures,
+  updateAllDeckFigures,
+} from "./deck_stale_figures";
 
 type Props = {
   productId: string;
@@ -230,7 +244,9 @@ export function SlideList(p: Props) {
   function neighbourOf(ids: string[]): string | undefined {
     const items = sortableSlideItems().map((i) => i.id);
     const gone = new Set(ids);
-    const indexes = items.map((id, i) => (gone.has(id) ? i : -1)).filter((i) => i >= 0);
+    const indexes = items
+      .map((id, i) => (gone.has(id) ? i : -1))
+      .filter((i) => i >= 0);
     if (indexes.length === 0) return undefined;
     for (let i = Math.max(...indexes) + 1; i < items.length; i++) {
       if (!gone.has(items[i])) return items[i];
@@ -292,7 +308,14 @@ export function SlideList(p: Props) {
         if (current !== undefined && slideIdsToDelete.includes(current)) {
           const moved = await p.onSelectSlide(neighbourOf(slideIdsToDelete));
           if (!moved) {
-            return { success: false as const, err: t3({ en: "Delete cancelled.", fr: "Suppression annulée.", pt: "Eliminação cancelada." }) };
+            return {
+              success: false as const,
+              err: t3({
+                en: "Delete cancelled.",
+                fr: "Suppression annulée.",
+                pt: "Eliminação cancelada.",
+              }),
+            };
           }
         }
         return await serverActions.deleteSlides({
@@ -454,17 +477,29 @@ export function SlideList(p: Props) {
 
   const addSlideMenuItems = (): MenuItem[] => [
     {
-      label: t3({ en: "Cover slide", fr: "Diapositive de couverture", pt: "Diapositivo de capa" }),
+      label: t3({
+        en: "Cover slide",
+        fr: "Diapositive de couverture",
+        pt: "Diapositivo de capa",
+      }),
       icon: "plus",
       onClick: () => addSlide(getDefaultCoverSlide()),
     },
     {
-      label: t3({ en: "Section slide", fr: "Diapositive de section", pt: "Diapositivo de secção" }),
+      label: t3({
+        en: "Section slide",
+        fr: "Diapositive de section",
+        pt: "Diapositivo de secção",
+      }),
       icon: "plus",
       onClick: () => addSlide(getDefaultSectionSlide()),
     },
     {
-      label: t3({ en: "Content slide", fr: "Diapositive de contenu", pt: "Diapositivo de conteúdo" }),
+      label: t3({
+        en: "Content slide",
+        fr: "Diapositive de contenu",
+        pt: "Diapositivo de conteúdo",
+      }),
       icon: "plus",
       onClick: () => addSlide(getDefaultContentSlide()),
     },
@@ -497,7 +532,10 @@ export function SlideList(p: Props) {
       setStaleCount(0);
       return;
     }
-    void rescanStaleFigures({ runId: scope.runId, adminArea2: scope.adminArea2 }, slideIds);
+    void rescanStaleFigures(
+      { runId: scope.runId, adminArea2: scope.adminArea2 },
+      slideIds,
+    );
   });
 
   async function updateAllFigures() {
@@ -587,7 +625,8 @@ export function SlideList(p: Props) {
       props: {
         product,
         countStaleUnder: async (pair: PackageScope) =>
-          (await collectDeckStaleFigures(p.productId, [...p.slideIds], pair)).length,
+          (await collectDeckStaleFigures(p.productId, [...p.slideIds], pair))
+            .length,
       },
     });
   }
@@ -648,7 +687,11 @@ export function SlideList(p: Props) {
         iconName="plus"
         outline
       >
-        {t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+        {t3({
+          en: "Add slide",
+          fr: "Ajouter une diapositive",
+          pt: "Adicionar diapositivo",
+        })}
       </MenuButton>
       <Show when={p.slideIds.length > 0}>
         <Button
@@ -675,11 +718,7 @@ export function SlideList(p: Props) {
         {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
       </Button>
       <Show when={!showAi()}>
-        <Button
-          onClick={() => setShowAi(true)}
-          iconName="chevronLeft"
-          outline
-        >
+        <Button onClick={() => setShowAi(true)} iconName="chevronLeft" outline>
           {t3({ en: "AI", fr: "IA", pt: "IA" })}
         </Button>
       </Show>
@@ -690,41 +729,27 @@ export function SlideList(p: Props) {
   // then the open slide's Slide, Insert..., portaled in by the slide
   // toolbar); and the toolbar for whatever is selected.
   const headerPanel = (
-    <div class="h-full w-full border-b" data-cursor-zone="header">
-      <div class="w-full flex-none" data-tour="deck-toolbar">
-        <HeadingBar onBack={() => p.handleClose()} heading={headerTitle}>
-          {headerActions}
-        </HeadingBar>
-        {/* The pull-back puts the first menu's label on the bar's padding
-            edge, under the back button. */}
-        <div class="ui-pad-x flex min-h-10 items-center border-b py-1">
-          <div
-            class="-ml-2 flex min-w-0 flex-wrap items-center gap-1"
-            ref={p.onMenuRowHost}
-          >
-            <DeckFileMenu
-              onDownload={() => void p.download()}
-              onShare={() => void p.share()}
-              onRename={() => void p.handleOpenProductSettings()}
-              selectedCount={selectedIds().size}
-              onCopyToDeck={() => void copyToDeck()}
-            />
-            <DeckMenu
-              config={deckConfig()}
-              canEdit={canEditFigures()}
-              onPatch={(patch) => void patchDeckConfig(patch)}
-              onOpenAllSettings={() => void p.handleOpenSettings()}
-            />
-          </div>
-        </div>
-        {/* The open slide's formatting pill. The row keeps the pill's height
-            even while it is empty: a cold slide switch unmounts the editor,
-            and with it this portal, for a frame or two, and a collapsing row
-            would jump the canvas under the cursor. */}
-        <div class="flex min-h-12 items-start" data-cursor-zone="header">
-          <div class="min-w-0 flex-1" ref={p.onToolbarHost} data-tour="slide-editor-header" />
-        </div>
-      </div>
+    <div data-cursor-zone="header" data-tour="deck-toolbar">
+      <HeadingBar onBack={() => p.handleClose()} heading={headerTitle}>
+        {headerActions}
+      </HeadingBar>
+      <MenuRow ref={p.onMenuRowHost}>
+        <DeckFileMenu
+          onDownload={() => void p.download()}
+          onShare={() => void p.share()}
+          onRename={() => void p.handleOpenProductSettings()}
+          selectedCount={selectedIds().size}
+          onCopyToDeck={() => void copyToDeck()}
+        />
+        <DeckMenu
+          config={deckConfig()}
+          canEdit={canEditFigures()}
+          onPatch={(patch) => void patchDeckConfig(patch)}
+          onOpenAllSettings={() => void p.handleOpenSettings()}
+        />
+      </MenuRow>
+      {/* The open slide's toolbar, portaled in by the slide editor. */}
+      <div ref={p.onToolbarHost} data-tour="slide-editor-header" />
     </div>
   );
 
@@ -796,7 +821,9 @@ export function SlideList(p: Props) {
                         onDelete={() => handleDelete(item.id)}
                         onDuplicate={() => handleDuplicate(item.id)}
                         deckConfig={p.deckConfig}
-                        viewers={otherPeers().filter((pe) => pe.slideId === item.id)}
+                        viewers={otherPeers().filter(
+                          (pe) => pe.slideId === item.id,
+                        )}
                       />
                     );
                   }}

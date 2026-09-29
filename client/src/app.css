@@ -24,7 +24,7 @@
      package and scope: a mid grey between base-300 and base-content, so it
      reads as a label rather than an action. Hover and active follow
      panther's intent ramp recipe. */
-  --color-package: light-dark(#767676, #a1a1aa);
+  --color-package: light-dark(#6f9e9b, #92b8b5);
   --color-package-content: var(--color-base-100);
   --color-package-hover: color-mix(in oklab, var(--color-package), black 8%);
   --color-package-active: color-mix(in oklab, var(--color-package), black 14%);
