@@ -6,7 +6,7 @@
 > `tim-branch`; this plan binds to `version2`, where the tree is today, and Tim
 > confirms which before Do 1.
 
-**Next step:** Review 1
+**Next step:** Do 2
 
 Panther's UI kit now puts a container's inset and stack spacing on its slot
 (`pad` / `spy` on every Frame content slot, `panelPad` / `panelSpy` on side
@@ -257,3 +257,7 @@ goes through the panther repo and a fresh sync.
 | 2026-09-29 | 1 | Floor, test: the first run failed 9 tests while `./run` (Tim's) was replacing the Postgres container; the rerun passed 469, 0 failed. `./validate_protocols` passes; its one stale baseline entry is `instance/email_opt_in_modal.tsx`, deleted on 2026-09-23 before this plan, not pruned. `./run` not started by this session: the app was already running from this tree on 8000 and 3000, and `./run` replaces the containers. |
 | 2026-09-29 | 1 | `explore/data_table/data_table.tsx` and `explore/timeseries.tsx` held both workstreams' edits during the session; the Explore hunks went out in `95c8f4f3b`, leaving only this step's one `noPad` hunk in each. |
 | 2026-09-29 | 1 | Step 1 built. |
+| 2026-09-29 | 1 | Review: the ruling 2 gap row's "render is unchanged" is inexact. `min-h-[24rem]` is border-box under Tailwind's preflight, so it used to include the div's own 1rem inset; with the inset on the body the minimum body height is 24rem plus the body's 2rem in `hfa/imports/wizard.tsx:303`, `hmis/imports/csv_wizard.tsx:356` and `iceh/imports/wizard.tsx:169` (`hmis/imports/wizard/wizard.tsx:555` sits under a fixed `height="lg"`, unaffected). The resolution stands: the div is a min-height host, not a padding div, which is §2's shape, and a `22rem` literal would encode the old inset. No code change. |
+| 2026-09-29 | 1 | Review: §0's reading list names `panther/DOC_CONTAINER_MODEL.md`, but the sync copies only `protocols/*.md` (the manifest's `protocols` list), so the file is not in this tree. It is read from the panther repo root, `/Users/timroberton/projects/panther/timroberton-panther/DOC_CONTAINER_MODEL.md`, and steps 2 and 3 read it there. |
+| 2026-09-29 | 1 | Review: surface clean (32 client files, each hunk one of the three props, plus this file). Rulings 1, 2, 3, 10 present in the code; the old `CollapsibleSection padding` padded only the header row, so `headerPad="sm"` keeps the render. Floor: typecheck green, test 469 passed 0 failed on the first run, `./validate_protocols` passed with the one stale baseline entry already logged. `./run` not started: `docker ps` showed `pg` and `valkey-local` up (Tim's, restarted during the review) and deno on 8000 and vite on 3000 listening. Greps: `noPad` only at the two `TabsNavigation` sites (`hmis/imports/imports.tsx:350`, `hfa/indicators/unused_variables_modal.tsx:59`); `noContentPadding` and `padding="sm"` none. |
+| 2026-09-29 | 1 | Step 1 reviewed: 2 findings. |
