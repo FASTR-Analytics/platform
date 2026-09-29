@@ -716,7 +716,6 @@ function IndicatorsTable(p: {
             fr: "indicateur",
             pt: "indicador",
           })}
-          paddingY="compact"
         />
       </div>
     </div>
