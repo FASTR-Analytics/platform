@@ -39,6 +39,8 @@ export function ViewFiles(
 
   return (
     <FrameTop
+      pad="md"
+      spy="sm"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -48,35 +50,33 @@ export function ViewFiles(
     >
       <StateHolderWrapper state={rFiles.state()}>
         {(keyedFiles) => (
-          <div class="ui-spy-sm ui-pad">
-            <Show
-              when={keyedFiles.files.length > 0}
-              fallback={
-                <div class="text-base-content-muted">
-                  {t3({
-                    en: "No files in this results package for this module.",
-                    fr: "Aucun fichier dans ce paquet de résultats pour ce module.",
-                    pt: "Nenhum ficheiro neste pacote de resultados para este módulo.",
-                  })}
+          <Show
+            when={keyedFiles.files.length > 0}
+            fallback={
+              <div class="text-base-content-muted">
+                {t3({
+                  en: "No files in this results package for this module.",
+                  fr: "Aucun fichier dans ce paquet de résultats pour ce module.",
+                  pt: "Nenhum ficheiro neste pacote de resultados para este módulo.",
+                })}
+              </div>
+            }
+          >
+            <For each={keyedFiles.files}>
+              {(file) => (
+                <div>
+                  <Button
+                    iconName="download"
+                    href={runOutputFileHref(p.runId, p.moduleId, file.name)}
+                    outline
+                    download={file.name}
+                  >
+                    {`${file.name} (${formatFileSize(file.sizeBytes, 1)})`}
+                  </Button>
                 </div>
-              }
-            >
-              <For each={keyedFiles.files}>
-                {(file) => (
-                  <div>
-                    <Button
-                      iconName="download"
-                      href={runOutputFileHref(p.runId, p.moduleId, file.name)}
-                      outline
-                      download={file.name}
-                    >
-                      {`${file.name} (${formatFileSize(file.sizeBytes, 1)})`}
-                    </Button>
-                  </div>
-                )}
-              </For>
-            </Show>
-          </div>
+              )}
+            </For>
+          </Show>
         )}
       </StateHolderWrapper>
     </FrameTop>

@@ -20,6 +20,8 @@ export function IcehRunDetail(
 
   return (
     <FrameTop
+      pad="md"
+      spy="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -34,52 +36,50 @@ export function IcehRunDetail(
         />
       }
     >
-      <div class="ui-pad ui-spy h-full w-full overflow-auto">
-        <div class="ui-pad ui-spy-sm rounded border text-sm">
-          <div class="ui-text-heading">
-            {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
-          </div>
-          <div class="flex items-baseline">
-            <div class="w-56 flex-none">
-              {t3({ en: "Status", fr: "Statut", pt: "Estado" })}
-            </div>
-            <div
-              class={`flex-1 ${p.run.status === "error" ? "text-danger font-700" : ""}`}
-            >
-              {icehRunStatusLabel(p.run.status)}
-            </div>
-          </div>
-          {factRow(
-            t3({ en: "File", fr: "Fichier", pt: "Ficheiro" }),
-            p.run.zipFileName,
-          )}
-          {factRow(
-            t3({ en: "Started", fr: "Démarrée", pt: "Iniciada" }),
-            new Date(p.run.startedAt).toLocaleString(),
-          )}
-          {factRow(
-            t3({ en: "Ended", fr: "Terminée", pt: "Terminada" }),
-            p.run.endedAt ? new Date(p.run.endedAt).toLocaleString() : "",
-          )}
-          {factRow(
-            t3({ en: "Triggered by", fr: "Déclenchée par", pt: "Iniciada por" }),
-            p.run.triggeredBy ?? "",
-          )}
+      <div class="ui-pad ui-spy-sm rounded border text-sm">
+        <div class="ui-text-heading">
+          {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
         </div>
-
-        <Show when={p.run.error}>
-          <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
-            <div class="ui-text-heading">
-              {t3({ en: "Run error", fr: "Erreur de l'importation", pt: "Erro da importação" })}
-            </div>
-            <div class="text-sm wrap-break-word">{p.run.error}</div>
+        <div class="flex items-baseline">
+          <div class="w-56 flex-none">
+            {t3({ en: "Status", fr: "Statut", pt: "Estado" })}
           </div>
-        </Show>
-
-        <Show when={p.run.diagnostics} keyed>
-          {(result) => <IcehStagingSummary result={result} />}
-        </Show>
+          <div
+            class={`flex-1 ${p.run.status === "error" ? "text-danger font-700" : ""}`}
+          >
+            {icehRunStatusLabel(p.run.status)}
+          </div>
+        </div>
+        {factRow(
+          t3({ en: "File", fr: "Fichier", pt: "Ficheiro" }),
+          p.run.zipFileName,
+        )}
+        {factRow(
+          t3({ en: "Started", fr: "Démarrée", pt: "Iniciada" }),
+          new Date(p.run.startedAt).toLocaleString(),
+        )}
+        {factRow(
+          t3({ en: "Ended", fr: "Terminée", pt: "Terminada" }),
+          p.run.endedAt ? new Date(p.run.endedAt).toLocaleString() : "",
+        )}
+        {factRow(
+          t3({ en: "Triggered by", fr: "Déclenchée par", pt: "Iniciada por" }),
+          p.run.triggeredBy ?? "",
+        )}
       </div>
+
+      <Show when={p.run.error}>
+        <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
+          <div class="ui-text-heading">
+            {t3({ en: "Run error", fr: "Erreur de l'importation", pt: "Erro da importação" })}
+          </div>
+          <div class="text-sm wrap-break-word">{p.run.error}</div>
+        </div>
+      </Show>
+
+      <Show when={p.run.diagnostics} keyed>
+        {(result) => <IcehStagingSummary result={result} />}
+      </Show>
     </FrameTop>
   );
 }

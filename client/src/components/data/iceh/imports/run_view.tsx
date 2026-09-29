@@ -32,29 +32,28 @@ export function IcehRunView(p: Props) {
 
   return (
     <FrameRight
+      panelPad="md"
+      pad="md"
+      spy="md"
       panelChildren={
-        <div class="ui-pad">
-          <Button onClick={attemptCancel} intent="danger" iconName="x" outline>
-            {t3({ en: "Cancel import", fr: "Annuler l'importation", pt: "Cancelar a importação" })}
-          </Button>
-        </div>
+        <Button onClick={attemptCancel} intent="danger" iconName="x" outline>
+          {t3({ en: "Cancel import", fr: "Annuler l'importation", pt: "Cancelar a importação" })}
+        </Button>
       }
     >
-      <div class="ui-pad ui-spy">
-        <div class="ui-gap flex items-baseline">
-          <div class="font-700 text-3xl">{toPct0(percent() / 100)}</div>
-          <div class="text-sm">
-            {phaseLabel()} <span class="font-mono">{p.run.zipFileName}</span>
-          </div>
+      <div class="ui-gap flex items-baseline">
+        <div class="font-700 text-3xl">{toPct0(percent() / 100)}</div>
+        <div class="text-sm">
+          {phaseLabel()} <span class="font-mono">{p.run.zipFileName}</span>
         </div>
-        <ProgressBar progressFrom0To100={percent()} />
-        <div class="text-xs">
-          {t3({
-            en: "This updates automatically. A fully clean file integrates without further steps; skipped rows will hold the import here for your review.",
-            fr: "Mise à jour automatique. Un fichier entièrement valide s'intègre sans autre étape ; des lignes ignorées mettront l'importation en attente de votre vérification ici.",
-            pt: "Atualiza-se automaticamente. Um ficheiro totalmente válido integra-se sem mais etapas; linhas ignoradas colocarão a importação em espera aqui para a sua revisão.",
-          })}
-        </div>
+      </div>
+      <ProgressBar progressFrom0To100={percent()} />
+      <div class="text-xs">
+        {t3({
+          en: "This updates automatically. A fully clean file integrates without further steps; skipped rows will hold the import here for your review.",
+          fr: "Mise à jour automatique. Un fichier entièrement valide s'intègre sans autre étape ; des lignes ignorées mettront l'importation en attente de votre vérification ici.",
+          pt: "Atualiza-se automaticamente. Um ficheiro totalmente válido integra-se sem mais etapas; linhas ignoradas colocarão a importação em espera aqui para a sua revisão.",
+        })}
       </div>
     </FrameRight>
   );

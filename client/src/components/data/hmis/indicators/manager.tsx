@@ -210,6 +210,8 @@ export function IndicatorsManager(p: Props) {
   return (
     <EditorWrapper>
       <FrameTop
+        pad="md"
+        spy="md"
         panelChildren={
           <HeadingBar
             onBack={() => p.close(undefined)}
@@ -246,21 +248,19 @@ export function IndicatorsManager(p: Props) {
           </HeadingBar>
         }
       >
-        <div class="ui-pad ui-spy h-full w-full overflow-auto">
-          <StateHolderWrapper state={indicators()}>
-            {(keyedIndicators) => (
-              <div class="h-full">
-                <IndicatorsTable
-                  indicators={keyedIndicators.indicators}
-                  idsWithRows={idsWithRows()}
-                  handleDownloadCsv={handleDownloadCsv}
-                  handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
-                  handleRefreshDhis2Labels={handleRefreshDhis2Labels}
-                />
-              </div>
-            )}
-          </StateHolderWrapper>
-        </div>
+        <StateHolderWrapper state={indicators()}>
+          {(keyedIndicators) => (
+            <div class="h-full">
+              <IndicatorsTable
+                indicators={keyedIndicators.indicators}
+                idsWithRows={idsWithRows()}
+                handleDownloadCsv={handleDownloadCsv}
+                handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
+                handleRefreshDhis2Labels={handleRefreshDhis2Labels}
+              />
+            </div>
+          )}
+        </StateHolderWrapper>
       </FrameTop>
     </EditorWrapper>
   );

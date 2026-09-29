@@ -37,6 +37,7 @@ export function ViewLogs(
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -47,7 +48,7 @@ export function ViewLogs(
       <StateHolderWrapper state={rLogs.state()}>
         {(keyedLogs) => {
           return (
-            <div class="ui-pad font-mono text-xs whitespace-pre">
+            <div class="font-mono text-xs whitespace-pre">
               {keyedLogs.logs}
             </div>
           );

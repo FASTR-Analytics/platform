@@ -202,6 +202,7 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           onBack={wizard().step !== "upload"
@@ -215,7 +216,7 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
         />
       }
     >
-      <div class="ui-pad ui-spy max-w-xl">
+      <div class="ui-spy max-w-xl">
         <Switch>
           <Match when={wizard().step === "upload"}>
             <UploadStep onNext={(csv) => setWizard({ step: "map", csvDetails: csv })} />

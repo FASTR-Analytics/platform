@@ -171,6 +171,7 @@ export function ImportLedgerIndicatorDetail(
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -193,18 +194,16 @@ export function ImportLedgerIndicatorDetail(
         </HeadingBar>
       }
     >
-      <div class="ui-pad h-full w-full">
-        <Table
-          data={rows}
-          columns={columns}
-          keyField="periodId"
-          noRowsMessage={t3({
-            en: "No months in window",
-            fr: "Aucun mois dans la fenêtre",
-            pt: "Nenhum mês na janela",
-          })}
-        />
-      </div>
+      <Table
+        data={rows}
+        columns={columns}
+        keyField="periodId"
+        noRowsMessage={t3({
+          en: "No months in window",
+          fr: "Aucun mois dans la fenêtre",
+          pt: "Nenhum mês na janela",
+        })}
+      />
     </FrameTop>
   );
 }

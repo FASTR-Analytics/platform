@@ -72,6 +72,8 @@ export function ModuleDefaultsEditor(p: Props) {
 
   return (
     <FrameTop
+      pad="md"
+      spy="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -236,7 +238,7 @@ function ModuleDefaultsInner(p: {
   );
 
   return (
-    <div class="ui-pad ui-spy">
+    <>
       <div class="text-base-content-muted max-w-2xl">
         {t3({
           en: "These defaults configure the generation wizard when a new results package is generated. Module parameter values are set only here and apply to every package that includes the module.",
@@ -346,6 +348,6 @@ function ModuleDefaultsInner(p: {
           })}
         </Button>
       </div>
-    </div>
+    </>
   );
 }

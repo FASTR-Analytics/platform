@@ -104,6 +104,7 @@ export function SlideDeckSettings(p: Props) {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           heading={
@@ -156,7 +157,7 @@ export function SlideDeckSettings(p: Props) {
         </HeadingBar>
       }
     >
-      <div class="ui-pad ui-spy" data-tour="deck-settings-body">
+      <div class="ui-spy" data-tour="deck-settings-body">
         <Card header={t3({ en: "Style", fr: "Style", pt: "Estilo" })}>
           <div class="ui-spy-sm">
             <div class="ui-spy">

@@ -250,6 +250,7 @@ export function DatasetHmisImports(p: Props) {
   return (
     <EditorWrapper>
       <FrameTop
+        pad="md"
         panelChildren={
           <HeadingBar
             onBack={() => p.close(undefined)}
@@ -292,7 +293,7 @@ export function DatasetHmisImports(p: Props) {
           {(keyedRuns) => (
             <StateHolderWrapper state={scheduling.state()}>
               {(schedulingInfo) => (
-                <div class="ui-pad ui-spy flex h-full w-full flex-col overflow-auto">
+                <div class="ui-spy flex h-full w-full flex-col overflow-auto">
                   <Show
                     when={
                       attentionSchedulesOf(schedulingInfo.schedules).length > 0

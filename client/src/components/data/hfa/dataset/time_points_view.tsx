@@ -12,6 +12,7 @@ export function TimePointsView(
 ) {
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -19,9 +20,7 @@ export function TimePointsView(
         />
       }
     >
-      <div class="ui-pad h-full w-full overflow-auto">
-        <HfaTimePointsEditor />
-      </div>
+      <HfaTimePointsEditor />
     </FrameTop>
   );
 }

@@ -153,6 +153,7 @@ export function DatasetDisplayPresentation(p: Props) {
 
   return (
     <FrameTop
+      pad="md"
       // startingWidth={300}
       // maxWidth={800}
       panelChildren={
@@ -256,37 +257,35 @@ export function DatasetDisplayPresentation(p: Props) {
         </div>
       }
     >
-      <div class="ui-pad h-full w-full overflow-auto">
+      <Show
+        when={p.vizConfig.indicators.length > 0}
+        fallback={
+          <span class="text-sm">
+            {t3({
+              en: "You must select at least one indicator",
+              fr: "Vous devez sélectionner au moins un indicateur",
+              pt: "Tem de selecionar pelo menos um indicador",
+            })}
+          </span>
+        }
+      >
         <Show
-          when={p.vizConfig.indicators.length > 0}
+          when={isLine()}
           fallback={
-            <span class="text-sm">
-              {t3({
-                en: "You must select at least one indicator",
-                fr: "Vous devez sélectionner au moins un indicateur",
-                pt: "Tem de selecionar pelo menos um indicador",
-              })}
-            </span>
+            <PresenceGrid
+              {...presenceColumns()}
+              rows={presenceRows()}
+              cells={presenceCells()}
+            />
           }
         >
-          <Show
-            when={isLine()}
-            fallback={
-              <PresenceGrid
-                {...presenceColumns()}
-                rows={presenceRows()}
-                cells={presenceCells()}
-              />
-            }
-          >
-            <StateHolderWrapper state={figureInputs()}>
-              {(keyedInputs) => (
-                <FigureHolder figureInputs={keyedInputs} height="flex" />
-              )}
-            </StateHolderWrapper>
-          </Show>
+          <StateHolderWrapper state={figureInputs()}>
+            {(keyedInputs) => (
+              <FigureHolder figureInputs={keyedInputs} height="flex" />
+            )}
+          </StateHolderWrapper>
         </Show>
-      </div>
+      </Show>
     </FrameTop>
   );
 }

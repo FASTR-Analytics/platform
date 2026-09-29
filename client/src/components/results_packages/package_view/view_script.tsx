@@ -37,6 +37,7 @@ export function ViewScript(
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -47,7 +48,7 @@ export function ViewScript(
       <StateHolderWrapper state={rScript.state()}>
         {(keyedScript) => {
           return (
-            <div class="ui-pad font-mono text-xs whitespace-pre">
+            <div class="font-mono text-xs whitespace-pre">
               {keyedScript.script}
             </div>
           );

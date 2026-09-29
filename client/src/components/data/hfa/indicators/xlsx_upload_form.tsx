@@ -101,6 +101,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           heading={
@@ -126,7 +127,7 @@ export function HfaIndicatorsXlsxUploadForm(p: Props) {
         </HeadingBar>
       }
     >
-      <div class="ui-pad ui-spy max-w-3xl">
+      <div class="ui-spy max-w-3xl">
         <Switch>
           <Match when={step().name === "pick" && p.source.kind === "pick"}>
             <PickStep

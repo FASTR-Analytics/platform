@@ -184,6 +184,7 @@ export function FamilyConfiguration(p: Props) {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -203,7 +204,7 @@ export function FamilyConfiguration(p: Props) {
         />
       }
     >
-      <div class="ui-pad ui-spy max-w-3xl overflow-auto">
+      <div class="ui-spy max-w-3xl">
         <Card
           header={t3({
             en: "Max admin area level",

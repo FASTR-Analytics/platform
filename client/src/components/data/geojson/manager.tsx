@@ -131,6 +131,8 @@ export function GeoJsonManager(p: Props) {
   return (
     <EditorWrapper>
       <FrameTop
+        pad="md"
+        spy="md"
         panelChildren={
           <HeadingBar
             onBack={() => p.close(undefined)}
@@ -148,31 +150,29 @@ export function GeoJsonManager(p: Props) {
           </HeadingBar>
         }
       >
-        <div class="ui-pad ui-spy">
-          <Show
-            when={maps().length > 0}
-            fallback={
-              <div class="text-base-content-muted py-8 text-center">
-                {t3({
-                  en: "No GeoJSON maps uploaded for this registry yet. Upload a GeoJSON file to enable map visualizations.",
-                  fr: "Aucune carte GeoJSON téléchargée pour ce registre. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
-                  pt: "Ainda não foi carregado nenhum mapa GeoJSON para este registo. Carregue um ficheiro GeoJSON para ativar as visualizações de mapas.",
-                })}
-              </div>
-            }
-          >
-            <Table
-              data={maps()}
-              columns={columns}
-              keyField="adminAreaLevel"
-              noRowsMessage={t3({
-                en: "No GeoJSON maps",
-                fr: "Aucune carte GeoJSON",
-                pt: "Nenhum mapa GeoJSON",
+        <Show
+          when={maps().length > 0}
+          fallback={
+            <div class="text-base-content-muted py-8 text-center">
+              {t3({
+                en: "No GeoJSON maps uploaded for this registry yet. Upload a GeoJSON file to enable map visualizations.",
+                fr: "Aucune carte GeoJSON téléchargée pour ce registre. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
+                pt: "Ainda não foi carregado nenhum mapa GeoJSON para este registo. Carregue um ficheiro GeoJSON para ativar as visualizações de mapas.",
               })}
-            />
-          </Show>
-        </div>
+            </div>
+          }
+        >
+          <Table
+            data={maps()}
+            columns={columns}
+            keyField="adminAreaLevel"
+            noRowsMessage={t3({
+              en: "No GeoJSON maps",
+              fr: "Aucune carte GeoJSON",
+              pt: "Nenhum mapa GeoJSON",
+            })}
+          />
+        </Show>
       </FrameTop>
     </EditorWrapper>
   );

@@ -79,6 +79,7 @@ export function InstanceUsers(p: Props) {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <div
           class="ui-pad-x ui-pad-t flex justify-end"
@@ -148,7 +149,7 @@ export function InstanceUsers(p: Props) {
         </div>
       }
     >
-      <div class="ui-pad flex h-full w-full flex-col gap-4">
+      <div class="flex h-full w-full flex-col gap-4">
         <div class="min-h-0 flex-1" data-tour="instance-users-table">
           <UserTable
             users={instanceState.users}

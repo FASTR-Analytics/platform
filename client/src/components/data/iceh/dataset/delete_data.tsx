@@ -76,6 +76,8 @@ export function DeleteData(
 
   return (
     <FrameTop
+      pad="md"
+      spy="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -83,74 +85,72 @@ export function DeleteData(
         />
       }
     >
-      <div class="ui-pad ui-spy h-full w-full">
-        <Checkbox
-          label={t3({
-            en: "Delete ALL ICEH data",
-            fr: "Supprimer TOUTES les données ICEH",
-            pt: "Eliminar TODOS os dados ICEH",
-          })}
-          checked={deleteAll()}
-          onChange={setDeleteAll}
-        />
+      <Checkbox
+        label={t3({
+          en: "Delete ALL ICEH data",
+          fr: "Supprimer TOUTES les données ICEH",
+          pt: "Eliminar TODOS os dados ICEH",
+        })}
+        checked={deleteAll()}
+        onChange={setDeleteAll}
+      />
 
-        <Show
-          when={deleteAll()}
-          fallback={
-            <div class="ui-spy">
-              <div class="">
-                {t3({
-                  en: "Select the indicators to delete. All other indicators are kept.",
-                  fr: "Sélectionnez les indicateurs à supprimer. Tous les autres indicateurs sont conservés.",
-                  pt: "Selecione os indicadores a eliminar. Todos os outros indicadores são conservados.",
-                })}
-              </div>
-              <div class="w-96">
-                <MultiSelectSearch
-                  values={selectedCodes()}
-                  options={options()}
-                  onChange={setSelectedCodes}
-                  label={t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
-                  fullWidth
-                />
-              </div>
-              <div class="">
-                <Button
-                  intent="danger"
-                  iconName="trash"
-                  disabled={selectedCodes().length === 0}
-                  onClick={attemptDeleteSelected}
-                >
-                  {t3(TC.delete)}
-                </Button>
-              </div>
-            </div>
-          }
-        >
+      <Show
+        when={deleteAll()}
+        fallback={
           <div class="ui-spy">
             <div class="">
-              {t3({ en: "If you want to delete", fr: "Pour supprimer", pt: "Para eliminar" })}{" "}
-              {t3({ en: "all the ICEH data", fr: "toutes les données ICEH", pt: "todos os dados ICEH" })},{" "}
-              {t3({ en: "write", fr: "écrivez", pt: "escreva" })}{" "}
-              <span class="font-700">yes please delete</span>{" "}
-              {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "no campo de introdução" })}
+              {t3({
+                en: "Select the indicators to delete. All other indicators are kept.",
+                fr: "Sélectionnez les indicateurs à supprimer. Tous les autres indicateurs sont conservés.",
+                pt: "Selecione os indicadores a eliminar. Todos os outros indicadores são conservados.",
+              })}
             </div>
             <div class="w-96">
-              <Input value={checkText()} onChange={setCheckText} />
+              <MultiSelectSearch
+                values={selectedCodes()}
+                options={options()}
+                onChange={setSelectedCodes}
+                label={t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" })}
+                fullWidth
+              />
             </div>
             <div class="">
               <Button
                 intent="danger"
                 iconName="trash"
-                disabled={!canDeleteAll()}
-                onClick={attemptDeleteAll}
+                disabled={selectedCodes().length === 0}
+                onClick={attemptDeleteSelected}
               >
                 {t3(TC.delete)}
               </Button>
             </div>
           </div>
-        </Show>
-      </div>
+        }
+      >
+        <div class="ui-spy">
+          <div class="">
+            {t3({ en: "If you want to delete", fr: "Pour supprimer", pt: "Para eliminar" })}{" "}
+            {t3({ en: "all the ICEH data", fr: "toutes les données ICEH", pt: "todos os dados ICEH" })},{" "}
+            {t3({ en: "write", fr: "écrivez", pt: "escreva" })}{" "}
+            <span class="font-700">yes please delete</span>{" "}
+            {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "no campo de introdução" })}
+          </div>
+          <div class="w-96">
+            <Input value={checkText()} onChange={setCheckText} />
+          </div>
+          <div class="">
+            <Button
+              intent="danger"
+              iconName="trash"
+              disabled={!canDeleteAll()}
+              onClick={attemptDeleteAll}
+            >
+              {t3(TC.delete)}
+            </Button>
+          </div>
+        </div>
+      </Show>
     </FrameTop>
   );
 }

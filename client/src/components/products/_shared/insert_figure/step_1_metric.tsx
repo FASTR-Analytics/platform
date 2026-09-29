@@ -53,8 +53,10 @@ export function Step1Metric(p: Props) {
   return (
     <div class="h-full">
       <FrameLeft
+        panelPad="md"
+        pad="md"
         panelChildren={
-          <div class="ui-pad h-full w-56">
+          <div class="h-full w-56">
             <ModuleSidebar
               metricsByModule={metricsByModule()}
               selectedModule={selectedModule()}
@@ -64,32 +66,30 @@ export function Step1Metric(p: Props) {
           </div>
         }
       >
-        <div class="ui-pad">
-          <Show
-            when={filteredMetricGroups().length > 0}
-            fallback={
-              <div class="text-base-content-muted py-8 text-center">
-                {t3({
-                  en: "No metrics available",
-                  fr: "Aucune métrique disponible",
-                  pt: "Nenhuma métrica disponível",
-                })}
-              </div>
-            }
-          >
-            <div class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
-              <For each={filteredMetricGroups()}>
-                {(group) => (
-                  <MetricCard
-                    metricGroup={group}
-                    selectedMetricId={p.selectedMetricId}
-                    onSelect={p.onSelectMetric}
-                  />
-                )}
-              </For>
+        <Show
+          when={filteredMetricGroups().length > 0}
+          fallback={
+            <div class="text-base-content-muted py-8 text-center">
+              {t3({
+                en: "No metrics available",
+                fr: "Aucune métrique disponible",
+                pt: "Nenhuma métrica disponível",
+              })}
             </div>
-          </Show>
-        </div>
+          }
+        >
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-3">
+            <For each={filteredMetricGroups()}>
+              {(group) => (
+                <MetricCard
+                  metricGroup={group}
+                  selectedMetricId={p.selectedMetricId}
+                  onSelect={p.onSelectMetric}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
       </FrameLeft>
     </div>
   );

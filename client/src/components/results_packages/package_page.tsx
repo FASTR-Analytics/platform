@@ -392,6 +392,7 @@ function FamilyTabs(p: {
     >
       {(family) => (
         <FrameTop
+          pad="md"
           panelChildren={
             <TabsNavigation
               items={modulesByFamily().map((f) => ({
@@ -404,27 +405,25 @@ function FamilyTabs(p: {
             />
           }
         >
-          <div class="ui-pad h-full overflow-y-auto">
-            <FamilyPane
-              runId={p.runId}
-              modules={family.modules}
-              selectedModuleId={
-                chosenModule()[family.family] ?? family.modules[0].id
-              }
-              onSelectModule={(moduleId) =>
-                setChosenModule((prev) => ({
-                  ...prev,
-                  [family.family]: moduleId,
-                }))
-              }
-              detail={p.detail}
-              ctx={p.ctx}
-              scope={scope()}
-              selection={selection()}
-              onChangeScope={changeScope}
-              openEditor={p.openEditor}
-            />
-          </div>
+          <FamilyPane
+            runId={p.runId}
+            modules={family.modules}
+            selectedModuleId={
+              chosenModule()[family.family] ?? family.modules[0].id
+            }
+            onSelectModule={(moduleId) =>
+              setChosenModule((prev) => ({
+                ...prev,
+                [family.family]: moduleId,
+              }))
+            }
+            detail={p.detail}
+            ctx={p.ctx}
+            scope={scope()}
+            selection={selection()}
+            onChangeScope={changeScope}
+            openEditor={p.openEditor}
+          />
         </FrameTop>
       )}
     </Show>

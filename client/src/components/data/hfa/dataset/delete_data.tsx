@@ -47,6 +47,8 @@ export function DeleteData(
 
   return (
     <FrameTop
+      pad="md"
+      spy="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -54,70 +56,68 @@ export function DeleteData(
         />
       }
     >
-      <div class="ui-pad ui-spy h-full w-full">
-        <Show when={p.timePoints.length > 0}>
-          <div class="flex gap-4">
-            <Button
-              onClick={() => setDeleteMode("all")}
-              intent={deleteMode() === "all" ? "primary" : undefined}
-              outline={deleteMode() !== "all"}
-            >
-              {t3({ en: "Delete all data", fr: "Supprimer toutes les données", pt: "Eliminar todos os dados" })}
-            </Button>
-            <Button
-              onClick={() => setDeleteMode("time_point")}
-              intent={deleteMode() === "time_point" ? "primary" : undefined}
-              outline={deleteMode() !== "time_point"}
-            >
-              {t3({ en: "Delete by time point", fr: "Supprimer par point temporel", pt: "Eliminar por ponto temporal" })}
-            </Button>
-          </div>
-        </Show>
-
-        <Show when={deleteMode() === "time_point"}>
-          <div class="w-96">
-            <Select
-              label={t3({ en: "Select time point to delete", fr: "Sélectionner le point temporel à supprimer", pt: "Selecionar o ponto temporal a eliminar" })}
-              options={p.timePoints.map((tp) => ({
-                value: tp.label,
-                label: `${tp.label} (${tp.periodId.slice(0, 4)}-${tp.periodId.slice(4, 6)})`,
-              }))}
-              value={selectedTimePoint()}
-              onChange={setSelectedTimePoint}
-              fullWidth
-            />
-          </div>
-        </Show>
-
-        <div class="text-base-content-muted text-sm">
-          {t3({
-            en: "Time points, sampling weights, and indicator code are kept. Manage time points on the HFA time points page.",
-            fr: "Les points temporels, les pondérations d'échantillonnage et le code des indicateurs sont conservés. Gérez les points temporels sur la page des points temporels Enquêtes FOSA.",
-            pt: "Os pontos temporais, as ponderações de amostragem e o código dos indicadores são mantidos. Faça a gestão dos pontos temporais na página de pontos temporais HFA.",
-          })}
-        </div>
-
-        <div class="">
-          {t3({ en: "If you want to delete", fr: "Pour supprimer", pt: "Para eliminar" })}{" "}
-          {deleteMode() === "time_point"
-            ? t3({ en: `data for time point "${selectedTimePoint()}"`, fr: `les données du point temporel « ${selectedTimePoint()} »`, pt: `os dados do ponto temporal "${selectedTimePoint()}"` })
-            : t3({ en: "all the data", fr: "toutes les données", pt: "todos os dados" })}
-          , {t3({ en: "write", fr: "écrivez", pt: "escreva" })} <span class="font-700">yes please delete</span>{" "}
-          {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "no campo de introdução" })}
-        </div>
-        <div class="w-96">
-          <Input value={checkText()} onChange={setCheckText} />
-        </div>
-        <div class="">
+      <Show when={p.timePoints.length > 0}>
+        <div class="flex gap-4">
           <Button
-            intent="danger"
-            iconName="trash"
-            disabled={!canDelete()}
-            onClick={attemptDeleteData}
+            onClick={() => setDeleteMode("all")}
+            intent={deleteMode() === "all" ? "primary" : undefined}
+            outline={deleteMode() !== "all"}
           >
-            {t3(TC.delete)}
+            {t3({ en: "Delete all data", fr: "Supprimer toutes les données", pt: "Eliminar todos os dados" })}
+          </Button>
+          <Button
+            onClick={() => setDeleteMode("time_point")}
+            intent={deleteMode() === "time_point" ? "primary" : undefined}
+            outline={deleteMode() !== "time_point"}
+          >
+            {t3({ en: "Delete by time point", fr: "Supprimer par point temporel", pt: "Eliminar por ponto temporal" })}
           </Button>
         </div>
+      </Show>
+
+      <Show when={deleteMode() === "time_point"}>
+        <div class="w-96">
+          <Select
+            label={t3({ en: "Select time point to delete", fr: "Sélectionner le point temporel à supprimer", pt: "Selecionar o ponto temporal a eliminar" })}
+            options={p.timePoints.map((tp) => ({
+              value: tp.label,
+              label: `${tp.label} (${tp.periodId.slice(0, 4)}-${tp.periodId.slice(4, 6)})`,
+            }))}
+            value={selectedTimePoint()}
+            onChange={setSelectedTimePoint}
+            fullWidth
+          />
+        </div>
+      </Show>
+
+      <div class="text-base-content-muted text-sm">
+        {t3({
+          en: "Time points, sampling weights, and indicator code are kept. Manage time points on the HFA time points page.",
+          fr: "Les points temporels, les pondérations d'échantillonnage et le code des indicateurs sont conservés. Gérez les points temporels sur la page des points temporels Enquêtes FOSA.",
+          pt: "Os pontos temporais, as ponderações de amostragem e o código dos indicadores são mantidos. Faça a gestão dos pontos temporais na página de pontos temporais HFA.",
+        })}
+      </div>
+
+      <div class="">
+        {t3({ en: "If you want to delete", fr: "Pour supprimer", pt: "Para eliminar" })}{" "}
+        {deleteMode() === "time_point"
+          ? t3({ en: `data for time point "${selectedTimePoint()}"`, fr: `les données du point temporel « ${selectedTimePoint()} »`, pt: `os dados do ponto temporal "${selectedTimePoint()}"` })
+          : t3({ en: "all the data", fr: "toutes les données", pt: "todos os dados" })}
+        , {t3({ en: "write", fr: "écrivez", pt: "escreva" })} <span class="font-700">yes please delete</span>{" "}
+        {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "no campo de introdução" })}
+      </div>
+      <div class="w-96">
+        <Input value={checkText()} onChange={setCheckText} />
+      </div>
+      <div class="">
+        <Button
+          intent="danger"
+          iconName="trash"
+          disabled={!canDelete()}
+          onClick={attemptDeleteData}
+        >
+          {t3(TC.delete)}
+        </Button>
       </div>
     </FrameTop>
   );

@@ -81,70 +81,69 @@ export function Dhis2RunView(p: Props) {
 
   return (
     <FrameRight
+      panelPad="md"
+      pad="md"
+      spy="md"
       panelChildren={
-        <div class="ui-pad">
-          <Button onClick={attemptCancel} intent="danger" iconName="x" outline>
-            {t3({
-              en: "Cancel run",
-              fr: "Annuler l'importation",
-              pt: "Cancelar a importação",
-            })}
-          </Button>
-        </div>
+        <Button onClick={attemptCancel} intent="danger" iconName="x" outline>
+          {t3({
+            en: "Cancel run",
+            fr: "Annuler l'importation",
+            pt: "Cancelar a importação",
+          })}
+        </Button>
       }
     >
-      <div class="ui-pad ui-spy">
-        <div class="ui-gap flex items-baseline">
-          <div class="font-700 text-3xl">{toPct0(fraction())}</div>
-          <div class="text-sm">
-            {toNum0(completedPairs())} / {toNum0(p.run.totalPairs)}{" "}
-            {t3({
-              en: "pairs done",
-              fr: "paires traitées",
-              pt: "pares concluídos",
-            })}
-            {" — "}
-            {toNum0(p.run.succeededPairs)}{" "}
-            {t3({ en: "succeeded", fr: "réussies", pt: "bem-sucedidos" })},{" "}
-            <span class={p.run.failedPairs > 0 ? "text-danger font-700" : ""}>
-              {toNum0(p.run.failedPairs)}{" "}
-              {t3({ en: "failed", fr: "en échec", pt: "falhados" })}
-            </span>
-          </div>
-        </div>
-        <ProgressBar progressFrom0To100={fraction() * 100} />
-
-        <div class="text-sm">{phaseLabel()}</div>
-
-        <Show when={(dhis2Progress()?.activePairs.length ?? 0) > 0}>
-          <div class="text-xs">
-            <div class="font-700 mb-1">
-              {t3({
-                en: "Currently fetching",
-                fr: "En cours de récupération",
-                pt: "A obter neste momento",
-              })}
-            </div>
-            <div class="ui-gap-sm flex flex-wrap">
-              <For each={dhis2Progress()?.activePairs ?? []}>
-                {(pair) => (
-                  <div class="bg-base-200 rounded px-2 py-1">
-                    {pairName(pair.dataId, p.indicatorsByDataId)} ·{" "}
-                    {formatPeriod(pair.periodId, "year-month", getCalendar())}
-                  </div>
-                )}
-              </For>
-            </div>
-          </div>
-        </Show>
-
-        <div class="text-xs">
+      <div class="ui-gap flex items-baseline">
+        <div class="font-700 text-3xl">{toPct0(fraction())}</div>
+        <div class="text-sm">
+          {toNum0(completedPairs())} / {toNum0(p.run.totalPairs)}{" "}
           {t3({
-            en: "Completed pairs are saved as they finish — closing this view does not stop the import. Per-indicator results are in the import status view.",
-            fr: "Les paires terminées sont sauvegardées au fur et à mesure — fermer cette vue n'arrête pas l'importation. Les résultats par indicateur sont dans l'état des importations.",
-            pt: "Os pares concluídos são guardados à medida que terminam — fechar esta vista não interrompe a importação. Os resultados por indicador estão no estado das importações.",
+            en: "pairs done",
+            fr: "paires traitées",
+            pt: "pares concluídos",
           })}
+          {" — "}
+          {toNum0(p.run.succeededPairs)}{" "}
+          {t3({ en: "succeeded", fr: "réussies", pt: "bem-sucedidos" })},{" "}
+          <span class={p.run.failedPairs > 0 ? "text-danger font-700" : ""}>
+            {toNum0(p.run.failedPairs)}{" "}
+            {t3({ en: "failed", fr: "en échec", pt: "falhados" })}
+          </span>
         </div>
+      </div>
+      <ProgressBar progressFrom0To100={fraction() * 100} />
+
+      <div class="text-sm">{phaseLabel()}</div>
+
+      <Show when={(dhis2Progress()?.activePairs.length ?? 0) > 0}>
+        <div class="text-xs">
+          <div class="font-700 mb-1">
+            {t3({
+              en: "Currently fetching",
+              fr: "En cours de récupération",
+              pt: "A obter neste momento",
+            })}
+          </div>
+          <div class="ui-gap-sm flex flex-wrap">
+            <For each={dhis2Progress()?.activePairs ?? []}>
+              {(pair) => (
+                <div class="bg-base-200 rounded px-2 py-1">
+                  {pairName(pair.dataId, p.indicatorsByDataId)} ·{" "}
+                  {formatPeriod(pair.periodId, "year-month", getCalendar())}
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+      </Show>
+
+      <div class="text-xs">
+        {t3({
+          en: "Completed pairs are saved as they finish — closing this view does not stop the import. Per-indicator results are in the import status view.",
+          fr: "Les paires terminées sont sauvegardées au fur et à mesure — fermer cette vue n'arrête pas l'importation. Les résultats par indicateur sont dans l'état des importations.",
+          pt: "Os pares concluídos são guardados à medida que terminam — fechar esta vista não interrompe a importação. Os resultados por indicador estão no estado das importações.",
+        })}
       </div>
     </FrameRight>
   );

@@ -93,6 +93,8 @@ export function DeleteData(
 
   return (
     <FrameTop
+      pad="md"
+      spy="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -100,36 +102,34 @@ export function DeleteData(
         />
       }
     >
-      <div class="ui-pad ui-spy h-full w-full">
+      <div class="">
+        <WindowingSelector
+          hmisVersionId={p.hmisVersionId}
+          countIndicatorsVersion={p.countIndicatorsVersion}
+          tempWindowing={tempWindowing}
+          setTempWindowing={setTempWindowing}
+          includeOrDelete="delete"
+          structureSchema={p.structureSchema}
+        />
+      </div>
+      <div class="ui-spy-sm">
         <div class="">
-          <WindowingSelector
-            hmisVersionId={p.hmisVersionId}
-            countIndicatorsVersion={p.countIndicatorsVersion}
-            tempWindowing={tempWindowing}
-            setTempWindowing={setTempWindowing}
-            includeOrDelete="delete"
-            structureSchema={p.structureSchema}
-          />
+          {t3({ en: "If you want to delete this data, write", fr: "Pour supprimer ces données, écrivez", pt: "Se pretende eliminar estes dados, escreva" })}{" "}
+          <span class="font-700">yes please delete</span>{" "}
+          {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "na caixa de introdução" })}
         </div>
-        <div class="ui-spy-sm">
-          <div class="">
-            {t3({ en: "If you want to delete this data, write", fr: "Pour supprimer ces données, écrivez", pt: "Se pretende eliminar estes dados, escreva" })}{" "}
-            <span class="font-700">yes please delete</span>{" "}
-            {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "na caixa de introdução" })}
-          </div>
-          <div class="w-96">
-            <Input value={checkText()} onChange={setCheckText} />
-          </div>
-          <div class="">
-            <Button
-              intent="danger"
-              iconName="trash"
-              disabled={checkText() !== "yes please delete"}
-              onClick={attemptDeleteData}
-            >
-              {t3(TC.delete)}
-            </Button>
-          </div>
+        <div class="w-96">
+          <Input value={checkText()} onChange={setCheckText} />
+        </div>
+        <div class="">
+          <Button
+            intent="danger"
+            iconName="trash"
+            disabled={checkText() !== "yes please delete"}
+            onClick={attemptDeleteData}
+          >
+            {t3(TC.delete)}
+          </Button>
         </div>
       </div>
     </FrameTop>

@@ -20,6 +20,9 @@
   values → `panther/_303_components/_fixed.css`.
 - **Which component to reach for**, tables, modals, action creators, `size="sm"`
   → `PROTOCOL_UI_COMPONENTS.md`.
+- **Insets, stack spacing and scrolling**: a slot owns them (`pad` / `spy` on
+  Frames, `Card`, `ModalContainer`, `CollapsibleSection`) → rule 11 of
+  `PROTOCOL_UI_COMPONENTS.md`.
 - Reactivity, state rigs, file organisation → `PROTOCOL_UI_SOLIDJS.md`,
   `PROTOCOL_UI_STATE.md`, `PROTOCOL_UI_STRUCTURE.md`.
 
@@ -117,7 +120,7 @@ are panther exports.)
 
 | Pattern               | Frame structure                                    | Live example                                   |
 | --------------------- | -------------------------------------------------- | ---------------------------------------------- |
-| A: simple content     | `FrameTop` + `HeadingBar` → `div.ui-pad.ui-spy`    | `slide_deck/settings.tsx`           |
+| A: simple content     | `FrameTop pad="md" spy="md"` + `HeadingBar`, no div | `slide_deck/settings.tsx`           |
 | B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `data/hmis/population/grid.tsx`    |
 | C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `results_packages/results_packages.tsx`        |
 | D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `_shared/figure_editor/figure_editor.tsx` |
@@ -213,8 +216,9 @@ through `createDeleteAction` (confirmation built in); async buttons pass
 
 **Modal forms:** `openComponent()` + `AlertFormHolder` + `createFormAction`.
 Validate inside the action and return `{ success: false, err }`; fields spaced
-`ui-spy-sm`; `autoFocus` the first input. Settings pages: `ui-pad ui-spy` page,
-`ui-text-heading` section headings, fields `ui-spy-sm`. Every heading, a
+`ui-spy-sm`; `autoFocus` the first input. Settings pages: the page's inset and
+stack spacing are the Frame's `pad` / `spy`, `ui-text-heading` section
+headings, fields `ui-spy-sm`. Every heading, a
 full-screen view's label included, is `ui-text-heading`; never a bare
 `text-lg` / `text-xl`. The one exception is the instance name in the shell's
 top bar, `text-xl font-700`: it names the site, not a section. The six top-level pages

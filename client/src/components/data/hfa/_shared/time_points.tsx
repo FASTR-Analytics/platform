@@ -24,6 +24,7 @@ type Props = {
 export function InstanceHfaTimePoints(p: Props) {
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
@@ -31,9 +32,7 @@ export function InstanceHfaTimePoints(p: Props) {
         />
       }
     >
-      <div class="ui-pad h-full w-full overflow-auto">
-        <HfaTimePointsEditor />
-      </div>
+      <HfaTimePointsEditor />
     </FrameTop>
   );
 }

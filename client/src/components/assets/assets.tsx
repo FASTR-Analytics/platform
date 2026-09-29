@@ -80,6 +80,7 @@ export function InstanceAssets() {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <div
           class="ui-pad-x ui-pad-t flex justify-end"
@@ -91,7 +92,7 @@ export function InstanceAssets() {
         </div>
       }
     >
-      <div class="ui-pad h-full w-full" data-tour="instance-assets-list">
+      <div class="h-full w-full" data-tour="instance-assets-list">
         <AssetTable
           files={instanceState.assets}
           currentUserEmail={instanceState.currentUserEmail}

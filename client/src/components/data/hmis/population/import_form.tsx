@@ -119,6 +119,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
 
   return (
     <FrameTop
+      pad="md"
       panelChildren={
         <HeadingBar
           heading={t3({
@@ -129,7 +130,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
         />
       }
     >
-      <div class="ui-pad ui-spy max-w-3xl">
+      <div class="ui-spy max-w-3xl">
         <Switch>
           <Match when={step() === "done" && result()} keyed>
             {(r) => (
