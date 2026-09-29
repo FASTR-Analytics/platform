@@ -290,8 +290,8 @@ export function ListView(p: Props) {
           {headerSortButton(
             t3({
               en: "Last updated",
-              fr: "Dernière modification",
-              pt: "Última atualização",
+              fr: "Modifié le",
+              pt: "Atualizado",
             }),
             "recent",
           )}
