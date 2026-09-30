@@ -68,5 +68,10 @@
     "id": "async-effect-race",
     "file": "client/src/components/products/copilot/ai_documents/ai_documents_store.ts",
     "text": "async effect writes state after await, no out-of-order guard"
+  },
+  {
+    "id": "guard-before-deps",
+    "file": "client/src/components/products/report/body_editor.tsx",
+    "text": "effect body opens with a conditional"
   }
 ]
