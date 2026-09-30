@@ -1,4 +1,4 @@
-import { createSignal, For, onMount } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import {
   AlertComponentProps,
   Input,
@@ -209,7 +209,9 @@ export function SaveToPromptLibraryModal(
             },
           ]}
         />
-        {error() && <div class="text-danger text-sm">{error()}</div>}
+        <Show when={error()}>
+          <div class="text-danger text-sm">{error()}</div>
+        </Show>
       </div>
     </ModalContainer>
   );
