@@ -11,8 +11,10 @@
 // formula references.
 import {
   AlertComponentProps,
+  Button,
   ModalContainer,
   Checkbox,
+  createDeleteAction,
   createFormAction,
   Input,
   Field,
@@ -74,6 +76,7 @@ import {
   indicatorTypeWord,
 } from "~/components/data/hmis/_shared/mod.ts";
 import { SpecialBadge } from "./special_badge";
+import { deleteIndicatorsConfirm } from "./delete_confirm";
 
 // The rule a fresh "Set" starts from: three traffic-light bands at 70 / 80 in
 // the indicator's own display units, labelled in the UI language.
@@ -639,6 +642,15 @@ export function EditIndicatorForm(
     () => p.close(undefined),
   );
 
+  const deleteAction = existing === undefined ? undefined : createDeleteAction(
+    deleteIndicatorsConfirm([existing]),
+    () =>
+      serverActions.deleteIndicators({
+        indicator_common_ids: [existing.indicator_common_id],
+      }),
+    () => p.close(undefined),
+  );
+
   const idCaption = (): string | undefined => {
     if (mode === "create") return undefined;
     if (existingIsSpecial) {
@@ -696,6 +708,17 @@ export function EditIndicatorForm(
       width="xl"
       form
       onCancel={() => p.close(undefined)}
+      footer={deleteAction && (
+        <Button
+          type="button"
+          outline
+          intent="danger"
+          iconName="trash"
+          onClick={() => deleteAction.click()}
+        >
+          {t3(TC.delete)}
+        </Button>
+      )}
       actions={[{
         label: t3({ en: "Save", fr: "Sauvegarder", pt: "Guardar" }),
         onClick: save.click,
