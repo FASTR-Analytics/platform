@@ -5,6 +5,37 @@ health facility data and runs versioned R analysis modules into immutable
 results packages. Products (slide decks and reports, kept in nested folders)
 render figures from one package each at one scope. One instance per country.
 
+## FORMATTING: NEVER RUN A FORMATTER ON `client/`. NOT ONCE. NOT "JUST TO CHECK".
+
+**THIS HAS BEEN FUCKED UP BEFORE AND IT WILL NOT BE FUCKED UP AGAIN.**
+
+The client has **no formatter**. `deno.json` excludes `client/` from `deno fmt`
+on purpose. The `prettier` in `client/package.json` does **not** match the
+committed style either. As of 2026-09-30, 381 of 485 files under `client/src`
+fail `deno fmt --check`, and prettier flags the same files. That is not a
+backlog to fix. It is the codebase. Its style is what is written there.
+
+So:
+
+- **Do not run `deno fmt` on anything under `client/`.** Not on a file you
+  touched, not on the tree, not with `--check` and then "fixing" what it says.
+- **Do not run `prettier`** on anything under `client/`. Not `--write`, not
+  through an editor action, not because it is listed in `package.json`.
+- **Do not run any other formatter**, linter autofix, or "organise imports"
+  tool that rewrites lines you did not change.
+- When you edit a client file, **match the surrounding code by hand**: its
+  import order, its line breaks, its JSX wrapping, its trailing commas. If you
+  are unsure what the style is, look at the lines directly above and below.
+- **Before you commit, `git diff --stat`.** If a file shows more changed lines
+  than the change you meant to make, you have reformatted it. Put the committed
+  content back (`git show HEAD:<path> > <path>`) and reapply only your edit.
+- A formatter pass is never "harmless cleanup". It buries the real change in
+  hundreds of lines of noise, breaks `git blame`, and costs a review of every
+  line it touched.
+
+`deno fmt` is for `server/`, `lib/`, and the repo root only, exactly as
+`deno.json` configures it.
+
 ## Read first
 
 - [SYSTEMS.md](SYSTEMS.md) is the map: 17 systems plus a kernel of shared
