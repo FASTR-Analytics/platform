@@ -101,8 +101,14 @@ defineRoute(
     const editor = editorFromGlobalUser(c.var.globalUser);
     recordVersionEdit("deck", params.product_id, editor);
     recordDeckSettingsEdited(params.product_id, editor.email);
+    // The first theme choice made the deck's cover: announce it as
+    // createSlide announces a new slide.
+    const { lastUpdated, coverSlideId } = res.data;
+    if (coverSlideId !== undefined) {
+      notifyInstanceLastUpdated("slides", [coverSlideId], lastUpdated);
+    }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
-    return respond(c, res);
+    return respond(c, { success: true, data: { lastUpdated } });
   },
 );
 

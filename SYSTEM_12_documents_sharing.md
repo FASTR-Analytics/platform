@@ -159,7 +159,12 @@ holds the cross-type surface: one summary query for both types
 (`listProducts` / `getProductSummaries`, the registry row plus
 `firstSlideId` for a deck and `hasEmbeds` for a report, computed in SQL so
 no body crosses the DB boundary); `createProduct` inserts the registry row
-and the detail row in one transaction, resolves `run_id` from `runs WHERE
+and the detail row in one transaction (a new deck is minted EMPTY with
+`themeChosen: false`; the config write that first answers the theme
+question, the first-open wizard in practice, makes the deck's cover in the
+same transaction, under a row lock, and only while the deck has no slides:
+see `updateSlideDeckConfig`, whose route announces the new slide as
+createSlide does), resolves `run_id` from `runs WHERE
 pinned AND status = 'ready'` inside the insert and returns the typed
 `NO_READY_PINNED_PACKAGE` when nothing qualifies; `updateProductLabel`,
 `moveProductsToFolder`, `setProductScope`; `deleteProducts` is one `DELETE
@@ -264,8 +269,9 @@ the name (with the deck glyph over the back arrow, the chip and presence)
 and, under it, ONE menu row on the left; on the right, on that same lower
 line, the `PackageScopeChip`, the open slide's live/save dot (portaled in
 from the slide editor through `statusHost`, the report header's save
-indicator for slides) and the deck's actions (Add slide, Present, Update
-figures, History, AI); beneath it a full-width
+indicator for slides) and the deck's actions (Present, Update figures,
+History, AI; Add slide is the menu row's first dropdown, `AddSlideMenu`,
+ahead of File); beneath it a full-width
 TOOLBAR ROW (the open slide's formatting pill, portaled through
 `toolbarHost`), over a `FrameLeftResizable` (210px,
 140-420): the RAIL on the left is the
@@ -322,9 +328,17 @@ the report toolbar's Page menu, for decks: Theme (the `ThemePicker` cards,
 live-previewing this deck), Logos (the custom list plus the cover, header and
 footer sections) and Footer and page numbers open as flyouts, and each
 control SAVES AS IT IS TOUCHED through `updateSlideDeckConfig`. There is no
-Save button: `SlideList` holds the patched config as an override so the
-header shows it at once, the deck's own refetch lands on the same value and
-releases the override, and a rejected save drops it. The footer's free text
+Save button: the DECK (`patchDeckConfig` in `slide_deck.tsx`, which owns the
+config above both the rail and the editor) writes each change into its config
+at once, so the rail, the open slide and the header all show it on the click,
+and saves behind it; a rejected save puts back the config it replaced. The
+refetch that follows writes the slide list and the config in ONE batch (the
+cover the first theme choice makes never renders a frame under the old
+look), leaves the config alone while a save of ours is in flight, and the
+editor's remount key is `canonicalJson` of the config, since the optimistic
+spread and the server's schema-ordered copy are the same deck in a different
+key order (a plain `JSON.stringify` key remounted the editor a second time
+whenever a patch added a key, such as the first footer text). The footer's free text
 is the exception, committed on focus-out or when the menu closes, because
 every save remounts the keyed slide editor. The menu is rendered by
 `SlideList`, never by `SlideToolbar`, for that same reason: a menu inside the
@@ -342,10 +356,19 @@ header
 built from the report toolbar's shared parts in
 `products/_shared/toolbar_primitives.tsx`) has a menu row (Slide: type and
 logos; Text: the slide type's title fields from `slide_fields.ts`, adding an
-absent one seeds it with its name and starts typing; Split panel) over one
-pill that follows the selection (text formatting while typing, a title's
-size/bold/italic, or the selected block's type, Layout menu, text background
-and markdown source, figure or image controls). Below it the canvas is a live
+absent one seeds it with its name and starts typing; Split panel) over the
+toolbar row, which since 2026-09-30 is the REPORT's row in its order and
+grouping: undo/redo | text style (Normal text / Heading 1-3, a body block's
+`#` prefix; a title shows its own name there) | bold, italic, the − N + size
+(a cover/section title's size; body text has none, the slide renderer sizes
+it to fit) | bulleted, numbered, quote | then the selection's segment (a text
+block's type, Layout, Edit text, background and markdown source; a styled
+title's reset; with nothing selected, how to start). Every text control is
+ALWAYS present and greyed when nothing it applies to is active, so the row
+never reflows as the selection moves; a selected figure or image swaps the
+text group for its own controls, as a selected embed does in the report. The
+report's underline, highlight, link and colour are absent on purpose: panther's
+markdown, which draws slide text, renders none of them. Below it the canvas is a live
 preview through S10's `convertSlideToPageInputs`, debounced 100ms off
 `trackStore(tempSlide)` except while typing on it.
 Every figure it writes is stamped with the product's pair, a figure block
@@ -364,7 +387,10 @@ through panther node ops via `buildLayoutContextMenu`
 split/add/move/delete/convert, reachable from both the panel button and
 canvas right-click. Figure blocks have ONE authoring path (D3): insert and
 replace open `InsertFigureModal` (the product package's presets and the
-metric wizard) and edit opens S11's embedded `VisualizationEditor`; every
+metric wizard) and edit opens S11's embedded `VisualizationEditor` over the
+WHOLE deck (the deck's `openHostEditor`, as Settings and History open; the
+slide editor's own wrapper only covers the slide pane beside the rail, and
+the slide stays mounted underneath, so its collab binding lives); every
 result resolves through `resolveFigureBundleInteractively` under the
 product's current pair, so editing a stale figure also brings it up to date.
 Local edits notify the AI (`edited_slide_locally`) and the editor registers
@@ -787,28 +813,28 @@ overflow, and bands must bleed to the paper edge. The client builds the
 document (`buildStandaloneReportHtml` with `paged`, fonts inlined as data URLs
 by `exports/inline_theme_fonts.ts` so the host needs no network) and POSTs it to
 the streaming `renderReportPdf` route (can_view_reports; one render at a time
-per instance; `CHROME_PATH` unset ⇒ a clean "cannot render" error). EDIT ON PAGES
-(opt-in, the Page menu's toggle; off by default): the Edit pane is the printed pages
-themselves — `report/paged_edit_surface.ts` holds the same paged document in
-an iframe (rasters from the host's cache, the same pixels the export draws),
-double-buffered so a re-layout after a pause swaps in without a flash. The
-in-place editors the CodeMirror widgets use (text islands, block labels, stat
-pieces, table cells; now document-aware, since they run inside the frame) are
-attached to the page DOM and dispatch into the CodeMirror view, which stays
-mounted and hidden as the model (undo, collab, the toolbar API). The caret is
-restored after each swap from the CodeMirror selection the islands mirror;
-Enter splits a paragraph (a list item gets a sibling), Backspace removes an
-empty one, a press on a page's empty tail appends a paragraph, and an element
-Paged.js split across pages edits through its first fragment. Peer carets are
-mapped onto the pages. With the toggle off (the default, Nick's ruling after trying the
-frame: "still use the CodeMirror system for each of the pages"), the
-CodeMirror live preview IS broken into pages, 1:1 with print: the sheet is
+per instance; `CHROME_PATH` unset ⇒ a clean "cannot render" error). An opt-in "Edit on rendered pages (experimental)" mode, which edited
+on the Paged.js pages in an iframe (`paged_edit_surface.ts`), was REMOVED
+2026-09-30 (Nick). The editor is the CodeMirror live preview (Nick's ruling
+after trying the frame: "still use the CodeMirror system for each of the
+pages"), and it IS broken into pages, 1:1 with print: the sheet is
 the printed page at 96dpi (`--fm-sheet` 794px for A4, `--fm-measure` the
 printed column plus the surface's two 24px bleed pads, no `.cm-line`
 insets), so lines wrap in the editor exactly as they wrap in print.
 `paginationField`/`setPagination` draw a seam before each page's first line
 (a block widget between plain or leaf lines, an element injected into the
-rendered block's DOM). WHERE the pages break is the editor's own decision,
+rendered block's DOM). The sheets are framed like a slide deck's slides
+(2026-09-30): a 1px `--color-base-300` hairline, no drop shadow. On the live
+sheet the side edges are INSET shadows on `.cm-scroller`, so the seam's gap
+band (an in-flow child in the pane's base-200) paints over them and each
+sheet's edges stop at the gap; the band's own top and bottom hairlines are
+the sheets' cut edges, and a seam inside a block redraws the side edges on
+its full-sheet strip (a table's seam cell, only table-wide, does not). The
+live sheet's scroller is only sheet-wide
+and draws no bar, so `body_editor.tsx` puts a thin native scroller at the
+PANE's right edge (its spacer is the scroller's scrollHeight, scrollTop
+mirrored both ways) and forwards a wheel anywhere in the pane to the sheet
+(2026-09-30). WHERE the pages break is the editor's own decision,
 made synchronously by `pageBoxPlugin` on every measure pass: `flowBlocksOf`
 walks the source into blocks (a region from fence to fence, a paragraph of
 consecutive non-blank lines, a heading, a line of space; the first blank
@@ -1532,8 +1558,14 @@ for the markdown card, `iframeSurface` for the html/fastr frame; `data-line`
 anchors, echo-loop guard, figure-settle ResizeObserver window; the html pane
 aligns when its surface becomes ready, not on the next frame). Embed insert/edit controls
 (`ReportEmbedControls`) ride the header strip — the left sidebar panel and the
-format guide panels were removed 2026-09-03 (the toolbar's Insert menu owns
-block insertion; figures resolve through the same S10 funnel as dashboards).
+format guide panels were removed 2026-09-03 (the toolbar's Widgets menu, called
+Insert until 2026-09-30, owns block insertion and tables; visualizations and
+images moved that day to a Figures menu beside it, which carries the
+`report-insert-buttons` tour anchor; Link is on the toolbar row and Ctrl+K
+only; figures resolve through the same S10 funnel as dashboards). The header's
+format-dependent controls wait for the report to load (`knownFormat`), since
+`format` reads markdown until then and a FASTR report used to flash the
+markdown header on open.
 Markdown View mode and both markdown exports share
 `REPORT_MARKDOWN_STYLE`. FASTR Markdown reuses the html editing surface wholesale
 — `markdown()` as the CodeMirror language plus a line decoration for the `:::`
@@ -1595,7 +1627,7 @@ logos included (`imgFile` = their app-root path, which `resolveLogoUrl` in
 `generate_slide_deck/fastr_logos.ts` resolves; every report image URL goes
 through it), so the editor, the orphan prune (the `image:<id>` tokens in
 `src`), the preview, HTML, PDF and Word all resolve a logo as they resolve an
-inline image. Insert → Logos… and the block segment's "Edit logos…" open
+inline image. Widgets → Logos… and the block segment's "Edit logos…" open
 `logo_picker.tsx` (FASTR logos + the instance's image assets, upload, order);
 an edit keeps the id of a logo the row already had. The row's height is the
 size's (s/m/l = 2/3/4.5em), so its box is known before an image loads; a
@@ -1669,9 +1701,11 @@ heading lines are cm-lines rather than real headings and a viewport-scoped
 counter would renumber on scroll, so `buildSurfaceLines` computes the same
 numbers doc-wide as widgets, and docGroundPlugin deliberately keeps `fm-doc*`
 classes off the scroller so the two can never both fire) and DOCUMENT DETAILS
-(words, headings, visualizations, images, last saved), PAGE SIZE (A4/Letter)
-and ORIENTATION — the printed sheet the paged PDF uses and the editor's page
-boxes show (`:::report{pagesize= orientation=}`; margins stay at normal, 18mm)
+(words, headings, visualizations, images, last saved) and ORIENTATION — the
+printed sheet the paged PDF uses and the editor's page boxes show
+(`:::report{orientation=}`; margins stay at normal, 18mm). The sheet is A4:
+the PAGE SIZE choice (A4/Letter) left the menu and the AI brief 2026-09-30,
+but the renderer still honours a `pagesize=` a report already carries
 — and a SHOW PAGE BOXES toggle (per browser, localStorage). Theme and Background
 are hover FLYOUTS — `MenuFlyout`, the pure-CSS row-plus-panel the Insert pickers
 already used and now share. The theme flyout's tiles are drawn from
@@ -1849,7 +1883,15 @@ regex — Lezer doesn't know them; `parseFastrMarkAttrs` in lib is THE parser,
 shared with the renderer and the toolbar, role and size combinable in either
 order) NEVER reveal: the phrase stays styled with the caret inside it, the
 hidden markers are atomic so the caret steps over them, and the toolbar owns
-the attributes. The mark's LABEL styling (role class + `font-size`) lives in
+the attributes. A phrase is deleted whole or kept whole
+(`fastrMarkAwareEdit` / `fastrMarkAwareRewrite` in lib, 2026-09-30): an edit
+that takes every word of a phrase takes its markers too, one that takes some
+of them keeps the markers, and a Backspace or Delete that reaches only a
+marker takes the nearest letter instead. The live preview applies it as a
+transaction filter on user edits (`markAwareEdits`); a block's paragraph
+island, which commits whole text, applies the rewrite form in `commitLive`
+and redraws itself. Before, a selection or a run of Backspaces left
+`]{size=18}` or `{size=18}` in the source. The mark's LABEL styling (role class + `font-size`) lives in
 the whole-doc surface StateField, not the conceal plugin — a size changes
 line height, which viewport-scoped decorations must not. An inline action
 invoked with NOTHING selected acts on the word under the caret (the

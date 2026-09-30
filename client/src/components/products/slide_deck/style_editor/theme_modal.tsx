@@ -10,8 +10,11 @@ import { slideDeckThemeCaption, slideDeckThemeLabel } from "./theme_labels.ts";
 // The modal only picks: the caller writes the choice through the same config
 // patch the Deck menu uses, so there is one save path for a deck's look.
 //
-// Cancel leaves `themeChosen: false`, so the next open asks again, exactly as
-// the report modal does.
+// There is no Cancel: a new deck is empty until its theme is chosen (the
+// first choice makes its cover, server-side), so the question is the way in.
+// Escape still closes it (panther's modal host always allows that), which
+// leaves `themeChosen: false` and an empty deck, and the next open asks
+// again.
 
 type Props = AlertComponentProps<
   {
@@ -34,7 +37,6 @@ export function SlideDeckThemeModal(p: Props) {
         fr: `Choisissez un thème pour « ${p.deckLabel} »`,
         pt: `Escolha um tema para “${p.deckLabel}”`,
       })}
-      onCancel={() => p.close(undefined)}
       actions={[{
         label: t3({ en: "Apply theme", fr: "Appliquer le thème", pt: "Aplicar tema" }),
         onClick: () => p.close(selected()),

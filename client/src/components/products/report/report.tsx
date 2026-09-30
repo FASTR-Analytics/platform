@@ -544,69 +544,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
   // ── Pages ──────────────────────────────────────────────────────────────────
-  // Two ways to see the printed pages while editing. Default: the CodeMirror
-  // live preview with page SEAMS drawn where the pages start (the paginator
-  // lays the SAME paged document the PDF is printed from out in a hidden
-  // frame, paginate_report.ts). Opt-in ("Edit on pages" in the Page menu,
-  // remembered per browser): the editor IS the paged document
-  // (paged_edit_surface.ts).
-  const SHOW_PAGES_KEY = "fastr_report_show_pages";
-  const [showPages, setShowPages] = createSignal<boolean>((() => {
-    try {
-      return localStorage.getItem(SHOW_PAGES_KEY) === "on";
-    } catch {
-      return false;
-    }
-  })());
-  function toggleShowPages() {
-    const next = !showPages();
-    setShowPages(next);
-    try {
-      localStorage.setItem(SHOW_PAGES_KEY, next ? "on" : "off");
-    } catch {
-      // Private mode: the choice lasts the session.
-    }
-  }
-  // "Edit on pages" ON: the editor IS the printed pages (paged_edit_surface).
-  // OFF: the CodeMirror live preview with page seams from the hidden paginator.
-  const pagesOn = () =>
-    showPages() && format() === "fastr" && mode() === "edit" && !isLoading();
+  // The CodeMirror live preview draws page SEAMS where the pages start (the
+  // paginator lays the SAME paged document the PDF is printed from out in a
+  // hidden frame, paginate_report.ts). An experimental second mode that
+  // edited on the rendered pages themselves was removed 2026-09-30.
   const paginationWanted = () =>
-    !showPages() && format() === "fastr" && mode() === "edit" && !isLoading();
-  // The paged standalone document for the editor's pages: the same builder
-  // the PDF export uses, with rasters from the cache (the same pixels) and
-  // images by URL.
-  const buildPagedHtml = (bodyText: string): Promise<string> => {
-    if (loadedConfig === undefined) return Promise.resolve("");
-    return buildStandaloneReportHtml(
-      {
-        id: p.productId,
-        label: label(),
-        body: bodyText,
-        figures: figures(),
-        images: images(),
-        config: { ...loadedConfig, fastrTheme: fastrTheme() },
-        lastUpdated: "",
-      },
-      () => {},
-      {
-        paged: { footer: fastrPagedFooter(label()) },
-        inlineFonts: true,
-        cached: {
-          figureRaster: (id, block, ink) => rasters.get(id, block, ink, chartPalette()),
-          imageUrl: (id) => {
-            const entry = images()[id];
-            return entry ? assetUrl(entry.imgFile) : undefined;
-          },
-        },
-      },
-    );
-  };
-  const pagesKey = createMemo(() =>
-    `${fastrTheme()}|${JSON.stringify(fastrColors() ?? null)}|${rasterTick()}|${label()}|${
-      Object.keys(images()).join(",")
-    }|${Object.keys(figures()).join(",")}`
-  );
+    format() === "fastr" && mode() === "edit" && !isLoading();
   // The boxes the layout frame gives embeds: a figure's raster box (what the
   // PDF embeds) and an image's natural size, both cached; a size landing
   // re-runs the layout. Never the editor's own DOM, which only holds what is
@@ -2198,9 +2141,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               canEdit={canEditBody}
               onContextChange={setBlockContext}
               livePreview={() => format() === "fastr" && mode() === "edit"}
-              pages={pagesOn}
-              buildPagedHtml={buildPagedHtml}
-              pagesKey={pagesKey}
               ref={(api) => {
                 editorApi = api;
                 // The page-box effect below can run before the editor
@@ -2244,9 +2184,13 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   );
   // Each control centred on the buttons' height: the save dot is 15px
   // against a 36px button.
+  // `format` reads markdown until the detail loads, so every control that
+  // depends on the format waits for it (knownFormat): a FASTR report used to
+  // flash the markdown header (Edit/Split/View, undo/redo, Download) on open.
+  const knownFormat = () => (isLoading() ? undefined : format());
   const headerActions = (
     <div class="ui-gap-sm flex items-center">
-      <Show when={format() !== "fastr"}>
+      <Show when={knownFormat() !== undefined && knownFormat() !== "fastr"}>
         <ButtonGroup<ReportMode>
           data-tour="report-mode"
           items={[
@@ -2310,7 +2254,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       {/* Undo/redo the body text. Hidden in View (the editor is
           hidden there, so there is nothing to undo into) — and for
           FASTR the toolbar pill carries the pair, Google Docs style. */}
-      <Show when={mode() !== "view" && canEditBody() && format() !== "fastr"}>
+      <Show
+        when={mode() !== "view" && canEditBody() && knownFormat() !== undefined &&
+          knownFormat() !== "fastr"}
+      >
         <Button
           outline
           iconName="undo"
@@ -2337,7 +2284,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       >
         {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
       </Button>
-      <Show when={!fileMenuShown()}>
+      <Show when={!isLoading() && !fileMenuShown()}>
         <Button
           id="report-download-button"
           outline
@@ -2396,8 +2343,6 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             <ReportToolbar
               menuRowHost={menuRowHost()}
               api={() => editorApi}
-              showPages={showPages}
-              onToggleShowPages={toggleShowPages}
               onDownload={download}
               onEmail={emailReport}
               onRename={openProductSettings}

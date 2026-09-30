@@ -116,6 +116,8 @@ export function ToolbarPopover(p: {
   menu?: boolean;
   chevron?: boolean;
   tour?: string;
+  /** Greyed and inert (the pill button only), holding its place in the row. */
+  disabled?: boolean;
   children: (close: () => void) => JSX.Element;
 }) {
   const [open, setOpen] = createSignal(false);
@@ -151,10 +153,15 @@ export function ToolbarPopover(p: {
         fallback={
           <button
             type="button"
-            class="ui-focusable ui-hoverable-base-300 flex h-7 items-center gap-1 rounded px-2 text-sm"
+            class="ui-focusable flex h-7 items-center gap-1 rounded px-2 text-sm"
+            classList={{
+              "ui-hoverable-base-300": p.disabled !== true,
+              "text-base-content-muted opacity-50": p.disabled === true,
+            }}
             aria-label={p.title}
             title={p.title}
             data-tour={p.tour}
+            disabled={p.disabled}
             onClick={toggle}
           >
             {p.label}

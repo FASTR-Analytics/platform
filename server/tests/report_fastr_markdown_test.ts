@@ -1593,9 +1593,11 @@ Deno.test("the model-facing brief documents the marks it is allowed to write", (
     FASTR_MD_SYNTAX_DOC,
     "`stat`, `contents`, `pagebreak`, `logos` and `report` are ONE-LINE",
   );
-  for (const needle of [":::pagebreak", "pagesize", "orientation", ":::logos", "never invent"]) {
+  for (const needle of [":::pagebreak", "orientation", ":::logos", "never invent"]) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
   }
+  // The page size is no longer the model's to choose (2026-09-30): A4.
+  assert(!FASTR_MD_SYNTAX_DOC.includes("pagesize"));
   // `break=before|after` left the brief with the toolbar's page-break control
   // (2026-09-23): a page break is the leaf, and the model is not told the
   // legacy attribute exists.

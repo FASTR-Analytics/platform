@@ -15,6 +15,7 @@ import {
   getStartingConfigForSlideDeck,
   type GlobalUser,
   type ProductSummary,
+  type SlideDeckConfig,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
@@ -354,8 +355,24 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     )[0];
     assertEquals(reportFolder.folder_id, folderA.folderId);
 
-    // Slides in the first deck, then a duplicate carrying the same pair, then
-    // two slides copied to the duplicate with their configs verbatim.
+    // A new deck is EMPTY until its theme is first chosen; that write makes
+    // its cover, and a later write that repeats the choice makes no second.
+    const emptyAtFirst = await ok<{ id: string }[]>(app, "GET", `/products/${deck.productId}/slides`);
+    assertEquals(emptyAtFirst.length, 0);
+    const detail = await ok<{ config: SlideDeckConfig }>(app, "GET", `/products/${deck.productId}/slide-deck`);
+    assertEquals(detail.config.themeChosen, false);
+    const chosen = { ...detail.config, theme: "minimal" as const, themeChosen: true };
+    await ok(app, "PUT", `/products/${deck.productId}/slide-deck/config`, { config: chosen });
+    await ok(app, "PUT", `/products/${deck.productId}/slide-deck/config`, { config: chosen });
+    const initialSlides = await ok<{ id: string }[]>(app, "GET", `/products/${deck.productId}/slides`);
+    assertEquals(initialSlides.length, 1);
+    const coverId = initialSlides[0].id;
+    const coverRow = await mainDb<{ config: string }[]>`SELECT config FROM slides WHERE id = ${coverId}`;
+    assertEquals(JSON.parse(coverRow[0].config).type, "cover");
+
+    // Slides in the first deck (after its cover), then a duplicate carrying
+    // the same pair, then two slides copied to the duplicate with their
+    // configs verbatim.
     const slide1 = await ok<{ slideId: string }>(app, "POST", `/products/${deck.productId}/slides`, {
       position: { toEnd: true },
       slide: textSlide("one"),
@@ -371,7 +388,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       `/products/${deck.productId}/slides/move`,
       { slideIds: [slide2.slideId], position: { toStart: true } },
     );
-    assertEquals(moved.slides.map((s) => s.id), [slide2.slideId, slide1.slideId]);
+    assertEquals(moved.slides.map((s) => s.id), [slide2.slideId, coverId, slide1.slideId]);
 
     // A deck write aimed at a report is a 404 with no side effect: the
     // registry row keeps its label and stamp.
@@ -433,7 +450,8 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(configOf(copied.newSlideIds[1]).config, configOf(slide2.slideId).config);
     assertEquals(configOf(copied.newSlideIds[0]).slide_deck_id, copy.productId);
     const targetSlides = await ok<{ id: string }[]>(app, "GET", `/products/${copy.productId}/slides`);
-    assertEquals(targetSlides.length, 4);
+    // The duplicate's three (cover + two) plus the two copied in.
+    assertEquals(targetSlides.length, 5);
 
     // A slide id under the wrong product is a 404; under its own it reads.
     const wrong = await call(app, "GET", `/products/${report.productId}/slides/${slide1.slideId}`);

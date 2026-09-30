@@ -1,8 +1,10 @@
 import { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  getDefaultCoverSlide,
   getStartingConfigForSlideDeck,
   parseJsonOrThrow,
+  slideConfigSchema,
   type SlideDeckConfig,
   type SlideDeckDetail,
   slideDeckConfigSchema,
@@ -87,22 +89,59 @@ export async function updateSlideDeckPlan(
 // The deck config carries its own label field, which the editor's title box
 // writes, so this is also a label write and the registry's copy is the
 // authoritative one.
+// A new deck is minted with `themeChosen: false` and no slides. The write that
+// first answers the theme question (false -> true) also makes the deck's
+// cover, in the same transaction, so the deck's first slide is born in the
+// chosen look. Only an EMPTY deck gets one: slides someone (or the AI)
+// already added are never pushed back by a cover. The row lock makes two
+// people answering at once make one cover, not two. `coverSlideId` tells the
+// route which slide to announce.
 export async function updateSlideDeckConfig(
   mainDb: Sql,
   productId: string,
   config: SlideDeckConfig,
-): Promise<APIResponseWithData<{ lastUpdated: string }>> {
+): Promise<
+  APIResponseWithData<{ lastUpdated: string; coverSlideId?: string }>
+> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
-    await mainDb.begin(async (sql) => {
+    const coverSlideId = await mainDb.begin(async (sql) => {
+      const stored = (
+        await sql<{ config: string | null }[]>`
+          SELECT config FROM slide_decks WHERE id = ${productId} FOR UPDATE
+        `
+      ).at(0);
       await touchProduct(sql, productId, "slide_deck", lastUpdated, config.label);
       await sql`
         UPDATE slide_decks
         SET config = ${JSON.stringify(slideDeckConfigSchema.parse(config))}
         WHERE id = ${productId}
       `;
+      const wasUnchosen = stored?.config
+        ? (parseJsonOrThrow(stored.config) as SlideDeckConfig).themeChosen === false
+        : false;
+      if (!wasUnchosen || config.themeChosen !== true) return undefined;
+      const [{ count }] = await sql<{ count: number }[]>`
+        SELECT count(*)::int AS count FROM slides WHERE slide_deck_id = ${productId}
+      `;
+      if (count > 0) return undefined;
+      const coverId = await generateUniqueSlideId(sql);
+      await sql`
+        INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
+        VALUES (
+          ${coverId},
+          ${productId},
+          10,
+          ${JSON.stringify(slideConfigSchema.parse(getDefaultCoverSlide()))},
+          ${lastUpdated}
+        )
+      `;
+      return coverId;
     });
-    return { success: true, data: { lastUpdated } };
+    return {
+      success: true,
+      data: coverSlideId === undefined ? { lastUpdated } : { lastUpdated, coverSlideId },
+    };
   });
 }
 
@@ -122,6 +161,8 @@ export async function insertNewSlideDeckDetail(
     INSERT INTO slide_decks (id, plan, config)
     VALUES (${productId}, '', ${JSON.stringify(config)})
   `;
+  // No slides yet: the cover is made when the deck's theme is first chosen
+  // (updateSlideDeckConfig), so it is born in the look it will keep.
 }
 
 // The deck half of duplicateProduct: runs INSIDE its transaction, after the

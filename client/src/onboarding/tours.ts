@@ -41,7 +41,7 @@ export function buildDeckEditorIntroTour(): TourDefinition {
       },
       {
         id: "add-slide",
-        target: "#deck-add-slide-button",
+        target: tourTarget("deck-add-slide"),
         title: t3({
           en: "Add a slide",
           fr: "Ajouter une diapositive",

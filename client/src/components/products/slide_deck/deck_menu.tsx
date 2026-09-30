@@ -7,8 +7,15 @@
 // deck-config change remounts the keyed slide editor (editor_snapshot.ts), so
 // a menu living inside that editor would close on its own first click.
 
-import { t3, type SlideDeckConfig } from "lib";
-import { Button, Checkbox, getSelectOptions, Select, TextArea } from "panther";
+import {
+  getDefaultContentSlide,
+  getDefaultCoverSlide,
+  getDefaultSectionSlide,
+  type Slide,
+  type SlideDeckConfig,
+  t3,
+} from "lib";
+import { Button, Checkbox, getSelectOptions, Icon, Select, TextArea } from "panther";
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import {
   MenuDivider,
@@ -40,9 +47,6 @@ function FlyoutPanel(p: { class: string; children: JSX.Element }) {
   );
 }
 
-// File: the whole-deck operations, as in Google Docs' File menu and the
-// report toolbar's. It replaced the header's overflow menu outright, so it
-// holds everything that menu did.
 // The footer's own text is the one control that must not save per keystroke:
 // each save remounts the slide editor. It is held locally and committed when
 // focus leaves the field, and again when this panel goes with the menu (a
@@ -97,6 +101,64 @@ function FooterPanel(p: {
   );
 }
 
+// Add slide leads the menu row, the way Google Slides puts New slide first:
+// adding a slide is the deck's most common action.
+export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
+  const kinds = [
+    {
+      label: () => t3({ en: "Cover slide", fr: "Diapositive de couverture", pt: "Diapositivo de capa" }),
+      make: getDefaultCoverSlide,
+    },
+    {
+      label: () => t3({ en: "Section slide", fr: "Diapositive de section", pt: "Diapositivo de secção" }),
+      make: getDefaultSectionSlide,
+    },
+    {
+      label: () => t3({ en: "Content slide", fr: "Diapositive de contenu", pt: "Diapositivo de conteúdo" }),
+      make: getDefaultContentSlide,
+    },
+  ];
+  return (
+    <ToolbarPopover
+      menu
+      tour="deck-add-slide"
+      label={
+        // Just the +, at the height of the text menus beside it; the name
+        // is its tooltip and its accessible label.
+        <span
+          class="flex h-5 items-center"
+          title={t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+          aria-label={t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+        >
+          <Icon iconName="plus" class="h-4 w-4" />
+        </span>
+      }
+      title={t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+    >
+      {(close) => (
+        <div class="flex w-56 flex-col">
+          <For each={kinds}>
+            {(k) => (
+              <PopoverRow
+                active={false}
+                onClick={() => {
+                  close();
+                  p.onAdd(k.make());
+                }}
+              >
+                {k.label()}
+              </PopoverRow>
+            )}
+          </For>
+        </div>
+      )}
+    </ToolbarPopover>
+  );
+}
+
+// File: the whole-deck operations, as in Google Docs' File menu and the
+// report toolbar's. It replaced the header's overflow menu outright, so it
+// holds everything that menu did.
 export function DeckFileMenu(p: {
   onDownload: () => void;
   onShare: () => void;
