@@ -68,12 +68,18 @@ export function getNextActiveIndex<T extends string, M>(
 // one letter repeated is matched as that letter, so repeated presses cycle
 // through the rows starting with it instead of looking for "aa", as the
 // native control does. No match leaves the active row where it is.
+//
+// The fold (case and accents, foldString in _000_utils) is a parameter rather
+// than an import: this module's deps.ts loads _301, whose router cannot be
+// evaluated under `deno test`, and this file's tests are the keyboard model's
+// only check.
 export function getTypeAheadIndex<T extends string, M>(
   entries: ListEntry<T, M>[],
   current: number | undefined,
   buffer: string,
+  fold: (s: string) => string,
 ): number | undefined {
-  const needle = collapseRepeatedLetter(buffer).toLowerCase();
+  const needle = fold(collapseRepeatedLetter(buffer));
   if (needle.length === 0) {
     return current;
   }
@@ -84,7 +90,7 @@ export function getTypeAheadIndex<T extends string, M>(
   const match = [...after, ...upToCurrent].find((i) => {
     const entry = entries[i];
     return isListItem(entry) &&
-      getListItemText(entry).toLowerCase().startsWith(needle);
+      fold(getListItemText(entry)).startsWith(needle);
   });
   return match ?? current;
 }

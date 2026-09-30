@@ -3,6 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { foldString } from "./deps.ts";
 import { BLANK_SENTINEL } from "./types.ts";
 
 // Natural order for option lists, independent of the runtime's collation:
@@ -21,15 +22,11 @@ export function compareOptionValues(
   }
   const sa = String(a);
   const sb = String(b);
-  const natural = compareNatural(fold(sa), fold(sb));
+  const natural = compareNatural(foldString(sa), foldString(sb));
   if (natural !== 0) {
     return natural;
   }
   return sa < sb ? -1 : sa > sb ? 1 : 0;
-}
-
-function fold(s: string): string {
-  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 const CHUNK = /(\d+)|(\D+)/g;

@@ -15,6 +15,7 @@ export * from "./number_formatters.ts";
 export * from "./numbers.ts";
 export * from "./periods.ts";
 export * from "./reorder_array.ts";
+export * from "./search.ts";
 export * from "./sort.ts";
 export * from "./stable_stringify.ts";
 export * from "./strings.ts";

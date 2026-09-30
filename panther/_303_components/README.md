@@ -111,11 +111,11 @@ Frames: `FrameTop`, `FrameLeft`, `FrameRight`, plus `FrameLeftResizable`,
 `FrameRightResizable`, `FrameThreeColumnResizable`. Every slot scrolls. A slot
 owns its inset and its stack spacing: `pad` / `spy` (a `PadSize`:
 `"none" | "sm" | "md" | "lg"`, default none) on the content slot, `panelPad` /
-`panelSpy` on a side frame's panel slot, so no padding `<div>` sits between a
-Frame and its content. Side frames own their panel/content divider (never add
-that edge's border yourself). Horizontal `TabsNavigation` is a `FrameTop` panel
-in its own right (it carries its own `ui-pad-x` and bottom border; no wrapper);
-inside padded content pass `noPad`; `size="sm"` is independent of placement.
+`panelSpy` on the panel slot, so no padding `<div>` sits between a Frame and its
+content. Side frames own their panel/content divider (never add that edge's
+border yourself). Horizontal `TabsNavigation` is a `FrameTop` panel in its own
+right (it carries its own `ui-pad-x` and bottom border; no wrapper); inside
+padded content pass `noPad`; `size="sm"` is independent of placement.
 `CollapsibleSection`'s body takes `pad` and `spy` (default none) and its header
 row `headerPad` (default `md`). Steppers: `getStepper` with
 `StepperChipsWithTitles` or `StepperNavigationVisual`.

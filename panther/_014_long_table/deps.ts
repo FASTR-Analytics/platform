@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export {
+  foldString,
   getLastFullUnitBounds,
   getLastUnitsBounds,
   getPeriodTypeFromValue,

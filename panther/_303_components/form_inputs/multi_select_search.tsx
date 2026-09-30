@@ -11,6 +11,7 @@ import { CheckMark } from "./_internal/check_glyphs.tsx";
 import {
   ComboBoxFrame,
   createComboBoxPanel,
+  createFilteredOptions,
   getSearchText,
 } from "./_internal/combo_box.tsx";
 
@@ -55,15 +56,7 @@ export function MultiSelectSearch<T extends string>(
     return [...pinnedOpts, ...rest];
   });
 
-  const filteredOptions = createMemo(() => {
-    const q = panel.query().trim().toLowerCase();
-    if (!q) {
-      return orderedOptions();
-    }
-    return orderedOptions().filter((opt) =>
-      getSearchText(opt).toLowerCase().includes(q)
-    );
-  });
+  const filteredOptions = createFilteredOptions(orderedOptions, panel.query);
 
   const allFilteredSelected = createMemo(() => {
     const opts = filteredOptions();

@@ -5,13 +5,14 @@
 
 import {
   batch,
+  createMemo,
   createSignal,
   createUniqueId,
   type JSX,
   onCleanup,
   Show,
 } from "solid-js";
-import { t3 } from "../../deps.ts";
+import { foldString, matchesSearch, searchTokens, t3 } from "../../deps.ts";
 import { Icon } from "../../icons/mod.ts";
 import { hideTooltip } from "../../special_state/tooltip.tsx";
 import type { SelectOption } from "../types.ts";
@@ -21,6 +22,25 @@ import { Field } from "../field.tsx";
 // Search matches string labels; JSX labels fall back to the option value.
 export function getSearchText<T extends string>(opt: SelectOption<T>): string {
   return typeof opt.label === "string" ? opt.label : opt.value;
+}
+
+// Option text is folded once per change of the options, not per keystroke.
+export function createFilteredOptions<T extends string>(
+  options: () => SelectOption<T>[],
+  query: () => string,
+): () => SelectOption<T>[] {
+  const folded = createMemo(() =>
+    options().map((opt) => foldString(getSearchText(opt)))
+  );
+  return createMemo(() => {
+    const tokens = searchTokens(query());
+    const opts = options();
+    if (tokens.length === 0) {
+      return opts;
+    }
+    const haystacks = folded();
+    return opts.filter((_, i) => matchesSearch(haystacks[i], tokens));
+  });
 }
 
 const MARGIN_PX = 8;
@@ -318,8 +338,13 @@ export function ComboBoxPopover(p: ComboBoxPopoverProps) {
       onMouseDown={(e) => e.preventDefault()}
     >
       <Show when={panel().open()}>
+        {
+          /* text-base-content is set here because the UA stylesheet gives
+            [popover] color: CanvasText, which .ui-popover does not reset, so
+            without it rows render in the system colour, not the token. */
+        }
         <div
-          class="bg-base-100 flex w-full flex-col overflow-hidden rounded border shadow-floating data-[side=bottom]:rounded-t-none data-[side=bottom]:border-t-0 data-[side=top]:rounded-b-none data-[side=top]:border-b-0"
+          class="bg-base-100 text-base-content flex w-full flex-col overflow-hidden rounded border shadow-floating data-[side=bottom]:rounded-t-none data-[side=bottom]:border-t-0 data-[side=top]:rounded-b-none data-[side=top]:border-b-0"
           data-side={panel().side()}
           style={{ "max-height": `${panel().panelMaxHeight()}px` }}
         >

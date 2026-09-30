@@ -13,7 +13,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { t3 } from "../deps.ts";
+import { foldString, t3 } from "../deps.ts";
 import type { Intent } from "../types.ts";
 import { type DataAttrs, splitDataAttrs } from "../data_attrs.ts";
 import { Icon } from "../icons/mod.ts";
@@ -128,7 +128,9 @@ export function SelectV2<T extends string, M = never>(
       typeAheadBuffer = "";
       typeAheadTimer = undefined;
     }, TYPE_AHEAD_RESET_MS);
-    setActive(getTypeAheadIndex(p.items, active(), typeAheadBuffer));
+    setActive(
+      getTypeAheadIndex(p.items, active(), typeAheadBuffer, foldString),
+    );
   }
 
   onCleanup(() => {
@@ -304,7 +306,7 @@ export function SelectV2<T extends string, M = never>(
                     pt: "Selecionar...",
                   })}
               >
-                {(item) => item().label}
+                {(item) => <>{item().label}</>}
               </Show>
             </span>
             <Show when={p.fitContent}>

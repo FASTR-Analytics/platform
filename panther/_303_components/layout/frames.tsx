@@ -24,6 +24,8 @@ type FrameBaseProps = {
   children: JSX.Element;
   pad?: PadSize;
   spy?: PadSize;
+  panelPad?: PadSize;
+  panelSpy?: PadSize;
 };
 
 // A side frame creates the boundary between its panel and its content, so it
@@ -33,8 +35,6 @@ type FrameBaseProps = {
 // that knows its own tone (see HeadingBar) and owns its own bottom edge.
 type SideFrameProps = FrameBaseProps & {
   noBorder?: boolean;
-  panelPad?: PadSize;
-  panelSpy?: PadSize;
 };
 
 type ResizableFrameProps = SideFrameProps & {
@@ -158,7 +158,15 @@ export function FrameTop(p: FrameBaseProps) {
   return (
     <div class="flex h-full w-full flex-col">
       <Show when={p.panelChildren}>
-        <div class="w-full flex-none overflow-auto">{p.panelChildren}</div>
+        <div
+          class={slotClass(
+            "w-full flex-none overflow-auto",
+            p.panelPad,
+            p.panelSpy,
+          )}
+        >
+          {p.panelChildren}
+        </div>
       </Show>
       <div class={slotClass("h-0 w-full flex-1 overflow-auto", p.pad, p.spy)}>
         {p.children}

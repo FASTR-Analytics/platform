@@ -57,13 +57,13 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
     Frame slot owns scrolling. The slot knob comes first; a raw element is for
     what the slot cannot say**: choose the inset and the stack spacing once, on
     the container (`pad` / `spy` on a Frame's content slot, `panelPad` /
-    `panelSpy` on a side frame's panel slot, `pad` / `spy` on `Card`,
-    `ModalContainer` and `CollapsibleSection`), and everything rendered into the
-    slot gets it, in every state. No padding `<div>` between a kit container and
-    its content. What a slot cannot say stays a raw element on the `ui-pad-*`
-    classes: an inset on one axis, a background that must fill the slot, a
-    scroller a sticky header needs, and a padded stack inside a plain parent.
-    The model is `DOC_CONTAINER_MODEL.md`.
+    `panelSpy` on its panel slot, `pad` / `spy` on `Card`, `ModalContainer` and
+    `CollapsibleSection`), and everything rendered into the slot gets it, in
+    every state. No padding `<div>` between a kit container and its content.
+    What a slot cannot say stays a raw element on the `ui-pad-*` classes: an
+    inset on one axis, a background that must fill the slot, a scroller a sticky
+    header needs, and a padded stack inside a plain parent. The model is
+    `DOC_CONTAINER_MODEL.md`.
 
 ## Do / Don't
 

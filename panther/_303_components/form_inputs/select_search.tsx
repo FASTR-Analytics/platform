@@ -11,6 +11,7 @@ import { CheckSvg } from "./_internal/check_glyphs.tsx";
 import {
   ComboBoxFrame,
   createComboBoxPanel,
+  createFilteredOptions,
   getSearchText,
 } from "./_internal/combo_box.tsx";
 
@@ -51,15 +52,7 @@ export function SelectSearch<T extends string>(p: SelectSearchProps<T>) {
     return opt ? getSearchText(opt) : undefined;
   });
 
-  const filteredOptions = createMemo(() => {
-    const q = panel.query().trim().toLowerCase();
-    if (!q) {
-      return p.options;
-    }
-    return p.options.filter((opt) =>
-      getSearchText(opt).toLowerCase().includes(q)
-    );
-  });
+  const filteredOptions = createFilteredOptions(() => p.options, panel.query);
 
   function selectValue(value: T) {
     batch(() => {
