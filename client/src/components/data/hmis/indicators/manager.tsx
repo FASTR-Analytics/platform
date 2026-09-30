@@ -195,7 +195,9 @@ export function IndicatorsManager(p: Props) {
     await openComponent({
       element: RefreshDhis2LabelsModal,
       props: {
-        elementCount: indicators.filter((i) => i.definition.type === "dhis2_element").length,
+        elementCount: indicators.filter(
+          (i) => i.definition.type === "dhis2_element",
+        ).length,
       },
     });
   }
@@ -211,8 +213,6 @@ export function IndicatorsManager(p: Props) {
   return (
     <EditorWrapper>
       <FrameTop
-        pad="md"
-        spy="md"
         panelChildren={
           <HeadingBar
             onBack={() => p.close(undefined)}
@@ -223,22 +223,14 @@ export function IndicatorsManager(p: Props) {
             })}
           >
             <div class="ui-gap-sm flex items-center">
-              <Button
-                iconName="info"
-                onClick={handleTypes}
-                outline
-              >
+              <Button iconName="info" onClick={handleTypes} outline>
                 {t3({
                   en: "Indicator types",
                   fr: "Types d'indicateurs",
                   pt: "Tipos de indicadores",
                 })}
               </Button>
-              <Button
-                iconName="info"
-                onClick={handleReference}
-                outline
-              >
+              <Button iconName="info" onClick={handleReference} outline>
                 {t3({
                   en: "Special indicators and reserved words",
                   fr: "Indicateurs spéciaux et mots réservés",
@@ -249,17 +241,15 @@ export function IndicatorsManager(p: Props) {
           </HeadingBar>
         }
       >
-        <StateHolderWrapper state={indicators()}>
+        <StateHolderWrapper state={indicators()} loadingAndErrorPad="md">
           {(keyedIndicators) => (
-            <div class="h-full">
-              <IndicatorsTable
-                indicators={keyedIndicators.indicators}
-                idsWithRows={idsWithRows()}
-                handleDownloadCsv={handleDownloadCsv}
-                handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
-                handleRefreshDhis2Labels={handleRefreshDhis2Labels}
-              />
-            </div>
+            <IndicatorsTable
+              indicators={keyedIndicators.indicators}
+              idsWithRows={idsWithRows()}
+              handleDownloadCsv={handleDownloadCsv}
+              handleDhis2IndicatorSelect={handleDhis2IndicatorSelect}
+              handleRefreshDhis2Labels={handleRefreshDhis2Labels}
+            />
           )}
         </StateHolderWrapper>
       </FrameTop>
@@ -583,128 +573,143 @@ function IndicatorsTable(p: {
       : [],
   );
 
+  const hasNotices = () =>
+    importNotice() !== undefined || uncomputableCount() > 0;
+
   return (
-    <div class="flex h-full flex-col">
-      <div class="ui-gap-sm flex items-center pb-4">
-        <div class="flex-1">
-          {search().trim()
-            ? t3({
-                en: `${visibleIndicators().length} of ${p.indicators.length}`,
-                fr: `${visibleIndicators().length} sur ${p.indicators.length}`,
-                pt: `${visibleIndicators().length} de ${p.indicators.length}`,
-              })
-            : t3({
-                en: `${p.indicators.length} indicators`,
-                fr: `${p.indicators.length} indicateurs`,
-                pt: `${p.indicators.length} indicadores`,
+    <FrameTop
+      pad="md"
+      panelPad="md"
+      panelSpy="sm"
+      panelChildren={
+        hasNotices() ? (
+          <>
+            <Show when={importNotice()}>
+              {(notice) => (
+                <Callout intent="success" pad="sm">
+                  <div class="ui-gap-sm flex items-center">
+                    <div class="flex-1">{importNoticeText(notice())}</div>
+                    <Button
+                      onClick={() => setImportNotice(undefined)}
+                      iconName="x"
+                      intent="success"
+                      size="sm"
+                    />
+                  </div>
+                </Callout>
+              )}
+            </Show>
+            <Show when={uncomputableCount() > 0}>
+              <Callout intent="warning" pad="sm">
+                {uncomputableCount() === 1
+                  ? t3({
+                      en: "1 calculated indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
+                      fr: "1 indicateur calculé ne peut pas être évalué. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
+                      pt: "1 indicador calculado não pode ser avaliado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
+                    })
+                  : t3({
+                      en: `${uncomputableCount()} calculated indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
+                      fr: `${uncomputableCount()} indicateurs calculés ne peuvent pas être évalués. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
+                      pt: `${uncomputableCount()} indicadores calculados não podem ser avaliados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
+                    })}
+              </Callout>
+            </Show>
+          </>
+        ) : undefined
+      }
+    >
+      <div class="flex h-full flex-col">
+        <div class="ui-gap-sm flex items-center pb-4">
+          <div class="flex-1">
+            {search().trim()
+              ? t3({
+                  en: `${visibleIndicators().length} of ${p.indicators.length}`,
+                  fr: `${visibleIndicators().length} sur ${p.indicators.length}`,
+                  pt: `${visibleIndicators().length} de ${p.indicators.length}`,
+                })
+              : t3({
+                  en: `${p.indicators.length} indicators`,
+                  fr: `${p.indicators.length} indicateurs`,
+                  pt: `${p.indicators.length} indicadores`,
+                })}
+          </div>
+          <div class="w-72 xl:w-96">
+            <Input
+              value={search()}
+              onChange={setSearch}
+              searchIcon
+              clearable
+              fullWidth
+              placeholder={t3({
+                en: "Search indicators",
+                fr: "Rechercher des indicateurs",
+                pt: "Pesquisar indicadores",
               })}
+            />
+          </div>
+          <Show when={instanceState.currentUserIsGlobalAdmin}>
+            <Button
+              onClick={handleSortIndicators}
+              iconName="gripVertical"
+              // intent="neutral"
+              outline
+            >
+              {t3({ en: "Sort", fr: "Trier", pt: "Ordenar" })}
+            </Button>
+            <Button
+              onClick={p.handleDhis2IndicatorSelect}
+              iconName="import"
+              intent="primary"
+            >
+              {t3({
+                en: "Add from DHIS2",
+                fr: "Ajouter depuis DHIS2",
+                pt: "Adicionar do DHIS2",
+              })}
+            </Button>
+            <Button
+              onClick={handleCreateIndicator}
+              iconName="plus"
+              intent="primary"
+            >
+              {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
+            </Button>
+            <ActionMenuButton items={otherActions} outline />
+          </Show>
         </div>
-        <div class="w-72 xl:w-96">
-          <Input
-            value={search()}
-            onChange={setSearch}
-            searchIcon
-            clearable
-            fullWidth
-            placeholder={t3({
-              en: "Search indicators",
-              fr: "Rechercher des indicateurs",
-              pt: "Pesquisar indicadores",
+        <div class="h-0 w-full flex-1">
+          <Table
+            data={visibleIndicators()}
+            columns={columns}
+            keyField="indicator_common_id"
+            onRowClick={
+              instanceState.currentUserIsGlobalAdmin
+                ? handleUpdateIndicator
+                : undefined
+            }
+            noRowsMessage={
+              search() === ""
+                ? t3({
+                    en: "No indicators",
+                    fr: "Aucun indicateur",
+                    pt: "Nenhum indicador",
+                  })
+                : t3({
+                    en: "No indicators match",
+                    fr: "Aucun indicateur ne correspond",
+                    pt: "Nenhum indicador corresponde",
+                  })
+            }
+            bulkActions={bulkActions()}
+            selectionLabel={t3({
+              en: "indicator",
+              fr: "indicateur",
+              pt: "indicador",
             })}
           />
         </div>
-        <Show when={instanceState.currentUserIsGlobalAdmin}>
-          <Button
-            onClick={handleSortIndicators}
-            iconName="gripVertical"
-            // intent="neutral"
-            outline
-          >
-            {t3({ en: "Sort", fr: "Trier", pt: "Ordenar" })}
-          </Button>
-          <Button
-            onClick={p.handleDhis2IndicatorSelect}
-            iconName="import"
-            intent="primary"
-          >
-            {t3({
-              en: "Add from DHIS2",
-              fr: "Ajouter depuis DHIS2",
-              pt: "Adicionar do DHIS2",
-            })}
-          </Button>
-          <Button
-            onClick={handleCreateIndicator}
-            iconName="plus"
-            intent="primary"
-          >
-            {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
-          </Button>
-          <ActionMenuButton items={otherActions} outline />
-        </Show>
       </div>
-      <Show when={importNotice()}>
-        {(notice) => (
-          <Callout intent="success" pad="sm" class="mb-4 flex-none">
-            <div class="ui-gap-sm flex items-center">
-              <div class="flex-1">{importNoticeText(notice())}</div>
-              <Button
-                onClick={() => setImportNotice(undefined)}
-                iconName="x"
-                intent="success"
-                size="sm"
-              />
-            </div>
-          </Callout>
-        )}
-      </Show>
-      <Show when={uncomputableCount() > 0}>
-        <Callout intent="warning" pad="sm" class="mb-4 flex-none">
-          {uncomputableCount() === 1
-            ? t3({
-                en: "1 calculated indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
-                fr: "1 indicateur calculé ne peut pas être évalué. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
-                pt: "1 indicador calculado não pode ser avaliado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
-              })
-            : t3({
-                en: `${uncomputableCount()} calculated indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
-                fr: `${uncomputableCount()} indicateurs calculés ne peuvent pas être évalués. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
-                pt: `${uncomputableCount()} indicadores calculados não podem ser avaliados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
-              })}
-        </Callout>
-      </Show>
-      <div class="h-0 w-full flex-1">
-        <Table
-          data={visibleIndicators()}
-          columns={columns}
-          keyField="indicator_common_id"
-          onRowClick={
-            instanceState.currentUserIsGlobalAdmin
-              ? handleUpdateIndicator
-              : undefined
-          }
-          noRowsMessage={
-            search() === ""
-              ? t3({
-                  en: "No indicators",
-                  fr: "Aucun indicateur",
-                  pt: "Nenhum indicador",
-                })
-              : t3({
-                  en: "No indicators match",
-                  fr: "Aucun indicateur ne correspond",
-                  pt: "Nenhum indicador corresponde",
-                })
-          }
-          bulkActions={bulkActions()}
-          selectionLabel={t3({
-            en: "indicator",
-            fr: "indicateur",
-            pt: "indicador",
-          })}
-        />
-      </div>
-    </div>
+    </FrameTop>
   );
 }
 
