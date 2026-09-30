@@ -4,11 +4,10 @@ import {
   APIResponseNoData,
   APIResponseWithData,
   composeHfaVariantColumnName,
-  isReservedHfaId,
-  nextHfaIndicatorId,
+  type HfaDictionaryForValidation,
   type HfaIndicator,
-  type HfaIndicatorCode,
   type HfaIndicatorCategory,
+  type HfaIndicatorCode,
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
   type HfaIndicatorVariantCode,
@@ -16,7 +15,8 @@ import {
   type HfaIndicatorVariantItem,
   type HfaWorkbookImport,
   type HfaWorkbookImportResult,
-  type HfaDictionaryForValidation,
+  isReservedHfaId,
+  nextHfaIndicatorId,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
 
@@ -82,7 +82,9 @@ type DBHfaIndicatorVariantCode = {
   r_code: string;
 };
 
-export function dbRowToHfaIndicatorCategory(row: DBHfaIndicatorCategory): HfaIndicatorCategory {
+export function dbRowToHfaIndicatorCategory(
+  row: DBHfaIndicatorCategory,
+): HfaIndicatorCategory {
   return {
     id: row.id,
     label: row.label,
@@ -90,7 +92,9 @@ export function dbRowToHfaIndicatorCategory(row: DBHfaIndicatorCategory): HfaInd
   };
 }
 
-export function dbRowToHfaIndicatorSubCategory(row: DBHfaIndicatorSubCategory): HfaIndicatorSubCategory {
+export function dbRowToHfaIndicatorSubCategory(
+  row: DBHfaIndicatorSubCategory,
+): HfaIndicatorSubCategory {
   return {
     id: row.id,
     categoryId: row.category_id,
@@ -355,7 +359,10 @@ export async function getHfaIndicatorServiceCategories(
     const rows = await mainDb<DBHfaIndicatorServiceCategory[]>`
       SELECT * FROM hfa_indicator_service_categories ORDER BY sort_order, label
     `;
-    return { success: true, data: rows.map(dbRowToHfaIndicatorServiceCategory) };
+    return {
+      success: true,
+      data: rows.map(dbRowToHfaIndicatorServiceCategory),
+    };
   });
 }
 
@@ -483,19 +490,24 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
     [
       "a category id",
       new Set(
-        (await sql<{ id: string }[]>`SELECT id FROM hfa_indicator_categories`).map((r) => r.id),
+        (await sql<{ id: string }[]>`SELECT id FROM hfa_indicator_categories`)
+          .map((r) => r.id),
       ),
     ],
     [
       "a sub-category id",
       new Set(
-        (await sql<{ id: string }[]>`SELECT id FROM hfa_indicator_sub_categories`).map((r) => r.id),
+        (await sql<
+          { id: string }[]
+        >`SELECT id FROM hfa_indicator_sub_categories`).map((r) => r.id),
       ),
     ],
     [
       "a service-category id",
       new Set(
-        (await sql<{ id: string }[]>`SELECT id FROM hfa_indicator_service_categories`).map((r) => r.id),
+        (await sql<
+          { id: string }[]
+        >`SELECT id FROM hfa_indicator_service_categories`).map((r) => r.id),
       ),
     ],
   ];
@@ -522,7 +534,8 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
     const composed = new Set<string>();
     for (const p of pairs) {
       const name = composeHfaVariantColumnName(p.indicator_id, p.item_id);
-      const source = `indicator "${p.indicator_id}" × variant item "${p.item_id}"`;
+      const source =
+        `indicator "${p.indicator_id}" × variant item "${p.item_id}"`;
       if (isReservedHfaId(name)) {
         throw new Error(
           `Composed column name "${name}" (${source}) is reserved — choose a different item id`,
@@ -558,7 +571,11 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
   `;
   if (orphanCode.length > 0) {
     throw new Error(
-      `Variant code for indicator "${orphanCode[0].indicator_id}" references item "${orphanCode[0].item_id}" which is not in the indicator's variant group`,
+      `Variant code for indicator "${
+        orphanCode[0].indicator_id
+      }" references item "${
+        orphanCode[0].item_id
+      }" which is not in the indicator's variant group`,
     );
   }
 
@@ -573,7 +590,9 @@ async function assertVariantIntegrity(sql: Sql): Promise<void> {
   `;
   if (variantOnly.length > 0) {
     throw new Error(
-      `Indicator "${variantOnly[0].indicator_id}" has variant code but no overall R code — an indicator with variant code must have overall code`,
+      `Indicator "${
+        variantOnly[0].indicator_id
+      }" has variant code but no overall R code — an indicator with variant code must have overall code`,
     );
   }
 }
@@ -654,7 +673,10 @@ export async function deleteHfaIndicatorVariantGroup(
     if (referencing.length > 0) {
       return {
         success: false,
-        err: `Cannot delete variant group: still assigned to ${referencing.length} indicator(s) (e.g. "${referencing[0].indicator_id}")`,
+        err:
+          `Cannot delete variant group: still assigned to ${referencing.length} indicator(s) (e.g. "${
+            referencing[0].indicator_id
+          }")`,
       };
     }
     await mainDb`
@@ -816,7 +838,9 @@ export async function createHfaIndicator(
       const indicatorId = nextHfaIndicatorId(taken.map((r) => r.id));
       await sql`
         INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, variant_group_id, updated_at)
-        VALUES (${indicatorId}, ${indicator.categoryId}, ${indicator.subCategoryId}, ${JSON.stringify(indicator.serviceCategoryIds)}, ${indicator.shortLabel}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, ${indicator.variantGroupId}, CURRENT_TIMESTAMP)
+        VALUES (${indicatorId}, ${indicator.categoryId}, ${indicator.subCategoryId}, ${
+        JSON.stringify(indicator.serviceCategoryIds)
+      }, ${indicator.shortLabel}, ${indicator.definition}, ${indicator.type}, ${indicator.aggregation}, ${indicator.sortOrder}, ${indicator.variantGroupId}, CURRENT_TIMESTAMP)
       `;
       await assertVariantIntegrity(sql);
       return indicatorId;
@@ -831,12 +855,18 @@ export async function updateHfaIndicator(
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
-      await deleteOutOfGroupVariantCode(sql, indicator.indicatorId, indicator.variantGroupId);
+      await deleteOutOfGroupVariantCode(
+        sql,
+        indicator.indicatorId,
+        indicator.variantGroupId,
+      );
       await sql`
         UPDATE hfa_indicators
         SET category_id = ${indicator.categoryId},
             sub_category_id = ${indicator.subCategoryId},
-            service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
+            service_category_ids = ${
+        JSON.stringify(indicator.serviceCategoryIds)
+      },
             short_label = ${indicator.shortLabel},
             definition = ${indicator.definition},
             type = ${indicator.type},
@@ -859,12 +889,18 @@ export async function updateHfaIndicatorsBulk(
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
       for (const indicator of indicators) {
-        await deleteOutOfGroupVariantCode(sql, indicator.indicatorId, indicator.variantGroupId);
+        await deleteOutOfGroupVariantCode(
+          sql,
+          indicator.indicatorId,
+          indicator.variantGroupId,
+        );
         await sql`
           UPDATE hfa_indicators
           SET category_id = ${indicator.categoryId},
               sub_category_id = ${indicator.subCategoryId},
-              service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
+              service_category_ids = ${
+          JSON.stringify(indicator.serviceCategoryIds)
+        },
               short_label = ${indicator.shortLabel},
               definition = ${indicator.definition},
               type = ${indicator.type},
@@ -930,7 +966,9 @@ export async function batchUploadHfaIndicators(
         const sortOrder = replaceAll ? i : nextSortOrder++;
         await sql`
           INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, has_syntax_error, code_consistent, variant_group_id, updated_at)
-          VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${JSON.stringify(ind.serviceCategoryIds)}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
+          VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${
+          JSON.stringify(ind.serviceCategoryIds)
+        }, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.hasSyntaxError}, ${ind.codeConsistent}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
           ON CONFLICT (indicator_id) DO NOTHING
         `;
         insertedIndicatorIds.add(ind.indicatorId);
@@ -944,7 +982,9 @@ export async function batchUploadHfaIndicators(
         if (!insertedIndicatorIds.has(c.indicatorId)) continue;
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
-          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
+          c.rFilterCode ?? null
+        })
         `;
       }
       await assertVariantIntegrity(sql);
@@ -966,7 +1006,17 @@ export async function importHfaIndicatorsWorkbook(
     const skippedExisting: string[] = [];
     let imported = 0;
     await mainDb.begin(async (sql) => {
-      const { categories, subCategories, serviceCategories, variantGroups, variantItems, indicators, code, variantCode, replaceAll } = data;
+      const {
+        categories,
+        subCategories,
+        serviceCategories,
+        variantGroups,
+        variantItems,
+        indicators,
+        code,
+        variantCode,
+        replaceAll,
+      } = data;
 
       if (replaceAll) {
         // Deleting indicators cascades to hfa_indicator_code and
@@ -1185,7 +1235,9 @@ export async function importHfaIndicatorsWorkbook(
         const sortOrder = replaceAll ? i : nextSortOrder++;
         await sql`
           INSERT INTO hfa_indicators (indicator_id, category_id, sub_category_id, service_category_ids, short_label, definition, type, aggregation, sort_order, variant_group_id, updated_at)
-          VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${JSON.stringify(ind.serviceCategoryIds)}, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
+          VALUES (${ind.indicatorId}, ${ind.categoryId}, ${ind.subCategoryId}, ${
+          JSON.stringify(ind.serviceCategoryIds)
+        }, ${ind.shortLabel}, ${ind.definition}, ${ind.type}, ${ind.aggregation}, ${sortOrder}, ${ind.variantGroupId}, CURRENT_TIMESTAMP)
           ON CONFLICT (indicator_id) DO NOTHING
         `;
         insertedIndicatorIds.add(ind.indicatorId);
@@ -1200,7 +1252,9 @@ export async function importHfaIndicatorsWorkbook(
         if (!insertedIndicatorIds.has(c.indicatorId)) continue;
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
-          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+          VALUES (${c.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
+          c.rFilterCode ?? null
+        })
         `;
       }
       for (const indicatorId of insertedIndicatorIds) {
@@ -1223,7 +1277,11 @@ export async function importHfaIndicatorsWorkbook(
 export async function saveHfaIndicatorFull(
   mainDb: Sql,
   indicator: HfaIndicator,
-  code: { timePoint: string; rCode: string; rFilterCode?: string | undefined }[],
+  code: {
+    timePoint: string;
+    rCode: string;
+    rFilterCode?: string | undefined;
+  }[],
   variantCode: { timePoint: string; itemId: string; rCode: string }[],
   hasSyntaxError: boolean,
   codeConsistent: boolean,
@@ -1235,23 +1293,33 @@ export async function saveHfaIndicatorFull(
     if (filterOnly) {
       return {
         success: false,
-        err: `Filter code requires R code for time point "${filterOnly.timePoint}"`,
+        err:
+          `Filter code requires R code for time point "${filterOnly.timePoint}"`,
       };
     }
-    const nonEmptyVariantCode = variantCode.filter((c) => c.rCode.trim() !== "");
+    const nonEmptyVariantCode = variantCode.filter((c) =>
+      c.rCode.trim() !== ""
+    );
     if (nonEmptyVariantCode.length > 0 && indicator.variantGroupId === null) {
       return {
         success: false,
-        err: "Variant code requires the indicator to be assigned a variant group",
+        err:
+          "Variant code requires the indicator to be assigned a variant group",
       };
     }
     await mainDb.begin(async (sql) => {
-      await deleteOutOfGroupVariantCode(sql, indicator.indicatorId, indicator.variantGroupId);
+      await deleteOutOfGroupVariantCode(
+        sql,
+        indicator.indicatorId,
+        indicator.variantGroupId,
+      );
       await sql`
         UPDATE hfa_indicators
         SET category_id = ${indicator.categoryId},
             sub_category_id = ${indicator.subCategoryId},
-            service_category_ids = ${JSON.stringify(indicator.serviceCategoryIds)},
+            service_category_ids = ${
+        JSON.stringify(indicator.serviceCategoryIds)
+      },
             short_label = ${indicator.shortLabel},
             definition = ${indicator.definition},
             type = ${indicator.type},
@@ -1268,7 +1336,9 @@ export async function saveHfaIndicatorFull(
         if (!c.rCode.trim()) continue;
         await sql`
           INSERT INTO hfa_indicator_code (indicator_id, time_point, r_code, r_filter_code)
-          VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.rCode}, ${c.rFilterCode ?? null})
+          VALUES (${indicator.indicatorId}, ${c.timePoint}, ${c.rCode}, ${
+          c.rFilterCode ?? null
+        })
         `;
       }
       await sql`DELETE FROM hfa_indicator_variant_code WHERE indicator_id = ${indicator.indicatorId}`;
@@ -1286,7 +1356,11 @@ export async function saveHfaIndicatorFull(
 
 export async function bulkUpdateHfaIndicatorValidation(
   mainDb: Sql,
-  updates: { indicatorId: string; hasSyntaxError: boolean; codeConsistent: boolean }[],
+  updates: {
+    indicatorId: string;
+    hasSyntaxError: boolean;
+    codeConsistent: boolean;
+  }[],
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
@@ -1342,10 +1416,24 @@ export async function getHfaDictionaryForValidation(
     const tpRows = await mainDb<{ label: string }[]>`
       SELECT label FROM hfa_time_points ORDER BY sort_order
     `;
-    const variableRows = await mainDb<{ time_point: string; variable_id: string; variable_label: string; variable_type: string }[]>`
+    const variableRows = await mainDb<
+      {
+        time_point: string;
+        variable_id: string;
+        variable_label: string;
+        variable_type: string;
+      }[]
+    >`
       SELECT time_point, variable_id, variable_label, variable_type FROM hfa_variables ORDER BY time_point, variable_id
     `;
-    const valueRows = await mainDb<{ time_point: string; variable_id: string; value: string; value_label: string }[]>`
+    const valueRows = await mainDb<
+      {
+        time_point: string;
+        variable_id: string;
+        value: string;
+        value_label: string;
+      }[]
+    >`
       SELECT time_point, variable_id, value, value_label FROM hfa_variable_values ORDER BY time_point, variable_id, value
     `;
 
@@ -1354,10 +1442,18 @@ export async function getHfaDictionaryForValidation(
         timePoint: tp.label,
         variables: variableRows
           .filter((v) => v.time_point === tp.label)
-          .map((v) => ({ variableId: v.variable_id, variableLabel: v.variable_label, variableType: v.variable_type })),
+          .map((v) => ({
+            variableId: v.variable_id,
+            variableLabel: v.variable_label,
+            variableType: v.variable_type,
+          })),
         values: valueRows
           .filter((v) => v.time_point === tp.label)
-          .map((v) => ({ variableId: v.variable_id, value: v.value, valueLabel: v.value_label })),
+          .map((v) => ({
+            variableId: v.variable_id,
+            value: v.value,
+            valueLabel: v.value_label,
+          })),
       };
     });
 

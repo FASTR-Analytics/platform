@@ -260,16 +260,16 @@ export function transformConfigD(d: Record<string, unknown>): void {
           e.disDisplayOpt !== "mapArea" &&
           !singleValueFiltered(e.disOpt),
       );
-      const target =
-        d.type !== "map" && effective.length === 1
-          ? effective[0]
-          : adminEntries.length === 1
-            ? adminEntries[0]
-            : undefined;
+      const target = d.type !== "map" && effective.length === 1
+        ? effective[0]
+        : adminEntries.length === 1
+        ? adminEntries[0]
+        : undefined;
       if (target) {
         target.rollup = true;
-        target.rollupPosition =
-          d.adminAreaRollupPosition === "top" ? "top" : "bottom";
+        target.rollupPosition = d.adminAreaRollupPosition === "top"
+          ? "top"
+          : "bottom";
       }
     }
     delete d.includeAdminAreaRollup;

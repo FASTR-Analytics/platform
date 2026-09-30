@@ -37,19 +37,47 @@ function indicator(
 }
 
 const DICTIONARY: HmisIndicator[] = [
-  indicator("on_element", { type: "dhis2_element", data_id: "AbCdEfGhIj1", dhis2_label: null }, true),
-  indicator("off_element", { type: "dhis2_element", data_id: "KlMnOpQrSt2", dhis2_label: null }, false),
+  indicator("on_element", {
+    type: "dhis2_element",
+    data_id: "AbCdEfGhIj1",
+    dhis2_label: null,
+  }, true),
+  indicator("off_element", {
+    type: "dhis2_element",
+    data_id: "KlMnOpQrSt2",
+    dhis2_label: null,
+  }, false),
   indicator("penta1", { type: "uploaded", data_id: "penta1_file" }, false),
-  indicator("member_a", { type: "dhis2_element", data_id: "UvWxYzAbCd3", dhis2_label: null }, false),
+  indicator("member_a", {
+    type: "dhis2_element",
+    data_id: "UvWxYzAbCd3",
+    dhis2_label: null,
+  }, false),
   indicator("member_b", { type: "uploaded", data_id: "file_b" }, false),
   indicator("on_sum", { type: "sum", members: ["member_a", "member_b"] }, true),
   indicator("off_sum", { type: "sum", members: ["member_a"] }, false),
-  indicator("reached_uploaded", { type: "uploaded", data_id: "file_reached" }, false),
+  indicator(
+    "reached_uploaded",
+    { type: "uploaded", data_id: "file_reached" },
+    false,
+  ),
   indicator("reached_sum", { type: "sum", members: ["member_b"] }, false),
-  indicator("on_calculated", { type: "calculated", expression: "reached_uploaded / reached_sum" }, true),
-  indicator("off_calculated", { type: "calculated", expression: "off_element / 2" }, false),
-  indicator("chain_link", { type: "calculated", expression: "penta1 + off_sum" }, false),
-  indicator("on_chain", { type: "calculated", expression: "chain_link / population_u5" }, true),
+  indicator("on_calculated", {
+    type: "calculated",
+    expression: "reached_uploaded / reached_sum",
+  }, true),
+  indicator("off_calculated", {
+    type: "calculated",
+    expression: "off_element / 2",
+  }, false),
+  indicator("chain_link", {
+    type: "calculated",
+    expression: "penta1 + off_sum",
+  }, false),
+  indicator("on_chain", {
+    type: "calculated",
+    expression: "chain_link / population_u5",
+  }, true),
 ];
 
 Deno.test("analysed: on, special, reached by a checked calculated (through a chain); not by a sum alone", () => {
@@ -79,11 +107,19 @@ Deno.test("with data: by the rows under the data id, a sum by any member's data 
     analysed,
     new Set(["AbCdEfGhIj1", "file_b", "KlMnOpQrSt2"]),
   );
-  assertEquals([...withData].toSorted(), ["on_element", "on_sum", "reached_sum"]);
+  assertEquals([...withData].toSorted(), [
+    "on_element",
+    "on_sum",
+    "reached_sum",
+  ]);
   // An indicator id in the set is not a data id: penta1 has no data id and
   // reached_uploaded's rows are keyed file_reached.
   assertEquals(
-    analysedIdsWithData(DICTIONARY, analysed, new Set(["penta1", "reached_uploaded"])).size,
+    analysedIdsWithData(
+      DICTIONARY,
+      analysed,
+      new Set(["penta1", "reached_uploaded"]),
+    ).size,
     0,
   );
 });
@@ -93,7 +129,13 @@ Deno.test("catalog: analysed counts under their stored type, checked calculated 
   const withData = analysedIdsWithData(
     DICTIONARY,
     analysed,
-    new Set(["AbCdEfGhIj1", "UvWxYzAbCd3", "file_b", "file_reached", "penta1_file"]),
+    new Set([
+      "AbCdEfGhIj1",
+      "UvWxYzAbCd3",
+      "file_b",
+      "file_reached",
+      "penta1_file",
+    ]),
   );
   const catalog = resolveHmisIndicatorCatalog(
     DICTIONARY,
@@ -122,5 +164,9 @@ Deno.test("catalog: analysed counts under their stored type, checked calculated 
   assertEquals(sum.slot_map, { on_sum: "ing1" });
   const chain = catalog.find((r) => r.indicator_common_id === "on_chain")!;
   assertEquals(chain.expression, "((penta1 + off_sum) / population_u5)");
-  assertEquals(chain.slot_map, { penta1: "ing1", off_sum: "ing2", population_u5: "ing3" });
+  assertEquals(chain.slot_map, {
+    penta1: "ing1",
+    off_sum: "ing2",
+    population_u5: "ing3",
+  });
 });

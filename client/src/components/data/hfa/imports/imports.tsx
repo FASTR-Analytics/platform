@@ -1,19 +1,19 @@
-import { t3, type HfaImportRunSummary } from "lib";
+import { type HfaImportRunSummary, t3 } from "lib";
 import {
   Button,
   CollapsibleSection,
+  createQuery,
   EditorComponentProps,
   FrameTop,
+  getEditorWrapper,
   HeadingBar,
+  openComponent,
   StateHolderWrapper,
   Table,
-  createQuery,
-  getEditorWrapper,
-  openComponent,
-  toNum0,
   type TableColumn,
+  toNum0,
 } from "panther";
-import { For, Show, onCleanup, onMount } from "solid-js";
+import { For, onCleanup, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { HfaNeedsReviewCard } from "./needs_review_card";
@@ -44,7 +44,10 @@ export function DatasetHfaImports(p: Props) {
   onMount(() => {
     pollingIntervalId = setInterval(async () => {
       const state = runs.state();
-      if (state.status === "ready" && state.data.some((r) => r.status === "running")) {
+      if (
+        state.status === "ready" &&
+        state.data.some((r) => r.status === "running")
+      ) {
         await runs.silentFetch();
       }
     }, 2000);
@@ -81,7 +84,11 @@ export function DatasetHfaImports(p: Props) {
     },
     {
       key: "timePoint",
-      header: t3({ en: "Time point", fr: "Point temporel", pt: "Ponto temporal" }),
+      header: t3({
+        en: "Time point",
+        fr: "Point temporel",
+        pt: "Ponto temporal",
+      }),
       sortable: true,
       render: (run) => run.timePoint,
     },
@@ -92,7 +99,11 @@ export function DatasetHfaImports(p: Props) {
     },
     {
       key: "nRowsIntegrated",
-      header: t3({ en: "Values imported", fr: "Valeurs importées", pt: "Valores importados" }),
+      header: t3({
+        en: "Values imported",
+        fr: "Valeurs importées",
+        pt: "Valores importados",
+      }),
       alignH: "right",
       render: (run) =>
         run.nRowsIntegrated !== undefined ? toNum0(run.nRowsIntegrated) : "",
@@ -117,11 +128,19 @@ export function DatasetHfaImports(p: Props) {
         panelChildren={
           <HeadingBar
             onBack={() => p.close(undefined)}
-            heading={t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
+            heading={t3({
+              en: "Imports",
+              fr: "Importations",
+              pt: "Importações",
+            })}
           >
             <div class="ui-gap-sm flex flex-none items-center">
               <Button onClick={openWizard} iconName="upload">
-                {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
+                {t3({
+                  en: "New import",
+                  fr: "Nouvelle importation",
+                  pt: "Nova importação",
+                })}
               </Button>
               <Button iconName="refresh" onClick={() => runs.fetch()} />
             </div>
@@ -131,70 +150,76 @@ export function DatasetHfaImports(p: Props) {
         <StateHolderWrapper state={runs.state()}>
           {(keyedRuns) => (
             <>
-            <For each={keyedRuns.filter((r) => r.status === "needs_review")}>
-              {(run) => <HfaNeedsReviewCard run={run} onChanged={refresh} />}
-            </For>
+              <For each={keyedRuns.filter((r) => r.status === "needs_review")}>
+                {(run) => <HfaNeedsReviewCard run={run} onChanged={refresh} />}
+              </For>
 
-            <Show
-              when={keyedRuns.find((r) => r.status === "running")}
-              fallback={
-                <div class="ui-pad ui-spy-sm rounded border">
-                  <div class="text-sm">
-                    {t3({
-                      en: "No import running.",
-                      fr: "Aucune importation en cours.",
-                      pt: "Nenhuma importação em curso.",
-                    })}
-                  </div>
-                  <Show when={instanceState.hfaTimePoints.length === 0}>
+              <Show
+                when={keyedRuns.find((r) => r.status === "running")}
+                fallback={
+                  <div class="ui-pad ui-spy-sm rounded border">
                     <div class="text-sm">
                       {t3({
-                        en: "Create a time point on the time points page before importing data.",
-                        fr: "Créez un point temporel sur la page des points temporels avant d'importer des données.",
-                        pt: "Crie um ponto temporal na página dos pontos temporais antes de importar dados.",
+                        en: "No import running.",
+                        fr: "Aucune importation en cours.",
+                        pt: "Nenhuma importação em curso.",
                       })}
                     </div>
-                  </Show>
-                  <Button onClick={openWizard} iconName="upload">
-                    {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
-                  </Button>
-                </div>
-              }
-              keyed
-            >
-              {(run) => (
-                <CollapsibleSection
-                  defaultOpen
-                  boldHeader
-                  title={t3({
-                    en: "Import in progress",
-                    fr: "Importation en cours",
-                    pt: "Importação em curso",
-                  })}
-                >
-                  <HfaRunView run={run} onChanged={refresh} />
-                </CollapsibleSection>
-              )}
-            </Show>
-
-            <div class="ui-spy-sm">
-              <div class="ui-text-heading">
-                {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
-              </div>
-              <Table
-                data={keyedRuns.filter((r) => r.status !== "needs_review")}
-                columns={columns}
-                keyField="id"
-                onRowClick={(run) =>
-                  void openEditor({ element: HfaRunDetail, props: { run } })
+                    <Show when={instanceState.hfaTimePoints.length === 0}>
+                      <div class="text-sm">
+                        {t3({
+                          en:
+                            "Create a time point on the time points page before importing data.",
+                          fr:
+                            "Créez un point temporel sur la page des points temporels avant d'importer des données.",
+                          pt:
+                            "Crie um ponto temporal na página dos pontos temporais antes de importar dados.",
+                        })}
+                      </div>
+                    </Show>
+                    <Button onClick={openWizard} iconName="upload">
+                      {t3({
+                        en: "New import",
+                        fr: "Nouvelle importation",
+                        pt: "Nova importação",
+                      })}
+                    </Button>
+                  </div>
                 }
-                noRowsMessage={t3({
-                  en: "No imports yet",
-                  fr: "Aucune importation pour le moment",
-                  pt: "Ainda não há importações",
-                })}
-              />
-            </div>
+                keyed
+              >
+                {(run) => (
+                  <CollapsibleSection
+                    defaultOpen
+                    boldHeader
+                    title={t3({
+                      en: "Import in progress",
+                      fr: "Importation en cours",
+                      pt: "Importação em curso",
+                    })}
+                  >
+                    <HfaRunView run={run} onChanged={refresh} />
+                  </CollapsibleSection>
+                )}
+              </Show>
+
+              <div class="ui-spy-sm">
+                <div class="ui-text-heading">
+                  {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
+                </div>
+                <Table
+                  data={keyedRuns.filter((r) => r.status !== "needs_review")}
+                  columns={columns}
+                  keyField="id"
+                  onRowClick={(run) =>
+                    void openEditor({ element: HfaRunDetail, props: { run } })}
+                  noRowsMessage={t3({
+                    en: "No imports yet",
+                    fr: "Aucune importation pour le moment",
+                    pt: "Ainda não há importações",
+                  })}
+                />
+              </div>
             </>
           )}
         </StateHolderWrapper>

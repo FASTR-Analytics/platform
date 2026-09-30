@@ -1,5 +1,5 @@
 import { type MetricWithStatus, type PackageScope } from "lib";
-import { PresetSelector, type PresetOption } from "./preset_preview";
+import { type PresetOption, PresetSelector } from "./preset_preview";
 
 type Props = {
   scope: PackageScope;

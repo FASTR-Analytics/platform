@@ -45,7 +45,9 @@ export async function resolveBundleFromMetricAndConfig(
   config = structuredClone(unwrap(config));
 
   if (metric.status !== "ready") {
-    throw new AIToolFailure(`Metric "${metric.id}" is not ready (status: ${metric.status})`);
+    throw new AIToolFailure(
+      `Metric "${metric.id}" is not ready (status: ${metric.status})`,
+    );
   }
 
   const resFetch = getFetchConfigFromPresentationObjectConfig(metric, config);
@@ -109,9 +111,12 @@ export async function resolveFigureBundleInteractively(
       return {
         ok: false,
         reason: t3({
-          en: "No data available for this visualization with the current package, scope and filters.",
-          fr: "Aucune donnée disponible pour cette visualisation avec le package, la portée et les filtres actuels.",
-          pt: "Não há dados disponíveis para esta visualização com o pacote, âmbito e filtros atuais.",
+          en:
+            "No data available for this visualization with the current package, scope and filters.",
+          fr:
+            "Aucune donnée disponible pour cette visualisation avec le package, la portée et les filtres actuels.",
+          pt:
+            "Não há dados disponíveis para esta visualização com o pacote, âmbito e filtros atuais.",
         }),
       };
     }
@@ -137,7 +142,11 @@ export async function resolveFigureBundleInteractively(
 export type FetchedPOData = {
   resultsValue: Pick<
     ResultsValue,
-    "id" | "formatAs" | "valueProps" | "valueLabelReplacements" | "datasetFamily"
+    | "id"
+    | "formatAs"
+    | "valueProps"
+    | "valueLabelReplacements"
+    | "datasetFamily"
   >;
   ih: Extract<ItemsHolderPresentationObject, { status: "ok" }>;
   effectiveConfig: PresentationObjectConfig;

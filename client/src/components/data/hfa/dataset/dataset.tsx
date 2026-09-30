@@ -1,10 +1,10 @@
-import { t3, type HfaTimePoint } from "lib";
+import { type HfaTimePoint, t3 } from "lib";
 import {
   Button,
   FrameRight,
   FrameTop,
-  HeadingBar,
   getEditorWrapper,
+  HeadingBar,
 } from "panther";
 import { Show } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
@@ -82,8 +82,7 @@ export function InstanceDatasetHfa(p: Props) {
                   <div class="">
                     <Button
                       onClick={() =>
-                        viewTimePoints(instanceState.hfaTimePoints)
-                      }
+                        viewTimePoints(instanceState.hfaTimePoints)}
                       outline
                       fullWidth
                       iconName="pencil"

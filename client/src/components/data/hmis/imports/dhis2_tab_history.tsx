@@ -1,12 +1,14 @@
-import { t3, type DatasetHmisImportRunSummary } from "lib";
-import { Table, toNum0, type TableColumn } from "panther";
+import { type DatasetHmisImportRunSummary, t3 } from "lib";
+import { Table, type TableColumn, toNum0 } from "panther";
 
 type Props = {
   runs: DatasetHmisImportRunSummary[];
   onOpenRun: (run: DatasetHmisImportRunSummary) => Promise<void>;
 };
 
-export function statusLabel(status: DatasetHmisImportRunSummary["status"]): string {
+export function statusLabel(
+  status: DatasetHmisImportRunSummary["status"],
+): string {
   if (status === "queued") {
     return t3({ en: "Queued", fr: "En file d'attente", pt: "Em fila" });
   }
@@ -37,23 +39,29 @@ export function selectionLabel(run: DatasetHmisImportRunSummary): string {
     return "";
   }
   if (run.selection.kind === "window") {
-    const elements = `${toNum0(run.selection.dataIds.length)} ${t3({
-      en: "DHIS2 elements",
-      fr: "éléments DHIS2",
-      pt: "elementos DHIS2",
-    })}`;
+    const elements = `${toNum0(run.selection.dataIds.length)} ${
+      t3({
+        en: "DHIS2 elements",
+        fr: "éléments DHIS2",
+        pt: "elementos DHIS2",
+      })
+    }`;
     // A run recorded before PLAN_A3 selected elements directly and has no
     // indicator selection to show.
     const label = run.selection.indicatorIds.length === 0
       ? elements
-      : `${toNum0(run.selection.indicatorIds.length)} ${t3({
-        en: "indicators",
-        fr: "indicateurs",
-        pt: "indicadores",
-      })} (${elements})`;
+      : `${toNum0(run.selection.indicatorIds.length)} ${
+        t3({
+          en: "indicators",
+          fr: "indicateurs",
+          pt: "indicadores",
+        })
+      } (${elements})`;
     return `${label} · ${run.selection.startPeriod}–${run.selection.endPeriod}`;
   }
-  return `${toNum0(run.selection.nPairs)} ${t3({ en: "pairs", fr: "paires", pt: "pares" })}`;
+  return `${toNum0(run.selection.nPairs)} ${
+    t3({ en: "pairs", fr: "paires", pt: "pares" })
+  }`;
 }
 
 export function Dhis2TabHistory(p: Props) {
@@ -70,12 +78,18 @@ export function Dhis2TabHistory(p: Props) {
       sortable: true,
       render: (run) =>
         run.trigger === "schedule"
-          ? `${run.triggeredBy ?? ""} (${t3({ en: "scheduled", fr: "planifiée", pt: "agendada" })})`
+          ? `${run.triggeredBy ?? ""} (${
+            t3({ en: "scheduled", fr: "planifiée", pt: "agendada" })
+          })`
           : (run.triggeredBy ?? ""),
     },
     {
       key: "route",
-      header: t3({ en: "Imported via", fr: "Importé via", pt: "Importado via" }),
+      header: t3({
+        en: "Imported via",
+        fr: "Importé via",
+        pt: "Importado via",
+      }),
       sortable: true,
       sortValue: importRouteLabel,
       render: importRouteLabel,
@@ -87,20 +101,26 @@ export function Dhis2TabHistory(p: Props) {
     },
     {
       key: "succeededPairs",
-      header: t3({ en: "Pairs (ok / failed / total)", fr: "Paires (ok / échec / total)", pt: "Pares (ok / falha / total)" }),
+      header: t3({
+        en: "Pairs (ok / failed / total)",
+        fr: "Paires (ok / échec / total)",
+        pt: "Pares (ok / falha / total)",
+      }),
       alignH: "right",
       render: (run) =>
-        run.route === "csv" ? (
-          ""
-        ) : (
-          <span>
-            {toNum0(run.succeededPairs)} /{" "}
-            <span class={run.failedPairs > 0 ? "text-danger font-700" : ""}>
-              {toNum0(run.failedPairs)}
-            </span>{" "}
-            / {toNum0(run.totalPairs)}
-          </span>
-        ),
+        run.route === "csv"
+          ? (
+            ""
+          )
+          : (
+            <span>
+              {toNum0(run.succeededPairs)} /{" "}
+              <span class={run.failedPairs > 0 ? "text-danger font-700" : ""}>
+                {toNum0(run.failedPairs)}
+              </span>{" "}
+              / {toNum0(run.totalPairs)}
+            </span>
+          ),
     },
     {
       key: "status",
@@ -108,13 +128,11 @@ export function Dhis2TabHistory(p: Props) {
       sortable: true,
       render: (run) => (
         <span
-          class={
-            run.status === "error"
-              ? "text-danger font-700"
-              : run.status === "running"
-                ? "font-700"
-                : ""
-          }
+          class={run.status === "error"
+            ? "text-danger font-700"
+            : run.status === "running"
+            ? "font-700"
+            : ""}
         >
           {statusLabel(run.status)}
         </span>
@@ -134,7 +152,11 @@ export function Dhis2TabHistory(p: Props) {
       columns={columns}
       keyField="id"
       onRowClick={(run) => void p.onOpenRun(run)}
-      noRowsMessage={t3({ en: "No DHIS2 imports yet", fr: "Aucune importation DHIS2 pour le moment", pt: "Ainda não há importações DHIS2" })}
+      noRowsMessage={t3({
+        en: "No DHIS2 imports yet",
+        fr: "Aucune importation DHIS2 pour le moment",
+        pt: "Ainda não há importações DHIS2",
+      })}
     />
   );
 }

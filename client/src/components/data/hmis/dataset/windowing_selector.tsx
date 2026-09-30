@@ -2,30 +2,30 @@ import {
   _COLOR_WATERMARK_GREY,
   _KEY_COLORS_DANGER,
   _KEY_COLORS_SUCCESS,
+  type DatasetHmisWindowing,
   getCalendar,
   makeAa3CompositeKey,
-  t3,
-  type DatasetHmisWindowing,
   type StructureSchema,
+  t3,
   type TranslatableString,
 } from "lib";
 import {
-  FigureHolder,
   Checkbox,
-  MultiSelectSearch,
-  NestedMultiSelect,
-  StateHolderWrapper,
+  createQuery,
+  FigureHolder,
   getSelectOptions,
   getTimeFromPeriodId,
   getTimeseriesDataJsonTransformed,
-  createQuery,
-  toNum0,
+  MultiSelectSearch,
+  NestedMultiSelect,
   type NestedSelectLeafNode,
   type NestedSelectNode,
   type SelectOption,
+  StateHolderWrapper,
   type TimeseriesInputs,
+  toNum0,
 } from "panther";
-import { Show, batch, createMemo, onMount } from "solid-js";
+import { batch, createMemo, onMount, Show } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { instanceState } from "~/state/instance/t1_store";
@@ -207,52 +207,50 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                   points: {
                     func: !isDelete
                       ? (pointInfo) => {
-                          const inPeriodRange =
-                            pointInfo.i_val >= startTimeIndex &&
-                            pointInfo.i_val <= endTimeIndex;
+                        const inPeriodRange =
+                          pointInfo.i_val >= startTimeIndex &&
+                          pointInfo.i_val <= endTimeIndex;
 
-                          const inSelectedIndicators =
-                            takeAll ||
-                            indicators.includes(pointInfo.seriesHeader.label);
+                        const inSelectedIndicators = takeAll ||
+                          indicators.includes(pointInfo.seriesHeader.label);
 
-                          const isGreen = inPeriodRange && inSelectedIndicators;
-                          return isGreen
-                            ? {
-                                show: true,
-                                radius: 6,
-                                color: _KEY_COLORS_SUCCESS,
-                                innerColorStrategy: _KEY_COLORS_SUCCESS,
-                              }
-                            : {
-                                show: true,
-                                radius: 6,
-                                color: _COLOR_WATERMARK_GREY,
-                                innerColorStrategy: "transparent",
-                              };
-                        }
+                        const isGreen = inPeriodRange && inSelectedIndicators;
+                        return isGreen
+                          ? {
+                            show: true,
+                            radius: 6,
+                            color: _KEY_COLORS_SUCCESS,
+                            innerColorStrategy: _KEY_COLORS_SUCCESS,
+                          }
+                          : {
+                            show: true,
+                            radius: 6,
+                            color: _COLOR_WATERMARK_GREY,
+                            innerColorStrategy: "transparent",
+                          };
+                      }
                       : (pointInfo) => {
-                          const inPeriodRange =
-                            pointInfo.i_val >= startTimeIndex &&
-                            pointInfo.i_val <= endTimeIndex;
+                        const inPeriodRange =
+                          pointInfo.i_val >= startTimeIndex &&
+                          pointInfo.i_val <= endTimeIndex;
 
-                          const inSelectedIndicators =
-                            takeAll ||
-                            indicators.includes(pointInfo.seriesHeader.label);
+                        const inSelectedIndicators = takeAll ||
+                          indicators.includes(pointInfo.seriesHeader.label);
 
-                          const isRed = inPeriodRange && inSelectedIndicators;
-                          return isRed
-                            ? {
-                                show: true,
-                                radius: 6,
-                                color: _KEY_COLORS_DANGER,
-                                innerColorStrategy: _KEY_COLORS_DANGER,
-                              }
-                            : {
-                                show: true,
-                                radius: 6,
-                                innerColorStrategy: "transparent",
-                              };
-                        },
+                        const isRed = inPeriodRange && inSelectedIndicators;
+                        return isRed
+                          ? {
+                            show: true,
+                            radius: 6,
+                            color: _KEY_COLORS_DANGER,
+                            innerColorStrategy: _KEY_COLORS_DANGER,
+                          }
+                          : {
+                            show: true,
+                            radius: 6,
+                            innerColorStrategy: "transparent",
+                          };
+                      },
                   },
                 },
               },
@@ -291,24 +289,25 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
               />
             </div>
             <ToggledMultiSelect
-              heading={{ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }}
-              toggleAllLabel={
-                isDelete
-                  ? {
-                      en: "Delete all indicators",
-                      fr: "Supprimer tous les indicateurs",
-                      pt: "Eliminar todos os indicadores",
-                    }
-                  : {
-                      en: "Include all indicators",
-                      fr: "Inclure tous les indicateurs",
-                      pt: "Incluir todos os indicadores",
-                    }
-              }
+              heading={{
+                en: "Indicators",
+                fr: "Indicateurs",
+                pt: "Indicadores",
+              }}
+              toggleAllLabel={isDelete
+                ? {
+                  en: "Delete all indicators",
+                  fr: "Supprimer tous les indicateurs",
+                  pt: "Eliminar todos os indicadores",
+                }
+                : {
+                  en: "Include all indicators",
+                  fr: "Inclure tous les indicateurs",
+                  pt: "Incluir todos os indicadores",
+                }}
               takeAll={p.tempWindowing.takeAllIndicators}
               setTakeAll={(v) =>
-                (p.setTempWindowing as any)("takeAllIndicators", v)
-              }
+                (p.setTempWindowing as any)("takeAllIndicators", v)}
               itemOptions={keyedItemsHolder.indicators}
               itemsToTake={getIndicators()}
               setItemsToTake={setIndicators}
@@ -330,13 +329,11 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                     }}
                     takeAll={p.tempWindowing.takeAllAdminArea2s}
                     setTakeAll={(v) =>
-                      (p.setTempWindowing as any)("takeAllAdminArea2s", v)
-                    }
+                      (p.setTempWindowing as any)("takeAllAdminArea2s", v)}
                     itemOptions={getSelectOptions(keyedItemsHolder.adminArea2s)}
                     itemsToTake={p.tempWindowing.adminArea2sToInclude}
                     setItemsToTake={(v) =>
-                      (p.setTempWindowing as any)("adminArea2sToInclude", v)
-                    }
+                      (p.setTempWindowing as any)("adminArea2sToInclude", v)}
                   />
                 }
               >
@@ -354,13 +351,11 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                     }}
                     takeAll={p.tempWindowing.takeAllAdminArea3s ?? true}
                     setTakeAll={(v) =>
-                      (p.setTempWindowing as any)("takeAllAdminArea3s", v)
-                    }
+                      (p.setTempWindowing as any)("takeAllAdminArea3s", v)}
                     nodes={tree()}
                     itemsToTake={p.tempWindowing.adminArea3sToInclude ?? []}
                     setItemsToTake={(v) =>
-                      (p.setTempWindowing as any)("adminArea3sToInclude", v)
-                    }
+                      (p.setTempWindowing as any)("adminArea3sToInclude", v)}
                   />
                 )}
               </Show>
@@ -379,15 +374,16 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 }}
                 takeAll={p.tempWindowing.takeAllFacilityOwnerships ?? true}
                 setTakeAll={(v) =>
-                  (p.setTempWindowing as any)("takeAllFacilityOwnerships", v)
-                }
+                  (p.setTempWindowing as any)("takeAllFacilityOwnerships", v)}
                 itemOptions={getSelectOptions(
                   keyedItemsHolder.facilityOwnership ?? [],
                 )}
                 itemsToTake={p.tempWindowing.facilityOwnwershipsToInclude ?? []}
                 setItemsToTake={(v) =>
-                  (p.setTempWindowing as any)("facilityOwnwershipsToInclude", v)
-                }
+                  (p.setTempWindowing as any)(
+                    "facilityOwnwershipsToInclude",
+                    v,
+                  )}
               />
             </Show>
             <Show when={!isDelete && p.structureSchema.includeTypes}>
@@ -404,15 +400,13 @@ export function WindowingSelector<T extends DatasetHmisWindowing>(p: Props<T>) {
                 }}
                 takeAll={p.tempWindowing.takeAllFacilityTypes ?? true}
                 setTakeAll={(v) =>
-                  (p.setTempWindowing as any)("takeAllFacilityTypes", v)
-                }
+                  (p.setTempWindowing as any)("takeAllFacilityTypes", v)}
                 itemOptions={getSelectOptions(
                   keyedItemsHolder.facilityTypes ?? [],
                 )}
                 itemsToTake={p.tempWindowing.facilityTypesToInclude ?? []}
                 setItemsToTake={(v) =>
-                  (p.setTempWindowing as any)("facilityTypesToInclude", v)
-                }
+                  (p.setTempWindowing as any)("facilityTypesToInclude", v)}
               />
             </Show>
           </div>

@@ -118,7 +118,9 @@ defineRoute(
         if (isRename) {
           await sql`
             INSERT INTO instance_config (config_key, config_json_value)
-            VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+            VALUES ('structure_last_updated', ${
+            JSON.stringify(new Date().toISOString())
+          })
             ON CONFLICT (config_key)
             DO UPDATE SET config_json_value = EXCLUDED.config_json_value
           `;
@@ -129,7 +131,9 @@ defineRoute(
     if (res.success) {
       notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(mainDb));
       if (isRename) {
-        notifyInstanceStructureUpdated(await getInstanceStructureSummary(mainDb));
+        notifyInstanceStructureUpdated(
+          await getInstanceStructureSummary(mainDb),
+        );
       }
     }
     return c.json(res);
@@ -173,7 +177,7 @@ defineRoute(
       `;
       if (hasIndicatorCode[0].count > 0) {
         throw new Error(
-          `Cannot delete time point "${body.label}" because it has indicator code defined. Delete the indicator code first.`
+          `Cannot delete time point "${body.label}" because it has indicator code defined. Delete the indicator code first.`,
         );
       }
 
@@ -183,7 +187,9 @@ defineRoute(
         await sql`DELETE FROM hfa_time_points WHERE label = ${body.label}`;
         await sql`
           INSERT INTO instance_config (config_key, config_json_value)
-          VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+          VALUES ('structure_last_updated', ${
+          JSON.stringify(new Date().toISOString())
+        })
           ON CONFLICT (config_key)
           DO UPDATE SET config_json_value = EXCLUDED.config_json_value
         `;

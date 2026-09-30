@@ -137,7 +137,11 @@ export type HfaWorkbookImportResult = {
 export type HfaDictionaryForValidation = {
   timePoints: {
     timePoint: string;
-    variables: { variableId: string; variableLabel: string; variableType: string }[];
+    variables: {
+      variableId: string;
+      variableLabel: string;
+      variableType: string;
+    }[];
     values: { variableId: string; value: string; valueLabel: string }[];
   }[];
 };

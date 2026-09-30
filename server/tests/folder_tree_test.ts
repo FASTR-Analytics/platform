@@ -10,12 +10,12 @@
 import { assertEquals } from "@std/assert";
 import type { Folder, ProductSummary, ProductType } from "lib";
 import {
-  GENERAL_ID,
   buildProductTree,
   childFolders,
   descendantIds,
   folderPathLabels,
   folderPathOptions,
+  GENERAL_ID,
   productTreeRows,
 } from "../../client/src/components/products/_shared/folder_tree.ts";
 
@@ -264,7 +264,10 @@ Deno.test("tree: a root product match opens General, and a folder match does not
   assertEquals(t.matchAncestors, new Set([GENERAL_ID]));
   assertEquals(t.matchCount, 1);
   assertEquals(rowIds(t, [...t.matchAncestors]), ["G", "  p3"]);
-  assertEquals(tree({ needle: "charlie" }).matchAncestors.has(GENERAL_ID), false);
+  assertEquals(
+    tree({ needle: "charlie" }).matchAncestors.has(GENERAL_ID),
+    false,
+  );
 });
 
 Deno.test("tree: a cycle is unreachable from the top level and terminates", () => {
@@ -280,7 +283,13 @@ Deno.test("tree: a cycle is unreachable from the top level and terminates", () =
 Deno.test("dates: a folder's is the newest inside it, General's the root products', and Recent sorts by them", () => {
   const dated: ProductSummary[] = [
     product("p1", "Annual deck", "a"),
-    product("p2", "Quarterly deck", "c", "slide_deck", "2026-03-01T00:00:00.000Z"),
+    product(
+      "p2",
+      "Quarterly deck",
+      "c",
+      "slide_deck",
+      "2026-03-01T00:00:00.000Z",
+    ),
     product("r1", "Budget report", "b", "report"),
     product("p3", "Loose deck", null, "slide_deck", "2026-02-01T00:00:00.000Z"),
   ];

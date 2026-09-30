@@ -1,5 +1,9 @@
 import { getDHIS2 } from "../common/base_fetcher.ts";
-import type { Dhis2OrgUnitName, Dhis2OrgUnitPath, FetchOptions } from "./types.ts";
+import type {
+  Dhis2OrgUnitName,
+  Dhis2OrgUnitPath,
+  FetchOptions,
+} from "./types.ts";
 
 // Unvalidated JSON from an external server: every field may be missing or
 // null, whatever the DHIS2 docs promise.

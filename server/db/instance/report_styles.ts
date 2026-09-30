@@ -108,7 +108,9 @@ export async function updateReportStyle(
             brief = ${body.brief},
             reference_css = ${body.referenceCss},
             colors = ${body.colors ? JSON.stringify(body.colors) : null},
-            product_ids = ${body.productIds ? JSON.stringify(body.productIds) : null},
+            product_ids = ${
+        body.productIds ? JSON.stringify(body.productIds) : null
+      },
             last_updated = now()
         WHERE id = ${styleId}
         RETURNING *

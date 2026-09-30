@@ -17,7 +17,9 @@ export function convertVisualizationType(
 
   // Remove disaggregations not allowed for the new type
   const allowedDisaggregateBy = config.d.disaggregateBy.filter((entry) => {
-    const disOptDef = disaggregationOptions.find((d) => d.value === entry.disOpt);
+    const disOptDef = disaggregationOptions.find((d) =>
+      d.value === entry.disOpt
+    );
     if (
       disOptDef?.allowedPresentationOptions &&
       !disOptDef.allowedPresentationOptions.includes(newType)
@@ -34,7 +36,8 @@ export function convertVisualizationType(
     let newDisplayOpt = entry.disDisplayOpt;
 
     if (!validOpts.includes(newDisplayOpt)) {
-      newDisplayOpt = typeConfig.disDisplayOptFallbacks[newDisplayOpt] ?? validOpts[0];
+      newDisplayOpt = typeConfig.disDisplayOptFallbacks[newDisplayOpt] ??
+        validOpts[0];
     }
 
     if (usedOpts.has(newDisplayOpt)) {

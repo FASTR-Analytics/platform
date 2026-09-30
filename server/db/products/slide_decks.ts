@@ -6,8 +6,8 @@ import {
   parseJsonOrThrow,
   slideConfigSchema,
   type SlideDeckConfig,
-  type SlideDeckDetail,
   slideDeckConfigSchema,
+  type SlideDeckDetail,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { generateUniqueSlideId } from "../../utils/id_generation.ts";
@@ -111,14 +111,21 @@ export async function updateSlideDeckConfig(
           SELECT config FROM slide_decks WHERE id = ${productId} FOR UPDATE
         `
       ).at(0);
-      await touchProduct(sql, productId, "slide_deck", lastUpdated, config.label);
+      await touchProduct(
+        sql,
+        productId,
+        "slide_deck",
+        lastUpdated,
+        config.label,
+      );
       await sql`
         UPDATE slide_decks
         SET config = ${JSON.stringify(slideDeckConfigSchema.parse(config))}
         WHERE id = ${productId}
       `;
       const wasUnchosen = stored?.config
-        ? (parseJsonOrThrow(stored.config) as SlideDeckConfig).themeChosen === false
+        ? (parseJsonOrThrow(stored.config) as SlideDeckConfig).themeChosen ===
+          false
         : false;
       if (!wasUnchosen || config.themeChosen !== true) return undefined;
       const [{ count }] = await sql<{ count: number }[]>`
@@ -140,7 +147,9 @@ export async function updateSlideDeckConfig(
     });
     return {
       success: true,
-      data: coverSlideId === undefined ? { lastUpdated } : { lastUpdated, coverSlideId },
+      data: coverSlideId === undefined
+        ? { lastUpdated }
+        : { lastUpdated, coverSlideId },
     };
   });
 }

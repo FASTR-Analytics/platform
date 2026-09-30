@@ -55,7 +55,12 @@ export function ReportEditorCursors(p: {
     if (code) {
       const pos = pointerFromPane(code.pane, code.content, cx, cy);
       if (pos) {
-        return { surface: "report-code", scope: p.reportId, x: pos.x, y: pos.y };
+        return {
+          surface: "report-code",
+          scope: p.reportId,
+          x: pos.x,
+          y: pos.y,
+        };
       }
     }
     const preview = previewPane();
@@ -117,8 +122,10 @@ export function ReportEditorCursors(p: {
         suppressed={p.covered()}
         accepts={accepts}
       />
-      {/* Cursor chat: "/" over either pane opens a message bubble on your
-          live cursor (refused while focus is inside the CM editor). */}
+      {
+        /* Cursor chat: "/" over either pane opens a message bubble on your
+          live cursor (refused while focus is inside the CM editor). */
+      }
       <CursorChatInput
         awareness={p.awareness}
         enabled={p.enabled}

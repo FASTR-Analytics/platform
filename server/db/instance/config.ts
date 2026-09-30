@@ -25,7 +25,7 @@ function structureSchemaConfigKey(family: FacilityFamily): string {
 
 export async function getStructureSchema(
   mainDb: Sql,
-  family: FacilityFamily
+  family: FacilityFamily,
 ): Promise<APIResponseWithData<StructureSchema>> {
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb<{ config_json_value: string }[]>`
@@ -58,7 +58,7 @@ export async function getStructureSchema(
 // branch is defensive, not live).
 export async function getStructureSchemaForDatasetFamily(
   mainDb: Sql,
-  family: string | undefined
+  family: string | undefined,
 ): Promise<StructureSchema | undefined> {
   if (family !== "hmis" && family !== "hfa") {
     return undefined;
@@ -73,7 +73,7 @@ export async function getStructureSchemaForDatasetFamily(
 export async function setStructureSchema(
   mainDb: Sql,
   family: FacilityFamily,
-  schema: StructureSchema
+  schema: StructureSchema,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const validated = structureSchemaSchema.parse(schema);
@@ -87,7 +87,9 @@ export async function setStructureSchema(
         WHERE config_key = ${configKey}
       `;
       const current = currentRows.length > 0
-        ? structureSchemaSchema.parse(JSON.parse(currentRows[0].config_json_value))
+        ? structureSchemaSchema.parse(
+          JSON.parse(currentRows[0].config_json_value),
+        )
         : null;
 
       if (current !== null && current.adminDepth !== validated.adminDepth) {
@@ -102,7 +104,8 @@ export async function setStructureSchema(
         if (facilitiesCount[0].count > 0) {
           return {
             success: false,
-            err: `Cannot change the ${family.toUpperCase()} admin depth: the ${family.toUpperCase()} facility registry contains data`,
+            err:
+              `Cannot change the ${family.toUpperCase()} admin depth: the ${family.toUpperCase()} facility registry contains data`,
           };
         }
 
@@ -113,10 +116,13 @@ export async function setStructureSchema(
           ORDER BY admin_area_level
         `;
         if (geojsonLevels.length > 0) {
-          const levels = geojsonLevels.map((r) => r.admin_area_level).join(", ");
+          const levels = geojsonLevels.map((r) => r.admin_area_level).join(
+            ", ",
+          );
           return {
             success: false,
-            err: `Cannot lower the ${family.toUpperCase()} admin depth: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
+            err:
+              `Cannot lower the ${family.toUpperCase()} admin depth: GeoJSON boundaries exist above the new level. Delete the level-${levels} boundaries first.`,
           };
         }
       }
@@ -134,7 +140,7 @@ export async function setStructureSchema(
 }
 
 export async function getAdminAreaLabelsConfig(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<InstanceConfigAdminAreaLabels>> {
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb<{ config_json_value: string }[]>`
@@ -157,7 +163,7 @@ export async function getAdminAreaLabelsConfig(
 
 export async function updateAdminAreaLabelsConfig(
   mainDb: Sql,
-  config: InstanceConfigAdminAreaLabels
+  config: InstanceConfigAdminAreaLabels,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const validated = instanceConfigAdminAreaLabelsSchema.parse(config);
@@ -178,7 +184,7 @@ export async function updateAdminAreaLabelsConfig(
 // row: a plain string JSON-encoded into config_json_value.
 // Absent = empty, never an error: a missing context must not break the prompt.
 export async function getAiContextConfig(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<string>> {
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb<{ config_json_value: string }[]>`
@@ -200,7 +206,7 @@ export async function getAiContextConfig(
 
 export async function updateAiContextConfig(
   mainDb: Sql,
-  aiContext: string
+  aiContext: string,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const value = JSON.stringify(aiContext);
@@ -227,7 +233,7 @@ const EMPTY_RUN_GENERATION_DEFAULTS: RunGenerationDefaults = {
 };
 
 export async function getRunGenerationDefaultsConfig(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<RunGenerationDefaults>> {
   return await tryCatchDatabaseAsync(async () => {
     const result = await mainDb<{ config_json_value: string }[]>`
@@ -256,7 +262,7 @@ export async function getRunGenerationDefaultsConfig(
 
 export async function updateRunGenerationDefaultsConfig(
   mainDb: Sql,
-  config: RunGenerationDefaults
+  config: RunGenerationDefaults,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     const validated = runGenerationDefaultsSchema.parse(config);

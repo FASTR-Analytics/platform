@@ -1,9 +1,9 @@
 import {
-  type PresenceEntry,
   presenceColorForKey,
+  type PresenceEntry,
+  type ReportFormat,
   t3,
   type VersionEditor,
-  type ReportFormat,
 } from "lib";
 import {
   Button,
@@ -69,7 +69,11 @@ export function VersionHistoryEditor(p: Props) {
       }
       return await serverActions.listSlideDeckVersions({ product_id: p.docId });
     },
-    t3({ en: "Loading version history...", fr: "Chargement de l'historique des versions...", pt: "A carregar o histórico de versões..." }),
+    t3({
+      en: "Loading version history...",
+      fr: "Chargement de l'historique des versions...",
+      pt: "A carregar o histórico de versões...",
+    }),
   );
 
   // undefined = the pinned "Current version" row.
@@ -128,7 +132,13 @@ export function VersionHistoryEditor(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={`${t3({ en: "Version history", fr: "Historique des versions", pt: "Histórico de versões" })} — ${p.currentLabel}`}
+          heading={`${
+            t3({
+              en: "Version history",
+              fr: "Historique des versions",
+              pt: "Histórico de versões",
+            })
+          } — ${p.currentLabel}`}
           leftChildren={
             <Button
               id="version-history-back-button"
@@ -141,7 +151,11 @@ export function VersionHistoryEditor(p: Props) {
             <Button
               iconName="refresh"
               intent="base-100"
-              ariaLabel={t3({ en: "Refresh", fr: "Actualiser", pt: "Atualizar" })}
+              ariaLabel={t3({
+                en: "Refresh",
+                fr: "Actualiser",
+                pt: "Atualizar",
+              })}
               onClick={versions.fetch}
             />
           </div>
@@ -160,19 +174,29 @@ export function VersionHistoryEditor(p: Props) {
               onClick={() => setSelectedVersionId(undefined)}
             >
               <div class="font-700 text-sm">
-                {t3({ en: "Current version", fr: "Version actuelle", pt: "Versão atual" })}
+                {t3({
+                  en: "Current version",
+                  fr: "Version actuelle",
+                  pt: "Versão atual",
+                })}
               </div>
             </button>
-            <StateHolderWrapper state={versions.state()} loadingAndErrorPad="sm">
+            <StateHolderWrapper
+              state={versions.state()}
+              loadingAndErrorPad="sm"
+            >
               {(rows) => (
                 <Show
                   when={rows.length > 0}
                   fallback={
                     <div class="ui-text-caption px-3 py-8 text-center">
                       {t3({
-                        en: "No versions yet — versions are saved automatically as people edit.",
-                        fr: "Aucune version pour l'instant — les versions sont enregistrées automatiquement au fil des modifications.",
-                        pt: "Ainda não há versões — as versões são guardadas automaticamente à medida que as pessoas editam.",
+                        en:
+                          "No versions yet — versions are saved automatically as people edit.",
+                        fr:
+                          "Aucune version pour l'instant — les versions sont enregistrées automatiquement au fil des modifications.",
+                        pt:
+                          "Ainda não há versões — as versões são guardadas automaticamente à medida que as pessoas editam.",
                       })}
                     </div>
                   }
@@ -199,14 +223,21 @@ export function VersionHistoryEditor(p: Props) {
                                 </span>
                                 <Show when={row.restoredFromVersionId}>
                                   <span class="bg-base-300 rounded px-1.5 py-0.5 text-xs">
-                                    {t3({ en: "Restored", fr: "Restaurée", pt: "Restaurada" })}
+                                    {t3({
+                                      en: "Restored",
+                                      fr: "Restaurée",
+                                      pt: "Restaurada",
+                                    })}
                                   </span>
                                 </Show>
                                 <span class="flex-1" />
                                 <Show when={row.slideCount !== undefined}>
                                   <span class="ui-text-caption">
-                                    {row.slideCount}{" "}
-                                    {t3({ en: "slides", fr: "diapositives", pt: "diapositivos" })}
+                                    {row.slideCount} {t3({
+                                      en: "slides",
+                                      fr: "diapositives",
+                                      pt: "diapositivos",
+                                    })}
                                   </span>
                                 </Show>
                               </div>
@@ -235,9 +266,12 @@ export function VersionHistoryEditor(p: Props) {
           fallback={
             <div class="text-base-content-muted flex h-full w-full items-center justify-center px-8 text-center text-sm">
               {t3({
-                en: "This is the current version. Select a version on the left to preview or restore it.",
-                fr: "Ceci est la version actuelle. Sélectionnez une version à gauche pour la prévisualiser ou la restaurer.",
-                pt: "Esta é a versão atual. Selecione uma versão à esquerda para a pré-visualizar ou restaurar.",
+                en:
+                  "This is the current version. Select a version on the left to preview or restore it.",
+                fr:
+                  "Ceci est la version actuelle. Sélectionnez une version à gauche pour la prévisualiser ou la restaurer.",
+                pt:
+                  "Esta é a versão atual. Selecione uma versão à esquerda para a pré-visualizar ou restaurar.",
               })}
             </div>
           }

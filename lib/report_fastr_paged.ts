@@ -28,8 +28,8 @@
 // =============================================================================
 
 import {
-  type FastrPageSetup,
   fastrPageMarginPx,
+  type FastrPageSetup,
   fastrSheetPx,
 } from "./fastr_markdown_blocks.ts";
 import { escapeReportHtml } from "./types/reports.ts";
@@ -374,7 +374,9 @@ export function fastrFigureFitCss(
 ): string {
   if (fits.length === 0) return "";
   const rules = fits.map((f) =>
-    `figure[data-line="${f.line}"] img { max-height: ${Math.floor(f.height * 64 + 1e-6) / 64}px !important; }`
+    `figure[data-line="${f.line}"] img { max-height: ${
+      Math.floor(f.height * 64 + 1e-6) / 64
+    }px !important; }`
   );
   return `/* ── Figures sized to their pages, as the editor laid them out ─────────── */
 ${rules.join("\n")}
@@ -407,7 +409,9 @@ export function fastrGapStretchCss(
   // The outermost element of the line only: a blockquote's paragraph shares
   // its line, and would take the margin a second time inside the box.
   const rules = gaps.map((g) =>
-    `[data-line="${g.line}"]:not([data-line="${g.line}"] *) { margin-top: ${Math.floor(g.marginTop * 64 + 1e-6) / 64}px !important; }`
+    `[data-line="${g.line}"]:not([data-line="${g.line}"] *) { margin-top: ${
+      Math.floor(g.marginTop * 64 + 1e-6) / 64
+    }px !important; }`
   );
   return `/* ── Gaps stretched to set the page, as the editor laid them out ──────── */
 ${rules.join("\n")}
@@ -417,7 +421,9 @@ ${rules.join("\n")}
 // The hidden title element the builder puts first in <body>: `string-set`
 // reads its text into the running footer.
 export function fastrPrintTitleHtml(title: string): string {
-  return `<span class="${FASTR_PRINT_TITLE_CLASS}">${escapeReportHtml(title)}</span>`;
+  return `<span class="${FASTR_PRINT_TITLE_CLASS}">${
+    escapeReportHtml(title)
+  }</span>`;
 }
 
 // The in-document runner. Assumes the Paged.js polyfill has loaded with
@@ -632,7 +638,9 @@ export function fastrPagedRunnerJs(): string {
       for (var f = 0; f < flagged.length; f++) {
         var el = flagged[f];
         var before = el.previousElementSibling;
-        while (before && before.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
+        while (before && before.classList.contains(${
+    JSON.stringify(FASTR_PRINT_TITLE_CLASS)
+  })) {
           before = before.previousElementSibling;
         }
         if (!before || before.getAttribute("data-break-after") !== el.getAttribute("data-previous-break-after")) {
@@ -686,7 +694,9 @@ export function fastrPagedRunnerJs(): string {
       // bottom or in Paged.js's overflow column to the right.
       var kids = rendered.children;
       var firstContent = kids[0];
-      while (firstContent && firstContent.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
+      while (firstContent && firstContent.classList.contains(${
+    JSON.stringify(FASTR_PRINT_TITLE_CLASS)
+  })) {
         firstContent = firstContent.nextElementSibling;
       }
       if (box && el.nodeType === 1 && firstContent && renderedOf(el) === firstContent && breakToken.offset === 0) {
@@ -724,7 +734,9 @@ export function fastrPagedRunnerJs(): string {
           var parent = x.parentElement;
           if (!parent) return false;
           var first = parent.firstElementChild;
-          while (first && first.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
+          while (first && first.classList.contains(${
+    JSON.stringify(FASTR_PRINT_TITLE_CLASS)
+  })) {
             first = first.nextElementSibling;
           }
           return first === x;
@@ -737,7 +749,9 @@ export function fastrPagedRunnerJs(): string {
       var target = block;
       for (;;) {
         var prev = target.previousElementSibling;
-        while (prev && prev.classList && prev.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
+        while (prev && prev.classList && prev.classList.contains(${
+    JSON.stringify(FASTR_PRINT_TITLE_CLASS)
+  })) {
           prev = prev.previousElementSibling;
         }
         if (!prev || !/^H[1-6]$/.test(prev.tagName) || firstOnPage(prev)) break;
@@ -834,7 +848,9 @@ export function fastrPagedRunnerJs(): string {
         }
         contentHeight = Math.round((wholeBottom > top ? wholeBottom : bottom) - top);
         var firstBlock = flow.firstElementChild;
-        while (firstBlock && firstBlock.classList.contains(${JSON.stringify(FASTR_PRINT_TITLE_CLASS)})) {
+        while (firstBlock && firstBlock.classList.contains(${
+    JSON.stringify(FASTR_PRINT_TITLE_CLASS)
+  })) {
           firstBlock = firstBlock.nextElementSibling;
         }
         flushTop = !!firstBlock && firstBlock.classList.contains("fm-cover") &&
@@ -844,7 +860,9 @@ export function fastrPagedRunnerJs(): string {
         number: i + 1,
         firstLine: firstLine,
         lines: lines,
-        cover: el.classList.contains("pagedjs_" + ${JSON.stringify(COVER_PAGE_NAME)} + "_page"),
+        cover: el.classList.contains("pagedjs_" + ${
+    JSON.stringify(COVER_PAGE_NAME)
+  } + "_page"),
         flushTop: flushTop,
         contentHeight: contentHeight
       });

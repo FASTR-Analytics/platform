@@ -1,5 +1,5 @@
 import { Instance, LoggedInWrapper } from "~/components/instance/mod.ts";
-import { setCalendar, setLanguage, LANGUAGE_STORAGE_KEY } from "lib";
+import { LANGUAGE_STORAGE_KEY, setCalendar, setLanguage } from "lib";
 import type { Language } from "panther";
 import { InstanceSSEBoundary } from "~/state/instance/t1_sse";
 
@@ -7,7 +7,9 @@ export default function InstanceLoggedInWrapper() {
   return (
     <LoggedInWrapper>
       {(globalUser, attemptSignOut) => {
-        const storedLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language | null;
+        const storedLang = localStorage.getItem(LANGUAGE_STORAGE_KEY) as
+          | Language
+          | null;
         setLanguage(storedLang ?? globalUser.instanceLanguage);
         setCalendar(globalUser.instanceCalendar);
         return (

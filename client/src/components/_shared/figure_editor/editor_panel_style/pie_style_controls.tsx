@@ -1,16 +1,12 @@
-import {
-  type IndicatorFormat,
-  PresentationObjectConfig,
-  t3,
-} from "lib";
+import { type IndicatorFormat, PresentationObjectConfig, t3 } from "lib";
 import {
   Button,
   Checkbox,
   Field,
+  getSelectOptions,
   RadioGroup,
   Select,
   Slider,
-  getSelectOptions,
   toPct0,
 } from "panther";
 import { Show } from "solid-js";
@@ -32,22 +28,31 @@ const DEFAULT_GROUP_SMALL_SLICES_THRESHOLD = 0.03;
 export function PieStyleControls(p: Props) {
   return (
     <>
-      <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+      <StyleSection
+        label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}
+      >
         <>
           <RadioGroup
             label={t3({ en: "Shape", fr: "Forme", pt: "Forma" })}
             options={[
-              { value: "pie", label: t3({ en: "Pie", fr: "Camembert", pt: "Circular" }) },
-              { value: "doughnut", label: t3({ en: "Doughnut", fr: "Anneau", pt: "Anel" }) },
+              {
+                value: "pie",
+                label: t3({ en: "Pie", fr: "Camembert", pt: "Circular" }),
+              },
+              {
+                value: "doughnut",
+                label: t3({ en: "Doughnut", fr: "Anneau", pt: "Anel" }),
+              },
             ]}
-            value={(p.tempConfig.s.pieInnerRadiusRatio ?? 0) > 0 ? "doughnut" : "pie"}
+            value={(p.tempConfig.s.pieInnerRadiusRatio ?? 0) > 0
+              ? "doughnut"
+              : "pie"}
             onChange={(v) =>
               p.setTempConfig(
                 "s",
                 "pieInnerRadiusRatio",
                 v === "doughnut" ? DOUGHNUT_INNER_RADIUS_RATIO : 0,
-              )
-            }
+              )}
           />
           <Show when={(p.tempConfig.s.pieInnerRadiusRatio ?? 0) > 0}>
             <StyleRevealGroup>
@@ -77,7 +82,11 @@ export function PieStyleControls(p: Props) {
           <Checkbox
             checked={p.tempConfig.s.hideLegend}
             onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-            label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
+            label={t3({
+              en: "Hide legend",
+              fr: "Masquer la légende",
+              pt: "Ocultar legenda",
+            })}
           />
         </>
       </StyleSection>
@@ -92,26 +101,32 @@ export function PieStyleControls(p: Props) {
           >
             <div class="ui-spy-sm">
               <Checkbox
-                label={t3({ en: "Descending", fr: "Décroissant", pt: "Descendente" })}
+                label={t3({
+                  en: "Descending",
+                  fr: "Décroissant",
+                  pt: "Descendente",
+                })}
                 checked={p.tempConfig.s.sortIndicatorValues === "descending"}
                 onChange={(v) =>
                   p.setTempConfig(
                     "s",
                     "sortIndicatorValues",
                     v ? "descending" : "none",
-                  )
-                }
+                  )}
               />
               <Checkbox
-                label={t3({ en: "Ascending", fr: "Croissant", pt: "Ascendente" })}
+                label={t3({
+                  en: "Ascending",
+                  fr: "Croissant",
+                  pt: "Ascendente",
+                })}
                 checked={p.tempConfig.s.sortIndicatorValues === "ascending"}
                 onChange={(v) =>
                   p.setTempConfig(
                     "s",
                     "sortIndicatorValues",
                     v ? "ascending" : "none",
-                  )
-                }
+                  )}
               />
             </div>
           </Field>
@@ -128,8 +143,7 @@ export function PieStyleControls(p: Props) {
                 "s",
                 "pieGroupSmallSlices",
                 v ? DEFAULT_GROUP_SMALL_SLICES_THRESHOLD : 0,
-              )
-            }
+              )}
           />
           <Show when={!!p.tempConfig.s.pieGroupSmallSlices}>
             <StyleRevealGroup>
@@ -139,7 +153,8 @@ export function PieStyleControls(p: Props) {
                   fr: "Regrouper les tranches sous",
                   pt: "Agrupar fatias abaixo de",
                 })}
-                value={p.tempConfig.s.pieGroupSmallSlices ?? DEFAULT_GROUP_SMALL_SLICES_THRESHOLD}
+                value={p.tempConfig.s.pieGroupSmallSlices ??
+                  DEFAULT_GROUP_SMALL_SLICES_THRESHOLD}
                 onChange={(v) => p.setTempConfig("s", "pieGroupSmallSlices", v)}
                 fullWidth
                 showValueInLabel
@@ -152,7 +167,9 @@ export function PieStyleControls(p: Props) {
           </Show>
         </>
       </StyleSection>
-      <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
+      <StyleSection
+        label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}
+      >
         <>
           <Checkbox
             checked={p.tempConfig.s.showDataLabels}
@@ -166,7 +183,11 @@ export function PieStyleControls(p: Props) {
           <Show when={p.tempConfig.s.showDataLabels}>
             <StyleRevealGroup>
               <RadioGroup
-                label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                label={t3({
+                  en: "Decimal places",
+                  fr: "Décimales",
+                  pt: "Casas decimais",
+                })}
                 options={getSelectOptions(["0", "1", "2", "3"])}
                 value={String(p.tempConfig.s.decimalPlaces)}
                 onChange={(v) =>
@@ -174,8 +195,7 @@ export function PieStyleControls(p: Props) {
                     "s",
                     "decimalPlaces",
                     Number(v) as 0 | 1 | 2 | 3,
-                  )
-                }
+                  )}
                 horizontal
               />
             </StyleRevealGroup>
@@ -185,27 +205,51 @@ export function PieStyleControls(p: Props) {
       <StyleSection label={t3({ en: "Colors", fr: "Couleurs", pt: "Cores" })}>
         <>
           <Select
-            label={t3({ en: "Color scale", fr: "Échelle de couleurs", pt: "Escala de cores" })}
+            label={t3({
+              en: "Color scale",
+              fr: "Échelle de couleurs",
+              pt: "Escala de cores",
+            })}
             options={[
               {
                 value: "pastel-discrete",
-                label: t3({ en: "Discrete 1", fr: "Discret 1", pt: "Discreto 1" }),
+                label: t3({
+                  en: "Discrete 1",
+                  fr: "Discret 1",
+                  pt: "Discreto 1",
+                }),
               },
               {
                 value: "alt-discrete",
-                label: t3({ en: "Discrete 2", fr: "Discret 2", pt: "Discreto 2" }),
+                label: t3({
+                  en: "Discrete 2",
+                  fr: "Discret 2",
+                  pt: "Discreto 2",
+                }),
               },
               {
                 value: "red-green",
-                label: t3({ en: "Red-green", fr: "Rouge-vert", pt: "Vermelho-verde" }),
+                label: t3({
+                  en: "Red-green",
+                  fr: "Rouge-vert",
+                  pt: "Vermelho-verde",
+                }),
               },
               {
                 value: "blue-green",
-                label: t3({ en: "Blue-green", fr: "Bleu-vert", pt: "Azul-verde" }),
+                label: t3({
+                  en: "Blue-green",
+                  fr: "Bleu-vert",
+                  pt: "Azul-verde",
+                }),
               },
               {
                 value: "single-grey",
-                label: t3({ en: "Single grey", fr: "Gris simple", pt: "Cinzento único" }),
+                label: t3({
+                  en: "Single grey",
+                  fr: "Gris simple",
+                  pt: "Cinzento único",
+                }),
               },
               {
                 value: "custom",
@@ -228,8 +272,7 @@ export function PieStyleControls(p: Props) {
                   | "blue-green"
                   | "single-grey"
                   | "custom",
-              )
-            }
+              )}
             fullWidth
           />
           <Show when={p.tempConfig.s.colorScale === "custom"}>

@@ -21,10 +21,10 @@ the assistant acts as **you**, with your user and your permissions:
 and access ends when you revoke the connection. Every current Claude client
 supports it, Claude Code included.
 
-**Use a PAT when no browser is available**: `claude -p`, the Agent SDK, CI
-jobs, or any scripted run. Those cannot complete an OAuth sign-in on their own
-(there is no interactive prompt to approve it), so a header is the only option.
-This is why PATs are not going away.
+**Use a PAT when no browser is available**: `claude -p`, the Agent SDK, CI jobs,
+or any scripted run. Those cannot complete an OAuth sign-in on their own (there
+is no interactive prompt to approve it), so a header is the only option. This is
+why PATs are not going away.
 
 No repo checkout, no local process, nothing to configure per product. **One
 connection reads the instance's pinned results package** (the package an
@@ -50,13 +50,13 @@ browser tab.
 | Reference | `get_methodology_docs_list`, `get_methodology_doc_content`, `get_info` |
 
 No tool takes a product or package id: every call reads whatever package is
-pinned **right now** (an admin re-pinning moves the connector on the next
-call). Reading a package needs the instance permission **can_view_data**;
-global admins always have it.
+pinned **right now** (an admin re-pinning moves the connector on the next call).
+Reading a package needs the instance permission **can_view_data**; global admins
+always have it.
 
-If **nothing is pinned**, `get_overview` still answers and says so; the
-package tools return the same message until an admin with `can_configure_data`
-pins a package under Results packages.
+If **nothing is pinned**, `get_overview` still answers and says so; the package
+tools return the same message until an admin with `can_configure_data` pins a
+package under Results packages.
 
 ---
 
@@ -75,8 +75,8 @@ your instance's normal login, and shows a **consent screen** naming what it is
 about to be granted. Approve it and the connector is live.
 
 The connection is tied to the FASTR user you logged in as, matched on your
-**primary email address**: the same account and the same permissions you have
-in the browser. If you have no FASTR user for that email, the connector will
+**primary email address**: the same account and the same permissions you have in
+the browser. If you have no FASTR user for that email, the connector will
 connect but see nothing, exactly as a first-time browser login would.
 
 Access tokens are short-lived and refresh silently, so you should not have to
@@ -87,10 +87,10 @@ re-approve anything day to day.
 
 ### Option 2: Mint a Personal Access Token
 
-Use this wherever no browser sign-in is possible (`claude -p`, the Agent SDK,
-CI jobs), or if you simply prefer a static header. A PAT is a `fastr_pat_…`
-string that resolves to **your** user identity server-side, so everything the
-assistant does is scoped to your permissions.
+Use this wherever no browser sign-in is possible (`claude -p`, the Agent SDK, CI
+jobs), or if you simply prefer a static header. A PAT is a `fastr_pat_…` string
+that resolves to **your** user identity server-side, so everything the assistant
+does is scoped to your permissions.
 
 #### Minting it: the token panel (works everywhere)
 
@@ -124,10 +124,10 @@ Revocation is instant: the next call fails, including a report creation you have
 already been asked to confirm but not yet accepted.
 
 **An OAuth connection** is revoked on the Clerk side (your identity provider),
-not in FASTR. Removing the connector in Claude stops _that_ client using it,
-and revoking the grant in Clerk ends it everywhere. Revocation is **not
-instant**: expect access to stop within about 30 seconds rather than on the next
-call, because verified tokens are briefly cached (see Security notes).
+not in FASTR. Removing the connector in Claude stops _that_ client using it, and
+revoking the grant in Clerk ends it everywhere. Revocation is **not instant**:
+expect access to stop within about 30 seconds rather than on the next call,
+because verified tokens are briefly cached (see Security notes).
 
 ---
 
@@ -189,16 +189,16 @@ use OAuth or the Claude Code CLI form above.
 Start a Claude session with the FASTR connector enabled. A good first move is to
 let the assistant orient itself:
 
-- **"Use the FASTR tools. Call get_overview and tell me which results
-  package is pinned and what metrics it holds."**
+- **"Use the FASTR tools. Call get_overview and tell me which results package is
+  pinned and what metrics it holds."**
 
 `get_overview` carries the live grounding (the pinned package's name, its
 datasets and indicators, its analysis modules) and how to query metric data.
 Then ask naturally:
 
-- **Explore data**: "What's the trend in <metric> over the last two years?
-  Break it down by region." The assistant calls `get_available_metrics` to find
-  ids, then `get_metric_data` (returns CSV) and reasons over it.
+- **Explore data**: "What's the trend in <metric> over the last two years? Break
+  it down by region." The assistant calls `get_available_metrics` to find ids,
+  then `get_metric_data` (returns CSV) and reasons over it.
 - **Reference docs**: "Load the ICEH methodology and explain the equity
   measures." (`get_info` / methodology tools.)
 
@@ -207,8 +207,8 @@ Then ask naturally:
 - The assistant discovers ids with `get_available_metrics`; it should never
   invent an id. If it does, correct it and point it at the discovery tool.
 - Every tool is read-only: nothing you ask can change anything in FASTR.
-- The data is the **national** package: there is no admin-area scope here. For
-  a product's own figures, decks and reports, use the in-app assistant.
+- The data is the **national** package: there is no admin-area scope here. For a
+  product's own figures, decks and reports, use the in-app assistant.
 
 ---
 
@@ -242,9 +242,8 @@ Then ask naturally:
   your FASTR account uses, so check which email you signed in with), or your
   FASTR user really lacks the instance permission. Ask an instance admin.
 - **"No results package is pinned on this instance".** Nothing is wrong with
-  your connection: no package is pinned yet. An admin with
-  `can_configure_data` pins one under Results packages; the tools work from the
-  next call.
+  your connection: no package is pinned yet. An admin with `can_configure_data`
+  pins one under Results packages; the tools work from the next call.
 - **Local dev: everything 401s even with a fresh token.** A dev boot with
   `BYPASS_AUTH` set does not exercise real PAT auth. Boot with
   `BYPASS_AUTH= deno task dev` when testing tokens.
@@ -268,7 +267,7 @@ Then ask naturally:
   read-only package routes the assistant needs: it can never mint or revoke
   tokens, reach admin/user routes, or write anything), and the instance
   `can_view_data` gate on every read.
-- The surface is **read-only by construction**: it exposes no write tool at
-  all, so a leaked credential can read exactly what your own instance
-  permissions already show you in the app, and change nothing.
+- The surface is **read-only by construction**: it exposes no write tool at all,
+  so a leaked credential can read exactly what your own instance permissions
+  already show you in the app, and change nothing.
 - PATs **do not expire**, so revoke them when you're done (step 1, "Revoking").

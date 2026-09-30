@@ -44,13 +44,13 @@ import { t3 } from "../translate/t-func.ts";
 
 import { type SlideFontFamily } from "./_slide_fonts.ts";
 export {
-  SLIDE_FONTS,
-  SLIDE_FONT_FAMILIES,
-  type SlideFontFamily,
-  getSlideFontInfo,
   getAllSlideFontVariants,
   getBoldWeight,
   getLetterSpacing,
+  getSlideFontInfo,
+  SLIDE_FONT_FAMILIES,
+  SLIDE_FONTS,
+  type SlideFontFamily,
 } from "./_slide_fonts.ts";
 
 // A deck's whole look is one theme id (see _slide_deck_themes.ts). The six
@@ -62,16 +62,16 @@ import {
   type SlideDeckTheme,
 } from "./_slide_deck_themes.ts";
 export {
+  type AllPresetId,
   applySlideDeckThemeToLegacyConfig,
+  type BackgroundDetailType,
   getSlideDeckThemeColorPreset,
   getSlideDeckThemeSpec,
   LEGACY_SLIDE_DECK_STYLE_KEYS,
+  type LegacySlideDeckStyle,
   nearestSlideDeckTheme,
   SLIDE_DECK_THEME_SPECS,
   SLIDE_DECK_THEMES,
-  type AllPresetId,
-  type BackgroundDetailType,
-  type LegacySlideDeckStyle,
   type SlideDeckTheme,
   type SlideDeckThemeSpec,
 } from "./_slide_deck_themes.ts";
@@ -175,7 +175,11 @@ export function getDefaultSectionSlide(): SectionSlide {
 export function getDefaultContentSlide(): ContentSlide {
   return {
     type: "content",
-    header: t3({ en: "New slide", fr: "Nouvelle diapositive", pt: "Novo diapositivo" }),
+    header: t3({
+      en: "New slide",
+      fr: "Nouvelle diapositive",
+      pt: "Novo diapositivo",
+    }),
     layout: {
       type: "item",
       id: "a1a",

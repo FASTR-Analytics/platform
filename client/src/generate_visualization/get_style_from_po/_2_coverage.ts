@@ -77,13 +77,15 @@ function getCoverageSeriesColorFunc(
     if (
       label.startsWith("Survey") ||
       label.startsWith("Estimation basée")
-    )
+    ) {
       return strong;
+    }
     if (
       label.startsWith("Projected") ||
       label.startsWith("Estimation projetée")
-    )
+    ) {
       return bad;
+    }
     return faint;
   };
 }

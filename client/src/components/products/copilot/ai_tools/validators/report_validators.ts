@@ -5,10 +5,10 @@ import {
   type ImageBlock,
   listFastrContainerDefects,
   listFastrLiteralBackgrounds,
+  listFastrNestedStats,
   newHtmlDefect,
   type ReportFormat,
   validateHtmlFragment,
-  listFastrNestedStats,
 } from "lib";
 import { AIToolFailure } from "panther";
 
@@ -35,17 +35,25 @@ export function validateReportTokensResolve(
         format === "fastr" ? "FASTR MARKDOWN" : format.toUpperCase()
       }, but the edit contains a ${
         format === "html" ? "markdown" : "HTML"
-      } embed token ("${wrong[0].slice(0, 60)}"). Write embed tokens as ${example} (one per line).`,
+      } embed token ("${
+        wrong[0].slice(0, 60)
+      }"). Write embed tokens as ${example} (one per line).`,
     );
   }
   const unresolved: string[] = [];
   for (const ref of findReportEmbeds(body, format)) {
-    if (ref.kind === "figure" && !figures[ref.id]) unresolved.push(`figure:${ref.id}`);
-    if (ref.kind === "image" && !images[ref.id]) unresolved.push(`image:${ref.id}`);
+    if (ref.kind === "figure" && !figures[ref.id]) {
+      unresolved.push(`figure:${ref.id}`);
+    }
+    if (ref.kind === "image" && !images[ref.id]) {
+      unresolved.push(`image:${ref.id}`);
+    }
   }
   if (unresolved.length > 0) {
     throw new AIToolFailure(
-      `Unresolved embed token(s): ${unresolved.join(", ")}. Only reference figure/image ids that already exist (call get_report_editor to list them); do not invent ids.`,
+      `Unresolved embed token(s): ${
+        unresolved.join(", ")
+      }. Only reference figure/image ids that already exist (call get_report_editor to list them); do not invent ids.`,
     );
   }
 }
@@ -303,8 +311,12 @@ export function validateFastrStatPlacement(
   if (format !== "fastr") return;
   const nested = listFastrNestedStats(body);
   if (nested.length === 0) return;
-  const shown = nested.slice(0, 5).map((n) => `line ${n.line}: :::stat inside :::${n.parent}`).join("\n");
+  const shown = nested.slice(0, 5).map((n) =>
+    `line ${n.line}: :::stat inside :::${n.parent}`
+  ).join("\n");
   throw new AIToolFailure(
-    `The proposed body nests ${nested.length} stat${nested.length === 1 ? "" : "s"} inside a card or column:\n${shown}\nA stat is a tile of its own: put the stats DIRECTLY in a \`:::tiles\` row as bare \`:::stat\` lines (no \`:::card\` around them). Fix and re-propose.`,
+    `The proposed body nests ${nested.length} stat${
+      nested.length === 1 ? "" : "s"
+    } inside a card or column:\n${shown}\nA stat is a tile of its own: put the stats DIRECTLY in a \`:::tiles\` row as bare \`:::stat\` lines (no \`:::card\` around them). Fix and re-propose.`,
   );
 }

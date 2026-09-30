@@ -1,8 +1,8 @@
 import {
-  throwIfErrWithData,
   type HfaDuplicateGroup,
   type HfaDuplicatePreview,
   type HfaRowFilter,
+  throwIfErrWithData,
 } from "lib";
 import {
   getCsvColumnIndex,
@@ -79,7 +79,9 @@ export async function getHfaRowScanComponents(
 
         for (const f of resolvedFilters) {
           const cell = (row[f.index] ?? "").trim();
-          const passes = f.op === "equals" ? cell === f.value : cell !== f.value;
+          const passes = f.op === "equals"
+            ? cell === f.value
+            : cell !== f.value;
           if (!passes) {
             nRowsFilteredOut++;
             return;
@@ -116,14 +118,16 @@ export async function scanHfaDuplicates(
     rowFilters,
   );
   const facilityRowNumbers = new Map<string, number[]>();
-  const totals = await scan.processFilteredRows((_row, rowNumber, facilityId) => {
-    const existing = facilityRowNumbers.get(facilityId);
-    if (existing) {
-      existing.push(rowNumber);
-    } else {
-      facilityRowNumbers.set(facilityId, [rowNumber]);
-    }
-  });
+  const totals = await scan.processFilteredRows(
+    (_row, rowNumber, facilityId) => {
+      const existing = facilityRowNumbers.get(facilityId);
+      if (existing) {
+        existing.push(rowNumber);
+      } else {
+        facilityRowNumbers.set(facilityId, [rowNumber]);
+      }
+    },
+  );
   const groups: HfaDuplicateGroup[] = [];
   for (const [facilityId, rows] of facilityRowNumbers) {
     if (rows.length > 1) {

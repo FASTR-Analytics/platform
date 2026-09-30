@@ -1,37 +1,37 @@
 import {
   extractRIdentifiers,
-  t3,
-  TC,
   type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
+  type HfaIndicatorCode,
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
-  type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
+  t3,
+  TC,
 } from "lib";
 import {
+  type BulkAction,
   Button,
+  createDeleteAction,
   FrameLeft,
   FrameTop,
-  HeadingBar,
+  getEditorWrapper,
   getQueryStateFromApiResponse,
+  HeadingBar,
   Input,
+  type ListItem,
+  openComponent,
+  saveAs,
+  type StateHolder,
   StateHolderWrapper,
   Table,
   TableColumn,
   TabsNavigation,
-  getEditorWrapper,
-  type ListItem,
-  openComponent,
-  saveAs,
-  createDeleteAction,
-  type BulkAction,
-  type StateHolder,
 } from "panther";
-import { Show, createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getHfaDictionaryFromCacheOrFetch } from "~/state/instance/t2_datasets";
@@ -125,7 +125,11 @@ export function HfaIndicatorsManager(p: Props) {
     string | null
   >(null);
 
-  type Tab = "indicators" | "categories" | "service_categories" | "variant_groups";
+  type Tab =
+    | "indicators"
+    | "categories"
+    | "service_categories"
+    | "variant_groups";
   const [tab, setTab] = createSignal<Tab>("indicators");
   const tabItems: ListItem<Tab>[] = [
     {
@@ -138,11 +142,19 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       id: "service_categories",
-      label: t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" }),
+      label: t3({
+        en: "Service categories",
+        fr: "Catégories de service",
+        pt: "Categorias de serviço",
+      }),
     },
     {
       id: "variant_groups",
-      label: t3({ en: "Variant groups", fr: "Groupes de variantes", pt: "Grupos de variantes" }),
+      label: t3({
+        en: "Variant groups",
+        fr: "Groupes de variantes",
+        pt: "Grupos de variantes",
+      }),
     },
   ];
 
@@ -240,9 +252,12 @@ export function HfaIndicatorsManager(p: Props) {
 
   const noHfaDataMsg = () =>
     t3({
-      en: "No HFA time points have been defined yet. Add a time point (HFA → Time points) to enable code editing, validation, and import.",
-      fr: "Aucun point temporel HFA n'a encore été défini. Ajoutez un point temporel (Enquêtes FOSA → Points temporels) pour activer l'édition du code, la validation et l'importation.",
-      pt: "Ainda não foram definidos pontos temporais HFA. Adicione um ponto temporal (HFA → Pontos temporais) para ativar a edição do código, a validação e a importação.",
+      en:
+        "No HFA time points have been defined yet. Add a time point (HFA → Time points) to enable code editing, validation, and import.",
+      fr:
+        "Aucun point temporel HFA n'a encore été défini. Ajoutez un point temporel (Enquêtes FOSA → Points temporels) pour activer l'édition du code, la validation et l'importation.",
+      pt:
+        "Ainda não foram definidos pontos temporais HFA. Adicione um ponto temporal (HFA → Pontos temporais) para ativar a edição do código, a validação e a importação.",
     });
 
   const variableIds = createMemo(() => {
@@ -407,7 +422,11 @@ export function HfaIndicatorsManager(p: Props) {
           ? new Set(tp.variables.map((v) => v.variableId))
           : new Set<string>();
         if (c.rCode.trim()) {
-          const result = validateRCode(c.rCode, availableVariableIds, otherIndicatorIds);
+          const result = validateRCode(
+            c.rCode,
+            availableVariableIds,
+            otherIndicatorIds,
+          );
           if (hasRCodeErrors(result)) {
             hasSyntaxError = true;
           }
@@ -437,7 +456,11 @@ export function HfaIndicatorsManager(p: Props) {
         );
       }
 
-      updates.push({ indicatorId: ind.indicatorId, hasSyntaxError, codeConsistent });
+      updates.push({
+        indicatorId: ind.indicatorId,
+        hasSyntaxError,
+        codeConsistent,
+      });
     }
 
     // Send bulk update - SSE will trigger refetch via createEffect
@@ -454,8 +477,9 @@ export function HfaIndicatorsManager(p: Props) {
       catSt.status !== "ready" ||
       subCatSt.status !== "ready" ||
       svcCatSt.status !== "ready"
-    )
+    ) {
       return;
+    }
     const sortOrder = st.status === "ready" ? st.data.length : 0;
     await openComponent({
       element: EditHfaIndicator,
@@ -476,8 +500,9 @@ export function HfaIndicatorsManager(p: Props) {
       catSt.status !== "ready" ||
       subCatSt.status !== "ready" ||
       svcCatSt.status !== "ready"
-    )
+    ) {
       return;
+    }
     await openComponent({
       element: EditHfaIndicator,
       props: {
@@ -513,8 +538,9 @@ export function HfaIndicatorsManager(p: Props) {
       svcCatSt.status !== "ready" ||
       vgSt.status !== "ready" ||
       viSt.status !== "ready"
-    )
+    ) {
       return;
+    }
     const dict = dictState.data;
     await openEditor({
       element: HfaIndicatorCodeEditor,
@@ -539,7 +565,9 @@ export function HfaIndicatorsManager(p: Props) {
   function findReferencingIndicators(deletedIndicatorIds: string[]): string[] {
     const codeSt = allCode();
     const variantCodeSt = allVariantCode();
-    if (codeSt.status !== "ready" || variantCodeSt.status !== "ready") return [];
+    if (codeSt.status !== "ready" || variantCodeSt.status !== "ready") {
+      return [];
+    }
     const deleted = new Set(deletedIndicatorIds);
     const referencing = new Set<string>();
     for (const c of codeSt.data) {
@@ -562,26 +590,31 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   function deleteConfirmText(indicatorIds: string[]): string {
-    const base =
-      indicatorIds.length === 1
-        ? t3({
-            en: "Are you sure you want to delete this indicator?",
-            fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
-            pt: "Tem a certeza de que pretende eliminar este indicador?",
-          })
-        : t3({
-            en: "Are you sure you want to delete these indicators?",
-            fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
-            pt: "Tem a certeza de que pretende eliminar estes indicadores?",
-          });
+    const base = indicatorIds.length === 1
+      ? t3({
+        en: "Are you sure you want to delete this indicator?",
+        fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
+        pt: "Tem a certeza de que pretende eliminar este indicador?",
+      })
+      : t3({
+        en: "Are you sure you want to delete these indicators?",
+        fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
+        pt: "Tem a certeza de que pretende eliminar estes indicadores?",
+      });
     const referencing = findReferencingIndicators(indicatorIds);
     if (referencing.length === 0) {
       return base;
     }
-    return `${base} ${t3({
-      en: `Referenced by: ${referencing.join(", ")} — their code will fail validation.`,
-      fr: `Référencé par : ${referencing.join(", ")} — leur code échouera à la validation.`,
-    })}`;
+    return `${base} ${
+      t3({
+        en: `Referenced by: ${
+          referencing.join(", ")
+        } — their code will fail validation.`,
+        fr: `Référencé par : ${
+          referencing.join(", ")
+        } — leur code échouera à la validation.`,
+      })
+    }`;
   }
 
   async function handleDelete(indicator: HfaIndicator) {
@@ -591,7 +624,9 @@ export function HfaIndicatorsManager(p: Props) {
         itemList: [indicator.indicatorId],
       },
       () =>
-        serverActions.deleteHfaIndicators({ indicatorIds: [indicator.indicatorId] }),
+        serverActions.deleteHfaIndicators({
+          indicatorIds: [indicator.indicatorId],
+        }),
     );
     await deleteAction.click();
   }
@@ -612,7 +647,7 @@ export function HfaIndicatorsManager(p: Props) {
     const dictSt = dictionary();
     if (dictSt.status !== "ready") return undefined;
     const sortOrderMap = new Map(
-      instanceState.hfaTimePoints.map((tp) => [tp.label, tp.sortOrder])
+      instanceState.hfaTimePoints.map((tp) => [tp.label, tp.sortOrder]),
     );
     return [...dictSt.data.timePoints]
       .sort((a, b) => {
@@ -670,7 +705,9 @@ export function HfaIndicatorsManager(p: Props) {
         source,
         timePoints,
         variableIds: variableIds(),
-        existingIndicatorIds: st.status === "ready" ? st.data.map((i) => i.indicatorId) : [],
+        existingIndicatorIds: st.status === "ready"
+          ? st.data.map((i) => i.indicatorId)
+          : [],
         showAi,
         openAi,
       },
@@ -733,7 +770,10 @@ export function HfaIndicatorsManager(p: Props) {
           timePoint: tp.timePoint,
           unused: tp.variables
             .filter((v) => !used.has(v.variableId))
-            .map((v) => ({ variableId: v.variableId, variableLabel: v.variableLabel })),
+            .map((v) => ({
+              variableId: v.variableId,
+              variableLabel: v.variableLabel,
+            })),
         };
       });
 
@@ -802,7 +842,11 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "subCategoryId",
-      header: t3({ en: "Sub-category", fr: "Sous-catégorie", pt: "Subcategoria" }),
+      header: t3({
+        en: "Sub-category",
+        fr: "Sous-catégorie",
+        pt: "Subcategoria",
+      }),
       sortable: true,
       render: (ind) => {
         if (!ind.subCategoryId) return "";
@@ -813,7 +857,11 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "serviceCategoryIds",
-      header: t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" }),
+      header: t3({
+        en: "Service categories",
+        fr: "Catégories de service",
+        pt: "Categorias de serviço",
+      }),
       sortable: true,
       render: (ind) => {
         if (ind.serviceCategoryIds.length === 0) return "";
@@ -825,14 +873,24 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "shortLabel",
-      header: t3({ en: "Short label", fr: "Libellé court", pt: "Etiqueta curta" }),
+      header: t3({
+        en: "Short label",
+        fr: "Libellé court",
+        pt: "Etiqueta curta",
+      }),
       sortable: true,
       render: (ind) =>
-        ind.shortLabel ? ind.shortLabel : <span class="text-base-content-muted">—</span>,
+        ind.shortLabel
+          ? ind.shortLabel
+          : <span class="text-base-content-muted">—</span>,
     },
     {
       key: "definition",
-      header: t3({ en: "Long label", fr: "Libellé long", pt: "Etiqueta longa" }),
+      header: t3({
+        en: "Long label",
+        fr: "Libellé long",
+        pt: "Etiqueta longa",
+      }),
       sortable: true,
     },
     {
@@ -848,9 +906,14 @@ export function HfaIndicatorsManager(p: Props) {
     },
     {
       key: "timePoints",
-      header: t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" }),
+      header: t3({
+        en: "Time points",
+        fr: "Points temporels",
+        pt: "Pontos temporais",
+      }),
       sortable: true,
-      sortValue: (ind) => statsByIndicatorId().get(ind.indicatorId)?.withCode ?? -1,
+      sortValue: (ind) =>
+        statsByIndicatorId().get(ind.indicatorId)?.withCode ?? -1,
       render: (ind) => {
         const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
@@ -869,7 +932,8 @@ export function HfaIndicatorsManager(p: Props) {
       key: "status",
       header: t3({ en: "Status", fr: "Statut", pt: "Estado" }),
       sortable: true,
-      sortValue: (ind) => statsByIndicatorId().get(ind.indicatorId)?.error ?? -1,
+      sortValue: (ind) =>
+        statsByIndicatorId().get(ind.indicatorId)?.error ?? -1,
       render: (ind) => {
         const stats = statsByIndicatorId().get(ind.indicatorId);
         if (!stats) return "…";
@@ -889,7 +953,7 @@ export function HfaIndicatorsManager(p: Props) {
             </Show>
             <Show when={stats.warning > 0}>
               <Show when={stats.ready > 0}>
-                <span>, </span>
+                <span>,</span>
               </Show>
               <span class="text-warning font-700">
                 {t3({
@@ -901,7 +965,7 @@ export function HfaIndicatorsManager(p: Props) {
             </Show>
             <Show when={stats.error > 0}>
               <Show when={stats.ready > 0 || stats.warning > 0}>
-                <span>, </span>
+                <span>,</span>
               </Show>
               <span class="text-danger font-700">
                 {t3({
@@ -976,231 +1040,251 @@ export function HfaIndicatorsManager(p: Props) {
   const bulkActions = createMemo<BulkAction<HfaIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
-          {
-            label: t3(TC.delete),
-            intent: "danger",
-            outline: true,
-            onClick: handleBulkDelete,
-          },
-        ]
-      : [],
+        {
+          label: t3(TC.delete),
+          intent: "danger",
+          outline: true,
+          onClick: handleBulkDelete,
+        },
+      ]
+      : []
   );
 
   return (
     <HfaIndicatorAiWrapper show={showAi} onClose={() => setShowAi(false)}>
       <EditorWrapper hideMode="visibility-hidden">
-      <FrameTop
-        panelChildren={
-          <HeadingBar
-            onBack={() => p.close(undefined)}
-            heading={t3({ en: "HFA INDICATORS", fr: "INDICATEURS HFA", pt: "INDICADORES HFA" })}
-          >
-            <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>
-              <Button iconName="chevronLeft" outline onClick={openAi}>
-                {t3({ en: "AI", fr: "IA", pt: "IA" })}
-              </Button>
-            </Show>
-          </HeadingBar>
-        }
-      >
         <FrameTop
-          pad="md"
           panelChildren={
-            <TabsNavigation items={tabItems} value={tab()} onChange={setTab} />
+            <HeadingBar
+              onBack={() => p.close(undefined)}
+              heading={t3({
+                en: "HFA INDICATORS",
+                fr: "INDICATEURS HFA",
+                pt: "INDICADORES HFA",
+              })}
+            >
+              <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>
+                <Button iconName="chevronLeft" outline onClick={openAi}>
+                  {t3({ en: "AI", fr: "IA", pt: "IA" })}
+                </Button>
+              </Show>
+            </HeadingBar>
           }
         >
-          <Show when={tab() === "indicators"}>
-            <StateHolderWrapper state={indicators()}>
-              {(keyedIndicators) => (
-                <div class="flex h-full flex-col">
-                  <div class="ui-gap-sm flex flex-none items-center pb-4">
-                    <div class="flex-1 truncate">
-                      {searchText().trim()
-                        ? t3({
-                            en: `${filteredIndicators().length} of ${keyedIndicators.length}`,
-                            fr: `${filteredIndicators().length} sur ${keyedIndicators.length}`,
-                            pt: `${filteredIndicators().length} de ${keyedIndicators.length}`,
+          <FrameTop
+            pad="md"
+            panelChildren={
+              <TabsNavigation
+                items={tabItems}
+                value={tab()}
+                onChange={setTab}
+              />
+            }
+          >
+            <Show when={tab() === "indicators"}>
+              <StateHolderWrapper state={indicators()}>
+                {(keyedIndicators) => (
+                  <div class="flex h-full flex-col">
+                    <div class="ui-gap-sm flex flex-none items-center pb-4">
+                      <div class="flex-1 truncate">
+                        {searchText().trim()
+                          ? t3({
+                            en:
+                              `${filteredIndicators().length} of ${keyedIndicators.length}`,
+                            fr:
+                              `${filteredIndicators().length} sur ${keyedIndicators.length}`,
+                            pt:
+                              `${filteredIndicators().length} de ${keyedIndicators.length}`,
                           })
-                        : t3({
+                          : t3({
                             en: `${keyedIndicators.length} indicators`,
                             fr: `${keyedIndicators.length} indicateurs`,
                             pt: `${keyedIndicators.length} indicadores`,
                           })}
+                      </div>
+                      <div class="w-72 flex-none">
+                        <Input
+                          value={searchText()}
+                          onChange={setSearchText}
+                          label={t3({
+                            en: "Search",
+                            fr: "Recherche",
+                            pt: "Pesquisar",
+                          })}
+                          placeholder={t3({
+                            en: "Search indicators...",
+                            fr: "Rechercher des indicateurs...",
+                            pt: "Pesquisar indicadores...",
+                          })}
+                          searchIcon
+                          clearable
+                          fullWidth
+                        />
+                      </div>
+                      <Show when={instanceState.currentUserIsGlobalAdmin}>
+                        <div
+                          class="ui-gap-sm flex items-center"
+                          title={hfaDataAvailable() ? "" : noHfaDataMsg()}
+                        >
+                          <Button
+                            iconName="refresh"
+                            onClick={handleRevalidateAll}
+                            loading={revalidating()}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Revalidate all",
+                              fr: "Revalider tout",
+                              pt: "Revalidar tudo",
+                            })}
+                          </Button>
+                          <Button
+                            iconName="search"
+                            onClick={handleCheckUnusedVariables}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Check unused variables",
+                              fr: "Vérifier les variables inutilisées",
+                              pt: "Verificar variáveis não utilizadas",
+                            })}
+                          </Button>
+                          <Button
+                            iconName="download"
+                            onClick={handleDownloadXlsx}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Download Excel",
+                              fr: "Télécharger Excel",
+                              pt: "Transferir Excel",
+                            })}
+                          </Button>
+                          <Button
+                            iconName="upload"
+                            onClick={() =>
+                              handleWorkbookImport({ kind: "pick" })}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Import Excel",
+                              fr: "Importer Excel",
+                              pt: "Importar Excel",
+                            })}
+                          </Button>
+                          <Button
+                            iconName="import"
+                            onClick={() =>
+                              handleWorkbookImport({ kind: "default" })}
+                            disabled={!hfaDataAvailable()}
+                            outline
+                          >
+                            {t3({
+                              en: "Import default indicators",
+                              fr: "Importer les indicateurs par défaut",
+                              pt: "Importar indicadores predefinidos",
+                            })}
+                          </Button>
+                        </div>
+                        <Button
+                          iconName="plus"
+                          intent="primary"
+                          onClick={handleCreate}
+                        >
+                          {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
+                        </Button>
+                      </Show>
                     </div>
-                    <div class="w-72 flex-none">
-                      <Input
-                        value={searchText()}
-                        onChange={setSearchText}
-                        label={t3({
-                          en: "Search",
-                          fr: "Recherche",
-                          pt: "Pesquisar",
+                    <Show when={!hfaDataAvailable()}>
+                      <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
+                        {noHfaDataMsg()}
+                      </div>
+                    </Show>
+                    <div class="h-0 w-full flex-1">
+                      <Table
+                        data={filteredIndicators()}
+                        columns={allColumns()}
+                        keyField="indicatorId"
+                        defaultSort={{ key: "definition", direction: "asc" }}
+                        noRowsMessage={searchText().trim()
+                          ? t3({
+                            en: "No indicators match your search",
+                            fr:
+                              "Aucun indicateur ne correspond à votre recherche",
+                            pt: "Nenhum indicador corresponde à sua pesquisa",
+                          })
+                          : t3({
+                            en: "No HFA indicators configured",
+                            fr: "Aucun indicateur HFA configuré",
+                            pt: "Nenhum indicador HFA configurado",
+                          })}
+                        bulkActions={bulkActions()}
+                        selectionLabel={t3({
+                          en: "indicator",
+                          fr: "indicateur",
+                          pt: "indicador",
                         })}
-                        placeholder={t3({
-                          en: "Search indicators...",
-                          fr: "Rechercher des indicateurs...",
-                          pt: "Pesquisar indicadores...",
-                        })}
-                        searchIcon
-                        clearable
-                        fullWidth
+                        initialScrollTop={indicatorsScrollTop}
+                        onScrollTopChange={(v) => {
+                          indicatorsScrollTop = v;
+                        }}
                       />
                     </div>
-                    <Show when={instanceState.currentUserIsGlobalAdmin}>
-                      <div
-                        class="ui-gap-sm flex items-center"
-                        title={hfaDataAvailable() ? "" : noHfaDataMsg()}
-                      >
-                        <Button
-                          iconName="refresh"
-                          onClick={handleRevalidateAll}
-                          loading={revalidating()}
-                          disabled={!hfaDataAvailable()}
-                          outline
-                        >
-                          {t3({ en: "Revalidate all", fr: "Revalider tout", pt: "Revalidar tudo" })}
-                        </Button>
-                        <Button
-                          iconName="search"
-                          onClick={handleCheckUnusedVariables}
-                          disabled={!hfaDataAvailable()}
-                          outline
-                        >
-                          {t3({
-                            en: "Check unused variables",
-                            fr: "Vérifier les variables inutilisées",
-                            pt: "Verificar variáveis não utilizadas",
-                          })}
-                        </Button>
-                        <Button
-                          iconName="download"
-                          onClick={handleDownloadXlsx}
-                          disabled={!hfaDataAvailable()}
-                          outline
-                        >
-                          {t3({
-                            en: "Download Excel",
-                            fr: "Télécharger Excel",
-                            pt: "Transferir Excel",
-                          })}
-                        </Button>
-                        <Button
-                          iconName="upload"
-                          onClick={() => handleWorkbookImport({ kind: "pick" })}
-                          disabled={!hfaDataAvailable()}
-                          outline
-                        >
-                          {t3({ en: "Import Excel", fr: "Importer Excel", pt: "Importar Excel" })}
-                        </Button>
-                        <Button
-                          iconName="import"
-                          onClick={() => handleWorkbookImport({ kind: "default" })}
-                          disabled={!hfaDataAvailable()}
-                          outline
-                        >
-                          {t3({
-                            en: "Import default indicators",
-                            fr: "Importer les indicateurs par défaut",
-                            pt: "Importar indicadores predefinidos",
-                          })}
-                        </Button>
-                      </div>
-                      <Button
-                        iconName="plus"
-                        intent="primary"
-                        onClick={handleCreate}
-                      >
-                        {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-                      </Button>
-                    </Show>
                   </div>
-                  <Show when={!hfaDataAvailable()}>
-                    <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
-                      {noHfaDataMsg()}
-                    </div>
-                  </Show>
-                  <div class="h-0 w-full flex-1">
-                    <Table
-                      data={filteredIndicators()}
-                      columns={allColumns()}
-                      keyField="indicatorId"
-                      defaultSort={{ key: "definition", direction: "asc" }}
-                      noRowsMessage={
-                        searchText().trim()
-                          ? t3({
-                              en: "No indicators match your search",
-                              fr: "Aucun indicateur ne correspond à votre recherche",
-                              pt: "Nenhum indicador corresponde à sua pesquisa",
-                            })
-                          : t3({
-                              en: "No HFA indicators configured",
-                              fr: "Aucun indicateur HFA configuré",
-                              pt: "Nenhum indicador HFA configurado",
-                            })
-                      }
-                      bulkActions={bulkActions()}
-                      selectionLabel={t3({
-                        en: "indicator",
-                        fr: "indicateur",
-                        pt: "indicador",
-                      })}
-                      initialScrollTop={indicatorsScrollTop}
-                      onScrollTopChange={(v) => {
-                        indicatorsScrollTop = v;
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-            </StateHolderWrapper>
-          </Show>
-          <Show when={tab() === "categories"}>
-            <StateHolderWrapper state={categories()}>
-              {(keyedCategories) => (
-                <StateHolderWrapper state={subCategories()}>
-                  {(keyedSubCategories) => (
-                    <HfaCategoriesManager
-                      categories={keyedCategories}
-                      subCategories={keyedSubCategories}
-                      selectedCategoryId={selectedCategoryId()}
-                      onSelectCategory={setSelectedCategoryId}
-                    />
-                  )}
-                </StateHolderWrapper>
-              )}
-            </StateHolderWrapper>
-          </Show>
-          <Show when={tab() === "service_categories"}>
-            <StateHolderWrapper state={serviceCategories()}>
-              {(keyedServiceCategories) => (
-                <HfaServiceCategoriesManager
-                  serviceCategories={keyedServiceCategories}
-                />
-              )}
-            </StateHolderWrapper>
-          </Show>
-          <Show when={tab() === "variant_groups"}>
-            <StateHolderWrapper state={variantGroups()}>
-              {(keyedVariantGroups) => (
-                <StateHolderWrapper state={variantItems()}>
-                  {(keyedVariantItems) => (
-                    <HfaVariantGroupsManager
-                      variantGroups={keyedVariantGroups}
-                      variantItems={keyedVariantItems}
-                      indicators={(() => {
-                        const st = indicators();
-                        return st.status === "ready" ? st.data : [];
-                      })()}
-                      selectedGroupId={selectedVariantGroupId()}
-                      onSelectGroup={setSelectedVariantGroupId}
-                    />
-                  )}
-                </StateHolderWrapper>
-              )}
-            </StateHolderWrapper>
-          </Show>
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tab() === "categories"}>
+              <StateHolderWrapper state={categories()}>
+                {(keyedCategories) => (
+                  <StateHolderWrapper state={subCategories()}>
+                    {(keyedSubCategories) => (
+                      <HfaCategoriesManager
+                        categories={keyedCategories}
+                        subCategories={keyedSubCategories}
+                        selectedCategoryId={selectedCategoryId()}
+                        onSelectCategory={setSelectedCategoryId}
+                      />
+                    )}
+                  </StateHolderWrapper>
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tab() === "service_categories"}>
+              <StateHolderWrapper state={serviceCategories()}>
+                {(keyedServiceCategories) => (
+                  <HfaServiceCategoriesManager
+                    serviceCategories={keyedServiceCategories}
+                  />
+                )}
+              </StateHolderWrapper>
+            </Show>
+            <Show when={tab() === "variant_groups"}>
+              <StateHolderWrapper state={variantGroups()}>
+                {(keyedVariantGroups) => (
+                  <StateHolderWrapper state={variantItems()}>
+                    {(keyedVariantItems) => (
+                      <HfaVariantGroupsManager
+                        variantGroups={keyedVariantGroups}
+                        variantItems={keyedVariantItems}
+                        indicators={(() => {
+                          const st = indicators();
+                          return st.status === "ready" ? st.data : [];
+                        })()}
+                        selectedGroupId={selectedVariantGroupId()}
+                        onSelectGroup={setSelectedVariantGroupId}
+                      />
+                    )}
+                  </StateHolderWrapper>
+                )}
+              </StateHolderWrapper>
+            </Show>
+          </FrameTop>
         </FrameTop>
-      </FrameTop>
       </EditorWrapper>
     </HfaIndicatorAiWrapper>
   );

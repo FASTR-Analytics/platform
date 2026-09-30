@@ -71,10 +71,16 @@ export function isFastrLeafBlock(name: string): boolean {
 export type FastrContainerAttrs = Record<string, string | true>;
 
 export type FastrContainerFence =
-  | { kind: "open"; markerLength: number; name: string; attrs: FastrContainerAttrs }
+  | {
+    kind: "open";
+    markerLength: number;
+    name: string;
+    attrs: FastrContainerAttrs;
+  }
   | { kind: "close"; markerLength: number };
 
-const FENCE_RE = /^(:{3,})[ \t]*([A-Za-z][A-Za-z0-9-]*)?[ \t]*(\{[^}]*\})?[ \t]*$/;
+const FENCE_RE =
+  /^(:{3,})[ \t]*([A-Za-z][A-Za-z0-9-]*)?[ \t]*(\{[^}]*\})?[ \t]*$/;
 const ATTR_RE =
   /([A-Za-z_][A-Za-z0-9_-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'}]+)))?/g;
 
@@ -96,7 +102,9 @@ export function parseContainerAttrs(raw: string): FastrContainerAttrs {
 }
 
 // A `:::` line with no name closes the innermost open container.
-export function parseContainerFence(line: string): FastrContainerFence | undefined {
+export function parseContainerFence(
+  line: string,
+): FastrContainerFence | undefined {
   const m = FENCE_RE.exec(line.trim());
   if (!m) return undefined;
   const markerLength = m[1].length;
@@ -200,7 +208,9 @@ export function collapseFastrBlankRuns(body: string): string {
 // undefined for no ground: `default` means none, the card's historical
 // `accent` flag is the accent tone, and an unknown tone degrades to paper,
 // the mildest, so the styling visibly took (a defect says what was wrong).
-export function fastrSurfaceTone(attrs: FastrContainerAttrs): FastrTone | undefined {
+export function fastrSurfaceTone(
+  attrs: FastrContainerAttrs,
+): FastrTone | undefined {
   const tone = attrText(attrs, "tone");
   const resolved = tone === undefined
     ? (attrs["accent"] !== undefined ? "accent" : undefined)
@@ -258,7 +268,10 @@ export function isEmptyFastrMarkAttrs(a: FastrMarkAttrs): boolean {
     a.highlight === undefined && a.size === undefined && a.underline !== true;
 }
 
-export function sameFastrMarkAttrs(a: FastrMarkAttrs, b: FastrMarkAttrs): boolean {
+export function sameFastrMarkAttrs(
+  a: FastrMarkAttrs,
+  b: FastrMarkAttrs,
+): boolean {
   return a.role === b.role && a.color === b.color &&
     a.highlight === b.highlight && a.size === b.size &&
     (a.underline === true) === (b.underline === true);
@@ -439,7 +452,9 @@ export function safeCssBackground(
   v: string,
 ): { property: "background-color" | "background"; value: string } | undefined {
   const color = safeCssColor(v);
-  if (color !== undefined) return { property: "background-color", value: color };
+  if (color !== undefined) {
+    return { property: "background-color", value: color };
+  }
   const gradient = safeCssGradient(v);
   return gradient === undefined
     ? undefined
@@ -465,7 +480,9 @@ function parseColorChannels(
   }
   const m = /^rgba?\(([^)]+)\)$/i.exec(t);
   if (!m) return undefined;
-  const parts = m[1].split(/[,\s/]+/).filter((x) => x.length > 0).map(parseFloat);
+  const parts = m[1].split(/[,\s/]+/).filter((x) => x.length > 0).map(
+    parseFloat,
+  );
   if (parts.length < 3 || parts.some((x) => Number.isNaN(x))) return undefined;
   return { r: parts[0], g: parts[1], b: parts[2] };
 }
@@ -703,7 +720,12 @@ export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
         FASTR_PAGE_ORIENTATIONS,
         "portrait",
       ) as FastrPageOrientation,
-      margin: oneOf(attrs, "margin", FASTR_PAGE_MARGINS, "normal") as FastrPageMargin,
+      margin: oneOf(
+        attrs,
+        "margin",
+        FASTR_PAGE_MARGINS,
+        "normal",
+      ) as FastrPageMargin,
     };
     return {
       className: [
@@ -831,7 +853,10 @@ export function logosSnippet(imageIds: readonly string[]): string {
 function blockShapeFor(
   name: string,
   attrs: FastrContainerAttrs,
-): Pick<FastrContainerHtml, "tag" | "className" | "leadingHtml" | "trailingHtml"> {
+): Pick<
+  FastrContainerHtml,
+  "tag" | "className" | "leadingHtml" | "trailingHtml"
+> {
   switch (name) {
     case "callout": {
       const kind = oneOf(attrs, "kind", CALLOUT_KINDS, "note");
@@ -936,7 +961,9 @@ function blockShapeFor(
       return {
         tag: "section",
         className: [
-          layout === "classic" ? "fm-band fm-cover" : `fm-band fm-cover fm-cover--${layout}`,
+          layout === "classic"
+            ? "fm-band fm-cover"
+            : `fm-band fm-cover fm-cover--${layout}`,
           fill === "page" ? "fm-cover--fill" : "",
         ].filter((c) => c.length > 0).join(" "),
         leadingHtml: titleHtml("fm-kicker", attrText(attrs, "kicker")),
@@ -1105,7 +1132,9 @@ export function fastrDocumentOutline(
   // Depth of open containers, and the depth at which a cover opened.
   let open = 0;
   let coverAt: number | undefined;
-  for (const { index, text, inCode, fence } of scanContainerLines(body.split("\n"))) {
+  for (
+    const { index, text, inCode, fence } of scanContainerLines(body.split("\n"))
+  ) {
     if (inCode) continue;
     if (fence) {
       if (fence.kind === "open") {
@@ -1125,7 +1154,12 @@ export function fastrDocumentOutline(
     // depends on which depth the table of contents happens to show.
     const slug = fastrTocSlug(m[2], seen);
     if (level > depth) continue;
-    items.push({ level, text: fastrPlainInlineText(m[2]), slug, line: index + 1 });
+    items.push({
+      level,
+      text: fastrPlainInlineText(m[2]),
+      slug,
+      line: index + 1,
+    });
   }
   return items;
 }
@@ -1149,7 +1183,9 @@ export function renderFastrTocHtml(
     ? `<div class="fm-toc__empty">${
       escapeReportHtml(opts.empty ?? "No headings yet")
     }</div>`
-    : `<ol class="fm-toc__list${items.length > FASTR_TOC_COLUMNS_FROM ? " fm-toc__list--columns" : ""}">${
+    : `<ol class="fm-toc__list${
+      items.length > FASTR_TOC_COLUMNS_FROM ? " fm-toc__list--columns" : ""
+    }">${
       items.map((it) =>
         `<li class="fm-toc__item fm-toc__item--${it.level}"><a href="#${
           escapeReportHtml(it.slug)
@@ -1229,7 +1265,9 @@ export type FastrContainerDefect = {
 // row of tiles (a stat IS a tile), and a stat wrapped in a card renders as a
 // box within a box. The editor never writes one; the AI used to, until its
 // brief said otherwise (2026-09-23), and its proposals are refused on this.
-export function listFastrNestedStats(body: string): { line: number; parent: string }[] {
+export function listFastrNestedStats(
+  body: string,
+): { line: number; parent: string }[] {
   const out: { line: number; parent: string }[] = [];
   const open: string[] = [];
   for (const { index, inCode, fence } of scanContainerLines(body.split("\n"))) {
@@ -1240,7 +1278,9 @@ export function listFastrNestedStats(body: string): { line: number; parent: stri
     }
     if (fence.name === "stat") {
       const parent = open[open.length - 1];
-      if (parent === "card" || parent === "col") out.push({ line: index + 1, parent });
+      if (parent === "card" || parent === "col") {
+        out.push({ line: index + 1, parent });
+      }
       continue;
     }
     if (!isFastrLeafBlock(fence.name)) open.push(fence.name);
@@ -1248,10 +1288,14 @@ export function listFastrNestedStats(body: string): { line: number; parent: stri
   return out;
 }
 
-export function listFastrContainerDefects(body: string): FastrContainerDefect[] {
+export function listFastrContainerDefects(
+  body: string,
+): FastrContainerDefect[] {
   const defects: FastrContainerDefect[] = [];
   const open: { name: string; line: number }[] = [];
-  for (const { index: i, inCode, fence } of scanContainerLines(body.split("\n"))) {
+  for (
+    const { index: i, inCode, fence } of scanContainerLines(body.split("\n"))
+  ) {
     if (inCode || !fence) continue;
     if (fence.kind === "close") {
       if (open.length === 0) {
@@ -1319,7 +1363,9 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
       if (bad.length > 0) {
         defects.push({
           line: i + 1,
-          message: `\`${bad[0]}\` is not a logo. Each logo is an image the user placed: src="image:<id> image:<id>".`,
+          message: `\`${
+            bad[0]
+          }\` is not a logo. Each logo is an image the user placed: src="image:<id> image:<id>".`,
         });
       }
     }
@@ -1331,7 +1377,8 @@ export function listFastrContainerDefects(body: string): FastrContainerDefect[] 
     ) {
       defects.push({
         line: i + 1,
-        message: `Unknown fill \`${fill}\`. Use fill=page for a cover that fills its page.`,
+        message:
+          `Unknown fill \`${fill}\`. Use fill=page for a cover that fills its page.`,
       });
     }
     if (!isFastrLeafBlock(fence.name)) {
@@ -1369,7 +1416,9 @@ export function listFastrLiteralBackgrounds(
 ): FastrLiteralBackground[] {
   const literals: FastrLiteralBackground[] = [];
   for (
-    const { index: i, text, inCode, fence } of scanContainerLines(body.split("\n"))
+    const { index: i, text, inCode, fence } of scanContainerLines(
+      body.split("\n"),
+    )
   ) {
     if (inCode) continue;
     if (fence?.kind === "open") {
@@ -1392,7 +1441,11 @@ export function listFastrLiteralBackgrounds(
         literals.push({ line: i + 1, attr: "color", value: attrs.color });
       }
       if (attrs.highlight !== undefined) {
-        literals.push({ line: i + 1, attr: "highlight", value: attrs.highlight });
+        literals.push({
+          line: i + 1,
+          attr: "highlight",
+          value: attrs.highlight,
+        });
       }
     }
   }
@@ -1543,7 +1596,9 @@ export function updateContainerFenceLine(
   if (!m || m[2] === undefined) return undefined;
   const indent = line.slice(0, line.length - line.trimStart().length);
   const raw = m[3] ?? "";
-  const head = raw.length === 0 ? trimmed : trimmed.slice(0, trimmed.indexOf("{"));
+  const head = raw.length === 0
+    ? trimmed
+    : trimmed.slice(0, trimmed.indexOf("{"));
   const inner = raw.length === 0 ? "" : raw.slice(1, -1);
 
   const spans = rawAttrSpans(inner);

@@ -1,17 +1,17 @@
-import { t3, type ProductSummary } from "lib";
+import { type ProductSummary, t3 } from "lib";
 import {
+  type AlertComponentProps,
+  createFormAction,
+  getProgress,
   ModalContainer,
   ProgressBar,
   RadioGroup,
-  createFormAction,
-  getProgress,
-  type AlertComponentProps,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import {
   ScopePicker,
-  storedValueFromScopeSelection,
   type ScopeSelection,
+  storedValueFromScopeSelection,
 } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 
@@ -39,10 +39,9 @@ export function DuplicateProductsModal(
   const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
-      const chosen =
-        scopeChoice() === "set"
-          ? storedValueFromScopeSelection(tempScope())
-          : undefined;
+      const chosen = scopeChoice() === "set"
+        ? storedValueFromScopeSelection(tempScope())
+        : undefined;
       if (scopeChoice() === "set" && chosen === undefined) {
         return {
           success: false,
@@ -74,9 +73,12 @@ export function DuplicateProductsModal(
           return {
             success: false,
             err: t3({
-              en: `Failed on "${product.label}": ${res.err}. ${productIds.length} duplicated.`,
-              fr: `Échec sur « ${product.label} » : ${res.err}. ${productIds.length} dupliqué(s).`,
-              pt: `Falhou em "${product.label}": ${res.err}. ${productIds.length} duplicado(s).`,
+              en:
+                `Failed on "${product.label}": ${res.err}. ${productIds.length} duplicated.`,
+              fr:
+                `Échec sur « ${product.label} » : ${res.err}. ${productIds.length} dupliqué(s).`,
+              pt:
+                `Falhou em "${product.label}": ${res.err}. ${productIds.length} duplicado(s).`,
             }),
           };
         }
@@ -94,10 +96,10 @@ export function DuplicateProductsModal(
   const header = () =>
     p.products.length > 1
       ? t3({
-          en: `Duplicate ${p.products.length} products`,
-          fr: `Dupliquer ${p.products.length} produits`,
-          pt: `Duplicar ${p.products.length} produtos`,
-        })
+        en: `Duplicate ${p.products.length} products`,
+        fr: `Dupliquer ${p.products.length} produits`,
+        pt: `Duplicar ${p.products.length} produtos`,
+      })
       : t3({ en: "Duplicate", fr: "Dupliquer", pt: "Duplicar" });
 
   return (

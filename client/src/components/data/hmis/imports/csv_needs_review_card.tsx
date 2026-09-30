@@ -1,11 +1,11 @@
-import { t3, type DatasetHmisImportRunSummary } from "lib";
+import { type DatasetHmisImportRunSummary, t3 } from "lib";
 import {
   Button,
   CollapsibleSection,
-  StateHolderWrapper,
   createButtonAction,
   createDeleteAction,
   createQuery,
+  StateHolderWrapper,
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -43,8 +43,10 @@ export function CsvNeedsReviewCard(p: Props) {
     const discard = createDeleteAction(
       t3({
         en: "Discard this import? The staged rows will not be merged.",
-        fr: "Abandonner cette importation ? Les lignes préparées ne seront pas fusionnées.",
-        pt: "Descartar esta importação? As linhas preparadas não serão fundidas.",
+        fr:
+          "Abandonner cette importation ? Les lignes préparées ne seront pas fusionnées.",
+        pt:
+          "Descartar esta importação? As linhas preparadas não serão fundidas.",
       }),
       () =>
         serverActions.resolveDatasetHmisCsvReview({
@@ -70,9 +72,12 @@ export function CsvNeedsReviewCard(p: Props) {
       </div>
       <div class="text-sm">
         {t3({
-          en: "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. Other imports are not blocked while this waits.",
-          fr: "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Les autres importations ne sont pas bloquées pendant cette attente.",
-          pt: "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As outras importações não ficam bloqueadas durante esta espera.",
+          en:
+            "Some rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import. Other imports are not blocked while this waits.",
+          fr:
+            "Des lignes ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation. Les autres importations ne sont pas bloquées pendant cette attente.",
+          pt:
+            "Algumas linhas foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação. As outras importações não ficam bloqueadas durante esta espera.",
         })}
       </div>
       <StateHolderWrapper state={detail.state()}>

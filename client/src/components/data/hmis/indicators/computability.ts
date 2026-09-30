@@ -86,9 +86,12 @@ export function populationCoverageSummary(
   return {
     empty: false,
     text: t3({
-      en: `${years}, ${c.areaCount} of ${c.structureAreaCount} areas; incomplete: ${shortYears}`,
-      fr: `${years}, ${c.areaCount} unités sur ${c.structureAreaCount} ; incomplet : ${shortYears}`,
-      pt: `${years}, ${c.areaCount} de ${c.structureAreaCount} zonas; incompleto: ${shortYears}`,
+      en:
+        `${years}, ${c.areaCount} of ${c.structureAreaCount} areas; incomplete: ${shortYears}`,
+      fr:
+        `${years}, ${c.areaCount} unités sur ${c.structureAreaCount} ; incomplet : ${shortYears}`,
+      pt:
+        `${years}, ${c.areaCount} de ${c.structureAreaCount} zonas; incompleto: ${shortYears}`,
     }),
   };
 }

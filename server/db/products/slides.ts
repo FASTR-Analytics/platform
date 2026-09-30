@@ -3,9 +3,9 @@ import {
   APIResponseWithData,
   parseJsonOrThrow,
   Slide,
+  slideConfigSchema,
   SlidePosition,
   SlideWithMeta,
-  slideConfigSchema,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { type DBSlide } from "../instance/_main_database_types.ts";
@@ -184,7 +184,9 @@ export async function updateSlide(
       await touchProduct(sql, productId, "slide_deck", lastUpdated);
       await sql`
         UPDATE slides
-        SET config = ${JSON.stringify(slideConfigSchema.parse(slide))}, last_updated = ${lastUpdated}
+        SET config = ${
+        JSON.stringify(slideConfigSchema.parse(slide))
+      }, last_updated = ${lastUpdated}
         WHERE id = ${slideId} AND slide_deck_id = ${productId}
       `;
     });
@@ -205,7 +207,10 @@ export async function getSlideCrdtState(
   return await tryCatchDatabaseAsync(async () => {
     const row = (
       await mainDb<
-        Pick<DBSlide, "crdt_state" | "crdt_state_last_updated" | "last_updated">[]
+        Pick<
+          DBSlide,
+          "crdt_state" | "crdt_state_last_updated" | "last_updated"
+        >[]
       >`
         SELECT crdt_state, crdt_state_last_updated, last_updated
         FROM slides WHERE id = ${slideId} AND slide_deck_id = ${productId}
@@ -216,7 +221,10 @@ export async function getSlideCrdtState(
     }
     const isCurrent = row.crdt_state !== null &&
       row.crdt_state_last_updated === row.last_updated;
-    return { success: true, data: { state: isCurrent ? row.crdt_state : null } };
+    return {
+      success: true,
+      data: { state: isCurrent ? row.crdt_state : null },
+    };
   });
 }
 
@@ -303,7 +311,9 @@ export async function duplicateSlides(
     }
     const lastUpdated = new Date().toISOString();
     const newSlideIds = await mintSlideIds(mainDb, originals.length);
-    const maxOriginalSortOrder = Math.max(...originals.map((s) => s.sort_order));
+    const maxOriginalSortOrder = Math.max(
+      ...originals.map((s) => s.sort_order),
+    );
 
     await mainDb.begin(async (sql) => {
       await touchProduct(sql, productId, "slide_deck", lastUpdated);

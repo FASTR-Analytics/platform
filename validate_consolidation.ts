@@ -273,7 +273,9 @@ function connect(instance: Instance, database: string): Sql {
 
 // ── The per-instance dry-run ─────────────────────────────────────────────────
 
-export async function dryRunInstance(instance: Instance): Promise<InstanceReport> {
+export async function dryRunInstance(
+  instance: Instance,
+): Promise<InstanceReport> {
   const report = emptyReport(instance.name);
 
   const mainDb = connect(instance, "main");
@@ -365,16 +367,25 @@ export async function dryRunInstance(instance: Instance): Promise<InstanceReport
       const projectDb = connect(instance, project.id);
       try {
         if (!(await isSourceAtRequiredMigration(projectDb))) {
-          report.notAtRequiredMigration.push({ id: project.id, label: project.label });
+          report.notAtRequiredMigration.push({
+            id: project.id,
+            label: project.label,
+          });
           report.fails.push(
             `project database ${project.id} ("${project.label}") is not at ${REQUIRED_SOURCE_MIGRATION}; boot the previous release there first`,
           );
           continue;
         }
-        const plan = await planConsolidation({ projectDb, project, runId, takenIds });
+        const plan = await planConsolidation({
+          projectDb,
+          project,
+          runId,
+          takenIds,
+        });
         report.plans.push(plan);
         const extra = await countExtraDropped(projectDb);
-        report.extraDropped.userAuthoredVisualizations += extra.userAuthoredVisualizations;
+        report.extraDropped.userAuthoredVisualizations +=
+          extra.userAuthoredVisualizations;
         report.extraDropped.publicDashboards += extra.publicDashboards;
       } catch (error) {
         report.fails.push(
@@ -461,7 +472,9 @@ function addReviews(report: InstanceReport): void {
     0,
   );
   if (orphans > 0) {
-    report.reviews.push(`${orphans} FK orphan(s); the migration drops or relocates these rows`);
+    report.reviews.push(
+      `${orphans} FK orphan(s); the migration drops or relocates these rows`,
+    );
   }
 }
 
@@ -544,7 +557,9 @@ function printInstanceReport(report: InstanceReport): void {
   }
   if (report.notAtRequiredMigration.length > 0) {
     console.log(`  not at ${REQUIRED_SOURCE_MIGRATION}:`);
-    for (const ref of report.notAtRequiredMigration) console.log(projectLine(ref));
+    for (const ref of report.notAtRequiredMigration) {
+      console.log(projectLine(ref));
+    }
   }
   if (report.runIdNull.length > 0) {
     console.log(
@@ -604,11 +619,15 @@ function printInstanceReport(report: InstanceReport): void {
 function banner(ok: boolean, lines: string[]): void {
   const color = ok ? GREEN : RED;
   console.log("");
-  console.log(`${color}╔══════════════════════════════════════════════════════════════╗`);
+  console.log(
+    `${color}╔══════════════════════════════════════════════════════════════╗`,
+  );
   for (const line of lines) {
     console.log(`║  ${line.padEnd(60)}║`);
   }
-  console.log(`╚══════════════════════════════════════════════════════════════╝${RESET}`);
+  console.log(
+    `╚══════════════════════════════════════════════════════════════╝${RESET}`,
+  );
 }
 
 function printFleetSummary(reports: InstanceReport[]): boolean {
@@ -681,8 +700,12 @@ function printFleetSummary(reports: InstanceReport[]): boolean {
   );
   console.log("");
   console.log("  REVIEW totals; read and accept these before deploying:");
-  console.log(`    visualizations DELETED:          ${totals.viz} (${totals.userViz} user-authored)`);
-  console.log(`    dashboards DELETED:              ${totals.dash} (${totals.publicDash} public)`);
+  console.log(
+    `    visualizations DELETED:          ${totals.viz} (${totals.userViz} user-authored)`,
+  );
+  console.log(
+    `    dashboards DELETED:              ${totals.dash} (${totals.publicDash} public)`,
+  );
   console.log(`    viewer-only users -> editors:    ${totals.viewerOnly}`);
   console.log(`    no-project-role users -> editors: ${totals.noRole}`);
   console.log(`    central-reporting projects:      ${totals.central}`);

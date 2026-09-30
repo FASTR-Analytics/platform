@@ -40,9 +40,30 @@ const result: FastrPagedResult = {
   total: 3,
   sheet: { width: 794, height: 1123 },
   pages: [
-    { number: 1, firstLine: 2, lines: [2, 6, 8], cover: false, flushTop: true, contentHeight: 1000 },
-    { number: 2, firstLine: 14, lines: [14, 16], cover: false, flushTop: false, contentHeight: 300 },
-    { number: 3, firstLine: 18, lines: [18, 27], cover: false, flushTop: false, contentHeight: 500 },
+    {
+      number: 1,
+      firstLine: 2,
+      lines: [2, 6, 8],
+      cover: false,
+      flushTop: true,
+      contentHeight: 1000,
+    },
+    {
+      number: 2,
+      firstLine: 14,
+      lines: [14, 16],
+      cover: false,
+      flushTop: false,
+      contentHeight: 300,
+    },
+    {
+      number: 3,
+      firstLine: 18,
+      lines: [18, 27],
+      cover: false,
+      flushTop: false,
+      contentHeight: 500,
+    },
   ],
   splits: [],
   blocks: [
@@ -58,13 +79,22 @@ const result: FastrPagedResult = {
 
 Deno.test("the page map names every block, its share, and the pages left short", () => {
   const text = fastrPageMapText(result, body);
-  assertStringIncludes(text, 'Page 1 of 3: 95% full');
+  assertStringIncludes(text, "Page 1 of 3: 95% full");
   assertStringIncludes(text, 'cover "ANC1 Reporting Completeness"');
   assertStringIncludes(text, "tiles (3 stats)");
-  assertStringIncludes(text, 'section heading "Where ANC1 completeness stands"');
-  assertStringIncludes(text, "Page 2 of 3: 30% full, SHORT: the next block did not fit and moved whole to page 3: columns (2) (30%)");
+  assertStringIncludes(
+    text,
+    'section heading "Where ANC1 completeness stands"',
+  );
+  assertStringIncludes(
+    text,
+    "Page 2 of 3: 30% full, SHORT: the next block did not fit and moved whole to page 3: columns (2) (30%)",
+  );
   assertStringIncludes(text, "Page 3 of 3 (last): 51% full");
-  assertStringIncludes(text, 'band "Prepared from the FASTR data quality module"');
+  assertStringIncludes(
+    text,
+    'band "Prepared from the FASTR data quality module"',
+  );
   assertStringIncludes(text, "Problems:");
   assertStringIncludes(text, "Page 2 is 30% full");
 });
@@ -73,8 +103,22 @@ Deno.test("a last page holding only closing blocks is a stub", () => {
   const stub: FastrPagedResult = {
     ...result,
     pages: [
-      { number: 1, firstLine: 2, lines: [2], cover: false, flushTop: true, contentHeight: 1000 },
-      { number: 2, firstLine: 27, lines: [27], cover: false, flushTop: false, contentHeight: 200 },
+      {
+        number: 1,
+        firstLine: 2,
+        lines: [2],
+        cover: false,
+        flushTop: true,
+        contentHeight: 1000,
+      },
+      {
+        number: 2,
+        firstLine: 27,
+        lines: [27],
+        cover: false,
+        flushTop: false,
+        contentHeight: 200,
+      },
     ],
     total: 2,
   };

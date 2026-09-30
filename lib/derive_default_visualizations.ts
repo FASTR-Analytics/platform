@@ -1,8 +1,8 @@
-import { resolveTS, type Language } from "./translate/mod.ts";
+import { type Language, resolveTS } from "./translate/mod.ts";
 import type { VizPreset } from "./types/_metric_installed.ts";
 import {
-  presentationObjectConfigSchema,
   type PresentationObjectConfig,
+  presentationObjectConfigSchema,
 } from "./types/_presentation_object_config.ts";
 import {
   DEFAULT_S_CONFIG,

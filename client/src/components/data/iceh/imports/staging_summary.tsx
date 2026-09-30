@@ -1,4 +1,4 @@
-import { t3, type IcehStagingResult } from "lib";
+import { type IcehStagingResult, t3 } from "lib";
 import { toNum0 } from "panther";
 import { Show } from "solid-js";
 
@@ -15,12 +15,20 @@ export function IcehStagingSummary(p: Props) {
     <div class="ui-spy">
       <div class="ui-pad bg-base-200 rounded">
         <h3 class="ui-text-heading mb-4">
-          {t3({ en: "Row Statistics", fr: "Statistiques des lignes", pt: "Estatísticas das linhas" })}
+          {t3({
+            en: "Row Statistics",
+            fr: "Statistiques des lignes",
+            pt: "Estatísticas das linhas",
+          })}
         </h3>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
-              {t3({ en: "Total Rows in File", fr: "Total de lignes dans le fichier", pt: "Total de linhas no ficheiro" })}
+              {t3({
+                en: "Total Rows in File",
+                fr: "Total de lignes dans le fichier",
+                pt: "Total de linhas no ficheiro",
+              })}
             </span>
             <span class="font-700">
               {toNum0(p.result.nRowsTotal)}
@@ -28,7 +36,11 @@ export function IcehStagingSummary(p: Props) {
           </div>
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
-              {t3({ en: "Valid Rows", fr: "Lignes valides", pt: "Linhas válidas" })}
+              {t3({
+                en: "Valid Rows",
+                fr: "Lignes valides",
+                pt: "Linhas válidas",
+              })}
             </span>
             <span class="font-700 text-success">
               {toNum0(p.result.nRowsValid)}
@@ -36,7 +48,11 @@ export function IcehStagingSummary(p: Props) {
           </div>
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
-              {t3({ en: "Skipped: Missing Estimate (normal)", fr: "Ignorées : estimation manquante (normal)", pt: "Ignoradas: estimativa em falta (normal)" })}
+              {t3({
+                en: "Skipped: Missing Estimate (normal)",
+                fr: "Ignorées : estimation manquante (normal)",
+                pt: "Ignoradas: estimativa em falta (normal)",
+              })}
             </span>
             <span class="font-700">
               {toNum0(p.result.nRowsSkippedMissingEstimate)}
@@ -44,7 +60,11 @@ export function IcehStagingSummary(p: Props) {
           </div>
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
-              {t3({ en: "Skipped: Unknown Disaggregator", fr: "Ignorées : désagrégateur inconnu", pt: "Ignoradas: desagregador desconhecido" })}
+              {t3({
+                en: "Skipped: Unknown Disaggregator",
+                fr: "Ignorées : désagrégateur inconnu",
+                pt: "Ignoradas: desagregador desconhecido",
+              })}
             </span>
             <span class="font-700 text-danger">
               {toNum0(p.result.nRowsSkippedUnknownStrat)}
@@ -57,7 +77,11 @@ export function IcehStagingSummary(p: Props) {
           </div>
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
-              {t3({ en: "Skipped: Invalid Year", fr: "Ignorées : année invalide", pt: "Ignoradas: ano inválido" })}
+              {t3({
+                en: "Skipped: Invalid Year",
+                fr: "Ignorées : année invalide",
+                pt: "Ignoradas: ano inválido",
+              })}
             </span>
             <span class="font-700 text-danger">
               {toNum0(p.result.nRowsSkippedInvalidYear)}
@@ -65,7 +89,11 @@ export function IcehStagingSummary(p: Props) {
           </div>
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
-              {t3({ en: "Skipped: Indicator Not in indicators.xlsx", fr: "Ignorées : indicateur absent de indicators.xlsx", pt: "Ignoradas: indicador ausente de indicators.xlsx" })}
+              {t3({
+                en: "Skipped: Indicator Not in indicators.xlsx",
+                fr: "Ignorées : indicateur absent de indicators.xlsx",
+                pt: "Ignoradas: indicador ausente de indicators.xlsx",
+              })}
             </span>
             <span class="font-700 text-danger">
               {toNum0(p.result.nRowsSkippedUnknownIndicator)}
@@ -81,7 +109,11 @@ export function IcehStagingSummary(p: Props) {
 
       <div class="ui-pad bg-base-200 rounded">
         <h3 class="ui-text-heading mb-4">
-          {t3({ en: "Data to Import", fr: "Données à importer", pt: "Dados a importar" })}
+          {t3({
+            en: "Data to Import",
+            fr: "Données à importer",
+            pt: "Dados a importar",
+          })}
         </h3>
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
           <div class="flex flex-col">
@@ -94,7 +126,11 @@ export function IcehStagingSummary(p: Props) {
           </div>
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
-              {t3({ en: "Disaggregators", fr: "Désagrégateurs", pt: "Desagregadores" })}
+              {t3({
+                en: "Disaggregators",
+                fr: "Désagrégateurs",
+                pt: "Desagregadores",
+              })}
             </span>
             <span class="font-700">
               {toNum0(p.result.nDisaggregators)}

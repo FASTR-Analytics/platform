@@ -1,16 +1,16 @@
 import {
+  get_PERIOD_OPTION_MAP,
   type IndicatorFormat,
   PeriodOption,
   PresentationObjectConfig,
   ResultsValue,
-  get_PERIOD_OPTION_MAP,
   t3,
 } from "lib";
 import {
   Checkbox,
+  getSelectOptions,
   RadioGroup,
   Slider,
-  getSelectOptions,
   toPct0,
 } from "panther";
 import { Match, Show, Switch } from "solid-js";
@@ -91,7 +91,10 @@ export function TimeseriesStyleControls(p: Props) {
 
   const modeOptions = () => {
     const opts: { value: string; label: string }[] = [
-      { value: "standard", label: t3({ en: "Standard", fr: "Standard", pt: "Padrão" }) },
+      {
+        value: "standard",
+        label: t3({ en: "Standard", fr: "Standard", pt: "Padrão" }),
+      },
     ];
     if (p.showCoverageMode || mode() === "coverage") {
       opts.push({
@@ -141,7 +144,11 @@ export function TimeseriesStyleControls(p: Props) {
       <Show when={modeOptions().length > 1}>
         <div class="ui-pad bg-base-200 rounded border">
           <RadioGroup
-            label={t3({ en: "Chart mode", fr: "Mode de graphique", pt: "Modo de gráfico" })}
+            label={t3({
+              en: "Chart mode",
+              fr: "Mode de graphique",
+              pt: "Modo de gráfico",
+            })}
             options={modeOptions()}
             value={mode()}
             onChange={(v) => setMode(v as TimeseriesMode)}
@@ -176,24 +183,30 @@ export function TimeseriesStyleControls(p: Props) {
           </StyleSection>
         </Match>
         <Match when={mode() === "percent-change"}>
-          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+          <StyleSection
+            label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}
+          >
             <RadioGroup
               label={t3({ en: "Period", fr: "Période", pt: "Período" })}
               options={periodRadioOptions()}
               value={p.tempConfig.d.timeseriesGrouping}
               onChange={(v) =>
-                p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
-              }
+                p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)}
             />
           </StyleSection>
-          <StyleSection label={t3({ en: "Threshold", fr: "Seuil", pt: "Limiar" })}>
+          <StyleSection
+            label={t3({ en: "Threshold", fr: "Seuil", pt: "Limiar" })}
+          >
             <>
               <Slider
-                label={t3({ en: "Threshold value", fr: "Valeur du seuil", pt: "Valor do limiar" })}
+                label={t3({
+                  en: "Threshold value",
+                  fr: "Valeur du seuil",
+                  pt: "Valor do limiar",
+                })}
                 value={p.tempConfig.s.specialBarChartDiffThreshold ?? 0.1}
                 onChange={(v) =>
-                  p.setTempConfig("s", "specialBarChartDiffThreshold", v)
-                }
+                  p.setTempConfig("s", "specialBarChartDiffThreshold", v)}
                 fullWidth
                 showValueInLabel
                 min={0}
@@ -209,12 +222,13 @@ export function TimeseriesStyleControls(p: Props) {
                 })}
                 checked={p.tempConfig.s.specialBarChartInverted}
                 onChange={(v) =>
-                  p.setTempConfig("s", "specialBarChartInverted", v)
-                }
+                  p.setTempConfig("s", "specialBarChartInverted", v)}
               />
             </>
           </StyleSection>
-          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
+          <StyleSection
+            label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}
+          >
             <>
               <Checkbox
                 checked={p.tempConfig.s.showDataLabels}
@@ -226,14 +240,16 @@ export function TimeseriesStyleControls(p: Props) {
                 })}
               />
               <Show
-                when={
-                  p.tempConfig.s.showDataLabels &&
-                  p.effectiveFormatAs !== "rate_per_10k"
-                }
+                when={p.tempConfig.s.showDataLabels &&
+                  p.effectiveFormatAs !== "rate_per_10k"}
               >
                 <StyleRevealGroup>
                   <RadioGroup
-                    label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                    label={t3({
+                      en: "Decimal places",
+                      fr: "Décimales",
+                      pt: "Casas decimais",
+                    })}
                     options={getSelectOptions(["0", "1", "2", "3"])}
                     value={String(p.tempConfig.s.decimalPlaces)}
                     onChange={(v) =>
@@ -241,28 +257,27 @@ export function TimeseriesStyleControls(p: Props) {
                         "s",
                         "decimalPlaces",
                         Number(v) as 0 | 1 | 2 | 3,
-                      )
-                    }
+                      )}
                     horizontal
                   />
                   <Checkbox
                     label={t3({
                       en: "Only show data labels on bars exceeding threshold",
-                      fr: "Afficher seulement les étiquettes de données sur les barres dépassant le seuil",
-                      pt: "Mostrar apenas rótulos de dados nas barras que excedem o limiar",
+                      fr:
+                        "Afficher seulement les étiquettes de données sur les barres dépassant le seuil",
+                      pt:
+                        "Mostrar apenas rótulos de dados nas barras que excedem o limiar",
                     })}
-                    checked={
-                      p.tempConfig.s.specialBarChartDataLabels === undefined ||
+                    checked={p.tempConfig.s.specialBarChartDataLabels ===
+                        undefined ||
                       p.tempConfig.s.specialBarChartDataLabels ===
-                        "threshold-values"
-                    }
+                        "threshold-values"}
                     onChange={(v) =>
                       p.setTempConfig(
                         "s",
                         "specialBarChartDataLabels",
                         v ? "threshold-values" : "all-values",
-                      )
-                    }
+                      )}
                   />
                 </StyleRevealGroup>
               </Show>
@@ -298,22 +313,22 @@ export function TimeseriesStyleControls(p: Props) {
                 })}
                 checked={p.tempConfig.s.allowIndividualRowLimits}
                 onChange={(v) =>
-                  p.setTempConfig("s", "allowIndividualRowLimits", v)
-                }
+                  p.setTempConfig("s", "allowIndividualRowLimits", v)}
               />
             </>
           </StyleSection>
         </Match>
         <Match when={mode() === "disruptions"}>
-          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+          <StyleSection
+            label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}
+          >
             <>
               <RadioGroup
                 label={t3({ en: "Period", fr: "Période", pt: "Período" })}
                 options={periodRadioOptions()}
                 value={p.tempConfig.d.timeseriesGrouping}
                 onChange={(v) =>
-                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
-                }
+                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)}
               />
               <Checkbox
                 label={t3({
@@ -326,13 +341,14 @@ export function TimeseriesStyleControls(p: Props) {
               />
             </>
           </StyleSection>
-          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
+          <StyleSection
+            label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}
+          >
             <>
               <Checkbox
                 checked={p.tempConfig.s.showDataLabelsLineCharts}
                 onChange={(v) =>
-                  p.setTempConfig("s", "showDataLabelsLineCharts", v)
-                }
+                  p.setTempConfig("s", "showDataLabelsLineCharts", v)}
                 label={t3({
                   en: "Show data labels",
                   fr: "Afficher les étiquettes de données",
@@ -340,14 +356,16 @@ export function TimeseriesStyleControls(p: Props) {
                 })}
               />
               <Show
-                when={
-                  p.tempConfig.s.showDataLabelsLineCharts &&
-                  p.effectiveFormatAs !== "rate_per_10k"
-                }
+                when={p.tempConfig.s.showDataLabelsLineCharts &&
+                  p.effectiveFormatAs !== "rate_per_10k"}
               >
                 <StyleRevealGroup>
                   <RadioGroup
-                    label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                    label={t3({
+                      en: "Decimal places",
+                      fr: "Décimales",
+                      pt: "Casas decimais",
+                    })}
                     options={getSelectOptions(["0", "1", "2", "3"])}
                     value={String(p.tempConfig.s.decimalPlaces)}
                     onChange={(v) =>
@@ -355,8 +373,7 @@ export function TimeseriesStyleControls(p: Props) {
                         "s",
                         "decimalPlaces",
                         Number(v) as 0 | 1 | 2 | 3,
-                      )
-                    }
+                      )}
                     horizontal
                   />
                 </StyleRevealGroup>
@@ -393,22 +410,22 @@ export function TimeseriesStyleControls(p: Props) {
                 })}
                 checked={p.tempConfig.s.allowIndividualRowLimits}
                 onChange={(v) =>
-                  p.setTempConfig("s", "allowIndividualRowLimits", v)
-                }
+                  p.setTempConfig("s", "allowIndividualRowLimits", v)}
               />
             </>
           </StyleSection>
         </Match>
         <Match when={mode() === "disruptions-v2"}>
-          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+          <StyleSection
+            label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}
+          >
             <>
               <RadioGroup
                 label={t3({ en: "Period", fr: "Période", pt: "Período" })}
                 options={periodRadioOptions()}
                 value={p.tempConfig.d.timeseriesGrouping}
                 onChange={(v) =>
-                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
-                }
+                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)}
               />
               <Checkbox
                 label={t3({
@@ -421,13 +438,14 @@ export function TimeseriesStyleControls(p: Props) {
               />
             </>
           </StyleSection>
-          <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
+          <StyleSection
+            label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}
+          >
             <>
               <Checkbox
                 checked={p.tempConfig.s.showDataLabelsLineCharts}
                 onChange={(v) =>
-                  p.setTempConfig("s", "showDataLabelsLineCharts", v)
-                }
+                  p.setTempConfig("s", "showDataLabelsLineCharts", v)}
                 label={t3({
                   en: "Show data labels",
                   fr: "Afficher les étiquettes de données",
@@ -435,14 +453,16 @@ export function TimeseriesStyleControls(p: Props) {
                 })}
               />
               <Show
-                when={
-                  p.tempConfig.s.showDataLabelsLineCharts &&
-                  p.effectiveFormatAs !== "rate_per_10k"
-                }
+                when={p.tempConfig.s.showDataLabelsLineCharts &&
+                  p.effectiveFormatAs !== "rate_per_10k"}
               >
                 <StyleRevealGroup>
                   <RadioGroup
-                    label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                    label={t3({
+                      en: "Decimal places",
+                      fr: "Décimales",
+                      pt: "Casas decimais",
+                    })}
                     options={getSelectOptions(["0", "1", "2", "3"])}
                     value={String(p.tempConfig.s.decimalPlaces)}
                     onChange={(v) =>
@@ -450,8 +470,7 @@ export function TimeseriesStyleControls(p: Props) {
                         "s",
                         "decimalPlaces",
                         Number(v) as 0 | 1 | 2 | 3,
-                      )
-                    }
+                      )}
                     horizontal
                   />
                 </StyleRevealGroup>
@@ -488,87 +507,106 @@ export function TimeseriesStyleControls(p: Props) {
                 })}
                 checked={p.tempConfig.s.allowIndividualRowLimits}
                 onChange={(v) =>
-                  p.setTempConfig("s", "allowIndividualRowLimits", v)
-                }
+                  p.setTempConfig("s", "allowIndividualRowLimits", v)}
               />
             </>
           </StyleSection>
         </Match>
         <Match when={mode() === "standard"}>
-          <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+          <StyleSection
+            label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}
+          >
             <>
               <RadioGroup
                 label={t3({ en: "Period", fr: "Période", pt: "Período" })}
                 options={periodRadioOptions()}
                 value={p.tempConfig.d.timeseriesGrouping}
                 onChange={(v) =>
-                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)
-                }
+                  p.setTempConfig("d", "timeseriesGrouping", v as PeriodOption)}
                 horizontal
               />
               <div class="pt-0.5"></div>
               <RadioGroup
-                label={t3({ en: "Display format", fr: "Format d'affichage", pt: "Formato de exibição" })}
+                label={t3({
+                  en: "Display format",
+                  fr: "Format d'affichage",
+                  pt: "Formato de exibição",
+                })}
                 options={[
-                  { value: "lines", label: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }) },
-                  { value: "bars", label: t3({ en: "Bars", fr: "Barres", pt: "Barras" }) },
+                  {
+                    value: "lines",
+                    label: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }),
+                  },
+                  {
+                    value: "bars",
+                    label: t3({ en: "Bars", fr: "Barres", pt: "Barras" }),
+                  },
                 ]}
-                value={
-                  p.tempConfig.s.content === "lines-points" ||
-                  p.tempConfig.s.content === "lines-area"
-                    ? "lines"
-                    : p.tempConfig.s.content
-                }
+                value={p.tempConfig.s.content === "lines-points" ||
+                    p.tempConfig.s.content === "lines-area"
+                  ? "lines"
+                  : p.tempConfig.s.content}
                 onChange={(v) =>
-                  p.setTempConfig("s", "content", v as "lines" | "bars")
-                }
+                  p.setTempConfig("s", "content", v as "lines" | "bars")}
                 horizontal
               />
               <Show when={p.tempConfig.s.content === "bars"}>
                 <StyleRevealGroup>
                   <Checkbox
-                    label={t3({ en: "Stacked bars", fr: "Histogramme empilé", pt: "Barras empilhadas" })}
+                    label={t3({
+                      en: "Stacked bars",
+                      fr: "Histogramme empilé",
+                      pt: "Barras empilhadas",
+                    })}
                     checked={p.tempConfig.s.barsStacked}
                     onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
                   />
                 </StyleRevealGroup>
               </Show>
               <Show
-                when={
-                  p.tempConfig.s.content === "lines" ||
+                when={p.tempConfig.s.content === "lines" ||
                   p.tempConfig.s.content === "lines-points" ||
-                  p.tempConfig.s.content === "lines-area"
-                }
+                  p.tempConfig.s.content === "lines-area"}
               >
                 <StyleRevealGroup>
                   <Checkbox
-                    label={t3({ en: "Add points", fr: "Ajouter des points", pt: "Adicionar pontos" })}
+                    label={t3({
+                      en: "Add points",
+                      fr: "Ajouter des points",
+                      pt: "Adicionar pontos",
+                    })}
                     checked={p.tempConfig.s.content === "lines-points"}
                     onChange={(v) =>
                       p.setTempConfig(
                         "s",
                         "content",
                         v ? "lines-points" : "lines",
-                      )
-                    }
+                      )}
                   />
                   <Checkbox
-                    label={t3({ en: "Fill area", fr: "Remplir la zone", pt: "Preencher a área" })}
+                    label={t3({
+                      en: "Fill area",
+                      fr: "Remplir la zone",
+                      pt: "Preencher a área",
+                    })}
                     checked={p.tempConfig.s.content === "lines-area"}
                     onChange={(v) =>
                       p.setTempConfig(
                         "s",
                         "content",
                         v ? "lines-area" : "lines",
-                      )
-                    }
+                      )}
                   />
                 </StyleRevealGroup>
               </Show>
               <Show when={p.effectiveFormatAs !== "rate_per_10k"}>
                 <div class="pt-0.5"></div>
                 <RadioGroup
-                  label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                  label={t3({
+                    en: "Decimal places",
+                    fr: "Décimales",
+                    pt: "Casas decimais",
+                  })}
                   options={getSelectOptions(["0", "1", "2", "3"])}
                   value={String(p.tempConfig.s.decimalPlaces)}
                   onChange={(v) =>
@@ -576,8 +614,7 @@ export function TimeseriesStyleControls(p: Props) {
                       "s",
                       "decimalPlaces",
                       Number(v) as 0 | 1 | 2 | 3,
-                    )
-                  }
+                    )}
                   horizontal
                 />
               </Show>
@@ -585,7 +622,11 @@ export function TimeseriesStyleControls(p: Props) {
               <Checkbox
                 checked={p.tempConfig.s.hideLegend}
                 onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-                label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
+                label={t3({
+                  en: "Hide legend",
+                  fr: "Masquer la légende",
+                  pt: "Ocultar legenda",
+                })}
               />
             </>
           </StyleSection>

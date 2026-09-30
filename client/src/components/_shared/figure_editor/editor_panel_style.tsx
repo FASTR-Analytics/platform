@@ -1,9 +1,9 @@
 import {
+  getDisaggregatorDisplayProp,
+  type IndicatorFormat,
   PresentationObjectConfig,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
-  getDisaggregatorDisplayProp,
-  type IndicatorFormat,
 } from "lib";
 import { openComponent } from "panther";
 import { Match, Show, Switch } from "solid-js";
@@ -40,14 +40,15 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
   const metricId = () => p.metric.id;
 
   const showCoverageMode = () => canUseSpecialCoverageChart(metricId());
-  const showPercentChangeMode = () => canUseSpecialPercentChangeChart(metricId());
+  const showPercentChangeMode = () =>
+    canUseSpecialPercentChangeChart(metricId());
   const showDisruptionsMode = () => canUseSpecialDisruptionsChart(metricId());
-  const showDisruptionsModeV2 = () => canUseSpecialDisruptionsChartV2(metricId());
+  const showDisruptionsModeV2 = () =>
+    canUseSpecialDisruptionsChartV2(metricId());
   // The `indicator` CF source is offered only where the values are each
   // indicator's own quantity: the metric's declared formatAs, never the
   // resolved axis format.
-  const offerIndicatorCfSource = () =>
-    p.metric.formatAs === "indicator";
+  const offerIndicatorCfSource = () => p.metric.formatAs === "indicator";
 
   // n is a survey concept and is counted over facility rows, so the server only
   // emits it for HFA metrics whose results table has facility_id. Offering the
@@ -75,9 +76,11 @@ export function PresentationObjectEditorPanelStyle(p: Props) {
       "cell",
     ], p.effectiveValueProps);
 
-
   return (
-    <div data-viz-panel-scroll class="ui-pad ui-spy h-full w-full overflow-auto">
+    <div
+      data-viz-panel-scroll
+      class="ui-pad ui-spy h-full w-full overflow-auto"
+    >
       <SharedControlsTop
         tempConfig={p.tempConfig}
         setTempConfig={p.setTempConfig}

@@ -6,8 +6,8 @@ import {
 } from "lib";
 import {
   type AlertComponentProps,
-  MODEL_OPTIONS,
   ModalContainer,
+  MODEL_OPTIONS,
 } from "panther";
 import { createSignal, Match, onMount, Switch } from "solid-js";
 import {
@@ -109,7 +109,9 @@ export function SaveReportStyleModal(p: Props) {
       const client = createCopilotSDKClient();
       // Track panther's curated model list (Sonnet tier — a distillation
       // doesn't need the flagship) instead of hardcoding an id that rots.
-      const model = MODEL_OPTIONS.find((m) => m.value.startsWith("claude-sonnet"))
+      const model = MODEL_OPTIONS.find((m) =>
+        m.value.startsWith("claude-sonnet")
+      )
         ?.value ?? MODEL_OPTIONS[0].value;
       const res = await client.messages.create({
         model,
@@ -158,7 +160,11 @@ export function SaveReportStyleModal(p: Props) {
           onCancel={() => p.close(undefined)}
           actions={state().status === "error"
             ? [{
-              label: t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" }),
+              label: t3({
+                en: "Retry",
+                fr: "Réessayer",
+                pt: "Tentar novamente",
+              }),
               onClick: () => void distill(),
               iconName: "refresh" as const,
             }]

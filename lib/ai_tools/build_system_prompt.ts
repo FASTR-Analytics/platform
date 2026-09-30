@@ -10,8 +10,8 @@ import type { InfoCatalogTopic } from "./info_catalog.ts";
 import type { ReportFormat, ReportHtmlStyle } from "../types/reports.ts";
 import { FASTR_MD_SYNTAX_DOC } from "../fastr_markdown_spec.ts";
 import {
-  fastrReportTemplateBrief,
   type FastrReportTemplate,
+  fastrReportTemplateBrief,
 } from "../fastr_report_templates.ts";
 
 // The shared halves of the AI system prompt: what both surfaces (the SPA
@@ -75,7 +75,9 @@ function buildReferenceDocsSection(topics: InfoCatalogTopic[]): string {
 
 // ── Instance grounding: country, terminology, data sources ──
 
-export function buildInstanceContextSections(instance: InstanceState): string[] {
+export function buildInstanceContextSections(
+  instance: InstanceState,
+): string[] {
   const sections: string[] = [];
   sections.push("# Instance Information");
   sections.push("");
@@ -300,8 +302,16 @@ export function buildDataCoverageSections(instance: InstanceState): string[] {
     );
     for (
       const [familyLabel, counts, familyDepth] of [
-        ["HMIS", instance.structure.hmis, instance.structureSchemaHmis?.adminDepth],
-        ["HFA", instance.structure.hfa, instance.structureSchemaHfa?.adminDepth],
+        [
+          "HMIS",
+          instance.structure.hmis,
+          instance.structureSchemaHmis?.adminDepth,
+        ],
+        [
+          "HFA",
+          instance.structure.hfa,
+          instance.structureSchemaHfa?.adminDepth,
+        ],
       ] as const
     ) {
       if (counts.facilities === 0) continue;
@@ -462,7 +472,7 @@ export const REPORT_STYLE_BRIEFS: Record<
 
 **Figures**: on a white panel with a hairline border and a 3px teal top border, caption below with the source in grey; when a figure supports a specific finding, repeat that finding's status pill beside the caption.`,
   },
-editorial: {
+  editorial: {
     name: "Editorial",
     brief:
       `A designed editorial briefing — a magazine front, not a plain document.
@@ -485,7 +495,7 @@ The page sits on --ground; content lives in --surface blocks with 1px solid var(
 
 **Figures**: wrap each embed in a figure card — --surface, rule border, padding, small mono caption line. Keep the card body white.`,
   },
-swiss: {
+  swiss: {
     name: "Swiss / International",
     brief:
       `The International Typographic Style: a strict grid, objective typography, one red, and nothing decorative at all.
@@ -498,7 +508,7 @@ swiss: {
 
 **Figures**: unframed on the white page — just a hairline rule above, a small grey caption below. Let the whitespace frame them.`,
   },
-monochrome: {
+  monochrome: {
     name: "Monochrome ink",
     brief:
       `Pure black on white. The figures' chart colors are the ONLY color on the page — that is the point.
@@ -511,7 +521,7 @@ monochrome: {
 
 **Figures**: because they carry the page's only color, give them room — full-width, a 1px black frame, bold black caption line above ("Figure 2 — Penta1 coverage") and nothing competing nearby.`,
   },
-bauhaus: {
+  bauhaus: {
     name: "Bauhaus",
     brief:
       `Bauhaus / constructivist: primary-color geometry doing the work of ornament.
@@ -524,7 +534,7 @@ bauhaus: {
 
 **Figures**: white panels with a thick (4–6px) single-color border, each section cycling through the three primaries; captions in small uppercase 'Archivo'.`,
   },
-blueprint: {
+  blueprint: {
     name: "Blueprint",
     brief:
       `An engineering drawing sheet: white line-work on blueprint blue, every figure a numbered plate.
@@ -537,10 +547,9 @@ blueprint: {
 
 **Figures**: this is the signature move — each figure is a PLATE: a panel in the lighter blueprint blue #1B4A78 (give the figure <img> background: #1B4A78 in CSS; chart ink adapts to the dark ground automatically) inside a light border with corner ticks, labelled "FIG. 01 — <CAPTION>" in mono uppercase above or below.`,
   },
-broadsheet: {
+  broadsheet: {
     name: "Broadsheet",
-    brief:
-      `A newspaper front page: masthead, columns, kickers, dinkuses.
+    brief: `A newspaper front page: masthead, columns, kickers, dinkuses.
 
 **Fonts**: @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Oswald:wght@500&display=swap'); masthead + headlines 'Playfair Display', body 'Source Serif 4', kickers/bylines 'Oswald' uppercase.
 
@@ -550,7 +559,7 @@ broadsheet: {
 
 **Figures**: newspaper photo treatment — thin 1px ink border, italic serif caption underneath with a bold lead-in ("Coverage trends."), optionally spanning all columns.`,
   },
-risograph: {
+  risograph: {
     name: "Risograph",
     brief:
       `A two-ink riso zine print: paper plus exactly two vibrant inks, with deliberate misregistration.
@@ -563,10 +572,9 @@ risograph: {
 
 **Figures**: white cards with a 3px blue border and a pink 6px offset shadow (box-shadow: 6px 6px 0 pink); mono captions with a stamped number tag ("No. 03").`,
   },
-artdeco: {
+  artdeco: {
     name: "Art deco",
-    brief:
-      `A 1920s gala programme: symmetric, gilded, vertical elegance.
+    brief: `A 1920s gala programme: symmetric, gilded, vertical elegance.
 
 **Fonts**: @import url('https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Josefin+Sans:wght@300;400&display=swap'); display 'Marcellus' with wide letter-spacing (+0.12em, uppercase), body 'Cormorant Garamond', small labels 'Josefin Sans' uppercase light.
 
@@ -576,7 +584,7 @@ artdeco: {
 
 **Figures**: framed like plates in a programme — double-line border with gold corner ornaments, centered 'Josefin Sans' small-caps caption beneath.`,
   },
-japanese: {
+  japanese: {
     name: "Japanese minimal",
     brief:
       `Ma — negative space as the design. Quiet, vertical rhythm, one vermilion seal.
@@ -589,7 +597,7 @@ japanese: {
 
 **Figures**: unframed, floating in generous margin — no border, no card; a tiny grey caption set well below the image; one figure per screenful of space.`,
   },
-terminal: {
+  terminal: {
     name: "Terminal",
     brief:
       `A phosphor terminal session: mono everything, green on near-black, CLI furniture.
@@ -602,7 +610,7 @@ terminal: {
 
 **Figures**: dark "screenshot" cards matching the panel color #121A15 (give the figure <img> background: #121A15 in CSS; chart ink adapts to the dark ground automatically) with a slim terminal title bar above — a darker strip, green mono filename ("anc1_coverage.png"), three small circles left.`,
   },
-brutalist: {
+  brutalist: {
     name: "Brutalist",
     brief:
       `Web brutalism: raw, loud, anti-polish — structure exposed, defaults weaponized.

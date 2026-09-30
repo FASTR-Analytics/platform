@@ -16,7 +16,11 @@ export async function getGeoJsonMapSummaries(
   mainDb: Sql,
 ): Promise<GeoJsonMapSummary[]> {
   const rows = await mainDb<
-    { facility_family: FacilityFamily; admin_area_level: number; uploaded_at: Date }[]
+    {
+      facility_family: FacilityFamily;
+      admin_area_level: number;
+      uploaded_at: Date;
+    }[]
   >`SELECT facility_family, admin_area_level, uploaded_at FROM geojson_maps ORDER BY facility_family, admin_area_level`;
   return rows.map((r) => ({
     family: r.facility_family,
@@ -35,9 +39,18 @@ export async function getGeoJsonForLevel(
       { geojson: string; uploaded_at: Date }[]
     >`SELECT geojson, uploaded_at FROM geojson_maps WHERE facility_family = ${family} AND admin_area_level = ${level}`;
     if (rows.length === 0) {
-      return { success: false, err: `No GeoJSON found for ${family} admin area level ${level}` };
+      return {
+        success: false,
+        err: `No GeoJSON found for ${family} admin area level ${level}`,
+      };
     }
-    return { success: true, data: { geojson: rows[0].geojson, uploadedAt: rows[0].uploaded_at.toISOString() } };
+    return {
+      success: true,
+      data: {
+        geojson: rows[0].geojson,
+        uploadedAt: rows[0].uploaded_at.toISOString(),
+      },
+    };
   });
 }
 
@@ -61,7 +74,8 @@ export async function saveGeoJsonMap(
       if (level > resSchema.data.adminDepth) {
         return {
           success: false,
-          err: `Cannot save a level-${level} map: the ${family.toUpperCase()} registry's admin depth is ${resSchema.data.adminDepth}`,
+          err:
+            `Cannot save a level-${level} map: the ${family.toUpperCase()} registry's admin depth is ${resSchema.data.adminDepth}`,
         };
       }
       await sql`
@@ -95,10 +109,16 @@ export async function countOrphanedGeoJsonAreaIds(
   family: FacilityFamily | undefined,
 ): Promise<GeojsonOrphanedAreaIds[]> {
   const rows = await mainDb<
-    { facility_family: FacilityFamily; admin_area_level: number; geojson: string }[]
+    {
+      facility_family: FacilityFamily;
+      admin_area_level: number;
+      geojson: string;
+    }[]
   >`
     SELECT facility_family, admin_area_level, geojson FROM geojson_maps
-    ${family === undefined ? mainDb`` : mainDb`WHERE facility_family = ${family}`}
+    ${
+    family === undefined ? mainDb`` : mainDb`WHERE facility_family = ${family}`
+  }
     ORDER BY facility_family, admin_area_level`;
   const results: GeojsonOrphanedAreaIds[] = [];
   for (const row of rows) {
@@ -148,18 +168,35 @@ export async function getAdminAreaOptionsForLevel(
       const rows = await mainDb<{ name: string }[]>`
         SELECT DISTINCT admin_area_2 as name, LOWER(admin_area_2) as sort_key
         FROM ${mainDb(`admin_areas_${family}_2`)} ORDER BY sort_key`;
-      return { success: true, data: rows.map((r) => ({ value: r.name, label: r.name })) };
+      return {
+        success: true,
+        data: rows.map((r) => ({ value: r.name, label: r.name })),
+      };
     } else if (level === 3) {
       const rows = await mainDb<{ name: string; parent: string }[]>`
         SELECT admin_area_3 as name, admin_area_2 as parent, LOWER(admin_area_2 || admin_area_3) as sort_key
         FROM ${mainDb(`admin_areas_${family}_3`)} ORDER BY sort_key`;
-      return { success: true, data: rows.map((r) => ({ value: r.name, label: `${r.parent} > ${r.name}` })) };
+      return {
+        success: true,
+        data: rows.map((r) => ({
+          value: r.name,
+          label: `${r.parent} > ${r.name}`,
+        })),
+      };
     } else if (level === 4) {
-      const rows = await mainDb<{ name: string; parent3: string; parent2: string }[]>`
+      const rows = await mainDb<
+        { name: string; parent3: string; parent2: string }[]
+      >`
         SELECT admin_area_4 as name, admin_area_3 as parent3, admin_area_2 as parent2,
                LOWER(admin_area_2 || admin_area_3 || admin_area_4) as sort_key
         FROM ${mainDb(`admin_areas_${family}_4`)} ORDER BY sort_key`;
-      return { success: true, data: rows.map((r) => ({ value: r.name, label: `${r.parent2} > ${r.parent3} > ${r.name}` })) };
+      return {
+        success: true,
+        data: rows.map((r) => ({
+          value: r.name,
+          label: `${r.parent2} > ${r.parent3} > ${r.name}`,
+        })),
+      };
     } else {
       return { success: false, err: "Level must be 2, 3, or 4" };
     }

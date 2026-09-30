@@ -7,7 +7,8 @@ import { defineRoute } from "../route-helpers.ts";
 
 export const routesWhatsNew = new Hono();
 
-const WHATS_NEW_URL = "https://status-api.fastr-analytics.org/api/whats-new/posts";
+const WHATS_NEW_URL =
+  "https://status-api.fastr-analytics.org/api/whats-new/posts";
 // Short enough that a newly published post appears without waiting (or
 // restarting the server); still absorbs a morning login burst into a single
 // upstream fetch, which is all the cache is for.
@@ -77,30 +78,41 @@ function getPublishedPosts(): Promise<WhatsNewPost[]> {
 // testers see every published post.
 const _VERSION_GATE_ACTIVE = /^\d+\.\d+\.\d+$/.test(_SERVER_VERSION);
 
-defineRoute(routesWhatsNew, "getWhatsNewPosts", requireGlobalPermission(), async (c) => {
-  if (!c.var.globalUser.approved) {
-    return c.json({ success: true, data: [] });
-  }
-  const posts = await getPublishedPosts();
-  const eligible = posts.filter((p) =>
-    p.published &&
-    (!_VERSION_GATE_ACTIVE || compareDottedVersions(p.version, _SERVER_VERSION) <= 0) &&
-    (!p.adminsOnly || c.var.globalUser.isGlobalAdmin)
-  );
-  return c.json({ success: true, data: eligible });
-});
+defineRoute(
+  routesWhatsNew,
+  "getWhatsNewPosts",
+  requireGlobalPermission(),
+  async (c) => {
+    if (!c.var.globalUser.approved) {
+      return c.json({ success: true, data: [] });
+    }
+    const posts = await getPublishedPosts();
+    const eligible = posts.filter((p) =>
+      p.published &&
+      (!_VERSION_GATE_ACTIVE ||
+        compareDottedVersions(p.version, _SERVER_VERSION) <= 0) &&
+      (!p.adminsOnly || c.var.globalUser.isGlobalAdmin)
+    );
+    return c.json({ success: true, data: eligible });
+  },
+);
 
 // Popup telemetry, written through the user-log pipeline's writer. The post
 // id is encoded in the endpoint name (not the details blob) so per-post
 // counts survive the 7-day rollup into user_logs_aggregate.
-defineRoute(routesWhatsNew, "recordWhatsNewEvent", requireGlobalPermission(), async (c, { body }) => {
-  if (c.var.globalUser.approved) {
-    AddLog(
-      c.var.mainDb,
-      c.var.globalUser.email,
-      `whats_new_${body.event}:${body.postId}`,
-      "200",
-    ).catch(() => {});
-  }
-  return c.json({ success: true });
-});
+defineRoute(
+  routesWhatsNew,
+  "recordWhatsNewEvent",
+  requireGlobalPermission(),
+  async (c, { body }) => {
+    if (c.var.globalUser.approved) {
+      AddLog(
+        c.var.mainDb,
+        c.var.globalUser.email,
+        `whats_new_${body.event}:${body.postId}`,
+        "200",
+      ).catch(() => {});
+    }
+    return c.json({ success: true });
+  },
+);

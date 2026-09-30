@@ -49,7 +49,13 @@ type VisualLine = {
 
 // One drawn char (or one drawn space standing for a whitespace run): the
 // source range it covers and its horizontal extent.
-type CharBox = { from: number; to: number; x0: number; x1: number; line: number };
+type CharBox = {
+  from: number;
+  to: number;
+  x0: number;
+  x1: number;
+  line: number;
+};
 
 export type TextGeometry = {
   kind: "markdown" | "plain";
@@ -100,10 +106,12 @@ function ctx2d(): CanvasRenderingContext2D {
 
 function setFont(ctx: CanvasRenderingContext2D, ti: TextInfoUnkeyed) {
   const family = quotedFontFamilyForCanvas(ti.font.fontFamily);
-  ctx.font = `${ti.font.italic ? "italic " : ""}${ti.font.weight} ${ti.fontSize}px ${family}`;
+  ctx.font = `${
+    ti.font.italic ? "italic " : ""
+  }${ti.font.weight} ${ti.fontSize}px ${family}`;
   try {
-    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
-      ti.letterSpacing;
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string })
+      .letterSpacing = ti.letterSpacing;
   } catch {
     // Older lib.dom without letterSpacing: measured without it, as panther.
   }
@@ -120,7 +128,10 @@ type MeasuredNode = {
   children?: MeasuredNode[];
 };
 
-function findItemNode(root: MeasuredNode, id: string): MeasuredNode | undefined {
+function findItemNode(
+  root: MeasuredNode,
+  id: string,
+): MeasuredNode | undefined {
   if (root.type === "item") return root.id === id ? root : undefined;
   for (const c of root.children ?? []) {
     const hit = findItemNode(c, id);
@@ -136,7 +147,11 @@ function formattedTextOf(
   switch (item.type) {
     case "paragraph":
     case "heading":
-      return { mft: item.mFormattedText, x: item.position.x(), y: item.position.y() };
+      return {
+        mft: item.mFormattedText,
+        x: item.position.x(),
+        y: item.position.y(),
+      };
     case "list-item":
       return {
         mft: item.content.mFormattedText,
@@ -145,14 +160,20 @@ function formattedTextOf(
       };
     case "blockquote": {
       const p = item.paragraphs[groupIndex];
-      return p ? { mft: p.mFormattedText, x: p.position.x(), y: p.position.y() } : undefined;
+      return p
+        ? { mft: p.mFormattedText, x: p.position.x(), y: p.position.y() }
+        : undefined;
     }
     default:
       return undefined;
   }
 }
 
-function lineLeft(mft: MeasuredFormattedText, x: number, totalWidth: number): number {
+function lineLeft(
+  mft: MeasuredFormattedText,
+  x: number,
+  totalWidth: number,
+): number {
   return mft.alignH === "left"
     ? x
     : mft.alignH === "right"
@@ -192,7 +213,9 @@ function addUnit(
       const asc = r.mText.lines[0]?.y ?? 0;
       desc = Math.max(desc, r.mText.dims.h() - asc);
     }
-    const asc = line.runs.length ? line.maxBaseline : mft.baseStyle.fontSize * 0.95;
+    const asc = line.runs.length
+      ? line.maxBaseline
+      : mft.baseStyle.fontSize * 0.95;
     if (!line.runs.length) desc = mft.baseStyle.fontSize * 0.3;
     const lineIdx = g.lines.length;
     g.lines.push({
@@ -231,7 +254,13 @@ function addUnit(
         const w = run.mText.dims.w();
         g.stops.push({ src: a, x: textX, line: lineIdx });
         g.stops.push({ src: b + 1, x: textX + w, line: lineIdx });
-        g.boxes.push({ from: a, to: b + 1, x0: textX, x1: textX + w, line: lineIdx });
+        g.boxes.push({
+          from: a,
+          to: b + 1,
+          x0: textX,
+          x1: textX + w,
+          line: lineIdx,
+        });
       } else {
         const text = run.mText.lines[0]?.text ?? "";
         const ti = run.mText.ti;
@@ -269,7 +298,8 @@ function finalize(g: TextGeometry): TextGeometry {
   g.stops.sort((a, b) => a.src - b.src || a.line - b.line || a.x - b.x);
   g.stops = g.stops.filter((s, i, arr) => {
     const p = arr[i - 1];
-    return !p || p.src !== s.src || p.line !== s.line || Math.abs(p.x - s.x) > 0.01;
+    return !p || p.src !== s.src || p.line !== s.line ||
+      Math.abs(p.x - s.x) > 0.01;
   });
   return g;
 }
@@ -282,7 +312,9 @@ export function buildBlockGeometry(
 ): TextGeometry | undefined {
   if (mPage.type !== "freeform") return undefined;
   const node = findItemNode(mPage.mLayout as unknown as MeasuredNode, blockId);
-  if (!node || !node.contentRpd || !MarkdownRenderer.isType(node.data)) return undefined;
+  if (!node || !node.contentRpd || !MarkdownRenderer.isType(node.data)) {
+    return undefined;
+  }
   const input = node.data as MarkdownRendererInput;
   const bounds = node.contentRpd;
   const rc = new CanvasRenderContext(ctx2d());
@@ -290,7 +322,10 @@ export function buildBlockGeometry(
   const analysis = analyzeSlideMarkdown(input.markdown);
 
   // A one-letter block in the same style gives the metrics of an empty line.
-  const probe = MarkdownRenderer.measure(rc, bounds, { ...input, markdown: "X" });
+  const probe = MarkdownRenderer.measure(rc, bounds, {
+    ...input,
+    markdown: "X",
+  });
   const pItem = probe.markdownItems[0];
   const pft = pItem ? formattedTextOf(pItem, 0) : undefined;
   let emptyLine: TextGeometry["emptyLine"];
@@ -299,7 +334,9 @@ export function buildBlockGeometry(
     const top = pft.y + l.y;
     const run = l.runs[0];
     const asc = run?.mText.lines[0]?.y ?? pft.mft.baseStyle.fontSize * 0.95;
-    const desc = run ? run.mText.dims.h() - asc : pft.mft.baseStyle.fontSize * 0.3;
+    const desc = run
+      ? run.mText.dims.h() - asc
+      : pft.mft.baseStyle.fontSize * 0.3;
     const baseline = top + l.maxBaseline;
     emptyLine = {
       x: lineLeft(pft.mft, pft.x, 0),
@@ -371,11 +408,19 @@ export function buildTitleGeometry(
   if (!prim) return undefined;
   const m = prim.mText;
   const h = m.dims.h();
-  const top0 = prim.alignV === "middle" ? prim.y - h / 2 : prim.alignV === "bottom" ? prim.y - h : prim.y;
+  const top0 = prim.alignV === "middle"
+    ? prim.y - h / 2
+    : prim.alignV === "bottom"
+    ? prim.y - h
+    : prim.y;
   const ctx = ctx2d();
   setFont(ctx, m.ti);
   const hitW = prim.maxWidth ?? m.dims.w();
-  const hitX = prim.alignH === "center" ? prim.x - hitW / 2 : prim.alignH === "right" ? prim.x - hitW : prim.x;
+  const hitX = prim.alignH === "center"
+    ? prim.x - hitW / 2
+    : prim.alignH === "right"
+    ? prim.x - hitW
+    : prim.x;
 
   const words = (t: string) => t.split(/\s+/).filter(Boolean).join(" ");
   const g: TextGeometry = {
@@ -404,7 +449,11 @@ export function buildTitleGeometry(
   let total = 0;
   m.lines.forEach((line, li) => {
     const w = line.w;
-    const lx = prim.alignH === "center" ? prim.x - w / 2 : prim.alignH === "right" ? prim.x - w : prim.x;
+    const lx = prim.alignH === "center"
+      ? prim.x - w / 2
+      : prim.alignH === "right"
+      ? prim.x - w
+      : prim.x;
     const metrics = ctx.measureText(line.text || "X");
     const asc = metrics.fontBoundingBoxAscent ?? m.ti.fontSize * 0.95;
     const desc = metrics.fontBoundingBoxDescent ?? m.ti.fontSize * 0.3;
@@ -429,7 +478,11 @@ export function buildTitleGeometry(
     }
     const xs: number[] = [0];
     for (let k = 1; k <= line.text.length; k++) {
-      xs.push(k === line.text.length ? w : ctx.measureText(line.text.slice(0, k)).width);
+      xs.push(
+        k === line.text.length
+          ? w
+          : ctx.measureText(line.text.slice(0, k)).width,
+      );
     }
     for (let k = 0; k < line.text.length; k++) {
       const c = line.text[k];
@@ -437,15 +490,21 @@ export function buildTitleGeometry(
       let s = -1;
       let end = -1;
       if (c === " ") {
-        while (j < source.length && source[j] !== " " && /\s/.test(source[j])) j++;
+        while (j < source.length && source[j] !== " " && /\s/.test(source[j])) {
+          j++;
+        }
         if (source[j] === " " || (j < source.length && /\s/.test(source[j]))) {
           s = j;
-          while (j < source.length && source[j] !== "\n" && /\s/.test(source[j])) j++;
+          while (
+            j < source.length && source[j] !== "\n" && /\s/.test(source[j])
+          ) j++;
           end = j;
         }
       } else {
         let q = j;
-        while (q < source.length && source[q] !== c && /\s/.test(source[q])) q++;
+        while (q < source.length && source[q] !== c && /\s/.test(source[q])) {
+          q++;
+        }
         if (source[q] === c) {
           s = q;
           end = q + 1;
@@ -456,7 +515,13 @@ export function buildTitleGeometry(
       mapped++;
       g.stops.push({ src: s, x: lx + xs[k], line: li });
       g.stops.push({ src: end, x: lx + xs[k + 1], line: li });
-      g.boxes.push({ from: s, to: end, x0: lx + xs[k], x1: lx + xs[k + 1], line: li });
+      g.boxes.push({
+        from: s,
+        to: end,
+        x0: lx + xs[k],
+        x1: lx + xs[k + 1],
+        line: li,
+      });
     }
   });
   // A field rendered through a transform we can't follow is not editable
@@ -508,7 +573,11 @@ export function caretAt(g: TextGeometry, offset: number): CaretBox {
   const next = prev + 1 < stops.length ? prev + 1 : -1;
   const pSrc = prev >= 0 ? stops[prev].src : 0;
   const nPrev = newlinesBetween(g.source, pSrc, offset);
-  if (next >= 0 && (prev < 0 || (nPrev > 0 && newlinesBetween(g.source, offset, stops[next].src) === 0))) {
+  if (
+    next >= 0 &&
+    (prev < 0 ||
+      (nPrev > 0 && newlinesBetween(g.source, offset, stops[next].src) === 0))
+  ) {
     return stopBox(g, stops[next]);
   }
   if (prev < 0) return stopBox(g, stops[0]);
@@ -518,7 +587,10 @@ export function caretAt(g: TextGeometry, offset: number): CaretBox {
     const h = l.bottom - l.top || g.emptyLine.height;
     const dy = l.bottom - l.top + (nPrev - 1) * h;
     const x = g.emptyLine.x;
-    const tail = g.source.slice(g.source.lastIndexOf("\n", offset - 1) + 1, offset);
+    const tail = g.source.slice(
+      g.source.lastIndexOf("\n", offset - 1) + 1,
+      offset,
+    );
     const spaces = /^[ \t]*$/.test(tail) ? tail.length : 0;
     return {
       x: x + spaces * g.emptyLine.spaceW,
@@ -557,7 +629,10 @@ export function offsetAt(g: TextGeometry, x: number, y: number): number {
   for (const s of g.stops) {
     if (s.line !== best) continue;
     const d = Math.abs(s.x - x);
-    if (d < pickD - 0.01 || (Math.abs(d - pickD) <= 0.01 && pick && s.src < pick.src)) {
+    if (
+      d < pickD - 0.01 ||
+      (Math.abs(d - pickD) <= 0.01 && pick && s.src < pick.src)
+    ) {
       pick = s;
       pickD = d;
     }
@@ -566,7 +641,11 @@ export function offsetAt(g: TextGeometry, x: number, y: number): number {
 }
 
 /** Highlight rectangles for a selection, one per visual line. */
-export function selectionRects(g: TextGeometry, from: number, to: number): DuRect[] {
+export function selectionRects(
+  g: TextGeometry,
+  from: number,
+  to: number,
+): DuRect[] {
   if (from > to) [from, to] = [to, from];
   const byLine = new Map<number, { x0: number; x1: number }>();
   for (const b of g.boxes) {
@@ -579,7 +658,12 @@ export function selectionRects(g: TextGeometry, from: number, to: number): DuRec
   }
   return [...byLine.entries()].map(([li, r]) => {
     const l = g.lines[li];
-    return { x: r.x0, y: l.caretTop, w: r.x1 - r.x0, h: l.caretBottom - l.caretTop };
+    return {
+      x: r.x0,
+      y: l.caretTop,
+      w: r.x1 - r.x0,
+      h: l.caretBottom - l.caretTop,
+    };
   });
 }
 
@@ -593,7 +677,11 @@ function posKey(s: CaretStop): string {
 
 /** One visual step left/right (logical order), landing on the lowest source
  *  offset of the target position so typing inherits the preceding style. */
-export function stepOffset(g: TextGeometry, offset: number, dir: -1 | 1): number {
+export function stepOffset(
+  g: TextGeometry,
+  offset: number,
+  dir: -1 | 1,
+): number {
   const { stops } = g;
   if (!stops.length) return offset;
   const here = caretAt(g, offset);
@@ -604,7 +692,9 @@ export function stepOffset(g: TextGeometry, offset: number, dir: -1 | 1): number
     const nxt = stops.find((s) => s.src > offset && !sameSpot(s));
     if (!nxt) {
       // Past the last glyph: typed trailing newlines are still reachable.
-      return newlinesBetween(g.source, offset, g.source.length) > 0 ? g.source.length : offset;
+      return newlinesBetween(g.source, offset, g.source.length) > 0
+        ? g.source.length
+        : offset;
     }
     return lowestAt(g, nxt);
   }
@@ -618,7 +708,9 @@ export function stepOffset(g: TextGeometry, offset: number, dir: -1 | 1): number
 function lowestAt(g: TextGeometry, target: CaretStop): number {
   const key = posKey(target);
   let lowest = target.src;
-  for (const s of g.stops) if (posKey(s) === key && s.src < lowest) lowest = s.src;
+  for (const s of g.stops) {
+    if (posKey(s) === key && s.src < lowest) lowest = s.src;
+  }
   return lowest;
 }
 
@@ -627,7 +719,9 @@ function lineOf(g: TextGeometry, offset: number): number {
   let best = 0;
   let bestD = Infinity;
   g.lines.forEach((l, i) => {
-    const d = Math.abs((l.caretTop + l.caretBottom) / 2 - (c.top + c.bottom) / 2);
+    const d = Math.abs(
+      (l.caretTop + l.caretBottom) / 2 - (c.top + c.bottom) / 2,
+    );
     if (d < bestD) {
       bestD = d;
       best = i;
@@ -657,12 +751,18 @@ export function verticalOffset(
 }
 
 /** Start or end of the caret's visual line. */
-export function lineEdgeOffset(g: TextGeometry, offset: number, end: boolean): number {
+export function lineEdgeOffset(
+  g: TextGeometry,
+  offset: number,
+  end: boolean,
+): number {
   const li = lineOf(g, offset);
   const on = g.stops.filter((s) => s.line === li);
   if (!on.length) return offset;
   const pick = on.reduce((a, b) =>
-    end ? (b.x > a.x || (b.x === a.x && b.src > a.src) ? b : a) : (b.x < a.x || (b.x === a.x && b.src < a.src) ? b : a)
+    end
+      ? (b.x > a.x || (b.x === a.x && b.src > a.src) ? b : a)
+      : (b.x < a.x || (b.x === a.x && b.src < a.src) ? b : a)
   );
   return end ? pick.src : lowestAt(g, pick);
 }

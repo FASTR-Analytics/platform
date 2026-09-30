@@ -1,10 +1,10 @@
 import {
   APIResponseNoData,
-  pagesToPptxBrowser,
   PageInputs,
+  pagesToPptxBrowser,
   saveAs,
 } from "panther";
-import { type Slide, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, type Slide } from "lib";
 import { serverActions } from "~/server_actions";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
@@ -71,8 +71,7 @@ export async function exportSlideDeckAsPptx(
   } catch (e) {
     return {
       success: false,
-      err:
-        `Error creating slide ${currentSlideNumber}: ` +
+      err: `Error creating slide ${currentSlideNumber}: ` +
         (e instanceof Error ? e.message : ""),
     };
   }

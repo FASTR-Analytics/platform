@@ -373,4 +373,3 @@ defineRoute(
     return c.json(res);
   },
 );
-

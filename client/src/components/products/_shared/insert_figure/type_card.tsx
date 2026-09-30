@@ -1,4 +1,4 @@
-import { t3, type PresentationOption } from "lib";
+import { type PresentationOption, t3 } from "lib";
 
 type Props = {
   type: PresentationOption;
@@ -8,10 +8,21 @@ type Props = {
   onSelect: () => void;
 };
 
-const TYPE_LABELS: Record<PresentationOption, { en: string; fr: string; pt: string }> = {
+const TYPE_LABELS: Record<
+  PresentationOption,
+  { en: string; fr: string; pt: string }
+> = {
   table: { en: "Table", fr: "Tableau", pt: "Tabela" },
-  timeseries: { en: "Time series", fr: "Série temporelle", pt: "Série temporal" },
-  chart: { en: "Bar chart", fr: "Graphique en barres", pt: "Gráfico de barras" },
+  timeseries: {
+    en: "Time series",
+    fr: "Série temporelle",
+    pt: "Série temporal",
+  },
+  chart: {
+    en: "Bar chart",
+    fr: "Graphique en barres",
+    pt: "Gráfico de barras",
+  },
   pie: { en: "Pie chart", fr: "Graphique circulaire", pt: "Gráfico circular" },
   map: { en: "Map", fr: "Carte", pt: "Mapa" },
 };

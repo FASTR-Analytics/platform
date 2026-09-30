@@ -19,8 +19,9 @@ import {
 } from "../worker_routines/import_hmis_data_csv/stage_csv.ts";
 import { scanHmisCsvIndicatorValues } from "../worker_routines/import_hmis_data_csv/scan_indicator_values.ts";
 
-const SCHEMA_PATH = new URL("../db/instance/_main_database.sql", import.meta.url)
-  .pathname;
+const SCHEMA_PATH =
+  new URL("../db/instance/_main_database.sql", import.meta.url)
+    .pathname;
 const DB_PREFIX = "mapping_test_";
 
 const ELEMENT = "AbCdEfGhIj1";
@@ -72,7 +73,11 @@ async function withCsv<T>(
   // every row and the counts below are the file's.
   const lines = ["facility,indicator,period,count"];
   values.forEach((value, i) =>
-    lines.push(`FacAaaaaaa1,${value},2024${String((i % 12) + 1).padStart(2, "0")},${i + 1}`)
+    lines.push(
+      `FacAaaaaaa1,${value},2024${String((i % 12) + 1).padStart(2, "0")},${
+        i + 1
+      }`,
+    )
   );
   await Deno.writeTextFile(path, lines.join("\n") + "\n");
   try {
@@ -95,10 +100,17 @@ async function stage(values: string[], mapping: HmisCsvMapping) {
       onProgress: () => {},
     });
     const staged = await db<{ data_id: string; count: number }[]>`
-      SELECT data_id, count FROM ${db(hmisCsvStagingTableNames(runId).final)} ORDER BY data_id, count
+      SELECT data_id, count FROM ${
+      db(hmisCsvStagingTableNames(runId).final)
+    } ORDER BY data_id, count
     `;
-    await db.unsafe(`DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).final}`);
-    return { result, staged: staged.map((r) => ({ data_id: r.data_id, count: r.count })) };
+    await db.unsafe(
+      `DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).final}`,
+    );
+    return {
+      result,
+      staged: staged.map((r) => ({ data_id: r.data_id, count: r.count })),
+    };
   });
 }
 
@@ -128,23 +140,35 @@ Deno.test("a value mapped to null is counted in skippedByMapping and dropped", a
 });
 
 Deno.test("a value absent from the mapping fails the run, naming it", async () => {
-  const err = await assertRejects(() => stage(["OPD_VISITS", "NOT_IN_MAPPING"], { OPD_VISITS: OPD_KEY }));
+  const err = await assertRejects(() =>
+    stage(["OPD_VISITS", "NOT_IN_MAPPING"], { OPD_VISITS: OPD_KEY })
+  );
   const message = err instanceof Error ? err.message : String(err);
   assertStringIncludes(message, '"NOT_IN_MAPPING"');
   assertStringIncludes(message, "the mapping does not name");
-  await db.unsafe(`DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).mapping}`);
-  await db.unsafe(`DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).validFacilities}`);
+  await db.unsafe(
+    `DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).mapping}`,
+  );
+  await db.unsafe(
+    `DROP TABLE IF EXISTS ${hmisCsvStagingTableNames(runId).validFacilities}`,
+  );
 });
 
 Deno.test("the scan and the stage leg derive the value the same way: a padded cell is the trimmed value", async () => {
   const values = [" anc1", "anc1 ", "anc1", "OPD_VISITS"];
-  const scanned = await withCsv(values, (path) =>
-    scanHmisCsvIndicatorValues({ csvFilePath: path, columns: COLUMNS }));
+  const scanned = await withCsv(
+    values,
+    (path) =>
+      scanHmisCsvIndicatorValues({ csvFilePath: path, columns: COLUMNS }),
+  );
   assertEquals(scanned, [
     { value: "anc1", rowCount: 3 },
     { value: "OPD_VISITS", rowCount: 1 },
   ]);
-  const { staged } = await stage(values, { anc1: ELEMENT, OPD_VISITS: OPD_KEY });
+  const { staged } = await stage(values, {
+    anc1: ELEMENT,
+    OPD_VISITS: OPD_KEY,
+  });
   assertEquals(staged, [
     { data_id: ELEMENT, count: 1 },
     { data_id: ELEMENT, count: 2 },
@@ -156,7 +180,11 @@ Deno.test("the scan and the stage leg derive the value the same way: a padded ce
 Deno.test("the scan refuses above the distinct-value cap, naming the count and the column", async () => {
   const values = Array.from({ length: 2001 }, (_, i) => `v${i}`);
   const err = await assertRejects(() =>
-    withCsv(values, (path) => scanHmisCsvIndicatorValues({ csvFilePath: path, columns: COLUMNS }))
+    withCsv(
+      values,
+      (path) =>
+        scanHmisCsvIndicatorValues({ csvFilePath: path, columns: COLUMNS }),
+    )
   );
   const message = err instanceof Error ? err.message : String(err);
   assertStringIncludes(message, "2001 distinct values");

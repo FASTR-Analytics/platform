@@ -1,13 +1,13 @@
 import {
+  convertVisualizationType,
   DisaggregationDisplayOption,
   DisaggregationOption,
+  get_PRESENTATION_SELECT_OPTIONS,
   PresentationObjectConfig,
   PresentationOption,
   ResultsValue,
-  VIZ_TYPE_CONFIG,
-  convertVisualizationType,
-  get_PRESENTATION_SELECT_OPTIONS,
   t3,
+  VIZ_TYPE_CONFIG,
 } from "lib";
 import { Select } from "panther";
 import { batch } from "solid-js";
@@ -30,12 +30,17 @@ export function DataValuesSummary(p: DataValuesSummaryProps) {
 
 type TypeSpecificCache = {
   valuesDisDisplayOpt: DisaggregationDisplayOption;
-  disaggregateBy: { disOpt: DisaggregationOption; disDisplayOpt: DisaggregationDisplayOption }[];
+  disaggregateBy: {
+    disOpt: DisaggregationOption;
+    disDisplayOpt: DisaggregationDisplayOption;
+  }[];
   content: PresentationObjectConfig["s"]["content"];
   styleOverrides: Partial<PresentationObjectConfig["s"]>;
 };
 
-function extractStyleOverrides(config: PresentationObjectConfig): Partial<PresentationObjectConfig["s"]> {
+function extractStyleOverrides(
+  config: PresentationObjectConfig,
+): Partial<PresentationObjectConfig["s"]> {
   const allResetKeys = new Set<string>();
   for (const tc of Object.values(VIZ_TYPE_CONFIG)) {
     for (const key of Object.keys(tc.styleResets)) {
@@ -63,7 +68,11 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
   return (
     <div class="">
       <div class="ui-text-heading pb-1">
-        {t3({ en: "Presentation type", fr: "Type de présentation", pt: "Tipo de apresentação" })}
+        {t3({
+          en: "Presentation type",
+          fr: "Type de présentation",
+          pt: "Tipo de apresentação",
+        })}
       </div>
       <Select
         options={allowedTypes}
@@ -75,7 +84,9 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
 
           cache.set(currentType, {
             valuesDisDisplayOpt: p.tempConfig.d.valuesDisDisplayOpt,
-            disaggregateBy: p.tempConfig.d.disaggregateBy.map((d) => ({ ...d })),
+            disaggregateBy: p.tempConfig.d.disaggregateBy.map((d) => ({
+              ...d,
+            })),
             content: p.tempConfig.s.content,
             styleOverrides: extractStyleOverrides(p.tempConfig),
           });
@@ -84,10 +95,17 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
           if (cached) {
             batch(() => {
               p.setTempConfig("d", "type", newType);
-              p.setTempConfig("d", "valuesDisDisplayOpt", cached.valuesDisDisplayOpt);
+              p.setTempConfig(
+                "d",
+                "valuesDisDisplayOpt",
+                cached.valuesDisDisplayOpt,
+              );
               p.setTempConfig("d", "disaggregateBy", cached.disaggregateBy);
               p.setTempConfig("s", "content", cached.content);
-              p.setTempConfig("s", (prev) => ({ ...prev, ...cached.styleOverrides }));
+              p.setTempConfig(
+                "s",
+                (prev) => ({ ...prev, ...cached.styleOverrides }),
+              );
             });
           } else {
             try {
@@ -98,10 +116,24 @@ export function PresentationTypeSummary(p: PresentationTypeSummaryProps) {
               );
               batch(() => {
                 p.setTempConfig("d", "type", converted.d.type);
-                p.setTempConfig("d", "valuesDisDisplayOpt", converted.d.valuesDisDisplayOpt);
-                p.setTempConfig("d", "disaggregateBy", converted.d.disaggregateBy);
+                p.setTempConfig(
+                  "d",
+                  "valuesDisDisplayOpt",
+                  converted.d.valuesDisDisplayOpt,
+                );
+                p.setTempConfig(
+                  "d",
+                  "disaggregateBy",
+                  converted.d.disaggregateBy,
+                );
                 p.setTempConfig("s", "content", converted.s.content);
-                p.setTempConfig("s", (prev) => ({ ...prev, ...VIZ_TYPE_CONFIG[newType].styleResets }));
+                p.setTempConfig(
+                  "s",
+                  (prev) => ({
+                    ...prev,
+                    ...VIZ_TYPE_CONFIG[newType].styleResets,
+                  }),
+                );
               });
             } catch (e) {
               console.error("Failed to convert visualization type:", e);

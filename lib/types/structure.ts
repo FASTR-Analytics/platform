@@ -113,22 +113,22 @@ export type StructureStagingResult = {
 
 export type StructureUploadAttemptStatus =
   | {
-      status: "configuring";
-    }
+    status: "configuring";
+  }
   | {
-      status: "importing";
-      progress?: number;
-    }
+    status: "importing";
+    progress?: number;
+  }
   | {
-      status: "importing_dhis2";
-      progress?: number;
-      totalOrgUnits?: number;
-      processedOrgUnits?: number;
-    }
+    status: "importing_dhis2";
+    progress?: number;
+    totalOrgUnits?: number;
+    processedOrgUnits?: number;
+  }
   | {
-      status: "error";
-      error: string;
-    };
+    status: "error";
+    error: string;
+  };
 
 // ============================================================================
 // Structure Upload Detail Types

@@ -1,9 +1,9 @@
 import {
   type FigureBundle,
   type FigurePackageIssue,
+  figurePackageIssueForMetrics,
   type PackageScope,
   type RunAuthoringContext,
-  figurePackageIssueForMetrics,
   t3,
 } from "lib";
 import { Button } from "panther";
@@ -54,7 +54,10 @@ export async function updateFigureToScope(
   return resolveFigureBundleInteractively(scope, metric, bundle.config);
 }
 
-function describePackageIssue(issue: FigurePackageIssue, runId: string): string {
+function describePackageIssue(
+  issue: FigurePackageIssue,
+  runId: string,
+): string {
   const pkg = packageLabel(runId);
   if (issue.kind === "metric_not_in_package") {
     return t3({
@@ -67,8 +70,10 @@ function describePackageIssue(issue: FigurePackageIssue, runId: string): string 
     const because = issue.reason === null ? "" : `: ${issue.reason}`;
     return t3({
       en: `Metric "${issue.metricId}" is not available in ${pkg}${because}`,
-      fr: `L'indicateur "${issue.metricId}" n'est pas disponible dans ${pkg}${because}`,
-      pt: `A métrica "${issue.metricId}" não está disponível em ${pkg}${because}`,
+      fr:
+        `L'indicateur "${issue.metricId}" n'est pas disponible dans ${pkg}${because}`,
+      pt:
+        `A métrica "${issue.metricId}" não está disponível em ${pkg}${because}`,
     });
   }
   const dims = issue.disaggregationOptions.join(", ");
@@ -81,15 +86,20 @@ function describePackageIssue(issue: FigurePackageIssue, runId: string): string 
   }
   const level = t3(getAdminAreaLabelForLevel(issue.populationLevel));
   return t3({
-    en: `${pkg} has no ${dims} for this visualization because its population data is at ${level}`,
-    fr: `${pkg} n'a pas de ${dims} pour cette visualisation car ses données de population sont au niveau ${level}`,
-    pt: `${pkg} não tem ${dims} para esta visualização porque os seus dados de população estão ao nível ${level}`,
+    en:
+      `${pkg} has no ${dims} for this visualization because its population data is at ${level}`,
+    fr:
+      `${pkg} n'a pas de ${dims} pour cette visualisation car ses données de population sont au niveau ${level}`,
+    pt:
+      `${pkg} não tem ${dims} para esta visualização porque os seus dados de população estão ao nível ${level}`,
   });
 }
 
 // What a bundle says it came from, for the badge and the header caption.
 function bundleOriginLabel(bundle: FigureBundle): string {
-  return `${packageLabel(bundle.provenance.runId)} · ${scopeLabel(bundle.scope.adminArea2)}`;
+  return `${packageLabel(bundle.provenance.runId)} · ${
+    scopeLabel(bundle.scope.adminArea2)
+  }`;
 }
 
 type BadgeProps = {

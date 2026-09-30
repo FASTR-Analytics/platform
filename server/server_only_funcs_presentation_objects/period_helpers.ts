@@ -1,4 +1,9 @@
-import { inferPeriodFormatFromValuesIfTheSame, periodFilterHasBounds, type GenericLongFormFetchConfig, type InstanceCalendar } from "lib";
+import {
+  type GenericLongFormFetchConfig,
+  inferPeriodFormatFromValuesIfTheSame,
+  type InstanceCalendar,
+  periodFilterHasBounds,
+} from "lib";
 
 // ============================================================================
 // Type Definitions
@@ -98,7 +103,9 @@ export function buildPeriodCTESelectColumns(ctx: PeriodCTEContext): string[] {
       selectColumns.push(`${PERIOD_COLUMN_EXPRESSIONS.month} AS month`);
     }
     if (ctx.neededPeriodColumns.has("quarter_id")) {
-      selectColumns.push(`${getQuarterIdExpression(ctx.calendar)} AS quarter_id`);
+      selectColumns.push(
+        `${getQuarterIdExpression(ctx.calendar)} AS quarter_id`,
+      );
     }
   } else if (ctx.hasQuarterId) {
     if (ctx.neededPeriodColumns.has("year")) {
@@ -109,7 +116,7 @@ export function buildPeriodCTESelectColumns(ctx: PeriodCTEContext): string[] {
 }
 
 export function detectNeededPeriodColumns(
-  fetchConfig: GenericLongFormFetchConfig
+  fetchConfig: GenericLongFormFetchConfig,
 ): Set<DynamicPeriodColumn> {
   const needed = new Set<DynamicPeriodColumn>();
 
@@ -134,18 +141,26 @@ export function detectNeededPeriodColumns(
       fetchConfig.periodFilterExactBounds.min,
       fetchConfig.periodFilterExactBounds.max,
     );
-    if (periodOption && DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
+    if (
+      periodOption &&
+      DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)
+    ) {
       needed.add(periodOption as DynamicPeriodColumn);
     }
   }
 
   // Also check raw periodFilter (periodFilterExactBounds may not be computed yet).
-  if (fetchConfig.periodFilter && periodFilterHasBounds(fetchConfig.periodFilter)) {
+  if (
+    fetchConfig.periodFilter && periodFilterHasBounds(fetchConfig.periodFilter)
+  ) {
     const periodOption = inferPeriodFormatFromValuesIfTheSame(
       fetchConfig.periodFilter.min,
       fetchConfig.periodFilter.max,
     );
-    if (periodOption && DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)) {
+    if (
+      periodOption &&
+      DYNAMIC_PERIOD_COLUMNS.includes(periodOption as DynamicPeriodColumn)
+    ) {
       needed.add(periodOption as DynamicPeriodColumn);
     }
   }

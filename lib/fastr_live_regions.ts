@@ -80,7 +80,12 @@ export function fastrLiveRegions(lines: Iterable<string>): FastrLiveRegion[] {
     if (s.fence?.kind === "open") {
       const fence = fastrOpenFenceOnLine(s.text, s.index + 1);
       if (isFastrLeafBlock(s.fence.name)) {
-        regions.push({ kind: "leaf", startLine: s.index, endLine: s.index, fence });
+        regions.push({
+          kind: "leaf",
+          startLine: s.index,
+          endLine: s.index,
+          fence,
+        });
         boundaryBefore = true;
         i++;
         continue;
@@ -133,7 +138,8 @@ export function fastrLiveRegions(lines: Iterable<string>): FastrLiveRegion[] {
       let j = i + 2;
       while (j < scanned.length) {
         const t = scanned[j];
-        if (t.inCode || t.fence !== undefined || t.text.trim().length === 0 ||
+        if (
+          t.inCode || t.fence !== undefined || t.text.trim().length === 0 ||
           !t.text.includes("|")
         ) break;
         j++;

@@ -127,9 +127,9 @@ const perSystem = new Map<string, number>();
 for (const file of files) {
   const owners = ownersOf(file, systems);
   if (owners.length === 0) orphans.push(file);
-  else if (owners.length > 1)
+  else if (owners.length > 1) {
     doubles.push({ file, owners: owners.map((o) => `${o.id} (${o.file})`) });
-  else perSystem.set(owners[0].id, (perSystem.get(owners[0].id) ?? 0) + 1);
+  } else perSystem.set(owners[0].id, (perSystem.get(owners[0].id) ?? 0) + 1);
 }
 
 console.log(`Systems: ${systems.length}   Tracked files: ${files.length}\n`);
@@ -146,7 +146,9 @@ if (orphans.length) {
 }
 if (doubles.length) {
   console.log(`DOUBLE-CLAIMS (${doubles.length}), fix the globs:`);
-  for (const d of doubles) console.log(`  ${d.file}  ->  ${d.owners.join(", ")}`);
+  for (const d of doubles) {
+    console.log(`  ${d.file}  ->  ${d.owners.join(", ")}`);
+  }
   console.log();
 }
 

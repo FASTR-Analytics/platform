@@ -34,7 +34,8 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     primitiveId: "subHeaderText",
     field: "subHeader",
     slideType: "content",
-    label: () => t3({ en: "Sub header", fr: "Sous-en-tête", pt: "Subcabeçalho" }),
+    label: () =>
+      t3({ en: "Sub header", fr: "Sous-en-tête", pt: "Subcabeçalho" }),
     optional: true,
   },
   {
@@ -87,7 +88,8 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     primitiveId: "coverAuthor",
     field: "presenter",
     slideType: "cover",
-    label: () => t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" }),
+    label: () =>
+      t3({ en: "Presenter", fr: "Présentateur", pt: "Apresentador" }),
     optional: true,
     style: {
       size: "presenterTextRelFontSize",
@@ -119,7 +121,12 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
     primitiveId: "sectionTitle",
     field: "sectionTitle",
     slideType: "section",
-    label: () => t3({ en: "Section title", fr: "Titre de section", pt: "Título da secção" }),
+    label: () =>
+      t3({
+        en: "Section title",
+        fr: "Titre de section",
+        pt: "Título da secção",
+      }),
     optional: false,
     style: {
       size: "sectionTextRelFontSize",
@@ -149,6 +156,8 @@ export const SLIDE_TEXT_FIELDS: SlideTextField[] = [
   },
 ];
 
-export function slideTextField(primitiveId: string): SlideTextField | undefined {
+export function slideTextField(
+  primitiveId: string,
+): SlideTextField | undefined {
   return SLIDE_TEXT_FIELDS.find((f) => f.primitiveId === primitiveId);
 }

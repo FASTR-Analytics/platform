@@ -5,9 +5,9 @@ import {
 } from "lib";
 import {
   Color,
+  type ColorPreset,
   getCoverTreatment,
   getPatternDefaults,
-  type ColorPreset,
   type PatternConfig,
   type PatternType,
 } from "panther";
@@ -53,4 +53,3 @@ export async function getBackgroundDetail(
   }
   return { overlay: resImg.data };
 }
-

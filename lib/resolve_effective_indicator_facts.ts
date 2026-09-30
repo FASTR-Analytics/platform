@@ -1,8 +1,8 @@
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { ThresholdsRule } from "./types/conditional_formatting.ts";
 import {
-  INDICATOR_DISAGGREGATION_OPTIONS,
   type DisaggregationOption,
+  INDICATOR_DISAGGREGATION_OPTIONS,
 } from "./types/disaggregation_options.ts";
 import type { IndicatorFormat, IndicatorMetadata } from "./types/indicators.ts";
 import type { MetricFormatAs } from "./types/modules.ts";
@@ -97,7 +97,13 @@ export function resolveEffectiveIndicatorFacts(args: {
     [K in DisaggregationOption]?: DisaggregationPossibleValuesStatus;
   };
 }): EffectiveIndicatorFacts {
-  const { metricFormatAs, config, indicatorFormats, indicatorRules, possibleValues } = args;
+  const {
+    metricFormatAs,
+    config,
+    indicatorFormats,
+    indicatorRules,
+    possibleValues,
+  } = args;
   const lookup: FactsLookup = {
     format: (id) =>
       Object.hasOwn(indicatorFormats, id) ? indicatorFormats[id] : undefined,
@@ -137,8 +143,10 @@ export function resolveEffectiveIndicatorFactsFromItems(args: {
     return constantFacts(metricFormatAs);
   }
 
-  const displayed = getDisplayedIndicatorDimensionValues(config, (disOpt) =>
-    items.map((row) => row[disOpt]));
+  const displayed = getDisplayedIndicatorDimensionValues(
+    config,
+    (disOpt) => items.map((row) => row[disOpt]),
+  );
   return indicatorFacts(displayed, lookup);
 }
 
@@ -146,7 +154,9 @@ export function resolveEffectiveIndicatorFactsFromItems(args: {
 // the per-value sources ignore the ids they are handed. declaredFormatForValue
 // is never undefined here: the declaration IS the answer, so a surface with a
 // miss branch correctly never takes it. No rule ever applies (see header).
-function constantFacts(formatAs: "percent" | "number"): EffectiveIndicatorFacts {
+function constantFacts(
+  formatAs: "percent" | "number",
+): EffectiveIndicatorFacts {
   return {
     axisFormat: formatAs,
     formatForValue: () => formatAs,
@@ -224,7 +234,10 @@ function distinctDisplayedRules(
   return out;
 }
 
-function displayedRuleKey(rule: ThresholdsRule, formatAs: IndicatorFormat): string {
+function displayedRuleKey(
+  rule: ThresholdsRule,
+  formatAs: IndicatorFormat,
+): string {
   return JSON.stringify([
     formatAs,
     rule.direction ?? "higher-is-better",
@@ -327,7 +340,9 @@ function getFilterValues(
     .flatMap((f) => f.values);
 }
 
-function isIndicatorDisaggregationOption(disOpt: DisaggregationOption): boolean {
+function isIndicatorDisaggregationOption(
+  disOpt: DisaggregationOption,
+): boolean {
   return (INDICATOR_DISAGGREGATION_OPTIONS as readonly string[]).includes(
     disOpt,
   );

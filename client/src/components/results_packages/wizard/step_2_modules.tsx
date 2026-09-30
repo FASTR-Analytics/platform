@@ -1,14 +1,14 @@
 import {
   getModuleFamilyLabel,
   MODULE_FAMILY_ORDER,
-  t3,
   type ModuleId,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
   type RunGenerationStep1Result,
+  t3,
 } from "lib";
 import { Checkbox } from "panther";
-import { For, Show, createMemo } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import {
   familiesOf,
   isOfferable,
@@ -89,8 +89,7 @@ export function StepModules(p: Props) {
                     en: "Requires data not chosen in step 1:",
                     fr: "Nécessite des données non choisies à l'étape 1 :",
                     pt: "Requer dados não escolhidos no passo 1:",
-                  })}{" "}
-                  {missingFamilies().map(getModuleFamilyLabel).join(", ")}
+                  })} {missingFamilies().map(getModuleFamilyLabel).join(", ")}
                 </Show>
               </span>
             </Show>
@@ -100,8 +99,7 @@ export function StepModules(p: Props) {
                   en: "Required by:",
                   fr: "Requis par :",
                   pt: "Requerido por:",
-                })}{" "}
-                {dependents()
+                })} {dependents()
                   .map((o) => o.label)
                   .join(", ")}
               </span>
@@ -110,10 +108,8 @@ export function StepModules(p: Props) {
         }
         checked={isChecked(option.id)}
         onChange={(v) => p.setSelected(option.id, v)}
-        disabled={
-          !offerable(option.id) ||
-          (isChecked(option.id) && dependents().length > 0)
-        }
+        disabled={!offerable(option.id) ||
+          (isChecked(option.id) && dependents().length > 0)}
       />
     );
   };
@@ -130,9 +126,12 @@ export function StepModules(p: Props) {
         </h3>
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "Choose which modules this results package runs. Selecting a module automatically includes the modules it depends on.",
-            fr: "Choisissez les modules exécutés par ce paquet de résultats. La sélection d'un module inclut automatiquement les modules dont il dépend.",
-            pt: "Escolha os módulos que este pacote de resultados executa. Selecionar um módulo inclui automaticamente os módulos de que depende.",
+            en:
+              "Choose which modules this results package runs. Selecting a module automatically includes the modules it depends on.",
+            fr:
+              "Choisissez les modules exécutés par ce paquet de résultats. La sélection d'un module inclut automatiquement les modules dont il dépend.",
+            pt:
+              "Escolha os módulos que este pacote de resultados executa. Selecionar um módulo inclui automaticamente os módulos de que depende.",
           })}
         </div>
       </div>
@@ -161,11 +160,13 @@ export function StepModules(p: Props) {
       <Show when={p.invalidDefaultLabels.length > 0}>
         <div class="text-danger text-sm">
           {t3({
-            en: "These modules have invalid default parameter values. Fix them in Module defaults before launching:",
-            fr: "Ces modules ont des valeurs de paramètres par défaut non valides. Corrigez-les dans les paramètres par défaut des modules avant de lancer :",
-            pt: "Estes módulos têm valores de parâmetros predefinidos inválidos. Corrija-os nas predefinições dos módulos antes de iniciar:",
-          })}{" "}
-          {p.invalidDefaultLabels.join(", ")}
+            en:
+              "These modules have invalid default parameter values. Fix them in Module defaults before launching:",
+            fr:
+              "Ces modules ont des valeurs de paramètres par défaut non valides. Corrigez-les dans les paramètres par défaut des modules avant de lancer :",
+            pt:
+              "Estes módulos têm valores de parâmetros predefinidos inválidos. Corrija-os nas predefinições dos módulos antes de iniciar:",
+          })} {p.invalidDefaultLabels.join(", ")}
         </div>
       </Show>
     </div>

@@ -1,10 +1,17 @@
 import {
-  RectCoordsDims,
-  PageRenderer,
   createPdfRenderContextWithFontsBrowser,
   type FontInfo,
+  PageRenderer,
+  RectCoordsDims,
 } from "panther";
-import { APIResponseWithData, type Slide, getAllSlideFontVariants, getSlideDeckThemeSpec, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import {
+  APIResponseWithData,
+  getAllSlideFontVariants,
+  getSlideDeckThemeSpec,
+  PAGE_HEIGHT_DU,
+  PAGE_WIDTH_DU,
+  type Slide,
+} from "lib";
 import { serverActions } from "~/server_actions";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { convertSlideToPageInputs } from "../generate_slide_deck/convert_slide_to_page_inputs";
@@ -91,8 +98,7 @@ export async function exportSlideDeckAsPdfBase64(
   } catch (e) {
     return {
       success: false,
-      err:
-        `Error creating slide ${currentSlideNumber}: ` +
+      err: `Error creating slide ${currentSlideNumber}: ` +
         (e instanceof Error ? e.message : ""),
     };
   }

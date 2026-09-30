@@ -1,10 +1,10 @@
 import {
-  t3,
+  type DisaggregationOption,
   FILTER_ONLY_DISAGGREGATION_OPTIONS,
   get_PRESENTATION_SELECT_OPTIONS,
   type MetricWithStatus,
   type PresentationOption,
-  type DisaggregationOption,
+  t3,
 } from "lib";
 import { Checkbox } from "panther";
 import { For, Show } from "solid-js";
@@ -16,14 +16,23 @@ type Props = {
   selectedType: PresentationOption | undefined;
   selectedDisaggregations: DisaggregationOption[];
   onSelectType: (type: PresentationOption) => void;
-  onToggleDisaggregation: (disOpt: DisaggregationOption, checked: boolean) => void;
+  onToggleDisaggregation: (
+    disOpt: DisaggregationOption,
+    checked: boolean,
+  ) => void;
 };
 
 export function Step3Configure(p: Props) {
   const typeOptions = () =>
     get_PRESENTATION_SELECT_OPTIONS(p.metric.disaggregationOptions);
 
-  const allTypes: PresentationOption[] = ["table", "timeseries", "chart", "pie", "map"];
+  const allTypes: PresentationOption[] = [
+    "table",
+    "timeseries",
+    "chart",
+    "pie",
+    "map",
+  ];
 
   const getDisabledReason = (type: PresentationOption): string | undefined => {
     const option = typeOptions().find((o) => o.value === type);
@@ -31,11 +40,23 @@ export function Step3Configure(p: Props) {
 
     switch (type) {
       case "timeseries":
-        return t3({ en: "Requires period disaggregation", fr: "Nécessite une désagrégation par période", pt: "Requer desagregação por período" });
+        return t3({
+          en: "Requires period disaggregation",
+          fr: "Nécessite une désagrégation par période",
+          pt: "Requer desagregação por período",
+        });
       case "map":
-        return t3({ en: "Requires area disaggregation", fr: "Nécessite une désagrégation par zone", pt: "Requer desagregação por zona" });
+        return t3({
+          en: "Requires area disaggregation",
+          fr: "Nécessite une désagrégation par zone",
+          pt: "Requer desagregação por zona",
+        });
       default:
-        return t3({ en: "Not available for this metric", fr: "Non disponible pour cette métrique", pt: "Não disponível para esta métrica" });
+        return t3({
+          en: "Not available for this metric",
+          fr: "Non disponible pour cette métrique",
+          pt: "Não disponível para esta métrica",
+        });
     }
   };
 
@@ -46,7 +67,7 @@ export function Step3Configure(p: Props) {
       (disOpt) =>
         (!disOpt.allowedPresentationOptions ||
           disOpt.allowedPresentationOptions.includes(type)) &&
-        !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(disOpt.value)
+        !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(disOpt.value),
     );
   };
 
@@ -54,7 +75,11 @@ export function Step3Configure(p: Props) {
     <div class="ui-pad ui-spy">
       <div>
         <div class="ui-text-heading mb-3">
-          {t3({ en: "Visualization type", fr: "Type de visualisation", pt: "Tipo de visualização" })}
+          {t3({
+            en: "Visualization type",
+            fr: "Type de visualisation",
+            pt: "Tipo de visualização",
+          })}
         </div>
         <div class="ui-gap-sm grid grid-cols-5">
           <For each={allTypes}>
@@ -74,7 +99,11 @@ export function Step3Configure(p: Props) {
       <Show when={p.selectedType}>
         <div>
           <div class="ui-text-heading mb-3">
-            {t3({ en: "Disaggregate by", fr: "Désagréger par", pt: "Desagregar por" })}
+            {t3({
+              en: "Disaggregate by",
+              fr: "Désagréger par",
+              pt: "Desagregar por",
+            })}
           </div>
 
           <Show
@@ -82,9 +111,12 @@ export function Step3Configure(p: Props) {
             fallback={
               <div class="text-base-content-muted text-sm">
                 {t3({
-                  en: "No disaggregation options available for this visualization type",
-                  fr: "Aucune option de désagrégation disponible pour ce type de visualisation",
-                  pt: "Nenhuma opção de desagregação disponível para este tipo de visualização",
+                  en:
+                    "No disaggregation options available for this visualization type",
+                  fr:
+                    "Aucune option de désagrégation disponible pour ce type de visualisation",
+                  pt:
+                    "Nenhuma opção de desagregação disponível para este tipo de visualização",
                 })}
               </div>
             }
@@ -94,16 +126,26 @@ export function Step3Configure(p: Props) {
                 {(disOpt) => {
                   const isRequired = disOpt.isRequired;
                   const isChecked = () =>
-                    isRequired || p.selectedDisaggregations.includes(disOpt.value);
+                    isRequired ||
+                    p.selectedDisaggregations.includes(disOpt.value);
 
                   return (
                     <Checkbox
                       label={
                         <>
-                          {t3(getDisplayDisaggregationLabel(disOpt.value, p.metric.datasetFamily))}
+                          {t3(
+                            getDisplayDisaggregationLabel(
+                              disOpt.value,
+                              p.metric.datasetFamily,
+                            ),
+                          )}
                           <Show when={isRequired}>
                             <span class="ui-text-caption ml-2">
-                              ({t3({ en: "required", fr: "requis", pt: "obrigatório" })})
+                              ({t3({
+                                en: "required",
+                                fr: "requis",
+                                pt: "obrigatório",
+                              })})
                             </span>
                           </Show>
                         </>

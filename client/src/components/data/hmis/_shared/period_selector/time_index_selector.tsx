@@ -5,7 +5,7 @@ import {
   PeriodType,
 } from "panther";
 import { getCalendar } from "lib";
-import { Show, createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 
 type TimeIndexSelectorProps = {
   minTimeIndex: number;
@@ -86,10 +86,10 @@ export function TimeIndexSelector(p: TimeIndexSelectorProps) {
 
   // Create memos for the formatted periods to ensure reactivity and caching
   const formattedStartPeriod = createMemo(() =>
-    formatPeriodSafe(p.selectedStartTimeIndex),
+    formatPeriodSafe(p.selectedStartTimeIndex)
   );
   const formattedEndPeriod = createMemo(() =>
-    formatPeriodSafe(p.selectedEndTimeIndex),
+    formatPeriodSafe(p.selectedEndTimeIndex)
   );
 
   return (

@@ -334,7 +334,9 @@ function buildExtensions(
     // View-only users get a read-only editor: their keystrokes would otherwise
     // flow into the local doc, be rejected server-side ("No edit permission"),
     // and silently diverge this client from every peer.
-    ...(canEdit ? [] : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
+    ...(canEdit
+      ? []
+      : [EditorState.readOnly.of(true), EditorView.editable.of(false)]),
     EditorView.lineWrapping,
     EditorView.theme({
       "&": {
@@ -344,7 +346,11 @@ function buildExtensions(
         backgroundColor: "#fff",
       },
       "&.cm-focused": { outline: "none" },
-      ".cm-scroller": { overflow: "auto", maxHeight: height, fontFamily: "inherit" },
+      ".cm-scroller": {
+        overflow: "auto",
+        maxHeight: height,
+        fontFamily: "inherit",
+      },
       ".cm-content": { minHeight: height, padding: "8px" },
     }),
     // With a host-supplied manager the binding registers its sync origin on

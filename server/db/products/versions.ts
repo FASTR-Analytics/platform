@@ -3,10 +3,6 @@ import {
   type APIResponseWithData,
   applySlideDeckThemeToLegacyConfig,
   type AuthorRun,
-  type SlideDeckSlideEditors,
-  type SlideDeckVersionDetail,
-  type SlideDeckVersionSlide,
-  type SlideDeckVersionSummary,
   type FigureBlock,
   type ImageBlock,
   liveAuthorRunLen,
@@ -16,9 +12,13 @@ import {
   type ReportVersionDetail,
   type ReportVersionLineageStep,
   type ReportVersionSummary,
-  type SlideDeckConfig,
   slideConfigSchema,
+  type SlideDeckConfig,
   slideDeckConfigSchema,
+  type SlideDeckSlideEditors,
+  type SlideDeckVersionDetail,
+  type SlideDeckVersionSlide,
+  type SlideDeckVersionSummary,
   type VersionEditor,
 } from "lib";
 import {
@@ -74,7 +74,9 @@ function upgradeSnapshotFigures(
 // function the slide_deck_config sweep used on the live decks, so a version and
 // the deck it was taken from resolve to the same theme.
 function upgradeSnapshotDeckConfig(config: SlideDeckConfig): SlideDeckConfig {
-  applySlideDeckThemeToLegacyConfig(config as unknown as Record<string, unknown>);
+  applySlideDeckThemeToLegacyConfig(
+    config as unknown as Record<string, unknown>,
+  );
   return config;
 }
 
@@ -165,9 +167,15 @@ export async function listReportVersions(
 ): Promise<APIResponseWithData<ReportVersionSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<
-      (Pick<DBReportVersion, "id" | "created_at" | "editors" | "restored_from_version_id"> & {
-        size_bytes: number;
-      })[]
+      (
+        & Pick<
+          DBReportVersion,
+          "id" | "created_at" | "editors" | "restored_from_version_id"
+        >
+        & {
+          size_bytes: number;
+        }
+      )[]
     >`
       SELECT id, created_at, editors, restored_from_version_id,
         (octet_length(body) + octet_length(figures) + octet_length(images)) AS size_bytes
@@ -508,10 +516,16 @@ export async function listSlideDeckVersions(
 ): Promise<APIResponseWithData<SlideDeckVersionSummary[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<
-      (Pick<DBSlideDeckVersion, "id" | "created_at" | "editors" | "restored_from_version_id"> & {
-        size_bytes: number;
-        slide_count: number;
-      })[]
+      (
+        & Pick<
+          DBSlideDeckVersion,
+          "id" | "created_at" | "editors" | "restored_from_version_id"
+        >
+        & {
+          size_bytes: number;
+          slide_count: number;
+        }
+      )[]
     >`
       SELECT id, created_at, editors, restored_from_version_id,
         (octet_length(slide_deck_config) + octet_length(slides)) AS size_bytes,
@@ -684,7 +698,9 @@ export async function restoreSlideDeckStructure(
       for (const [i, s] of plan.toInsert.entries()) {
         await sql`
           INSERT INTO slides (id, slide_deck_id, sort_order, config, last_updated)
-          VALUES (${s.id}, ${productId}, ${s.sortOrder}, ${insertConfigs[i]}, ${lastUpdated})
+          VALUES (${s.id}, ${productId}, ${s.sortOrder}, ${
+          insertConfigs[i]
+        }, ${lastUpdated})
         `;
       }
       for (const s of plan.toUpdate) {
@@ -741,9 +757,13 @@ export async function copySlideDeckFromVersion(
     // Validate and prepare EVERYTHING before writing anything: a mid-loop
     // failure (an old snapshot config the current schema rejects) must not
     // leave a half-copied deck.
-    const parsedDeckConfig = JSON.stringify(slideDeckConfigSchema.parse(config));
+    const parsedDeckConfig = JSON.stringify(
+      slideDeckConfigSchema.parse(config),
+    );
     const parsedSlideConfigs = slides.map((s) =>
-      JSON.stringify(slideConfigSchema.parse(upgradeSnapshotSlideConfig(s.config)))
+      JSON.stringify(
+        slideConfigSchema.parse(upgradeSnapshotSlideConfig(s.config)),
+      )
     );
     const newProductId = await generateUniqueProductId(mainDb);
     const newSlideIds = await mintSlideIds(mainDb, slides.length);

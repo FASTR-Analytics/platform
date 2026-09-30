@@ -27,17 +27,27 @@ Deno.test("ensureDocEpoch: assigned once, then stable, and carried by the doc's 
 });
 
 Deno.test("two seedings of the same body are two lineages: merged they double, adopted they do not", () => {
-  const content: ReportDocContent = { body: "# Title\n\nOne body.", figures: {}, images: {} };
+  const content: ReportDocContent = {
+    body: "# Title\n\nOne body.",
+    figures: {},
+    images: {},
+  };
   const clientDoc = new Y.Doc();
   seedReportDoc(clientDoc, content);
   const reseededRoom = new Y.Doc();
   seedReportDoc(reseededRoom, content);
-  assertNotEquals(ensureDocEpoch(clientDoc).epoch, ensureDocEpoch(reseededRoom).epoch);
+  assertNotEquals(
+    ensureDocEpoch(clientDoc).epoch,
+    ensureDocEpoch(reseededRoom).epoch,
+  );
   // What the old client code did on reconnect: merge the sync into its doc.
   const merged = new Y.Doc();
   Y.applyUpdate(merged, Y.encodeStateAsUpdate(clientDoc));
   Y.applyUpdate(merged, Y.encodeStateAsUpdate(reseededRoom));
-  assertEquals(merged.getText("body").toString().length, content.body.length * 2);
+  assertEquals(
+    merged.getText("body").toString().length,
+    content.body.length * 2,
+  );
   // What it does now: a fresh doc with the server's sync applied.
   const adopted = new Y.Doc();
   Y.applyUpdate(adopted, Y.encodeStateAsUpdate(reseededRoom));
@@ -60,13 +70,20 @@ function syncEpoch(inbox: CollabServerMessage[]): string | undefined {
 }
 
 Deno.test("report room: a restored room keeps its epoch, a re-seeded room names a new one", async () => {
-  const content: ReportDocContent = { body: "Body text.", figures: {}, images: {} };
+  const content: ReportDocContent = {
+    body: "Body text.",
+    figures: {},
+    images: {},
+  };
   let stored: string | null = null;
   const deps = (crdtState: () => string | null) => ({
     load: () => Promise.resolve({ content, crdtState: crdtState() }),
     save: (_c: ReportDocContent, state: string) => {
       stored = state;
-      return Promise.resolve({ ok: true as const, lastUpdated: new Date().toISOString() });
+      return Promise.resolve({
+        ok: true as const,
+        lastUpdated: new Date().toISOString(),
+      });
     },
   });
   const reportId = `r-${crypto.randomUUID()}`;

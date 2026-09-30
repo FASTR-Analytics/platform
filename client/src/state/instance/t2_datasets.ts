@@ -1,9 +1,9 @@
 import {
   APIResponseWithData,
   hashStructureSchema,
-  ItemsHolderDatasetHmisDisplay,
   type HfaDictionaryForValidation,
   type IcehDisplayData,
+  ItemsHolderDatasetHmisDisplay,
   type StructureSchema,
 } from "lib";
 import type { ItemsHolderDatasetHfaDisplay } from "lib";
@@ -159,7 +159,9 @@ const _DATASET_ICEH_DISPLAY_INFO_CACHE = createReactiveCache<
 export async function getDatasetIcehDisplayInfoFromCacheOrFetch(
   cacheHash: string,
 ) {
-  const { data, version } = await _DATASET_ICEH_DISPLAY_INFO_CACHE.get({ cacheHash });
+  const { data, version } = await _DATASET_ICEH_DISPLAY_INFO_CACHE.get({
+    cacheHash,
+  });
 
   if (data) {
     return { success: true, data } as const;
@@ -167,7 +169,11 @@ export async function getDatasetIcehDisplayInfoFromCacheOrFetch(
 
   const newPromise = serverActions.getDatasetIcehDisplayData({});
 
-  _DATASET_ICEH_DISPLAY_INFO_CACHE.setPromise(newPromise, { cacheHash }, version);
+  _DATASET_ICEH_DISPLAY_INFO_CACHE.setPromise(
+    newPromise,
+    { cacheHash },
+    version,
+  );
 
   return await newPromise;
 }

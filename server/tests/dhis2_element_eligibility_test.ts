@@ -7,8 +7,8 @@
 import { assertEquals } from "@std/assert";
 import type { DHIS2DataElement } from "lib";
 import {
-  getDhis2OperandVerdict,
   getDhis2ElementVerdict,
+  getDhis2OperandVerdict,
 } from "../dhis2/goal2_indicators/element_eligibility.ts";
 
 function element(overrides: Partial<DHIS2DataElement>): DHIS2DataElement {
@@ -18,7 +18,9 @@ function element(overrides: Partial<DHIS2DataElement>): DHIS2DataElement {
     displayName: "ANC 1st visit",
     aggregationType: "SUM",
     valueType: "INTEGER_ZERO_OR_POSITIVE",
-    dataSetElements: [{ dataSet: { id: "DsAbCdEfGh1", periodType: "Monthly" } }],
+    dataSetElements: [{
+      dataSet: { id: "DsAbCdEfGh1", periodType: "Monthly" },
+    }],
     ...overrides,
   };
 }
@@ -34,7 +36,13 @@ Deno.test("eligibility: NUMBER with SUM is accepted", () => {
 });
 
 Deno.test("eligibility: every INTEGER count type is accepted", () => {
-  for (const valueType of ["INTEGER", "INTEGER_POSITIVE", "INTEGER_ZERO_OR_POSITIVE"]) {
+  for (
+    const valueType of [
+      "INTEGER",
+      "INTEGER_POSITIVE",
+      "INTEGER_ZERO_OR_POSITIVE",
+    ]
+  ) {
     assertEquals(getDhis2ElementVerdict(element({ valueType })), {
       accepted: true,
     });
@@ -65,10 +73,13 @@ Deno.test("eligibility: each non-SUM aggregation type is refused", () => {
       refusal: { kind: "aggregation_type", value: aggregationType },
     });
   }
-  assertEquals(getDhis2ElementVerdict(element({ aggregationType: undefined })), {
-    accepted: false,
-    refusal: { kind: "aggregation_type", value: undefined },
-  });
+  assertEquals(
+    getDhis2ElementVerdict(element({ aggregationType: undefined })),
+    {
+      accepted: false,
+      refusal: { kind: "aggregation_type", value: undefined },
+    },
+  );
 });
 
 Deno.test("eligibility: each non-count value type is refused", () => {
@@ -126,10 +137,13 @@ Deno.test("eligibility: an element in no data set has no period and is refused",
     accepted: false,
     refusal: { kind: "period_type", value: undefined },
   });
-  assertEquals(getDhis2ElementVerdict(element({ dataSetElements: undefined })), {
-    accepted: false,
-    refusal: { kind: "period_type", value: undefined },
-  });
+  assertEquals(
+    getDhis2ElementVerdict(element({ dataSetElements: undefined })),
+    {
+      accepted: false,
+      refusal: { kind: "period_type", value: undefined },
+    },
+  );
 });
 
 Deno.test("eligibility: one monthly data set among several is enough; none among several is refused with the list", () => {
@@ -165,7 +179,10 @@ Deno.test("eligibility: the checks apply in order, aggregation first", () => {
     getDhis2ElementVerdict(
       element({ aggregationType: "AVERAGE", valueType: "PERCENTAGE" }),
     ),
-    { accepted: false, refusal: { kind: "aggregation_type", value: "AVERAGE" } },
+    {
+      accepted: false,
+      refusal: { kind: "aggregation_type", value: "AVERAGE" },
+    },
   );
 });
 

@@ -11,10 +11,10 @@
 
 import { assertEquals } from "@std/assert";
 import {
-  type HmisIndicator,
-  type Dhis2RunSelection,
   describeDhis2Selection,
+  type Dhis2RunSelection,
   expandIndicatorSelection,
+  type HmisIndicator,
   POPULATION_TYPE_IDS,
 } from "lib";
 import { enumerateRunPairs } from "../db/instance/dataset_hmis_import_runs.ts";
@@ -131,13 +131,21 @@ Deno.test("expansion: a population term is dropped and listed", () => {
 });
 
 Deno.test("expansion: an Uploaded indicator is dropped and counted, whatever its data id's shape", () => {
-  const e = expandIndicatorSelection(["anc4_all", "opd"], DICTIONARY, POPULATION_TYPE_IDS);
+  const e = expandIndicatorSelection(
+    ["anc4_all", "opd"],
+    DICTIONARY,
+    POPULATION_TYPE_IDS,
+  );
   assertEquals(e.dataIds, [ANC4_ELEMENT]);
   assertEquals(e.uploadedIndicatorsDropped, ["anc4_csv", "opd"]);
 });
 
 Deno.test("expansion: a chain through calculated indicators reaches every leaf", () => {
-  const e = expandIndicatorSelection(["anc_chain"], DICTIONARY, POPULATION_TYPE_IDS);
+  const e = expandIndicatorSelection(
+    ["anc_chain"],
+    DICTIONARY,
+    POPULATION_TYPE_IDS,
+  );
   assertEquals(e.dataIds, [ANC4_ELEMENT, ANC1_ELEMENT, ANC1_OPERAND]);
   assertEquals(e.populationTermsDropped, ["population_pregnancies"]);
 });
@@ -173,7 +181,10 @@ Deno.test("description: one element is one row with its label", () => {
 
 Deno.test("description: a sum lists its members", () => {
   const d = describeDhis2Selection(["anc1"], DICTIONARY, POPULATION_TYPE_IDS);
-  assertEquals(d.elements.map((e) => e.indicatorId), ["anc1_first", "anc1_repeat"]);
+  assertEquals(d.elements.map((e) => e.indicatorId), [
+    "anc1_first",
+    "anc1_repeat",
+  ]);
   assertEquals(d.elements.map((e) => e.dataId), [ANC1_ELEMENT, ANC1_OPERAND]);
 });
 
@@ -191,7 +202,11 @@ Deno.test("description: a calculated through a sum lists every element once, in 
 });
 
 Deno.test("description: a sum with an Uploaded member lists the element and drops the member", () => {
-  const d = describeDhis2Selection(["anc4_all"], DICTIONARY, POPULATION_TYPE_IDS);
+  const d = describeDhis2Selection(
+    ["anc4_all"],
+    DICTIONARY,
+    POPULATION_TYPE_IDS,
+  );
   assertEquals(d.elements.map((e) => e.indicatorId), ["anc4"]);
   assertEquals(d.uploadedDropped, ["anc4_csv"]);
 });
@@ -202,7 +217,10 @@ Deno.test("description: a population term is dropped and named", () => {
     DICTIONARY,
     POPULATION_TYPE_IDS,
   );
-  assertEquals(d.elements.map((e) => e.indicatorId), ["anc1_first", "anc1_repeat"]);
+  assertEquals(d.elements.map((e) => e.indicatorId), [
+    "anc1_first",
+    "anc1_repeat",
+  ]);
   assertEquals(d.populationTermsDropped, ["population_pregnancies"]);
 });
 
@@ -235,7 +253,8 @@ Deno.test("queued run: pairs come from the persisted data ids, not the dictionar
     sum("anc1", ["anc1_first", "anc1_repeat", "anc1_third"]),
   ];
   assertEquals(
-    expandIndicatorSelection(["anc1"], later, POPULATION_TYPE_IDS).dataIds.length,
+    expandIndicatorSelection(["anc1"], later, POPULATION_TYPE_IDS).dataIds
+      .length,
     3,
   );
   const pairs = enumerateRunPairs(stored);

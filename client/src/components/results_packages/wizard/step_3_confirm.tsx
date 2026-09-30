@@ -1,4 +1,4 @@
-import { t3, type ModuleId, type RunGenerationStep1Result } from "lib";
+import { type ModuleId, type RunGenerationStep1Result, t3 } from "lib";
 import { Card, Input } from "panther";
 import { For, Show } from "solid-js";
 import { moduleLabel } from "../package_view/mod.ts";
@@ -36,10 +36,14 @@ export function StepConfirm(p: Props) {
       <Card header={t3({ en: "Data", fr: "Données", pt: "Dados" })}>
         <ul class="ui-spy-sm text-sm">
           <Show when={p.families.hmis}>
-            <li>{t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })}</li>
+            <li>
+              {t3({ en: "HMIS data", fr: "Données HMIS", pt: "Dados HMIS" })}
+            </li>
           </Show>
           <Show when={p.families.hfa}>
-            <li>{t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })}</li>
+            <li>
+              {t3({ en: "HFA data", fr: "Données FOSA", pt: "Dados HFA" })}
+            </li>
           </Show>
           <Show when={p.families.iceh}>
             <li>
@@ -63,9 +67,12 @@ export function StepConfirm(p: Props) {
 
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: "Generation runs in the background. Progress shows on the Results packages page once launched.",
-          fr: "La génération s'exécute en arrière-plan. La progression s'affiche sur la page Paquets de résultats une fois lancée.",
-          pt: "A geração é executada em segundo plano. O progresso é apresentado na página Pacotes de resultados após o início.",
+          en:
+            "Generation runs in the background. Progress shows on the Results packages page once launched.",
+          fr:
+            "La génération s'exécute en arrière-plan. La progression s'affiche sur la page Paquets de résultats une fois lancée.",
+          pt:
+            "A geração é executada em segundo plano. O progresso é apresentado na página Pacotes de resultados após o início.",
         })}
       </div>
     </div>

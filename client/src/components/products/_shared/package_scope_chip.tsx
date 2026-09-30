@@ -15,7 +15,9 @@ type Props = {
 export function PackageScopeChip(p: Props) {
   const text = () => {
     if (!p.product) return "";
-    return `${packageLabel(p.product.runId)} · ${scopeLabel(p.product.adminArea2)}`;
+    return `${packageLabel(p.product.runId)} · ${
+      scopeLabel(p.product.adminArea2)
+    }`;
   };
   const layout =
     "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded px-2 py-1 font-700 text-sm whitespace-nowrap";

@@ -92,7 +92,7 @@ export function isValidDatasetRow(
   periodId: string,
   facilityId: string,
   rawIndicatorId: string,
-  count: number | null
+  count: number | null,
 ): DatasetRowValidationResult {
   // Check all fields have values
   if (!periodId?.trim() || !facilityId?.trim() || !rawIndicatorId?.trim()) {

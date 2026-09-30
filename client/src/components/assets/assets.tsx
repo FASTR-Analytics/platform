@@ -1,16 +1,16 @@
 import {
+  type BulkAction,
   Button,
+  createDeleteAction,
   FrameTop,
   Table,
-  createDeleteAction,
-  type BulkAction,
   type TableColumn,
 } from "panther";
-import { Show, createMemo, onCleanup, onMount } from "solid-js";
+import { createMemo, onCleanup, onMount, Show } from "solid-js";
 import { AssetInfo, t3, TC } from "lib";
 import { serverActions } from "~/server_actions";
 import { _SERVER_HOST } from "~/server_actions";
-import { createUppyInstance, cleanupUppy } from "~/components/_shared/mod.ts";
+import { cleanupUppy, createUppyInstance } from "~/components/_shared/mod.ts";
 import type Uppy from "@uppy/core";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -69,7 +69,8 @@ export function InstanceAssets() {
         text: t3({
           en: "Are you sure you want to delete this asset file?",
           fr: "Êtes-vous sûr de vouloir supprimer ce fichier ressource ?",
-          pt: "Tem a certeza de que pretende eliminar este ficheiro de recurso?",
+          pt:
+            "Tem a certeza de que pretende eliminar este ficheiro de recurso?",
         }),
         itemList: [assetFileName],
       },
@@ -176,13 +177,12 @@ function AssetTable(p: {
       header: "",
       alignH: "right",
       render: (asset) => {
-        const canDelete =
-          p.isAdmin || asset.uploaderEmail === p.currentUserEmail;
+        const canDelete = p.isAdmin ||
+          asset.uploaderEmail === p.currentUserEmail;
         // Data-file bytes are served only to data-permitted users (S1's
         // static tier): hide the button rather than let the browser save a
         // 403 body to disk.
-        const canDownload =
-          !(asset.isCsv || asset.isXlsx || asset.isZip) ||
+        const canDownload = !(asset.isCsv || asset.isXlsx || asset.isZip) ||
           instanceState.currentUserIsGlobalAdmin ||
           instanceState.currentUserPermissions.can_view_data ||
           instanceState.currentUserPermissions.can_configure_data;
@@ -193,7 +193,11 @@ function AssetTable(p: {
                 intent="base-100"
                 size="sm"
                 iconName="download"
-                ariaLabel={t3({ en: "Download", fr: "Télécharger", pt: "Transferir" })}
+                ariaLabel={t3({
+                  en: "Download",
+                  fr: "Télécharger",
+                  pt: "Transferir",
+                })}
                 href={`${_SERVER_HOST}/${encodeURIComponent(asset.fileName)}`}
                 download={asset.fileName}
               />
@@ -203,7 +207,11 @@ function AssetTable(p: {
                 iconName="trash"
                 intent="base-100"
                 size="sm"
-                ariaLabel={t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" })}
+                ariaLabel={t3({
+                  en: "Delete",
+                  fr: "Supprimer",
+                  pt: "Eliminar",
+                })}
                 onClick={() => p.onDelete(asset.fileName)}
               />
             </Show>
@@ -217,18 +225,19 @@ function AssetTable(p: {
     const assetFileNames = selected.map((a) => a.fileName);
     const deleteAction = createDeleteAction(
       {
-        text:
-          assetFileNames.length === 1
-            ? t3({
-                en: "Are you sure you want to delete this asset file?",
-                fr: "Êtes-vous sûr de vouloir supprimer ce fichier ressource ?",
-                pt: "Tem a certeza de que pretende eliminar este ficheiro de recurso?",
-              })
-            : t3({
-                en: "Are you sure you want to delete these asset files?",
-                fr: "Êtes-vous sûr de vouloir supprimer ces fichiers ressources ?",
-                pt: "Tem a certeza de que pretende eliminar estes ficheiros de recurso?",
-              }),
+        text: assetFileNames.length === 1
+          ? t3({
+            en: "Are you sure you want to delete this asset file?",
+            fr: "Êtes-vous sûr de vouloir supprimer ce fichier ressource ?",
+            pt:
+              "Tem a certeza de que pretende eliminar este ficheiro de recurso?",
+          })
+          : t3({
+            en: "Are you sure you want to delete these asset files?",
+            fr: "Êtes-vous sûr de vouloir supprimer ces fichiers ressources ?",
+            pt:
+              "Tem a certeza de que pretende eliminar estes ficheiros de recurso?",
+          }),
         itemList: assetFileNames,
       },
       () => serverActions.deleteAssets({ assetFileNames }),

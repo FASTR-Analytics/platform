@@ -8,7 +8,10 @@ import {
 } from "lib";
 import { serverActions } from "~/server_actions";
 import fontMap from "~/font-map.json";
-import { buildReportFigureMap, buildReportImageMap } from "~/generate_report/mod";
+import {
+  buildReportFigureMap,
+  buildReportImageMap,
+} from "~/generate_report/mod";
 import { replaceUnavailableMediaTokens } from "~/generate_report/mod";
 import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 import { buildStandaloneReportHtml } from "./export_report_as_html";
@@ -59,11 +62,22 @@ export async function buildReportAttachment(
       };
     }
     if (reportRendersAsHtml(getReportFormat(detail.config))) {
-      const html = await buildStandaloneReportHtml(detail, (v) => progress(0.05 + v * 0.4));
+      const html = await buildStandaloneReportHtml(
+        detail,
+        (v) => progress(0.05 + v * 0.4),
+      );
       const page = getReportFormat(detail.config) === "fastr"
         ? readFastrDocumentSettings(detail.body).page
-        : { size: "a4" as const, orientation: "portrait" as const, margin: "normal" as const };
-      const raster = await rasterizeReportPages(html, page, (v) => progress(0.45 + v * 0.45));
+        : {
+          size: "a4" as const,
+          orientation: "portrait" as const,
+          margin: "normal" as const,
+        };
+      const raster = await rasterizeReportPages(
+        html,
+        page,
+        (v) => progress(0.45 + v * 0.45),
+      );
       if (raster.success === false) return raster;
       const { pages, pageWidthPt, pageHeightPt, marginPt } = raster.data;
       if (pages.length === 0) throw new Error("the report rendered no pages");

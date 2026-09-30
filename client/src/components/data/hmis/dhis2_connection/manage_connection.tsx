@@ -1,18 +1,18 @@
 import {
-  t3,
   type Dhis2Credentials,
   type InstanceDhis2CredentialsInfo,
+  t3,
 } from "lib";
 import {
   AlertComponentProps,
   Button,
+  createFormAction,
+  createQuery,
   ModalContainer,
   StateHolderFormError,
   StateHolderWrapper,
-  createFormAction,
-  createQuery,
 } from "panther";
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { createSignal, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { Dhis2CredentialsEditor } from "./dhis2_credentials_editor";
 
@@ -21,7 +21,9 @@ type Props = {};
 // The one place a DHIS2 connection is set, replaced or deleted, opened only
 // from the Data page's DHIS2 connection row. Every DHIS2 flow uses the
 // stored connection.
-export function Dhis2ManageConnection(p: AlertComponentProps<Props, undefined>) {
+export function Dhis2ManageConnection(
+  p: AlertComponentProps<Props, undefined>,
+) {
   const infoQuery = createQuery(
     () => serverActions.getInstanceDhis2CredentialsInfo({}),
     t3({
@@ -63,7 +65,9 @@ function ConnectionEditor(p: {
   info: InstanceDhis2CredentialsInfo;
   onSaved: () => Promise<void>;
 }) {
-  const [editing, setEditing] = createSignal<boolean>(!p.info.storedCredentials);
+  const [editing, setEditing] = createSignal<boolean>(
+    !p.info.storedCredentials,
+  );
   const [credentials, setCredentials] = createSignal<Dhis2Credentials>({
     url: p.info.storedCredentials?.url ?? "",
     username: "",
@@ -110,9 +114,12 @@ function ConnectionEditor(p: {
         <Match when={!p.info.encryptionKeyConfigured}>
           <div class="text-danger text-sm">
             {t3({
-              en: "This server has no credentials encryption key (DHIS2_CREDENTIALS_ENCRYPTION_KEY), so credentials cannot be stored and nothing can run unattended. Ask the server administrator to set it.",
-              fr: "Ce serveur n'a pas de clé de chiffrement des identifiants (DHIS2_CREDENTIALS_ENCRYPTION_KEY) : les identifiants ne peuvent pas être enregistrés et rien ne peut s'exécuter sans surveillance. Demandez à l'administrateur du serveur de la définir.",
-              pt: "Este servidor não tem chave de cifragem de credenciais (DHIS2_CREDENTIALS_ENCRYPTION_KEY), pelo que as credenciais não podem ser guardadas e nada pode ser executado sem supervisão. Peça ao administrador do servidor para a definir.",
+              en:
+                "This server has no credentials encryption key (DHIS2_CREDENTIALS_ENCRYPTION_KEY), so credentials cannot be stored and nothing can run unattended. Ask the server administrator to set it.",
+              fr:
+                "Ce serveur n'a pas de clé de chiffrement des identifiants (DHIS2_CREDENTIALS_ENCRYPTION_KEY) : les identifiants ne peuvent pas être enregistrés et rien ne peut s'exécuter sans surveillance. Demandez à l'administrateur du serveur de la définir.",
+              pt:
+                "Este servidor não tem chave de cifragem de credenciais (DHIS2_CREDENTIALS_ENCRYPTION_KEY), pelo que as credenciais não podem ser guardadas e nada pode ser executado sem supervisão. Peça ao administrador do servidor para a definir.",
             })}
           </div>
         </Match>
@@ -124,16 +131,14 @@ function ConnectionEditor(p: {
                   en: "Use stored connection:",
                   fr: "Utiliser la connexion enregistrée :",
                   pt: "Utilizar a ligação guardada:",
-                })}{" "}
-                <span class="font-700">{stored.url}</span>
+                })} <span class="font-700">{stored.url}</span>
               </div>
               <div class="text-xs">
                 {t3({
                   en: "Saved by",
                   fr: "Enregistré par",
                   pt: "Guardado por",
-                })}{" "}
-                {stored.updatedBy},{" "}
+                })} {stored.updatedBy},{" "}
                 {new Date(stored.updatedAt).toLocaleString()}
               </div>
               <div class="ui-gap-sm flex items-center">

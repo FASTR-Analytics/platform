@@ -22,11 +22,11 @@ import {
   buildFastrPagedCss,
   buildFastrReportCss,
   FASTR_PAGED_ATOMIC_SELECTORS,
-  fastrParagraphSplitsCss,
   FASTR_REPORT_THEMES,
-  type FastrReportTheme,
   fastrPagedRunnerJs,
+  fastrParagraphSplitsCss,
   fastrPrintTitleHtml,
+  type FastrReportTheme,
   pagedDocumentScriptsHtml,
   readFastrDocumentSettings,
   renderFastrMarkdownToHtml,
@@ -53,7 +53,9 @@ const FIXTURE_DIR = new URL("./fixtures/fastr_pdf/", import.meta.url);
 function withPlaceholderFigures(html: string): string {
   return html.replace(
     /<img src="figure:([^"]+)"/g,
-    `<img src="${sizedPlaceholderImageSrc(1200, 675)}" width="1200" height="675" data-embed-kind="figure" data-embed-id="$1"`,
+    `<img src="${
+      sizedPlaceholderImageSrc(1200, 675)
+    }" width="1200" height="675" data-embed-kind="figure" data-embed-id="$1"`,
   );
 }
 
@@ -69,7 +71,9 @@ async function buildDocument(
     bodyHtml: withPlaceholderFigures(
       renderFastrMarkdownToHtml(body, { lineAnchors: true }),
     ),
-    themeCss: buildFastrReportCss(theme, undefined, "", { omitPrintRules: true }),
+    themeCss: buildFastrReportCss(theme, undefined, "", {
+      omitPrintRules: true,
+    }),
     documentClass: settings.className,
     documentStyle: settings.style,
     headExtraCss: buildFastrPagedCss(settings.page, {
@@ -106,11 +110,14 @@ type Inspection = {
 // Runs inside the laid-out document. Plain JS by construction (it is
 // serialized), so no lib helpers here.
 function inspectPages(atomic: string): Inspection {
-  const pages = Array.from(document.querySelectorAll<HTMLElement>(".pagedjs_page"));
+  const pages = Array.from(
+    document.querySelectorAll<HTMLElement>(".pagedjs_page"),
+  );
   const problems: string[] = [];
   let splitTables = 0;
   const visible = (e: Element) =>
-    e.getBoundingClientRect().height > 2 && (e.textContent ?? "").trim().length > 0;
+    e.getBoundingClientRect().height > 2 &&
+    (e.textContent ?? "").trim().length > 0;
   const followedByContent = (h: Element, content: Element): boolean => {
     const walker = document.createTreeWalker(content, NodeFilter.SHOW_ELEMENT);
     walker.currentNode = h;
@@ -128,20 +135,30 @@ function inspectPages(atomic: string): Inspection {
       return;
     }
     const areaH = content.getBoundingClientRect().height;
-    for (const el of Array.from(pg.querySelectorAll<HTMLElement>("[data-split-to]"))) {
+    for (
+      const el of Array.from(
+        pg.querySelectorAll<HTMLElement>("[data-split-to]"),
+      )
+    ) {
       if (!el.matches(atomic)) continue;
       const outer = el.parentElement?.closest("[data-split-to]");
       if (outer && outer.matches(atomic)) continue;
       const ref = el.getAttribute("data-ref");
       let total = 0;
-      for (const frag of Array.from(document.querySelectorAll(`[data-ref="${ref}"]`))) {
+      for (
+        const frag of Array.from(
+          document.querySelectorAll(`[data-ref="${ref}"]`),
+        )
+      ) {
         total += frag.getBoundingClientRect().height;
       }
       if (total <= areaH * 0.98) {
         problems.push(
           `page ${i + 1}: ${el.tagName.toLowerCase()}.${
             el.className.split(" ")[0]
-          } was split although it fits (${Math.round(total)}px of ${Math.round(areaH)}px)`,
+          } was split although it fits (${Math.round(total)}px of ${
+            Math.round(areaH)
+          }px)`,
         );
       }
     }
@@ -149,7 +166,9 @@ function inspectPages(atomic: string): Inspection {
       if (h.closest(".fm-cover")) continue;
       if (!followedByContent(h, content)) {
         problems.push(
-          `page ${i + 1}: heading "${(h.textContent ?? "").trim().slice(0, 40)}" ends the page`,
+          `page ${i + 1}: heading "${
+            (h.textContent ?? "").trim().slice(0, 40)
+          }" ends the page`,
         );
       }
     }
@@ -161,21 +180,29 @@ function inspectPages(atomic: string): Inspection {
     }
     for (const pb of Array.from(pg.querySelectorAll(".fm-pagebreak"))) {
       if (followedByContent(pb, content)) {
-        problems.push(`page ${i + 1}: content follows a page break on the same page`);
+        problems.push(
+          `page ${i + 1}: content follows a page break on the same page`,
+        );
       }
     }
   });
   const out: Inspection = { pages: pages.length, problems, splitTables };
-  out.continuedBands = document.querySelectorAll(".fm-band[data-split-from]").length;
+  out.continuedBands =
+    document.querySelectorAll(".fm-band[data-split-from]").length;
   const spaces = Array.from(document.querySelectorAll(".fm-space"));
   out.spaces = spaces.length;
-  out.spacesTall = spaces.filter((s) => s.getBoundingClientRect().height > 8).length;
-  out.continuedSteps = document.querySelectorAll(".fm-steps[data-split-from]").length;
+  out.spacesTall =
+    spaces.filter((s) => s.getBoundingClientRect().height > 8).length;
+  out.continuedSteps =
+    document.querySelectorAll(".fm-steps[data-split-from]").length;
   // Paged.js carries the step counter into a continuation by stamping the
   // running value on the first continued step (generated content itself is
   // not readable from script): it must not have started over.
-  const cont = document.querySelector<HTMLElement>(".fm-steps[data-split-from] > *");
-  out.stepsContinuation = cont?.getAttribute("data-counter-fm-step-value") ?? undefined;
+  const cont = document.querySelector<HTMLElement>(
+    ".fm-steps[data-split-from] > *",
+  );
+  out.stepsContinuation = cont?.getAttribute("data-counter-fm-step-value") ??
+    undefined;
   const cover = document.querySelector<HTMLElement>(".fm-cover");
   if (cover) {
     const pg = cover.closest<HTMLElement>(".pagedjs_page");
@@ -223,7 +250,11 @@ async function fixtures(): Promise<{ name: string; body: string }[]> {
 
 // The full sweep: the kitchen sink on every theme; every fixture on a light,
 // a dark and a loud theme. Screenshots for that second set only.
-const SCREENSHOT_THEMES: FastrReportTheme[] = ["default", "ministry", "bauhaus"];
+const SCREENSHOT_THEMES: FastrReportTheme[] = [
+  "default",
+  "ministry",
+  "bauhaus",
+];
 
 Deno.test({
   name: "fixture reports paginate by the rules on every theme, and print",
@@ -239,7 +270,9 @@ Deno.test({
       assert(all.length >= 6, "fixture corpus present");
       const sink = all.find((f) => f.name === "kitchen_sink")!;
       const matrix: { fixture: typeof sink; theme: FastrReportTheme }[] = [];
-      for (const theme of FASTR_REPORT_THEMES) matrix.push({ fixture: sink, theme });
+      for (const theme of FASTR_REPORT_THEMES) {
+        matrix.push({ fixture: sink, theme });
+      }
       for (const theme of SCREENSHOT_THEMES) {
         for (const fixture of all) {
           if (fixture.name !== "kitchen_sink") matrix.push({ fixture, theme });
@@ -247,7 +280,11 @@ Deno.test({
       }
       for (const { fixture, theme } of matrix) {
         const label = `${fixture.name}@${theme}`;
-        const html = await buildDocument(fixture.body, theme, `Fixture ${fixture.name}`);
+        const html = await buildDocument(
+          fixture.body,
+          theme,
+          `Fixture ${fixture.name}`,
+        );
         let inspection: Inspection | undefined;
         const { pdf, result } = await printPagedDocument(browser, html, {
           timeoutMs: 60_000,
@@ -261,19 +298,29 @@ Deno.test({
                 if (!el) continue;
                 await el.scrollIntoView();
                 const png = await el.screenshot();
-                await Deno.writeFile(`${dir}/page-${String(n).padStart(2, "0")}.png`, png);
+                await Deno.writeFile(
+                  `${dir}/page-${String(n).padStart(2, "0")}.png`,
+                  png,
+                );
               }
             }
           },
         });
         if (OUT_DIR && SCREENSHOT_THEMES.includes(theme)) {
-          await Deno.mkdir(`${OUT_DIR}/${theme}/${fixture.name}`, { recursive: true });
-          await Deno.writeFile(`${OUT_DIR}/${theme}/${fixture.name}/report.pdf`, pdf);
+          await Deno.mkdir(`${OUT_DIR}/${theme}/${fixture.name}`, {
+            recursive: true,
+          });
+          await Deno.writeFile(
+            `${OUT_DIR}/${theme}/${fixture.name}/report.pdf`,
+            pdf,
+          );
         }
         const ins = inspection!;
         const local: string[] = [...ins.problems];
         if (ins.pages !== result.total) {
-          local.push(`runner counted ${result.total} pages, DOM has ${ins.pages}`);
+          local.push(
+            `runner counted ${result.total} pages, DOM has ${ins.pages}`,
+          );
         }
         const printed = pdfPageCount(pdf);
         if (printed !== result.total) {
@@ -283,30 +330,49 @@ Deno.test({
           const fills = /:::cover\{[^}]*\bfill=page\b/.test(fixture.body);
           if (!ins.cover) local.push("cover missing from the laid-out pages");
           else if (fills) {
-            if (ins.cover.page !== 1) local.push(`cover on page ${ins.cover.page}`);
+            if (ins.cover.page !== 1) {
+              local.push(`cover on page ${ins.cover.page}`);
+            }
             if (!ins.cover.fillsWidth || !ins.cover.fillsHeight) {
               local.push("cover does not fill its page");
             }
             if (ins.cover.footer !== "none" && ins.cover.footer !== "normal") {
               local.push(`cover page carries a footer: ${ins.cover.footer}`);
             }
-            if (!result.pages[0]?.cover) local.push("runner did not mark page 1 as a cover");
+            if (!result.pages[0]?.cover) {
+              local.push("runner did not mark page 1 as a cover");
+            }
           } else {
-            if (ins.cover.page !== 1) local.push(`cover on page ${ins.cover.page}`);
-            if (!ins.cover.fillsWidth) local.push("cover does not bleed to the sheet's sides");
-            if (ins.cover.fillsHeight) local.push("a natural cover fills its page");
-            if (!ins.cover.flushTop) local.push("a natural cover does not hug the top of its page");
+            if (ins.cover.page !== 1) {
+              local.push(`cover on page ${ins.cover.page}`);
+            }
+            if (!ins.cover.fillsWidth) {
+              local.push("cover does not bleed to the sheet's sides");
+            }
+            if (ins.cover.fillsHeight) {
+              local.push("a natural cover fills its page");
+            }
+            if (!ins.cover.flushTop) {
+              local.push("a natural cover does not hug the top of its page");
+            }
             // The report continues on the cover's page when the next block
             // fits (many_sections opens with prose; landscape's next block
             // is a table taller than the room left).
             if (fixture.name === "many_sections" && !ins.cover.followed) {
               local.push("nothing follows the natural cover on its page");
             }
-            if (!result.pages[0]?.flushTop) local.push("runner did not mark page 1 as flush to the top");
-            if (ins.cover.footer === "none" || ins.cover.footer === "normal" || ins.cover.footer === "missing") {
+            if (!result.pages[0]?.flushTop) {
+              local.push("runner did not mark page 1 as flush to the top");
+            }
+            if (
+              ins.cover.footer === "none" || ins.cover.footer === "normal" ||
+              ins.cover.footer === "missing"
+            ) {
               local.push("page 1 with a natural cover has no footer");
             }
-            if (result.pages[0]?.cover) local.push("runner marked page 1 as a cover page");
+            if (result.pages[0]?.cover) {
+              local.push("runner marked page 1 as a cover page");
+            }
           }
         }
         if (result.total > 1 && !fixture.body.includes(":::cover")) {
@@ -324,31 +390,60 @@ Deno.test({
         // than a page continues, reported as an overflow split, and the
         // continuation keeps counting.
         if (fixture.name === "long_band") {
-          if (ins.continuedBands === 0) local.push("the long band did not continue onto a second page");
-          if (result.splits.length === 0) local.push("the runner did not report the long band as an overflow split");
+          if (ins.continuedBands === 0) {
+            local.push("the long band did not continue onto a second page");
+          }
+          if (result.splits.length === 0) {
+            local.push(
+              "the runner did not report the long band as an overflow split",
+            );
+          }
         }
         if (fixture.name === "long_steps") {
-          if (ins.continuedSteps === 0) local.push("the long steps block did not continue onto a second page");
+          if (ins.continuedSteps === 0) {
+            local.push(
+              "the long steps block did not continue onto a second page",
+            );
+          }
           const first = Number(ins.stepsContinuation);
           if (!(first > 1)) {
-            local.push(`the continued steps restarted their numbering (first continued step: ${ins.stepsContinuation ?? "unstamped"})`);
+            local.push(
+              `the continued steps restarted their numbering (first continued step: ${
+                ins.stepsContinuation ?? "unstamped"
+              })`,
+            );
           }
         }
         // Sixty blank lines: the first is the separator, the other fifty-nine
         // are lines of space, each a line tall, and the run breaks across the
         // page like text, so page 2 opens on one of them.
         if (fixture.name === "spaces") {
-          if (ins.spaces !== 59) local.push(`${ins.spaces} spaces laid out, expected 59`);
-          if (ins.spacesTall !== ins.spaces) local.push(`${ins.spacesTall} of ${ins.spaces} spaces stand a line tall`);
+          if (ins.spaces !== 59) {
+            local.push(`${ins.spaces} spaces laid out, expected 59`);
+          }
+          if (ins.spacesTall !== ins.spaces) {
+            local.push(
+              `${ins.spacesTall} of ${ins.spaces} spaces stand a line tall`,
+            );
+          }
           const first = result.pages[1]?.firstLine;
-          if (result.total < 2 || first === undefined || first < 4 || first > 62) {
-            local.push(`page 2 opens on line ${first} (${result.total} pages), expected inside the run of blank lines`);
+          if (
+            result.total < 2 || first === undefined || first < 4 || first > 62
+          ) {
+            local.push(
+              `page 2 opens on line ${first} (${result.total} pages), expected inside the run of blank lines`,
+            );
           }
         }
         if (fixture.name === "explicit_breaks" && result.total !== 4) {
-          local.push(`explicit breaks laid out to ${result.total} pages, expected 4`);
+          local.push(
+            `explicit breaks laid out to ${result.total} pages, expected 4`,
+          );
         }
-        if (fixture.name === "landscape" && result.sheet.width < result.sheet.height) {
+        if (
+          fixture.name === "landscape" &&
+          result.sheet.width < result.sheet.height
+        ) {
           local.push("landscape sheet is portrait");
         }
         // Every page (bar the first) starts at a known source line, and
@@ -358,8 +453,12 @@ Deno.test({
           if (pg.number > 1 && pg.firstLine === undefined) {
             local.push(`page ${pg.number} has no first line`);
           }
-          if (!(pg.contentHeight > 0) || pg.contentHeight > result.sheet.height) {
-            local.push(`page ${pg.number} content height ${pg.contentHeight} of a ${result.sheet.height}px sheet`);
+          if (
+            !(pg.contentHeight > 0) || pg.contentHeight > result.sheet.height
+          ) {
+            local.push(
+              `page ${pg.number} content height ${pg.contentHeight} of a ${result.sheet.height}px sheet`,
+            );
           }
         }
         for (const l of local) failures.push(`${label}: ${l}`);
@@ -394,7 +493,9 @@ Deno.test({
     // on page 1 (probe, 2026-09-21).
     const html = (await buildDocument(body, "default", "T")).replace(
       "</head>",
-      `<style>${fastrParagraphSplitsCss([{ line: 12, rows: [3] }])}</style></head>`,
+      `<style>${
+        fastrParagraphSplitsCss([{ line: 12, rows: [3] }])
+      }</style></head>`,
     );
     const browser = await launchChrome(CHROME_PATH!);
     try {
@@ -403,15 +504,21 @@ Deno.test({
         timeoutMs: 60_000,
         inspect: async (page) => {
           texts = await page.evaluate(() =>
-            Array.from(document.querySelectorAll(".pagedjs_page_content")).map((el) =>
-              (el as HTMLElement).innerText.replace(/\s+/g, " ").trim()
-            )
+            Array.from(document.querySelectorAll(".pagedjs_page_content")).map((
+              el,
+            ) => (el as HTMLElement).innerText.replace(/\s+/g, " ").trim())
           );
         },
       });
       assertEquals(result.total, 2);
-      assert(texts[0].endsWith("(6) " + lorem.slice(0, lorem.indexOf(" bibendum"))), `page 1 ends: ${texts[0].slice(-60)}`);
-      assert(texts[1].startsWith("bibendum egestas."), `page 2 starts: ${texts[1].slice(0, 60)}`);
+      assert(
+        texts[0].endsWith("(6) " + lorem.slice(0, lorem.indexOf(" bibendum"))),
+        `page 1 ends: ${texts[0].slice(-60)}`,
+      );
+      assert(
+        texts[1].startsWith("bibendum egestas."),
+        `page 2 starts: ${texts[1].slice(0, 60)}`,
+      );
     } finally {
       await browser.close();
     }

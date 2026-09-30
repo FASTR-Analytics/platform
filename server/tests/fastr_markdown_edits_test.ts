@@ -1,16 +1,16 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   applyStepsChildAction,
+  applyTableCellAction,
   applyTilesChildAction,
   cardTilesSnippet,
   columnsSnippet,
-  applyTableCellAction,
   deleteFastrBlockEdit,
+  type EditResult,
   enterBesideRegionEdit,
   fastrRegionAtLine,
-  insertBlockEdit,
-  type EditResult,
   inlineMarkStateAt,
+  insertBlockEdit,
   insertLinkEdit,
   setHeadingLevelEdit,
   setInlineColorEdit,
@@ -64,7 +64,13 @@ Deno.test("a second click unwraps what the first click wrapped", () => {
   assertEquals(wrapped, "Coverage **rose** sharply.");
   // The wrap leaves the words selected, which is the state the next click sees.
   const sel = first.selection!;
-  const second = toggleInlineDelimiters(wrapped, sel.anchor, sel.head!, "**", "**");
+  const second = toggleInlineDelimiters(
+    wrapped,
+    sel.anchor,
+    sel.head!,
+    "**",
+    "**",
+  );
   assertWellFormed(second);
   assertEquals(apply(wrapped, second), doc);
 });
@@ -123,7 +129,10 @@ Deno.test("inline styling never wraps a line's marker", () => {
   }
   // Bold over a whole heading line.
   const h = "# Big title";
-  assertEquals(apply(h, toggleInlineDelimiters(h, 0, h.length, "**", "**")), "# **Big title**");
+  assertEquals(
+    apply(h, toggleInlineDelimiters(h, 0, h.length, "**", "**")),
+    "# **Big title**",
+  );
   // Select-all across mixed lines styles each line's content only.
   const doc = "# Title\n- one\n- two\nplain";
   const r = setInlineSizeEdit(doc, 0, doc.length, 14);
@@ -149,7 +158,10 @@ Deno.test("a role wraps the selection and re-selects the phrase", () => {
   const doc = "Coverage fell 12 points this quarter.";
   const r = setInlineRoleEdit(doc, 9, 23, "danger");
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "Coverage [fell 12 points]{.danger} this quarter.");
+  assertEquals(
+    apply(doc, r),
+    "Coverage [fell 12 points]{.danger} this quarter.",
+  );
 });
 
 Deno.test("picking a different role rewrites in place, not around", () => {
@@ -158,7 +170,10 @@ Deno.test("picking a different role rewrites in place, not around", () => {
   // patches the mark it is in, where a partial one splits that mark instead.
   const r = setInlineRoleEdit(doc, 10, 24, "warning");
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "Coverage [fell 12 points]{.warning} this quarter.");
+  assertEquals(
+    apply(doc, r),
+    "Coverage [fell 12 points]{.warning} this quarter.",
+  );
 });
 
 Deno.test("clearing a role removes both brackets and the attribute", () => {
@@ -172,9 +187,13 @@ Deno.test("a literal colour and a role are one choice", () => {
   const doc = "Coverage fell 12 points this quarter.";
   const r = setInlineColorEdit(doc, 9, 23, "#c62828");
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "Coverage [fell 12 points]{color=#c62828} this quarter.");
+  assertEquals(
+    apply(doc, r),
+    "Coverage [fell 12 points]{color=#c62828} this quarter.",
+  );
   // A role replaces the colour, a colour replaces the role; size survives both.
-  const coloured = "Coverage [fell 12 points]{color=#c62828 size=14} this quarter.";
+  const coloured =
+    "Coverage [fell 12 points]{color=#c62828 size=14} this quarter.";
   assertEquals(
     apply(coloured, setInlineRoleEdit(coloured, 10, 24, "danger")),
     "Coverage [fell 12 points]{.danger size=14} this quarter.",
@@ -207,7 +226,10 @@ Deno.test("a size wraps the selection like a role does", () => {
   const doc = "Coverage fell 12 points this quarter.";
   const r = setInlineSizeEdit(doc, 9, 23, 18);
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "Coverage [fell 12 points]{size=18} this quarter.");
+  assertEquals(
+    apply(doc, r),
+    "Coverage [fell 12 points]{size=18} this quarter.",
+  );
 });
 
 Deno.test("a size with no selection wraps the word under the caret", () => {
@@ -243,10 +265,16 @@ Deno.test("clearing one attribute keeps the wrapper while the other remains", ()
   const doc = "Coverage [fell 12 points]{.danger size=18} this quarter.";
   const r = setInlineSizeEdit(doc, 10, 24, undefined);
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "Coverage [fell 12 points]{.danger} this quarter.");
+  assertEquals(
+    apply(doc, r),
+    "Coverage [fell 12 points]{.danger} this quarter.",
+  );
   const r2 = setInlineRoleEdit(doc, 10, 24, undefined);
   assertWellFormed(r2);
-  assertEquals(apply(doc, r2), "Coverage [fell 12 points]{size=18} this quarter.");
+  assertEquals(
+    apply(doc, r2),
+    "Coverage [fell 12 points]{size=18} this quarter.",
+  );
 });
 
 Deno.test("underline toggles on the shared wrapper and keeps its neighbours", () => {
@@ -270,7 +298,10 @@ Deno.test("underline toggles on the shared wrapper and keeps its neighbours", ()
   assertEquals(inlineMarkStateAt(doc, 12, 12).underline, false);
   // Underlining across an underlined phrase merges rather than nests.
   const mixed = "ab[cd]{underline}efg";
-  assertEquals(apply(mixed, setInlineUnderlineEdit(mixed, 0, mixed.length, true)), "[abcdefg]{underline}");
+  assertEquals(
+    apply(mixed, setInlineUnderlineEdit(mixed, 0, mixed.length, true)),
+    "[abcdefg]{underline}",
+  );
 });
 
 Deno.test("clearing the last attribute unwraps the mark entirely", () => {
@@ -316,7 +347,10 @@ Deno.test("underlining a word inside a sized phrase leaves the phrase alone", ()
   // The new mark is left selected, so the next click on the button is an
   // undo rather than a second, wider underline.
   const sel = on.selection!;
-  assertEquals(marked.slice(sel.anchor, sel.head), "[months]{size=13 underline}");
+  assertEquals(
+    marked.slice(sel.anchor, sel.head),
+    "[months]{size=13 underline}",
+  );
   const off = setInlineUnderlineEdit(marked, sel.anchor, sel.head!, false);
   assertWellFormed(off);
   assertEquals(
@@ -331,7 +365,10 @@ Deno.test("a split rewrites only the stretch that differs", () => {
   const doc = "[one two three]{size=13}";
   const r = setInlineUnderlineEdit(doc, 5, 8, true);
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "[one ]{size=13}[two]{size=13 underline}[ three]{size=13}");
+  assertEquals(
+    apply(doc, r),
+    "[one ]{size=13}[two]{size=13 underline}[ three]{size=13}",
+  );
   for (const c of r.changes) {
     assert(c.from >= 5, "the leading text is untouched");
     assert(c.to <= 8, "the trailing text is untouched");
@@ -354,7 +391,10 @@ Deno.test("clearing a size across a range unwraps the marks in it", () => {
   assertWellFormed(r);
   assertEquals(apply(doc, r), "abcdefg");
   // Clearing where nothing is marked is a no-op, not a dispatch.
-  assertEquals(setInlineSizeEdit("plain text", 0, 10, undefined).changes.length, 0);
+  assertEquals(
+    setInlineSizeEdit("plain text", 0, 10, undefined).changes.length,
+    0,
+  );
 });
 
 Deno.test("a multi-line size selection wraps each line separately", () => {
@@ -404,10 +444,16 @@ Deno.test("deleting a block takes its lines and one blank line with it", () => {
 
 Deno.test("deleting the document's last block takes the blank line above it", () => {
   const doc = ["Intro paragraph.", "", ":::pagebreak", ""].join("\n");
-  assertEquals(apply(doc, deleteFastrBlockEdit(doc, 2, 2)), "Intro paragraph.\n");
+  assertEquals(
+    apply(doc, deleteFastrBlockEdit(doc, 2, 2)),
+    "Intro paragraph.\n",
+  );
   // And with nothing after it at all.
   const tight = ["Intro paragraph.", "", ":::pagebreak"].join("\n");
-  assertEquals(apply(tight, deleteFastrBlockEdit(tight, 2, 2)), "Intro paragraph.");
+  assertEquals(
+    apply(tight, deleteFastrBlockEdit(tight, 2, 2)),
+    "Intro paragraph.",
+  );
 });
 
 Deno.test("deleting the only block leaves an empty document", () => {
@@ -431,7 +477,10 @@ Deno.test("a heading level applies to every selected line and replaces the old o
 
 Deno.test("level 0 clears back to paragraphs", () => {
   const doc = "# One\n## Two";
-  assertEquals(apply(doc, setHeadingLevelEdit(doc, 0, doc.length, 0)), "One\nTwo");
+  assertEquals(
+    apply(doc, setHeadingLevelEdit(doc, 0, doc.length, 0)),
+    "One\nTwo",
+  );
 });
 
 Deno.test("a heading never touches a ::: fence or a code block", () => {
@@ -447,15 +496,18 @@ Deno.test("a heading never touches a ::: fence or a code block", () => {
     "After.",
   ].join("\n");
   const out = apply(doc, setHeadingLevelEdit(doc, 0, doc.length, 2));
-  assertEquals(out, [
-    ":::callout{kind=note}",
-    "## Inside the block.",
-    ":::",
-    "```",
-    "not a heading",
-    "```",
-    "## After.",
-  ].join("\n"));
+  assertEquals(
+    out,
+    [
+      ":::callout{kind=note}",
+      "## Inside the block.",
+      ":::",
+      "```",
+      "not a heading",
+      "```",
+      "## After.",
+    ].join("\n"),
+  );
 });
 
 Deno.test("setting the level a line already has is a no-op", () => {
@@ -474,7 +526,10 @@ Deno.test("an ordered list renumbers from the top of the selection", () => {
 
 Deno.test("a list toggles off only when every line already carries it", () => {
   const all = "- alpha\n- beta";
-  assertEquals(apply(all, toggleLinePrefixEdit(all, 0, all.length, "bullet")), "alpha\nbeta");
+  assertEquals(
+    apply(all, toggleLinePrefixEdit(all, 0, all.length, "bullet")),
+    "alpha\nbeta",
+  );
   // Mixed: the click means "make this a list", not "half-clear it".
   const mixed = "- alpha\nbeta";
   assertEquals(
@@ -485,7 +540,10 @@ Deno.test("a list toggles off only when every line already carries it", () => {
 
 Deno.test("blank lines and fences are left out of a list", () => {
   const doc = "alpha\n\n:::\nbeta";
-  assertEquals(apply(doc, toggleLinePrefixEdit(doc, 0, doc.length, "bullet")), "- alpha\n\n:::\n- beta");
+  assertEquals(
+    apply(doc, toggleLinePrefixEdit(doc, 0, doc.length, "bullet")),
+    "- alpha\n\n:::\n- beta",
+  );
 });
 
 // ── Insertions ───────────────────────────────────────────────────────────────
@@ -520,16 +578,25 @@ Deno.test("the active state reads the mark under the caret", () => {
 });
 
 Deno.test("emphasis state pairs delimiter runs, not the nearest stars on the line", () => {
-  const line = "Plain prose with **bold**, *italic*, ***bold italic***, `inline code`";
+  const line =
+    "Plain prose with **bold**, *italic*, ***bold italic***, `inline code`";
   const at = (i: number) => inlineMarkStateAt(line, i, i);
   const bold = line.indexOf("bold") + 2;
   const italic = line.indexOf("italic") + 2;
   const both = line.indexOf("bold italic") + 6;
   const code = line.indexOf("inline code") + 3;
-  assertEquals([at(bold).bold, at(bold).italic, at(bold).code], [true, false, false]);
+  assertEquals([at(bold).bold, at(bold).italic, at(bold).code], [
+    true,
+    false,
+    false,
+  ]);
   assertEquals([at(italic).bold, at(italic).italic], [false, true]);
   assertEquals([at(both).bold, at(both).italic], [true, true]);
-  assertEquals([at(code).bold, at(code).italic, at(code).code], [false, false, true]);
+  assertEquals([at(code).bold, at(code).italic, at(code).code], [
+    false,
+    false,
+    true,
+  ]);
   // Nested: `**bold *and italic* text**`.
   const nested = "**bold *and italic* text**";
   assertEquals([at2(nested, 3).bold, at2(nested, 3).italic], [true, false]);
@@ -597,7 +664,10 @@ Deno.test("a highlight is a stripe that survives the other mark attributes", () 
   const doc = "Coverage fell 12 points this quarter.";
   const r = setInlineHighlightEdit(doc, 9, 23, "#ffe08a");
   assertWellFormed(r);
-  assertEquals(apply(doc, r), "Coverage [fell 12 points]{highlight=#ffe08a} this quarter.");
+  assertEquals(
+    apply(doc, r),
+    "Coverage [fell 12 points]{highlight=#ffe08a} this quarter.",
+  );
   // Unlike a role and a colour, a highlight coexists with them.
   const roled = "Coverage [fell 12 points]{.danger size=14} this quarter.";
   assertEquals(
@@ -605,13 +675,17 @@ Deno.test("a highlight is a stripe that survives the other mark attributes", () 
     "Coverage [fell 12 points]{.danger highlight=yellow size=14} this quarter.",
   );
   // Clearing it leaves the rest of the mark alone, and unwraps when alone.
-  const both = "Coverage [fell 12 points]{.danger highlight=yellow} this quarter.";
+  const both =
+    "Coverage [fell 12 points]{.danger highlight=yellow} this quarter.";
   assertEquals(
     apply(both, setInlineHighlightEdit(both, 10, 24, undefined)),
     "Coverage [fell 12 points]{.danger} this quarter.",
   );
   const only = "Coverage [fell 12 points]{highlight=yellow} this quarter.";
-  assertEquals(apply(only, setInlineHighlightEdit(only, 10, 24, undefined)), doc);
+  assertEquals(
+    apply(only, setInlineHighlightEdit(only, 10, 24, undefined)),
+    doc,
+  );
   assertEquals(inlineMarkStateAt(only, 14, 14).highlight, "yellow");
   // An unsafe colour is not a mark at all.
   assertEquals(apply(doc, setInlineHighlightEdit(doc, 9, 23, "url(x)")), doc);
@@ -634,9 +708,14 @@ Deno.test("the stat tiles snippet is a grid of the picked width", () => {
 });
 
 Deno.test("stat tile actions keep the column count following the tile count", () => {
-  const doc = ':::tiles{cols=3}\n:::stat{value=1 label=A}\n:::stat{value=2 label=B}\n:::stat{value=3 label=C}\n:::\nafter';
+  const doc =
+    ":::tiles{cols=3}\n:::stat{value=1 label=A}\n:::stat{value=2 label=B}\n:::stat{value=3 label=C}\n:::\nafter";
   // Add after the second tile: four tiles, four columns.
-  const r = applyTilesChildAction(doc, 3, "insertAfter", { tile: "New tile", card: "C", body: "T" });
+  const r = applyTilesChildAction(doc, 3, "insertAfter", {
+    tile: "New tile",
+    card: "C",
+    body: "T",
+  });
   assertWellFormed(r);
   assertEquals(
     apply(doc, r),
@@ -647,16 +726,19 @@ Deno.test("stat tile actions keep the column count following the tile count", ()
   const r2 = applyTilesChildAction(four, 2, "insertBefore");
   assertWellFormed(r2);
   assert(apply(four, r2).startsWith(":::tiles{cols=4}\n"));
-  assertEquals(apply(four, r2).split("\n").filter((l) => l.startsWith(":::stat")).length, 5);
+  assertEquals(
+    apply(four, r2).split("\n").filter((l) => l.startsWith(":::stat")).length,
+    5,
+  );
   // Delete shrinks the columns with the tiles.
   const r3 = applyTilesChildAction(doc, 4, "delete");
   assertWellFormed(r3);
   assertEquals(
     apply(doc, r3),
-    ':::tiles{cols=2}\n:::stat{value=1 label=A}\n:::stat{value=2 label=B}\n:::\nafter',
+    ":::tiles{cols=2}\n:::stat{value=1 label=A}\n:::stat{value=2 label=B}\n:::\nafter",
   );
   // Deleting the last tile removes the whole grid.
-  const one = ':::tiles{cols=1}\n:::stat{value=1 label=A}\n:::\nafter';
+  const one = ":::tiles{cols=1}\n:::stat{value=1 label=A}\n:::\nafter";
   assertEquals(apply(one, applyTilesChildAction(one, 2, "delete")), "after");
   // An explicit column choice.
   assertEquals(
@@ -666,7 +748,14 @@ Deno.test("stat tile actions keep the column count following the tile count", ()
   // A lone stat outside a grid just gains a neighbour; not a stat = no-op.
   const lone = "text\n:::stat{value=1 label=A}\nmore";
   assertEquals(
-    apply(lone, applyTilesChildAction(lone, 2, "insertAfter", { tile: "N", card: "C", body: "T" })),
+    apply(
+      lone,
+      applyTilesChildAction(lone, 2, "insertAfter", {
+        tile: "N",
+        card: "C",
+        body: "T",
+      }),
+    ),
     'text\n:::stat{value=1 label=A}\n:::stat{value="0" label="N"}\nmore',
   );
   assertEquals(applyTilesChildAction(lone, 1, "insertAfter").changes.length, 0);
@@ -678,7 +767,8 @@ Deno.test("card grids get the same insert, delete and column following", () => {
     cardTilesSnippet(2, "Card", "Text"),
     ':::tiles{cols=2}\n:::card{title="Card 1"}\nText\n:::\n:::card{title="Card 2"}\nText\n:::\n:::',
   );
-  const doc = ':::tiles{cols=2}\n:::card{title="A"}\nbody a\n:::\n:::card{title="B"}\nbody b\n:::\n:::\nend';
+  const doc =
+    ':::tiles{cols=2}\n:::card{title="A"}\nbody a\n:::\n:::card{title="B"}\nbody b\n:::\n:::\nend';
   const labels = { tile: "T", card: "New card", body: "Text" };
   // Add after card A (a multi-line block): lands after its closing fence.
   const r = applyTilesChildAction(doc, 2, "insertAfter", labels);
@@ -690,9 +780,15 @@ Deno.test("card grids get the same insert, delete and column following", () => {
   // Delete card A removes its whole block and shrinks the columns.
   const r2 = applyTilesChildAction(doc, 2, "delete", labels);
   assertWellFormed(r2);
-  assertEquals(apply(doc, r2), ':::tiles{cols=1}\n:::card{title="B"}\nbody b\n:::\n:::\nend');
+  assertEquals(
+    apply(doc, r2),
+    ':::tiles{cols=1}\n:::card{title="B"}\nbody b\n:::\n:::\nend',
+  );
   // A card's body line is not a card: no-op.
-  assertEquals(applyTilesChildAction(doc, 3, "delete", labels).changes.length, 0);
+  assertEquals(
+    applyTilesChildAction(doc, 3, "delete", labels).changes.length,
+    0,
+  );
 });
 
 Deno.test("columns get the same picker snippet and column actions", () => {
@@ -700,7 +796,8 @@ Deno.test("columns get the same picker snippet and column actions", () => {
     columnsSnippet(3, "Text"),
     ":::columns{cols=3}\n:::col\n### Heading\nText\n:::\n:::col\n### Heading\nText\n:::\n:::col\n### Heading\nText\n:::\n:::",
   );
-  const doc = ":::columns{cols=2}\n:::col\nleft\n:::\n:::col\nright\n:::\n:::\nend";
+  const doc =
+    ":::columns{cols=2}\n:::col\nleft\n:::\n:::col\nright\n:::\n:::\nend";
   const labels = { tile: "T", card: "C", body: "Text", heading: "Head" };
   const r = applyTilesChildAction(doc, 2, "insertAfter", labels);
   assertWellFormed(r);
@@ -710,7 +807,10 @@ Deno.test("columns get the same picker snippet and column actions", () => {
   );
   const r2 = applyTilesChildAction(doc, 5, "delete", labels);
   assertWellFormed(r2);
-  assertEquals(apply(doc, r2), ":::columns{cols=1}\n:::col\nleft\n:::\n:::\nend");
+  assertEquals(
+    apply(doc, r2),
+    ":::columns{cols=1}\n:::col\nleft\n:::\n:::\nend",
+  );
   // A col whose parent is not a columns grid gets a neighbour, no cols patch.
   const lone = ":::card\n:::col\nx\n:::\n:::";
   assertEquals(
@@ -763,7 +863,11 @@ Deno.test("a step is a direct child of the steps block, whatever its shape", () 
   assertEquals(stepsChildInfo(doc, 15), undefined);
   // An unclosed block runs to the end of the document.
   const open = ":::steps\nA\n\nB";
-  assertEquals(stepsChildInfo(open, 4), { from1: 4, to1: 4, block: { line1: 1, endLine1: 4 } });
+  assertEquals(stepsChildInfo(open, 4), {
+    from1: 4,
+    to1: 4,
+    block: { line1: 1, endLine1: 4 },
+  });
 });
 
 Deno.test("step actions add blank-separated steps and delete cleanly", () => {
@@ -776,9 +880,18 @@ Deno.test("step actions add blank-separated steps and delete cleanly", () => {
   assertEquals(apply(doc, r2), ":::steps\nA\n\nNew step\n\nB\n\nC\n:::\nafter");
   // Delete the middle, the first and the last step: the survivors stay
   // separated by exactly one blank line each time.
-  assertEquals(apply(doc, applyStepsChildAction(doc, 4, "delete")), ":::steps\nA\n\nC\n:::\nafter");
-  assertEquals(apply(doc, applyStepsChildAction(doc, 2, "delete")), ":::steps\nB\n\nC\n:::\nafter");
-  assertEquals(apply(doc, applyStepsChildAction(doc, 6, "delete")), ":::steps\nA\n\nB\n:::\nafter");
+  assertEquals(
+    apply(doc, applyStepsChildAction(doc, 4, "delete")),
+    ":::steps\nA\n\nC\n:::\nafter",
+  );
+  assertEquals(
+    apply(doc, applyStepsChildAction(doc, 2, "delete")),
+    ":::steps\nB\n\nC\n:::\nafter",
+  );
+  assertEquals(
+    apply(doc, applyStepsChildAction(doc, 6, "delete")),
+    ":::steps\nA\n\nB\n:::\nafter",
+  );
   // A two-line paragraph moves as one; a nested block too.
   const multi = ":::steps\nA\n\nB one\nB two\n\n:::callout\nx\n:::\n:::";
   assertEquals(
@@ -795,10 +908,19 @@ Deno.test("step actions add blank-separated steps and delete cleanly", () => {
   );
   // Deleting the only step removes the whole block; an unclosed block too.
   const one = "before\n:::steps\nA\n:::\nafter";
-  assertEquals(apply(one, applyStepsChildAction(one, 3, "delete")), "before\nafter");
+  assertEquals(
+    apply(one, applyStepsChildAction(one, 3, "delete")),
+    "before\nafter",
+  );
   const open = ":::steps\nA\n\nB";
-  assertEquals(apply(open, applyStepsChildAction(open, 4, "delete")), ":::steps\nA");
-  assertEquals(apply(open, applyStepsChildAction(open, 2, "delete")), ":::steps\nB");
+  assertEquals(
+    apply(open, applyStepsChildAction(open, 4, "delete")),
+    ":::steps\nA",
+  );
+  assertEquals(
+    apply(open, applyStepsChildAction(open, 2, "delete")),
+    ":::steps\nB",
+  );
   // Not a step: no-op.
   assertEquals(applyStepsChildAction(doc, 3, "insertAfter").changes.length, 0);
   assertEquals(applyStepsChildAction(doc, 8, "delete").changes.length, 0);
@@ -814,13 +936,19 @@ Deno.test("table cell actions rebuild the table around the clicked cell", () => 
     "| a2 | b2 |",
   ]);
   // Above the header lands as the first body row.
-  assertEquals(applyTableCellAction(table, 0, 0, "insertRowAbove")?.[2], "|  |  |");
-  assertEquals(applyTableCellAction(table, 3, 1, "insertColRight", "New column"), [
-    "| A | B | New column |",
-    "| --- | --- | --- |",
-    "| a1 | b1 |  |",
-    "| a2 | b2 |  |",
-  ]);
+  assertEquals(
+    applyTableCellAction(table, 0, 0, "insertRowAbove")?.[2],
+    "|  |  |",
+  );
+  assertEquals(
+    applyTableCellAction(table, 3, 1, "insertColRight", "New column"),
+    [
+      "| A | B | New column |",
+      "| --- | --- | --- |",
+      "| a1 | b1 |  |",
+      "| a2 | b2 |  |",
+    ],
+  );
   assertEquals(
     applyTableCellAction(table, 2, 1, "insertColLeft", "New column")?.[0],
     "| A | New column | B |",
@@ -853,10 +981,10 @@ const NESTED = [
   "Intro.",
   "",
   ":::tiles{cols=2}",
-  ":::card{title=\"A\"}",
+  ':::card{title="A"}',
   "Inside a card.",
   ":::",
-  ":::card{title=\"B\"}",
+  ':::card{title="B"}',
   "Second card.",
   ":::",
   ":::",
@@ -872,15 +1000,34 @@ function posOfLine(doc: string, line1: number, col = 0): number {
 }
 
 Deno.test("fastrRegionAtLine: the outermost block, a leaf, prose", () => {
-  assertEquals(fastrRegionAtLine(NESTED, 7), { kind: "container", name: "tiles", from1: 5, to1: 12 });
-  assertEquals(fastrRegionAtLine(NESTED, 12), { kind: "container", name: "tiles", from1: 5, to1: 12 });
-  assertEquals(fastrRegionAtLine(NESTED, 1), { kind: "leaf", name: "report", from1: 1, to1: 1 });
+  assertEquals(fastrRegionAtLine(NESTED, 7), {
+    kind: "container",
+    name: "tiles",
+    from1: 5,
+    to1: 12,
+  });
+  assertEquals(fastrRegionAtLine(NESTED, 12), {
+    kind: "container",
+    name: "tiles",
+    from1: 5,
+    to1: 12,
+  });
+  assertEquals(fastrRegionAtLine(NESTED, 1), {
+    kind: "leaf",
+    name: "report",
+    from1: 1,
+    to1: 1,
+  });
   assertEquals(fastrRegionAtLine(NESTED, 3), undefined);
   assertEquals(fastrRegionAtLine(NESTED, 14), undefined);
 });
 
 Deno.test("insertBlockEdit: a caret inside a card puts the block after the whole tiles row", () => {
-  const r = insertBlockEdit(NESTED, posOfLine(NESTED, 7, 3), "| a | b |\n| - | - |\n| 1 | 2 |");
+  const r = insertBlockEdit(
+    NESTED,
+    posOfLine(NESTED, 7, 3),
+    "| a | b |\n| - | - |\n| 1 | 2 |",
+  );
   assertWellFormed(r);
   const out = apply(NESTED, r);
   const lines = out.split("\n");
@@ -905,21 +1052,39 @@ Deno.test("insertBlockEdit: parked on the open fence still lands after the block
 Deno.test("insertBlockEdit: at the end of the document a trailing blank line is added", () => {
   const doc = "Text\n\n:::callout\nBody\n:::";
   const r = insertBlockEdit(doc, posOfLine(doc, 4, 2), ":::pagebreak");
-  assertEquals(apply(doc, r), "Text\n\n:::callout\nBody\n:::\n\n:::pagebreak\n\n");
+  assertEquals(
+    apply(doc, r),
+    "Text\n\n:::callout\nBody\n:::\n\n:::pagebreak\n\n",
+  );
 });
 
 Deno.test("insertBlockEdit: in prose the token gets a blank line on both sides", () => {
   const doc = "One\nTwo";
-  assertEquals(apply(doc, insertBlockEdit(doc, 0, ":::pagebreak")), ":::pagebreak\n\nOne\nTwo");
-  assertEquals(apply(doc, insertBlockEdit(doc, 2, ":::pagebreak")), "On\n\n:::pagebreak\n\ne\nTwo");
+  assertEquals(
+    apply(doc, insertBlockEdit(doc, 0, ":::pagebreak")),
+    ":::pagebreak\n\nOne\nTwo",
+  );
+  assertEquals(
+    apply(doc, insertBlockEdit(doc, 2, ":::pagebreak")),
+    "On\n\n:::pagebreak\n\ne\nTwo",
+  );
   // At the start of a line under content: a blank line is opened above too.
-  assertEquals(apply(doc, insertBlockEdit(doc, 4, ":::pagebreak")), "One\n\n:::pagebreak\n\nTwo");
+  assertEquals(
+    apply(doc, insertBlockEdit(doc, 4, ":::pagebreak")),
+    "One\n\n:::pagebreak\n\nTwo",
+  );
   // On the blank line after a block: the token takes it, the caret lands on
   // the blank line after the token, and nothing is doubled.
   const spaced = "Text\n\n:::callout\nBody\n:::\n\nNext";
   const r = insertBlockEdit(spaced, spaced.indexOf("\nNext"), ":::pagebreak");
-  assertEquals(apply(spaced, r), "Text\n\n:::callout\nBody\n:::\n\n:::pagebreak\n\nNext");
-  assertEquals(r.selection?.anchor, spaced.indexOf("\nNext") + ":::pagebreak\n\n".length);
+  assertEquals(
+    apply(spaced, r),
+    "Text\n\n:::callout\nBody\n:::\n\n:::pagebreak\n\nNext",
+  );
+  assertEquals(
+    r.selection?.anchor,
+    spaced.indexOf("\nNext") + ":::pagebreak\n\n".length,
+  );
 });
 
 Deno.test("insertBlockEdit: the report header is a region the token goes after", () => {
@@ -950,7 +1115,10 @@ Deno.test("enterBesideRegionEdit: at the region's very end opens a line below", 
 });
 
 Deno.test("enterBesideRegionEdit: prose and the report header are left alone", () => {
-  assertEquals(enterBesideRegionEdit(NESTED, posOfLine(NESTED, 3, 2)), undefined);
+  assertEquals(
+    enterBesideRegionEdit(NESTED, posOfLine(NESTED, 3, 2)),
+    undefined,
+  );
   assertEquals(enterBesideRegionEdit(NESTED, 0), undefined);
   // A leaf at the end of the document: Enter at its end appends a line.
   const doc = "Text\n\n:::pagebreak";
@@ -1011,21 +1179,42 @@ Deno.test("a formatted phrase is deleted whole or kept whole, never as a stray m
   assertEquals(markEdit(whole, 0, 10, "Y"), "[Y]{size=18}");
   assertEquals(markEdit(mid, 0, mid.length, "Z"), "Z");
   // Only role/size marks: a link is ordinary markdown.
-  assertEquals(fastrMarkAwareEdit("[a b](http://x.org)", 0, 3, false), undefined);
+  assertEquals(
+    fastrMarkAwareEdit("[a b](http://x.org)", 0, 3, false),
+    undefined,
+  );
   // An edit that touches no phrase needs no change.
   assertEquals(fastrMarkAwareEdit(mid, 0, 4, false), undefined);
 });
 
 Deno.test("a block's paragraph island gets the same phrase rule from its whole text", () => {
-  assertEquals(fastrMarkAwareRewrite("[All sized]{size=18}", "]{size=18}"), { text: "", caret: 0 });
-  assertEquals(fastrMarkAwareRewrite("[x]{size=18}", "[]{size=18}"), { text: "", caret: 0 });
+  assertEquals(fastrMarkAwareRewrite("[All sized]{size=18}", "]{size=18}"), {
+    text: "",
+    caret: 0,
+  });
+  assertEquals(fastrMarkAwareRewrite("[x]{size=18}", "[]{size=18}"), {
+    text: "",
+    caret: 0,
+  });
   assertEquals(
-    fastrMarkAwareRewrite("Keep [big words]{size=18} here.", "]{size=18} here."),
+    fastrMarkAwareRewrite(
+      "Keep [big words]{size=18} here.",
+      "]{size=18} here.",
+    ),
     { text: " here.", caret: 0 },
   );
   // Backspace after the phrase took a hidden `}`: its last letter goes.
-  assertEquals(fastrMarkAwareRewrite("A [ab]{size=9} b", "A [ab]{size=9 b"), { text: "A [a]{size=9} b", caret: 4 });
+  assertEquals(fastrMarkAwareRewrite("A [ab]{size=9} b", "A [ab]{size=9 b"), {
+    text: "A [a]{size=9} b",
+    caret: 4,
+  });
   // Ordinary edits stand.
-  assertEquals(fastrMarkAwareRewrite("[All sized]{size=18}", "[All size]{size=18}"), undefined);
-  assertEquals(fastrMarkAwareRewrite("Keep [big words]{size=18} here.", ""), undefined);
+  assertEquals(
+    fastrMarkAwareRewrite("[All sized]{size=18}", "[All size]{size=18}"),
+    undefined,
+  );
+  assertEquals(
+    fastrMarkAwareRewrite("Keep [big words]{size=18} here.", ""),
+    undefined,
+  );
 });

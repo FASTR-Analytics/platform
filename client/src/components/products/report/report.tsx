@@ -1,40 +1,39 @@
 import {
-  fastrLayoutHints,
   buildFastrEditorSurfaceCss,
   buildFastrReportCss,
   buildReportEmbedToken,
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
   FASTR_THEME_TOKENS,
+  fastrChartPalette,
+  fastrDocumentOutline,
+  type FastrFencePatch,
+  fastrLayoutHints,
+  fastrLogoImageIds,
+  fastrLogoSrcAttr,
+  type FastrOpenFence,
+  fastrOpenFenceOnLine,
+  fastrPageMarginPx,
+  type FastrReportTemplate,
+  fastrReportTemplateBody,
   type FastrReportTheme,
-  TC,
+  fastrSheetPx,
   type FigureBlock,
   type FigureBundle,
   findReportBodyText,
   findReportEmbeds,
   findReportFigureConfigMap,
-  getFastrReportTheme,
-  fastrChartPalette,
-  fastrDocumentOutline,
-  getReportCustomStyle,
   getFastrReportTemplate,
-  fastrReportTemplateBody,
-  type FastrReportTemplate,
+  getFastrReportTheme,
+  getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
   type ImageBlock,
-  materializeReport,
-  type FastrFencePatch,
-  fastrLogoImageIds,
-  fastrLogoSrcAttr,
-  type FastrOpenFence,
-  fastrOpenFenceOnLine,
   logosSnippet,
-  fastrPageMarginPx,
-  fastrSheetPx,
+  materializeReport,
   type PackageScope,
-  type ProductSummary,
   productScope,
+  type ProductSummary,
   readFastrDocumentSettings,
   referencedReportEmbedIds,
   type ReportConfig,
@@ -44,6 +43,7 @@ import {
   type RunAuthoringContext,
   scanContainerLines,
   t3,
+  TC,
 } from "lib";
 import {
   AIToolFailure,
@@ -82,8 +82,15 @@ import {
   setCollabView,
 } from "~/state/instance/collab";
 import { fastrThemeOptions } from "./fastr_theme_labels";
-import { createReportPaginator, MenuRow, ProductTitle } from "~/components/products/_shared/mod.ts";
-import { fastrPagedFooter, registerReportPageLayout } from "~/exports/export_report_as_paged_pdf";
+import {
+  createReportPaginator,
+  MenuRow,
+  ProductTitle,
+} from "~/components/products/_shared/mod.ts";
+import {
+  fastrPagedFooter,
+  registerReportPageLayout,
+} from "~/exports/export_report_as_paged_pdf";
 import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { ReportEditorCursors } from "./cursors";
@@ -106,22 +113,25 @@ import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import { ProductSettings } from "~/components/products/_shared/mod.ts";
 import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type {
-  ReportEditProposalResult,
   ReportEditProposal,
+  ReportEditProposalResult,
 } from "~/components/products/copilot/mod.ts";
 import {
   copilotViewController,
-  restoreCopilotView,
   type CopilotViewState,
+  restoreCopilotView,
 } from "~/components/products/copilot/mod.ts";
-import { formatLineRanges, type SkippedRange } from "~/components/products/_shared/mod.ts";
+import {
+  formatLineRanges,
+  type SkippedRange,
+} from "~/components/products/_shared/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
   EDITOR_PANE_MAX_REM,
-  ReportBodyEditor,
   type ReportBlockContext,
+  ReportBodyEditor,
   type ReportEditorApi,
 } from "./body_editor";
 import { ReportToolbar } from "./toolbar";
@@ -158,8 +168,8 @@ import { ReportHtmlPreview } from "~/components/products/_shared/mod.ts";
 import {
   createFigureRasterCache,
   createFigureSizeCache,
-  type FigureInkTheme,
   figureDarkInkForColors,
+  type FigureInkTheme,
   figureInkThemeForStyle,
   GENERIC_DARK_INK,
   GENERIC_LIGHT_INK,
@@ -183,7 +193,9 @@ const AUTOSAVE_MS = 800;
 // The editor's page box for a document's page setup, in CSS px at 96dpi:
 // the printed sheet 1:1 (liveSurfaceCss sets the vars; the editor's page layout and
 // pageBoxPlugin measure against them).
-function pageBoxOf(text: string): { sheetPx: number; columnPx: number; geometry: PageBoxGeometry } {
+function pageBoxOf(
+  text: string,
+): { sheetPx: number; columnPx: number; geometry: PageBoxGeometry } {
   const page = readFastrDocumentSettings(text).page;
   const [w, h] = fastrSheetPx(page);
   const marginPx = fastrPageMarginPx(page.margin);
@@ -255,7 +267,9 @@ export function ReportEditor(p: Props) {
   // The theme's series palette for every figure the report embeds; a custom
   // palette's accent leads it. Only FASTR reports are themed this way.
   const chartPalette = createMemo(() =>
-    format() === "fastr" ? fastrChartPalette(fastrTheme(), fastrColors()) : undefined
+    format() === "fastr"
+      ? fastrChartPalette(fastrTheme(), fastrColors())
+      : undefined
   );
   // What every rendered figure asks: which ink for the ground behind it.
   const figureInkFor = (el: Element): FigureInkTheme =>
@@ -435,7 +449,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   >(undefined);
   const [session, setSession] = createSignal<ReportSession | null>(null);
   // The template the report was started from (fastr), for the AI.
-  const [template, setTemplate] = createSignal<FastrReportTemplate | undefined>();
+  const [template, setTemplate] = createSignal<
+    FastrReportTemplate | undefined
+  >();
   // Bumped when the session swaps its doc for one of the server's lineage
   // (collab.ts, onLineageReset): everything that binds to the doc re-reads it.
   const [lineage, setLineage] = createSignal(0);
@@ -476,7 +492,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           // here `preview` is only set for the markdown pane, whose surface
           // exists synchronously at mount.
           if (previewMounted && preview) alignPreviewToTarget();
-        }),
+        })
       );
     }),
   );
@@ -492,50 +508,52 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     const fig = /^figure:(.+)$/.exec(src);
     if (fig) {
       const fb = figures()[fig[1]];
-      return fb ? (
-        <div
-          class="ui-pad my-4 rounded border"
-          data-line={line}
-          data-embed-id={fig[1]}
-        >
-          <ReportFigureEmbed
-            figure={fb}
-            stale={figureStale(fig[1])}
-            onMeasured={() => armFigureSettle()}
-          />
-        </div>
-      ) : (
-        <div class="text-danger text-xs" data-line={line}>
-          {t3({
-            en: "Missing visualization:",
-            fr: "Visualisation manquante :",
-            pt: "Visualização em falta:",
-          })}{" "}
-          {fig[1]}
-        </div>
-      );
+      return fb
+        ? (
+          <div
+            class="ui-pad my-4 rounded border"
+            data-line={line}
+            data-embed-id={fig[1]}
+          >
+            <ReportFigureEmbed
+              figure={fb}
+              stale={figureStale(fig[1])}
+              onMeasured={() => armFigureSettle()}
+            />
+          </div>
+        )
+        : (
+          <div class="text-danger text-xs" data-line={line}>
+            {t3({
+              en: "Missing visualization:",
+              fr: "Visualisation manquante :",
+              pt: "Visualização em falta:",
+            })} {fig[1]}
+          </div>
+        );
     }
     const img = /^image:(.+)$/.exec(src);
     if (img) {
       const ib = images()[img[1]];
-      return ib ? (
-        <img
-          class="w-full"
-          src={assetUrl(ib.imgFile)}
-          alt={alt}
-          data-line={line}
-          data-embed-id={img[1]}
-        />
-      ) : (
-        <div class="text-danger text-xs" data-line={line}>
-          {t3({
-            en: "Missing image:",
-            fr: "Image manquante :",
-            pt: "Imagem em falta:",
-          })}{" "}
-          {img[1]}
-        </div>
-      );
+      return ib
+        ? (
+          <img
+            class="w-full"
+            src={assetUrl(ib.imgFile)}
+            alt={alt}
+            data-line={line}
+            data-embed-id={img[1]}
+          />
+        )
+        : (
+          <div class="text-danger text-xs" data-line={line}>
+            {t3({
+              en: "Missing image:",
+              fr: "Image manquante :",
+              pt: "Imagem em falta:",
+            })} {img[1]}
+          </div>
+        );
     }
     return undefined;
   }
@@ -557,7 +575,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   const [sizeTick, setSizeTick] = createSignal(0);
   const figureSizes = createFigureSizeCache(() => setSizeTick((t) => t + 1));
   onCleanup(() => figureSizes.dispose());
-  const imageSizes = new Map<string, { width: number; height: number } | null>();
+  const imageSizes = new Map<
+    string,
+    { width: number; height: number } | null
+  >();
   const imageSize = (id: string) => {
     const entry = images()[id];
     if (!entry) return undefined;
@@ -568,7 +589,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       const img = new Image();
       img.onload = () => {
         if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-          imageSizes.set(entry.imgFile, { width: img.naturalWidth, height: img.naturalHeight });
+          imageSizes.set(entry.imgFile, {
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          });
           setSizeTick((t) => t + 1);
         }
       };
@@ -603,11 +627,21 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     },
   });
   const emptyPagination = () => ({
-    result: { total: 0, sheet: { width: pageBoxOf(body()).sheetPx, height: pageBoxOf(body()).geometry.pageH }, pages: [], splits: [] },
+    result: {
+      total: 0,
+      sheet: {
+        width: pageBoxOf(body()).sheetPx,
+        height: pageBoxOf(body()).geometry.pageH,
+      },
+      pages: [],
+      splits: [],
+    },
     title: label(),
     fillers: new Map<number, number>(),
   });
-  onCleanup(registerReportPageLayout(p.productId, () => editorApi?.getPageLayout()));
+  onCleanup(
+    registerReportPageLayout(p.productId, () => editorApi?.getPageLayout()),
+  );
   onCleanup(() => paginator.dispose());
   // Typing, and an embed's size landing: after the debounce. Everything that
   // re-lays the whole document (theme, page setup, the mode itself): now.
@@ -616,7 +650,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   }, { defer: true }));
   // A size landing: the rendered embeds waiting for it take their box now,
   // not after the paginator's debounce.
-  createEffect(on(sizeTick, () => editorApi?.refreshEmbedSizes(), { defer: true }));
+  createEffect(
+    on(sizeTick, () => editorApi?.refreshEmbedSizes(), { defer: true }),
+  );
   createEffect(on([paginationWanted, fastrTheme, fastrColors, label], () => {
     if (paginationWanted()) {
       editorApi?.setPagination(emptyPagination());
@@ -926,10 +962,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         return {
           text: lastSavedAt()
             ? t3({
-                en: `Saved ${lastSavedAt()}`,
-                fr: `Enregistré ${lastSavedAt()}`,
-                pt: `Guardado ${lastSavedAt()}`,
-              })
+              en: `Saved ${lastSavedAt()}`,
+              fr: `Enregistré ${lastSavedAt()}`,
+              pt: `Guardado ${lastSavedAt()}`,
+            })
             : t3({ en: "Saved", fr: "Enregistré", pt: "Guardado" }),
           dot: "bg-success",
         };
@@ -1056,7 +1092,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       setImages(prunedImages);
       if (
         Object.keys(prunedFigures).length !==
-        Object.keys(res.data.figures).length
+          Object.keys(res.data.figures).length
       ) {
         void persistFigures(prunedFigures);
       }
@@ -1100,9 +1136,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               permErrorShown = true;
               void openAlert({
                 text: t3({
-                  en: "You don't have permission to edit reports — your changes are not being saved.",
-                  fr: "Vous n'avez pas la permission de modifier les rapports — vos modifications ne sont pas enregistrées.",
-                  pt: "Não tem permissão para editar relatórios — as suas alterações não estão a ser guardadas.",
+                  en:
+                    "You don't have permission to edit reports — your changes are not being saved.",
+                  fr:
+                    "Vous n'avez pas la permission de modifier les rapports — vos modifications ne sont pas enregistrées.",
+                  pt:
+                    "Não tem permissão para editar relatórios — as suas alterações não estão a ser guardadas.",
                 }),
                 intent: "danger",
               });
@@ -1170,7 +1209,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           const baseBody = body();
           if (proposal.newBody === baseBody) {
             return {
-              skip: "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
+              skip:
+                "The proposed body is IDENTICAL to the current body — nothing to review, so no accept/reject dialog was shown. Re-read with get_report_editor and propose an actual change.",
             };
           }
           return {
@@ -1277,11 +1317,15 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         text: t3({
           en: `The AI's change${one ? "" : "s"} on line${
             one && res.skipped[0].fromLine === res.skipped[0].toLine ? "" : "s"
-          } ${lines} ${one ? "was" : "were"} not applied because a collaborator is editing that text. Re-run the AI if you still want ${
+          } ${lines} ${
+            one ? "was" : "were"
+          } not applied because a collaborator is editing that text. Re-run the AI if you still want ${
             one ? "it" : "them"
           }.`,
-          fr: `La ou les modifications de l'IA aux lignes ${lines} n'ont pas été appliquées car un collaborateur modifie ce texte. Relancez l'IA si vous les souhaitez toujours.`,
-          pt: `A(s) alteração(ões) da IA na(s) linha(s) ${lines} não foi/foram aplicada(s) porque um colaborador está a editar esse texto. Volte a executar a IA se ainda a(s) quiser.`,
+          fr:
+            `La ou les modifications de l'IA aux lignes ${lines} n'ont pas été appliquées car un collaborateur modifie ce texte. Relancez l'IA si vous les souhaitez toujours.`,
+          pt:
+            `A(s) alteração(ões) da IA na(s) linha(s) ${lines} não foi/foram aplicada(s) porque um colaborador está a editar esse texto. Volte a executar a IA se ainda a(s) quiser.`,
         }),
       });
     }
@@ -1298,7 +1342,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         requestAnimationFrame(() => {
           editorApi?.scrollToLine(changedLine);
           alignPreviewToTarget();
-        }),
+        })
       );
     }
     return res.skipped;
@@ -1358,8 +1402,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       // it still equals the content this editor loaded: pushing over a
       // diverged doc would force it to our draft and delete another user's
       // edits. If peers got there first, adopt their state.
-      const hasPendingLocal =
-        saveStatus() !== "saved" || saveTimer !== undefined;
+      const hasPendingLocal = saveStatus() !== "saved" ||
+        saveTimer !== undefined;
       if (
         hasPendingLocal &&
         loadedSnapshot &&
@@ -1597,10 +1641,16 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // The page ground as an IMAGE: pick (or upload) one, register it like any
   // report image so the prune keeps it, and hand the id back for the fence.
   async function pickPageImage(): Promise<string | undefined> {
-    const picked = await openComponent({ element: ReportImagePicker, props: {} });
+    const picked = await openComponent({
+      element: ReportImagePicker,
+      props: {},
+    });
     if (!picked) return undefined;
     const id = crypto.randomUUID();
-    const next = { ...images(), [id]: { type: "image", imgFile: picked.imgFile } as ImageBlock };
+    const next = {
+      ...images(),
+      [id]: { type: "image", imgFile: picked.imgFile } as ImageBlock,
+    };
     setImages(next);
     await persistImages(next);
     return id;
@@ -1654,7 +1704,11 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     return await withPanesCovered(
       openComponent({
         element: InsertFigureModal,
-        props: { scope: ctx.scope, context: ctx.context, preselectedMetricId: null },
+        props: {
+          scope: ctx.scope,
+          context: ctx.context,
+          preselectedMetricId: null,
+        },
       }),
     );
   }
@@ -1785,7 +1839,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       await openAlert({
         text: t3({
           en: "This visualization's metric is not in the product's package",
-          fr: "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
+          fr:
+            "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
           pt: "A métrica desta visualização não está no pacote do produto",
         }),
         intent: "danger",
@@ -1797,24 +1852,23 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     // Apply/Cancel flow (graceful degradation).
     const s0 = session();
     const figureOrigin = {}; // per-open origin for the modal's undo tracking
-    const collabBinding: VizFigureCollabBinding | undefined =
-      s0 && s0.isLive()
-        ? {
-            figureId: sel.id,
-            hostDoc: { docType: "report", docId: p.productId },
-            getConfigMap: () => {
-              const ss = session();
-              return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;
-            },
-            awareness: s0.awareness,
-            isLive: () => session()?.isLive() ?? false,
-            canEdit: () => canConfigure() && !collabFatal(),
-            localOrigin: figureOrigin,
-            onCoherentBundle: (b: FigureBundle) => {
-              void updateFigure(sel.id, { type: "figure", bundle: b });
-            },
-          }
-        : undefined;
+    const collabBinding: VizFigureCollabBinding | undefined = s0 && s0.isLive()
+      ? {
+        figureId: sel.id,
+        hostDoc: { docType: "report", docId: p.productId },
+        getConfigMap: () => {
+          const ss = session();
+          return ss ? findReportFigureConfigMap(ss.doc, sel.id) : undefined;
+        },
+        awareness: s0.awareness,
+        isLive: () => session()?.isLive() ?? false,
+        canEdit: () => canConfigure() && !collabFatal(),
+        localOrigin: figureOrigin,
+        onCoherentBundle: (b: FigureBundle) => {
+          void updateFigure(sel.id, { type: "figure", bundle: b });
+        },
+      }
+      : undefined;
 
     setEditingFigureId(sel.id);
     try {
@@ -2063,9 +2117,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         <div class="bg-base-200 text-base-content ui-pad flex items-center gap-2 text-xs">
           <span class="flex-1">
             {t3({
-              en: "Someone else may be editing this report — your changes were saved over theirs.",
-              fr: "Quelqu'un d'autre modifie peut-être ce rapport — vos modifications ont été enregistrées par-dessus les siennes.",
-              pt: "Outra pessoa poderá estar a editar este relatório — as suas alterações foram guardadas por cima das dela.",
+              en:
+                "Someone else may be editing this report — your changes were saved over theirs.",
+              fr:
+                "Quelqu'un d'autre modifie peut-être ce rapport — vos modifications ont été enregistrées par-dessus les siennes.",
+              pt:
+                "Outra pessoa poderá estar a editar este relatório — as suas alterações foram guardadas por cima das dela.",
             })}
           </span>
           <Button
@@ -2082,30 +2139,34 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         <div class="text-danger ui-pad text-xs">{saveError()}</div>
       </Show>
       <Show when={!isLoading()}>
-        {/* Editor + preview row. The CM editor stays mounted in every mode (AI
+        {
+          /* Editor + preview row. The CM editor stays mounted in every mode (AI
             accept applies via its imperative setBody). In Split, editor (left)
             and preview (right) sit side by side. A staged AI edit is reviewed in
-            a locking modal (see proposeEdit), so nothing here is hidden for it. */}
+            a locking modal (see proposeEdit), so nothing here is hidden for it. */
+        }
         <div class="flex min-h-0 flex-1">
-          {/* In Split, cap the editor pane to the editor's max content width
+          {
+            /* In Split, cap the editor pane to the editor's max content width
               (column + gutter) so it doesn't stretch to half: the preview takes
-              the leftover. flex-1 still fills it in Edit and shrinks if narrow. */}
+              the leftover. flex-1 still fills it in Edit and shrinks if narrow. */
+          }
           <div
             class="min-h-0 flex-1"
             classList={{ hidden: mode() === "view" }}
             data-report-cursor="code-pane"
             data-tour="report-code-pane"
-            style={
-              mode() === "split"
-                ? { "max-width": `${EDITOR_PANE_MAX_REM}rem` }
-                : undefined
-            }
+            style={mode() === "split"
+              ? { "max-width": `${EDITOR_PANE_MAX_REM}rem` }
+              : undefined}
           >
-            {/* Live preview: the theme sheet, scoped to the editor wrapper, so
+            {
+              /* Live preview: the theme sheet, scoped to the editor wrapper, so
                 widgets AND the editor's own text carry the document's design.
                 A theme switch re-renders this one element; the editor is never
                 touched. The font import leads the sheet (an @import after
-                other rules is dropped by CSS). */}
+                other rules is dropped by CSS). */
+            }
             <Show when={format() === "fastr"}>
               <style>{liveSurfaceCss()}</style>
             </Show>
@@ -2149,8 +2210,10 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               }}
             />
           </div>
-          {/* HTML preview: visible in View & Split. Unmounts in Edit, so its
-              scroll/resize listeners are (re)established per mount (§7). */}
+          {
+            /* HTML preview: visible in View & Split. Unmounts in Edit, so its
+              scroll/resize listeners are (re)established per mount (§7). */
+          }
           <Show when={mode() !== "edit"}>
             <ReportPreviewPane />
           </Show>
@@ -2215,11 +2278,15 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         product={product()}
         onClick={canConfigure() ? () => void openPackageScope() : undefined}
       />
-      {/* FASTR Markdown carries no CSS in its body, so re-theming is
+      {
+        /* FASTR Markdown carries no CSS in its body, so re-theming is
           safe at any time, unlike an html report's style, which is
-          fixed at creation because the body IS the design. */}
-      {/* The FASTR toolbar's Page menu owns the theme; the header
-          keeps this select for the cases with no toolbar (View). */}
+          fixed at creation because the body IS the design. */
+      }
+      {
+        /* The FASTR toolbar's Page menu owns the theme; the header
+          keeps this select for the cases with no toolbar (View). */
+      }
       <Show when={format() === "fastr" && canEditBody() && !fileMenuShown()}>
         <div data-tour="report-fastr-theme">
           <Select<FastrReportTheme>
@@ -2251,11 +2318,14 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         />
         <span>{saveIndicator().text}</span>
       </div>
-      {/* Undo/redo the body text. Hidden in View (the editor is
+      {
+        /* Undo/redo the body text. Hidden in View (the editor is
           hidden there, so there is nothing to undo into) — and for
-          FASTR the toolbar pill carries the pair, Google Docs style. */}
+          FASTR the toolbar pill carries the pair, Google Docs style. */
+      }
       <Show
-        when={mode() !== "view" && canEditBody() && knownFormat() !== undefined &&
+        when={mode() !== "view" && canEditBody() &&
+          knownFormat() !== undefined &&
           knownFormat() !== "fastr"}
       >
         <Button
@@ -2311,97 +2381,99 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // menus (File, Page, Insert...), portaled into their own row; and the
   // formatting pill for whatever is selected.
   const headerPanel = (
-        <div
-          class="h-full w-full"
-          data-cursor-zone="header"
-        >
-          <HeadingBar
-            data-tour="report-toolbar"
-            leftChildren={headerBack}
-            heading={headerTitle}
-          >
-            {headerActions}
-          </HeadingBar>
-          {/* The toolbar's menu row: the toolbar portals its menus in. */}
-          <Show when={fileMenuShown()}>
-            <MenuRow
-              ref={(el) => {
-                setMenuRowHost(el);
-                onCleanup(() => setMenuRowHost(undefined));
-              }}
-            />
-            {/* The formatting strip: the toolbar's PILL, under the header
+    <div
+      class="h-full w-full"
+      data-cursor-zone="header"
+    >
+      <HeadingBar
+        data-tour="report-toolbar"
+        leftChildren={headerBack}
+        heading={headerTitle}
+      >
+        {headerActions}
+      </HeadingBar>
+      {/* The toolbar's menu row: the toolbar portals its menus in. */}
+      <Show when={fileMenuShown()}>
+        <MenuRow
+          ref={(el) => {
+            setMenuRowHost(el);
+            onCleanup(() => setMenuRowHost(undefined));
+          }}
+        />
+        {
+          /* The formatting strip: the toolbar's PILL, under the header
                 whose menu row it portals into. A row of its own rather than
                 more controls in the header's right group, which already
                 carries seven and is anchored by onboarding tour steps.
                 FrameTop's panel sizes to its content, so the strip just grows
                 the header. The embed controls (insert visualization/image;
                 the selected embed's actions) ride the same row: the left
-                sidebar they used to live in is gone. */}
-            <ReportToolbar
-              menuRowHost={menuRowHost()}
-              api={() => editorApi}
-              onDownload={download}
-              onEmail={emailReport}
-              onRename={openProductSettings}
-              onDuplicate={duplicateReport}
-              context={blockContext}
-              theme={fastrTheme}
-              colors={fastrColors}
-              pageSetup={pageSetupFence}
-              onPatchPageSetup={patchPageSetup}
-              onSelectTheme={changeFastrTheme}
-              onOpenThemeModal={() => void openThemeModal()}
-              onPickPageImage={pickPageImage}
-              documentStats={documentStats}
-              embedKind={() => selectedEmbed()?.kind}
-              embedControls={
-                <ReportEmbedControls
-                  embed={selectedEmbedDetail()}
-                  canConfigure={canConfigure() && mode() !== "view"}
-                  onUpdateCaption={handleUpdateCaption}
-                  onEditFigure={handleEdit}
-                  onSwitchFigure={replaceSelectedFigure}
-                  onCreateFigure={replaceSelectedFigure}
-                  onChangeImageFile={handleChangeImageFile}
-                  onDelete={handleDelete}
-                />
-              }
-              canInsertEmbeds={() => canConfigure() && mode() !== "view"}
+                sidebar they used to live in is gone. */
+        }
+        <ReportToolbar
+          menuRowHost={menuRowHost()}
+          api={() => editorApi}
+          onDownload={download}
+          onEmail={emailReport}
+          onRename={openProductSettings}
+          onDuplicate={duplicateReport}
+          context={blockContext}
+          theme={fastrTheme}
+          colors={fastrColors}
+          pageSetup={pageSetupFence}
+          onPatchPageSetup={patchPageSetup}
+          onSelectTheme={changeFastrTheme}
+          onOpenThemeModal={() => void openThemeModal()}
+          onPickPageImage={pickPageImage}
+          documentStats={documentStats}
+          embedKind={() => selectedEmbed()?.kind}
+          embedControls={
+            <ReportEmbedControls
+              embed={selectedEmbedDetail()}
+              canConfigure={canConfigure() && mode() !== "view"}
+              onUpdateCaption={handleUpdateCaption}
+              onEditFigure={handleEdit}
+              onSwitchFigure={replaceSelectedFigure}
+              onCreateFigure={replaceSelectedFigure}
+              onChangeImageFile={handleChangeImageFile}
+              onDelete={handleDelete}
+            />
+          }
+          canInsertEmbeds={() => canConfigure() && mode() !== "view"}
+          onInsertFigure={insertFigure}
+          onInsertImage={insertImage}
+          onInsertLogos={insertLogos}
+          onEditLogos={editLogos}
+        />
+      </Show>
+      <Show
+        when={!isLoading() && mode() !== "view" && format() !== "fastr" &&
+          canConfigure()}
+      >
+        <div
+          class="ui-pad-sm ui-gap flex flex-wrap items-center border-t"
+          data-cursor-zone="header"
+        >
+          <Show when={selectedEmbed() === undefined}>
+            <ReportInsertEmbedButtons
+              canConfigure={canConfigure() && mode() !== "view"}
               onInsertFigure={insertFigure}
               onInsertImage={insertImage}
-              onInsertLogos={insertLogos}
-              onEditLogos={editLogos}
             />
           </Show>
-          <Show
-            when={!isLoading() && mode() !== "view" && format() !== "fastr" &&
-              canConfigure()}
-          >
-            <div
-              class="ui-pad-sm ui-gap flex flex-wrap items-center border-t"
-              data-cursor-zone="header"
-            >
-              <Show when={selectedEmbed() === undefined}>
-                <ReportInsertEmbedButtons
-                  canConfigure={canConfigure() && mode() !== "view"}
-                  onInsertFigure={insertFigure}
-                  onInsertImage={insertImage}
-                />
-              </Show>
-              <ReportEmbedControls
-                embed={selectedEmbedDetail()}
-                canConfigure={canConfigure() && mode() !== "view"}
-                onUpdateCaption={handleUpdateCaption}
-                onEditFigure={handleEdit}
-                onSwitchFigure={replaceSelectedFigure}
-                onCreateFigure={replaceSelectedFigure}
-                onChangeImageFile={handleChangeImageFile}
-                onDelete={handleDelete}
-              />
-            </div>
-          </Show>
+          <ReportEmbedControls
+            embed={selectedEmbedDetail()}
+            canConfigure={canConfigure() && mode() !== "view"}
+            onUpdateCaption={handleUpdateCaption}
+            onEditFigure={handleEdit}
+            onSwitchFigure={replaceSelectedFigure}
+            onCreateFigure={replaceSelectedFigure}
+            onChangeImageFile={handleChangeImageFile}
+            onDelete={handleDelete}
+          />
         </div>
+      </Show>
+    </div>
   );
 
   return (
@@ -2473,14 +2545,16 @@ function ReportPeerSelectionOverlay(p: {
       {
         el: document.querySelector('[data-report-cursor="code-pane"]'),
         find: (pane: Element, id: string) =>
-          pane.querySelector(`[data-embed-id="${id}"]`)?.getBoundingClientRect(),
+          pane.querySelector(`[data-embed-id="${id}"]`)
+            ?.getBoundingClientRect(),
       },
       {
         el: document.querySelector('[data-report-cursor="preview-pane"]'),
         find: (pane: Element, id: string) =>
           surface
             ? surface.findEmbedRect(id)
-            : pane.querySelector(`[data-embed-id="${id}"]`)?.getBoundingClientRect(),
+            : pane.querySelector(`[data-embed-id="${id}"]`)
+              ?.getBoundingClientRect(),
       },
     ].filter((pane): pane is { el: Element; find: typeof pane.find } => {
       if (!pane.el) return false;
@@ -2557,8 +2631,10 @@ function ReportPeerSelectionOverlay(p: {
                 border: `2px solid ${b.editors[0].color}`,
               }}
             >
-              {/* Additional co-selectors get concentric inset borders so every
-                  editor's color stays visible on the shared embed. */}
+              {
+                /* Additional co-selectors get concentric inset borders so every
+                  editor's color stays visible on the shared embed. */
+              }
               <For each={b.editors.slice(1)}>
                 {(e, i) => (
                   <div

@@ -4,13 +4,13 @@ import {
   _CF_RED,
   type EffectiveIndicatorFacts,
   type FastrChartPalette,
+  type FigureLocalization,
   type IndicatorFormat,
   PeriodOption,
-  PresentationObjectConfig,
   pickLang,
+  PresentationObjectConfig,
   selectCf,
   TranslatableString,
-  type FigureLocalization,
 } from "lib";
 import { compileCfToLegend } from "./conditional_formatting/compile";
 import { BAND_GREY } from "./get_style_from_po/_6_disruptions_v2";
@@ -115,17 +115,29 @@ export function getLegendFromConfig(
   if (isSpecialCoverageChartActive(config)) {
     return [
       {
-        label: pickLang(language, { en: "Administrative data", fr: "Données administratives", pt: "Dados administrativos" }),
+        label: pickLang(language, {
+          en: "Administrative data",
+          fr: "Données administratives",
+          pt: "Dados administrativos",
+        }),
         color: chartPalette?.faint ?? "#CED4DB",
         pointStyle: "as-line",
       },
       {
-        label: pickLang(language, { en: "Survey-based estimate", fr: "Estimation basée sur des enquêtes", pt: "Estimativa baseada em inquéritos" }),
+        label: pickLang(language, {
+          en: "Survey-based estimate",
+          fr: "Estimation basée sur des enquêtes",
+          pt: "Estimativa baseada em inquéritos",
+        }),
         color: strong,
         pointStyle: "as-line",
       },
       {
-        label: pickLang(language, { en: "Projected estimate", fr: "Estimation projetée", pt: "Estimativa projetada" }),
+        label: pickLang(language, {
+          en: "Projected estimate",
+          fr: "Estimation projetée",
+          pt: "Estimativa projetada",
+        }),
         color: chartPalette?.bad ?? "#F04D44",
         pointStyle: "as-line",
       },
@@ -152,38 +164,94 @@ export function getLegendFromConfig(
   if (isSpecialDisruptionsChartActive(config)) {
     if (config.s.diffInverted) {
       return [
-        { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: strong, pointStyle: "as-line" },
         {
-          label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
+          label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }),
+          color: strong,
+          pointStyle: "as-line",
+        },
+        {
+          label: pickLang(language, {
+            en: "Expected",
+            fr: "Attendu",
+            pt: "Esperado",
+          }),
           color: strong,
           pointStyle: "as-line",
           lineDash: "dashed",
           lineStrokeWidthScaleFactor: 0.5,
         },
-        { label: pickLang(language, { en: "Excess", fr: "Excès", pt: "Excesso" }), color: bad },
-        { label: pickLang(language, { en: "Reduction", fr: "Réduction", pt: "Redução" }), color: good },
+        {
+          label: pickLang(language, {
+            en: "Excess",
+            fr: "Excès",
+            pt: "Excesso",
+          }),
+          color: bad,
+        },
+        {
+          label: pickLang(language, {
+            en: "Reduction",
+            fr: "Réduction",
+            pt: "Redução",
+          }),
+          color: good,
+        },
       ];
     }
     return [
-      { label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }), color: strong, pointStyle: "as-line" },
       {
-        label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
+        label: pickLang(language, { en: "Actual", fr: "Réel", pt: "Real" }),
+        color: strong,
+        pointStyle: "as-line",
+      },
+      {
+        label: pickLang(language, {
+          en: "Expected",
+          fr: "Attendu",
+          pt: "Esperado",
+        }),
         color: strong,
         pointStyle: "as-line",
         lineDash: "dashed",
         lineStrokeWidthScaleFactor: 0.5,
       },
-      { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: good },
-      { label: pickLang(language, { en: "Disruption", fr: "Perturbation", pt: "Perturbação" }), color: bad },
+      {
+        label: pickLang(language, {
+          en: "Surplus",
+          fr: "Excédent",
+          pt: "Excedente",
+        }),
+        color: good,
+      },
+      {
+        label: pickLang(language, {
+          en: "Disruption",
+          fr: "Perturbation",
+          pt: "Perturbação",
+        }),
+        color: bad,
+      },
     ];
   }
   if (isSpecialDisruptionsChartV2Active(config)) {
     const surplusColor = config.s.diffInverted ? _CF_RED : _CF_GREEN;
     const deficitColor = config.s.diffInverted ? _CF_GREEN : _CF_RED;
     return [
-      { label: pickLang(language, { en: "Observed", fr: "Observé", pt: "Observado" }), color: "#000000", pointStyle: "as-line" },
       {
-        label: pickLang(language, { en: "Expected", fr: "Attendu", pt: "Esperado" }),
+        label: pickLang(language, {
+          en: "Observed",
+          fr: "Observé",
+          pt: "Observado",
+        }),
+        color: "#000000",
+        pointStyle: "as-line",
+      },
+      {
+        label: pickLang(language, {
+          en: "Expected",
+          fr: "Attendu",
+          pt: "Esperado",
+        }),
         color: "#000000",
         pointStyle: "as-line",
         lineDash: "dashed",
@@ -197,8 +265,22 @@ export function getLegendFromConfig(
         }),
         color: BAND_GREY,
       },
-      { label: pickLang(language, { en: "Surplus", fr: "Excédent", pt: "Excedente" }), color: surplusColor },
-      { label: pickLang(language, { en: "Deficit", fr: "Déficit", pt: "Défice" }), color: deficitColor },
+      {
+        label: pickLang(language, {
+          en: "Surplus",
+          fr: "Excédent",
+          pt: "Excedente",
+        }),
+        color: surplusColor,
+      },
+      {
+        label: pickLang(language, {
+          en: "Deficit",
+          fr: "Déficit",
+          pt: "Défice",
+        }),
+        color: deficitColor,
+      },
     ];
   }
   // The standard traffic lights under every report theme, as the style

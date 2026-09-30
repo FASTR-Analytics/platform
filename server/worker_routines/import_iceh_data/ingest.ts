@@ -282,7 +282,9 @@ export async function stageIcehZip(
     });
   }
 
-  const indicatorCodesInData = new Set(validDataRows.map((r) => r.indicatorCode));
+  const indicatorCodesInData = new Set(
+    validDataRows.map((r) => r.indicatorCode),
+  );
 
   const stagingResult: IcehStagingResult = {
     nRowsTotal: dataRows.length,

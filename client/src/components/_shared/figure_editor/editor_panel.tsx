@@ -1,15 +1,15 @@
 import {
-  PresentationObjectConfig,
-  ResultsValue,
-  type PresenceEntry,
-  ResultsValueInfoForPresentationObject,
   getEffectivePOConfig,
-  resolveEffectiveIndicatorFacts,
   getPeriodFilterExactBounds,
   getSingleValueDimsFromPossibleValues,
+  type PresenceEntry,
+  PresentationObjectConfig,
+  resolveEffectiveIndicatorFacts,
+  ResultsValue,
+  ResultsValueInfoForPresentationObject,
   t3,
 } from "lib";
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { createSignal, Match, Show, Switch } from "solid-js";
 import { PresenceAvatars } from "../mod.ts";
 import { SetStoreFunction } from "solid-js/store";
 import { PresentationObjectEditorPanelData } from "./editor_panel_data";
@@ -116,7 +116,11 @@ export function PresentationObjectEditorPanel(p: Props) {
           dataTour="viz-tab-data"
         />
         <TabButton
-          label={t3({ en: "Presentation", fr: "Présentation", pt: "Apresentação" })}
+          label={t3({
+            en: "Presentation",
+            fr: "Présentation",
+            pt: "Apresentação",
+          })}
           selected={tab() === "style"}
           peers={p.tabPeers?.style}
           onClick={() => switchTab("style")}
@@ -141,9 +145,12 @@ export function PresentationObjectEditorPanel(p: Props) {
               setTempConfig={p.setTempConfig}
               viewResultsObject={p.viewResultsObject}
               singleValueDims={singleValueDims()}
-              ineffectiveDisaggregators={effectivePOConfigResult().ineffectiveDisaggregators}
-              effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
-              hasMultipleValueProps={effectivePOConfigResult().hasMultipleValueProps}
+              ineffectiveDisaggregators={effectivePOConfigResult()
+                .ineffectiveDisaggregators}
+              effectiveValueProps={effectivePOConfigResult()
+                .effectiveValueProps}
+              hasMultipleValueProps={effectivePOConfigResult()
+                .hasMultipleValueProps}
             />
           </Match>
           <Match when={tab() === "style"}>
@@ -153,7 +160,8 @@ export function PresentationObjectEditorPanel(p: Props) {
               tempConfig={p.tempConfig}
               setTempConfig={p.setTempConfig}
               effectiveConfig={effectivePOConfigResult().config}
-              effectiveValueProps={effectivePOConfigResult().effectiveValueProps}
+              effectiveValueProps={effectivePOConfigResult()
+                .effectiveValueProps}
               effectiveFormatAs={effectiveFormat().axisFormat}
             />
           </Match>

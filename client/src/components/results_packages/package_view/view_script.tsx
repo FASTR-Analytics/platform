@@ -1,10 +1,10 @@
 import { t3 } from "lib";
 import {
+  createQuery,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
-  createQuery,
 } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -41,7 +41,9 @@ export function ViewScript(
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
-          heading={`${t3({ en: "Script for", fr: "Script pour", pt: "Script para" })} ${p.moduleLabel}`}
+          heading={`${
+            t3({ en: "Script for", fr: "Script pour", pt: "Script para" })
+          } ${p.moduleLabel}`}
         />
       }
     >

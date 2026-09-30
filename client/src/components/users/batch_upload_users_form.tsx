@@ -4,25 +4,23 @@ import { t3 } from "lib";
 import { serverActions } from "~/server_actions";
 import {
   Button,
-  Select,
-  getSelectOptions,
+  Checkbox,
   createFormAction,
   type EditorComponentProps,
+  getSelectOptions,
   ModalContainer,
-  Checkbox,
+  Select,
 } from "panther";
-import {
-  cleanupUppy,
-  createUppyInstance,
-} from "~/components/_shared/mod.ts";
+import { cleanupUppy, createUppyInstance } from "~/components/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 
 type Props = EditorComponentProps<{}, undefined>;
 
 export function BatchUploadUsersForm(p: Props) {
   const [selectedFileName, setSelectedFileName] = createSignal<string>("");
-  const [replaceAllExisting, setReplaceAllExisting] =
-    createSignal<boolean>(false);
+  const [replaceAllExisting, setReplaceAllExisting] = createSignal<boolean>(
+    false,
+  );
 
   function updateSelectedFileName(fileName: string) {
     setSelectedFileName(fileName);
@@ -80,7 +78,11 @@ export function BatchUploadUsersForm(p: Props) {
       })}
       onCancel={() => p.close(undefined)}
       actions={[{
-        label: t3({ en: "Process CSV", fr: "Traiter le CSV", pt: "Processar CSV" }),
+        label: t3({
+          en: "Process CSV",
+          fr: "Traiter le CSV",
+          pt: "Processar CSV",
+        }),
         onClick: handleBatchUpload.click,
         state: handleBatchUpload.state(),
         disabled: !selectedFileName(),

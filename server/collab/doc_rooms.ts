@@ -86,7 +86,11 @@ export type DocRoomAdapter<T> = {
   msgUpdate: (docId: string, update: string) => CollabServerMessage;
   /** `fatal` ⇔ the document/room is gone (deleted, replaced, not found): the
    *  client session must stop editing. See CollabServerMessage. */
-  msgError: (docId: string, message: string, fatal?: boolean) => CollabServerMessage;
+  msgError: (
+    docId: string,
+    message: string,
+    fatal?: boolean,
+  ) => CollabServerMessage;
   msgAwareness: (docId: string, update: string) => CollabServerMessage;
   /** Fired once per room lifetime, after the doc holds its initial content
    *  (seed or crdt_state restore): reports attach their authorship observer
@@ -457,7 +461,12 @@ export async function subscribeDoc<T>(
   const epoch = ensureDocEpoch(room.doc).epoch;
   try {
     conn.send(
-      adapter.msgSync(docId, bytesToBase64(sync), bytesToBase64(stateVector), epoch),
+      adapter.msgSync(
+        docId,
+        bytesToBase64(sync),
+        bytesToBase64(stateVector),
+        epoch,
+      ),
     );
   } catch {
     // A dead socket is cleaned up by its own close/error handler.
@@ -468,7 +477,11 @@ export async function subscribeDoc<T>(
     try {
       conn.send({
         type: "doc_save_state",
-        data: { docType: room.adapter.docType, docId: room.docId, failing: true },
+        data: {
+          docType: room.adapter.docType,
+          docId: room.docId,
+          failing: true,
+        },
       });
     } catch {
       // A dead socket is cleaned up by its own close/error handler.
@@ -496,7 +509,10 @@ export function applyDocUpdate<T>(
   try {
     bytes = base64ToBytes(updateB64);
   } catch (err) {
-    console.error(`[collab] rejected malformed base64 update for ${room.key}`, err);
+    console.error(
+      `[collab] rejected malformed base64 update for ${room.key}`,
+      err,
+    );
     conn.send(adapter.msgError(docId, "Malformed document update"));
     return;
   }

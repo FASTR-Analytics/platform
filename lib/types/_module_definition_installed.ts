@@ -152,13 +152,19 @@ export type ModuleParameter = z.infer<typeof moduleParameter>;
 export type RepoAssetToImport = z.infer<typeof repoAssetToImport>;
 export type AssetToImport = z.infer<typeof assetToImport>;
 export type ModuleConfigRequirements = z.infer<typeof configRequirements>;
-export type ResultsObjectDefinition = z.infer<typeof resultsObjectDefinitionInstalledStrict>;
-export type ModuleDefinitionInstalled = z.infer<typeof moduleDefinitionInstalledStrict>;
+export type ResultsObjectDefinition = z.infer<
+  typeof resultsObjectDefinitionInstalledStrict
+>;
+export type ModuleDefinitionInstalled = z.infer<
+  typeof moduleDefinitionInstalledStrict
+>;
 
 // ============================================================================
 // Parse helper
 // ============================================================================
 
-export function parseInstalledModuleDefinition(raw: string): ModuleDefinitionInstalled {
+export function parseInstalledModuleDefinition(
+  raw: string,
+): ModuleDefinitionInstalled {
   return moduleDefinitionInstalledSchema.parse(JSON.parse(raw));
 }

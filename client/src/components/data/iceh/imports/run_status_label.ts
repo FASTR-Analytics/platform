@@ -1,4 +1,4 @@
-import { t3, type IcehImportRunStatus } from "lib";
+import { type IcehImportRunStatus, t3 } from "lib";
 
 export function icehRunStatusLabel(status: IcehImportRunStatus): string {
   if (status === "running") {

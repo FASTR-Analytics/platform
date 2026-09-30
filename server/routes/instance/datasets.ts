@@ -5,8 +5,8 @@ import {
   cancelDatasetHmisImportRun,
   computeHfaCacheHash,
   createDatasetHmisScheduledImport,
-  deleteDatasetHfaData,
   deleteAllDatasetHmisData,
+  deleteDatasetHfaData,
   deleteDatasetHmisScheduledImport,
   enqueueDatasetHmisCsvImportRun,
   enqueueDatasetHmisImportRun,
@@ -19,6 +19,7 @@ import {
   getDatasetHmisImportRunSummaries,
   getDatasetHmisItemsForDisplay,
   getDatasetHmisScheduledImports,
+  getInstanceDatasetsSummary,
   getStoredDhis2CredentialsInfo,
   getVersionsForDatasetHmis,
   isDhis2CredentialsEncryptionKeyConfigured,
@@ -28,7 +29,6 @@ import {
   resolveDatasetHfaReview,
   resolveDatasetHmisCsvReview,
   updateDatasetHmisScheduledImport,
-  getInstanceDatasetsSummary,
 } from "../../db/mod.ts";
 import { getCsvDetails } from "../../server_only_funcs_csvs/get_csv_components.ts";
 import { getXlsxSheetNamesRaw } from "../../server_only_funcs_csvs/read_xlsx_raw.ts";
@@ -202,7 +202,10 @@ defineRoute(
   requireGlobalPermission("can_view_data"),
   log("getDatasetHmisImportRunDetail"),
   async (c, { params }) => {
-    const res = await getDatasetHmisImportRunDetail(c.var.mainDb, params.run_id);
+    const res = await getDatasetHmisImportRunDetail(
+      c.var.mainDb,
+      params.run_id,
+    );
     return c.json(res);
   },
 );
@@ -337,7 +340,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteAllDatasetHmisData(c.var.mainDb, body.windowing);
     if (res.success) {
-      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -385,7 +390,10 @@ defineRoute(
   log("scanDatasetHmisCsvIndicatorValues"),
   async (c, { body }) => {
     try {
-      const { filePath, pin } = await resolveAssetFileOrThrow(body.fileName, null);
+      const { filePath, pin } = await resolveAssetFileOrThrow(
+        body.fileName,
+        null,
+      );
       const values = await scanHmisCsvIndicatorValues({
         csvFilePath: filePath,
         columns: body.columns,
@@ -502,7 +510,9 @@ defineRoute(
   requireGlobalPermission("can_view_data"),
   log("getDatasetHfaDisplayInfo"),
   async (c) => {
-    const tpRows = await c.var.mainDb<{ label: string; sort_order: number; imported_at: string | null }[]>`
+    const tpRows = await c.var.mainDb<
+      { label: string; sort_order: number; imported_at: string | null }[]
+    >`
       SELECT label, sort_order, imported_at FROM hfa_time_points ORDER BY sort_order
     `;
     const hash = computeHfaCacheHash(tpRows);
@@ -539,7 +549,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteDatasetHfaData(c.var.mainDb, body.timePoint);
     if (res.success) {
-      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -581,7 +593,8 @@ defineRoute(
     if (!sheetNames.includes("survey") || !sheetNames.includes("choices")) {
       return c.json({
         success: false,
-        err: "The XLSForm file must contain both 'survey' and 'choices' sheets.",
+        err:
+          "The XLSForm file must contain both 'survey' and 'choices' sheets.",
       });
     }
     const res = await getCsvDetails(csvFilePath, body.csvFileName);

@@ -74,7 +74,9 @@ function layoutShape(layout: unknown, sharedItemIds: Set<string>): string {
       return null;
     }
     if (node.type === "item") {
-      return sharedItemIds.has(node.id) ? { id: node.id, type: node.type } : null;
+      return sharedItemIds.has(node.id)
+        ? { id: node.id, type: node.type }
+        : null;
     }
     const g = node as unknown as Record<string, unknown>;
     return {

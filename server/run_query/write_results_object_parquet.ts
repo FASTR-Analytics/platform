@@ -1,8 +1,5 @@
 import { DuckDBInstance } from "@duckdb/node-api";
-import {
-  getEnabledOptionalFacilityColumns,
-  type StructureColumns,
-} from "lib";
+import { getEnabledOptionalFacilityColumns, type StructureColumns } from "lib";
 import {
   applyDuckDbSessionSettings,
   escapeSqlLiteral,
@@ -33,7 +30,9 @@ export function duckDbTypeForDeclaredColumnType(declared: string): string {
     case "NUMERIC":
       return "DOUBLE";
     default:
-      throw new Error(`Unknown declared results-object column type: ${declared}`);
+      throw new Error(
+        `Unknown declared results-object column type: ${declared}`,
+      );
   }
 }
 
@@ -49,8 +48,8 @@ export function computeResultsObjectColumnsToExclude(
   const baseColumnsToExclude = hasPeriodId
     ? ["month", "quarter_id", "year"]
     : hasQuarterId
-      ? ["month", "year"]
-      : ["month", "quarter_id"];
+    ? ["month", "year"]
+    : ["month", "quarter_id"];
   const enabledFacilityColumns = facilityColumns
     ? getEnabledOptionalFacilityColumns(facilityColumns)
     : [];
@@ -72,7 +71,9 @@ export async function writeNormalizedResultsObjectParquet(opts: {
   );
   if (undeclaredHeaders.length > 0) {
     throw new Error(
-      `CSV headers not found in table definition: ${undeclaredHeaders.join(", ")}`,
+      `CSV headers not found in table definition: ${
+        undeclaredHeaders.join(", ")
+      }`,
     );
   }
 
@@ -81,7 +82,9 @@ export async function writeNormalizedResultsObjectParquet(opts: {
       if (!SAFE_COLUMN_NAME.test(header)) {
         throw new Error(`Unsafe CSV column name: ${header}`);
       }
-      return `'${header}': '${duckDbTypeForDeclaredColumnType(opts.declaredColumns[header])}'`;
+      return `'${header}': '${
+        duckDbTypeForDeclaredColumnType(opts.declaredColumns[header])
+      }'`;
     })
     .join(", ");
 
@@ -95,7 +98,7 @@ export async function writeNormalizedResultsObjectParquet(opts: {
     .map((col) =>
       col === "quarter_id"
         ? `(CASE WHEN quarter_id >= 100000 THEN (quarter_id / 100) * 10 + (quarter_id % 100) ELSE quarter_id END) AS quarter_id`
-        : col,
+        : col
     )
     .join(", ");
 
@@ -105,7 +108,9 @@ export async function writeNormalizedResultsObjectParquet(opts: {
   try {
     await applyDuckDbSessionSettings(conn);
     await conn.run(
-      `COPY (SELECT ${selectList} FROM read_csv('${escapeSqlLiteral(opts.csvPath)}',
+      `COPY (SELECT ${selectList} FROM read_csv('${
+        escapeSqlLiteral(opts.csvPath)
+      }',
         header=true,
         nullstr='NA',
         allow_quoted_nulls=false,

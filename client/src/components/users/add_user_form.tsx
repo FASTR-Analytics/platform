@@ -1,10 +1,10 @@
 import {
   AlertComponentProps,
+  createFormAction,
   ModalContainer,
   TextArea,
-  createFormAction,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { t3, TC } from "lib";
 
@@ -31,7 +31,14 @@ export function AddUserForm(
       e.preventDefault();
       const goodEmails = goodEmailList().map((str) => str.toLowerCase());
       if (goodEmails.length === 0) {
-        return { success: false, err: t3({ en: "You must enter at least one email", fr: "Vous devez saisir au moins un e-mail", pt: "Tem de introduzir pelo menos um e-mail" }) };
+        return {
+          success: false,
+          err: t3({
+            en: "You must enter at least one email",
+            fr: "Vous devez saisir au moins un e-mail",
+            pt: "Tem de introduzir pelo menos um e-mail",
+          }),
+        };
       }
       return serverActions.addUsers({
         emails: goodEmails,
@@ -44,7 +51,11 @@ export function AddUserForm(
 
   return (
     <ModalContainer
-      title={t3({ en: "Add new user", fr: "Ajouter un utilisateur", pt: "Adicionar novo utilizador" })}
+      title={t3({
+        en: "Add new user",
+        fr: "Ajouter un utilisateur",
+        pt: "Adicionar novo utilizador",
+      })}
       form
       onCancel={() => p.close(undefined)}
       actions={[{
@@ -62,7 +73,14 @@ export function AddUserForm(
         height="150px"
       />
       <div class="text-xs">
-        {t3({ en: "Add multiple emails, separated by a comma, semicolon, or line break.", fr: "Ajouter plusieurs e-mails (séparés par virgule, point-virgule ou saut de ligne)", pt: "Adicione vários e-mails, separados por vírgula, ponto e vírgula ou quebra de linha." })}
+        {t3({
+          en:
+            "Add multiple emails, separated by a comma, semicolon, or line break.",
+          fr:
+            "Ajouter plusieurs e-mails (séparés par virgule, point-virgule ou saut de ligne)",
+          pt:
+            "Adicione vários e-mails, separados por vírgula, ponto e vírgula ou quebra de linha.",
+        })}
       </div>
       <Show when={goodEmailList().length > 0}>
         <div class="">

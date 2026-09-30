@@ -32,7 +32,11 @@ export async function getHfaTimePointsForAI(
 }
 
 export function computeHfaCacheHash(
-  timePointRows: { label: string; sort_order: number; imported_at: string | null }[],
+  timePointRows: {
+    label: string;
+    sort_order: number;
+    imported_at: string | null;
+  }[],
 ): string {
   return timePointRows
     .map((r) => `${r.label}:${r.sort_order}:${r.imported_at ?? ""}`)
@@ -53,10 +57,17 @@ export function computeHfaCacheHash(
 //////////////////////////////////////////////////////
 
 export async function getDatasetHfaDetail(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<DatasetHfaDetail>> {
   return await tryCatchDatabaseAsync(async () => {
-    const timePointRows = await mainDb<{ label: string; period_id: string; sort_order: number; imported_at: string | null }[]>`
+    const timePointRows = await mainDb<
+      {
+        label: string;
+        period_id: string;
+        sort_order: number;
+        imported_at: string | null;
+      }[]
+    >`
       SELECT label, period_id, sort_order, imported_at FROM hfa_time_points ORDER BY sort_order
     `;
     const cacheHash = computeHfaCacheHash(timePointRows);
@@ -134,21 +145,37 @@ export async function getDatasetHfaItemsForDisplay(
 ): Promise<APIResponseWithData<ItemsHolderDatasetHfaDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
     // Time points for cache hash
-    const timePointRows = await mainDb<{ label: string; sort_order: number; imported_at: string | null }[]>`
+    const timePointRows = await mainDb<
+      { label: string; sort_order: number; imported_at: string | null }[]
+    >`
       SELECT label, sort_order, imported_at
       FROM hfa_time_points
       ORDER BY sort_order
     `;
 
     // Variable labels per (time_point, variable_id)
-    const dictVariableRows = await mainDb<{ time_point: string; variable_id: string; variable_label: string; variable_type: string }[]>`
+    const dictVariableRows = await mainDb<
+      {
+        time_point: string;
+        variable_id: string;
+        variable_label: string;
+        variable_type: string;
+      }[]
+    >`
       SELECT time_point, variable_id, variable_label, variable_type
       FROM hfa_variables
       ORDER BY variable_id, time_point
     `;
 
     // Questionnaire values per (time_point, variable_id): only for select variables
-    const dictValueRows = await mainDb<{ time_point: string; variable_id: string; value: string; value_label: string }[]>`
+    const dictValueRows = await mainDb<
+      {
+        time_point: string;
+        variable_id: string;
+        value: string;
+        value_label: string;
+      }[]
+    >`
       SELECT time_point, variable_id, value, value_label
       FROM hfa_variable_values
       ORDER BY variable_id, time_point, value
@@ -185,7 +212,9 @@ export async function getDatasetHfaItemsForDisplay(
     `;
 
     // Distinct data values for ALL variables
-    const dataValueRows = await mainDb<{ time_point: string; variable_id: string; value: string }[]>`
+    const dataValueRows = await mainDb<
+      { time_point: string; variable_id: string; value: string }[]
+    >`
       SELECT DISTINCT d.time_point, d.variable_id, d.value
       FROM hfa_data d
       WHERE d.value != ''
@@ -263,4 +292,3 @@ export async function getDatasetHfaItemsForDisplay(
     return { success: true, data: { rows, cacheHash } };
   });
 }
-

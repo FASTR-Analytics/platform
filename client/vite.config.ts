@@ -14,10 +14,22 @@ export default defineConfig({
     alias: {
       "@timroberton/panther": path.resolve(__dirname, "../panther/mod.ui.ts"),
       codemirror: path.resolve(__dirname, "node_modules/codemirror"),
-      "@codemirror/state": path.resolve(__dirname, "node_modules/@codemirror/state"),
-      "@codemirror/view": path.resolve(__dirname, "node_modules/@codemirror/view"),
-      "@codemirror/lang-markdown": path.resolve(__dirname, "node_modules/@codemirror/lang-markdown"),
-      "@codemirror/merge": path.resolve(__dirname, "node_modules/@codemirror/merge"),
+      "@codemirror/state": path.resolve(
+        __dirname,
+        "node_modules/@codemirror/state",
+      ),
+      "@codemirror/view": path.resolve(
+        __dirname,
+        "node_modules/@codemirror/view",
+      ),
+      "@codemirror/lang-markdown": path.resolve(
+        __dirname,
+        "node_modules/@codemirror/lang-markdown",
+      ),
+      "@codemirror/merge": path.resolve(
+        __dirname,
+        "node_modules/@codemirror/merge",
+      ),
       "solid-js": path.resolve(__dirname, "node_modules/solid-js"),
       "@solidjs/router": path.resolve(
         __dirname,
@@ -37,7 +49,10 @@ export default defineConfig({
         "node_modules/fractional-indexing",
       ),
       "idb-keyval": path.resolve(__dirname, "node_modules/idb-keyval"),
-      "@anthropic-ai/sdk": path.resolve(__dirname, "node_modules/@anthropic-ai/sdk"),
+      "@anthropic-ai/sdk": path.resolve(
+        __dirname,
+        "node_modules/@anthropic-ai/sdk",
+      ),
       pptxgenjs: path.resolve(__dirname, "node_modules/pptxgenjs"),
     },
   },

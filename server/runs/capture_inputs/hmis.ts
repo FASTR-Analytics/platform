@@ -6,22 +6,20 @@ import {
   analysedIdsWithData,
   analysedIndicatorIds,
   APIResponseWithData,
+  getEnabledOptionalFacilityColumns,
   hasRows,
   type HmisIndicator,
   HmisIndicatorCatalogError,
   type HmisIndicatorCatalogRow,
-  getEnabledOptionalFacilityColumns,
-  StructureSchema,
   isValidPeriodId,
-  resolveHmisIndicatorCatalog,
-  throwIfErrWithData,
-  type RunDatasetHmisInfo,
   POPULATION_TYPE_IDS,
+  resolveHmisIndicatorCatalog,
+  type RunDatasetHmisInfo,
+  StructureSchema,
+  throwIfErrWithData,
 } from "lib";
 import { getHmisIndicators } from "../../db/instance/indicators.ts";
-import {
-  getStructureSchema,
-} from "../../db/instance/config.ts";
+import { getStructureSchema } from "../../db/instance/config.ts";
 import { getCurrentDatasetHmisVersion } from "../../db/instance/dataset_hmis.ts";
 import { assertNoRunningDatasetHmisImportRun } from "../../db/instance/dataset_hmis_import_runs.ts";
 import {
@@ -147,19 +145,19 @@ export async function computeDatasetHmisRunCapture(
     // Validate that we have period data
     if (!minPeriod || !maxPeriod) {
       throw new Error(
-        `No data found in dataset hmis. The dataset table is empty or has no valid periods.`
+        `No data found in dataset hmis. The dataset table is empty or has no valid periods.`,
       );
     }
 
     // Validate period format
     if (!isValidPeriodId(String(minPeriod))) {
       throw new Error(
-        `Invalid minimum period format: ${minPeriod}. Expected YYYYMM format.`
+        `Invalid minimum period format: ${minPeriod}. Expected YYYYMM format.`,
       );
     }
     if (!isValidPeriodId(String(maxPeriod))) {
       throw new Error(
-        `Invalid maximum period format: ${maxPeriod}. Expected YYYYMM format.`
+        `Invalid maximum period format: ${maxPeriod}. Expected YYYYMM format.`,
       );
     }
 
@@ -288,10 +286,14 @@ function getDatasetHmisExportStatement(
       ? "(SELECT NULL::text WHERE false)"
       : `(VALUES ${ids.map((id) => `('${escapeSqlString(id)}')`).join(", ")})`;
   const analysedWithRows = indicators
-    .filter((c) => hasRows(c.definition.type) && analysed.has(c.indicator_common_id))
+    .filter((c) =>
+      hasRows(c.definition.type) && analysed.has(c.indicator_common_id)
+    )
     .map((c) => c.indicator_common_id);
   const analysedSums = indicators
-    .filter((c) => c.definition.type === "sum" && analysed.has(c.indicator_common_id))
+    .filter((c) =>
+      c.definition.type === "sum" && analysed.has(c.indicator_common_id)
+    )
     .map((c) => c.indicator_common_id);
 
   const statement = `

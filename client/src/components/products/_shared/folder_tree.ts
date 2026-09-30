@@ -39,12 +39,12 @@ export function folderPathLabels(folders: Folder[]): Map<string, string> {
     // depend on which folder the walk started from.
     if (visited.has(folderId)) return folder.label;
     visited.add(folderId);
-    const parentPath =
-      folder.parentId === null ? "" : resolve(folder.parentId, visited);
-    const label =
-      parentPath === ""
-        ? folder.label
-        : `${parentPath}${_PATH_SEPARATOR}${folder.label}`;
+    const parentPath = folder.parentId === null
+      ? ""
+      : resolve(folder.parentId, visited);
+    const label = parentPath === ""
+      ? folder.label
+      : `${parentPath}${_PATH_SEPARATOR}${folder.label}`;
     labels.set(folderId, label);
     return label;
   }
@@ -88,19 +88,18 @@ export function folderPathOptions(
   folders: Folder[],
   opts: { excludeSubtree?: string },
 ): { value: string; label: string }[] {
-  const excluded =
-    opts.excludeSubtree === undefined
-      ? new Set<string>()
-      : new Set([
-          opts.excludeSubtree,
-          ...descendantIds(folders, opts.excludeSubtree),
-        ]);
+  const excluded = opts.excludeSubtree === undefined
+    ? new Set<string>()
+    : new Set([
+      opts.excludeSubtree,
+      ...descendantIds(folders, opts.excludeSubtree),
+    ]);
   const labels = folderPathLabels(folders);
   return folders
     .filter((f) => !excluded.has(f.id))
     .map((f) => ({ value: f.id, label: labels.get(f.id) ?? f.label }))
     .sort((a, b) =>
-      a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" })
     );
 }
 
@@ -205,8 +204,7 @@ export function buildProductTree(args: {
       const date = later(inner.newest, folder.lastUpdated);
       tree.dates.set(folder.id, date);
       newest = later(newest, date);
-      const hasContents =
-        (tree.folders.get(folder.id)?.length ?? 0) > 0 ||
+      const hasContents = (tree.folders.get(folder.id)?.length ?? 0) > 0 ||
         (tree.products.get(folder.id)?.length ?? 0) > 0;
       const eligible = needle === null || underMatch || selfMatch;
       if (!eligible && !hasContents) continue;
@@ -247,14 +245,14 @@ export function buildProductTree(args: {
 
 export type ProductTreeRow =
   | {
-      kind: "folder";
-      folder: Folder;
-      depth: number;
-      expanded: boolean;
-      hasContents: boolean;
-      // The tree's date for the folder, not the folder's own.
-      lastUpdated: string;
-    }
+    kind: "folder";
+    folder: Folder;
+    depth: number;
+    expanded: boolean;
+    hasContents: boolean;
+    // The tree's date for the folder, not the folder's own.
+    lastUpdated: string;
+  }
   | { kind: "general"; expanded: boolean; lastUpdated: string }
   | { kind: "product"; product: ProductSummary; depth: number };
 
@@ -272,13 +270,12 @@ export function productTreeRows(
     }
   }
   function walk(parentId: string | null, depth: number) {
-    const items: RootItem[] =
-      parentId === null
-        ? tree.root
-        : (tree.folders.get(parentId) ?? []).map((folder) => ({
-            kind: "folder",
-            folder,
-          }));
+    const items: RootItem[] = parentId === null
+      ? tree.root
+      : (tree.folders.get(parentId) ?? []).map((folder) => ({
+        kind: "folder",
+        folder,
+      }));
     for (const item of items) {
       if (item.kind === "general") {
         const expanded = isExpanded(GENERAL_ID);
@@ -287,8 +284,8 @@ export function productTreeRows(
         continue;
       }
       const { folder } = item;
-      const hasContents =
-        tree.folders.has(folder.id) || tree.products.has(folder.id);
+      const hasContents = tree.folders.has(folder.id) ||
+        tree.products.has(folder.id);
       const expanded = hasContents && isExpanded(folder.id);
       rows.push({
         kind: "folder",

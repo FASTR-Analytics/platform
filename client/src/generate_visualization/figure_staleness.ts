@@ -1,4 +1,10 @@
-import type { ContentBlock, ContentSlide, FigureBlock, FigureBundle, PackageScope } from "lib";
+import type {
+  ContentBlock,
+  ContentSlide,
+  FigureBlock,
+  FigureBundle,
+  PackageScope,
+} from "lib";
 
 // Staleness: a per-figure comparison of the pair a bundle was resolved under
 // against the pair its container serves from. Nothing rewrites stored bundles

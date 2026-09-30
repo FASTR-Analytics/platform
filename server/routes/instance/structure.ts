@@ -1,24 +1,30 @@
 import { stringifyCsvWithHeaders } from "@timroberton/panther";
 import { Hono } from "hono";
-import { _DATASET_LIMIT, t3, type Dhis2Credentials, type FacilityFamily } from "lib";
+import {
+  _DATASET_LIMIT,
+  type Dhis2Credentials,
+  type FacilityFamily,
+  t3,
+} from "lib";
 import {
   addStructureUploadAttempt,
+  countOrphanedGeoJsonAreaIds,
   deleteAllHfaFacilityWeights,
   deleteFamilyFacilities,
+  deleteStructureUploadAttempt,
   getHfaFacilityWeightsItems,
   getInstancePopulationSummary,
   getInstanceStructureSummary,
-  importHfaFacilityWeights,
-  deleteStructureUploadAttempt,
+  getStoredDhis2CredentialsDecrypted,
   getStructureDhis2ResolvedCredentials,
   getStructureItems,
   getStructureStagedColumnValues,
   getStructureStagedRecodeRows,
   getStructureUploadAttempt,
   getStructureUploadStatus,
+  importHfaFacilityWeights,
   listAdminArea2s,
   setStructureRecodes,
-  getStoredDhis2CredentialsDecrypted,
   structureStep0_SetSourceType,
   structureStep1Csv_UploadFile,
   structureStep1Dhis2_ConfirmConnection,
@@ -27,7 +33,6 @@ import {
   structureStep3Csv_StageDataStreaming,
   structureStep3Dhis2_StageData,
   structureStep4_ImportData,
-  countOrphanedGeoJsonAreaIds,
 } from "../../db/mod.ts";
 import {
   getOrgUnitMetadata,
@@ -96,7 +101,9 @@ defineRoute(
     }
     const res = await deleteFamilyFacilities(c.var.mainDb, family);
     if (res.success) {
-      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      notifyInstanceStructureUpdated(
+        await getInstanceStructureSummary(c.var.mainDb),
+      );
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
       // Population coverage is measured against the HMIS structure.
       if (family === "hmis") {
@@ -149,7 +156,11 @@ defineRoute(
       SELECT COUNT(*)::int AS count FROM facilities_hfa
     `;
     if (count === 0) {
-      return c.json({ success: false, err: "No HFA facilities found. Import HFA facilities before importing weights." });
+      return c.json({
+        success: false,
+        err:
+          "No HFA facilities found. Import HFA facilities before importing weights.",
+      });
     }
     const res = await importHfaFacilityWeights(
       mainDb,
@@ -173,7 +184,9 @@ defineRoute(
   async (c) => {
     const res = await deleteAllHfaFacilityWeights(c.var.mainDb);
     if (res.success) {
-      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      notifyInstanceStructureUpdated(
+        await getInstanceStructureSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -393,10 +406,14 @@ defineRoute(
         }
       } catch (e) {
         console.error(
-          `countOrphanedGeoJsonAreaIds failed: ${e instanceof Error ? e.message : e}`,
+          `countOrphanedGeoJsonAreaIds failed: ${
+            e instanceof Error ? e.message : e
+          }`,
         );
       }
-      notifyInstanceStructureUpdated(await getInstanceStructureSummary(c.var.mainDb));
+      notifyInstanceStructureUpdated(
+        await getInstanceStructureSummary(c.var.mainDb),
+      );
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
       // Population coverage is measured against the HMIS structure.
       if (params.family === "hmis") {
@@ -436,12 +453,16 @@ defineRoute(
     } catch (error) {
       return c.json({
         success: false,
-        err: error instanceof Error ? error.message : "No stored DHIS2 credentials.",
+        err: error instanceof Error
+          ? error.message
+          : "No stored DHIS2 credentials.",
       });
     }
 
     // Validate the stored connection against DHIS2 before confirming it.
-    const connectionTest = await testDHIS2Connection({ dhis2Credentials: credentials });
+    const connectionTest = await testDHIS2Connection({
+      dhis2Credentials: credentials,
+    });
     if (!connectionTest.success) {
       return c.json({ success: false, err: t3(connectionTest.message) });
     }
@@ -528,12 +549,16 @@ routesStructure.get(
       return c.json(res);
     }
     const { headers, items } = res.data;
-    const aoa = [headers, ...items.map((row) => headers.map((h) => row[h] ?? ""))];
+    const aoa = [
+      headers,
+      ...items.map((row) => headers.map((h) => row[h] ?? "")),
+    ];
     const csvContent = stringifyCsvWithHeaders(aoa);
     return new Response(csvContent, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": 'attachment; filename="hfa_facility_weights.csv"',
+        "Content-Disposition":
+          'attachment; filename="hfa_facility_weights.csv"',
       },
     });
   },
@@ -562,7 +587,8 @@ routesStructure.get(
     return new Response(csvContent, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="facilities_${family}.csv"`,
+        "Content-Disposition":
+          `attachment; filename="facilities_${family}.csv"`,
       },
     });
   },

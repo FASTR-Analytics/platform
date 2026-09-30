@@ -2,7 +2,10 @@ import { markdownToPdfBrowser } from "panther";
 import type { APIResponseNoData } from "lib";
 import { serverActions } from "~/server_actions";
 import fontMap from "~/font-map.json";
-import { buildReportFigureMap, buildReportImageMap } from "~/generate_report/mod";
+import {
+  buildReportFigureMap,
+  buildReportImageMap,
+} from "~/generate_report/mod";
 import { replaceUnavailableMediaTokens } from "~/generate_report/mod";
 import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 

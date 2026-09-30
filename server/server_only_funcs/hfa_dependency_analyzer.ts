@@ -1,4 +1,8 @@
-import { extractRIdentifiers, type HfaIndicator, type HfaIndicatorCode } from "lib";
+import {
+  extractRIdentifiers,
+  type HfaIndicator,
+  type HfaIndicatorCode,
+} from "lib";
 
 export type ExtractedDependencies = {
   // Dataset variable ids. `variableIds` is the union across rCode +
@@ -96,7 +100,9 @@ export function buildUnionDependencyGraph(
 
       if (deps.unknownVariables.length > 0) {
         validationErrors.push(
-          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Unknown variables [${deps.unknownVariables.join(", ")}].`,
+          `Indicator "${indicator.indicatorId}" (time_point "${snippet.timePoint}"): Unknown variables [${
+            deps.unknownVariables.join(", ")
+          }].`,
         );
       }
 

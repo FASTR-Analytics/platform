@@ -36,8 +36,9 @@ export class StreamWriter<T = void> {
   async complete(): Promise<void>;
   async complete<TData>(data: TData): Promise<void>;
   async complete<TData>(data?: TData): Promise<void> {
-    const result =
-      data !== undefined ? { success: true, data } : { success: true };
+    const result = data !== undefined
+      ? { success: true, data }
+      : { success: true };
 
     // Send final result in completion message
     const completionMessage = JSON.stringify({
@@ -52,7 +53,7 @@ export class StreamWriter<T = void> {
 
 export async function streamResponse<T = void>(
   c: Context,
-  handler: (writer: StreamWriter<T>) => Promise<void>
+  handler: (writer: StreamWriter<T>) => Promise<void>,
 ): Promise<Response> {
   return stream(c, async (streamWriter) => {
     const writer = new StreamWriter<T>(async (chunk) => {
@@ -64,7 +65,9 @@ export async function streamResponse<T = void>(
       // Response already sent via complete() or error()
     } catch (error) {
       // Send error completion message to ensure stream completes properly
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
       await writer.error(errorMessage);
       // No need to rethrow - error is already sent to client
     }

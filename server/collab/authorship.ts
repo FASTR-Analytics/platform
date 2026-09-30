@@ -386,7 +386,9 @@ export function applySlideElementDelta(
     ledgers.set(k, { runs: [], body: "" });
     if (!insertOnly) {
       ledgers.set(k, {
-        runs: postText.length > 0 ? [{ len: postText.length, email: null }] : [],
+        runs: postText.length > 0
+          ? [{ len: postText.length, email: null }]
+          : [],
         body: postText,
       });
       return;

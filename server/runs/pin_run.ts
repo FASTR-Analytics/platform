@@ -1,9 +1,6 @@
 import type { Sql } from "postgres";
 import type { APIResponseNoData } from "lib";
-import {
-  clearPinnedRun,
-  setPinnedRun,
-} from "../db/instance/run_generation.ts";
+import { clearPinnedRun, setPinnedRun } from "../db/instance/run_generation.ts";
 import {
   notifyInstancePinnedRunUpdated,
   notifyInstanceRunsCatalogUpdated,

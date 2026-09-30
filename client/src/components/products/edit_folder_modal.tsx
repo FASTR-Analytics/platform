@@ -1,10 +1,10 @@
-import { t3, type Folder } from "lib";
+import { type Folder, t3 } from "lib";
 import {
-  ModalContainer,
-  ColorPicker,
-  Input,
-  createFormAction,
   type AlertComponentProps,
+  ColorPicker,
+  createFormAction,
+  Input,
+  ModalContainer,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -66,15 +66,13 @@ export function EditFolderModal(p: AlertComponentProps<Props, ReturnType>) {
 
   return (
     <ModalContainer
-      title={
-        isCreate
-          ? t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })
-          : t3({
-              en: "Edit folder",
-              fr: "Modifier le dossier",
-              pt: "Editar pasta",
-            })
-      }
+      title={isCreate
+        ? t3({ en: "New folder", fr: "Nouveau dossier", pt: "Nova pasta" })
+        : t3({
+          en: "Edit folder",
+          fr: "Modifier le dossier",
+          pt: "Editar pasta",
+        })}
       form
       onCancel={() => p.close(undefined)}
       actions={[{

@@ -8,9 +8,9 @@ import {
 } from "../../task_management/notify_instance_updated.ts";
 import { runGenerationPipeline } from "./pipeline.ts";
 import {
-  RUN_GENERATION_ENDED_CHANNEL,
   type GenerateRunEndedData,
   type GenerateRunStartData,
+  RUN_GENERATION_ENDED_CHANNEL,
 } from "./types.ts";
 
 const broadcastEnded = new BroadcastChannel(RUN_GENERATION_ENDED_CHANNEL);

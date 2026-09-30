@@ -11,10 +11,7 @@ import {
 } from "./runs/mod.ts";
 import { resetDuckDbSpillDir } from "./run_query/duckdb_executor.ts";
 import { markInterruptedGeneratingRuns } from "./db/instance/run_generation.ts";
-import {
-  _INSTANCE_COUNTRY_ISO3,
-  _RUNS_DIR_PATH,
-} from "./exposed_env_vars.ts";
+import { _INSTANCE_COUNTRY_ISO3, _RUNS_DIR_PATH } from "./exposed_env_vars.ts";
 import { runInstanceMigrations } from "./db/migrations/runner.ts";
 import {
   getPgConnectionFromCacheOrNew,
@@ -176,8 +173,12 @@ SELECT id FROM runs WHERE status NOT IN ('generating', 'failed')
 async function resetWedgedUploadAttempts(mainDb: Sql): Promise<void> {
   const message =
     "Import interrupted by a server restart. Delete this attempt and start again.";
-  const structureErrStatus = JSON.stringify({ status: "error", error: message });
-  const reset = await mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`;
+  const structureErrStatus = JSON.stringify({
+    status: "error",
+    error: message,
+  });
+  const reset =
+    await mainDb`UPDATE structure_upload_attempts SET status = ${structureErrStatus}, status_type = 'error' WHERE status_type = 'importing'`;
   if (reset.count > 0) {
     console.log(
       `[startup] Reset ${reset.count} upload attempt(s) wedged mid-import by a previous shutdown`,
@@ -246,13 +247,21 @@ async function runInstanceDataTransforms(mainDb: Sql): Promise<void> {
 
 function logMigrationResults(results: MigrationResult[]): void {
   const hasFailures = results.some((r) => !r.success);
-  const totalChecked = results.reduce((sum, r) => sum + (r.stats?.rowsChecked ?? 0), 0);
-  const totalTransformed = results.reduce((sum, r) => sum + (r.stats?.rowsTransformed ?? 0), 0);
+  const totalChecked = results.reduce(
+    (sum, r) => sum + (r.stats?.rowsChecked ?? 0),
+    0,
+  );
+  const totalTransformed = results.reduce(
+    (sum, r) => sum + (r.stats?.rowsTransformed ?? 0),
+    0,
+  );
 
   if (hasFailures) {
     console.log(`[migration] Data transforms FAILED`);
   } else {
-    console.log(`[migration] Data transforms ${totalChecked} checked, ${totalTransformed} transformed`);
+    console.log(
+      `[migration] Data transforms ${totalChecked} checked, ${totalTransformed} transformed`,
+    );
   }
 
   if (totalTransformed > 0 || hasFailures) {

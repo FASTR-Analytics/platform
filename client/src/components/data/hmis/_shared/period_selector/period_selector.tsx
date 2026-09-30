@@ -1,6 +1,6 @@
 import { getPeriodIdFromTime, getTimeFromPeriodId, PeriodType } from "panther";
 import { TimeIndexSelector } from "./time_index_selector";
-import { Show, createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 
 type PeriodSelectorProps = {
   periodType: PeriodType;

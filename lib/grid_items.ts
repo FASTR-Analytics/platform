@@ -44,9 +44,7 @@ export function encodeGridItems(
   groupBys: string[],
 ): GridItemsEncoded {
   const grouped = new Set(groupBys);
-  const valueProps = Object.keys(items[0] ?? {}).filter((k) =>
-    !grouped.has(k)
-  );
+  const valueProps = Object.keys(items[0] ?? {}).filter((k) => !grouped.has(k));
   const indexes = groupBys.map(() => new Map<GridCell, number>());
   const levels: GridCell[][] = groupBys.map(() => []);
   const rows = items.map((item) =>

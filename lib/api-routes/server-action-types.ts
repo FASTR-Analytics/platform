@@ -7,26 +7,23 @@ export type RouteBody<T> = T extends { body: infer B } ? B : never;
 // Extract the response type from the route.
 // route-utils.ts resolves the response field to APIResponseNoData or APIResponseWithData<T>
 // before it reaches the registry, so R is always a concrete envelope type.
-export type RouteResponse<T> = T extends { response: infer R } ? R : APIResponseNoData;
-export type RouteIsStreaming<T> = T extends { isStreaming: true }
-  ? true
+export type RouteResponse<T> = T extends { response: infer R } ? R
+  : APIResponseNoData;
+export type RouteIsStreaming<T> = T extends { isStreaming: true } ? true
   : false;
 
 // Handle the case where both params and body might be never
 export type RouteArgs<T> = [RouteParams<T>] extends [never]
-  ? [RouteBody<T>] extends [never]
-    ? {}
-    : RouteBody<T>
-  : [RouteBody<T>] extends [never]
-  ? RouteParams<T>
+  ? [RouteBody<T>] extends [never] ? {}
+  : RouteBody<T>
+  : [RouteBody<T>] extends [never] ? RouteParams<T>
   : RouteParams<T> & RouteBody<T>;
 
 // Create server action function type from registry entry
-type ServerActionFromEntry<Entry> = RouteIsStreaming<Entry> extends true
-  ? (
-      args: RouteArgs<Entry>,
-      onProgress?: ProgressCallback
-    ) => Promise<RouteResponse<Entry>>
+type ServerActionFromEntry<Entry> = RouteIsStreaming<Entry> extends true ? (
+    args: RouteArgs<Entry>,
+    onProgress?: ProgressCallback,
+  ) => Promise<RouteResponse<Entry>>
   : (args: RouteArgs<Entry>) => Promise<RouteResponse<Entry>>;
 
 // The final server actions type based on the registry

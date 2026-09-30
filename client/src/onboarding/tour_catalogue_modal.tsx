@@ -2,14 +2,14 @@ import { t3 } from "lib";
 import type { SlideType } from "lib";
 import type { SolidTourManagerController } from "@njwse/roadtrip/solid";
 import { type AlertComponentProps } from "panther";
-import { For, createSignal, onMount } from "solid-js";
+import { createSignal, For, onMount } from "solid-js";
 import { setPendingTourReplay } from "~/state/t4_ui";
 import {
-  SLIDE_TOUR_TYPES,
   findDeckWithSlideOfType,
   getTourAreas,
   getTourCatalogue,
   type InstanceTab,
+  SLIDE_TOUR_TYPES,
   type TourCatalogueEntry,
 } from "./catalogue";
 import { TourCatalogueFrame, TourRow } from "./tour_catalogue_layout";

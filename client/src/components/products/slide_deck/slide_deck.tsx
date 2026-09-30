@@ -1,12 +1,12 @@
 import {
   canonicalJson,
+  getStartingConfigForSlideDeck,
   type PackageScope,
+  productScope,
   type ProductSummary,
   type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
-  getStartingConfigForSlideDeck,
-  productScope,
   t3,
 } from "lib";
 import { LoadingIndicator, openAlert } from "panther";
@@ -17,9 +17,22 @@ import {
   getEditorWrapper,
   openComponent,
 } from "panther";
-import { batch, createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+  untrack,
+} from "solid-js";
 import { serverActions } from "~/server_actions";
-import { getSlideFromCacheOrFetch, peekSlide } from "~/state/products/t2_slides";
+import {
+  getSlideFromCacheOrFetch,
+  peekSlide,
+} from "~/state/products/t2_slides";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { DownloadSlideDeck } from "./download_slide_deck";
@@ -27,14 +40,11 @@ import { ShareSlideDeck } from "./share_slide_deck";
 import { SlideEditor, type SlideEditorApi } from "./slide_editor/mod.ts";
 import { SlideList } from "./slide_list";
 import { SlidePresenter } from "./slide_presenter";
-import {
-  SlideDeckSettings,
-  type SlideDeckSettingsProps,
-} from "./settings";
+import { SlideDeckSettings, type SlideDeckSettingsProps } from "./settings";
 import {
   copilotViewController,
-  restoreCopilotView,
   type CopilotViewState,
+  restoreCopilotView,
 } from "~/components/products/copilot/mod.ts";
 import { snapshotForSlideEditor } from "./editor_snapshot";
 import { pendingSlideOpen, setPendingSlideOpen } from "~/state/t4_ui";
@@ -325,7 +335,9 @@ function SlideDeckEditorInner(p: {
   // (the old slide's collab session closes, its draft flushed if collab was
   // not persisting) and a fresh mount. The slide's content is fetched here
   // before the mount, as the full-page editor used to be handed it.
-  const [currentSlideId, setCurrentSlideId] = createSignal<string | undefined>();
+  const [currentSlideId, setCurrentSlideId] = createSignal<
+    string | undefined
+  >();
   const [editorSlide, setEditorSlide] = createSignal<
     { slideId: string; slide: Slide; lastUpdated: string } | undefined
   >();
@@ -372,7 +384,9 @@ function SlideDeckEditorInner(p: {
           return;
         }
         if (current !== undefined && slideIds.includes(current)) return;
-        const wasAt = current === undefined ? -1 : (prev ?? []).indexOf(current);
+        const wasAt = current === undefined
+          ? -1
+          : (prev ?? []).indexOf(current);
         const next = wasAt >= 0
           ? slideIds[Math.min(wasAt, slideIds.length - 1)]
           : slideIds[0];
@@ -389,24 +403,29 @@ function SlideDeckEditorInner(p: {
     // object on every product tick.
     () => [currentSlideId(), p.scope?.runId, p.authoringContext] as const,
     ([slideId, runId, authoringContext]) => {
-    const fetchId = ++editorFetchId;
-    if (slideId === undefined || runId === undefined || !authoringContext) {
-      setEditorSlide(undefined);
-      setEditorLoading(false);
-      return;
-    }
-    setEditorLoading(true);
-    void (async () => {
-      const res = await getSlideFromCacheOrFetch(p.productId, slideId);
-      if (fetchId !== editorFetchId) return;
-      setEditorLoading(false);
-      if (!res.success) {
+      const fetchId = ++editorFetchId;
+      if (slideId === undefined || runId === undefined || !authoringContext) {
         setEditorSlide(undefined);
+        setEditorLoading(false);
         return;
       }
-      setEditorSlide({ slideId, slide: res.data.slide, lastUpdated: res.data.lastUpdated });
-    })();
-  }));
+      setEditorLoading(true);
+      void (async () => {
+        const res = await getSlideFromCacheOrFetch(p.productId, slideId);
+        if (fetchId !== editorFetchId) return;
+        setEditorLoading(false);
+        if (!res.success) {
+          setEditorSlide(undefined);
+          return;
+        }
+        setEditorSlide({
+          slideId,
+          slide: res.data.slide,
+          lastUpdated: res.data.lastUpdated,
+        });
+      })();
+    },
+  ));
 
   // The deck config the editor was mounted with: a change of substance (the
   // settings modal) remounts it, a refetch of the same config does not.
@@ -414,10 +433,16 @@ function SlideDeckEditorInner(p: {
   // server's (rebuilt in schema order) are the same deck, and must not
   // remount the editor a second time when the refetch lands.
   const deckConfigKey = createMemo(() => canonicalJson(p.deckConfig));
-  const editorKey = createMemo(() => {
-    const es = editorSlide();
-    return es === undefined ? undefined : { ...es, key: `${es.slideId}|${deckConfigKey()}` };
-  }, undefined, { equals: (a, b) => a?.key === b?.key });
+  const editorKey = createMemo(
+    () => {
+      const es = editorSlide();
+      return es === undefined
+        ? undefined
+        : { ...es, key: `${es.slideId}|${deckConfigKey()}` };
+    },
+    undefined,
+    { equals: (a, b) => a?.key === b?.key },
+  );
 
   // Tour catalogue replay: once the deck has loaded, open its first slide of
   // the requested type. Cleared before selecting; if no slide matches, nothing
@@ -443,65 +468,69 @@ function SlideDeckEditorInner(p: {
     <HistoryEditorWrapper>
       <SettingsEditorWrapper>
         <DeckEditorWrapper>
-        <SlideList
-          productId={p.productId}
-          product={p.product}
-          scope={p.scope}
-          authoringContext={p.authoringContext}
-          slideIds={p.slideIds}
-          isLoading={p.isLoading}
-          setSelectedSlideIds={p.setSelectedSlideIds}
-          currentSlideId={currentSlideId()}
-          onSelectSlide={selectSlide}
-          deckLabel={p.deckLabel}
-          handleClose={p.handleClose}
-          handleOpenSettings={handleOpenSettings}
-          handleOpenProductSettings={handleOpenProductSettings}
-          download={download}
-          share={share}
-          present={present}
-          openVersionHistory={openVersionHistory}
-          deckConfig={p.deckConfig}
-          patchDeckConfig={p.patchDeckConfig}
-          onToolbarHost={setToolbarHost}
-          onMenuRowHost={setMenuRowHost}
-          onStatusHost={setStatusHost}
-        >
-          <Show
-            when={editorKey()}
-            keyed
-            fallback={
-              <Show when={editorLoading()}>
-                <LoadingIndicator
-                  msg={t3({ en: "Loading slide...", fr: "Chargement de la diapositive...", pt: "A carregar diapositivo..." })}
-                  pad="md"
-                />
-              </Show>
-            }
+          <SlideList
+            productId={p.productId}
+            product={p.product}
+            scope={p.scope}
+            authoringContext={p.authoringContext}
+            slideIds={p.slideIds}
+            isLoading={p.isLoading}
+            setSelectedSlideIds={p.setSelectedSlideIds}
+            currentSlideId={currentSlideId()}
+            onSelectSlide={selectSlide}
+            deckLabel={p.deckLabel}
+            handleClose={p.handleClose}
+            handleOpenSettings={handleOpenSettings}
+            handleOpenProductSettings={handleOpenProductSettings}
+            download={download}
+            share={share}
+            present={present}
+            openVersionHistory={openVersionHistory}
+            deckConfig={p.deckConfig}
+            patchDeckConfig={p.patchDeckConfig}
+            onToolbarHost={setToolbarHost}
+            onMenuRowHost={setMenuRowHost}
+            onStatusHost={setStatusHost}
           >
-            {(es) => (
-              <SlideEditor
-                productId={p.productId}
-                deckLabel={p.deckLabel}
-                slideId={es.slideId}
-                lastUpdated={es.lastUpdated}
-                slide={es.slide}
-                scope={p.scope!}
-                authoringContext={p.authoringContext!}
-                returnToContext={p.deckViewState()}
-                toolbarHost={toolbarHost()}
-                menuRowHost={menuRowHost()}
-                statusHost={statusHost()}
-                openHostEditor={openDeckEditor}
-                deckContext={p.deckContext}
-                onApi={(api) => {
-                  editorApi = api;
-                }}
-                {...snapshotForSlideEditor({ deckConfig: p.deckConfig })}
-              />
-            )}
-          </Show>
-        </SlideList>
+            <Show
+              when={editorKey()}
+              keyed
+              fallback={
+                <Show when={editorLoading()}>
+                  <LoadingIndicator
+                    msg={t3({
+                      en: "Loading slide...",
+                      fr: "Chargement de la diapositive...",
+                      pt: "A carregar diapositivo...",
+                    })}
+                    pad="md"
+                  />
+                </Show>
+              }
+            >
+              {(es) => (
+                <SlideEditor
+                  productId={p.productId}
+                  deckLabel={p.deckLabel}
+                  slideId={es.slideId}
+                  lastUpdated={es.lastUpdated}
+                  slide={es.slide}
+                  scope={p.scope!}
+                  authoringContext={p.authoringContext!}
+                  returnToContext={p.deckViewState()}
+                  toolbarHost={toolbarHost()}
+                  menuRowHost={menuRowHost()}
+                  statusHost={statusHost()}
+                  openHostEditor={openDeckEditor}
+                  deckContext={p.deckContext}
+                  onApi={(api) => {
+                    editorApi = api;
+                  }}
+                  {...snapshotForSlideEditor({ deckConfig: p.deckConfig })}
+                />
+              )}
+            </Show>
+          </SlideList>
         </DeckEditorWrapper>
       </SettingsEditorWrapper>
     </HistoryEditorWrapper>

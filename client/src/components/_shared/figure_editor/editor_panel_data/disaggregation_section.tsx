@@ -1,18 +1,18 @@
 import {
   DisaggregationDisplayOption,
   DisaggregationOption as DisaggregationOptionValue,
-  IneffectiveDisaggregator,
-  IneffectiveReason,
-  PresentationObjectConfig,
-  ResultsValue,
-  TC,
+  get_DISAGGREGATION_DISPLAY_OPTIONS,
   getNextAvailableDisaggregationDisplayOption,
   getRollupLabelContextForDimension,
-  get_DISAGGREGATION_DISPLAY_OPTIONS,
+  IneffectiveDisaggregator,
+  IneffectiveReason,
   isRollupCandidateDimension,
   isRollupDimension,
   isRollupEligibleResultsValue,
+  PresentationObjectConfig,
+  ResultsValue,
   t3,
+  TC,
 } from "lib";
 import { Checkbox, RadioGroup, Select } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
@@ -37,7 +37,11 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
   return (
     <div class="ui-spy-sm">
       <div class="ui-text-heading">
-        {t3({ en: "Display (disaggregate)", fr: "Affichage (désagréger)", pt: "Apresentação (desagregar)" })}
+        {t3({
+          en: "Display (disaggregate)",
+          fr: "Affichage (désagréger)",
+          pt: "Apresentação (desagregar)",
+        })}
       </div>
 
       <Show when={p.metric.valueProps.length > 1}>
@@ -46,7 +50,11 @@ export function DisaggregationSection(p: DisaggregationSectionProps) {
           fallback={
             <div class="pb-4">
               <Checkbox
-                label={t3({ en: "Data values", fr: "Valeurs des données", pt: "Valores dos dados" })}
+                label={t3({
+                  en: "Data values",
+                  fr: "Valeurs des données",
+                  pt: "Valores dos dados",
+                })}
                 checked={true}
                 disabled={true}
                 onChange={() => {}}
@@ -96,7 +104,11 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
           <>
             <div class="flex flex-wrap items-center gap-x-1">
               <span class="">
-                {t3({ en: "Data values", fr: "Valeurs des données", pt: "Valores dos dados" })}
+                {t3({
+                  en: "Data values",
+                  fr: "Valeurs des données",
+                  pt: "Valores dos dados",
+                })}
               </span>
               <span class="text-xs">
                 (
@@ -124,8 +136,7 @@ function DataValuesDisaggregation(p: DataValuesDisaggregationProps) {
             "d",
             "valuesDisDisplayOpt",
             v as DisaggregationDisplayOption,
-          )
-        }
+          )}
         fullWidth
       />
     </div>
@@ -179,7 +190,12 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
         {(ineff) => (
           <div class="">
             <Checkbox
-              label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.metric.datasetFamily))}
+              label={t3(
+                getDisplayDisaggregationLabel(
+                  p.disOpt.value,
+                  p.metric.datasetFamily,
+                ),
+              )}
               checked={false}
               disabled={true}
               onChange={() => {}}
@@ -193,7 +209,12 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
       <Match when={!p.disOpt.isRequired}>
         <div class="ui-spy-sm">
           <Checkbox
-            label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.metric.datasetFamily))}
+            label={t3(
+              getDisplayDisaggregationLabel(
+                p.disOpt.value,
+                p.metric.datasetFamily,
+              ),
+            )}
             checked={p.tempConfig.d.disaggregateBy.some(
               (d) => d.disOpt === p.disOpt.value,
             )}
@@ -212,14 +233,14 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
                 ]);
               } else {
                 p.setTempConfig("d", "disaggregateBy", (prev) =>
-                  prev.filter((d) => d.disOpt !== p.disOpt.value),
-                );
+                  prev.filter((d) => d.disOpt !== p.disOpt.value));
               }
             }}
           />
           <Show
             when={p.tempConfig.d.disaggregateBy.find(
-              (d) => d.disOpt === p.disOpt.value,
+              (d) =>
+                d.disOpt === p.disOpt.value,
             )}
             keyed
           >
@@ -243,7 +264,12 @@ function DisaggregationOption(p: DisaggregationOptionProps) {
             label={
               <div class="flex flex-wrap items-center gap-x-1">
                 <span class="">
-                  {t3(getDisplayDisaggregationLabel(p.disOpt.value, p.metric.datasetFamily))}
+                  {t3(
+                    getDisplayDisaggregationLabel(
+                      p.disOpt.value,
+                      p.metric.datasetFamily,
+                    ),
+                  )}
                 </span>
                 <span class="text-xs">
                   (
@@ -318,12 +344,14 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
         }}
         fullWidth
       />
-      {/* The roll-up option appears on every dimension the roll-up could
+      {
+        /* The roll-up option appears on every dimension the roll-up could
           collapse (admin levels and facility columns passing the shape rules).
           When the METRIC is ineligible (isRollupEligibleResultsValue, e.g.
           pre-aggregated values that can't be summed/averaged), show the
           control disabled with a reason rather than hiding it, so the absence
-          is explicable. */}
+          is explicable. */
+      }
       <Show when={isRollupCandidateDimension(p.tempConfig, p.keyedDis)}>
         <Show
           when={isRollupEligibleResultsValue(p.metric)}
@@ -337,9 +365,12 @@ function DisaggregationOptionSettings(p: DisaggregationOptionSettingsProps) {
               />
               <div class="text-warning text-xs">
                 {t3({
-                  en: "Not available for this metric (values cannot be aggregated across groups)",
-                  fr: "Non disponible pour cette mesure (les valeurs ne peuvent pas être agrégées entre les groupes)",
-                  pt: "Não disponível para esta métrica (os valores não podem ser agregados entre grupos)",
+                  en:
+                    "Not available for this metric (values cannot be aggregated across groups)",
+                  fr:
+                    "Non disponible pour cette mesure (les valeurs ne peuvent pas être agrégées entre les groupes)",
+                  pt:
+                    "Não disponível para esta métrica (os valores não podem ser agregados entre grupos)",
                 })}
               </div>
             </div>
@@ -439,8 +470,14 @@ function RollupOptions(p: RollupOptionsProps) {
           <RadioGroup
             value={p.keyedDis.rollupPosition ?? "bottom"}
             options={[
-              { value: "top", label: t3({ en: "Start", fr: "Début", pt: "Início" }) },
-              { value: "bottom", label: t3({ en: "End", fr: "Fin", pt: "Fim" }) },
+              {
+                value: "top",
+                label: t3({ en: "Start", fr: "Début", pt: "Início" }),
+              },
+              {
+                value: "bottom",
+                label: t3({ en: "End", fr: "Fin", pt: "Fim" }),
+              },
             ]}
             horizontal
             onChange={(v) =>
@@ -450,8 +487,7 @@ function RollupOptions(p: RollupOptionsProps) {
                 (d) => d.disOpt === p.disOpt,
                 "rollupPosition",
                 v as "bottom" | "top",
-              )
-            }
+              )}
           />
         </div>
       </Show>

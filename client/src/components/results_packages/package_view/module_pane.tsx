@@ -1,12 +1,12 @@
 import {
-  t3,
   type InstalledModuleSummary,
   type PackageScope,
   type RunAuthoringContext,
   type RunDetail,
+  t3,
 } from "lib";
 import { Button, formatFileSize } from "panther";
-import { For, Show, createMemo } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { ScopePicker, type ScopeSelection } from "~/components/_shared/mod.ts";
 import {
   canViewPackageContents,

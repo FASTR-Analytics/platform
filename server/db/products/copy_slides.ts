@@ -13,7 +13,11 @@ import { mintSlideIds, reSequence } from "./slides.ts";
 // the source product, so a slide id from a third deck is not found.
 export async function copySlidesToSlideDeck(
   mainDb: Sql,
-  args: { sourceProductId: string; slideIds: string[]; targetProductId: string },
+  args: {
+    sourceProductId: string;
+    slideIds: string[];
+    targetProductId: string;
+  },
 ): Promise<
   APIResponseWithData<{ newSlideIds: string[]; lastUpdated: string }>
 > {

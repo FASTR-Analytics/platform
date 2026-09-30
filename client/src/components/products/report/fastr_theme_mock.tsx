@@ -131,13 +131,17 @@ function MockContent() {
           <i class="fmt-bar" style={{ width: "55%" }} />
         </div>
       </div>
-      {/* An h2 earns its place: the themes differ most in heading treatment
-          (Swiss uppercase, Ministry green, Editorial rules). */}
+      {
+        /* An h2 earns its place: the themes differ most in heading treatment
+          (Swiss uppercase, Ministry green, Editorial rules). */
+      }
       <h2>{t3({ en: "Findings", fr: "Constats", pt: "Constatações" })}</h2>
       <i class="fmt-bar" style={{ width: "96%" }} />
       <i class="fmt-bar" style={{ width: "88%" }} />
-      {/* The theme's own dark ground — the thing a full-width band paints, and
-          the clearest difference between one theme's dark and another's. */}
+      {
+        /* The theme's own dark ground — the thing a full-width band paints, and
+          the clearest difference between one theme's dark and another's. */
+      }
       <div class="fm-band fm-tone fm-tone--ink">
         <i class="fmt-bar" style={{ width: "70%" }} />
         <i class="fmt-bar" style={{ width: "48%" }} />
@@ -181,14 +185,18 @@ export function fastrMockScopeClass(
   theme: FastrReportTheme,
   customStyleId?: string,
 ): string {
-  return customStyleId === undefined ? scopeFor(theme) : customScopeFor(customStyleId);
+  return customStyleId === undefined
+    ? scopeFor(theme)
+    : customScopeFor(customStyleId);
 }
 
 // A template's first page: its real body rendered through the report's own
 // renderer under the mock sheet of the chosen look (FastrThemeMockStyles must
 // be mounted, with the custom style when there is one). `html` is the
 // sanitized render; undefined draws the blank page.
-export function FastrTemplateMock(p: { scopeClass: string; html: string | undefined }) {
+export function FastrTemplateMock(
+  p: { scopeClass: string; html: string | undefined },
+) {
   return (
     <Show
       when={p.html !== undefined && p.html.trim().length > 0}
@@ -198,7 +206,12 @@ export function FastrTemplateMock(p: { scopeClass: string; html: string | undefi
           style={{ "font-size": "3.6px" }}
           aria-hidden="true"
         >
-          <span class="text-base-content-muted font-light" style={{ "font-size": "40px" }}>+</span>
+          <span
+            class="text-base-content-muted font-light"
+            style={{ "font-size": "40px" }}
+          >
+            +
+          </span>
         </div>
       }
     >

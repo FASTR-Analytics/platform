@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 import { Button } from "panther";
-import { Show, createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 
 const SHOWN_BEFORE_FOLD = 10;
 
@@ -25,7 +25,9 @@ export function IdListLine(p: Props) {
         <Show when={folded()}>
           {" "}
           <Button onClick={() => setExpanded(true)} size="sm" outline>
-            {`${t3({ en: "and", fr: "et", pt: "e" })} ${p.ids.length - SHOWN_BEFORE_FOLD} ${t3({ en: "more", fr: "autres", pt: "mais" })}`}
+            {`${t3({ en: "and", fr: "et", pt: "e" })} ${
+              p.ids.length - SHOWN_BEFORE_FOLD
+            } ${t3({ en: "more", fr: "autres", pt: "mais" })}`}
           </Button>
         </Show>
       </div>

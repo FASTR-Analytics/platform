@@ -1,12 +1,12 @@
 import {
+  bucketLabels,
   type ConditionalFormatting,
   type ConditionalFormattingScale,
+  getLanguage,
+  type IndicatorFormat,
   LEGACY_CF_PRESET_IDS,
   LEGACY_CF_PRESETS,
   type LegacyCfPresetId,
-  bucketLabels,
-  getLanguage,
-  type IndicatorFormat,
   scaleValueForFormat,
   t3,
   type ThresholdDirection,
@@ -17,8 +17,8 @@ import {
   Button,
   ButtonGroup,
   Checkbox,
-  ColorPicker,
   type ColorKeyOrString,
+  ColorPicker,
   type ContinuousScaleConfig,
   Input,
   NumberInput,
@@ -68,14 +68,20 @@ export function ConditionalFormattingEditor(p: Props) {
   };
 
   const modeItems = () => [
-    { id: "none" as const, label: t3({ en: "Off", fr: "Désactivé", pt: "Desativado" }) },
+    {
+      id: "none" as const,
+      label: t3({ en: "Off", fr: "Désactivé", pt: "Desativado" }),
+    },
     ...(p.offerIndicatorSource
       ? [{
         id: "indicator" as const,
         label: t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
       }]
       : []),
-    { id: "scale" as const, label: t3({ en: "Scale", fr: "Échelle", pt: "Escala" }) },
+    {
+      id: "scale" as const,
+      label: t3({ en: "Scale", fr: "Échelle", pt: "Escala" }),
+    },
     {
       id: "thresholds" as const,
       label: t3({ en: "Thresholds", fr: "Seuils", pt: "Limiares" }),
@@ -93,9 +99,12 @@ export function ConditionalFormattingEditor(p: Props) {
       <Show when={cf().type === "indicator"}>
         <div class="text-base-content-muted text-xs">
           {t3({
-            en: "Each value is coloured by its own indicator's rule, set in the instance indicator dictionary. The visualization's legend shows the bands.",
-            fr: "Chaque valeur est colorée selon la règle de son propre indicateur, définie dans le dictionnaire d'indicateurs de l'instance. La légende de la visualisation montre les tranches.",
-            pt: "Cada valor é colorido pela regra do seu próprio indicador, definida no dicionário de indicadores da instância. A legenda da visualização mostra as faixas.",
+            en:
+              "Each value is coloured by its own indicator's rule, set in the instance indicator dictionary. The visualization's legend shows the bands.",
+            fr:
+              "Chaque valeur est colorée selon la règle de son propre indicateur, définie dans le dictionnaire d'indicateurs de l'instance. La légende de la visualisation montre les tranches.",
+            pt:
+              "Cada valor é colorido pela regra do seu próprio indicador, definida no dicionário de indicadores da instância. A legenda da visualização mostra as faixas.",
           })}
         </div>
       </Show>
@@ -170,16 +179,18 @@ function ScalePanel(p: {
     <StyleRevealGroup>
       <Select
         label={t3({ en: "Palette", fr: "Palette", pt: "Paleta" })}
-        value={
-          state().mode === "custom"
-            ? CUSTOM_PALETTE
-            : (state().paletteName ?? "rd-yl-gn")
-        }
+        value={state().mode === "custom"
+          ? CUSTOM_PALETTE
+          : (state().paletteName ?? "rd-yl-gn")}
         options={[
           ...PALETTE_OPTIONS,
           {
             value: CUSTOM_PALETTE,
-            label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
+            label: t3({
+              en: "Custom",
+              fr: "Personnalisé",
+              pt: "Personalizado",
+            }),
           },
         ]}
         onChange={(v) => {
@@ -219,7 +230,11 @@ function ScalePanel(p: {
             colorSet="standard"
           />
           <Checkbox
-            label={t3({ en: "Diverging (mid)", fr: "Divergent (milieu)", pt: "Divergente (meio)" })}
+            label={t3({
+              en: "Diverging (mid)",
+              fr: "Divergent (milieu)",
+              pt: "Divergente (meio)",
+            })}
             checked={hasMid()}
             onChange={(v) => updateScale({ mid: v ? "#ffffff" : undefined })}
           />
@@ -231,23 +246,33 @@ function ScalePanel(p: {
         onChange={(v) => updateScale({ reverse: v })}
       />
       <RadioGroup<"continuous" | "discrete">
-        label={t3({ en: "Scale type", fr: "Type d'échelle", pt: "Tipo de escala" })}
+        label={t3({
+          en: "Scale type",
+          fr: "Type d'échelle",
+          pt: "Tipo de escala",
+        })}
         options={[
           {
             value: "continuous",
             label: t3({ en: "Continuous", fr: "Continue", pt: "Contínua" }),
           },
-          { value: "discrete", label: t3({ en: "Discrete", fr: "Discrète", pt: "Discreta" }) },
+          {
+            value: "discrete",
+            label: t3({ en: "Discrete", fr: "Discrète", pt: "Discreta" }),
+          },
         ]}
         value={isDiscrete() ? "discrete" : "continuous"}
         onChange={(v) =>
-          update({ steps: v === "discrete" ? (p.cf.steps ?? 5) : undefined })
-        }
+          update({ steps: v === "discrete" ? (p.cf.steps ?? 5) : undefined })}
         horizontal
       />
       <Show when={isDiscrete()}>
         <Slider
-          label={t3({ en: "Number of steps", fr: "Nombre de paliers", pt: "Número de passos" })}
+          label={t3({
+            en: "Number of steps",
+            fr: "Nombre de paliers",
+            pt: "Número de passos",
+          })}
           min={2}
           max={10}
           step={1}
@@ -259,13 +284,16 @@ function ScalePanel(p: {
       </Show>
       <div class="ui-spy-sm">
         <Checkbox
-          label={t3({ en: "Fix value range", fr: "Fixer la plage de valeurs", pt: "Fixar intervalo de valores" })}
+          label={t3({
+            en: "Fix value range",
+            fr: "Fixer la plage de valeurs",
+            pt: "Fixar intervalo de valores",
+          })}
           checked={isFixed()}
           onChange={(v) =>
             update({
               domain: v ? { kind: "fixed", min: 0, max: 1 } : { kind: "auto" },
-            })
-          }
+            })}
         />
         <Show when={isFixed() && p.cf.domain.kind === "fixed"}>
           {(() => {
@@ -361,8 +389,9 @@ export function ThresholdsPanel(p: {
     // Enforce increasing order: clamp the new value between neighbors.
     // cutoffs[i] must stay ≥ cutoffs[i-1] and ≤ cutoffs[i+1].
     const lowerBound = i > 0 ? cutoffs[i - 1] : Number.NEGATIVE_INFINITY;
-    const upperBound =
-      i < cutoffs.length - 1 ? cutoffs[i + 1] : Number.POSITIVE_INFINITY;
+    const upperBound = i < cutoffs.length - 1
+      ? cutoffs[i + 1]
+      : Number.POSITIVE_INFINITY;
     cutoffs[i] = Math.max(lowerBound, Math.min(upperBound, v));
     update({ cutoffs });
   };
@@ -429,11 +458,19 @@ export function ThresholdsPanel(p: {
           options={[
             {
               value: "higher-is-better",
-              label: t3({ en: "Higher is better", fr: "Plus élevé = meilleur", pt: "Mais alto é melhor" }),
+              label: t3({
+                en: "Higher is better",
+                fr: "Plus élevé = meilleur",
+                pt: "Mais alto é melhor",
+              }),
             },
             {
               value: "lower-is-better",
-              label: t3({ en: "Lower is better", fr: "Plus bas = meilleur", pt: "Mais baixo é melhor" }),
+              label: t3({
+                en: "Lower is better",
+                fr: "Plus bas = meilleur",
+                pt: "Mais baixo é melhor",
+              }),
             },
           ]}
           value={direction()}
@@ -442,9 +479,11 @@ export function ThresholdsPanel(p: {
         />
       </Show>
       <div class="flex flex-col gap-1.5">
-        {/* Index, not For: every edit maps the buckets into new objects, and
+        {
+          /* Index, not For: every edit maps the buckets into new objects, and
             For keys rows by identity, so a keystroke in a label input would
-            remount its row and drop focus. Index keeps rows by position. */}
+            remount its row and drop focus. Index keeps rows by position. */
+        }
         <Index each={p.cf.buckets.slice().reverse()}>
           {(bucket, j) => {
             // Display order is reversed: highest-values bucket at top.
@@ -459,14 +498,14 @@ export function ThresholdsPanel(p: {
               cutoffIdx() > 0
                 ? p.cf.cutoffs[cutoffIdx() - 1]
                 : p.formatAs === "percent"
-                  ? (p.allowNegative ? -1 : 0)
-                  : undefined;
+                ? (p.allowNegative ? -1 : 0)
+                : undefined;
             const maxVal = () =>
               cutoffIdx() < p.cf.cutoffs.length - 1
                 ? p.cf.cutoffs[cutoffIdx() + 1]
                 : p.formatAs === "percent"
-                  ? 1
-                  : undefined;
+                ? 1
+                : undefined;
             return (
               <div class="flex items-center gap-2">
                 <div class="w-24 flex-none">
@@ -525,7 +564,11 @@ export function ThresholdsPanel(p: {
           class="cursor-pointer text-base-content-muted hover:text-base-content self-start text-xs underline"
           onClick={addRow}
         >
-          {t3({ en: "+ Add cutoff", fr: "+ Ajouter un seuil", pt: "+ Adicionar limiar" })}
+          {t3({
+            en: "+ Add cutoff",
+            fr: "+ Ajouter un seuil",
+            pt: "+ Adicionar limiar",
+          })}
         </button>
       </div>
     </StyleRevealGroup>
@@ -563,14 +606,20 @@ function ValueInput(p: {
             label={p.label}
             value={scaleValueForFormat(p.value, p.formatAs)}
             onChange={(v) => p.onChange(unscaleValueForFormat(v, p.formatAs))}
-            min={p.min === undefined ? undefined : scaleValueForFormat(p.min, p.formatAs)}
-            max={p.max === undefined ? undefined : scaleValueForFormat(p.max, p.formatAs)}
+            min={p.min === undefined
+              ? undefined
+              : scaleValueForFormat(p.min, p.formatAs)}
+            max={p.max === undefined
+              ? undefined
+              : scaleValueForFormat(p.max, p.formatAs)}
           />
-          {/* The active unit must be VISIBLE: an "indicator" metric's
+          {
+            /* The active unit must be VISIBLE: an "indicator" metric's
               axisFormat is filter-sensitive, so this control can silently
               switch between per-10k and raw units when the displayed
               indicators change. The marker (or its disappearance) is how the
-              user sees that switch. */}
+              user sees that switch. */
+          }
           <Show when={p.formatAs === "rate_per_10k"}>
             <span class="text-base-content-muted text-xs leading-tight">
               {t3({ en: "per 10k", fr: "pour 10k", pt: "por 10k" })}

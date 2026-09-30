@@ -15,10 +15,10 @@ import {
   latestReportVersionHash,
   listReportVersions,
   restoreReportContent,
+  setReportStyle,
   updateProductLabel,
   updateReportBody,
   updateReportConfig,
-  setReportStyle,
   updateReportFigures,
   updateReportImages,
 } from "../../db/products/mod.ts";
@@ -209,7 +209,10 @@ defineRoute(
   routesProductReports,
   "listReportVersions",
   async (c, { params }) => {
-    return respond(c, await listReportVersions(c.var.mainDb, params.product_id));
+    return respond(
+      c,
+      await listReportVersions(c.var.mainDb, params.product_id),
+    );
   },
 );
 
@@ -219,7 +222,11 @@ defineRoute(
   async (c, { params }) => {
     return respond(
       c,
-      await getReportVersion(c.var.mainDb, params.product_id, params.version_id),
+      await getReportVersion(
+        c.var.mainDb,
+        params.product_id,
+        params.version_id,
+      ),
     );
   },
 );
@@ -362,7 +369,11 @@ defineRoute(
       // label write means the restore is PARTIAL: report it as a failure (the
       // safety version exists; retrying is safe) and record no restored-state
       // version that would misrepresent the DB.
-      const labelRes = await updateProductLabel(mainDb, productId, version.label);
+      const labelRes = await updateProductLabel(
+        mainDb,
+        productId,
+        version.label,
+      );
       if (!labelRes.success) {
         await notifyInstanceProductsUpserted(mainDb, [productId]);
         return respond(c, {

@@ -1,12 +1,12 @@
-import { t3, type DatasetHmisImportRunSummary } from "lib";
+import { type DatasetHmisImportRunSummary, t3 } from "lib";
 import {
   Button,
+  createQuery,
   EditorComponentProps,
   FrameTop,
+  getEditorWrapper,
   HeadingBar,
   StateHolderWrapper,
-  createQuery,
-  getEditorWrapper,
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -50,88 +50,114 @@ export function CsvRunDetail(
 
   return (
     <EditorWrapper>
-    <FrameTop
-      pad="md"
-      spy="md"
-      panelChildren={
-        <HeadingBar
-          onBack={() => p.close(undefined)}
-          heading={
-            <>
-              {t3({ en: "CSV import", fr: "Importation CSV", pt: "Importação CSV" })}
-              <span class="font-400 ml-4">
-                {new Date(p.run.startedAt).toLocaleString()}
-              </span>
-            </>
-          }
-        />
-      }
-    >
-      <div class="ui-pad ui-spy-sm rounded border text-sm">
-        <div class="ui-text-heading">
-          {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
-        </div>
-        <div class="flex items-baseline">
-          <div class="w-56 flex-none">{t3({ en: "Status", fr: "Statut", pt: "Estado" })}</div>
-          <div
-            class={`flex-1 ${p.run.status === "error" ? "text-danger font-700" : ""}`}
-          >
-            {statusLabel(p.run.status)}
-          </div>
-        </div>
-        {factRow(
-          t3({ en: "File", fr: "Fichier", pt: "Ficheiro" }),
-          p.run.csvFileName ?? "",
-        )}
-        {factRow(
-          t3({ en: "Started", fr: "Démarrée", pt: "Iniciada" }),
-          new Date(p.run.startedAt).toLocaleString(),
-        )}
-        {factRow(
-          t3({ en: "Ended", fr: "Terminée", pt: "Terminada" }),
-          p.run.endedAt ? new Date(p.run.endedAt).toLocaleString() : "",
-        )}
-        {factRow(
-          t3({ en: "Triggered by", fr: "Déclenchée par", pt: "Iniciada por" }),
-          p.run.triggeredBy ?? "",
-        )}
-        <div class="flex items-baseline">
-          <div class="w-56 flex-none">
-            {t3({ en: "Version", fr: "Version", pt: "Versão" })}
-          </div>
-          <div class="min-w-0 flex-1">
-            <Show when={p.run.versionId} keyed fallback={""}>
-              {(versionId) => (
-                <Button
-                  size="sm"
-                  outline
-                  onClick={() => void viewVersion(versionId)}
-                >
-                  {`${versionId} — ${t3({ en: "view import information", fr: "voir les informations d'importation", pt: "ver as informações de importação" })}`}
-                </Button>
-              )}
-            </Show>
-          </div>
-        </div>
-      </div>
-
-      <Show when={p.run.error}>
-        <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
+      <FrameTop
+        pad="md"
+        spy="md"
+        panelChildren={
+          <HeadingBar
+            onBack={() => p.close(undefined)}
+            heading={
+              <>
+                {t3({
+                  en: "CSV import",
+                  fr: "Importation CSV",
+                  pt: "Importação CSV",
+                })}
+                <span class="font-400 ml-4">
+                  {new Date(p.run.startedAt).toLocaleString()}
+                </span>
+              </>
+            }
+          />
+        }
+      >
+        <div class="ui-pad ui-spy-sm rounded border text-sm">
           <div class="ui-text-heading">
-            {t3({ en: "Run error", fr: "Erreur de l'importation", pt: "Erro da importação" })}
+            {t3({
+              en: "Run summary",
+              fr: "Résumé de l'importation",
+              pt: "Resumo da importação",
+            })}
           </div>
-          <div class="text-sm wrap-break-word">{p.run.error}</div>
+          <div class="flex items-baseline">
+            <div class="w-56 flex-none">
+              {t3({ en: "Status", fr: "Statut", pt: "Estado" })}
+            </div>
+            <div
+              class={`flex-1 ${
+                p.run.status === "error" ? "text-danger font-700" : ""
+              }`}
+            >
+              {statusLabel(p.run.status)}
+            </div>
+          </div>
+          {factRow(
+            t3({ en: "File", fr: "Fichier", pt: "Ficheiro" }),
+            p.run.csvFileName ?? "",
+          )}
+          {factRow(
+            t3({ en: "Started", fr: "Démarrée", pt: "Iniciada" }),
+            new Date(p.run.startedAt).toLocaleString(),
+          )}
+          {factRow(
+            t3({ en: "Ended", fr: "Terminée", pt: "Terminada" }),
+            p.run.endedAt ? new Date(p.run.endedAt).toLocaleString() : "",
+          )}
+          {factRow(
+            t3({
+              en: "Triggered by",
+              fr: "Déclenchée par",
+              pt: "Iniciada por",
+            }),
+            p.run.triggeredBy ?? "",
+          )}
+          <div class="flex items-baseline">
+            <div class="w-56 flex-none">
+              {t3({ en: "Version", fr: "Version", pt: "Versão" })}
+            </div>
+            <div class="min-w-0 flex-1">
+              <Show when={p.run.versionId} keyed fallback={""}>
+                {(versionId) => (
+                  <Button
+                    size="sm"
+                    outline
+                    onClick={() => void viewVersion(versionId)}
+                  >
+                    {`${versionId} — ${
+                      t3({
+                        en: "view import information",
+                        fr: "voir les informations d'importation",
+                        pt: "ver as informações de importação",
+                      })
+                    }`}
+                  </Button>
+                )}
+              </Show>
+            </div>
+          </div>
         </div>
-      </Show>
 
-      <StateHolderWrapper state={detail.state()}>
-        {(keyedDetail) => (
-          <Show when={keyedDetail.csvStagingResult} keyed>
-            {(result) => <CsvStagingSummary result={result} />}
-          </Show>
-        )}
-      </StateHolderWrapper>
-    </FrameTop>
+        <Show when={p.run.error}>
+          <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
+            <div class="ui-text-heading">
+              {t3({
+                en: "Run error",
+                fr: "Erreur de l'importation",
+                pt: "Erro da importação",
+              })}
+            </div>
+            <div class="text-sm wrap-break-word">{p.run.error}</div>
+          </div>
+        </Show>
+
+        <StateHolderWrapper state={detail.state()}>
+          {(keyedDetail) => (
+            <Show when={keyedDetail.csvStagingResult} keyed>
+              {(result) => <CsvStagingSummary result={result} />}
+            </Show>
+          )}
+        </StateHolderWrapper>
+      </FrameTop>
     </EditorWrapper>
   );
 }

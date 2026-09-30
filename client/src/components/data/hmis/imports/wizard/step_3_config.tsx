@@ -26,7 +26,11 @@ export function Dhis2StepConfig(p: Props) {
         <Match when={p.timeChoice === "now" || p.timeChoice === "later"}>
           <div>
             <label class="ui-text-heading mb-4 block">
-              {t3({ en: "Select period range", fr: "Sélectionner la plage de périodes", pt: "Selecionar o intervalo de períodos" })}
+              {t3({
+                en: "Select period range",
+                fr: "Sélectionner la plage de périodes",
+                pt: "Selecionar o intervalo de períodos",
+              })}
             </label>
             <PeriodSelector
               minPeriodId={p.periodMin}
@@ -42,7 +46,11 @@ export function Dhis2StepConfig(p: Props) {
         <Match when={p.timeChoice === "recurring"}>
           <div class="ui-gap-sm ui-pad rounded border">
             <Slider
-              label={t3({ en: "Last N months", fr: "Derniers N mois", pt: "Últimos N meses" })}
+              label={t3({
+                en: "Last N months",
+                fr: "Derniers N mois",
+                pt: "Últimos N meses",
+              })}
               showValueInLabel
               valueInLabelFormatter={(v) => String(v)}
               value={p.monthsBack()}
@@ -54,9 +62,12 @@ export function Dhis2StepConfig(p: Props) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "Resolved fresh at every fire — N months total, ending with the current instance-calendar month (same convention as the visualization editor's \"Last N months\" filter).",
-              fr: "Recalculé à chaque déclenchement — N mois au total, se terminant par le mois courant du calendrier de l'instance (même convention que le filtre « Derniers N mois » de l'éditeur de visualisation).",
-              pt: "Recalculado em cada disparo — N meses no total, terminando no mês atual do calendário da instância (mesma convenção do filtro «Últimos N meses» do editor de visualização).",
+              en:
+                'Resolved fresh at every fire — N months total, ending with the current instance-calendar month (same convention as the visualization editor\'s "Last N months" filter).',
+              fr:
+                "Recalculé à chaque déclenchement — N mois au total, se terminant par le mois courant du calendrier de l'instance (même convention que le filtre « Derniers N mois » de l'éditeur de visualisation).",
+              pt:
+                "Recalculado em cada disparo — N meses no total, terminando no mês atual do calendário da instância (mesma convenção do filtro «Últimos N meses» do editor de visualização).",
             })}
           </div>
         </Match>

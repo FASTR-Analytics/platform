@@ -121,8 +121,15 @@ export const userRouteRegistry = {
   renameUserEmailEverywhere: route({
     path: "/user/rename-email-everywhere",
     method: "POST",
-    body: z.object({ oldEmail: z.string(), newEmail: z.string(), dryRun: z.boolean() }),
-    response: {} as { instances: RenameEmailInstanceResult[]; warnings: string[] },
+    body: z.object({
+      oldEmail: z.string(),
+      newEmail: z.string(),
+      dryRun: z.boolean(),
+    }),
+    response: {} as {
+      instances: RenameEmailInstanceResult[];
+      warnings: string[];
+    },
   }),
   // Applies a Clerk name change pushed by the peer instance that observed it
   // (contract on syncUserName). Fleet-internal and machine-only: the

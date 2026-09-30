@@ -1,4 +1,4 @@
-import { t3, type HfaImportRunStatus } from "lib";
+import { type HfaImportRunStatus, t3 } from "lib";
 
 export function hfaRunStatusLabel(status: HfaImportRunStatus): string {
   if (status === "running") {

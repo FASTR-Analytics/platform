@@ -16,8 +16,8 @@ import {
 } from "../../db/mod.ts";
 import type { DatasetHfaCsvStagingResult, HfaImportRunProgress } from "lib";
 import {
-  PROGRESS_WRITE_INTERVAL_MS,
   createThrottledProgressWriter,
+  PROGRESS_WRITE_INTERVAL_MS,
   truncateWorkerError,
 } from "../worker_contract.ts";
 import type { ImportHfaDataCsvWorkerPayload } from "./instantiate_worker.ts";

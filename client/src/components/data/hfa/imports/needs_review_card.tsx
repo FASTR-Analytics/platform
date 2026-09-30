@@ -1,4 +1,4 @@
-import { t3, type HfaImportRunSummary } from "lib";
+import { type HfaImportRunSummary, t3 } from "lib";
 import {
   Button,
   CollapsibleSection,
@@ -31,8 +31,10 @@ export function HfaNeedsReviewCard(p: Props) {
     const discard = createDeleteAction(
       t3({
         en: "Discard this import? The staged rows will not be merged.",
-        fr: "Abandonner cette importation ? Les lignes préparées ne seront pas fusionnées.",
-        pt: "Descartar esta importação? As linhas preparadas não serão fundidas.",
+        fr:
+          "Abandonner cette importation ? Les lignes préparées ne seront pas fusionnées.",
+        pt:
+          "Descartar esta importação? As linhas preparadas não serão fundidas.",
       }),
       () =>
         serverActions.resolveDatasetHfaReview({
@@ -47,14 +49,21 @@ export function HfaNeedsReviewCard(p: Props) {
   return (
     <div class="border-warning ui-pad ui-spy-sm rounded border">
       <div class="ui-text-heading">
-        {t3({ en: "Import needs review", fr: "Importation à vérifier", pt: "Importação a rever" })}
+        {t3({
+          en: "Import needs review",
+          fr: "Importation à vérifier",
+          pt: "Importação a rever",
+        })}
         <span class="font-400 ml-2 font-mono text-sm">{p.run.csvFileName}</span>
       </div>
       <div class="text-sm">
         {t3({
-          en: "Some facility rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import.",
-          fr: "Des lignes d'établissements ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation.",
-          pt: "Algumas linhas de estabelecimentos foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação.",
+          en:
+            "Some facility rows were dropped during staging, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import.",
+          fr:
+            "Des lignes d'établissements ont été rejetées pendant la préparation, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation.",
+          pt:
+            "Algumas linhas de estabelecimentos foram rejeitadas durante a preparação, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação.",
         })}
       </div>
       <Show when={p.run.diagnostics} keyed>
@@ -77,7 +86,11 @@ export function HfaNeedsReviewCard(p: Props) {
           state={integrateAnyway.state()}
           intent="success"
         >
-          {t3({ en: "Integrate anyway", fr: "Intégrer malgré tout", pt: "Integrar mesmo assim" })}
+          {t3({
+            en: "Integrate anyway",
+            fr: "Intégrer malgré tout",
+            pt: "Integrar mesmo assim",
+          })}
         </Button>
         <Button onClick={attemptDiscard} intent="danger" outline>
           {t3({ en: "Discard", fr: "Abandonner", pt: "Descartar" })}

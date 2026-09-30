@@ -1,11 +1,11 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
+  type ListItem,
   ModalContainer,
   TabsNavigation,
-  type ListItem,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 
 export type UnusedVariablesByTimePoint = {
   timePoint: string;

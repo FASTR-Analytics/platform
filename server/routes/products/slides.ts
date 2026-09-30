@@ -77,7 +77,11 @@ defineRoute(
     const editor = editorFromGlobalUser(c.var.globalUser);
     recordVersionEdit("deck", params.product_id, editor);
     recordSlideAdded(params.product_id, res.data.slideId, editor.email);
-    notifyInstanceLastUpdated("slides", [res.data.slideId], res.data.lastUpdated);
+    notifyInstanceLastUpdated(
+      "slides",
+      [res.data.slideId],
+      res.data.lastUpdated,
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, res);
   },
@@ -145,7 +149,8 @@ defineRoute(
       // persist it. No direct-write fallback: the room owns persistence.
       return respond(c, {
         success: false as const,
-        err: "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
+        err:
+          "The change was applied to the live editing session but could not be saved yet. Saving will retry automatically.",
       });
     }
     const res = await updateSlide(
@@ -161,7 +166,11 @@ defineRoute(
     }
     recordVersionEdit("deck", params.product_id, editor);
     recordSlideEdited(params.product_id, params.slide_id, editor.email);
-    notifyInstanceLastUpdated("slides", [params.slide_id], res.data.lastUpdated);
+    notifyInstanceLastUpdated(
+      "slides",
+      [params.slide_id],
+      res.data.lastUpdated,
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, res);
   },
@@ -221,7 +230,11 @@ defineRoute(
     for (const slideId of res.data.newSlideIds) {
       recordSlideAdded(params.product_id, slideId, editor.email);
     }
-    notifyInstanceLastUpdated("slides", res.data.newSlideIds, res.data.lastUpdated);
+    notifyInstanceLastUpdated(
+      "slides",
+      res.data.newSlideIds,
+      res.data.lastUpdated,
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
     return respond(c, res);
   },
@@ -248,7 +261,11 @@ defineRoute(
     for (const slideId of res.data.newSlideIds) {
       recordSlideAdded(body.targetProductId, slideId, editor.email);
     }
-    notifyInstanceLastUpdated("slides", res.data.newSlideIds, res.data.lastUpdated);
+    notifyInstanceLastUpdated(
+      "slides",
+      res.data.newSlideIds,
+      res.data.lastUpdated,
+    );
     await notifyInstanceProductsUpserted(c.var.mainDb, [body.targetProductId]);
     return respond(c, res);
   },

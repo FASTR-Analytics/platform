@@ -13,8 +13,12 @@ import {
 await dbStartUp();
 
 const sql = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
-const indicators = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM indicators`;
-const members = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM indicator_sum_members`;
+const indicators = await sql<
+  { n: number }[]
+>`SELECT COUNT(*)::int AS n FROM indicators`;
+const members = await sql<
+  { n: number }[]
+>`SELECT COUNT(*)::int AS n FROM indicator_sum_members`;
 const oldTables = await sql<{ table_name: string }[]>`
   SELECT table_name FROM information_schema.tables
   WHERE table_schema = 'public'
@@ -29,5 +33,7 @@ assertEquals(
   [],
   "no indicator_sources, indicators_raw or indicator_mappings table",
 );
-console.log("Fresh boot: an empty dictionary, no sum members, none of the retired tables.");
+console.log(
+  "Fresh boot: an empty dictionary, no sum members, none of the retired tables.",
+);
 Deno.exit(0);

@@ -29,7 +29,7 @@ export class CTEManager {
       const existing = this.ctes.get(name)!;
       if (existing !== cleanDefinition) {
         throw new Error(
-          `CTE '${name}' already registered with different definition`
+          `CTE '${name}' already registered with different definition`,
         );
       }
       // Same definition, no need to re-register
@@ -72,9 +72,11 @@ export class CTEManager {
     if (queryContext.needsPeriodCTE) {
       const selectColumns = buildPeriodCTESelectColumns(queryContext);
 
-      const periodDefinition = `SELECT ${selectColumns.join(
-        ", "
-      )}\n  FROM ${tableName}`;
+      const periodDefinition = `SELECT ${
+        selectColumns.join(
+          ", ",
+        )
+      }\n  FROM ${tableName}`;
       manager.register("period_data", periodDefinition);
       manager.periodCTEName = "period_data";
     }
@@ -84,9 +86,11 @@ export class CTEManager {
       queryContext.needsFacilityJoin &&
       queryContext.requestedOptionalFacilityColumns.length > 0
     ) {
-      const facilityDefinition = `SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
-        ", "
-      )}\n  FROM ${facilitiesTableForFamily(queryContext.datasetFamily)}`;
+      const facilityDefinition = `SELECT facility_id, ${
+        queryContext.requestedOptionalFacilityColumns.join(
+          ", ",
+        )
+      }\n  FROM ${facilitiesTableForFamily(queryContext.datasetFamily)}`;
       manager.register("facility_subset", facilityDefinition);
       manager.facilityCTEName = "facility_subset";
     }

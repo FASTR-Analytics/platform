@@ -45,8 +45,9 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
     uniquenessParams: UniquenessParams,
     versionParams: VersionParams | "any_version",
   ): Promise<T | undefined> {
-    const uniquenessHash =
-      this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
+    const uniquenessHash = this._hashFuncs.uniquenessHashFromParams(
+      uniquenessParams,
+    );
 
     const existingUnresolved = this._unresolved.get(uniquenessHash);
     if (existingUnresolved) {
@@ -133,8 +134,8 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
           versionHash: d.versionHash,
           data,
         });
-        const ttl =
-          WRITE_TTL_BASE + Math.floor(WRITE_TTL_JITTER * Math.random());
+        const ttl = WRITE_TTL_BASE +
+          Math.floor(WRITE_TTL_JITTER * Math.random());
         await client.set(key, value, { EX: ttl });
       } catch {
         // Valkey write failed: not fatal
@@ -145,8 +146,9 @@ export class TimCacheC<UniquenessParams, VersionParams, T> {
   }
 
   async exists(uniquenessParams: UniquenessParams): Promise<boolean> {
-    const uniquenessHash =
-      this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
+    const uniquenessHash = this._hashFuncs.uniquenessHashFromParams(
+      uniquenessParams,
+    );
 
     const client = getValkeyClient();
     if (!client) return false;

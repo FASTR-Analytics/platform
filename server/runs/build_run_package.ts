@@ -1,19 +1,18 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
+  type AssetToImport,
   catalogExpressionEvaluationStrict,
+  type DatasetType,
+  type DisaggregationOption,
   getAssetToImportName,
   postAggregationExpressionStrict,
   RUN_MANIFEST_SCHEMA_VERSION,
-  runManifestSchema,
-  type AssetToImport,
-  structureColumnsFromSchema,
-  type DatasetType,
-  type DisaggregationOption,
   type RunAsset,
-  type RunManifestDataset,
   type RunFacilitiesTable,
   type RunManifest,
+  type RunManifestDataset,
+  runManifestSchema,
   type RunMetric,
   type RunMetricAvailability,
   type RunModule,
@@ -21,6 +20,7 @@ import {
   type RunResultsObject,
   type RunStage,
   type RunSummary,
+  structureColumnsFromSchema,
   type StructureSchema,
 } from "lib";
 import {
@@ -177,7 +177,7 @@ export async function buildRunPackageIntoTmp(
   }
 
   const metricAvailability: RunMetricAvailability[] = runMetrics.map((metric) =>
-    computeMetricAvailability(metric, runResultsObjects),
+    computeMetricAvailability(metric, runResultsObjects)
   );
 
   // Caller-placed inputs (dataset extracts, mirrors, facilities parquet) are
@@ -260,12 +260,14 @@ export async function buildRunPackageIntoTmp(
     // made it into the package. The projection drops adminDepth: the
     // manifest carries flags + labels only (ruling: a field nothing on the
     // read path consumes must not exist in the file).
-    structureSchemaHmis: facilitiesTables.some((t) => t.tableName === "facilities_hmis")
-      ? structureColumnsFromSchema(resSchemaHmis.data)
-      : null,
-    structureSchemaHfa: facilitiesTables.some((t) => t.tableName === "facilities_hfa")
-      ? structureColumnsFromSchema(resSchemaHfa.data)
-      : null,
+    structureSchemaHmis:
+      facilitiesTables.some((t) => t.tableName === "facilities_hmis")
+        ? structureColumnsFromSchema(resSchemaHmis.data)
+        : null,
+    structureSchemaHfa:
+      facilitiesTables.some((t) => t.tableName === "facilities_hfa")
+        ? structureColumnsFromSchema(resSchemaHfa.data)
+        : null,
     datasets,
     facilitiesTables,
     assets,
@@ -385,10 +387,10 @@ async function readParquetQueryMetadata(parquetPath: string): Promise<{
   const physicalTimeColumn = columnNames.has("period_id")
     ? ("period_id" as const)
     : columnNames.has("quarter_id")
-      ? ("quarter_id" as const)
-      : columnNames.has("year")
-        ? ("year" as const)
-        : null;
+    ? ("quarter_id" as const)
+    : columnNames.has("year")
+    ? ("year" as const)
+    : null;
   const aggRow = (
     await executeSqlOverParquet(
       views,
@@ -398,14 +400,13 @@ async function readParquetQueryMetadata(parquetPath: string): Promise<{
     )
   )[0];
   const rowCount = Number(aggRow.n);
-  const periodBounds =
-    physicalTimeColumn !== null &&
-    aggRow.mn !== null &&
-    aggRow.mn !== undefined &&
-    aggRow.mx !== null &&
-    aggRow.mx !== undefined
-      ? { min: Number(aggRow.mn), max: Number(aggRow.mx) }
-      : null;
+  const periodBounds = physicalTimeColumn !== null &&
+      aggRow.mn !== null &&
+      aggRow.mn !== undefined &&
+      aggRow.mx !== null &&
+      aggRow.mx !== undefined
+    ? { min: Number(aggRow.mn), max: Number(aggRow.mx) }
+    : null;
   return { columns, columnNames, physicalTimeColumn, rowCount, periodBounds };
 }
 
@@ -441,7 +442,9 @@ function computeMetricAvailability(
   );
   if (missingDisOpts.length > 0) {
     return unavailable(
-      `required disaggregation options not available: ${missingDisOpts.join(", ")}`,
+      `required disaggregation options not available: ${
+        missingDisOpts.join(", ")
+      }`,
     );
   }
   return { metricId: metric.id, status: "available", reason: null };

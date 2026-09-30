@@ -2,12 +2,12 @@ import {
   compareDottedVersions,
   getDocsOverviewUrl,
   getLanguage,
+  LANGUAGE_STORAGE_KEY,
   migrateSeenVersionToReadIds,
   parseWhatsNewReadIds,
   pruneWhatsNewReadIds,
   t3,
   whatsNewAutoShowPost,
-  LANGUAGE_STORAGE_KEY,
 } from "lib";
 import type { WhatsNewPost } from "lib";
 import {
@@ -16,15 +16,15 @@ import {
   FrameLeft,
   FrameTop,
   Icon,
+  type ListItem,
   MenuButton,
+  type MenuItem,
+  openComponent,
   PopoverMenuProvider,
   TabsNavigation,
   TooltipProvider,
-  openComponent,
-  type ListItem,
-  type MenuItem,
 } from "panther";
-import { Match, Show, Switch, createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, Match, Show, Switch } from "solid-js";
 import { clerk } from "~/state/_infra/clerk";
 import { OrganisationModal } from "./organisation_modal";
 import { ThemeModal } from "./theme_modal";
@@ -39,9 +39,9 @@ import { InstanceResultsPackages } from "~/components/results_packages/mod.ts";
 import { InstanceUsers } from "~/components/users/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
-  ShellEditorWrapper,
   navCollapsed,
   setNavCollapsed,
+  ShellEditorWrapper,
 } from "~/state/t4_ui";
 import { FeedbackForm, type FeedbackType } from "./feedback_form";
 import { InstanceMetaForm } from "./instance_meta_form";
@@ -277,10 +277,9 @@ export default function Instance(p: Props) {
                       intent="base-100"
                     />
                   </Show>
-                <MenuButton
-                  data-tour="instance-topbar-language"
-                  items={
-                    [
+                  <MenuButton
+                    data-tour="instance-topbar-language"
+                    items={[
                       {
                         label: "English",
                         onClick: () => {
@@ -305,30 +304,27 @@ export default function Instance(p: Props) {
                           window.location.reload();
                         },
                       },
-                    ] satisfies MenuItem[]
-                  }
-                  position="bottom-end"
-                  intent="base-100"
-                >
-                  {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
-                </MenuButton>
-                <Show
-                  when={
-                    instanceState.currentUserApproved &&
-                    whatsNewPostsForCurrentUser().length > 0
-                  }
-                >
-                  <div class="relative" data-tour="instance-topbar-whats-new">
-                    <Button
-                      onClick={openWhatsNewFeed}
-                      iconName="bell"
-                      intent="base-100"
-                    />
-                    <Show when={whatsNewHasUnread()}>
-                      <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
-                    </Show>
-                  </div>
-                </Show>
+                    ] satisfies MenuItem[]}
+                    position="bottom-end"
+                    intent="base-100"
+                  >
+                    {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
+                  </MenuButton>
+                  <Show
+                    when={instanceState.currentUserApproved &&
+                      whatsNewPostsForCurrentUser().length > 0}
+                  >
+                    <div class="relative" data-tour="instance-topbar-whats-new">
+                      <Button
+                        onClick={openWhatsNewFeed}
+                        iconName="bell"
+                        intent="base-100"
+                      />
+                      <Show when={whatsNewHasUnread()}>
+                        <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
+                      </Show>
+                    </div>
+                  </Show>
                 </Show>
                 <div
                   class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
@@ -348,16 +344,21 @@ export default function Instance(p: Props) {
             fallback={
               <div class="ui-pad">
                 {t3({
-                  en: "You are not yet approved. Wait for an administrator to add you to the platform.",
-                  fr: "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
-                  pt: "Ainda não foi aprovado. Aguarde que um administrador o adicione à plataforma.",
+                  en:
+                    "You are not yet approved. Wait for an administrator to add you to the platform.",
+                  fr:
+                    "Vous n'êtes pas encore approuvé. Veuillez attendre qu'un administrateur vous ajoute à la plateforme.",
+                  pt:
+                    "Ainda não foi aprovado. Aguarde que um administrador o adicione à plataforma.",
                 })}
               </div>
             }
           >
-            {/* The approval Show sits around FrameLeft, not inside its panel:
+            {
+              /* The approval Show sits around FrameLeft, not inside its panel:
               a Show passed as a prop is a truthy accessor even when it
-              renders nothing, so FrameLeft would draw an empty rail. */}
+              renders nothing, so FrameLeft would draw an empty rail. */
+            }
             <FrameLeft
               panelChildren={
                 <TabsNavigation
@@ -380,12 +381,10 @@ export default function Instance(p: Props) {
                   <Explore />
                 </Match>
                 <Match
-                  when={
-                    tab() === "data" &&
+                  when={tab() === "data" &&
                     (instanceState.currentUserIsGlobalAdmin ||
                       instanceState.currentUserPermissions.can_view_data ||
-                      instanceState.currentUserPermissions.can_configure_data)
-                  }
+                      instanceState.currentUserPermissions.can_configure_data)}
                 >
                   <InstanceData />
                 </Match>
@@ -398,13 +397,11 @@ export default function Instance(p: Props) {
                   <InstanceAssets />
                 </Match>
                 <Match
-                  when={
-                    (instanceState.currentUserIsGlobalAdmin ||
-                      instanceState.currentUserPermissions
-                        .can_configure_users ||
-                      instanceState.currentUserPermissions.can_view_users) &&
-                    tab() === "users"
-                  }
+                  when={(instanceState.currentUserIsGlobalAdmin ||
+                    instanceState.currentUserPermissions
+                      .can_configure_users ||
+                    instanceState.currentUserPermissions.can_view_users) &&
+                    tab() === "users"}
                 >
                   <InstanceUsers
                     thisLoggedInUserEmail={instanceState.currentUserEmail}
@@ -429,10 +426,12 @@ export default function Instance(p: Props) {
 // bell (unread dot + browsable feed). All module-level state is scoped to the
 // signed-in user's id: these signals outlive a same-tab user switch that
 // happens without a full page reload.
-const [whatsNewState, setWhatsNewState] = createSignal<{
-  userId: string;
-  posts: WhatsNewPost[];
-} | null>(null);
+const [whatsNewState, setWhatsNewState] = createSignal<
+  {
+    userId: string;
+    posts: WhatsNewPost[];
+  } | null
+>(null);
 const [whatsNewReadIds, setWhatsNewReadIds] = createSignal<Set<string>>(
   new Set(),
 );
@@ -445,7 +444,7 @@ function whatsNewPostsForCurrentUser(): WhatsNewPost[] {
 
 function newestWhatsNewPost(posts: WhatsNewPost[]): WhatsNewPost {
   return posts.reduce((a, b) =>
-    compareDottedVersions(a.version, b.version) >= 0 ? a : b,
+    compareDottedVersions(a.version, b.version) >= 0 ? a : b
   );
 }
 

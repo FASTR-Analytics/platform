@@ -34,14 +34,14 @@ const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   onRetry: (attempt: number, error: Error, delayMs: number) => {
     console.log(
       `DHIS2 request failed (attempt ${attempt}): ${error.message}. ` +
-        `Retrying in ${Math.round(delayMs / 1000)}s...`
+        `Retrying in ${Math.round(delayMs / 1000)}s...`,
     );
   },
 };
 
 export async function withRetry<T>(
   fn: () => Promise<T>,
-  options?: RetryOptions
+  options?: RetryOptions,
 ): Promise<T> {
   const opts = { ...DEFAULT_RETRY_OPTIONS, ...options };
   let lastError: Error | null = null;
@@ -60,14 +60,14 @@ export async function withRetry<T>(
       // Last attempt, throw the error
       if (attempt === opts.maxAttempts) {
         throw new Error(
-          `Failed after ${opts.maxAttempts} attempts. Last error: ${lastError.message}`
+          `Failed after ${opts.maxAttempts} attempts. Last error: ${lastError.message}`,
         );
       }
 
       // Calculate delay with exponential backoff
       const baseDelay = Math.min(
         opts.initialDelayMs * Math.pow(opts.backoffMultiplier, attempt - 1),
-        opts.maxDelayMs
+        opts.maxDelayMs,
       );
 
       // Add jitter (±jitterFactor randomization)

@@ -104,9 +104,8 @@ export function iframeSurface(iframe: HTMLIFrameElement): PreviewSurface {
     observeContent: (cb) => {
       // Created from the frame's own realm — cross-document observation isn't
       // guaranteed.
-      const RO =
-        (win as unknown as { ResizeObserver?: typeof ResizeObserver })
-          .ResizeObserver ?? ResizeObserver;
+      const RO = (win as unknown as { ResizeObserver?: typeof ResizeObserver })
+        .ResizeObserver ?? ResizeObserver;
       const ro = new RO(() => cb());
       if (doc.body) ro.observe(doc.body);
       return () => ro.disconnect();

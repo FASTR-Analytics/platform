@@ -1,4 +1,4 @@
-import { t3, type MetricGroup, type MetricWithStatus } from "lib";
+import { type MetricGroup, type MetricWithStatus, t3 } from "lib";
 import { For, Show } from "solid-js";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
@@ -12,11 +12,11 @@ function getStatusTooltip(metric: MetricWithStatus): string {
   if (metric.status === "ready") return "";
   return (
     metric.statusReason ??
-    t3({
-      en: "Not available in this results package",
-      fr: "Non disponible dans ce paquet de résultats",
-      pt: "Não disponível neste pacote de resultados",
-    })
+      t3({
+        en: "Not available in this results package",
+        fr: "Non disponible dans ce paquet de résultats",
+        pt: "Não disponível neste pacote de resultados",
+      })
   );
 }
 
@@ -47,16 +47,15 @@ export function MetricCard(p: Props) {
         "opacity-40": !hasVariants() && firstMetric().status !== "ready",
       }}
       onClick={handleGroupClick}
-      title={
-        !hasVariants() && firstMetric().status !== "ready"
-          ? getStatusTooltip(firstMetric())
-          : undefined
-      }
+      title={!hasVariants() && firstMetric().status !== "ready"
+        ? getStatusTooltip(firstMetric())
+        : undefined}
     >
       <div class="ui-spy-sm">
         <div class="font-700">{p.metricGroup.label}</div>
 
-        {/* <div class="flex flex-wrap gap-1">
+        {
+          /* <div class="flex flex-wrap gap-1">
           <For each={firstMetric().disaggregationOptions.slice(0, 4)}>
             {(disOpt) => (
               <span class="bg-base-200 ui-text-caption rounded px-1.5 py-0.5">
@@ -69,7 +68,8 @@ export function MetricCard(p: Props) {
               +{firstMetric().disaggregationOptions.length - 4}
             </span>
           </Show>
-        </div> */}
+        </div> */
+        }
 
         <Show when={(firstMetric().vizPresets?.length ?? 0) > 0}>
           <div class="text-primary text-xs">
@@ -83,18 +83,26 @@ export function MetricCard(p: Props) {
         <Show when={hasVariants()}>
           <div class="border-t pt-2">
             <div class="ui-text-caption mb-1">
-              {t3({ en: "Select geographic level:", fr: "Sélectionnez le niveau géographique :", pt: "Selecione o nível geográfico:" })}
+              {t3({
+                en: "Select geographic level:",
+                fr: "Sélectionnez le niveau géographique :",
+                pt: "Selecione o nível geográfico:",
+              })}
             </div>
             <div class="flex flex-wrap gap-1">
-            <For each={p.metricGroup.variants.filter((v) => v.status === "ready")}>
-              {(variant) => (
-                <VariantRow
-                  variant={variant}
-                  isSelected={p.selectedMetricId === variant.id}
-                  onSelect={() => p.onSelect(variant.id)}
-                />
-              )}
-            </For>
+              <For
+                each={p.metricGroup.variants.filter((v) =>
+                  v.status === "ready"
+                )}
+              >
+                {(variant) => (
+                  <VariantRow
+                    variant={variant}
+                    isSelected={p.selectedMetricId === variant.id}
+                    onSelect={() => p.onSelect(variant.id)}
+                  />
+                )}
+              </For>
             </div>
           </div>
         </Show>
@@ -122,7 +130,8 @@ function VariantRow(p: VariantRowProps) {
         p.onSelect();
       }}
     >
-      {p.variant.variantLabel || t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
+      {p.variant.variantLabel ||
+        t3({ en: "Default", fr: "Par défaut", pt: "Predefinição" })}
     </div>
   );
 }

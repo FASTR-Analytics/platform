@@ -3,11 +3,7 @@ import {
   getSharedToolsForMethodologyDocs,
   getSharedToolsForMetrics,
 } from "lib";
-import type {
-  HfaTaxonomyForAI,
-  PackageScope,
-  RunAuthoringContext,
-} from "lib";
+import type { HfaTaxonomyForAI, PackageScope, RunAuthoringContext } from "lib";
 import { createAskUserQuestionsTool } from "panther";
 import type { ClientAIToolEnv } from "./_shared/mod.ts";
 import { SPA_INFO_TOPICS } from "./_shared/mod.ts";

@@ -9,63 +9,66 @@ import { openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import {
   attachSelectionNameHover,
-  yCaretHygiene,
   darkMarkdownExtensions,
+  yCaretHygiene,
 } from "~/components/_shared/mod.ts";
 import type { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import {
-  fastrPageStartLines,
-  fastrParagraphSplits,
+  applyTableCellAction,
   type EditResult,
+  type FastrChartPalette,
   fastrContainerStackUpTo,
-  fastrOpenFenceOnLine,
   type FastrFencePatch,
   type FastrInkRole,
+  type FastrLayoutHint,
   type FastrOpenFence,
+  fastrOpenFenceOnLine,
+  fastrPageStartLines,
+  fastrParagraphSplits,
   type FigureBlock,
   findReportEmbeds,
   type ImageBlock,
   type InlineMarkState,
   inlineMarkStateAt,
+  insertBlockEdit,
   insertLinkEdit,
+  parseContainerFence,
   type ReportEmbedRef,
   type ReportFormat,
   rewriteReportEmbedToken,
   setHeadingLevelEdit,
   setInlineColorEdit,
-  applyTableCellAction,
-  parseContainerFence,
   setInlineHighlightEdit,
   setInlineRoleEdit,
-  type TableCellAction,
-  t3,
   setInlineSizeEdit,
   setInlineUnderlineEdit,
-  insertBlockEdit,
+  t3,
+  type TableCellAction,
   tableSnippet,
   toggleInlineDelimiters,
   toggleLinePrefixEdit,
   updateContainerFenceLine,
-  type FastrChartPalette,
-  type FastrLayoutHint,
 } from "lib";
 import type { ReportEditorSelection } from "~/components/products/copilot/mod.ts";
-import { embedWidgets, type EmbedResolver } from "./figure_widget_extension";
+import { type EmbedResolver, embedWidgets } from "./figure_widget_extension";
 import type { FigureStaleContext } from "~/components/products/_shared/mod.ts";
 import type { FigureInkTheme } from "~/generate_report/mod";
 import {
   type EditorPagination,
   FM_LIVE_SCOPE_CLASS,
   livePreviewExtensions,
-  setPagination as setPaginationEffect,
-  setLayoutHints as setLayoutHintsEffect,
-  refreshEmbedSizes as refreshEmbedSizesEffect,
-  stretchField,
   paginationField,
+  refreshEmbedSizes as refreshEmbedSizesEffect,
+  setLayoutHints as setLayoutHintsEffect,
+  setPagination as setPaginationEffect,
+  stretchField,
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
-import { rebaseProposedEdits, type SkippedRange } from "~/components/products/_shared/mod.ts";
+import {
+  rebaseProposedEdits,
+  type SkippedRange,
+} from "~/components/products/_shared/mod.ts";
 import { darkMode } from "~/state/t4_ui";
 
 const clamp = (n: number, lo: number, hi: number) =>
@@ -214,7 +217,10 @@ type Props = {
   // The report theme's series palette for its figures (undefined = default).
   figureChartPalette: () => FastrChartPalette | undefined;
   // Embed boxes known ahead of drawing (see EmbedResolver).
-  figureSize?: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  figureSize?: (
+    id: string,
+    block: FigureBlock,
+  ) => { width: number; height: number } | undefined;
   imageSize?: (id: string) => { width: number; height: number } | undefined;
   onBodyChange: (body: string) => void;
   onSelectEmbed: (kind: "figure" | "image", id: string) => void;
@@ -346,21 +352,31 @@ export function ReportBodyEditor(p: Props) {
     if (!view || !paneBar) return;
     const s = view.scrollDOM;
     paneBarSpacer.style.height = `${s.scrollHeight}px`;
-    if (Math.abs(paneBar.scrollTop - s.scrollTop) >= 1) paneBar.scrollTop = s.scrollTop;
+    if (Math.abs(paneBar.scrollTop - s.scrollTop) >= 1) {
+      paneBar.scrollTop = s.scrollTop;
+    }
   };
   // The bar and the sheet are both the pane's height, so the same scrollTop
   // is the same place; a write that already matches is not echoed back.
   const onPaneBarScroll = () => {
     if (!view) return;
     const s = view.scrollDOM;
-    if (Math.abs(paneBar.scrollTop - s.scrollTop) >= 1) s.scrollTop = paneBar.scrollTop;
+    if (Math.abs(paneBar.scrollTop - s.scrollTop) >= 1) {
+      s.scrollTop = paneBar.scrollTop;
+    }
   };
   const paneWheel = (e: WheelEvent) => {
     if (!view || !barShown() || e.ctrlKey || e.defaultPrevented) return;
     const target = e.target as Node | null;
     // Over the sheet the scroller scrolls itself; over the bar, the bar.
-    if (target && (view.scrollDOM.contains(target) || paneBar.contains(target))) return;
-    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? view.scrollDOM.clientHeight : 1;
+    if (
+      target && (view.scrollDOM.contains(target) || paneBar.contains(target))
+    ) return;
+    const unit = e.deltaMode === 1
+      ? 16
+      : e.deltaMode === 2
+      ? view.scrollDOM.clientHeight
+      : 1;
     view.scrollDOM.scrollBy({ top: e.deltaY * unit });
   };
   // Shown again after Split: its spacer and position
@@ -409,7 +425,9 @@ export function ReportBodyEditor(p: Props) {
     if (on) reapplyPagination();
   }
 
-  function buildView(collab: { yText: Y.Text; awareness: Awareness } | undefined) {
+  function buildView(
+    collab: { yText: Y.Text; awareness: Awareness } | undefined,
+  ) {
     const prevScroll = view?.scrollDOM.scrollTop;
     const prevSel = view?.state.selection.main;
     detachSelectionHover?.();
@@ -512,7 +530,10 @@ export function ReportBodyEditor(p: Props) {
     applyCenterTheme();
     // Hovering a peer's selection highlight names them (caret-flag style).
     if (collab) {
-      detachSelectionHover = attachSelectionNameHover(view.dom, collab.awareness);
+      detachSelectionHover = attachSelectionNameHover(
+        view.dom,
+        collab.awareness,
+      );
     }
     view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     ro?.observe(view.scrollDOM);
@@ -546,7 +567,11 @@ export function ReportBodyEditor(p: Props) {
     // The token as a block of its own, and never INSIDE another block: a
     // caret parked in a card or a callout puts it after that whole region
     // (insertBlockEdit), then leaves the caret on a blank line to type on.
-    const r = insertBlockEdit(view.state.doc.toString(), view.state.selection.main.from, token);
+    const r = insertBlockEdit(
+      view.state.doc.toString(),
+      view.state.selection.main.from,
+      token,
+    );
     view.dispatch({
       changes: r.changes,
       selection: r.selection,
@@ -587,7 +612,9 @@ export function ReportBodyEditor(p: Props) {
     view.focus();
   }
 
-  function selectionRange(): { doc: string; from: number; to: number } | undefined {
+  function selectionRange():
+    | { doc: string; from: number; to: number }
+    | undefined {
     if (!view) return undefined;
     const sel = view.state.selection.main;
     return { doc: view.state.doc.toString(), from: sel.from, to: sel.to };
@@ -595,7 +622,9 @@ export function ReportBodyEditor(p: Props) {
 
   function toggleInlineMark(before: string, after: string) {
     const s = selectionRange();
-    if (s) applyEdit(toggleInlineDelimiters(s.doc, s.from, s.to, before, after));
+    if (s) {
+      applyEdit(toggleInlineDelimiters(s.doc, s.from, s.to, before, after));
+    }
   }
 
   function setInlineRole(role: FastrInkRole | undefined) {
@@ -952,7 +981,10 @@ export function ReportBodyEditor(p: Props) {
     return view !== undefined &&
       (view as unknown as { updateState: number }).updateState !== 0;
   }
-  function dispatchWhenIdle(spec: Parameters<EditorView["dispatch"]>[0], attempt = 0) {
+  function dispatchWhenIdle(
+    spec: Parameters<EditorView["dispatch"]>[0],
+    attempt = 0,
+  ) {
     if (!view) return;
     if (viewBusy() && attempt < 50) {
       setTimeout(() => dispatchWhenIdle(spec, attempt + 1), 0);
@@ -977,8 +1009,12 @@ export function ReportBodyEditor(p: Props) {
   function reapplyPagination() {
     if (!view) return;
     const effects = [];
-    if (wantedPagination !== undefined) effects.push(setPaginationEffect.of(wantedPagination));
-    if (wantedHints !== undefined) effects.push(setLayoutHintsEffect.of(wantedHints));
+    if (wantedPagination !== undefined) {
+      effects.push(setPaginationEffect.of(wantedPagination));
+    }
+    if (wantedHints !== undefined) {
+      effects.push(setLayoutHintsEffect.of(wantedHints));
+    }
     if (effects.length > 0) dispatchWhenIdle({ effects });
   }
 
@@ -986,9 +1022,14 @@ export function ReportBodyEditor(p: Props) {
     const pag = view?.state.field(paginationField, false)?.pagination;
     if (view === undefined || pag === undefined) return undefined;
     const figureFits: { line: number; height: number }[] = [];
-    for (const [line, height] of pag.figureFits ?? []) figureFits.push({ line, height });
+    for (const [line, height] of pag.figureFits ?? []) {
+      figureFits.push({ line, height });
+    }
     const gapStretches: { line: number; marginTop: number }[] = [];
-    for (const [line, marginTop] of view.state.field(stretchField, false)?.print ?? []) {
+    for (
+      const [line, marginTop] of view.state.field(stretchField, false)?.print ??
+        []
+    ) {
       gapStretches.push({ line, marginTop });
     }
     return {
@@ -1041,8 +1082,8 @@ export function ReportBodyEditor(p: Props) {
     const lineNum = clamp(floor + 1, 1, doc.lines);
     const block = view.lineBlockAt(doc.line(lineNum).from);
     const frac = line - floor;
-    view.scrollDOM.scrollTop =
-      view.documentPadding.top + block.top + frac * block.height;
+    view.scrollDOM.scrollTop = view.documentPadding.top + block.top +
+      frac * block.height;
   }
 
   function isAtBottom(): boolean {
@@ -1116,7 +1157,9 @@ export function ReportBodyEditor(p: Props) {
   // "collab": a lineage reset (collab.ts) swaps the session's doc for a
   // fresh one of the server's lineage, and the view must rebind to it.
   function bindKeyOf(collab: { yText: Y.Text } | undefined): string {
-    return `${collab ? `collab:${collab.yText.doc?.guid ?? ""}` : "plain"}:${p.canEdit()}:${darkMode()}`;
+    return `${
+      collab ? `collab:${collab.yText.doc?.guid ?? ""}` : "plain"
+    }:${p.canEdit()}:${darkMode()}`;
   }
   createEffect(() => {
     const collab = p.collab?.();

@@ -1,45 +1,45 @@
 import { Hono } from "hono";
 import {
-  getHfaIndicators,
-  getHfaIndicatorCategories,
-  getHfaIndicatorSubCategories,
+  batchUploadHfaIndicators,
+  bulkUpdateHfaIndicatorValidation,
+  createHfaIndicator,
   createHfaIndicatorCategory,
-  updateHfaIndicatorCategory,
-  deleteHfaIndicatorCategory,
-  reorderHfaIndicatorCategories,
-  createHfaIndicatorSubCategory,
-  updateHfaIndicatorSubCategory,
-  deleteHfaIndicatorSubCategory,
-  reorderHfaIndicatorSubCategories,
-  getHfaIndicatorServiceCategories,
   createHfaIndicatorServiceCategory,
-  updateHfaIndicatorServiceCategory,
-  deleteHfaIndicatorServiceCategory,
-  reorderHfaIndicatorServiceCategories,
-  getHfaIndicatorVariantGroups,
+  createHfaIndicatorSubCategory,
   createHfaIndicatorVariantGroup,
-  updateHfaIndicatorVariantGroup,
-  deleteHfaIndicatorVariantGroup,
-  reorderHfaIndicatorVariantGroups,
-  getHfaIndicatorVariantItems,
   createHfaIndicatorVariantItem,
-  updateHfaIndicatorVariantItem,
+  deleteHfaIndicatorCategory,
+  deleteHfaIndicators,
+  deleteHfaIndicatorServiceCategory,
+  deleteHfaIndicatorSubCategory,
+  deleteHfaIndicatorVariantGroup,
   deleteHfaIndicatorVariantItem,
-  reorderHfaIndicatorVariantItems,
-  getHfaIndicatorVariantCode,
+  getAllHfaIndicatorCode,
   getAllHfaIndicatorVariantCode,
+  getHfaDictionaryForValidation,
+  getHfaIndicatorCategories,
+  getHfaIndicatorCode,
+  getHfaIndicators,
+  getHfaIndicatorServiceCategories,
+  getHfaIndicatorSubCategories,
+  getHfaIndicatorVariantCode,
+  getHfaIndicatorVariantGroups,
+  getHfaIndicatorVariantItems,
   getInstanceIndicatorsSummary,
   importHfaIndicatorsWorkbook,
-  createHfaIndicator,
-  updateHfaIndicator,
-  updateHfaIndicatorsBulk,
-  deleteHfaIndicators,
-  batchUploadHfaIndicators,
-  getHfaIndicatorCode,
-  getAllHfaIndicatorCode,
+  reorderHfaIndicatorCategories,
+  reorderHfaIndicatorServiceCategories,
+  reorderHfaIndicatorSubCategories,
+  reorderHfaIndicatorVariantGroups,
+  reorderHfaIndicatorVariantItems,
   saveHfaIndicatorFull,
-  getHfaDictionaryForValidation,
-  bulkUpdateHfaIndicatorValidation,
+  updateHfaIndicator,
+  updateHfaIndicatorCategory,
+  updateHfaIndicatorsBulk,
+  updateHfaIndicatorServiceCategory,
+  updateHfaIndicatorSubCategory,
+  updateHfaIndicatorVariantGroup,
+  updateHfaIndicatorVariantItem,
 } from "../../db/mod.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
@@ -56,7 +56,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await importHfaIndicatorsWorkbook(c.var.mainDb, body);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -85,7 +87,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await createHfaIndicatorCategory(c.var.mainDb, body.category);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -97,9 +101,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicatorCategory"),
   async (c, { body }) => {
-    const res = await updateHfaIndicatorCategory(c.var.mainDb, body.oldId, body.category);
+    const res = await updateHfaIndicatorCategory(
+      c.var.mainDb,
+      body.oldId,
+      body.category,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -113,7 +123,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteHfaIndicatorCategory(c.var.mainDb, body.id);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -125,9 +137,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("reorderHfaIndicatorCategories"),
   async (c, { body }) => {
-    const res = await reorderHfaIndicatorCategories(c.var.mainDb, body.orderedIds);
+    const res = await reorderHfaIndicatorCategories(
+      c.var.mainDb,
+      body.orderedIds,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -154,9 +171,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("createHfaIndicatorSubCategory"),
   async (c, { body }) => {
-    const res = await createHfaIndicatorSubCategory(c.var.mainDb, body.subCategory);
+    const res = await createHfaIndicatorSubCategory(
+      c.var.mainDb,
+      body.subCategory,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -168,9 +190,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicatorSubCategory"),
   async (c, { body }) => {
-    const res = await updateHfaIndicatorSubCategory(c.var.mainDb, body.oldId, body.subCategory);
+    const res = await updateHfaIndicatorSubCategory(
+      c.var.mainDb,
+      body.oldId,
+      body.subCategory,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -184,7 +212,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteHfaIndicatorSubCategory(c.var.mainDb, body.id);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -196,9 +226,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("reorderHfaIndicatorSubCategories"),
   async (c, { body }) => {
-    const res = await reorderHfaIndicatorSubCategories(c.var.mainDb, body.categoryId, body.orderedIds);
+    const res = await reorderHfaIndicatorSubCategories(
+      c.var.mainDb,
+      body.categoryId,
+      body.orderedIds,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -225,9 +261,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("createHfaIndicatorServiceCategory"),
   async (c, { body }) => {
-    const res = await createHfaIndicatorServiceCategory(c.var.mainDb, body.serviceCategory);
+    const res = await createHfaIndicatorServiceCategory(
+      c.var.mainDb,
+      body.serviceCategory,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -239,9 +280,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicatorServiceCategory"),
   async (c, { body }) => {
-    const res = await updateHfaIndicatorServiceCategory(c.var.mainDb, body.oldId, body.serviceCategory);
+    const res = await updateHfaIndicatorServiceCategory(
+      c.var.mainDb,
+      body.oldId,
+      body.serviceCategory,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -255,7 +302,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteHfaIndicatorServiceCategory(c.var.mainDb, body.id);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -267,9 +316,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("reorderHfaIndicatorServiceCategories"),
   async (c, { body }) => {
-    const res = await reorderHfaIndicatorServiceCategories(c.var.mainDb, body.orderedIds);
+    const res = await reorderHfaIndicatorServiceCategories(
+      c.var.mainDb,
+      body.orderedIds,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -298,7 +352,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await createHfaIndicatorVariantGroup(c.var.mainDb, body.group);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -310,9 +366,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicatorVariantGroup"),
   async (c, { body }) => {
-    const res = await updateHfaIndicatorVariantGroup(c.var.mainDb, body.oldId, body.group);
+    const res = await updateHfaIndicatorVariantGroup(
+      c.var.mainDb,
+      body.oldId,
+      body.group,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -326,7 +388,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteHfaIndicatorVariantGroup(c.var.mainDb, body.id);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -338,9 +402,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("reorderHfaIndicatorVariantGroups"),
   async (c, { body }) => {
-    const res = await reorderHfaIndicatorVariantGroups(c.var.mainDb, body.orderedIds);
+    const res = await reorderHfaIndicatorVariantGroups(
+      c.var.mainDb,
+      body.orderedIds,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -365,7 +434,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await createHfaIndicatorVariantItem(c.var.mainDb, body.item);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -377,9 +448,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("updateHfaIndicatorVariantItem"),
   async (c, { body }) => {
-    const res = await updateHfaIndicatorVariantItem(c.var.mainDb, body.oldId, body.item);
+    const res = await updateHfaIndicatorVariantItem(
+      c.var.mainDb,
+      body.oldId,
+      body.item,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -393,7 +470,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteHfaIndicatorVariantItem(c.var.mainDb, body.id);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -405,9 +484,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("reorderHfaIndicatorVariantItems"),
   async (c, { body }) => {
-    const res = await reorderHfaIndicatorVariantItems(c.var.mainDb, body.groupId, body.orderedIds);
+    const res = await reorderHfaIndicatorVariantItems(
+      c.var.mainDb,
+      body.groupId,
+      body.orderedIds,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -436,7 +521,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await createHfaIndicator(c.var.mainDb, body.indicator);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -450,7 +537,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateHfaIndicator(c.var.mainDb, body.indicator);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -464,7 +553,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await updateHfaIndicatorsBulk(c.var.mainDb, body.indicators);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -478,7 +569,9 @@ defineRoute(
   async (c, { body }) => {
     const res = await deleteHfaIndicators(c.var.mainDb, body.indicatorIds);
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -490,9 +583,16 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("batchUploadHfaIndicators"),
   async (c, { body }) => {
-    const res = await batchUploadHfaIndicators(c.var.mainDb, body.indicators, body.code, body.replaceAll);
+    const res = await batchUploadHfaIndicators(
+      c.var.mainDb,
+      body.indicators,
+      body.code,
+      body.replaceAll,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -526,7 +626,10 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("getHfaIndicatorVariantCode"),
   async (c, { body }) => {
-    const res = await getHfaIndicatorVariantCode(c.var.mainDb, body.indicatorId);
+    const res = await getHfaIndicatorVariantCode(
+      c.var.mainDb,
+      body.indicatorId,
+    );
     return c.json(res);
   },
 );
@@ -548,9 +651,18 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("saveHfaIndicatorFull"),
   async (c, { body }) => {
-    const res = await saveHfaIndicatorFull(c.var.mainDb, body.indicator, body.code, body.variantCode, body.hasSyntaxError, body.codeConsistent);
+    const res = await saveHfaIndicatorFull(
+      c.var.mainDb,
+      body.indicator,
+      body.code,
+      body.variantCode,
+      body.hasSyntaxError,
+      body.codeConsistent,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },
@@ -573,9 +685,14 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("bulkUpdateHfaIndicatorValidation"),
   async (c, { body }) => {
-    const res = await bulkUpdateHfaIndicatorValidation(c.var.mainDb, body.updates);
+    const res = await bulkUpdateHfaIndicatorValidation(
+      c.var.mainDb,
+      body.updates,
+    );
     if (res.success) {
-      notifyInstanceIndicatorsUpdated(await getInstanceIndicatorsSummary(c.var.mainDb));
+      notifyInstanceIndicatorsUpdated(
+        await getInstanceIndicatorsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
   },

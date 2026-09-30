@@ -192,12 +192,14 @@ export function ReportHtmlPreview(p: Props) {
         buttons: e.buttons,
       };
       const pe = e as PointerEvent;
-      const ev = type === "click" ? new MouseEvent("click", init) : new PointerEvent(type, {
-        ...init,
-        pointerId: pe.pointerId ?? 1,
-        pointerType: pe.pointerType ?? "mouse",
-        isPrimary: true,
-      });
+      const ev = type === "click"
+        ? new MouseEvent("click", init)
+        : new PointerEvent(type, {
+          ...init,
+          pointerId: pe.pointerId ?? 1,
+          pointerType: pe.pointerType ?? "mouse",
+          isPrimary: true,
+        });
       iframe.dispatchEvent(ev);
     };
   }
@@ -223,7 +225,9 @@ export function ReportHtmlPreview(p: Props) {
   }
 
   // Typing → debounced; registry / raster changes → immediate.
-  createEffect(on(() => p.body, () => scheduleRender(BODY_DEBOUNCE_MS), { defer: true }));
+  createEffect(
+    on(() => p.body, () => scheduleRender(BODY_DEBOUNCE_MS), { defer: true }),
+  );
   createEffect(
     on(
       () =>

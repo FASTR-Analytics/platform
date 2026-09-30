@@ -15,7 +15,7 @@ export function createWorkerConnection(
     maxConnections?: number;
     idleTimeout?: number; // in seconds
     statementTimeout?: number; // in milliseconds
-  }
+  },
 ): Sql {
   const config: any = {
     database: databaseId,

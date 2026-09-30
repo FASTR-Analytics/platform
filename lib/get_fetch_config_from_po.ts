@@ -109,12 +109,11 @@ export function getFetchConfigFromPresentationObjectConfig(
   if (values.length === 0) {
     return {
       success: false,
-      err:
-        `The visualization's value filter (${
-          (config.d.valuesFilter ?? []).join(", ")
-        }) matches none of this metric's values (${
-          resultsValue.valueProps.join(", ")
-        })`,
+      err: `The visualization's value filter (${
+        (config.d.valuesFilter ?? []).join(", ")
+      }) matches none of this metric's values (${
+        resultsValue.valueProps.join(", ")
+      })`,
     };
   }
 

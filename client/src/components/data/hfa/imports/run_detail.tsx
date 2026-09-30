@@ -1,4 +1,4 @@
-import { t3, type HfaImportRunSummary } from "lib";
+import { type HfaImportRunSummary, t3 } from "lib";
 import { EditorComponentProps, FrameTop, HeadingBar } from "panther";
 import { Show } from "solid-js";
 import { HfaStagingSummary } from "./staging_summary";
@@ -27,7 +27,11 @@ export function HfaRunDetail(
           onBack={() => p.close(undefined)}
           heading={
             <>
-              {t3({ en: "HFA import", fr: "Importation HFA", pt: "Importação HFA" })}
+              {t3({
+                en: "HFA import",
+                fr: "Importation HFA",
+                pt: "Importação HFA",
+              })}
               <span class="font-400 ml-4">
                 {new Date(p.run.startedAt).toLocaleString()}
               </span>
@@ -38,14 +42,20 @@ export function HfaRunDetail(
     >
       <div class="ui-pad ui-spy-sm rounded border text-sm">
         <div class="ui-text-heading">
-          {t3({ en: "Run summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}
+          {t3({
+            en: "Run summary",
+            fr: "Résumé de l'importation",
+            pt: "Resumo da importação",
+          })}
         </div>
         <div class="flex items-baseline">
           <div class="w-56 flex-none">
             {t3({ en: "Status", fr: "Statut", pt: "Estado" })}
           </div>
           <div
-            class={`flex-1 ${p.run.status === "error" ? "text-danger font-700" : ""}`}
+            class={`flex-1 ${
+              p.run.status === "error" ? "text-danger font-700" : ""
+            }`}
           >
             {hfaRunStatusLabel(p.run.status)}
           </div>
@@ -75,7 +85,11 @@ export function HfaRunDetail(
       <Show when={p.run.error}>
         <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
           <div class="ui-text-heading">
-            {t3({ en: "Run error", fr: "Erreur de l'importation", pt: "Erro da importação" })}
+            {t3({
+              en: "Run error",
+              fr: "Erreur de l'importation",
+              pt: "Erro da importação",
+            })}
           </div>
           <div class="text-sm wrap-break-word">{p.run.error}</div>
         </div>

@@ -9,34 +9,34 @@
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
+  collapseFastrBlankRuns,
   containerHtmlFor,
-  fastrDocumentOutline,
   FASTR_BLOCK_NAMES,
   FASTR_COVER_LAYOUTS,
   FASTR_INK_ROLES,
   FASTR_TONES,
   fastrContainerStackUpTo,
+  fastrDocumentOutline,
+  fastrLogoImageIds,
   fastrOpenFenceOnLine,
-  serializeContainerFence,
-  updateContainerFenceLine,
+  fastrToneOf,
+  isDarkCssBackground,
   isDarkCssColor,
   isFastrLeafBlock,
   listFastrContainerDefects,
-  logosSnippet,
-  fastrLogoImageIds,
-  listFastrNestedStats,
   listFastrLiteralBackgrounds,
+  listFastrNestedStats,
+  logosSnippet,
   parseContainerAttrs,
   parseContainerFence,
   parseFastrMarkAttrs,
-  serializeFastrMarkAttrs,
-  isDarkCssBackground,
   readFastrDocumentSettings,
   safeCssBackground,
   safeCssColor,
   safeCssGradient,
-  fastrToneOf,
-  collapseFastrBlankRuns,
+  serializeContainerFence,
+  serializeFastrMarkAttrs,
+  updateContainerFenceLine,
 } from "../../lib/fastr_markdown_blocks.ts";
 import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
 import {
@@ -52,19 +52,19 @@ import {
   FASTR_COVER_PRESETS,
 } from "../../lib/fastr_markdown_edits.ts";
 import {
-  fastrChartPalette,
+  FASTR_GROUNDS,
   FASTR_REPORT_THEMES,
   FASTR_THEME_TOKENS,
-  FASTR_GROUNDS,
+  fastrChartPalette,
 } from "../../lib/types/report_fastr_themes.ts";
 
 import {
-  referencedReportEmbedIds,
   findReportEmbeds,
   getFastrReportTheme,
   getReportFormat,
   getStartingBodyForReport,
   getStartingConfigForReport,
+  referencedReportEmbedIds,
   reportConfigSchema,
   reportRendersAsHtml,
 } from "../../lib/types/reports.ts";
@@ -104,7 +104,9 @@ Deno.test("parseContainerFence: opens, closes, and non-fences", () => {
 
 Deno.test("parseContainerAttrs: quoted values, bare values and flags", () => {
   assertEquals(
-    parseContainerAttrs(`{kind=warning title="Two words" accent cols=3 dir='up'}`),
+    parseContainerAttrs(
+      `{kind=warning title="Two words" accent cols=3 dir='up'}`,
+    ),
     { kind: "warning", title: "Two words", accent: true, cols: "3", dir: "up" },
   );
   assertEquals(parseContainerAttrs("{}"), {});
@@ -149,7 +151,9 @@ Deno.test("stat, contents, pagebreak, logos and report are leaf blocks: one line
   for (const name of FASTR_BLOCK_NAMES) {
     if (!leaves.includes(name)) assert(!isFastrLeafBlock(name));
   }
-  const html = render(`:::stat{value="64%" label="ANC4" delta="+3pp" dir=up}\n`);
+  const html = render(
+    `:::stat{value="64%" label="ANC4" delta="+3pp" dir=up}\n`,
+  );
   assertStringIncludes(html, `<div class="fm-stat"`);
   assertStringIncludes(html, `<div class="fm-stat__value">64%</div>`);
   assertStringIncludes(html, `fm-stat__delta--up">+3pp</div>`);
@@ -337,7 +341,10 @@ Deno.test("a fastr starting config round-trips the schema and carries a theme", 
 });
 
 Deno.test("the seeded body is just the title", () => {
-  assertEquals(getStartingBodyForReport("My report", "fastr"), "# My report\n\n");
+  assertEquals(
+    getStartingBodyForReport("My report", "fastr"),
+    "# My report\n\n",
+  );
 });
 
 Deno.test("embed helpers treat fastr as markdown", () => {
@@ -368,7 +375,10 @@ Deno.test("every theme builds a stylesheet, scoped and unscoped", () => {
     assertStringIncludes(scoped, ".tile .fm-callout {");
     // Nothing may escape the scope onto the app's own document.
     assert(!/(^|\n)\.fm-/.test(scoped), `${theme} leaks an unscoped rule`);
-    assert(!/(^|\n)(html|body|h1) /.test(scoped), `${theme} leaks an element rule`);
+    assert(
+      !/(^|\n)(html|body|h1) /.test(scoped),
+      `${theme} leaks an element rule`,
+    );
   }
 });
 
@@ -395,18 +405,27 @@ Deno.test("font imports are deduped for a concatenated multi-theme sheet", () =>
 Deno.test("an AI body's blank-line runs collapse to the separator, outside code", () => {
   assertEquals(collapseFastrBlankRuns("a\n\n\n\nb\n"), "a\n\nb\n");
   assertEquals(collapseFastrBlankRuns("a\n\nb\n"), "a\n\nb\n");
-  assertEquals(collapseFastrBlankRuns(":::band\n\n\ntext\n:::\n\n\n\nb"), ":::band\n\ntext\n:::\n\nb");
+  assertEquals(
+    collapseFastrBlankRuns(":::band\n\n\ntext\n:::\n\n\n\nb"),
+    ":::band\n\ntext\n:::\n\nb",
+  );
   // A code fence keeps its blank lines: they are content there.
-  assertEquals(collapseFastrBlankRuns("```\na\n\n\nb\n```\n\n\nc"), "```\na\n\n\nb\n```\n\nc");
+  assertEquals(
+    collapseFastrBlankRuns("```\na\n\n\nb\n```\n\n\nc"),
+    "```\na\n\n\nb\n```\n\nc",
+  );
   // Whitespace-only lines are blank lines.
   assertEquals(collapseFastrBlankRuns("a\n  \n\t\nb"), "a\n  \nb");
   assertEquals(collapseFastrBlankRuns(""), "");
 });
 
-
 Deno.test("a blank line beyond the separator is a line of space, anchored to its source line", () => {
-  const html = (body: string) => renderFastrMarkdownToHtml(body, { lineAnchors: true });
-  const spaces = (out: string) => [...out.matchAll(/<div class="fm-space" data-line="(\d+)"><\/div>/g)].map((m) => Number(m[1]));
+  const html = (body: string) =>
+    renderFastrMarkdownToHtml(body, { lineAnchors: true });
+  const spaces = (out: string) =>
+    [...out.matchAll(/<div class="fm-space" data-line="(\d+)"><\/div>/g)].map((
+      m,
+    ) => Number(m[1]));
   // One blank line is the paragraph separator: nothing.
   assertEquals(spaces(html("a\n\nb\n")), []);
   // Each further one is a line of space, on its own source line.
@@ -425,7 +444,10 @@ Deno.test("a blank line beyond the separator is a line of space, anchored to its
   assertEquals(spaces(html("## H\n\n\n- a\n- b\n\n\n\nc\n")), [2, 6, 7]);
   // The space survives the sanitizer with its anchor (report_html_sanitize_test
   // pins that) and carries no text, so a page can start on it.
-  assertStringIncludes(html("a\n\n\nb\n"), '<div class="fm-space" data-line="2"></div>');
+  assertStringIncludes(
+    html("a\n\n\nb\n"),
+    '<div class="fm-space" data-line="2"></div>',
+  );
 });
 
 // ── Backgrounds: tones, literals and images ─────────────────────────────────
@@ -476,7 +498,10 @@ Deno.test("the retired tone spellings still render, each as one of the four", ()
       containerHtmlFor("band", { tone: old }).className,
       `fm-tone fm-tone--${now}`,
     );
-    assertEquals(listFastrContainerDefects(`:::band{tone=${old}}\nx\n:::\n`), []);
+    assertEquals(
+      listFastrContainerDefects(`:::band{tone=${old}}\nx\n:::\n`),
+      [],
+    );
   }
   assertEquals(fastrToneOf("chartreuse"), undefined);
   assertEquals(fastrToneOf(true), undefined);
@@ -563,21 +588,39 @@ Deno.test("literal colours are listed from blocks AND phrase marks, with their a
 Deno.test("the document header carries print setup and section numbering", () => {
   // Defaults, with no header at all.
   const bare = readFastrDocumentSettings("# Hi\n");
-  assertEquals(bare.page, { size: "a4", orientation: "portrait", margin: "normal" });
-  assertStringIncludes(bare.pageCss, "@page { size: 210mm 297mm; margin: 18mm; }");
+  assertEquals(bare.page, {
+    size: "a4",
+    orientation: "portrait",
+    margin: "normal",
+  });
+  assertStringIncludes(
+    bare.pageCss,
+    "@page { size: 210mm 297mm; margin: 18mm; }",
+  );
   assertEquals(bare.className, "");
   // Landscape letter with wide margins, and numbering on.
   const set = readFastrDocumentSettings(
     ":::report{pagesize=letter orientation=landscape margin=wide numbering=sections}\n",
   );
-  assertEquals(set.page, { size: "letter", orientation: "landscape", margin: "wide" });
-  assertStringIncludes(set.pageCss, "@page { size: 279mm 216mm; margin: 28mm; }");
+  assertEquals(set.page, {
+    size: "letter",
+    orientation: "landscape",
+    margin: "wide",
+  });
+  assertStringIncludes(
+    set.pageCss,
+    "@page { size: 279mm 216mm; margin: 28mm; }",
+  );
   assertStringIncludes(set.className, "fm-doc--numbered");
   // Junk values fall back rather than reaching the stylesheet.
   const junk = readFastrDocumentSettings(
     ":::report{pagesize=poster orientation=sideways margin=huge numbering=all}\n",
   );
-  assertEquals(junk.page, { size: "a4", orientation: "portrait", margin: "normal" });
+  assertEquals(junk.page, {
+    size: "a4",
+    orientation: "portrait",
+    margin: "normal",
+  });
   assert(!junk.className.includes("fm-doc--numbered"));
   // The numbering rules exist, and count only top-level headings.
   const css = buildFastrReportCss("default");
@@ -616,11 +659,23 @@ Deno.test("a table of contents is built from the document's own headings", () =>
   assert(!html.includes(">Report title</a>"));
   assert(!html.includes("Not a heading</a>"));
   assert(!html.includes(">Detail</a>"));
-  assertStringIncludes(html, '<a href="#fm-overview" data-toc-line="7">Overview</a>');
-  assertStringIncludes(html, '<a href="#fm-findings" data-toc-line="11">Findings</a>');
-  assertStringIncludes(html, '<a href="#fm-findings-2" data-toc-line="14">Findings</a>');
+  assertStringIncludes(
+    html,
+    '<a href="#fm-overview" data-toc-line="7">Overview</a>',
+  );
+  assertStringIncludes(
+    html,
+    '<a href="#fm-findings" data-toc-line="11">Findings</a>',
+  );
+  assertStringIncludes(
+    html,
+    '<a href="#fm-findings-2" data-toc-line="14">Findings</a>',
+  );
   // Every link has its heading: the ids come from the same slug function.
-  assertStringIncludes(html, '<h2 id="fm-overview" class="fm-top">Overview</h2>');
+  assertStringIncludes(
+    html,
+    '<h2 id="fm-overview" class="fm-top">Overview</h2>',
+  );
   // Inside a band: a heading, not a section, so no fm-top.
   assertStringIncludes(html, '<h2 id="fm-findings-2">Findings</h2>');
   // An h3 that the list skipped still carries its anchor, so raising the
@@ -659,10 +714,16 @@ Deno.test("bands and covers are full-bleed sections", () => {
 // that "good" is a green, "bad" a red, and a ramp runs light to dark.
 function hueOf(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
-  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const r = ((n >> 16) & 255) / 255,
+    g = ((n >> 8) & 255) / 255,
+    b = (n & 255) / 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
   if (d === 0) return 0;
-  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const h = max === r
+    ? ((g - b) / d) % 6
+    : max === g
+    ? (b - r) / d + 2
+    : (r - g) / d + 4;
   return ((h * 60) + 360) % 360;
 }
 // The shorter way round the wheel between two hues, in degrees.
@@ -683,12 +744,15 @@ function lumOf(hex: string): number {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
   };
-  return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) + 0.0722 * ch(n & 255);
+  return 0.2126 * ch((n >> 16) & 255) + 0.7152 * ch((n >> 8) & 255) +
+    0.0722 * ch(n & 255);
 }
 
 function satOf(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
-  const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const r = ((n >> 16) & 255) / 255,
+    g = ((n >> 8) & 255) / 255,
+    b = (n & 255) / 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
   return max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
 }
@@ -697,10 +761,23 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
   const HEX = /^#[0-9a-f]{6}$/i;
   for (const theme of FASTR_REPORT_THEMES) {
     const t = FASTR_THEME_TOKENS[theme];
-    const four = [t.palette.paper, t.palette.ink, t.palette.accent, t.palette.warm];
+    const four = [
+      t.palette.paper,
+      t.palette.ink,
+      t.palette.accent,
+      t.palette.warm,
+    ];
     for (const c of four) assert(HEX.test(c), `${theme}: ${c}`);
-    assertEquals(new Set(four.map((c) => c.toLowerCase())).size, 4, `${theme} repeats a palette colour`);
-    assertEquals(Object.keys(t.palette).length, 4, `${theme} has ${Object.keys(t.palette).length} palette colours`);
+    assertEquals(
+      new Set(four.map((c) => c.toLowerCase())).size,
+      4,
+      `${theme} repeats a palette colour`,
+    );
+    assertEquals(
+      Object.keys(t.palette).length,
+      4,
+      `${theme} has ${Object.keys(t.palette).length} palette colours`,
+    );
     // Muted: no colour is saturated (HSL saturation), and the two hues
     // are neither near-white nor near-black.
     // Legacy is exempt on its accent alone: it is not a design but a
@@ -708,9 +785,14 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
     // is the link blue #0066cc, at full saturation. Muting it would make a
     // converted report a different document, which is the only thing the
     // theme exists not to do. Its warm pole takes the rule like any other.
-    const muted = theme === "legacy" ? [t.palette.warm] : [t.palette.accent, t.palette.warm];
+    const muted = theme === "legacy"
+      ? [t.palette.warm]
+      : [t.palette.accent, t.palette.warm];
     for (const c of muted) {
-      assert(satOf(c) <= 0.55, `${theme} ${c} is too saturated (${satOf(c).toFixed(2)})`);
+      assert(
+        satOf(c) <= 0.55,
+        `${theme} ${c} is too saturated (${satOf(c).toFixed(2)})`,
+      );
     }
     // The roles are the four: the page is the paper, danger the warm pole,
     // success AND info the accent, and the charts agree.
@@ -732,7 +814,10 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
     assertEquals(t.grounds.accent.color, t.palette.accent);
     assertEquals(t.grounds.warm.color, t.palette.warm);
     assertEquals(t.grounds.paper.ink, t.palette.ink);
-    assert(t.grounds.paper.color !== t.palette.paper, `${theme}: a paper panel would vanish`);
+    assert(
+      t.grounds.paper.color !== t.palette.paper,
+      `${theme}: a paper panel would vanish`,
+    );
     assert(
       Math.abs(lumOf(t.grounds.paper.color) - lumOf(t.palette.paper)) <
         Math.abs(lumOf(t.grounds.paper.color) - lumOf(t.palette.ink)) / 4,
@@ -740,11 +825,20 @@ Deno.test("every theme is four muted colours, and everything else is mixed from 
     );
     for (const tone of FASTR_GROUNDS) {
       const { color, ink } = t.grounds[tone];
-      assert(ink === t.palette.paper || ink === t.palette.ink, `${theme} ${tone} ground ink ${ink}`);
-      assert(Math.abs(lumOf(color) - lumOf(ink)) > 0.2, `${theme} ${tone}: ${ink} on ${color} does not read`);
+      assert(
+        ink === t.palette.paper || ink === t.palette.ink,
+        `${theme} ${tone} ground ink ${ink}`,
+      );
+      assert(
+        Math.abs(lumOf(color) - lumOf(ink)) > 0.2,
+        `${theme} ${tone}: ${ink} on ${color} does not read`,
+      );
     }
     // A theme's extra rules name the four, never a colour of their own.
-    assert(!/#[0-9a-f]{3,8}\b|rgba?\(|\b(white|black)\b/i.test(t.extraCss), `${theme} extraCss carries a literal colour`);
+    assert(
+      !/#[0-9a-f]{3,8}\b|rgba?\(|\b(white|black)\b/i.test(t.extraCss),
+      `${theme} extraCss carries a literal colour`,
+    );
     // …and they never re-cut a heading, because a heading's font metrics are
     // READ by three sheets and measured by none: the editor's own cm-fm-h*
     // lines would keep the default size and Edit would break its pages where
@@ -766,22 +860,40 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
   const HEX = /^#[0-9a-f]{6}$/i;
   for (const theme of FASTR_REPORT_THEMES) {
     const { chart, page, ink } = FASTR_THEME_TOKENS[theme];
-    assert(chart.series.length >= 6, `${theme} has ${chart.series.length} series colours`);
+    assert(
+      chart.series.length >= 6,
+      `${theme} has ${chart.series.length} series colours`,
+    );
     assertEquals(
       new Set(chart.series.map((c) => c.toLowerCase())).size,
       chart.series.length,
       `${theme} repeats a series colour`,
     );
-    for (const c of [...chart.series, chart.neutral, chart.good, chart.bad, ...chart.ramp]) {
+    for (
+      const c of [
+        ...chart.series,
+        chart.neutral,
+        chart.good,
+        chart.bad,
+        ...chart.ramp,
+      ]
+    ) {
       assert(HEX.test(c), `${theme}: ${c}`);
     }
     // Meaning survives the theme, but as TEMPERATURE, not as a stock traffic
     // light: bad is the theme's warm pole and good its accent, wherever that
     // theme's hue happens to sit. A rust and a slate blue carry what a red
     // and a green did, and carry it through red-green colour blindness.
-    assertEquals(chart.good, chart.series[0], `${theme} good is not the accent`);
+    assertEquals(
+      chart.good,
+      chart.series[0],
+      `${theme} good is not the accent`,
+    );
     const badHue = hueOf(chart.bad);
-    assert(badHue >= 300 || badHue <= 70, `${theme} bad ${chart.bad} hue ${badHue.toFixed(0)} is not a warm colour`);
+    assert(
+      badHue >= 300 || badHue <= 70,
+      `${theme} bad ${chart.bad} hue ${badHue.toFixed(0)} is not a warm colour`,
+    );
     // Good and bad must be tellable apart. On the themes whose accent is
     // itself cool that is a wide hue gap; on the ones whose accent is warm
     // (Editorial's ochre, Swiss's and Bauhaus's red, Broadsheet's maroon,
@@ -793,28 +905,45 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
     const dL = Math.abs(lStarOf(chart.good) - lStarOf(chart.bad));
     assert(
       gap >= 60 || dL >= 12,
-      `${theme} good ${chart.good} and bad ${chart.bad} are ${gap.toFixed(0)} degrees and ` +
+      `${theme} good ${chart.good} and bad ${chart.bad} are ${
+        gap.toFixed(0)
+      } degrees and ` +
         `${dL.toFixed(0)} L* apart: too close to tell apart`,
     );
     // The caution tier is the theme's own gold, and a tier of its own: a
     // warning that reads as the danger beside it is no warning.
     assert(HEX.test(chart.warn), `${theme}: ${chart.warn}`);
     const warnHue = hueOf(chart.warn);
-    assert(warnHue >= 30 && warnHue <= 60, `${theme} warn ${chart.warn} hue ${warnHue.toFixed(0)} is not a gold`);
-    for (const [role, c] of [["bad", chart.bad], ["good", chart.good]] as const) {
+    assert(
+      warnHue >= 30 && warnHue <= 60,
+      `${theme} warn ${chart.warn} hue ${warnHue.toFixed(0)} is not a gold`,
+    );
+    for (
+      const [role, c] of [["bad", chart.bad], ["good", chart.good]] as const
+    ) {
       assert(
-        hueGapOf(warnHue, hueOf(c)) >= 20 || Math.abs(lStarOf(chart.warn) - lStarOf(c)) >= 10,
+        hueGapOf(warnHue, hueOf(c)) >= 20 ||
+          Math.abs(lStarOf(chart.warn) - lStarOf(c)) >= 10,
         `${theme} warn ${chart.warn} collides with ${role} ${c}`,
       );
     }
     // The neutral is a mid tone that reads on the page, not a series colour
     // in disguise: no strong hue, and away from both page and ink.
-    assert(Math.abs(lumOf(chart.neutral) - lumOf(page)) > 0.12, `${theme} neutral vanishes on the page`);
-    assert(Math.abs(lumOf(chart.neutral) - lumOf(ink)) > 0.05, `${theme} neutral is the ink`);
+    assert(
+      Math.abs(lumOf(chart.neutral) - lumOf(page)) > 0.12,
+      `${theme} neutral vanishes on the page`,
+    );
+    assert(
+      Math.abs(lumOf(chart.neutral) - lumOf(ink)) > 0.05,
+      `${theme} neutral is the ink`,
+    );
     // The ramp is sequential: its ends differ clearly in lightness, the
     // emphatic end (`to`) being the one that contrasts most with the page.
     const [from, to] = chart.ramp;
-    assert(Math.abs(lumOf(from) - lumOf(to)) > 0.15, `${theme} ramp ${from}→${to} is flat`);
+    assert(
+      Math.abs(lumOf(from) - lumOf(to)) > 0.15,
+      `${theme} ramp ${from}→${to} is flat`,
+    );
     assert(
       Math.abs(lumOf(to) - lumOf(page)) > Math.abs(lumOf(from) - lumOf(page)),
       `${theme} ramp's emphatic end is the faint one`,
@@ -830,26 +959,47 @@ Deno.test("every theme's chart colours: a distinct series cycle, semantic colour
     assertEquals(p.strong, ink);
     assert(HEX.test(p.faint), `${theme} faint ${p.faint}`);
     const fl = lumOf(p.faint), nl = lumOf(chart.neutral), pl = lumOf(page);
-    assert(fl >= Math.min(nl, pl) - 1e-9 && fl <= Math.max(nl, pl) + 1e-9, `${theme} faint ${p.faint} is not between neutral and page`);
+    assert(
+      fl >= Math.min(nl, pl) - 1e-9 && fl <= Math.max(nl, pl) + 1e-9,
+      `${theme} faint ${p.faint} is not between neutral and page`,
+    );
   }
   // A custom style: its accent leads the series, its ink is the strong line,
   // its page tunes the faint tone. The good news IS the accent, so a custom
   // accent carries it (the page's success colour is re-derived from the same
   // override); the bad news is the warm pole, which a custom style does not
   // name, so it stays the theme's.
-  const custom = fastrChartPalette("ministry", { accent: "#ABCDEF", ink: "#123456", page: "#000000" });
+  const custom = fastrChartPalette("ministry", {
+    accent: "#ABCDEF",
+    ink: "#123456",
+    page: "#000000",
+  });
   assertEquals(custom.series[0], "#abcdef");
-  assertEquals(custom.series.length, FASTR_THEME_TOKENS.ministry.chart.series.length + 1);
+  assertEquals(
+    custom.series.length,
+    FASTR_THEME_TOKENS.ministry.chart.series.length + 1,
+  );
   assertEquals(custom.strong, "#123456");
-  assert(lumOf(custom.faint) < lumOf(fastrChartPalette("ministry").faint), "faint follows the page");
+  assert(
+    lumOf(custom.faint) < lumOf(fastrChartPalette("ministry").faint),
+    "faint follows the page",
+  );
   assertEquals(custom.good, "#abcdef");
   assertEquals(custom.bad, FASTR_THEME_TOKENS.ministry.chart.bad);
   // An accent the theme already has is not doubled.
   const same = fastrChartPalette("bauhaus", { accent: "#B6433A" });
-  assertEquals(same.series, FASTR_THEME_TOKENS.bauhaus.chart.series.map((c) => c.toLowerCase() === "#b6433a" ? "#b6433a" : c));
+  assertEquals(
+    same.series,
+    FASTR_THEME_TOKENS.bauhaus.chart.series.map((c) =>
+      c.toLowerCase() === "#b6433a" ? "#b6433a" : c
+    ),
+  );
   // A page that is not a 6-digit hex cannot be mixed: the faint tone falls
   // back to the neutral rather than a broken colour.
-  assertEquals(fastrChartPalette("default", { page: "white" }).faint, FASTR_THEME_TOKENS.default.chart.neutral);
+  assertEquals(
+    fastrChartPalette("default", { page: "white" }).faint,
+    FASTR_THEME_TOKENS.default.chart.neutral,
+  );
 });
 
 Deno.test("a cover fills its page only with fill=page", () => {
@@ -863,7 +1013,10 @@ Deno.test("a cover fills its page only with fill=page", () => {
   );
   assert(!render(":::cover{tone=ink}\n# T\n:::\n").includes("fm-cover--fill"));
   const defects = listFastrContainerDefects(":::cover{fill=tall}\n# T\n:::\n");
-  assert(defects.some((d) => d.message.includes("Unknown fill `tall`")), JSON.stringify(defects));
+  assert(
+    defects.some((d) => d.message.includes("Unknown fill `tall`")),
+    JSON.stringify(defects),
+  );
   // The paged sheet gives only the filling cover its own page.
   const css = buildFastrPagedCss(
     { size: "a4", orientation: "portrait", margin: "normal" },
@@ -876,7 +1029,10 @@ Deno.test("a cover fills its page only with fill=page", () => {
   // leaves it out (Paged.js would apply it during layout and Chrome again
   // when printing the fixed pages).
   assertStringIncludes(buildFastrReportCss("default"), "@media print {");
-  assert(!buildFastrReportCss("default", undefined, "", { omitPrintRules: true }).includes("@media print"));
+  assert(
+    !buildFastrReportCss("default", undefined, "", { omitPrintRules: true })
+      .includes("@media print"),
+  );
   // A natural cover hugs the top of its page, rising through the top
   // margin (the page keeps its margins and footer, and the report continues
   // below the cover on the same page).
@@ -893,8 +1049,14 @@ Deno.test("a cover's layout is a class the sheet styles; classic is the bare cov
   );
   // Classic and an unknown layout both leave the class alone, so existing
   // covers render byte for byte.
-  assertStringIncludes(render(":::cover{layout=classic}\n# T\n:::\n"), '<section class="fm-band fm-cover"');
-  assertStringIncludes(render(":::cover{layout=swirly}\n# T\n:::\n"), '<section class="fm-band fm-cover"');
+  assertStringIncludes(
+    render(":::cover{layout=classic}\n# T\n:::\n"),
+    '<section class="fm-band fm-cover"',
+  );
+  assertStringIncludes(
+    render(":::cover{layout=swirly}\n# T\n:::\n"),
+    '<section class="fm-band fm-cover"',
+  );
   // The masthead lines stay direct children whatever the layout (the editor's
   // kicker/dek islands depend on it).
   const html = render(':::cover{layout=split kicker="K" sub="S"}\n# T\n:::\n');
@@ -903,8 +1065,14 @@ Deno.test("a cover's layout is a class the sheet styles; classic is the bare cov
   // Every layout the renderer accepts has rules in the sheet, plain and scoped.
   for (const layout of FASTR_COVER_LAYOUTS) {
     if (layout === "classic") continue;
-    assertStringIncludes(buildFastrReportCss("default"), `.fm-cover.fm-cover--${layout}`);
-    assertStringIncludes(buildFastrReportCss("swiss", undefined, ".t"), `.t .fm-cover.fm-cover--${layout}`);
+    assertStringIncludes(
+      buildFastrReportCss("default"),
+      `.fm-cover.fm-cover--${layout}`,
+    );
+    assertStringIncludes(
+      buildFastrReportCss("swiss", undefined, ".t"),
+      `.t .fm-cover.fm-cover--${layout}`,
+    );
   }
   // The thumbnail sheet fills the tile and knows every preset's layout.
   const tile = buildFastrCoverTileCss(".s");
@@ -914,11 +1082,19 @@ Deno.test("a cover's layout is a class the sheet styles; classic is the bare cov
   }
   // The preset snippet: fallbacks stay off the fence, quotes are kept safe.
   assertEquals(
-    coverSnippet({ layout: "poster", tone: "accent" }, { kicker: 'Say "hi"', title: "T", sub: "S" }),
+    coverSnippet({ layout: "poster", tone: "accent" }, {
+      kicker: 'Say "hi"',
+      title: "T",
+      sub: "S",
+    }),
     `:::cover{tone=accent layout=poster kicker="Say 'hi'" sub="S"}\n# T\n:::`,
   );
   assertEquals(
-    coverSnippet({ layout: "classic", tone: "default" }, { kicker: "K", title: "T", sub: "S" }),
+    coverSnippet({ layout: "classic", tone: "default" }, {
+      kicker: "K",
+      title: "T",
+      sub: "S",
+    }),
     ':::cover{kicker="K" sub="S"}\n# T\n:::',
   );
 });
@@ -949,7 +1125,11 @@ Deno.test("a literal document background carries its own ink", () => {
 Deno.test("no :::report means no document settings, and code fences are literal", () => {
   const bare = readFastrDocumentSettings("# T\n");
   assertEquals(
-    { className: bare.className, style: bare.style, extraAttrs: bare.extraAttrs },
+    {
+      className: bare.className,
+      style: bare.style,
+      extraAttrs: bare.extraAttrs,
+    },
     { className: "", style: "", extraAttrs: "" },
   );
   assertEquals(
@@ -990,9 +1170,16 @@ Deno.test("every theme emits the four grounds and a rule for each tone", () => {
     const tokens = FASTR_THEME_TOKENS[theme];
     const css = buildFastrReportCss(theme);
     for (const tone of FASTR_GROUNDS) {
-      assertStringIncludes(css, `--fm-${tone}-ground: ${tokens.grounds[tone].color};`);
-      assertStringIncludes(css, `--fm-${tone}-ground-ink: ${tokens.grounds[tone].ink};`);
-      const block = new RegExp(`\\.fm-tone\\.fm-tone--${tone} \\{([^}]*)\\}`).exec(css)?.[1];
+      assertStringIncludes(
+        css,
+        `--fm-${tone}-ground: ${tokens.grounds[tone].color};`,
+      );
+      assertStringIncludes(
+        css,
+        `--fm-${tone}-ground-ink: ${tokens.grounds[tone].ink};`,
+      );
+      const block = new RegExp(`\\.fm-tone\\.fm-tone--${tone} \\{([^}]*)\\}`)
+        .exec(css)?.[1];
       assert(block !== undefined, `${theme} has no ${tone} tone rule`);
       assertStringIncludes(block, `background: var(--fm-${tone}-ground);`);
       assertStringIncludes(block, `--fm-ink: var(--fm-${tone}-ground-ink);`);
@@ -1001,7 +1188,10 @@ Deno.test("every theme emits the four grounds and a rule for each tone", () => {
       // theme's to know: the ink ground is dark on a light theme and light
       // on a dark one.
       const dark = tokens.grounds[tone].ink === tokens.lightInk;
-      assertStringIncludes(block, `--fm-danger: var(--fm-danger-${dark ? "dark" : "light"});`);
+      assertStringIncludes(
+        block,
+        `--fm-danger: var(--fm-danger-${dark ? "dark" : "light"});`,
+      );
       // A coloured ground's accent is its own ink; the paper ground is the
       // page again, so the accent returns (a stat value inside a paper card
       // inside an ink band would otherwise be paper on paper).
@@ -1018,7 +1208,10 @@ Deno.test("every theme emits the four grounds and a rule for each tone", () => {
     assertStringIncludes(css, ".fm-ink--light {");
     // On a light theme the ink ground is dark; the paper ground is light.
     if (tokens.scheme === "light") {
-      assert(isDarkCssColor(tokens.grounds.ink.color), `${theme} ink ground is not dark`);
+      assert(
+        isDarkCssColor(tokens.grounds.ink.color),
+        `${theme} ink ground is not dark`,
+      );
       assertEquals(isDarkCssColor(tokens.grounds.paper.color), false);
     }
   }
@@ -1030,11 +1223,17 @@ Deno.test("every theme emits the four grounds and a rule for each tone", () => {
 // caught. Structural, because CSS cannot be evaluated here.
 Deno.test("no tone rule reads a custom property it also redefines", () => {
   const css = buildFastrReportCss("default");
-  for (const [, selector, block] of css.matchAll(/(\.fm-[\w-]+)\s*\{([^}]*)\}/g)) {
+  for (
+    const [, selector, block] of css.matchAll(/(\.fm-[\w-]+)\s*\{([^}]*)\}/g)
+  ) {
     const declared = new Set(
       [...block.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]),
     );
-    for (const [, prop, read] of block.matchAll(/^\s*([a-z-]+)\s*:[^;]*var\((--[\w-]+)/gm)) {
+    for (
+      const [, prop, read] of block.matchAll(
+        /^\s*([a-z-]+)\s*:[^;]*var\((--[\w-]+)/gm,
+      )
+    ) {
       // A custom property that references ITSELF is a cycle and resolves to
       // nothing, which is the same failure wearing a different hat.
       assert(
@@ -1093,10 +1292,16 @@ Deno.test("a gradient's ink comes from the MEAN of its stops", () => {
   );
   // Judged across the sweep, NOT from the first stop: black→near-white reads
   // light overall even though it starts black.
-  assertEquals(isDarkCssBackground("linear-gradient(180deg,#000,#f8f8f8)"), false);
+  assertEquals(
+    isDarkCssBackground("linear-gradient(180deg,#000,#f8f8f8)"),
+    false,
+  );
   // A full-range sweep has no ink that works at both ends — it lands wherever
   // the mean falls, and the author overrides with ink= if that is wrong.
-  assertEquals(isDarkCssBackground("linear-gradient(180deg,#fff,#050505)"), false);
+  assertEquals(
+    isDarkCssBackground("linear-gradient(180deg,#fff,#050505)"),
+    false,
+  );
   // No parseable stop → no guess; the author uses ink=.
   assertEquals(
     isDarkCssBackground("linear-gradient(180deg, teal, olive)"),
@@ -1149,11 +1354,20 @@ Deno.test("a theme's scheme decides the semantic colours, and dark pages get the
     // The page reads its own status set (the light-ground set on a light
     // page, the dark-ground set on a dark one), and that set is the theme's
     // own warm.
-    assertStringIncludes(css, `--fm-danger: var(--fm-danger-${tokens.scheme});`);
-    assertStringIncludes(css, `--fm-danger-${tokens.scheme}: ${tokens.semantic.danger};`);
+    assertStringIncludes(
+      css,
+      `--fm-danger: var(--fm-danger-${tokens.scheme});`,
+    );
+    assertStringIncludes(
+      css,
+      `--fm-danger-${tokens.scheme}: ${tokens.semantic.danger};`,
+    );
     assertEquals(tokens.semantic.danger, tokens.palette.warm);
     // The semantic colours are referenced, never inlined.
-    assertStringIncludes(css, ".fm-callout--danger { --fm-callout-color: var(--fm-danger); }");
+    assertStringIncludes(
+      css,
+      ".fm-callout--danger { --fm-callout-color: var(--fm-danger); }",
+    );
   }
 });
 
@@ -1219,7 +1433,10 @@ Deno.test("a comment in a theme's extraCss does not unscope the next rule", () =
 // somewhere unrelated. Bitten three times; pinned here.
 Deno.test("no stray backtick inside the CSS template literals", async () => {
   for (
-    const rel of ["../../lib/report_fastr_css.ts", "../../lib/types/report_fastr_themes.ts"]
+    const rel of [
+      "../../lib/report_fastr_css.ts",
+      "../../lib/types/report_fastr_themes.ts",
+    ]
   ) {
     const src = await Deno.readTextFile(new URL(rel, import.meta.url));
     for (const [i, line] of src.split("\n").entries()) {
@@ -1241,7 +1458,9 @@ Deno.test("no stray backtick inside the CSS template literals", async () => {
 // a black number on a black tile.
 Deno.test("any ground that re-scopes the accent re-scopes the accent TEXT too", () => {
   const css = buildFastrReportCss("default");
-  for (const [, selector, block] of css.matchAll(/(\.fm-[\w-]+)\s*\{([^}]*)\}/g)) {
+  for (
+    const [, selector, block] of css.matchAll(/(\.fm-[\w-]+)\s*\{([^}]*)\}/g)
+  ) {
     if (!/--fm-accent\s*:/.test(block)) continue;
     assert(
       /--fm-accent-text\s*:/.test(block),
@@ -1276,7 +1495,11 @@ Deno.test("the warm and accent tones are the semantic colours, in every theme", 
 // doubles its class to win.
 Deno.test("a tone outranks a theme's own background", () => {
   const css = buildFastrReportCss("bauhaus");
-  for (const [, selector, block] of css.matchAll(/^(\.fm-tone[\w.-]*) \{([^}]*)\}/gm)) {
+  for (
+    const [, selector, block] of css.matchAll(
+      /^(\.fm-tone[\w.-]*) \{([^}]*)\}/gm,
+    )
+  ) {
     if (!/(^|;|\s)background\s*:/.test(block)) continue;
     // Two class tokens = specificity 0,2,0, which beats a theme's single-class
     // element rule regardless of source order.
@@ -1407,10 +1630,15 @@ Deno.test("fences inside a code block are literal text", () => {
 });
 
 Deno.test("an unclosed block stays open and a stray close does not underflow", () => {
-  assertEquals(fastrContainerStackUpTo([":::band"]).map((f) => f.name), ["band"]);
-  assertEquals(fastrContainerStackUpTo([":::", ":::", ":::quote"]).map((f) => f.name), [
-    "quote",
+  assertEquals(fastrContainerStackUpTo([":::band"]).map((f) => f.name), [
+    "band",
   ]);
+  assertEquals(
+    fastrContainerStackUpTo([":::", ":::", ":::quote"]).map((f) => f.name),
+    [
+      "quote",
+    ],
+  );
 });
 
 Deno.test("all three walkers agree about one document", () => {
@@ -1445,7 +1673,10 @@ Deno.test("a role mark becomes a span, and nested markup survives", () => {
 Deno.test("a mark never swallows a link, an image or an unknown role", () => {
   const r = (s: string) => renderFastrMarkdownToHtml(s, { lineAnchors: false });
   // Falls through to the real link rule.
-  assertStringIncludes(r("[x](https://e.example)"), `<a href="https://e.example">x</a>`);
+  assertStringIncludes(
+    r("[x](https://e.example)"),
+    `<a href="https://e.example">x</a>`,
+  );
   // The figure width syntax fires on `!`, so the mark rule never sees it.
   assertStringIncludes(r("![Cap](figure:abc){width=wide}"), "fm-figure--wide");
   // An unknown role is the author's literal text, not a swallowed phrase.
@@ -1494,7 +1725,10 @@ Deno.test("underline marks, alone and combined", () => {
     r("[x]{.success size=14 underline}"),
     `<span class="fm-mark fm-mark--success fm-mark--u" style="font-size:14pt;text-decoration:underline">x</span>`,
   );
-  assertStringIncludes(r("[x]{underline underline}"), "[x]{underline underline}");
+  assertStringIncludes(
+    r("[x]{underline underline}"),
+    "[x]{underline underline}",
+  );
   assertStringIncludes(r("[x]{underlined}"), "[x]{underlined}");
 });
 
@@ -1517,9 +1751,19 @@ Deno.test("literal colour marks: any safe colour, alone or with size/underline",
   assertStringIncludes(r("[x]{color=url(x)}"), "[x]{color=url(x)}");
   assertStringIncludes(r("[x]{color=muted}"), "[x]{color=muted}");
   assertStringIncludes(r("[x]{color=#123;x}"), "[x]{color=#123;x}");
-  assertStringIncludes(r("[x]{color=#111 color=#222}"), "[x]{color=#111 color=#222}");
-  assertEquals(parseFastrMarkAttrs(".info color=#abc size=10"), { role: "info", color: "#abc", size: 10 });
-  assertEquals(serializeFastrMarkAttrs({ role: "info", color: "#abc", size: 10 }), "{.info color=#abc size=10}");
+  assertStringIncludes(
+    r("[x]{color=#111 color=#222}"),
+    "[x]{color=#111 color=#222}",
+  );
+  assertEquals(parseFastrMarkAttrs(".info color=#abc size=10"), {
+    role: "info",
+    color: "#abc",
+    size: 10,
+  });
+  assertEquals(
+    serializeFastrMarkAttrs({ role: "info", color: "#abc", size: 10 }),
+    "{.info color=#abc size=10}",
+  );
 });
 
 Deno.test("every role has a rule reading the right token, in every theme", () => {
@@ -1573,7 +1817,11 @@ Deno.test("an accent mark is never a no-op, even where the accent cannot be text
     assertStringIncludes(css, "--fm-mark-accent-weight:");
   }
   assertStringIncludes(
-    buildFastrReportCss("default", { page: "#ffffff", ink: "#111111", accent: "#f2f2f2" }),
+    buildFastrReportCss("default", {
+      page: "#ffffff",
+      ink: "#111111",
+      accent: "#f2f2f2",
+    }),
     "--fm-mark-accent-weight: 700",
   );
   assertStringIncludes(
@@ -1585,7 +1833,17 @@ Deno.test("an accent mark is never a no-op, even where the accent cannot be text
 Deno.test("the model-facing brief documents the marks it is allowed to write", () => {
   assertStringIncludes(FASTR_MD_SYNTAX_DOC, "{.danger}");
   // Everything the editor can insert is something the model is told about.
-  for (const needle of [":::contents", "layout=", "highlight=", "numbering=sections", "color=", "size=", "underline"]) {
+  for (
+    const needle of [
+      ":::contents",
+      "layout=",
+      "highlight=",
+      "numbering=sections",
+      "color=",
+      "size=",
+      "underline",
+    ]
+  ) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
   }
   // The one-line rule names every leaf, or the model closes a contents block.
@@ -1593,7 +1851,9 @@ Deno.test("the model-facing brief documents the marks it is allowed to write", (
     FASTR_MD_SYNTAX_DOC,
     "`stat`, `contents`, `pagebreak`, `logos` and `report` are ONE-LINE",
   );
-  for (const needle of [":::pagebreak", "orientation", ":::logos", "never invent"]) {
+  for (
+    const needle of [":::pagebreak", "orientation", ":::logos", "never invent"]
+  ) {
     assertStringIncludes(FASTR_MD_SYNTAX_DOC, needle);
   }
   // The page size is no longer the model's to choose (2026-09-30): A4.
@@ -1628,12 +1888,14 @@ Deno.test("the editor surface sheet is scope-prefixed and token-driven", () => {
   assertStringIncludes(css, ".cm-fm-link");
   // …and the structure sheet reads them too, so the two cannot drift.
   const structure = buildFastrStructureCss("");
-  for (const decl of [
-    "font-size: var(--fm-h1-size)",
-    "font-weight: var(--fm-h1-weight)",
-    "line-height: var(--fm-h1-line-height)",
-    "font-size: var(--fm-h6-size)",
-  ]) {
+  for (
+    const decl of [
+      "font-size: var(--fm-h1-size)",
+      "font-weight: var(--fm-h1-weight)",
+      "line-height: var(--fm-h1-line-height)",
+      "font-size: var(--fm-h6-size)",
+    ]
+  ) {
     assertStringIncludes(structure, decl);
   }
   // Every level's tokens are declared, at the default cut for a theme that
@@ -1657,7 +1919,10 @@ import {
   fastrPagedRunnerJs,
   fastrPrintTitleHtml,
 } from "../../lib/report_fastr_paged.ts";
-import { fastrBreakMode, fastrSheetMm } from "../../lib/fastr_markdown_blocks.ts";
+import {
+  fastrBreakMode,
+  fastrSheetMm,
+} from "../../lib/fastr_markdown_blocks.ts";
 
 Deno.test(":::pagebreak is a one-line leaf that renders an empty marker", () => {
   assert(isFastrLeafBlock("pagebreak"));
@@ -1667,10 +1932,17 @@ Deno.test(":::pagebreak is a one-line leaf that renders an empty marker", () => 
     { lineAnchors: true },
   );
   assertStringIncludes(html, '<div class="fm-pagebreak" data-line="2">');
-  assertStringIncludes(html, "<p data-line=\"4\">After</p>");
-  assertEquals(listFastrContainerDefects("Before\n\n:::pagebreak\n\nAfter"), []);
+  assertStringIncludes(html, '<p data-line="4">After</p>');
+  assertEquals(
+    listFastrContainerDefects("Before\n\n:::pagebreak\n\nAfter"),
+    [],
+  );
   // The editor's snippet is the bare fence.
-  assert(FASTR_BLOCK_SNIPPETS.some((s) => s.name === "pagebreak" && s.snippet === ":::pagebreak"));
+  assert(
+    FASTR_BLOCK_SNIPPETS.some((s) =>
+      s.name === "pagebreak" && s.snippet === ":::pagebreak"
+    ),
+  );
 });
 
 Deno.test("break=before|after rides on any block as a data attribute; anything else is a defect", () => {
@@ -1693,8 +1965,13 @@ Deno.test("break=before|after rides on any block as a data attribute; anything e
     ":::callout{break=before}\nFresh page.\n:::",
     { lineAnchors: false },
   );
-  assertStringIncludes(html, 'class="fm-callout fm-callout--note" data-break="before"');
-  const defects = listFastrContainerDefects(":::callout{break=sideways}\nx\n:::");
+  assertStringIncludes(
+    html,
+    'class="fm-callout fm-callout--note" data-break="before"',
+  );
+  const defects = listFastrContainerDefects(
+    ":::callout{break=sideways}\nx\n:::",
+  );
   assertEquals(defects.length, 1);
   assertStringIncludes(defects[0].message, "break=before or break=after");
 });
@@ -1710,7 +1987,10 @@ Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic bloc
   assertStringIncludes(css, "--fm-print-column: 658px;");
   assertStringIncludes(css, "--fm-print-area: 987px;");
   assertStringIncludes(css, "content: string(fm-title);");
-  assertStringIncludes(css, 'content: "Page " counter(page) " of " counter(pages);');
+  assertStringIncludes(
+    css,
+    'content: "Page " counter(page) " of " counter(pages);',
+  );
   // The cover's page: zero margins, no footer, and the cover fills it.
   assertStringIncludes(css, "@page fmcover {\n  margin: 0;");
   assertStringIncludes(css, "@bottom-left { content: none; }");
@@ -1720,12 +2000,20 @@ Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic bloc
   assertStringIncludes(css, "--fm-bleed-margin: -68px;");
   assertStringIncludes(css, "--fm-bleed-pad: 68px;");
   // Every atomic block is protected, headings keep with next, orphans at 3.
-  for (const sel of FASTR_PAGED_ATOMIC_SELECTORS) assertStringIncludes(css, sel);
-  assertStringIncludes(css, "h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }");
+  for (const sel of FASTR_PAGED_ATOMIC_SELECTORS) {
+    assertStringIncludes(css, sel);
+  }
+  assertStringIncludes(
+    css,
+    "h1, h2, h3, h4, h5, h6 { break-after: avoid; break-inside: avoid; }",
+  );
   assertStringIncludes(css, "orphans: 3; widows: 3;");
   // Out of the flow and pinned to the page's corner: a marker pushed to the
   // next page by a margin would force a break after itself, a blank page.
-  assertStringIncludes(css, ".fm-pagebreak {\n  break-after: page;\n  position: absolute;\n  top: 0;");
+  assertStringIncludes(
+    css,
+    ".fm-pagebreak {\n  break-after: page;\n  position: absolute;\n  top: 0;",
+  );
   assertStringIncludes(css, '[data-break="before"] { break-before: page; }');
   assertStringIncludes(css, '[data-break="after"] { break-after: page; }');
   // Contents entries get page numbers.
@@ -1736,8 +2024,14 @@ Deno.test("the paged sheet: sheet size, margins, footer, cover page, atomic bloc
     { title: "x", pageWord: 'Pa"ge', ofWord: "de" },
   );
   assertStringIncludes(land, "size: 1054px 816px;");
-  assertStringIncludes(land, 'content: "Pa\\"ge " counter(page) " de " counter(pages);');
-  assertEquals(fastrSheetMm({ size: "a4", orientation: "landscape", margin: "narrow" }), [297, 210]);
+  assertStringIncludes(
+    land,
+    'content: "Pa\\"ge " counter(page) " de " counter(pages);',
+  );
+  assertEquals(
+    fastrSheetMm({ size: "a4", orientation: "landscape", margin: "narrow" }),
+    [297, 210],
+  );
 });
 
 Deno.test("the paged runner publishes on the agreed global and the title span is hidden text", () => {
@@ -1746,23 +2040,33 @@ Deno.test("the paged runner publishes on the agreed global and the title span is
   assertStringIncludes(js, "window.PagedPolyfill.preview()");
   assertStringIncludes(js, "registerHandlers");
   // The atomic list the runner reports splits for is the sheet's own.
-  assertStringIncludes(js, JSON.stringify(FASTR_PAGED_ATOMIC_SELECTORS.join(", ")));
+  assertStringIncludes(
+    js,
+    JSON.stringify(FASTR_PAGED_ATOMIC_SELECTORS.join(", ")),
+  );
   assertEquals(
     fastrPrintTitleHtml("Q3 <review> & co"),
     '<span class="fm-print-title">Q3 &lt;review&gt; &amp; co</span>',
   );
   // The paged sheet is a template literal too; no backtick inside a comment.
-  assert(!/\/\*[^*]*`/.test(buildFastrPagedCss(
-    { size: "a4", orientation: "portrait", margin: "normal" },
-    { title: "", pageWord: "Page", ofWord: "of" },
-  )));
+  assert(
+    !/\/\*[^*]*`/.test(buildFastrPagedCss(
+      { size: "a4", orientation: "portrait", margin: "normal" },
+      { title: "", pageWord: "Page", ofWord: "of" },
+    )),
+  );
 });
 
 Deno.test("listFastrNestedStats: a stat inside a card or column is flagged, a bare tile is not", () => {
-  const good = ":::tiles{cols=2}\n:::stat{value=\"1\" label=\"a\"}\n:::stat{value=\"2\" label=\"b\"}\n:::";
+  const good =
+    ':::tiles{cols=2}\n:::stat{value="1" label="a"}\n:::stat{value="2" label="b"}\n:::';
   assertEquals(listFastrNestedStats(good), []);
-  const bad = ":::tiles{cols=2}\n:::card{title=\"A\"}\n:::stat{value=\"1\" label=\"a\"}\n:::\n:::\n\n:::columns\n:::col\n:::stat{value=\"2\"}\n:::\n:::\n\n```\n:::card\n:::stat{value=\"3\"}\n```";
-  assertEquals(listFastrNestedStats(bad), [{ line: 3, parent: "card" }, { line: 9, parent: "col" }]);
+  const bad =
+    ':::tiles{cols=2}\n:::card{title="A"}\n:::stat{value="1" label="a"}\n:::\n:::\n\n:::columns\n:::col\n:::stat{value="2"}\n:::\n:::\n\n```\n:::card\n:::stat{value="3"}\n```';
+  assertEquals(listFastrNestedStats(bad), [{ line: 3, parent: "card" }, {
+    line: 9,
+    parent: "col",
+  }]);
   // The brief says so, in words the model can act on.
   assertStringIncludes(FASTR_MD_SYNTAX_DOC, "never inside a `card` or a `col`");
 });
@@ -1780,8 +2084,14 @@ Deno.test("templates: every skeleton is well-formed FASTR Markdown with real blo
     }
     assertEquals(blocks.listFastrContainerDefects(body), [], template);
     assertEquals(blocks.listFastrNestedStats(body), [], template);
-    assert(body.includes(`# Q3 "review"`), `${template} carries the report's title`);
-    assert(/^:::(cover|tiles|steps|callout|band)/m.test(body), `${template} uses blocks`);
+    assert(
+      body.includes(`# Q3 "review"`),
+      `${template} carries the report's title`,
+    );
+    assert(
+      /^:::(cover|tiles|steps|callout|band)/m.test(body),
+      `${template} uses blocks`,
+    );
     assert(body.includes("]{.muted}"), `${template} marks its placeholders`);
     // Every section heading is outside a block, so it stays addressable.
     const outline = blocks.fastrDocumentOutline(body, 3).map((i) => i.level);
@@ -1797,33 +2107,74 @@ Deno.test("templates: every skeleton is well-formed FASTR Markdown with real blo
 });
 
 Deno.test("templates: the AI is told which one, and only for FASTR", async () => {
-  const { getEditingReportInstructions } = await import("../../lib/ai_tools/build_system_prompt.ts");
-  const withBrief = getEditingReportInstructions("R", "fastr", "default", undefined, "policy_brief");
+  const { getEditingReportInstructions } = await import(
+    "../../lib/ai_tools/build_system_prompt.ts"
+  );
+  const withBrief = getEditingReportInstructions(
+    "R",
+    "fastr",
+    "default",
+    undefined,
+    "policy_brief",
+  );
   assertStringIncludes(withBrief, "POLICY BRIEF");
   assertStringIncludes(withBrief, "{.muted}");
-  assertStringIncludes(getEditingReportInstructions("R", "fastr", "default", undefined, "long_form"), "LONG-FORM REPORT");
-  assertStringIncludes(getEditingReportInstructions("R", "fastr", "default", undefined, "empty"), "blank page");
+  assertStringIncludes(
+    getEditingReportInstructions(
+      "R",
+      "fastr",
+      "default",
+      undefined,
+      "long_form",
+    ),
+    "LONG-FORM REPORT",
+  );
+  assertStringIncludes(
+    getEditingReportInstructions("R", "fastr", "default", undefined, "empty"),
+    "blank page",
+  );
   assert(!getEditingReportInstructions("R", "fastr").includes("POLICY BRIEF"));
-  assert(!getEditingReportInstructions("R", "markdown", "default", undefined, "policy_brief").includes("POLICY BRIEF"));
+  assert(
+    !getEditingReportInstructions(
+      "R",
+      "markdown",
+      "default",
+      undefined,
+      "policy_brief",
+    ).includes("POLICY BRIEF"),
+  );
 });
 
 Deno.test("templates: the choice survives the config schema and reads back totally", async () => {
   const r = await import("../../lib/types/reports.ts");
-  const parsed = r.reportConfigSchema.parse({ format: "fastr", template: "long_form" });
+  const parsed = r.reportConfigSchema.parse({
+    format: "fastr",
+    template: "long_form",
+  });
   assertEquals(r.getFastrReportTemplate(parsed), "long_form");
-  assertEquals(r.getFastrReportTemplate({ template: "nonsense" as never }), undefined);
+  assertEquals(
+    r.getFastrReportTemplate({ template: "nonsense" as never }),
+    undefined,
+  );
   assertEquals(r.getFastrReportTemplate(undefined), undefined);
 });
 
 Deno.test("a columns row with any coloured column is a row of panels", () => {
-  const cls = (body: string) => /class="([^"]*fm-columns[^"]*)"/.exec(renderFastrMarkdownToHtml(body, { lineAnchors: false }))?.[1] ?? "";
-  const row = (a: string, b: string) => `:::columns{cols=2}\n:::col${a}\n### H\nx\n:::\n:::col${b}\n### H\ny\n:::\n:::`;
+  const cls = (body: string) =>
+    /class="([^"]*fm-columns[^"]*)"/.exec(
+      renderFastrMarkdownToHtml(body, { lineAnchors: false }),
+    )?.[1] ?? "";
+  const row = (a: string, b: string) =>
+    `:::columns{cols=2}\n:::col${a}\n### H\nx\n:::\n:::col${b}\n### H\ny\n:::\n:::`;
   assert(!cls(row("", "")).includes("fm-columns--panels"));
   assert(cls(row("{tone=accent}", "")).includes("fm-columns--panels"));
   assert(cls(row("", '{bg="#0b3d2e"}')).includes("fm-columns--panels"));
   // tone=default is no colour; a coloured col nested deeper is not the row's.
   assert(!cls(row("{tone=default}", "")).includes("fm-columns--panels"));
-  assert(!cls(":::columns{cols=1}\n:::col\n:::callout{tone=ink}\nz\n:::\n:::\n:::").includes("fm-columns--panels"));
+  assert(
+    !cls(":::columns{cols=1}\n:::col\n:::callout{tone=ink}\nz\n:::\n:::\n:::")
+      .includes("fm-columns--panels"),
+  );
 });
 
 // ── Logos ────────────────────────────────────────────────────────────────────
@@ -1832,7 +2183,10 @@ Deno.test("logos: a row of registry images, aligned and sized, one line", () => 
   const html = render(
     `:::logos{src="image:a1 image:b-2" align=center size=l}\n\nAfter.\n`,
   );
-  assertStringIncludes(html, `<div class="fm-logos fm-logos--center fm-logos--l"`);
+  assertStringIncludes(
+    html,
+    `<div class="fm-logos fm-logos--center fm-logos--l"`,
+  );
   assertStringIncludes(
     html,
     `<img class="fm-logo" src="image:a1" alt=""><img class="fm-logo" src="image:b-2" alt="">`,
@@ -1840,18 +2194,30 @@ Deno.test("logos: a row of registry images, aligned and sized, one line", () => 
   // One line: the paragraph after it is not inside the row.
   assert(html.indexOf("After.") > html.indexOf("</div>"));
   // Defaults: left, medium; nothing chosen yet is the empty slot.
-  assertStringIncludes(render(`:::logos\n`), `class="fm-logos fm-logos--left fm-logos--m fm-logos--empty"`);
+  assertStringIncludes(
+    render(`:::logos\n`),
+    `class="fm-logos fm-logos--left fm-logos--m fm-logos--empty"`,
+  );
   // The prune scan keeps every logo's image alive.
-  const refs = referencedReportEmbedIds(`:::logos{src="image:a1 image:b-2"}`, "any");
+  const refs = referencedReportEmbedIds(
+    `:::logos{src="image:a1 image:b-2"}`,
+    "any",
+  );
   assertEquals([...refs.images].sort(), ["a1", "b-2"]);
   // A logo that is not an image is reported, and never reaches the markup.
   const bad = `:::logos{src="image:a1 https://x.org/l.png"}\n`;
   assertEquals(listFastrContainerDefects(bad).length, 1);
   assert(!render(bad).includes("x.org"));
-  assertEquals(listFastrContainerDefects(`:::logos{src="image:a1"}\nText.\n`), []);
+  assertEquals(
+    listFastrContainerDefects(`:::logos{src="image:a1"}\nText.\n`),
+    [],
+  );
   assertEquals(
     logosSnippet(["a1", "b-2"]),
     `:::logos{src="image:a1 image:b-2"}`,
   );
-  assertEquals(fastrLogoImageIds({ src: "image:a1  image:b-2 junk" }), ["a1", "b-2"]);
+  assertEquals(fastrLogoImageIds({ src: "image:a1  image:b-2 junk" }), [
+    "a1",
+    "b-2",
+  ]);
 });

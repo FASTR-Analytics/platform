@@ -1,13 +1,13 @@
 import { t3 } from "lib";
 import {
+  type AlertComponentProps,
   Button,
   ModalContainer,
   Select,
   StateHolderFormError,
   TextArea,
-  type AlertComponentProps,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 
 export type FeedbackType = "bug" | "suggestion" | "help";
@@ -42,7 +42,11 @@ export function FeedbackForm(
         };
         reader.readAsDataURL(file);
       });
-      results.push({ content: base64, filename: file.name, mimeType: file.type });
+      results.push({
+        content: base64,
+        filename: file.name,
+        mimeType: file.type,
+      });
     }
     setImages((prev) => [...prev, ...results]);
     input.value = "";
@@ -94,7 +98,9 @@ export function FeedbackForm(
       })}
       width="md"
       {...(sent()
-        ? { onClose: { kind: "done" as const, onClick: () => p.close(undefined) } }
+        ? {
+          onClose: { kind: "done" as const, onClick: () => p.close(undefined) },
+        }
         : {
           onCancel: () => p.close(undefined),
           actions: [{
@@ -109,22 +115,25 @@ export function FeedbackForm(
         <div class="text-success py-4 text-center">
           {feedbackType() === "help"
             ? t3({
-                en: "Thank you! We have received your request and will get back to you soon.",
-                fr: "Merci ! Nous avons bien reçu votre demande et vous répondrons bientôt.",
-                pt: "Obrigado! Recebemos o seu pedido e responderemos em breve.",
-              })
+              en:
+                "Thank you! We have received your request and will get back to you soon.",
+              fr:
+                "Merci ! Nous avons bien reçu votre demande et vous répondrons bientôt.",
+              pt: "Obrigado! Recebemos o seu pedido e responderemos em breve.",
+            })
             : t3({
-                en: "Thank you for your feedback!",
-                fr: "Merci pour votre retour !",
-                pt: "Obrigado pelos seus comentários!",
-              })}
+              en: "Thank you for your feedback!",
+              fr: "Merci pour votre retour !",
+              pt: "Obrigado pelos seus comentários!",
+            })}
         </div>
       </Show>
       <Show when={!sent()}>
         <div class="text-base-content pb-2 text-sm">
           {t3({
             en: "Ask for help, report a bug, or send a suggestion.",
-            fr: "Demandez de l'aide, signalez un bug ou envoyez une suggestion.",
+            fr:
+              "Demandez de l'aide, signalez un bug ou envoyez une suggestion.",
             pt: "Peça ajuda, comunique um erro ou envie uma sugestão.",
           })}
         </div>
@@ -168,7 +177,11 @@ export function FeedbackForm(
         />
         <div>
           <div class="text-base-content pb-1 text-sm">
-            {t3({ en: "Images (optional)", fr: "Images (optionnel)", pt: "Imagens (opcional)" })}
+            {t3({
+              en: "Images (optional)",
+              fr: "Images (optionnel)",
+              pt: "Imagens (opcional)",
+            })}
           </div>
           <input
             ref={fileInputRef}
@@ -185,7 +198,11 @@ export function FeedbackForm(
               iconName="plus"
               size="sm"
             >
-              {t3({ en: "Add image", fr: "Ajouter une image", pt: "Adicionar imagem" })}
+              {t3({
+                en: "Add image",
+                fr: "Ajouter une image",
+                pt: "Adicionar imagem",
+              })}
             </Button>
             <For each={images()}>
               {(img, i) => (
@@ -197,8 +214,7 @@ export function FeedbackForm(
                     type="button"
                     class="text-base-content-muted cursor-pointer hover:text-danger"
                     onClick={() =>
-                      setImages((prev) => prev.filter((_, j) => j !== i()))
-                    }
+                      setImages((prev) => prev.filter((_, j) => j !== i()))}
                   >
                     ×
                   </button>

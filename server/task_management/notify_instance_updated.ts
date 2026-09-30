@@ -9,8 +9,8 @@ import type {
   InstancePopulationSummary,
   InstanceSseMessage,
   InstanceStructureSummary,
-  OtherUser,
   LastUpdateTableName,
+  OtherUser,
   ProductSummary,
   RunProgress,
 } from "lib";
@@ -78,7 +78,9 @@ export async function notifyInstanceProductsUpserted(
   const res = await getProductSummaries(mainDb, productIds);
   if (!res.success) {
     console.error(
-      `[notify] product summary broadcast failed for ${productIds.join(", ")}: ${res.err}`,
+      `[notify] product summary broadcast failed for ${
+        productIds.join(", ")
+      }: ${res.err}`,
     );
     return;
   }
@@ -136,7 +138,9 @@ export function notifyInstanceStructureUpdated(data: InstanceStructureSummary) {
   notifyInstanceUpdate({ type: "structure_updated", data });
 }
 
-export function notifyInstanceIndicatorsUpdated(data: InstanceIndicatorsSummary) {
+export function notifyInstanceIndicatorsUpdated(
+  data: InstanceIndicatorsSummary,
+) {
   notifyInstanceUpdate({ type: "indicators_updated", data });
 }
 
@@ -184,7 +188,10 @@ export function notifyInstancePinnedRunUpdated(pinnedRunId: string | null) {
 // the ONLY channel it rides: a product points only at a ready run, so
 // nothing else has a live view to feed. routesInstanceSSE
 // drops both messages for callers without can_configure_data (live filter).
-export function notifyInstanceRunProgress(runId: string, progress: RunProgress) {
+export function notifyInstanceRunProgress(
+  runId: string,
+  progress: RunProgress,
+) {
   notifyInstanceUpdate({ type: "run_progress", data: { runId, progress } });
 }
 

@@ -1,10 +1,10 @@
 import {
-  t3,
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
+  t3,
 } from "lib";
-import { FigureHolder, LoadingIndicator, type FigureInputs } from "panther";
+import { FigureHolder, type FigureInputs, LoadingIndicator } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
 import { createFigurePreview } from "~/components/_shared/mod.ts";
 
@@ -58,10 +58,8 @@ export function PresetPreview(p: Props) {
               </div>
             </Match>
             <Match
-              when={
-                state().status === "ready" &&
-                (state() as { data: FigureInputs }).data
-              }
+              when={state().status === "ready" &&
+                (state() as { data: FigureInputs }).data}
               keyed
             >
               {(figureInputs) => (

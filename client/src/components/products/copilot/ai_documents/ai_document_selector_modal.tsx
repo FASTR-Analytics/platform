@@ -1,10 +1,10 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
-  ModalContainer,
   Button,
-  MultiSelect,
   createFormAction,
+  ModalContainer,
+  MultiSelect,
 } from "panther";
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js";
 import type Uppy from "@uppy/core";
@@ -36,7 +36,7 @@ export function AIDocumentSelectorModal(
 
   const pdfAssets = () =>
     instanceState.assets.filter((a) =>
-      a.fileName.toLowerCase().endsWith(".pdf"),
+      a.fileName.toLowerCase().endsWith(".pdf")
     );
 
   // Include sent/pending filenames whose asset no longer exists: a selected
@@ -116,10 +116,10 @@ export function AIDocumentSelectorModal(
       onCancel={() => p.close(undefined)}
       actions={[{
         label: t3({
-        en: "Include selected",
-        fr: "Inclure la sélection",
-        pt: "Incluir selecionados",
-      }),
+          en: "Include selected",
+          fr: "Inclure la sélection",
+          pt: "Incluir selecionados",
+        }),
         onClick: save.click,
         state: save.state(),
       }]}

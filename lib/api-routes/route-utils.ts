@@ -17,7 +17,7 @@ export function route<
   TBody extends z.ZodType | undefined = undefined,
   TResponse = never,
   TIsStreaming extends boolean = false,
-  TAccess extends ProductAccessLevel | undefined = undefined
+  TAccess extends ProductAccessLevel | undefined = undefined,
 >(config: {
   path: TPath;
   method: TMethod;
@@ -43,8 +43,7 @@ export function route<
   result.response = config.response;
 
   // Use non-distributive form to avoid the distributive-conditional pitfall
-  type InferredResponse = [TResponse] extends [never]
-    ? APIResponseNoData
+  type InferredResponse = [TResponse] extends [never] ? APIResponseNoData
     : APIResponseWithData<TResponse>;
 
   return result as {

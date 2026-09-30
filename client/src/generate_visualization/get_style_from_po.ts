@@ -33,13 +33,32 @@ export function getStyleFromPresentationObject(
   // their declaration IS the axis format and nothing they draw is per-value.
   const formatAs = facts.axisFormat;
   if (isSpecialCoverageChartActive(config)) {
-    return buildCoverageChartStyle(config, formatAs, calendar, deckStyle, chartPalette);
+    return buildCoverageChartStyle(
+      config,
+      formatAs,
+      calendar,
+      deckStyle,
+      chartPalette,
+    );
   }
   if (isSpecialBarChartActive(config)) {
-    return buildPercentChangeChartStyle(config, formatAs, calendar, deckStyle, chartPalette);
+    return buildPercentChangeChartStyle(
+      config,
+      formatAs,
+      calendar,
+      deckStyle,
+      chartPalette,
+    );
   }
   if (isSpecialDisruptionsChartActive(config)) {
-    return buildDisruptionsChartStyle(config, formatAs, calendar, allowNegativeScale, deckStyle, chartPalette);
+    return buildDisruptionsChartStyle(
+      config,
+      formatAs,
+      calendar,
+      allowNegativeScale,
+      deckStyle,
+      chartPalette,
+    );
   }
   if (isSpecialDisruptionsChartV2Active(config)) {
     return buildDisruptionsChartV2Style(config, formatAs, calendar, deckStyle);

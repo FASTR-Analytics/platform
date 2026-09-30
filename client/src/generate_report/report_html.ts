@@ -98,7 +98,9 @@ export function materializeReportEmbeds(
   resolveImage: (id: string) => string | undefined,
 ): void {
   const doc = root instanceof Document ? root : root.ownerDocument!;
-  for (const img of Array.from(root.querySelectorAll<HTMLImageElement>("img"))) {
+  for (
+    const img of Array.from(root.querySelectorAll<HTMLImageElement>("img"))
+  ) {
     const m = EMBED_SRC_RE.exec((img.getAttribute("src") ?? "").trim());
     if (!m) continue;
     const kind = m[1] as "figure" | "image";
@@ -178,9 +180,13 @@ export function materializeReportBackgrounds(
   resolveImage: (id: string) => string | undefined,
 ): void {
   for (
-    const el of Array.from(root.querySelectorAll<HTMLElement>("[data-bg-image]"))
+    const el of Array.from(
+      root.querySelectorAll<HTMLElement>("[data-bg-image]"),
+    )
   ) {
-    const m = EMBED_SRC_RE.exec((el.getAttribute("data-bg-image") ?? "").trim());
+    const m = EMBED_SRC_RE.exec(
+      (el.getAttribute("data-bg-image") ?? "").trim(),
+    );
     if (!m || m[1] !== "image") continue;
     const url = resolveImage(m[2]);
     if (!url) continue;

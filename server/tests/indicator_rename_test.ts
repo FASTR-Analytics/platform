@@ -20,8 +20,9 @@ import {
   updateIndicator,
 } from "../db/instance/indicators.ts";
 
-const SCHEMA_PATH = new URL("../db/instance/_main_database.sql", import.meta.url)
-  .pathname;
+const SCHEMA_PATH =
+  new URL("../db/instance/_main_database.sql", import.meta.url)
+    .pathname;
 const DB_PREFIX = "rename_test_";
 
 const ELEMENT = "AbCdEfGhIj1";
@@ -67,14 +68,29 @@ async function reset(): Promise<void> {
   const res = await createIndicators(db, [
     indicator("visits", { type: "dhis2_element", data_id: ELEMENT }),
     indicator("visits_file", { type: "uploaded" }),
-    indicator("visits_all", { type: "sum", members: ["visits", "visits_file"] }),
-    indicator("visits_share", { type: "calculated", expression: "visits / visits_all" }),
-    indicator("chain", { type: "calculated", expression: "[visits] * 2 + visits_share" }),
+    indicator("visits_all", {
+      type: "sum",
+      members: ["visits", "visits_file"],
+    }),
+    indicator("visits_share", {
+      type: "calculated",
+      expression: "visits / visits_all",
+    }),
+    indicator("chain", {
+      type: "calculated",
+      expression: "[visits] * 2 + visits_share",
+    }),
   ]);
   assert(res.success, res.success ? "" : res.err);
   await db`
     INSERT INTO dataset_hmis_scheduled_imports (kind, enabled, selection, created_by)
-    VALUES ('recurring', true, ${JSON.stringify({ kind: "last_n_months", indicatorIds: ["visits", "visits_all"], monthsBack: 3 })}, 'test')
+    VALUES ('recurring', true, ${
+    JSON.stringify({
+      kind: "last_n_months",
+      indicatorIds: ["visits", "visits_all"],
+      monthsBack: 3,
+    })
+  }, 'test')
   `;
   await db`
     INSERT INTO dataset_hmis_import_runs (trigger, route, status, selection)
@@ -154,15 +170,33 @@ Deno.test("rename: members, expressions and schedule selections rewritten in one
     data_id: ELEMENT,
     dhis2_label: null,
   });
-  assertEquals(d.get("visits_all")!.definition, { type: "sum", members: ["first_visits", "visits_file"] });
-  assertEquals(d.get("visits_share")!.definition, { type: "calculated", expression: "first_visits / visits_all" });
-  assertEquals(d.get("chain")!.definition, { type: "calculated", expression: "[first_visits] * 2 + visits_share" });
-  const schedule = await db<{ selection: string }[]>`SELECT selection FROM dataset_hmis_scheduled_imports`;
-  assertEquals(JSON.parse(schedule[0].selection).indicatorIds, ["first_visits", "visits_all"]);
-  const run = await db<{ selection: string }[]>`SELECT selection FROM dataset_hmis_import_runs`;
+  assertEquals(d.get("visits_all")!.definition, {
+    type: "sum",
+    members: ["first_visits", "visits_file"],
+  });
+  assertEquals(d.get("visits_share")!.definition, {
+    type: "calculated",
+    expression: "first_visits / visits_all",
+  });
+  assertEquals(d.get("chain")!.definition, {
+    type: "calculated",
+    expression: "[first_visits] * 2 + visits_share",
+  });
+  const schedule = await db<
+    { selection: string }[]
+  >`SELECT selection FROM dataset_hmis_scheduled_imports`;
+  assertEquals(JSON.parse(schedule[0].selection).indicatorIds, [
+    "first_visits",
+    "visits_all",
+  ]);
+  const run = await db<
+    { selection: string }[]
+  >`SELECT selection FROM dataset_hmis_import_runs`;
   assertEquals(JSON.parse(run[0].selection).indicatorIds, ["visits"]);
   assertEquals(JSON.parse(run[0].selection).dataIds, [ELEMENT]);
-  const rows = await db<{ data_id: string }[]>`SELECT data_id FROM dataset_hmis`;
+  const rows = await db<
+    { data_id: string }[]
+  >`SELECT data_id FROM dataset_hmis`;
   assertEquals(rows.map((r) => r.data_id), [ELEMENT]);
 });
 
@@ -171,13 +205,21 @@ Deno.test("rename: a new id that is not bare-shaped is written bracketed in expr
   const res = await rename("visits", "Visits 1st");
   assert(res.success, res.success ? "" : res.err);
   const d = await dictionary();
-  assertEquals(d.get("visits_share")!.definition, { type: "calculated", expression: "[Visits 1st] / visits_all" });
-  assertEquals(d.get("chain")!.definition, { type: "calculated", expression: "[Visits 1st] * 2 + visits_share" });
+  assertEquals(d.get("visits_share")!.definition, {
+    type: "calculated",
+    expression: "[Visits 1st] / visits_all",
+  });
+  assertEquals(d.get("chain")!.definition, {
+    type: "calculated",
+    expression: "[Visits 1st] * 2 + visits_share",
+  });
 });
 
 Deno.test("rename: a taken id and a reserved id are refused; a special id renames like any other", async () => {
   await reset();
-  const special = await createIndicators(db, [indicator("penta1", { type: "uploaded" })]);
+  const special = await createIndicators(db, [
+    indicator("penta1", { type: "uploaded" }),
+  ]);
   assert(special.success, special.success ? "" : special.err);
   const fromSpecial = await rename("penta1", "penta_one");
   assert(fromSpecial.success, fromSpecial.success ? "" : fromSpecial.err);
@@ -192,7 +234,14 @@ Deno.test("rename: a taken id and a reserved id are refused; a special id rename
   assertStringIncludes(toSpecialCalculated.err, "special indicator id");
   assertEquals(
     [...(await dictionary()).keys()].toSorted(),
-    ["chain", "penta_one", "visits", "visits_all", "visits_file", "visits_share"],
+    [
+      "chain",
+      "penta_one",
+      "visits",
+      "visits_all",
+      "visits_file",
+      "visits_share",
+    ],
   );
 });
 
@@ -203,12 +252,18 @@ Deno.test("data id: a DHIS2 id is fixed once rows exist; retyping keeps the key 
     definition: { type: "dhis2_element", data_id: OTHER_ELEMENT },
   });
   assert(!changed.success);
-  assertStringIncludes(changed.err, "Cannot change the DHIS2 id of an indicator that has data");
+  assertStringIncludes(
+    changed.err,
+    "Cannot change the DHIS2 id of an indicator that has data",
+  );
   const toUploaded = await rename("visits", "visits", {
     definition: { type: "uploaded" },
   });
   assert(toUploaded.success, toUploaded.success ? "" : toUploaded.err);
-  assertEquals((await dictionary()).get("visits")!.definition, { type: "uploaded", data_id: ELEMENT });
+  assertEquals((await dictionary()).get("visits")!.definition, {
+    type: "uploaded",
+    data_id: ELEMENT,
+  });
   const backToElement = await rename("visits", "visits", {
     definition: { type: "dhis2_element", data_id: ELEMENT },
   });
@@ -217,7 +272,10 @@ Deno.test("data id: a DHIS2 id is fixed once rows exist; retyping keeps the key 
     definition: { type: "sum", members: ["visits_file"] },
   });
   assert(!toSum.success);
-  assertStringIncludes(toSum.err, "Cannot change the type of an indicator that has data");
+  assertStringIncludes(
+    toSum.err,
+    "Cannot change the type of an indicator that has data",
+  );
   // No rows under visits_file's key: an update keeps the key, a switch to
   // DHIS2 element needs a DHIS2-shaped id that no other indicator holds.
   const keyBefore = (await dictionary()).get("visits_file")!.definition;
@@ -246,13 +304,34 @@ Deno.test("data id: a DHIS2 id is fixed once rows exist; retyping keeps the key 
 });
 
 Deno.test("renamer: whole identifiers and exact [id] only, text kept, as 086 does", () => {
-  assertEquals(renameIdentifierInExpression("anc1 / anc1_all", "anc1", "x"), "x / anc1_all");
-  assertEquals(renameIdentifierInExpression("[anc1] + [anc1 total]", "anc1", "x"), "[x] + [anc1 total]");
-  assertEquals(renameIdentifierInExpression("coalesce(anc1,0)/anc1", "anc1", "x"), "coalesce(x,0)/x");
-  assertEquals(renameIdentifierInExpression("anc1 / anc4", "anc1", "anc 1"), "[anc 1] / anc4");
-  assertEquals(renameIdentifierInExpression("anc1 / anc4", "anc4", "abs"), "anc1 / [abs]");
-  assertEquals(renameIdentifierInExpression("[a.b] * 2", "a.b", "ab"), "[ab] * 2");
-  assertEquals(renameIdentifierInExpression("anc1 * 2", "anc", "x"), "anc1 * 2");
+  assertEquals(
+    renameIdentifierInExpression("anc1 / anc1_all", "anc1", "x"),
+    "x / anc1_all",
+  );
+  assertEquals(
+    renameIdentifierInExpression("[anc1] + [anc1 total]", "anc1", "x"),
+    "[x] + [anc1 total]",
+  );
+  assertEquals(
+    renameIdentifierInExpression("coalesce(anc1,0)/anc1", "anc1", "x"),
+    "coalesce(x,0)/x",
+  );
+  assertEquals(
+    renameIdentifierInExpression("anc1 / anc4", "anc1", "anc 1"),
+    "[anc 1] / anc4",
+  );
+  assertEquals(
+    renameIdentifierInExpression("anc1 / anc4", "anc4", "abs"),
+    "anc1 / [abs]",
+  );
+  assertEquals(
+    renameIdentifierInExpression("[a.b] * 2", "a.b", "ab"),
+    "[ab] * 2",
+  );
+  assertEquals(
+    renameIdentifierInExpression("anc1 * 2", "anc", "x"),
+    "anc1 * 2",
+  );
 });
 
 Deno.test("cleanup: drop the throwaway database", async () => {

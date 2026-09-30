@@ -25,9 +25,13 @@ export async function assertReplicantValid(
   if (!replicateBy) return;
 
   // Options query needs the auto-pin EXCLUDED so it returns all in-scope values.
-  const resOptions = getFetchConfigFromPresentationObjectConfig(metric, config, {
-    excludeReplicantFilter: true,
-  });
+  const resOptions = getFetchConfigFromPresentationObjectConfig(
+    metric,
+    config,
+    {
+      excludeReplicantFilter: true,
+    },
+  );
   if (!resOptions.success) {
     throw new AIToolFailure(resOptions.err);
   }
@@ -44,13 +48,21 @@ export async function assertReplicantValid(
     const selected = config.d.selectedReplicantValue;
     if (!selected) {
       throw new AIToolFailure(
-        `This figure replicates by "${replicateBy}" and needs a selected replicant value. `
-        + `Valid values: ${valid.map((v) => formatReplicantLabelForDisplay(v.label, replicateBy, undefined)).join(", ")}`,
+        `This figure replicates by "${replicateBy}" and needs a selected replicant value. ` +
+          `Valid values: ${
+            valid.map((v) =>
+              formatReplicantLabelForDisplay(v.label, replicateBy, undefined)
+            ).join(", ")
+          }`,
       );
     }
     if (!valid.some((v) => v.id === selected)) {
       throw new AIToolFailure(
-        `Invalid replicant value "${selected}". Valid values: ${valid.map((v) => formatReplicantLabelForDisplay(v.label, replicateBy, undefined)).join(", ")}`,
+        `Invalid replicant value "${selected}". Valid values: ${
+          valid.map((v) =>
+            formatReplicantLabelForDisplay(v.label, replicateBy, undefined)
+          ).join(", ")
+        }`,
       );
     }
   }

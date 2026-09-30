@@ -1,13 +1,13 @@
 import {
   buildIndicatorExpressionsRLiteral,
   buildIndicatorIngredientsRLiteral,
-  populationTypesReferencedByCatalog,
-  type HmisIndicatorCatalogRow,
   type HfaIndicator,
   type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
+  type HmisIndicatorCatalogRow,
   type ModuleConfigSelections,
   type ModuleDefinitionInstalled,
+  populationTypesReferencedByCatalog,
 } from "lib";
 import {
   getScriptWithParametersHfa,
@@ -36,12 +36,12 @@ export function getScriptWithParameters(
   if (moduleDefinition.scriptGenerationType === "hfa") {
     if (!knownVariableIds) {
       throw new Error(
-        "knownVariableIds is required for HFA module script generation"
+        "knownVariableIds is required for HFA module script generation",
       );
     }
     if (!hfaIndicators) {
       throw new Error(
-        "hfaIndicators is required for HFA module script generation"
+        "hfaIndicators is required for HFA module script generation",
       );
     }
     return getScriptWithParametersHfa(
@@ -70,11 +70,11 @@ export function getScriptWithParameters(
   // no-op.
   str = str.replaceAll(
     "INDICATOR_INGREDIENTS",
-    buildIndicatorIngredientsRLiteral(hmisIndicatorCatalog ?? [])
+    buildIndicatorIngredientsRLiteral(hmisIndicatorCatalog ?? []),
   );
   str = str.replaceAll(
     "INDICATOR_EXPRESSIONS",
-    buildIndicatorExpressionsRLiteral(hmisIndicatorCatalog ?? [])
+    buildIndicatorExpressionsRLiteral(hmisIndicatorCatalog ?? []),
   );
   // Whether any formula names a population: the same derivation the capture
   // stamps into the manifest, so m012 can skip the person-years file and keep
@@ -83,21 +83,24 @@ export function getScriptWithParameters(
     "POPULATION_ACTIVE",
     populationTypesReferencedByCatalog(hmisIndicatorCatalog ?? []).length > 0
       ? "TRUE"
-      : "FALSE"
+      : "FALSE",
   );
 
   for (const ds of moduleDefinition.dataSources) {
     if (ds.sourceType === "dataset") {
       str = str.replaceAll(
         ds.replacementString,
-        `'${datasetsDirPath}/${ds.datasetType}.csv'`
+        `'${datasetsDirPath}/${ds.datasetType}.csv'`,
       );
     } else if (ds.sourceType === "population") {
-      str = str.replaceAll(ds.replacementString, populationFilePathLiteral(datasetsDirPath));
+      str = str.replaceAll(
+        ds.replacementString,
+        populationFilePathLiteral(datasetsDirPath),
+      );
     } else {
       str = str.replaceAll(
         ds.replacementString,
-        `../${ds.moduleId}/${ds.replacementString}`
+        `../${ds.moduleId}/${ds.replacementString}`,
       );
     }
   }
@@ -108,41 +111,40 @@ export function getScriptWithParameters(
   //                                      //
   //////////////////////////////////////////
   for (const inputParam of configSelections.parameterDefinitions) {
-      const mappedParameter =
-        configSelections.parameterSelections[
-          inputParam.replacementString
-        ]?.trim();
-      if (inputParam.input.inputType === "select") {
-        if (inputParam.input.valueType === "string") {
-          str = str.replaceAll(
-            inputParam.replacementString,
-            `'${mappedParameter ?? "UNSELECTED"}'`
-          );
-        } else {
-          str = str.replaceAll(
-            inputParam.replacementString,
-            mappedParameter ?? "UNSELECTED"
-          );
-        }
-      }
-      if (inputParam.input.inputType === "boolean") {
+    const mappedParameter = configSelections.parameterSelections[
+      inputParam.replacementString
+    ]?.trim();
+    if (inputParam.input.inputType === "select") {
+      if (inputParam.input.valueType === "string") {
         str = str.replaceAll(
           inputParam.replacementString,
-          mappedParameter ?? "FALSE"
+          `'${mappedParameter ?? "UNSELECTED"}'`,
         );
-      }
-      if (inputParam.input.inputType === "text") {
+      } else {
         str = str.replaceAll(
           inputParam.replacementString,
-          `'${mappedParameter ?? "UNSELECTED"}'`
+          mappedParameter ?? "UNSELECTED",
         );
       }
-      if (inputParam.input.inputType === "number") {
-        str = str.replaceAll(
-          inputParam.replacementString,
-          mappedParameter ?? "UNSELECTED"
-        );
-      }
+    }
+    if (inputParam.input.inputType === "boolean") {
+      str = str.replaceAll(
+        inputParam.replacementString,
+        mappedParameter ?? "FALSE",
+      );
+    }
+    if (inputParam.input.inputType === "text") {
+      str = str.replaceAll(
+        inputParam.replacementString,
+        `'${mappedParameter ?? "UNSELECTED"}'`,
+      );
+    }
+    if (inputParam.input.inputType === "number") {
+      str = str.replaceAll(
+        inputParam.replacementString,
+        mappedParameter ?? "UNSELECTED",
+      );
+    }
   }
   /////////////
   //         //

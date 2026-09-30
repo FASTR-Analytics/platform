@@ -27,7 +27,13 @@ async function getDiskStats(): Promise<DiskStats | null> {
     const availBytes = parseInt(parts[0], 10);
     const totalBytes = parseInt(parts[1], 10);
     if (isNaN(availBytes) || isNaN(totalBytes) || totalBytes === 0) return null;
-    console.log(`[disk_space] avail=${toGB(availBytes)}GB total=${toGB(totalBytes)}GB used=${toGB(totalBytes - availBytes)}GB (${Math.round((1 - availBytes / totalBytes) * 100)}%)`);
+    console.log(
+      `[disk_space] avail=${toGB(availBytes)}GB total=${
+        toGB(totalBytes)
+      }GB used=${toGB(totalBytes - availBytes)}GB (${
+        Math.round((1 - availBytes / totalBytes) * 100)
+      }%)`,
+    );
     return { availBytes, totalBytes };
   } catch {
     console.warn("[disk_space] getDiskStats failed");
@@ -60,7 +66,9 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
   lastResizeRequestAt = now;
 
   const targetSizeGB = Math.ceil(usedBytes / 0.80 / 1024 ** 3);
-  console.log(`[disk_space] requesting volume resize: volume=${volume} target=${targetSizeGB}GB`);
+  console.log(
+    `[disk_space] requesting volume resize: volume=${volume} target=${targetSizeGB}GB`,
+  );
   fetch("https://status-api.fastr-analytics.org/api/volumes/resize", {
     method: "POST",
     headers: {
@@ -74,7 +82,9 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
       if (res.ok) {
         console.log(`[disk_space] resize request accepted: ${text}`);
       } else {
-        console.error(`[disk_space] resize request failed: HTTP ${res.status} ${text}`);
+        console.error(
+          `[disk_space] resize request failed: HTTP ${res.status} ${text}`,
+        );
       }
     })
     .catch((e) => console.error(`[disk_space] resize request error: ${e}`));
@@ -82,20 +92,34 @@ function maybeRequestVolumeResize(stats: DiskStats): boolean {
     const usedGB = toGB(usedBytes);
     const totalGB = toGB(stats.totalBytes);
     const usedPct = Math.round((usedBytes / stats.totalBytes) * 100);
-    const subject = `[FASTR] Volume resize triggered — ${volume} (${_INSTANCE_ID})`;
-    const body = `Volume ${volume} on instance ${_INSTANCE_ID} is at ${usedPct}% capacity (${usedGB} GB used of ${totalGB} GB).\n\nA resize to ${targetSizeGB} GB has been triggered automatically.`;
-    const html = `<div style="font-family:sans-serif;color:#333"><p>Volume <strong>${volume}</strong> on instance <strong>${_INSTANCE_ID}</strong> is at <strong>${usedPct}%</strong> capacity (${usedGB} GB used of ${totalGB} GB).</p><p>A resize to <strong>${targetSizeGB} GB</strong> has been triggered automatically.</p></div>`;
+    const subject =
+      `[FASTR] Volume resize triggered — ${volume} (${_INSTANCE_ID})`;
+    const body =
+      `Volume ${volume} on instance ${_INSTANCE_ID} is at ${usedPct}% capacity (${usedGB} GB used of ${totalGB} GB).\n\nA resize to ${targetSizeGB} GB has been triggered automatically.`;
+    const html =
+      `<div style="font-family:sans-serif;color:#333"><p>Volume <strong>${volume}</strong> on instance <strong>${_INSTANCE_ID}</strong> is at <strong>${usedPct}%</strong> capacity (${usedGB} GB used of ${totalGB} GB).</p><p>A resize to <strong>${targetSizeGB} GB</strong> has been triggered automatically.</p></div>`;
     for (const to of ["timroberton@gmail.com", "nick@usefuldata.com.au"]) {
       fetch("https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
-        headers: { "Authorization": `Bearer ${_SEND_GRID_API}`, "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${_SEND_GRID_API}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: to }] }],
-          from: { email: "noreply@fastr-analytics.org", name: "FASTR Analytics Platform" },
+          from: {
+            email: "noreply@fastr-analytics.org",
+            name: "FASTR Analytics Platform",
+          },
           subject,
-          content: [{ type: "text/plain", value: body }, { type: "text/html", value: html }],
+          content: [{ type: "text/plain", value: body }, {
+            type: "text/html",
+            value: html,
+          }],
         }),
-      }).catch((e) => console.error(`[disk_space] resize email to ${to} failed: ${e}`));
+      }).catch((e) =>
+        console.error(`[disk_space] resize email to ${to} failed: ${e}`)
+      );
     }
   }
   return true;
@@ -140,7 +164,14 @@ export async function checkSpaceForModuleRun(): Promise<{
 export async function checkSpaceForDataset(
   mainDb: Sql,
   datasetType: string,
-): Promise<{ ok: boolean; requiredGB?: number; availableGB?: number; resizeTriggered?: boolean }> {
+): Promise<
+  {
+    ok: boolean;
+    requiredGB?: number;
+    availableGB?: number;
+    resizeTriggered?: boolean;
+  }
+> {
   const stats = await getDiskStats();
   if (stats === null) return { ok: true };
   const resizeTriggered = maybeRequestVolumeResize(stats);

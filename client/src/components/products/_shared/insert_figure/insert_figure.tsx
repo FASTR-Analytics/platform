@@ -1,25 +1,25 @@
 import {
-  FILTER_ONLY_DISAGGREGATION_OPTIONS,
   deriveConfigFromVizPreset,
+  type DisaggregationOption,
+  FILTER_ONLY_DISAGGREGATION_OPTIONS,
   getLanguage,
   getStartingConfigForPresentationObject,
-  t3,
-  type DisaggregationOption,
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
   type PresentationOption,
   type RunAuthoringContext,
+  t3,
 } from "lib";
 import { unwrap } from "solid-js/store";
 import {
   AlertComponentProps,
-  ModalContainer,
   createFormAction,
   getStepper,
+  ModalContainer,
   StepperChipsWithTitles,
 } from "panther";
-import { createSignal, createMemo, Match, Switch } from "solid-js";
+import { createMemo, createSignal, Match, Switch } from "solid-js";
 import { CUSTOM_OPTION, type PresetOption } from "./preset_preview";
 import { Step1Metric } from "./step_1_metric";
 import { Step2Preset } from "./step_2_preset";
@@ -45,13 +45,21 @@ type Props = {
 export function InsertFigureModal(
   p: AlertComponentProps<Props, InsertFigureResult>,
 ) {
-  const [selectedMetricId, setSelectedMetricId] = createSignal(p.preselectedMetricId ?? "");
-  const [selectedPresetId, setSelectedPresetId] = createSignal<string | undefined>(undefined);
-  const [selectedType, setSelectedType] = createSignal<PresentationOption | undefined>(undefined);
-  const [selectedDisaggregations, setSelectedDisaggregations] = createSignal<DisaggregationOption[]>([]);
+  const [selectedMetricId, setSelectedMetricId] = createSignal(
+    p.preselectedMetricId ?? "",
+  );
+  const [selectedPresetId, setSelectedPresetId] = createSignal<
+    string | undefined
+  >(undefined);
+  const [selectedType, setSelectedType] = createSignal<
+    PresentationOption | undefined
+  >(undefined);
+  const [selectedDisaggregations, setSelectedDisaggregations] = createSignal<
+    DisaggregationOption[]
+  >([]);
 
   const selectedMetric = createMemo((): MetricWithStatus | undefined =>
-    p.context.metrics.find((m) => m.id === selectedMetricId()),
+    p.context.metrics.find((m) => m.id === selectedMetricId())
   );
 
   // deriveConfigFromVizPreset is THE preset-to-config derivation; both the
@@ -121,7 +129,10 @@ export function InsertFigureModal(
     setSelectedDisaggregations([]);
   };
 
-  const handleToggleDisaggregation = (disOpt: DisaggregationOption, checked: boolean) => {
+  const handleToggleDisaggregation = (
+    disOpt: DisaggregationOption,
+    checked: boolean,
+  ) => {
     setSelectedDisaggregations((prev) =>
       checked ? [...prev, disOpt] : prev.filter((d) => d !== disOpt)
     );
@@ -131,7 +142,14 @@ export function InsertFigureModal(
     async () => {
       const metric = selectedMetric();
       if (!metric) {
-        return { success: false, err: t3({ en: "You must select a metric", fr: "Vous devez sélectionner une métrique", pt: "Tem de selecionar uma métrica" }) };
+        return {
+          success: false,
+          err: t3({
+            en: "You must select a metric",
+            fr: "Vous devez sélectionner une métrique",
+            pt: "Tem de selecionar uma métrica",
+          }),
+        };
       }
 
       const presetId = selectedPresetId();
@@ -148,33 +166,47 @@ export function InsertFigureModal(
 
       const type = selectedType();
       if (!type) {
-        return { success: false, err: t3({ en: "You must select a visualization type", fr: "Vous devez sélectionner un type de visualisation", pt: "Tem de selecionar um tipo de visualização" }) };
+        return {
+          success: false,
+          err: t3({
+            en: "You must select a visualization type",
+            fr: "Vous devez sélectionner un type de visualisation",
+            pt: "Tem de selecionar um tipo de visualização",
+          }),
+        };
       }
 
       const disaggregations = metric.disaggregationOptions
         .filter(
           (disOpt) =>
-            disOpt.isRequired || selectedDisaggregations().includes(disOpt.value)
+            disOpt.isRequired ||
+            selectedDisaggregations().includes(disOpt.value),
         )
         .filter(
           (disOpt) =>
             !disOpt.allowedPresentationOptions ||
-            disOpt.allowedPresentationOptions.includes(type)
+            disOpt.allowedPresentationOptions.includes(type),
         )
-        .filter((disOpt) => !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(disOpt.value))
+        .filter((disOpt) =>
+          !FILTER_ONLY_DISAGGREGATION_OPTIONS.has(disOpt.value)
+        )
         .map((disOpt) => disOpt.value);
 
       return {
         success: true,
         data: {
           metric,
-          config: getStartingConfigForPresentationObject(metric, type, disaggregations),
+          config: getStartingConfigForPresentationObject(
+            metric,
+            type,
+            disaggregations,
+          ),
         } satisfies InsertFigureResult,
       };
     },
     (data) => {
       p.close(data);
-    }
+    },
   );
 
   const isLastStep = () =>
@@ -199,7 +231,11 @@ export function InsertFigureModal(
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">
-            {t3({ en: "Insert visualization", fr: "Insérer une visualisation", pt: "Inserir visualização" })}
+            {t3({
+              en: "Insert visualization",
+              fr: "Insérer une visualisation",
+              pt: "Inserir visualização",
+            })}
           </div>
           <StepperChipsWithTitles
             stepper={stepper}
@@ -212,25 +248,25 @@ export function InsertFigureModal(
       actions={[
         ...(stepper.currentStep() > 0
           ? [
-              {
-                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
-                onClick: stepper.goPrev,
-                outline: true,
-              },
-            ]
+            {
+              label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+              onClick: stepper.goPrev,
+              outline: true,
+            },
+          ]
           : []),
         isLastStep()
           ? {
-              label: t3({ en: "Insert", fr: "Insérer", pt: "Inserir" }),
-              onClick: save.click,
-              disabled: !stepper.canGoNext(),
-              state: save.state(),
-            }
+            label: t3({ en: "Insert", fr: "Insérer", pt: "Inserir" }),
+            onClick: save.click,
+            disabled: !stepper.canGoNext(),
+            state: save.state(),
+          }
           : {
-              label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
-              onClick: stepper.goNext,
-              disabled: !stepper.canGoNext(),
-            },
+            label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+            onClick: stepper.goNext,
+            disabled: !stepper.canGoNext(),
+          },
       ]}
     >
       <div class="h-[min(36rem,60vh)]" onKeyDown={handleKeyDown} tabIndex={0}>

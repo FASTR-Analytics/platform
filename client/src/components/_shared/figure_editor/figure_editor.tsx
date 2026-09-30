@@ -1,21 +1,21 @@
 import { trackStore } from "@solid-primitives/deep";
 import {
   FIGURE_EXPORT_WIDTH_PX,
-  ItemsHolderPresentationObject,
-  PackageScope,
-  PresentationObjectConfig,
-  ResultsValue,
-  ResultsValueInfoForPresentationObject,
-  RunAuthoringContext,
   getEffectivePOConfig,
   getReplicateByProp,
   getSingleValueDimsFromPossibleValues,
   hasDuplicateDisaggregatorDisplayOptions,
   isSampleNProp,
+  ItemsHolderPresentationObject,
   materializeFigureConfig,
   normalizePOConfigForStorage,
-  SAMPLE_N_PREFIX,
+  PackageScope,
   type PresenceEntry,
+  PresentationObjectConfig,
+  ResultsValue,
+  ResultsValueInfoForPresentationObject,
+  RunAuthoringContext,
+  SAMPLE_N_PREFIX,
   syncFigureConfigToMap,
   t3,
   TC,
@@ -24,38 +24,38 @@ import * as Y from "yjs";
 import type { Awareness } from "y-protocols/awareness";
 import {
   Button,
-  FigureHolder,
   Csv,
+  downloadCsv,
+  downloadJson,
+  FigureHolder,
   FigureInputs,
   FrameLeftResizable,
   FrameTop,
-  StateHolder,
-  StateHolderWrapper,
-  downloadCsv,
-  downloadJson,
   getEditorWrapper,
   getFigureAsCanvas,
   openAlert,
   openComponent,
   saveAs,
+  StateHolder,
+  StateHolderWrapper,
   stringifyCsv,
 } from "panther";
 import {
-  Match,
-  Show,
-  Switch,
   createEffect,
   createMemo,
   createSignal,
+  Match,
   onCleanup,
   onMount,
+  Show,
+  Switch,
   untrack,
 } from "solid-js";
 import {
   createStore,
   reconcile,
-  unwrap,
   type SetStoreFunction,
+  unwrap,
 } from "solid-js/store";
 import {
   collabSocketOpen,
@@ -80,7 +80,10 @@ import {
   getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator,
 } from "~/state/products/t2_figure_data";
 import { setShowAi, showAi } from "~/state/t4_ui";
-import type { FigureEditorResult, VizFigureCollabBinding } from "./visualization_editor";
+import type {
+  FigureEditorResult,
+  VizFigureCollabBinding,
+} from "./visualization_editor";
 import { PresentationObjectEditorPanel } from "./editor_panel";
 
 // Input types with no native undo: they must not swallow the editor's Ctrl+Z.
@@ -410,8 +413,9 @@ export function VisualizationEditorInner(p: InnerProps) {
     const scope = pointerScope();
     if (!aw || !scope) return out;
     const presencePeers = otherPeers();
-    const selfEmail = (aw.getLocalState()?.user as { email?: string } | undefined)
-      ?.email;
+    const selfEmail =
+      (aw.getLocalState()?.user as { email?: string } | undefined)
+        ?.email;
     // One avatar per PERSON per tab, keyed on the awareness identity: a user
     // with two tabs on this figure holds two awareness states, and their
     // own tabs must not show up as peers at all (same rule as the live-cursor
@@ -678,9 +682,9 @@ export function VisualizationEditorInner(p: InnerProps) {
             Object.entries(item).map(([k, v]) =>
               isSampleNProp(k)
                 ? [`sample_size_${k.slice(SAMPLE_N_PREFIX.length)}`, v]
-                : [k, v],
+                : [k, v]
             ),
-          ),
+          )
         ),
       ).stringify();
       downloadCsv(csv, `${fileStem}_underlying_data.csv`);
@@ -745,10 +749,9 @@ export function VisualizationEditorInner(p: InnerProps) {
                   >
                     <Button
                       intent="success"
-                      onClick={() =>
-                        p.onClose({
-                          updated: { config: getConfigForSave() },
-                        })}
+                      onClick={() => p.onClose({
+                        updated: { config: getConfigForSave() },
+                      })}
                       iconName="check"
                     >
                       {t3({ en: "Apply", fr: "Appliquer", pt: "Aplicar" })}
@@ -759,10 +762,12 @@ export function VisualizationEditorInner(p: InnerProps) {
                   </Show>
                 }
               >
-                {/* Live co-editing: edits already streamed into the host doc.
+                {
+                  /* Live co-editing: edits already streamed into the host doc.
                     Back commits and lets the host do a final coherent rebuild
                     (fresh items for the final config). No Cancel: streamed
-                    edits can't be discarded (use per-user undo). */}
+                    edits can't be discarded (use per-user undo). */
+                }
                 <Button
                   iconName="chevronLeft"
                   onClick={() =>
@@ -796,8 +801,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                     class="text-base-content-muted mr-1 text-xs"
                     title={t3({
                       en: "Changes are saved automatically and shared live",
-                      fr: "Les modifications sont enregistrées automatiquement et partagées en direct",
-                      pt: "As alterações são guardadas automaticamente e partilhadas em direto",
+                      fr:
+                        "Les modifications sont enregistrées automatiquement et partagées en direct",
+                      pt:
+                        "As alterações são guardadas automaticamente e partilhadas em direto",
                     })}
                   >
                     {t3({ en: "Live", fr: "En direct", pt: "Em direto" })}
@@ -811,11 +818,11 @@ export function VisualizationEditorInner(p: InnerProps) {
               </Button>
               <Button
                 onClick={() =>
-                  setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")
-                }
+                  setEditorHeight(editorHeight() === "flex" ? "ideal" : "flex")}
                 iconName={editorHeight() === "flex" ? "maximize" : "minimize"}
                 outline
-              ></Button>
+              >
+              </Button>
               <Show when={!showAi()}>
                 <Button
                   onClick={() => setShowAi(true)}
@@ -857,8 +864,11 @@ export function VisualizationEditorInner(p: InnerProps) {
                     metric={metric}
                     selectedReplicantValue={tempConfig.d.selectedReplicantValue}
                     setSelectedReplicant={(v) =>
-                      manuallyUpdateTempConfig("d", "selectedReplicantValue", v)
-                    }
+                      manuallyUpdateTempConfig(
+                        "d",
+                        "selectedReplicantValue",
+                        v,
+                      )}
                   />
                 );
               }}
@@ -883,18 +893,19 @@ export function VisualizationEditorInner(p: InnerProps) {
               fallback={
                 <div class="ui-pad">
                   {t3({
-                    en: "You have two disaggregators with the same display option",
-                    fr: "Vous disposez de deux désagrégateurs avec la même option d'affichage",
-                    pt: "Tem dois desagregadores com a mesma opção de apresentação",
+                    en:
+                      "You have two disaggregators with the same display option",
+                    fr:
+                      "Vous disposez de deux désagrégateurs avec la même option d'affichage",
+                    pt:
+                      "Tem dois desagregadores com a mesma opção de apresentação",
                   })}
                 </div>
               }
             >
               <Show
-                when={
-                  !getReplicateByProp(tempConfig) ||
-                  tempConfig.d.selectedReplicantValue
-                }
+                when={!getReplicateByProp(tempConfig) ||
+                  tempConfig.d.selectedReplicantValue}
                 fallback={
                   <div class="ui-pad">
                     {t3({
@@ -905,7 +916,10 @@ export function VisualizationEditorInner(p: InnerProps) {
                   </div>
                 }
               >
-                <StateHolderWrapper state={itemsHolder()} loadingAndErrorPad="md">
+                <StateHolderWrapper
+                  state={itemsHolder()}
+                  loadingAndErrorPad="md"
+                >
                   {(keyedItemsHolder) => {
                     return (
                       <Switch>
@@ -914,22 +928,27 @@ export function VisualizationEditorInner(p: InnerProps) {
                         >
                           <div class="ui-pad">
                             {t3({
-                              en: "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
-                              fr: "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données.",
-                              pt: "Demasiados pontos de dados selecionados. Adicione filtros ou reduza as opções de desagregação para ver menos de 20.000 pontos de dados.",
+                              en:
+                                "Too many data points selected. Please add filters or reduce disaggregation options to view fewer than 20,000 data points.",
+                              fr:
+                                "Trop de points de données sélectionnés. Veuillez ajouter des filtres ou réduire les options de désagrégation pour afficher moins de 20 000 points de données.",
+                              pt:
+                                "Demasiados pontos de dados selecionados. Adicione filtros ou reduza as opções de desagregação para ver menos de 20.000 pontos de dados.",
                             })}
                           </div>
                         </Match>
                         <Match
-                          when={
-                            keyedItemsHolder.ih.status === "no_data_available"
-                          }
+                          when={keyedItemsHolder.ih.status ===
+                            "no_data_available"}
                         >
                           <div class="ui-pad">
                             {t3({
-                              en: "No data available with current filter selection.",
-                              fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
-                              pt: "Não há dados disponíveis com a seleção de filtros atual.",
+                              en:
+                                "No data available with current filter selection.",
+                              fr:
+                                "Aucune donnée disponible avec la sélection de filtre actuelle.",
+                              pt:
+                                "Não há dados disponíveis com a seleção de filtros atual.",
                             })}
                           </div>
                         </Match>
@@ -946,9 +965,12 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 return {
                                   status: "error",
                                   err: t3({
-                                    en: "No rows returned from database for this filter configuration",
-                                    fr: "Aucune ligne retournée de la base de données pour cette configuration de filtre",
-                                    pt: "Nenhuma linha devolvida da base de dados para esta configuração de filtro",
+                                    en:
+                                      "No rows returned from database for this filter configuration",
+                                    fr:
+                                      "Aucune ligne retournée de la base de données pour cette configuration de filtre",
+                                    pt:
+                                      "Nenhuma linha devolvida da base de dados para esta configuração de filtro",
                                   }),
                                 };
                               }
@@ -989,13 +1011,16 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 }
                               }
                               try {
-                                const bundle = makeFigureBundleFromFetchedData(scope(), {
-                                  resultsValue: metric,
-                                  ih: keyedItemsHolder.ih as Parameters<
-                                    typeof makeFigureBundleFromFetchedData
-                                  >[1]["ih"],
-                                  effectiveConfig: keyedItemsHolder.config,
-                                });
+                                const bundle = makeFigureBundleFromFetchedData(
+                                  scope(),
+                                  {
+                                    resultsValue: metric,
+                                    ih: keyedItemsHolder.ih as Parameters<
+                                      typeof makeFigureBundleFromFetchedData
+                                    >[1]["ih"],
+                                    effectiveConfig: keyedItemsHolder.config,
+                                  },
+                                );
                                 return {
                                   status: "ready" as const,
                                   data: buildFigureInputs(bundle),
@@ -1003,10 +1028,9 @@ export function VisualizationEditorInner(p: InnerProps) {
                               } catch (e) {
                                 return {
                                   status: "error" as const,
-                                  err:
-                                    e instanceof Error
-                                      ? e.message
-                                      : "Render error",
+                                  err: e instanceof Error
+                                    ? e.message
+                                    : "Render error",
                                 };
                               }
                             });

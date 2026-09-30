@@ -1,5 +1,5 @@
 import { clerk } from "~/state/_infra/clerk";
-import { TextArea, ModalContainer, type AlertComponentProps } from "panther";
+import { type AlertComponentProps, ModalContainer, TextArea } from "panther";
 import { createSignal } from "solid-js";
 import { t3 } from "lib";
 
@@ -27,9 +27,17 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
   return (
     <ModalContainer
       width="sm"
-      title={t3({ en: "Your organisation", fr: "Votre organisation", pt: "A sua organização" })}
+      title={t3({
+        en: "Your organisation",
+        fr: "Votre organisation",
+        pt: "A sua organização",
+      })}
       onCancel={() => p.close(undefined)}
-      cancelLabel={t3({ en: "Skip for now", fr: "Passer pour l'instant", pt: "Ignorar por agora" })}
+      cancelLabel={t3({
+        en: "Skip for now",
+        fr: "Passer pour l'instant",
+        pt: "Ignorar por agora",
+      })}
       cancelDisabled={loading()}
       actions={[
         {
@@ -50,7 +58,11 @@ export function OrganisationModal(p: AlertComponentProps<void, undefined>) {
         <TextArea
           value={organisation()}
           onChange={setOrganisation}
-          placeholder={t3({ en: "Organisation name", fr: "Nom de l'organisation", pt: "Nome da organização" })}
+          placeholder={t3({
+            en: "Organisation name",
+            fr: "Nom de l'organisation",
+            pt: "Nome da organização",
+          })}
           fullWidth
           rows={1}
           disabled={loading()}

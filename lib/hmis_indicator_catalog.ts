@@ -73,7 +73,10 @@ export class HmisIndicatorCatalogError extends Error {
   }
 }
 
-type DictionaryInput = Pick<HmisIndicator, "indicator_common_id" | "definition">;
+type DictionaryInput = Pick<
+  HmisIndicator,
+  "indicator_common_id" | "definition"
+>;
 
 // The dictionary every expression resolves against: every count as a leaf,
 // plus one `population` leaf per store type. The editor adds the definition
@@ -85,7 +88,9 @@ export function buildHmisIndicatorDictionary(
   return buildExpressionDictionary([
     ...indicators.map((c) => ({
       id: c.indicator_common_id,
-      type: c.definition.type === "calculated" ? "calculated" as const : "leaf" as const,
+      type: c.definition.type === "calculated"
+        ? "calculated" as const
+        : "leaf" as const,
       expression: c.definition.type === "calculated"
         ? c.definition.expression
         : null,
@@ -127,7 +132,10 @@ export function analysedIndicatorIds(
   indicators: HmisIndicator[],
   populationTypeIds: string[],
 ): Set<string> {
-  const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
+  const dictionary = buildHmisIndicatorDictionary(
+    indicators,
+    populationTypeIds,
+  );
   const analysed = new Set<string>();
   for (const c of indicators) {
     if (c.definition.type === "calculated") continue;
@@ -159,11 +167,14 @@ export function analysedIdsWithData(
   dataIdsWithRows: Set<string>,
 ): Set<string> {
   const dataIdOf = new Map(
-    indicators.map((c) => [c.indicator_common_id, definitionDataId(c.definition)]),
+    indicators.map((
+      c,
+    ) => [c.indicator_common_id, definitionDataId(c.definition)]),
   );
   const dataIdHasRows = (id: string) => {
     const dataId = dataIdOf.get(id);
-    return dataId !== null && dataId !== undefined && dataIdsWithRows.has(dataId);
+    return dataId !== null && dataId !== undefined &&
+      dataIdsWithRows.has(dataId);
   };
   const withData = new Set<string>();
   for (const c of indicators) {
@@ -171,7 +182,9 @@ export function analysedIdsWithData(
     if (hasRows(c.definition.type) && dataIdHasRows(c.indicator_common_id)) {
       withData.add(c.indicator_common_id);
     }
-    if (c.definition.type === "sum" && c.definition.members.some(dataIdHasRows)) {
+    if (
+      c.definition.type === "sum" && c.definition.members.some(dataIdHasRows)
+    ) {
       withData.add(c.indicator_common_id);
     }
   }
@@ -229,7 +242,10 @@ export function judgeCalculatedIndicators(
   populationTypeIds: string[],
   idsWithData: Set<string>,
 ): Map<string, CalculatedIndicatorComputability> {
-  const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
+  const dictionary = buildHmisIndicatorDictionary(
+    indicators,
+    populationTypeIds,
+  );
   const judgements = new Map<string, CalculatedIndicatorComputability>();
   for (const c of indicators) {
     if (c.definition.type !== "calculated") continue;
@@ -270,7 +286,10 @@ export function resolveHmisIndicatorCatalog(
   idsWithData: Set<string>,
   populationTypeIds: string[],
 ): HmisIndicatorCatalogRow[] {
-  const dictionary = buildHmisIndicatorDictionary(indicators, populationTypeIds);
+  const dictionary = buildHmisIndicatorDictionary(
+    indicators,
+    populationTypeIds,
+  );
   const analysed = analysedIndicatorIds(indicators, populationTypeIds);
 
   const problems: string[] = [];
@@ -408,7 +427,10 @@ export function buildIndicatorExpressionsRLiteral(
     rows.push({
       indicatorId: row.indicator_common_id,
       expression: writeIndicatorExpression(
-        renameIdentifiers(parseIndicatorExpression(row.expression), row.slot_map),
+        renameIdentifiers(
+          parseIndicatorExpression(row.expression),
+          row.slot_map,
+        ),
       ),
     });
   }

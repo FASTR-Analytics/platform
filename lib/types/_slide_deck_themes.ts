@@ -290,7 +290,9 @@ function themeDistance(
   return (
     W_HUE * colorCost +
     W_COVER *
-      (style.coverAndSectionTreatment === spec.coverAndSectionTreatment ? 0 : 1) +
+      (style.coverAndSectionTreatment === spec.coverAndSectionTreatment
+        ? 0
+        : 1) +
     W_FREEFORM * (style.freeformTreatment === spec.freeformTreatment ? 0 : 1) +
     W_LAYOUT * (style.layout === spec.layout ? 0 : 1) +
     W_FONT * (storedFont === spec.fontFamily ? 0 : 1) +
@@ -367,8 +369,8 @@ export function applySlideDeckThemeToLegacyConfig(
 ): void {
   if (LEGACY_SLIDE_DECK_STYLE_KEYS.some((k) => k in config)) {
     config.theme = nearestSlideDeckTheme({
-      colorTheme: (config.colorTheme ?? { type: "preset", id: "gff" }) as
-        LegacySlideDeckStyle["colorTheme"],
+      colorTheme: (config.colorTheme ??
+        { type: "preset", id: "gff" }) as LegacySlideDeckStyle["colorTheme"],
       fontFamily: config.fontFamily as string | undefined,
       layout: (config.layout ?? "default") as string,
       coverAndSectionTreatment: (config.coverAndSectionTreatment ??

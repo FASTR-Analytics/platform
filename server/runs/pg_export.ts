@@ -19,7 +19,11 @@ export async function exportRowsToParquet(
     await Deno.makeTempDir({ prefix: "rows_export_" }),
     "rows.csv",
   );
-  const file = await Deno.open(csvPath, { write: true, create: true, truncate: true });
+  const file = await Deno.open(csvPath, {
+    write: true,
+    create: true,
+    truncate: true,
+  });
   const writer = file.writable.getWriter();
   const enc = new TextEncoder();
   try {

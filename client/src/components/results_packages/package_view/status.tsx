@@ -1,8 +1,8 @@
 import {
   MODULE_REGISTRY,
-  t3,
   type RunCatalogStatus,
   type RunModuleProgressStatus,
+  t3,
 } from "lib";
 import { Badge, type Intent } from "panther";
 import { Show } from "solid-js";
@@ -39,9 +39,11 @@ export function runOutputFileHref(
   moduleId: string,
   fileName: string,
 ): string {
-  return `${_SERVER_HOST}/${runId}/outputs/${moduleId}/${encodeURIComponent(
-    fileName,
-  )}?t=${Date.now()}`;
+  return `${_SERVER_HOST}/${runId}/outputs/${moduleId}/${
+    encodeURIComponent(
+      fileName,
+    )
+  }?t=${Date.now()}`;
 }
 
 // The registry label: the only name a generating or failed run has, since

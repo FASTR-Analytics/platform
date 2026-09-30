@@ -24,11 +24,11 @@ export type ReportEditProposal = {
 export type ReportEditProposalResult =
   | { skip: string }
   | {
-      preview: ProposalPreview;
-      customProposalUI: (signal: AbortSignal) => Promise<boolean>;
-      stillValid: () => boolean;
-      commit: () => Promise<{ skipped: SkippedRange[] }>;
-    };
+    preview: ProposalPreview;
+    customProposalUI: (signal: AbortSignal) => Promise<boolean>;
+    stillValid: () => boolean;
+    commit: () => Promise<{ skipped: SkippedRange[] }>;
+  };
 
 // Live CodeMirror selection, surfaced to the AI so it can act on what the user
 // has highlighted (mirrors how slide decks expose getSelectedSlideIds).

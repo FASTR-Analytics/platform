@@ -141,7 +141,9 @@ function validateDefinition(
   ]);
   if (reservedProps.length > 0) {
     throw new Error(
-      `Invalid definition for module "${moduleId}": value props may not start with "${SAMPLE_N_PREFIX}" (reserved for sample sizes): ${reservedProps.join(", ")}`,
+      `Invalid definition for module "${moduleId}": value props may not start with "${SAMPLE_N_PREFIX}" (reserved for sample sizes): ${
+        reservedProps.join(", ")
+      }`,
     );
   }
 

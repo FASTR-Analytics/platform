@@ -1,7 +1,7 @@
 import {
+  type CalendarType,
   ChartValueInfo,
   CustomFigureStyleOptions,
-  type CalendarType,
 } from "panther";
 import {
   type DeckStyleContext,
@@ -15,11 +15,11 @@ import {
   formatIndicatorValue,
   getIndicatorIdsForChartValue,
   getMapRegionsContent,
+  getPieCenterLabel,
   getPieSlicesContent,
   getScaleTickLabelFormatter,
   getStandardSeriesColorFunc,
   getTableCellsContent,
-  getPieCenterLabel,
   getTableColHeadersContent,
   getTableLayoutStyle,
   getTextStyle,
@@ -71,8 +71,8 @@ export function buildStandardStyle(
   const cf = selectCf(config.s);
   const cfOn = cf.type !== "none";
   const c = config.s.content;
-  const showPoints =
-    c === "points" || c === "lines-points" || c === "points-connectors";
+  const showPoints = c === "points" || c === "lines-points" ||
+    c === "points-connectors";
   const showLines = c === "lines" || c === "lines-area" || c === "lines-points";
   const showAreas = c === "lines-area";
   const showConnectors = c === "points-connectors";
@@ -94,12 +94,14 @@ export function buildStandardStyle(
     },
     xTextAxis: {
       verticalTickLabels: config.s.verticalTickLabels,
-      tickPosition:
-        c === "points" || c === "points-connectors" ? "center" : undefined,
+      tickPosition: c === "points" || c === "points-connectors"
+        ? "center"
+        : undefined,
     },
     yTextAxis: {
-      tickPosition:
-        c === "points" || c === "points-connectors" ? "center" : undefined,
+      tickPosition: c === "points" || c === "points-connectors"
+        ? "center"
+        : undefined,
     },
     xPeriodAxis: {
       forceSideTicksWhenYear: config.s.content === "bars",
@@ -126,16 +128,13 @@ export function buildStandardStyle(
         textFormatter: formatChartValue,
       },
       bars: {
-        func:
-          c !== "bars"
-            ? { show: false }
-            : cfOn
-              ? {
-                  show: true,
-                  fillColor: 777 as const,
-                  dataLabel: { show: config.s.showDataLabels },
-                }
-              : { show: true, dataLabel: { show: config.s.showDataLabels } },
+        func: c !== "bars" ? { show: false } : cfOn
+          ? {
+            show: true,
+            fillColor: 777 as const,
+            dataLabel: { show: config.s.showDataLabels },
+          }
+          : { show: true, dataLabel: { show: config.s.showDataLabels } },
         textFormatter: formatChartValue,
         stacking: c === "bars" && config.s.barsStacked ? "stacked" : "none",
       },
@@ -173,23 +172,20 @@ export function buildStandardStyle(
       effectiveFormat,
       effectiveValueProps,
     ),
-    map:
-      config.d.type === "map"
-        ? {
-            projection: config.s.mapProjection ?? "equirectangular",
-            dataLabelMode: config.s.mapDataLabelMode ?? "centroid",
-            fit:
-              (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
-                ? "only-regions-in-data"
-                : undefined,
-          }
-        : undefined,
-    pie:
-      config.d.type === "pie"
-        ? {
-            innerRadiusRatio: config.s.pieInnerRadiusRatio ?? 0,
-            centerLabel: getPieCenterLabel(config, axisFormat),
-          }
-        : undefined,
+    map: config.d.type === "map"
+      ? {
+        projection: config.s.mapProjection ?? "equirectangular",
+        dataLabelMode: config.s.mapDataLabelMode ?? "centroid",
+        fit: (getAdminAreaLevelFromMapConfig(config) ?? 0) >= 3
+          ? "only-regions-in-data"
+          : undefined,
+      }
+      : undefined,
+    pie: config.d.type === "pie"
+      ? {
+        innerRadiusRatio: config.s.pieInnerRadiusRatio ?? 0,
+        centerLabel: getPieCenterLabel(config, axisFormat),
+      }
+      : undefined,
   };
 }

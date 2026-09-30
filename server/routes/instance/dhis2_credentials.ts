@@ -42,7 +42,8 @@ defineRoute(
     if (!isDhis2CredentialsEncryptionKeyConfigured()) {
       return c.json({
         success: false,
-        err: "DHIS2_CREDENTIALS_ENCRYPTION_KEY is not set on this server — credentials cannot be stored.",
+        err:
+          "DHIS2_CREDENTIALS_ENCRYPTION_KEY is not set on this server — credentials cannot be stored.",
       });
     }
     const validation = await validateDhis2Connection(body.credentials);

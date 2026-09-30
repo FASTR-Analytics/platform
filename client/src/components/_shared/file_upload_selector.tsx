@@ -1,19 +1,16 @@
 import type Uppy from "@uppy/core";
 import {
-  Show,
   createEffect,
   createMemo,
   createSignal,
   onCleanup,
   onMount,
+  Show,
 } from "solid-js";
 import type { AssetInfo } from "lib";
 import { t3 } from "lib";
-import { Button, Select, getSelectOptions } from "panther";
-import {
-  cleanupUppy,
-  createUppyInstance,
-} from "./uppy_file_upload";
+import { Button, getSelectOptions, Select } from "panther";
+import { cleanupUppy, createUppyInstance } from "./uppy_file_upload";
 import { instanceState } from "~/state/instance/t1_store";
 
 let idCounter = 0;
@@ -86,7 +83,7 @@ export function FileUploadSelector(p: Props) {
   const options = createMemo(() =>
     getSelectOptions(
       instanceState.assets.filter(p.filter).map((a) => a.fileName),
-    ),
+    )
   );
 
   return (

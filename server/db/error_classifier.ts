@@ -14,8 +14,9 @@ const NETWORK_ERROR_CODES = new Set([
 
 export function classifyDatabaseError(e: unknown): CategorizedError {
   const technicalMessage = e instanceof Error ? e.message : String(e);
-  const errorCode =
-    e instanceof Error && "code" in e ? String((e as { code: unknown }).code) : "";
+  const errorCode = e instanceof Error && "code" in e
+    ? String((e as { code: unknown }).code)
+    : "";
 
   // Check if error is already categorized (thrown by internal functions)
   if (technicalMessage === ERROR_CATEGORY.MODULE_NOT_RUN) {
@@ -72,7 +73,9 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
   }
 
   // Fall back to PostgreSQL error pattern matching
-  const relationMatch = technicalMessage.match(/relation "([^"]+)" does not exist/);
+  const relationMatch = technicalMessage.match(
+    /relation "([^"]+)" does not exist/,
+  );
   if (relationMatch) {
     return {
       category: ERROR_CATEGORY.DATA_NOT_FOUND,
@@ -116,7 +119,9 @@ export function classifyDatabaseError(e: unknown): CategorizedError {
     };
   }
 
-  if (/Binder Error: Referenced column "[^"]+" not found/.test(technicalMessage)) {
+  if (
+    /Binder Error: Referenced column "[^"]+" not found/.test(technicalMessage)
+  ) {
     return {
       category: ERROR_CATEGORY.CONFIGURATION_ERROR,
       userMessage:

@@ -63,7 +63,11 @@ export async function classifyElements(
     )
     .map((p) => p.id);
   const indicatorSet = indicatorCandidates.length
-    ? await getExistingMetadataIds("indicators", indicatorCandidates, fetchOptions)
+    ? await getExistingMetadataIds(
+      "indicators",
+      indicatorCandidates,
+      fetchOptions,
+    )
     : new Set<string>();
 
   const cocCandidates = parsed
@@ -75,7 +79,11 @@ export async function classifyElements(
     )
     .map((p) => p.coc as string);
   const cocSet = cocCandidates.length
-    ? await getExistingMetadataIds("categoryOptionCombos", cocCandidates, fetchOptions)
+    ? await getExistingMetadataIds(
+      "categoryOptionCombos",
+      cocCandidates,
+      fetchOptions,
+    )
     : new Set<string>();
 
   const routes = new Map<string, ElementRoute>();
@@ -90,7 +98,11 @@ export async function classifyElements(
           : { kind: "unknown", reason: "not_found" },
       );
     } else if (dataElementSet.has(p.element)) {
-      routes.set(p.id, { kind: "dvs", dataElementId: p.element, coc: undefined });
+      routes.set(p.id, {
+        kind: "dvs",
+        dataElementId: p.element,
+        coc: undefined,
+      });
     } else if (indicatorSet.has(p.id)) {
       routes.set(p.id, { kind: "unknown", reason: "dhis2_indicator" });
     } else {
@@ -136,10 +148,9 @@ export function describeFetchError(error: unknown): {
   if (typeof status === "number") {
     return {
       message,
-      kind:
-        status >= 400 && status < 500 && status !== 429
-          ? "permanent"
-          : "transient",
+      kind: status >= 400 && status < 500 && status !== 429
+        ? "permanent"
+        : "transient",
     };
   }
   if (

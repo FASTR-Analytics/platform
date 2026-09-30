@@ -48,13 +48,20 @@ function dataElementIdOf(dataId: string): string {
 
 async function resolveOrErr(
   mainDb: Sql,
-): Promise<{ ok: true; credentials: Dhis2Credentials } | { ok: false; err: string }> {
+): Promise<
+  { ok: true; credentials: Dhis2Credentials } | { ok: false; err: string }
+> {
   try {
-    return { ok: true, credentials: await getStoredDhis2CredentialsDecrypted(mainDb) };
+    return {
+      ok: true,
+      credentials: await getStoredDhis2CredentialsDecrypted(mainDb),
+    };
   } catch (error) {
     return {
       ok: false,
-      err: error instanceof Error ? error.message : "No stored DHIS2 credentials.",
+      err: error instanceof Error
+        ? error.message
+        : "No stored DHIS2 credentials.",
     };
   }
 }
@@ -78,7 +85,10 @@ defineRoute(
       const elements = await fetchByIds(
         stored.map((s) => dataElementIdOf(s.data_id)),
         (filter) =>
-          getDataElementsFromDHIS2(options, { filter: [filter], paging: false }),
+          getDataElementsFromDHIS2(options, {
+            filter: [filter],
+            paging: false,
+          }),
       );
       const elementsById = new Map(elements.map((e) => [e.id, e]));
       const labels = new Map<string, string>();
@@ -88,7 +98,10 @@ defineRoute(
         if (element === undefined) {
           notFound.push(s.indicator_common_id);
         } else {
-          labels.set(s.indicator_common_id, dhis2ElementName(element, s.data_id));
+          labels.set(
+            s.indicator_common_id,
+            dhis2ElementName(element, s.data_id),
+          );
         }
       }
       const refreshed = await setDhis2Labels(c.var.mainDb, labels);
@@ -232,7 +245,10 @@ defineRoute(
       const elements = await fetchByIds(
         body.elements.map((e) => dataElementIdOf(e.data_id)),
         (filter) =>
-          getDataElementsFromDHIS2(options, { filter: [filter], paging: false }),
+          getDataElementsFromDHIS2(options, {
+            filter: [filter],
+            paging: false,
+          }),
       );
       const elementsById = new Map(elements.map((e) => [e.id, e]));
       const indicators = await withDecompositions(
@@ -240,7 +256,10 @@ defineRoute(
         await fetchByIds(
           body.indicators.map((i) => i.uid),
           (filter) =>
-            getIndicatorsFromDHIS2(options, { filter: [filter], paging: false }),
+            getIndicatorsFromDHIS2(options, {
+              filter: [filter],
+              paging: false,
+            }),
         ),
         elements,
       );
@@ -251,7 +270,9 @@ defineRoute(
       if (missing.length > 0) {
         return c.json({
           success: false,
-          err: `DHIS2 indicators not found on the server: ${missing.join(", ")}`,
+          err: `DHIS2 indicators not found on the server: ${
+            missing.join(", ")
+          }`,
         });
       }
 
@@ -260,7 +281,9 @@ defineRoute(
           const element = elementsById.get(dataElementIdOf(e.data_id));
           return {
             ...e,
-            dhis2_label: element === undefined ? null : dhis2ElementName(element, e.data_id),
+            dhis2_label: element === undefined
+              ? null
+              : dhis2ElementName(element, e.data_id),
             verdict: getDhis2OperandVerdict(element),
           };
         }),

@@ -1,32 +1,32 @@
 import {
-  describeDhis2Selection,
-  getCalendar,
-  NO_STORED_DHIS2_CONNECTION,
-  POPULATION_TYPE_IDS,
-  t3,
   type DatasetHmisScheduledImport,
   type DatasetHmisScheduledImportFields,
+  describeDhis2Selection,
   type Dhis2RunPairInput,
   type Dhis2RunSelectionInput,
   type Dhis2ScheduleRecurrence,
   type Dhis2SelectionDescription,
+  getCalendar,
   type HmisIndicator,
+  NO_STORED_DHIS2_CONNECTION,
+  POPULATION_TYPE_IDS,
+  t3,
 } from "lib";
 import { recurrenceLabel } from "../_shared/mod.ts";
 import {
   AlertComponentProps,
-  ModalContainer,
-  StepperChipsWithTitles,
+  type CalendarType,
   createFormAction,
   getLocalTimezone,
   getStepper,
+  ModalContainer,
+  StepperChipsWithTitles,
   utcMsToZonedDateTime,
+  type ZonedDateTime,
   zonedDateTimeToUtcIso,
   zonedDateTimeToUtcMs,
-  type CalendarType,
-  type ZonedDateTime,
 } from "panther";
-import { Show, createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { Dhis2StepConfig } from "./step_3_config";
@@ -146,8 +146,9 @@ type InnerProps = {
 function Dhis2WizardInner(p: InnerProps) {
   const isPreset = p.entry.kind === "presetPairs";
   const isEditSchedule = p.entry.kind === "editSchedule";
-  const scheduleDefaults =
-    p.entry.kind === "editSchedule" ? p.entry.schedule : undefined;
+  const scheduleDefaults = p.entry.kind === "editSchedule"
+    ? p.entry.schedule
+    : undefined;
   const steps = isPreset ? PRESET_STEPS : FULL_STEPS;
 
   const calendar = getCalendar();
@@ -204,16 +205,20 @@ function Dhis2WizardInner(p: InnerProps) {
     const d = description();
     if (d === undefined || selectedIndicators().length === 0) return undefined;
     if (d.unresolvable.length > 0) {
-      return `${t3({
-        en: "A selected calculated indicator's formula does not resolve:",
-        fr: "La formule d'un indicateur calculé sélectionné ne se résout pas :",
-        pt: "A fórmula de um indicador calculado selecionado não se resolve:",
-      })} ${d.unresolvable.map((u) => `${u.id} (${u.problem})`).join("; ")}`;
+      return `${
+        t3({
+          en: "A selected calculated indicator's formula does not resolve:",
+          fr:
+            "La formule d'un indicateur calculé sélectionné ne se résout pas :",
+          pt: "A fórmula de um indicador calculado selecionado não se resolve:",
+        })
+      } ${d.unresolvable.map((u) => `${u.id} (${u.problem})`).join("; ")}`;
     }
     if (d.elements.length === 0) {
       return t3({
         en: "The selected indicators have no DHIS2 elements to fetch.",
-        fr: "Les indicateurs sélectionnés n'ont aucun élément DHIS2 à récupérer.",
+        fr:
+          "Les indicateurs sélectionnés n'ont aucun élément DHIS2 à récupérer.",
         pt: "Os indicadores selecionados não têm elementos DHIS2 a obter.",
       });
     }
@@ -225,17 +230,17 @@ function Dhis2WizardInner(p: InnerProps) {
     isPreset
       ? "now"
       : scheduleDefaults?.kind === "one_shot"
-        ? "later"
-        : scheduleDefaults?.kind === "recurring"
-          ? "recurring"
-          : "now",
+      ? "later"
+      : scheduleDefaults?.kind === "recurring"
+      ? "recurring"
+      : "now",
   );
   const [runAtZoned, setRunAtZoned] = createSignal<ZonedDateTime>(
     scheduleDefaults?.runAt
       ? utcMsToZonedDateTime(
-          new Date(scheduleDefaults.runAt).getTime(),
-          getLocalTimezone(),
-        )
+        new Date(scheduleDefaults.runAt).getTime(),
+        getLocalTimezone(),
+      )
       : { dateTime: "", timezone: getLocalTimezone() },
   );
   const recurrenceDefaults = scheduleDefaults?.recurrence;
@@ -313,8 +318,9 @@ function Dhis2WizardInner(p: InnerProps) {
     const nMonths = parseInt(everyNMonths()) || 1;
     return {
       kind: "monthly",
-      nth:
-        nth() === "last" ? "last" : ((parseInt(nth()) || 1) as 1 | 2 | 3 | 4),
+      nth: nth() === "last"
+        ? "last"
+        : ((parseInt(nth()) || 1) as 1 | 2 | 3 | 4),
       weekday: parseInt(monthlyWeekday()) || 0,
       everyNMonths: nMonths,
       // Phase is irrelevant at monthly cadence: any anchor gives the same
@@ -338,8 +344,7 @@ function Dhis2WizardInner(p: InnerProps) {
   }
 
   const stepperData = createMemo(() => ({
-    indicatorsValid:
-      selectedIndicators().length > 0 &&
+    indicatorsValid: selectedIndicators().length > 0 &&
       description() !== undefined &&
       indicatorsRefusal() === undefined,
     timeValid: computeTimeValid(),
@@ -352,12 +357,15 @@ function Dhis2WizardInner(p: InnerProps) {
     maxStep: steps.length - 1,
     getValidation: (step, data) => {
       const kind = steps[step];
-      if (kind === "indicators")
+      if (kind === "indicators") {
         return { canGoPrev: true, canGoNext: data.indicatorsValid };
-      if (kind === "time")
+      }
+      if (kind === "time") {
         return { canGoPrev: true, canGoNext: data.timeValid };
-      if (kind === "config")
+      }
+      if (kind === "config") {
         return { canGoPrev: true, canGoNext: data.configValid };
+      }
       return { canGoPrev: true, canGoNext: false };
     },
   });
@@ -405,14 +413,19 @@ function Dhis2WizardInner(p: InnerProps) {
   const windowSummary = () => {
     if (isPreset) return p.entry.kind === "presetPairs" ? p.entry.label : "";
     if (timeChoice() !== "recurring") {
-      return `${getNMonths(startPeriod(), endPeriod())} ${t3({ en: "months", fr: "mois", pt: "meses" })} (${startPeriod()}–${endPeriod()})`;
+      return `${getNMonths(startPeriod(), endPeriod())} ${
+        t3({ en: "months", fr: "mois", pt: "meses" })
+      } (${startPeriod()}–${endPeriod()})`;
     }
-    return `${t3({ en: "Last", fr: "Derniers", pt: "Últimos" })} ${monthsBack()} ${t3({ en: "months", fr: "mois", pt: "meses" })}`;
+    return `${
+      t3({ en: "Last", fr: "Derniers", pt: "Últimos" })
+    } ${monthsBack()} ${t3({ en: "months", fr: "mois", pt: "meses" })}`;
   };
 
   const nPairs = createMemo(() => {
-    if (isPreset)
+    if (isPreset) {
       return p.entry.kind === "presetPairs" ? p.entry.pairs.length : 0;
+    }
     if (timeChoice() === "recurring") return undefined;
     const d = description();
     if (d === undefined) return undefined;
@@ -422,37 +435,39 @@ function Dhis2WizardInner(p: InnerProps) {
   const queueNotice = () =>
     willQueue()
       ? t3({
-          en: "An import is currently running — this will start after it finishes.",
-          fr: "Une importation est en cours — celle-ci démarrera une fois terminée.",
-          pt: "Há uma importação em curso — esta começará assim que terminar.",
-        })
+        en:
+          "An import is currently running — this will start after it finishes.",
+        fr:
+          "Une importation est en cours — celle-ci démarrera une fois terminée.",
+        pt: "Há uma importação em curso — esta começará assim que terminar.",
+      })
       : undefined;
 
   const ctaLabel = () => {
     if (isImmediateFlow()) {
       return willQueue()
         ? t3({
-            en: "Queue import",
-            fr: "Mettre en file d'attente",
-            pt: "Colocar em fila",
-          })
+          en: "Queue import",
+          fr: "Mettre en file d'attente",
+          pt: "Colocar em fila",
+        })
         : t3({
-            en: "Start import",
-            fr: "Démarrer l'importation",
-            pt: "Iniciar a importação",
-          });
+          en: "Start import",
+          fr: "Démarrer l'importation",
+          pt: "Iniciar a importação",
+        });
     }
     return isEditSchedule
       ? t3({
-          en: "Save schedule",
-          fr: "Enregistrer la planification",
-          pt: "Guardar agendamento",
-        })
+        en: "Save schedule",
+        fr: "Enregistrer la planification",
+        pt: "Guardar agendamento",
+      })
       : t3({
-          en: "Schedule import",
-          fr: "Planifier l'importation",
-          pt: "Agendar importação",
-        });
+        en: "Schedule import",
+        fr: "Planifier l'importation",
+        pt: "Agendar importação",
+      });
   };
 
   async function launchOrQueueNow(selection: Dhis2RunSelectionInput) {
@@ -480,19 +495,18 @@ function Dhis2WizardInner(p: InnerProps) {
 
       const fields: DatasetHmisScheduledImportFields = {
         kind: timeChoice() === "later" ? "one_shot" : "recurring",
-        selection:
-          timeChoice() === "later"
-            ? {
-                kind: "explicit_range",
-                indicatorIds: selectedIndicators(),
-                startPeriod: startPeriod(),
-                endPeriod: endPeriod(),
-              }
-            : {
-                kind: "last_n_months",
-                indicatorIds: selectedIndicators(),
-                monthsBack: monthsBack(),
-              },
+        selection: timeChoice() === "later"
+          ? {
+            kind: "explicit_range",
+            indicatorIds: selectedIndicators(),
+            startPeriod: startPeriod(),
+            endPeriod: endPeriod(),
+          }
+          : {
+            kind: "last_n_months",
+            indicatorIds: selectedIndicators(),
+            monthsBack: monthsBack(),
+          },
       };
       if (timeChoice() === "later") {
         fields.runAt = zonedDateTimeToUtcIso(runAtZoned());
@@ -502,12 +516,12 @@ function Dhis2WizardInner(p: InnerProps) {
 
       return isEditSchedule && scheduleDefaults
         ? await serverActions.updateDatasetHmisDhis2Schedule({
-            id: scheduleDefaults.id,
-            schedule: fields,
-          })
+          id: scheduleDefaults.id,
+          schedule: fields,
+        })
         : await serverActions.createDatasetHmisDhis2Schedule({
-            schedule: fields,
-          });
+          schedule: fields,
+        });
     },
     async () => {
       p.close({ landedTab: isImmediateFlow() ? "current" : "future" });
@@ -528,28 +542,28 @@ function Dhis2WizardInner(p: InnerProps) {
       actions={[
         ...(stepper.currentStep() > 0
           ? [
-              {
-                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
-                onClick: stepper.goPrev,
-                outline: true,
-              },
-            ]
+            {
+              label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+              onClick: stepper.goPrev,
+              outline: true,
+            },
+          ]
           : []),
         ...(isLastStep()
           ? [
-              {
-                label: ctaLabel(),
-                onClick: submit.click,
-                state: submit.state(),
-              },
-            ]
+            {
+              label: ctaLabel(),
+              onClick: submit.click,
+              state: submit.state(),
+            },
+          ]
           : [
-              {
-                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
-                onClick: stepper.goNext,
-                disabled: !stepper.canGoNext(),
-              },
-            ]),
+            {
+              label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+              onClick: stepper.goNext,
+              disabled: !stepper.canGoNext(),
+            },
+          ]),
       ]}
     >
       <div class="min-h-[24rem]">

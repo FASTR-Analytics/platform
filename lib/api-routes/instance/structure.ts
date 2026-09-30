@@ -3,13 +3,13 @@ import type {
   CsvDetails,
   FacilityFamily,
   HfaFacilityWeightsImportResult,
+  StructureDhis2OrgUnitMetadata,
+  StructureIntegrateStrategy,
+  StructureIntegrateSummary,
   StructureStagedColumnValues,
   StructureStagedRecodeRows,
   StructureUploadAttemptDetail,
   StructureUploadAttemptStatus,
-  StructureDhis2OrgUnitMetadata,
-  StructureIntegrateStrategy,
-  StructureIntegrateSummary,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
@@ -77,7 +77,11 @@ export const structureRouteRegistry = {
   getHfaFacilityWeightsItems: route({
     path: "/structure/hfa_facility_weights/items",
     method: "GET",
-    response: {} as { totalCount: number; headers: string[]; items: Record<string, string>[] },
+    response: {} as {
+      totalCount: number;
+      headers: string[];
+      items: Record<string, string>[];
+    },
   }),
   readWeightsCsvHeaders: route({
     path: "/structure/hfa_facility_weights/read_headers",

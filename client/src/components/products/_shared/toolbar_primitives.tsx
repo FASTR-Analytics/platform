@@ -37,10 +37,12 @@ export function MenuRow(p: {
 // The formatting row itself, the root of both editors' toolbars so the two
 // cannot drift: a flat wrapping row that closes the header with a rule.
 export function ToolbarRow(
-  p: { children: JSX.Element } & Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "classList"
-  >,
+  p:
+    & { children: JSX.Element }
+    & Omit<
+      JSX.HTMLAttributes<HTMLDivElement>,
+      "class" | "classList"
+    >,
 ) {
   const [local, rest] = splitProps(p, ["children"]);
   return (
@@ -151,7 +153,7 @@ export function ToolbarPopover(p: {
     document.addEventListener("pointerdown", onDocPointerDown, true);
   }
   onCleanup(() =>
-    document.removeEventListener("pointerdown", onDocPointerDown, true),
+    document.removeEventListener("pointerdown", onDocPointerDown, true)
   );
 
   return (

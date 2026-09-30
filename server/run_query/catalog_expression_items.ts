@@ -21,8 +21,8 @@
 // =============================================================================
 
 import {
-  evaluateIndicatorExpression,
   type CatalogExpressionEvaluation,
+  evaluateIndicatorExpression,
   type ExpressionNode,
   type ExpressionValues,
   type IndicatorMetadata,

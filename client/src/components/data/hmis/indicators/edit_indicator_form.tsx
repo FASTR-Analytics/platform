@@ -12,12 +12,12 @@
 import {
   AlertComponentProps,
   Button,
-  ModalContainer,
   Checkbox,
   createDeleteAction,
   createFormAction,
-  Input,
   Field,
+  Input,
+  ModalContainer,
   MultiSelectSearch,
   Select,
   SelectSearch,
@@ -29,17 +29,17 @@ import {
   _CF_LIGHTER_RED,
   _CF_LIGHTER_YELLOW,
   buildHmisIndicatorDictionary,
-  type HmisIndicator,
+  type CalculatedIndicatorComputability,
   collectIdentifiers,
   definitionDataId,
-  hasRows,
-  type HmisIndicatorDefinitionInput,
-  type HmisIndicatorType,
-  HMIS_INDICATOR_TYPES,
-  type CalculatedIndicatorComputability,
   getLanguage,
   getNewIndicatorIdIssue,
   getSpecialIndicatorTypeIssue,
+  hasRows,
+  HMIS_INDICATOR_TYPES,
+  type HmisIndicator,
+  type HmisIndicatorDefinitionInput,
+  type HmisIndicatorType,
   type IndicatorFormat,
   isDhis2ShapedId,
   isPopulationTypeId,
@@ -122,11 +122,19 @@ function directionOptions() {
   return [
     {
       value: "higher-is-better",
-      label: t3({ en: "Higher is better", fr: "Plus élevé = meilleur", pt: "Mais alto é melhor" }),
+      label: t3({
+        en: "Higher is better",
+        fr: "Plus élevé = meilleur",
+        pt: "Mais alto é melhor",
+      }),
     },
     {
       value: "lower-is-better",
-      label: t3({ en: "Lower is better", fr: "Plus bas = meilleur", pt: "Mais baixo é melhor" }),
+      label: t3({
+        en: "Lower is better",
+        fr: "Plus bas = meilleur",
+        pt: "Mais baixo é melhor",
+      }),
     },
   ];
 }
@@ -190,7 +198,9 @@ export function EditIndicatorForm(
   );
   // The DHIS2 id input only: an Uploaded indicator's key is the server's.
   const [dataId, setDataId] = createSignal(
-    existing?.definition.type === "dhis2_element" ? existing.definition.data_id : "",
+    existing?.definition.type === "dhis2_element"
+      ? existing.definition.data_id
+      : "",
   );
   const [members, setMembers] = createSignal<string[]>(
     existing?.definition.type === "sum" ? existing.definition.members : [],
@@ -227,7 +237,8 @@ export function EditIndicatorForm(
   const existingIsSpecial = existing !== undefined &&
     isSpecialIndicatorId(existing.indicator_common_id);
   const renaming = () =>
-    existing !== undefined && indicatorId().trim() !== existing.indicator_common_id;
+    existing !== undefined &&
+    indicatorId().trim() !== existing.indicator_common_id;
 
   // Whether rows exist under the indicator's data id (ruling 4): the ledger's
   // answer through idsWithData; while that is unknown, an indicator with a
@@ -267,7 +278,7 @@ export function EditIndicatorForm(
   const otherIndicators = createMemo(() =>
     p.indicators.filter((c) =>
       c.indicator_common_id !== (existing?.indicator_common_id ?? ownId())
-    ),
+    )
   );
 
   const memberOptions = createMemo(() =>
@@ -276,7 +287,7 @@ export function EditIndicatorForm(
       .map((c) => ({
         value: c.indicator_common_id,
         label: `${c.indicator_common_label} (${c.indicator_common_id})`,
-      })),
+      }))
   );
 
   // Every data id another indicator carries, whatever its type (a DHIS2
@@ -316,7 +327,8 @@ export function EditIndicatorForm(
         ownId(),
         formula,
         dictionary,
-        p.idsWithData ?? new Set(p.indicators.map((c) => c.indicator_common_id)),
+        p.idsWithData ??
+          new Set(p.indicators.map((c) => c.indicator_common_id)),
       );
     },
   );
@@ -337,11 +349,16 @@ export function EditIndicatorForm(
   const computabilityWarning = createMemo<string | undefined>(() => {
     const j = judgement();
     if (j?.kind !== "unmapped_ingredients") return undefined;
-    return `${computabilityProblemText(j)}. ${t3({
-      en: "You can still save; results cannot be generated until this is fixed.",
-      fr: "Vous pouvez quand même enregistrer ; les résultats ne pourront pas être générés tant que ce problème n'est pas corrigé.",
-      pt: "Pode guardar na mesma; os resultados não podem ser gerados até que isto seja corrigido.",
-    })}`;
+    return `${computabilityProblemText(j)}. ${
+      t3({
+        en:
+          "You can still save; results cannot be generated until this is fixed.",
+        fr:
+          "Vous pouvez quand même enregistrer ; les résultats ne pourront pas être générés tant que ce problème n'est pas corrigé.",
+        pt:
+          "Pode guardar na mesma; os resultados não podem ser gerados até que isto seja corrigido.",
+      })
+    }`;
   });
 
   // Ruling 3: a checked calculated indicator reaches every indicator its
@@ -354,7 +371,8 @@ export function EditIndicatorForm(
     const byId = new Map(p.indicators.map((c) => [c.indicator_common_id, c]));
     return j.resolved.ingredientIds.filter((id) => {
       const c = byId.get(id);
-      return c !== undefined && !c.include_in_analysis && !isSpecialIndicatorId(id);
+      return c !== undefined && !c.include_in_analysis &&
+        !isSpecialIndicatorId(id);
     });
   });
 
@@ -364,14 +382,20 @@ export function EditIndicatorForm(
     const list = ids.join(", ");
     return ids.length === 1
       ? t3({
-        en: `${list} is not included in analysis, but this formula uses it, so generation includes it anyway.`,
-        fr: `${list} n'est pas inclus dans l'analyse, mais cette formule l'utilise : la génération l'inclut donc quand même.`,
-        pt: `${list} não está incluído na análise, mas esta fórmula utiliza-o, pelo que a geração o inclui de qualquer forma.`,
+        en:
+          `${list} is not included in analysis, but this formula uses it, so generation includes it anyway.`,
+        fr:
+          `${list} n'est pas inclus dans l'analyse, mais cette formule l'utilise : la génération l'inclut donc quand même.`,
+        pt:
+          `${list} não está incluído na análise, mas esta fórmula utiliza-o, pelo que a geração o inclui de qualquer forma.`,
       })
       : t3({
-        en: `${list} are not included in analysis, but this formula uses them, so generation includes them anyway.`,
-        fr: `${list} ne sont pas inclus dans l'analyse, mais cette formule les utilise : la génération les inclut donc quand même.`,
-        pt: `${list} não estão incluídos na análise, mas esta fórmula utiliza-os, pelo que a geração os inclui de qualquer forma.`,
+        en:
+          `${list} are not included in analysis, but this formula uses them, so generation includes them anyway.`,
+        fr:
+          `${list} ne sont pas inclus dans l'analyse, mais cette formule les utilise : la génération les inclut donc quand même.`,
+        pt:
+          `${list} não estão incluídos na análise, mas esta fórmula utiliza-os, pelo que a geração os inclui de qualquer forma.`,
       });
   });
 
@@ -408,7 +432,7 @@ export function EditIndicatorForm(
   });
 
   const legendNamesPopulation = createMemo(() =>
-    legend().some((row) => row.kind === "population"),
+    legend().some((row) => row.kind === "population")
   );
 
   // Inserts at the formula input's caret (appends when the input has never
@@ -420,8 +444,7 @@ export function EditIndicatorForm(
     const end = el?.selectionEnd ?? current.length;
     const before = current.slice(0, start);
     const after = current.slice(end);
-    const text =
-      (before === "" || /[\s(]$/.test(before) ? "" : " ") +
+    const text = (before === "" || /[\s(]$/.test(before) ? "" : " ") +
       writeIdentifier(id) +
       (after === "" || /^[\s)]/.test(after) ? "" : " ");
     setExpression(before + text + after);
@@ -456,17 +479,38 @@ export function EditIndicatorForm(
     if (hasRows(existing.definition.type) && !hasRows(type())) {
       if (existingHasRows()) {
         return t3({
-          en: `${existing.indicator_common_id} has data, so it cannot become a ${indicatorTypeWord(type())}. Delete its data first.`,
-          fr: `${existing.indicator_common_id} contient des données et ne peut donc pas devenir ${indicatorTypeWord(type())}. Supprimez d'abord ses données.`,
-          pt: `${existing.indicator_common_id} tem dados, pelo que não pode tornar-se ${indicatorTypeWord(type())}. Elimine primeiro os seus dados.`,
+          en:
+            `${existing.indicator_common_id} has data, so it cannot become a ${
+              indicatorTypeWord(type())
+            }. Delete its data first.`,
+          fr:
+            `${existing.indicator_common_id} contient des données et ne peut donc pas devenir ${
+              indicatorTypeWord(type())
+            }. Supprimez d'abord ses données.`,
+          pt:
+            `${existing.indicator_common_id} tem dados, pelo que não pode tornar-se ${
+              indicatorTypeWord(type())
+            }. Elimine primeiro os seus dados.`,
         });
       }
       const sums = namingSums();
       if (sums.length > 0) {
         return t3({
-          en: `${existing.indicator_common_id} is a member of ${sums.join(", ")}, so it cannot become a ${indicatorTypeWord(type())}. Remove it from those sums first.`,
-          fr: `${existing.indicator_common_id} est membre de ${sums.join(", ")} et ne peut donc pas devenir ${indicatorTypeWord(type())}. Retirez-le d'abord de ces sommes.`,
-          pt: `${existing.indicator_common_id} é membro de ${sums.join(", ")}, pelo que não pode tornar-se ${indicatorTypeWord(type())}. Remova-o primeiro dessas somas.`,
+          en: `${existing.indicator_common_id} is a member of ${
+            sums.join(", ")
+          }, so it cannot become a ${
+            indicatorTypeWord(type())
+          }. Remove it from those sums first.`,
+          fr: `${existing.indicator_common_id} est membre de ${
+            sums.join(", ")
+          } et ne peut donc pas devenir ${
+            indicatorTypeWord(type())
+          }. Retirez-le d'abord de ces sommes.`,
+          pt: `${existing.indicator_common_id} é membro de ${
+            sums.join(", ")
+          }, pelo que não pode tornar-se ${
+            indicatorTypeWord(type())
+          }. Remova-o primeiro dessas somas.`,
         });
       }
     }
@@ -487,17 +531,23 @@ export function EditIndicatorForm(
       }
       if (!isDhis2ShapedId(id)) {
         return t3({
-          en: `DHIS2 id "${id}" must be a data element UID (11 characters) or a UID.COC operand`,
-          fr: `L'identifiant DHIS2 « ${id} » doit être un UID d'élément de données (11 caractères) ou un opérande UID.COC`,
-          pt: `O ID DHIS2 "${id}" tem de ser um UID de elemento de dados (11 caracteres) ou um operando UID.COC`,
+          en:
+            `DHIS2 id "${id}" must be a data element UID (11 characters) or a UID.COC operand`,
+          fr:
+            `L'identifiant DHIS2 « ${id} » doit être un UID d'élément de données (11 caractères) ou un opérande UID.COC`,
+          pt:
+            `O ID DHIS2 "${id}" tem de ser um UID de elemento de dados (11 caracteres) ou um operando UID.COC`,
         });
       }
       const owner = dataIdOwners().get(id);
       if (owner !== undefined) {
         return t3({
-          en: `DHIS2 id "${id}" already belongs to ${owner.indicator_common_id}. One indicator carries one; make a sum or a calculated indicator over ${owner.indicator_common_id} instead.`,
-          fr: `L'identifiant DHIS2 « ${id} » appartient déjà à ${owner.indicator_common_id}. Un indicateur n'en porte qu'un ; créez plutôt une somme ou un indicateur calculé sur ${owner.indicator_common_id}.`,
-          pt: `O ID DHIS2 "${id}" já pertence a ${owner.indicator_common_id}. Um indicador tem um único; crie antes uma soma ou um indicador calculado sobre ${owner.indicator_common_id}.`,
+          en:
+            `DHIS2 id "${id}" already belongs to ${owner.indicator_common_id}. One indicator carries one; make a sum or a calculated indicator over ${owner.indicator_common_id} instead.`,
+          fr:
+            `L'identifiant DHIS2 « ${id} » appartient déjà à ${owner.indicator_common_id}. Un indicateur n'en porte qu'un ; créez plutôt une somme ou un indicateur calculé sur ${owner.indicator_common_id}.`,
+          pt:
+            `O ID DHIS2 "${id}" já pertence a ${owner.indicator_common_id}. Um indicador tem um único; crie antes uma soma ou um indicador calculado sobre ${owner.indicator_common_id}.`,
         });
       }
       return undefined;
@@ -548,9 +598,18 @@ export function EditIndicatorForm(
         return {
           success: false,
           err: t3({
-            en: `"${id}" is a reserved word and cannot be an indicator ID (reserved: ${RESERVED_WORDS.join(", ")})`,
-            fr: `« ${id} » est un mot réservé et ne peut pas être un identifiant d'indicateur (réservés : ${RESERVED_WORDS.join(", ")})`,
-            pt: `"${id}" é uma palavra reservada e não pode ser um ID de indicador (reservadas: ${RESERVED_WORDS.join(", ")})`,
+            en:
+              `"${id}" is a reserved word and cannot be an indicator ID (reserved: ${
+                RESERVED_WORDS.join(", ")
+              })`,
+            fr:
+              `« ${id} » est un mot réservé et ne peut pas être un identifiant d'indicateur (réservés : ${
+                RESERVED_WORDS.join(", ")
+              })`,
+            pt:
+              `"${id}" é uma palavra reservada e não pode ser um ID de indicador (reservadas: ${
+                RESERVED_WORDS.join(", ")
+              })`,
           }),
         };
       }
@@ -558,9 +617,18 @@ export function EditIndicatorForm(
         return {
           success: false,
           err: t3({
-            en: `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be a DHIS2 element, Uploaded or a Sum (special: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            fr: `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un élément DHIS2, téléversé ou une somme (spéciaux : ${SPECIAL_INDICATOR_IDS.join(", ")})`,
-            pt: `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um elemento DHIS2, carregado ou uma soma (especiais: ${SPECIAL_INDICATOR_IDS.join(", ")})`,
+            en:
+              `"${id}" is a special indicator ID, which the analysis modules read as a count, so it can only be a DHIS2 element, Uploaded or a Sum (special: ${
+                SPECIAL_INDICATOR_IDS.join(", ")
+              })`,
+            fr:
+              `« ${id} » est un identifiant d'indicateur spécial, lu comme un dénombrement par les modules d'analyse, et ne peut donc être qu'un élément DHIS2, téléversé ou une somme (spéciaux : ${
+                SPECIAL_INDICATOR_IDS.join(", ")
+              })`,
+            pt:
+              `"${id}" é um ID de indicador especial, lido como uma contagem pelos módulos de análise, pelo que só pode ser um elemento DHIS2, carregado ou uma soma (especiais: ${
+                SPECIAL_INDICATOR_IDS.join(", ")
+              })`,
           }),
         };
       }
@@ -568,9 +636,12 @@ export function EditIndicatorForm(
         return {
           success: false,
           err: t3({
-            en: "Indicator ID must not contain commas, semicolons, colons, or square brackets, and must be at most 128 characters",
-            fr: "L'identifiant de l'indicateur ne doit pas contenir de virgules, de points-virgules, de deux-points ou de crochets, et doit comporter au maximum 128 caractères",
-            pt: "O ID do indicador não pode conter vírgulas, pontos e vírgulas, dois pontos ou parênteses retos, e deve ter no máximo 128 caracteres",
+            en:
+              "Indicator ID must not contain commas, semicolons, colons, or square brackets, and must be at most 128 characters",
+            fr:
+              "L'identifiant de l'indicateur ne doit pas contenir de virgules, de points-virgules, de deux-points ou de crochets, et doit comporter au maximum 128 caractères",
+            pt:
+              "O ID do indicador não pode conter vírgulas, pontos e vírgulas, dois pontos ou parênteses retos, e deve ter no máximo 128 caracteres",
           }),
         };
       }
@@ -655,15 +726,21 @@ export function EditIndicatorForm(
     if (mode === "create") return undefined;
     if (existingIsSpecial) {
       return t3({
-        en: "The analysis modules read this id by name: renaming it takes it out of their inputs until a count carries the id again. Renaming rewrites every formula and import schedule that names it; its data stays where it is.",
-        fr: "Les modules d'analyse lisent cet identifiant par son nom : le renommer le retire de leurs entrées jusqu'à ce qu'un dénombrement porte à nouveau cet identifiant. Renommer réécrit chaque formule et chaque importation planifiée qui le nomme ; ses données restent en place.",
-        pt: "Os módulos de análise leem este ID pelo nome: renomeá-lo retira-o das suas entradas até uma contagem voltar a ter este ID. Renomear reescreve todas as fórmulas e importações agendadas que o nomeiam; os seus dados ficam onde estão.",
+        en:
+          "The analysis modules read this id by name: renaming it takes it out of their inputs until a count carries the id again. Renaming rewrites every formula and import schedule that names it; its data stays where it is.",
+        fr:
+          "Les modules d'analyse lisent cet identifiant par son nom : le renommer le retire de leurs entrées jusqu'à ce qu'un dénombrement porte à nouveau cet identifiant. Renommer réécrit chaque formule et chaque importation planifiée qui le nomme ; ses données restent en place.",
+        pt:
+          "Os módulos de análise leem este ID pelo nome: renomeá-lo retira-o das suas entradas até uma contagem voltar a ter este ID. Renomear reescreve todas as fórmulas e importações agendadas que o nomeiam; os seus dados ficam onde estão.",
       });
     }
     return t3({
-      en: "Renaming rewrites every formula and import schedule that names this indicator. Its data stays where it is, and results packages already generated keep the old id.",
-      fr: "Renommer réécrit chaque formule et chaque importation planifiée qui nomme cet indicateur. Ses données restent en place, et les paquets de résultats déjà générés conservent l'ancien identifiant.",
-      pt: "Renomear reescreve todas as fórmulas e importações agendadas que nomeiam este indicador. Os seus dados ficam onde estão, e os pacotes de resultados já gerados mantêm o ID antigo.",
+      en:
+        "Renaming rewrites every formula and import schedule that names this indicator. Its data stays where it is, and results packages already generated keep the old id.",
+      fr:
+        "Renommer réécrit chaque formule et chaque importation planifiée qui nomme cet indicateur. Ses données restent en place, et les paquets de résultats déjà générés conservent l'ancien identifiant.",
+      pt:
+        "Renomear reescreve todas as fórmulas e importações agendadas que nomeiam este indicador. Os seus dados ficam onde estão, e os pacotes de resultados já gerados mantêm o ID antigo.",
     });
   };
 
@@ -680,31 +757,35 @@ export function EditIndicatorForm(
   const dhis2IdCaption = (): string =>
     dataIdLocked()
       ? t3({
-        en: "The DHIS2 data element or operand this indicator is fetched from. It is fixed while the indicator has data; rename the indicator to change its name.",
-        fr: "L'élément de données ou l'opérande DHIS2 dont cet indicateur est récupéré. Il est fixe tant que l'indicateur contient des données ; renommez l'indicateur pour changer son nom.",
-        pt: "O elemento de dados ou operando DHIS2 de onde este indicador é obtido. É fixo enquanto o indicador tiver dados; renomeie o indicador para mudar o seu nome.",
+        en:
+          "The DHIS2 data element or operand this indicator is fetched from. It is fixed while the indicator has data; rename the indicator to change its name.",
+        fr:
+          "L'élément de données ou l'opérande DHIS2 dont cet indicateur est récupéré. Il est fixe tant que l'indicateur contient des données ; renommez l'indicateur pour changer son nom.",
+        pt:
+          "O elemento de dados ou operando DHIS2 de onde este indicador é obtido. É fixo enquanto o indicador tiver dados; renomeie o indicador para mudar o seu nome.",
       })
       : t3({
-        en: "The DHIS2 data element UID or UID.COC operand the import fetches. Its rows are stored under this id.",
-        fr: "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère. Ses lignes sont conservées sous cet identifiant.",
-        pt: "O UID de elemento de dados ou o operando UID.COC que a importação obtém. As suas linhas são guardadas sob este ID.",
+        en:
+          "The DHIS2 data element UID or UID.COC operand the import fetches. Its rows are stored under this id.",
+        fr:
+          "L'UID d'élément de données ou l'opérande UID.COC que l'importation récupère. Ses lignes sont conservées sous cet identifiant.",
+        pt:
+          "O UID de elemento de dados ou o operando UID.COC que a importação obtém. As suas linhas são guardadas sob este ID.",
       });
 
   return (
     <ModalContainer
-      title={
-        mode === "create"
-          ? t3({
-              en: "Add indicator",
-              fr: "Ajouter un indicateur",
-              pt: "Adicionar indicador",
-            })
-          : t3({
-              en: "Update indicator",
-              fr: "Mettre à jour l'indicateur",
-              pt: "Atualizar indicador",
-            })
-      }
+      title={mode === "create"
+        ? t3({
+          en: "Add indicator",
+          fr: "Ajouter un indicateur",
+          pt: "Adicionar indicador",
+        })
+        : t3({
+          en: "Update indicator",
+          fr: "Mettre à jour l'indicateur",
+          pt: "Atualizar indicador",
+        })}
       width="xl"
       form
       onCancel={() => p.close(undefined)}
@@ -728,7 +809,11 @@ export function EditIndicatorForm(
       <div class="ui-gap grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))]">
         <div class="ui-spy-sm">
           <Input
-            label={t3({ en: "Indicator ID", fr: "ID de l'indicateur", pt: "ID do indicador" })}
+            label={t3({
+              en: "Indicator ID",
+              fr: "ID de l'indicateur",
+              pt: "ID do indicador",
+            })}
             value={indicatorId()}
             onChange={setIndicatorId}
             fullWidth
@@ -777,9 +862,12 @@ export function EditIndicatorForm(
           <Show when={type() === "uploaded"}>
             <div class="ui-text-caption">
               {t3({
-                en: "An indicator of type Uploaded has no definition to author. FASTR gives it an internal identifier that CSV imports write to; you never see or type it.",
-                fr: "Un indicateur de type Téléversé n'a pas de définition à rédiger. FASTR lui attribue un identifiant interne dans lequel les importations CSV écrivent ; vous ne le voyez ni ne le saisissez jamais.",
-                pt: "Um indicador do tipo Carregado não tem definição para redigir. O FASTR atribui-lhe um identificador interno no qual as importações CSV escrevem; nunca o vê nem o digita.",
+                en:
+                  "An indicator of type Uploaded has no definition to author. FASTR gives it an internal identifier that CSV imports write to; you never see or type it.",
+                fr:
+                  "Un indicateur de type Téléversé n'a pas de définition à rédiger. FASTR lui attribue un identifiant interne dans lequel les importations CSV écrivent ; vous ne le voyez ni ne le saisissez jamais.",
+                pt:
+                  "Um indicador do tipo Carregado não tem definição para redigir. O FASTR atribui-lhe um identificador interno no qual as importações CSV escrevem; nunca o vê nem o digita.",
               })}
             </div>
           </Show>
@@ -818,9 +906,12 @@ export function EditIndicatorForm(
             />
             <div class="ui-text-caption">
               {t3({
-                en: "The members' counts are added per facility and month. Members are indicators of type DHIS2 element or Uploaded; a sum cannot contain a sum.",
-                fr: "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs de type Élément DHIS2 ou Téléversé ; une somme ne peut pas contenir une somme.",
-                pt: "As contagens dos membros são somadas por estabelecimento e mês. Os membros são indicadores do tipo Elemento DHIS2 ou Carregado; uma soma não pode conter uma soma.",
+                en:
+                  "The members' counts are added per facility and month. Members are indicators of type DHIS2 element or Uploaded; a sum cannot contain a sum.",
+                fr:
+                  "Les dénombrements des membres sont additionnés par établissement et par mois. Les membres sont des indicateurs de type Élément DHIS2 ou Téléversé ; une somme ne peut pas contenir une somme.",
+                pt:
+                  "As contagens dos membros são somadas por estabelecimento e mês. Os membros são indicadores do tipo Elemento DHIS2 ou Carregado; uma soma não pode conter uma soma.",
               })}
             </div>
           </Show>
@@ -838,23 +929,22 @@ export function EditIndicatorForm(
             </div>
             <div class="ui-text-caption">
               {t3({
-                en: "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / population_pregnancies. abs(), coalesce() and nullif() are available.",
-                fr: "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / population_pregnancies. abs(), coalesce() et nullif() sont disponibles.",
-                pt: "Utilize + - * / e parênteses sobre outros indicadores e populações, por ex. anc4 / anc1 ou anc4 / population_pregnancies. abs(), coalesce() e nullif() estão disponíveis.",
+                en:
+                  "Use + - * / and parentheses over other indicators and populations, e.g. anc4 / anc1 or anc4 / population_pregnancies. abs(), coalesce() and nullif() are available.",
+                fr:
+                  "Utilisez + - * / et des parenthèses sur d'autres indicateurs et des populations, par ex. anc4 / anc1 ou anc4 / population_pregnancies. abs(), coalesce() et nullif() sont disponibles.",
+                pt:
+                  "Utilize + - * / e parênteses sobre outros indicadores e populações, por ex. anc4 / anc1 ou anc4 / population_pregnancies. abs(), coalesce() e nullif() estão disponíveis.",
               })}
             </div>
             <Show when={expressionError()}>
               {(err) => <div class="text-danger text-xs">{err()}</div>}
             </Show>
             <Show when={computabilityWarning()}>
-              {(warning) => (
-                <div class="text-warning text-xs">{warning()}</div>
-              )}
+              {(warning) => <div class="text-warning text-xs">{warning()}</div>}
             </Show>
             <Show when={unanalysedNotice()}>
-              {(notice) => (
-                <div class="text-warning text-xs">{notice()}</div>
-              )}
+              {(notice) => <div class="text-warning text-xs">{notice()}</div>}
             </Show>
             <div class="ui-gap-sm flex items-end">
               <SelectSearch
@@ -872,7 +962,8 @@ export function EditIndicatorForm(
                 })}
                 options={otherIndicators().map((c) => ({
                   value: c.indicator_common_id,
-                  label: `${c.indicator_common_label} (${c.indicator_common_id})`,
+                  label:
+                    `${c.indicator_common_label} (${c.indicator_common_id})`,
                 }))}
                 fullWidth
               />
@@ -893,14 +984,16 @@ export function EditIndicatorForm(
                   value: pt,
                   label: `${t3(populationTypeLabel(pt))} (${pt})${
                     populationCoverageSummary(
-                      pt,
-                      instanceState.populationCoverage,
-                    ).empty
-                      ? ` — ${t3({
+                        pt,
+                        instanceState.populationCoverage,
+                      ).empty
+                      ? ` — ${
+                        t3({
                           en: "no data",
                           fr: "aucune donnée",
                           pt: "sem dados",
-                        })}`
+                        })
+                      }`
                       : ""
                   }`,
                 }))}
@@ -923,15 +1016,15 @@ export function EditIndicatorForm(
                         <span class="text-base-content-muted">
                           {row.kind === "population"
                             ? t3({
-                                en: "population",
-                                fr: "population",
-                                pt: "população",
-                              })
+                              en: "population",
+                              fr: "population",
+                              pt: "população",
+                            })
                             : t3({
-                                en: "indicator",
-                                fr: "indicateur",
-                                pt: "indicador",
-                              })}
+                              en: "indicator",
+                              fr: "indicateur",
+                              pt: "indicador",
+                            })}
                         </span>
                         <Show
                           when={row.label}
@@ -965,9 +1058,12 @@ export function EditIndicatorForm(
                   <Show when={legendNamesPopulation()}>
                     <div class="ui-text-caption">
                       {t3({
-                        en: "A population term is person-years (annual population × months / 12), so a value divided by it is annualised: a monthly or quarterly value reads as a rate per year. Population figures come from the instance Population page.",
-                        fr: "Un terme de population représente des personnes-années (population annuelle × mois / 12) : une valeur divisée par ce terme est donc annualisée, et une valeur mensuelle ou trimestrielle se lit comme un taux annuel. Les chiffres de population proviennent de la page Population de l'instance.",
-                        pt: "Um termo de população são pessoas-ano (população anual × meses / 12), pelo que um valor dividido por ele é anualizado: um valor mensal ou trimestral lê-se como uma taxa anual. Os valores de população provêm da página População da instância.",
+                        en:
+                          "A population term is person-years (annual population × months / 12), so a value divided by it is annualised: a monthly or quarterly value reads as a rate per year. Population figures come from the instance Population page.",
+                        fr:
+                          "Un terme de population représente des personnes-années (population annuelle × mois / 12) : une valeur divisée par ce terme est donc annualisée, et une valeur mensuelle ou trimestrielle se lit comme un taux annuel. Les chiffres de population proviennent de la page Population de l'instance.",
+                        pt:
+                          "Um termo de população são pessoas-ano (população anual × meses / 12), pelo que um valor dividido por ele é anualizado: um valor mensal ou trimestral lê-se como uma taxa anual. Os valores de população provêm da página População da instância.",
                       })}
                     </div>
                   </Show>
@@ -979,7 +1075,11 @@ export function EditIndicatorForm(
 
         <div class="ui-spy-sm">
           <div class="ui-text-heading">
-            {t3({ en: "Analysis and display", fr: "Analyse et affichage", pt: "Análise e apresentação" })}
+            {t3({
+              en: "Analysis and display",
+              fr: "Analyse et affichage",
+              pt: "Análise e apresentação",
+            })}
           </div>
           <Checkbox
             label={t3({
@@ -999,9 +1099,12 @@ export function EditIndicatorForm(
                 pt: "Um indicador especial é sempre analisado.",
               })
               : t3({
-                en: "On: every results package analyses this indicator. Off: dictionary only; its data is still imported and stored, and it can still be a member of a sum or used in a formula.",
-                fr: "Coché : chaque paquet de résultats analyse cet indicateur. Décoché : dictionnaire seulement ; ses données sont toujours importées et conservées, et il peut toujours être membre d'une somme ou utilisé dans une formule.",
-                pt: "Marcado: todos os pacotes de resultados analisam este indicador. Desmarcado: apenas dicionário; os seus dados continuam a ser importados e guardados, e pode continuar a ser membro de uma soma ou usado numa fórmula.",
+                en:
+                  "On: every results package analyses this indicator. Off: dictionary only; its data is still imported and stored, and it can still be a member of a sum or used in a formula.",
+                fr:
+                  "Coché : chaque paquet de résultats analyse cet indicateur. Décoché : dictionnaire seulement ; ses données sont toujours importées et conservées, et il peut toujours être membre d'une somme ou utilisé dans une formule.",
+                pt:
+                  "Marcado: todos os pacotes de resultados analisam este indicador. Desmarcado: apenas dicionário; os seus dados continuam a ser importados e guardados, e pode continuar a ser membro de uma soma ou usado numa fórmula.",
               })}
           </div>
           <Show when={type() !== "calculated"}>
@@ -1016,9 +1119,12 @@ export function EditIndicatorForm(
             />
             <div class="ui-text-caption">
               {t3({
-                en: "On: this indicator's monthly facility counts are expected to be small, which the adjustment modules will take into account.",
-                fr: "Coché : les dénombrements mensuels par établissement de cet indicateur devraient être faibles, ce dont les modules d'ajustement tiendront compte.",
-                pt: "Marcado: as contagens mensais por estabelecimento deste indicador deverão ser pequenas, o que os módulos de ajustamento terão em conta.",
+                en:
+                  "On: this indicator's monthly facility counts are expected to be small, which the adjustment modules will take into account.",
+                fr:
+                  "Coché : les dénombrements mensuels par établissement de cet indicateur devraient être faibles, ce dont les modules d'ajustement tiendront compte.",
+                pt:
+                  "Marcado: as contagens mensais por estabelecimento deste indicador deverão ser pequenas, o que os módulos de ajustamento terão em conta.",
               })}
             </div>
           </Show>
@@ -1031,9 +1137,12 @@ export function EditIndicatorForm(
           />
           <div class="ui-text-caption">
             {t3({
-              en: "Whether a higher value is better or worse. The conditional-formatting rule follows it.",
-              fr: "Indique si une valeur plus élevée est meilleure ou pire. La règle de mise en forme conditionnelle la suit.",
-              pt: "Se um valor mais alto é melhor ou pior. A regra de formatação condicional segue-a.",
+              en:
+                "Whether a higher value is better or worse. The conditional-formatting rule follows it.",
+              fr:
+                "Indique si une valeur plus élevée est meilleure ou pire. La règle de mise en forme conditionnelle la suit.",
+              pt:
+                "Se um valor mais alto é melhor ou pior. A regra de formatação condicional segue-a.",
             })}
           </div>
           <Show when={type() === "calculated"}>
@@ -1048,7 +1157,11 @@ export function EditIndicatorForm(
               label={formatAs() === "percent"
                 ? t3({ en: "Target (%)", fr: "Cible (%)", pt: "Meta (%)" })
                 : formatAs() === "rate_per_10k"
-                ? t3({ en: "Target (per 10,000)", fr: "Cible (pour 10 000)", pt: "Meta (por 10 000)" })
+                ? t3({
+                  en: "Target (per 10,000)",
+                  fr: "Cible (pour 10 000)",
+                  pt: "Meta (por 10 000)",
+                })
                 : t3({ en: "Target", fr: "Cible", pt: "Meta" })}
               value={targetText()}
               onChange={setTargetText}
@@ -1066,8 +1179,7 @@ export function EditIndicatorForm(
                   v === "on"
                     ? (thresholds() ?? defaultIndicatorRule(formatAs()))
                     : null,
-                )
-              }
+                )}
               options={[
                 {
                   value: "off",

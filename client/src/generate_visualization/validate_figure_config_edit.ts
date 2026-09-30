@@ -33,8 +33,12 @@ export function validateValuesFilter(
   const invalid = valuesFilter.filter((v) => !metric.valueProps.includes(v));
   if (invalid.length > 0) {
     throw new AIToolFailure(
-      `Invalid value propert${invalid.length === 1 ? "y" : "ies"} in valuesFilter for metric "${metric.id}": ${invalid.join(", ")}. ` +
-        `Valid value properties: ${metric.valueProps.join(", ")}. No changes were applied.`,
+      `Invalid value propert${
+        invalid.length === 1 ? "y" : "ies"
+      } in valuesFilter for metric "${metric.id}": ${invalid.join(", ")}. ` +
+        `Valid value properties: ${
+          metric.valueProps.join(", ")
+        }. No changes were applied.`,
     );
   }
 }
@@ -80,7 +84,8 @@ export function validateFigureConfigEdit(
     valueProps: source.valueProps,
   });
 
-  const touchesType = patch.type !== undefined && patch.type !== oldConfig.d.type;
+  const touchesType = patch.type !== undefined &&
+    patch.type !== oldConfig.d.type;
   const touchesDisagg = patch.disaggregateBy !== undefined;
 
   // Per-dimension: the dimension exists on the metric and its slot is legal for
@@ -92,7 +97,9 @@ export function validateFigureConfigEdit(
     for (const d of newConfig.d.disaggregateBy) {
       if (!availableDims.includes(d.disOpt)) {
         throw new AIToolFailure(
-          `Invalid disaggregation dimension "${d.disOpt}". Available: ${availableDims.join(", ")}`,
+          `Invalid disaggregation dimension "${d.disOpt}". Available: ${
+            availableDims.join(", ")
+          }`,
         );
       }
       if (FILTER_ONLY_DISAGGREGATION_OPTIONS.has(d.disOpt)) {
@@ -102,7 +109,9 @@ export function validateFigureConfigEdit(
       }
       if (!validDisplay.includes(d.disDisplayOpt)) {
         throw new AIToolFailure(
-          `Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${type}". Valid: ${validDisplay.join(", ")}`,
+          `Invalid disDisplayOpt "${d.disDisplayOpt}" for type "${type}". Valid: ${
+            validDisplay.join(", ")
+          }`,
         );
       }
     }
@@ -119,7 +128,10 @@ export function validateFigureConfigEdit(
     const present = new Set(newConfig.d.disaggregateBy.map((d) => d.disOpt));
     for (const opt of source.disaggregationOptions) {
       if (!opt.isRequired || present.has(opt.value)) continue;
-      if (opt.allowedPresentationOptions && !opt.allowedPresentationOptions.includes(type)) {
+      if (
+        opt.allowedPresentationOptions &&
+        !opt.allowedPresentationOptions.includes(type)
+      ) {
         continue;
       }
       throw new AIToolFailure(
@@ -145,13 +157,18 @@ export function validateFigureConfigEdit(
       allowedGroupings.add(source.mostGranularTimePeriodColumnInResultsFile);
     }
     for (const o of source.disaggregationOptions) {
-      if (o.value === "period_id" || o.value === "quarter_id" || o.value === "year") {
+      if (
+        o.value === "period_id" || o.value === "quarter_id" ||
+        o.value === "year"
+      ) {
         allowedGroupings.add(o.value);
       }
     }
     if (!allowedGroupings.has(patch.timeseriesGrouping)) {
       throw new AIToolFailure(
-        `Invalid timeseriesGrouping "${patch.timeseriesGrouping}". Available: ${allowedGroupings.size > 0 ? [...allowedGroupings].join(", ") : "none"}. No changes were applied.`,
+        `Invalid timeseriesGrouping "${patch.timeseriesGrouping}". Available: ${
+          allowedGroupings.size > 0 ? [...allowedGroupings].join(", ") : "none"
+        }. No changes were applied.`,
       );
     }
   }
@@ -169,14 +186,16 @@ export function validateFigureConfigEdit(
     const validValues = getValidValuesDisplayOptions(type);
     if (!validValues.includes(patch.valuesDisDisplayOpt)) {
       throw new AIToolFailure(
-        `Invalid valuesDisDisplayOpt "${patch.valuesDisDisplayOpt}" for type "${type}". Valid: ${validValues.join(", ")}. No changes were applied.`,
+        `Invalid valuesDisDisplayOpt "${patch.valuesDisDisplayOpt}" for type "${type}". Valid: ${
+          validValues.join(", ")
+        }. No changes were applied.`,
       );
     }
     if (!hasMultipleValueProps) {
       throw new AIToolFailure(
-        `valuesDisDisplayOpt has no effect on this figure: it shows a single data `
-        + `value, so there is no value dimension to place. It is NOT a label, `
-        + `caption or styling control. No changes were applied.`,
+        `valuesDisDisplayOpt has no effect on this figure: it shows a single data ` +
+          `value, so there is no value dimension to place. It is NOT a label, ` +
+          `caption or styling control. No changes were applied.`,
       );
     }
   }
@@ -191,7 +210,9 @@ export function validateFigureConfigEdit(
     const validValues = getValidValuesDisplayOptions(type);
     if (!validValues.includes(newConfig.d.valuesDisDisplayOpt)) {
       throw new AIToolFailure(
-        `Invalid valuesDisDisplayOpt "${newConfig.d.valuesDisDisplayOpt}" for type "${type}". Valid: ${validValues.join(", ")}`,
+        `Invalid valuesDisDisplayOpt "${newConfig.d.valuesDisDisplayOpt}" for type "${type}". Valid: ${
+          validValues.join(", ")
+        }`,
       );
     }
   }
@@ -250,19 +271,18 @@ export function validateFigureConfigEdit(
   // dimension, two flagged entries, ineligible metric) must error, not
   // silently render nothing. A flag that merely became latent through other
   // edits degrades gracefully (getFetchConfig drops it when the gate closes).
-  const explicitlyFlagged =
-    typeof patch.rollupDimension === "string" ||
+  const explicitlyFlagged = typeof patch.rollupDimension === "string" ||
     (patch.disaggregateBy?.some((e) => e.rollup === true) ?? false);
   if (
     explicitlyFlagged &&
     getEffectiveRollupDimension(source, newConfig) === undefined
   ) {
     throw new AIToolFailure(
-      "The requested roll-up is not available for this configuration: exactly "
-      + "ONE disaggregated dimension may carry it, it must be an admin level "
-      + "(admin_area_2/3/4) or facility column, not shown as replicant/map "
-      + "area, not filtered to a single value, not on a map or pie, and the "
-      + "metric must be re-aggregatable. No changes were applied.",
+      "The requested roll-up is not available for this configuration: exactly " +
+        "ONE disaggregated dimension may carry it, it must be an admin level " +
+        "(admin_area_2/3/4) or facility column, not shown as replicant/map " +
+        "area, not filtered to a single value, not on a map or pie, and the " +
+        "metric must be re-aggregatable. No changes were applied.",
     );
   }
 
@@ -276,12 +296,17 @@ export function validateFigureConfigEdit(
     const singleValueDims = opts.disaggregationPossibleValues
       ? getSingleValueDimsFromPossibleValues(opts.disaggregationPossibleValues)
       : undefined;
-    const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(newConfig, {
-      valueProps: source.valueProps,
-      singleValueDims,
-    });
+    const { config: effectiveConfig, effectiveValueProps } =
+      getEffectivePOConfig(newConfig, {
+        valueProps: source.valueProps,
+        singleValueDims,
+      });
     if (
-      hasDuplicateDisaggregatorDisplayOptions(source, effectiveConfig, effectiveValueProps)
+      hasDuplicateDisaggregatorDisplayOptions(
+        source,
+        effectiveConfig,
+        effectiveValueProps,
+      )
     ) {
       throw new AIToolFailure(
         `Two display elements share the same slot for a "${type}" figure (a disaggregation, or the value dimension, collides). The figure would not render correctly. Give each element a distinct display slot. No changes were applied.`,
@@ -306,12 +331,21 @@ export function assertNoSlotCollision(
     valueProps: metric.valueProps,
     valueLabelReplacements: metric.valueLabelReplacements,
   };
-  const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
-    dateRange,
-    valueProps: metric.valueProps,
-    singleValueDims: getSingleValueDimsFromItems(config, items),
-  });
-  if (hasDuplicateDisaggregatorDisplayOptions(resultsValueForViz, effectiveConfig, effectiveValueProps)) {
+  const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(
+    config,
+    {
+      dateRange,
+      valueProps: metric.valueProps,
+      singleValueDims: getSingleValueDimsFromItems(config, items),
+    },
+  );
+  if (
+    hasDuplicateDisaggregatorDisplayOptions(
+      resultsValueForViz,
+      effectiveConfig,
+      effectiveValueProps,
+    )
+  ) {
     throw new AIToolFailure(
       `Two display elements share the same slot for a "${config.d.type}" figure (a disaggregation, or the value dimension, collides). The figure would not render correctly. No changes were applied.`,
     );

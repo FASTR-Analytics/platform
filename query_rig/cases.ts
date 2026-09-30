@@ -27,13 +27,13 @@ export type Case = {
     // namedCount excludes the sentinel; isSingleValueDim runs the real
     // getSingleValueDimsFromPossibleValues over the whole payload.
     | {
-        dimStatus: {
-          disOpt: DisaggregationOption;
-          status: "ok" | "too_many_values" | "no_values_available" | "error";
-          namedCount?: number;
-          isSingleValueDim?: boolean;
-        };
-      }
+      dimStatus: {
+        disOpt: DisaggregationOption;
+        status: "ok" | "too_many_values" | "no_values_available" | "error";
+        namedCount?: number;
+        isSingleValueDim?: boolean;
+      };
+    }
     | { err: string };
 };
 
@@ -118,7 +118,8 @@ const EXPLICIT_CASES: Case[] = [
 
   // ── Multi-membership (hfa_service_category is a pipe-joined SET) ──────────
   {
-    name: "filter one service category → set-membership overlap, not exact match",
+    name:
+      "filter one service category → set-membership overlap, not exact match",
     fixture: "hfa_service_cats",
     fetchConfig: {
       ...base(),
@@ -158,7 +159,8 @@ const EXPLICIT_CASES: Case[] = [
 
   // ── The blank-fold type gate: F2/F3 differ ONLY in time_point's column type
   {
-    name: "groupBy TEXT time_point → NULL and spaces fold onto one __BLANK group",
+    name:
+      "groupBy TEXT time_point → NULL and spaces fold onto one __BLANK group",
     fixture: "hfa_service_cats",
     fetchConfig: { ...base(), groupBys: ["time_point"] },
     expect: {
@@ -186,7 +188,8 @@ const EXPLICIT_CASES: Case[] = [
 
   // ── Blank fold: detection vs rewriting, and the WHERE round trip ──────────
   {
-    name: "blank fold groups NULL/spaces/tab together but leaves 'x' and ' x' distinct",
+    name:
+      "blank fold groups NULL/spaces/tab together but leaves 'x' and ' x' distinct",
     fixture: "hmis_monthly",
     fetchConfig: { ...base(), groupBys: ["source_indicator"] },
     expect: {
@@ -216,7 +219,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "__BLANK filter AND a second filter → blankPredicate stays parenthesised",
+    name:
+      "__BLANK filter AND a second filter → blankPredicate stays parenthesised",
     fixture: "hmis_monthly",
     fetchConfig: {
       ...base(),
@@ -278,7 +282,8 @@ const EXPLICIT_CASES: Case[] = [
     // `denominator` to the raw grouped value gives 40/20 = 2; the correct
     // aggregate binding gives 40/40 = 1 (and Postgres errors outright on the
     // unaliased ambiguity). See paeCollidingGroupBys.
-    name: "PAE disaggregated by its own ingredient → wrapper binds the aggregate, not the raw group value",
+    name:
+      "PAE disaggregated by its own ingredient → wrapper binds the aggregate, not the raw group value",
     fixture: "hmis_scorecard",
     fetchConfig: {
       values: [
@@ -299,7 +304,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "PAE ingredient collision + roll-up → both UNION branches alias identically",
+    name:
+      "PAE ingredient collision + roll-up → both UNION branches alias identically",
     fixture: "hmis_scorecard",
     fetchConfig: {
       values: [
@@ -326,7 +332,8 @@ const EXPLICIT_CASES: Case[] = [
     // Without a PAE there is no wrapper layer to disambiguate, and the row
     // object would silently clobber the group value with the aggregate:
     // validateFetchConfig rejects the shape at the boundary.
-    name: "non-PAE disaggregated by its own value prop → rejected at the boundary",
+    name:
+      "non-PAE disaggregated by its own value prop → rejected at the boundary",
     fixture: "hmis_scorecard",
     fetchConfig: {
       values: [{ prop: "denominator", func: "SUM" }],
@@ -381,7 +388,8 @@ const EXPLICIT_CASES: Case[] = [
     // Derived month is LPAD TEXT and not a physical column, so it is absent
     // from textColumns: the numeric branch's PERIOD exclusion is what keeps
     // it on the text path (`month IN (3)` breaks on text = integer).
-    name: "month filter stays on the text path despite being absent from textColumns",
+    name:
+      "month filter stays on the text path despite being absent from textColumns",
     fixture: "hmis_monthly",
     fetchConfig: {
       ...base(),
@@ -423,7 +431,8 @@ const EXPLICIT_CASES: Case[] = [
     expect: { err: "AVG" },
   },
   {
-    name: "roll-up level absent from groupBys → row silently omitted, not an error",
+    name:
+      "roll-up level absent from groupBys → row silently omitted, not an error",
     fixture: "hmis_monthly",
     fetchConfig: {
       ...base(),
@@ -468,7 +477,8 @@ const EXPLICIT_CASES: Case[] = [
   // on the facility CTE (LEFT JOIN), not the results table, and the sentinel
   // is __ALL_FACILITIES.
   {
-    name: "facility_type roll-up (HFA) → __ALL_FACILITIES row with whole-sample n",
+    name:
+      "facility_type roll-up (HFA) → __ALL_FACILITIES row with whole-sample n",
     fixture: "hfa_service_cats",
     fetchConfig: {
       ...base(),
@@ -488,12 +498,16 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "facility_type roll-up honours a filter on the rolled column (subset total)",
+    name:
+      "facility_type roll-up honours a filter on the rolled column (subset total)",
     fixture: "hfa_service_cats",
     fetchConfig: {
       ...base(),
       groupBys: ["facility_type"],
-      filters: [{ disOpt: "facility_type", values: ["hospital", "health_post"] }],
+      filters: [{
+        disOpt: "facility_type",
+        values: ["hospital", "health_post"],
+      }],
       rollupDim: "facility_type",
     },
     expect: {
@@ -506,7 +520,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "facility_type roll-up alongside admin grouping → one ALL row per area",
+    name:
+      "facility_type roll-up alongside admin grouping → one ALL row per area",
     fixture: "hfa_service_cats",
     fetchConfig: {
       ...base(),
@@ -519,18 +534,54 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { admin_area_2: "A2_north", facility_type: "hospital", value: 30, __n_value: 1 },
-        { admin_area_2: "A2_north", facility_type: "clinic", value: 11, __n_value: 1 },
-        { admin_area_2: "A2_south", facility_type: "clinic", value: 10, __n_value: 1 },
-        { admin_area_2: "A2_south", facility_type: "hospital", value: 1, __n_value: 1 },
-        { admin_area_2: "A2_south", facility_type: "health_post", value: 4, __n_value: 1 },
-        { admin_area_2: "A2_north", facility_type: ALL_FACILITIES_SENTINEL, value: 41, __n_value: 2 },
-        { admin_area_2: "A2_south", facility_type: ALL_FACILITIES_SENTINEL, value: 15, __n_value: 3 },
+        {
+          admin_area_2: "A2_north",
+          facility_type: "hospital",
+          value: 30,
+          __n_value: 1,
+        },
+        {
+          admin_area_2: "A2_north",
+          facility_type: "clinic",
+          value: 11,
+          __n_value: 1,
+        },
+        {
+          admin_area_2: "A2_south",
+          facility_type: "clinic",
+          value: 10,
+          __n_value: 1,
+        },
+        {
+          admin_area_2: "A2_south",
+          facility_type: "hospital",
+          value: 1,
+          __n_value: 1,
+        },
+        {
+          admin_area_2: "A2_south",
+          facility_type: "health_post",
+          value: 4,
+          __n_value: 1,
+        },
+        {
+          admin_area_2: "A2_north",
+          facility_type: ALL_FACILITIES_SENTINEL,
+          value: 41,
+          __n_value: 2,
+        },
+        {
+          admin_area_2: "A2_south",
+          facility_type: ALL_FACILITIES_SENTINEL,
+          value: 15,
+          __n_value: 3,
+        },
       ],
     },
   },
   {
-    name: "facility_type roll-up (HMIS) → no n columns, facility join in both branches",
+    name:
+      "facility_type roll-up (HMIS) → no n columns, facility join in both branches",
     fixture: "hmis_monthly",
     fetchConfig: {
       ...base(),
@@ -548,7 +599,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "facility_type roll-up with PAE → ratio recomputed across facility types",
+    name:
+      "facility_type roll-up with PAE → ratio recomputed across facility types",
     fixture: "hmis_ratio",
     fetchConfig: {
       values: [
@@ -574,7 +626,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "facility_type roll-up over blank-folded values → __BLANK group and ALL row coexist",
+    name:
+      "facility_type roll-up over blank-folded values → __BLANK group and ALL row coexist",
     fixture: "hfa_facility_blanks",
     fetchConfig: {
       ...base(),
@@ -602,7 +655,8 @@ const EXPLICIT_CASES: Case[] = [
   // "ambiguous column reference" on both engines. Found by the Ghana parity
   // rig 2026-08-10; the corpus lacked this shape.
   {
-    name: "COUNT(facility_id) disaggregated by a facility column → qualified, no ambiguity",
+    name:
+      "COUNT(facility_id) disaggregated by a facility column → qualified, no ambiguity",
     fixture: "hmis_monthly",
     fetchConfig: {
       ...base(),
@@ -623,7 +677,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "HFA COUNT(facility_id) by facility column → sample-n FILTER qualified too",
+    name:
+      "HFA COUNT(facility_id) by facility column → sample-n FILTER qualified too",
     fixture: "hfa_service_cats",
     fetchConfig: {
       ...base(),
@@ -705,14 +760,30 @@ const EXPLICIT_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { hfa_indicator: "vacc", hfa_variant_item: "campaign", value: 38, __n_value: 2 },
-        { hfa_indicator: "vacc", hfa_variant_item: "routine", value: 6, __n_value: 2 },
-        { hfa_indicator: "water", hfa_variant_item: "piped", value: 2, __n_value: 1 },
+        {
+          hfa_indicator: "vacc",
+          hfa_variant_item: "campaign",
+          value: 38,
+          __n_value: 2,
+        },
+        {
+          hfa_indicator: "vacc",
+          hfa_variant_item: "routine",
+          value: 6,
+          __n_value: 2,
+        },
+        {
+          hfa_indicator: "water",
+          hfa_variant_item: "piped",
+          value: 2,
+          __n_value: 1,
+        },
       ],
     },
   },
   {
-    name: "variant filter: hfa_variant_item as filter under indicator+round scope",
+    name:
+      "variant filter: hfa_variant_item as filter under indicator+round scope",
     fixture: "hfa_variants",
     fetchConfig: {
       ...base(),
@@ -789,7 +860,8 @@ const EXPLICIT_CASES: Case[] = [
 
   // ── The fold reaches JOINED facility columns, from both blank origins ─────
   {
-    name: "facility column: NULL cell and unmatched LEFT JOIN fold to ONE __BLANK",
+    name:
+      "facility column: NULL cell and unmatched LEFT JOIN fold to ONE __BLANK",
     fixture: "hfa_facility_blanks",
     fetchConfig: { ...base(), groupBys: ["facility_type"] },
     // e2 has a facilities row with a NULL type; e_missing has no facilities row
@@ -866,7 +938,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "n rides the roll-up UNION: the __NATIONAL row carries the whole sample",
+    name:
+      "n rides the roll-up UNION: the __NATIONAL row carries the whole sample",
     fixture: "hfa_service_cats",
     fetchConfig: {
       ...base(),
@@ -916,7 +989,8 @@ const EXPLICIT_CASES: Case[] = [
 
   // ── A one-member set column is NOT a constant dimension ──────────────────
   {
-    name: "single-member multi-membership column is not treated as single-valued",
+    name:
+      "single-member multi-membership column is not treated as single-valued",
     fixture: "hfa_facility_blanks",
     entry: "metricInfo",
     fetchConfig: { ...base(), groupBys: [] },
@@ -940,7 +1014,8 @@ const EXPLICIT_CASES: Case[] = [
     // max. Stored figure configs can now carry this filter type (the AI patch
     // schema's open-ended periodFilter), so pin the semantics: max says
     // 202402, the data reaches 202403, and 202403 is included.
-    name: "from_month ignores its stored max, range extends to the live data max",
+    name:
+      "from_month ignores its stored max, range extends to the live data max",
     fixture: "hmis_monthly",
     fetchConfig: {
       ...base(),
@@ -961,7 +1036,8 @@ const EXPLICIT_CASES: Case[] = [
     // only relative option for year data is "Last year", stored as
     // last_n_months(12), and {min: max, max} is exactly what it means. Module
     // presets on annual metrics (m006/m009) rely on the same collapse.
-    name: "year table: last_n_months means 'Last year', collapses to latest year",
+    name:
+      "year table: last_n_months means 'Last year', collapses to latest year",
     fixture: "hmis_yearly",
     fetchConfig: {
       ...base(),
@@ -1005,7 +1081,8 @@ const EXPLICIT_CASES: Case[] = [
     },
   },
   {
-    name: "diverging family schemas: facility_type option list uses the HFA row",
+    name:
+      "diverging family schemas: facility_type option list uses the HFA row",
     fixture: "hfa_divergent_schema",
     entry: "possibleValues",
     disOpt: "facility_type",
@@ -1033,14 +1110,16 @@ const EXPLICIT_CASES: Case[] = [
 // quarter boundaries (2–4 / 5–7 / 8–10 / 11–1) split month 1 from months 2–3.
 const QUARTER_DERIVATION: Case[] = [
   {
-    name: "period_id → derived quarter_id (gregorian): months 1-3 are one quarter",
+    name:
+      "period_id → derived quarter_id (gregorian): months 1-3 are one quarter",
     fixture: "hmis_monthly",
     calendar: "gregorian",
     fetchConfig: { ...base(), groupBys: ["quarter_id"] },
     expect: { status: "ok", rows: [{ quarter_id: 20241, value: 52 }] },
   },
   {
-    name: "period_id → derived quarter_id (ethiopian): month 1 splits from months 2-3",
+    name:
+      "period_id → derived quarter_id (ethiopian): month 1 splits from months 2-3",
     fixture: "hmis_monthly",
     calendar: "ethiopian",
     fetchConfig: { ...base(), groupBys: ["quarter_id"] },
@@ -1153,7 +1232,8 @@ const SCOPE_CASES: Case[] = [
     },
   },
   {
-    name: "scope: admin3-only RO filters by children DERIVED from the facilities parquet",
+    name:
+      "scope: admin3-only RO filters by children DERIVED from the facilities parquet",
     fixture: "hmis_admin3_only",
     adminArea2: "A2_south",
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
@@ -1168,7 +1248,8 @@ const SCOPE_CASES: Case[] = [
     },
   },
   {
-    name: "scope: a scope with no children in the facilities parquet matches nothing",
+    name:
+      "scope: a scope with no children in the facilities parquet matches nothing",
     fixture: "hmis_admin3_only",
     adminArea2: "A2_nowhere",
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
@@ -1209,9 +1290,24 @@ const SCOPE_CASES: Case[] = [
     expect: {
       status: "ok",
       rows: [
-        { hfa_indicator: "vacc", hfa_variant_item: "campaign", value: 38, __n_value: 2 },
-        { hfa_indicator: "vacc", hfa_variant_item: "routine", value: 6, __n_value: 2 },
-        { hfa_indicator: "water", hfa_variant_item: "piped", value: 2, __n_value: 1 },
+        {
+          hfa_indicator: "vacc",
+          hfa_variant_item: "campaign",
+          value: 38,
+          __n_value: 2,
+        },
+        {
+          hfa_indicator: "vacc",
+          hfa_variant_item: "routine",
+          value: 6,
+          __n_value: 2,
+        },
+        {
+          hfa_indicator: "water",
+          hfa_variant_item: "piped",
+          value: 2,
+          __n_value: 1,
+        },
       ],
     },
   },

@@ -1,16 +1,16 @@
-import { t3, TC, type ProductSummary } from "lib";
+import { type ProductSummary, t3, TC } from "lib";
 import {
-  ModalContainer,
-  Input,
-  Select,
-  createFormAction,
   type AlertComponentProps,
+  createFormAction,
+  Input,
+  ModalContainer,
+  Select,
 } from "panther";
 import { createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { generalLabel } from "./folder_labels";
-import { GENERAL_ID, folderPathOptions } from "./folder_tree";
+import { folderPathOptions, GENERAL_ID } from "./folder_tree";
 
 type Props = {
   product: ProductSummary;

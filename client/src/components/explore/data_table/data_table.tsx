@@ -1,27 +1,27 @@
 import {
-  defaultGridQuery,
-  deriveGridConfig,
-  getFetchConfigFromPresentationObjectConfig,
-  hashFetchConfig,
-  INDICATOR_DIMENSION,
-  levelOptionsFor,
-  periodChoicesFor,
-  resolveEffectiveIndicatorFacts,
-  resolveGridQuery,
-  t3,
   type APIResponseWithData,
   type DatasetType,
+  defaultGridQuery,
+  deriveGridConfig,
   type DisaggregationOption,
   type FigureBundle,
   type GenericLongFormFetchConfig,
+  getFetchConfigFromPresentationObjectConfig,
   type GridAvailable,
   type GridColumns,
   type GridQuery,
+  hashFetchConfig,
+  INDICATOR_DIMENSION,
+  levelOptionsFor,
   type MetricWithStatus,
   type PackageScope,
+  periodChoicesFor,
   type PresentationObjectConfig,
+  resolveEffectiveIndicatorFacts,
+  resolveGridQuery,
   type ResultsValueInfoForPresentationObject,
   type RunAuthoringContext,
+  t3,
 } from "lib";
 import {
   Csv,
@@ -32,7 +32,14 @@ import {
   getTableDataTransformed,
   StateHolderWrapper,
 } from "panther";
-import { createMemo, createSignal, type JSX, Match, Show, Switch } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  type JSX,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import {
   DroppedIndicatorsNotice,
   EmptyState,
@@ -145,35 +152,46 @@ function ReadyFamilyTable(p: {
   // What one grid read is for. Only a change of fetch config or columns
   // makes a new one, and the grid is built from the config and columns its
   // rows were read for, never from a newer query paired with older rows.
-  const readSpec = createMemo((): ReadSpec | undefined => {
-    const d = derived();
-    return d === undefined ? undefined : {
-      fetchConfig: getFetchConfigFromPresentationObjectConfig(d.metric, d.config),
-      config: d.config,
-      columns: p.columns,
-    };
-  }, undefined, { equals: sameReadSpec });
+  const readSpec = createMemo(
+    (): ReadSpec | undefined => {
+      const d = derived();
+      return d === undefined ? undefined : {
+        fetchConfig: getFetchConfigFromPresentationObjectConfig(
+          d.metric,
+          d.config,
+        ),
+        config: d.config,
+        columns: p.columns,
+      };
+    },
+    undefined,
+    { equals: sameReadSpec },
+  );
 
-  const read = createTrackedQuery((): Promise<APIResponseWithData<GridRead>> => {
-    const spec = readSpec();
-    const scope = p.scope;
-    if (spec === undefined) {
-      return Promise.resolve({
-        success: false,
-        err: "No read without a config",
-      });
-    }
-    if (spec.fetchConfig.success === false) {
-      return Promise.resolve(spec.fetchConfig);
-    }
-    return getGridRowsFromCacheOrFetch(
-      scope,
-      p.metric.resultsObjectId,
-      spec.fetchConfig.data,
-    ).then((res) =>
-      res.success ? { success: true, data: { rows: res.data, spec, scope } } : res
-    );
-  });
+  const read = createTrackedQuery(
+    (): Promise<APIResponseWithData<GridRead>> => {
+      const spec = readSpec();
+      const scope = p.scope;
+      if (spec === undefined) {
+        return Promise.resolve({
+          success: false,
+          err: "No read without a config",
+        });
+      }
+      if (spec.fetchConfig.success === false) {
+        return Promise.resolve(spec.fetchConfig);
+      }
+      return getGridRowsFromCacheOrFetch(
+        scope,
+        p.metric.resultsObjectId,
+        spec.fetchConfig.data,
+      ).then((res) =>
+        res.success
+          ? { success: true, data: { rows: res.data, spec, scope } }
+          : res
+      );
+    },
+  );
 
   const rowHeaderLabel = createMemo(() => {
     const unit = resolved().query.unit;
@@ -283,9 +301,7 @@ function ReadyFamilyTable(p: {
                           focusColumnId={focusColumnId()}
                         />
                       )
-                      : (
-                        <div class="text-danger text-sm">{g.err}</div>
-                      )}
+                      : <div class="text-danger text-sm">{g.err}</div>}
                 </Match>
               </Switch>
             )}

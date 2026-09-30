@@ -16,27 +16,27 @@ docs_absorbed:
 # S4: Assets & Upload
 
 The file-upload front door: a hand-rolled TUS resumable-upload server, the
-instance asset store it lands files in, and the client upload primitives,
-shared by every feature that ingests a file. Written fresh from code
-(first review cycle, review-only, no DOC_* absorbed).
+instance asset store it lands files in, and the client upload primitives, shared
+by every feature that ingests a file. Written fresh from code (first review
+cycle, review-only, no DOC_* absorbed).
 
 Boundaries: **serving** the stored bytes back out is S1's static middleware
 (`server/middleware/static.ts`, three extension-scoped tiers; downloads hit
-`GET /<fileName>` at root): image extensions are public unauthenticated
-(logos and images placed in decks and reports), data-file extensions (`.csv`/`.xlsx`/`.xls`/`.zip`:
-import-wizard inputs live here, raw facility-level health data) require
-`can_view_data` OR `can_configure_data` (the assets page's own gate; admins
-pass), and everything else is behind bare `requireGlobalPermission()`. Asset
-*names* stay visible to all authenticated users (the SSE starting payload).
-Only the bytes are gated. What consumers **do** with an uploaded file is
-theirs: the dataset import wizards are S6; structure/geojson/HFA-weights
-uploads are S5; report images and embeds are S12; batch user
-upload is S15; module runs read `assetsToImport` (e.g. `population.csv`) out of
-the assets dir at execution time (S8). S13's AI documents do **not** pass
-through here. They multipart-POST to the S13-owned `/ai/files` proxy. The
-`upload.ts` routes are raw Hono by design (custom TUS headers/handshake), one
-of S1's enumerated off-registry endpoints; `assets.ts` is normal
-registry/`defineRoute`.
+`GET /<fileName>` at root): image extensions are public unauthenticated (logos
+and images placed in decks and reports), data-file extensions
+(`.csv`/`.xlsx`/`.xls`/`.zip`: import-wizard inputs live here, raw
+facility-level health data) require `can_view_data` OR `can_configure_data` (the
+assets page's own gate; admins pass), and everything else is behind bare
+`requireGlobalPermission()`. Asset _names_ stay visible to all authenticated
+users (the SSE starting payload). Only the bytes are gated. What consumers
+**do** with an uploaded file is theirs: the dataset import wizards are S6;
+structure/geojson/HFA-weights uploads are S5; report images and embeds are S12;
+batch user upload is S15; module runs read `assetsToImport` (e.g.
+`population.csv`) out of the assets dir at execution time (S8). S13's AI
+documents do **not** pass through here. They multipart-POST to the S13-owned
+`/ai/files` proxy. The `upload.ts` routes are raw Hono by design (custom TUS
+headers/handshake), one of S1's enumerated off-registry endpoints; `assets.ts`
+is normal registry/`defineRoute`.
 
 ## The TUS upload server (`routes/instance/upload.ts`)
 
@@ -81,24 +81,24 @@ ownership is upserted into `asset_metadata`, the map entry is deleted, and
 carries `X-Upload-Complete` / `X-Upload-Filename`.
 
 **Import wizards are ordinary asset consumers**
-(PLAN_IMPORT_FILE_INPUT_UNIFICATION). There is no wizard-temp TUS mode:
-every upload takes the asset path above, and the S6 wizards name their
-inputs by asset `fileName` (upload a new file or pick an existing one via
-`_shared/file_upload_selector.tsx`). Import inputs persist after the run (nothing
-deletes them at finalize) and are managed on the assets page like any other
-asset.
+(PLAN_IMPORT_FILE_INPUT_UNIFICATION). There is no wizard-temp TUS mode: every
+upload takes the asset path above, and the S6 wizards name their inputs by asset
+`fileName` (upload a new file or pick an existing one via
+`_shared/file_upload_selector.tsx`). Import inputs persist after the run
+(nothing deletes them at finalize) and are managed on the assets page like any
+other asset.
 
 **Deferred-read integrity (`AssetFilePin` + `resolveAssetFileOrThrow`).** An
-asset name is a *mutable* reference, so a launched import run pins its input
+asset name is a _mutable_ reference, so a launched import run pins its input
 bytes: `resolveAssetFileOrThrow(fileName, expectedPin)` in
 `db/instance/assets.ts` resolves + stats and is the one home of the two
 canonical error messages ("no longer in assets" / "has changed since this run
 was launched"). Launch validations call it with `null` and store the returned
-pin (`{size, mtimeMs}`, `lib/types/assets.ts`) on the run config; every
-deferred read (spawn sites, including across queue waits and review holds)
-re-checks the stored pin, so an overwrite-after-launch fails loudly instead
-of silently ingesting unpreviewed bytes. Stateless wizard-step reads pass
-`null`: they always want current bytes.
+pin (`{size, mtimeMs}`, `lib/types/assets.ts`) on the run config; every deferred
+read (spawn sites, including across queue waits and review holds) re-checks the
+stored pin, so an overwrite-after-launch fails loudly instead of silently
+ingesting unpreviewed bytes. Stateless wizard-step reads pass `null`: they
+always want current bytes.
 
 ## The asset store (`db/instance/assets.ts` + `routes/instance/assets.ts`)
 
@@ -129,11 +129,11 @@ are admin-delete-only); admins delete anything. Deletion removes the file
   _new_ file uploads it shows "Processing upload…" and waits for the asset to
   appear in the T1 store via SSE before selecting it (re-uploads of an existing
   name select immediately). Used by the S5/S6/S12 wizards.
-- **`assets/assets.tsx`** is the Assets admin page: one table of every
-  asset with a filterable type column (CSV/Excel/Image/ZIP/Other),
-  size/modified/owner columns, per-row download
-  (root-path `GET`, S1 static serve) and delete; delete buttons and the
-  admin-only bulk delete mirror the server's ownership rule.
+- **`assets/assets.tsx`** is the Assets admin page: one table of every asset
+  with a filterable type column (CSV/Excel/Image/ZIP/Other), size/modified/owner
+  columns, per-row download (root-path `GET`, S1 static serve) and delete;
+  delete buttons and the admin-only bulk delete mirror the server's ownership
+  rule.
 
 ## Contract
 
@@ -157,16 +157,16 @@ ownership annotation, not a registry.
   entry and accumulate in `.tus-uploads` forever. Sweep the directory by mtime
   instead.
 - **Any user can overwrite any asset.** RULED accepted
-  (PLAN_IMPORT_FILE_INPUT_UNIFICATION §4.3, no versioning): completion
-  `rename`s over an existing same-named file, last write wins, and the
-  ownership upsert transfers delete rights to the overwriter. Launched import
-  runs are protected by the byte pin; pre-launch, wizards re-parse on every
-  upload. Files that feed module runs (`population.csv`) remain the known
-  sharp corner.
-- **Same-name-overwrite residual windows: RULED accepted.** The byte pin covers launch→spawn only; the wizard-session
-  window, the spawn→worker-open window, and bare-auth upload overwriting a
-  read-gated file are all accepted residual risk (small trusted teams; worst
-  case is a discardable bad import). Do not raise again.
+  (PLAN_IMPORT_FILE_INPUT_UNIFICATION §4.3, no versioning): completion `rename`s
+  over an existing same-named file, last write wins, and the ownership upsert
+  transfers delete rights to the overwriter. Launched import runs are protected
+  by the byte pin; pre-launch, wizards re-parse on every upload. Files that feed
+  module runs (`population.csv`) remain the known sharp corner.
+- **Same-name-overwrite residual windows: RULED accepted.** The byte pin covers
+  launch→spawn only; the wizard-session window, the spawn→worker-open window,
+  and bare-auth upload overwriting a read-gated file are all accepted residual
+  risk (small trusted teams; worst case is a discardable bad import). Do not
+  raise again.
 - **Zero-key guards throughout.** Upload, list, and the delete route all use
   bare `requireGlobalPermission()` ("any authenticated user"); S1's rule is to
   be deliberate about that. A `can_configure_data`-style key may fit.

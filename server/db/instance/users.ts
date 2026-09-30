@@ -1,11 +1,11 @@
 import { Sql } from "postgres";
 import {
+  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   APIResponseNoData,
   APIResponseWithData,
-  OtherUser,
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  buildUserPermissionsFromRow,
   type BatchUser,
+  buildUserPermissionsFromRow,
+  OtherUser,
   type UserPermission,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -187,8 +187,7 @@ export async function GetUserDailyTokenUsage(
   `;
   const row = result[0];
   if (!row) return 0;
-  const isToday =
-    row.daily_token_usage_date.toISOString().slice(0, 10) ===
+  const isToday = row.daily_token_usage_date.toISOString().slice(0, 10) ===
     new Date().toISOString().slice(0, 10);
   return isToday ? row.daily_token_usage : 0;
 }
@@ -276,7 +275,8 @@ export async function batchUploadUsers(
       ) {
         return {
           success: false,
-          err: `is_global_admin must be 'true' or 'false', got: ${batchUser.is_global_admin}`,
+          err:
+            `is_global_admin must be 'true' or 'false', got: ${batchUser.is_global_admin}`,
         };
       }
     }
@@ -293,7 +293,8 @@ export async function batchUploadUsers(
       ) {
         return {
           success: false,
-          err: "You cannot replace all existing users without including yourself as admin. Ask another admin to do this.",
+          err:
+            "You cannot replace all existing users without including yourself as admin. Ask another admin to do this.",
         };
       }
       if (
@@ -302,7 +303,8 @@ export async function batchUploadUsers(
       ) {
         return {
           success: false,
-          err: "You cannot remove yourself as admin. Ask another admin to do this.",
+          err:
+            "You cannot remove yourself as admin. Ask another admin to do this.",
         };
       }
     }

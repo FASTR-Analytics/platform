@@ -1,14 +1,14 @@
 // Export all postgres-related functionality
 export {
-  getPgConnectionFromCacheOrNew,
-  closePgConnection,
-  closeAllConnections,
   checkPgConnection,
+  closeAllConnections,
+  closePgConnection,
   getConnectionStats,
+  getPgConnectionFromCacheOrNew,
 } from "./connection_manager.ts";
 
 export {
-  createWorkerConnection,
   createBulkImportConnection,
+  createWorkerConnection,
   createWorkerReadConnection,
 } from "./worker_connections.ts";

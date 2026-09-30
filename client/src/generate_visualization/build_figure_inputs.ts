@@ -1,31 +1,31 @@
 import {
   FigureInputs,
-  PeriodType,
   formatPeriod,
+  type GeoJSONFeatureCollection,
   getPeriodTypeFromValue,
   getPieDataTransformed,
   getTimeseriesDataTransformed,
-  type GeoJSONFeatureCollection,
   type JsonArrayItem,
+  PeriodType,
 } from "panther";
 import {
-  FigureBundle,
-  FigureLocalization,
-  PeriodBounds,
-  PresentationObjectConfig,
-  ResultsValueForVisualization,
-  getEffectivePOConfig,
-  getSingleValueDimsFromItems,
-  indicatorMetadataToLabelMap,
-  pickLang,
-  resolveEffectiveIndicatorFactsFromItems,
-  selectCf,
-  withReplicant,
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
   type FastrChartPalette,
+  FigureBundle,
+  FigureLocalization,
+  getEffectivePOConfig,
+  getSingleValueDimsFromItems,
   type IndicatorFormat,
   type IndicatorMetadataDisplay,
+  indicatorMetadataToLabelMap,
+  PeriodBounds,
+  pickLang,
+  PresentationObjectConfig,
+  resolveEffectiveIndicatorFactsFromItems,
+  ResultsValueForVisualization,
+  selectCf,
+  withReplicant,
 } from "lib";
 import { getLegendFromConfig } from "./conditional_formatting";
 import { scaleLegendFormat } from "./conditional_formatting/compile";
@@ -54,11 +54,22 @@ export function buildFigureInputs(
   // A document's own chart palette (see getStandardSeriesColorFunc).
   chartPalette?: FastrChartPalette,
 ): FigureInputs {
-  const { config, items, resultsValue, indicatorMetadata, dateRange, geo, localization, scope } = bundle;
+  const {
+    config,
+    items,
+    resultsValue,
+    indicatorMetadata,
+    dateRange,
+    geo,
+    localization,
+    scope,
+  } = bundle;
 
   const geoJson = resolveGeoJson(geo, config);
 
-  const indicatorLabelReplacements = indicatorMetadataToLabelMap(indicatorMetadata);
+  const indicatorLabelReplacements = indicatorMetadataToLabelMap(
+    indicatorMetadata,
+  );
   const indicatorSortOrder = buildIndicatorIdOrder(indicatorMetadata);
 
   const effectiveFormat = resolveEffectiveIndicatorFactsFromItems({
@@ -68,20 +79,31 @@ export function buildFigureInputs(
     indicatorMetadata,
   });
   const legend = () =>
-    getLegendFromConfig(config, effectiveFormat.axisFormat, effectiveFormat, localization, chartPalette);
+    getLegendFromConfig(
+      config,
+      effectiveFormat.axisFormat,
+      effectiveFormat,
+      localization,
+      chartPalette,
+    );
 
   const allowNegativeScale = metricAllowsNegativeScale(bundle.metricId);
 
-  const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(config, {
-    dateRange,
-    valueProps: resultsValue.valueProps,
-    singleValueDims: getSingleValueDimsFromItems(config, items),
-  });
+  const { config: effectiveConfig, effectiveValueProps } = getEffectivePOConfig(
+    config,
+    {
+      dateRange,
+      valueProps: resultsValue.valueProps,
+      singleValueDims: getSingleValueDimsFromItems(config, items),
+    },
+  );
 
   // The disruptions chart compares two data values (actual vs expected) as two
   // series and shades the diff between them: a single data value has nothing to
   // compare. Fail with a clear message rather than a cryptic render crash.
-  if (isSpecialDisruptionsChartActive(config) && effectiveValueProps.length < 2) {
+  if (
+    isSpecialDisruptionsChartActive(config) && effectiveValueProps.length < 2
+  ) {
     throw new Error(
       "Disruptions chart needs both data values (actual and expected). Add the second data value, or turn off disruptions mode.",
     );
@@ -120,10 +142,45 @@ export function buildFigureInputs(
     return {
       figureType: "timeseries",
       data: d,
-      caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      caption: withDateRange(
+        withReplicant(
+          config.t.caption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      subCaption: withDateRange(
+        withReplicant(
+          config.t.subCaption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      footnote: withDateRange(
+        withReplicant(
+          config.t.footnote,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      style: getStyleFromPresentationObject(
+        config,
+        effectiveFormat,
+        localization,
+        deckStyle,
+        allowNegativeScale,
+        effectiveValueProps,
+        chartPalette,
+      ),
       legend: legend(),
     };
   }
@@ -144,20 +201,90 @@ export function buildFigureInputs(
           items,
         ),
       },
-      caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      caption: withDateRange(
+        withReplicant(
+          config.t.caption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      subCaption: withDateRange(
+        withReplicant(
+          config.t.subCaption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      footnote: withDateRange(
+        withReplicant(
+          config.t.footnote,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      style: getStyleFromPresentationObject(
+        config,
+        effectiveFormat,
+        localization,
+        deckStyle,
+        allowNegativeScale,
+        effectiveValueProps,
+        chartPalette,
+      ),
       legend: legend(),
     };
   }
 
   if (effectiveConfig.d.type === "chart") {
     const surrounds = {
-      caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      caption: withDateRange(
+        withReplicant(
+          config.t.caption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      subCaption: withDateRange(
+        withReplicant(
+          config.t.subCaption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      footnote: withDateRange(
+        withReplicant(
+          config.t.footnote,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      style: getStyleFromPresentationObject(
+        config,
+        effectiveFormat,
+        localization,
+        deckStyle,
+        allowNegativeScale,
+        effectiveValueProps,
+        chartPalette,
+      ),
       legend: legend(),
     };
     if (effectiveConfig.s.horizontal) {
@@ -209,7 +336,9 @@ export function buildFigureInputs(
         ? "HFA"
         : "HMIS";
       throw new Error(
-        `[INFO] Map files not yet uploaded for the ${registry} registry at Admin Area ${level ?? ""}`,
+        `[INFO] Map files not yet uploaded for the ${registry} registry at Admin Area ${
+          level ?? ""
+        }`,
       );
     }
     const mapDataConfig = getMapJsonDataConfigFromPresentationObjectConfig(
@@ -238,11 +367,51 @@ export function buildFigureInputs(
         jsonArray: mapItems,
         jsonDataConfig: mapDataConfig,
       },
-      caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
-      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(config, effectiveFormat, localization, chartPalette),
+      caption: withDateRange(
+        withReplicant(
+          config.t.caption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      subCaption: withDateRange(
+        withReplicant(
+          config.t.subCaption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      footnote: withDateRange(
+        withReplicant(
+          config.t.footnote,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      style: getStyleFromPresentationObject(
+        config,
+        effectiveFormat,
+        localization,
+        deckStyle,
+        allowNegativeScale,
+        effectiveValueProps,
+        chartPalette,
+      ),
+      legend: config.s.hideLegend ? undefined : buildMapAutoLegend(
+        config,
+        effectiveFormat,
+        localization,
+        chartPalette,
+      ),
     };
   }
 
@@ -266,10 +435,45 @@ export function buildFigureInputs(
     return {
       figureType: "pie",
       data: d,
-      caption: withDateRange(withReplicant(config.t.caption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      subCaption: withDateRange(withReplicant(config.t.subCaption, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      footnote: withDateRange(withReplicant(config.t.footnote, config, indicatorLabelReplacements, localization.countryIso3), dateRange, localization),
-      style: getStyleFromPresentationObject(config, effectiveFormat, localization, deckStyle, allowNegativeScale, effectiveValueProps, chartPalette),
+      caption: withDateRange(
+        withReplicant(
+          config.t.caption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      subCaption: withDateRange(
+        withReplicant(
+          config.t.subCaption,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      footnote: withDateRange(
+        withReplicant(
+          config.t.footnote,
+          config,
+          indicatorLabelReplacements,
+          localization.countryIso3,
+        ),
+        dateRange,
+        localization,
+      ),
+      style: getStyleFromPresentationObject(
+        config,
+        effectiveFormat,
+        localization,
+        deckStyle,
+        allowNegativeScale,
+        effectiveValueProps,
+        chartPalette,
+      ),
       // Never pass an explicit legend: CF is unwired for slices (they color
       // via the series sentinel), so a cf* state carried over from a
       // chart/map conversion would show threshold/scale colors that appear
@@ -309,22 +513,43 @@ function buildMapAutoLegend(
   const cf = selectCf(config.s);
   const formatAs: IndicatorFormat = facts.axisFormat;
   if (cf.type === "thresholds" || cf.type === "indicator") {
-    return getLegendFromConfig(config, formatAs, facts, localization, chartPalette);
+    return getLegendFromConfig(
+      config,
+      formatAs,
+      facts,
+      localization,
+      chartPalette,
+    );
   }
   const noData = {
     color: "#f0f0f0",
-    label: pickLang(localization.language, { en: "No data", fr: "Aucune donnée", pt: "Sem dados" }),
+    label: pickLang(localization.language, {
+      en: "No data",
+      fr: "Aucune donnée",
+      pt: "Sem dados",
+    }),
   };
-  const domain =
-    cf.type === "scale" && cf.domain.kind === "fixed"
-      ? { min: cf.domain.min, max: cf.domain.max }
-      : undefined;
+  const domain = cf.type === "scale" && cf.domain.kind === "fixed"
+    ? { min: cf.domain.min, max: cf.domain.max }
+    : undefined;
   const steps = cf.type === "scale" ? cf.steps : undefined;
   const format = scaleLegendFormat(formatAs);
   if (steps !== undefined && steps >= 2) {
-    return { type: "stepped-auto" as const, nSteps: steps, domain, ...format, noData };
+    return {
+      type: "stepped-auto" as const,
+      nSteps: steps,
+      domain,
+      ...format,
+      noData,
+    };
   }
-  return { type: "gradient-auto" as const, nTicks: 5, domain, ...format, noData };
+  return {
+    type: "gradient-auto" as const,
+    nTicks: 5,
+    domain,
+    ...format,
+    noData,
+  };
 }
 
 function withDateRange(
@@ -340,14 +565,16 @@ function withDateRange(
   }
   if (!dateRange) return str;
   const { calendar, language } = localization;
-  const periodType: PeriodType = getPeriodTypeFromValue(dateRange.min) ?? "year";
+  const periodType: PeriodType = getPeriodTypeFromValue(dateRange.min) ??
+    "year";
   if (dateRange.min === dateRange.max) {
     const d = formatPeriod(dateRange.min, periodType, calendar);
     return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d)
       .replaceAll("INTERVALO_DE_DATAS", d);
   }
   const separator = pickLang(language, { en: " to ", fr: " à ", pt: " a " });
-  const d = formatPeriod(dateRange.min, periodType, calendar) + separator + formatPeriod(dateRange.max, periodType, calendar);
+  const d = formatPeriod(dateRange.min, periodType, calendar) + separator +
+    formatPeriod(dateRange.max, periodType, calendar);
   return str.replaceAll("DATE_RANGE", d).replaceAll("PLAGE_DE_DATES", d)
     .replaceAll("INTERVALO_DE_DATAS", d);
 }
@@ -364,5 +591,3 @@ function buildIndicatorIdOrder(metadata: IndicatorMetadataDisplay[]): string[] {
     )
     .map((m) => m.id);
 }
-
-

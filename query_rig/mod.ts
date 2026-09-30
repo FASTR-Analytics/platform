@@ -1,5 +1,10 @@
 import type { Sql } from "postgres";
-import { BLANK_SENTINEL, scopeToken, setCalendar, validateFetchConfig } from "lib";
+import {
+  BLANK_SENTINEL,
+  scopeToken,
+  setCalendar,
+  validateFetchConfig,
+} from "lib";
 import { getSingleValueDimsFromPossibleValues } from "lib";
 import {
   getIndicatorMetadataFromRun,
@@ -8,9 +13,14 @@ import {
   getResultsValueInfoFromRun,
   type RunReadContext,
 } from "../server/run_query/mod.ts";
-import { CASES, type Case } from "./cases.ts";
+import { type Case, CASES } from "./cases.ts";
 import { ALL_FIXTURES, type Fixture } from "./fixtures.ts";
-import { createDatabase, loadSchemaFile, rowsMatch, type Failure } from "./harness.ts";
+import {
+  createDatabase,
+  type Failure,
+  loadSchemaFile,
+  rowsMatch,
+} from "./harness.ts";
 import { buildFixturePackage, seedInstance } from "./build_package.ts";
 
 const REPO = new URL("..", import.meta.url).pathname;
@@ -62,23 +72,27 @@ function describe(v: unknown): string {
 
 async function runPossibleValues(
   c: Case,
-  p: Prepared
+  p: Prepared,
 ): Promise<Failure | undefined> {
   const res = await getPossibleValuesFromRun(
     contextFor(c, p),
     p.fixture.resultsObjectId,
     c.disOpt!,
     p.labelMap,
-    c.fetchConfig.filters
+    c.fetchConfig.filters,
   );
 
   if ("err" in c.expect) {
     if (res.success) {
-      return { case: c.name, detail: `expected error containing "${c.expect.err}", got success` };
+      return {
+        case: c.name,
+        detail: `expected error containing "${c.expect.err}", got success`,
+      };
     }
-    return res.err.includes(c.expect.err)
-      ? undefined
-      : { case: c.name, detail: `expected error containing "${c.expect.err}", got: ${res.err}` };
+    return res.err.includes(c.expect.err) ? undefined : {
+      case: c.name,
+      detail: `expected error containing "${c.expect.err}", got: ${res.err}`,
+    };
   }
 
   if (!("values" in c.expect)) {
@@ -91,29 +105,35 @@ async function runPossibleValues(
   // Sequence compare: ordering is the assertion (sentinel last).
   const actual = JSON.stringify(res.data);
   const expected = JSON.stringify(c.expect.values);
-  return actual === expected
-    ? undefined
-    : {
-        case: c.name,
-        detail: `values differ (ordered)\n  expected: ${describe(c.expect.values)}\n  actual:   ${describe(res.data)}`,
-      };
+  return actual === expected ? undefined : {
+    case: c.name,
+    detail: `values differ (ordered)\n  expected: ${
+      describe(c.expect.values)
+    }\n  actual:   ${describe(res.data)}`,
+  };
 }
 
 async function runMetricInfo(
   c: Case,
-  p: Prepared
+  p: Prepared,
 ): Promise<Failure | undefined> {
   if (!("dimStatus" in c.expect)) {
     return { case: c.name, detail: "metricInfo case must expect `dimStatus`" };
   }
   const metricId = p.fixture.metric?.id;
   if (!metricId) {
-    return { case: c.name, detail: `fixture "${p.fixture.name}" has no metric` };
+    return {
+      case: c.name,
+      detail: `fixture "${p.fixture.name}" has no metric`,
+    };
   }
 
   const res = await getResultsValueInfoFromRun(contextFor(c, p), metricId);
   if (!res.success) {
-    return { case: c.name, detail: `expected metric info, got error: ${res.err}` };
+    return {
+      case: c.name,
+      detail: `expected metric info, got error: ${res.err}`,
+    };
   }
 
   const want = c.expect.dimStatus;
@@ -122,19 +142,26 @@ async function runMetricInfo(
   if (!got) {
     return {
       case: c.name,
-      detail: `no status for "${want.disOpt}"; present: ${Object.keys(all).join(", ")}`,
+      detail: `no status for "${want.disOpt}"; present: ${
+        Object.keys(all).join(", ")
+      }`,
     };
   }
   if (got.status !== want.status) {
-    return { case: c.name, detail: `expected status "${want.status}", got "${got.status}"` };
+    return {
+      case: c.name,
+      detail: `expected status "${want.status}", got "${got.status}"`,
+    };
   }
   if (want.namedCount !== undefined) {
-    const named =
-      got.status === "ok"
-        ? got.values.filter((v) => v.id !== BLANK_SENTINEL).length
-        : -1;
+    const named = got.status === "ok"
+      ? got.values.filter((v) => v.id !== BLANK_SENTINEL).length
+      : -1;
     if (named !== want.namedCount) {
-      return { case: c.name, detail: `expected ${want.namedCount} named values, got ${named}` };
+      return {
+        case: c.name,
+        detail: `expected ${want.namedCount} named values, got ${named}`,
+      };
     }
   }
   if (want.isSingleValueDim !== undefined) {
@@ -143,7 +170,8 @@ async function runMetricInfo(
     if (actual !== want.isSingleValueDim) {
       return {
         case: c.name,
-        detail: `expected isSingleValueDim=${want.isSingleValueDim}, got ${actual}`,
+        detail:
+          `expected isSingleValueDim=${want.isSingleValueDim}, got ${actual}`,
       };
     }
   }
@@ -172,7 +200,7 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
       ctx,
       p.fixture.resultsObjectId,
       c.fetchConfig,
-      p.fixture.firstPeriodOption
+      p.fixture.firstPeriodOption,
     );
   } catch (e) {
     res = { success: false, err: e instanceof Error ? e.message : String(e) };
@@ -180,23 +208,38 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
 
   if ("err" in c.expect) {
     if (res.success) {
-      return { case: c.name, detail: `expected error containing "${c.expect.err}", got success` };
+      return {
+        case: c.name,
+        detail: `expected error containing "${c.expect.err}", got success`,
+      };
     }
     if (!res.err.includes(c.expect.err)) {
-      return { case: c.name, detail: `expected error containing "${c.expect.err}", got: ${res.err}` };
+      return {
+        case: c.name,
+        detail: `expected error containing "${c.expect.err}", got: ${res.err}`,
+      };
     }
     return undefined;
   }
 
   if ("values" in c.expect) {
-    return { case: c.name, detail: "`values` expectation requires entry: \"possibleValues\"" };
+    return {
+      case: c.name,
+      detail: '`values` expectation requires entry: "possibleValues"',
+    };
   }
   if ("dimStatus" in c.expect) {
-    return { case: c.name, detail: "`dimStatus` expectation requires entry: \"metricInfo\"" };
+    return {
+      case: c.name,
+      detail: '`dimStatus` expectation requires entry: "metricInfo"',
+    };
   }
 
   if (!res.success) {
-    return { case: c.name, detail: `expected status "${c.expect.status}", got error: ${res.err}` };
+    return {
+      case: c.name,
+      detail: `expected status "${c.expect.status}", got error: ${res.err}`,
+    };
   }
 
   const holder = res.data;
@@ -208,18 +251,24 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
   if (JSON.stringify(holder.fetchConfig) !== JSON.stringify(c.fetchConfig)) {
     return {
       case: c.name,
-      detail: `echoed fetchConfig is not the request\n  expected: ${describe(c.fetchConfig)}\n  actual:   ${describe(holder.fetchConfig)}`,
+      detail: `echoed fetchConfig is not the request\n  expected: ${
+        describe(c.fetchConfig)
+      }\n  actual:   ${describe(holder.fetchConfig)}`,
     };
   }
   if (holder.runId !== ctx.runId || holder.scopeToken !== ctx.scopeToken) {
     return {
       case: c.name,
-      detail: `holder identity is not (run, scope): got runId=${holder.runId} scopeToken=${holder.scopeToken}`,
+      detail:
+        `holder identity is not (run, scope): got runId=${holder.runId} scopeToken=${holder.scopeToken}`,
     };
   }
 
   if (holder.status !== c.expect.status) {
-    return { case: c.name, detail: `expected status "${c.expect.status}", got "${holder.status}"` };
+    return {
+      case: c.name,
+      detail: `expected status "${c.expect.status}", got "${holder.status}"`,
+    };
   }
 
   if (c.expect.status === "ok" && holder.status === "ok") {
@@ -227,7 +276,9 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
     if (!rowsMatch(actual, c.expect.rows)) {
       return {
         case: c.name,
-        detail: `rows differ (multiset compare)\n  expected: ${describe(c.expect.rows)}\n  actual:   ${describe(actual)}`,
+        detail: `rows differ (multiset compare)\n  expected: ${
+          describe(c.expect.rows)
+        }\n  actual:   ${describe(actual)}`,
       };
     }
   }
@@ -258,7 +309,10 @@ for (const c of CASES) {
   try {
     failure = await runCase(c, p);
   } catch (e) {
-    failure = { case: c.name, detail: `threw: ${e instanceof Error ? e.message : String(e)}` };
+    failure = {
+      case: c.name,
+      detail: `threw: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
   if (failure) {
     failures.push(failure);

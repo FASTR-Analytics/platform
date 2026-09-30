@@ -13,19 +13,27 @@ export const routesOnboarding = new Hono();
 // raw window. Only start/finish/abort are recorded: per-step events would
 // multiply the row count for little extra signal, since an abort already
 // says how far the user got.
-defineRoute(routesOnboarding, "recordTourEvent", requireGlobalPermission(), async (c, { body }) => {
-  if (c.var.globalUser.approved) {
-    const details: Record<string, unknown> = { page: body.page, trigger: body.trigger };
-    if (body.stepIndex !== undefined) details.stepIndex = body.stepIndex;
-    if (body.stepId !== undefined) details.stepId = body.stepId;
-    if (body.reason !== undefined) details.reason = body.reason;
-    AddLog(
-      c.var.mainDb,
-      c.var.globalUser.email,
-      `tour_${body.event}:${body.tourId}`,
-      "200",
-      JSON.stringify(details),
-    ).catch(() => {});
-  }
-  return c.json({ success: true });
-});
+defineRoute(
+  routesOnboarding,
+  "recordTourEvent",
+  requireGlobalPermission(),
+  async (c, { body }) => {
+    if (c.var.globalUser.approved) {
+      const details: Record<string, unknown> = {
+        page: body.page,
+        trigger: body.trigger,
+      };
+      if (body.stepIndex !== undefined) details.stepIndex = body.stepIndex;
+      if (body.stepId !== undefined) details.stepId = body.stepId;
+      if (body.reason !== undefined) details.reason = body.reason;
+      AddLog(
+        c.var.mainDb,
+        c.var.globalUser.email,
+        `tour_${body.event}:${body.tourId}`,
+        "200",
+        JSON.stringify(details),
+      ).catch(() => {});
+    }
+    return c.json({ success: true });
+  },
+);

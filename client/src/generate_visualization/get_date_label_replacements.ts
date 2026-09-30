@@ -11,10 +11,36 @@ const DATE_PROPS: Set<DatePropType> = new Set([
 
 function getMonthName(monthNum: number, calendar: CalendarType): string {
   if (calendar === "ethiopian") {
-    const ETHIOPIAN_MONTHS = ["Mes", "Tik", "Hid", "Tah", "Tir", "Yek", "Meg", "Mia", "Gin", "Sen", "Ham", "Neh"];
+    const ETHIOPIAN_MONTHS = [
+      "Mes",
+      "Tik",
+      "Hid",
+      "Tah",
+      "Tir",
+      "Yek",
+      "Meg",
+      "Mia",
+      "Gin",
+      "Sen",
+      "Ham",
+      "Neh",
+    ];
     return ETHIOPIAN_MONTHS[monthNum - 1] ?? "?";
   }
-  const GREGORIAN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const GREGORIAN_MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return GREGORIAN_MONTHS[monthNum - 1] ?? "?";
 }
 

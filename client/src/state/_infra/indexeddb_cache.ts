@@ -66,8 +66,9 @@ export class TimCacheD<UniquenessParams, VersionParams, T> {
     uniquenessParams: UniquenessParams,
     versionParams: VersionParams | "any_version",
   ): Promise<T | undefined> {
-    const uniquenessHash =
-      this._hashFuncs.uniquenessHashFromParams(uniquenessParams);
+    const uniquenessHash = this._hashFuncs.uniquenessHashFromParams(
+      uniquenessParams,
+    );
 
     const existingInMemory = this._resolved.get(uniquenessHash);
     if (existingInMemory) {

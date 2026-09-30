@@ -1,19 +1,19 @@
-import { clearDataCache, clearAiChatCache } from "~/state/clear_caches";
+import { clearAiChatCache, clearDataCache } from "~/state/clear_caches";
 import { darkMode, schemePref, setScheme } from "~/state/t4_ui";
 import { clerk } from "~/state/_infra/clerk";
 import { t3, TC } from "lib";
 import {
+  type AlertComponentProps,
   Button,
   ButtonGroup,
-  TextArea,
-  ModalContainer,
   Card,
-  StateHolderWrapper,
   createButtonAction,
   createQuery,
-  openComponent,
   KEY_COLOR_THEMES,
-  type AlertComponentProps,
+  ModalContainer,
+  openComponent,
+  StateHolderWrapper,
+  TextArea,
 } from "panther";
 import { ChangeEmailModal } from "./change_email_modal";
 import { serverActions } from "~/server_actions";
@@ -31,22 +31,22 @@ function openClerkUserProfile() {
   clerk.openUserProfile(
     darkMode()
       ? {
-          appearance: {
-            variables: {
-              colorBackground: DARK_THEME_COLORS.base100,
-              colorText: DARK_THEME_COLORS.baseContent,
-              colorTextSecondary: DARK_THEME_COLORS.neutral,
-              colorNeutral: DARK_THEME_COLORS.baseContent,
-              colorInputBackground: DARK_THEME_COLORS.base200,
-              colorInputText: DARK_THEME_COLORS.baseContent,
-              colorPrimary: DARK_THEME_COLORS.primary,
-              colorTextOnPrimaryBackground: DARK_THEME_COLORS.primaryContent,
-              colorDanger: DARK_THEME_COLORS.danger,
-              colorSuccess: DARK_THEME_COLORS.success,
-              colorWarning: DARK_THEME_COLORS.warning,
-            },
+        appearance: {
+          variables: {
+            colorBackground: DARK_THEME_COLORS.base100,
+            colorText: DARK_THEME_COLORS.baseContent,
+            colorTextSecondary: DARK_THEME_COLORS.neutral,
+            colorNeutral: DARK_THEME_COLORS.baseContent,
+            colorInputBackground: DARK_THEME_COLORS.base200,
+            colorInputText: DARK_THEME_COLORS.baseContent,
+            colorPrimary: DARK_THEME_COLORS.primary,
+            colorTextOnPrimaryBackground: DARK_THEME_COLORS.primaryContent,
+            colorDanger: DARK_THEME_COLORS.danger,
+            colorSuccess: DARK_THEME_COLORS.success,
+            colorWarning: DARK_THEME_COLORS.warning,
           },
-        }
+        },
+      }
       : undefined,
   );
 }
@@ -73,7 +73,9 @@ export function ProfileForm(
   // wait for the next page load. The listener fires on every Clerk resource
   // change, so act only when the name itself differs. skipCache mints a
   // session token carrying the new name claims before the refetch reads them.
-  let syncedName = `${clerk.user?.firstName ?? ""}\n${clerk.user?.lastName ?? ""}`;
+  let syncedName = `${clerk.user?.firstName ?? ""}\n${
+    clerk.user?.lastName ?? ""
+  }`;
   const unsubscribeClerk = clerk.addListener((e) => {
     if (!e.user) return;
     const name = `${e.user.firstName ?? ""}\n${e.user.lastName ?? ""}`;
@@ -139,8 +141,9 @@ export function ProfileForm(
               "",
           );
 
-          const [editingOrganisation, setEditingOrganisation] =
-            createSignal(false);
+          const [editingOrganisation, setEditingOrganisation] = createSignal(
+            false,
+          );
 
           const saveOrganisation = createButtonAction(async () => {
             await clerk.user?.update({
@@ -285,8 +288,7 @@ export function ProfileForm(
                         openComponent({
                           element: ChangeEmailModal,
                           props: { currentEmail: keyedUser.email },
-                        })
-                      }
+                        })}
                       outline
                       size="sm"
                       iconName="pencil"
@@ -349,43 +351,54 @@ export function ProfileForm(
                       const pct =
                         !usage.isUnlimited && usage.dailyTokenLimit !== null
                           ? Math.min(
-                              100,
-                              Math.round(
-                                (usage.tokensUsedToday /
-                                  usage.dailyTokenLimit) *
-                                  100,
-                              ),
-                            )
+                            100,
+                            Math.round(
+                              (usage.tokensUsedToday /
+                                usage.dailyTokenLimit) *
+                                100,
+                            ),
+                          )
                           : null;
                       return (
                         <div class="flex flex-col gap-2">
                           {pct !== null && (
                             <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
                               <div
-                                class={`h-full rounded-full transition-all ${pct >= 80 ? "bg-warning" : "bg-primary"}`}
+                                class={`h-full rounded-full transition-all ${
+                                  pct >= 80 ? "bg-warning" : "bg-primary"
+                                }`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
                           )}
                           <div class="text-base-content-muted text-sm">
-                            {usage.isUnlimited ? (
-                              t3({
-                                en: "Unlimited",
-                                fr: "Illimité",
-                                pt: "Ilimitado",
-                              })
-                            ) : (
-                              <>
-                                {usage.tokensUsedToday.toLocaleString()}{" "}
-                                {usage.dailyTokenLimit !== null
-                                  ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens", pt: "tokens" })} (${pct}%)`
-                                  : t3({
+                            {usage.isUnlimited
+                              ? (
+                                t3({
+                                  en: "Unlimited",
+                                  fr: "Illimité",
+                                  pt: "Ilimitado",
+                                })
+                              )
+                              : (
+                                <>
+                                  {usage.tokensUsedToday.toLocaleString()}{" "}
+                                  {usage.dailyTokenLimit !== null
+                                    ? `/ ${usage.dailyTokenLimit.toLocaleString()} ${
+                                      t3({
+                                        en: "tokens",
+                                        fr: "tokens",
+                                        pt: "tokens",
+                                      })
+                                    } (${pct}%)`
+                                    : t3({
                                       en: "tokens used today · Unlimited",
-                                      fr: "tokens utilisés aujourd'hui · Illimité",
+                                      fr:
+                                        "tokens utilisés aujourd'hui · Illimité",
                                       pt: "tokens utilizados hoje · Ilimitado",
                                     })}
-                              </>
-                            )}
+                                </>
+                              )}
                           </div>
                         </div>
                       );
@@ -405,23 +418,24 @@ export function ProfileForm(
                 <div class="ui-spy-sm">
                   <StateHolderWrapper state={aiUsage.state()}>
                     {(usage) => {
-                      const pct =
-                        usage.weeklyTokenLimit !== null
-                          ? Math.min(
+                      const pct = usage.weeklyTokenLimit !== null
+                        ? Math.min(
+                          100,
+                          Math.round(
+                            (usage.tokensUsedThisWeek /
+                              usage.weeklyTokenLimit) *
                               100,
-                              Math.round(
-                                (usage.tokensUsedThisWeek /
-                                  usage.weeklyTokenLimit) *
-                                  100,
-                              ),
-                            )
-                          : null;
+                          ),
+                        )
+                        : null;
                       return (
                         <div class="flex flex-col gap-2">
                           {pct !== null && (
                             <div class="bg-base-200 h-2 w-full overflow-hidden rounded-full">
                               <div
-                                class={`h-full rounded-full transition-all ${pct >= 80 ? "bg-warning" : "bg-primary"}`}
+                                class={`h-full rounded-full transition-all ${
+                                  pct >= 80 ? "bg-warning" : "bg-primary"
+                                }`}
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
@@ -429,12 +443,14 @@ export function ProfileForm(
                           <div class="text-base-content-muted text-sm">
                             {usage.tokensUsedThisWeek.toLocaleString()}{" "}
                             {usage.weeklyTokenLimit !== null
-                              ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${t3({ en: "tokens", fr: "tokens", pt: "tokens" })} (${pct}%)`
+                              ? `/ ${usage.weeklyTokenLimit.toLocaleString()} ${
+                                t3({ en: "tokens", fr: "tokens", pt: "tokens" })
+                              } (${pct}%)`
                               : t3({
-                                  en: "tokens used this week · Unlimited",
-                                  fr: "tokens utilisés cette semaine · Illimité",
-                                  pt: "tokens utilizados esta semana · Ilimitado",
-                                })}
+                                en: "tokens used this week · Unlimited",
+                                fr: "tokens utilisés cette semaine · Illimité",
+                                pt: "tokens utilizados esta semana · Ilimitado",
+                              })}
                           </div>
                         </div>
                       );

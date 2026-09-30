@@ -80,9 +80,12 @@ export function DiffLegend() {
       </span>
       <span>
         {t3({
-          en: "Each change is tinted with its editor's colour — hover to see who made it.",
-          fr: "Chaque modification porte la couleur de son auteur — survolez pour voir qui l'a faite.",
-          pt: "Cada alteração tem a cor do seu autor — passe o cursor para ver quem a fez.",
+          en:
+            "Each change is tinted with its editor's colour — hover to see who made it.",
+          fr:
+            "Chaque modification porte la couleur de son auteur — survolez pour voir qui l'a faite.",
+          pt:
+            "Cada alteração tem a cor do seu autor — passe o cursor para ver quem a fez.",
         })}
       </span>
     </div>
@@ -94,25 +97,37 @@ export function DiffLegend() {
 // ledger couldn't pin the individual, so don't pretend otherwise.
 function byLabel(who: string, exact: boolean | undefined): string {
   return !exact && who.includes(",")
-    ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} ${who}`
+    ? `${
+      t3({
+        en: "one of:",
+        fr: "l'une de ces personnes :",
+        pt: "uma destas pessoas:",
+      })
+    } ${who}`
     : who;
 }
 
 function addedTitle(who?: string, exact?: boolean): string {
   return who
-    ? `${t3({ en: "Added by", fr: "Ajouté par", pt: "Adicionado por" })} ${byLabel(who, exact)}`
+    ? `${t3({ en: "Added by", fr: "Ajouté par", pt: "Adicionado por" })} ${
+      byLabel(who, exact)
+    }`
     : t3({ en: "Added", fr: "Ajouté", pt: "Adicionado" });
 }
 
 function removedTitle(who?: string, exact?: boolean): string {
   return who
-    ? `${t3({ en: "Removed by", fr: "Supprimé par", pt: "Removido por" })} ${byLabel(who, exact)}`
+    ? `${t3({ en: "Removed by", fr: "Supprimé par", pt: "Removido por" })} ${
+      byLabel(who, exact)
+    }`
     : t3({ en: "Removed", fr: "Supprimé", pt: "Removido" });
 }
 
 function editedTitle(who?: string, exact?: boolean): string {
   return who
-    ? `${t3({ en: "Edited by", fr: "Modifié par", pt: "Editado por" })} ${byLabel(who, exact)}`
+    ? `${t3({ en: "Edited by", fr: "Modifié par", pt: "Editado por" })} ${
+      byLabel(who, exact)
+    }`
     : t3({ en: "Edited", fr: "Modifié", pt: "Editado" });
 }
 
@@ -129,12 +144,11 @@ export function DiffSegments(p: { segments: DiffSegment[] }) {
           const color = seg.whoEmail
             ? presenceColorForKey(seg.whoEmail)
             : UNKNOWN_COLOR;
-          const flag =
-            seg.kind === "added"
-              ? addedTitle(seg.who, seg.whoExact)
-              : seg.kind === "edited"
-                ? editedTitle(seg.who, seg.whoExact)
-                : removedTitle(seg.who, seg.whoExact);
+          const flag = seg.kind === "added"
+            ? addedTitle(seg.who, seg.whoExact)
+            : seg.kind === "edited"
+            ? editedTitle(seg.who, seg.whoExact)
+            : removedTitle(seg.who, seg.whoExact);
           return (
             <span
               class="group relative cursor-help rounded-sm"

@@ -6,7 +6,7 @@ import {
   t3,
 } from "lib";
 import { metricAllowsNegativeScale } from "~/generate_visualization/special_chart_checks";
-import { Checkbox, RadioGroup, getSelectOptions } from "panther";
+import { Checkbox, getSelectOptions, RadioGroup } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { applyCfToTempConfig } from "./conditional_formatting_store";
@@ -28,7 +28,9 @@ type Props = {
 export function TableStyleControls(p: Props) {
   return (
     <>
-      <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Apresentação" })}>
+      <StyleSection
+        label={t3({ en: "Display", fr: "Affichage", pt: "Apresentação" })}
+      >
         <>
           <Checkbox
             label={t3({
@@ -43,7 +45,8 @@ export function TableStyleControls(p: Props) {
             <Checkbox
               label={t3({
                 en: "Show sample sizes in column headers",
-                fr: "Afficher les tailles d'échantillon dans les en-têtes de colonnes",
+                fr:
+                  "Afficher les tailles d'échantillon dans les en-têtes de colonnes",
                 pt: "Mostrar tamanhos de amostra nos cabeçalhos das colunas",
               })}
               checked={p.tempConfig.s.showNValues ?? false}
@@ -53,7 +56,11 @@ export function TableStyleControls(p: Props) {
           <Show when={p.effectiveFormatAs !== "rate_per_10k"}>
             <div class="pt-0.5"></div>
             <RadioGroup
-              label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+              label={t3({
+                en: "Decimal places",
+                fr: "Décimales",
+                pt: "Casas decimais",
+              })}
               options={getSelectOptions(["0", "1", "2", "3"])}
               value={String(p.tempConfig.s.decimalPlaces)}
               onChange={(v) =>
@@ -61,8 +68,7 @@ export function TableStyleControls(p: Props) {
                   "s",
                   "decimalPlaces",
                   Number(v) as 0 | 1 | 2 | 3,
-                )
-              }
+                )}
               horizontal
             />
           </Show>
@@ -71,7 +77,11 @@ export function TableStyleControls(p: Props) {
             <Checkbox
               checked={p.tempConfig.s.hideLegend}
               onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-              label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
+              label={t3({
+                en: "Hide legend",
+                fr: "Masquer la légende",
+                pt: "Ocultar legenda",
+              })}
             />
           </Show>
         </>

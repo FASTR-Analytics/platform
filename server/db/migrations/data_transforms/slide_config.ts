@@ -37,13 +37,13 @@ import type { Sql } from "postgres";
 import {
   type FigureLocalizationForTransform,
   type FigurePairForTransform,
-  type SlideLayoutNodeLike,
+  getTransformLocalization,
   rawJsonNeedsFigureBlockTransform,
+  type SlideLayoutNodeLike,
   transformFigureBlock,
   transformFigureBlockToBundle,
-  warnIfFigureInputsStale,
-  getTransformLocalization,
   walkSlideLayoutNodes,
+  warnIfFigureInputsStale,
 } from "./_figure_block.ts";
 import {
   type MigrationStats,
@@ -120,8 +120,9 @@ function transformLayoutNode(
   // Recursion is shared with the consolidation planner via
   // walkSlideLayoutNodes so the two cannot drift; this wrapper only supplies
   // the per-node work.
-  walkSlideLayoutNodes(node as SlideLayoutNodeLike, (n) =>
-    transformOneLayoutNode(n as LayoutNode, localization, pair),
+  walkSlideLayoutNodes(
+    node as SlideLayoutNodeLike,
+    (n) => transformOneLayoutNode(n as LayoutNode, localization, pair),
   );
 }
 

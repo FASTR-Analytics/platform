@@ -9,9 +9,9 @@ import { schemePref, setScheme } from "~/state/t4_ui";
 import {
   DEFAULT_THEME,
   setTheme,
+  type Theme,
   theme,
   THEME_RADII,
-  type Theme,
   type ThemeDarkPrimary,
   type ThemeInk,
   type ThemePrimary,
@@ -117,9 +117,12 @@ export function ThemeModal(p: AlertComponentProps<object, undefined>) {
       width="md"
       title={t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
       subtitle={t3({
-        en: "Applies on this device only. Visualizations keep their fixed colors.",
-        fr: "S'applique uniquement à cet appareil. Les visualisations conservent leurs couleurs fixes.",
-        pt: "Aplica-se apenas a este dispositivo. As visualizações mantêm as suas cores fixas.",
+        en:
+          "Applies on this device only. Visualizations keep their fixed colors.",
+        fr:
+          "S'applique uniquement à cet appareil. Les visualisations conservent leurs couleurs fixes.",
+        pt:
+          "Aplica-se apenas a este dispositivo. As visualizações mantêm as suas cores fixas.",
       })}
       footer={
         <Button outline onClick={() => setTheme(DEFAULT_THEME)}>

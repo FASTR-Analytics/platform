@@ -26,7 +26,11 @@ export function MarkdownSourceModal(
   const [plain, setPlain] = createSignal(p.initial);
   return (
     <ModalContainer
-      title={t3({ en: "Edit as markdown", fr: "Modifier en markdown", pt: "Editar em markdown" })}
+      title={t3({
+        en: "Edit as markdown",
+        fr: "Modifier en markdown",
+        pt: "Editar em markdown",
+      })}
       width="lg"
       actions={[
         {

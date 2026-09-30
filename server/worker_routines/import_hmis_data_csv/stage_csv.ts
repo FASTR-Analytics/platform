@@ -3,14 +3,14 @@ import { escapeSqlString } from "../../db/utils.ts";
 import {
   COUNT_CHECK_CONSTRAINT,
   csvIndicatorValueFromCell,
-  PERIOD_ID_CHECK_CONSTRAINT,
-  isValidDatasetRow,
-  parseCountValue,
-  throwIfErrWithData,
   type DatasetCsvStagingResult,
   type HmisCsvColumns,
   type HmisCsvMapping,
+  isValidDatasetRow,
+  parseCountValue,
+  PERIOD_ID_CHECK_CONSTRAINT,
   type PeriodIndicatorStat,
+  throwIfErrWithData,
 } from "lib";
 import {
   getCsvColumnIndex,
@@ -194,7 +194,9 @@ CREATE UNLOGGED TABLE ${names.raw} (
       }
 
       rowBuffer.push(
-        `('${escapeSqlString(facilityId)}','${escapeSqlString(dataId)}','${periodId}',${count})`,
+        `('${escapeSqlString(facilityId)}','${
+          escapeSqlString(dataId)
+        }','${periodId}',${count})`,
       );
 
       if (rowBuffer.length >= BUFFER_SIZE) {

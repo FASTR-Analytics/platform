@@ -18,8 +18,7 @@ multi-domain grab-bags, and the env nexus. S00 exists so these six have a
 custodian in the lint without pretending they form a subsystem: there is no
 kernel behavior to document, only shared surface. **Review them only alongside
 the consuming system; any change needs a cross-system check** (SYSTEMS.md §4.2).
-Written fresh from code (first review cycle, review-only, no DOC_*
-absorbed).
+Written fresh from code (first review cycle, review-only, no DOC_* absorbed).
 
 ## The six files
 
@@ -41,15 +40,15 @@ individually); the barrel itself is just wiring. One deliberate exception:
 **`lib/types/instance.ts`** is the one genuinely multi-domain types file. It
 holds, side by side: the `APIResponse` envelope types +
 `throwIfErrWithData`/`throwIfErrNoData` asserts (S1's contract, defined here);
-`InstanceMeta`/`InstanceDetail` and the instance-config zod schemas:
-admin-area labels and the per-family `structureSchemaSchema` /
-`structureColumnsSchema` with `getEnabledOptionalFacilityColumns`,
-`structureColumnsFromSchema` + `hashStructureSchema` (S5's config surface);
-`GlobalUser`/`OtherUser`/user-log types + the dev-mode user factory (S1/S15);
-generic table-column and CSV-import wizard types for S5/S6 (`CsvDetails`,
-`Mappings`, `Conflicts`); and the `ItemsHolder*` payload
-types, including `ItemsHolderPresentationObject` whose `runId` + `scopeToken`
-are the cache identity (S9) and the figure's provenance (S10).
+`InstanceMeta`/`InstanceDetail` and the instance-config zod schemas: admin-area
+labels and the per-family `structureSchemaSchema` / `structureColumnsSchema`
+with `getEnabledOptionalFacilityColumns`, `structureColumnsFromSchema` +
+`hashStructureSchema` (S5's config surface); `GlobalUser`/`OtherUser`/user-log
+types + the dev-mode user factory (S1/S15); generic table-column and CSV-import
+wizard types for S5/S6 (`CsvDetails`, `Mappings`, `Conflicts`); and the
+`ItemsHolder*` payload types, including `ItemsHolderPresentationObject` whose
+`runId` + `scopeToken` are the cache identity (S9) and the figure's provenance
+(S10).
 
 **`lib/consts.ts`** is the constants grab-bag: `COUNTRY_ISO3_TO_LABEL` +
 `getCountryLabel` (all tiers); `DEFAULT_ANTHROPIC_MODEL` (S13);
@@ -66,12 +65,12 @@ title substitution, S9/S10 display), `encodeRawCsvHeader` (S6),
 
 **`server/exposed_env_vars.ts`** is the env nexus: every environment variable is
 read once here into a `_`-prefixed export, and nothing else may call
-`Deno.env.get` (zero raw call sites remain outside this file;
-keep it that way). ~55 server files import it. Required vars fail
-fast at import time with a named error; optional ones default. The domains it
-carries: instance identity/language/ calendar, runs + assets paths (S8/S4),
-Postgres coords (S2), Valkey URL + client origins + port (S3/S1), Anthropic +
-token limits (S13), SendGrid/status/central-server secrets (S15), DHIS2 tuning +
+`Deno.env.get` (zero raw call sites remain outside this file; keep it that way).
+~55 server files import it. Required vars fail fast at import time with a named
+error; optional ones default. The domains it carries: instance
+identity/language/ calendar, runs + assets paths (S8/S4), Postgres coords (S2),
+Valkey URL + client origins + port (S3/S1), Anthropic + token limits (S13),
+SendGrid/status/central-server secrets (S15), DHIS2 tuning +
 credentials-encryption key (S6/S7), auth flags (S1), deploy metadata, module
 file-name constants and the four staging-table names (S6/S8). Two import-time
 **side effects**: `setLanguage(_INSTANCE_LANGUAGE)` (panther's module-level
@@ -100,8 +99,8 @@ the `@timroberton/panther` / `"panther"` specifiers, never deep paths. Anything
   (`=== "true"`) or fail on unexpected values.
 - **Decoupling: a deep panther import bypasses the `mod.ui.ts` barrel.**
   `slide_deck/slide_list.tsx` reaches into
-  `panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx`. Route
-  it through the barrel.
+  `panther/_303_components/form_inputs/solid_sortablejs_vendored.tsx`. Route it
+  through the barrel.
 - **Dead code (zero importers):** `_IMAGE_DIMENSIONS` in `lib/consts.ts`.
 - **Cruft in `lib/types/instance.ts`:** the commented-out
   `ItemsHolderDatasetAA2sAndIndicators` block.

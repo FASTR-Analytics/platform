@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { encodeRawCsvHeader, type APIResponseWithData } from "lib";
+import { type APIResponseWithData, encodeRawCsvHeader } from "lib";
 import { _IS_PRODUCTION } from "../exposed_env_vars.ts";
 
 export type StreamingCsvComponents = {
@@ -9,8 +9,8 @@ export type StreamingCsvComponents = {
     callback: (
       row: string[],
       rowIndex: number,
-      bytesRead: number
-    ) => void | Promise<void>
+      bytesRead: number,
+    ) => void | Promise<void>,
   ) => Promise<void>;
 };
 
@@ -18,7 +18,7 @@ export type CsvColumnValidation = "strict" | "allow-fewer-columns";
 
 export async function getCsvStreamComponents(
   assetFilePath: string,
-  columnValidation: CsvColumnValidation = "strict"
+  columnValidation: CsvColumnValidation = "strict",
 ): Promise<APIResponseWithData<StreamingCsvComponents>> {
   try {
     // Open file for reading headers
@@ -54,7 +54,7 @@ export async function getCsvStreamComponents(
       file.close();
 
       const headerChunk = new TextDecoder().decode(
-        headerBuffer.slice(0, bytesRead)
+        headerBuffer.slice(0, bytesRead),
       );
 
       // Get headers from the initial chunk
@@ -103,8 +103,8 @@ export async function getCsvStreamComponents(
         callback: (
           row: string[],
           rowIndex: number,
-          bytesRead: number
-        ) => void | Promise<void>
+          bytesRead: number,
+        ) => void | Promise<void>,
       ): Promise<void> => {
         const localFile = await Deno.open(assetFilePath, { read: true });
 
@@ -115,7 +115,7 @@ export async function getCsvStreamComponents(
 
         if (!_IS_PRODUCTION) {
           console.log(
-            `[CSV Streaming] Starting to process file: ${assetFilePath}`
+            `[CSV Streaming] Starting to process file: ${assetFilePath}`,
           );
         }
 
@@ -163,7 +163,7 @@ export async function getCsvStreamComponents(
                   // Log progress every 100000 rows
                   if (!_IS_PRODUCTION && rowsProcessed % 100000 === 0) {
                     console.log(
-                      `[CSV Streaming] Processed ${rowsProcessed} rows`
+                      `[CSV Streaming] Processed ${rowsProcessed} rows`,
                     );
                   }
                 }
@@ -215,7 +215,7 @@ export async function getCsvStreamComponents(
                 if (leftoverBuffer) {
                   if (!_IS_PRODUCTION) {
                     console.log(
-                      `[CSV Streaming] Processing leftover buffer (${leftoverBuffer.length} chars)`
+                      `[CSV Streaming] Processing leftover buffer (${leftoverBuffer.length} chars)`,
                     );
                   }
 
@@ -237,9 +237,9 @@ export async function getCsvStreamComponents(
                           // but not rows with more columns than headers
                           if (row.length > headers.length) {
                             processingError = new Error(
-                              `Row ${rowIndex + 2} has ${
-                                row.length
-                              } columns but header only has ${headers.length} columns`
+                              `Row ${
+                                rowIndex + 2
+                              } has ${row.length} columns but header only has ${headers.length} columns`,
                             );
                             return;
                           }
@@ -247,9 +247,9 @@ export async function getCsvStreamComponents(
                           // Strict validation: row must have exact same number of columns
                           if (row.length !== headers.length) {
                             processingError = new Error(
-                              `Row ${rowIndex + 2} has ${
-                                row.length
-                              } columns but header has ${headers.length} columns`
+                              `Row ${
+                                rowIndex + 2
+                              } has ${row.length} columns but header has ${headers.length} columns`,
                             );
                             return;
                           }
@@ -262,7 +262,7 @@ export async function getCsvStreamComponents(
                       processingError = new Error(
                         `CSV parsing error at row ${rowIndex + 2}: ${
                           error.message || error
-                        }`
+                        }`,
                       );
                     },
                   });
@@ -280,11 +280,13 @@ export async function getCsvStreamComponents(
                   totalBytesRead % (100 * 1024 * 1024) < CHUNK_SIZE)
               ) {
                 console.log(
-                  `[CSV Streaming] Read chunk #${chunksRead} (total: ${(
-                    totalBytesRead /
-                    1024 /
-                    1024
-                  ).toFixed(2)}MB)`
+                  `[CSV Streaming] Read chunk #${chunksRead} (total: ${
+                    (
+                      totalBytesRead /
+                      1024 /
+                      1024
+                    ).toFixed(2)
+                  }MB)`,
                 );
               }
 
@@ -331,9 +333,9 @@ export async function getCsvStreamComponents(
                       // but not rows with more columns than headers
                       if (row.length > headers.length) {
                         processingError = new Error(
-                          `Row ${rowIndex + 2} has ${
-                            row.length
-                          } columns but header only has ${headers.length} columns`
+                          `Row ${
+                            rowIndex + 2
+                          } has ${row.length} columns but header only has ${headers.length} columns`,
                         );
                         return;
                       }
@@ -341,9 +343,9 @@ export async function getCsvStreamComponents(
                       // Strict validation: row must have exact same number of columns
                       if (row.length !== headers.length) {
                         processingError = new Error(
-                          `Row ${rowIndex + 2} has ${
-                            row.length
-                          } columns but header has ${headers.length} columns`
+                          `Row ${
+                            rowIndex + 2
+                          } has ${row.length} columns but header has ${headers.length} columns`,
                         );
                         return;
                       }
@@ -356,7 +358,7 @@ export async function getCsvStreamComponents(
                   processingError = new Error(
                     `CSV parsing error at row ${rowIndex + 2}: ${
                       error.message || error
-                    }`
+                    }`,
                   );
                 },
               });
@@ -372,14 +374,14 @@ export async function getCsvStreamComponents(
           parsingComplete = true;
           if (!_IS_PRODUCTION) {
             console.log(
-              `[CSV Streaming] File reading complete. Waiting for queue to finish processing...`
+              `[CSV Streaming] File reading complete. Waiting for queue to finish processing...`,
             );
           }
           await queuePromise;
 
           if (!_IS_PRODUCTION) {
             console.log(
-              `[CSV Streaming] Complete! Total rows processed: ${rowsProcessed}`
+              `[CSV Streaming] Complete! Total rows processed: ${rowsProcessed}`,
             );
           }
           try {
@@ -422,7 +424,7 @@ export async function getCsvStreamComponents(
 export function getCsvColumnIndex(
   encodedHeaderToIndexMap: Map<string, number>,
   mappings: Record<string, string>,
-  columnName: string
+  columnName: string,
 ): number {
   const csvColToUse = mappings[columnName];
   if (!csvColToUse) {
@@ -431,7 +433,7 @@ export function getCsvColumnIndex(
   const index = encodedHeaderToIndexMap.get(csvColToUse);
   if (index === undefined) {
     throw new Error(
-      `Header not found in uploaded csv for column ${columnName}`
+      `Header not found in uploaded csv for column ${columnName}`,
     );
   }
   return index;

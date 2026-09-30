@@ -50,7 +50,9 @@ async function waitForPagination(
   for (;;) {
     const result = await page.evaluate(
       (g: string) =>
-        (globalThis as unknown as Record<string, FastrPagedResult | undefined>)[g],
+        (globalThis as unknown as Record<string, FastrPagedResult | undefined>)[
+          g
+        ],
       { args: [FASTR_PAGED_GLOBAL] },
     );
     if (result !== undefined) return result;

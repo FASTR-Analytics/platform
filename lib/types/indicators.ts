@@ -127,7 +127,9 @@ export function getNewIndicatorIdIssue(
   return undefined;
 }
 
-export function describeNewIndicatorIdIssue(issue: NewIndicatorIdIssue): string {
+export function describeNewIndicatorIdIssue(
+  issue: NewIndicatorIdIssue,
+): string {
   switch (issue) {
     case "empty":
       return "must not be empty";
@@ -330,8 +332,12 @@ export function dhis2ElementName(
 ): string {
   const cocId = dataId.split(".")[1];
   if (cocId === undefined) return element.name;
-  const coc = element.categoryCombo?.categoryOptionCombos?.find((c) => c.id === cocId);
-  return `${element.name} - ${coc === undefined ? cocId : coc.displayName || coc.name}`;
+  const coc = element.categoryCombo?.categoryOptionCombos?.find((c) =>
+    c.id === cocId
+  );
+  return `${element.name} - ${
+    coc === undefined ? cocId : coc.displayName || coc.name
+  }`;
 }
 
 export interface DHIS2Indicator {
@@ -438,26 +444,38 @@ export function describeDhis2ElementRefusal(
     case "aggregation_type":
       return {
         en: `its aggregation type is ${refusal.value ?? "not set"}, not SUM`,
-        fr: `son type d'agrégation est ${refusal.value ?? "non défini"}, pas SUM`,
-        pt: `o seu tipo de agregação é ${refusal.value ?? "não definido"}, não SUM`,
+        fr: `son type d'agrégation est ${
+          refusal.value ?? "non défini"
+        }, pas SUM`,
+        pt: `o seu tipo de agregação é ${
+          refusal.value ?? "não definido"
+        }, não SUM`,
       };
     case "value_type":
       return {
         en: `its value type is ${refusal.value ?? "not set"}, not a count`,
-        fr: `son type de valeur est ${refusal.value ?? "non défini"}, pas un dénombrement`,
-        pt: `o seu tipo de valor é ${refusal.value ?? "não definido"}, não uma contagem`,
+        fr: `son type de valeur est ${
+          refusal.value ?? "non défini"
+        }, pas un dénombrement`,
+        pt: `o seu tipo de valor é ${
+          refusal.value ?? "não definido"
+        }, não uma contagem`,
       };
     case "period_type":
       return refusal.value === undefined
         ? {
           en: "it is in no data set, so it has no period type",
-          fr: "il n'appartient à aucun ensemble de données et n'a donc pas de type de période",
-          pt: "não pertence a nenhum conjunto de dados, pelo que não tem tipo de período",
+          fr:
+            "il n'appartient à aucun ensemble de données et n'a donc pas de type de période",
+          pt:
+            "não pertence a nenhum conjunto de dados, pelo que não tem tipo de período",
         }
         : {
           en: `its data sets are ${refusal.value}; none is monthly`,
-          fr: `ses ensembles de données sont ${refusal.value} ; aucun n'est mensuel`,
-          pt: `os seus conjuntos de dados são ${refusal.value}; nenhum é mensal`,
+          fr:
+            `ses ensembles de données sont ${refusal.value} ; aucun n'est mensuel`,
+          pt:
+            `os seus conjuntos de dados são ${refusal.value}; nenhum é mensal`,
         };
     case "element_not_found":
       return {
@@ -484,9 +502,15 @@ export function describeDhis2ParseRefusal(
       };
     case "factor":
       return {
-        en: `its factor is ${refusal.value ?? "not set"}; only 1, 100, 1000 and 10000 are supported`,
-        fr: `son facteur est ${refusal.value ?? "non défini"} ; seuls 1, 100, 1000 et 10000 sont pris en charge`,
-        pt: `o seu fator é ${refusal.value ?? "não definido"}; apenas 1, 100, 1000 e 10000 são suportados`,
+        en: `its factor is ${
+          refusal.value ?? "not set"
+        }; only 1, 100, 1000 and 10000 are supported`,
+        fr: `son facteur est ${
+          refusal.value ?? "non défini"
+        } ; seuls 1, 100, 1000 et 10000 sont pris en charge`,
+        pt: `o seu fator é ${
+          refusal.value ?? "não definido"
+        }; apenas 1, 100, 1000 e 10000 são suportados`,
       };
     case "empty":
       return {
@@ -496,21 +520,32 @@ export function describeDhis2ParseRefusal(
       };
     case "term":
       return {
-        en: `its ${side(refusal.side).en} contains ${refusal.term}, which is outside the supported formula forms`,
-        fr: `son ${side(refusal.side).fr} contient ${refusal.term}, qui n'est pas une forme de formule prise en charge`,
-        pt: `o seu ${side(refusal.side).pt} contém ${refusal.term}, que está fora das formas de fórmula suportadas`,
+        en: `its ${
+          side(refusal.side).en
+        } contains ${refusal.term}, which is outside the supported formula forms`,
+        fr: `son ${
+          side(refusal.side).fr
+        } contient ${refusal.term}, qui n'est pas une forme de formule prise en charge`,
+        pt: `o seu ${
+          side(refusal.side).pt
+        } contém ${refusal.term}, que está fora das formas de fórmula suportadas`,
       };
     case "syntax":
       return {
         en: `its ${side(refusal.side).en} could not be read at ${refusal.term}`,
         fr: `son ${side(refusal.side).fr} n'a pas pu être lu à ${refusal.term}`,
-        pt: `o seu ${side(refusal.side).pt} não pôde ser lido em ${refusal.term}`,
+        pt: `o seu ${
+          side(refusal.side).pt
+        } não pôde ser lido em ${refusal.term}`,
       };
     case "too_many_operands":
       return {
-        en: `it has ${refusal.count} distinct operands; at most ${refusal.max} are supported`,
-        fr: `il a ${refusal.count} opérandes distincts ; au plus ${refusal.max} sont pris en charge`,
-        pt: `tem ${refusal.count} operandos distintos; no máximo ${refusal.max} são suportados`,
+        en:
+          `it has ${refusal.count} distinct operands; at most ${refusal.max} are supported`,
+        fr:
+          `il a ${refusal.count} opérandes distincts ; au plus ${refusal.max} sont pris en charge`,
+        pt:
+          `tem ${refusal.count} operandos distintos; no máximo ${refusal.max} são suportados`,
       };
   }
 }

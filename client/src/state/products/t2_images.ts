@@ -44,7 +44,10 @@ const _IMAGE_CACHE = new TimCacheD<
   }),
 });
 
-async function fetchWithRetries(src: string, timestamp: number): Promise<ImageCacheData> {
+async function fetchWithRetries(
+  src: string,
+  timestamp: number,
+): Promise<ImageCacheData> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < DEFAULT_OPTIONS.maxRetries; attempt++) {
@@ -69,7 +72,10 @@ async function fetchWithRetries(src: string, timestamp: number): Promise<ImageCa
   throw lastError || new Error("Failed to fetch image after retries");
 }
 
-async function fetchImage(src: string, timestamp: number): Promise<ImageCacheData> {
+async function fetchImage(
+  src: string,
+  timestamp: number,
+): Promise<ImageCacheData> {
   const controller = new AbortController();
   const timeoutId = setTimeout(
     () => controller.abort(),
@@ -79,10 +85,9 @@ async function fetchImage(src: string, timestamp: number): Promise<ImageCacheDat
   try {
     const response = await fetch(src, {
       signal: controller.signal,
-      credentials:
-        DEFAULT_OPTIONS.crossOrigin === "use-credentials"
-          ? "include"
-          : "same-origin",
+      credentials: DEFAULT_OPTIONS.crossOrigin === "use-credentials"
+        ? "include"
+        : "same-origin",
       mode: "cors",
     });
 
@@ -159,7 +164,7 @@ function isInBackoffPeriod(failureInfo: FailureInfo): boolean {
   const now = Date.now();
   const backoffMs = Math.min(
     DEFAULT_OPTIONS.backoffBaseMs * Math.pow(2, failureInfo.retryCount),
-    DEFAULT_OPTIONS.maxBackoffMs
+    DEFAULT_OPTIONS.maxBackoffMs,
   );
   return now - failureInfo.timestamp < backoffMs;
 }
@@ -173,7 +178,8 @@ export async function getImgFromCacheOrFetch(
     if (failureInfo && isInBackoffPeriod(failureInfo)) {
       return {
         success: false,
-        err: `Image failed previously. In backoff period (retry ${failureInfo.retryCount}): ${failureInfo.lastError}`,
+        err:
+          `Image failed previously. In backoff period (retry ${failureInfo.retryCount}): ${failureInfo.lastError}`,
       };
     }
 
@@ -213,7 +219,7 @@ export async function getImgFromCacheOrFetch(
       retryCount: existingFailure ? existingFailure.retryCount + 1 : 0,
       lastError: errorMessage,
     });
-    
+
     return {
       success: false,
       err: errorMessage,
@@ -230,4 +236,3 @@ if (typeof window !== "undefined") {
     _ACTIVE_OBJECT_URLS.clear();
   });
 }
-

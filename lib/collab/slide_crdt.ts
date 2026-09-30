@@ -44,7 +44,12 @@ import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import type { LayoutNode } from "@timroberton/panther";
 import type { ContentBlock, Slide } from "../types/slides.ts";
 import type { FigureBundle } from "../types/_figure_bundle.ts";
-import { setOpaque, setOpaqueByValue, setScalar, syncText } from "./crdt_util.ts";
+import {
+  setOpaque,
+  setOpaqueByValue,
+  setScalar,
+  syncText,
+} from "./crdt_util.ts";
 import {
   materializeFigureConfig,
   seedFigureConfigMap,
@@ -81,7 +86,10 @@ function readFigureBundle(m: Y.Map<unknown>): FigureBundle | undefined {
   const cfgMap = m.get(FIG_CONFIG_KEY);
   if (cfgMap instanceof Y.Map) {
     const figData = (m.get(FIG_DATA_KEY) as Record<string, unknown>) ?? {};
-    return { ...figData, config: materializeFigureConfig(cfgMap) } as FigureBundle;
+    return {
+      ...figData,
+      config: materializeFigureConfig(cfgMap),
+    } as FigureBundle;
   }
   const legacy = m.get(FIG_BUNDLE_LEGACY_KEY);
   return legacy === undefined ? undefined : (legacy as FigureBundle);
@@ -328,7 +336,11 @@ export function materializeSlide(doc: Y.Doc): Slide {
   // Text fields: read the Y.Text; omit optional ones when empty.
   for (const f of textFields) {
     const v = root.get(f);
-    const s = v instanceof Y.Text ? v.toString() : typeof v === "string" ? v : "";
+    const s = v instanceof Y.Text
+      ? v.toString()
+      : typeof v === "string"
+      ? v
+      : "";
     if (REQUIRED_TEXT_FIELDS.has(f) || s.length > 0) {
       out[f] = s;
     }
@@ -804,7 +816,14 @@ function syncItemContent(
   const block = node.data;
   if (m.get("blockType") !== block.type) {
     for (
-      const k of ["markdown", "imgFile", "bundle", "figConfig", "figData", "blockStyle"]
+      const k of [
+        "markdown",
+        "imgFile",
+        "bundle",
+        "figConfig",
+        "figData",
+        "blockStyle",
+      ]
     ) {
       if (m.has(k)) {
         m.delete(k);

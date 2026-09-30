@@ -98,27 +98,33 @@ export function InstanceData(p: Props) {
     instanceState.datasetsWithData.includes(dataset)
       ? t3({ en: "Has data", fr: "Contient des données", pt: "Contém dados" })
       : t3({
-          en: "No data added",
-          fr: "Aucune donnée ajoutée",
-          pt: "Nenhum dado adicionado",
-        });
+        en: "No data added",
+        fr: "Aucune donnée ajoutée",
+        pt: "Nenhum dado adicionado",
+      });
 
   const configurationRow = (family: FacilityFamily): DataRow => ({
     label: t3({ en: "Configuration", fr: "Configuration", pt: "Configuração" }),
     summary: t3({
-      en: `${structureSchemaForFamily(family).adminDepth} admin area levels, ${toNum0(
-        enabledColumnCount(family),
-      )} facility columns`,
+      en: `${structureSchemaForFamily(family).adminDepth} admin area levels, ${
+        toNum0(
+          enabledColumnCount(family),
+        )
+      } facility columns`,
       fr: `${
         structureSchemaForFamily(family).adminDepth
-      } niveaux d'unités administratives, ${toNum0(
-        enabledColumnCount(family),
-      )} colonnes des établissements`,
+      } niveaux d'unités administratives, ${
+        toNum0(
+          enabledColumnCount(family),
+        )
+      } colonnes des établissements`,
       pt: `${
         structureSchemaForFamily(family).adminDepth
-      } níveis de zonas administrativas, ${toNum0(
-        enabledColumnCount(family),
-      )} colunas dos estabelecimentos`,
+      } níveis de zonas administrativas, ${
+        toNum0(
+          enabledColumnCount(family),
+        )
+      } colunas dos estabelecimentos`,
     }),
     status: "ready",
     onClick: () => openSubPage(FamilyConfiguration, { family }),
@@ -132,9 +138,11 @@ export function InstanceData(p: Props) {
       (level) => structureSchemaForFamily(family).adminDepth >= level,
     ).map(
       (level) =>
-        `${t3(getAdminAreaLabel(level))} ${toNum0(
-          instanceState.structure?.[family][`adminArea${level}s`] ?? 0,
-        )}`,
+        `${t3(getAdminAreaLabel(level))} ${
+          toNum0(
+            instanceState.structure?.[family][`adminArea${level}s`] ?? 0,
+          )
+        }`,
     );
     return {
       label: t3({
@@ -142,21 +150,20 @@ export function InstanceData(p: Props) {
         fr: "Établissements",
         pt: "Estabelecimentos de saúde",
       }),
-      summary:
-        count > 0
-          ? [
-              t3({
-                en: `${toNum0(count)} facilities`,
-                fr: `${toNum0(count)} établissements`,
-                pt: `${toNum0(count)} estabelecimentos de saúde`,
-              }),
-              ...areas,
-            ].join(" · ")
-          : t3({
-              en: "No facilities imported",
-              fr: "Aucun établissement importé",
-              pt: "Nenhum estabelecimento de saúde importado",
-            }),
+      summary: count > 0
+        ? [
+          t3({
+            en: `${toNum0(count)} facilities`,
+            fr: `${toNum0(count)} établissements`,
+            pt: `${toNum0(count)} estabelecimentos de saúde`,
+          }),
+          ...areas,
+        ].join(" · ")
+        : t3({
+          en: "No facilities imported",
+          fr: "Aucun établissement importé",
+          pt: "Nenhum estabelecimento de saúde importado",
+        }),
       status: count > 0 ? "ready" : "missing",
       onClick: () => openSubPage(Facilities, { family }),
     };
@@ -168,18 +175,19 @@ export function InstanceData(p: Props) {
       fr: "Cartes GeoJSON",
       pt: "Mapas GeoJSON",
     }),
-    summary:
-      geojsonLevels(family).length > 0
-        ? `${t3({
-            en: "Levels configured",
-            fr: "Niveaux configurés",
-            pt: "Níveis configurados",
-          })}: ${geojsonLevels(family).join(", ")}`
-        : t3({
-            en: "No GeoJSON maps uploaded",
-            fr: "Aucune carte GeoJSON téléchargée",
-            pt: "Nenhum mapa GeoJSON carregado",
-          }),
+    summary: geojsonLevels(family).length > 0
+      ? `${
+        t3({
+          en: "Levels configured",
+          fr: "Niveaux configurés",
+          pt: "Níveis configurados",
+        })
+      }: ${geojsonLevels(family).join(", ")}`
+      : t3({
+        en: "No GeoJSON maps uploaded",
+        fr: "Aucune carte GeoJSON téléchargée",
+        pt: "Nenhum mapa GeoJSON carregado",
+      }),
     status: geojsonLevels(family).length > 0 ? "ready" : "missing",
     onClick: () => openSubPage(GeoJsonManager, { family }),
   });
@@ -196,13 +204,13 @@ export function InstanceData(p: Props) {
         }),
         summary: labelsSet
           ? ALL_ADMIN_AREA_LEVELS.filter((level) => maxDepth() >= level)
-              .map((level) => t3(getAdminAreaLabel(level)))
-              .join(", ")
+            .map((level) => t3(getAdminAreaLabel(level)))
+            .join(", ")
           : t3({
-              en: "Not set — using default names",
-              fr: "Non définis — noms par défaut utilisés",
-              pt: "Não definidos — a usar nomes predefinidos",
-            }),
+            en: "Not set — using default names",
+            fr: "Non définis — noms par défaut utilisés",
+            pt: "Não definidos — a usar nomes predefinidos",
+          }),
         status: labelsSet ? "ready" : "missing",
         onClick: () => openSubPage(AdminAreaLabels, {}),
       },
@@ -212,8 +220,7 @@ export function InstanceData(p: Props) {
           fr: "Contexte IA",
           pt: "Contexto de IA",
         }),
-        summary:
-          aiContext ||
+        summary: aiContext ||
           t3({ en: "Not set", fr: "Non défini", pt: "Não definido" }),
         status: aiContext ? "ready" : "unset",
         onClick: () =>
@@ -235,8 +242,7 @@ export function InstanceData(p: Props) {
           fr: "Connexion DHIS2",
           pt: "Ligação DHIS2",
         }),
-        summary:
-          url ||
+        summary: url ||
           t3({
             en: "No connection configured",
             fr: "Aucune connexion configurée",
@@ -248,26 +254,24 @@ export function InstanceData(p: Props) {
       });
     }
     const indicators = instanceState.indicators.hmisIndicators;
-    const populationLevel =
-      instanceState.populationRowCount > 0
-        ? instanceState.populationLevel
-        : undefined;
+    const populationLevel = instanceState.populationRowCount > 0
+      ? instanceState.populationLevel
+      : undefined;
     rows.push(
       facilitiesRow("hmis"),
       {
         label: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
-        summary:
-          indicators > 0
-            ? t3({
-                en: `${toNum0(indicators)} indicators`,
-                fr: `${toNum0(indicators)} indicateurs`,
-                pt: `${toNum0(indicators)} indicadores`,
-              })
-            : t3({
-                en: "No indicators",
-                fr: "Aucun indicateur",
-                pt: "Nenhum indicador",
-              }),
+        summary: indicators > 0
+          ? t3({
+            en: `${toNum0(indicators)} indicators`,
+            fr: `${toNum0(indicators)} indicateurs`,
+            pt: `${toNum0(indicators)} indicadores`,
+          })
+          : t3({
+            en: "No indicators",
+            fr: "Aucun indicateur",
+            pt: "Nenhum indicador",
+          }),
         status: indicators > 0 ? "ready" : "missing",
         onClick: () => openSubPage(IndicatorsManager, {}),
       },
@@ -280,30 +284,35 @@ export function InstanceData(p: Props) {
       geojsonRow("hmis"),
       {
         label: t3({ en: "Population", fr: "Population", pt: "População" }),
-        summary:
-          populationLevel !== undefined
-            ? t3({
-                en: `${t3(getAdminAreaLabel(populationLevel))} level, ${toNum0(
-                  instanceState.populationCoverage.length,
-                )} population types with data`,
-                fr: `Niveau ${t3(getAdminAreaLabel(populationLevel))}, ${toNum0(
-                  instanceState.populationCoverage.length,
-                )} types de population renseignés`,
-                pt: `Nível ${t3(getAdminAreaLabel(populationLevel))}, ${toNum0(
-                  instanceState.populationCoverage.length,
-                )} tipos de população com dados`,
-              })
-            : instanceState.populationLevel === undefined
-              ? t3({
-                  en: "No population level set",
-                  fr: "Aucun niveau de population défini",
-                  pt: "Nenhum nível de população definido",
-                })
-              : t3({
-                  en: "No population data",
-                  fr: "Aucune donnée de population",
-                  pt: "Sem dados de população",
-                }),
+        summary: populationLevel !== undefined
+          ? t3({
+            en: `${t3(getAdminAreaLabel(populationLevel))} level, ${
+              toNum0(
+                instanceState.populationCoverage.length,
+              )
+            } population types with data`,
+            fr: `Niveau ${t3(getAdminAreaLabel(populationLevel))}, ${
+              toNum0(
+                instanceState.populationCoverage.length,
+              )
+            } types de population renseignés`,
+            pt: `Nível ${t3(getAdminAreaLabel(populationLevel))}, ${
+              toNum0(
+                instanceState.populationCoverage.length,
+              )
+            } tipos de população com dados`,
+          })
+          : instanceState.populationLevel === undefined
+          ? t3({
+            en: "No population level set",
+            fr: "Aucun niveau de population défini",
+            pt: "Nenhum nível de população definido",
+          })
+          : t3({
+            en: "No population data",
+            fr: "Aucune donnée de population",
+            pt: "Sem dados de população",
+          }),
         status: populationLevel !== undefined ? "ready" : "unset",
         onClick: () => openSubPage(PopulationManager, {}),
       },
@@ -331,18 +340,17 @@ export function InstanceData(p: Props) {
           fr: "Points temporels",
           pt: "Pontos temporais",
         }),
-        summary:
-          timePoints > 0
-            ? t3({
-                en: `${toNum0(timePoints)} time points`,
-                fr: `${toNum0(timePoints)} points temporels`,
-                pt: `${toNum0(timePoints)} pontos temporais`,
-              })
-            : t3({
-                en: "No time points (import data to create)",
-                fr: "Aucun point temporel (importer des données pour créer)",
-                pt: "Nenhum ponto temporal (importar dados para criar)",
-              }),
+        summary: timePoints > 0
+          ? t3({
+            en: `${toNum0(timePoints)} time points`,
+            fr: `${toNum0(timePoints)} points temporels`,
+            pt: `${toNum0(timePoints)} pontos temporais`,
+          })
+          : t3({
+            en: "No time points (import data to create)",
+            fr: "Aucun point temporel (importer des données pour créer)",
+            pt: "Nenhum ponto temporal (importar dados para criar)",
+          }),
         status: timePoints > 0 ? "ready" : "missing",
         onClick: () => openSubPage(InstanceHfaTimePoints, {}),
       },
@@ -354,35 +362,36 @@ export function InstanceData(p: Props) {
         }),
         summary: hasWeights
           ? weights
-              .map(
-                (tp) =>
-                  `${tp.timePoint}: ${toNum0(tp.facilitiesWithDataAndWeight)}/${toNum0(
+            .map(
+              (tp) =>
+                `${tp.timePoint}: ${toNum0(tp.facilitiesWithDataAndWeight)}/${
+                  toNum0(
                     tp.facilitiesWithData,
-                  )}`,
-              )
-              .join(" · ")
+                  )
+                }`,
+            )
+            .join(" · ")
           : t3({
-              en: "No weights imported",
-              fr: "Aucune pondération importée",
-              pt: "Nenhum peso importado",
-            }),
+            en: "No weights imported",
+            fr: "Aucune pondération importée",
+            pt: "Nenhum peso importado",
+          }),
         status: !hasWeights ? "missing" : weightsPartial ? "partial" : "ready",
         onClick: () => openSubPage(HfaWeights, {}),
       },
       {
         label: t3({ en: "Indicators", fr: "Indicateurs", pt: "Indicadores" }),
-        summary:
-          indicators > 0
-            ? t3({
-                en: `${toNum0(indicators)} indicators`,
-                fr: `${toNum0(indicators)} indicateurs`,
-                pt: `${toNum0(indicators)} indicadores`,
-              })
-            : t3({
-                en: "No HFA indicators configured",
-                fr: "Aucun indicateur HFA configuré",
-                pt: "Nenhum indicador HFA configurado",
-              }),
+        summary: indicators > 0
+          ? t3({
+            en: `${toNum0(indicators)} indicators`,
+            fr: `${toNum0(indicators)} indicateurs`,
+            pt: `${toNum0(indicators)} indicadores`,
+          })
+          : t3({
+            en: "No HFA indicators configured",
+            fr: "Aucun indicateur HFA configuré",
+            pt: "Nenhum indicador HFA configurado",
+          }),
         status: indicators > 0 ? "ready" : "missing",
         onClick: () => openSubPage(HfaIndicatorsManager, {}),
       },

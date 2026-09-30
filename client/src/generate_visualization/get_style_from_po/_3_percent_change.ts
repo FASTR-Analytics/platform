@@ -87,8 +87,9 @@ export function buildPercentChangeChartStyle(
           if (diff === undefined) return "";
           if (diff < -1 * threshold) return formatter(diff);
           if (diff > threshold) return "+" + formatter(diff);
-          if (config.s.specialBarChartDataLabels === "all-values")
+          if (config.s.specialBarChartDataLabels === "all-values") {
             return formatter(diff);
+          }
           return "";
         },
         stacking: "none",

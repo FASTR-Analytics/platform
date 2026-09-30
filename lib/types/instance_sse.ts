@@ -4,7 +4,14 @@ import type { HfaTimePoint } from "./dataset_hfa.ts";
 import type { DatasetType } from "./datasets.ts";
 import type { UserPermissions } from "./permissions.ts";
 import type { GeoJsonMapSummary } from "./geojson_maps.ts";
-import type { InstanceCalendar, InstanceConfigAdminAreaLabels, InstanceFiscalYear, OtherUser, StructureFamilyCounts, StructureSchema } from "./instance.ts";
+import type {
+  InstanceCalendar,
+  InstanceConfigAdminAreaLabels,
+  InstanceFiscalYear,
+  OtherUser,
+  StructureFamilyCounts,
+  StructureSchema,
+} from "./instance.ts";
 import type { LastUpdateTableName } from "./last_updated_tables.ts";
 import type { Folder, ProductSummary } from "./products.ts";
 import type {
@@ -88,9 +95,9 @@ export type InstanceState = {
   // Summaries (lightweight aggregates)
   structure:
     | {
-        hmis: StructureFamilyCounts;
-        hfa: StructureFamilyCounts;
-      }
+      hmis: StructureFamilyCounts;
+      hfa: StructureFamilyCounts;
+    }
     | undefined;
   structureLastUpdated: string | undefined;
   hfaWeights: HfaWeightsCoverage[];
@@ -155,9 +162,9 @@ export type InstanceConfig = {
 export type InstanceStructureSummary = {
   structure:
     | {
-        hmis: StructureFamilyCounts;
-        hfa: StructureFamilyCounts;
-      }
+      hmis: StructureFamilyCounts;
+      hfa: StructureFamilyCounts;
+    }
     | undefined;
   structureLastUpdated: string | undefined;
   hfaWeights: HfaWeightsCoverage[];
@@ -208,9 +215,9 @@ export type InstanceSseMessage =
   | { type: "starting"; data: InstanceState }
   | { type: "run_progress"; data: { runId: string; progress: RunProgress } }
   | {
-      type: "r_script";
-      data: { runId: string; moduleId: string; text: string };
-    }
+    type: "r_script";
+    data: { runId: string; moduleId: string; text: string };
+  }
   | { type: "config_updated"; data: InstanceConfig }
   // The product plane, dropped for unapproved connections like the roster.
   // `products_upserted` is the ONLY product-list message: per row, emitted by
@@ -220,13 +227,13 @@ export type InstanceSseMessage =
   | { type: "products_deleted"; data: { ids: string[] } }
   | { type: "folders_updated"; data: { folders: Folder[] } }
   | {
-      type: "last_updated";
-      data: {
-        tableName: LastUpdateTableName;
-        ids: string[];
-        lastUpdated: string;
-      };
-    }
+    type: "last_updated";
+    data: {
+      tableName: LastUpdateTableName;
+      ids: string[];
+      lastUpdated: string;
+    };
+  }
   | { type: "users_updated"; data: OtherUser[] }
   // Data-free nonce signal only: the catalogue itself is fetched per user.
   | { type: "runs_catalog_updated"; data: string }

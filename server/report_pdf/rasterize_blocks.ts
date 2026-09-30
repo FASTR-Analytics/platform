@@ -17,11 +17,11 @@ import type { Page } from "@astral/astral";
 import { encodeBase64 } from "@std/encoding/base64";
 import {
   FASTR_WORD_HIDE_CLASS,
+  fastrWordBlockSelector,
+  fastrWordMeasureJs,
   type FastrWordRasterBlock,
   type FastrWordRasterKind,
   type FastrWordRasterMeta,
-  fastrWordBlockSelector,
-  fastrWordMeasureJs,
 } from "lib";
 
 const POLL_MS = 100;
@@ -62,7 +62,9 @@ const READY_JS = `(function () {
 async function waitReady(page: Page, timeoutMs: number): Promise<void> {
   const started = Date.now();
   for (;;) {
-    const state = await page.evaluate(`window[${JSON.stringify(READY_GLOBAL)}]`) as string | undefined;
+    const state = await page.evaluate(
+      `window[${JSON.stringify(READY_GLOBAL)}]`,
+    ) as string | undefined;
     if (state === "ready") return;
     if (state !== undefined && state.startsWith("error")) {
       throw new Error(`The document did not load: ${state}`);
@@ -76,8 +78,12 @@ async function waitReady(page: Page, timeoutMs: number): Promise<void> {
 
 function toggleHideJs(id: number, on: boolean): string {
   return `(function () {
-  var el = document.querySelector(${JSON.stringify(fastrWordBlockSelector(id))});
-  if (el) el.classList.${on ? "add" : "remove"}(${JSON.stringify(FASTR_WORD_HIDE_CLASS)});
+  var el = document.querySelector(${
+    JSON.stringify(fastrWordBlockSelector(id))
+  });
+  if (el) el.classList.${on ? "add" : "remove"}(${
+    JSON.stringify(FASTR_WORD_HIDE_CLASS)
+  });
 })()`;
 }
 
@@ -101,22 +107,36 @@ export async function rasterizeBlocksOnPage(
       | Omit<FastrWordRasterMeta, "kind">
       | null;
     if (meta === null) {
-      throw new Error(`The ${b.kind} block at line ${b.id + 1} was not found in the document.`);
+      throw new Error(
+        `The ${b.kind} block at line ${
+          b.id + 1
+        } was not found in the document.`,
+      );
     }
     metas.push({ ...meta, kind: b.kind });
   }
   const tallest = Math.max(0, ...metas.map((m) => m.heightPx));
   if (tallest + 40 > VIEWPORT.height) {
-    await page.setViewportSize({ width: VIEWPORT.width, height: Math.ceil(tallest) + 40 });
+    await page.setViewportSize({
+      width: VIEWPORT.width,
+      height: Math.ceil(tallest) + 40,
+    });
   }
 
   const out: FastrWordRasterBlock[] = [];
   for (let i = 0; i < metas.length; i++) {
     const meta = metas[i];
-    await opts.progress?.(0.2 + 0.75 * (i / Math.max(1, metas.length)), "Picturing the design blocks");
+    await opts.progress?.(
+      0.2 + 0.75 * (i / Math.max(1, metas.length)),
+      "Picturing the design blocks",
+    );
     const el = await page.$(fastrWordBlockSelector(meta.id));
     if (el === null) {
-      throw new Error(`The ${meta.kind} block at line ${meta.id + 1} was not found in the document.`);
+      throw new Error(
+        `The ${meta.kind} block at line ${
+          meta.id + 1
+        } was not found in the document.`,
+      );
     }
     await page.evaluate(toggleHideJs(meta.id, true));
     let png: Uint8Array;

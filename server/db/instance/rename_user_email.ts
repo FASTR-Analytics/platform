@@ -3,8 +3,8 @@ import {
   type APIResponseNoData,
   type APIResponseWithData,
   type AuthorRun,
-  type SlideDeckSlideEditors,
   parseJsonOrThrow,
+  type SlideDeckSlideEditors,
   type VersionEditor,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -59,7 +59,10 @@ export async function getUserEmailPresence(
     SELECT email FROM users WHERE email IN (${oldEmail}, ${newEmail})
   `;
   const emails = rows.map((r) => r.email);
-  return { hasOld: emails.includes(oldEmail), hasNew: emails.includes(newEmail) };
+  return {
+    hasOld: emails.includes(oldEmail),
+    hasNew: emails.includes(newEmail),
+  };
 }
 
 export async function renameUserEmailInMainDb(
@@ -133,8 +136,8 @@ export async function renameUserEmailInMainDb(
       await sql`
         INSERT INTO user_logs (user_email, endpoint, endpoint_result, details)
         VALUES (${newEmail}, ${"renameUserEmail"}, ${"200"}, ${
-      JSON.stringify({ oldEmail, newEmail, actor })
-    })
+        JSON.stringify({ oldEmail, newEmail, actor })
+      })
       `;
     });
 
@@ -227,18 +230,22 @@ async function renameEmailInVersionRows(
       oldEmail,
       newEmail,
     );
-    const bodyAuthors = row.body_authors === null ? null : renameEmailInAuthorRuns(
-      parseJsonOrThrow<AuthorRun[]>(row.body_authors),
-      oldEmail,
-      newEmail,
-    );
+    const bodyAuthors = row.body_authors === null
+      ? null
+      : renameEmailInAuthorRuns(
+        parseJsonOrThrow<AuthorRun[]>(row.body_authors),
+        oldEmail,
+        newEmail,
+      );
     if (!editors.changed && !bodyAuthors?.changed) {
       continue;
     }
     await sql`
       UPDATE report_versions
       SET editors = ${JSON.stringify(editors.editors)},
-          body_authors = ${bodyAuthors ? JSON.stringify(bodyAuthors.runs) : null}
+          body_authors = ${
+      bodyAuthors ? JSON.stringify(bodyAuthors.runs) : null
+    }
       WHERE id = ${row.id}
     `;
   }
@@ -268,7 +275,9 @@ async function renameEmailInVersionRows(
     await sql`
       UPDATE slide_deck_versions
       SET editors = ${JSON.stringify(editors.editors)},
-          slide_editors = ${slideEditors ? JSON.stringify(slideEditors.dse) : null}
+          slide_editors = ${
+      slideEditors ? JSON.stringify(slideEditors.dse) : null
+    }
       WHERE id = ${row.id}
     `;
   }

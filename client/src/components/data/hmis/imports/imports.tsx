@@ -1,32 +1,32 @@
 import {
-  t3,
   type DatasetHmisImportRunSummary,
   type DatasetHmisScheduledImport,
   type HmisIndicator,
+  t3,
 } from "lib";
 import {
   Button,
+  createQuery,
   EditorComponentProps,
   FrameTop,
+  getEditorWrapper,
   HeadingBar,
+  type ListItem,
+  openComponent,
   StateHolderWrapper,
   TabsNavigation,
-  createQuery,
-  getEditorWrapper,
-  openComponent,
-  type ListItem,
 } from "panther";
 import {
-  For,
-  Match,
-  Show,
-  Switch,
   createEffect,
   createMemo,
   createSignal,
+  For,
+  Match,
   on,
   onCleanup,
   onMount,
+  Show,
+  Switch,
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -206,7 +206,8 @@ export function DatasetHmisImports(p: Props) {
         pairs: retryPairs,
         label: t3({
           en: "Retrying this run's failed pairs:",
-          fr: "Nouvelle tentative pour les paires en échec de cette importation :",
+          fr:
+            "Nouvelle tentative pour les paires en échec de cette importation :",
           pt: "Nova tentativa para os pares falhados desta importação:",
         }),
       });
@@ -216,19 +217,17 @@ export function DatasetHmisImports(p: Props) {
   function tabItems(): ListItem<TabId>[] {
     const runsState = runs.state();
     const schedulingState = scheduling.state();
-    const currentCount =
-      runsState.status === "ready"
-        ? runsState.data.filter(
-            (r) =>
-              r.status === "running" ||
-              r.status === "queued" ||
-              r.status === "needs_review",
-          ).length
-        : 0;
-    const futureCount =
-      schedulingState.status === "ready"
-        ? visibleFutureSchedules(schedulingState.data.schedules).length
-        : 0;
+    const currentCount = runsState.status === "ready"
+      ? runsState.data.filter(
+        (r) =>
+          r.status === "running" ||
+          r.status === "queued" ||
+          r.status === "needs_review",
+      ).length
+      : 0;
+    const futureCount = schedulingState.status === "ready"
+      ? visibleFutureSchedules(schedulingState.data.schedules).length
+      : 0;
     return [
       {
         id: "current",
@@ -295,15 +294,15 @@ export function DatasetHmisImports(p: Props) {
               {(schedulingInfo) => (
                 <div class="ui-spy flex h-full w-full flex-col overflow-auto">
                   <Show
-                    when={
-                      attentionSchedulesOf(schedulingInfo.schedules).length > 0
-                    }
+                    when={attentionSchedulesOf(schedulingInfo.schedules)
+                      .length > 0}
                   >
                     <div class="border-danger bg-danger-subtle ui-pad ui-spy-sm rounded border">
                       <div class="ui-text-heading">
                         {t3({
                           en: "Scheduled import needs attention",
-                          fr: "Une importation planifiée nécessite votre attention",
+                          fr:
+                            "Une importation planifiée nécessite votre attention",
                           pt: "Uma importação agendada precisa de atenção",
                         })}
                       </div>
@@ -371,8 +370,7 @@ export function DatasetHmisImports(p: Props) {
                       <Dhis2TabFuture
                         schedules={schedulingInfo.schedules}
                         onEdit={(schedule) =>
-                          openWizard({ kind: "editSchedule", schedule })
-                        }
+                          openWizard({ kind: "editSchedule", schedule })}
                         onChanged={refresh}
                       />
                     </Match>

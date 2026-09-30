@@ -2,16 +2,16 @@ import { SlideDeckConfig, t3, TC } from "lib";
 import {
   APIResponseWithData,
   Button,
-  Checkbox,
-  EditorComponentProps,
-  FrameTop,
-  HeadingBar,
-  Select,
   Card,
-  TextArea,
-  getSelectOptions,
+  Checkbox,
   createButtonAction,
   createDeleteAction,
+  EditorComponentProps,
+  FrameTop,
+  getSelectOptions,
+  HeadingBar,
+  Select,
+  TextArea,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -50,18 +50,29 @@ export function SlideDeckSettings(p: Props) {
 
   function removeCustomLogo(index: number) {
     const removed = tempConfig.logos.availableCustom[index];
-    setTempConfig("logos", "availableCustom", (prev) =>
-      prev.toSpliced(index, 1),
+    setTempConfig(
+      "logos",
+      "availableCustom",
+      (prev) => prev.toSpliced(index, 1),
     );
     if (removed) {
-      setTempConfig("logos", "cover", "selected", (prev) =>
-        prev.filter((l) => l !== removed),
+      setTempConfig(
+        "logos",
+        "cover",
+        "selected",
+        (prev) => prev.filter((l) => l !== removed),
       );
-      setTempConfig("logos", "header", "selected", (prev) =>
-        prev.filter((l) => l !== removed),
+      setTempConfig(
+        "logos",
+        "header",
+        "selected",
+        (prev) => prev.filter((l) => l !== removed),
       );
-      setTempConfig("logos", "footer", "selected", (prev) =>
-        prev.filter((l) => l !== removed),
+      setTempConfig(
+        "logos",
+        "footer",
+        "selected",
+        (prev) => prev.filter((l) => l !== removed),
       );
     }
   }
@@ -195,8 +206,12 @@ export function SlideDeckSettings(p: Props) {
                         )}
                         value={logo}
                         onChange={(v) =>
-                          setTempConfig("logos", "availableCustom", i_logo(), v)
-                        }
+                          setTempConfig(
+                            "logos",
+                            "availableCustom",
+                            i_logo(),
+                            v,
+                          )}
                         fullWidth
                       />
                       <Button
@@ -204,7 +219,8 @@ export function SlideDeckSettings(p: Props) {
                         onClick={() => removeCustomLogo(i_logo())}
                         outline
                         iconName="trash"
-                      ></Button>
+                      >
+                      </Button>
                     </div>
                   )}
                 </For>
@@ -253,8 +269,10 @@ export function SlideDeckSettings(p: Props) {
               <Checkbox
                 label={t3({
                   en: "Set global footer text for all content slides",
-                  fr: "Définir un texte de pied de page global pour toutes les diapositives de contenu",
-                  pt: "Definir um texto de rodapé global para todos os diapositivos de conteúdo",
+                  fr:
+                    "Définir un texte de pied de page global pour toutes les diapositives de contenu",
+                  pt:
+                    "Definir um texto de rodapé global para todos os diapositivos de conteúdo",
                 })}
                 checked={tempConfig.globalFooterText !== undefined}
                 onChange={(v) => {
@@ -279,7 +297,15 @@ export function SlideDeckSettings(p: Props) {
                 />
               </Show>
               <Checkbox
-                label={`${t3({ en: "Show page numbers", fr: "Afficher les numéros de page", pt: "Mostrar números de página" })}${p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""}`}
+                label={`${
+                  t3({
+                    en: "Show page numbers",
+                    fr: "Afficher les numéros de page",
+                    pt: "Mostrar números de página",
+                  })
+                }${
+                  p.showPageNumbersSuffix ? ` ${p.showPageNumbersSuffix}` : ""
+                }`}
                 checked={tempConfig.showPageNumbers}
                 onChange={(v) => setTempConfig("showPageNumbers", v)}
               />

@@ -20,20 +20,20 @@
 import MarkdownIt from "markdown-it";
 import {
   containerHtmlFor,
-  fastrDocumentOutline,
   type FastrContainerAttrs,
-  type FastrTocItem,
-  fastrMarkClass,
+  fastrDocumentOutline,
   type FastrMarkAttrs,
+  fastrMarkClass,
   fastrMarkStyle,
+  type FastrTocItem,
+  fastrTocOptions,
+  fastrTocSlug,
   figureWidthClass,
   isFastrLeafBlock,
   parseContainerAttrs,
   parseContainerFence,
   parseFastrMarkAttrs,
   readFastrDocumentSettings,
-  fastrTocOptions,
-  fastrTocSlug,
   renderFastrTocHtml,
 } from "./fastr_markdown_blocks.ts";
 import { escapeReportHtml } from "./types/reports.ts";
@@ -209,10 +209,10 @@ export function createFastrMarkdownIt(): MarkdownIt {
     const h = containerHtmlFor(meta.name, meta.attrs);
     if (h.silent) return "";
     const line = token.attrGet("data-line");
-    const anchor = line === null ? "" : ` data-line="${escapeReportHtml(line)}"`;
-    const style = h.style === ""
+    const anchor = line === null
       ? ""
-      : ` style="${escapeReportHtml(h.style)}"`;
+      : ` data-line="${escapeReportHtml(line)}"`;
+    const style = h.style === "" ? "" : ` style="${escapeReportHtml(h.style)}"`;
     // A table of contents is the one block whose CONTENT is the document
     // rather than the author's lines: the fm_toc rule left the outline on the
     // token, and the same builder the editor's widget uses turns it into the
@@ -220,7 +220,9 @@ export function createFastrMarkdownIt(): MarkdownIt {
     const inner = meta.name === "contents"
       ? renderFastrTocHtml(meta.toc ?? [], fastrTocOptions(meta.attrs))
       : h.leadingHtml;
-    const className = meta.panels ? `${h.className} fm-columns--panels` : h.className;
+    const className = meta.panels
+      ? `${h.className} fm-columns--panels`
+      : h.className;
     return `<${h.tag} class="${className}"${style}${h.extraAttrs}${anchor}>\n${inner}`;
   };
 
@@ -271,7 +273,10 @@ export function createFastrMarkdownIt(): MarkdownIt {
       const map = tok.map;
       if (map !== null && tok.block) {
         const silent = tok.type === "fm_container_open" &&
-          containerHtmlFor((tok.meta as ContainerMeta).name, (tok.meta as ContainerMeta).attrs).silent;
+          containerHtmlFor(
+            (tok.meta as ContainerMeta).name,
+            (tok.meta as ContainerMeta).attrs,
+          ).silent;
         if (!silent) {
           if (end !== undefined) {
             for (let k = end + 1; k < map[0]; k++) {
@@ -283,7 +288,9 @@ export function createFastrMarkdownIt(): MarkdownIt {
             outer.set(tok.level, consumedTo(map));
             end = map[0] + 1;
           } else {
-            end = end === undefined ? consumedTo(map) : Math.max(end, consumedTo(map));
+            end = end === undefined
+              ? consumedTo(map)
+              : Math.max(end, consumedTo(map));
           }
         }
       }
@@ -299,7 +306,9 @@ export function createFastrMarkdownIt(): MarkdownIt {
   });
   md.renderer.rules.fm_space = (tokens, idx) => {
     const line = tokens[idx].attrGet("data-line");
-    const anchor = line === null ? "" : ` data-line="${escapeReportHtml(line)}"`;
+    const anchor = line === null
+      ? ""
+      : ` data-line="${escapeReportHtml(line)}"`;
     return `<div class="fm-space"${anchor}></div>\n`;
   };
 
@@ -360,7 +369,8 @@ export function createFastrMarkdownIt(): MarkdownIt {
   // `:::contents` block, so an ordinary report's html is unchanged.
   md.core.ruler.after("inline", "fm_toc", (state) => {
     const contents = state.tokens.filter(
-      (t) => t.type === "fm_container_open" &&
+      (t) =>
+        t.type === "fm_container_open" &&
         (t.meta as ContainerMeta | undefined)?.name === "contents",
     );
     if (contents.length === 0) return true;
@@ -442,7 +452,8 @@ export function createFastrMarkdownIt(): MarkdownIt {
       const html = renderFence(tokens, idx, options, env, self);
       return html.replace(
         /^<pre><code([^>]*?) data-line="(\d+)"/,
-        (_m, rest: string, line: string) => `<pre data-line="${line}"><code${rest}`,
+        (_m, rest: string, line: string) =>
+          `<pre data-line="${line}"><code${rest}`,
       );
     };
   }

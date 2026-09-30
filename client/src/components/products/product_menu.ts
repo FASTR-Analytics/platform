@@ -1,4 +1,4 @@
-import { t3, TC, type Folder } from "lib";
+import { type Folder, t3, TC } from "lib";
 import type { MenuItem } from "panther";
 import { sortBySortMode } from "./sort_by_sort_mode";
 import { productsSort } from "~/state/t4_ui";
@@ -52,11 +52,11 @@ export function buildQuickMoveEntries(args: {
         // to the full picker rather than growing.
         ...(targets.length > capped.length
           ? [
-              {
-                label: t3({ en: "More…", fr: "Plus…", pt: "Mais…" }),
-                onClick: args.onMoveToFolder,
-              } satisfies MenuItem,
-            ]
+            {
+              label: t3({ en: "More…", fr: "Plus…", pt: "Mais…" }),
+              onClick: args.onMoveToFolder,
+            } satisfies MenuItem,
+          ]
           : []),
       ],
     });

@@ -1,13 +1,13 @@
 import {
   AiContentBlockInputSchema,
   AiFigureConfigPatchSchema,
-  LayoutSpecSchema,
-  MAX_CONTENT_BLOCKS,
-  periodFilterHasBounds,
   type ContentBlock,
   type FigureBundle,
+  LayoutSpecSchema,
+  MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
   type PeriodBounds,
+  periodFilterHasBounds,
   type ResultsValueInfoForPresentationObject,
   type Slide,
 } from "lib";
@@ -24,10 +24,7 @@ import {
 import { reconcile } from "solid-js/store";
 import { unwrap } from "solid-js/store";
 import { z } from "zod";
-import {
-  copilotViewController,
-  copilotViews,
-} from "../../_shared/mod.ts";
+import { copilotViewController, copilotViews } from "../../_shared/mod.ts";
 import { validateMetricInputs } from "lib";
 import {
   validateMaxContentBlocks,
@@ -41,10 +38,7 @@ import {
   simplifySlideForAI,
 } from "../../slide_ai/mod.ts";
 import { getSlideWithUpdatedBlocks } from "../../slide_ai/mod.ts";
-import {
-  buildLayoutFromSpec,
-  normalizeSpans,
-} from "../../slide_ai/mod.ts";
+import { buildLayoutFromSpec, normalizeSpans } from "../../slide_ai/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
@@ -61,7 +55,9 @@ function replaceFigureBundleInLayout(
       // Spread-and-override: preserve node-level fields (style, alignV, minH,
       // maxH): only swap the block data. Reconstructing from a fixed field list
       // would silently drop the user's per-cell overrides on Save.
-      return node.id === blockId ? { ...node, data: { type: "figure", bundle } } : node;
+      return node.id === blockId
+        ? { ...node, data: { type: "figure", bundle } }
+        : node;
     }
     return { ...node, children: node.children.map(walk) };
   }
@@ -250,8 +246,10 @@ export function getClientToolsForSlideEditor(
             // Validate total word count across all text blocks
             const allTextBlocks = extractBlocksFromLayout(updated.layout)
               .map(({ block }) => block)
-              .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
-              .map(b => b.markdown);
+              .filter((b): b is { type: "text"; markdown: string } =>
+                b.type === "text"
+              )
+              .map((b) => b.markdown);
             validateSlideTotalWordCount(allTextBlocks);
 
             changes.push(`${u.blockUpdates.length} block(s)`);
@@ -343,8 +341,10 @@ export function getClientToolsForSlideEditor(
             // Validate total word count across all text blocks
             const allTextBlocks = extractBlocksFromLayout(updated.layout)
               .map(({ block }) => block)
-              .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
-              .map(b => b.markdown);
+              .filter((b): b is { type: "text"; markdown: string } =>
+                b.type === "text"
+              )
+              .map((b) => b.markdown);
             validateSlideTotalWordCount(allTextBlocks);
 
             changes.push("layout");
@@ -358,7 +358,9 @@ export function getClientToolsForSlideEditor(
           return "No changes specified. Make sure you're providing fields appropriate for this slide type.";
         }
 
-        return `Updated ${changes.join(", ")}. The preview will update automatically. User must click "Save" to persist changes.`;
+        return `Updated ${
+          changes.join(", ")
+        }. The preview will update automatically. User must click "Save" to persist changes.`;
       },
       inProgressLabel: "Updating slide...",
       completionMessage: (input) => {
@@ -379,7 +381,9 @@ export function getClientToolsForSlideEditor(
         slideId: z.string().optional().describe(
           "Required at the DECK level (from get_deck/get_slide). Omit inside the slide editor — the open slide is used.",
         ),
-        blockId: z.string().describe("Figure block ID (from get_slide_editor or get_slide)."),
+        blockId: z.string().describe(
+          "Figure block ID (from get_slide_editor or get_slide).",
+        ),
         patch: AiFigureConfigPatchSchema,
       }),
       availableIn: ["editing_slide", "editing_slide_deck"],
@@ -406,7 +410,9 @@ export function getClientToolsForSlideEditor(
           slide = unwrap(view.context.getTempSlide());
         } else {
           if (!input.slideId) {
-            throw new AIToolFailure("slideId is required to update a figure at the deck level.");
+            throw new AIToolFailure(
+              "slideId is required to update a figure at the deck level.",
+            );
           }
           const slideRes = await serverActions.getSlide({
             product_id: view.params.deckId,
@@ -429,7 +435,8 @@ export function getClientToolsForSlideEditor(
           (b) => b.id === input.blockId,
         );
         if (!found) {
-          const ids = extractBlocksFromLayout(slide.layout).map((b) => b.id).join(", ");
+          const ids = extractBlocksFromLayout(slide.layout).map((b) => b.id)
+            .join(", ");
           throw new AIToolFailure(
             `Figure block "${input.blockId}" not found. Block IDs: ${ids}. Use get_slide_editor / get_slide to see current block IDs.`,
           );
@@ -441,7 +448,9 @@ export function getClientToolsForSlideEditor(
 
         const metric = metrics.find((m) => m.id === bundle.metricId);
         if (!metric) {
-          throw new AIToolFailure(`Metric "${bundle.metricId}" not found in this product's results package.`);
+          throw new AIToolFailure(
+            `Metric "${bundle.metricId}" not found in this product's results package.`,
+          );
         }
 
         // Pre-flight for a stored defect this tool cannot repair (the figure
@@ -468,16 +477,20 @@ export function getClientToolsForSlideEditor(
           input.patch.valuesDisDisplayOpt !== undefined;
         let dataBounds: PeriodBounds | undefined;
         let disaggregationPossibleValues:
-          | ResultsValueInfoForPresentationObject["disaggregationPossibleValues"]
+          | ResultsValueInfoForPresentationObject[
+            "disaggregationPossibleValues"
+          ]
           | undefined;
         if (needsBounds || needsPossibleValues) {
-          const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-            view.context.getScope(),
-            bundle.metricId,
-          );
+          const infoRes =
+            await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+              view.context.getScope(),
+              bundle.metricId,
+            );
           if (infoRes.success) {
             dataBounds = infoRes.data.periodBounds;
-            disaggregationPossibleValues = infoRes.data.disaggregationPossibleValues;
+            disaggregationPossibleValues =
+              infoRes.data.disaggregationPossibleValues;
           }
           if (needsBounds && !dataBounds) {
             throw new AIToolFailure(
@@ -488,21 +501,43 @@ export function getClientToolsForSlideEditor(
 
         // Build + validate the patched config UP FRONT (a throw must mean
         // "nothing changed"); only re-resolve + commit once it's valid.
-        const newConfig = applyFigureConfigPatch(bundle.config, input.patch, metric, dataBounds);
-        validateFigureConfigEdit(bundle.config, newConfig, input.patch, metric, {
-          disaggregationPossibleValues,
-        });
+        const newConfig = applyFigureConfigPatch(
+          bundle.config,
+          input.patch,
+          metric,
+          dataBounds,
+        );
+        validateFigureConfigEdit(
+          bundle.config,
+          newConfig,
+          input.patch,
+          metric,
+          {
+            disaggregationPossibleValues,
+          },
+        );
 
         // Same value-validity check the editor + from_metric use: filter values
         // and the period range must exist in the data. from_month counts too:
         // its min is a real bound the data must reach.
-        const filters = newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
-        const periodFilter = newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
-          ? { min: newConfig.d.periodFilter.min, max: newConfig.d.periodFilter.max }
+        const filters = newConfig.d.filterBy.length > 0
+          ? newConfig.d.filterBy
+          : undefined;
+        const periodFilter = newConfig.d.periodFilter &&
+            periodFilterHasBounds(newConfig.d.periodFilter)
+          ? {
+            min: newConfig.d.periodFilter.min,
+            max: newConfig.d.periodFilter.max,
+          }
           : undefined;
         await validateMetricInputs(env, bundle.metricId, filters, periodFilter);
 
-        const report = describeFigureConfigPatchEffect(bundle.config, input.patch, metric, dataBounds);
+        const report = describeFigureConfigPatchEffect(
+          bundle.config,
+          input.patch,
+          metric,
+          dataBounds,
+        );
 
         const newBundle = await resolveBundleFromMetricAndConfig(
           view.context.getScope(),
@@ -512,9 +547,18 @@ export function getClientToolsForSlideEditor(
 
         // Slot-collision check needs the data's real dateRange (degeneracy) so it
         // matches the renderer exactly: run it post-resolve, still before commit.
-        assertNoSlotCollision(newConfig, metric, newBundle.dateRange, newBundle.items);
+        assertNoSlotCollision(
+          newConfig,
+          metric,
+          newBundle.dateRange,
+          newBundle.items,
+        );
 
-        const updatedSlide = replaceFigureBundleInLayout(slide, input.blockId, newBundle);
+        const updatedSlide = replaceFigureBundleInLayout(
+          slide,
+          input.blockId,
+          newBundle,
+        );
 
         const reportText = report.map((l) => `- ${l}`).join("\n");
 

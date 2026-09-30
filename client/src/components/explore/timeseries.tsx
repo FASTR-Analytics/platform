@@ -1,13 +1,13 @@
 import {
+  type DatasetType,
   defaultGridQuery,
   deriveTimeseriesConfig,
-  periodChoicesFor,
-  resolveGridQuery,
-  type DatasetType,
   type GridAvailable,
   type GridQuery,
   type MetricWithStatus,
   type PackageScope,
+  periodChoicesFor,
+  resolveGridQuery,
   type RunAuthoringContext,
 } from "lib";
 import {

@@ -221,10 +221,28 @@ function decodeEntity(entity: string): string {
     }
   }
   const named: Record<string, string> = {
-    amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
-    copy: "©", reg: "®", trade: "™", hellip: "…", mdash: "\u2014", ndash: "\u2013",
-    lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", times: "×", middot: "·",
-    deg: "°", euro: "€", pound: "£", bull: "•",
+    amp: "&",
+    lt: "<",
+    gt: ">",
+    quot: '"',
+    apos: "'",
+    nbsp: " ",
+    copy: "©",
+    reg: "®",
+    trade: "™",
+    hellip: "…",
+    mdash: "\u2014",
+    ndash: "\u2013",
+    lsquo: "‘",
+    rsquo: "’",
+    ldquo: "“",
+    rdquo: "”",
+    times: "×",
+    middot: "·",
+    deg: "°",
+    euro: "€",
+    pound: "£",
+    bull: "•",
   };
   return named[entity.slice(1, -1)] ?? entity;
 }
@@ -276,7 +294,11 @@ function markRaw(raw: RawChar[]): RawMarks {
     if (!inCode[m.index!]) block(m.index!, m.index! + m[0].length);
   }
   // Inline html is dropped by the renderer, except <br> which is a break.
-  for (const m of s.matchAll(/<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>\n]*)?\/?>|<!--[\s\S]*?-->/g)) {
+  for (
+    const m of s.matchAll(
+      /<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>\n]*)?\/?>|<!--[\s\S]*?-->/g,
+    )
+  ) {
     const at = m.index!;
     if (inCode[at]) continue;
     if (/^<br\s*\/?>$/i.test(m[0])) {
@@ -286,7 +308,11 @@ function markRaw(raw: RawChar[]): RawMarks {
       block(at, at + m[0].length);
     }
   }
-  for (const m of s.matchAll(/&(?:#\d{1,7}|#x[0-9a-f]{1,6}|[a-z][a-z0-9]{1,31});/gi)) {
+  for (
+    const m of s.matchAll(
+      /&(?:#\d{1,7}|#x[0-9a-f]{1,6}|[a-z][a-z0-9]{1,31});/gi,
+    )
+  ) {
     const at = m.index!;
     if (inCode[at] || blocked[at]) continue;
     entities.set(at, { end: at + m[0].length, decoded: decodeEntity(m[0]) });
@@ -294,7 +320,9 @@ function markRaw(raw: RawChar[]): RawMarks {
   }
   // Backslash escapes: the backslash is syntax, the escaped char is text.
   for (let i = 0; i < s.length - 1; i++) {
-    if (s[i] === "\\" && !inCode[i] && !blocked[i] && ESCAPABLE.test(s[i + 1])) {
+    if (
+      s[i] === "\\" && !inCode[i] && !blocked[i] && ESCAPABLE.test(s[i + 1])
+    ) {
       blocked[i] = true;
       i++;
     }
@@ -312,7 +340,11 @@ function sameChar(rendered: string, source: string): boolean {
 // Greedy, LINE-BOUNDED alignment: a rendered char is looked for only up to the
 // end of the current source line, so one unmatched char (an odd entity) can
 // never swallow the rest of the item.
-function alignItem(rendered: string, raw: RawChar[], marks: RawMarks): number[] {
+function alignItem(
+  rendered: string,
+  raw: RawChar[],
+  marks: RawMarks,
+): number[] {
   const toSrc = new Array<number>(rendered.length).fill(-1);
   let j = 0;
   for (let i = 0; i < rendered.length; i++) {
@@ -573,14 +605,19 @@ export function slideWordAt(
       if (!hit || /\s/.test(unit.text[i])) continue;
       let a = i;
       let b = i;
-      while (a > 0 && !/\s/.test(unit.text[a - 1]) && unit.toSrc[a - 1] >= 0) a--;
+      while (a > 0 && !/\s/.test(unit.text[a - 1]) && unit.toSrc[a - 1] >= 0) {
+        a--;
+      }
       while (
         b < unit.text.length - 1 && !/\s/.test(unit.text[b + 1]) &&
         unit.toSrc[b + 1] >= 0
       ) b++;
       // Prefer the word the caret is INSIDE of when it touches two.
-      if (s + 1 === offset && i + 1 < unit.text.length && unit.toSrc[i + 1] === offset &&
-        !/\s/.test(unit.text[i + 1])) {
+      if (
+        s + 1 === offset && i + 1 < unit.text.length &&
+        unit.toSrc[i + 1] === offset &&
+        !/\s/.test(unit.text[i + 1])
+      ) {
         continue;
       }
       return { from: unit.toSrc[a], to: unit.toSrc[b] + 1 };
@@ -635,7 +672,11 @@ function visibleSeq(an: SlideTextAnalysis): VisibleChar[] {
   for (const u of an.units) {
     for (let k = 0; k < u.text.length; k++) {
       if (u.text[k] === "\n" || u.toSrc[k] < 0) continue;
-      out.push({ ch: normQuote(u.text[k]), src: u.toSrc[k], style: u.styles[k] });
+      out.push({
+        ch: normQuote(u.text[k]),
+        src: u.toSrc[k],
+        style: u.styles[k],
+      });
     }
   }
   return out;
@@ -655,7 +696,11 @@ function wholeDocChange(before: string, after: string): SlideTextEdit[] {
     s < before.length - p && s < after.length - p &&
     before[before.length - 1 - s] === after[after.length - 1 - s]
   ) s++;
-  return [{ from: p, to: before.length - s, insert: after.slice(p, after.length - s) }];
+  return [{
+    from: p,
+    to: before.length - s,
+    insert: after.slice(p, after.length - s),
+  }];
 }
 
 /** The first candidate whose render matches `expected` exactly: the same
@@ -673,7 +718,9 @@ function firstVerified(
     seen.add(next);
     const after = analyzeSlideMarkdown(next);
     if (!after.editable) continue;
-    if (units && unitTexts(after).join("\u0000") !== units.join("\u0000")) continue;
+    if (units && unitTexts(after).join("\u0000") !== units.join("\u0000")) {
+      continue;
+    }
     const seq = visibleSeq(after);
     if (sameInk(seq, expected)) return { next, seq };
   }
@@ -724,7 +771,12 @@ function escapeChar(ch: string): string {
   return /[\\*_`[\]~<&]/.test(ch) ? "\\" + ch : ch;
 }
 
-function wrapEmphasis(core: string, bold: boolean, italic: boolean, em: string): string {
+function wrapEmphasis(
+  core: string,
+  bold: boolean,
+  italic: boolean,
+  em: string,
+): string {
   if (!core) return core;
   let s = core;
   if (italic) s = em + s + em;
@@ -757,14 +809,20 @@ function serializeRun(atoms: Atom[], em: string): string {
       let fence = "`";
       while (code.includes(fence)) fence += "`";
       const pad = code.startsWith("`") || code.endsWith("`") ? " " : "";
-      s += wrapEmphasis(fence + pad + code + pad + fence, a0.style.bold, a0.style.italic, em);
+      s += wrapEmphasis(
+        fence + pad + code + pad + fence,
+        a0.style.bold,
+        a0.style.italic,
+        em,
+      );
     } else {
       const body = chars.map(escapeChar).join("");
       const lead = /^\s*/.exec(body)![0];
       const rest = body.slice(lead.length);
       const trail = /\s*$/.exec(rest)![0];
       const core = rest.slice(0, rest.length - trail.length);
-      s += lead + wrapEmphasis(core, a0.style.bold, a0.style.italic, em) + trail;
+      s += lead + wrapEmphasis(core, a0.style.bold, a0.style.italic, em) +
+        trail;
     }
     k = e;
   }
@@ -772,12 +830,18 @@ function serializeRun(atoms: Atom[], em: string): string {
 }
 
 function linkDest(url: string): string {
-  return /[\s()<>]/.test(url) ? "<" + url.replace(/[<>]/g, encodeURIComponent) + ">" : url;
+  return /[\s()<>]/.test(url)
+    ? "<" + url.replace(/[<>]/g, encodeURIComponent) + ">"
+    : url;
 }
 
 // Links group first (their text keeps its own emphasis), then emphasis runs
 // with delimiters hugging non-whitespace (`** x **` is not bold).
-function serializeAtoms(atoms: Atom[], em: string, atLineStart: boolean): string {
+function serializeAtoms(
+  atoms: Atom[],
+  em: string,
+  atLineStart: boolean,
+): string {
   let out = "";
   let i = 0;
   while (i < atoms.length) {
@@ -796,7 +860,10 @@ function serializeAtoms(atoms: Atom[], em: string, atLineStart: boolean): string
   }
   if (atLineStart) {
     // Text that would read as block syntax at a line start stays text.
-    out = out.replace(/^(\s*)([#>+\-=])/, "$1\\$2").replace(/^(\s*\d+)([.)])/, "$1\\$2");
+    out = out.replace(/^(\s*)([#>+\-=])/, "$1\\$2").replace(
+      /^(\s*\d+)([.)])/,
+      "$1\\$2",
+    );
   }
   return out;
 }
@@ -810,7 +877,11 @@ function lineBounds(src: string, pos: number): { start: number; end: number } {
 
 // A line's block prefix (`- `, `> `, `## `, indentation): its leading chars
 // that are neither text nor inline syntax.
-function prefixEnd(an: SlideTextAnalysis, lineStart: number, lineEnd: number): number {
+function prefixEnd(
+  an: SlideTextAnalysis,
+  lineStart: number,
+  lineEnd: number,
+): number {
   let i = lineStart;
   while (i < lineEnd && an.kind[i] === SRC_BLOCK) i++;
   return i;
@@ -865,9 +936,12 @@ function serializeRegion(
   for (let i = rs; i < last.end; i++) {
     if (kind[i] === SRC_VISIBLE) {
       const style = pick(i);
-      if (style) atoms.push({ kind: "text", ch: an.srcChar[i] ?? src[i], style });
+      if (style) {
+        atoms.push({ kind: "text", ch: an.srcChar[i] ?? src[i], style });
+      }
     } else if (
-      kind[i] === SRC_BREAK && src[i] === "<" && (lineOnly || !(i >= from && i < to))
+      kind[i] === SRC_BREAK && src[i] === "<" &&
+      (lineOnly || !(i >= from && i < to))
     ) {
       atoms.push({ kind: "br" });
     }
@@ -894,7 +968,11 @@ function cleanSyntaxRun(s: string): string {
   return s;
 }
 
-function hasStructure(an: SlideTextAnalysis, from: number, to: number): boolean {
+function hasStructure(
+  an: SlideTextAnalysis,
+  from: number,
+  to: number,
+): boolean {
   for (let i = from; i < to; i++) {
     if (an.kind[i] === SRC_BREAK || an.kind[i] === SRC_BLOCK) return true;
   }
@@ -907,7 +985,9 @@ function prevVisible(an: SlideTextAnalysis, pos: number): number {
 }
 
 function nextVisible(an: SlideTextAnalysis, pos: number): number {
-  for (let i = pos; i < an.kind.length; i++) if (an.kind[i] === SRC_VISIBLE) return i;
+  for (let i = pos; i < an.kind.length; i++) {
+    if (an.kind[i] === SRC_VISIBLE) return i;
+  }
   return -1;
 }
 
@@ -962,7 +1042,9 @@ export function slideDeleteRange(
     cleanSyntaxRun(src.slice(a, from) + kept + src.slice(to, b)) + src.slice(b);
   // Candidates 3-4: the touched lines rebuilt from their remaining text.
   const pick = (i: number) =>
-    i >= from && i < to ? undefined : an.srcStyle[i] ?? { bold: false, italic: false, code: false };
+    i >= from && i < to
+      ? undefined
+      : an.srcStyle[i] ?? { bold: false, italic: false, code: false };
   // Cleaned first: an invisible leftover (`[](url)` renders nothing) would
   // verify too, and is junk.
   const candidates = [
@@ -974,11 +1056,20 @@ export function slideDeleteRange(
   const hit = firstVerified(candidates, expected);
   const next = hit?.next ?? keptDoc;
   const seq = hit?.seq ?? visibleSeq(analyzeSlideMarkdown(next));
-  const caret = caretAfterEdit(seq, Math.min(keptBefore, seq.length), attachRight, next.length);
+  const caret = caretAfterEdit(
+    seq,
+    Math.min(keptBefore, seq.length),
+    attachRight,
+    next.length,
+  );
   return { changes: wholeDocChange(src, next), anchor: caret, head: caret };
 }
 
-function hasBlockOnly(an: SlideTextAnalysis, from: number, to: number): boolean {
+function hasBlockOnly(
+  an: SlideTextAnalysis,
+  from: number,
+  to: number,
+): boolean {
   let any = false;
   for (let i = from; i < to; i++) {
     if (an.kind[i] === SRC_BLOCK) any = true;
@@ -997,7 +1088,10 @@ export function slideBackspace(
   const pe = prefixEnd(an, line.start, line.end);
   // At the start of a line's text with a block prefix (`- `, `# `): the prefix
   // goes first (bullet → plain line), like a word processor.
-  if (caret > line.start && caret <= pe + countSyntaxAt(an, pe) && hasBlockOnly(an, line.start, caret)) {
+  if (
+    caret > line.start && caret <= pe + countSyntaxAt(an, pe) &&
+    hasBlockOnly(an, line.start, caret)
+  ) {
     const next = an.src.slice(0, line.start) + an.src.slice(pe);
     const at = line.start + (caret - pe > 0 ? caret - pe : 0);
     return { changes: wholeDocChange(an.src, next), anchor: at, head: at };
@@ -1012,7 +1106,9 @@ export function slideBackspace(
 
 function countSyntaxAt(an: SlideTextAnalysis, pos: number): number {
   let n = 0;
-  while (pos + n < an.kind.length && an.kind[pos + n] === SRC_INLINE_SYNTAX) n++;
+  while (pos + n < an.kind.length && an.kind[pos + n] === SRC_INLINE_SYNTAX) {
+    n++;
+  }
   return n;
 }
 
@@ -1062,7 +1158,10 @@ export function slideInsertText(
   // not separate the typed text from the char it inherits from.
   const separated = (from: number, to: number) => {
     for (let i = from; i < to; i++) {
-      if (kind[i] === SRC_BREAK || (kind[i] === SRC_BLOCK && !/[ \t]/.test(src[i]))) {
+      if (
+        kind[i] === SRC_BREAK ||
+        (kind[i] === SRC_BLOCK && !/[ \t]/.test(src[i]))
+      ) {
         return true;
       }
     }
@@ -1089,10 +1188,11 @@ export function slideInsertText(
   const k = before.filter((c) => c.src < pos).length;
   // Whitespace markdown trimmed before the caret (a trailing space) is drawn
   // once text follows it.
-  const lead = pv >= 0 && /[ \t]/.test(src.slice(pv + 1, pos).replace(/[^ \t]/g, "")) &&
+  const lead =
+    pv >= 0 && /[ \t]/.test(src.slice(pv + 1, pos).replace(/[^ \t]/g, "")) &&
       !separated(pv + 1, pos)
-    ? " "
-    : "";
+      ? " "
+      : "";
   const added = [...(lead + typed)].filter((c) => c !== "\n").map((ch) => ({
     ch: normQuote(ch),
     style: inherit,
@@ -1118,7 +1218,11 @@ export function slideInsertText(
   );
   const hit = firstVerified([...simple, ...rebuilt], expected);
   if (!hit) {
-    return { changes: [{ from: pos, to: pos, insert: ins }], anchor: pos + ins.length, head: pos + ins.length };
+    return {
+      changes: [{ from: pos, to: pos, insert: ins }],
+      anchor: pos + ins.length,
+      head: pos + ins.length,
+    };
   }
   const si = simple.indexOf(hit.next);
   let caret: number;
@@ -1176,7 +1280,10 @@ export function slideToggleStyle(
   if (!before.some((c) => inRange(c.src))) return undefined;
   const restyle = (s: number, style: SlideCharStyle): SlideCharStyle =>
     inRange(s) && !style.code ? { ...style, [prop]: on } : style;
-  const expected = before.map((c) => ({ ch: c.ch, style: restyle(c.src, c.style) }));
+  const expected = before.map((c) => ({
+    ch: c.ch,
+    style: restyle(c.src, c.style),
+  }));
   const pick = (i: number) =>
     restyle(i, an.srcStyle[i] ?? { bold: false, italic: false, code: false });
   const hit = firstVerified(

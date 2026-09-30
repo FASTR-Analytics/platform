@@ -1,10 +1,8 @@
 import {
   analysedIdsWithData,
-  t3,
-  TC,
+  type HmisIndicator,
   INDICATOR_DOWNLOAD_FILE_COLUMNS,
   INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
-  type HmisIndicator,
   type InstanceIndicatorDetails,
   isSpecialIndicatorId,
   judgeCalculatedIndicators,
@@ -13,38 +11,40 @@ import {
   populationTypeLabel,
   RESERVED_WORDS,
   SPECIAL_INDICATORS,
+  t3,
+  TC,
 } from "lib";
 import {
+  ActionMenuButton,
   AlertComponentProps,
+  type BulkAction,
   Button,
   Callout,
-  FrameTop,
-  HeadingBar,
-  Icon,
-  Input,
-  ActionMenuButton,
-  ModalContainer,
-  getQueryStateFromApiResponse,
-  StateHolderWrapper,
-  Table,
-  TableColumn,
-  getEditorWrapper,
-  openComponent,
-  openAlert,
   createButtonAction,
   createDeleteAction,
   createQuery,
-  type BulkAction,
+  FrameTop,
+  getEditorWrapper,
+  getQueryStateFromApiResponse,
+  HeadingBar,
+  Icon,
+  Input,
   type MenuItem,
+  ModalContainer,
+  openAlert,
+  openComponent,
   type StateHolder,
+  StateHolderWrapper,
+  Table,
+  TableColumn,
 } from "panther";
 import {
-  For,
-  Show,
   createEffect,
   createMemo,
   createSignal,
+  For,
   on,
+  Show,
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -117,7 +117,7 @@ export function IndicatorsManager(p: Props) {
   // mints a new data version. A display-only enrichment: the list renders
   // without it and the status column fills in when it arrives.
   const ledger = createQuery(() =>
-    serverActions.getDatasetHmisImportLedger({}),
+    serverActions.getDatasetHmisImportLedger({})
   );
   createEffect(
     on(
@@ -147,8 +147,8 @@ export function IndicatorsManager(p: Props) {
       dhis2LabelOf(indicator) ?? "",
       indicator.definition.type === "sum"
         ? indicator.definition.members.join(
-            INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
-          )
+          INDICATOR_DOWNLOAD_MEMBERS_SEPARATOR,
+        )
         : "",
       indicator.definition.type === "calculated"
         ? indicator.definition.expression
@@ -164,7 +164,7 @@ export function IndicatorsManager(p: Props) {
     const csvContent = [
       INDICATOR_DOWNLOAD_FILE_COLUMNS.join(","),
       ...rows.map((row) =>
-        row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","),
+        row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")
       ),
     ].join("\n");
 
@@ -324,17 +324,15 @@ function IndicatorsTable(p: {
     );
     for (const [id, judgement] of judgements) {
       statuses.set(id, {
-        problem:
-          judgement.kind === "computable"
-            ? undefined
-            : computabilityProblemText(judgement),
-        population:
-          judgement.kind === "unresolvable"
-            ? undefined
-            : missingPopulationText(
-                judgement.resolved,
-                instanceState.populationCoverage,
-              ),
+        problem: judgement.kind === "computable"
+          ? undefined
+          : computabilityProblemText(judgement),
+        population: judgement.kind === "unresolvable"
+          ? undefined
+          : missingPopulationText(
+            judgement.resolved,
+            instanceState.populationCoverage,
+          ),
       });
     }
     return statuses;
@@ -344,7 +342,7 @@ function IndicatorsTable(p: {
 
   const [search, setSearch] = createSignal("");
   const visibleIndicators = createMemo(() =>
-    p.indicators.filter((i) => matchesIndicatorSearch(i, search())),
+    p.indicators.filter((i) => matchesIndicatorSearch(i, search()))
   );
   const uncomputableCount = createMemo(
     () =>
@@ -407,15 +405,21 @@ function IndicatorsTable(p: {
   function importNoticeText(result: Dhis2WizardResult): string {
     return result.landedTab === "current"
       ? t3({
-          en: "The import has been started. Follow it under HMIS data, Imports, Current.",
-          fr: "L'importation a été lancée. Suivez-la sous Données HMIS, Importations, En cours.",
-          pt: "A importação foi iniciada. Acompanhe-a em Dados HMIS, Importações, Atual.",
-        })
+        en:
+          "The import has been started. Follow it under HMIS data, Imports, Current.",
+        fr:
+          "L'importation a été lancée. Suivez-la sous Données HMIS, Importations, En cours.",
+        pt:
+          "A importação foi iniciada. Acompanhe-a em Dados HMIS, Importações, Atual.",
+      })
       : t3({
-          en: "The import has been scheduled. Follow it under HMIS data, Imports, Future.",
-          fr: "L'importation a été planifiée. Suivez-la sous Données HMIS, Importations, À venir.",
-          pt: "A importação foi agendada. Acompanhe-a em Dados HMIS, Importações, Futuro.",
-        });
+        en:
+          "The import has been scheduled. Follow it under HMIS data, Imports, Future.",
+        fr:
+          "L'importation a été planifiée. Suivez-la sous Données HMIS, Importations, À venir.",
+        pt:
+          "A importação foi agendada. Acompanhe-a em Dados HMIS, Importações, Futuro.",
+      });
   }
 
   // The flag over the selected rows; the list refreshes through the
@@ -537,40 +541,40 @@ function IndicatorsTable(p: {
   const bulkActions = createMemo<BulkAction<HmisIndicator>[]>(() =>
     instanceState.currentUserIsGlobalAdmin
       ? [
-          {
-            label: t3(DHIS2_DATA_IMPORT_TITLE),
-            intent: "primary",
-            outline: true,
-            onClick: handleImportFromDhis2,
-          },
-          {
-            label: t3({
-              en: "Include in analysis",
-              fr: "Inclure dans l'analyse",
-              pt: "Incluir na análise",
-            }),
-            intent: "neutral",
-            outline: true,
-            onClick: (selected) => setIncludeInAnalysis.click(selected, true),
-          },
-          {
-            label: t3({
-              en: "Exclude from analysis",
-              fr: "Exclure de l'analyse",
-              pt: "Excluir da análise",
-            }),
-            intent: "neutral",
-            outline: true,
-            onClick: (selected) => setIncludeInAnalysis.click(selected, false),
-          },
-          {
-            label: t3(TC.delete),
-            intent: "danger",
-            outline: true,
-            onClick: handleDeleteIndicators,
-          },
-        ]
-      : [],
+        {
+          label: t3(DHIS2_DATA_IMPORT_TITLE),
+          intent: "primary",
+          outline: true,
+          onClick: handleImportFromDhis2,
+        },
+        {
+          label: t3({
+            en: "Include in analysis",
+            fr: "Inclure dans l'analyse",
+            pt: "Incluir na análise",
+          }),
+          intent: "neutral",
+          outline: true,
+          onClick: (selected) => setIncludeInAnalysis.click(selected, true),
+        },
+        {
+          label: t3({
+            en: "Exclude from analysis",
+            fr: "Exclure de l'analyse",
+            pt: "Excluir da análise",
+          }),
+          intent: "neutral",
+          outline: true,
+          onClick: (selected) => setIncludeInAnalysis.click(selected, false),
+        },
+        {
+          label: t3(TC.delete),
+          intent: "danger",
+          outline: true,
+          onClick: handleDeleteIndicators,
+        },
+      ]
+      : []
   );
 
   const hasNotices = () =>
@@ -581,8 +585,8 @@ function IndicatorsTable(p: {
       pad="md"
       panelPad="md"
       panelSpy="sm"
-      panelChildren={
-        hasNotices() ? (
+      panelChildren={hasNotices()
+        ? (
           <>
             <Show when={importNotice()}>
               {(notice) => (
@@ -603,35 +607,41 @@ function IndicatorsTable(p: {
               <Callout intent="warning" pad="sm">
                 {uncomputableCount() === 1
                   ? t3({
-                      en: "1 calculated indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
-                      fr: "1 indicateur calculé ne peut pas être évalué. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
-                      pt: "1 indicador calculado não pode ser avaliado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
-                    })
+                    en:
+                      "1 calculated indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
+                    fr:
+                      "1 indicateur calculé ne peut pas être évalué. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
+                    pt:
+                      "1 indicador calculado não pode ser avaliado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
+                  })
                   : t3({
-                      en: `${uncomputableCount()} calculated indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
-                      fr: `${uncomputableCount()} indicateurs calculés ne peuvent pas être évalués. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
-                      pt: `${uncomputableCount()} indicadores calculados não podem ser avaliados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
-                    })}
+                    en:
+                      `${uncomputableCount()} calculated indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
+                    fr:
+                      `${uncomputableCount()} indicateurs calculés ne peuvent pas être évalués. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
+                    pt:
+                      `${uncomputableCount()} indicadores calculados não podem ser avaliados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
+                  })}
               </Callout>
             </Show>
           </>
-        ) : undefined
-      }
+        )
+        : undefined}
     >
       <div class="flex h-full flex-col">
         <div class="ui-gap-sm flex items-center pb-4">
           <div class="flex-1">
             {search().trim()
               ? t3({
-                  en: `${visibleIndicators().length} of ${p.indicators.length}`,
-                  fr: `${visibleIndicators().length} sur ${p.indicators.length}`,
-                  pt: `${visibleIndicators().length} de ${p.indicators.length}`,
-                })
+                en: `${visibleIndicators().length} of ${p.indicators.length}`,
+                fr: `${visibleIndicators().length} sur ${p.indicators.length}`,
+                pt: `${visibleIndicators().length} de ${p.indicators.length}`,
+              })
               : t3({
-                  en: `${p.indicators.length} indicators`,
-                  fr: `${p.indicators.length} indicateurs`,
-                  pt: `${p.indicators.length} indicadores`,
-                })}
+                en: `${p.indicators.length} indicators`,
+                fr: `${p.indicators.length} indicateurs`,
+                pt: `${p.indicators.length} indicadores`,
+              })}
           </div>
           <div class="w-72 xl:w-96">
             <Input
@@ -682,24 +692,20 @@ function IndicatorsTable(p: {
             data={visibleIndicators()}
             columns={columns}
             keyField="indicator_common_id"
-            onRowClick={
-              instanceState.currentUserIsGlobalAdmin
-                ? handleUpdateIndicator
-                : undefined
-            }
-            noRowsMessage={
-              search() === ""
-                ? t3({
-                    en: "No indicators",
-                    fr: "Aucun indicateur",
-                    pt: "Nenhum indicador",
-                  })
-                : t3({
-                    en: "No indicators match",
-                    fr: "Aucun indicateur ne correspond",
-                    pt: "Nenhum indicador corresponde",
-                  })
-            }
+            onRowClick={instanceState.currentUserIsGlobalAdmin
+              ? handleUpdateIndicator
+              : undefined}
+            noRowsMessage={search() === ""
+              ? t3({
+                en: "No indicators",
+                fr: "Aucun indicateur",
+                pt: "Nenhum indicador",
+              })
+              : t3({
+                en: "No indicators match",
+                fr: "Aucun indicateur ne correspond",
+                pt: "Nenhum indicador corresponde",
+              })}
             bulkActions={bulkActions()}
             selectionLabel={t3({
               en: "indicator",
@@ -755,9 +761,12 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "The analysis modules read these ids by name as counts, so one is always analysed whenever it exists. Create, rename or delete them in this list like any indicator. A special id can only be a DHIS2 element, Uploaded or a Sum.",
-              fr: "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; un tel indicateur est donc toujours analysé dès qu'il existe. Créez, renommez ou supprimez-les dans cette liste comme tout indicateur. Un identifiant spécial ne peut être qu'un élément DHIS2, téléversé ou une somme.",
-              pt: "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que um é sempre analisado sempre que existe. Crie, renomeie ou elimine-os nesta lista como qualquer indicador. Um ID especial só pode ser um elemento DHIS2, carregado ou uma soma.",
+              en:
+                "The analysis modules read these ids by name as counts, so one is always analysed whenever it exists. Create, rename or delete them in this list like any indicator. A special id can only be a DHIS2 element, Uploaded or a Sum.",
+              fr:
+                "Les modules d'analyse lisent ces identifiants par leur nom comme des dénombrements ; un tel indicateur est donc toujours analysé dès qu'il existe. Créez, renommez ou supprimez-les dans cette liste comme tout indicateur. Un identifiant spécial ne peut être qu'un élément DHIS2, téléversé ou une somme.",
+              pt:
+                "Os módulos de análise leem estes IDs pelo nome como contagens, pelo que um é sempre analisado sempre que existe. Crie, renomeie ou elimine-os nesta lista como qualquer indicador. Um ID especial só pode ser um elemento DHIS2, carregado ou uma soma.",
             })}
           </div>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(28rem,1fr))] gap-x-4 gap-y-1">
@@ -804,9 +813,12 @@ function ReferenceListModal(p: AlertComponentProps<{}, undefined>) {
           </div>
           <div class="text-xs">
             {t3({
-              en: "No indicator id may be one of these, however it is produced: the special ids (except as a DHIS2 element, Uploaded or a Sum), the population terms and the formula function names.",
-              fr: "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme élément DHIS2, indicateur téléversé ou somme), les termes de population et les noms de fonctions des formules.",
-              pt: "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como elemento DHIS2, carregado ou soma), os termos de população e os nomes das funções das fórmulas.",
+              en:
+                "No indicator id may be one of these, however it is produced: the special ids (except as a DHIS2 element, Uploaded or a Sum), the population terms and the formula function names.",
+              fr:
+                "Aucun identifiant d'indicateur ne peut être l'un de ceux-ci, quelle que soit la façon dont il est produit : les identifiants spéciaux (sauf comme élément DHIS2, indicateur téléversé ou somme), les termes de population et les noms de fonctions des formules.",
+              pt:
+                "Nenhum ID de indicador pode ser um destes, seja como for produzido: os IDs especiais (exceto como elemento DHIS2, carregado ou soma), os termos de população e os nomes das funções das fórmulas.",
             })}
           </div>
           <div class="font-mono text-xs">{RESERVED_WORDS.join(", ")}</div>

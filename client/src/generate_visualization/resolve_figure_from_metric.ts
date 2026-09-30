@@ -35,7 +35,13 @@ export async function resolveFigureBundleFromMetric(
   inputs: MetricInputsForBundle,
   config: PresentationObjectConfig,
 ): Promise<FigureBundle> {
-  const { metricId, resultsObjectId, resultsValueForViz, datasetFamily, fetchConfig } = inputs;
+  const {
+    metricId,
+    resultsObjectId,
+    resultsValueForViz,
+    datasetFamily,
+    fetchConfig,
+  } = inputs;
 
   const params = { scope, resultsObjectId, fetchConfig };
   const { data, version } = await _PO_ITEMS_CACHE.get(params);
@@ -50,7 +56,7 @@ export async function resolveFigureBundleFromMetric(
         resultsObjectId,
         fetchConfig,
         adminArea2: scope.adminArea2,
-      }),
+      })
     );
 
     _PO_ITEMS_CACHE.setPromise(newPromise, params, version);
@@ -101,7 +107,9 @@ export async function resolveFigureBundleFromMetric(
     // map(String): a zod issue path can contain symbol keys, which .join()
     // cannot coerce implicitly.
     throw new Error(
-      `Invalid figure bundle at "${issue.path.map(String).join(".")}": ${issue.message}`,
+      `Invalid figure bundle at "${
+        issue.path.map(String).join(".")
+      }": ${issue.message}`,
     );
   }
   return bundle;

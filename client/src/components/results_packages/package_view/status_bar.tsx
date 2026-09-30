@@ -1,21 +1,21 @@
 import {
-  MODULE_FAMILY_ORDER,
   compareModules,
   getModuleFamilyLabel,
-  runProgressSteps,
-  runStageLabel,
-  t3,
+  MODULE_FAMILY_ORDER,
   type RunAuthoringContext,
   type RunCatalogItem,
   type RunModuleProgressStatus,
   type RunPopulation,
   type RunProgress,
+  runProgressSteps,
+  runStageLabel,
+  t3,
 } from "lib";
 import { ProgressBar } from "panther";
-import { For, Show, createMemo, type JSX } from "solid-js";
+import { createMemo, For, type JSX, Show } from "solid-js";
 import { PRODUCT_TYPE_REGISTRY } from "~/components/products/mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
-import { ModuleProgressChip, moduleLabel } from "./status";
+import { moduleLabel, ModuleProgressChip } from "./status";
 
 type ModuleChip = {
   id: string;
@@ -134,11 +134,10 @@ export function StatusBar(p: {
         </Row>
       </Show>
       <Show
-        when={
-          p.run.status === "generating" && p.progress?.stage.kind === "module"
-            ? p.progress.stage.moduleId
-            : undefined
-        }
+        when={p.run.status === "generating" &&
+            p.progress?.stage.kind === "module"
+          ? p.progress.stage.moduleId
+          : undefined}
         keyed
       >
         {(moduleId) => (
@@ -168,7 +167,9 @@ export function StatusBar(p: {
           {p.run.attachedProducts
             .map(
               (product) =>
-                `${product.label} (${PRODUCT_TYPE_REGISTRY[product.type].label()})`,
+                `${product.label} (${
+                  PRODUCT_TYPE_REGISTRY[product.type].label()
+                })`,
             )
             .join(", ")}
         </Show>
@@ -235,11 +236,15 @@ function PopulationFacts(p: { population: RunPopulation }) {
             {(c) => (
               <div>
                 <span class="text-base-content-muted">{c.populationType}</span>
-                {`: ${t3({
-                  en: `${c.areasCovered} of ${c.areasTotal} areas`,
-                  fr: `${c.areasCovered} zones sur ${c.areasTotal}`,
-                  pt: `${c.areasCovered} de ${c.areasTotal} áreas`,
-                })}, ${coveredMonths(c.firstCoveredPeriodId, c.lastCoveredPeriodId)}`}
+                {`: ${
+                  t3({
+                    en: `${c.areasCovered} of ${c.areasTotal} areas`,
+                    fr: `${c.areasCovered} zones sur ${c.areasTotal}`,
+                    pt: `${c.areasCovered} de ${c.areasTotal} áreas`,
+                  })
+                }, ${
+                  coveredMonths(c.firstCoveredPeriodId, c.lastCoveredPeriodId)
+                }`}
               </div>
             )}
           </For>
@@ -267,5 +272,7 @@ function coveredMonths(first: number | null, last: number | null): string {
 }
 
 function formatPeriodId(periodId: number): string {
-  return `${Math.floor(periodId / 100)}-${String(periodId % 100).padStart(2, "0")}`;
+  return `${Math.floor(periodId / 100)}-${
+    String(periodId % 100).padStart(2, "0")
+  }`;
 }

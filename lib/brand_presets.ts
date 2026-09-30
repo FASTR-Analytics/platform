@@ -1,5 +1,5 @@
 import type { ColorPreset, ColorPresetId } from "@timroberton/panther";
-import { _GFF_GREEN, _NIGERIA_GREEN, _KEY_COLORS } from "./key_colors.ts";
+import { _GFF_GREEN, _KEY_COLORS, _NIGERIA_GREEN } from "./key_colors.ts";
 
 export const BRAND_PRESET_IDS = ["gff", "nigeria"] as const;
 export type BrandPresetId = (typeof BRAND_PRESET_IDS)[number];

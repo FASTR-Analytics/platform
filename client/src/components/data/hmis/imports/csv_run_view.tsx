@@ -1,9 +1,9 @@
-import { t3, type DatasetHmisImportRunSummary } from "lib";
+import { type DatasetHmisImportRunSummary, t3 } from "lib";
 import {
   Button,
+  createDeleteAction,
   FrameRight,
   ProgressBar,
-  createDeleteAction,
   toPct0,
 } from "panther";
 import { serverActions } from "~/server_actions";
@@ -48,7 +48,11 @@ export function CsvRunView(p: Props) {
       spy="md"
       panelChildren={
         <Button onClick={attemptCancel} intent="danger" iconName="x" outline>
-          {t3({ en: "Cancel import", fr: "Annuler l'importation", pt: "Cancelar a importação" })}
+          {t3({
+            en: "Cancel import",
+            fr: "Annuler l'importation",
+            pt: "Cancelar a importação",
+          })}
         </Button>
       }
     >
@@ -62,9 +66,12 @@ export function CsvRunView(p: Props) {
       <ProgressBar progressFrom0To100={percent()} />
       <div class="text-xs">
         {t3({
-          en: "This updates automatically. A fully clean file integrates without further steps; dropped rows will hold the import here for your review.",
-          fr: "Mise à jour automatique. Un fichier entièrement valide s'intègre sans autre étape ; des lignes rejetées mettront l'importation en attente de votre vérification ici.",
-          pt: "Atualiza-se automaticamente. Um ficheiro totalmente válido integra-se sem mais etapas; linhas rejeitadas colocarão a importação em espera aqui para a sua revisão.",
+          en:
+            "This updates automatically. A fully clean file integrates without further steps; dropped rows will hold the import here for your review.",
+          fr:
+            "Mise à jour automatique. Un fichier entièrement valide s'intègre sans autre étape ; des lignes rejetées mettront l'importation en attente de votre vérification ici.",
+          pt:
+            "Atualiza-se automaticamente. Um ficheiro totalmente válido integra-se sem mais etapas; linhas rejeitadas colocarão a importação em espera aqui para a sua revisão.",
         })}
       </div>
     </FrameRight>

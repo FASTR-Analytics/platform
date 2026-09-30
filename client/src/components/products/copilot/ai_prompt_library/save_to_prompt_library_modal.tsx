@@ -32,25 +32,41 @@ export function SaveToPromptLibraryModal(
   const [scope, setScope] = createSignal<"user" | "country">(
     p.existingPrompt?.scope ?? "user",
   );
-  const [existingCategories, setExistingCategories] = createSignal<string[]>([]);
+  const [existingCategories, setExistingCategories] = createSignal<string[]>(
+    [],
+  );
   const [isSaving, setIsSaving] = createSignal(false);
   const [error, setError] = createSignal("");
 
   onMount(async () => {
     const res = await serverActions.getCustomPrompts({});
     if (res.success && res.data) {
-      const cats = [...new Set(res.data.map((pr) => pr.category).filter(Boolean))].sort();
+      const cats = [
+        ...new Set(res.data.map((pr) => pr.category).filter(Boolean)),
+      ].sort();
       setExistingCategories(cats);
     }
   });
 
   const handleSave = async () => {
     if (!name().trim()) {
-      setError(t3({ en: "Name is required", fr: "Le nom est requis", pt: "O nome é obrigatório" }));
+      setError(
+        t3({
+          en: "Name is required",
+          fr: "Le nom est requis",
+          pt: "O nome é obrigatório",
+        }),
+      );
       return;
     }
     if (!content().trim()) {
-      setError(t3({ en: "Prompt content is required", fr: "Le contenu du prompt est requis", pt: "O conteúdo do prompt é obrigatório" }));
+      setError(
+        t3({
+          en: "Prompt content is required",
+          fr: "Le contenu du prompt est requis",
+          pt: "O conteúdo do prompt é obrigatório",
+        }),
+      );
       return;
     }
     setIsSaving(true);
@@ -65,7 +81,14 @@ export function SaveToPromptLibraryModal(
           scope: scope(),
         });
         if (!res.success) {
-          setError(res.err ?? t3({ en: "Failed to save", fr: "Échec de l'enregistrement", pt: "Falha ao guardar" }));
+          setError(
+            res.err ??
+              t3({
+                en: "Failed to save",
+                fr: "Échec de l'enregistrement",
+                pt: "Falha ao guardar",
+              }),
+          );
           return;
         }
       } else {
@@ -76,7 +99,14 @@ export function SaveToPromptLibraryModal(
           scope: scope(),
         });
         if (!res.success) {
-          setError(res.err ?? t3({ en: "Failed to save", fr: "Échec de l'enregistrement", pt: "Falha ao guardar" }));
+          setError(
+            res.err ??
+              t3({
+                en: "Failed to save",
+                fr: "Échec de l'enregistrement",
+                pt: "Falha ao guardar",
+              }),
+          );
           return;
         }
       }
@@ -88,18 +118,28 @@ export function SaveToPromptLibraryModal(
 
   return (
     <ModalContainer
-      title={
-        isEdit()
-          ? t3({ en: "Edit prompt", fr: "Modifier le prompt", pt: "Editar prompt" })
-          : t3({ en: "Save to prompt library", fr: "Enregistrer dans la bibliothèque", pt: "Guardar na biblioteca de prompts" })
-      }
+      title={isEdit()
+        ? t3({
+          en: "Edit prompt",
+          fr: "Modifier le prompt",
+          pt: "Editar prompt",
+        })
+        : t3({
+          en: "Save to prompt library",
+          fr: "Enregistrer dans la bibliothèque",
+          pt: "Guardar na biblioteca de prompts",
+        })}
       width="lg"
       scroll="content"
       onCancel={() => p.close(undefined)}
       actions={[
         {
           label: isSaving()
-            ? t3({ en: "Saving...", fr: "Enregistrement...", pt: "A guardar..." })
+            ? t3({
+              en: "Saving...",
+              fr: "Enregistrement...",
+              pt: "A guardar...",
+            })
             : t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
           onClick: handleSave,
           disabled: isSaving(),
@@ -111,7 +151,11 @@ export function SaveToPromptLibraryModal(
           label={t3({ en: "Name", fr: "Nom", pt: "Nome" })}
           value={name()}
           onChange={setName}
-          placeholder={t3({ en: "e.g. Summarise key findings", fr: "ex. Résumer les points clés", pt: "ex. Resumir as principais conclusões" })}
+          placeholder={t3({
+            en: "e.g. Summarise key findings",
+            fr: "ex. Résumer les points clés",
+            pt: "ex. Resumir as principais conclusões",
+          })}
           fullWidth
           autoFocus
         />
@@ -120,7 +164,11 @@ export function SaveToPromptLibraryModal(
             label={t3({ en: "Category", fr: "Catégorie", pt: "Categoria" })}
             value={category()}
             onChange={setCategory}
-            placeholder={t3({ en: "e.g. Analysis, Reporting...", fr: "ex. Analyse, Rapport...", pt: "ex. Análise, Relatórios..." })}
+            placeholder={t3({
+              en: "e.g. Analysis, Reporting...",
+              fr: "ex. Analyse, Rapport...",
+              pt: "ex. Análise, Relatórios...",
+            })}
             fullWidth
             list="prompt-categories"
           />
@@ -145,17 +193,23 @@ export function SaveToPromptLibraryModal(
           options={[
             {
               value: "user",
-              label: t3({ en: "My prompts (private)", fr: "Mes prompts (privé)", pt: "Os meus prompts (privado)" }),
+              label: t3({
+                en: "My prompts (private)",
+                fr: "Mes prompts (privé)",
+                pt: "Os meus prompts (privado)",
+              }),
             },
             {
               value: "country",
-              label: t3({ en: "Country prompts (shared)", fr: "Prompts pays (partagé)", pt: "Prompts do país (partilhado)" }),
+              label: t3({
+                en: "Country prompts (shared)",
+                fr: "Prompts pays (partagé)",
+                pt: "Prompts do país (partilhado)",
+              }),
             },
           ]}
         />
-        {error() && (
-          <div class="text-danger text-sm">{error()}</div>
-        )}
+        {error() && <div class="text-danger text-sm">{error()}</div>}
       </div>
     </ModalContainer>
   );

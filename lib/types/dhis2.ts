@@ -10,9 +10,12 @@ export type Dhis2Credentials = {
 };
 
 export const NO_STORED_DHIS2_CONNECTION = {
-  en: "No DHIS2 connection is stored. Set it under DHIS2 connection on the Data page.",
-  fr: "Aucune connexion DHIS2 n'est enregistrée. Définissez-la sous Connexion DHIS2, sur la page Données.",
-  pt: "Nenhuma ligação DHIS2 está guardada. Defina-a em Ligação DHIS2, na página Dados.",
+  en:
+    "No DHIS2 connection is stored. Set it under DHIS2 connection on the Data page.",
+  fr:
+    "Aucune connexion DHIS2 n'est enregistrée. Définissez-la sous Connexion DHIS2, sur la page Données.",
+  pt:
+    "Nenhuma ligação DHIS2 está guardada. Defina-a em Ligação DHIS2, na página Dados.",
 };
 
 // The safe projection of the stored instance credentials: neither the

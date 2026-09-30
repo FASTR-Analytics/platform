@@ -2,8 +2,8 @@ import type {
   DatasetType,
   GenericLongFormFetchConfig,
   InstanceCalendar,
-  StructureColumns,
   OptionalFacilityColumn,
+  StructureColumns,
 } from "lib";
 import type { DynamicPeriodColumn } from "./period_helpers.ts";
 

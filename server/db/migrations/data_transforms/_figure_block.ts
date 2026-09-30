@@ -217,9 +217,7 @@ export function rawJsonNeedsFigureBlockTransform(raw: string): boolean {
     raw.includes('"threshold_direction"') ||
     raw.includes('"moduleLastRun"') ||
     raw.includes('"datasetsVersion"') ||
-    INDICATOR_FORMAT_METRIC_IDS.some((id) =>
-      raw.includes(`"metricId":"${id}"`)
-    )
+    INDICATOR_FORMAT_METRIC_IDS.some((id) => raw.includes(`"metricId":"${id}"`))
   );
 }
 

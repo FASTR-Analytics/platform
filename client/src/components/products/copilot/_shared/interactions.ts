@@ -29,7 +29,7 @@ export const copilotInteractions = defineAIInteractions({
     coalesce: (entries) => {
       const seen = new Set<string>();
       return entries.filter((e) =>
-        seen.has(e.slideId) ? false : (seen.add(e.slideId), true),
+        seen.has(e.slideId) ? false : (seen.add(e.slideId), true)
       );
     },
     format: (p) => `Edited slide ${p.slideId}`,

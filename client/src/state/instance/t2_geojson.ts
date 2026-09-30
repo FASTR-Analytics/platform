@@ -1,4 +1,4 @@
-import { get, set, del, keys } from "idb-keyval";
+import { del, get, keys, set } from "idb-keyval";
 import type { GeoJSONFeatureCollection } from "panther";
 import type { DatasetType, FacilityFamily, GeoJsonMapSummary } from "lib";
 import { createSignal } from "solid-js";
@@ -109,8 +109,12 @@ async function loadMap(
   await set(idbKey, entry);
 }
 
-export async function evictDeletedGeoJsonLevels(maps: GeoJsonMapSummary[]): Promise<void> {
-  const keepKeys = new Set(maps.map((m) => cacheKey(m.family, m.adminAreaLevel)));
+export async function evictDeletedGeoJsonLevels(
+  maps: GeoJsonMapSummary[],
+): Promise<void> {
+  const keepKeys = new Set(
+    maps.map((m) => cacheKey(m.family, m.adminAreaLevel)),
+  );
   let removedAny = false;
   for (const key of [...memoryCache.keys()]) {
     if (!keepKeys.has(key)) {

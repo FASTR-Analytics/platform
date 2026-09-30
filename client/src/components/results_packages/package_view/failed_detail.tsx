@@ -1,6 +1,6 @@
-import { runStageLabel, t3, type RunProgress } from "lib";
+import { type RunProgress, runStageLabel, t3 } from "lib";
 import { Button } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import {
   canViewPackageContents,
   canViewPackageLogs,
@@ -97,11 +97,11 @@ function ErrorDetail(p: { stage: string | null; errorDetail: string | null }) {
   const [expanded, setExpanded] = createSignal(false);
   const detail = () =>
     p.errorDetail ??
-    t3({
-      en: "Generation failed",
-      fr: "Échec de la génération",
-      pt: "Falha na geração",
-    });
+      t3({
+        en: "Generation failed",
+        fr: "Échec de la génération",
+        pt: "Falha na geração",
+      });
   const isLong = () => detail().length > ERROR_CLAMP_CHARS;
   return (
     <div class="ui-spy-sm text-danger text-sm">

@@ -50,7 +50,9 @@ export function buildUserPermissionsFromRow(
     USER_PERMISSIONS.map((k) => {
       const val = row[k];
       if (val === undefined) {
-        console.warn(`buildUserPermissionsFromRow: missing column "${k}" — defaulting to false`);
+        console.warn(
+          `buildUserPermissionsFromRow: missing column "${k}" — defaulting to false`,
+        );
       }
       return [k, !!val];
     }),

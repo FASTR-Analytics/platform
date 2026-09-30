@@ -12,7 +12,9 @@ export function columnLabel(grid: GridProps, columnId: string): string {
   const column = grid.columns.find((c) => c.id === columnId);
   if (column === undefined) return columnId;
   const group = grid.columnGroups?.find((g) => g.id === column.groupId);
-  return group === undefined ? column.label : `${group.label} · ${column.label}`;
+  return group === undefined
+    ? column.label
+    : `${group.label} · ${column.label}`;
 }
 
 export function Grid(p: {
@@ -57,9 +59,12 @@ export function GridMessage(p: {
     <div class="text-base-content-muted text-sm">
       {p.status === "too_many_cells"
         ? t3({
-          en: "This selection has too many values to show. Choose fewer indicators, or a coarser time grain.",
-          fr: "Cette sélection contient trop de valeurs pour être affichée. Choisissez moins d'indicateurs ou un pas de temps plus large.",
-          pt: "Esta seleção tem demasiados valores para mostrar. Escolha menos indicadores ou uma granularidade temporal maior.",
+          en:
+            "This selection has too many values to show. Choose fewer indicators, or a coarser time grain.",
+          fr:
+            "Cette sélection contient trop de valeurs pour être affichée. Choisissez moins d'indicateurs ou un pas de temps plus large.",
+          pt:
+            "Esta seleção tem demasiados valores para mostrar. Escolha menos indicadores ou uma granularidade temporal maior.",
         })
         : t3({
           en: "No data for this selection",

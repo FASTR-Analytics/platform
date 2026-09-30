@@ -2,11 +2,11 @@ import { Sql } from "postgres";
 import {
   APIResponseWithData,
   Dhis2Credentials,
+  type FacilityFamily,
+  getEnabledOptionalFacilityColumns,
   StructureDhis2OrgUnitSelection,
   StructureStagingResult,
   throwIfErrWithData,
-  getEnabledOptionalFacilityColumns,
-  type FacilityFamily,
 } from "lib";
 import {
   type Dhis2OrgUnitPath,
@@ -14,9 +14,7 @@ import {
   pageOrgUnitPathsAtLevel,
 } from "../dhis2/goal1_org_units_v2/mod.ts";
 import { escapeSqlString } from "../db/utils.ts";
-import {
-  getStructureSchema,
-} from "../db/instance/config.ts";
+import { getStructureSchema } from "../db/instance/config.ts";
 
 // Helper function to process a batch of org units during DHIS2 import
 async function processBatch(
@@ -29,7 +27,7 @@ async function processBatch(
   flushBuffer: () => Promise<void>,
   facilitiesFound: { count: number },
   totalRows: { count: number },
-  invalidRows: { count: number }
+  invalidRows: { count: number },
 ): Promise<void> {
   console.log(`Processing batch of ${batch.length} org units...`);
 
@@ -66,7 +64,7 @@ async function processBatch(
             const penultimateName = nameOf(parentParts[parentParts.length - 1]);
             const facilityLevel = parentParts.length + 1; // +1 because facility is next level
             allAdminValues.push(
-              `FACILITY AT LEVEL ${facilityLevel}: ${penultimateName}`
+              `FACILITY AT LEVEL ${facilityLevel}: ${penultimateName}`,
             );
           } else {
             allAdminValues.push("");
@@ -114,10 +112,10 @@ async function processBatch(
     // Build VALUES tuple for staging insert
     const escapedFacilityId = escapeSqlString(facilityId);
     const escapedAdminValues = allAdminValues.map(
-      (v) => `'${escapeSqlString(v)}'`
+      (v) => `'${escapeSqlString(v)}'`,
     );
     const escapedOptionalValues = optionalValues.map(
-      (v) => `'${escapeSqlString(v)}'`
+      (v) => `'${escapeSqlString(v)}'`,
     );
 
     const allValues = [
@@ -143,7 +141,7 @@ export async function stageStructureFromDhis2V2(
   family: FacilityFamily,
   credentials: Dhis2Credentials,
   selection: StructureDhis2OrgUnitSelection,
-  onProgress?: (progress: number, message: string) => Promise<void>
+  onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<StructureStagingResult>> {
   // Per-family staging table so HMIS and HFA imports can run concurrently
   // without clobbering each other's staging data. Same-family double-staging is
@@ -165,14 +163,15 @@ export async function stageStructureFromDhis2V2(
     const resStructureSchema = await getStructureSchema(mainDb, family);
     throwIfErrWithData(resStructureSchema);
     const maxAdminArea = resStructureSchema.data.adminDepth;
-    const enabledOptionalColumns =
-      getEnabledOptionalFacilityColumns(resStructureSchema.data);
+    const enabledOptionalColumns = getEnabledOptionalFacilityColumns(
+      resStructureSchema.data,
+    );
     // DHIS2 only supplies facility_name (from displayName). Never stage the other
     // metadata columns: integration writes exactly the staged columns, and a
     // blank facility_type/ownership would wipe existing values under the two
     // updating strategies (replace_all blanks unmapped columns by design).
     const dhis2OptionalColumns = enabledOptionalColumns.filter(
-      (c) => c === "facility_name"
+      (c) => c === "facility_name",
     );
 
     // ==================================================
@@ -209,12 +208,14 @@ export async function stageStructureFromDhis2V2(
     // PHASE 3: Fetch Parent Org Units for Name Resolution
     // ==================================================
 
-    const fetchOptions = { 
-      dhis2Credentials: credentials
+    const fetchOptions = {
+      dhis2Credentials: credentials,
       // Keep default retry options for individual API calls
     };
 
-    if (onProgress) await onProgress(0.2, "Fetching parent organization units...");
+    if (onProgress) {
+      await onProgress(0.2, "Fetching parent organization units...");
+    }
 
     console.log("Fetching parent org units for admin area name resolution...");
 
@@ -230,9 +231,11 @@ export async function stageStructureFromDhis2V2(
 
     if (parentLevels.length > 0) {
       console.log(
-        `Fetching parent levels ${parentLevels.join(
-          ", "
-        )} for name resolution...`
+        `Fetching parent levels ${
+          parentLevels.join(
+            ", ",
+          )
+        } for name resolution...`,
       );
 
       for (const level of parentLevels) {
@@ -245,7 +248,7 @@ export async function stageStructureFromDhis2V2(
       }
 
       console.log(
-        `Total loaded: ${parentNames.size} parent org units for name resolution`
+        `Total loaded: ${parentNames.size} parent org units for name resolution`,
       );
     }
 
@@ -260,7 +263,9 @@ export async function stageStructureFromDhis2V2(
       batchSize: 500,
     };
 
-    if (onProgress) await onProgress(0.3, "Processing organization unit data...");
+    if (onProgress) {
+      await onProgress(0.3, "Processing organization unit data...");
+    }
 
     console.log(`Starting DHIS2 streaming import with config:`, streamConfig);
 
@@ -288,9 +293,11 @@ export async function stageStructureFromDhis2V2(
       ];
 
       await mainDb.unsafe(
-        `INSERT INTO ${stagingTableName} (${allColumns.join(
-          ", "
-        )}) VALUES ${valuesClause}`
+        `INSERT INTO ${stagingTableName} (${
+          allColumns.join(
+            ", ",
+          )
+        }) VALUES ${valuesClause}`,
       );
 
       rowBuffer = [];
@@ -306,7 +313,12 @@ export async function stageStructureFromDhis2V2(
 
       // Progress between 0.3 and 0.8 based on level processing
       const levelProgress = 0.3 + (currentLevelIndex / totalLevels) * 0.5;
-      if (onProgress) await onProgress(levelProgress, `Fetching level ${level} facilities...`);
+      if (onProgress) {
+        await onProgress(
+          levelProgress,
+          `Fetching level ${level} facilities...`,
+        );
+      }
 
       let levelProcessed = 0;
 
@@ -331,13 +343,13 @@ export async function stageStructureFromDhis2V2(
           flushBuffer,
           facilitiesFound,
           totalRows,
-          invalidRows
+          invalidRows,
         );
 
         levelProcessed += page.units.length + page.dropped;
         totalProcessed += page.units.length + page.dropped;
         console.log(
-          `Progress: processed ${levelProcessed} level ${level} org units (${totalProcessed} total)`
+          `Progress: processed ${levelProcessed} level ${level} org units (${totalProcessed} total)`,
         );
       }
 
@@ -350,7 +362,7 @@ export async function stageStructureFromDhis2V2(
     if (onProgress) await onProgress(0.9, "Finalizing import...");
 
     console.log(
-      `Streaming complete: processed ${totalProcessed} org units, found ${facilitiesFound.count} facilities, staged ${totalRows.count} rows (${invalidRows.count} invalid rows skipped)`
+      `Streaming complete: processed ${totalProcessed} org units, found ${facilitiesFound.count} facilities, staged ${totalRows.count} rows (${invalidRows.count} invalid rows skipped)`,
     );
 
     if (totalRows.count === 0) {
@@ -365,11 +377,11 @@ export async function stageStructureFromDhis2V2(
     // schema-global, so base them on the per-family table name to avoid a
     // collision when HMIS and HFA stage concurrently.
     await mainDb.unsafe(
-      `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`
+      `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`,
     );
     for (let i = 1; i <= 4; i++) {
       await mainDb.unsafe(
-        `CREATE INDEX ${stagingTableName}_admin_${i}_idx ON ${stagingTableName} (admin_area_${i})`
+        `CREATE INDEX ${stagingTableName}_admin_${i}_idx ON ${stagingTableName} (admin_area_${i})`,
       );
     }
 
@@ -382,16 +394,16 @@ export async function stageStructureFromDhis2V2(
     // Get admin area counts at each level
     const adminPreviewQueries = await Promise.all([
       mainDb.unsafe(
-        `SELECT COUNT(DISTINCT admin_area_1) as count FROM ${stagingTableName}`
+        `SELECT COUNT(DISTINCT admin_area_1) as count FROM ${stagingTableName}`,
       ),
       mainDb.unsafe(
-        `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2)) as count FROM ${stagingTableName}`
+        `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2)) as count FROM ${stagingTableName}`,
       ),
       mainDb.unsafe(
-        `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3)) as count FROM ${stagingTableName}`
+        `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3)) as count FROM ${stagingTableName}`,
       ),
       mainDb.unsafe(
-        `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3, admin_area_4)) as count FROM ${stagingTableName}`
+        `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3, admin_area_4)) as count FROM ${stagingTableName}`,
       ),
     ]);
 
@@ -427,10 +439,9 @@ export async function stageStructureFromDhis2V2(
       // Ignore cleanup errors
     }
 
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Unknown error during DHIS2 streaming import";
+    const errorMessage = error instanceof Error
+      ? error.message
+      : "Unknown error during DHIS2 streaming import";
     console.error("DHIS2 v2 structure import error:", error);
     return { success: false, err: errorMessage };
   }

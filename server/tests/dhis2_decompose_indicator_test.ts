@@ -115,7 +115,10 @@ Deno.test("decomposition: factor 1000 is a number with the scaling in the expres
 });
 
 Deno.test("decomposition: another factor is refused", () => {
-  assertEquals(refused(`#{${A}}`, `#{${B}}`, 12), { kind: "factor", value: 12 });
+  assertEquals(refused(`#{${A}}`, `#{${B}}`, 12), {
+    kind: "factor",
+    value: 12,
+  });
   assertEquals(refused(`#{${A}}`, `#{${B}}`, 100000), {
     kind: "factor",
     value: 100000,
@@ -130,12 +133,17 @@ Deno.test("decomposition: another factor is refused", () => {
 });
 
 Deno.test("decomposition: an annualized indicator is refused", () => {
-  assertEquals(refused(`#{${A}}`, `#{${B}}`, 100, true), { kind: "annualized" });
+  assertEquals(refused(`#{${A}}`, `#{${B}}`, 100, true), {
+    kind: "annualized",
+  });
 });
 
 Deno.test("decomposition: an empty side is refused", () => {
   assertEquals(refused("", `#{${B}}`), { kind: "empty", side: "numerator" });
-  assertEquals(refused(`#{${A}}`, "   "), { kind: "empty", side: "denominator" });
+  assertEquals(refused(`#{${A}}`, "   "), {
+    kind: "empty",
+    side: "denominator",
+  });
 });
 
 Deno.test("decomposition: each non-whitelisted term is refused with the term shown", () => {
@@ -232,5 +240,8 @@ Deno.test("decomposition: more operands than an expression may carry is refused"
     count: 10,
     max: 8,
   });
-  assert(accepted(ids.slice(0, 7).map((id) => `#{${id}}`).join(" + "), `#{${B}}`).accepted);
+  assert(
+    accepted(ids.slice(0, 7).map((id) => `#{${id}}`).join(" + "), `#{${B}}`)
+      .accepted,
+  );
 });

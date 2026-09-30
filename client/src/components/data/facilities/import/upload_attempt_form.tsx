@@ -1,30 +1,38 @@
 import {
-  t3,
   _RECODABLE_FACILITY_COLUMNS,
   type FacilityFamily,
   type StructureSchema,
   type StructureUploadAttemptDetail,
+  t3,
 } from "lib";
 import { createStore } from "solid-js/store";
 import {
   Button,
+  createDeleteAction,
+  createQuery,
   EditorComponentProps,
   FrameTop,
+  getStepper,
   HeadingBar,
   StateHolderWrapper,
   StepperNavigationVisual,
-  getStepper,
-  createDeleteAction,
-  createQuery,
 } from "panther";
-import { Match, Show, Switch, batch, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  batch,
+  createSignal,
+  Match,
+  onCleanup,
+  onMount,
+  Show,
+  Switch,
+} from "solid-js";
 import type {
-  StructureCsvStep1Result,
-  StructureUploadAttemptStatus,
-  StructureDhis2ConnectionSnapshot,
   StructureColumnMappings,
+  StructureCsvStep1Result,
+  StructureDhis2ConnectionSnapshot,
   StructureDhis2OrgUnitSelection,
   StructureStagingResult,
+  StructureUploadAttemptStatus,
 } from "lib";
 import { Step0 } from "./step_0";
 import { Step1_Csv } from "./step_1_csv";
@@ -35,9 +43,9 @@ import { Step2_Dhis2 } from "./step_2_dhis2";
 import { Step3_Dhis2 } from "./step_3_dhis2";
 import { serverActions } from "~/server_actions";
 import {
-  Step4Recode,
   emptyRecodeUiState,
   type RecodeUiState,
+  Step4Recode,
 } from "./step_4_recode";
 import { Step5Import } from "./step_5_import";
 
@@ -73,39 +81,42 @@ export function StructureUploadAttemptForm(p: Props) {
   );
 
   // Query state
-  const uploadAttempt = createQuery(async () => {
-    const res = await serverActions.getStructureUploadAttempt({
-      family: p.family,
-    });
-    if (res.success === true) {
-      batch(() => {
-        // Fresh staging run = fresh review: reset the hoisted state and
-        // hydrate the working assignments from the attempt's saved recodes.
-        const stagingNonce = res.data.step3Result?.stagingNonce;
-        if (stagingNonce !== recodeUi.stagingNonce) {
-          setRecodeUi({
-            ...emptyRecodeUiState(),
-            stagingNonce,
-            assignments: res.data.recodes ?? {},
-          });
-        }
-        // Landing rule: DB step 4 covers both review (client step 4) and
-        // import (client step 5). A silent refetch never yanks a user on
-        // import back to review; attempts with nothing to recode land
-        // straight on import.
-        stepper.setCurrentStep((prev) =>
-          res.data.step === 4
-            ? prev > 4
-              ? prev
-              : reviewApplies(res.data)
-                ? 4
-                : 5
-            : res.data.step,
-        );
+  const uploadAttempt = createQuery(
+    async () => {
+      const res = await serverActions.getStructureUploadAttempt({
+        family: p.family,
       });
-    }
-    return res;
-  }, t3({ en: "Loading import info...", fr: "Chargement des informations d'importation...", pt: "A carregar as informações de importação..." }));
+      if (res.success === true) {
+        batch(() => {
+          // Fresh staging run = fresh review: reset the hoisted state and
+          // hydrate the working assignments from the attempt's saved recodes.
+          const stagingNonce = res.data.step3Result?.stagingNonce;
+          if (stagingNonce !== recodeUi.stagingNonce) {
+            setRecodeUi({
+              ...emptyRecodeUiState(),
+              stagingNonce,
+              assignments: res.data.recodes ?? {},
+            });
+          }
+          // Landing rule: DB step 4 covers both review (client step 4) and
+          // import (client step 5). A silent refetch never yanks a user on
+          // import back to review; attempts with nothing to recode land
+          // straight on import.
+          stepper.setCurrentStep((prev) =>
+            res.data.step === 4
+              ? prev > 4 ? prev : reviewApplies(res.data) ? 4 : 5
+              : res.data.step
+          );
+        });
+      }
+      return res;
+    },
+    t3({
+      en: "Loading import info...",
+      fr: "Chargement des informations d'importation...",
+      pt: "A carregar as informações de importação...",
+    }),
+  );
 
   const [dismissedError, setDismissedError] = createSignal<string | undefined>(
     undefined,
@@ -165,7 +176,11 @@ export function StructureUploadAttemptForm(p: Props) {
   // Actions
   async function attemptDeleteStructureUploadAttempt() {
     const deleteAction = createDeleteAction(
-      t3({ en: "Are you sure you want to delete this import?", fr: "Êtes-vous sûr de vouloir supprimer cette importation ?", pt: "Tem a certeza de que pretende eliminar esta importação?" }),
+      t3({
+        en: "Are you sure you want to delete this import?",
+        fr: "Êtes-vous sûr de vouloir supprimer cette importation ?",
+        pt: "Tem a certeza de que pretende eliminar esta importação?",
+      }),
       () => serverActions.deleteStructureUploadAttempt({ family: p.family }),
       () => p.close({ needsReload: true }),
     );
@@ -177,19 +192,17 @@ export function StructureUploadAttemptForm(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
-          heading={
-            p.family === "hmis"
-              ? t3({
-                  en: "Import HMIS facilities",
-                  fr: "Importation des établissements SNIS",
-                  pt: "Importação de estabelecimentos SNIS",
-                })
-              : t3({
-                  en: "Import HFA facilities",
-                  fr: "Importation des établissements Enquêtes FOSA",
-                  pt: "Importação de estabelecimentos FOSA",
-                })
-          }
+          heading={p.family === "hmis"
+            ? t3({
+              en: "Import HMIS facilities",
+              fr: "Importation des établissements SNIS",
+              pt: "Importação de estabelecimentos SNIS",
+            })
+            : t3({
+              en: "Import HFA facilities",
+              fr: "Importation des établissements Enquêtes FOSA",
+              pt: "Importação de estabelecimentos FOSA",
+            })}
           onBack={() => p.close(undefined)}
         >
           <div class="ui-gap-sm flex flex-none items-center">
@@ -203,7 +216,11 @@ export function StructureUploadAttemptForm(p: Props) {
               intent="danger"
               iconName="trash"
             >
-              {t3({ en: "Discard upload", fr: "Annuler le téléversement", pt: "Descartar o carregamento" })}
+              {t3({
+                en: "Discard upload",
+                fr: "Annuler le téléversement",
+                pt: "Descartar o carregamento",
+              })}
             </Button>
           </div>
         </HeadingBar>
@@ -213,7 +230,11 @@ export function StructureUploadAttemptForm(p: Props) {
         state={uploadAttempt.state()}
         loadingAndErrorPad="md"
         onErrorButton={{
-          label: t3({ en: "Back to structure", fr: "Retour à la structure", pt: "Voltar à estrutura" }),
+          label: t3({
+            en: "Back to structure",
+            fr: "Retour à la structure",
+            pt: "Voltar à estrutura",
+          }),
           onClick: () => p.close(undefined),
         }}
       >
@@ -221,10 +242,8 @@ export function StructureUploadAttemptForm(p: Props) {
           return (
             <>
               <Show
-                when={
-                  keyedUploadAttempt.status.status === "error" &&
-                  keyedUploadAttempt.status.error
-                }
+                when={keyedUploadAttempt.status.status === "error" &&
+                  keyedUploadAttempt.status.error}
                 keyed
               >
                 {(errorMsg) => (
@@ -233,14 +252,21 @@ export function StructureUploadAttemptForm(p: Props) {
                       <div class="ui-gap flex items-start">
                         <div class="ui-spy-sm flex-1">
                           <div class="text-danger ui-text-heading">
-                            {t3({ en: "The last import step failed", fr: "La dernière étape d'importation a échoué", pt: "A última etapa de importação falhou" })}
+                            {t3({
+                              en: "The last import step failed",
+                              fr: "La dernière étape d'importation a échoué",
+                              pt: "A última etapa de importação falhou",
+                            })}
                           </div>
                           <div class="text-danger text-sm">{errorMsg}</div>
                           <div class="text-sm">
                             {t3({
-                              en: "Fix the configuration in the steps below and re-save, or discard the upload. If the final step was rejected, you can also choose a different import mode and run it again.",
-                              fr: "Corrigez la configuration dans les étapes ci-dessous et enregistrez de nouveau, ou annulez le téléversement. Si la dernière étape a été rejetée, vous pouvez aussi choisir un autre mode d'importation et relancer.",
-                              pt: "Corrija a configuração nas etapas abaixo e guarde novamente, ou descarte o carregamento. Se a última etapa foi rejeitada, pode também escolher outro modo de importação e executá-la novamente.",
+                              en:
+                                "Fix the configuration in the steps below and re-save, or discard the upload. If the final step was rejected, you can also choose a different import mode and run it again.",
+                              fr:
+                                "Corrigez la configuration dans les étapes ci-dessous et enregistrez de nouveau, ou annulez le téléversement. Si la dernière étape a été rejetée, vous pouvez aussi choisir un autre mode d'importation et relancer.",
+                              pt:
+                                "Corrija a configuração nas etapas abaixo e guarde novamente, ou descarte o carregamento. Se a última etapa foi rejeitada, pode também escolher outro modo de importação e executá-la novamente.",
                             })}
                           </div>
                         </div>
@@ -256,171 +282,158 @@ export function StructureUploadAttemptForm(p: Props) {
               <Switch
                 fallback={
                   <div class="ui-pad text-danger">
-                    {t3({ en: "Something went wrong: Bad step in structure upload attempt", fr: "Une erreur est survenue : étape incorrecte lors de la tentative d'importation de structure", pt: "Ocorreu um erro: etapa inválida na tentativa de importação de estrutura" })}
+                    {t3({
+                      en:
+                        "Something went wrong: Bad step in structure upload attempt",
+                      fr:
+                        "Une erreur est survenue : étape incorrecte lors de la tentative d'importation de structure",
+                      pt:
+                        "Ocorreu um erro: etapa inválida na tentativa de importação de estrutura",
+                    })}
                   </div>
                 }
               >
-              <Match
-                when={
-                  keyedUploadAttempt.status.status === "importing" ||
-                  keyedUploadAttempt.status.status === "importing_dhis2"
-                }
-              >
-                <ImportInProgress
-                  family={p.family}
-                  initialStatus={keyedUploadAttempt.status}
-                  silentRefreshAttempt={uploadAttempt.silentFetch}
-                />
-              </Match>
-              <Match
-                when={
-                  stepper.currentStep() === 5 &&
-                  keyedUploadAttempt.sourceType &&
-                  keyedUploadAttempt.step1Result &&
-                  keyedUploadAttempt.step2Result &&
-                  keyedUploadAttempt.step3Result
-                }
-              >
-                <Step5Import
-                  step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
-                  recodes={keyedUploadAttempt.recodes}
-                  family={p.family}
-                  structureSchema={p.structureSchema}
-                  close={() => p.close({ needsReload: true })}
-                  silentRefresUploadAttempt={uploadAttempt.silentFetch}
-                  silentRefreshInstance={p.silentRefreshInstance}
-                />
-              </Match>
-              <Match
-                when={
-                  stepper.currentStep() === 4 &&
-                  keyedUploadAttempt.sourceType &&
-                  keyedUploadAttempt.step1Result &&
-                  keyedUploadAttempt.step2Result &&
-                  keyedUploadAttempt.step3Result
-                }
-              >
-                <Step4Recode
-                  ui={recodeUi}
-                  setUi={setRecodeUi}
-                  family={p.family}
-                  step3Result={keyedUploadAttempt.step3Result as StructureStagingResult}
-                  recodes={keyedUploadAttempt.recodes}
-                  structureSchema={p.structureSchema}
-                  csvDetails={
-                    keyedUploadAttempt.sourceType === "csv"
-                      ? (keyedUploadAttempt.step1Result as StructureCsvStep1Result)
-                          .csv
-                      : undefined
-                  }
-                  columnMappings={
-                    keyedUploadAttempt.sourceType === "csv"
-                      ? (keyedUploadAttempt.step2Result as StructureColumnMappings)
-                      : undefined
-                  }
-                  silentFetch={uploadAttempt.silentFetch}
-                  goNext={stepper.goNext}
-                />
-              </Match>
-              <Match
-                when={
-                  stepper.currentStep() === 3 &&
-                  keyedUploadAttempt.sourceType &&
-                  keyedUploadAttempt.step1Result &&
-                  keyedUploadAttempt.step2Result
-                }
-              >
-                <Switch>
-                  <Match when={keyedUploadAttempt.sourceType === "csv"}>
-                    <Step3_Csv
-                      family={p.family}
-                      silentRefresUploadAttempt={uploadAttempt.silentFetch}
-                      silentRefreshInstance={p.silentRefreshInstance}
-                    />
-                  </Match>
-                  <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
-                    <Step3_Dhis2
-                      family={p.family}
-                      silentRefresUploadAttempt={uploadAttempt.silentFetch}
-                      silentRefreshInstance={p.silentRefreshInstance}
-                    />
-                  </Match>
-                </Switch>
-              </Match>
-              <Match
-                when={
-                  stepper.currentStep() >= 2 &&
-                  keyedUploadAttempt.sourceType &&
-                  keyedUploadAttempt.step1Result
-                }
-              >
-                <Switch>
-                  <Match when={keyedUploadAttempt.sourceType === "csv"}>
-                    <Step2_Csv
-                      step1Result={
-                        (keyedUploadAttempt.step1Result as StructureCsvStep1Result)
-                          .csv
-                      }
-                      step2Result={
-                        keyedUploadAttempt.step2Result as
+                <Match
+                  when={keyedUploadAttempt.status.status === "importing" ||
+                    keyedUploadAttempt.status.status === "importing_dhis2"}
+                >
+                  <ImportInProgress
+                    family={p.family}
+                    initialStatus={keyedUploadAttempt.status}
+                    silentRefreshAttempt={uploadAttempt.silentFetch}
+                  />
+                </Match>
+                <Match
+                  when={stepper.currentStep() === 5 &&
+                    keyedUploadAttempt.sourceType &&
+                    keyedUploadAttempt.step1Result &&
+                    keyedUploadAttempt.step2Result &&
+                    keyedUploadAttempt.step3Result}
+                >
+                  <Step5Import
+                    step3Result={keyedUploadAttempt
+                      .step3Result as StructureStagingResult}
+                    recodes={keyedUploadAttempt.recodes}
+                    family={p.family}
+                    structureSchema={p.structureSchema}
+                    close={() => p.close({ needsReload: true })}
+                    silentRefresUploadAttempt={uploadAttempt.silentFetch}
+                    silentRefreshInstance={p.silentRefreshInstance}
+                  />
+                </Match>
+                <Match
+                  when={stepper.currentStep() === 4 &&
+                    keyedUploadAttempt.sourceType &&
+                    keyedUploadAttempt.step1Result &&
+                    keyedUploadAttempt.step2Result &&
+                    keyedUploadAttempt.step3Result}
+                >
+                  <Step4Recode
+                    ui={recodeUi}
+                    setUi={setRecodeUi}
+                    family={p.family}
+                    step3Result={keyedUploadAttempt
+                      .step3Result as StructureStagingResult}
+                    recodes={keyedUploadAttempt.recodes}
+                    structureSchema={p.structureSchema}
+                    csvDetails={keyedUploadAttempt.sourceType === "csv"
+                      ? (keyedUploadAttempt
+                        .step1Result as StructureCsvStep1Result)
+                        .csv
+                      : undefined}
+                    columnMappings={keyedUploadAttempt.sourceType === "csv"
+                      ? (keyedUploadAttempt
+                        .step2Result as StructureColumnMappings)
+                      : undefined}
+                    silentFetch={uploadAttempt.silentFetch}
+                    goNext={stepper.goNext}
+                  />
+                </Match>
+                <Match
+                  when={stepper.currentStep() === 3 &&
+                    keyedUploadAttempt.sourceType &&
+                    keyedUploadAttempt.step1Result &&
+                    keyedUploadAttempt.step2Result}
+                >
+                  <Switch>
+                    <Match when={keyedUploadAttempt.sourceType === "csv"}>
+                      <Step3_Csv
+                        family={p.family}
+                        silentRefresUploadAttempt={uploadAttempt.silentFetch}
+                        silentRefreshInstance={p.silentRefreshInstance}
+                      />
+                    </Match>
+                    <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
+                      <Step3_Dhis2
+                        family={p.family}
+                        silentRefresUploadAttempt={uploadAttempt.silentFetch}
+                        silentRefreshInstance={p.silentRefreshInstance}
+                      />
+                    </Match>
+                  </Switch>
+                </Match>
+                <Match
+                  when={stepper.currentStep() >= 2 &&
+                    keyedUploadAttempt.sourceType &&
+                    keyedUploadAttempt.step1Result}
+                >
+                  <Switch>
+                    <Match when={keyedUploadAttempt.sourceType === "csv"}>
+                      <Step2_Csv
+                        step1Result={(keyedUploadAttempt
+                          .step1Result as StructureCsvStep1Result)
+                          .csv}
+                        step2Result={keyedUploadAttempt.step2Result as
                           | StructureColumnMappings
-                          | undefined
-                      }
-                      family={p.family}
-                      structureSchema={p.structureSchema}
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                  <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
-                    <Step2_Dhis2
-                      step2Result={
-                        keyedUploadAttempt.step2Result as
+                          | undefined}
+                        family={p.family}
+                        structureSchema={p.structureSchema}
+                        silentFetch={uploadAttempt.silentFetch}
+                      />
+                    </Match>
+                    <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
+                      <Step2_Dhis2
+                        step2Result={keyedUploadAttempt.step2Result as
                           | StructureDhis2OrgUnitSelection
-                          | undefined
-                      }
-                      family={p.family}
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                </Switch>
-              </Match>
-              <Match
-                when={
-                  stepper.currentStep() >= 1 && keyedUploadAttempt.sourceType
-                }
-              >
-                <Switch>
-                  <Match when={keyedUploadAttempt.sourceType === "csv"}>
-                    <Step1_Csv
-                      step1Result={
-                        keyedUploadAttempt.step1Result as
+                          | undefined}
+                        family={p.family}
+                        silentFetch={uploadAttempt.silentFetch}
+                      />
+                    </Match>
+                  </Switch>
+                </Match>
+                <Match
+                  when={stepper.currentStep() >= 1 &&
+                    keyedUploadAttempt.sourceType}
+                >
+                  <Switch>
+                    <Match when={keyedUploadAttempt.sourceType === "csv"}>
+                      <Step1_Csv
+                        step1Result={keyedUploadAttempt.step1Result as
                           | StructureCsvStep1Result
-                          | undefined
-                      }
-                      family={p.family}
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                  <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
-                    <Step1_Dhis2
-                      step1Result={
-                        keyedUploadAttempt.step1Result as
+                          | undefined}
+                        family={p.family}
+                        silentFetch={uploadAttempt.silentFetch}
+                      />
+                    </Match>
+                    <Match when={keyedUploadAttempt.sourceType === "dhis2"}>
+                      <Step1_Dhis2
+                        step1Result={keyedUploadAttempt.step1Result as
                           | StructureDhis2ConnectionSnapshot
-                          | undefined
-                      }
-                      family={p.family}
-                      silentFetch={uploadAttempt.silentFetch}
-                    />
-                  </Match>
-                </Switch>
-              </Match>
-              <Match when={stepper.currentStep() === 0}>
-                <Step0
-                  sourceType={keyedUploadAttempt.sourceType}
-                  family={p.family}
-                  silentFetch={uploadAttempt.silentFetch}
-                />
-              </Match>
+                          | undefined}
+                        family={p.family}
+                        silentFetch={uploadAttempt.silentFetch}
+                      />
+                    </Match>
+                  </Switch>
+                </Match>
+                <Match when={stepper.currentStep() === 0}>
+                  <Step0
+                    sourceType={keyedUploadAttempt.sourceType}
+                    family={p.family}
+                    silentFetch={uploadAttempt.silentFetch}
+                  />
+                </Match>
               </Switch>
             </>
           );
@@ -513,9 +526,12 @@ function ImportInProgress(p: ImportInProgressProps) {
       </Show>
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: "This screen will update automatically when the import finishes. It is safe to leave and come back.",
-          fr: "Cet écran se mettra à jour automatiquement à la fin de l'importation. Vous pouvez quitter cette page et revenir plus tard.",
-          pt: "Este ecrã atualiza-se automaticamente quando a importação terminar. Pode sair desta página e voltar mais tarde.",
+          en:
+            "This screen will update automatically when the import finishes. It is safe to leave and come back.",
+          fr:
+            "Cet écran se mettra à jour automatiquement à la fin de l'importation. Vous pouvez quitter cette page et revenir plus tard.",
+          pt:
+            "Este ecrã atualiza-se automaticamente quando a importação terminar. Pode sair desta página e voltar mais tarde.",
         })}
       </div>
     </div>

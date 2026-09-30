@@ -8,259 +8,534 @@ export const HELP_TARGETS = {
     page: "user-guide/ai-assistant",
     anchor: { en: "asking-questions", fr: "poser-des-questions" },
     title: { en: "Asking questions", fr: "Poser des questions" },
-    summary: { en: "Type your question in the input field at the bottom of the panel. The assistant can explain what specific metrics measure, describe patterns in your data, answer questions about module outputs, and…", fr: "Saisissez votre question dans le champ situé au bas du panneau. L'assistant peut expliquer ce que mesurent des indicateurs précis, décrire des tendances dans vos données, répondre à des questions sur…" },
+    summary: {
+      en:
+        "Type your question in the input field at the bottom of the panel. The assistant can explain what specific metrics measure, describe patterns in your data, answer questions about module outputs, and…",
+      fr:
+        "Saisissez votre question dans le champ situé au bas du panneau. L'assistant peut expliquer ce que mesurent des indicateurs précis, décrire des tendances dans vos données, répondre à des questions sur…",
+    },
   },
   "ai-open": {
     page: "user-guide/ai-assistant",
     anchor: { en: "opening-the-assistant", fr: "ouvrir-lassistant" },
     title: { en: "Opening the assistant", fr: "Ouvrir l'assistant" },
-    summary: { en: "Click AI in any project view to open the assistant panel on the right side of the screen. The panel stays open as you navigate between visualizations, slide decks, and other sections - the AI tracks…", fr: "Cliquez sur IA dans n'importe quelle vue de projet pour ouvrir le panneau de l'assistant sur le côté droit de l'écran. Le panneau reste ouvert lorsque vous naviguez entre les visualisations, les…" },
+    summary: {
+      en:
+        "Click AI in any project view to open the assistant panel on the right side of the screen. The panel stays open as you navigate between visualizations, slide decks, and other sections - the AI tracks…",
+      fr:
+        "Cliquez sur IA dans n'importe quelle vue de projet pour ouvrir le panneau de l'assistant sur le côté droit de l'écran. Le panneau reste ouvert lorsque vous naviguez entre les visualisations, les…",
+    },
   },
   "ai-prompt-library": {
     page: "user-guide/ai-assistant",
     anchor: { en: "the-prompt-library", fr: "la-bibliothèque-dinvites" },
     title: { en: "The prompt library", fr: "La bibliothèque d'invites" },
-    summary: { en: "The prompt library contains pre-written prompts for common analysis tasks. Click the menu icon in the AI panel header and select Prompt library to browse. Prompts are organized by category -…", fr: "La bibliothèque d'invites contient des invites pré-rédigées pour les tâches d'analyse courantes. Cliquez sur l'icône de menu dans l'en-tête du panneau IA et sélectionnez Bibliothèque d'invites pour…" },
+    summary: {
+      en:
+        "The prompt library contains pre-written prompts for common analysis tasks. Click the menu icon in the AI panel header and select Prompt library to browse. Prompts are organized by category -…",
+      fr:
+        "La bibliothèque d'invites contient des invites pré-rédigées pour les tâches d'analyse courantes. Cliquez sur l'icône de menu dans l'en-tête du panneau IA et sélectionnez Bibliothèque d'invites pour…",
+    },
   },
   "amod-configure": {
     page: "admin-guide/modules",
-    anchor: { en: "configuring-module-parameters", fr: "configurer-les-paramètres-dun-module" },
-    title: { en: "Configuring module parameters", fr: "Configurer les paramètres d'un module" },
-    summary: { en: "Many modules accept parameters that control their behavior. A data quality module might let you set thresholds for outliers. A coverage module might need target population figures. Click Settings on…", fr: "De nombreux modules acceptent des paramètres qui contrôlent leur comportement. Un module de qualité des données peut vous permettre de définir des seuils pour les valeurs aberrantes. Un module de…" },
+    anchor: {
+      en: "configuring-module-parameters",
+      fr: "configurer-les-paramètres-dun-module",
+    },
+    title: {
+      en: "Configuring module parameters",
+      fr: "Configurer les paramètres d'un module",
+    },
+    summary: {
+      en:
+        "Many modules accept parameters that control their behavior. A data quality module might let you set thresholds for outliers. A coverage module might need target population figures. Click Settings on…",
+      fr:
+        "De nombreux modules acceptent des paramètres qui contrôlent leur comportement. Un module de qualité des données peut vous permettre de définir des seuils pour les valeurs aberrantes. Un module de…",
+    },
   },
   "amod-install": {
     page: "admin-guide/modules",
     anchor: { en: "installing-modules", fr: "installer-des-modules" },
     title: { en: "Installing modules", fr: "Installer des modules" },
-    summary: { en: "Navigate to Modules in the left sidebar. The page lists all modules available for your instance, showing which are currently enabled and which are available to install. Modules that are installed…", fr: "Ouvrez Modules dans la barre latérale de gauche. La page liste tous les modules disponibles pour votre instance, en indiquant ceux qui sont actuellement activés et ceux qui peuvent être installés.…" },
+    summary: {
+      en:
+        "Navigate to Modules in the left sidebar. The page lists all modules available for your instance, showing which are currently enabled and which are available to install. Modules that are installed…",
+      fr:
+        "Ouvrez Modules dans la barre latérale de gauche. La page liste tous les modules disponibles pour votre instance, en indiquant ceux qui sont actuellement activés et ceux qui peuvent être installés.…",
+    },
   },
   "amod-status": {
     page: "admin-guide/modules",
-    anchor: { en: "module-execution-and-status", fr: "exécution-et-état-des-modules" },
-    title: { en: "Module execution and status", fr: "Exécution et état des modules" },
-    summary: { en: "Each module displays its current status in the module list: Ready means results are available. You'll see timestamps for definitions and when the module last ran. Running indicates the module is…", fr: "Chaque module affiche son état actuel dans la liste des modules : Prêt signifie que les résultats sont disponibles. Vous verrez les horodatages des définitions et de la dernière exécution du module.…" },
+    anchor: {
+      en: "module-execution-and-status",
+      fr: "exécution-et-état-des-modules",
+    },
+    title: {
+      en: "Module execution and status",
+      fr: "Exécution et état des modules",
+    },
+    summary: {
+      en:
+        "Each module displays its current status in the module list: Ready means results are available. You'll see timestamps for definitions and when the module last ran. Running indicates the module is…",
+      fr:
+        "Chaque module affiche son état actuel dans la liste des modules : Prêt signifie que les résultats sont disponibles. Vous verrez les horodatages des définitions et de la dernière exécution du module.…",
+    },
   },
   "aproj-create": {
     page: "admin-guide/projects",
     anchor: { en: "creating-a-project", fr: "créer-un-projet" },
     title: { en: "Creating a project", fr: "Créer un projet" },
-    summary: { en: "Any user with the \"Create projects\" permission can start a new project from the home screen. Click Create project, enter a name that identifies the project's scope, and the system will set up an…", fr: "Tout utilisateur disposant de la permission « Créer des projets » peut démarrer un nouveau projet depuis l'écran d'accueil. Cliquez sur Créer un projet, saisissez un nom qui identifie la portée du…" },
+    summary: {
+      en:
+        'Any user with the "Create projects" permission can start a new project from the home screen. Click Create project, enter a name that identifies the project\'s scope, and the system will set up an…',
+      fr:
+        "Tout utilisateur disposant de la permission « Créer des projets » peut démarrer un nouveau projet depuis l'écran d'accueil. Cliquez sur Créer un projet, saisissez un nom qui identifie la portée du…",
+    },
   },
   "aproj-data-window": {
     page: "admin-guide/projects",
-    anchor: { en: "configuring-the-data-window", fr: "configurer-la-fenêtre-de-données" },
-    title: { en: "Configuring the data window", fr: "Configurer la fenêtre de données" },
-    summary: { en: "The data window determines which subset of your instance's data flows into the project. When you import HMIS data at the instance level, all of that data becomes available for windowing into projects…", fr: "La fenêtre de données détermine quel sous-ensemble des données de votre instance alimente le projet. Lorsque vous importez des données HMIS au niveau de l'instance, toutes ces données deviennent…" },
+    anchor: {
+      en: "configuring-the-data-window",
+      fr: "configurer-la-fenêtre-de-données",
+    },
+    title: {
+      en: "Configuring the data window",
+      fr: "Configurer la fenêtre de données",
+    },
+    summary: {
+      en:
+        "The data window determines which subset of your instance's data flows into the project. When you import HMIS data at the instance level, all of that data becomes available for windowing into projects…",
+      fr:
+        "La fenêtre de données détermine quel sous-ensemble des données de votre instance alimente le projet. Lorsque vous importez des données HMIS au niveau de l'instance, toutes ces données deviennent…",
+    },
   },
   "aproj-lock": {
     page: "admin-guide/projects",
     anchor: { en: "locking-projects", fr: "verrouiller-des-projets" },
     title: { en: "Locking projects", fr: "Verrouiller des projets" },
-    summary: { en: "When an analysis is complete, you can lock the project to preserve its state. A locked project prevents changes to modules, data configuration, and visualizations while still allowing users to view…", fr: "Lorsqu'une analyse est terminée, vous pouvez verrouiller le projet pour préserver son état. Un projet verrouillé empêche toute modification des modules, de la configuration des données et des…" },
+    summary: {
+      en:
+        "When an analysis is complete, you can lock the project to preserve its state. A locked project prevents changes to modules, data configuration, and visualizations while still allowing users to view…",
+      fr:
+        "Lorsqu'une analyse est terminée, vous pouvez verrouiller le projet pour préserver son état. Un projet verrouillé empêche toute modification des modules, de la configuration des données et des…",
+    },
   },
   "dash-add-items": {
     page: "user-guide/dashboards",
     anchor: { en: "adding-items", fr: "ajouter-des-éléments" },
     title: { en: "Adding items", fr: "Ajouter des éléments" },
-    summary: { en: "Each item on a dashboard is a card showing one of your saved visualizations. Click Add item and choose a visualization from the project. The card renders the chart, map, or table with its current…", fr: "Chaque élément d'un tableau de bord est une carte affichant l'une de vos visualisations enregistrées. Cliquez sur Ajouter un élément et choisissez une visualisation du projet. La carte affiche le…" },
+    summary: {
+      en:
+        "Each item on a dashboard is a card showing one of your saved visualizations. Click Add item and choose a visualization from the project. The card renders the chart, map, or table with its current…",
+      fr:
+        "Chaque élément d'un tableau de bord est une carte affichant l'une de vos visualisations enregistrées. Cliquez sur Ajouter un élément et choisissez une visualisation du projet. La carte affiche le…",
+    },
   },
   "dash-create": {
     page: "user-guide/dashboards",
     anchor: { en: "creating-a-dashboard", fr: "créer-un-tableau-de-bord" },
     title: { en: "Creating a dashboard", fr: "Créer un tableau de bord" },
-    summary: { en: "Open your project and go to the Dashboards section. Click Create dashboard and give it a Title. You can also set an optional URL slug - a short, readable identifier (lowercase letters, numbers, and…", fr: "Ouvrez votre projet et accédez à la section Tableaux de bord. Cliquez sur Créer un tableau de bord et donnez-lui un Titre. Vous pouvez également définir un identifiant d'URL facultatif - un…" },
+    summary: {
+      en:
+        "Open your project and go to the Dashboards section. Click Create dashboard and give it a Title. You can also set an optional URL slug - a short, readable identifier (lowercase letters, numbers, and…",
+      fr:
+        "Ouvrez votre projet et accédez à la section Tableaux de bord. Cliquez sur Créer un tableau de bord et donnez-lui un Titre. Vous pouvez également définir un identifiant d'URL facultatif - un…",
+    },
   },
   "dash-publish": {
     page: "user-guide/dashboards",
     anchor: { en: "publishing-and-sharing", fr: "publier-et-partager" },
     title: { en: "Publishing and sharing", fr: "Publier et partager" },
-    summary: { en: "A dashboard can be private (FASTR login required) or public (anyone with the link can view). Open Settings to control this with the Require authentication toggle. Leave it off to make the dashboard…", fr: "Un tableau de bord peut être privé (connexion FASTR requise) ou public (toute personne disposant du lien peut le consulter). Ouvrez Paramètres pour contrôler cela à l'aide du commutateur Exiger…" },
+    summary: {
+      en:
+        "A dashboard can be private (FASTR login required) or public (anyone with the link can view). Open Settings to control this with the Require authentication toggle. Leave it off to make the dashboard…",
+      fr:
+        "Un tableau de bord peut être privé (connexion FASTR requise) ou public (toute personne disposant du lien peut le consulter). Ouvrez Paramètres pour contrôler cela à l'aide du commutateur Exiger…",
+    },
   },
   "deck-content-slides": {
     page: "user-guide/slide-decks",
-    anchor: { en: "building-content-slides", fr: "construire-des-diapositives-de-contenu" },
-    title: { en: "Building content slides", fr: "Construire des diapositives de contenu" },
-    summary: { en: "Content slides use a flexible layout system with one or more content blocks. A block can hold text (formatted with markdown), a visualization from your project, or an uploaded image. To add a…", fr: "Les diapositives de contenu utilisent un système de mise en page flexible composé d'un ou plusieurs blocs de contenu. Un bloc peut contenir du texte (mis en forme avec Markdown), une visualisation de…" },
+    anchor: {
+      en: "building-content-slides",
+      fr: "construire-des-diapositives-de-contenu",
+    },
+    title: {
+      en: "Building content slides",
+      fr: "Construire des diapositives de contenu",
+    },
+    summary: {
+      en:
+        "Content slides use a flexible layout system with one or more content blocks. A block can hold text (formatted with markdown), a visualization from your project, or an uploaded image. To add a…",
+      fr:
+        "Les diapositives de contenu utilisent un système de mise en page flexible composé d'un ou plusieurs blocs de contenu. Un bloc peut contenir du texte (mis en forme avec Markdown), une visualisation de…",
+    },
   },
   "deck-create": {
     page: "user-guide/slide-decks",
     anchor: { en: "creating-a-slide-deck", fr: "créer-une-présentation" },
     title: { en: "Creating a slide deck", fr: "Créer une présentation" },
-    summary: { en: "Open your project and click Slide decks in the left sidebar. Click Create slide deck to start. You'll name it and optionally assign it to a folder for organization. A new deck starts empty. The left…", fr: "Ouvrez votre projet et cliquez sur Présentations dans la barre latérale gauche. Cliquez sur Créer une présentation pour commencer. Vous lui donnerez un nom et pourrez éventuellement l'affecter à un…" },
+    summary: {
+      en:
+        "Open your project and click Slide decks in the left sidebar. Click Create slide deck to start. You'll name it and optionally assign it to a folder for organization. A new deck starts empty. The left…",
+      fr:
+        "Ouvrez votre projet et cliquez sur Présentations dans la barre latérale gauche. Cliquez sur Créer une présentation pour commencer. Vous lui donnerez un nom et pourrez éventuellement l'affecter à un…",
+    },
   },
   "deck-export": {
     page: "user-guide/slide-decks",
     anchor: { en: "exporting-and-sharing", fr: "exporter-et-partager" },
     title: { en: "Exporting and sharing", fr: "Exporter et partager" },
-    summary: { en: "Click Download to export your deck. Native PDF produces a high-quality vector file where text stays sharp at any zoom level. PPTX with raster figures creates a PowerPoint file with visualizations…", fr: "Cliquez sur Télécharger pour exporter votre présentation. PDF natif produit un fichier vectoriel de haute qualité où le texte reste net à n'importe quel niveau de zoom. PPTX avec figures matricielles…" },
+    summary: {
+      en:
+        "Click Download to export your deck. Native PDF produces a high-quality vector file where text stays sharp at any zoom level. PPTX with raster figures creates a PowerPoint file with visualizations…",
+      fr:
+        "Cliquez sur Télécharger pour exporter votre présentation. PDF natif produit un fichier vectoriel de haute qualité où le texte reste net à n'importe quel niveau de zoom. PPTX avec figures matricielles…",
+    },
   },
   "hfa-import": {
     page: "admin-guide/data-hfa",
     anchor: { en: "import-workflow", fr: "déroulement-de-limportation" },
     title: { en: "Import workflow", fr: "Déroulement de l'importation" },
-    summary: { en: "Navigate to the Data section and select HFA Data. Click Start new import to begin a four-step process. 1. Upload files. Select or upload both your CSV data file and XLSForm questionnaire file. 2.…", fr: "Accédez à la section Données et sélectionnez Données HFA. Cliquez sur Démarrer une nouvelle importation pour lancer un processus en quatre étapes. 1. Charger les fichiers. Sélectionnez ou chargez à…" },
+    summary: {
+      en:
+        "Navigate to the Data section and select HFA Data. Click Start new import to begin a four-step process. 1. Upload files. Select or upload both your CSV data file and XLSForm questionnaire file. 2.…",
+      fr:
+        "Accédez à la section Données et sélectionnez Données HFA. Cliquez sur Démarrer une nouvelle importation pour lancer un processus en quatre étapes. 1. Charger les fichiers. Sélectionnez ou chargez à…",
+    },
   },
   "hfa-required-files": {
     page: "admin-guide/data-hfa",
     anchor: { en: "required-files", fr: "fichiers-requis" },
     title: { en: "Required files", fr: "Fichiers requis" },
-    summary: { en: "Each HFA import requires two files: CSV data file - one row per facility with columns for each survey question. The first column should contain facility identifiers matching your registry. XLSForm…", fr: "Chaque importation HFA nécessite deux fichiers : Fichier de données CSV - une ligne par établissement avec une colonne pour chaque question de l'enquête. La première colonne doit contenir les…" },
+    summary: {
+      en:
+        "Each HFA import requires two files: CSV data file - one row per facility with columns for each survey question. The first column should contain facility identifiers matching your registry. XLSForm…",
+      fr:
+        "Chaque importation HFA nécessite deux fichiers : Fichier de données CSV - une ligne par établissement avec une colonne pour chaque question de l'enquête. La première colonne doit contenir les…",
+    },
   },
   "hfa-time-points": {
     page: "admin-guide/data-hfa",
     anchor: { en: "time-points", fr: "points-temporels" },
     title: { en: "Time points", fr: "Points temporels" },
-    summary: { en: "HFA data is organized by time points rather than continuous periods. Before importing data, create your time points on the HFA Time Points page. Each time point has a label and a calendar period…", fr: "Les données HFA sont organisées par points temporels plutôt que par périodes continues. Avant d'importer des données, créez vos points temporels sur la page Points temporels HFA. Chaque point…" },
+    summary: {
+      en:
+        "HFA data is organized by time points rather than continuous periods. Before importing data, create your time points on the HFA Time Points page. Each time point has a label and a calendar period…",
+      fr:
+        "Les données HFA sont organisées par points temporels plutôt que par périodes continues. Avant d'importer des données, créez vos points temporels sur la page Points temporels HFA. Chaque point…",
+    },
   },
   "hmis-csv": {
     page: "admin-guide/data-hmis",
     anchor: { en: "csv-import-workflow", fr: "processus-dimportation-csv" },
     title: { en: "CSV import workflow", fr: "Processus d'importation CSV" },
-    summary: { en: "A CSV import has four steps: upload the file, match its columns to the four required fields, map the values in the indicator column to your indicators, and launch. FASTR then stages the file and…", fr: "Une importation CSV comporte quatre étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, associer les valeurs de la colonne indicateur à vos indicateurs, puis lancer. FASTR…" },
+    summary: {
+      en:
+        "A CSV import has four steps: upload the file, match its columns to the four required fields, map the values in the indicator column to your indicators, and launch. FASTR then stages the file and…",
+      fr:
+        "Une importation CSV comporte quatre étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, associer les valeurs de la colonne indicateur à vos indicateurs, puis lancer. FASTR…",
+    },
   },
   "hmis-dhis2": {
     page: "admin-guide/data-hmis",
     anchor: { en: "dhis2-import-workflow", fr: "processus-dimportation-dhis2" },
     title: { en: "DHIS2 import workflow", fr: "Processus d'importation DHIS2" },
-    summary: { en: "A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It uses the instance's stored DHIS2 connection, which is set in the…", fr: "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2. Elle utilise la connexion DHIS2…" },
+    summary: {
+      en:
+        "A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It uses the instance's stored DHIS2 connection, which is set in the…",
+      fr:
+        "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2. Elle utilise la connexion DHIS2…",
+    },
   },
   "hmis-validation": {
     page: "admin-guide/data-hmis",
-    anchor: { en: "validation-and-error-handling", fr: "validation-et-gestion-des-erreurs" },
-    title: { en: "Validation and error handling", fr: "Validation et gestion des erreurs" },
-    summary: { en: "For a CSV import, the staging results list every issue by category, with a count and sample rows. The categories are: rows with missing required fields, rows with invalid values, facilities not in…", fr: "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie, avec un nombre et des exemples de lignes. Les catégories sont : lignes avec des champs requis…" },
+    anchor: {
+      en: "validation-and-error-handling",
+      fr: "validation-et-gestion-des-erreurs",
+    },
+    title: {
+      en: "Validation and error handling",
+      fr: "Validation et gestion des erreurs",
+    },
+    summary: {
+      en:
+        "For a CSV import, the staging results list every issue by category, with a count and sample rows. The categories are: rows with missing required fields, rows with invalid values, facilities not in…",
+      fr:
+        "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie, avec un nombre et des exemples de lignes. Les catégories sont : lignes avec des champs requis…",
+    },
   },
   "ind-calculated": {
     page: "admin-guide/indicators",
     anchor: { en: "calculated-indicators", fr: "indicateurs-calculés" },
     title: { en: "Calculated indicators", fr: "Indicateurs calculés" },
-    summary: { en: "A calculated indicator is defined by a formula over other indicators, for example anc4 / anc1 for a coverage rate. It is computed after the data is aggregated, so a regional or annual figure is the…", fr: "Un indicateur calculé est défini par une formule portant sur d'autres indicateurs, par exemple anc4 / anc1 pour un taux de couverture. Il est calculé après l'agrégation des données : un chiffre…" },
+    summary: {
+      en:
+        "A calculated indicator is defined by a formula over other indicators, for example anc4 / anc1 for a coverage rate. It is computed after the data is aggregated, so a regional or annual figure is the…",
+      fr:
+        "Un indicateur calculé est défini par une formule portant sur d'autres indicateurs, par exemple anc4 / anc1 pour un taux de couverture. Il est calculé après l'agrégation des données : un chiffre…",
+    },
   },
   "ind-dhis2-import": {
     page: "admin-guide/indicators",
-    anchor: { en: "adding-indicators-from-dhis2", fr: "ajouter-des-indicateurs-depuis-dhis2" },
-    title: { en: "Adding indicators from DHIS2", fr: "Ajouter des indicateurs depuis DHIS2" },
-    summary: { en: "Click Add indicators from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored DHIS2 connection, which is set in the DHIS2 connection card…", fr: "Cliquez sur Ajouter des indicateurs depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion DHIS2 enregistrée de…" },
+    anchor: {
+      en: "adding-indicators-from-dhis2",
+      fr: "ajouter-des-indicateurs-depuis-dhis2",
+    },
+    title: {
+      en: "Adding indicators from DHIS2",
+      fr: "Ajouter des indicateurs depuis DHIS2",
+    },
+    summary: {
+      en:
+        "Click Add indicators from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored DHIS2 connection, which is set in the DHIS2 connection card…",
+      fr:
+        "Cliquez sur Ajouter des indicateurs depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion DHIS2 enregistrée de…",
+    },
   },
   "ind-include": {
     page: "admin-guide/indicators",
     anchor: { en: "include-in-analysis", fr: "inclure-dans-lanalyse" },
     title: { en: "Include in analysis", fr: "Inclure dans l'analyse" },
-    summary: { en: "Every indicator has an Include in analysis checkbox. When it is on, every results package analyses the indicator: the data quality modules adjust it and it is available in visualizations. When it is…", fr: "Chaque indicateur possède une case à cocher Inclure dans l'analyse. Lorsqu'elle est cochée, chaque paquet de résultats analyse l'indicateur : les modules de qualité des données l'ajustent et il est…" },
+    summary: {
+      en:
+        "Every indicator has an Include in analysis checkbox. When it is on, every results package analyses the indicator: the data quality modules adjust it and it is available in visualizations. When it is…",
+      fr:
+        "Chaque indicateur possède une case à cocher Inclure dans l'analyse. Lorsqu'elle est cochée, chaque paquet de résultats analyse l'indicateur : les modules de qualité des données l'ajustent et il est…",
+    },
   },
   "ind-list": {
     page: "admin-guide/indicators",
     anchor: { en: "the-indicator-list", fr: "la-liste-des-indicateurs" },
     title: { en: "The indicator list", fr: "La liste des indicateurs" },
-    summary: { en: "The list shows every indicator with its id, label, type and definition. The Type column has four values: DHIS2 element is a count fetched from DHIS2. The Defined by column shows the DHIS2 id of the…", fr: "La liste affiche chaque indicateur avec son identifiant, son libellé, son type et sa définition. La colonne Type prend quatre valeurs : Élément DHIS2 est un comptage récupéré depuis DHIS2. La colonne…" },
+    summary: {
+      en:
+        "The list shows every indicator with its id, label, type and definition. The Type column has four values: DHIS2 element is a count fetched from DHIS2. The Defined by column shows the DHIS2 id of the…",
+      fr:
+        "La liste affiche chaque indicateur avec son identifiant, son libellé, son type et sa définition. La colonne Type prend quatre valeurs : Élément DHIS2 est un comptage récupéré depuis DHIS2. La colonne…",
+    },
   },
   "ind-r-code": {
     page: "admin-guide/indicators",
     anchor: { en: "r-code-for-extraction", fr: "code-r-pour-lextraction" },
     title: { en: "R code for extraction", fr: "Code R pour l'extraction" },
-    summary: { en: "Each HFA indicator requires R code specifying how to extract its value from raw survey data. The code runs for each facility and should return TRUE/FALSE for binary indicators or a number for numeric…", fr: "Chaque indicateur HFA nécessite du code R spécifiant comment extraire sa valeur à partir des données d'enquête brutes. Le code s'exécute pour chaque établissement et doit renvoyer TRUE/FALSE pour les…" },
+    summary: {
+      en:
+        "Each HFA indicator requires R code specifying how to extract its value from raw survey data. The code runs for each facility and should return TRUE/FALSE for binary indicators or a number for numeric…",
+      fr:
+        "Chaque indicateur HFA nécessite du code R spécifiant comment extraire sa valeur à partir des données d'enquête brutes. Le code s'exécute pour chaque établissement et doit renvoyer TRUE/FALSE pour les…",
+    },
   },
   "report-create": {
     page: "user-guide/reports",
     anchor: { en: "creating-a-report", fr: "créer-un-rapport" },
     title: { en: "Creating a report", fr: "Créer un rapport" },
-    summary: { en: "Open your project and go to the Reports section. Each report appears as a card showing a preview of its opening lines and a count of the figures and images inside, which makes it easy to find the one…", fr: "Ouvrez votre projet et accédez à la section Rapports. Chaque rapport apparaît sous forme de carte affichant un aperçu de ses premières lignes ainsi que le nombre de figures et d'images qu'il…" },
+    summary: {
+      en:
+        "Open your project and go to the Reports section. Each report appears as a card showing a preview of its opening lines and a count of the figures and images inside, which makes it easy to find the one…",
+      fr:
+        "Ouvrez votre projet et accédez à la section Rapports. Chaque rapport apparaît sous forme de carte affichant un aperçu de ses premières lignes ainsi que le nombre de figures et d'images qu'il…",
+    },
   },
   "report-export": {
     page: "user-guide/reports",
     anchor: { en: "exporting", fr: "exporter" },
     title: { en: "Exporting", fr: "Exporter" },
-    summary: { en: "Click Download and choose PDF or Word (.docx). PDF is best for a final, fixed document you're distributing or archiving; Word is best when a colleague needs to edit or comment. Both use consistent…", fr: "Cliquez sur Télécharger et choisissez PDF ou Word (.docx). Le PDF est idéal pour un document final et figé que vous diffusez ou archivez ; le Word convient mieux lorsqu'un collègue doit le modifier…" },
+    summary: {
+      en:
+        "Click Download and choose PDF or Word (.docx). PDF is best for a final, fixed document you're distributing or archiving; Word is best when a colleague needs to edit or comment. Both use consistent…",
+      fr:
+        "Cliquez sur Télécharger et choisissez PDF ou Word (.docx). Le PDF est idéal pour un document final et figé que vous diffusez ou archivez ; le Word convient mieux lorsqu'un collègue doit le modifier…",
+    },
   },
   "report-figures": {
     page: "user-guide/reports",
-    anchor: { en: "adding-figures-and-images", fr: "ajouter-des-figures-et-des-images" },
-    title: { en: "Adding figures and images", fr: "Ajouter des figures et des images" },
-    summary: { en: "Reports hold two kinds of visual content, and the difference matters. A figure is a live visualization from your project - it renders from current data and updates when that data changes. An image is…", fr: "Les rapports peuvent contenir deux types de contenu visuel, et la distinction est importante. Une figure est une visualisation dynamique issue de votre projet - elle se génère à partir des données…" },
+    anchor: {
+      en: "adding-figures-and-images",
+      fr: "ajouter-des-figures-et-des-images",
+    },
+    title: {
+      en: "Adding figures and images",
+      fr: "Ajouter des figures et des images",
+    },
+    summary: {
+      en:
+        "Reports hold two kinds of visual content, and the difference matters. A figure is a live visualization from your project - it renders from current data and updates when that data changes. An image is…",
+      fr:
+        "Les rapports peuvent contenir deux types de contenu visuel, et la distinction est importante. Une figure est une visualisation dynamique issue de votre projet - elle se génère à partir des données…",
+    },
   },
   "struct-admin-areas": {
     page: "admin-guide/structure",
     anchor: { en: "administrative-areas", fr: "zones-administratives" },
     title: { en: "Administrative areas", fr: "Zones administratives" },
-    summary: { en: "Administrative areas represent geographic boundaries organized in a hierarchy. FASTR supports up to four levels, though most countries use two or three. The exact meaning of each level depends on…", fr: "Les zones administratives représentent des limites géographiques organisées de manière hiérarchique. FASTR prend en charge jusqu'à quatre niveaux, même si la plupart des pays n'en utilisent que deux…" },
+    summary: {
+      en:
+        "Administrative areas represent geographic boundaries organized in a hierarchy. FASTR supports up to four levels, though most countries use two or three. The exact meaning of each level depends on…",
+      fr:
+        "Les zones administratives représentent des limites géographiques organisées de manière hiérarchique. FASTR prend en charge jusqu'à quatre niveaux, même si la plupart des pays n'en utilisent que deux…",
+    },
   },
   "struct-facilities": {
     page: "admin-guide/structure",
     anchor: { en: "health-facilities", fr: "établissements-de-santé" },
     title: { en: "Health facilities", fr: "Établissements de santé" },
-    summary: { en: "FASTR maintains two separate facility registries: one for HMIS facilities and one for HFA facilities. Both registries share the same admin area hierarchy, but each has its own import flow and its own…", fr: "FASTR maintient deux registres d'établissements distincts : l'un pour les établissements SNIS et l'autre pour les établissements Enquêtes FOSA. Les deux registres partagent la même hiérarchie de…" },
+    summary: {
+      en:
+        "FASTR maintains two separate facility registries: one for HMIS facilities and one for HFA facilities. Both registries share the same admin area hierarchy, but each has its own import flow and its own…",
+      fr:
+        "FASTR maintient deux registres d'établissements distincts : l'un pour les établissements SNIS et l'autre pour les établissements Enquêtes FOSA. Les deux registres partagent la même hiérarchie de…",
+    },
   },
   "struct-geojson": {
     page: "admin-guide/structure",
     anchor: { en: "geojson-for-maps", fr: "geojson-pour-les-cartes" },
     title: { en: "GeoJSON for maps", fr: "GeoJSON pour les cartes" },
-    summary: { en: "Map visualizations require geographic boundary data in GeoJSON format. Upload one GeoJSON file per admin area level - typically for Admin Area 2 (regions) and Admin Area 3 (districts). Each GeoJSON…", fr: "Les visualisations cartographiques nécessitent des données de limites géographiques au format GeoJSON. Chargez un fichier GeoJSON par niveau de zone administrative - généralement pour la Zone…" },
+    summary: {
+      en:
+        "Map visualizations require geographic boundary data in GeoJSON format. Upload one GeoJSON file per admin area level - typically for Admin Area 2 (regions) and Admin Area 3 (districts). Each GeoJSON…",
+      fr:
+        "Les visualisations cartographiques nécessitent des données de limites géographiques au format GeoJSON. Chargez un fichier GeoJSON par niveau de zone administrative - généralement pour la Zone…",
+    },
   },
   "umod-metrics": {
     page: "user-guide/modules",
-    anchor: { en: "metrics-and-visualizations", fr: "métriques-et-visualisations" },
-    title: { en: "Metrics and visualizations", fr: "Métriques et visualisations" },
-    summary: { en: "The connection between modules and visualizations runs through metrics. When you create a visualization, you first select a metric from a module's results. The visualization then queries that metric…", fr: "Le lien entre les modules et les visualisations passe par les métriques. Lorsque vous créez une visualisation, vous sélectionnez d'abord une métrique parmi les résultats d'un module. La visualisation…" },
+    anchor: {
+      en: "metrics-and-visualizations",
+      fr: "métriques-et-visualisations",
+    },
+    title: {
+      en: "Metrics and visualizations",
+      fr: "Métriques et visualisations",
+    },
+    summary: {
+      en:
+        "The connection between modules and visualizations runs through metrics. When you create a visualization, you first select a metric from a module's results. The visualization then queries that metric…",
+      fr:
+        "Le lien entre les modules et les visualisations passe par les métriques. Lorsque vous créez une visualisation, vous sélectionnez d'abord une métrique parmi les résultats d'un module. La visualisation…",
+    },
   },
   "umod-outputs": {
     page: "user-guide/modules",
-    anchor: { en: "viewing-module-outputs", fr: "consulter-les-sorties-des-modules" },
-    title: { en: "Viewing module outputs", fr: "Consulter les sorties des modules" },
-    summary: { en: "While you typically interact with module results through visualizations, you can inspect raw outputs directly from the Modules tab. Click the menu button on any ready module to access Logs (R console…", fr: "Bien que vous interagissiez généralement avec les résultats des modules par l'intermédiaire des visualisations, vous pouvez inspecter les sorties brutes directement depuis l'onglet Modules. Cliquez…" },
+    anchor: {
+      en: "viewing-module-outputs",
+      fr: "consulter-les-sorties-des-modules",
+    },
+    title: {
+      en: "Viewing module outputs",
+      fr: "Consulter les sorties des modules",
+    },
+    summary: {
+      en:
+        "While you typically interact with module results through visualizations, you can inspect raw outputs directly from the Modules tab. Click the menu button on any ready module to access Logs (R console…",
+      fr:
+        "Bien que vous interagissiez généralement avec les résultats des modules par l'intermédiaire des visualisations, vous pouvez inspecter les sorties brutes directement depuis l'onglet Modules. Cliquez…",
+    },
   },
   "umod-status": {
     page: "user-guide/modules",
     anchor: { en: "module-status", fr: "état-des-modules" },
     title: { en: "Module status", fr: "État des modules" },
-    summary: { en: "The Modules tab shows each installed module and its current state. A status badge next to each module name tells you what's happening: Ready - Results are current; you can create visualizations…", fr: "L'onglet Modules affiche chaque module installé et son état actuel. Un badge d'état situé à côté du nom de chaque module vous indique ce qui se passe : Prêt - Les résultats sont à jour ; vous pouvez…" },
+    summary: {
+      en:
+        "The Modules tab shows each installed module and its current state. A status badge next to each module name tells you what's happening: Ready - Results are current; you can create visualizations…",
+      fr:
+        "L'onglet Modules affiche chaque module installé et son état actuel. Un badge d'état situé à côté du nom de chaque module vous indique ce qui se passe : Prêt - Les résultats sont à jour ; vous pouvez…",
+    },
   },
   "uproj-data-window": {
     page: "user-guide/projects",
-    anchor: { en: "understanding-the-data-window", fr: "comprendre-la-fenêtre-de-données" },
-    title: { en: "Understanding the data window", fr: "Comprendre la fenêtre de données" },
-    summary: { en: "Every project works with a specific subset of your organization's data. This subset is called the data window, and it defines the boundaries of everything you can analyze or visualize within that…", fr: "Chaque projet travaille avec un sous-ensemble spécifique des données de votre organisation. Ce sous-ensemble est appelé la fenêtre de données, et il définit les limites de tout ce que vous pouvez…" },
+    anchor: {
+      en: "understanding-the-data-window",
+      fr: "comprendre-la-fenêtre-de-données",
+    },
+    title: {
+      en: "Understanding the data window",
+      fr: "Comprendre la fenêtre de données",
+    },
+    summary: {
+      en:
+        "Every project works with a specific subset of your organization's data. This subset is called the data window, and it defines the boundaries of everything you can analyze or visualize within that…",
+      fr:
+        "Chaque projet travaille avec un sous-ensemble spécifique des données de votre organisation. Ce sous-ensemble est appelé la fenêtre de données, et il définit les limites de tout ce que vous pouvez…",
+    },
   },
   "uproj-locked": {
     page: "user-guide/projects",
     anchor: { en: "locked-projects", fr: "projets-verrouillés" },
     title: { en: "Locked projects", fr: "Projets verrouillés" },
-    summary: { en: "Administrators can lock a project to prevent changes. A locked project works normally for viewing - you can browse visualizations, export images, and generate reports. But you can't create new…", fr: "Les administrateurs peuvent verrouiller un projet pour empêcher toute modification. Un projet verrouillé fonctionne normalement en consultation - vous pouvez parcourir les visualisations, exporter…" },
+    summary: {
+      en:
+        "Administrators can lock a project to prevent changes. A locked project works normally for viewing - you can browse visualizations, export images, and generate reports. But you can't create new…",
+      fr:
+        "Les administrateurs peuvent verrouiller un projet pour empêcher toute modification. Un projet verrouillé fonctionne normalement en consultation - vous pouvez parcourir les visualisations, exporter…",
+    },
   },
   "uproj-open": {
     page: "user-guide/projects",
     anchor: { en: "opening-a-project", fr: "ouvrir-un-projet" },
     title: { en: "Opening a project", fr: "Ouvrir un projet" },
-    summary: { en: "When you sign in to FASTR, you'll see a list of projects you have access to. The list can be sorted by name or by recently updated using the sort control at the top. Click any project name to open…", fr: "Lorsque vous vous connectez à FASTR, vous voyez la liste des projets auxquels vous avez accès. La liste peut être triée par nom ou par récemment mis à jour à l'aide du contrôle de tri en haut.…" },
+    summary: {
+      en:
+        "When you sign in to FASTR, you'll see a list of projects you have access to. The list can be sorted by name or by recently updated using the sort control at the top. Click any project name to open…",
+      fr:
+        "Lorsque vous vous connectez à FASTR, vous voyez la liste des projets auxquels vous avez accès. La liste peut être triée par nom ou par récemment mis à jour à l'aide du contrôle de tri en haut.…",
+    },
   },
   "users-add": {
     page: "admin-guide/users",
     anchor: { en: "adding-users", fr: "ajouter-des-utilisateurs" },
     title: { en: "Adding users", fr: "Ajouter des utilisateurs" },
-    summary: { en: "Open the Users tab from the main navigation. Click Add users to open the add dialog. Enter one or more email addresses - you can paste a list separated by commas, semicolons, or line breaks. Click…", fr: "Ouvrez l'onglet Utilisateurs depuis la navigation principale. Cliquez sur Ajouter des utilisateurs pour ouvrir la boîte de dialogue d'ajout. Saisissez une ou plusieurs adresses e-mail - vous pouvez…" },
+    summary: {
+      en:
+        "Open the Users tab from the main navigation. Click Add users to open the add dialog. Enter one or more email addresses - you can paste a list separated by commas, semicolons, or line breaks. Click…",
+      fr:
+        "Ouvrez l'onglet Utilisateurs depuis la navigation principale. Cliquez sur Ajouter des utilisateurs pour ouvrir la boîte de dialogue d'ajout. Saisissez une ou plusieurs adresses e-mail - vous pouvez…",
+    },
   },
   "users-instance-permissions": {
     page: "admin-guide/users",
     anchor: { en: "instance-permissions", fr: "permissions-dinstance" },
     title: { en: "Instance permissions", fr: "Permissions d'instance" },
-    summary: { en: "Instance permissions determine what someone can access across your entire FASTR instance. Click on a user in the list to open their profile, then scroll to the permissions section. If you toggle…", fr: "Les permissions d'instance déterminent ce à quoi une personne peut accéder sur l'ensemble de votre instance FASTR. Cliquez sur un utilisateur dans la liste pour ouvrir son profil, puis faites défiler…" },
+    summary: {
+      en:
+        "Instance permissions determine what someone can access across your entire FASTR instance. Click on a user in the list to open their profile, then scroll to the permissions section. If you toggle…",
+      fr:
+        "Les permissions d'instance déterminent ce à quoi une personne peut accéder sur l'ensemble de votre instance FASTR. Cliquez sur un utilisateur dans la liste pour ouvrir son profil, puis faites défiler…",
+    },
   },
   "users-project-permissions": {
     page: "admin-guide/users",
     anchor: { en: "project-permissions", fr: "permissions-de-projet" },
     title: { en: "Project permissions", fr: "Permissions de projet" },
-    summary: { en: "While instance permissions control platform-wide access, project permissions determine what someone can do within specific projects. From a user's profile, scroll to the project permissions section…", fr: "Alors que les permissions d'instance contrôlent l'accès à l'échelle de la plateforme, les permissions de projet déterminent ce qu'une personne peut faire au sein de projets spécifiques. Depuis le…" },
+    summary: {
+      en:
+        "While instance permissions control platform-wide access, project permissions determine what someone can do within specific projects. From a user's profile, scroll to the project permissions section…",
+      fr:
+        "Alors que les permissions d'instance contrôlent l'accès à l'échelle de la plateforme, les permissions de projet déterminent ce qu'une personne peut faire au sein de projets spécifiques. Depuis le…",
+    },
   },
   "viz-create": {
     page: "user-guide/visualizations",
     anchor: { en: "creating-a-visualization", fr: "créer-une-visualisation" },
     title: { en: "Creating a visualization", fr: "Créer une visualisation" },
-    summary: { en: "Every visualization starts with a metric. Metrics are the analytical outputs produced by your modules - things like \"ANC1 coverage rate\" or \"data completeness score.\" When you create a visualization,…", fr: "Chaque visualisation commence par un indicateur. Les indicateurs sont les résultats analytiques produits par vos modules - des éléments comme le « taux de couverture CPN1 » ou le « score de…" },
+    summary: {
+      en:
+        'Every visualization starts with a metric. Metrics are the analytical outputs produced by your modules - things like "ANC1 coverage rate" or "data completeness score." When you create a visualization,…',
+      fr:
+        "Chaque visualisation commence par un indicateur. Les indicateurs sont les résultats analytiques produits par vos modules - des éléments comme le « taux de couverture CPN1 » ou le « score de…",
+    },
   },
   "viz-data-tab": {
     page: "user-guide/visualizations",
     anchor: { en: "data-tab", fr: "onglet-données" },
     title: { en: "Data tab", fr: "Onglet Données" },
-    summary: { en: "The Data tab controls what information appears in the visualization. This is where you narrow the time range, add or remove disaggregations, or filter to specific values. Period filters let you focus…", fr: "L'onglet Données contrôle quelles informations apparaissent dans la visualisation. C'est ici que vous restreignez la plage temporelle, ajoutez ou supprimez des désagrégations, ou filtrez sur des…" },
+    summary: {
+      en:
+        "The Data tab controls what information appears in the visualization. This is where you narrow the time range, add or remove disaggregations, or filter to specific values. Period filters let you focus…",
+      fr:
+        "L'onglet Données contrôle quelles informations apparaissent dans la visualisation. C'est ici que vous restreignez la plage temporelle, ajoutez ou supprimez des désagrégations, ou filtrez sur des…",
+    },
   },
 } as const satisfies Record<string, HelpTarget>;
 

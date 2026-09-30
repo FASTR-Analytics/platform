@@ -148,7 +148,8 @@ export function toggleInlineDelimiters(
   before: string,
   after: string,
 ): EditResult {
-  if (doc.slice(from - before.length, from) === before &&
+  if (
+    doc.slice(from - before.length, from) === before &&
     doc.slice(to, to + after.length) === after
   ) {
     return {
@@ -732,9 +733,7 @@ export function toggleLinePrefixEdit(
   // The list kinds are one choice, so switching between them replaces the
   // marker instead of stacking a second one. A quote is orthogonal:
   // `> - item` is a quoted list, so it only ever eats its own `>`.
-  const anyPrefix = kind === "quote"
-    ? QUOTE_RE
-    : /^(\s*)(?:[-*+]\s+|\d+\.\s+)/;
+  const anyPrefix = kind === "quote" ? QUOTE_RE : /^(\s*)(?:[-*+]\s+|\d+\.\s+)/;
   const allPrefixed = live.every((l) => re.test(l.text));
   const changes: TextEdit[] = [];
   let n = 0;
@@ -776,7 +775,10 @@ export function insertLinkEdit(
   return {
     changes: [{ from, to, insert: `[${text}](https://)` }],
     // Select the placeholder URL, so typing replaces it.
-    selection: { anchor: from + text.length + 3, head: from + text.length + 11 },
+    selection: {
+      anchor: from + text.length + 3,
+      head: from + text.length + 11,
+    },
   };
 }
 
@@ -877,9 +879,16 @@ export function statTilesSnippet(cols: number, label = "Stat"): string {
 
 // `:::columns{cols=N}` with N `:::col` blocks, each a heading over one body
 // line: two text boxes, the shape the AI writes and the templates use.
-export function columnsSnippet(cols: number, body = "Text", heading = "Heading"): string {
+export function columnsSnippet(
+  cols: number,
+  body = "Text",
+  heading = "Heading",
+): string {
   const c = Math.max(1, Math.min(TILES_MAX_COLS, cols));
-  const columns = Array.from({ length: c }, () => `:::col\n### ${heading}\n${body}\n:::`);
+  const columns = Array.from(
+    { length: c },
+    () => `:::col\n### ${heading}\n${body}\n:::`,
+  );
   return [`:::columns{cols=${c}}`, ...columns, ":::"].join("\n");
 }
 
@@ -925,7 +934,9 @@ function containerEndIdx(lines: string[], openIdx: number): number {
     return openIdx;
   }
   let depth = 0;
-  for (const { index, inCode, fence } of scanContainerLines(lines.slice(openIdx))) {
+  for (
+    const { index, inCode, fence } of scanContainerLines(lines.slice(openIdx))
+  ) {
     if (inCode || !fence) continue;
     if (fence.kind === "open") {
       if (fence.name !== "stat") depth++;
@@ -961,7 +972,11 @@ export function tilesChildInfo(
   let depth = 0;
   let count = 0;
   let endLine1 = lines.length;
-  for (const { index, inCode, fence: f } of scanContainerLines(lines.slice(parent.line - 1))) {
+  for (
+    const { index, inCode, fence: f } of scanContainerLines(
+      lines.slice(parent.line - 1),
+    )
+  ) {
     if (inCode || !f) continue;
     if (f.kind === "open") {
       if (depth === 1) count++;
@@ -991,7 +1006,12 @@ export function tilesChildInfo(
 
 // The new sibling's text: a stat's label, a card's title, and the body line
 // a new card or column starts with.
-export type TilesChildLabels = { tile: string; card: string; body: string; heading?: string };
+export type TilesChildLabels = {
+  tile: string;
+  card: string;
+  body: string;
+  heading?: string;
+};
 
 // Add, remove or re-column the siblings around a stat tile or card. Inside a
 // grid the column count FOLLOWS the child count while it fits (three + one =
@@ -1001,7 +1021,11 @@ export function applyTilesChildAction(
   doc: string,
   line1: number,
   action: TilesChildAction,
-  labels: TilesChildLabels = { tile: "New tile", card: "New card", body: "Text" },
+  labels: TilesChildLabels = {
+    tile: "New tile",
+    card: "New card",
+    body: "Text",
+  },
 ): EditResult {
   const info = tilesChildInfo(doc, line1);
   if (!info) return NONE;
@@ -1019,11 +1043,15 @@ export function applyTilesChildAction(
     ? `:::card{title="${labels.card}"}\n${labels.body}\n:::`
     : `:::col\n### ${labels.heading ?? "Heading"}\n${labels.body}\n:::`;
   const changes: TextEdit[] = [];
-  const nextCount = tiles ? tiles.count + (action === "delete" ? -1 : 1) : undefined;
+  const nextCount = tiles
+    ? tiles.count + (action === "delete" ? -1 : 1)
+    : undefined;
   if (tiles && nextCount === 0) {
     const from = lineStart(doc, tiles.line1);
     const end = lineAt(doc, lineStart(doc, tiles.endLine1)).to;
-    return { changes: [{ from, to: Math.min(end + 1, doc.length), insert: "" }] };
+    return {
+      changes: [{ from, to: Math.min(end + 1, doc.length), insert: "" }],
+    };
   }
   if (tiles && nextCount !== undefined && nextCount <= TILES_MAX_COLS) {
     const patched = patchCols(doc, tiles.line1, nextCount);
@@ -1034,7 +1062,11 @@ export function applyTilesChildAction(
   } else if (action === "insertAfter") {
     changes.push({ from: last.to, to: last.to, insert: `\n${sibling}` });
   } else {
-    changes.push({ from: first.from, to: Math.min(last.to + 1, doc.length), insert: "" });
+    changes.push({
+      from: first.from,
+      to: Math.min(last.to + 1, doc.length),
+      insert: "",
+    });
   }
   return { changes };
 }
@@ -1049,7 +1081,11 @@ function lineStart(doc: string, line1: number): number {
   return pos;
 }
 
-function patchCols(doc: string, tilesLine1: number, cols: number): TextEdit | undefined {
+function patchCols(
+  doc: string,
+  tilesLine1: number,
+  cols: number,
+): TextEdit | undefined {
   const line = lineAt(doc, lineStart(doc, tilesLine1));
   const next = updateContainerFenceLine(line.text, {
     cols: String(Math.max(1, Math.min(TILES_MAX_COLS, cols))),
@@ -1180,10 +1216,14 @@ export function applyStepsChildAction(
   const first = lineAt(doc, lineStart(doc, info.from1));
   const last = lineAt(doc, lineStart(doc, info.to1));
   if (action === "insertBefore") {
-    return { changes: [{ from: first.from, to: first.from, insert: `${label}\n\n` }] };
+    return {
+      changes: [{ from: first.from, to: first.from, insert: `${label}\n\n` }],
+    };
   }
   if (action === "insertAfter") {
-    return { changes: [{ from: last.to, to: last.to, insert: `\n\n${label}` }] };
+    return {
+      changes: [{ from: last.to, to: last.to, insert: `\n\n${label}` }],
+    };
   }
   const lines = doc.split("\n");
   const openIdx = info.block.line1 - 1;
@@ -1202,7 +1242,9 @@ export function applyStepsChildAction(
   if (!others) {
     const from = lineStart(doc, info.block.line1);
     const end = lineAt(doc, lineStart(doc, info.block.endLine1)).to;
-    return { changes: [{ from, to: Math.min(end + 1, doc.length), insert: "" }] };
+    return {
+      changes: [{ from, to: Math.min(end + 1, doc.length), insert: "" }],
+    };
   }
   let from = first.from;
   let to = Math.min(last.to + 1, doc.length);
@@ -1222,7 +1264,9 @@ export function applyStepsChildAction(
 export function tableSnippet(cols: number, rows: number): string {
   const c = Math.max(1, Math.min(6, cols));
   const r = Math.max(1, Math.min(20, rows));
-  const header = `| ${Array.from({ length: c }, (_, i) => `Column ${i + 1}`).join(" | ")} |`;
+  const header = `| ${
+    Array.from({ length: c }, (_, i) => `Column ${i + 1}`).join(" | ")
+  } |`;
   const rule = `| ${Array.from({ length: c }, () => "---").join(" | ")} |`;
   const body = Array.from(
     { length: r },
@@ -1399,7 +1443,12 @@ export function fastrRegionAtLine(
     x.startLine + 1 <= line1 && line1 <= x.endLine + 1
   );
   if (!r) return undefined;
-  return { kind: r.kind, name: r.fence?.name, from1: r.startLine + 1, to1: r.endLine + 1 };
+  return {
+    kind: r.kind,
+    name: r.fence?.name,
+    from1: r.startLine + 1,
+    to1: r.endLine + 1,
+  };
 }
 
 // Insert `token` as a block of its own at `pos`. In prose it goes where the
@@ -1409,7 +1458,11 @@ export function fastrRegionAtLine(
 // callout inside a column, is what the Insert menu used to produce from a
 // caret that happened to be parked there. The selection lands on the blank
 // line after the token, ready to type.
-export function insertBlockEdit(doc: string, pos: number, token: string): EditResult {
+export function insertBlockEdit(
+  doc: string,
+  pos: number,
+  token: string,
+): EditResult {
   const line = lineAt(doc, pos);
   const line1 = doc.slice(0, line.from).split("\n").length;
   const region = fastrRegionAtLine(doc, line1);
@@ -1418,13 +1471,17 @@ export function insertBlockEdit(doc: string, pos: number, token: string): EditRe
     // at the start of a line the line before it must be blank (or there be
     // none), and a blank current line is the one the caret lands on.
     const atLineStart = pos === line.from;
-    const prevBlank = line1 === 1 || lineAt(doc, line.from - 1).text.trim().length === 0;
+    const prevBlank = line1 === 1 ||
+      lineAt(doc, line.from - 1).text.trim().length === 0;
     const curBlank = line.text.trim().length === 0;
     const prefix = atLineStart ? (prevBlank ? "" : "\n") : "\n\n";
     const suffix = atLineStart && curBlank ? "\n" : "\n\n";
     const insert = `${prefix}${token}${suffix}`;
     const at = atLineStart ? line.from : pos;
-    return { changes: [{ from: at, to: at, insert }], selection: { anchor: at + insert.length } };
+    return {
+      changes: [{ from: at, to: at, insert }],
+      selection: { anchor: at + insert.length },
+    };
   }
   const lines = doc.split("\n");
   const at = lineStart(doc, region.to1) + lines[region.to1 - 1].length;
@@ -1444,7 +1501,10 @@ export function insertBlockEdit(doc: string, pos: number, token: string): EditRe
 // when you press Enter in front of it). The caret lands on the new line.
 // Undefined when the caret is in prose (the editor's own Enter applies) or
 // on the `:::report` header, which must stay the first line.
-export function enterBesideRegionEdit(doc: string, pos: number): EditResult | undefined {
+export function enterBesideRegionEdit(
+  doc: string,
+  pos: number,
+): EditResult | undefined {
   const line = lineAt(doc, pos);
   const line1 = doc.slice(0, line.from).split("\n").length;
   const region = fastrRegionAtLine(doc, line1);
@@ -1453,9 +1513,15 @@ export function enterBesideRegionEdit(doc: string, pos: number): EditResult | un
   const from = lineStart(doc, region.from1);
   const to = lineStart(doc, region.to1) + lines[region.to1 - 1].length;
   if (pos >= to) {
-    return { changes: [{ from: to, to, insert: "\n" }], selection: { anchor: to + 1 } };
+    return {
+      changes: [{ from: to, to, insert: "\n" }],
+      selection: { anchor: to + 1 },
+    };
   }
-  return { changes: [{ from, to: from, insert: "\n" }], selection: { anchor: from } };
+  return {
+    changes: [{ from, to: from, insert: "\n" }],
+    selection: { anchor: from },
+  };
 }
 
 // ── Deleting through a formatted phrase ──────────────────────────────────────
@@ -1513,7 +1579,10 @@ export function fastrMarkAwareEdit(
   // character instead.
   if (!inserting && lo === from && hi === to) {
     const hit = markerOnly(text, from, to);
-    if (hit !== undefined) return fastrMarkAwareEdit(text, hit[0], hit[1], false) ?? { deletes: [hit], insertAt: hit[0] };
+    if (hit !== undefined) {
+      return fastrMarkAwareEdit(text, hit[0], hit[1], false) ??
+        { deletes: [hit], insertAt: hit[0] };
+    }
   }
   let deletes: [number, number][] = [[lo, hi]];
   for (const [a, b] of keep) {

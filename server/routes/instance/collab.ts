@@ -187,7 +187,10 @@ routesCollab.get(
     const denial = c.get("collabDenial") as string | undefined;
     if (denial) {
       return {
-        onOpen: (_evt: Event, ws: { close: (code?: number, reason?: string) => void }) => {
+        onOpen: (
+          _evt: Event,
+          ws: { close: (code?: number, reason?: string) => void },
+        ) => {
           ws.close(COLLAB_CLOSE_UNAUTHORIZED, denial);
         },
       };
@@ -325,13 +328,16 @@ routesCollab.get(
           // Trust the CRDT state only when the doc materializes to exactly
           // what we store (parse-stripped keys → untrusted → re-seed next
           // open). Body is stored verbatim, so only figures/images can differ.
-          const trusted =
-            storedMatchesDoc(storedFigures, content.figures) &&
+          const trusted = storedMatchesDoc(storedFigures, content.figures) &&
             storedMatchesDoc(storedImages, content.images);
           const res = await saveReportCheckpoint(
             mainDb,
             productId,
-            { body: content.body, figures: storedFigures, images: storedImages },
+            {
+              body: content.body,
+              figures: storedFigures,
+              images: storedImages,
+            },
             crdtState,
             getAuthorRuns(productId, content.body),
             trusted,
@@ -402,7 +408,10 @@ routesCollab.get(
           }
           msg = parsed.data;
         } catch (err) {
-          console.error(`[collab] malformed WS frame from ${connectionId}`, err);
+          console.error(
+            `[collab] malformed WS frame from ${connectionId}`,
+            err,
+          );
           const parseErr: CollabServerMessage = {
             type: "error",
             data: { message: "Invalid message" },
@@ -485,7 +494,11 @@ routesCollab.get(
             break;
           case "report_unsubscribe":
             if (roomConn) {
-              unsubscribeReport(msg.data.productId, msg.data.reportId, roomConn);
+              unsubscribeReport(
+                msg.data.productId,
+                msg.data.reportId,
+                roomConn,
+              );
             }
             break;
           case "report_awareness_update":

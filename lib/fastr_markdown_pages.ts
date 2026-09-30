@@ -113,7 +113,13 @@ export function layoutFastrPages(
   const fits: NonNullable<FastrPagedResult["fits"]> = [];
   const safety = g.safety ?? 0;
   if (blocks.length === 0) {
-    return { total: 0, sheet: { width: g.sheetW, height: g.pageH }, pages, splits, fits };
+    return {
+      total: 0,
+      sheet: { width: g.sheetW, height: g.pageH },
+      pages,
+      splits,
+      fits,
+    };
   }
   // The height each block was placed at: its own, the room it shrank to, or
   // the last part of one continued across pages.
@@ -187,7 +193,9 @@ export function layoutFastrPages(
     // A continuation part (partTop > 0) opens with the block's repeat.
     const head = () => partTop > 0 ? b.repeat ?? 0 : 0;
     while (used + extra + head() + (b.height - partTop) > area) {
-      let at: { line: number; top: number; row?: number; blockRow?: number } | undefined;
+      let at:
+        | { line: number; top: number; row?: number; blockRow?: number }
+        | undefined;
       for (const cand of inner) {
         if (cand.top <= partTop) continue;
         if (used + extra + head() + (cand.top - partTop) > area) break;
@@ -196,9 +204,16 @@ export function layoutFastrPages(
       if (at === undefined) break;
       used += extra + head() + (at.top - partTop);
       close();
-      page = { firstLine: at.line, lines: [at.line], cover: false, flushTop: false };
+      page = {
+        firstLine: at.line,
+        lines: [at.line],
+        cover: false,
+        flushTop: false,
+      };
       if (at.row !== undefined && at.row > 0) page.firstRow = at.row;
-      if (at.blockRow !== undefined) page.para = { line: b.line, row: at.blockRow };
+      if (at.blockRow !== undefined) {
+        page.para = { line: b.line, row: at.blockRow };
+      }
       area = areaOf(page);
       partTop = at.top;
       extra = 0;
@@ -240,7 +255,8 @@ export function layoutFastrPages(
     }
     let done = false;
     if (
-      i > first && used + need > area && b.flow && b.inner !== undefined && b.inner.length > 0 &&
+      i > first && used + need > area && b.flow && b.inner !== undefined &&
+      b.inner.length > 0 &&
       used + b.gap + b.inner[0].top <= area
     ) {
       // A flowing block starts on this page with the lines that fit.
@@ -262,7 +278,8 @@ export function layoutFastrPages(
       const near = nearestHeading(i);
       let moved = 0;
       for (let k = near; k <= i; k++) moved += footprint(k, near);
-      const fresh = fastrPageArea(g, { cover: false, flushTop: false }) - safety;
+      const fresh = fastrPageArea(g, { cover: false, flushTop: false }) -
+        safety;
       if (near > first && moved <= fresh) {
         reopen(near, i);
         continue;
@@ -277,7 +294,10 @@ export function layoutFastrPages(
       }
     }
     if (!done) {
-      if (i === first && b.height + lead(i) > area && b.inner !== undefined && b.inner.length > 0) {
+      if (
+        i === first && b.height + lead(i) > area && b.inner !== undefined &&
+        b.inner.length > 0
+      ) {
         // Taller than the page it opens: continue at the inner boundaries.
         continueInner(i, lead(i));
       } else {
@@ -299,7 +319,13 @@ export function layoutFastrPages(
     i++;
   }
   close();
-  return { total: pages.length, sheet: { width: g.sheetW, height: g.pageH }, pages, splits, fits };
+  return {
+    total: pages.length,
+    sheet: { width: g.sheetW, height: g.pageH },
+    pages,
+    splits,
+    fits,
+  };
 }
 
 type OpenPage = {
@@ -330,14 +356,18 @@ function openPage(b: FastrLayoutBlock): OpenPage {
 export function fastrPageStartLines(result: FastrPagedResult): number[] {
   const out: number[] = [];
   for (const p of result.pages) {
-    if (p.number >= 2 && p.firstLine !== undefined && p.para === undefined) out.push(p.firstLine);
+    if (p.number >= 2 && p.firstLine !== undefined && p.para === undefined) {
+      out.push(p.firstLine);
+    }
   }
   return out;
 }
 
 // The paragraphs that run on to a next page: each one's first source line
 // and the wrapped rows (counted from its first) that open a page.
-export function fastrParagraphSplits(result: FastrPagedResult): { line: number; rows: number[] }[] {
+export function fastrParagraphSplits(
+  result: FastrPagedResult,
+): { line: number; rows: number[] }[] {
   const by = new Map<number, number[]>();
   for (const p of result.pages) {
     if (p.number < 2 || p.para === undefined) continue;
@@ -349,20 +379,30 @@ export function fastrParagraphSplits(result: FastrPagedResult): { line: number; 
 // Print's height of a block, and for one taller than half a page where it
 // may continue on the next page (source lines relative to the block's
 // first, tops from the block's top, px).
-export type FastrLayoutHint = { height: number; inner?: { rel: number; top: number }[] };
+export type FastrLayoutHint = {
+  height: number;
+  inner?: { rel: number; top: number }[];
+};
 
 // Print's block heights (FastrPagedResult.blocks, from the runner's layout
 // of the whole document at the print column) keyed by each block's source
 // text, so the editor can find a block's height wherever the block moves:
 // a region's lines from fence to fence, a paragraph's consecutive non-blank
 // lines. The same grouping the editor's own block walk uses.
-export function fastrLayoutHints(result: FastrPagedResult, body: string): Map<string, FastrLayoutHint> {
+export function fastrLayoutHints(
+  result: FastrPagedResult,
+  body: string,
+): Map<string, FastrLayoutHint> {
   const hints = new Map<string, FastrLayoutHint>();
   if (result.blocks === undefined) return hints;
   const lines = body.split("\n");
-  const owner: (readonly [number, number] | undefined)[] = new Array(lines.length).fill(undefined);
+  const owner: (readonly [number, number] | undefined)[] = new Array(
+    lines.length,
+  ).fill(undefined);
   for (const r of fastrLiveRegions(lines)) {
-    for (let i = r.startLine; i <= r.endLine && i < lines.length; i++) owner[i] = [r.startLine, r.endLine];
+    for (let i = r.startLine; i <= r.endLine && i < lines.length; i++) {
+      owner[i] = [r.startLine, r.endLine];
+    }
   }
   for (const b of result.blocks) {
     if (b.line < 0 || b.line >= lines.length) continue;
@@ -374,11 +414,15 @@ export function fastrLayoutHints(result: FastrPagedResult, body: string): Map<st
       [from, to] = r;
     } else {
       if (lines[b.line].trim().length === 0) continue;
-      while (to + 1 < lines.length && owner[to + 1] === undefined && lines[to + 1].trim().length > 0) to++;
+      while (
+        to + 1 < lines.length && owner[to + 1] === undefined &&
+        lines[to + 1].trim().length > 0
+      ) to++;
     }
     const hint: FastrLayoutHint = { height: b.height };
     if (b.inner !== undefined && b.inner.length > 0) {
-      const inner = b.inner.map((c) => ({ rel: c.line - from, top: c.top })).filter((c) => c.rel > 0);
+      const inner = b.inner.map((c) => ({ rel: c.line - from, top: c.top }))
+        .filter((c) => c.rel > 0);
       if (inner.length > 0) hint.inner = inner;
     }
     hints.set(lines.slice(from, to + 1).join("\n"), hint);

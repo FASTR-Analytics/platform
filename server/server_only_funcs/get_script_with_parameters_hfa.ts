@@ -13,10 +13,10 @@ import {
 } from "lib";
 import { dirname, join } from "@std/path/posix";
 import {
-  extractDependenciesFromCode,
   buildUnionDependencyGraph,
-  topologicalSort,
+  extractDependenciesFromCode,
   formatCycles,
+  topologicalSort,
 } from "./hfa_dependency_analyzer.ts";
 
 // The run's person-years file (PLAN_1b) sits beside the datasets dir, at
@@ -113,7 +113,9 @@ function buildSentinelBindings(
       continue;
     }
     bindings.push(
-      `    ${variableId} = replace(${variableId}, ${variableId} %in% c(${codes.join(", ")}), NA_real_)`,
+      `    ${variableId} = replace(${variableId}, ${variableId} %in% c(${
+        codes.join(", ")
+      }), NA_real_)`,
     );
   }
   return bindings;
@@ -153,7 +155,9 @@ function statusFilterUnknownCheck(
     ? [...entry.dontKnowSelect, ...entry.dontKnowNumeric, ...entry.refused]
     : ["-99", "-999999"];
   const membership = rMembership(codes);
-  return membership ? `is.na(${variableId}) | ${variableId} ${membership}` : `is.na(${variableId})`;
+  return membership
+    ? `is.na(${variableId}) | ${variableId} ${membership}`
+    : `is.na(${variableId})`;
 }
 
 // Gate the indicator on the RESULT of the authored expression, not on its
@@ -271,10 +275,12 @@ function buildPerTimePointStatusExpression(
     // question variable is NA would be mislabelled "missing" before the
     // not_applicable branch is reached.
     const dkCheck = deps.codeVariableIds.length > 0
-      ? deps.codeVariableIds.map((v) => statusDontKnowCheck(v, sentinelMap)).join(" | ")
+      ? deps.codeVariableIds.map((v) => statusDontKnowCheck(v, sentinelMap))
+        .join(" | ")
       : "FALSE";
     const naCheck = deps.codeVariableIds.length > 0
-      ? deps.codeVariableIds.map((v) => statusMissingCheck(v, sentinelMap)).join(" | ")
+      ? deps.codeVariableIds.map((v) => statusMissingCheck(v, sentinelMap))
+        .join(" | ")
       : "FALSE";
 
     if (rFilterCode) {
@@ -368,7 +374,9 @@ export function getScriptWithParametersHfa(
   if (graphResult.validationErrors.length > 0) {
     if (stopIfIndicatorFails) {
       throw new Error(
-        `Invalid indicator definitions:\n${graphResult.validationErrors.join("\n")}`,
+        `Invalid indicator definitions:\n${
+          graphResult.validationErrors.join("\n")
+        }`,
       );
     }
     // Extract indicator names from validation errors and skip them
@@ -411,7 +419,9 @@ export function getScriptWithParametersHfa(
 
   if (filteredIndicators.length === 0) {
     throw new Error(
-      `No valid indicators to process. All indicators were skipped:\n${warnings.join("\n")}`,
+      `No valid indicators to process. All indicators were skipped:\n${
+        warnings.join("\n")
+      }`,
     );
   }
 
@@ -501,7 +511,11 @@ export function getScriptWithParametersHfa(
         (codeByIndicator.get(parentName) ?? []).map((r) => [r.timePoint, r]),
       );
       const snippets: HfaIndicatorCode[] = [];
-      for (const row of rows.toSorted((a, b) => a.timePoint.localeCompare(b.timePoint))) {
+      for (
+        const row of rows.toSorted((a, b) =>
+          a.timePoint.localeCompare(b.timePoint)
+        )
+      ) {
         const parentRow = parentRowsByTp.get(row.timePoint);
         if (parentRow === undefined) {
           warnings.push(
@@ -540,7 +554,9 @@ export function getScriptWithParametersHfa(
         }
         if (problems.length > 0) {
           const msg =
-            `Variant item "${itemId}" of indicator "${parentName}" (time_point "${snippet.timePoint}"): ${problems.join("; ")}.`;
+            `Variant item "${itemId}" of indicator "${parentName}" (time_point "${snippet.timePoint}"): ${
+              problems.join("; ")
+            }.`;
           if (stopIfIndicatorFails) {
             throw new Error(`Invalid variant definitions:\n${msg}`);
           }
@@ -562,7 +578,8 @@ export function getScriptWithParametersHfa(
 
     emits.sort(
       (a, b) =>
-        orderedIndex.get(a.parent.indicatorId)! - orderedIndex.get(b.parent.indicatorId)! ||
+        orderedIndex.get(a.parent.indicatorId)! -
+          orderedIndex.get(b.parent.indicatorId)! ||
         a.itemId.localeCompare(b.itemId),
     );
 
@@ -572,7 +589,8 @@ export function getScriptWithParametersHfa(
     // reserved suffix double-routes into the response-status pivot.
     const composedSeen = new Set<string>();
     for (const e of emits) {
-      const source = `indicator "${e.parent.indicatorId}" × variant item "${e.itemId}"`;
+      const source =
+        `indicator "${e.parent.indicatorId}" × variant item "${e.itemId}"`;
       if (isReservedHfaId(e.composed)) {
         throw new Error(
           `Composed variant column "${e.composed}" (${source}) is a reserved name`,
@@ -613,12 +631,26 @@ export function getScriptWithParametersHfa(
       variantCols = emits.map((e) => `"${e.composed}"`).join(", ");
       variantMetadata = [
         `  variant_col = c(${emits.map((e) => `"${e.composed}"`).join(", ")})`,
-        `  hfa_indicator = c(${emits.map((e) => `"${e.parent.indicatorId}"`).join(", ")})`,
-        `  hfa_variant_item = c(${emits.map((e) => `"${e.itemId}"`).join(", ")})`,
-        `  hfa_category = c(${emits.map((e) => `"${e.parent.categoryId ?? ""}"`).join(", ")})`,
-        `  hfa_sub_category = c(${emits.map((e) => `"${e.parent.subCategoryId ?? ""}"`).join(", ")})`,
-        `  hfa_service_category = c(${emits.map((e) => `"${serialiseMultiMembershipValues(e.parent.serviceCategoryIds)}"`).join(", ")})`,
-        `  ind_aggregation = c(${emits.map((e) => `"${e.parent.aggregation}"`).join(", ")})`,
+        `  hfa_indicator = c(${
+          emits.map((e) => `"${e.parent.indicatorId}"`).join(", ")
+        })`,
+        `  hfa_variant_item = c(${
+          emits.map((e) => `"${e.itemId}"`).join(", ")
+        })`,
+        `  hfa_category = c(${
+          emits.map((e) => `"${e.parent.categoryId ?? ""}"`).join(", ")
+        })`,
+        `  hfa_sub_category = c(${
+          emits.map((e) => `"${e.parent.subCategoryId ?? ""}"`).join(", ")
+        })`,
+        `  hfa_service_category = c(${
+          emits.map((e) =>
+            `"${serialiseMultiMembershipValues(e.parent.serviceCategoryIds)}"`
+          ).join(", ")
+        })`,
+        `  ind_aggregation = c(${
+          emits.map((e) => `"${e.parent.aggregation}"`).join(", ")
+        })`,
       ].join(",\n");
     }
   }
@@ -682,17 +714,31 @@ export function getScriptWithParametersHfa(
   );
 
   const indicatorMetadata = [
-    `  hfa_indicator = c(${ordered.map((i) => `"${i.indicatorId}"`).join(", ")})`,
-    `  hfa_category = c(${ordered.map((i) => `"${i.categoryId ?? ""}"`).join(", ")})`,
-    `  hfa_sub_category = c(${ordered.map((i) => `"${i.subCategoryId ?? ""}"`).join(", ")})`,
+    `  hfa_indicator = c(${
+      ordered.map((i) => `"${i.indicatorId}"`).join(", ")
+    })`,
+    `  hfa_category = c(${
+      ordered.map((i) => `"${i.categoryId ?? ""}"`).join(", ")
+    })`,
+    `  hfa_sub_category = c(${
+      ordered.map((i) => `"${i.subCategoryId ?? ""}"`).join(", ")
+    })`,
     ...(supportsServiceCategory
       ? [
-        `  hfa_service_category = c(${ordered.map((i) => `"${serialiseMultiMembershipValues(i.serviceCategoryIds)}"`).join(", ")})`,
+        `  hfa_service_category = c(${
+          ordered.map((i) =>
+            `"${serialiseMultiMembershipValues(i.serviceCategoryIds)}"`
+          ).join(", ")
+        })`,
       ]
       : []),
-    `  hfa_short_label = c(${ordered.map((i) => `"${i.shortLabel.replace(/"/g, '\\"')}"`).join(", ")})`,
+    `  hfa_short_label = c(${
+      ordered.map((i) => `"${i.shortLabel.replace(/"/g, '\\"')}"`).join(", ")
+    })`,
     `  ind_type = c(${ordered.map((i) => `"${i.type}"`).join(", ")})`,
-    `  ind_aggregation = c(${ordered.map((i) => `"${i.aggregation}"`).join(", ")})`,
+    `  ind_aggregation = c(${
+      ordered.map((i) => `"${i.aggregation}"`).join(", ")
+    })`,
   ].join(",\n");
 
   let str = moduleDefinition.script;
@@ -721,10 +767,9 @@ export function getScriptWithParametersHfa(
 
   // Parameter substitutions
   for (const inputParam of configSelections.parameterDefinitions) {
-    const mappedParameter =
-      configSelections.parameterSelections[
-        inputParam.replacementString
-      ]?.trim();
+    const mappedParameter = configSelections.parameterSelections[
+      inputParam.replacementString
+    ]?.trim();
     if (inputParam.input.inputType === "select") {
       if (inputParam.input.valueType === "string") {
         str = str.replaceAll(

@@ -76,7 +76,10 @@ async function readOutputText(
     return { success: false, err: "Invalid results package file name" };
   }
   try {
-    return { success: true, data: await Deno.readTextFile(join(resolved.dir, fileName)) };
+    return {
+      success: true,
+      data: await Deno.readTextFile(join(resolved.dir, fileName)),
+    };
   } catch (e) {
     if (e instanceof Deno.errors.NotFound) {
       return { success: false, err: absentMessage };
@@ -99,7 +102,9 @@ export async function readRunModuleScript(
     _MODULE_SCRIPT_FILE_NAME,
     "No script in this results package for this module.",
   );
-  return res.success === false ? res : { success: true, data: { script: res.data } };
+  return res.success === false
+    ? res
+    : { success: true, data: { script: res.data } };
 }
 
 export async function readRunModuleLogs(
@@ -112,7 +117,9 @@ export async function readRunModuleLogs(
     _MODULE_LOG_FILE_NAME,
     "No execution log in this results package for this module.",
   );
-  return res.success === false ? res : { success: true, data: { logs: res.data } };
+  return res.success === false
+    ? res
+    : { success: true, data: { logs: res.data } };
 }
 
 // An absent dir is an empty listing, not an error: a package legitimately has
@@ -188,7 +195,10 @@ export async function readRunDetail(
     modules.sort((a, b) =>
       compareModules({ ...a, id: a.moduleId }, { ...b, id: b.moduleId })
     );
-    return { success: true, data: { modules, population: manifest.population } };
+    return {
+      success: true,
+      data: { modules, population: manifest.population },
+    };
   } catch (e) {
     return {
       success: false,

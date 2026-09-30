@@ -24,10 +24,16 @@
       "solid-js/*": ["./node_modules/solid-js/*"],
       "@solidjs/router": ["./node_modules/@solidjs/router"],
       "sortablejs/*": ["./node_modules/sortablejs/*"],
-      "markdown-it": ["./node_modules/@types/markdown-it", "./node_modules/markdown-it"],
+      "markdown-it": [
+        "./node_modules/@types/markdown-it",
+        "./node_modules/markdown-it"
+      ],
       "jspdf": ["./node_modules/jspdf"],
       "docx": ["./node_modules/docx"],
-      "papaparse": ["./node_modules/@types/papaparse", "./node_modules/papaparse"],
+      "papaparse": [
+        "./node_modules/@types/papaparse",
+        "./node_modules/papaparse"
+      ],
       "zod": ["./node_modules/zod"],
       "@anthropic-ai/sdk": ["./node_modules/@anthropic-ai/sdk"],
       "@anthropic-ai/sdk/*": ["./node_modules/@anthropic-ai/sdk/*"],

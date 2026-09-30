@@ -46,7 +46,11 @@ export type SlideDeckConfigFromSchema = z.infer<typeof slideDeckConfigSchema>;
 // - If type adds a field, literal won't compile until you add it
 // - If schema doesn't have that field, parse() throws at startup
 
-import type { SlideDeckConfig, LogosConfig, LogoSectionConfig } from "./slides.ts";
+import type {
+  LogosConfig,
+  LogoSectionConfig,
+  SlideDeckConfig,
+} from "./slides.ts";
 import type { LogoSizingConfig } from "./slides.ts";
 
 const _completeLogoSectionConfig: Required<LogoSectionConfig> = {

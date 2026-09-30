@@ -154,11 +154,15 @@ export function VizEditorCursors(p: {
 
   return (
     <>
-      {/* Figma-style live cursors over the preview + settings panel. Renders
-          nothing when no collab target / no peers. */}
+      {
+        /* Figma-style live cursors over the preview + settings panel. Renders
+          nothing when no collab target / no peers. */
+      }
       <LiveCursorsOverlay awareness={p.awareness()} accepts={accepts} />
-      {/* Cursor chat: "/" over the preview or panel opens a message bubble on
-          your live cursor. */}
+      {
+        /* Cursor chat: "/" over the preview or panel opens a message bubble on
+          your live cursor. */
+      }
       <CursorChatInput
         awareness={p.awareness}
         enabled={p.enabled}

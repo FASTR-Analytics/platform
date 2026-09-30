@@ -15,7 +15,14 @@ import {
   type SlideDeckConfig,
   t3,
 } from "lib";
-import { Button, Checkbox, getSelectOptions, Icon, Select, TextArea } from "panther";
+import {
+  Button,
+  Checkbox,
+  getSelectOptions,
+  Icon,
+  Select,
+  TextArea,
+} from "panther";
 import { createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import {
   MenuDivider,
@@ -106,15 +113,30 @@ function FooterPanel(p: {
 export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
   const kinds = [
     {
-      label: () => t3({ en: "Cover slide", fr: "Diapositive de couverture", pt: "Diapositivo de capa" }),
+      label: () =>
+        t3({
+          en: "Cover slide",
+          fr: "Diapositive de couverture",
+          pt: "Diapositivo de capa",
+        }),
       make: getDefaultCoverSlide,
     },
     {
-      label: () => t3({ en: "Section slide", fr: "Diapositive de section", pt: "Diapositivo de secção" }),
+      label: () =>
+        t3({
+          en: "Section slide",
+          fr: "Diapositive de section",
+          pt: "Diapositivo de secção",
+        }),
       make: getDefaultSectionSlide,
     },
     {
-      label: () => t3({ en: "Content slide", fr: "Diapositive de contenu", pt: "Diapositivo de conteúdo" }),
+      label: () =>
+        t3({
+          en: "Content slide",
+          fr: "Diapositive de contenu",
+          pt: "Diapositivo de conteúdo",
+        }),
       make: getDefaultContentSlide,
     },
   ];
@@ -125,15 +147,30 @@ export function AddSlideMenu(p: { onAdd: (slide: Slide) => void }) {
       label={
         // Just the +, at the height of the text menus beside it; the name
         // is its tooltip and its accessible label.
-        <span
-          class="flex h-5 items-center"
-          title={t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-          aria-label={t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
-        >
-          <Icon iconName="plus" class="h-4 w-4" />
-        </span>
+
+
+          <span
+            class="flex h-5 items-center"
+            title={t3({
+              en: "Add slide",
+              fr: "Ajouter une diapositive",
+              pt: "Adicionar diapositivo",
+            })}
+            aria-label={t3({
+              en: "Add slide",
+              fr: "Ajouter une diapositive",
+              pt: "Adicionar diapositivo",
+            })}
+          >
+            <Icon iconName="plus" class="h-4 w-4" />
+          </span>
+
       }
-      title={t3({ en: "Add slide", fr: "Ajouter une diapositive", pt: "Adicionar diapositivo" })}
+      title={t3({
+        en: "Add slide",
+        fr: "Ajouter une diapositive",
+        pt: "Adicionar diapositivo",
+      })}
     >
       {(close) => (
         <div class="flex w-56 flex-col">
@@ -219,8 +256,10 @@ export function DeckFileMenu(p: {
             {p.selectedCount > 0
               ? t3({
                 en: `Copy ${p.selectedCount} slide(s) to deck…`,
-                fr: `Copier ${p.selectedCount} diapositive(s) vers une présentation…`,
-                pt: `Copiar ${p.selectedCount} diapositivo(s) para apresentação…`,
+                fr:
+                  `Copier ${p.selectedCount} diapositive(s) vers une présentation…`,
+                pt:
+                  `Copiar ${p.selectedCount} diapositivo(s) para apresentação…`,
               })
               : t3({
                 en: "Copy to deck…",
@@ -244,7 +283,7 @@ export function DeckMenu(p: Props) {
   function setCustomLogo(index: number, value: string) {
     patchLogos({
       availableCustom: logos().availableCustom.map((l, i) =>
-        i === index ? value : l,
+        i === index ? value : l
       ),
     });
   }
@@ -300,7 +339,9 @@ export function DeckMenu(p: Props) {
               </FlyoutPanel>
             </MenuFlyout>
 
-            <MenuFlyout label={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}>
+            <MenuFlyout
+              label={t3({ en: "Logos", fr: "Logos", pt: "Logótipos" })}
+            >
               <FlyoutPanel class="w-80">
                 <div class="ui-spy-sm">
                   <div>

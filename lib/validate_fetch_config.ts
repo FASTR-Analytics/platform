@@ -15,7 +15,7 @@ import { GenericLongFormFetchConfig } from "./types/presentation_objects.ts";
 // injection guards: type-shape alone is NOT enough.
 
 const DISAGGREGATION_OPTION_SET: ReadonlySet<string> = new Set(
-  ALL_DISAGGREGATION_OPTIONS
+  ALL_DISAGGREGATION_OPTIONS,
 );
 
 // Value props are R-generated result-table column names (e.g. count_sum,
@@ -65,7 +65,7 @@ export function isSafePostAggregationExpression(expr: string): boolean {
     return false;
   }
   const tokens = expr.match(
-    /[A-Za-z_][A-Za-z0-9_]*|[0-9]+(?:\.[0-9]+)?|[+\-*/(),=]/g
+    /[A-Za-z_][A-Za-z0-9_]*|[0-9]+(?:\.[0-9]+)?|[+\-*/(),=]/g,
   );
   // Every non-whitespace character must belong to exactly one token; a leftover
   // (e.g. a bare "." used to qualify table.column) means reject.
@@ -162,15 +162,17 @@ export const genericLongFormFetchConfigSchema = z.object({
 // dimension would double-count or expose raw composite groups.
 // Enforced: validateFetchConfig (server boundary); excluded from the client
 // disaggregation pickers and validate_display_slots.
-export const FILTER_ONLY_DISAGGREGATION_OPTIONS: ReadonlySet<string> =
-  new Set(["hfa_service_category"]);
+export const FILTER_ONLY_DISAGGREGATION_OPTIONS: ReadonlySet<string> = new Set([
+  "hfa_service_category",
+]);
 
 // Columns whose cell value is a delimiter-joined SET of ids
 // ("rmnch|nutrition"). Filtering is set membership (string_to_array overlap,
 // OR-of-many), and possible values are the unnested single ids.
 // Consumed: buildWhereClause, getPossibleValuesCore.
-export const MULTI_MEMBERSHIP_FILTER_COLUMNS: ReadonlySet<string> =
-  new Set(["hfa_service_category"]);
+export const MULTI_MEMBERSHIP_FILTER_COLUMNS: ReadonlySet<string> = new Set([
+  "hfa_service_category",
+]);
 
 // THE delimiter for multi-membership set encoding. TS sites use the helpers
 // below; SQL sites (buildWhereClause, getPossibleValuesCore) interpolate this
@@ -239,7 +241,7 @@ export function parseMultiMembershipValues(cell: string): string[] {
 }
 
 export function validateFetchConfig(
-  fetchConfig: GenericLongFormFetchConfig
+  fetchConfig: GenericLongFormFetchConfig,
 ): void {
   if (fetchConfig.values.length === 0) {
     throw new Error("No values selected");
@@ -264,7 +266,9 @@ export function validateFetchConfig(
       throw new Error(`Invalid groupBy: ${groupBy}`);
     }
     if (FILTER_ONLY_DISAGGREGATION_OPTIONS.has(groupBy)) {
-      throw new Error(`Filter-only disaggregation option in groupBys: ${groupBy}`);
+      throw new Error(
+        `Filter-only disaggregation option in groupBys: ${groupBy}`,
+      );
     }
   }
 
@@ -278,7 +282,7 @@ export function validateFetchConfig(
     for (const groupBy of fetchConfig.groupBys) {
       if (valueProps.has(groupBy)) {
         throw new Error(
-          `Cannot disaggregate by value prop without a post-aggregation expression: ${groupBy}`
+          `Cannot disaggregate by value prop without a post-aggregation expression: ${groupBy}`,
         );
       }
     }
@@ -310,8 +314,10 @@ export function validateFetchConfig(
       if (typeof val !== "string" && typeof val !== "number") {
         throw new Error(
           `Invalid filter value for column '${filter.disOpt}' at index ${i}: ` +
-          `Expected string or number but got ${typeof val} with value: ${JSON.stringify(val)}. ` +
-          `Full filter.values array: ${JSON.stringify(filter.values)}`
+            `Expected string or number but got ${typeof val} with value: ${
+              JSON.stringify(val)
+            }. ` +
+            `Full filter.values array: ${JSON.stringify(filter.values)}`,
         );
       }
       if (
@@ -320,7 +326,7 @@ export function validateFetchConfig(
       ) {
         throw new Error(
           `Invalid filter value for integer column '${filter.disOpt}' at index ${i}: ` +
-          `expected a numeric value but got ${JSON.stringify(val)}`
+            `expected a numeric value but got ${JSON.stringify(val)}`,
         );
       }
     }
@@ -335,7 +341,7 @@ export function validateFetchConfig(
     !isRollupDimension(fetchConfig.rollupDim)
   ) {
     throw new Error(
-      "Invalid rollupDim: must be an admin level (admin_area_2/3/4) or a facility column"
+      "Invalid rollupDim: must be an admin level (admin_area_2/3/4) or a facility column",
     );
   }
 
@@ -350,11 +356,11 @@ export function validateFetchConfig(
     fetchConfig.rollupDim !== undefined &&
     fetchConfig.postAggregationExpression === undefined &&
     fetchConfig.values.some(
-      (v) => v.func !== "SUM" && v.func !== "COUNT" && v.func !== "AVG"
+      (v) => v.func !== "SUM" && v.func !== "COUNT" && v.func !== "AVG",
     )
   ) {
     throw new Error(
-      "Invalid rollupDim: without a postAggregationExpression, all value funcs must be SUM, COUNT, or AVG"
+      "Invalid rollupDim: without a postAggregationExpression, all value funcs must be SUM, COUNT, or AVG",
     );
   }
 }

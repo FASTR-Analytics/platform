@@ -7,20 +7,20 @@ import type { DatasetHmisVersion } from "./dataset_hmis.ts";
 
 export type RunDataset =
   | {
-      datasetType: "hmis";
-      info: RunDatasetHmisInfo;
-      dateExported: string;
-    }
+    datasetType: "hmis";
+    info: RunDatasetHmisInfo;
+    dateExported: string;
+  }
   | {
-      datasetType: "hfa";
-      info: RunDatasetHfaInfo;
-      dateExported: string;
-    }
+    datasetType: "hfa";
+    info: RunDatasetHfaInfo;
+    dateExported: string;
+  }
   | {
-      datasetType: "iceh";
-      info: RunDatasetIcehInfo;
-      dateExported: string;
-    };
+    datasetType: "iceh";
+    info: RunDatasetIcehInfo;
+    dateExported: string;
+  };
 
 // Capture is always the full dataset (PLAN_FULL_CAPTURE_GENERATION). Manifest
 // transform block 9 holds every stored info to exactly these keys.

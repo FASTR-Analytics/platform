@@ -14,7 +14,7 @@ function getContentSummary(slide: Slide): string {
 
   const parts: string[] = [];
 
-  const vizCount = (blockCounts.get("figure") || 0);
+  const vizCount = blockCounts.get("figure") || 0;
   if (vizCount > 0) parts.push(`${vizCount} viz`);
 
   const textCount = blockCounts.get("text") || 0;
@@ -25,7 +25,7 @@ function getContentSummary(slide: Slide): string {
 
 export async function getDeckSummaryForAI(
   productId: string,
-  slideIds: string[]
+  slideIds: string[],
 ): Promise<string> {
   const lines: string[] = [
     "CURRENT SLIDES",
@@ -47,7 +47,9 @@ export async function getDeckSummaryForAI(
       } else {
         const title = getSlideTitle(res.data.slide);
         const contentSummary = getContentSummary(res.data.slide);
-        lines.push(`  ${slideId} (${res.data.slide.type}): "${title}"${contentSummary}`);
+        lines.push(
+          `  ${slideId} (${res.data.slide.type}): "${title}"${contentSummary}`,
+        );
       }
     }
   }

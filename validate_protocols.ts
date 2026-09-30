@@ -1,4 +1,3 @@
-
 // Protocol compliance sweep for client/src, companion to ./validate_queries
 // and ./validate_migrations. Checks the mechanically-verifiable rules from
 // panther/protocols/PROTOCOL_UI_SOLIDJS.md and PROTOCOL_UI_STATE.md.
@@ -30,7 +29,8 @@ const CHECKS: Check[] = [
   {
     id: "suspense-mechanism",
     tier: 1,
-    rule: "SOLIDJS 5: no createResource / Suspense / lazy / useTransition / createAsync",
+    rule:
+      "SOLIDJS 5: no createResource / Suspense / lazy / useTransition / createAsync",
     regex:
       /\bcreateResource\b|\bSuspense\b|\buseTransition\b|\bcreateAsync\b|(?<![.\w])lazy\(/,
   },
@@ -198,7 +198,12 @@ let tier1Total = 0;
 let newTier2 = 0;
 let baselined = 0;
 
-function report(label: "FAIL" | "REVIEW", id: string, rule: string, hits: Hit[]) {
+function report(
+  label: "FAIL" | "REVIEW",
+  id: string,
+  rule: string,
+  hits: Hit[],
+) {
   if (hits.length === 0) return;
   console.log(`\n[${label}] ${id}, ${rule}: ${hits.length} hit(s)`);
   for (const h of hits) {
@@ -233,15 +238,24 @@ const stale = [...allowances.values()].reduce((a, b) => a + b, 0);
 console.log("");
 if (stale > 0) {
   console.log(
-    `NOTE: ${stale} baseline entr${stale === 1 ? "y" : "ies"} no longer match, run ./validate_protocols --update-baseline to prune.`,
+    `NOTE: ${stale} baseline entr${
+      stale === 1 ? "y" : "ies"
+    } no longer match, run ./validate_protocols --update-baseline to prune.`,
   );
 }
 if (tier1Total > 0) {
-  console.log("\x1b[91m╔══════════════════════════════════════════════════════════════╗");
-  console.log("║                PROTOCOL VALIDATION FAILED                    ║");
-  const msg = `${tier1Total} tier-1 violation(s); ${newTier2} new review flag(s)`;
+  console.log(
+    "\x1b[91m╔══════════════════════════════════════════════════════════════╗",
+  );
+  console.log(
+    "║                PROTOCOL VALIDATION FAILED                    ║",
+  );
+  const msg =
+    `${tier1Total} tier-1 violation(s); ${newTier2} new review flag(s)`;
   console.log(`║  ${msg.padEnd(60)}║`);
-  console.log("╚══════════════════════════════════════════════════════════════╝\x1b[0m");
+  console.log(
+    "╚══════════════════════════════════════════════════════════════╝\x1b[0m",
+  );
   Deno.exit(1);
 } else {
   console.log(

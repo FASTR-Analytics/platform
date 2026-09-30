@@ -7,18 +7,18 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   buildReportEmbedToken,
-  getReportHtmlStyle,
-  getStartingConfigForReport,
-  REPORT_HTML_STYLES,
-  reportConfigSchema,
   decodeReportHtmlEntities,
   escapeReportHtml,
   findReportEmbeds,
   getReportFormat,
+  getReportHtmlStyle,
   getStartingBodyForReport,
+  getStartingConfigForReport,
   parseReportEmbedLine,
   referencedReportEmbedIds,
   replaceReportEmbedTokens,
+  REPORT_HTML_STYLES,
+  reportConfigSchema,
   rewriteReportEmbedToken,
   sanitizeReportCaption,
 } from "../../lib/types/reports.ts";
@@ -79,7 +79,8 @@ Deno.test("custom style snapshot round-trips through the config schema and wins 
     id: "11111111-2222-4333-8444-555555555555",
     label: "House Style",
     brief: "**Fonts** ...",
-    referenceCss: ":root { --ink: #0F2130 } .masthead { border-bottom: 1px solid }",
+    referenceCss:
+      ":root { --ink: #0F2130 } .masthead { border-bottom: 1px solid }",
     colors: { page: "#FFFFFF", ink: "#111111", accent: "#B03F35" },
   };
   const cfg = getStartingConfigForReport("html", "editorial", snap);
@@ -118,7 +119,10 @@ Deno.test("every styled preset briefs the AI (banner + design brief + shared con
       assertEquals(ins.includes("Design brief"), false);
       assertEquals(ins.includes("THIS REPORT'S STYLE IS"), false);
     } else {
-      assert(ins.includes("THIS REPORT'S STYLE IS"), `${style}: banner missing`);
+      assert(
+        ins.includes("THIS REPORT'S STYLE IS"),
+        `${style}: banner missing`,
+      );
       assert(ins.includes("## Design brief:"), `${style}: brief missing`);
       assert(
         ins.includes("static markup only"),
@@ -135,7 +139,10 @@ Deno.test("every styled preset briefs the AI (banner + design brief + shared con
 });
 
 Deno.test("starting body per format", () => {
-  assertEquals(getStartingBodyForReport("Q1 <review>", "markdown"), "# Q1 <review>\n\n");
+  assertEquals(
+    getStartingBodyForReport("Q1 <review>", "markdown"),
+    "# Q1 <review>\n\n",
+  );
   assertEquals(
     getStartingBodyForReport("Q1 <review>", "html"),
     "<h1>Q1 &lt;review&gt;</h1>\n",
@@ -153,7 +160,8 @@ Deno.test("escape / decode round-trip", () => {
 });
 
 Deno.test("markdown tokens: find / line / build", () => {
-  const body = `# T\n\n![Cap one](figure:${ID})\ntext ![inline](image:${ID2}) more\n`;
+  const body =
+    `# T\n\n![Cap one](figure:${ID})\ntext ![inline](image:${ID2}) more\n`;
   const refs = findReportEmbeds(body, "markdown");
   assertEquals(refs.map((r) => [r.kind, r.id, r.caption]), [
     ["figure", ID, "Cap one"],
@@ -165,7 +173,10 @@ Deno.test("markdown tokens: find / line / build", () => {
     id: ID,
     caption: "c",
   });
-  assertEquals(parseReportEmbedLine(`x ![c](figure:${ID})`, "markdown"), undefined);
+  assertEquals(
+    parseReportEmbedLine(`x ![c](figure:${ID})`, "markdown"),
+    undefined,
+  );
   assertEquals(
     buildReportEmbedToken("markdown", "figure", ID, " a [b]\nc "),
     `![a b c](figure:${ID})`,
@@ -201,7 +212,10 @@ Deno.test("html tokens: exact-line vs inline", () => {
     undefined,
   );
   assertEquals(
-    parseReportEmbedLine(`<img src="figure:${ID}"><img src="figure:${ID2}">`, "html"),
+    parseReportEmbedLine(
+      `<img src="figure:${ID}"><img src="figure:${ID2}">`,
+      "html",
+    ),
     undefined,
   );
 });
@@ -216,7 +230,8 @@ Deno.test("html build token escapes and collapses the caption", () => {
 });
 
 Deno.test("rewriteReportEmbedToken keeps class/style/id (html) and patches src/alt only", () => {
-  const raw = `<img class="wide" src='figure:${ID}' style="max-width:50%" alt="old &amp; cap" id="f1">`;
+  const raw =
+    `<img class="wide" src='figure:${ID}' style="max-width:50%" alt="old &amp; cap" id="f1">`;
   const [ref] = findReportEmbeds(raw, "html");
   assertEquals(
     rewriteReportEmbedToken(ref, { caption: `new "cap"` }, "html"),
@@ -242,9 +257,15 @@ Deno.test("rewriteReportEmbedToken keeps class/style/id (html) and patches src/a
 });
 
 Deno.test("replaceReportEmbedTokens replaces every occurrence of (kind,id) and counts", () => {
-  const body = `<img src="figure:${ID}" alt="a">\n<p>t</p>\n<img src="figure:${ID}" alt="b" class="c">\n<img src="figure:${ID2}" alt="z">`;
-  const res = replaceReportEmbedTokens(body, "html", "figure", ID, (ref) =>
-    rewriteReportEmbedToken(ref, { id: ID2 }, "html"));
+  const body =
+    `<img src="figure:${ID}" alt="a">\n<p>t</p>\n<img src="figure:${ID}" alt="b" class="c">\n<img src="figure:${ID2}" alt="z">`;
+  const res = replaceReportEmbedTokens(
+    body,
+    "html",
+    "figure",
+    ID,
+    (ref) => rewriteReportEmbedToken(ref, { id: ID2 }, "html"),
+  );
   assertEquals(res.count, 2);
   assertEquals(
     res.body,

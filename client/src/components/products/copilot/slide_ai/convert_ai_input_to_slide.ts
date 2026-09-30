@@ -1,23 +1,29 @@
 import {
-  optimizePageLayout,
   createCanvasRenderContextBrowser,
-  RectCoordsDims,
   createItemNode,
-  loadFontsWithTimeout,
   type LayoutNode,
+  loadFontsWithTimeout,
+  optimizePageLayout,
   type OptimizerConfig,
   type PageContentItem,
+  RectCoordsDims,
 } from "panther";
 import type {
-  Slide,
+  AiSlideInput,
   ContentBlock,
   FigureBundle,
-  AiSlideInput,
   MetricWithStatus,
   PackageScope,
+  Slide,
   SlideDeckConfig,
 } from "lib";
-import { slideConfigSchema, getAllSlideFontVariants, getSlideDeckThemeSpec, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import {
+  getAllSlideFontVariants,
+  getSlideDeckThemeSpec,
+  PAGE_HEIGHT_DU,
+  PAGE_WIDTH_DU,
+  slideConfigSchema,
+} from "lib";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { buildFigureInputs } from "~/generate_visualization/mod";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
@@ -44,7 +50,8 @@ export async function convertAiInputToSlide(
   if (!slideInput.blocks || !Array.isArray(slideInput.blocks)) {
     console.error("Invalid blocks:", JSON.stringify(slideInput, null, 2));
     throw new Error(
-      `Content slide must have a 'blocks' array. Received: ${typeof slideInput.blocks}`,
+      `Content slide must have a 'blocks' array. Received: ${typeof slideInput
+        .blocks}`,
     );
   }
 

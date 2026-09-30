@@ -54,20 +54,19 @@ Today's app-level additions:
 
 A third, runtime layer sits above both: the theme module
 (`client/src/state/t4_theme.ts`, S14) writes brand color and radius tokens as
-inline properties on `<html>`. Its default is the chosen brand look (cool
-ramp, deep green, maroon danger, 3px radius) and the Theme modal that edits it
-is hidden behind `THEME_SWITCHER_ENABLED`; the two CSS files remain the source
-of truth for everything the module does not write.
+inline properties on `<html>`. Its default is the chosen brand look (cool ramp,
+deep green, maroon danger, 3px radius) and the Theme modal that edits it is
+hidden behind `THEME_SWITCHER_ENABLED`; the two CSS files remain the source of
+truth for everything the module does not write.
 
 ## Dark mode
 
-A per-device preference: `localStorage["scheme"]` (`system` | `light` |
-`dark`), owned by `client/src/state/t4_ui.ts` (`schemePref` signal +
-`setScheme`; `darkMode()` is the resolved scheme for JS consumers), chosen in
-the profile modal's Appearance section
-(`client/src/components/instance/profile.tsx`, a `ButtonGroup`).
-`setSchemePreference` runs at module scope in `t4_ui.ts`, so `data-scheme`
-lands on `<html>` before first paint.
+A per-device preference: `localStorage["scheme"]` (`system` | `light` | `dark`),
+owned by `client/src/state/t4_ui.ts` (`schemePref` signal + `setScheme`;
+`darkMode()` is the resolved scheme for JS consumers), chosen in the profile
+modal's Appearance section (`client/src/components/instance/profile.tsx`, a
+`ButtonGroup`). `setSchemePreference` runs at module scope in `t4_ui.ts`, so
+`data-scheme` lands on `<html>` before first paint.
 
 - **Token override.** Every panther `--color-*` token is a `light-dark()` pair
   (PROTOCOL_UI_STYLING rule 18), so `client/src/app.css` adds or overrides a
@@ -78,37 +77,35 @@ lands on `<html>` before first paint.
 - **Documents stay light.** `setKeyColors` in `client/src/index.tsx` sets the
   light foundation plus panther's default dark companion
   (`remapNearBlackOnDark: true` flips module-authored near-black literals on
-  dark bases); slides, thumbnails, and every export keep light document
-  styling.
+  dark bases); slides, thumbnails, and every export keep light document styling.
 - **On-screen figures follow the scheme at display time** inside panther's
   `FigureHolder` (`scheme="follow"`, the default, resolves the dark key colors
   per render), so exports and persisted figure data are untouched.
-  `scheme="light"` is the canvas twin of `ui-scheme-light` for document
-  surfaces (PROTOCOL_UI_STYLING rule 19).
+  `scheme="light"` is the canvas twin of `ui-scheme-light` for document surfaces
+  (PROTOCOL_UI_STYLING rule 19).
 - **Supporting `app.css` rules**: a `:root .cm-editor` block retheming
-  CodeMirror's light internals from tokens (one rule serves both schemes,
-  since the tokens resolve per scheme), plus a dark-only wash over
-  `.cm-ySelection` so peers' selection highlights show on dark. Markdown
-  _syntax token_ colors can't be themed from CSS, so editors with markdown
-  highlighting must also spread `darkMarkdownExtensions()` (from
-  `_shared/collab_markdown_editor.tsx`) into their extension list inside a
-  tracked scope so a scheme toggle rebuilds the view. Of the roadtrip tour
-  vars (`--roadtrip-*`) on `:root`, `--roadtrip-bg` and
-  `--roadtrip-scrim-color` are `light-dark()` pairs; the rest are a z-index
+  CodeMirror's light internals from tokens (one rule serves both schemes, since
+  the tokens resolve per scheme), plus a dark-only wash over `.cm-ySelection` so
+  peers' selection highlights show on dark. Markdown _syntax token_ colors can't
+  be themed from CSS, so editors with markdown highlighting must also spread
+  `darkMarkdownExtensions()` (from `_shared/collab_markdown_editor.tsx`) into
+  their extension list inside a tracked scope so a scheme toggle rebuilds the
+  view. Of the roadtrip tour vars (`--roadtrip-*`) on `:root`, `--roadtrip-bg`
+  and `--roadtrip-scrim-color` are `light-dark()` pairs; the rest are a z-index
   and two token references.
 - **HTML-rendered markdown that passes a document style** (the report preview
   panes with `REPORT_MARKDOWN_STYLE`) colors text from inline `--md-*` vars
-  derived from the light document style: near-black on dark surfaces. Wrap
-  the mount in `.md-dark-adapt`, which re-points those vars to tokens under
+  derived from the light document style: near-black on dark surfaces. Wrap the
+  mount in `.md-dark-adapt`, which re-points those vars to tokens under
   `data-scheme="dark"` (and `system` while the OS is dark); used by the report
-  View pane and the version-history report preview. Markdown with no style
-  (AI chat) needs no wrapper.
-- **No inverted chrome.** Every header is a flush `HeadingBar` that follows
-  the scheme; no surface in this app pins its `color-scheme`.
+  View pane and the version-history report preview. Markdown with no style (AI
+  chat) needs no wrapper.
+- **No inverted chrome.** Every header is a flush `HeadingBar` that follows the
+  scheme; no surface in this app pins its `color-scheme`.
 - **No `text-white` / `bg-white`**: they are not tokens and break the dark
   palette. Document surfaces (slide canvases, thumbnails, previews) wear
-  `ui-scheme-light`; constant contrast over media/data is an inline style
-  beside its inline background (PROTOCOL_UI_STYLING rule 19 + checklist).
+  `ui-scheme-light`; constant contrast over media/data is an inline style beside
+  its inline background (PROTOCOL_UI_STYLING rule 19 + checklist).
 - The mechanism above is PROTOCOL_UI_STYLING rule 18 (`data-scheme` +
   `light-dark()` pairs); `data-theme` stays reserved for palette swaps.
 
@@ -118,13 +115,13 @@ Every page is full-height; scrolling happens inside content areas, never the
 page body. Pick the pattern; don't invent new frames. (All `Frame*` components
 are panther exports.)
 
-| Pattern               | Frame structure                                    | Live example                                   |
-| --------------------- | -------------------------------------------------- | ---------------------------------------------- |
-| A: simple content     | `FrameTop pad="md" spy="md"` + `HeadingBar`, no div | `slide_deck/settings.tsx`           |
-| B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`            | `data/hmis/population/grid.tsx`    |
-| C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`   | `results_packages/results_packages.tsx`        |
-| D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas | `_shared/figure_editor/figure_editor.tsx` |
-| E: split columns      | `div.flex` halves with `w-1/2` + `border-r`        | `data/hfa/indicators/*` managers               |
+| Pattern               | Frame structure                                     | Live example                              |
+| --------------------- | --------------------------------------------------- | ----------------------------------------- |
+| A: simple content     | `FrameTop pad="md" spy="md"` + `HeadingBar`, no div | `slide_deck/settings.tsx`                 |
+| B: sidebar navigation | `FrameLeft` + vertical `TabsNavigation`             | `data/hmis/population/grid.tsx`           |
+| C: list with grouping | `FrameTop` + `HeadingBar` + `FrameLeftResizable`    | `results_packages/results_packages.tsx`   |
+| D: full editor        | `FrameTop` toolbar + `FrameLeftResizable` + canvas  | `_shared/figure_editor/figure_editor.tsx` |
+| E: split columns      | `div.flex` halves with `w-1/2` + `border-r`         | `data/hfa/indicators/*` managers          |
 
 Pattern specifics, from the live pages:
 
@@ -132,24 +129,24 @@ Pattern specifics, from the live pages:
   panel; the selected tab is a plain signal in the page.
 - **C (list pages):**
   `FrameLeftResizable startingWidth={300} minWidth={150}
-  maxWidth={400}` around a `SelectList`. The product explorer
-  (`products/products.tsx`) is the tree variant without the side panel:
-  `HeadingBar` carries the expand/collapse toggle in `centerLeftChildren`,
-  `searchText`/`setSearchText` and the New button, over a tree list whose
-  column headers set the sort and its direction; open folders and sort state
-  live in `t4_ui` signals (PROTOCOL_APP_STATE).
-- **D (editors):** opened full page, never routed. A view reached from a
-  frame page (a product editor, module defaults, a Data sub-page, the user
-  detail) opens through `openShellEditor` (`state/t4_ui.ts`), the shell's one
+  maxWidth={400}`
+  around a `SelectList`. The product explorer (`products/products.tsx`) is the
+  tree variant without the side panel: `HeadingBar` carries the expand/collapse
+  toggle in `centerLeftChildren`, `searchText`/`setSearchText` and the New
+  button, over a tree list whose column headers set the sort and its direction;
+  open folders and sort state live in `t4_ui` signals (PROTOCOL_APP_STATE).
+- **D (editors):** opened full page, never routed. A view reached from a frame
+  page (a product editor, module defaults, a Data sub-page, the user detail)
+  opens through `openShellEditor` (`state/t4_ui.ts`), the shell's one
   `getEditorWrapper()`, and covers the header and the rail; a view a full-page
   view opens itself (the slide editor, an import run detail) uses that view's
-  own `getEditorWrapper()`; panel widths in use: viz editor `384/300/600`, slide editor
-  `400/300/600`; canvas area is `FigureHolder`/`PageHolder`.
-- **Instance page:** `ShellEditorWrapper` around a `FrameTop` whose panel is
-  the header (instance name, logo, right-hand cluster) and whose content is a
-  `FrameLeft` with the rail: pattern B, a vertical collapsible
-  `TabsNavigation` over `navItems()`, collapsed state in `t4_ui`'s
-  `navCollapsed`. Nothing in the shell is responsive.
+  own `getEditorWrapper()`; panel widths in use: viz editor `384/300/600`, slide
+  editor `400/300/600`; canvas area is `FigureHolder`/`PageHolder`.
+- **Instance page:** `ShellEditorWrapper` around a `FrameTop` whose panel is the
+  header (instance name, logo, right-hand cluster) and whose content is a
+  `FrameLeft` with the rail: pattern B, a vertical collapsible `TabsNavigation`
+  over `navItems()`, collapsed state in `t4_ui`'s `navCollapsed`. Nothing in the
+  shell is responsive.
 
 ## Recurring scaffolds
 
@@ -200,9 +197,10 @@ outline action buttons.
 
 **Grouping sidebar** (inside Pattern C's resizable panel): the frame draws the
 edge, so don't add one. With a controls section (e.g. a `Select` for group-by):
-full-height column, controls `ui-pad border-b`, list `ui-pad flex-1
-overflow-auto` around the `SelectList`. Without one: `panelPad="md"` on the
-frame and the `SelectList` bare in the panel, no wrapper.
+full-height column, controls `ui-pad border-b`, list
+`ui-pad flex-1
+overflow-auto` around the `SelectList`. Without one:
+`panelPad="md"` on the frame and the `SelectList` bare in the panel, no wrapper.
 
 **Context menu:** panther
 `showMenu({ anchor: { x: e.clientX, y: e.clientY, width: 0, height: 0 }, items })`,
@@ -217,31 +215,29 @@ through `createDeleteAction` (confirmation built in); async buttons pass
 **Modal forms:** `openComponent()` + `AlertFormHolder` + `createFormAction`.
 Validate inside the action and return `{ success: false, err }`; fields spaced
 `ui-spy-sm`; `autoFocus` the first input. Settings pages: the page's inset and
-stack spacing are the Frame's `pad` / `spy`, `ui-text-heading` section
-headings, fields `ui-spy-sm`. Every heading, a
-full-screen view's label included, is `ui-text-heading`; never a bare
-`text-lg` / `text-xl`. The one exception is the instance name in the shell's
-top bar, `text-xl font-700`: it names the site, not a section. The six top-level pages
-have no title. An in-body count beside a search box is plain body text
-("123 indicators", "12 of 40"). Modal widths are
+stack spacing are the Frame's `pad` / `spy`, `ui-text-heading` section headings,
+fields `ui-spy-sm`. Every heading, a full-screen view's label included, is
+`ui-text-heading`; never a bare `text-lg` / `text-xl`. The one exception is the
+instance name in the shell's top bar, `text-xl font-700`: it names the site, not
+a section. The six top-level pages have no title. An in-body count beside a
+search box is plain body text ("123 indicators", "12 of 40"). Modal widths are
 `ModalContainer`'s `width` tokens (panther).
 
 **Text sizes:** the three roles and the rem-only rule are PROTOCOL_UI_STYLING
 ("Type"). `lint:text-sizes` (chained into `deno task typecheck`) fails on an
 arbitrary `text-[Npx]`, `text-md`, or an inline pixel font-size under
-`client/src`, `panther/_303_components` and `panther/_305_ai`. Document and canvas rendering is
-exempt by file in `lint_text_sizes.ts`: the report page surface
-(`products/report/live_preview_extension.tsx`, pinned to its PDF's
+`client/src`, `panther/_303_components` and `panther/_305_ai`. Document and
+canvas rendering is exempt by file in `lint_text_sizes.ts`: the report page
+surface (`products/report/live_preview_extension.tsx`, pinned to its PDF's
 typography) and the theme miniature (`products/report/fastr_theme_mock.tsx`).
-Add a file there only when its text is a rendering of a document or a
-canvas, not UI.
+Add a file there only when its text is a rendering of a document or a canvas,
+not UI.
 
-**Mono:** the face rule is PROTOCOL_UI_STYLING ("Type", Mono). In this app
-that means indicator, DHIS2, variable and category IDs, column names,
-formulas, file names, logs and R scripts are `font-mono`; emails, facility
-and area names, dates, periods and every count are sans, including the
-stats in the import staging summaries, whose emphasis is `font-700` at body
-size.
+**Mono:** the face rule is PROTOCOL_UI_STYLING ("Type", Mono). In this app that
+means indicator, DHIS2, variable and category IDs, column names, formulas, file
+names, logs and R scripts are `font-mono`; emails, facility and area names,
+dates, periods and every count are sans, including the stats in the import
+staging summaries, whose emphasis is `font-700` at body size.
 
 **Form-draft signals:** draft state under edit uses a `temp*` prefix
 (`tempConfig`, `tempWindowing`); unsaved-changes tracking is a `needsSaving`
@@ -250,8 +246,7 @@ signal.
 ## Icon vocabulary
 
 Icon names are the panther `IconName` union
-(`panther/_303_components/icons/icon_types.ts`). The app's established
-mappings:
+(`panther/_303_components/icons/icon_types.ts`). The app's established mappings:
 
 | Icon                                     | Usage                                                                    |
 | ---------------------------------------- | ------------------------------------------------------------------------ |
@@ -274,12 +269,11 @@ mappings:
 App-specific only. The general styling prohibitions are in PROTOCOL_UI_STYLING.
 
 - Don't restate a panther fact here. Point at the protocol instead.
-- Don't add a `--color-*` token as a single value unless it is meant to read
-  the same in both schemes; write a `light-dark()` pair.
-- Don't hand-roll cards, selection circles, context menus, delete
-  confirmations, or the running-stripe animation. `Card` (with
-  `selected`/`onSelectToggle`), `showMenu`, `createDeleteAction` and
-  `ui-running` exist for exactly these.
+- Don't add a `--color-*` token as a single value unless it is meant to read the
+  same in both schemes; write a `light-dark()` pair.
+- Don't hand-roll cards, selection circles, context menus, delete confirmations,
+  or the running-stripe animation. `Card` (with `selected`/`onSelectToggle`),
+  `showMenu`, `createDeleteAction` and `ui-running` exist for exactly these.
 - Don't put color or radius overrides in components; the override point is
   `client/src/app.css`.
 - Never modify `panther/` in this repo (fix in the panther repo, resync).

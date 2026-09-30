@@ -2,11 +2,11 @@ import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
   metricStrict,
-  throwIfErrWithData,
   type RunMetric,
   type RunModule,
   type RunProgress,
   type RunStage,
+  throwIfErrWithData,
 } from "lib";
 import { _INSTANCE_COUNTRY_ISO3 } from "../../exposed_env_vars.ts";
 import { prepareModuleDefinitionForStorage } from "../../runs/module_config.ts";
@@ -21,12 +21,15 @@ import {
 } from "../../runs/mod.ts";
 import {
   executeRunModule,
-  ReuseSourceMissingError,
   reuseRunModule,
+  ReuseSourceMissingError,
 } from "./execute_module.ts";
 import { notifyInstanceRunProgress } from "../../task_management/notify_instance_updated.ts";
 import { prepareRunInputs } from "./prepare_inputs.ts";
-import { resolveRunModules, type ResolvedRunModule } from "./resolve_modules.ts";
+import {
+  type ResolvedRunModule,
+  resolveRunModules,
+} from "./resolve_modules.ts";
 import {
   computeModuleInputs,
   computeModuleKey,
@@ -210,7 +213,10 @@ export async function runGenerationPipeline(
 // stores (installModule's row shapes, minus the round trip through Postgres).
 function buildRunModules(
   resolved: ResolvedRunModule[],
-  memo: Map<string, { inputKey: string; outputFileHashes: Record<string, string> }>,
+  memo: Map<
+    string,
+    { inputKey: string; outputFileHashes: Record<string, string> }
+  >,
 ): RunModule[] {
   const now = new Date().toISOString();
   return resolved.map((mod) => {
@@ -254,7 +260,9 @@ function buildRunMetrics(resolved: ResolvedRunModule[]): RunMetric[] {
           ? JSON.stringify(m.catalogExpressionEvaluation)
           : null,
         results_object_id: m.resultsObjectId,
-        ai_description: m.aiDescription ? JSON.stringify(m.aiDescription) : null,
+        ai_description: m.aiDescription
+          ? JSON.stringify(m.aiDescription)
+          : null,
         viz_presets: JSON.stringify(m.vizPresets),
         hide: m.hide,
         important_notes: m.importantNotes,

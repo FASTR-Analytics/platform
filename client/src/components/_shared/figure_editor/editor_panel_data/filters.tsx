@@ -2,37 +2,37 @@ import {
   type BoundedPeriodFilter,
   type DatasetType,
   type DisaggregationPossibleValuesStatus,
+  getCalendar,
   inferPeriodFormatFromValue,
   PeriodBounds,
   periodFilterHasBounds,
   PresentationObjectConfig,
   ResultsValue,
-  getCalendar,
+  type ResultsValueInfoForPresentationObject,
   t3,
   TC,
-  type ResultsValueInfoForPresentationObject,
 } from "lib";
 import {
   Button,
   Checkbox,
   DoubleSlider,
-  MultiSelectSearch,
-  RadioGroup,
-  Slider,
-  StateHolderWrapper,
   formatPeriod,
   getPeriodIdFromTime,
   getTimeFromPeriodId,
+  MultiSelectSearch,
   type Query,
+  RadioGroup,
+  Slider,
+  StateHolderWrapper,
 } from "panther";
 import {
+  createEffect,
+  createMemo,
+  createSignal,
   For,
   Match,
   Show,
   Switch,
-  createEffect,
-  createMemo,
-  createSignal,
 } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import {
@@ -72,7 +72,13 @@ export function Filters(p: FiltersProps) {
 
   return (
     <div class="ui-spy-sm">
-      <div class="ui-text-heading">{t3({ en: "Filter (subset)", fr: "Filtre (sous-ensemble)", pt: "Filtro (subconjunto)" })}</div>
+      <div class="ui-text-heading">
+        {t3({
+          en: "Filter (subset)",
+          fr: "Filtre (sous-ensemble)",
+          pt: "Filtro (subconjunto)",
+        })}
+      </div>
 
       <div class="ui-spy-sm">
         <Show when={p.metric.valueProps.length > 1}>
@@ -140,7 +146,11 @@ function DataValuesFilter(p: DataValuesFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3({ en: "Data values", fr: "Valeurs des données", pt: "Valores dos dados" })}
+        label={t3({
+          en: "Data values",
+          fr: "Valeurs des données",
+          pt: "Valores dos dados",
+        })}
         checked={!!p.tempConfig.d.valuesFilter}
         onChange={(checked) => {
           if (checked) {
@@ -215,10 +225,19 @@ function PeriodFilter(p: PeriodFilterProps) {
         checked={!!p.tempConfig.d.periodFilter}
         onChange={(checked) => {
           if (checked) {
-            if (inferPeriodFormatFromValue(p.keyedPeriodBounds.min) === "quarter_id") {
-              p.setTempConfig("d", "periodFilter", { filterType: "last_n_calendar_quarters", nQuarters: 4 });
+            if (
+              inferPeriodFormatFromValue(p.keyedPeriodBounds.min) ===
+                "quarter_id"
+            ) {
+              p.setTempConfig("d", "periodFilter", {
+                filterType: "last_n_calendar_quarters",
+                nQuarters: 4,
+              });
             } else {
-              p.setTempConfig("d", "periodFilter", { filterType: "last_n_months", nMonths: 12 });
+              p.setTempConfig("d", "periodFilter", {
+                filterType: "last_n_months",
+                nMonths: 12,
+              });
             }
           } else {
             p.setTempConfig("d", "periodFilter", undefined);
@@ -230,10 +249,14 @@ function PeriodFilter(p: PeriodFilterProps) {
           const displayFilterType = () => {
             const ft = p.tempConfig.d.periodFilter?.filterType;
             if (ft === "last_calendar_year") return "last_n_calendar_years";
-            if (ft === "last_calendar_quarter") return "last_n_calendar_quarters";
+            if (ft === "last_calendar_quarter") {
+              return "last_n_calendar_quarters";
+            }
             return ft;
           };
-          const periodOption = inferPeriodFormatFromValue(p.keyedPeriodBounds.min);
+          const periodOption = inferPeriodFormatFromValue(
+            p.keyedPeriodBounds.min,
+          );
           const boundedFilter = createMemo(() =>
             periodFilterHasBounds(rawPeriodFilter) ? rawPeriodFilter : undefined
           );
@@ -241,58 +264,98 @@ function PeriodFilter(p: PeriodFilterProps) {
             <div class="ui-spy-sm pb-4 pl-4">
               <RadioGroup
                 value={displayFilterType()}
-                options={
-                  periodOption === "year"
-                    ? [
-                      {
-                        value: "last_n_months",
-                        label: t3({ en: "Last year", fr: "Dernière année", pt: "Último ano" }),
-                      },
-                      {
-                        value: "custom",
-                        label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
-                      },
-                    ]
-                    : periodOption === "quarter_id"
-                      ? [
-                        {
-                          value: "last_n_calendar_quarters",
-                          label: t3({ en: "Last N calendar quarters", fr: "Derniers N trimestres civils", pt: "Últimos N trimestres civis" }),
-                        },
-                        {
-                          value: "from_month",
-                          label: t3({ en: "From specific quarter", fr: "À partir d'un trimestre spécifique", pt: "A partir de um trimestre específico" }),
-                        },
-                        {
-                          value: "custom",
-                          label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
-                        },
-                      ]
-                      : [
-                        {
-                          value: "last_n_months",
-                          label: t3({ en: "Last N months", fr: "Derniers N mois", pt: "Últimos N meses" }),
-                        },
-                        {
-                          value: "from_month",
-                          label: t3({ en: "From specific month to present", fr: "À partir d'un mois spécifique jusqu'à aujourd'hui", pt: "De um mês específico até ao presente" }),
-                        },
-                        {
-                          value: "last_n_calendar_years",
-                          label: t3({ en: "Last N full calendar years", fr: "Dernières N années civiles complètes", pt: "Últimos N anos civis completos" }),
-                        },
-                        {
-                          value: "last_n_calendar_quarters",
-                          label: t3({ en: "Last N full calendar quarters", fr: "Derniers N trimestres civils complets", pt: "Últimos N trimestres civis completos" }),
-                        },
-                        {
-                          value: "custom",
-                          label: t3({ en: "Custom", fr: "Personnalisé", pt: "Personalizado" }),
-                        },
-                      ]
-                }
+                options={periodOption === "year"
+                  ? [
+                    {
+                      value: "last_n_months",
+                      label: t3({
+                        en: "Last year",
+                        fr: "Dernière année",
+                        pt: "Último ano",
+                      }),
+                    },
+                    {
+                      value: "custom",
+                      label: t3({
+                        en: "Custom",
+                        fr: "Personnalisé",
+                        pt: "Personalizado",
+                      }),
+                    },
+                  ]
+                  : periodOption === "quarter_id"
+                  ? [
+                    {
+                      value: "last_n_calendar_quarters",
+                      label: t3({
+                        en: "Last N calendar quarters",
+                        fr: "Derniers N trimestres civils",
+                        pt: "Últimos N trimestres civis",
+                      }),
+                    },
+                    {
+                      value: "from_month",
+                      label: t3({
+                        en: "From specific quarter",
+                        fr: "À partir d'un trimestre spécifique",
+                        pt: "A partir de um trimestre específico",
+                      }),
+                    },
+                    {
+                      value: "custom",
+                      label: t3({
+                        en: "Custom",
+                        fr: "Personnalisé",
+                        pt: "Personalizado",
+                      }),
+                    },
+                  ]
+                  : [
+                    {
+                      value: "last_n_months",
+                      label: t3({
+                        en: "Last N months",
+                        fr: "Derniers N mois",
+                        pt: "Últimos N meses",
+                      }),
+                    },
+                    {
+                      value: "from_month",
+                      label: t3({
+                        en: "From specific month to present",
+                        fr: "À partir d'un mois spécifique jusqu'à aujourd'hui",
+                        pt: "De um mês específico até ao presente",
+                      }),
+                    },
+                    {
+                      value: "last_n_calendar_years",
+                      label: t3({
+                        en: "Last N full calendar years",
+                        fr: "Dernières N années civiles complètes",
+                        pt: "Últimos N anos civis completos",
+                      }),
+                    },
+                    {
+                      value: "last_n_calendar_quarters",
+                      label: t3({
+                        en: "Last N full calendar quarters",
+                        fr: "Derniers N trimestres civils complets",
+                        pt: "Últimos N trimestres civis completos",
+                      }),
+                    },
+                    {
+                      value: "custom",
+                      label: t3({
+                        en: "Custom",
+                        fr: "Personnalisé",
+                        pt: "Personalizado",
+                      }),
+                    },
+                  ]}
                 onChange={(v) => {
-                  const newType = v as NonNullable<PresentationObjectConfig["d"]["periodFilter"]>["filterType"];
+                  const newType = v as NonNullable<
+                    PresentationObjectConfig["d"]["periodFilter"]
+                  >["filterType"];
                   if (newType === "custom" || newType === "from_month") {
                     p.setTempConfig("d", "periodFilter", {
                       filterType: newType,
@@ -300,65 +363,79 @@ function PeriodFilter(p: PeriodFilterProps) {
                       max: p.keyedPeriodBounds.max,
                     });
                   } else if (newType === "last_n_months") {
-                    p.setTempConfig("d", "periodFilter", { filterType: newType, nMonths: 12 });
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: newType,
+                      nMonths: 12,
+                    });
                   } else if (newType === "last_n_calendar_years") {
-                    p.setTempConfig("d", "periodFilter", { filterType: newType, nYears: 1 });
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: newType,
+                      nYears: 1,
+                    });
                   } else if (newType === "last_n_calendar_quarters") {
-                    p.setTempConfig("d", "periodFilter", { filterType: newType, nQuarters: 4 });
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: newType,
+                      nQuarters: 4,
+                    });
                   } else {
-                    p.setTempConfig("d", "periodFilter", { filterType: newType });
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: newType,
+                    });
                   }
                 }}
               />
               <Show
-                when={
-                  rawPeriodFilter.filterType === "last_n_months" &&
-                  periodOption === "period_id"
-                }
+                when={rawPeriodFilter.filterType === "last_n_months" &&
+                  periodOption === "period_id"}
               >
                 <NMonthsSelector
-                  nMonths={rawPeriodFilter.filterType === "last_n_months" ? rawPeriodFilter.nMonths : undefined}
+                  nMonths={rawPeriodFilter.filterType === "last_n_months"
+                    ? rawPeriodFilter.nMonths
+                    : undefined}
                   onUpdate={(nMonths) =>
-                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_months", nMonths })
-                  }
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: "last_n_months",
+                      nMonths,
+                    })}
                 />
               </Show>
               <Show
-                when={
-                  rawPeriodFilter.filterType === "last_n_calendar_years" ||
-                  rawPeriodFilter.filterType === "last_calendar_year"
-                }
+                when={rawPeriodFilter.filterType === "last_n_calendar_years" ||
+                  rawPeriodFilter.filterType === "last_calendar_year"}
               >
                 <NYearsSelector
-                  nYears={
-                    rawPeriodFilter.filterType === "last_n_calendar_years"
-                      ? rawPeriodFilter.nYears
-                      : undefined
-                  }
+                  nYears={rawPeriodFilter.filterType === "last_n_calendar_years"
+                    ? rawPeriodFilter.nYears
+                    : undefined}
                   onUpdate={(nYears) => {
-                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_calendar_years", nYears });
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: "last_n_calendar_years",
+                      nYears,
+                    });
                   }}
                 />
               </Show>
               <Show
-                when={
-                  rawPeriodFilter.filterType === "last_n_calendar_quarters" ||
-                  rawPeriodFilter.filterType === "last_calendar_quarter"
-                }
+                when={rawPeriodFilter.filterType ===
+                    "last_n_calendar_quarters" ||
+                  rawPeriodFilter.filterType === "last_calendar_quarter"}
               >
                 <NQuartersSelector
-                  nQuarters={
-                    rawPeriodFilter.filterType === "last_n_calendar_quarters"
-                      ? rawPeriodFilter.nQuarters
-                      : undefined
-                  }
+                  nQuarters={rawPeriodFilter.filterType ===
+                      "last_n_calendar_quarters"
+                    ? rawPeriodFilter.nQuarters
+                    : undefined}
                   onUpdate={(nQuarters) => {
-                    p.setTempConfig("d", "periodFilter", { filterType: "last_n_calendar_quarters", nQuarters });
+                    p.setTempConfig("d", "periodFilter", {
+                      filterType: "last_n_calendar_quarters",
+                      nQuarters,
+                    });
                   }}
                 />
               </Show>
               <Show
-                when={rawPeriodFilter.filterType === "from_month" && boundedFilter()}
+                when={rawPeriodFilter.filterType === "from_month" &&
+                  boundedFilter()}
                 keyed
               >
                 {(bf) => (
@@ -366,25 +443,25 @@ function PeriodFilter(p: PeriodFilterProps) {
                     <PeriodFilterPeriodIdSingle
                       periodBounds={p.keyedPeriodBounds}
                       periodFilter={bf}
-                      periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
+                      periodType={periodOption === "quarter_id"
+                        ? "year-quarter"
+                        : "year-month"}
                       onUpdate={(v) =>
                         p.setTempConfig("d", "periodFilter", {
                           filterType: "from_month",
                           min: v.minPeriodId,
                           max: p.keyedPeriodBounds.max,
-                        })
-                      }
+                        })}
                     />
                   </div>
                 )}
               </Show>
               <Switch>
                 <Match
-                  when={
-                    rawPeriodFilter.filterType === "custom" &&
-                    (periodOption === "period_id" || periodOption === "quarter_id") &&
-                    boundedFilter()
-                  }
+                  when={rawPeriodFilter.filterType === "custom" &&
+                    (periodOption === "period_id" ||
+                      periodOption === "quarter_id") &&
+                    boundedFilter()}
                   keyed
                 >
                   {(bf) => (
@@ -392,20 +469,22 @@ function PeriodFilter(p: PeriodFilterProps) {
                       <PeriodFilterPeriodId
                         periodBounds={p.keyedPeriodBounds}
                         periodFilter={bf}
-                        periodType={periodOption === "quarter_id" ? "year-quarter" : "year-month"}
+                        periodType={periodOption === "quarter_id"
+                          ? "year-quarter"
+                          : "year-month"}
                         onUpdate={(v) =>
                           p.setTempConfig("d", "periodFilter", {
                             filterType: "custom",
                             min: v.minPeriodId,
                             max: v.maxPeriodId,
-                          })
-                        }
+                          })}
                       />
                     </div>
                   )}
                 </Match>
                 <Match
-                  when={rawPeriodFilter.filterType === "custom" && boundedFilter()}
+                  when={rawPeriodFilter.filterType === "custom" &&
+                    boundedFilter()}
                   keyed
                 >
                   {(bf) => {
@@ -426,8 +505,7 @@ function PeriodFilter(p: PeriodFilterProps) {
                             filterType: "custom",
                             min: v.minYear,
                             max: v.maxYear,
-                          })
-                        }
+                          })}
                       />
                     );
                   }}
@@ -464,10 +542,12 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
   return (
     <div class="ui-spy-sm">
       <Checkbox
-        label={t3(getDisplayDisaggregationLabel(p.disOpt.value, p.datasetFamily))}
-        checked={
-          !!p.tempConfig.d.filterBy.some((fil) => fil.disOpt === p.disOpt.value)
-        }
+        label={t3(
+          getDisplayDisaggregationLabel(p.disOpt.value, p.datasetFamily),
+        )}
+        checked={!!p.tempConfig.d.filterBy.some((fil) =>
+          fil.disOpt === p.disOpt.value
+        )}
         onChange={(checked) => {
           if (checked) {
             p.setTempConfig("d", "filterBy", (prev) => [
@@ -475,8 +555,10 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
               { disOpt: p.disOpt.value, values: [] },
             ]);
           } else {
-            p.setTempConfig("d", "filterBy", (prev) =>
-              prev.filter((d) => d.disOpt !== p.disOpt.value),
+            p.setTempConfig(
+              "d",
+              "filterBy",
+              (prev) => prev.filter((d) => d.disOpt !== p.disOpt.value),
             );
           }
         }}
@@ -496,8 +578,10 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
               (fil) => fil.disOpt === p.disOpt.value,
               "values",
               (prev) => {
-                if (prev?.some(v => String(v).toLowerCase() === normalized)) {
-                  return prev.filter(v => String(v).toLowerCase() !== normalized);
+                if (prev?.some((v) => String(v).toLowerCase() === normalized)) {
+                  return prev.filter((v) =>
+                    String(v).toLowerCase() !== normalized
+                  );
                 }
                 return [...(prev ?? []), id];
               },
@@ -508,18 +592,36 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
               <Switch>
                 <Match when={p.keyedStatus.status === "too_many_values"}>
                   <div class="ui-pad text-sm text-warning">
-                    {t3({ en: "Too many values (over 500) to display as filter options.", fr: "Trop de valeurs (plus de 500) pour les afficher comme options de filtre.", pt: "Demasiados valores (mais de 500) para apresentar como opções de filtro." })}
+                    {t3({
+                      en:
+                        "Too many values (over 500) to display as filter options.",
+                      fr:
+                        "Trop de valeurs (plus de 500) pour les afficher comme options de filtre.",
+                      pt:
+                        "Demasiados valores (mais de 500) para apresentar como opções de filtro.",
+                    })}
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "no_values_available"}>
                   <div class="ui-pad text-sm text-base-content-muted">
-                    {t3({ en: "No data available for this dimension.", fr: "Aucune donnée disponible pour cette dimension.", pt: "Nenhum dado disponível para esta dimensão." })}
+                    {t3({
+                      en: "No data available for this dimension.",
+                      fr: "Aucune donnée disponible pour cette dimension.",
+                      pt: "Nenhum dado disponível para esta dimensão.",
+                    })}
                   </div>
                 </Match>
                 <Match when={p.keyedStatus.status === "error"}>
                   <div class="ui-pad text-sm text-danger">
-                    {t3({ en: "Error loading values: ", fr: "Erreur lors du chargement des valeurs : ", pt: "Erro ao carregar os valores: " })}
-                    {(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "error" }>).message}
+                    {t3({
+                      en: "Error loading values: ",
+                      fr: "Erreur lors du chargement des valeurs : ",
+                      pt: "Erro ao carregar os valores: ",
+                    })}
+                    {(p.keyedStatus as Extract<
+                      DisaggregationPossibleValuesStatus,
+                      { status: "error" }
+                    >).message}
                   </div>
                 </Match>
                 <Match
@@ -540,7 +642,10 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                         values={canonicalValues()}
                         options={okValues().map((v) => ({
                           value: v.id,
-                          label: getDisplayDisaggregationValueLabel(v.id, v.label),
+                          label: getDisplayDisaggregationValueLabel(
+                            v.id,
+                            v.label,
+                          ),
                         }))}
                         onChange={setValues}
                         fullWidth
@@ -553,23 +658,36 @@ function DisaggregationFilter(p: DisaggregationFilterProps) {
                     okValues().length <= FILTER_SEARCH_THRESHOLD}
                 >
                   <div class="ui-gap-sm ui-pad flex max-h-[300px] flex-wrap overflow-auto rounded border text-xs">
-                    <For each={(p.keyedStatus as Extract<DisaggregationPossibleValuesStatus, { status: "ok" }>).values}>
+                    <For
+                      each={(p.keyedStatus as Extract<
+                        DisaggregationPossibleValuesStatus,
+                        { status: "ok" }
+                      >).values}
+                    >
                       {(opt) => {
                         return (
                           <div
                             class="cursor-pointer rounded px-2 py-1"
                             classList={{
-                              "bg-success text-base-100": keyedFilter.values.some(
-                                v => String(v).toLowerCase() === String(opt.id).toLowerCase()
-                              ),
+                              "bg-success text-base-100": keyedFilter.values
+                                .some(
+                                  (v) =>
+                                    String(v).toLowerCase() ===
+                                      String(opt.id).toLowerCase(),
+                                ),
                               "ui-hoverable-base-200": !keyedFilter.values.some(
-                                v => String(v).toLowerCase() === String(opt.id).toLowerCase()
+                                (v) =>
+                                  String(v).toLowerCase() ===
+                                    String(opt.id).toLowerCase(),
                               ),
                             }}
                             onClick={() => toggleVal(opt.id)}
                           >
                             <span class="relative">
-                              {getDisplayDisaggregationValueLabel(opt.id, opt.label)}
+                              {getDisplayDisaggregationValueLabel(
+                                opt.id,
+                                opt.label,
+                              )}
                             </span>
                           </div>
                         );
@@ -659,9 +777,7 @@ export function PeriodFilterPeriodId(p: PeriodFilterPropsPeriodId) {
             getPeriodIdFromTime(tempMinTime(), p.periodType),
             p.periodType,
             getCalendar(),
-          )}{" "}
-          {t3({ en: "to", fr: "à", pt: "a" })}{" "}
-          {formatPeriod(
+          )} {t3({ en: "to", fr: "à", pt: "a" })} {formatPeriod(
             getPeriodIdFromTime(tempMaxTime(), p.periodType),
             p.periodType,
             getCalendar(),
@@ -728,8 +844,7 @@ export function PeriodFilterPeriodIdSingle(p: PeriodFilterPropsPeriodIdSingle) {
       />
       <div class="ui-gap-sm flex pt-1 text-sm">
         <div class="flex-1 truncate">
-          {t3({ en: "From:", fr: "De :", pt: "De:" })}{" "}
-          {formatPeriod(
+          {t3({ en: "From:", fr: "De :", pt: "De:" })} {formatPeriod(
             getPeriodIdFromTime(tempTime(), p.periodType),
             p.periodType,
             getCalendar(),
@@ -775,9 +890,14 @@ export function NMonthsSelector(p: NMonthsSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad rounded border">
       <Slider
-        label={p.label ?? t3({ en: "Number of months", fr: "Nombre de mois", pt: "Número de meses" })}
+        label={p.label ??
+          t3({
+            en: "Number of months",
+            fr: "Nombre de mois",
+            pt: "Número de meses",
+          })}
         showValueInLabel
-        valueInLabelFormatter={v => String(v)}
+        valueInLabelFormatter={(v) => String(v)}
         value={tempNMonths()}
         onChange={(val) => {
           if (val >= 1 && val <= max) {
@@ -825,9 +945,13 @@ export function NYearsSelector(p: NYearsSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad rounded border">
       <Slider
-        label={t3({ en: "Number of years", fr: "Nombre d'années", pt: "Número de anos" })}
+        label={t3({
+          en: "Number of years",
+          fr: "Nombre d'années",
+          pt: "Número de anos",
+        })}
         showValueInLabel
-        valueInLabelFormatter={v => String(v)}
+        valueInLabelFormatter={(v) => String(v)}
         value={tempNYears()}
         onChange={(val) => {
           if (val >= 1 && val <= 10) {
@@ -875,9 +999,13 @@ export function NQuartersSelector(p: NQuartersSelectorProps) {
   return (
     <div class="ui-gap-sm ui-pad rounded border">
       <Slider
-        label={t3({ en: "Number of quarters", fr: "Nombre de trimestres", pt: "Número de trimestres" })}
+        label={t3({
+          en: "Number of quarters",
+          fr: "Nombre de trimestres",
+          pt: "Número de trimestres",
+        })}
         showValueInLabel
-        valueInLabelFormatter={v => String(v)}
+        valueInLabelFormatter={(v) => String(v)}
         value={tempNQuarters()}
         onChange={(val) => {
           if (val >= 1 && val <= 20) {
@@ -952,7 +1080,8 @@ export function PeriodFilterYear(p: PeriodFilterPropsYear) {
       />
       <div class="ui-gap-sm flex pt-3">
         <div class="flex-1 truncate">
-          {tempMinTime().toFixed(0)} {t3({ en: "to", fr: "à", pt: "a" })} {tempMaxTime().toFixed(0)}
+          {tempMinTime().toFixed(0)} {t3({ en: "to", fr: "à", pt: "a" })}{" "}
+          {tempMaxTime().toFixed(0)}
         </div>
         <Show when={needsSave()}>
           <div class="">

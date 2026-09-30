@@ -1,12 +1,12 @@
 import {
-  t3,
   groupMetricsByModule,
-  type MetricWithStatus,
   type InstalledModuleSummary,
   type MetricGroup,
+  type MetricWithStatus,
+  t3,
 } from "lib";
 import { FrameLeft } from "panther";
-import { createSignal, createMemo, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { ModuleSidebar } from "./module_sidebar";
 import { MetricCard } from "./metric_card";
 
@@ -19,7 +19,7 @@ type Props = {
 
 export function Step1Metric(p: Props) {
   const metricsByModule = createMemo(() =>
-    groupMetricsByModule(p.metrics, p.modules),
+    groupMetricsByModule(p.metrics, p.modules)
   );
 
   // Module ids on the read plane are plain strings from the manifest

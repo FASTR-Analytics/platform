@@ -41,10 +41,16 @@ export function ProductTitle(p: { productId: string; label: string }) {
         <div
           class="ui-text-heading min-w-0 truncate text-lg"
           classList={{
-            "cursor-text rounded px-1 -mx-1 hover:bg-base-200": canEditProduct(p.productId),
+            "cursor-text rounded px-1 -mx-1 hover:bg-base-200": canEditProduct(
+              p.productId,
+            ),
           }}
           title={canEditProduct(p.productId)
-            ? t3({ en: "Click to rename", fr: "Cliquer pour renommer", pt: "Clique para mudar o nome" })
+            ? t3({
+              en: "Click to rename",
+              fr: "Cliquer pour renommer",
+              pt: "Clique para mudar o nome",
+            })
             : undefined}
           onClick={start}
         >
@@ -55,7 +61,10 @@ export function ProductTitle(p: { productId: string; label: string }) {
       <input
         ref={input}
         class="ui-text-heading border-primary min-w-0 rounded border-b bg-transparent px-1 -mx-1 text-lg outline-none"
-        style={{ width: `${Math.max(8, draft().length + 2)}ch`, "max-width": "40rem" }}
+        style={{
+          width: `${Math.max(8, draft().length + 2)}ch`,
+          "max-width": "40rem",
+        }}
         value={draft()}
         onInput={(e) => setDraft(e.currentTarget.value)}
         onBlur={() => void commit()}

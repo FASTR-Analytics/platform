@@ -46,10 +46,15 @@ export function PresentationObjectEditorPanelData(p: Props) {
   };
 
   return (
-    <div data-viz-panel-scroll class="ui-pad ui-spy h-full w-full overflow-auto">
-      {/* <div class="h-0 text-right">
+    <div
+      data-viz-panel-scroll
+      class="ui-pad ui-spy h-full w-full overflow-auto"
+    >
+      {
+        /* <div class="h-0 text-right">
         <HelpButton id="viz-data-tab" />
-      </div> */}
+      </div> */
+      }
       <DataValuesSummary metric={p.metric} />
       <PresentationTypeSummary
         tempConfig={p.tempConfig}

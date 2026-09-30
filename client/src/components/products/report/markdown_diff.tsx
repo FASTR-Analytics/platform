@@ -84,14 +84,12 @@ export function ReportMarkdownDiff(p: Props) {
     <ModalContainer
       width="4xl"
       pad="none"
-      title={
-        p.summary ??
+      title={p.summary ??
         t3({
           en: "Proposed change",
           fr: "Modification proposée",
           pt: "Alteração proposta",
-        })
-      }
+        })}
       actions={[
         {
           label: t3({ en: "Reject", fr: "Rejeter", pt: "Rejeitar" }),

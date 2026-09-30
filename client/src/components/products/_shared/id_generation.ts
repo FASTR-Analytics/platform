@@ -34,8 +34,12 @@ function getAllIdsInLayout(layout: LayoutNode<ContentBlock>): Set<string> {
   return ids;
 }
 
-export function generateUniqueBlockId(existingLayout?: LayoutNode<ContentBlock>): string {
-  const existingIds = existingLayout ? getAllIdsInLayout(existingLayout) : new Set();
+export function generateUniqueBlockId(
+  existingLayout?: LayoutNode<ContentBlock>,
+): string {
+  const existingIds = existingLayout
+    ? getAllIdsInLayout(existingLayout)
+    : new Set();
 
   const maxAttempts = 20;
   for (let i = 0; i < maxAttempts; i++) {
@@ -45,8 +49,12 @@ export function generateUniqueBlockId(existingLayout?: LayoutNode<ContentBlock>)
   throw new Error("Failed to generate unique block ID after 20 attempts");
 }
 
-export function createIdGeneratorForLayout(existingLayout?: LayoutNode<ContentBlock>): IdGenerator {
-  const existingIds = existingLayout ? getAllIdsInLayout(existingLayout) : new Set<string>();
+export function createIdGeneratorForLayout(
+  existingLayout?: LayoutNode<ContentBlock>,
+): IdGenerator {
+  const existingIds = existingLayout
+    ? getAllIdsInLayout(existingLayout)
+    : new Set<string>();
   const generatedIds = new Set<string>();
 
   return () => {

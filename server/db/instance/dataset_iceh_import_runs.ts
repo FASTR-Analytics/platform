@@ -2,13 +2,13 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  parseJsonOrThrow,
-  parseJsonOrUndefined,
   type IcehImportRunProgress,
   type IcehImportRunSummary,
   type IcehRunConfig,
   type IcehStagingResult,
   type IcehStep1Result,
+  parseJsonOrThrow,
+  parseJsonOrUndefined,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportIcehDataWorker } from "../../worker_routines/import_iceh_data/instantiate_worker.ts";
@@ -167,7 +167,9 @@ async function spawnIcehRunWorker(
     setWorker("iceh", worker);
   } catch (spawnError) {
     await failClaim(
-      `Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`,
+      `Failed to start the import worker: ${
+        spawnError instanceof Error ? spawnError.message : String(spawnError)
+      }`,
     );
     throw spawnError;
   }

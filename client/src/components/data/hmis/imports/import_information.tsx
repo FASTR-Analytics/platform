@@ -48,7 +48,9 @@ export function ImportInformation(
   const indicators = createQuery(() => serverActions.getIndicators({}));
   const byDataId = createMemo((): Map<string, HmisIndicator> => {
     const s = indicators.state();
-    return s.status === "ready" ? indicatorsByDataId(s.data.indicators) : new Map();
+    return s.status === "ready"
+      ? indicatorsByDataId(s.data.indicators)
+      : new Map();
   });
   const statLabel = (dataId: string): string => {
     const indicator = byDataId().get(dataId);
@@ -65,22 +67,54 @@ export function ImportInformation(
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
-          heading={t3({ en: "Import information", fr: "Informations sur l'importation", pt: "Informações sobre a importação" })}
+          heading={t3({
+            en: "Import information",
+            fr: "Informations sur l'importation",
+            pt: "Informações sobre a importação",
+          })}
         />
       }
     >
       <div class="ui-gap grid grid-cols-12 items-start">
         <Show when={p.version.stagingResult}>
           <div class="ui-spy-sm ui-pad col-span-6 rounded border text-sm">
-            <div class="ui-text-heading">{t3({ en: "Import summary", fr: "Résumé de l'importation", pt: "Resumo da importação" })}</div>
+            <div class="ui-text-heading">
+              {t3({
+                en: "Import summary",
+                fr: "Résumé de l'importation",
+                pt: "Resumo da importação",
+              })}
+            </div>
             <div class="flex items-center">
-              <div class="w-56 flex-none">{t3({ en: "Imported from", fr: "Importé depuis", pt: "Importado de" })}</div>
+              <div class="w-56 flex-none">
+                {t3({
+                  en: "Imported from",
+                  fr: "Importé depuis",
+                  pt: "Importado de",
+                })}
+              </div>
               <div class="flex-1">
-                {isCSV() ? t3({ en: "CSV Import", fr: "Importation CSV", pt: "Importação CSV" }) : t3({ en: "DHIS2 Import", fr: "Importation DHIS2", pt: "Importação DHIS2" })}
+                {isCSV()
+                  ? t3({
+                    en: "CSV Import",
+                    fr: "Importation CSV",
+                    pt: "Importação CSV",
+                  })
+                  : t3({
+                    en: "DHIS2 Import",
+                    fr: "Importation DHIS2",
+                    pt: "Importação DHIS2",
+                  })}
               </div>
             </div>
             <div class="flex items-center">
-              <div class="w-56 flex-none">{t3({ en: "Date imported", fr: "Date d'importation", pt: "Data de importação" })}</div>
+              <div class="w-56 flex-none">
+                {t3({
+                  en: "Date imported",
+                  fr: "Date d'importation",
+                  pt: "Data de importação",
+                })}
+              </div>
               <div class="flex-1">
                 {new Date(
                   p.version.stagingResult!.dateImported,
@@ -89,26 +123,52 @@ export function ImportInformation(
             </div>
             <Show when={csvResult()}>
               <div class="flex items-center">
-                <div class="w-56 flex-none">{t3({ en: "File name", fr: "Nom du fichier", pt: "Nome do ficheiro" })}</div>
+                <div class="w-56 flex-none">
+                  {t3({
+                    en: "File name",
+                    fr: "Nom du fichier",
+                    pt: "Nome do ficheiro",
+                  })}
+                </div>
                 <div class="flex-1">{csvResult()!.assetFileName}</div>
               </div>
             </Show>
             <div class="flex items-center">
-              <div class="w-56 flex-none">{t3({ en: "Rows inserted", fr: "Lignes insérées", pt: "Linhas inseridas" })}</div>
+              <div class="w-56 flex-none">
+                {t3({
+                  en: "Rows inserted",
+                  fr: "Lignes insérées",
+                  pt: "Linhas inseridas",
+                })}
+              </div>
               <div class="flex-1">{toNum0(p.version.nRowsInserted ?? 0)}</div>
             </div>
             <div class="flex items-center">
               <div class="w-56 flex-none">
                 {dhis2RowsDeleted() !== undefined
-                  ? t3({ en: "Rows removed", fr: "Lignes supprimées", pt: "Linhas removidas" })
-                  : t3({ en: "Rows updated", fr: "Lignes mises à jour", pt: "Linhas atualizadas" })}
+                  ? t3({
+                    en: "Rows removed",
+                    fr: "Lignes supprimées",
+                    pt: "Linhas removidas",
+                  })
+                  : t3({
+                    en: "Rows updated",
+                    fr: "Lignes mises à jour",
+                    pt: "Linhas atualizadas",
+                  })}
               </div>
               <div class="flex-1">
                 {toNum0(dhis2RowsDeleted() ?? p.version.nRowsUpdated ?? 0)}
               </div>
             </div>
             <div class="flex items-center">
-              <div class="w-56 flex-none">{t3({ en: "Total rows imported", fr: "Total de lignes importées", pt: "Total de linhas importadas" })}</div>
+              <div class="w-56 flex-none">
+                {t3({
+                  en: "Total rows imported",
+                  fr: "Total de lignes importées",
+                  pt: "Total de linhas importadas",
+                })}
+              </div>
               <div class="flex-1">{toNum0(p.version.nRowsTotalImported)}</div>
             </div>
           </div>
@@ -117,21 +177,51 @@ export function ImportInformation(
         {/* CSV-specific statistics */}
         <Show when={csvResult()}>
           <div class="ui-pad ui-spy-sm col-span-6 rounded border text-sm">
-            <div class="ui-text-heading">{t3({ en: "CSV import details", fr: "Détails de l'importation CSV", pt: "Detalhes da importação CSV" })}</div>
+            <div class="ui-text-heading">
+              {t3({
+                en: "CSV import details",
+                fr: "Détails de l'importation CSV",
+                pt: "Detalhes da importação CSV",
+              })}
+            </div>
             <div class="flex justify-between">
-              <span>{t3({ en: "Raw rows processed:", fr: "Lignes brutes traitées :", pt: "Linhas brutas processadas:" })}</span>
+              <span>
+                {t3({
+                  en: "Raw rows processed:",
+                  fr: "Lignes brutes traitées :",
+                  pt: "Linhas brutas processadas:",
+                })}
+              </span>
               <span>{toNum0(csvResult()!.rawCsvRowCount)}</span>
             </div>
             <div class="flex justify-between">
-              <span>{t3({ en: "Valid rows:", fr: "Lignes valides :", pt: "Linhas válidas:" })}</span>
+              <span>
+                {t3({
+                  en: "Valid rows:",
+                  fr: "Lignes valides :",
+                  pt: "Linhas válidas:",
+                })}
+              </span>
               <span>{toNum0(csvResult()!.validCsvRowCount)}</span>
             </div>
             <div class="flex justify-between">
-              <span>{t3({ en: "Deduplicated rows:", fr: "Lignes dédupliquées :", pt: "Linhas desduplicadas:" })}</span>
+              <span>
+                {t3({
+                  en: "Deduplicated rows:",
+                  fr: "Lignes dédupliquées :",
+                  pt: "Linhas desduplicadas:",
+                })}
+              </span>
               <span>{toNum0(csvResult()!.dedupedRowCount)}</span>
             </div>
             <div class="flex justify-between">
-              <span>{t3({ en: "Final staging rows:", fr: "Lignes finales de préparation :", pt: "Linhas finais de preparação:" })}</span>
+              <span>
+                {t3({
+                  en: "Final staging rows:",
+                  fr: "Lignes finales de préparation :",
+                  pt: "Linhas finais de preparação:",
+                })}
+              </span>
               <span>{toNum0(csvResult()!.finalStagingRowCount)}</span>
             </div>
           </div>
@@ -140,31 +230,67 @@ export function ImportInformation(
         {/* DHIS2-specific statistics */}
         <Show when={dhis2Result()}>
           <div class="ui-pad ui-spy-sm col-span-6 rounded border text-sm">
-            <div class="ui-text-heading">{t3({ en: "DHIS2 import details", fr: "Détails de l'importation DHIS2", pt: "Detalhes da importação DHIS2" })}</div>
+            <div class="ui-text-heading">
+              {t3({
+                en: "DHIS2 import details",
+                fr: "Détails de l'importation DHIS2",
+                pt: "Detalhes da importação DHIS2",
+              })}
+            </div>
             <div class="flex justify-between">
-              <span>{t3({ en: "Total indicator-period combinations:", fr: "Total de combinaisons indicateur-période :", pt: "Total de combinações indicador-período:" })}</span>
+              <span>
+                {t3({
+                  en: "Total indicator-period combinations:",
+                  fr: "Total de combinaisons indicateur-période :",
+                  pt: "Total de combinações indicador-período:",
+                })}
+              </span>
               <span>{toNum0(dhis2Result()!.totalIndicatorPeriodCombos)}</span>
             </div>
             <div class="flex justify-between">
-              <span>{t3({ en: "Successful fetches:", fr: "Récupérations réussies :", pt: "Obtenções bem-sucedidas:" })}</span>
+              <span>
+                {t3({
+                  en: "Successful fetches:",
+                  fr: "Récupérations réussies :",
+                  pt: "Obtenções bem-sucedidas:",
+                })}
+              </span>
               <span>{toNum0(dhis2Result()!.successfulFetches)}</span>
             </div>
             <Show
               when={dhis2Result()!.failedFetches.length > 0}
               fallback={
                 <div class="text-success flex justify-between">
-                  <span>{t3({ en: "Failed fetches:", fr: "Récupérations échouées :", pt: "Obtenções falhadas:" })}</span>
+                  <span>
+                    {t3({
+                      en: "Failed fetches:",
+                      fr: "Récupérations échouées :",
+                      pt: "Obtenções falhadas:",
+                    })}
+                  </span>
                   <span>0</span>
                 </div>
               }
             >
               <div class="text-danger flex justify-between">
-                <span>{t3({ en: "Failed fetches:", fr: "Récupérations échouées :", pt: "Obtenções falhadas:" })}</span>
+                <span>
+                  {t3({
+                    en: "Failed fetches:",
+                    fr: "Récupérations échouées :",
+                    pt: "Obtenções falhadas:",
+                  })}
+                </span>
                 <span>{dhis2Result()!.failedFetches.length}</span>
               </div>
             </Show>
             <div class="flex justify-between">
-              <span>{t3({ en: "Final staging rows:", fr: "Lignes finales de préparation :", pt: "Linhas finais de preparação:" })}</span>
+              <span>
+                {t3({
+                  en: "Final staging rows:",
+                  fr: "Lignes finales de préparation :",
+                  pt: "Linhas finais de preparação:",
+                })}
+              </span>
               <span>{toNum0(dhis2Result()!.finalStagingRowCount)}</span>
             </div>
           </div>
@@ -173,7 +299,13 @@ export function ImportInformation(
 
       {/* Period Indicator Statistics */}
       <Show when={p.version.stagingResult}>
-        <CollapsibleSection title={t3({ en: "Period-indicator combinations", fr: "Combinaisons période-indicateur", pt: "Combinações período-indicador" })}>
+        <CollapsibleSection
+          title={t3({
+            en: "Period-indicator combinations",
+            fr: "Combinaisons période-indicateur",
+            pt: "Combinações período-indicador",
+          })}
+        >
           <div class="ui-pad max-h-[200px] overflow-auto">
             <For each={p.version.stagingResult?.periodIndicatorStats}>
               {(stat, index) => (
@@ -194,7 +326,13 @@ export function ImportInformation(
         </CollapsibleSection>
       </Show>
 
-      <CollapsibleSection title={t3({ en: "Raw import metadata", fr: "Métadonnées brutes de l'importation", pt: "Metadados brutos da importação" })}>
+      <CollapsibleSection
+        title={t3({
+          en: "Raw import metadata",
+          fr: "Métadonnées brutes de l'importation",
+          pt: "Metadados brutos da importação",
+        })}
+      >
         <div class="ui-pad whitespace-pre-wrap font-mono text-sm">
           {JSON.stringify(p.version, null, 2)}
         </div>

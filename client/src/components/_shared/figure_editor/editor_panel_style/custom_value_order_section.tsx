@@ -11,11 +11,11 @@ import {
   Button,
   Input,
   ModalContainer,
-  SortableList,
   openComponent,
   openConfirm,
+  SortableList,
 } from "panther";
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { SetStoreFunction, unwrap } from "solid-js/store";
 import {
   getDisplayDisaggregationLabel,
@@ -220,7 +220,12 @@ export function CustomValueOrderSection(p: Props) {
     const res = await openComponent({
       element: CustomValueOrderModal,
       props: {
-        dimLabel: t3(getDisplayDisaggregationLabel(disOpt, p.resultsValueInfo.datasetFamily)),
+        dimLabel: t3(
+          getDisplayDisaggregationLabel(
+            disOpt,
+            p.resultsValueInfo.datasetFamily,
+          ),
+        ),
         items: possibleValues.values.map((v) => ({
           id: v.id,
           label: getDisplayDisaggregationValueLabel(v.id, v.label),
@@ -247,7 +252,12 @@ export function CustomValueOrderSection(p: Props) {
             <div>
               <div class="ui-gap-sm flex items-center">
                 <div class="min-w-0 flex-1 truncate">
-                  {t3(getDisplayDisaggregationLabel(row.disOpt, p.resultsValueInfo.datasetFamily))}
+                  {t3(
+                    getDisplayDisaggregationLabel(
+                      row.disOpt,
+                      p.resultsValueInfo.datasetFamily,
+                    ),
+                  )}
                 </div>
                 <Show when={row.canEdit}>
                   <Button
@@ -256,8 +266,16 @@ export function CustomValueOrderSection(p: Props) {
                     iconName="selector"
                   >
                     {row.hasOrder
-                      ? t3({ en: "Edit order", fr: "Modifier l'ordre", pt: "Editar ordem" })
-                      : t3({ en: "Set order", fr: "Définir l'ordre", pt: "Definir ordem" })}
+                      ? t3({
+                        en: "Edit order",
+                        fr: "Modifier l'ordre",
+                        pt: "Editar ordem",
+                      })
+                      : t3({
+                        en: "Set order",
+                        fr: "Définir l'ordre",
+                        pt: "Definir ordem",
+                      })}
                   </Button>
                 </Show>
                 <Show when={row.hasOrder}>
@@ -388,7 +406,9 @@ function CustomValueOrderModal(
           <SortableList
             items={items()}
             onReorder={(ids) =>
-              setItems((prev) => ids.map((id) => prev.find((i) => i.id === id)!))}
+              setItems((prev) =>
+                ids.map((id) => prev.find((i) => i.id === id)!)
+              )}
           >
             {(item) => (
               <div class="bg-base-200 rounded px-3 py-2">{item.label}</div>

@@ -1,17 +1,17 @@
 import {
-  AIChatProvider,
   type AIChatConfig,
+  AIChatProvider,
+  buildToolCatalog,
   type EditorComponentProps,
   FrameRightResizable,
   LoadingIndicator,
-  buildToolCatalog,
   validateAIChatConfig,
 } from "panther";
 import {
-  packageScopesEqual,
-  productScope,
   type HfaTaxonomyForAI,
   type PackageScope,
+  packageScopesEqual,
+  productScope,
   type RunAuthoringContext,
 } from "lib";
 import {
@@ -24,8 +24,8 @@ import {
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import {
-  DEFAULT_BUILTIN_TOOLS,
   createCopilotSDKClient,
+  DEFAULT_BUILTIN_TOOLS,
 } from "./ai_configs/mod.ts";
 import { copilotViewController } from "./_shared/mod.ts";
 import { instanceState, productById } from "~/state/instance/t1_store";
@@ -35,7 +35,7 @@ import { ConsolidatedChatPane } from "./chat_pane";
 import { buildCopilotTools } from "./build_tools";
 import { buildSystemPromptForContext } from "./_shared/mod.ts";
 import { createCopilotAIToolEnv } from "./_shared/mod.ts";
-import { showAi, setShowAi } from "~/state/t4_ui";
+import { setShowAi, showAi } from "~/state/t4_ui";
 import { useAIDocuments } from "./ai_documents/mod.ts";
 import type { ProductEditorComponent } from "~/components/products/mod.ts";
 
@@ -161,7 +161,7 @@ function ProductCopilot(p: {
       p.scope,
       p.authoringContext,
       toolCatalog,
-    ),
+    )
   );
 
   // The sanctioned imperative entity-change side-channel (S3): notify on

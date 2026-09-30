@@ -1,30 +1,30 @@
 import {
   H_USERS,
+  INSTANCE_PERMISSION_LABELS,
   OtherUser,
   t3,
   TC,
-  UserPermission,
   USER_PERMISSIONS,
-  INSTANCE_PERMISSION_LABELS,
+  UserPermission,
 } from "lib";
 import {
   Button,
-  Checkbox,
-  FrameTop,
-  HeadingBar,
   Card,
-  openComponent,
+  Checkbox,
   createButtonAction,
   createDeleteAction,
+  FrameTop,
+  HeadingBar,
+  openComponent,
 } from "panther";
 import {
+  createEffect,
+  createMemo,
+  createSignal,
   For,
   Match,
   Show,
   Switch,
-  createEffect,
-  createMemo,
-  createSignal,
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -40,7 +40,7 @@ type Props = {
 // page closes itself when the row is removed.
 export function User(p: Props) {
   const user = createMemo(() =>
-    instanceState.users.find((u) => u.email === p.email),
+    instanceState.users.find((u) => u.email === p.email)
   );
   createEffect(() => {
     const row = user();
@@ -75,14 +75,18 @@ function makeDefaultUserPermissions(): Record<UserPermission, boolean> {
 function UserDetail(p: DetailProps) {
   const currentUserIsHUser = () => H_USERS.includes(p.thisLoggedInUserEmail);
 
-  const [permissions, setPermissions] = createSignal<Record<
-    UserPermission,
-    boolean
-  > | null>(null);
-  const [originalPermissions, setOriginalPermissions] = createSignal<Record<
-    UserPermission,
-    boolean
-  > | null>(null);
+  const [permissions, setPermissions] = createSignal<
+    Record<
+      UserPermission,
+      boolean
+    > | null
+  >(null);
+  const [originalPermissions, setOriginalPermissions] = createSignal<
+    Record<
+      UserPermission,
+      boolean
+    > | null
+  >(null);
 
   const [unlimitedAi, setUnlimitedAi] = createSignal(p.user.unlimitedAi);
   const toggleUnlimitedAi = createButtonAction(
@@ -138,8 +142,9 @@ function UserDetail(p: DetailProps) {
   const savePermissions = createButtonAction(
     () => {
       const perms = permissions();
-      if (!perms)
+      if (!perms) {
         return Promise.resolve({ success: false, err: "No permissions" });
+      }
       return serverActions.updateUserPermissions({
         email: p.user.email,
         permissions: perms,
@@ -192,7 +197,13 @@ function UserDetail(p: DetailProps) {
       panelChildren={
         <HeadingBar
           onBack={p.close}
-          heading={`${t3({ en: "User profile for", fr: "Profil utilisateur de", pt: "Perfil de utilizador de" })} ${p.user.email}`}
+          heading={`${
+            t3({
+              en: "User profile for",
+              fr: "Profil utilisateur de",
+              pt: "Perfil de utilizador de",
+            })
+          } ${p.user.email}`}
         />
       }
     >
@@ -211,10 +222,8 @@ function UserDetail(p: DetailProps) {
         </div>
       </Card>
       <Show
-        when={
-          instanceState.currentUserIsGlobalAdmin ||
-          instanceState.currentUserPermissions.can_configure_users
-        }
+        when={instanceState.currentUserIsGlobalAdmin ||
+          instanceState.currentUserPermissions.can_configure_users}
       >
         <Card
           header={t3({

@@ -1,4 +1,4 @@
-import { keys, del } from "idb-keyval";
+import { del, keys } from "idb-keyval";
 import { clearGeoJsonMemoryCache } from "./instance/t2_geojson";
 
 const AI_PREFIXES = ["ai-conv", "ai-documents"];

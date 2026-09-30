@@ -1,5 +1,5 @@
-import { t3, type FacilityFamily } from "lib";
-import { Match, Switch, createSignal } from "solid-js";
+import { type FacilityFamily, t3 } from "lib";
+import { createSignal, Match, Switch } from "solid-js";
 import { Step0 } from "./step_0";
 import { Step1File } from "./step_1_file";
 import { Step1Dhis2 } from "./step_1_dhis2";
@@ -55,7 +55,11 @@ export type WizardState = {
   adminAreaOptions: () => AdminAreaOption[];
   setAdminAreaOptions: (options: AdminAreaOption[]) => void;
   geoToAdmin: () => Record<string, string>;
-  setGeoToAdmin: (mapping: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
+  setGeoToAdmin: (
+    mapping:
+      | Record<string, string>
+      | ((prev: Record<string, string>) => Record<string, string>),
+  ) => void;
   // DHIS2 source state
   dhis2ConnectionUrl: () => string | undefined;
   setDhis2ConnectionUrl: (url: string | undefined) => void;
@@ -77,20 +81,36 @@ export function GeoJsonUploadWizard(p: Props) {
   const [selectedFileName, setSelectedFileName] = createSignal<string>("");
 
   // Shared state (used by both file and DHIS2)
-  const [analysisResult, setAnalysisResult] = createSignal<AnalysisResult | undefined>(undefined);
+  const [analysisResult, setAnalysisResult] = createSignal<
+    AnalysisResult | undefined
+  >(undefined);
   const [adminAreaLevel, setAdminAreaLevel] = createSignal<number>(2);
   const [selectedProp, setSelectedProp] = createSignal<string>("");
   const [adminAreaNames, setAdminAreaNames] = createSignal<string[]>([]);
-  const [adminAreaOptions, setAdminAreaOptions] = createSignal<AdminAreaOption[]>([]);
-  const [geoToAdmin, setGeoToAdminRaw] = createSignal<Record<string, string>>({});
+  const [adminAreaOptions, setAdminAreaOptions] = createSignal<
+    AdminAreaOption[]
+  >([]);
+  const [geoToAdmin, setGeoToAdminRaw] = createSignal<Record<string, string>>(
+    {},
+  );
 
   // DHIS2 source state
-  const [dhis2ConnectionUrl, setDhis2ConnectionUrl] = createSignal<string | undefined>(undefined);
+  const [dhis2ConnectionUrl, setDhis2ConnectionUrl] = createSignal<
+    string | undefined
+  >(undefined);
   const [dhis2Levels, setDhis2Levels] = createSignal<Dhis2Level[]>([]);
-  const [selectedDhis2Level, setSelectedDhis2Level] = createSignal<number | null>(null);
-  const [dhis2Features, setDhis2Features] = createSignal<Dhis2FeatureContext[]>([]);
+  const [selectedDhis2Level, setSelectedDhis2Level] = createSignal<
+    number | null
+  >(null);
+  const [dhis2Features, setDhis2Features] = createSignal<Dhis2FeatureContext[]>(
+    [],
+  );
 
-  function setGeoToAdmin(mapping: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) {
+  function setGeoToAdmin(
+    mapping:
+      | Record<string, string>
+      | ((prev: Record<string, string>) => Record<string, string>),
+  ) {
     setGeoToAdminRaw(mapping);
   }
 
@@ -126,9 +146,20 @@ export function GeoJsonUploadWizard(p: Props) {
   };
 
   return (
-    <div class="ui-pad-lg ui-spy" style={{ "min-width": "700px", "max-height": "80vh", "overflow-y": "auto" }}>
+    <div
+      class="ui-pad-lg ui-spy"
+      style={{
+        "min-width": "700px",
+        "max-height": "80vh",
+        "overflow-y": "auto",
+      }}
+    >
       <div class="ui-text-heading">
-        {t3({ en: "Import GeoJSON", fr: "Importer GeoJSON", pt: "Importar GeoJSON" })}
+        {t3({
+          en: "Import GeoJSON",
+          fr: "Importer GeoJSON",
+          pt: "Importar GeoJSON",
+        })}
         {" — "}
         {p.family === "hmis"
           ? t3({ en: "HMIS", fr: "SNIS", pt: "HMIS" })

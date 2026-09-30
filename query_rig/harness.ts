@@ -51,13 +51,13 @@ export function canonicalise(rows: Record<string, unknown>[]): string {
           .map((k) => [k, r[k]])
       )
       .map((pairs) => JSON.stringify(pairs))
-      .sort()
+      .sort(),
   );
 }
 
 export function rowsMatch(
   actual: Record<string, unknown>[],
-  expected: Record<string, unknown>[]
+  expected: Record<string, unknown>[],
 ): boolean {
   return canonicalise(actual) === canonicalise(expected);
 }

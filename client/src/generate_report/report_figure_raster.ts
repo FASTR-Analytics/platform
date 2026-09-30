@@ -15,11 +15,11 @@
 
 import {
   canonicalJson,
-  type FigureBlock,
+  type FastrChartPalette,
   FIGURE_EXPORT_WIDTH_PX,
+  type FigureBlock,
   type ReportHtmlStyle,
   type ReportStyleColors,
-  type FastrChartPalette,
 } from "lib";
 import {
   CustomFigureStyle,
@@ -146,7 +146,9 @@ export function applyInkTheme<T extends { style?: Record<string, unknown> }>(
       backgroundColor: "none",
     })
     : {
-      ...(typeof prevHeader === "object" && prevHeader !== null ? prevHeader : {}),
+      ...(typeof prevHeader === "object" && prevHeader !== null
+        ? prevHeader
+        : {}),
       backgroundColor: "none",
     };
   return {
@@ -170,7 +172,10 @@ export function applyInkTheme<T extends { style?: Record<string, unknown> }>(
       },
       content: {
         ...style.content,
-        tableColHeaders: { ...style.content?.tableColHeaders, func: headerFunc },
+        tableColHeaders: {
+          ...style.content?.tableColHeaders,
+          func: headerFunc,
+        },
       },
     },
   };
@@ -287,9 +292,9 @@ export function createFigureRasterCache(
     get(id, block, ink, chartPalette) {
       const contentKey = keyOf(block);
       if (contentKey === undefined) return { state: "missing" };
-      const key = `${contentKey}|ink:${ink ? ink.text + ink.axis : "dark"}|pal:${
-        chartPalette ? JSON.stringify(chartPalette) : "-"
-      }`;
+      const key = `${contentKey}|ink:${
+        ink ? ink.text + ink.axis : "dark"
+      }|pal:${chartPalette ? JSON.stringify(chartPalette) : "-"}`;
       const prevKey = keyById.get(id);
       const prev = prevKey !== undefined ? entries.get(prevKey) : undefined;
       const aspect = prev?.state.state === "ready"
@@ -301,7 +306,12 @@ export function createFigureRasterCache(
       }
       const existing = entries.get(key);
       if (existing) return existing.state;
-      const entry: Entry = { state: { state: "pending", aspect }, block, ink, chartPalette };
+      const entry: Entry = {
+        state: { state: "pending", aspect },
+        block,
+        ink,
+        chartPalette,
+      };
       entries.set(key, entry);
       queue.push(key);
       void pump();
@@ -328,14 +338,19 @@ export function createFigureRasterCache(
 export type FigureSizeCache = {
   // The size when known; undefined starts the measurement (onReady fires
   // when it lands) or means the figure cannot be laid out at all.
-  get: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  get: (
+    id: string,
+    block: FigureBlock,
+  ) => { width: number; height: number } | undefined;
   dispose: () => void;
 };
 
-
 export function createFigureSizeCache(onReady: () => void): FigureSizeCache {
   // Content key → size, null while in flight, false when the figure failed.
-  const sizes = new Map<string, { width: number; height: number } | null | false>();
+  const sizes = new Map<
+    string,
+    { width: number; height: number } | null | false
+  >();
   let disposed = false;
 
   async function measure(key: string, block: FigureBlock): Promise<void> {

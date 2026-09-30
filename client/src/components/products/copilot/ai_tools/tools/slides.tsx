@@ -2,16 +2,16 @@ import { serverActions } from "~/server_actions";
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
+  AiContentBlockInputSchema,
+  AiContentSlideSchema,
   AiCoverSlideSchema,
   AiSectionSlideSchema,
-  AiContentSlideSchema,
-  AiContentBlockInputSchema,
+  type ContentBlock,
+  getSlideTitle,
   LayoutSpecSchema,
   MAX_CONTENT_BLOCKS,
-  getSlideTitle,
-  type Slide,
-  type ContentBlock,
   type MetricWithStatus,
+  type Slide,
 } from "lib";
 import { convertAiInputToSlide } from "../../slide_ai/mod.ts";
 import { extractBlocksFromLayout } from "../../slide_ai/mod.ts";
@@ -19,10 +19,7 @@ import { createGetSlideTool } from "./get_slide";
 import type { ClientAIToolEnv } from "../../_shared/mod.ts";
 import { getSlideWithUpdatedBlocks } from "../../slide_ai/mod.ts";
 import { getDeckSummaryForAI } from "../../slide_ai/mod.ts";
-import {
-  buildLayoutFromSpec,
-  normalizeSpans,
-} from "../../slide_ai/mod.ts";
+import { buildLayoutFromSpec, normalizeSpans } from "../../slide_ai/mod.ts";
 import { resolveFigureFromMetric } from "../../slide_ai/mod.ts";
 import { createIdGeneratorForLayout } from "~/components/products/_shared/mod.ts";
 import {
@@ -31,10 +28,7 @@ import {
   validateSlideTotalWordCount,
 } from "../../_shared/mod.ts";
 import { assertSlidesNotBusy } from "../validators/mod.ts";
-import {
-  copilotViewController,
-  copilotViews,
-} from "../../_shared/mod.ts";
+import { copilotViewController, copilotViews } from "../../_shared/mod.ts";
 
 function throwSlideUpdateError(err: string): never {
   if (err === "CONFLICT") {
@@ -73,12 +67,17 @@ export function getClientToolsForSlides(
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "read",
       handler: async (_input, view) => {
-        return await getDeckSummaryForAI(view.params.deckId, view.context.getSlideIds());
+        return await getDeckSummaryForAI(
+          view.params.deckId,
+          view.context.getSlideIds(),
+        );
       },
       inProgressLabel: "Getting deck state...",
       completionMessage: () => {
         const view = copilotViewController.current();
-        if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") return "Retrieved deck";
+        if (view.id !== "editing_slide_deck" && view.id !== "editing_slide") {
+          return "Retrieved deck";
+        }
         return `Retrieved deck with ${view.context.getSlideIds().length} slide(s)`;
       },
     }),
@@ -96,10 +95,26 @@ export function getClientToolsForSlides(
       inputSchema: z.object({
         position: z
           .union([
-            z.object({ after: z.string().describe("Slide ID to place after (3-char, e.g. 'p4q')") }),
-            z.object({ before: z.string().describe("Slide ID to place before (3-char, e.g. 'p4q')") }),
-            z.object({ toStart: z.literal(true).describe("Set to true to insert at the beginning") }),
-            z.object({ toEnd: z.literal(true).describe("Set to true to insert at the end") }),
+            z.object({
+              after: z.string().describe(
+                "Slide ID to place after (3-char, e.g. 'p4q')",
+              ),
+            }),
+            z.object({
+              before: z.string().describe(
+                "Slide ID to place before (3-char, e.g. 'p4q')",
+              ),
+            }),
+            z.object({
+              toStart: z.literal(true).describe(
+                "Set to true to insert at the beginning",
+              ),
+            }),
+            z.object({
+              toEnd: z.literal(true).describe(
+                "Set to true to insert at the end",
+              ),
+            }),
           ])
           .describe("The position to insert the new slide."),
         slide: z
@@ -108,14 +123,18 @@ export function getClientToolsForSlides(
             AiSectionSlideSchema,
             AiContentSlideSchema,
           ])
-          .describe("The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array containing text and/or figures)."),
+          .describe(
+            "The complete slide content. Must be one of three types: 'cover' (title slide with optional title/subtitle/presenter/date), 'section' (section divider with sectionTitle and optional sectionSubtitle), or 'content' (content slide with optional header and blocks array containing text and/or figures).",
+          ),
       }),
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         if (input.slide.type === "content") {
           if (input.slide.blocks.length === 0) {
-            throw new AIToolFailure("Content slide must have at least 1 block.");
+            throw new AIToolFailure(
+              "Content slide must have at least 1 block.",
+            );
           }
           validateMaxContentBlocks(input.slide.blocks.length);
 
@@ -146,12 +165,15 @@ export function getClientToolsForSlides(
         copilotViewController.markAIEdit(`slide:${res.data.slideId}`);
         copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
-        return `Created slide ${res.data.slideId}: "${getSlideTitle(convertedSlide)}". Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        return `Created slide ${res.data.slideId}: "${
+          getSlideTitle(convertedSlide)
+        }". Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
-      inProgressLabel: (input) =>
-        `Creating ${input.slide.type} slide...`,
+      inProgressLabel: (input) => `Creating ${input.slide.type} slide...`,
       completionMessage: (input) =>
-        `Created ${input.slide.type} slide: "${getSlideTitle(input.slide as Slide)}"`,
+        `Created ${input.slide.type} slide: "${
+          getSlideTitle(input.slide as Slide)
+        }"`,
     }),
 
     createAITool({
@@ -162,14 +184,18 @@ export function getClientToolsForSlides(
         FIGURE_SOURCE_NOTE +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({
-        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
+        slideId: z.string().describe(
+          "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
+        ),
         slide: z
           .union([
             AiCoverSlideSchema,
             AiSectionSlideSchema,
             AiContentSlideSchema,
           ])
-          .describe("The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized."),
+          .describe(
+            "The complete new slide content. The slide will be rebuilt from scratch. For content slides, layout will be auto-optimized.",
+          ),
       }),
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
@@ -178,7 +204,9 @@ export function getClientToolsForSlides(
 
         if (input.slide.type === "content") {
           if (input.slide.blocks.length === 0) {
-            throw new AIToolFailure("Content slide must have at least 1 block.");
+            throw new AIToolFailure(
+              "Content slide must have at least 1 block.",
+            );
           }
           validateMaxContentBlocks(input.slide.blocks.length);
 
@@ -217,7 +245,9 @@ export function getClientToolsForSlides(
 
         copilotViewController.markAIEdit(`slide:${input.slideId}`);
 
-        return `Replaced slide ${input.slideId}: "${getSlideTitle(convertedSlide)}"`;
+        return `Replaced slide ${input.slideId}: "${
+          getSlideTitle(convertedSlide)
+        }"`;
       },
       inProgressLabel: (input) => `Replacing slide ${input.slideId}...`,
       completionMessage: (input) =>
@@ -232,11 +262,19 @@ export function getClientToolsForSlides(
         FIGURE_SOURCE_NOTE +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({
-        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
+        slideId: z.string().describe(
+          "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
+        ),
         updates: z.array(z.object({
-          blockId: z.string().describe("Block ID (3-char alphanumeric, e.g. 't2n'). Get these from get_slide."),
-          newContent: AiContentBlockInputSchema.describe("The new content for this block: markdown text, or a figure built from a metric + preset. The block type can be changed."),
-        })).min(1).describe("Array of updates to apply. Each update specifies a block ID and the new content for that block."),
+          blockId: z.string().describe(
+            "Block ID (3-char alphanumeric, e.g. 't2n'). Get these from get_slide.",
+          ),
+          newContent: AiContentBlockInputSchema.describe(
+            "The new content for this block: markdown text, or a figure built from a metric + preset. The block type can be changed.",
+          ),
+        })).min(1).describe(
+          "Array of updates to apply. Each update specifies a block ID and the new content for that block.",
+        ),
       }),
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
@@ -266,8 +304,10 @@ export function getClientToolsForSlides(
         if (updatedSlide.type === "content") {
           const allTextBlocks = extractBlocksFromLayout(updatedSlide.layout)
             .map(({ block }) => block)
-            .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
-            .map(b => b.markdown);
+            .filter((b): b is { type: "text"; markdown: string } =>
+              b.type === "text"
+            )
+            .map((b) => b.markdown);
           validateSlideTotalWordCount(allTextBlocks);
         }
 
@@ -281,10 +321,11 @@ export function getClientToolsForSlides(
 
         copilotViewController.markAIEdit(`slide:${input.slideId}`);
 
-        const blockIds = input.updates.map(u => u.blockId).join(", ");
+        const blockIds = input.updates.map((u) => u.blockId).join(", ");
         return `Updated ${input.updates.length} block(s) in slide ${input.slideId}: ${blockIds}`;
       },
-      inProgressLabel: (input) => `Updating ${input.updates.length} block(s)...`,
+      inProgressLabel: (input) =>
+        `Updating ${input.updates.length} block(s)...`,
       completionMessage: (input) => `Updated ${input.updates.length} block(s)`,
     }),
 
@@ -295,8 +336,12 @@ export function getClientToolsForSlides(
         "Update just the header of a content slide without modifying its content or layout. Use this for simple header changes like fixing typos or rewording. Much faster and safer than replace_slide for header-only changes. For cover slides, use replace_slide to update the title." +
         DECK_LEVEL_NOTE,
       inputSchema: z.object({
-        slideId: z.string().describe("Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck."),
-        newHeader: z.string().describe("The new header text for the content slide"),
+        slideId: z.string().describe(
+          "Slide ID (3-char alphanumeric, e.g. 'a3k'). Get these from get_deck.",
+        ),
+        newHeader: z.string().describe(
+          "The new header text for the content slide",
+        ),
       }),
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
@@ -313,7 +358,7 @@ export function getClientToolsForSlides(
 
         if (slide.type !== "content") {
           throw new AIToolFailure(
-            `Cannot update header on ${slide.type} slide. Use replace_slide for cover/section slides.`
+            `Cannot update header on ${slide.type} slide. Use replace_slide for cover/section slides.`,
           );
         }
 
@@ -331,7 +376,8 @@ export function getClientToolsForSlides(
 
         return `Updated header for slide ${input.slideId}: "${input.newHeader}"`;
       },
-      inProgressLabel: (input) => `Updating header for slide ${input.slideId}...`,
+      inProgressLabel: (input) =>
+        `Updating header for slide ${input.slideId}...`,
       completionMessage: (input) => `Updated header for slide ${input.slideId}`,
     }),
 
@@ -442,7 +488,11 @@ export function getClientToolsForSlides(
                   newBlockInput,
                   metrics,
                 );
-                resolvedRow.push({ id: generateId(), block: figureBlock, span });
+                resolvedRow.push({
+                  id: generateId(),
+                  block: figureBlock,
+                  span,
+                });
               }
             }
           }
@@ -465,8 +515,10 @@ export function getClientToolsForSlides(
         // Validate total word count across all text blocks
         const allTextBlocks = extractBlocksFromLayout(updatedSlide.layout)
           .map(({ block }) => block)
-          .filter((b): b is { type: "text"; markdown: string } => b.type === "text")
-          .map(b => b.markdown);
+          .filter((b): b is { type: "text"; markdown: string } =>
+            b.type === "text"
+          )
+          .map((b) => b.markdown);
         validateSlideTotalWordCount(allTextBlocks);
 
         const res = await serverActions.updateSlide({
@@ -482,7 +534,9 @@ export function getClientToolsForSlides(
         const parts = [`Modified layout for slide ${input.slideId}.`];
         if (removedBlocks.length > 0) {
           parts.push(
-            `Removed blocks: ${removedBlocks.map((b) => `${b.id} (${b.type})`).join(", ")}`,
+            `Removed blocks: ${
+              removedBlocks.map((b) => `${b.id} (${b.type})`).join(", ")
+            }`,
           );
         }
         return parts.join(" ");
@@ -502,7 +556,9 @@ export function getClientToolsForSlides(
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
-          .describe("Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
+          .describe(
+            "Array of slide IDs to delete (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
+          ),
       }),
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
@@ -510,13 +566,21 @@ export function getClientToolsForSlides(
         assertSlidesNotBusy(input.slideIds);
 
         if (input.slideIds.length === 0) {
-          throw new AIToolFailure("No slide IDs provided. Specify at least one slide to delete.");
+          throw new AIToolFailure(
+            "No slide IDs provided. Specify at least one slide to delete.",
+          );
         }
 
         const deckSlideIds = view.context.getSlideIds();
-        const invalidIds = input.slideIds.filter(id => !deckSlideIds.includes(id));
+        const invalidIds = input.slideIds.filter((id) =>
+          !deckSlideIds.includes(id)
+        );
         if (invalidIds.length > 0) {
-          throw new AIToolFailure(`Slide ID(s) not found in deck: ${invalidIds.join(", ")}. Use get_deck to see current slide IDs.`);
+          throw new AIToolFailure(
+            `Slide ID(s) not found in deck: ${
+              invalidIds.join(", ")
+            }. Use get_deck to see current slide IDs.`,
+          );
         }
 
         const res = await serverActions.deleteSlides({
@@ -534,8 +598,7 @@ export function getClientToolsForSlides(
       },
       inProgressLabel: (input) =>
         `Deleting ${input.slideIds.length} slide(s)...`,
-      completionMessage: (input) =>
-        `Deleted ${input.slideIds.length} slide(s)`,
+      completionMessage: (input) => `Deleted ${input.slideIds.length} slide(s)`,
     }),
 
     createAITool({
@@ -547,19 +610,29 @@ export function getClientToolsForSlides(
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
-          .describe("Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
+          .describe(
+            "Array of slide IDs to duplicate (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
+          ),
       }),
       availableIn: ["editing_slide_deck", "editing_slide"],
       kind: "write",
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {
-          throw new AIToolFailure("No slide IDs provided. Specify at least one slide to duplicate.");
+          throw new AIToolFailure(
+            "No slide IDs provided. Specify at least one slide to duplicate.",
+          );
         }
 
         const deckSlideIds = view.context.getSlideIds();
-        const invalidIds = input.slideIds.filter(id => !deckSlideIds.includes(id));
+        const invalidIds = input.slideIds.filter((id) =>
+          !deckSlideIds.includes(id)
+        );
         if (invalidIds.length > 0) {
-          throw new AIToolFailure(`Slide ID(s) not found in deck: ${invalidIds.join(", ")}. Use get_deck to see current slide IDs.`);
+          throw new AIToolFailure(
+            `Slide ID(s) not found in deck: ${
+              invalidIds.join(", ")
+            }. Use get_deck to see current slide IDs.`,
+          );
         }
 
         const res = await serverActions.duplicateSlides({
@@ -573,7 +646,9 @@ export function getClientToolsForSlides(
         }
         copilotViewController.markAIEdit(`product:${view.params.deckId}`);
 
-        return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${res.data.newSlideIds.join(', ')}. Deck has been updated. Call get_deck if you need to review the current deck state.`;
+        return `Duplicated ${input.slideIds.length} slide(s). Created ${res.data.newSlideIds.length} new slide(s) with IDs: ${
+          res.data.newSlideIds.join(", ")
+        }. Deck has been updated. Call get_deck if you need to review the current deck state.`;
       },
       inProgressLabel: (input) =>
         `Duplicating ${input.slideIds.length} slide(s)...`,
@@ -590,13 +665,31 @@ export function getClientToolsForSlides(
       inputSchema: z.object({
         slideIds: z
           .array(z.string())
-          .describe("Array of slide IDs to move (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck."),
+          .describe(
+            "Array of slide IDs to move (3-char alphanumeric, e.g. ['a3k', 'x7m']). Get these from get_deck.",
+          ),
         position: z
           .union([
-            z.object({ after: z.string().describe("Slide ID to place after (3-char, e.g. 'p4q')") }),
-            z.object({ before: z.string().describe("Slide ID to place before (3-char, e.g. 'p4q')") }),
-            z.object({ toStart: z.literal(true).describe("Set to true to move slides to the beginning") }),
-            z.object({ toEnd: z.literal(true).describe("Set to true to move slides to the end") }),
+            z.object({
+              after: z.string().describe(
+                "Slide ID to place after (3-char, e.g. 'p4q')",
+              ),
+            }),
+            z.object({
+              before: z.string().describe(
+                "Slide ID to place before (3-char, e.g. 'p4q')",
+              ),
+            }),
+            z.object({
+              toStart: z.literal(true).describe(
+                "Set to true to move slides to the beginning",
+              ),
+            }),
+            z.object({
+              toEnd: z.literal(true).describe(
+                "Set to true to move slides to the end",
+              ),
+            }),
           ])
           .describe("The destination position for the slides."),
       }),
@@ -604,15 +697,21 @@ export function getClientToolsForSlides(
       kind: "write",
       handler: async (input, view) => {
         if (input.slideIds.length === 0) {
-          throw new AIToolFailure("No slide IDs provided. Specify at least one slide to move.");
+          throw new AIToolFailure(
+            "No slide IDs provided. Specify at least one slide to move.",
+          );
         }
 
         const position = input.position;
         if ("after" in position && input.slideIds.includes(position.after)) {
-          throw new AIToolFailure(`Cannot move slide(s) relative to themselves. Slide "${position.after}" is in both the move set and target position.`);
+          throw new AIToolFailure(
+            `Cannot move slide(s) relative to themselves. Slide "${position.after}" is in both the move set and target position.`,
+          );
         }
         if ("before" in position && input.slideIds.includes(position.before)) {
-          throw new AIToolFailure(`Cannot move slide(s) relative to themselves. Slide "${position.before}" is in both the move set and target position.`);
+          throw new AIToolFailure(
+            `Cannot move slide(s) relative to themselves. Slide "${position.before}" is in both the move set and target position.`,
+          );
         }
 
         const res = await serverActions.moveSlides({

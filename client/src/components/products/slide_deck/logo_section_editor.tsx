@@ -39,7 +39,11 @@ export function LogoSectionEditor(p: Props) {
       <Show when={hasLogos()}>
         <div class="ui-spy-sm pt-2">
           <Checkbox
-            label={t3({ en: "Show by default", fr: "Afficher par défaut", pt: "Mostrar por predefinição" })}
+            label={t3({
+              en: "Show by default",
+              fr: "Afficher par défaut",
+              pt: "Mostrar por predefinição",
+            })}
             checked={p.config.showByDefault}
             onChange={(v) => p.onChange({ ...p.config, showByDefault: v })}
           />
@@ -52,20 +56,22 @@ export function LogoSectionEditor(p: Props) {
                 p.onChange({
                   ...p.config,
                   sizing: { ...p.config.sizing, size: v as LogoSizeKey },
-                })
-              }
+                })}
             />
             <Show when={p.config.selected.length >= 2}>
               <Select
-                label={t3({ en: "Spacing", fr: "Espacement", pt: "Espaçamento" })}
+                label={t3({
+                  en: "Spacing",
+                  fr: "Espacement",
+                  pt: "Espaçamento",
+                })}
                 options={GAP_OPTIONS}
                 value={p.config.sizing?.spacing ?? "md"}
                 onChange={(v) =>
                   p.onChange({
                     ...p.config,
                     sizing: { ...p.config.sizing, spacing: v as LogoSizeKey },
-                  })
-                }
+                  })}
               />
             </Show>
           </div>

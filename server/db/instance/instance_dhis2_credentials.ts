@@ -1,8 +1,8 @@
 import { Sql } from "postgres";
 import {
-  NO_STORED_DHIS2_CONNECTION,
   type Dhis2Credentials,
   type Dhis2StoredCredentialsInfo,
+  NO_STORED_DHIS2_CONNECTION,
 } from "lib";
 import { _DHIS2_CREDENTIALS_ENCRYPTION_KEY } from "../../exposed_env_vars.ts";
 import type { DBInstanceDhis2Credentials } from "./_main_database_types.ts";

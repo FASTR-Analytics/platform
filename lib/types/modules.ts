@@ -1,17 +1,17 @@
 import {
   type ModuleConfigRequirements,
-  type ModuleParameter,
   type ModuleDefinitionInstalled,
+  type ModuleParameter,
   type ModuleTier,
 } from "./_module_definition_installed.ts";
 import {
-  type Metric,
-  type PeriodOption,
-  type VizPreset,
-  type MetricAIDescription,
-  type ValueFunc,
-  type PostAggregationExpression,
   type CatalogExpressionEvaluation,
+  type Metric,
+  type MetricAIDescription,
+  type PeriodOption,
+  type PostAggregationExpression,
+  type ValueFunc,
+  type VizPreset,
 } from "./_metric_installed.ts";
 import { t3 } from "../translate/mod.ts";
 
@@ -19,10 +19,17 @@ export type ModuleDefinitionDetail = ModuleDefinitionInstalled & {
   metrics: Metric[];
 };
 import type { DatasetType } from "./datasets.ts";
-import type { DisaggregationOption, PresentationOption } from "./presentation_objects.ts";
+import type {
+  DisaggregationOption,
+  PresentationOption,
+} from "./presentation_objects.ts";
 
 // Re-export types from _metric_installed.ts for convenience
-export type { ValueFunc, PostAggregationExpression, CatalogExpressionEvaluation };
+export type {
+  CatalogExpressionEvaluation,
+  PostAggregationExpression,
+  ValueFunc,
+};
 
 export type ResultsValue = {
   id: string;
@@ -118,7 +125,7 @@ export type ModuleRunStatus =
   | { status: "ready" };
 
 export function getStartingModuleConfigSelections(
-  configRequirements: ModuleConfigRequirements
+  configRequirements: ModuleConfigRequirements,
 ): ModuleConfigSelections {
   return {
     parameterDefinitions: structuredClone(configRequirements.parameters),
@@ -133,15 +140,16 @@ export function getStartingModuleConfigSelections(
 
 export function getMergedModuleConfigSelections(
   oldConfigSelections: ModuleConfigSelections,
-  newConfigRequirements: ModuleConfigRequirements
+  newConfigRequirements: ModuleConfigRequirements,
 ): ModuleConfigSelections {
   const mergedSelections: Record<string, string> = {};
 
   for (const newParam of newConfigRequirements.parameters) {
     const oldValue =
       oldConfigSelections.parameterSelections[newParam.replacementString];
-    mergedSelections[newParam.replacementString] =
-      oldValue !== undefined ? oldValue : newParam.input.defaultValue;
+    mergedSelections[newParam.replacementString] = oldValue !== undefined
+      ? oldValue
+      : newParam.input.defaultValue;
   }
 
   return {

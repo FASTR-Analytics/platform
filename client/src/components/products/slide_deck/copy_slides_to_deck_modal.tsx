@@ -1,10 +1,10 @@
-import { t3, type ProductSummary } from "lib";
+import { type ProductSummary, t3 } from "lib";
 import {
-  ModalContainer,
-  Select,
+  type AlertComponentProps,
   createFormAction,
   getSelectOptionsFromIdLabel,
-  type AlertComponentProps,
+  ModalContainer,
+  Select,
 } from "panther";
 import { createMemo, createSignal } from "solid-js";
 import { packageScopeCaption } from "~/components/_shared/mod.ts";
@@ -28,7 +28,7 @@ export function CopySlidesToDeckModal(
     instanceState.products.filter(
       (product): product is Extract<ProductSummary, { type: "slide_deck" }> =>
         product.type === "slide_deck" && product.id !== p.sourceProductId,
-    ),
+    )
   );
 
   const [targetProductId, setTargetProductId] = createSignal<string>(
@@ -64,8 +64,10 @@ export function CopySlidesToDeckModal(
     <ModalContainer
       title={t3({
         en: `Copy ${p.slideIds.length} slide(s) to another deck`,
-        fr: `Copier ${p.slideIds.length} diapositive(s) vers une autre présentation`,
-        pt: `Copiar ${p.slideIds.length} diapositivo(s) para outra apresentação`,
+        fr:
+          `Copier ${p.slideIds.length} diapositive(s) vers une autre présentation`,
+        pt:
+          `Copiar ${p.slideIds.length} diapositivo(s) para outra apresentação`,
       })}
       form
       onCancel={() => p.close(undefined)}
@@ -95,9 +97,12 @@ export function CopySlidesToDeckModal(
         />
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "Visualizations are copied as they are. Any that came from a different package or scope show an update button in the destination deck.",
-            fr: "Les visualisations sont copiées telles quelles. Celles provenant d'un autre paquet ou d'une autre portée afficheront un bouton de mise à jour dans la présentation de destination.",
-            pt: "As visualizações são copiadas tal como estão. As que vieram de outro pacote ou âmbito mostram um botão de atualização na apresentação de destino.",
+            en:
+              "Visualizations are copied as they are. Any that came from a different package or scope show an update button in the destination deck.",
+            fr:
+              "Les visualisations sont copiées telles quelles. Celles provenant d'un autre paquet ou d'une autre portée afficheront un bouton de mise à jour dans la présentation de destination.",
+            pt:
+              "As visualizações são copiadas tal como estão. As que vieram de outro pacote ou âmbito mostram um botão de atualização na apresentação de destino.",
           })}
         </div>
       </div>

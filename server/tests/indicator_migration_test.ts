@@ -57,9 +57,14 @@ Deno.test("086: the fold of every character in U+00C0..U+017F matches slugIndica
   assertEquals(from.length, to.length, "translate strings differ in length");
   const table = new Map(from.map((ch, i) => [ch, to[i]]));
   assertEquals(table.size, from.length, "duplicate characters in the table");
-  const chainStart = sql.indexOf("replace(replace(replace(replace(replace(p_text,");
+  const chainStart = sql.indexOf(
+    "replace(replace(replace(replace(replace(p_text,",
+  );
   const chainEnd = sql.indexOf("'\u00c0", chainStart);
-  assert(chainStart >= 0 && chainEnd > chainStart, "replace chain not found in 086");
+  assert(
+    chainStart >= 0 && chainEnd > chainStart,
+    "replace chain not found in 086",
+  );
   const expansions = [
     ...sql.slice(chainStart, chainEnd).matchAll(/'(.)', '([^']*)'\)/gu),
   ].map((m): [string, string] => [m[1], m[2]]);

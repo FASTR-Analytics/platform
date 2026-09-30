@@ -281,7 +281,10 @@ export function fastrTopLevelLineMask(lines: string[]): boolean[] {
   return mask;
 }
 
-function markdownHeadings(body: string, containerAware: boolean): ReportHeading[] {
+function markdownHeadings(
+  body: string,
+  containerAware: boolean,
+): ReportHeading[] {
   const lines = body.split("\n");
   const eligible = containerAware ? fastrTopLevelLineMask(lines) : undefined;
   const starts: number[] = [0];
@@ -541,10 +544,37 @@ export function insertAfterReportHeading(
 // ── Line anchors for the HTML preview ────────────────────────────────────────
 
 const ANCHOR_TAGS = new Set([
-  "h1", "h2", "h3", "h4", "h5", "h6",
-  "p", "div", "section", "article", "header", "footer", "aside", "nav", "main",
-  "ul", "ol", "li", "table", "tr", "blockquote", "pre", "figure", "figcaption",
-  "hr", "img", "dl", "dt", "dd", "details", "summary",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "p",
+  "div",
+  "section",
+  "article",
+  "header",
+  "footer",
+  "aside",
+  "nav",
+  "main",
+  "ul",
+  "ol",
+  "li",
+  "table",
+  "tr",
+  "blockquote",
+  "pre",
+  "figure",
+  "figcaption",
+  "hr",
+  "img",
+  "dl",
+  "dt",
+  "dd",
+  "details",
+  "summary",
 ]);
 
 // Stamp data-line="<0-based line>" on the opening tag of every block element
@@ -591,12 +621,38 @@ export function injectReportHtmlLineAnchors(html: string): string {
 // and HTML's optional-end-tag elements excepted).
 
 const VOID_TAGS = new Set([
-  "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
-  "source", "track", "wbr",
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "source",
+  "track",
+  "wbr",
 ]);
 const OPTIONAL_END_TAGS = new Set([
-  "html", "head", "body", "p", "li", "dt", "dd", "tr", "td", "th", "thead",
-  "tbody", "tfoot", "option", "optgroup", "colgroup", "caption",
+  "html",
+  "head",
+  "body",
+  "p",
+  "li",
+  "dt",
+  "dd",
+  "tr",
+  "td",
+  "th",
+  "thead",
+  "tbody",
+  "tfoot",
+  "option",
+  "optgroup",
+  "colgroup",
+  "caption",
 ]);
 
 export type HtmlDefect = {
@@ -680,7 +736,10 @@ export function countHtmlDefects(html: string): number {
 // Delta check for in-place edits: the first defect of a KIND that occurs more
 // often after the edit than before (a body the user wrote may already carry
 // defects; an edit must not add any). undefined when nothing got worse.
-export function newHtmlDefect(before: string, after: string): string | undefined {
+export function newHtmlDefect(
+  before: string,
+  after: string,
+): string | undefined {
   const counts = new Map<string, number>();
   for (const d of listHtmlDefects(before)) {
     counts.set(d.kind, (counts.get(d.kind) ?? 0) + 1);

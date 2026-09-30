@@ -24,7 +24,9 @@ export function replaceUnavailableMediaTokens(
   figures: FigureMap,
   images: ImageMap,
 ): string {
-  return body.replace(MEDIA_TOKEN_RE, (match, src) =>
-    figures.has(src) || images.has(src) ? match : unavailableItemMarkdown(),
+  return body.replace(
+    MEDIA_TOKEN_RE,
+    (match, src) =>
+      figures.has(src) || images.has(src) ? match : unavailableItemMarkdown(),
   );
 }

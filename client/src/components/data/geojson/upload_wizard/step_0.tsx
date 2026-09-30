@@ -9,7 +9,9 @@ type Props = {
 
 export function Step0(p: Props) {
   const { state } = p;
-  const [localSource, setLocalSource] = createSignal<"file" | "dhis2">(state.source());
+  const [localSource, setLocalSource] = createSignal<"file" | "dhis2">(
+    state.source(),
+  );
 
   function handleContinue() {
     state.setSource(localSource());
@@ -18,7 +20,13 @@ export function Step0(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="ui-text-heading">{t3({ en: "Select import source", fr: "Sélectionner la source d'importation", pt: "Selecionar a fonte de importação" })}</div>
+      <div class="ui-text-heading">
+        {t3({
+          en: "Select import source",
+          fr: "Sélectionner la source d'importation",
+          pt: "Selecionar a fonte de importação",
+        })}
+      </div>
 
       <div class="ui-spy-sm">
         <label class="flex ui-hoverable-base-100 items-center gap-3 rounded border p-4">
@@ -30,9 +38,19 @@ export function Step0(p: Props) {
             class="radio"
           />
           <div>
-            <div class="font-700">{t3({ en: "Upload GeoJSON file", fr: "Téléverser un fichier GeoJSON", pt: "Carregar um ficheiro GeoJSON" })}</div>
+            <div class="font-700">
+              {t3({
+                en: "Upload GeoJSON file",
+                fr: "Téléverser un fichier GeoJSON",
+                pt: "Carregar um ficheiro GeoJSON",
+              })}
+            </div>
             <div class="text-base-content-muted text-sm">
-              {t3({ en: "Upload a GeoJSON file from your computer", fr: "Téléversez un fichier GeoJSON depuis votre ordinateur", pt: "Carregue um ficheiro GeoJSON a partir do seu computador" })}
+              {t3({
+                en: "Upload a GeoJSON file from your computer",
+                fr: "Téléversez un fichier GeoJSON depuis votre ordinateur",
+                pt: "Carregue um ficheiro GeoJSON a partir do seu computador",
+              })}
             </div>
           </div>
         </label>
@@ -46,9 +64,22 @@ export function Step0(p: Props) {
             class="radio"
           />
           <div>
-            <div class="font-700">{t3({ en: "Import from DHIS2", fr: "Importer depuis DHIS2", pt: "Importar do DHIS2" })}</div>
+            <div class="font-700">
+              {t3({
+                en: "Import from DHIS2",
+                fr: "Importer depuis DHIS2",
+                pt: "Importar do DHIS2",
+              })}
+            </div>
             <div class="text-base-content-muted text-sm">
-              {t3({ en: "Fetch organization unit boundaries directly from a DHIS2 instance", fr: "Récupérer les limites des unités d'organisation directement depuis une instance DHIS2", pt: "Obter os limites das unidades organizacionais diretamente de uma instância DHIS2" })}
+              {t3({
+                en:
+                  "Fetch organization unit boundaries directly from a DHIS2 instance",
+                fr:
+                  "Récupérer les limites des unités d'organisation directement depuis une instance DHIS2",
+                pt:
+                  "Obter os limites das unidades organizacionais diretamente de uma instância DHIS2",
+              })}
             </div>
           </div>
         </label>

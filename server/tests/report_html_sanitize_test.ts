@@ -26,8 +26,13 @@ function clean(html: string): string {
 const ID = "8b7c1c2e-6f2a-4a3b-9c1d-0e1f2a3b4c5d";
 
 Deno.test("keeps a leading <style> block (FORCE_BODY) and its CSS verbatim", () => {
-  const out = clean(`<style>h1 { color: red } .a > p { margin: 0 }</style><h1>T</h1>`);
-  assertStringIncludes(out, `<style>h1 { color: red } .a > p { margin: 0 }</style>`);
+  const out = clean(
+    `<style>h1 { color: red } .a > p { margin: 0 }</style><h1>T</h1>`,
+  );
+  assertStringIncludes(
+    out,
+    `<style>h1 { color: red } .a > p { margin: 0 }</style>`,
+  );
   assertStringIncludes(out, `<h1>T</h1>`);
 });
 
@@ -92,31 +97,33 @@ Deno.test("strips scripts, handlers, javascript: URLs, frames, objects, meta/bas
       `<svg><script>alert(1)</script><a href="javascript:alert(1)">s</a></svg>` +
       `<math><maction actiontype="statusline#http://evil">m</maction></math>`,
   );
-  for (const bad of [
-    "<script",
-    "onclick",
-    "onmouseover",
-    "onerror",
-    "javascript:",
-    "<iframe",
-    "<object",
-    "<embed",
-    "<meta",
-    "<base",
-    "<link",
-    "<form",
-    "<input",
-    "<button",
-    "<select",
-    "<option",
-    "<textarea",
-    "<title",
-    "<dialog",
-    "<template",
-    "<marquee",
-    "alert(1)",
-    "evil",
-  ]) {
+  for (
+    const bad of [
+      "<script",
+      "onclick",
+      "onmouseover",
+      "onerror",
+      "javascript:",
+      "<iframe",
+      "<object",
+      "<embed",
+      "<meta",
+      "<base",
+      "<link",
+      "<form",
+      "<input",
+      "<button",
+      "<select",
+      "<option",
+      "<textarea",
+      "<title",
+      "<dialog",
+      "<template",
+      "<marquee",
+      "alert(1)",
+      "evil",
+    ]
+  ) {
     assert(!out.includes(bad), `expected "${bad}" to be stripped, got: ${out}`);
   }
   // Text of a stripped-but-KEEP_CONTENT element survives (p/a stay, only the
@@ -125,20 +132,37 @@ Deno.test("strips scripts, handlers, javascript: URLs, frames, objects, meta/bas
 });
 
 Deno.test("does not let a stored body clobber the document via id/name (SANITIZE_DOM stays on)", () => {
-  const out = clean(`<img name="body" src="https://x/y.png"><form id="images"></form><div id="sec-images">ok</div>`);
+  const out = clean(
+    `<img name="body" src="https://x/y.png"><form id="images"></form><div id="sec-images">ok</div>`,
+  );
   assert(!out.includes(`name="body"`));
   assertStringIncludes(out, `id="sec-images"`);
 });
 
 Deno.test("the ALLOWED_URI_REGEXP is DOMPurify's default plus the two embed schemes", () => {
-  assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("figure:abc"), true);
+  assertEquals(
+    REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("figure:abc"),
+    true,
+  );
   assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("image:abc"), true);
   assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("https://x"), true);
   assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("#frag"), true);
-  assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("/relative/path"), true);
-  assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("javascript:alert(1)"), false);
-  assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("vbscript:x"), false);
-  assertEquals(REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("blob:https://x/uuid"), false);
+  assertEquals(
+    REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("/relative/path"),
+    true,
+  );
+  assertEquals(
+    REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("javascript:alert(1)"),
+    false,
+  );
+  assertEquals(
+    REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("vbscript:x"),
+    false,
+  );
+  assertEquals(
+    REPORT_PURIFY_CONFIG.ALLOWED_URI_REGEXP.test("blob:https://x/uuid"),
+    false,
+  );
 });
 
 // FASTR Markdown compiles to markup that goes through this same sanitizer, so
@@ -230,7 +254,9 @@ Deno.test("keeps FASTR block backgrounds: inline colour and data-bg-image", () =
 // A blank-line space is an empty div: the sanitizer must keep it, anchor and
 // all, or the editor's page flow and the print disagree by a line.
 Deno.test("keeps a blank-line space and its anchor", () => {
-  const out = clean(renderFastrMarkdownToHtml("a\n\n\nb\n", { lineAnchors: true }));
+  const out = clean(
+    renderFastrMarkdownToHtml("a\n\n\nb\n", { lineAnchors: true }),
+  );
   assertStringIncludes(out, '<div class="fm-space" data-line="2"></div>');
 });
 

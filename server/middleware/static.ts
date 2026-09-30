@@ -80,8 +80,7 @@ export function setupStaticServing(app: Hono) {
       c.status(401);
       return c.text("Authentication required");
     }
-    const allowed =
-      globalUser.isGlobalAdmin ||
+    const allowed = globalUser.isGlobalAdmin ||
       globalUser.thisUserPermissions.can_view_data ||
       globalUser.thisUserPermissions.can_configure_data;
     if (!allowed) {

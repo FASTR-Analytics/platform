@@ -1,5 +1,5 @@
 import { Icon } from "panther";
-import { Show, For } from "solid-js";
+import { For, Show } from "solid-js";
 
 export function AIDocumentList(p: {
   sent: { title: string }[];

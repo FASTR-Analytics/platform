@@ -1,5 +1,5 @@
-import { t3, type HfaTimePoint } from "lib";
-import { HeadingBar, Button, EditorComponentProps, FrameTop } from "panther";
+import { type HfaTimePoint, t3 } from "lib";
+import { Button, EditorComponentProps, FrameTop, HeadingBar } from "panther";
 import { HfaTimePointsEditor } from "../_shared/mod.ts";
 
 export function TimePointsView(
@@ -16,7 +16,11 @@ export function TimePointsView(
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
-          heading={t3({ en: "Time Points", fr: "Points temporels", pt: "Pontos temporais" })}
+          heading={t3({
+            en: "Time Points",
+            fr: "Points temporels",
+            pt: "Pontos temporais",
+          })}
         />
       }
     >

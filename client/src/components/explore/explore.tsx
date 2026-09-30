@@ -1,24 +1,24 @@
 import {
   compareModules,
-  getModuleFamilyLabel,
-  MODULE_FAMILY_ORDER,
-  t3,
-  TC,
   type DatasetType,
+  getModuleFamilyLabel,
   type GridQuery,
   type InstalledModuleSummary,
+  MODULE_FAMILY_ORDER,
   type ModuleTier,
   type PackageScope,
   type RunAuthoringContext,
+  t3,
+  TC,
 } from "lib";
 import {
   createQuery,
   FrameTop,
   HeadingBar,
+  type ListEntry,
   Select,
   SelectV2,
   StateHolderWrapper,
-  type ListEntry,
 } from "panther";
 import { createMemo, type JSX, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -97,7 +97,9 @@ export function Explore() {
     if (chosen !== null && packages.some((p) => p.id === chosen)) return chosen;
     const pinned = instanceState.pinnedRunId;
     if (pinned !== null && packages.some((p) => p.id === pinned)) return pinned;
-    return packages.toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+    return packages.toSorted((a, b) =>
+      b.createdAt.localeCompare(a.createdAt)
+    )[0]
       ?.id;
   });
   const areas = createQuery<string[]>(() => serverActions.listAdminArea2s({}));
@@ -120,9 +122,12 @@ export function Explore() {
       fallback={
         <div class="ui-pad text-base-content-muted text-sm">
           {t3({
-            en: "No results package is ready yet. Generate one from the Results packages page.",
-            fr: "Aucun paquet de résultats n'est encore prêt. Générez-en un depuis la page Paquets de résultats.",
-            pt: "Ainda não há nenhum pacote de resultados pronto. Gere um na página Pacotes de resultados.",
+            en:
+              "No results package is ready yet. Generate one from the Results packages page.",
+            fr:
+              "Aucun paquet de résultats n'est encore prêt. Générez-en un depuis la page Paquets de résultats.",
+            pt:
+              "Ainda não há nenhum pacote de resultados pronto. Gere um na página Pacotes de resultados.",
           })}
         </div>
       }
@@ -144,7 +149,8 @@ export function Explore() {
               <Select
                 value={exploreAdminArea2() ?? NATIONAL}
                 options={areaOptions()}
-                onChange={(v) => setExploreAdminArea2(v === NATIONAL ? null : v)}
+                onChange={(v) =>
+                  setExploreAdminArea2(v === NATIONAL ? null : v)}
                 size="sm"
               />
             </div>

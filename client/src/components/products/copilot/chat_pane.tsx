@@ -1,4 +1,5 @@
 import {
+  ActionMenuButton,
   AIChat,
   AIChatConversationSelector,
   AIChatSettingsPanel,
@@ -9,27 +10,29 @@ import {
   Button,
   createAIChat,
   Icon,
-  ActionMenuButton,
+  type MenuItem,
   openComponent,
   openConfirm,
   useConversations,
-  type MenuItem,
 } from "panther";
 import { t3, TC } from "lib";
 import {
+  type Accessor,
   createEffect,
   createSignal,
   on,
   onMount,
   Show,
-  type Accessor,
 } from "solid-js";
 import { copilotViewController } from "./_shared/mod.ts";
-import type { EditingReportContext, EditingReportParams } from "./_shared/mod.ts";
+import type {
+  EditingReportContext,
+  EditingReportParams,
+} from "./_shared/mod.ts";
 import { SaveReportStyleModal } from "./save_report_style";
 import { setShowAi } from "~/state/t4_ui";
 import { serverActions } from "~/server_actions";
-import { useAIDocuments, AIDocumentList } from "./ai_documents/mod.ts";
+import { AIDocumentList, useAIDocuments } from "./ai_documents/mod.ts";
 import { usePromptLibrary } from "./ai_prompt_library/mod.ts";
 import { SaveableUserTextRenderer } from "./ai_prompt_library/mod.ts";
 import { AIDebugPanel, type AIDebugPanelProps } from "./ai_debug_panel";
@@ -45,15 +48,15 @@ function RateLimitErrorBox(p: { item: { errorDetails: string } }) {
       <div class="text-warning text-sm">
         {isWeekly()
           ? t3({
-              en: "Country AI usage limit reached",
-              fr: "Limite IA du pays atteinte",
-              pt: "Limite de utilização da IA do país atingido",
-            })
+            en: "Country AI usage limit reached",
+            fr: "Limite IA du pays atteinte",
+            pt: "Limite de utilização da IA do país atingido",
+          })
           : t3({
-              en: "Daily AI usage limit reached",
-              fr: "Limite IA journalière atteinte",
-              pt: "Limite diário de utilização da IA atingido",
-            })}
+            en: "Daily AI usage limit reached",
+            fr: "Limite IA journalière atteinte",
+            pt: "Limite diário de utilização da IA atingido",
+          })}
       </div>
       <Show when={resetTime()}>
         {(time) => (
@@ -62,8 +65,7 @@ function RateLimitErrorBox(p: { item: { errorDetails: string } }) {
               en: "Usage will reset at",
               fr: "L'utilisation se réinitialisera à",
               pt: "A utilização será reposta às",
-            })}{" "}
-            {time()}
+            })} {time()}
           </div>
         )}
       </Show>
@@ -88,11 +90,9 @@ function ToolErrorRenderer(p: {
             class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
           >
             <div class="mt-0.5">
-              {expanded() ? (
-                <Icon iconName="chevronDown" class="h-3 w-3" />
-              ) : (
-                <Icon iconName="chevronRight" class="h-3 w-3" />
-              )}
+              {expanded()
+                ? <Icon iconName="chevronDown" class="h-3 w-3" />
+                : <Icon iconName="chevronRight" class="h-3 w-3" />}
             </div>
             <span>{p.item.errorMessage}</span>
           </button>
@@ -122,11 +122,9 @@ function SystemNoticeRenderer(p: {
         class="text-base-content-muted hover:text-base-content flex w-full cursor-pointer items-start gap-1 text-left text-xs"
       >
         <div class="mt-0.5">
-          {expanded() ? (
-            <Icon iconName="chevronDown" class="h-3 w-3" />
-          ) : (
-            <Icon iconName="chevronRight" class="h-3 w-3" />
-          )}
+          {expanded()
+            ? <Icon iconName="chevronDown" class="h-3 w-3" />
+            : <Icon iconName="chevronRight" class="h-3 w-3" />}
         </div>
         <span>{p.item.message}</span>
       </button>
@@ -217,9 +215,12 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         pt: "Eliminar conversa",
       }),
       text: t3({
-        en: "Are you sure you want to delete this conversation? This action cannot be undone.",
-        fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
-        pt: "Tem a certeza de que pretende eliminar esta conversa? Esta ação não pode ser anulada.",
+        en:
+          "Are you sure you want to delete this conversation? This action cannot be undone.",
+        fr:
+          "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
+        pt:
+          "Tem a certeza de que pretende eliminar esta conversa? Esta ação não pode ser anulada.",
       }),
       intent: "danger",
       confirmButtonLabel: t3(TC.delete),
@@ -342,7 +343,9 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
         const parts = copilotViewController._turnSectionParts();
         const viewBlock = [
           "# PER-TURN VIEW SECTION (attached to your next message; not part of the cached system prompt below)",
-          `View: ${parts.view.id}${parts.view.label ? ` — ${parts.view.label}` : ""}`,
+          `View: ${parts.view.id}${
+            parts.view.label ? ` — ${parts.view.label}` : ""
+          }`,
           "",
           parts.viewInstructions ?? "(this view delivers no instructions)",
         ].join("\n");
@@ -477,7 +480,12 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     const resetAt = new Date();
     resetAt.setUTCDate(resetAt.getUTCDate() + 1);
     resetAt.setUTCHours(0, 0, 0, 0);
-    return `${pct}% of daily AI limit used · Resets ${resetAt.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`;
+    return `${pct}% of daily AI limit used · Resets ${
+      resetAt.toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    }`;
   };
 
   return (
@@ -544,13 +552,11 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
               cy="10"
               r="7"
               fill="none"
-              stroke={
-                usagePct()! >= 100
-                  ? "#ef4444"
-                  : usagePct()! >= 80
-                    ? "#f59e0b"
-                    : "currentColor"
-              }
+              stroke={usagePct()! >= 100
+                ? "#ef4444"
+                : usagePct()! >= 80
+                ? "#f59e0b"
+                : "currentColor"}
               stroke-width="3"
               stroke-dasharray="43.98"
               stroke-dashoffset={43.98 * (1 - usagePct()! / 100)}

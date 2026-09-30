@@ -80,9 +80,13 @@ export function applyFigureConfigPatch(
   if (patch.timeseriesGrouping !== undefined) {
     d.timeseriesGrouping = patch.timeseriesGrouping;
   }
-  if (patch.valuesDisDisplayOpt !== undefined) d.valuesDisDisplayOpt = patch.valuesDisDisplayOpt;
+  if (patch.valuesDisDisplayOpt !== undefined) {
+    d.valuesDisDisplayOpt = patch.valuesDisDisplayOpt;
+  }
   if (patch.valuesFilter !== undefined) {
-    d.valuesFilter = patch.valuesFilter === null ? undefined : patch.valuesFilter;
+    d.valuesFilter = patch.valuesFilter === null
+      ? undefined
+      : patch.valuesFilter;
   }
   if (patch.disaggregateBy !== undefined) {
     // Carry the roll-up flag across the wholesale replacement: an entry that
@@ -100,11 +104,11 @@ export function applyFigureConfigPatch(
     d.disaggregateBy = anyExplicitFlag
       ? patch.disaggregateBy
       : patch.disaggregateBy.map((e) => {
-          const prev = base.d.disaggregateBy.find((x) => x.disOpt === e.disOpt);
-          return prev?.rollup === true
-            ? { ...e, rollup: true, rollupPosition: prev.rollupPosition }
-            : e;
-        });
+        const prev = base.d.disaggregateBy.find((x) => x.disOpt === e.disOpt);
+        return prev?.rollup === true
+          ? { ...e, rollup: true, rollupPosition: prev.rollupPosition }
+          : e;
+      });
   }
   if (patch.filterBy !== undefined) d.filterBy = patch.filterBy;
   if (patch.selectedReplicantValue !== undefined) {
@@ -117,11 +121,13 @@ export function applyFigureConfigPatch(
     d.disaggregateBy = d.disaggregateBy.map((e) =>
       dim !== null && e.disOpt === dim
         ? { ...e, rollup: true, rollupPosition: e.rollupPosition ?? "bottom" }
-        : { disOpt: e.disOpt, disDisplayOpt: e.disDisplayOpt });
+        : { disOpt: e.disOpt, disDisplayOpt: e.disDisplayOpt }
+    );
   }
   if (patch.rollupPosition !== undefined) {
     d.disaggregateBy = d.disaggregateBy.map((e) =>
-      e.rollup === true ? { ...e, rollupPosition: patch.rollupPosition } : e);
+      e.rollup === true ? { ...e, rollupPosition: patch.rollupPosition } : e
+    );
   }
   if (patch.periodFilter !== undefined) {
     if (patch.periodFilter === null) {
@@ -129,7 +135,9 @@ export function applyFigureConfigPatch(
     } else {
       const periodOption = source.mostGranularTimePeriodColumnInResultsFile;
       if (!periodOption) {
-        throw new AIToolFailure("Cannot set periodFilter: metric has no time period column");
+        throw new AIToolFailure(
+          "Cannot set periodFilter: metric has no time period column",
+        );
       }
       const rawMin = patch.periodFilter.min;
       const rawMax = patch.periodFilter.max;
@@ -164,16 +172,16 @@ export function applyFigureConfigPatch(
           // schema-mandated but ignored at query time: the range re-anchors
           // to the live data ("to present").
           ? {
-              filterType: "from_month",
-              min: convertPeriodValue(rawMin, periodOption, false),
-              max: dataBounds.max,
-            }
+            filterType: "from_month",
+            min: convertPeriodValue(rawMin, periodOption, false),
+            max: dataBounds.max,
+          }
           // Open lower ("up to X") → custom from the data's earliest period.
           : {
-              filterType: "custom",
-              min: dataBounds.min,
-              max: convertPeriodValue(rawMax!, periodOption, true),
-            };
+            filterType: "custom",
+            min: dataBounds.min,
+            max: convertPeriodValue(rawMax!, periodOption, true),
+          };
       }
     }
   }

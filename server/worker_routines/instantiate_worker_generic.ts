@@ -7,7 +7,7 @@
 export function instantiateWorker<T>(
   workerPath: string,
   callerUrl: string,
-  data: T
+  data: T,
 ): Worker {
   const workerUrl = new URL(workerPath, callerUrl).href;
   const worker = new Worker(workerUrl, {

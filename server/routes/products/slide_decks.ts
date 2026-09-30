@@ -64,7 +64,10 @@ defineRoute(
   routesProductSlideDecks,
   "getSlideDeckDetail",
   async (c, { params }) => {
-    return respond(c, await getSlideDeckDetail(c.var.mainDb, params.product_id));
+    return respond(
+      c,
+      await getSlideDeckDetail(c.var.mainDb, params.product_id),
+    );
   },
 );
 
@@ -228,7 +231,10 @@ defineRoute(
       });
     }
     if (!current) {
-      return respond(c, { success: false as const, err: "Slide deck not found" });
+      return respond(c, {
+        success: false as const,
+        err: "Slide deck not found",
+      });
     }
     // Freeze the drained session's per-character element authorship into the
     // safety version, exactly like the tracker's writeVersion does: without
@@ -292,10 +298,18 @@ defineRoute(
     // row (re-inserted). Rooms of surviving slides stay alive: the restore
     // merges through them below, so co-editors follow it live.
     for (const id of plan.toDelete) {
-      closeSlideRoom(productId, id, "This slide was removed by a version restore");
+      closeSlideRoom(
+        productId,
+        id,
+        "This slide was removed by a version restore",
+      );
     }
     for (const s of plan.toInsert) {
-      closeSlideRoom(productId, s.id, "This slide was replaced by a version restore");
+      closeSlideRoom(
+        productId,
+        s.id,
+        "This slide was replaced by a version restore",
+      );
     }
 
     const structRes = await restoreSlideDeckStructure(
@@ -369,7 +383,11 @@ defineRoute(
     const restoredSlides = [...plan.toInsert, ...plan.toUpdate]
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((s, i) => ({ id: s.id, sortOrder: (i + 1) * 10, config: s.config }));
-    const restoredData = { label: version.label, deckConfig, slides: restoredSlides };
+    const restoredData = {
+      label: version.label,
+      deckConfig,
+      slides: restoredSlides,
+    };
     const restoredRes = await insertSlideDeckVersion(mainDb, {
       productId,
       // Strictly after the safety version even within one millisecond: the

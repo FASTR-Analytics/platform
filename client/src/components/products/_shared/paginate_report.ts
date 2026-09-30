@@ -44,7 +44,9 @@ const DEBOUNCE_MS = 400;
 const LAYOUT_TIMEOUT_MS = 20_000;
 const POLL_MS = 80;
 
-export function createReportPaginator(deps: ReportPaginatorDeps): ReportPaginator {
+export function createReportPaginator(
+  deps: ReportPaginatorDeps,
+): ReportPaginator {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let running = false;
   let queued = false;
@@ -135,7 +137,9 @@ export function createReportPaginator(deps: ReportPaginatorDeps): ReportPaginato
         }
         setTimeout(poll, POLL_MS);
       };
-      f.addEventListener("load", () => setTimeout(poll, POLL_MS), { once: true });
+      f.addEventListener("load", () => setTimeout(poll, POLL_MS), {
+        once: true,
+      });
       f.srcdoc = html;
     });
   }

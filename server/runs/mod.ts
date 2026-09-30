@@ -7,7 +7,7 @@ export { deleteRun } from "./delete_run.ts";
 export { pinRun, unpinRun } from "./pin_run.ts";
 export { deriveAvailableDisaggregationOptions } from "./disaggregation_availability.ts";
 export { getRunGenerationModuleOptions } from "./generation_wizard_reads.ts";
-export { exportRowsToParquet, type ExportedColumn } from "./pg_export.ts";
+export { type ExportedColumn, exportRowsToParquet } from "./pg_export.ts";
 export {
   evictRunFromManifestCache,
   getRunManifestCached,
@@ -21,8 +21,8 @@ export {
   readRunModuleScript,
 } from "./package_internals.ts";
 export {
-  publishFailedRunDirOrSweep,
   isRunIdShape,
+  publishFailedRunDirOrSweep,
   runDirPath,
   runInputFilePath,
   runManifestPath,

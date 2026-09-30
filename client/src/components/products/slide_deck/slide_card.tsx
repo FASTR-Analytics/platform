@@ -1,15 +1,15 @@
-import { t3, type PresenceEntry, type SlideDeckConfig } from "lib";
-import { createSignal, createEffect, Show } from "solid-js";
+import { type PresenceEntry, type SlideDeckConfig, t3 } from "lib";
+import { createEffect, createSignal, Show } from "solid-js";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import {
   getQueryStateFromApiResponse,
-  PageHolder,
-  SelectionCircle,
-  StateHolder,
-  type PageInputs,
-  showMenu,
   type MenuItem,
+  PageHolder,
+  type PageInputs,
+  SelectionCircle,
+  showMenu,
+  StateHolder,
 } from "panther";
 import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
@@ -65,31 +65,29 @@ export function SlideCard(p: Props) {
   function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
 
-    const deleteLabel =
-      p.isSelected && p.selectedCount > 1
-        ? t3({
-            en: `Delete ${p.selectedCount} slides`,
-            fr: `Supprimer ${p.selectedCount} diapositives`,
-            pt: `Eliminar ${p.selectedCount} diapositivos`,
-          })
-        : t3({
-            en: "Delete slide",
-            fr: "Supprimer la diapositive",
-            pt: "Eliminar diapositivo",
-          });
+    const deleteLabel = p.isSelected && p.selectedCount > 1
+      ? t3({
+        en: `Delete ${p.selectedCount} slides`,
+        fr: `Supprimer ${p.selectedCount} diapositives`,
+        pt: `Eliminar ${p.selectedCount} diapositivos`,
+      })
+      : t3({
+        en: "Delete slide",
+        fr: "Supprimer la diapositive",
+        pt: "Eliminar diapositivo",
+      });
 
-    const duplicateLabel =
-      p.isSelected && p.selectedCount > 1
-        ? t3({
-            en: `Duplicate ${p.selectedCount} slides`,
-            fr: `Dupliquer ${p.selectedCount} diapositives`,
-            pt: `Duplicar ${p.selectedCount} diapositivos`,
-          })
-        : t3({
-            en: "Duplicate slide",
-            fr: "Dupliquer la diapositive",
-            pt: "Duplicar diapositivo",
-          });
+    const duplicateLabel = p.isSelected && p.selectedCount > 1
+      ? t3({
+        en: `Duplicate ${p.selectedCount} slides`,
+        fr: `Dupliquer ${p.selectedCount} diapositives`,
+        pt: `Duplicar ${p.selectedCount} diapositivos`,
+      })
+      : t3({
+        en: "Duplicate slide",
+        fr: "Dupliquer la diapositive",
+        pt: "Duplicar diapositivo",
+      });
 
     const items: MenuItem[] = [
       {

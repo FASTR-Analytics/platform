@@ -13,13 +13,13 @@ import type {
 import {
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
+  findNodeMap,
   findSlideFigureConfigMap,
   getSlideTitle,
-  findNodeMap,
   materializeSlide,
-  t3,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
+  t3,
 } from "lib";
 import type { FigureBundle } from "lib";
 import type {
@@ -30,30 +30,30 @@ import type {
 } from "panther";
 import {
   APIResponseWithData,
-  Button,
-  getQueryStateFromApiResponse,
-  PageHolder,
-  PageInputs,
-  buildHitRegions,
-  StateHolder,
   applyDividerDragUpdate,
-  findHitTarget,
-  findNodeInDraft,
+  buildHitRegions,
+  Button,
   createItemNode,
   findById,
+  findHitTarget,
+  findNodeInDraft,
   getEditorWrapper,
+  getQueryStateFromApiResponse,
   openAlert,
   openComponent,
+  PageHolder,
+  PageInputs,
   showMenu,
+  StateHolder,
 } from "panther";
 import {
-  For,
-  Show,
   createEffect,
   createMemo,
   createSignal,
+  For,
   onCleanup,
   onMount,
+  Show,
   untrack,
 } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -62,16 +62,16 @@ import {
   createStore,
   produce,
   reconcile,
-  unwrap,
   type SetStoreFunction,
+  unwrap,
 } from "solid-js/store";
 import { ConflictResolutionModal } from "./conflict_resolution_modal";
 import { buildLayoutContextMenu } from "./build_context_menu";
 import { InsertFigureModal } from "~/components/products/_shared/mod.ts";
 import {
   copilotViewController,
-  restoreCopilotView,
   type CopilotViewState,
+  restoreCopilotView,
 } from "~/components/products/copilot/mod.ts";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
 import type { VizFigureCollabBinding } from "~/components/_shared/figure_editor/mod.ts";
@@ -106,14 +106,16 @@ import { SlideToolbar } from "./slide_toolbar";
 import { SLIDE_TEXT_FIELDS, slideTextField } from "./slide_fields";
 import { MarkdownSourceModal } from "./markdown_source_modal";
 import {
-  InlineTextEditor,
   type InlineEditTarget,
   type InlineTextApi,
+  InlineTextEditor,
 } from "./inline_text_editor";
 
 // The title primitives panther draws, and the slide field each one shows.
-const INLINE_TITLE_FIELDS: Record<string, { field: string; slideType: SlideType }> =
-  Object.fromEntries(SLIDE_TEXT_FIELDS.map((f) => [f.primitiveId, f]));
+const INLINE_TITLE_FIELDS: Record<
+  string,
+  { field: string; slideType: SlideType }
+> = Object.fromEntries(SLIDE_TEXT_FIELDS.map((f) => [f.primitiveId, f]));
 
 type SlideEditorInnerProps = {
   productId: string;
@@ -310,7 +312,9 @@ export function SlideEditor(p: Props) {
     const hit = canvasHit;
     canvasHit = false;
     if (hit) return;
-    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 4) return;
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 4) {
+      return;
+    }
     if (inlineEdit()) return;
     selectBlock(undefined);
     selectTextTarget(undefined);
@@ -363,7 +367,10 @@ export function SlideEditor(p: Props) {
     if (tempSlide.type !== "content") return;
     // Path set, as setFigureBlockBundle below: a fresh reference on the path.
     const layout = updateBlockInLayout(tempSlide.layout, blockId, updater);
-    (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)("layout", layout);
+    (manuallyUpdateTempSlide as SetStoreFunction<ContentSlide>)(
+      "layout",
+      layout,
+    );
   }
 
   // Switching a block's type keeps what it held under the old type, so
@@ -671,9 +678,12 @@ export function SlideEditor(p: Props) {
             collabErrorShown = true;
             void openAlert({
               text: t3({
-                en: "You don't have permission to edit slides — your changes are not being saved.",
-                fr: "Vous n'avez pas la permission de modifier les diapositives — vos modifications ne sont pas enregistrées.",
-                pt: "Não tem permissão para editar diapositivos — as suas alterações não estão a ser guardadas.",
+                en:
+                  "You don't have permission to edit slides — your changes are not being saved.",
+                fr:
+                  "Vous n'avez pas la permission de modifier les diapositives — vos modifications ne sont pas enregistrées.",
+                pt:
+                  "Não tem permissão para editar diapositivos — as suas alterações não estão a ser guardadas.",
               }),
               intent: "danger",
             });
@@ -1028,7 +1038,8 @@ export function SlideEditor(p: Props) {
         await openAlert({
           text: t3({
             en: "This visualization's metric is not in the product's package",
-            fr: "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
+            fr:
+              "L'indicateur de cette visualisation n'est pas dans le paquet du produit",
             pt: "A métrica desta visualização não está no pacote do produto",
           }),
           intent: "danger",
@@ -1044,24 +1055,21 @@ export function SlideEditor(p: Props) {
       // classic Apply/Cancel flow (graceful degradation: WS down / not ready).
       const s = session();
       const figureOrigin = {}; // per-open origin for the modal's undo tracking
-      const collabBinding: VizFigureCollabBinding | undefined =
-        s && s.isLive()
-          ? {
-              figureId: blockId,
-              hostDoc: { docType: "slide", docId: p.slideId },
-              getConfigMap: () => {
-                const ss = session();
-                return ss
-                  ? findSlideFigureConfigMap(ss.doc, blockId)
-                  : undefined;
-              },
-              awareness: s.awareness,
-              isLive: () => session()?.isLive() ?? false,
-              canEdit,
-              localOrigin: figureOrigin,
-              onCoherentBundle: applyFigureBundle,
-            }
-          : undefined;
+      const collabBinding: VizFigureCollabBinding | undefined = s && s.isLive()
+        ? {
+          figureId: blockId,
+          hostDoc: { docType: "slide", docId: p.slideId },
+          getConfigMap: () => {
+            const ss = session();
+            return ss ? findSlideFigureConfigMap(ss.doc, blockId) : undefined;
+          },
+          awareness: s.awareness,
+          isLive: () => session()?.isLive() ?? false,
+          canEdit,
+          localOrigin: figureOrigin,
+          onCoherentBundle: applyFigureBundle,
+        }
+        : undefined;
 
       setEditingFigureBlockId(blockId);
       try {
@@ -1099,8 +1107,9 @@ export function SlideEditor(p: Props) {
       }
     } catch (err) {
       await openAlert({
-        text:
-          err instanceof Error ? err.message : "Failed to edit visualization",
+        text: err instanceof Error
+          ? err.message
+          : "Failed to edit visualization",
         intent: "danger",
       });
     }
@@ -1205,10 +1214,14 @@ export function SlideEditor(p: Props) {
         <SlideToolbar
           tempSlide={tempSlide}
           setTempSlide={manuallyUpdateTempSlide}
-          showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover.showByDefault}
-          showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header.showByDefault}
-          showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer.showByDefault}
-          hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !== undefined}
+          showCoverLogosByDefault={p.deckConfigSnapshot.logos.cover
+            .showByDefault}
+          showHeaderLogosByDefault={p.deckConfigSnapshot.logos.header
+            .showByDefault}
+          showFooterLogosByDefault={p.deckConfigSnapshot.logos.footer
+            .showByDefault}
+          hasGlobalFooterText={p.deckConfigSnapshot.globalFooterText !==
+            undefined}
           canEdit={canEdit()}
           canUndoRedo={canUndoRedo()}
           onUndo={undo}
@@ -1315,22 +1328,25 @@ export function SlideEditor(p: Props) {
   return (
     <EditorWrapper>
       <div class="flex h-full w-full flex-col">
-        <Show when={p.toolbarHost} fallback={<div data-cursor-zone="header">{toolbarJsx()}</div>}>
+        <Show
+          when={p.toolbarHost}
+          fallback={<div data-cursor-zone="header">{toolbarJsx()}</div>}
+        >
           {(host) => <Portal mount={host()}>{toolbarJsx()}</Portal>}
         </Show>
         <Show when={p.statusHost}>
           {(host) => <Portal mount={host()}>{statusJsx()}</Portal>}
         </Show>
-        {/* Room checkpoint health, for a slide editor with nowhere to put the
+        {
+          /* Room checkpoint health, for a slide editor with nowhere to put the
             dot: edits relay live between peers, but the server can't persist
-            them right now. */}
+            them right now. */
+        }
         <Show
-          when={
-            !p.statusHost &&
+          when={!p.statusHost &&
             collabReady() &&
             collabSocketOpen() &&
-            docSaveFailing("slide", p.slideId)
-          }
+            docSaveFailing("slide", p.slideId)}
         >
           <div class="ui-text-caption border-b flex items-center gap-1.5 px-3 py-1">
             <div class="bg-danger h-1.5 w-1.5 flex-none rounded-full" />
@@ -1367,15 +1383,15 @@ export function SlideEditor(p: Props) {
                 </div>
               </div>
             </Show>
-            {/* Not keyed: PageHolder redraws in place on new inputs, which
+            {
+              /* Not keyed: PageHolder redraws in place on new inputs, which
                 typing on the canvas relies on (a remount per keystroke
-                blanks the canvas and loses its measured page). */}
+                blanks the canvas and loses its measured page). */
+            }
             <Show
-              when={
-                pageInputs().status === "ready"
-                  ? (pageInputs() as { status: "ready"; data: PageInputs }).data
-                  : undefined
-              }
+              when={pageInputs().status === "ready"
+                ? (pageInputs() as { status: "ready"; data: PageInputs }).data
+                : undefined}
             >
               {(readyPageInputs) => (
                 <div
@@ -1494,7 +1510,10 @@ export function SlideEditor(p: Props) {
                     suppressed={subEditorOpen() > 0}
                     self={inlineEdit()
                       ? { blockId: undefined, textTarget: undefined }
-                      : { blockId: selectedBlockId(), textTarget: selectedTextTarget() }}
+                      : {
+                        blockId: selectedBlockId(),
+                        textTarget: selectedTextTarget(),
+                      }}
                   />
                 </div>
               )}
@@ -1517,9 +1536,11 @@ export function SlideEditor(p: Props) {
                 />
               )}
             </Show>
-            {/* Figma-style live cursors. Outside the <Show> above (which
+            {
+              /* Figma-style live cursors. Outside the <Show> above (which
                 unmounts while a render errors) so the sprites, and their
-                transform transitions, survive re-renders. */}
+                transform transitions, survive re-renders. */
+            }
             <SlideEditorCursors
               slideId={p.slideId}
               awareness={() => session()?.awareness}
@@ -1651,12 +1672,11 @@ function PeerSelectionOverlay(p: {
     const sx = r.width / PAGE_WIDTH_DU;
     const sy = r.height / PAGE_HEIGHT_DU;
     // Body blocks (freeform layout items) keyed by node id.
-    const blockRects =
-      m.type === "freeform"
-        ? buildIdRectMap(
-            (m as unknown as { mLayout: MeasuredNodeLike }).mLayout,
-          )
-        : new Map<string, { x: number; y: number; w: number; h: number }>();
+    const blockRects = m.type === "freeform"
+      ? buildIdRectMap(
+        (m as unknown as { mLayout: MeasuredNodeLike }).mLayout,
+      )
+      : new Map<string, { x: number; y: number; w: number; h: number }>();
     // Root title/header text fields keyed by their panther text-primitive id
     // ("coverTitle", "headerText", …). Rects come straight from panther's hit
     // regions so they line up exactly with the rendered text on the canvas.
@@ -1693,7 +1713,9 @@ function PeerSelectionOverlay(p: {
       color: string,
     ) => {
       const targetKey = blockId ? `block:${blockId}` : `text:${textTarget}`;
-      const rcd = blockId ? blockRects.get(blockId) : textRects.get(textTarget!);
+      const rcd = blockId
+        ? blockRects.get(blockId)
+        : textRects.get(textTarget!);
       if (!rcd) return undefined;
       let entry = byTarget.get(targetKey);
       if (!entry) {
@@ -1728,8 +1750,7 @@ function PeerSelectionOverlay(p: {
         entry.editors.push({
           name: peer.name,
           color: peer.color,
-          editingFigure:
-            peer.editingFigureId === peer.selectedBlockId &&
+          editingFigure: peer.editingFigureId === peer.selectedBlockId &&
             !!peer.editingFigureId,
         });
       }
@@ -1756,8 +1777,10 @@ function PeerSelectionOverlay(p: {
                 border: `2px solid ${b.color}`,
               }}
             >
-              {/* Co-editors get concentric inset borders so every editor's
-                  colour stays visible on the shared element. */}
+              {
+                /* Co-editors get concentric inset borders so every editor's
+                  colour stays visible on the shared element. */
+              }
               <For each={b.editors.filter((e) => e.color !== b.color)}>
                 {(e, i) => (
                   <div
@@ -1779,7 +1802,11 @@ function PeerSelectionOverlay(p: {
                       {e.name}
                       {e.editingFigure
                         ? " " +
-                          t3({ en: "✎ visualization", fr: "✎ visualisation", pt: "✎ visualização" })
+                          t3({
+                            en: "✎ visualization",
+                            fr: "✎ visualisation",
+                            pt: "✎ visualização",
+                          })
                         : ""}
                     </div>
                   )}

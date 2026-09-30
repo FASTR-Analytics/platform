@@ -2,16 +2,16 @@ import { frFR } from "@clerk/localizations";
 import { clerk } from "~/state/_infra/clerk";
 import { clearDataCache } from "~/state/clear_caches";
 import {
+  createDevGlobalUser,
   GlobalUser,
+  LANGUAGE_STORAGE_KEY,
+  setLanguage,
   t3,
   TC,
-  createDevGlobalUser,
-  setLanguage,
-  LANGUAGE_STORAGE_KEY,
 } from "lib";
 import type { Language } from "panther";
-import { StateHolderWrapper, createQuery } from "panther";
-import { JSX, Show, createSignal, onCleanup, onMount } from "solid-js";
+import { createQuery, StateHolderWrapper } from "panther";
+import { createSignal, JSX, onCleanup, onMount, Show } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
 import { setServerActionTransport } from "~/server_actions/transport";
 import {
@@ -22,8 +22,7 @@ import {
 // Only allow bypass auth if:
 // 1. VITE_BYPASS_AUTH is set to true
 // 2. Client is NOT built in production mode
-const bypassAuth =
-  import.meta.env.VITE_BYPASS_AUTH === "true" &&
+const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === "true" &&
   import.meta.env.MODE !== "production";
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -103,20 +102,20 @@ export function LoggedInWrapper(p: Props) {
           ///////////////////////////////////////////////////////////////////////////////////
           const loggedInInfo = bypassAuth
             ? {
-                state: () => ({
-                  status: "ready" as const,
-                  data: createDevGlobalUser(
-                    "Offline Development",
-                    "en",
-                    "gregorian",
-                    "none",
-                  ),
-                }),
-              }
+              state: () => ({
+                status: "ready" as const,
+                data: createDevGlobalUser(
+                  "Offline Development",
+                  "en",
+                  "gregorian",
+                  "none",
+                ),
+              }),
+            }
             : createQuery(
-                () => serverActions.getCurrentUser({}),
-                t3(TC.loading),
-              );
+              () => serverActions.getCurrentUser({}),
+              t3(TC.loading),
+            );
 
           onMount(async () => {
             if (bypassAuth) return;
@@ -152,7 +151,10 @@ export function LoggedInWrapper(p: Props) {
           }
 
           return (
-            <StateHolderWrapper state={loggedInInfo.state()} loadingAndErrorPad="md">
+            <StateHolderWrapper
+              state={loggedInInfo.state()}
+              loadingAndErrorPad="md"
+            >
               {(globalUserOrUndefined) => {
                 return (
                   <Show
@@ -187,10 +189,12 @@ function ClerkNewLogin() {
 
   const isSignUp =
     new URLSearchParams(window.location.search).get("mode") === "sign-up";
-  const [meta, setMeta] = createSignal<{
-    instanceName: string;
-    instanceLanguage: Language;
-  } | null>(null);
+  const [meta, setMeta] = createSignal<
+    {
+      instanceName: string;
+      instanceLanguage: Language;
+    } | null
+  >(null);
 
   onMount(async () => {
     const res = await serverActions.getInstanceMeta({});
@@ -227,9 +231,11 @@ function ClerkNewLogin() {
           <Show when={meta()}>
             {(m) => (
               <div>
-                {/* Fixed light brand panel: pin static dark text so dark
+                {
+                  /* Fixed light brand panel: pin static dark text so dark
                     mode's light base-content doesn't wash it out. (Proper fix
-                    is a light-scheme island per PLAN_DARK_MODE plank 3.) */}
+                    is a light-scheme island per PLAN_DARK_MODE plank 3.) */
+                }
                 <div
                   class="font-700 text-5xl leading-tight"
                   style={{ color: "#000716" }}

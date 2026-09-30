@@ -158,7 +158,11 @@ defineRoute(
   "setProductPackage",
   log("setProductPackage"),
   async (c, { params, body }) => {
-    const res = await setProductRun(c.var.mainDb, params.product_id, body.runId);
+    const res = await setProductRun(
+      c.var.mainDb,
+      params.product_id,
+      body.runId,
+    );
     if (!res.success) {
       return respond(c, res);
     }

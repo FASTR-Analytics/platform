@@ -1,4 +1,4 @@
-import { t3, type Dhis2SelectionDescription } from "lib";
+import { type Dhis2SelectionDescription, t3 } from "lib";
 import { toNum0 } from "panther";
 import { For, Show } from "solid-js";
 import { dhis2IdLabel } from "~/components/data/hmis/_shared/mod.ts";
@@ -32,21 +32,30 @@ export function Dhis2StepReview(p: Props) {
         <Show when={p.nIndicators !== undefined}>
           <div>
             <span class="font-700">
-              {t3({ en: "Indicators:", fr: "Indicateurs :", pt: "Indicadores:" })}
+              {t3({
+                en: "Indicators:",
+                fr: "Indicateurs :",
+                pt: "Indicadores:",
+              })}
             </span>{" "}
             {toNum0(p.nIndicators ?? 0)}
             <Show when={p.description}>
               {(d) => (
                 <>
-                  {" "}({toNum0(d().elements.length)}{" "}
-                  {t3({ en: "DHIS2 elements", fr: "éléments DHIS2", pt: "elementos DHIS2" })})
+                  {" "}({toNum0(d().elements.length)} {t3({
+                    en: "DHIS2 elements",
+                    fr: "éléments DHIS2",
+                    pt: "elementos DHIS2",
+                  })})
                 </>
               )}
             </Show>
           </div>
         </Show>
         <div>
-          <span class="font-700">{t3({ en: "When:", fr: "Quand :", pt: "Quando:" })}</span>{" "}
+          <span class="font-700">
+            {t3({ en: "When:", fr: "Quand :", pt: "Quando:" })}
+          </span>{" "}
           {p.timeSummary}
         </div>
         <div>
@@ -57,8 +66,7 @@ export function Dhis2StepReview(p: Props) {
         </div>
         <Show when={p.nPairs !== undefined}>
           <div class="font-700">
-            {toNum0(p.nPairs ?? 0)}{" "}
-            {t3({
+            {toNum0(p.nPairs ?? 0)} {t3({
               en: "(DHIS2 element, month) pairs",
               fr: "paires (élément DHIS2, mois)",
               pt: "pares (elemento DHIS2, mês)",
@@ -83,29 +91,41 @@ export function Dhis2StepReview(p: Props) {
 function uploadedNotFetchedSummary(n: number): string {
   return n === 1
     ? t3({
-        en: "1 indicator of type Uploaded is not fetched, because a DHIS2 import cannot fetch it",
-        fr: "1 indicateur de type Téléversé n'est pas récupéré, car une importation DHIS2 ne peut pas le récupérer",
-        pt: "1 indicador do tipo Carregado não é obtido, porque uma importação DHIS2 não o pode obter",
-      })
+      en:
+        "1 indicator of type Uploaded is not fetched, because a DHIS2 import cannot fetch it",
+      fr:
+        "1 indicateur de type Téléversé n'est pas récupéré, car une importation DHIS2 ne peut pas le récupérer",
+      pt:
+        "1 indicador do tipo Carregado não é obtido, porque uma importação DHIS2 não o pode obter",
+    })
     : t3({
-        en: `${n} indicators of type Uploaded are not fetched, because a DHIS2 import cannot fetch them`,
-        fr: `${n} indicateurs de type Téléversé ne sont pas récupérés, car une importation DHIS2 ne peut pas les récupérer`,
-        pt: `${n} indicadores do tipo Carregado não são obtidos, porque uma importação DHIS2 não os pode obter`,
-      });
+      en:
+        `${n} indicators of type Uploaded are not fetched, because a DHIS2 import cannot fetch them`,
+      fr:
+        `${n} indicateurs de type Téléversé ne sont pas récupérés, car une importation DHIS2 ne peut pas les récupérer`,
+      pt:
+        `${n} indicadores do tipo Carregado não são obtidos, porque uma importação DHIS2 não os pode obter`,
+    });
 }
 
 function populationNotFetchedSummary(n: number): string {
   return n === 1
     ? t3({
-        en: "1 population figure is not fetched, because it comes from the Population page, not DHIS2",
-        fr: "1 valeur de population n'est pas récupérée, car elle provient de la page Population et non de DHIS2",
-        pt: "1 valor de população não é obtido, porque provém da página População e não do DHIS2",
-      })
+      en:
+        "1 population figure is not fetched, because it comes from the Population page, not DHIS2",
+      fr:
+        "1 valeur de population n'est pas récupérée, car elle provient de la page Population et non de DHIS2",
+      pt:
+        "1 valor de população não é obtido, porque provém da página População e não do DHIS2",
+    })
     : t3({
-        en: `${n} population figures are not fetched, because they come from the Population page, not DHIS2`,
-        fr: `${n} valeurs de population ne sont pas récupérées, car elles proviennent de la page Population et non de DHIS2`,
-        pt: `${n} valores de população não são obtidos, porque provêm da página População e não do DHIS2`,
-      });
+      en:
+        `${n} population figures are not fetched, because they come from the Population page, not DHIS2`,
+      fr:
+        `${n} valeurs de population ne sont pas récupérées, car elles proviennent de la page Population et non de DHIS2`,
+      pt:
+        `${n} valores de população não são obtidos, porque provêm da página População e não do DHIS2`,
+    });
 }
 
 // The covered elements, one row per DHIS2 element indicator the selection
@@ -125,7 +145,11 @@ function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
           <thead class="bg-base-200 sticky top-0">
             <tr>
               <th class="px-2 py-1 font-700">
-                {t3({ en: "Indicator ID", fr: "ID indicateur", pt: "ID do indicador" })}
+                {t3({
+                  en: "Indicator ID",
+                  fr: "ID indicateur",
+                  pt: "ID do indicador",
+                })}
               </th>
               <th class="px-2 py-1 font-700">
                 {t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
@@ -148,7 +172,9 @@ function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
       </div>
       <IdListLine
         ids={p.description.uploadedDropped}
-        summary={uploadedNotFetchedSummary(p.description.uploadedDropped.length)}
+        summary={uploadedNotFetchedSummary(
+          p.description.uploadedDropped.length,
+        )}
       />
       <IdListLine
         ids={p.description.populationTermsDropped}
@@ -163,8 +189,7 @@ function SelectionDescription(p: { description: Dhis2SelectionDescription }) {
               en: "Not fetched, because the formula does not resolve:",
               fr: "Non récupéré, car la formule ne se résout pas :",
               pt: "Não obtido, porque a fórmula não se resolve:",
-            })}{" "}
-            <span class="font-mono">{u.id}</span> ({u.problem})
+            })} <span class="font-mono">{u.id}</span> ({u.problem})
           </div>
         )}
       </For>

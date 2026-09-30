@@ -1,4 +1,4 @@
-import { t3, type Folder } from "lib";
+import { type Folder, t3 } from "lib";
 import type { MenuItem } from "panther";
 import { descendantIds } from "./_shared/mod.ts";
 import { buildQuickMoveEntries } from "./product_menu";

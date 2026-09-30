@@ -1,18 +1,18 @@
 import {
-  t3,
   type PackageScope,
   type ProductSummary,
   type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
+  t3,
 } from "lib";
 import {
   Button,
+  createDeleteAction,
   FrameLeftResizable,
   FrameTop,
   HeadingBar,
   LoadingIndicator,
-  createDeleteAction,
   openAlert,
   openComponent,
 } from "panther";
@@ -126,8 +126,7 @@ export function SlideList(p: Props) {
         const newIds = new Set(slideIds);
 
         // Sync if items were added/removed (set of IDs changed)
-        const setChanged =
-          currentIds.size !== newIds.size ||
+        const setChanged = currentIds.size !== newIds.size ||
           !slideIds.every((id) => currentIds.has(id));
 
         // Sync if order changed (from AI or other external sources)
@@ -282,18 +281,20 @@ export function SlideList(p: Props) {
     const slideIdsToDelete = shouldDeleteMultiple
       ? Array.from(selected)
       : [slideId];
-    const confirmText =
-      slideIdsToDelete.length > 1
-        ? t3({
-            en: `Are you sure you want to delete ${slideIdsToDelete.length} slides?`,
-            fr: `Êtes-vous sûr de vouloir supprimer ${slideIdsToDelete.length} diapositives ?`,
-            pt: `Tem a certeza de que pretende eliminar ${slideIdsToDelete.length} diapositivos?`,
-          })
-        : t3({
-            en: "Are you sure you want to delete this slide?",
-            fr: "Êtes-vous sûr de vouloir supprimer cette diapositive ?",
-            pt: "Tem a certeza de que pretende eliminar este diapositivo?",
-          });
+    const confirmText = slideIdsToDelete.length > 1
+      ? t3({
+        en:
+          `Are you sure you want to delete ${slideIdsToDelete.length} slides?`,
+        fr:
+          `Êtes-vous sûr de vouloir supprimer ${slideIdsToDelete.length} diapositives ?`,
+        pt:
+          `Tem a certeza de que pretende eliminar ${slideIdsToDelete.length} diapositivos?`,
+      })
+      : t3({
+        en: "Are you sure you want to delete this slide?",
+        fr: "Êtes-vous sûr de vouloir supprimer cette diapositive ?",
+        pt: "Tem a certeza de que pretende eliminar este diapositivo?",
+      });
 
     const deleteAction = createDeleteAction(
       confirmText,
@@ -322,7 +323,7 @@ export function SlideList(p: Props) {
       () => {
         // Remove from local state immediately
         setSortableSlideItems((items) =>
-          items.filter((i) => !slideIdsToDelete.includes(i.id)),
+          items.filter((i) => !slideIdsToDelete.includes(i.id))
         );
         clearSelection();
       },
@@ -613,16 +614,20 @@ export function SlideList(p: Props) {
   );
   const headerActions = (
     <div class="ui-gap-sm flex items-center">
-      {/* The package and scope, then the open slide's live/save dot
-          (portaled in by its editor): the report header's pair. */}
+      {
+        /* The package and scope, then the open slide's live/save dot
+          (portaled in by its editor): the report header's pair. */
+      }
       <div class="flex items-center">
         <PackageScopeChip
           product={p.product}
           onClick={canEditFigures() ? () => void openPackageScope() : undefined}
         />
       </div>
-      {/* Holds its width while empty, so the buttons do not shift when the
-          dot arrives. */}
+      {
+        /* Holds its width while empty, so the buttons do not shift when the
+          dot arrives. */
+      }
       <div class="flex min-w-16 items-center" ref={p.onStatusHost} />
       <Show when={p.slideIds.length > 0}>
         <Button
@@ -712,8 +717,10 @@ export function SlideList(p: Props) {
               />
             </Show>
             <Show when={!p.isLoading && p.slideIds.length > 0}>
-              {/* The rail: the deck in order, one thumbnail per slide, dragged
-                  to reorder. The wrapper exists so a tour can spotlight it. */}
+              {
+                /* The rail: the deck in order, one thumbnail per slide, dragged
+                  to reorder. The wrapper exists so a tour can spotlight it. */
+              }
               <div class="ui-pad-sm" data-tour="deck-grid">
                 <Sortable
                   idField="id"
@@ -748,8 +755,7 @@ export function SlideList(p: Props) {
                         isCurrent={p.currentSlideId === item.id}
                         selectedCount={selectedIds().size}
                         onCardClick={(e, isCircleClick) =>
-                          handleSlideClick(index(), item.id, e, isCircleClick)
-                        }
+                          handleSlideClick(index(), item.id, e, isCircleClick)}
                         onEdit={() => void p.onSelectSlide(item.id)}
                         onDelete={() => handleDelete(item.id)}
                         onDuplicate={() => handleDuplicate(item.id)}
@@ -771,9 +777,12 @@ export function SlideList(p: Props) {
           fallback={
             <div class="text-base-content-muted flex h-full items-center justify-center p-16 text-center">
               {t3({
-                en: 'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
-                fr: "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
-                pt: 'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
+                en:
+                  'No slides yet. Ask the AI to create some slides, or click "+ Add slide" to create your own',
+                fr:
+                  "Aucune diapositive. Demandez à l'IA de créer des diapositives, ou cliquez sur « + Ajouter une diapositive » pour en créer vous-même",
+                pt:
+                  'Ainda não há diapositivos. Peça à IA para criar alguns diapositivos ou clique em "+ Adicionar diapositivo" para criar os seus',
               })}
             </div>
           }

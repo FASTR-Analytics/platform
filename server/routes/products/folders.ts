@@ -70,7 +70,10 @@ defineRoute(
     // The folder's products moved up one level: their rows changed, so they
     // need their own products_upserted beside the folder list.
     await notifyFolders(c.var.mainDb);
-    await notifyInstanceProductsUpserted(c.var.mainDb, res.data.freedProductIds);
+    await notifyInstanceProductsUpserted(
+      c.var.mainDb,
+      res.data.freedProductIds,
+    );
     return respond(c, {
       success: true as const,
       data: { freedProductIds: res.data.freedProductIds },

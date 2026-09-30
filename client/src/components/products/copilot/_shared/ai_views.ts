@@ -18,8 +18,8 @@ import type {
   ReportEditProposalResult,
 } from "./types";
 import {
-  copilotInteractions,
   type CopilotInteractionDefs,
+  copilotInteractions,
 } from "./interactions";
 import {
   getEditingSlideDeckInstructions,
@@ -115,20 +115,27 @@ export const copilotViews = defineAIViews({
   editing_slide_deck: view<EditingSlideDeckParams, EditingSlideDeckContext>({
     label: (params) => params.deckLabel,
     instructions: (params, context) => {
-      const base = `${getEditingSlideDeckInstructions(params.deckLabel)}\n\ndeckId: ${params.deckId}`;
+      const base = `${
+        getEditingSlideDeckInstructions(params.deckLabel)
+      }\n\ndeckId: ${params.deckId}`;
       const selected = context.getSelectedSlideIds();
       if (selected.length === 0) return base;
-      return `${base}\n\n## User's current selection\nSelected slide id(s): ${selected.join(", ")}`;
+      return `${base}\n\n## User's current selection\nSelected slide id(s): ${
+        selected.join(", ")
+      }`;
     },
   }),
   editing_slide: view<EditingSlideParams, EditingSlideContext>({
     label: (params) => params.slideLabel,
     instructions: (params, context) => {
-      const base =
-        `${getEditingSlideInstructions(params.slideLabel, params.deckLabel)}\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`;
+      const base = `${
+        getEditingSlideInstructions(params.slideLabel, params.deckLabel)
+      }\n\nslideId: ${params.slideId} | deckId: ${params.deckId}`;
       const selected = context.getSelectedSlideIds();
       if (selected.length === 0) return base;
-      return `${base}\n\n## User's current selection in the slide list\nSelected slide id(s): ${selected.join(", ")}`;
+      return `${base}\n\n## User's current selection in the slide list\nSelected slide id(s): ${
+        selected.join(", ")
+      }`;
     },
   }),
   editing_report: view<EditingReportParams, EditingReportContext>({
@@ -149,7 +156,9 @@ export const copilotViews = defineAIViews({
         return `${base}\n\n## User's current selection\nCursor at line ${sel.fromLine} (no text selected).`;
       }
       const preview = sel.text.replace(/\s+/g, " ").trim().slice(0, 200);
-      return `${base}\n\n## User's current selection\nSelected text (lines ${sel.fromLine}-${sel.toLine}, ${sel.text.length} chars): "${preview}${sel.text.length > 200 ? "…" : ""}"`;
+      return `${base}\n\n## User's current selection\nSelected text (lines ${sel.fromLine}-${sel.toLine}, ${sel.text.length} chars): "${preview}${
+        sel.text.length > 200 ? "…" : ""
+      }"`;
     },
   }),
 });

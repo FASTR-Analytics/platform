@@ -1,8 +1,8 @@
 import type { MapJsonDataConfig } from "panther";
 import {
+  getDisaggregatorDisplayProp,
   type PresentationObjectConfig,
   type ResultsValueForVisualization,
-  getDisaggregatorDisplayProp,
 } from "lib";
 import { getAxisSort } from "./get_data_config_from_po";
 
@@ -19,12 +19,31 @@ export function getMapJsonDataConfigFromPresentationObjectConfig(
 
   const valueProp = effectiveValueProps[0] ?? "value";
 
-  const areaProp =
-    getDisaggregatorDisplayProp(resultsValue, config, ["mapArea"], effectiveValueProps) ?? "admin_area_2";
+  const areaProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["mapArea"],
+    effectiveValueProps,
+  ) ?? "admin_area_2";
 
-  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
-  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps);
-  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
+  const paneProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["cell"],
+    effectiveValueProps,
+  );
+  const laneProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["col"],
+    effectiveValueProps,
+  );
+  const tierProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["row"],
+    effectiveValueProps,
+  );
 
   const dataConfig: MapJsonDataConfig = {
     valueProp,

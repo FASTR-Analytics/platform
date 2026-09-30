@@ -64,8 +64,20 @@ export function trafficLightLabels(
   language: Language,
 ): { red: string; yellow: string; green: string } {
   return {
-    green: pickLang(language, { en: "On track", fr: "En bonne voie", pt: "No bom caminho" }),
-    yellow: pickLang(language, { en: "Progress needed", fr: "Progrès nécessaire", pt: "Progresso necessário" }),
-    red: pickLang(language, { en: "Not on track", fr: "Pas en bonne voie", pt: "Fora do bom caminho" }),
+    green: pickLang(language, {
+      en: "On track",
+      fr: "En bonne voie",
+      pt: "No bom caminho",
+    }),
+    yellow: pickLang(language, {
+      en: "Progress needed",
+      fr: "Progrès nécessaire",
+      pt: "Progresso necessário",
+    }),
+    red: pickLang(language, {
+      en: "Not on track",
+      fr: "Pas en bonne voie",
+      pt: "Fora do bom caminho",
+    }),
   };
 }

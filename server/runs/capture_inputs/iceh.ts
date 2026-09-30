@@ -2,10 +2,7 @@ import { Sql } from "postgres";
 import { APIResponseWithData, type RunDatasetIcehInfo } from "lib";
 import { getIcehCacheHash } from "../../db/instance/dataset_iceh.ts";
 import { tryCatchDatabaseAsync } from "../../db/utils.ts";
-import {
-  ensureDatasetCsvTargetDir,
-  type DatasetCsvTarget,
-} from "./hmis.ts";
+import { type DatasetCsvTarget, ensureDatasetCsvTargetDir } from "./hmis.ts";
 
 type DBIcehIndicator = {
   iceh_indicator: string;

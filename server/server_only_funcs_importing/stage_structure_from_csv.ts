@@ -1,11 +1,11 @@
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
+  type FacilityFamily,
+  getEnabledOptionalFacilityColumns,
   StructureColumnMappings,
   StructureStagingResult,
-  getEnabledOptionalFacilityColumns,
   throwIfErrWithData,
-  type FacilityFamily,
 } from "lib";
 import {
   getCsvColumnIndex,
@@ -30,7 +30,7 @@ export async function stageStructureFromCsv(
   csvFilePath: string,
   columnMappings: StructureColumnMappings,
   xlsFormFilePath: string | undefined,
-  onProgress?: (progress: number, message: string) => Promise<void>
+  onProgress?: (progress: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<StructureStagingResult>> {
   // Per-family staging table so HMIS and HFA imports can run concurrently
   // without clobbering each other's staging data. Same-family double-staging is
@@ -43,7 +43,7 @@ export async function stageStructureFromCsv(
     // ==================================================
     // PHASE 1: Setup & Initial Validation
     // ==================================================
-    
+
     if (onProgress) await onProgress(0.05, "Validating CSV file...");
 
     // Check file size before processing
@@ -55,7 +55,8 @@ export async function stageStructureFromCsv(
       const maxMB = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
       return {
         success: false,
-        err: `CSV file is too large for adding admin areas and facilities (${sizeMB}MB). Maximum file size allowed is ${maxMB}MB. Consider using a background worker process for larger imports.`,
+        err:
+          `CSV file is too large for adding admin areas and facilities (${sizeMB}MB). Maximum file size allowed is ${maxMB}MB. Consider using a background worker process for larger imports.`,
       };
     }
 
@@ -79,7 +80,7 @@ export async function stageStructureFromCsv(
 
     // Helper to get column index with encodedHeaderToIndexMap and columnMappings in scope
     const getMappedColumnIndex = (
-      columnKey: keyof StructureColumnMappings
+      columnKey: keyof StructureColumnMappings,
     ): number => {
       const mappedHeader = columnMappings[columnKey];
       if (!mappedHeader) return -1;
@@ -87,7 +88,7 @@ export async function stageStructureFromCsv(
       return getCsvColumnIndex(
         encodedHeaderToIndexMap,
         columnMappings as Record<string, string>,
-        columnKey
+        columnKey,
       );
     };
 
@@ -107,13 +108,14 @@ export async function stageStructureFromCsv(
     const hasAdminMapped = adminIndexes.length > 0;
 
     // Get indexes for optional columns (only if enabled and mapped)
-    const enabledOptionalColumns =
-      getEnabledOptionalFacilityColumns(facilityConfig);
+    const enabledOptionalColumns = getEnabledOptionalFacilityColumns(
+      facilityConfig,
+    );
     const optionalIndexes: { column: string; index: number }[] = [];
 
     for (const column of enabledOptionalColumns) {
       const index = getMappedColumnIndex(
-        column as keyof StructureColumnMappings
+        column as keyof StructureColumnMappings,
       );
       if (index >= 0) {
         optionalIndexes.push({ column, index });
@@ -140,8 +142,8 @@ export async function stageStructureFromCsv(
         const lastSegment = rawHeader.includes("/")
           ? rawHeader.substring(rawHeader.lastIndexOf("/") + 1)
           : rawHeader;
-        const question =
-          xlsForm.questions.get(rawHeader) ?? xlsForm.questions.get(lastSegment);
+        const question = xlsForm.questions.get(rawHeader) ??
+          xlsForm.questions.get(lastSegment);
         if (!question || question.type !== "select_one" || !question.listName) {
           continue;
         }
@@ -177,7 +179,7 @@ export async function stageStructureFromCsv(
     // ==================================================
     // PHASE 2: Stream CSV to Staging Table
     // ==================================================
-    
+
     if (onProgress) await onProgress(0.2, "Creating staging table...");
 
     console.log("Creating staging table for structure import...");
@@ -196,7 +198,7 @@ export async function stageStructureFromCsv(
         "admin_area_1 TEXT NOT NULL",
         "admin_area_2 TEXT NOT NULL",
         "admin_area_3 TEXT NOT NULL",
-        "admin_area_4 TEXT NOT NULL"
+        "admin_area_4 TEXT NOT NULL",
       );
     }
 
@@ -233,9 +235,11 @@ export async function stageStructureFromCsv(
       ];
 
       await mainDb.unsafe(
-        `INSERT INTO ${stagingTableName} (${allColumns.join(
-          ", "
-        )}) VALUES ${valuesClause}`
+        `INSERT INTO ${stagingTableName} (${
+          allColumns.join(
+            ", ",
+          )
+        }) VALUES ${valuesClause}`,
       );
 
       rowBuffer = [];
@@ -244,7 +248,7 @@ export async function stageStructureFromCsv(
     // Track if we need to abort
     // Stream through CSV once, writing to staging table
     if (onProgress) await onProgress(0.25, "Processing CSV rows...");
-    
+
     try {
       await processRows(async (row: string[]) => {
         rowsProcessed++;
@@ -253,7 +257,10 @@ export async function stageStructureFromCsv(
         if (rowsProcessed % 1000 === 0 && onProgress) {
           const baseProgress = 0.25 + (rowsProcessed / 10000) * 0.45; // Scale to 25-70%
           const progress = Math.min(0.7, baseProgress);
-          await onProgress(progress, `Processed ${rowsProcessed.toLocaleString()} rows...`);
+          await onProgress(
+            progress,
+            `Processed ${rowsProcessed.toLocaleString()} rows...`,
+          );
         }
 
         // Extract and validate facility_id (always required)
@@ -295,10 +302,10 @@ export async function stageStructureFromCsv(
         // Build VALUES tuple
         const escapedFacilityId = escapeSqlString(facilityId);
         const escapedAdminValues = allAdminValues.map(
-          (v) => `'${escapeSqlString(v)}'`
+          (v) => `'${escapeSqlString(v)}'`,
         );
         const escapedOptionalValues = optionalValues.map(
-          (v) => `'${escapeSqlString(v)}'`
+          (v) => `'${escapeSqlString(v)}'`,
         );
 
         const allValues = [
@@ -326,10 +333,15 @@ export async function stageStructureFromCsv(
     // Flush any remaining rows
     await flushBuffer();
 
-    if (onProgress) await onProgress(0.75, `Processed ${totalRows.toLocaleString()} rows, creating indexes...`);
+    if (onProgress) {
+      await onProgress(
+        0.75,
+        `Processed ${totalRows.toLocaleString()} rows, creating indexes...`,
+      );
+    }
 
     console.log(
-      `Staged ${totalRows} valid rows (${invalidRows} invalid rows skipped, ${rowsProcessed} total rows processed)`
+      `Staged ${totalRows} valid rows (${invalidRows} invalid rows skipped, ${rowsProcessed} total rows processed)`,
     );
 
     if (totalRows === 0) {
@@ -341,13 +353,13 @@ export async function stageStructureFromCsv(
     // schema-global, so base them on the per-family table name to avoid a
     // collision when HMIS and HFA stage concurrently.
     await mainDb.unsafe(
-      `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`
+      `CREATE INDEX ${stagingTableName}_facility_idx ON ${stagingTableName} (facility_id)`,
     );
     // Admin indexes only when admin was staged
     if (hasAdminMapped) {
       for (let i = 1; i <= 4; i++) {
         await mainDb.unsafe(
-          `CREATE INDEX ${stagingTableName}_admin_${i}_idx ON ${stagingTableName} (admin_area_${i})`
+          `CREATE INDEX ${stagingTableName}_admin_${i}_idx ON ${stagingTableName} (admin_area_${i})`,
         );
       }
     }
@@ -355,7 +367,7 @@ export async function stageStructureFromCsv(
     // ==================================================
     // PHASE 3: Generate Preview Counts for Client
     // ==================================================
-    
+
     if (onProgress) await onProgress(0.85, "Analyzing data structure...");
 
     console.log("Generating preview counts...");
@@ -364,10 +376,18 @@ export async function stageStructureFromCsv(
     let adminAreasPreview = { level1: 0, level2: 0, level3: 0, level4: 0 };
     if (hasAdminMapped) {
       const adminPreviewQueries = await Promise.all([
-        mainDb.unsafe(`SELECT COUNT(DISTINCT admin_area_1) as count FROM ${stagingTableName}`),
-        mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2)) as count FROM ${stagingTableName}`),
-        mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3)) as count FROM ${stagingTableName}`),
-        mainDb.unsafe(`SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3, admin_area_4)) as count FROM ${stagingTableName}`)
+        mainDb.unsafe(
+          `SELECT COUNT(DISTINCT admin_area_1) as count FROM ${stagingTableName}`,
+        ),
+        mainDb.unsafe(
+          `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2)) as count FROM ${stagingTableName}`,
+        ),
+        mainDb.unsafe(
+          `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3)) as count FROM ${stagingTableName}`,
+        ),
+        mainDb.unsafe(
+          `SELECT COUNT(DISTINCT (admin_area_1, admin_area_2, admin_area_3, admin_area_4)) as count FROM ${stagingTableName}`,
+        ),
       ]);
       adminAreasPreview = {
         level1: adminPreviewQueries[0][0]?.count || 0,
@@ -399,11 +419,16 @@ export async function stageStructureFromCsv(
           column: resolver.column,
           resolvedCount: resolver.resolvedCount,
           unresolvedValues: [...resolver.unresolvedValues],
-        })
+        }),
       );
     }
 
-    if (onProgress) await onProgress(1, `Successfully staged ${totalRows.toLocaleString()} rows`);
+    if (onProgress) {
+      await onProgress(
+        1,
+        `Successfully staged ${totalRows.toLocaleString()} rows`,
+      );
+    }
 
     return { success: true, data: stagingResult };
   } catch (error) {
@@ -416,8 +441,9 @@ export async function stageStructureFromCsv(
 
     return {
       success: false,
-      err:
-        error instanceof Error ? error.message : "Unknown error during import",
+      err: error instanceof Error
+        ? error.message
+        : "Unknown error during import",
     };
   }
 }

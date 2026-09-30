@@ -36,7 +36,8 @@ type SendEmailOptions = {
 };
 
 async function sendEmail(options: SendEmailOptions): Promise<boolean> {
-  const { to, subject, plainText, html, from, replyTo, cc, bcc, attachments } = options;
+  const { to, subject, plainText, html, from, replyTo, cc, bcc, attachments } =
+    options;
   try {
     const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
@@ -48,11 +49,19 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
         personalizations: [
           {
             to: [{ email: to }],
-            ...(cc && cc.length > 0 ? { cc: cc.map((e) => ({ email: e })) } : {}),
-            ...(bcc && bcc.length > 0 ? { bcc: bcc.map((e) => ({ email: e })) } : {}),
+            ...(cc && cc.length > 0
+              ? { cc: cc.map((e) => ({ email: e })) }
+              : {}),
+            ...(bcc && bcc.length > 0
+              ? { bcc: bcc.map((e) => ({ email: e })) }
+              : {}),
           },
         ],
-        from: from ?? { email: "noreply@fastr-analytics.org", name: "FASTR Analytics Platform" },
+        from: from ??
+          {
+            email: "noreply@fastr-analytics.org",
+            name: "FASTR Analytics Platform",
+          },
         ...(replyTo ? { reply_to: { email: replyTo } } : {}),
         subject,
         content: [
@@ -61,13 +70,13 @@ async function sendEmail(options: SendEmailOptions): Promise<boolean> {
         ],
         ...(attachments && attachments.length > 0
           ? {
-              attachments: attachments.map((a) => ({
-                content: a.content,
-                filename: a.filename,
-                type: a.mimeType,
-                disposition: "attachment",
-              })),
-            }
+            attachments: attachments.map((a) => ({
+              content: a.content,
+              filename: a.filename,
+              type: a.mimeType,
+              disposition: "attachment",
+            })),
+          }
           : {}),
       }),
     });
@@ -93,14 +102,17 @@ defineRoute(
 
     const userEmail = c.var.globalUser.email;
 
-    const plainText = `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
+    const plainText =
+      `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
 
     const html = `
 <div style="font-family: sans-serif; color: #333;">
   <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p style="font-size: 12px; color: #888;">
-    This email was sent via <strong>FASTR Analytics</strong> on behalf of ${escapeHtml(userEmail)}.
+    This email was sent via <strong>FASTR Analytics</strong> on behalf of ${
+      escapeHtml(userEmail)
+    }.
   </p>
 </div>`.trim();
 
@@ -112,7 +124,11 @@ defineRoute(
         subject: "Slide Deck from FASTR Analytics",
         plainText,
         html,
-        attachments: [{ content: attachment.content, filename: attachment.filename, mimeType: "application/pdf" }],
+        attachments: [{
+          content: attachment.content,
+          filename: attachment.filename,
+          mimeType: "application/pdf",
+        }],
       });
       if (!ok) failed.push(recipient);
     }
@@ -138,14 +154,17 @@ defineRoute(
 
     const userEmail = c.var.globalUser.email;
 
-    const plainText = `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
+    const plainText =
+      `${message}\n\n---\nThis email was sent via FASTR Analytics on behalf of ${userEmail}.`;
 
     const html = `
 <div style="font-family: sans-serif; color: #333;">
   <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
   <p style="font-size: 12px; color: #888;">
-    This email was sent via <strong>FASTR Analytics</strong> on behalf of ${escapeHtml(userEmail)}.
+    This email was sent via <strong>FASTR Analytics</strong> on behalf of ${
+      escapeHtml(userEmail)
+    }.
   </p>
 </div>`.trim();
 
@@ -197,10 +216,12 @@ defineRoute(
       : "";
 
     const ackSentence = {
-      bug: "Thank you for reporting this bug. We have received your report and will look into it. We will contact you if we have any further questions.",
+      bug:
+        "Thank you for reporting this bug. We have received your report and will look into it. We will contact you if we have any further questions.",
       suggestion:
         "Thank you for your suggestion. We have received it and will take it into consideration. We will contact you if we have any further questions.",
-      help: "Thank you for your request. We have received it and will get back to you as soon as we can.",
+      help:
+        "Thank you for your request. We have received it and will get back to you as soon as we can.",
     }[feedbackType];
     const submissionNoun = {
       bug: "report",
@@ -208,7 +229,8 @@ defineRoute(
       help: "request",
     }[feedbackType];
 
-    const userPlainText = `${ackSentence}\n\nYour ${submissionNoun}:\n${description}`;
+    const userPlainText =
+      `${ackSentence}\n\nYour ${submissionNoun}:\n${description}`;
 
     const userHtmlBody = `<p>${ackSentence}</p>`;
 
@@ -216,10 +238,13 @@ defineRoute(
 <div style="font-family: sans-serif; color: #333;">
   ${userHtmlBody}
   <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
-  <p style="font-size: 12px; color: #888;"><strong>Your submission:</strong><br>${escapeHtml(description).replace(/\n/g, "<br>")}</p>
+  <p style="font-size: 12px; color: #888;"><strong>Your submission:</strong><br>${
+      escapeHtml(description).replace(/\n/g, "<br>")
+    }</p>
 </div>`.trim();
 
-    const internalPlainText = `New ${typeLabel} from ${userEmail}${contextLine} (Instance: ${_INSTANCE_ID})\n\n${description}`;
+    const internalPlainText =
+      `New ${typeLabel} from ${userEmail}${contextLine} (Instance: ${_INSTANCE_ID})\n\n${description}`;
 
     const internalHtml = `
 <div style="font-family: sans-serif; color: #333;">
@@ -252,7 +277,12 @@ defineRoute(
       });
     }
 
-    await sendEmail({ to: userEmail, subject: `We received your ${typeLabel.toLowerCase()}`, plainText: userPlainText, html: userHtml });
+    await sendEmail({
+      to: userEmail,
+      subject: `We received your ${typeLabel.toLowerCase()}`,
+      plainText: userPlainText,
+      html: userHtml,
+    });
 
     return c.json({ success: true, data: { sent: true } });
   },

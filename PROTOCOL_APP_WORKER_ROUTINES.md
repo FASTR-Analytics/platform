@@ -3,12 +3,11 @@
 > **App-specific authoring protocol** (not panther's cross-project
 > `PROTOCOL_*`). This is the _recipe_. Read it when **adding or changing a
 > background worker routine**. The machinery's ownership and architecture belong
-> to the SYSTEM files: the generation host, its `GENERATING_BY_RUN` map and
-> the `run_generation_ended` semantics are **S8**
-> (`SYSTEM_08_results_packages.md`); what the dataset workers
-> _do_ (stage→integrate) is **S6**; workers reach the main thread's SSE via the
-> in-process BroadcastChannel fan-out documented in **S3**; worker DB
-> connections are S2's `SYSTEM_02_persistence.md`.
+> to the SYSTEM files: the generation host, its `GENERATING_BY_RUN` map and the
+> `run_generation_ended` semantics are **S8** (`SYSTEM_08_results_packages.md`);
+> what the dataset workers _do_ (stage→integrate) is **S6**; workers reach the
+> main thread's SSE via the in-process BroadcastChannel fan-out documented in
+> **S3**; worker DB connections are S2's `SYSTEM_02_persistence.md`.
 
 Heavy/blocking work (R execution, CSV staging, bulk integration, DHIS2 import
 runs) runs in a Deno Web Worker, never on the request thread. Every routine
@@ -43,10 +42,9 @@ instantiateXxxWorker(payload)
 
 Each routine is a folder under `server/worker_routines/` with two files:
 
-- `instantiate_worker.ts`: exports
-  `instantiate<Name>Worker(payload):
-  Worker`, a one-liner over the generic
-  factory:
+- `instantiate_worker.ts`: exports `instantiate<Name>Worker(payload):
+  Worker`,
+  a one-liner over the generic factory:
 
   ```ts
   export function instantiateWorker<T>(
@@ -89,8 +87,8 @@ Each routine is a folder under `server/worker_routines/` with two files:
   }
   ```
 
-Extra files are fine when they earn their place: `generate_run/` has
-`launch.ts` (the host side), `pipeline.ts` and its stages (`prepare_inputs.ts`,
+Extra files are fine when they earn their place: `generate_run/` has `launch.ts`
+(the host side), `pipeline.ts` and its stages (`prepare_inputs.ts`,
 `resolve_modules.ts`, `execute_module.ts`, …) and `container_name.ts`;
 `import_hmis_data_dhis2/` has `dispatch.ts` (pure dispatcher logic importable
 outside a worker context) and `scheduler.ts` (the 60 s scheduled-import tick).
@@ -117,8 +115,7 @@ today: `worker_routines/generate_run/launch.ts` (`launchRunGeneration`,
 results-package generation), `db/instance/dataset_hfa_import_runs.ts`
 (`spawnHfaRunWorker`), `db/instance/dataset_iceh_import_runs.ts`
 (`spawnIcehRunWorker`), and `db/instance/dataset_hmis_import_runs.ts`
-(`spawnRunWorker` / `spawnCsvRunWorker`, HMIS import runs).
-The dataset shape:
+(`spawnRunWorker` / `spawnCsvRunWorker`, HMIS import runs). The dataset shape:
 
 ```ts
 setWorker("hmis", worker); // per-family worker slot
@@ -150,22 +147,21 @@ since the isolate dies with its sockets.
 
 ### 5. Pick the report-back mechanism
 
-- **(A) Completion broadcast**, when the host holds per-run teardown state.
-  The generate_run worker writes the run's terminal state itself
-  (`publishReadyRun` or `markRunGenerationFailed`), fires the catalogue notify,
-  then posts a `GenerateRunEndedData` (`{ runId, successOrError }`) to
+- **(A) Completion broadcast**, when the host holds per-run teardown state. The
+  generate_run worker writes the run's terminal state itself (`publishReadyRun`
+  or `markRunGenerationFailed`), fires the catalogue notify, then posts a
+  `GenerateRunEndedData` (`{ runId, successOrError }`) to
   `BroadcastChannel("run_generation_ended")`; the listener in `launch.ts`
   terminates the worker and deletes its `GENERATING_BY_RUN` entry. A crash
   reaches the spawn site's `error` listener instead
-  (`handleGenerateRunWorkerCrash`): it terminates the worker, removes the
-  module containers by deterministic name in production, publishes the
-  partial workspace, marks the run failed, and notifies. S8 owns these
-  semantics.
-- **(B) `postMessage("COMPLETED")` + status row**, for a single tracked job.
-  The worker writes progress/terminal state into its run row
-  (`status` enum + `progress` JSON) for client polling, and
-  finishes with `self.postMessage("COMPLETED")`; the caller-attached listeners
-  clear the tracker and terminate.
+  (`handleGenerateRunWorkerCrash`): it terminates the worker, removes the module
+  containers by deterministic name in production, publishes the partial
+  workspace, marks the run failed, and notifies. S8 owns these semantics.
+- **(B) `postMessage("COMPLETED")` + status row**, for a single tracked job. The
+  worker writes progress/terminal state into its run row (`status` enum +
+  `progress` JSON) for client polling, and finishes with
+  `self.postMessage("COMPLETED")`; the caller-attached listeners clear the
+  tracker and terminate.
 
 The consumers are not interchangeable: dataset clients poll the run row's
 `status`; the results-package catalogue reacts to instance-SSE
@@ -175,31 +171,31 @@ The consumers are not interchangeable: dataset clients poll the run row's
 
 - **`worker_store.ts`**: at most one live worker per import family:
   `Map<WorkerKey, Worker>` with
-  `WorkerKey = "hmis" | "hfa" | "iceh" | "hmis_dhis2_run"`
-  (extend the union when adding a family), `setWorker` / `getWorker` /
-  `clearWorker`. `clearWorker` is compare-and-delete (deletes only if the stored
-  worker IS this worker), so a stale worker's late error/COMPLETED event cannot
-  clobber a successor under the same key. The caller checks `getWorker(key)`
-  before starting and refuses if one is in flight.
+  `WorkerKey = "hmis" | "hfa" | "iceh" | "hmis_dhis2_run"` (extend the union
+  when adding a family), `setWorker` / `getWorker` / `clearWorker`.
+  `clearWorker` is compare-and-delete (deletes only if the stored worker IS this
+  worker), so a stale worker's late error/COMPLETED event cannot clobber a
+  successor under the same key. The caller checks `getWorker(key)` before
+  starting and refuses if one is in flight.
 - **`GENERATING_BY_RUN`** (results-package generation, `launch.ts`): keyed
   `runId`, each entry `{ moduleIds, worker }`. The entry is set before the
-  catalogue row is created and deleted on the completion broadcast, on the
-  crash path, or when the launch itself throws; `moduleIds` is what the crash
-  path needs to name the containers. Generations run concurrently, so there
-  is no in-flight check. Owned by S8.
+  catalogue row is created and deleted on the completion broadcast, on the crash
+  path, or when the launch itself throws; `moduleIds` is what the crash path
+  needs to name the containers. Generations run concurrently, so there is no
+  in-flight check. Owned by S8.
 
 An unterminated completed worker leaks its isolate and threads for the life of
 the process; a worker that dies without clearing its tracker blocks future work.
 
 ## The routine inventory
 
-| Folder                   | Payload                                            | Report-back                                              | Tracker                           |
-| ------------------------ | -------------------------------------------------- | -------------------------------------------------------- | --------------------------------- |
-| `generate_run`           | `{ runId, label, step1Result, step2Result }`       | `run_generation_ended` broadcast / `reportError` (crash) | `GENERATING_BY_RUN`               |
-| `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)           |
-| `import_hmis_data_dhis2` | `{ runId, selection }`                             | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
-| `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row       | `worker_store` (`hfa`)            |
-| `import_iceh_data`       | `{ runId, config, zipFilePath }`                   | `postMessage("COMPLETED")` + run row                     | `worker_store` (`iceh`)           |
+| Folder                   | Payload                                                           | Report-back                                              | Tracker                           |
+| ------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------- |
+| `generate_run`           | `{ runId, label, step1Result, step2Result }`                      | `run_generation_ended` broadcast / `reportError` (crash) | `GENERATING_BY_RUN`               |
+| `import_hmis_data_csv`   | `{ runId, config, csvFilePath, stagingResult? }`                  | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hmis`)           |
+| `import_hmis_data_dhis2` | `{ runId, selection }`                                            | `postMessage("COMPLETED")` + run row + ledger            | `worker_store` (`hmis_dhis2_run`) |
+| `import_hfa_data_csv`    | `{ runId, config, csvFilePath, xlsFormFilePath, stagingResult? }` | `postMessage("COMPLETED")` + run row                     | `worker_store` (`hfa`)            |
+| `import_iceh_data`       | `{ runId, config, zipFilePath }`                                  | `postMessage("COMPLETED")` + run row                     | `worker_store` (`iceh`)           |
 
 ## Gotchas
 
@@ -210,25 +206,24 @@ the process; a worker that dies without clearing its tracker blocks future work.
 - **Don't diverge the preamble.** It's copy-pasted per routine; subtle drift
   (READY string, error semantics) is a latent bug. Today only the
   `console.error` prefix varies. Keep it that way.
-- **The progress writer is a second connection, and a run transaction must
-  never wait on it while holding the run row.** `createThrottledProgressWriter`
-  updates the run row (`… WHERE id AND status='running'`) on the worker's
-  read connection. Inside a `begin(...)`, any statement touching the run row
+- **The progress writer is a second connection, and a run transaction must never
+  wait on it while holding the run row.** `createThrottledProgressWriter`
+  updates the run row (`… WHERE id AND status='running'`) on the worker's read
+  connection. Inside a `begin(...)`, any statement touching the run row
   (`version_id`, counters, the completion flip) holds that row's lock until
   COMMIT; a progress write issued after it blocks on that lock. If the
   transaction then AWAITED the write, the two waited on each other forever.
-  Postgres cannot detect it (the holder is idle-in-transaction), and Ghana
-  sat wedged 4 days (2026-08-12). Two defences, in order: (1) the writer is
-  non-blocking and coalescing: it NEVER blocks the caller, so a blocked
-  write just lands after COMMIT (harmless: every progress write is
-  status-guarded and every terminal flip NULLs progress); (2) inside a run
-  transaction the run-row write is still the LAST statement, after the final
-  `onProgress`, so the lock is held only for the final instant.
-  HFA/ICEH/CSV's guarded in-transaction completion flip is the model. Both
-  assume the run-row pool is `max ≥ 2` (a max=1 pool wedges on pool
-  starvation instead). Worker connections carry
-  `idle_in_transaction_session_timeout` (5 min) as the generic backstop for
-  the whole idle-in-transaction class; when it fires, `begin` rejects AND the
+  Postgres cannot detect it (the holder is idle-in-transaction), and Ghana sat
+  wedged 4 days (2026-08-12). Two defences, in order: (1) the writer is
+  non-blocking and coalescing: it NEVER blocks the caller, so a blocked write
+  just lands after COMMIT (harmless: every progress write is status-guarded and
+  every terminal flip NULLs progress); (2) inside a run transaction the run-row
+  write is still the LAST statement, after the final `onProgress`, so the lock
+  is held only for the final instant. HFA/ICEH/CSV's guarded in-transaction
+  completion flip is the model. Both assume the run-row pool is `max ≥ 2` (a
+  max=1 pool wedges on pool starvation instead). Worker connections carry
+  `idle_in_transaction_session_timeout` (5 min) as the generic backstop for the
+  whole idle-in-transaction class; when it fires, `begin` rejects AND the
   still-running transaction callback crashes the worker on its next statement
   (postgres.js `nextWrite` on a dead socket). The host crash listener is the
   expected exit, not a bug.
@@ -242,10 +237,10 @@ the process; a worker that dies without clearing its tracker blocks future work.
       listeners, mandatory for both report-back models
 - [ ] `createWorkerReadConnection` / `createBulkImportConnection`; `.end()` on
       every exit path (a `finally` may hold `.end()` calls only)
-- [ ] Report-back matches the need: a completion broadcast (host teardown state) or
-      `postMessage("COMPLETED")` + status row (tracked job)
+- [ ] Report-back matches the need: a completion broadcast (host teardown state)
+      or `postMessage("COMPLETED")` + status row (tracked job)
 - [ ] Tracker registered and cleared + worker terminated on every terminal path
-- [ ] Inside any run transaction, the run-row write is the last statement
-      (after the final `onProgress`)
-- [ ] Every progress `write` callback is guarded `AND status = 'running'`;
-      every terminal flip sets `progress = NULL` under the same guard
+- [ ] Inside any run transaction, the run-row write is the last statement (after
+      the final `onProgress`)
+- [ ] Every progress `write` callback is guarded `AND status = 'running'`; every
+      terminal flip sets `progress = NULL` under the same guard

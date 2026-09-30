@@ -1,9 +1,9 @@
-import { t3, type APIResponseWithData } from "lib";
+import { type APIResponseWithData, t3 } from "lib";
 import {
   type AlertComponentProps,
-  ModalContainer,
   createFormAction,
   Input,
+  ModalContainer,
 } from "panther";
 import { createSignal } from "solid-js";
 
@@ -28,7 +28,11 @@ export function CopyVersionModal(
       if (!label) {
         return {
           success: false as const,
-          err: t3({ en: "Name is required", fr: "Le nom est requis", pt: "O nome é obrigatório" }),
+          err: t3({
+            en: "Name is required",
+            fr: "Le nom est requis",
+            pt: "O nome é obrigatório",
+          }),
         };
       }
       return await p.save(label);
@@ -53,7 +57,11 @@ export function CopyVersionModal(
       }]}
     >
       <Input
-        label={t3({ en: "Name for the copy", fr: "Nom de la copie", pt: "Nome da cópia" })}
+        label={t3({
+          en: "Name for the copy",
+          fr: "Nom de la copie",
+          pt: "Nome da cópia",
+        })}
         value={tempLabel()}
         onChange={setTempLabel}
         fullWidth

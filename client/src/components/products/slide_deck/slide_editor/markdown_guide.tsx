@@ -14,12 +14,18 @@ const ROWS: { syntax: string; label: () => string; labelClass: string }[] = [
   },
   {
     syntax: "**bold**",
-    label: () => t3({ en: "Bold text", fr: "Texte en gras", pt: "Texto em negrito" }),
+    label: () =>
+      t3({ en: "Bold text", fr: "Texte en gras", pt: "Texto em negrito" }),
     labelClass: "font-700 text-base-content",
   },
   {
     syntax: "*italic*",
-    label: () => t3({ en: "Italic text", fr: "Texte en italique", pt: "Texto em itálico" }),
+    label: () =>
+      t3({
+        en: "Italic text",
+        fr: "Texte en italique",
+        pt: "Texto em itálico",
+      }),
     labelClass: "italic text-base-content-muted",
   },
   {
@@ -29,7 +35,8 @@ const ROWS: { syntax: string; label: () => string; labelClass: string }[] = [
   },
   {
     syntax: "1. item",
-    label: () => t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" }),
+    label: () =>
+      t3({ en: "Numbered list", fr: "Liste numérotée", pt: "Lista numerada" }),
     labelClass: "list-item list-decimal list-inside text-base-content-muted",
   },
   {

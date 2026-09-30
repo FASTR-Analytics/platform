@@ -1,31 +1,31 @@
 import {
   autoSelectHmisCsvMapping,
+  type DatasetHmisCsvRunLaunchInput,
+  type DatasetHmisImportRunSummary,
   definitionDataId,
   encodeRawCsvHeader,
   hasRows,
-  t3,
-  type DatasetHmisCsvRunLaunchInput,
-  type DatasetHmisImportRunSummary,
   type HmisCsvColumns,
   type HmisCsvIndicatorScan,
   type HmisCsvMapping,
   type HmisIndicator,
+  t3,
 } from "lib";
 import {
   AlertComponentProps,
   Button,
-  ModalContainer,
-  Query,
-  Select,
-  SelectSearch,
-  StepperChipsWithTitles,
   createFormAction,
   getSelectOptions,
   getStepper,
-  toNum0,
+  ModalContainer,
+  Query,
+  Select,
   type SelectOption,
+  SelectSearch,
+  StepperChipsWithTitles,
+  toNum0,
 } from "panther";
-import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
@@ -52,9 +52,18 @@ const _HMIS_SQL_COL_NAMES: (keyof HmisCsvColumns)[] = [
 // points each distinct value at an indicator (PLAN_A6 §2).
 const COLUMN_LABELS: Record<keyof HmisCsvColumns, () => string> = {
   facility_id: () =>
-    t3({ en: "Facility id", fr: "Identifiant de l'établissement", pt: "ID do estabelecimento" }),
+    t3({
+      en: "Facility id",
+      fr: "Identifiant de l'établissement",
+      pt: "ID do estabelecimento",
+    }),
   data_id: () => t3({ en: "Indicator", fr: "Indicateur", pt: "Indicador" }),
-  period_id: () => t3({ en: "Period (yyyymm)", fr: "Période (aaaamm)", pt: "Período (aaaamm)" }),
+  period_id: () =>
+    t3({
+      en: "Period (yyyymm)",
+      fr: "Période (aaaamm)",
+      pt: "Período (aaaamm)",
+    }),
   count: () => t3({ en: "Count", fr: "Valeur", pt: "Contagem" }),
 };
 
@@ -186,12 +195,16 @@ export function CsvWizard(
     if (inputs === undefined) return [];
     return inputs.scan.values.map((v) => ({
       ...v,
-      choice: mapping[v.value] ?? ({ kind: "unresolved" } satisfies MappingChoice),
+      choice: mapping[v.value] ??
+        ({ kind: "unresolved" } satisfies MappingChoice),
     }));
   });
-  const mappedCount = () => choices().filter((c) => c.choice.kind === "indicator").length;
-  const skippedCount = () => choices().filter((c) => c.choice.kind === "skip").length;
-  const unresolvedCount = () => choices().filter((c) => c.choice.kind === "unresolved").length;
+  const mappedCount = () =>
+    choices().filter((c) => c.choice.kind === "indicator").length;
+  const skippedCount = () =>
+    choices().filter((c) => c.choice.kind === "skip").length;
+  const unresolvedCount = () =>
+    choices().filter((c) => c.choice.kind === "unresolved").length;
 
   // Two values may not map onto the same indicator in one import (ruling
   // 3): the indicators chosen more than once.
@@ -252,7 +265,11 @@ export function CsvWizard(
     t3({ en: "Upload", fr: "Téléversement", pt: "Carregamento" }),
     t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" }),
     t3({ en: "Mapping", fr: "Correspondance", pt: "Correspondência" }),
-    t3({ en: "Review & launch", fr: "Vérifier et lancer", pt: "Rever e iniciar" }),
+    t3({
+      en: "Review & launch",
+      fr: "Vérifier et lancer",
+      pt: "Rever e iniciar",
+    }),
   ];
 
   // Live run state: reading the shell's polled query at render and submit
@@ -265,16 +282,26 @@ export function CsvWizard(
   const queueNotice = () =>
     runActive()
       ? t3({
-          en: "An import is currently running — this will start after it finishes.",
-          fr: "Une importation est en cours — celle-ci démarrera une fois terminée.",
-          pt: "Há uma importação em curso — esta começará assim que terminar.",
-        })
+        en:
+          "An import is currently running — this will start after it finishes.",
+        fr:
+          "Une importation est en cours — celle-ci démarrera une fois terminée.",
+        pt: "Há uma importação em curso — esta começará assim que terminar.",
+      })
       : undefined;
 
   const ctaLabel = () =>
     runActive()
-      ? t3({ en: "Queue import", fr: "Mettre en file d'attente", pt: "Colocar em fila" })
-      : t3({ en: "Start import", fr: "Démarrer l'importation", pt: "Iniciar a importação" });
+      ? t3({
+        en: "Queue import",
+        fr: "Mettre en file d'attente",
+        pt: "Colocar em fila",
+      })
+      : t3({
+        en: "Start import",
+        fr: "Démarrer l'importation",
+        pt: "Iniciar a importação",
+      });
 
   function launchInput(): DatasetHmisCsvRunLaunchInput | undefined {
     const inputs = mappingInputs();
@@ -298,9 +325,12 @@ export function CsvWizard(
         return {
           success: false,
           err: t3({
-            en: "Every value in the indicator column must be mapped or skipped.",
-            fr: "Chaque valeur de la colonne d'indicateur doit être associée ou ignorée.",
-            pt: "Cada valor da coluna de indicador tem de ser associado ou ignorado.",
+            en:
+              "Every value in the indicator column must be mapped or skipped.",
+            fr:
+              "Chaque valeur de la colonne d'indicateur doit être associée ou ignorée.",
+            pt:
+              "Cada valor da coluna de indicador tem de ser associado ou ignorado.",
           }),
         };
       }
@@ -320,7 +350,11 @@ export function CsvWizard(
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">
-            {t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}
+            {t3({
+              en: "Upload CSV file",
+              fr: "Téléverser un fichier CSV",
+              pt: "Carregar um ficheiro CSV",
+            })}
           </div>
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
@@ -329,35 +363,43 @@ export function CsvWizard(
       actions={[
         ...(stepper.currentStep() > 0
           ? [
-              {
-                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
-                onClick: stepper.goPrev,
-                outline: true,
-              },
-            ]
+            {
+              label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+              onClick: stepper.goPrev,
+              outline: true,
+            },
+          ]
           : []),
         ...(isLastStep()
           ? [
-              {
-                label: ctaLabel(),
-                onClick: submit.click,
-                state: submit.state(),
-              },
-            ]
+            {
+              label: ctaLabel(),
+              onClick: submit.click,
+              state: submit.state(),
+            },
+          ]
           : [
-              {
-                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
-                onClick: stepper.goNext,
-                disabled: !stepper.canGoNext(),
-              },
-            ]),
+            {
+              label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+              onClick: stepper.goNext,
+              disabled: !stepper.canGoNext(),
+            },
+          ]),
       ]}
     >
       <div class="ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
           <FileUploadSelector
-            buttonLabel={t3({ en: "Upload csv file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" })}
-            selectLabel={t3({ en: "Or select an existing file", fr: "Ou sélectionnez un fichier existant", pt: "Ou selecione um ficheiro existente" })}
+            buttonLabel={t3({
+              en: "Upload csv file",
+              fr: "Téléverser un fichier CSV",
+              pt: "Carregar um ficheiro CSV",
+            })}
+            selectLabel={t3({
+              en: "Or select an existing file",
+              fr: "Ou sélectionnez un fichier existant",
+              pt: "Ou selecione um ficheiro existente",
+            })}
             filter={(a) => a.isCsv}
             value={fileName()}
             onChange={(next) => void onFileSelected(next)}
@@ -372,7 +414,9 @@ export function CsvWizard(
           <div class="ui-spy-sm">
             {_HMIS_SQL_COL_NAMES.map((hmisSqlColName) => (
               <div class="flex items-center">
-                <div class="w-[40%] flex-none">{COLUMN_LABELS[hmisSqlColName]()}</div>
+                <div class="w-[40%] flex-none">
+                  {COLUMN_LABELS[hmisSqlColName]()}
+                </div>
                 <div class="flex-1">
                   <Select
                     options={getSelectOptions(headers())}
@@ -403,24 +447,39 @@ export function CsvWizard(
         <Show when={currentStepKind() === "review"}>
           <div class="ui-spy-sm text-sm">
             <div class="flex items-baseline">
-              <div class="w-56 flex-none">{t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}</div>
+              <div class="w-56 flex-none">
+                {t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
+              </div>
               <div class="flex-1 font-mono">{fileName()}</div>
             </div>
             {_HMIS_SQL_COL_NAMES.map((hmisSqlColName) => (
               <div class="flex items-baseline">
-                <div class="w-56 flex-none">{COLUMN_LABELS[hmisSqlColName]()}</div>
+                <div class="w-56 flex-none">
+                  {COLUMN_LABELS[hmisSqlColName]()}
+                </div>
                 <div class="flex-1 font-mono">{columns[hmisSqlColName]}</div>
               </div>
             ))}
             <div class="flex items-baseline">
-              <div class="w-56 flex-none">{t3({ en: "Mapping", fr: "Correspondance", pt: "Correspondência" })}</div>
-              <div class="flex-1">{mappingCountsText(mappedCount(), skippedCount())}</div>
+              <div class="w-56 flex-none">
+                {t3({
+                  en: "Mapping",
+                  fr: "Correspondance",
+                  pt: "Correspondência",
+                })}
+              </div>
+              <div class="flex-1">
+                {mappingCountsText(mappedCount(), skippedCount())}
+              </div>
             </div>
             <div>
               {t3({
-                en: "Staging validates every row (periods, counts, facilities) and writes each row under the indicator its value is mapped to; rows under skipped values are dropped and counted. A fully clean file integrates automatically; rows dropped for any other reason hold the import for your review before anything is merged.",
-                fr: "La préparation valide chaque ligne (périodes, valeurs, établissements) et range chaque ligne sous l'indicateur auquel sa valeur est associée ; les lignes sous des valeurs ignorées sont rejetées et comptées. Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées pour toute autre raison mettent l'importation en attente de votre vérification avant toute fusion.",
-                pt: "A preparação valida todas as linhas (períodos, valores, estabelecimentos) e guarda cada linha sob o indicador a que o seu valor está associado; as linhas sob valores ignorados são descartadas e contadas. Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas por qualquer outra razão colocam a importação em espera para a sua revisão antes de qualquer fusão.",
+                en:
+                  "Staging validates every row (periods, counts, facilities) and writes each row under the indicator its value is mapped to; rows under skipped values are dropped and counted. A fully clean file integrates automatically; rows dropped for any other reason hold the import for your review before anything is merged.",
+                fr:
+                  "La préparation valide chaque ligne (périodes, valeurs, établissements) et range chaque ligne sous l'indicateur auquel sa valeur est associée ; les lignes sous des valeurs ignorées sont rejetées et comptées. Un fichier entièrement valide s'intègre automatiquement ; des lignes rejetées pour toute autre raison mettent l'importation en attente de votre vérification avant toute fusion.",
+                pt:
+                  "A preparação valida todas as linhas (períodos, valores, estabelecimentos) e guarda cada linha sob o indicador a que o seu valor está associado; as linhas sob valores ignorados são descartadas e contadas. Um ficheiro totalmente válido integra-se automaticamente; linhas rejeitadas por qualquer outra razão colocam a importação em espera para a sua revisão antes de qualquer fusão.",
               })}
             </div>
             <Show when={queueNotice()} keyed>
@@ -457,7 +516,14 @@ function MappingStep(p: {
   onRetry: () => void;
 }) {
   const options = createMemo<SelectOption<string>[]>(() => [
-    { value: SKIP, label: t3({ en: "Skip this value", fr: "Ignorer cette valeur", pt: "Ignorar este valor" }) },
+    {
+      value: SKIP,
+      label: t3({
+        en: "Skip this value",
+        fr: "Ignorer cette valeur",
+        pt: "Ignorar este valor",
+      }),
+    },
     ...(p.inputs?.indicators ?? [])
       .filter((i) => hasRows(i.definition.type))
       .map((i) => ({
@@ -474,15 +540,22 @@ function MappingStep(p: {
     return byDataId;
   });
   const selectValue = (choice: MappingChoice): string | undefined =>
-    choice.kind === "indicator" ? choice.dataId : choice.kind === "skip" ? SKIP : undefined;
+    choice.kind === "indicator"
+      ? choice.dataId
+      : choice.kind === "skip"
+      ? SKIP
+      : undefined;
 
   return (
     <div class="ui-spy-sm">
       <div class="ui-text-caption">
         {t3({
-          en: "Every distinct value in the file's indicator column, with the number of rows that say it. Point each at the indicator its rows belong to, or skip it. A value is pre-selected when it matches an indicator's id, or a DHIS2 element's DHIS2 id. An indicator that does not exist yet is created in the indicator manager first; nothing here is remembered for the next import.",
-          fr: "Chaque valeur distincte de la colonne d'indicateur du fichier, avec le nombre de lignes qui la portent. Associez chacune à l'indicateur auquel ses lignes appartiennent, ou ignorez-la. Une valeur est présélectionnée lorsqu'elle correspond à l'identifiant d'un indicateur, ou à l'identifiant DHIS2 d'un élément DHIS2. Un indicateur qui n'existe pas encore se crée d'abord dans le gestionnaire d'indicateurs ; rien ici n'est mémorisé pour l'importation suivante.",
-          pt: "Cada valor distinto da coluna de indicador do ficheiro, com o número de linhas que o dizem. Associe cada um ao indicador a que as suas linhas pertencem, ou ignore-o. Um valor fica pré-selecionado quando corresponde ao ID de um indicador, ou ao ID DHIS2 de um elemento DHIS2. Um indicador que ainda não existe cria-se primeiro no gestor de indicadores; nada aqui é lembrado para a importação seguinte.",
+          en:
+            "Every distinct value in the file's indicator column, with the number of rows that say it. Point each at the indicator its rows belong to, or skip it. A value is pre-selected when it matches an indicator's id, or a DHIS2 element's DHIS2 id. An indicator that does not exist yet is created in the indicator manager first; nothing here is remembered for the next import.",
+          fr:
+            "Chaque valeur distincte de la colonne d'indicateur du fichier, avec le nombre de lignes qui la portent. Associez chacune à l'indicateur auquel ses lignes appartiennent, ou ignorez-la. Une valeur est présélectionnée lorsqu'elle correspond à l'identifiant d'un indicateur, ou à l'identifiant DHIS2 d'un élément DHIS2. Un indicateur qui n'existe pas encore se crée d'abord dans le gestionnaire d'indicateurs ; rien ici n'est mémorisé pour l'importation suivante.",
+          pt:
+            "Cada valor distinto da coluna de indicador do ficheiro, com o número de linhas que o dizem. Associe cada um ao indicador a que as suas linhas pertencem, ou ignore-o. Um valor fica pré-selecionado quando corresponde ao ID de um indicador, ou ao ID DHIS2 de um elemento DHIS2. Um indicador que ainda não existe cria-se primeiro no gestor de indicadores; nada aqui é lembrado para a importação seguinte.",
         })}
       </div>
       <Show when={p.error}>
@@ -493,7 +566,11 @@ function MappingStep(p: {
       </Show>
       <Show when={!p.error && p.inputs === undefined}>
         <div class="text-sm">
-          {t3({ en: "Reading the file...", fr: "Lecture du fichier...", pt: "A ler o ficheiro..." })}
+          {t3({
+            en: "Reading the file...",
+            fr: "Lecture du fichier...",
+            pt: "A ler o ficheiro...",
+          })}
         </div>
       </Show>
       <Show when={p.inputs !== undefined}>
@@ -513,7 +590,8 @@ function MappingStep(p: {
               {t3({
                 en: "Every value is skipped, so nothing would be imported.",
                 fr: "Chaque valeur est ignorée ; rien ne serait importé.",
-                pt: "Todos os valores estão ignorados, pelo que nada seria importado.",
+                pt:
+                  "Todos os valores estão ignorados, pelo que nada seria importado.",
               })}
             </span>
           </Show>
@@ -521,12 +599,16 @@ function MappingStep(p: {
         <Show when={p.chosenTwice.size > 0}>
           <div class="text-danger text-sm">
             {t3({
-              en: "One import maps one value onto an indicator. Chosen more than once:",
-              fr: "Une importation associe une seule valeur à un indicateur. Choisis plus d'une fois :",
-              pt: "Uma importação associa um único valor a um indicador. Escolhidos mais de uma vez:",
-            })}{" "}
-            {[...p.chosenTwice]
-              .map((dataId) => indicatorById().get(dataId)?.indicator_common_id ?? dataId)
+              en:
+                "One import maps one value onto an indicator. Chosen more than once:",
+              fr:
+                "Une importation associe une seule valeur à un indicateur. Choisis plus d'une fois :",
+              pt:
+                "Uma importação associa um único valor a um indicador. Escolhidos mais de uma vez:",
+            })} {[...p.chosenTwice]
+              .map((dataId) =>
+                indicatorById().get(dataId)?.indicator_common_id ?? dataId
+              )
               .join(", ")}
           </div>
         </Show>
@@ -537,21 +619,33 @@ function MappingStep(p: {
                 <div class="w-[40%] flex-none">
                   <span class="font-mono">{row.value}</span>
                   <span class="text-base-content-muted ml-2 text-xs">
-                    {toNum0(row.rowCount)} {t3({ en: "rows", fr: "lignes", pt: "linhas" })}
+                    {toNum0(row.rowCount)}{" "}
+                    {t3({ en: "rows", fr: "lignes", pt: "linhas" })}
                   </span>
                 </div>
                 <div class="flex-1">
                   <SelectSearch
                     options={options()}
                     value={selectValue(row.choice)}
-                    placeholder={t3({ en: "Choose an indicator or skip", fr: "Choisir un indicateur ou ignorer", pt: "Escolher um indicador ou ignorar" })}
+                    placeholder={t3({
+                      en: "Choose an indicator or skip",
+                      fr: "Choisir un indicateur ou ignorer",
+                      pt: "Escolher um indicador ou ignorar",
+                    })}
                     onChange={(v) =>
                       p.onChoose(
                         row.value,
-                        v === SKIP ? { kind: "skip" } : { kind: "indicator", dataId: v },
+                        v === SKIP
+                          ? { kind: "skip" }
+                          : { kind: "indicator", dataId: v },
                       )}
-                    invalidMsg={row.choice.kind === "indicator" && p.chosenTwice.has(row.choice.dataId)
-                      ? t3({ en: "Chosen more than once", fr: "Choisi plus d'une fois", pt: "Escolhido mais de uma vez" })
+                    invalidMsg={row.choice.kind === "indicator" &&
+                        p.chosenTwice.has(row.choice.dataId)
+                      ? t3({
+                        en: "Chosen more than once",
+                        fr: "Choisi plus d'une fois",
+                        pt: "Escolhido mais de uma vez",
+                      })
                       : undefined}
                     fullWidth
                   />

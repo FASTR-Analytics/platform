@@ -2,14 +2,14 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  parseJsonOrThrow,
-  parseJsonOrUndefined,
   type DatasetHfaCsvStagingResult,
   type HfaCsvMappingParams,
   type HfaCsvRunConfig,
   type HfaCsvRunLaunchInput,
   type HfaImportRunProgress,
   type HfaImportRunSummary,
+  parseJsonOrThrow,
+  parseJsonOrUndefined,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportHfaDataCsvWorker } from "../../worker_routines/import_hfa_data_csv/instantiate_worker.ts";
@@ -255,7 +255,9 @@ async function spawnHfaRunWorker(
     setWorker("hfa", worker);
   } catch (spawnError) {
     await failClaim(
-      `Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`,
+      `Failed to start the import worker: ${
+        spawnError instanceof Error ? spawnError.message : String(spawnError)
+      }`,
     );
     throw spawnError;
   }
@@ -369,7 +371,10 @@ export async function resolveDatasetHfaReview(
 
     await assertHfaImportSlotFree(mainDb);
 
-    const resumeConfig: HfaCsvRunConfig = { ...config, resumeFromStaging: true };
+    const resumeConfig: HfaCsvRunConfig = {
+      ...config,
+      resumeFromStaging: true,
+    };
     const claimed = await mainDb`
       UPDATE hfa_import_runs
       SET status = 'running', started_at = now(),

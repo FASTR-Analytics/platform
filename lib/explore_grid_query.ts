@@ -1,7 +1,7 @@
 import { ADMIN_LEVELS, type AdminLevel } from "./rollup.ts";
 import { deriveConfigFromVizPreset } from "./derive_default_visualizations.ts";
 import { MODULE_FAMILY_ORDER } from "./group_metrics.ts";
-import { t3, type Language } from "./translate/mod.ts";
+import { type Language, t3 } from "./translate/mod.ts";
 import type { DatasetType } from "./types/datasets.ts";
 import type { PeriodFilter } from "./types/_metric_installed.ts";
 import type { MetricWithStatus } from "./types/modules.ts";
@@ -253,9 +253,7 @@ export function resolveGridQuery(
 
   const dictionary = new Set(familyDictionary(family, ctx));
   const indicators = base.indicators.filter((id) => dictionary.has(id));
-  const droppedIndicators = base.indicators.filter((id) =>
-    !dictionary.has(id)
-  );
+  const droppedIndicators = base.indicators.filter((id) => !dictionary.has(id));
 
   return {
     query: {
@@ -455,7 +453,10 @@ export function periodChoicesFor(
           fr: "Dernière année",
           pt: "Último ano",
         }),
-        period: { kind: "window", filter: { filterType: "last_calendar_year" } },
+        period: {
+          kind: "window",
+          filter: { filterType: "last_calendar_year" },
+        },
       },
       all,
     ];

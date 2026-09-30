@@ -11,11 +11,14 @@
 // Zero valid rows fail loudly.
 // ============================================================================
 
-import { createBulkImportConnection, createWorkerReadConnection } from "../../db/mod.ts";
+import {
+  createBulkImportConnection,
+  createWorkerReadConnection,
+} from "../../db/mod.ts";
 import type { IcehImportRunProgress, IcehStagingResult } from "lib";
 import {
-  PROGRESS_WRITE_INTERVAL_MS,
   createThrottledProgressWriter,
+  PROGRESS_WRITE_INTERVAL_MS,
   truncateWorkerError,
 } from "../worker_contract.ts";
 import type { ImportIcehDataWorkerPayload } from "./instantiate_worker.ts";

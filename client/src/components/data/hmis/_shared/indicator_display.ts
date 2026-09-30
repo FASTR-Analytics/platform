@@ -1,9 +1,9 @@
 import {
   definitionDataId,
-  t3,
   type HmisIndicator,
   type HmisIndicatorType,
   type IndicatorFormat,
+  t3,
 } from "lib";
 
 // The Type column (PLAN_A5 ruling 2): the stored type under its word. One
@@ -17,7 +17,11 @@ export function indicatorTypeWord(type: HmisIndicatorType): string {
     case "uploaded":
       return t3({ en: "Uploaded", fr: "Téléversé", pt: "Carregado" });
     case "dhis2_element":
-      return t3({ en: "DHIS2 element", fr: "Élément DHIS2", pt: "Elemento DHIS2" });
+      return t3({
+        en: "DHIS2 element",
+        fr: "Élément DHIS2",
+        pt: "Elemento DHIS2",
+      });
     case "sum":
       return t3({ en: "Sum", fr: "Somme", pt: "Soma" });
     case "calculated":

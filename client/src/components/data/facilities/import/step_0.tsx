@@ -1,10 +1,10 @@
 import { createSignal } from "solid-js";
-import { t3, type FacilityFamily } from "lib";
+import { type FacilityFamily, t3 } from "lib";
 import {
   Button,
+  createFormAction,
   RadioGroup,
   StateHolderFormError,
-  createFormAction,
 } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -29,7 +29,14 @@ export function Step0(p: Props) {
     const sourceType = selectedSourceType();
 
     if (sourceType !== "csv" && sourceType !== "dhis2") {
-      return { success: false, err: t3({ en: "You must select an import method", fr: "Vous devez sélectionner une méthode d'importation", pt: "Tem de selecionar um método de importação" }) };
+      return {
+        success: false,
+        err: t3({
+          en: "You must select an import method",
+          fr: "Vous devez sélectionner une méthode d'importation",
+          pt: "Tem de selecionar um método de importação",
+        }),
+      };
     }
     return serverActions.structureStep0_SetSourceType({
       family: p.family,
@@ -39,12 +46,32 @@ export function Step0(p: Props) {
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="ui-text-heading mb-4">{t3({ en: "Select Import Method", fr: "Sélectionner la méthode d'importation", pt: "Selecionar o método de importação" })}</div>
+      <div class="ui-text-heading mb-4">
+        {t3({
+          en: "Select Import Method",
+          fr: "Sélectionner la méthode d'importation",
+          pt: "Selecionar o método de importação",
+        })}
+      </div>
       <div class="w-96">
         <RadioGroup
           options={[
-            { value: "csv", label: t3({ en: "Upload CSV file", fr: "Téléverser un fichier CSV", pt: "Carregar um ficheiro CSV" }) },
-            { value: "dhis2", label: t3({ en: "Import directly from DHIS2", fr: "Importer directement depuis DHIS2", pt: "Importar diretamente do DHIS2" }) },
+            {
+              value: "csv",
+              label: t3({
+                en: "Upload CSV file",
+                fr: "Téléverser un fichier CSV",
+                pt: "Carregar um ficheiro CSV",
+              }),
+            },
+            {
+              value: "dhis2",
+              label: t3({
+                en: "Import directly from DHIS2",
+                fr: "Importer directement depuis DHIS2",
+                pt: "Importar diretamente do DHIS2",
+              }),
+            },
           ]}
           value={selectedSourceType()}
           onChange={(v) => updateSelectedSourceType(v as "csv" | "dhis2")}

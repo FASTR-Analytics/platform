@@ -71,7 +71,12 @@ export type FastrThemePalette = {
 // info share the accent: with four colours the theme's hue is both its note
 // and its good news, and the two callouts differ by their title and icon.
 export type FastrColorScheme = "light" | "dark";
-export type FastrThemeSemantic = { info: string; success: string; warning: string; danger: string };
+export type FastrThemeSemantic = {
+  info: string;
+  success: string;
+  warning: string;
+  danger: string;
+};
 
 // What a theme lends to charts, all derived from the four: `series` is the
 // cycle (accent, warm, then shades and tints of the two) behind the two
@@ -205,7 +210,12 @@ function googleFonts(spec: string): string {
 const FASTR_THEME_SPECS: Record<FastrReportTheme, FastrThemeSpec> = {
   default: {
     scheme: "light",
-    palette: { paper: "#fcfcfb", ink: "#24292e", accent: "#4e6f94", warm: "#936653" },
+    palette: {
+      paper: "#fcfcfb",
+      ink: "#24292e",
+      accent: "#4e6f94",
+      warm: "#936653",
+    },
     // Inter, not the system stack this theme used to name. A system font is
     // whatever the MACHINE has, and the PDF is printed by a headless Chrome
     // on the instance host whose only face is Liberation: the author's page
@@ -234,7 +244,12 @@ thead th { background: var(--fm-surface-alt); }
   },
   minimal: {
     scheme: "light",
-    palette: { paper: "#fafaf8", ink: "#2b2b2b", accent: "#6b7280", warm: "#8c6e63" },
+    palette: {
+      paper: "#fafaf8",
+      ink: "#2b2b2b",
+      accent: "#6b7280",
+      warm: "#8c6e63",
+    },
     fontImport: googleFonts("family=Inter:wght@400;500;600;700"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -264,7 +279,12 @@ thead th { border-bottom-width: 1px; font-weight: 600; }
   },
   corporate: {
     scheme: "light",
-    palette: { paper: "#f7f8fa", ink: "#1f2a37", accent: "#3d5a80", warm: "#8e5f48" },
+    palette: {
+      paper: "#f7f8fa",
+      ink: "#1f2a37",
+      accent: "#3d5a80",
+      warm: "#8e5f48",
+    },
     fontImport: googleFonts("family=Inter:wght@400;600;700;800"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -291,7 +311,12 @@ th, td { padding: 0.6em 0.8em; }
   },
   ministry: {
     scheme: "light",
-    palette: { paper: "#f7f6f1", ink: "#22302a", accent: "#3e6b58", warm: "#855847" },
+    palette: {
+      paper: "#f7f6f1",
+      ink: "#22302a",
+      accent: "#3e6b58",
+      warm: "#855847",
+    },
     fontImport: googleFonts(
       "family=Merriweather:wght@700;900&family=Source+Sans+3:wght@400;600",
     ),
@@ -319,7 +344,12 @@ thead th { background: var(--fm-surface-alt); border-bottom-width: 2px; }
   },
   executive: {
     scheme: "light",
-    palette: { paper: "#f6f7f9", ink: "#1e232b", accent: "#4b5d78", warm: "#85515c" },
+    palette: {
+      paper: "#f6f7f9",
+      ink: "#1e232b",
+      accent: "#4b5d78",
+      warm: "#85515c",
+    },
     fontImport: googleFonts(
       "family=Playfair+Display:wght@700;900&family=Inter:wght@400;600",
     ),
@@ -349,7 +379,12 @@ thead th { border-bottom: 1px solid var(--fm-accent); font-family: var(--fm-font
   },
   clinical: {
     scheme: "light",
-    palette: { paper: "#f9fbfb", ink: "#1f2d33", accent: "#3f7c86", warm: "#96614a" },
+    palette: {
+      paper: "#f9fbfb",
+      ink: "#1f2d33",
+      accent: "#3f7c86",
+      warm: "#96614a",
+    },
     fontImport: googleFonts("family=IBM+Plex+Sans:wght@400;500;600;700"),
     fontBody: `"IBM Plex Sans", ${SYSTEM_SANS}`,
     fontHeading: `"IBM Plex Sans", ${SYSTEM_SANS}`,
@@ -375,7 +410,12 @@ tbody tr:nth-child(even) { background: var(--fm-surface-alt); }
   },
   editorial: {
     scheme: "light",
-    palette: { paper: "#fbf9f5", ink: "#262421", accent: "#b0774d", warm: "#7f4347" },
+    palette: {
+      paper: "#fbf9f5",
+      ink: "#262421",
+      accent: "#b0774d",
+      warm: "#7f4347",
+    },
     fontImport: googleFonts(
       "family=IBM+Plex+Serif:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600",
     ),
@@ -407,7 +447,12 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.85em;
   },
   swiss: {
     scheme: "light",
-    palette: { paper: "#f9f9f9", ink: "#141414", accent: "#b5493e", warm: "#652e25" },
+    palette: {
+      paper: "#f9f9f9",
+      ink: "#141414",
+      accent: "#b5493e",
+      warm: "#652e25",
+    },
     fontImport: googleFonts("family=Inter:wght@400;500;700;900"),
     fontBody: `Inter, ${SYSTEM_SANS}`,
     fontHeading: `Inter, ${SYSTEM_SANS}`,
@@ -439,7 +484,12 @@ thead th { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8em; 
   },
   bauhaus: {
     scheme: "light",
-    palette: { paper: "#f3efe6", ink: "#1c1c1c", accent: "#b6433a", warm: "#6b2b24" },
+    palette: {
+      paper: "#f3efe6",
+      ink: "#1c1c1c",
+      accent: "#b6433a",
+      warm: "#6b2b24",
+    },
     fontImport: googleFonts(
       "family=Archivo:wght@700;900&family=Space+Grotesk:wght@400;500;700",
     ),
@@ -471,7 +521,12 @@ th, td { border: 2px solid var(--fm-ink); }
   },
   broadsheet: {
     scheme: "light",
-    palette: { paper: "#f7f4ee", ink: "#1c1c1c", accent: "#6e3b36", warm: "#9b684b" },
+    palette: {
+      paper: "#f7f4ee",
+      ink: "#1c1c1c",
+      accent: "#6e3b36",
+      warm: "#9b684b",
+    },
     fontImport: googleFonts(
       "family=Playfair+Display:wght@700;900&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600",
     ),
@@ -532,7 +587,12 @@ thead th { border-bottom: 3px double var(--fm-ink); font-variant: small-caps; }
     // markdown report was ever warm (there were no callouts, stats or deltas
     // to colour), so it is free, and a muted brick is the better neighbour
     // for the blocks a converted report may gain later.
-    palette: { paper: "#ffffff", ink: "#2a2a2a", accent: "#0066cc", warm: "#9c5a4d" },
+    palette: {
+      paper: "#ffffff",
+      ink: "#2a2a2a",
+      accent: "#0066cc",
+      warm: "#9c5a4d",
+    },
     // The app set markdown in International Inter; Inter is its public twin
     // and the one the default theme already inlines into the printed file.
     // 800 is here for the h1 weight, which no other theme asks Inter for.
@@ -631,7 +691,8 @@ export function deriveFastrThemeColors(
   const paperLum = hexLuminance(p.paper) ?? (light ? 1 : 0);
   const inkLum = hexLuminance(p.ink) ?? (light ? 0 : 1);
   // Text on a colour: the paper or the ink, whichever stands further from it.
-  const on = (c: string) => Math.abs(lum(c) - paperLum) >= Math.abs(lum(c) - inkLum) ? p.paper : p.ink;
+  const on = (c: string) =>
+    Math.abs(lum(c) - paperLum) >= Math.abs(lum(c) - inkLum) ? p.paper : p.ink;
   // The caution tier is the theme's GOLD, no longer the mix of the other two.
   // A mix only made an amber while the pair WAS a red and a green; now that
   // they are the theme's poles it lands wherever the arithmetic falls, a grey
@@ -640,7 +701,12 @@ export function deriveFastrThemeColors(
   // chroma and lightness (the theme's gold, not a stock one) and is lifted
   // clear of that pole when the theme's warm is itself golden.
   const warn = cautionGold(p.warm, p.accent);
-  const semantic: FastrThemeSemantic = { info: p.accent, success: p.accent, warning: warn, danger: p.warm };
+  const semantic: FastrThemeSemantic = {
+    info: p.accent,
+    success: p.accent,
+    warning: warn,
+    danger: p.warm,
+  };
   const faded: FastrThemeSemantic = {
     info: mix(semantic.info, p.paper, 0.45),
     success: mix(semantic.success, p.paper, 0.45),
@@ -691,12 +757,16 @@ export function deriveFastrThemeColors(
   };
 }
 
-export const FASTR_THEME_TOKENS: Record<FastrReportTheme, FastrThemeTokens> = Object.fromEntries(
-  (Object.keys(FASTR_THEME_SPECS) as FastrReportTheme[]).map((name) => {
-    const spec = FASTR_THEME_SPECS[name];
-    return [name, { ...spec, ...deriveFastrThemeColors(spec.palette, spec.scheme) }];
-  }),
-) as Record<FastrReportTheme, FastrThemeTokens>;
+export const FASTR_THEME_TOKENS: Record<FastrReportTheme, FastrThemeTokens> =
+  Object.fromEntries(
+    (Object.keys(FASTR_THEME_SPECS) as FastrReportTheme[]).map((name) => {
+      const spec = FASTR_THEME_SPECS[name];
+      return [name, {
+        ...spec,
+        ...deriveFastrThemeColors(spec.palette, spec.scheme),
+      }];
+    }),
+  ) as Record<FastrReportTheme, FastrThemeTokens>;
 
 export type FastrThemeColorOverride = {
   page: string;
@@ -782,7 +852,11 @@ function hexToHsl(v: string): [number, number, number] | undefined {
   if (max === min) return [0, 0, l];
   const d = max - min;
   const s = d / (1 - Math.abs(2 * l - 1));
-  let h = max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  let h = max === r
+    ? 60 * (((g - b) / d) % 6)
+    : max === g
+    ? 60 * ((b - r) / d + 2)
+    : 60 * ((r - g) / d + 4);
   if (h < 0) h += 360;
   return [h, s, l];
 }
@@ -790,7 +864,8 @@ function hexToHsl(v: string): [number, number, number] | undefined {
 function hslToHex(h: number, s: number, l: number): string {
   const a = s * Math.min(l, 1 - l);
   const k = (n: number) => (n + h / 30) % 12;
-  const ch = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const ch = (n: number) =>
+    l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
   return "#" + [ch(0), ch(8), ch(4)]
     .map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("");
 }
@@ -802,7 +877,8 @@ function mixHex(a: string, b: string, t: number): string | undefined {
   const pb = parseHex6(b);
   if (!pa || !pb) return undefined;
   const ch = (i: number) => Math.round(pa[i] + (pb[i] - pa[i]) * t);
-  return "#" + [ch(0), ch(1), ch(2)].map((v) => v.toString(16).padStart(2, "0")).join("");
+  return "#" +
+    [ch(0), ch(1), ch(2)].map((v) => v.toString(16).padStart(2, "0")).join("");
 }
 
 function parseHex6(v: string): [number, number, number] | undefined {

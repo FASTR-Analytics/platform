@@ -26,7 +26,9 @@ export function convertPeriodValue(
     if (target === "year") return year;
     if (target === "quarter_id") return value;
     if (target === "period_id") {
-      return isEnd ? year * 100 + quarter * 3 : year * 100 + (quarter - 1) * 3 + 1;
+      return isEnd
+        ? year * 100 + quarter * 3
+        : year * 100 + (quarter - 1) * 3 + 1;
     }
     throw new Error(`Cannot convert ${value} to ${target} format`);
   }
@@ -40,7 +42,9 @@ export function convertPeriodValue(
     if (month >= 1 && month <= 12) {
       return year * 10 + Math.ceil(month / 3);
     }
-    throw new Error(`Cannot convert ${value} to quarter_id format — month value ${month} is out of range 1-12`);
+    throw new Error(
+      `Cannot convert ${value} to quarter_id format — month value ${month} is out of range 1-12`,
+    );
   }
 
   throw new Error(`Cannot convert ${value} to ${target} format`);

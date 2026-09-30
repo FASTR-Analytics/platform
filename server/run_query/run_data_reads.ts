@@ -1,18 +1,18 @@
 import {
-  encodeGridItems,
-  getPeriodFilterExactBounds,
-  isValidDisaggregationOption,
-  validateFetchConfig,
   type APIResponseNoData,
   type APIResponseWithData,
   type DisaggregationOption,
+  encodeGridItems,
   type GenericLongFormFetchConfig,
+  getPeriodFilterExactBounds,
   type GridItemsHolder,
+  isValidDisaggregationOption,
   type ItemsHolderPresentationObject,
   type PeriodBounds,
   type PeriodOption,
   type ResultsValueInfoForPresentationObject,
   type RunReplicantOptions,
+  validateFetchConfig,
 } from "lib";
 import {
   _GRID_ITEMS_CACHE,
@@ -162,7 +162,11 @@ type RowsRequestBody = {
 // a miss.
 async function readRowsCached<T>(
   label: string,
-  cache: TimCacheC<RowsCacheParams, PoDataVersionParams, APIResponseWithData<T>>,
+  cache: TimCacheC<
+    RowsCacheParams,
+    PoDataVersionParams,
+    APIResponseWithData<T>
+  >,
   runCtx: RunReadContext,
   body: RowsRequestBody,
   compute: (firstPeriodOption: PeriodOption | undefined) => Promise<

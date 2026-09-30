@@ -1,12 +1,12 @@
 import { t3 } from "lib";
 import {
   Button,
+  createQuery,
   EditorComponentProps,
+  formatFileSize,
   FrameTop,
   HeadingBar,
   StateHolderWrapper,
-  createQuery,
-  formatFileSize,
 } from "panther";
 import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -34,7 +34,11 @@ export function ViewFiles(
         run_id: p.runId,
         module_id: p.moduleId,
       }),
-    t3({ en: "Loading file listing...", fr: "Chargement de la liste des fichiers...", pt: "A carregar a lista de ficheiros..." }),
+    t3({
+      en: "Loading file listing...",
+      fr: "Chargement de la liste des fichiers...",
+      pt: "A carregar a lista de ficheiros...",
+    }),
   );
 
   return (
@@ -44,7 +48,9 @@ export function ViewFiles(
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
-          heading={`${t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })} ${p.moduleLabel}`}
+          heading={`${
+            t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })
+          } ${p.moduleLabel}`}
         />
       }
     >
@@ -56,8 +62,10 @@ export function ViewFiles(
               <div class="text-base-content-muted">
                 {t3({
                   en: "No files in this results package for this module.",
-                  fr: "Aucun fichier dans ce paquet de résultats pour ce module.",
-                  pt: "Nenhum ficheiro neste pacote de resultados para este módulo.",
+                  fr:
+                    "Aucun fichier dans ce paquet de résultats pour ce module.",
+                  pt:
+                    "Nenhum ficheiro neste pacote de resultados para este módulo.",
                 })}
               </div>
             }

@@ -1,10 +1,10 @@
 import {
-  thresholdBucketIndex,
   type DatasetType,
   type EffectiveIndicatorFacts,
   type GridColumns,
+  thresholdBucketIndex,
 } from "lib";
-import { getColor, type DataGridCellFunction } from "panther";
+import { type DataGridCellFunction, getColor } from "panther";
 import { formatIndicatorValue } from "~/generate_visualization/get_style_from_po/_0_common";
 
 // Each cell formatted by its own indicator's format, the raw number kept as

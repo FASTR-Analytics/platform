@@ -54,7 +54,9 @@ SELECT id, summary FROM runs WHERE status = 'ready' ORDER BY created_at DESC
   const manifestCache = new Map<string, Map<string, RunModule> | null>();
   const verdicts = new Map<string, ReuseSource | null>();
 
-  async function modulesOf(runId: string): Promise<Map<string, RunModule> | null> {
+  async function modulesOf(
+    runId: string,
+  ): Promise<Map<string, RunModule> | null> {
     const cached = manifestCache.get(runId);
     if (cached !== undefined) {
       return cached;
@@ -123,7 +125,9 @@ function matchedOutputHashes(
   inputKey: string,
 ): Record<string, string> | null {
   const hashes = entry.outputFileHashes;
-  if (entry.inputKey === null || entry.inputKey !== inputKey || hashes === null) {
+  if (
+    entry.inputKey === null || entry.inputKey !== inputKey || hashes === null
+  ) {
     return null;
   }
   const complete = mod.detail.resultsObjects.every(
@@ -185,7 +189,10 @@ export async function computeModuleInputs(
           `No population file in this run for module ${moduleId} (it needs the hmis dataset)`,
         );
       }
-      inputs.push({ name: POPULATION_FILE_NAME, sha256: inputHashes.population });
+      inputs.push({
+        name: POPULATION_FILE_NAME,
+        sha256: inputHashes.population,
+      });
     }
   }
   for (const upstreamId of [...upstreamIdsFor(mod)].sort()) {

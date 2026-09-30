@@ -2,8 +2,8 @@ import { z } from "zod";
 import type {
   HfaDictionaryForValidation,
   HfaIndicator,
-  HfaIndicatorCode,
   HfaIndicatorCategory,
+  HfaIndicatorCode,
   HfaIndicatorServiceCategory,
   HfaIndicatorSubCategory,
   HfaIndicatorVariantCode,
@@ -104,7 +104,9 @@ const hfaIndicatorEditSchema = z.object({
 const hfaIndicatorSchema = hfaIndicatorEditSchema.extend({
   indicatorId: hfaIndicatorIdSchema,
 });
-const hfaIndicatorCreateSchema = hfaIndicatorEditSchema.omit({ indicatorId: true });
+const hfaIndicatorCreateSchema = hfaIndicatorEditSchema.omit({
+  indicatorId: true,
+});
 
 const hfaIndicatorCodeSchema = z.object({
   indicatorId: z.string(),
@@ -115,10 +117,18 @@ const hfaIndicatorCodeSchema = z.object({
 
 const hfaWorkbookImportSchema = z.object({
   categories: z.array(z.object({ id: z.string(), label: z.string() })),
-  subCategories: z.array(z.object({ id: z.string(), categoryId: z.string(), label: z.string() })),
+  subCategories: z.array(
+    z.object({ id: z.string(), categoryId: z.string(), label: z.string() }),
+  ),
   serviceCategories: z.array(z.object({ id: z.string(), label: z.string() })),
   variantGroups: z.array(z.object({ id: z.string(), label: z.string() })),
-  variantItems: z.array(z.object({ id: hfaVariantItemIdSchema, groupId: z.string(), label: z.string() })),
+  variantItems: z.array(
+    z.object({
+      id: hfaVariantItemIdSchema,
+      groupId: z.string(),
+      label: z.string(),
+    }),
+  ),
   indicators: z.array(z.object({
     indicatorId: hfaIndicatorIdSchema,
     categoryId: z.string().nullable(),
@@ -179,7 +189,10 @@ export const hfaIndicatorRouteRegistry = {
   updateHfaIndicatorSubCategory: route({
     path: "/hfa-indicator-sub-categories/update",
     method: "POST",
-    body: z.object({ oldId: z.string(), subCategory: hfaIndicatorSubCategorySchema }),
+    body: z.object({
+      oldId: z.string(),
+      subCategory: hfaIndicatorSubCategorySchema,
+    }),
   }),
   deleteHfaIndicatorSubCategory: route({
     path: "/hfa-indicator-sub-categories/delete",
@@ -205,7 +218,10 @@ export const hfaIndicatorRouteRegistry = {
   updateHfaIndicatorServiceCategory: route({
     path: "/hfa-indicator-service-categories/update",
     method: "POST",
-    body: z.object({ oldId: z.string(), serviceCategory: hfaIndicatorServiceCategorySchema }),
+    body: z.object({
+      oldId: z.string(),
+      serviceCategory: hfaIndicatorServiceCategorySchema,
+    }),
   }),
   deleteHfaIndicatorServiceCategory: route({
     path: "/hfa-indicator-service-categories/delete",
@@ -231,7 +247,10 @@ export const hfaIndicatorRouteRegistry = {
   updateHfaIndicatorVariantGroup: route({
     path: "/hfa-indicator-variant-groups/update",
     method: "POST",
-    body: z.object({ oldId: z.string(), group: hfaIndicatorVariantGroupSchema }),
+    body: z.object({
+      oldId: z.string(),
+      group: hfaIndicatorVariantGroupSchema,
+    }),
   }),
   deleteHfaIndicatorVariantGroup: route({
     path: "/hfa-indicator-variant-groups/delete",

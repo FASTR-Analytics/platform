@@ -1,6 +1,5 @@
 import postgres, { type Sql } from "postgres";
 import {
-  runProgressSchema,
   type APIResponseNoData,
   type APIResponseWithData,
   type ReadyPackage,
@@ -8,6 +7,7 @@ import {
   type RunCatalogStatus,
   type RunListingItem,
   type RunProgress,
+  runProgressSchema,
   type RunProvenance,
   type RunSummary,
 } from "lib";
@@ -172,7 +172,9 @@ export async function listReadyPackages(
   mainDb: Sql,
 ): Promise<APIResponseWithData<ReadyPackage[]>> {
   try {
-    const rows = await mainDb<{ id: string; label: string; created_at: Date }[]>`
+    const rows = await mainDb<
+      { id: string; label: string; created_at: Date }[]
+    >`
 SELECT id, label, created_at FROM runs
 WHERE status = 'ready'
 ORDER BY created_at DESC
@@ -255,7 +257,10 @@ FROM runs r
 WHERE r.id = ${runId}
 `
     ).at(0);
-    return { success: true, data: row === undefined ? null : toRunListingItem(row) };
+    return {
+      success: true,
+      data: row === undefined ? null : toRunListingItem(row),
+    };
   } catch (e) {
     return {
       success: false,
@@ -348,12 +353,10 @@ export async function clearPinnedRun(
 UPDATE runs SET pinned = FALSE WHERE pinned AND id = ${runId} RETURNING id
 `;
     });
-    return cleared.length > 0
-      ? { success: true }
-      : {
-        success: false,
-        err: "This results package is no longer the pinned one",
-      };
+    return cleared.length > 0 ? { success: true } : {
+      success: false,
+      err: "This results package is no longer the pinned one",
+    };
   } catch (e) {
     return {
       success: false,
@@ -465,15 +468,13 @@ SELECT progress FROM runs WHERE id = ${runId}
   const parsed = raw.progress === null
     ? undefined
     : runProgressSchema.safeParse(JSON.parse(raw.progress));
-  const progress: RunProgress = parsed?.success
-    ? parsed.data
-    : {
-      moduleOrder: [],
-      moduleStatus: {},
-      currentModuleId: null,
-      stage: { kind: "ended" },
-      errorDetail: null,
-    };
+  const progress: RunProgress = parsed?.success ? parsed.data : {
+    moduleOrder: [],
+    moduleStatus: {},
+    currentModuleId: null,
+    stage: { kind: "ended" },
+    errorDetail: null,
+  };
   if (progress.currentModuleId !== null) {
     progress.moduleStatus[progress.currentModuleId] = "error";
   }
@@ -496,7 +497,9 @@ RETURNING id
 // with the previous process: no .tmp dir survives the boot sweep, so the
 // row is dead. Mark it failed so the catalog never shows a phantom
 // generation.
-export async function markInterruptedGeneratingRuns(mainDb: Sql): Promise<void> {
+export async function markInterruptedGeneratingRuns(
+  mainDb: Sql,
+): Promise<void> {
   const rows = await mainDb<{ id: string }[]>`
 SELECT id FROM runs WHERE status = 'generating'
 `;

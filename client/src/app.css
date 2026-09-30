@@ -37,7 +37,8 @@
     @apply bg-package text-package-content border-package;
   }
   .ui-hoverable-package {
-    @apply cursor-pointer select-none bg-package hover:bg-package-hover active:bg-package-active;
+    @apply cursor-pointer select-none bg-package hover:bg-package-hover
+      active:bg-package-active;
     transition: background-color var(--ui-dur-fast) var(--ui-ease);
   }
 }
@@ -246,7 +247,8 @@
 
   @font-face {
     font-family: "International Inter";
-    src: url("/fonts/InternationalInter-ExtraLightItalic.woff2") format("woff2");
+    src: url("/fonts/InternationalInter-ExtraLightItalic.woff2")
+      format("woff2");
     font-weight: 200;
     font-style: italic;
     font-display: block;

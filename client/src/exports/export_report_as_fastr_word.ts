@@ -3,9 +3,9 @@ import {
   buildFastrWordDocument,
   createFastrMarkdownIt,
   dataUrlToWordImage,
-  fastrWordRasterBlockIds,
   type FastrWordFigure,
   type FastrWordRasterBlock,
+  fastrWordRasterBlockIds,
   getFastrReportTheme,
   getReportCustomStyle,
   readFastrDocumentSettings,
@@ -26,7 +26,9 @@ import { loadThemeFontsForWord } from "./word_theme_fonts";
 // document the PDF prints; the server only pictures and measures the blocks.
 
 // An inlined image's pixel size, which the document builder needs to scale it.
-async function imageSize(dataUrl: string): Promise<{ width: number; height: number }> {
+async function imageSize(
+  dataUrl: string,
+): Promise<{ width: number; height: number }> {
   const img = new Image();
   img.src = dataUrl;
   await img.decode();
@@ -41,7 +43,10 @@ async function buildWordBlob(
   const tokens = md.parse(detail.body, {});
   const blocks = fastrWordRasterBlockIds(tokens);
   const settings = readFastrDocumentSettings(detail.body);
-  const collect = { figures: new Map<string, FigureRasterState>(), images: new Map<string, string>() };
+  const collect = {
+    figures: new Map<string, FigureRasterState>(),
+    images: new Map<string, string>(),
+  };
   progress(0.05);
   const html = await buildStandaloneReportHtml(
     detail,
@@ -84,7 +89,9 @@ async function buildWordBlob(
     rasters,
     figure: (id) => {
       const r = collect.figures.get(id);
-      return r?.state === "ready" ? dataUrlToWordImage(r.url, r.width, r.height) : undefined;
+      return r?.state === "ready"
+        ? dataUrlToWordImage(r.url, r.width, r.height)
+        : undefined;
     },
     image: (id) => images.get(id),
     fonts,
@@ -102,7 +109,10 @@ export async function exportFastrReportAsWord(
     progress(0.03);
     const res = await serverActions.getReportDetail({ product_id: productId });
     if (!res.success) return res;
-    const blob = await buildWordBlob(res.data, (v) => progress(0.03 + v * 0.97));
+    const blob = await buildWordBlob(
+      res.data,
+      (v) => progress(0.03 + v * 0.97),
+    );
     progress(1);
     saveAs(blob, `${res.data.label}.docx`);
     return { success: true };

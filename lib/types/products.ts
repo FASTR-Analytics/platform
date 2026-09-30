@@ -41,13 +41,13 @@ export type ProductBase = {
 // (configs, bodies, registries) stays behind the detail fetches.
 export type ProductSummary =
   | (ProductBase & {
-      type: "slide_deck";
-      firstSlideId: string | null;
-    })
+    type: "slide_deck";
+    firstSlideId: string | null;
+  })
   | (ProductBase & {
-      type: "report";
-      hasEmbeds: boolean;
-    });
+    type: "report";
+    hasEmbeds: boolean;
+  });
 
 export function productScope(product: ProductBase): PackageScope {
   return { runId: product.runId, adminArea2: product.adminArea2 };

@@ -1,12 +1,12 @@
-import { t3, type IcehDataDetail } from "lib";
+import { type IcehDataDetail, t3 } from "lib";
 import {
   Button,
   FrameRight,
   FrameTop,
-  HeadingBar,
   getEditorWrapper,
+  HeadingBar,
 } from "panther";
-import { Show, createEffect, createSignal } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { DatasetItemsHolder } from "./dataset_items_holder";

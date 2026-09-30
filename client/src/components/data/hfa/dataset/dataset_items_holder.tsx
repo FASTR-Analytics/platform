@@ -1,15 +1,15 @@
 import {
-  t3,
   type HfaVariableRow,
   type ItemsHolderDatasetHfaDisplay,
+  t3,
 } from "lib";
 import {
   Input,
   StateHolder,
   StateHolderWrapper,
   Table,
-  toNum0,
   type TableColumn,
+  toNum0,
 } from "panther";
 import { createEffect, createMemo, createSignal } from "solid-js";
 import { getDatasetHfaDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
@@ -21,7 +21,11 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
     StateHolder<ItemsHolderDatasetHfaDisplay>
   >({
     status: "loading",
-    msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
+    msg: t3({
+      en: "Fetching data...",
+      fr: "Récupération des données...",
+      pt: "A obter dados...",
+    }),
   });
 
   let fetchRunId = 0;
@@ -29,7 +33,11 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
     const runId = ++fetchRunId;
     setItemsHolder({
       status: "loading",
-      msg: t3({ en: "Fetching data...", fr: "Récupération des données...", pt: "A obter dados..." }),
+      msg: t3({
+        en: "Fetching data...",
+        fr: "Récupération des données...",
+        pt: "A obter dados...",
+      }),
     });
     const res = await getDatasetHfaDisplayInfoFromCacheOrFetch(cacheHash);
     if (runId !== fetchRunId) return;
@@ -82,7 +90,11 @@ function DatasetDisplayPresentation(p: {
   const columns: TableColumn<DisplayRow>[] = [
     {
       key: "variableId",
-      header: t3({ en: "Variable ID", fr: "ID de variable", pt: "ID da variável" }),
+      header: t3({
+        en: "Variable ID",
+        fr: "ID de variable",
+        pt: "ID da variável",
+      }),
       sortable: true,
     },
     {
@@ -92,7 +104,11 @@ function DatasetDisplayPresentation(p: {
     },
     {
       key: "timePoint",
-      header: t3({ en: "Time Point", fr: "Point temporel", pt: "Ponto temporal" }),
+      header: t3({
+        en: "Time Point",
+        fr: "Point temporel",
+        pt: "Ponto temporal",
+      }),
       sortable: true,
     },
     {
@@ -120,13 +136,21 @@ function DatasetDisplayPresentation(p: {
     },
     {
       key: "questionnaireValues",
-      header: t3({ en: "Questionnaire Values", fr: "Valeurs du questionnaire", pt: "Valores do questionário" }),
+      header: t3({
+        en: "Questionnaire Values",
+        fr: "Valeurs du questionnaire",
+        pt: "Valores do questionário",
+      }),
       sortable: false,
       render: (item) => <span>{item.questionnaireValues}</span>,
     },
     {
       key: "dataValues",
-      header: t3({ en: "Data Values", fr: "Valeurs des données", pt: "Valores dos dados" }),
+      header: t3({
+        en: "Data Values",
+        fr: "Valeurs des données",
+        pt: "Valores dos dados",
+      }),
       sortable: false,
       render: (item) => <span>{item.dataValues}</span>,
     },
@@ -137,7 +161,11 @@ function DatasetDisplayPresentation(p: {
       <div class="flex-none border-b p-2">
         <div class="w-96">
           <Input
-            placeholder={t3({ en: "Search variables...", fr: "Rechercher des variables...", pt: "Pesquisar variáveis..." })}
+            placeholder={t3({
+              en: "Search variables...",
+              fr: "Rechercher des variables...",
+              pt: "Pesquisar variáveis...",
+            })}
             value={searchText()}
             onChange={setSearchText}
             label={t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
@@ -152,7 +180,11 @@ function DatasetDisplayPresentation(p: {
           data={rows()}
           columns={columns}
           keyField="_key"
-          noRowsMessage={t3({ en: "No variables found", fr: "Aucune variable trouvée", pt: "Nenhuma variável encontrada" })}
+          noRowsMessage={t3({
+            en: "No variables found",
+            fr: "Aucune variable trouvée",
+            pt: "Nenhuma variável encontrada",
+          })}
           paddingY="compact"
         />
       </div>

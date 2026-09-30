@@ -31,7 +31,10 @@ import {
 } from "./figure_config_crdt.ts";
 
 /** The slice of a report that lives in (and is persisted from) the shared doc. */
-export type ReportDocContent = Pick<ReportDetail, "body" | "figures" | "images">;
+export type ReportDocContent = Pick<
+  ReportDetail,
+  "body" | "figures" | "images"
+>;
 
 const BODY_KEY = "body";
 const FIGURES_KEY = "figures";
@@ -62,7 +65,8 @@ function readFigureEntry(entry: unknown): FigureBlock {
   if (entry instanceof Y.Map) {
     const cfgMap = entry.get(FIG_CONFIG_KEY);
     if (cfgMap instanceof Y.Map) {
-      const figData = (entry.get(FIG_DATA_KEY) as Record<string, unknown>) ?? {};
+      const figData = (entry.get(FIG_DATA_KEY) as Record<string, unknown>) ??
+        {};
       return {
         type: "figure",
         bundle: {

@@ -1,26 +1,26 @@
 import { useSearchParams } from "@solidjs/router";
-import { t3, type Folder, type ProductSummary } from "lib";
+import { type Folder, type ProductSummary, t3 } from "lib";
 import {
   Button,
-  FrameTop,
-  HeadingBar,
   createButtonAction,
   createDeleteAction,
+  FrameTop,
   getFirstString,
+  HeadingBar,
+  type MenuItem,
   openAlert,
   openComponent,
   showMenu,
-  type MenuItem,
 } from "panther";
 import {
-  Match,
-  Show,
-  Switch,
   batch,
   createEffect,
   createMemo,
   createSignal,
   type JSX,
+  Match,
+  Show,
+  Switch,
 } from "solid-js";
 import { nextSort, sortBySortMode } from "./sort_by_sort_mode";
 import { serverActions } from "~/server_actions";
@@ -44,8 +44,8 @@ import { PackageScopeModal } from "./_shared/mod.ts";
 import { EditFolderModal } from "./edit_folder_modal";
 import { buildFolderMenu } from "./folder_menu";
 import {
-  GENERAL_ID,
   buildProductTree,
+  GENERAL_ID,
   generalLabel,
   productTreeRows,
   topLevelLabel,
@@ -207,7 +207,7 @@ export function Products() {
   const openableFolderIds = createMemo(() => {
     const tree = productTree();
     const rootFolders = tree.root.flatMap((item) =>
-      item.kind === "folder" ? [item.folder] : [],
+      item.kind === "folder" ? [item.folder] : []
     );
     const folderIds = [...rootFolders, ...[...tree.folders.values()].flat()]
       .filter((f) => tree.folders.has(f.id) || tree.products.has(f.id))
@@ -321,9 +321,12 @@ export function Products() {
     // Hard delete, no trash (D16).
     const deleteAction = createDeleteAction(
       t3({
-        en: "Are you sure you want to delete this product? This cannot be undone.",
-        fr: "Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.",
-        pt: "Tem a certeza de que pretende eliminar este produto? Esta ação é irreversível.",
+        en:
+          "Are you sure you want to delete this product? This cannot be undone.",
+        fr:
+          "Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.",
+        pt:
+          "Tem a certeza de que pretende eliminar este produto? Esta ação é irreversível.",
       }),
       () => serverActions.deleteProducts({ productIds: [product.id] }),
       () => {},
@@ -365,18 +368,23 @@ export function Products() {
     // confirmation carries the direct counts and where the contents land. At
     // the root the two land in different places: folders at the top level,
     // products under General.
-    const confirmText =
-      parent === undefined
-        ? t3({
-            en: `Delete "${folder.label}"? Its ${counts.folderCount} folder(s) move to ${topLevelLabel()} and its ${counts.productCount} product(s) move to ${generalLabel()}.`,
-            fr: `Supprimer « ${folder.label} » ? Ses ${counts.folderCount} dossier(s) seront déplacés vers ${topLevelLabel()} et ses ${counts.productCount} produit(s) vers ${generalLabel()}.`,
-            pt: `Eliminar "${folder.label}"? As suas ${counts.folderCount} pasta(s) serão movidas para ${topLevelLabel()} e os seus ${counts.productCount} produto(s) para ${generalLabel()}.`,
-          })
-        : t3({
-            en: `Delete "${folder.label}"? Its ${counts.folderCount} folder(s) and ${counts.productCount} product(s) move to ${parent.label}.`,
-            fr: `Supprimer « ${folder.label} » ? Ses ${counts.folderCount} dossier(s) et ${counts.productCount} produit(s) seront déplacés vers ${parent.label}.`,
-            pt: `Eliminar "${folder.label}"? As suas ${counts.folderCount} pasta(s) e ${counts.productCount} produto(s) serão movidos para ${parent.label}.`,
-          });
+    const confirmText = parent === undefined
+      ? t3({
+        en:
+          `Delete "${folder.label}"? Its ${counts.folderCount} folder(s) move to ${topLevelLabel()} and its ${counts.productCount} product(s) move to ${generalLabel()}.`,
+        fr:
+          `Supprimer « ${folder.label} » ? Ses ${counts.folderCount} dossier(s) seront déplacés vers ${topLevelLabel()} et ses ${counts.productCount} produit(s) vers ${generalLabel()}.`,
+        pt:
+          `Eliminar "${folder.label}"? As suas ${counts.folderCount} pasta(s) serão movidas para ${topLevelLabel()} e os seus ${counts.productCount} produto(s) para ${generalLabel()}.`,
+      })
+      : t3({
+        en:
+          `Delete "${folder.label}"? Its ${counts.folderCount} folder(s) and ${counts.productCount} product(s) move to ${parent.label}.`,
+        fr:
+          `Supprimer « ${folder.label} » ? Ses ${counts.folderCount} dossier(s) et ${counts.productCount} produit(s) seront déplacés vers ${parent.label}.`,
+        pt:
+          `Eliminar "${folder.label}"? As suas ${counts.folderCount} pasta(s) e ${counts.productCount} produto(s) serão movidos para ${parent.label}.`,
+      });
     const deleteAction = createDeleteAction(
       confirmText,
       () => serverActions.deleteFolder({ folder_id: folder.id }),
@@ -470,9 +478,12 @@ export function Products() {
         <Match when={true}>
           <div class="text-base-content-muted text-sm">
             {t3({
-              en: "No products yet. A product is a slide deck or a report; create one and the editor opens straight away.",
-              fr: "Aucun produit pour le moment. Un produit est une présentation ou un rapport ; créez-en un et l'éditeur s'ouvre immédiatement.",
-              pt: "Ainda não há produtos. Um produto é uma apresentação ou um relatório; crie um e o editor abre de imediato.",
+              en:
+                "No products yet. A product is a slide deck or a report; create one and the editor opens straight away.",
+              fr:
+                "Aucun produit pour le moment. Un produit est une présentation ou un rapport ; créez-en un et l'éditeur s'ouvre immédiatement.",
+              pt:
+                "Ainda não há produtos. Um produto é uma apresentação ou um relatório; crie um e o editor abre de imediato.",
             })}
           </div>
         </Match>
@@ -494,29 +505,24 @@ export function Products() {
                 iconName={anyFolderOpen() ? "fold" : "unfold"}
                 disabled={openableFolderIds().length === 0}
                 // intent="neutral"
-                ariaLabel={
-                  anyFolderOpen()
-                    ? t3({
-                        en: "Collapse all",
-                        fr: "Tout replier",
-                        pt: "Recolher tudo",
-                      })
-                    : t3({
-                        en: "Expand all",
-                        fr: "Tout déplier",
-                        pt: "Expandir tudo",
-                      })
-                }
+                ariaLabel={anyFolderOpen()
+                  ? t3({
+                    en: "Collapse all",
+                    fr: "Tout replier",
+                    pt: "Recolher tudo",
+                  })
+                  : t3({
+                    en: "Expand all",
+                    fr: "Tout déplier",
+                    pt: "Expandir tudo",
+                  })}
                 onClick={() =>
                   setOpenFolderIds(
-                    anyFolderOpen()
-                      ? new Set()
-                      : new Set([
-                          ...instanceState.folders.map((f) => f.id),
-                          GENERAL_ID,
-                        ]),
-                  )
-                }
+                    anyFolderOpen() ? new Set() : new Set([
+                      ...instanceState.folders.map((f) => f.id),
+                      GENERAL_ID,
+                    ]),
+                  )}
               />
             }
             centerChildren={
@@ -539,8 +545,10 @@ export function Products() {
                   <span class="text-base-content-muted text-xs">
                     {t3({
                       en: "An admin must generate and pin a results package",
-                      fr: "Un administrateur doit générer et épingler un paquet de résultats",
-                      pt: "Um administrador tem de gerar e fixar um pacote de resultados",
+                      fr:
+                        "Un administrateur doit générer et épingler un paquet de résultats",
+                      pt:
+                        "Um administrador tem de gerar e fixar um pacote de resultados",
                     })}
                   </span>
                 </Show>

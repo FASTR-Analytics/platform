@@ -6,10 +6,6 @@ import {
 import {
   APIResponseNoData,
   APIResponseWithData,
-  expandIndicatorSelection,
-  parseJsonOrThrow,
-  parseJsonOrUndefined,
-  POPULATION_TYPE_IDS,
   type DatasetCsvStagingResult,
   type DatasetDhis2StagingResult,
   type DatasetHmisCsvRunConfig,
@@ -18,11 +14,15 @@ import {
   type DatasetHmisImportRunProgress,
   type DatasetHmisImportRunStats,
   type DatasetHmisImportRunSummary,
-  type HmisCsvMapping,
   type Dhis2RunPair,
   type Dhis2RunSelection,
   type Dhis2RunSelectionInput,
   type Dhis2RunSelectionSummary,
+  expandIndicatorSelection,
+  type HmisCsvMapping,
+  parseJsonOrThrow,
+  parseJsonOrUndefined,
+  POPULATION_TYPE_IDS,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { instantiateImportHmisDataDhis2Worker } from "../../worker_routines/import_hmis_data_dhis2/instantiate_worker.ts";
@@ -43,7 +43,9 @@ import type { DBDatasetHmisImportRun } from "./_main_database_types.ts";
 // crash/cancel is dropped at the next run start.
 export const HMIS_DHIS2_RUN_SCOPE_TABLE_NAME = "hmis_dhis2_run_facility_scope";
 
-function toSelectionSummary(selection: Dhis2RunSelection): Dhis2RunSelectionSummary {
+function toSelectionSummary(
+  selection: Dhis2RunSelection,
+): Dhis2RunSelectionSummary {
   if (selection.kind === "pairs") {
     return { kind: "pairs", nPairs: selection.pairs.length };
   }
@@ -58,7 +60,9 @@ function parseCsvConfig(
     : undefined;
 }
 
-function toRunSummary(row: DBDatasetHmisImportRun): DatasetHmisImportRunSummary {
+function toRunSummary(
+  row: DBDatasetHmisImportRun,
+): DatasetHmisImportRunSummary {
   return {
     id: row.id,
     trigger: row.trigger,
@@ -123,8 +127,8 @@ export async function getDatasetHmisImportRunDetail(
     if (row.route === "csv") {
       const parsed = row.run_stats
         ? parseJsonOrUndefined<{ csvStagingResult: DatasetCsvStagingResult }>(
-            row.run_stats,
-          )
+          row.run_stats,
+        )
         : undefined;
       return {
         success: true,
@@ -225,12 +229,17 @@ async function validateRunSelection(
     const missing = selectedDataIds.filter((id) => !elements.has(id));
     if (missing.length > 0) {
       throw new Error(
-        `The following data ids are not DHIS2 elements in the dictionary: ${missing.join(", ")}.`,
+        `The following data ids are not DHIS2 elements in the dictionary: ${
+          missing.join(", ")
+        }.`,
       );
     }
     selection = {
       kind: "pairs",
-      pairs: input.pairs.map((p) => ({ dataId: p.dataId, periodId: p.periodId })),
+      pairs: input.pairs.map((p) => ({
+        dataId: p.dataId,
+        periodId: p.periodId,
+      })),
     };
   }
 
@@ -279,7 +288,9 @@ async function spawnRunWorker(
     await mainDb`
       UPDATE dataset_hmis_import_runs
       SET status = 'error', ended_at = now(), progress = NULL,
-        error = ${`Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`}
+        error = ${`Failed to start the import worker: ${
+      spawnError instanceof Error ? spawnError.message : String(spawnError)
+    }`}
       WHERE id = ${runId}
     `;
     throw spawnError;
@@ -296,7 +307,9 @@ async function spawnRunWorker(
       await mainDb`
         UPDATE dataset_hmis_import_runs
         SET status = 'error', ended_at = now(), progress = NULL,
-          error = ${`Worker crashed: ${e.message || "Unknown error"}. Pairs completed before the crash are preserved in the ledger.`}
+          error = ${`Worker crashed: ${
+        e.message || "Unknown error"
+      }. Pairs completed before the crash are preserved in the ledger.`}
         WHERE id = ${runId} AND status = 'running'
       `;
       await finalizeInterruptedDatasetHmisRunVersion(mainDb, runId);
@@ -357,7 +370,9 @@ export async function launchDatasetHmisDhis2ImportRun(
       INSERT INTO dataset_hmis_import_runs
         (trigger, triggered_by, route, dhis2_url, selection, status, total_pairs, progress)
       VALUES
-        (${trigger}, ${triggeredBy}, 'dhis2', ${dhis2Url}, ${JSON.stringify(selection)},
+        (${trigger}, ${triggeredBy}, 'dhis2', ${dhis2Url}, ${
+      JSON.stringify(selection)
+    },
          'running', ${pairs.length},
          ${JSON.stringify({ phase: "classifying", activePairs: [] })})
       RETURNING id
@@ -405,11 +420,11 @@ export async function enqueueDatasetHmisImportRun(
 
 export type QueuedDatasetHmisImportRun =
   | {
-      route: "dhis2";
-      id: number;
-      dhis2Url: string;
-      selection: Dhis2RunSelection;
-    }
+    route: "dhis2";
+    id: number;
+    dhis2Url: string;
+    selection: Dhis2RunSelection;
+  }
   | { route: "csv"; id: number; config: DatasetHmisCsvRunConfig };
 
 export async function getOldestQueuedDatasetHmisImportRun(
@@ -549,7 +564,9 @@ async function validateCsvMapping(
   const missing = targets.filter((t) => !known.has(t));
   if (missing.length > 0) {
     throw new Error(
-      `The mapping names indicators that do not exist or have no rows: ${missing.join(", ")}.`,
+      `The mapping names indicators that do not exist or have no rows: ${
+        missing.join(", ")
+      }.`,
     );
   }
 }
@@ -562,12 +579,14 @@ async function validateCsvRunConfig(
   input: DatasetHmisCsvRunLaunchInput,
 ): Promise<DatasetHmisCsvRunConfig> {
   const columns = input.columns;
-  for (const key of [
-    "facility_id",
-    "data_id",
-    "period_id",
-    "count",
-  ] as const) {
+  for (
+    const key of [
+      "facility_id",
+      "data_id",
+      "period_id",
+      "count",
+    ] as const
+  ) {
     if (!columns[key]) {
       throw new Error(`No column chosen for ${key}.`);
     }
@@ -648,8 +667,8 @@ async function spawnCsvRunWorker(
   if (config.resumeFromStaging) {
     const parsed = row.run_stats
       ? parseJsonOrUndefined<{ csvStagingResult: DatasetCsvStagingResult }>(
-          row.run_stats,
-        )
+        row.run_stats,
+      )
       : undefined;
     stagingResult = parsed?.csvStagingResult;
     if (!stagingResult) {
@@ -671,7 +690,9 @@ async function spawnCsvRunWorker(
     setWorker("hmis", worker);
   } catch (spawnError) {
     await failClaim(
-      `Failed to start the import worker: ${spawnError instanceof Error ? spawnError.message : String(spawnError)}`,
+      `Failed to start the import worker: ${
+        spawnError instanceof Error ? spawnError.message : String(spawnError)
+      }`,
     );
     throw spawnError;
   }
@@ -886,7 +907,9 @@ export async function resolveDatasetHmisCsvReview(
     } catch {
       claimedCount = 0;
     }
-    if (claimedCount === 0 || getWorker("hmis") || getWorker("hmis_dhis2_run")) {
+    if (
+      claimedCount === 0 || getWorker("hmis") || getWorker("hmis_dhis2_run")
+    ) {
       if (claimedCount > 0) {
         // Claimed the row but a worker is mid-teardown: queue instead of
         // racing it.
@@ -947,7 +970,11 @@ export async function cancelDatasetHmisImportRun(
     const updated = await mainDb`
       UPDATE dataset_hmis_import_runs
       SET status = 'cancelled', ended_at = now(), progress = NULL,
-        error = ${runRow.route === "csv" ? "Cancelled by user. Nothing was integrated." : "Cancelled by user. Pairs completed before cancellation are preserved in the ledger."}
+        error = ${
+      runRow.route === "csv"
+        ? "Cancelled by user. Nothing was integrated."
+        : "Cancelled by user. Pairs completed before cancellation are preserved in the ledger."
+    }
       WHERE id = ${runId} AND status = 'running'
     `;
     if (updated.count === 0) {
@@ -1035,7 +1062,9 @@ export async function finalizeInterruptedDatasetHmisRunVersion(
         return;
       } catch (e) {
         console.error(
-          `Zero-success version delete failed for run ${runId} (attempt ${attempt + 1}) — re-reading:`,
+          `Zero-success version delete failed for run ${runId} (attempt ${
+            attempt + 1
+          }) — re-reading:`,
           e,
         );
         if (attempt < 2) {

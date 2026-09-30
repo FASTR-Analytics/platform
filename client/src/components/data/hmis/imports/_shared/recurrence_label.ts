@@ -1,4 +1,4 @@
-import { t3, type Dhis2ScheduleRecurrence } from "lib";
+import { type Dhis2ScheduleRecurrence, t3 } from "lib";
 
 export function dayOfWeekLabel(day: number): string {
   const labels = [
@@ -31,18 +31,36 @@ export function weekdayOfWallDate(wallDate: string): number {
 
 export function recurrenceLabel(rec: Dhis2ScheduleRecurrence): string {
   if (rec.kind === "daily") {
-    return `${t3({ en: "Daily", fr: "Chaque jour", pt: "Diariamente" })} ${rec.startTime} (${rec.timezone})`;
+    return `${
+      t3({ en: "Daily", fr: "Chaque jour", pt: "Diariamente" })
+    } ${rec.startTime} (${rec.timezone})`;
   }
   if (rec.kind === "weekly") {
     const day = dayOfWeekLabel(weekdayOfWallDate(rec.firstRunDate));
     if (rec.everyNWeeks === 1) {
-      return `${day} ${rec.startTime} (${rec.timezone}), ${t3({ en: "weekly", fr: "chaque semaine", pt: "semanalmente" })}`;
+      return `${day} ${rec.startTime} (${rec.timezone}), ${
+        t3({ en: "weekly", fr: "chaque semaine", pt: "semanalmente" })
+      }`;
     }
-    return `${day} ${rec.startTime} (${rec.timezone}), ${t3({ en: "every", fr: "toutes les", pt: "a cada" })} ${rec.everyNWeeks} ${t3({ en: "weeks from", fr: "semaines à partir du", pt: "semanas a partir de" })} ${rec.firstRunDate}`;
+    return `${day} ${rec.startTime} (${rec.timezone}), ${
+      t3({ en: "every", fr: "toutes les", pt: "a cada" })
+    } ${rec.everyNWeeks} ${
+      t3({
+        en: "weeks from",
+        fr: "semaines à partir du",
+        pt: "semanas a partir de",
+      })
+    } ${rec.firstRunDate}`;
   }
   const nthDay = `${nthLabel(rec.nth)} ${dayOfWeekLabel(rec.weekday)}`;
   if (rec.everyNMonths === 1) {
-    return `${nthDay} ${rec.startTime} (${rec.timezone}), ${t3({ en: "monthly", fr: "chaque mois", pt: "mensalmente" })}`;
+    return `${nthDay} ${rec.startTime} (${rec.timezone}), ${
+      t3({ en: "monthly", fr: "chaque mois", pt: "mensalmente" })
+    }`;
   }
-  return `${nthDay} ${rec.startTime} (${rec.timezone}), ${t3({ en: "every", fr: "tous les", pt: "a cada" })} ${rec.everyNMonths} ${t3({ en: "months from", fr: "mois à partir de", pt: "meses a partir de" })} ${rec.anchorMonth}`;
+  return `${nthDay} ${rec.startTime} (${rec.timezone}), ${
+    t3({ en: "every", fr: "tous les", pt: "a cada" })
+  } ${rec.everyNMonths} ${
+    t3({ en: "months from", fr: "mois à partir de", pt: "meses a partir de" })
+  } ${rec.anchorMonth}`;
 }

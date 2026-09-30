@@ -11,12 +11,12 @@ import {
 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 import {
+  getSelectOptionsFromIdLabel,
   SelectList,
+  selectOptionToListItem,
   SelectSearch,
   StateHolder,
   StateHolderWrapper,
-  getSelectOptionsFromIdLabel,
-  selectOptionToListItem,
 } from "panther";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 import { createEffect, createSignal, Match, onCleanup, Switch } from "solid-js";
@@ -137,9 +137,12 @@ function ReplicantOptionsMessage(mp: {
       <Match when={mp.status === "too_many_values"}>
         <div class="w-36 text-sm">
           {t3({
-            en: "Too many replicant values (over 500). Use filter options to narrow down.",
-            fr: "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
-            pt: "Demasiados valores de replicante (mais de 500). Utilize as opções de filtro para restringir.",
+            en:
+              "Too many replicant values (over 500). Use filter options to narrow down.",
+            fr:
+              "Trop de valeurs de réplicant (plus de 500). Utilisez les options de filtre pour affiner.",
+            pt:
+              "Demasiados valores de replicante (mais de 500). Utilize as opções de filtro para restringir.",
           })}
         </div>
       </Match>
@@ -147,7 +150,8 @@ function ReplicantOptionsMessage(mp: {
         <div class="w-36 text-sm">
           {t3({
             en: "No data available with current filter selection.",
-            fr: "Aucune donnée disponible avec la sélection de filtre actuelle.",
+            fr:
+              "Aucune donnée disponible avec la sélection de filtre actuelle.",
             pt: "Não há dados disponíveis com a seleção de filtros atual.",
           })}
         </div>
@@ -172,8 +176,16 @@ export function ReplicateByOptionsList(p: ReplicateByOptionsProps) {
     <div class="ui-pad h-full max-w-[40rem] flex-none overflow-auto border-r">
       <StateHolderWrapper state={replicantOptions()}>
         {(keyedReplicantOptions) => (
-          <Switch fallback={<ReplicantOptionsMessage status={keyedReplicantOptions.status} />}>
-            <Match when={keyedReplicantOptions.status === "ok" && keyedReplicantOptions} keyed>
+          <Switch
+            fallback={
+              <ReplicantOptionsMessage status={keyedReplicantOptions.status} />
+            }
+          >
+            <Match
+              when={keyedReplicantOptions.status === "ok" &&
+                keyedReplicantOptions}
+              keyed
+            >
               {(ok) => (
                 <SelectList
                   items={cleanedReplicantSelectOptions(
@@ -216,11 +228,20 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
   return (
     <StateHolderWrapper state={replicantOptions()}>
       {(keyedReplicantOptions) => (
-        <Switch fallback={<ReplicantOptionsMessage status={keyedReplicantOptions.status} />}>
-          <Match when={keyedReplicantOptions.status === "ok" && keyedReplicantOptions} keyed>
+        <Switch
+          fallback={
+            <ReplicantOptionsMessage status={keyedReplicantOptions.status} />
+          }
+        >
+          <Match
+            when={keyedReplicantOptions.status === "ok" &&
+              keyedReplicantOptions}
+            keyed
+          >
             {(ok) => {
-              const possibleValues = (ok as Extract<typeof ok, { status: "ok" }>)
-                .possibleValues;
+              const possibleValues =
+                (ok as Extract<typeof ok, { status: "ok" }>)
+                  .possibleValues;
               return (
                 <SelectSearch
                   options={cleanedReplicantSelectOptions(
@@ -229,7 +250,10 @@ export function ReplicateByOptionsSelect(p: ReplicateByOptionsProps) {
                   )}
                   value={p.selectedReplicantValue}
                   onChange={(v) =>
-                    p.setSelectedReplicant(v, possibleValues.map((pv) => pv.id))}
+                    p.setSelectedReplicant(
+                      v,
+                      possibleValues.map((pv) => pv.id),
+                    )}
                   fullWidth={p.fullWidth}
                   placeholder={t3({
                     en: "Needs selection",

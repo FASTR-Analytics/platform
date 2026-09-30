@@ -5,48 +5,34 @@ health facility data and runs versioned R analysis modules into immutable
 results packages. Products (slide decks and reports, kept in nested folders)
 render figures from one package each at one scope. One instance per country.
 
-## FORMATTING: NEVER RUN A FORMATTER ON `client/`. NOT ONCE. NOT "JUST TO CHECK".
+## Formatting: `deno fmt`, the whole repo
 
-**THIS HAS BEEN FUCKED UP BEFORE AND IT WILL NOT BE FUCKED UP AGAIN.**
+`deno fmt` is the one formatter for every file in the repo: `server/`, `lib/`,
+`client/`, the root scripts, and every `.md`. Its config is the `fmt` block in
+`deno.json`. The only exclusions are `vendor/`, `client/public/`, and
+`client/package-lock.json`. There is no prettier, no editor formatter, and no
+per-directory style.
 
-The client has **no formatter**. `deno.json` excludes `client/` from `deno fmt`
-on purpose. The `prettier` in `client/package.json` does **not** match the
-committed style either. As of 2026-09-30, 381 of 485 files under `client/src`
-fail `deno fmt --check`, and prettier flags the same files. That is not a
-backlog to fix. It is the codebase. Its style is what is written there.
-
-So:
-
-- **Do not run `deno fmt` on anything under `client/`.** Not on a file you
-  touched, not on the tree, not with `--check` and then "fixing" what it says.
-- **Do not run `prettier`** on anything under `client/`. Not `--write`, not
-  through an editor action, not because it is listed in `package.json`.
-- **Do not run any other formatter**, linter autofix, or "organise imports"
-  tool that rewrites lines you did not change.
-- When you edit a client file, **match the surrounding code by hand**: its
-  import order, its line breaks, its JSX wrapping, its trailing commas. If you
-  are unsure what the style is, look at the lines directly above and below.
-- **Before you commit, `git diff --stat`.** If a file shows more changed lines
-  than the change you meant to make, you have reformatted it. Put the committed
-  content back (`git show HEAD:<path> > <path>`) and reapply only your edit.
-- A formatter pass is never "harmless cleanup". It buries the real change in
-  hundreds of lines of noise, breaks `git blame`, and costs a review of every
-  line it touched.
-
-`deno fmt` is for `server/`, `lib/`, and the repo root only, exactly as
-`deno.json` configures it.
+- `deno task typecheck` runs `deno fmt --check` first. An unformatted file fails
+  the gate, so run `deno fmt` before you commit.
+- Never format with anything else. Prettier or an editor's own formatter
+  produces a shape that `deno fmt --check` rejects.
+- A generator emits fmt-clean output: `build_help_buttons.ts` runs `deno fmt` on
+  the file it writes. A new generator does the same.
+- The whole tree was reformatted in one commit on 2026-09-30. That commit is
+  listed in `.git-blame-ignore-revs`, so `git blame` skips it once you run
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs` in your clone.
 
 ## Read first
 
-- [SYSTEMS.md](SYSTEMS.md) is the map: 17 systems plus a kernel of shared
-  files no system owns. Each system has its own `SYSTEM_NN_*.md` holding
-  verified prose and a lint-enforced file manifest. Read the SYSTEM file for
-  the area you touch before changing it.
-- `PROTOCOL_APP_*.md` are recipes, one per task: routes, workers, migrations,
-  AI tool schemas, query-rig cases, client state, UI conventions, help
-  buttons, plans ([PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md)), and the
-  verification loop
-  ([PROTOCOL_APP_DEVELOPMENT.md](PROTOCOL_APP_DEVELOPMENT.md)).
+- [SYSTEMS.md](SYSTEMS.md) is the map: 17 systems plus a kernel of shared files
+  no system owns. Each system has its own `SYSTEM_NN_*.md` holding verified
+  prose and a lint-enforced file manifest. Read the SYSTEM file for the area you
+  touch before changing it.
+- `PROTOCOL_APP_*.md` are recipes, one per task: routes, workers, migrations, AI
+  tool schemas, query-rig cases, client state, UI conventions, help buttons,
+  plans ([PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md)), and the verification
+  loop ([PROTOCOL_APP_DEVELOPMENT.md](PROTOCOL_APP_DEVELOPMENT.md)).
 - `panther/protocols/` holds the cross-project conventions those build on,
   including how a multi-session plan is written and run
   ([PROTOCOL_ALL_PLANS.md](panther/protocols/PROTOCOL_ALL_PLANS.md)).
@@ -56,29 +42,29 @@ So:
 
 ## Gates
 
-- `deno task typecheck` runs the server check, the client check,
-  `lint:systems`, `lint:structure` and `lint:text-sizes`. The systems lint fails if any tracked
-  `.ts` or `.tsx` file under `server/`, `lib/`, or `client/src/` is not
-  claimed by exactly one SYSTEM file's file-pattern (`globs`) manifest.
-  Adding or moving a file means editing a manifest. The structure lint fails
-  if the client tree breaks a rule of
-  `panther/protocols/PROTOCOL_UI_STRUCTURE.md` (names, `mod.ts` entries,
-  scoped `_shared/`, layer direction, reachability, folder cycles). The
-  text-size lint fails on any UI text size outside the rem token scale: an
-  arbitrary `text-[Npx]`, `text-md`, or an inline font-size in px.
-- Migrations use idempotent schema SQL and must pass `./validate_migrations`. A hook
-  in `.claude/settings.json` reminds you when you touch one.
+- `deno task typecheck` runs `deno fmt --check`, the server check, the client
+  check, `lint:systems`, `lint:structure` and `lint:text-sizes`. The systems
+  lint fails if any tracked `.ts` or `.tsx` file under `server/`, `lib/`, or
+  `client/src/` is not claimed by exactly one SYSTEM file's file-pattern
+  (`globs`) manifest. Adding or moving a file means editing a manifest. The
+  structure lint fails if the client tree breaks a rule of
+  `panther/protocols/PROTOCOL_UI_STRUCTURE.md` (names, `mod.ts` entries, scoped
+  `_shared/`, layer direction, reachability, folder cycles). The text-size lint
+  fails on any UI text size outside the rem token scale: an arbitrary
+  `text-[Npx]`, `text-md`, or an inline font-size in px.
+- Migrations use idempotent schema SQL and must pass `./validate_migrations`. A
+  hook in `.claude/settings.json` reminds you when you touch one.
 - Query-engine changes must pass `./validate_queries`.
 - `./validate_protocols` checks the client against the SolidJS and state
-  protocols. Entries in its baseline file are reviewed and accepted
-  exceptions. Do not rewrite them to clear the list without a ruling.
-- Read the code, then prove the change by running it. A ten-line harness
-  settles SQL, gate, and normalisation questions:
+  protocols. Entries in its baseline file are reviewed and accepted exceptions.
+  Do not rewrite them to clear the list without a ruling.
+- Read the code, then prove the change by running it. A ten-line harness settles
+  SQL, gate, and normalisation questions:
   `deno run --allow-all -c deno.json /tmp/check.ts` with absolute-path imports.
-- Tim's own use of the app in dev and production is the browser verification.
-  It is his responsibility and never appears in a plan, a todo, or a
-  "remaining" line. When the automated gates are green, the work is done:
-  delete the plan file in the same commit.
+- Tim's own use of the app in dev and production is the browser verification. It
+  is his responsibility and never appears in a plan, a todo, or a "remaining"
+  line. When the automated gates are green, the work is done: delete the plan
+  file in the same commit.
 
 ## Boundaries
 
@@ -104,20 +90,20 @@ So:
   `FASTR_MODULES_LOCAL_DIR`. Production fetches them from GitHub.
 - R runs on the host with `Rscript`. Production runs it in the Docker image
   recorded in each run's manifest.
-- The Valkey cache must be running. The server retries a missing Valkey
-  forever instead of booting. `./run` starts it for you.
-- `./deploy_testing` is the non-interactive deploy to the testing instance,
-  safe for AI use. `./deploy` is the release path.
+- The Valkey cache must be running. The server retries a missing Valkey forever
+  instead of booting. `./run` starts it for you.
+- `./deploy_testing` is the non-interactive deploy to the testing instance, safe
+  for AI use. `./deploy` is the release path.
 - Production databases are reachable read-only per `PROTOCOL_ACCESS_DBS.md`
   (git-ignored, local only).
 
 ## Lockstep rules
 
-- **Renaming or deleting a stored JSON field changes more than the key
-  name.** Zod, the schema library, strips unknown keys by default, so it
-  treats the old key as valid and silently drops it on every read. The
-  setting vanishes with no error. Required together: a transform block,
-  a forced skip-gate (the "Skip-Gate Gotcha" in
+- **Renaming or deleting a stored JSON field changes more than the key name.**
+  Zod, the schema library, strips unknown keys by default, so it treats the old
+  key as valid and silently drops it on every read. The setting vanishes with no
+  error. Required together: a transform block, a forced skip-gate (the
+  "Skip-Gate Gotcha" in
   [PROTOCOL_APP_MIGRATIONS.md](PROTOCOL_APP_MIGRATIONS.md)), and the authored
   `definition.json` files when the GitHub schema changes.
 - **Changing a cached payload's shape needs a cache-prefix bump.** Valkey
@@ -126,12 +112,12 @@ So:
   three persistence layers: DB JSON (migration), Valkey (prefix), and stored
   FigureInputs (force block in the slide_config sweep).
 - **Keep display-only preferences out of fetch configs and cache hashes.** A
-  display-only setting in the data layer causes unnecessary refetches and
-  gets frozen into stored figure snapshots.
-- **Never mutate an unwrapped Solid store object.** No subscribers fire, and
-  the setter's equality guard turns the next identical write into a silent
-  no-op. When fixing one by switching to a copy, grep every consumer first,
-  because callers may depend on the aliasing.
+  display-only setting in the data layer causes unnecessary refetches and gets
+  frozen into stored figure snapshots.
+- **Never mutate an unwrapped Solid store object.** No subscribers fire, and the
+  setter's equality guard turns the next identical write into a silent no-op.
+  When fixing one by switching to a copy, grep every consumer first, because
+  callers may depend on the aliasing.
 - **One authoritative doc comment per contract**, single-line pointers
   everywhere else. Restated contracts drift.
 
@@ -142,5 +128,5 @@ So:
   yours to fix without asking.
 - Build and utility scripts live at the repo root. No `scripts/` directory
   anywhere except `.github/scripts/` for continuous integration.
-- Em-dashes are gone from docs, comments, and scripts. String literals shown
-  to users or written to logs keep theirs. Do not remove those.
+- Em-dashes are gone from docs, comments, and scripts. String literals shown to
+  users or written to logs keep theirs. Do not remove those.

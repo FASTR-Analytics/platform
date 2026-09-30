@@ -1,16 +1,16 @@
 import { t3, TC } from "lib";
 import {
   Button,
+  createDeleteAction,
+  createFormAction,
   EditableList,
   FrameTop,
   HeadingBar,
   Input,
   type ListItem,
   MonthSelect,
-  StateHolderFormError,
-  createDeleteAction,
-  createFormAction,
   openAlert,
+  StateHolderFormError,
   YearSelect,
 } from "panther";
 import { createSignal, Show } from "solid-js";
@@ -28,7 +28,11 @@ export function InstanceHfaTimePoints(p: Props) {
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
-          heading={t3({ en: "HFA time points", fr: "Points temporels HFA", pt: "Pontos temporais HFA" })}
+          heading={t3({
+            en: "HFA time points",
+            fr: "Points temporels HFA",
+            pt: "Pontos temporais HFA",
+          })}
         />
       }
     >
@@ -59,7 +63,9 @@ export function HfaTimePointsEditor() {
       label: tp.label,
       sublabel: `${tp.periodId.slice(0, 4)}-${tp.periodId.slice(4, 6)}${
         tp.importedAt
-          ? ` — ${t3({ en: "Imported", fr: "Importé" })}: ${new Date(tp.importedAt).toLocaleDateString()}`
+          ? ` — ${t3({ en: "Imported", fr: "Importé" })}: ${
+            new Date(tp.importedAt).toLocaleDateString()
+          }`
           : ""
       }`,
     }));
@@ -84,20 +90,34 @@ export function HfaTimePointsEditor() {
   const saveForm = createFormAction(async () => {
     const label = formLabel().trim();
     if (!label) {
-      return { success: false, err: t3({ en: "Label cannot be empty", fr: "Le libellé ne peut pas être vide", pt: "A etiqueta não pode estar vazia" }) };
+      return {
+        success: false,
+        err: t3({
+          en: "Label cannot be empty",
+          fr: "Le libellé ne peut pas être vide",
+          pt: "A etiqueta não pode estar vazia",
+        }),
+      };
     }
     if (!formYear() || !formMonth()) {
-      return { success: false, err: t3({ en: "You must select a year and month", fr: "Vous devez sélectionner une année et un mois", pt: "Tem de selecionar um ano e um mês" }) };
+      return {
+        success: false,
+        err: t3({
+          en: "You must select a year and month",
+          fr: "Vous devez sélectionner une année et un mois",
+          pt: "Tem de selecionar um ano e um mês",
+        }),
+      };
     }
     const periodId = `${formYear()}${formMonth()}`;
     const oldLabel = editing();
     const res = oldLabel === ""
       ? await serverActions.createHfaTimePoint({ label, periodId })
       : await serverActions.updateHfaTimePoint({
-          oldLabel: oldLabel!,
-          newLabel: label !== oldLabel ? label : undefined,
-          periodId,
-        });
+        oldLabel: oldLabel!,
+        newLabel: label !== oldLabel ? label : undefined,
+        periodId,
+      });
     if (res.success) {
       setEditing(null);
     }
@@ -108,7 +128,14 @@ export function HfaTimePointsEditor() {
     const label = ids[0];
     if (!label) return;
     const deleteAction = createDeleteAction(
-      t3({ en: `Delete time point "${label}", all its data, and its sampling weights?`, fr: `Supprimer le point temporel « ${label} », toutes ses données et ses pondérations d'échantillonnage ?`, pt: `Eliminar o ponto temporal "${label}", todos os seus dados e as suas ponderações de amostragem?` }),
+      t3({
+        en:
+          `Delete time point "${label}", all its data, and its sampling weights?`,
+        fr:
+          `Supprimer le point temporel « ${label} », toutes ses données et ses pondérations d'échantillonnage ?`,
+        pt:
+          `Eliminar o ponto temporal "${label}", todos os seus dados e as suas ponderações de amostragem?`,
+      }),
       () => serverActions.deleteHfaTimePoint({ label }),
       () => {
         if (editing() === label) {
@@ -139,8 +166,16 @@ export function HfaTimePointsEditor() {
         <div class="ui-spy rounded border p-4">
           <div class="ui-text-heading">
             {editing() === ""
-              ? t3({ en: "Add time point", fr: "Ajouter un point temporel", pt: "Adicionar ponto temporal" })
-              : t3({ en: "Edit time point", fr: "Modifier le point temporel", pt: "Editar ponto temporal" })}
+              ? t3({
+                en: "Add time point",
+                fr: "Ajouter un point temporel",
+                pt: "Adicionar ponto temporal",
+              })
+              : t3({
+                en: "Edit time point",
+                fr: "Modifier le point temporel",
+                pt: "Editar ponto temporal",
+              })}
           </div>
           <div class="flex items-end gap-4">
             <div class="w-64">
@@ -180,18 +215,29 @@ export function HfaTimePointsEditor() {
       </Show>
       <EditableList
         items={items()}
-        title={t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
+        title={t3({
+          en: "Time points",
+          fr: "Points temporels",
+          pt: "Pontos temporais",
+        })}
         showCount
         onAdd={openAdd}
-        addLabel={t3({ en: "Add time point", fr: "Ajouter un point temporel", pt: "Adicionar ponto temporal" })}
+        addLabel={t3({
+          en: "Add time point",
+          fr: "Ajouter un point temporel",
+          pt: "Adicionar ponto temporal",
+        })}
         onEdit={openEdit}
         onDelete={handleDelete}
         onReorder={handleReorder}
         readOnly={!instanceState.currentUserIsGlobalAdmin}
         emptyMessage={t3({
-          en: "No time points. Add a time point before importing HFA data or weights.",
-          fr: "Aucun point temporel. Ajoutez un point temporel avant d'importer des données HFA ou des pondérations.",
-          pt: "Nenhum ponto temporal. Adicione um ponto temporal antes de importar dados HFA ou ponderações.",
+          en:
+            "No time points. Add a time point before importing HFA data or weights.",
+          fr:
+            "Aucun point temporel. Ajoutez un point temporel avant d'importer des données HFA ou des pondérations.",
+          pt:
+            "Nenhum ponto temporal. Adicione um ponto temporal antes de importar dados HFA ou ponderações.",
         })}
         renderItem={(item) => (
           <div class="min-w-0 flex-1 rounded border px-3 py-2">

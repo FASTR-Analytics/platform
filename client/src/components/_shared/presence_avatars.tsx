@@ -13,8 +13,7 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-const REDUCED_MOTION =
-  typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 type Size = "sm" | "md";
@@ -37,14 +36,18 @@ export function PresenceAvatars(p: {
     Boolean(peer.idle && !peer.isEditing);
   const title = (peer: PresenceEntry) => {
     if (p.showEditingPulse && peer.isEditing) {
-      return `${peer.name} — ${t3({
-        en: "editing now",
-        fr: "modification en cours",
-        pt: "a editar",
-      })}`;
+      return `${peer.name} — ${
+        t3({
+          en: "editing now",
+          fr: "modification en cours",
+          pt: "a editar",
+        })
+      }`;
     }
     if (isDimmed(peer)) {
-      return `${peer.name} — ${t3({ en: "idle", fr: "inactif", pt: "inativo" })}`;
+      return `${peer.name} — ${
+        t3({ en: "idle", fr: "inactif", pt: "inativo" })
+      }`;
     }
     return peer.name;
   };
@@ -72,8 +75,10 @@ export function PresenceAvatars(p: {
                 </Show>
               </div>
               <Show when={p.showEditingPulse && peer.isEditing}>
-                {/* z-10: overlapped avatars paint later-over-earlier, so the
-                    next avatar in the stack would otherwise cover this badge. */}
+                {
+                  /* z-10: overlapped avatars paint later-over-earlier, so the
+                    next avatar in the stack would otherwise cover this badge. */
+                }
                 <span
                   class="bg-primary ring-base-100 absolute -top-0.5 -right-0.5 z-10 block h-2 w-2 rounded-full ring-1"
                   classList={{ "animate-pulse": !REDUCED_MOTION }}

@@ -16,7 +16,7 @@ export function useConnectionMonitor() {
       setConnectionIssues(false);
       recentFailures = 0;
     };
-    
+
     const handleOffline = () => {
       setIsOnline(false);
       setConnectionIssues(true);
@@ -43,12 +43,12 @@ export function useConnectionMonitor() {
 // Call this when a request fails due to network issues
 export function reportNetworkFailure() {
   recentFailures++;
-  
+
   // If we have multiple failures in a short time, flag connection issues
   if (recentFailures >= 2) {
     setConnectionIssues(true);
   }
-  
+
   // Reset failure count after 30 seconds of no new failures
   if (failureResetTimer) {
     clearTimeout(failureResetTimer);

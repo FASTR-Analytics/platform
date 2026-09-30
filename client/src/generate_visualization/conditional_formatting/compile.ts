@@ -148,16 +148,16 @@ export function compileCfToLegend(
       const format = scaleLegendFormat(formatAs);
       const autoConfig = isDiscrete
         ? {
-            type: "stepped-auto" as const,
-            nSteps: cf.steps!,
-            domain,
-            ...format,
-          }
+          type: "stepped-auto" as const,
+          nSteps: cf.steps!,
+          domain,
+          ...format,
+        }
         : {
-            type: "gradient-auto" as const,
-            domain,
-            ...format,
-          };
+          type: "gradient-auto" as const,
+          domain,
+          ...format,
+        };
 
       return resolveAutoScaleLegend(autoConfig, colorFunc, domain);
     }

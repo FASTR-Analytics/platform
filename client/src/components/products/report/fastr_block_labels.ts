@@ -65,7 +65,11 @@ export function fastrBlockLabel(name: FastrBlockName): string {
     case "logos":
       return t3({ en: "Logos", fr: "Logos", pt: "Logótipos" });
     case "report":
-      return t3({ en: "Page setup", fr: "Mise en page", pt: "Configuração da página" });
+      return t3({
+        en: "Page setup",
+        fr: "Mise en page",
+        pt: "Configuração da página",
+      });
     case "card":
       return t3({ en: "Card", fr: "Carte", pt: "Cartão" });
     case "col":
@@ -132,7 +136,8 @@ export function fastrBlockCaption(name: FastrBlockName): string {
     case "logos":
       return t3({
         en: "A row of logos: yours, your partners', FASTR's",
-        fr: "Une rangée de logos : les vôtres, ceux des partenaires, celui de FASTR",
+        fr:
+          "Une rangée de logos : les vôtres, ceux des partenaires, celui de FASTR",
         pt: "Uma linha de logótipos: os seus, os dos parceiros, o da FASTR",
       });
     case "report":
@@ -178,7 +183,11 @@ export function fastrRoleLabel(role: FastrInkRole): string {
     case "muted":
       return t3({ en: "Muted", fr: "Atténué", pt: "Suave" });
     case "danger":
-      return t3({ en: "Bad news", fr: "Mauvaise nouvelle", pt: "Más notícias" });
+      return t3({
+        en: "Bad news",
+        fr: "Mauvaise nouvelle",
+        pt: "Más notícias",
+      });
     case "warning":
       return t3({ en: "Caution", fr: "Prudence", pt: "Atenção" });
     case "success":
@@ -207,7 +216,11 @@ export function fastrCoverLayoutLabel(layout: FastrCoverLayout): string {
     case "minimal":
       return t3({ en: "Minimal", fr: "Minimale", pt: "Minimalista" });
     case "block":
-      return t3({ en: "Block title", fr: "Titre en bloc", pt: "Título em bloco" });
+      return t3({
+        en: "Block title",
+        fr: "Titre en bloc",
+        pt: "Título em bloco",
+      });
   }
 }
 

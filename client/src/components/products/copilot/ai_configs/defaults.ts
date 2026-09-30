@@ -23,10 +23,16 @@ export function createCopilotSDKClient() {
         const msg: string = body?.error?.message ?? "";
         const isoMatch = msg.match(ISO_RE);
         if (isoMatch) {
-          const localTime = new Date(isoMatch[0]).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" });
+          const localTime = new Date(isoMatch[0]).toLocaleString(undefined, {
+            dateStyle: "full",
+            timeStyle: "short",
+          });
           const newMsg = msg.replace(isoMatch[0], localTime);
           return new Response(
-            JSON.stringify({ ...body, error: { ...body.error, message: newMsg } }),
+            JSON.stringify({
+              ...body,
+              error: { ...body.error, message: newMsg },
+            }),
             { status: 429, headers: { "Content-Type": "application/json" } },
           );
         }

@@ -2,8 +2,8 @@ import { Sql } from "postgres";
 import {
   type APIResponseWithData,
   type AuthorRun,
-  type FigureBlock,
   type FastrReportTheme,
+  type FigureBlock,
   getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
@@ -21,7 +21,11 @@ import {
   stripTombstoneRuns,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { carryReportCrdtStamps, REPORT_NOT_FOUND, touchProduct } from "./_product_row.ts";
+import {
+  carryReportCrdtStamps,
+  REPORT_NOT_FOUND,
+  touchProduct,
+} from "./_product_row.ts";
 
 export function parseReportConfig(config: string | null): ReportConfig {
   if (config) {
@@ -153,8 +157,12 @@ export function updateReportFigures(
   figures: Record<string, FigureBlock>,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   const parsed = JSON.stringify(reportFiguresSchema.parse(figures));
-  return updateReportColumn(mainDb, productId, (sql) =>
-    sql`UPDATE reports SET figures = ${parsed} WHERE id = ${productId}`);
+  return updateReportColumn(
+    mainDb,
+    productId,
+    (sql) =>
+      sql`UPDATE reports SET figures = ${parsed} WHERE id = ${productId}`,
+  );
 }
 
 export function updateReportImages(
@@ -163,8 +171,11 @@ export function updateReportImages(
   images: Record<string, ImageBlock>,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   const parsed = JSON.stringify(reportImagesSchema.parse(images));
-  return updateReportColumn(mainDb, productId, (sql) =>
-    sql`UPDATE reports SET images = ${parsed} WHERE id = ${productId}`);
+  return updateReportColumn(
+    mainDb,
+    productId,
+    (sql) => sql`UPDATE reports SET images = ${parsed} WHERE id = ${productId}`,
+  );
 }
 
 // The body format and the report's STYLE are fixed at creation and a config
@@ -280,7 +291,10 @@ export async function getReportCrdtState(
     const row = await selectReportStamps(mainDb, productId);
     const isCurrent = row.crdt_state !== null &&
       row.crdt_state_last_updated === row.last_updated;
-    return { success: true, data: { state: isCurrent ? row.crdt_state : null } };
+    return {
+      success: true,
+      data: { state: isCurrent ? row.crdt_state : null },
+    };
   });
 }
 

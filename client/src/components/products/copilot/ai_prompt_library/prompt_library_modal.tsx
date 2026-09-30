@@ -1,21 +1,21 @@
-import { createSignal, createMemo, Show, For, onMount } from "solid-js";
+import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   AlertComponentProps,
   CollapsibleSection,
+  Icon,
   Input,
   LoadingIndicator,
   ModalContainer,
-  TextArea,
   openComponent,
   openConfirm,
-  Icon,
+  TextArea,
 } from "panther";
 import { getLanguage, t3, TC } from "lib";
 import type {
-  PromptCategory,
-  PromptItem,
   FlattenedPrompt,
   ParseResult,
+  PromptCategory,
+  PromptItem,
 } from "./types";
 import type { CustomPrompt } from "lib";
 import { parsePromptsMarkdown } from "./parse_prompts";
@@ -30,9 +30,9 @@ type Props = {};
 
 export type PromptLibraryResult =
   | {
-      action: "run_current" | "run_new";
-      promptText: string;
-    }
+    action: "run_current" | "run_new";
+    promptText: string;
+  }
   | undefined;
 
 export function PromptLibraryModal(
@@ -46,8 +46,9 @@ export function PromptLibraryModal(
   });
   const [customPrompts, setCustomPrompts] = createSignal<CustomPrompt[]>([]);
   const [searchText, setSearchText] = createSignal("");
-  const [selectedPrompt, setSelectedPrompt] =
-    createSignal<FlattenedPrompt | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = createSignal<
+    FlattenedPrompt | null
+  >(null);
   const [editedContent, setEditedContent] = createSignal("");
 
   const currentUserEmail = () => instanceState.currentUserEmail;
@@ -103,7 +104,8 @@ export function PromptLibraryModal(
   }
 
   onMount(async () => {
-    const base = `https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main`;
+    const base =
+      `https://raw.githubusercontent.com/FASTR-Analytics/fastr-resource-hub/refs/heads/main`;
     const cacheBust = `?t=${Date.now()}`;
     await Promise.all([
       (async () => {
@@ -206,7 +208,11 @@ export function PromptLibraryModal(
 
   const handleDeleteCustomPrompt = async (prompt: CustomPrompt) => {
     const confirmed = await openConfirm({
-      title: t3({ en: "Delete prompt", fr: "Supprimer le prompt", pt: "Eliminar prompt" }),
+      title: t3({
+        en: "Delete prompt",
+        fr: "Supprimer le prompt",
+        pt: "Eliminar prompt",
+      }),
       text: t3({
         en: `Are you sure you want to delete "${prompt.name}"?`,
         fr: `Êtes-vous sûr de vouloir supprimer « ${prompt.name} » ?`,
@@ -261,7 +267,11 @@ export function PromptLibraryModal(
           iconName: "save" as const,
         },
         {
-          label: t3({ en: "Run as new chat", fr: "Exécuter dans un nouveau chat", pt: "Executar como nova conversa" }),
+          label: t3({
+            en: "Run as new chat",
+            fr: "Exécuter dans un nouveau chat",
+            pt: "Executar como nova conversa",
+          }),
           onClick: handleRunNew,
           outline: true,
         },
@@ -279,11 +289,17 @@ export function PromptLibraryModal(
 
   return (
     <ModalContainer
-      title={
-        selectedPrompt()
-          ? t3({ en: "Edit prompt", fr: "Modifier le prompt", pt: "Editar prompt" })
-          : t3({ en: "Prompt library", fr: "Bibliothèque de prompts", pt: "Biblioteca de prompts" })
-      }
+      title={selectedPrompt()
+        ? t3({
+          en: "Edit prompt",
+          fr: "Modifier le prompt",
+          pt: "Editar prompt",
+        })
+        : t3({
+          en: "Prompt library",
+          fr: "Bibliothèque de prompts",
+          pt: "Biblioteca de prompts",
+        })}
       width="xl"
       scroll="content"
       {...footer()}
@@ -370,7 +386,13 @@ function BrowsePhase(p: BrowsePhaseProps) {
             <CollapsibleSection
               title={
                 <div class="flex items-center gap-2">
-                  <span>{t3({ en: "My prompts", fr: "Mes prompts", pt: "Os meus prompts" })}</span>
+                  <span>
+                    {t3({
+                      en: "My prompts",
+                      fr: "Mes prompts",
+                      pt: "Os meus prompts",
+                    })}
+                  </span>
                   <span class="text-base-content-muted text-xs">
                     ({p.myCustomPrompts.length})
                   </span>
@@ -401,7 +423,11 @@ function BrowsePhase(p: BrowsePhaseProps) {
               title={
                 <div class="flex items-center gap-2">
                   <span>
-                    {t3({ en: "Country prompts", fr: "Prompts pays", pt: "Prompts do país" })}
+                    {t3({
+                      en: "Country prompts",
+                      fr: "Prompts pays",
+                      pt: "Prompts do país",
+                    })}
                   </span>
                   <span class="text-base-content-muted text-xs">
                     ({p.countryCustomPrompts.length})
@@ -430,9 +456,9 @@ function BrowsePhase(p: BrowsePhaseProps) {
 
           <Show
             when={p.filteredCategories.length > 0}
-            fallback={
-              p.myCustomPrompts.length === 0 &&
-              p.countryCustomPrompts.length === 0 ? (
+            fallback={p.myCustomPrompts.length === 0 &&
+                p.countryCustomPrompts.length === 0
+              ? (
                 <div class="text-base-content-muted py-8 text-center">
                   {t3({
                     en: "No prompts found matching your search.",
@@ -440,8 +466,8 @@ function BrowsePhase(p: BrowsePhaseProps) {
                     pt: "Nenhum prompt encontrado para a sua pesquisa.",
                   })}
                 </div>
-              ) : null
-            }
+              )
+              : null}
           >
             <For each={p.filteredCategories}>
               {(cat) => (
@@ -481,11 +507,9 @@ function BrowsePhase(p: BrowsePhaseProps) {
         </div>
 
         <Show
-          when={
-            p.filteredCategories.length === 0 &&
+          when={p.filteredCategories.length === 0 &&
             p.myCustomPrompts.length === 0 &&
-            p.countryCustomPrompts.length === 0
-          }
+            p.countryCustomPrompts.length === 0}
         >
           <div class="text-base-content-muted mt-4">
             <div class="text-xs">{p.parseResult.message}</div>

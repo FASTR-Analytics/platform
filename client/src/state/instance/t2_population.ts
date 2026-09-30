@@ -27,7 +27,11 @@ export async function getPopulationTypeStoreFromCacheOrFetch(
   populationLastUpdated: string | undefined,
   structureLastUpdated: string | undefined,
 ) {
-  const params = { populationType, populationLastUpdated, structureLastUpdated };
+  const params = {
+    populationType,
+    populationLastUpdated,
+    structureLastUpdated,
+  };
   const { data, version } = await _POPULATION_TYPE_STORE_CACHE.get(params);
   if (data) return { success: true, data } as const;
 

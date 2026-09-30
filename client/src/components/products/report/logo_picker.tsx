@@ -17,8 +17,8 @@ import {
 } from "solid-js";
 import { cleanupUppy, createUppyInstance } from "~/components/_shared/mod.ts";
 import {
-  FASTR_LOGOS,
   FASTR_LOGO_VALUES,
+  FASTR_LOGOS,
   resolveLogoUrl,
 } from "~/generate_slide_deck/fastr_logos";
 import { instanceState } from "~/state/instance/t1_store";
@@ -121,12 +121,18 @@ export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
               {(item) => (
                 <div class="flex min-w-0 flex-1 items-center gap-2">
                   <LogoThumb file={item.id} class="h-8 w-20" />
-                  <span class="flex-1 truncate text-sm">{labelOf(item.id)}</span>
+                  <span class="flex-1 truncate text-sm">
+                    {labelOf(item.id)}
+                  </span>
                   <Button
                     size="sm"
                     outline
                     iconName="x"
-                    ariaLabel={t3({ en: "Remove", fr: "Retirer", pt: "Remover" })}
+                    ariaLabel={t3({
+                      en: "Remove",
+                      fr: "Retirer",
+                      pt: "Remover",
+                    })}
                     onClick={() => toggle(item.id)}
                   />
                 </div>
@@ -156,10 +162,18 @@ export function ReportLogoPicker(p: AlertComponentProps<Props, string[]>) {
         <div class="ui-spy-sm">
           <div class="flex items-center gap-2">
             <div class="ui-text-caption flex-1">
-              {t3({ en: "Your images", fr: "Vos images", pt: "As suas imagens" })}
+              {t3({
+                en: "Your images",
+                fr: "Vos images",
+                pt: "As suas imagens",
+              })}
             </div>
             <Button id={triggerId} size="sm" outline iconName="upload">
-              {t3({ en: "Upload logo", fr: "Téléverser un logo", pt: "Carregar logótipo" })}
+              {t3({
+                en: "Upload logo",
+                fr: "Téléverser un logo",
+                pt: "Carregar logótipo",
+              })}
             </Button>
           </div>
           <Show when={waitingFor()}>

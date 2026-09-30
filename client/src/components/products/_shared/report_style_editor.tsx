@@ -16,8 +16,8 @@ import {
   ModalContainer,
   RadioGroup,
   Select,
-  StateHolderFormError,
   type StateHolderFormAction,
+  StateHolderFormError,
   TextArea,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
@@ -61,13 +61,16 @@ const DEFAULT_COLORS: ReportStyleColors = {
 };
 
 export function ReportStyleEditor(p: Props) {
-  const base = p.existing ?? (p.seed
-    ? { ...p.seed, productIds: [p.productId] as string[] | null }
-    : undefined);
+  const base = p.existing ??
+    (p.seed
+      ? { ...p.seed, productIds: [p.productId] as string[] | null }
+      : undefined);
   const [label, setLabel] = createSignal(base?.label ?? "");
   const [description, setDescription] = createSignal(base?.description ?? "");
   const [brief, setBrief] = createSignal(base?.brief ?? "");
-  const [referenceCss, setReferenceCss] = createSignal(base?.referenceCss ?? "");
+  const [referenceCss, setReferenceCss] = createSignal(
+    base?.referenceCss ?? "",
+  );
   const [colors, setColors] = createSignal<ReportStyleColors>(
     base?.colors ?? DEFAULT_COLORS,
   );
@@ -78,7 +81,9 @@ export function ReportStyleEditor(p: Props) {
       ? "report"
       : "selected"
     : "report";
-  const [visibility, setVisibility] = createSignal<Visibility>(initialVisibility);
+  const [visibility, setVisibility] = createSignal<Visibility>(
+    initialVisibility,
+  );
   const [selectedReports, setSelectedReports] = createSignal<Set<string>>(
     new Set(
       p.existing?.productIds ?? [p.productId],
@@ -111,7 +116,8 @@ export function ReportStyleEditor(p: Props) {
   function applyPrefill(preset: string) {
     setPrefill(preset);
     if (preset === "_none") return;
-    const entry = REPORT_STYLE_BRIEFS[preset as Exclude<ReportHtmlStyle, "default">];
+    const entry =
+      REPORT_STYLE_BRIEFS[preset as Exclude<ReportHtmlStyle, "default">];
     if (entry) setBrief(entry.brief);
   }
 
@@ -120,7 +126,11 @@ export function ReportStyleEditor(p: Props) {
     if (!label().trim()) {
       setSaveState({
         status: "error",
-        err: t3({ en: "You must enter a name", fr: "Vous devez saisir un nom", pt: "Tem de introduzir um nome" }),
+        err: t3({
+          en: "You must enter a name",
+          fr: "Vous devez saisir un nom",
+          pt: "Tem de introduzir um nome",
+        }),
       });
       return;
     }
@@ -128,9 +138,12 @@ export function ReportStyleEditor(p: Props) {
       setSaveState({
         status: "error",
         err: t3({
-          en: "The design brief is empty — describe the style, or start from a preset.",
-          fr: "La description du style est vide — décrivez le style ou partez d'un préréglage.",
-          pt: "O guia de estilo está vazio — descreva o estilo ou parta de uma predefinição.",
+          en:
+            "The design brief is empty — describe the style, or start from a preset.",
+          fr:
+            "La description du style est vide — décrivez le style ou partez d'un préréglage.",
+          pt:
+            "O guia de estilo está vazio — descreva o estilo ou parta de uma predefinição.",
         }),
       });
       return;
@@ -185,7 +198,8 @@ export function ReportStyleEditor(p: Props) {
       <input
         type="color"
         value={colors()[key]}
-        onInput={(e) => setColors({ ...colors(), [key]: e.currentTarget.value })}
+        onInput={(e) =>
+          setColors({ ...colors(), [key]: e.currentTarget.value })}
         class="h-7 w-9 cursor-pointer rounded border p-0"
       />
       <span class="ui-form-text">{labelText}</span>
@@ -196,8 +210,16 @@ export function ReportStyleEditor(p: Props) {
     <ModalContainer
       width="lg"
       title={p.existing
-        ? t3({ en: "Edit custom style", fr: "Modifier le style personnalisé", pt: "Editar estilo personalizado" })
-        : t3({ en: "New custom style", fr: "Nouveau style personnalisé", pt: "Novo estilo personalizado" })}
+        ? t3({
+          en: "Edit custom style",
+          fr: "Modifier le style personnalisé",
+          pt: "Editar estilo personalizado",
+        })
+        : t3({
+          en: "New custom style",
+          fr: "Nouveau style personnalisé",
+          pt: "Novo estilo personalizado",
+        })}
       onCancel={() => p.close(undefined)}
       footer={p.existing
         ? (
@@ -211,13 +233,21 @@ export function ReportStyleEditor(p: Props) {
             }}
           >
             {confirmingDelete()
-              ? t3({ en: "Confirm delete", fr: "Confirmer la suppression", pt: "Confirmar eliminação" })
+              ? t3({
+                en: "Confirm delete",
+                fr: "Confirmer la suppression",
+                pt: "Confirmar eliminação",
+              })
               : t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" })}
           </Button>
         )
         : undefined}
       actions={[{
-        label: t3({ en: "Save style", fr: "Enregistrer le style", pt: "Guardar estilo" }),
+        label: t3({
+          en: "Save style",
+          fr: "Enregistrer le style",
+          pt: "Guardar estilo",
+        }),
         onClick: () => void save(),
         state: saveState(),
         iconName: "save" as const,
@@ -233,7 +263,11 @@ export function ReportStyleEditor(p: Props) {
           autoFocus={!p.seed}
         />
         <Input
-          label={t3({ en: "Short description", fr: "Description courte", pt: "Descrição curta" })}
+          label={t3({
+            en: "Short description",
+            fr: "Description courte",
+            pt: "Descrição curta",
+          })}
           value={description()}
           onChange={setDescription}
           fullWidth
@@ -241,8 +275,10 @@ export function ReportStyleEditor(p: Props) {
         <div class="ui-spy-sm">
           <TextArea
             label={t3({
-              en: "Design brief — what the AI follows when it writes reports in this style",
-              fr: "Guide de style — ce que l'IA suit quand elle rédige dans ce style",
+              en:
+                "Design brief — what the AI follows when it writes reports in this style",
+              fr:
+                "Guide de style — ce que l'IA suit quand elle rédige dans ce style",
               pt: "Guia de estilo — o que a IA segue ao escrever neste estilo",
             })}
             value={brief()}
@@ -251,16 +287,22 @@ export function ReportStyleEditor(p: Props) {
             mono
             fullWidth
             placeholder={t3({
-              en: "Fonts (via @import), palette, structure (masthead, sections, cards, tables), visualization treatment…",
-              fr: "Polices (via @import), palette, structure (manchette, sections, cartes, tableaux), traitement des visualisations…",
-              pt: "Tipos de letra (via @import), paleta, estrutura (cabeçalho, secções, cartões, tabelas), tratamento das visualizações…",
+              en:
+                "Fonts (via @import), palette, structure (masthead, sections, cards, tables), visualization treatment…",
+              fr:
+                "Polices (via @import), palette, structure (manchette, sections, cartes, tableaux), traitement des visualisations…",
+              pt:
+                "Tipos de letra (via @import), paleta, estrutura (cabeçalho, secções, cartões, tabelas), tratamento das visualizações…",
             })}
           />
           <TextArea
             label={t3({
-              en: "Reference CSS (optional) — the exact stylesheet the AI reuses; the brief describes how to use its classes",
-              fr: "CSS de référence (optionnel) — la feuille de style exacte que l'IA réutilise ; le guide décrit l'usage de ses classes",
-              pt: "CSS de referência (opcional) — a folha de estilos exata que a IA reutiliza; o guia descreve como usar as suas classes",
+              en:
+                "Reference CSS (optional) — the exact stylesheet the AI reuses; the brief describes how to use its classes",
+              fr:
+                "CSS de référence (optionnel) — la feuille de style exacte que l'IA réutilise ; le guide décrit l'usage de ses classes",
+              pt:
+                "CSS de referência (opcional) — a folha de estilos exata que a IA reutiliza; o guia descreve como usar as suas classes",
             })}
             value={referenceCss()}
             onChange={setReferenceCss}
@@ -268,9 +310,12 @@ export function ReportStyleEditor(p: Props) {
             mono
             fullWidth
             placeholder={t3({
-              en: "Filled automatically when saving a style from a report. Without it, the AI writes CSS from the brief alone (less faithful).",
-              fr: "Rempli automatiquement quand le style est enregistré depuis un rapport. Sans lui, l'IA écrit le CSS à partir du guide seul (moins fidèle).",
-              pt: "Preenchido automaticamente ao guardar um estilo a partir de um relatório. Sem ele, a IA escreve o CSS apenas a partir do guia (menos fiel).",
+              en:
+                "Filled automatically when saving a style from a report. Without it, the AI writes CSS from the brief alone (less faithful).",
+              fr:
+                "Rempli automatiquement quand le style est enregistré depuis un rapport. Sans lui, l'IA écrit le CSS à partir du guide seul (moins fidèle).",
+              pt:
+                "Preenchido automaticamente ao guardar um estilo a partir de um relatório. Sem ele, a IA escreve o CSS apenas a partir do guia (menos fiel).",
             })}
           />
           <div class="flex items-center gap-2">
@@ -296,22 +341,38 @@ export function ReportStyleEditor(p: Props) {
         </div>
         <div class="ui-spy-sm">
           <RadioGroup<Visibility>
-            label={t3({ en: "Available in", fr: "Disponible dans", pt: "Disponível em" })}
+            label={t3({
+              en: "Available in",
+              fr: "Disponible dans",
+              pt: "Disponível em",
+            })}
             value={visibility()}
             onChange={setVisibility}
             horizontal
             options={[
               {
                 value: "report",
-                label: t3({ en: "This report", fr: "Ce rapport", pt: "Este relatório" }),
+                label: t3({
+                  en: "This report",
+                  fr: "Ce rapport",
+                  pt: "Este relatório",
+                }),
               },
               {
                 value: "selected",
-                label: t3({ en: "Selected reports", fr: "Rapports choisis", pt: "Relatórios escolhidos" }),
+                label: t3({
+                  en: "Selected reports",
+                  fr: "Rapports choisis",
+                  pt: "Relatórios escolhidos",
+                }),
               },
               {
                 value: "instance",
-                label: t3({ en: "All reports", fr: "Tous les rapports", pt: "Todos os relatórios" }),
+                label: t3({
+                  en: "All reports",
+                  fr: "Tous les rapports",
+                  pt: "Todos os relatórios",
+                }),
               },
             ]}
           />
@@ -340,7 +401,10 @@ export function ReportStyleEditor(p: Props) {
           <div class="flex flex-wrap gap-4">
             {colorField("page", t3({ en: "Page", fr: "Page", pt: "Página" }))}
             {colorField("ink", t3({ en: "Text", fr: "Texte", pt: "Texto" }))}
-            {colorField("accent", t3({ en: "Accent", fr: "Accent", pt: "Realce" }))}
+            {colorField(
+              "accent",
+              t3({ en: "Accent", fr: "Accent", pt: "Realce" }),
+            )}
           </div>
         </div>
         <StateHolderFormError state={saveState()} />

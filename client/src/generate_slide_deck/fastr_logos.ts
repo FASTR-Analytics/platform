@@ -5,7 +5,11 @@ import { _SERVER_HOST } from "~/server_actions";
 export const FASTR_LOGOS = [
   {
     value: "images/FASTR_Primary_01_Horiz.png",
-    label: { en: "FASTR (colored)", fr: "FASTR (couleur)", pt: "FASTR (a cores)" },
+    label: {
+      en: "FASTR (colored)",
+      fr: "FASTR (couleur)",
+      pt: "FASTR (a cores)",
+    },
   },
   {
     value: "images/FASTR_White_Horiz.png",

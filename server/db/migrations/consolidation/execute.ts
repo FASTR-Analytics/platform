@@ -275,7 +275,9 @@ function logPlan(plan: ConsolidationPlan): void {
       `-> ${plan.folders.length} folders, ${plan.products.length} products ` +
       `(${plan.slideDecks.length} decks / ${plan.reports.length} reports), ` +
       `${plan.slides.length} slides, ` +
-      `${plan.slideDeckVersions.length + plan.reportVersions.length} versions, ` +
+      `${
+        plan.slideDeckVersions.length + plan.reportVersions.length
+      } versions, ` +
       `${plan.remaps.length} id remaps, run ${plan.runId}, ` +
       `scope ${plan.adminArea2 ?? "national"}; dropped ` +
       `${dropped.presentationObjects} visualizations, ${dropped.dashboards} dashboards`,
@@ -292,12 +294,22 @@ function logTotals(plans: ConsolidationPlan[]): void {
     plans.reduce((total, plan) => total + pick(plan), 0);
   console.log(
     `[migration] 201 consolidate: ${plans.length} projects consolidated, ` +
-      `${sum((p) => p.products.length)} products, ${sum((p) => p.slides.length)} slides, ` +
-      `${sum((p) => p.folders.length)} folders, ${sum((p) => p.remaps.length)} id remaps; ` +
-      `dropped ${sum((p) => p.droppedCounts.presentationObjects)} visualizations, ` +
-      `${sum((p) => p.droppedCounts.visualizationFolders)} visualization folders, ` +
+      `${sum((p) => p.products.length)} products, ${
+        sum((p) => p.slides.length)
+      } slides, ` +
+      `${sum((p) => p.folders.length)} folders, ${
+        sum((p) => p.remaps.length)
+      } id remaps; ` +
+      `dropped ${
+        sum((p) => p.droppedCounts.presentationObjects)
+      } visualizations, ` +
+      `${
+        sum((p) => p.droppedCounts.visualizationFolders)
+      } visualization folders, ` +
       `${sum((p) => p.droppedCounts.dashboards)} dashboards, ` +
       `${sum((p) => p.droppedCounts.dashboardItems)} dashboard items, ` +
-      `${sum((p) => p.droppedCounts.dashboardItemGroups)} dashboard item groups`,
+      `${
+        sum((p) => p.droppedCounts.dashboardItemGroups)
+      } dashboard item groups`,
   );
 }

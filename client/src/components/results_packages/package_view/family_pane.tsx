@@ -1,12 +1,12 @@
 import {
-  t3,
   type InstalledModuleSummary,
   type PackageScope,
   type RunAuthoringContext,
   type RunDetail,
+  t3,
 } from "lib";
-import { SelectList, type ListEntry } from "panther";
-import { Show, createMemo } from "solid-js";
+import { type ListEntry, SelectList } from "panther";
+import { createMemo, Show } from "solid-js";
 import type { ScopeSelection } from "~/components/_shared/mod.ts";
 import { ModulePane } from "./module_pane";
 import type { OpenEditor } from "./visualizations";
@@ -39,15 +39,15 @@ export function FamilyPane(p: {
       ...primary.map(toItem),
       ...(secondary.length > 0
         ? [
-            {
-              header: t3({
-                en: "Supporting analyses",
-                fr: "Analyses complémentaires",
-                pt: "Análises complementares",
-              }),
-            },
-            ...secondary.map(toItem),
-          ]
+          {
+            header: t3({
+              en: "Supporting analyses",
+              fr: "Analyses complémentaires",
+              pt: "Análises complementares",
+            }),
+          },
+          ...secondary.map(toItem),
+        ]
         : []),
     ];
   });

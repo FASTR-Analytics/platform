@@ -1,11 +1,11 @@
-import { t3, type HfaIndicatorServiceCategory } from "lib";
+import { type HfaIndicatorServiceCategory, t3 } from "lib";
 import {
   Button,
-  SortableList,
-  openComponent,
   createDeleteAction,
+  openComponent,
+  SortableList,
 } from "panther";
-import { Show, createEffect } from "solid-js";
+import { createEffect, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -63,9 +63,12 @@ export function HfaServiceCategoriesManager(p: Props) {
     const deleteAction = createDeleteAction(
       {
         text: t3({
-          en: "Delete this service category? Any indicators using it will have their service category cleared.",
-          fr: "Supprimer cette catégorie de service ? Les indicateurs qui l'utilisent verront leur catégorie de service effacée.",
-          pt: "Eliminar esta categoria de serviço? Os indicadores que a utilizam ficarão sem categoria de serviço.",
+          en:
+            "Delete this service category? Any indicators using it will have their service category cleared.",
+          fr:
+            "Supprimer cette catégorie de service ? Les indicateurs qui l'utilisent verront leur catégorie de service effacée.",
+          pt:
+            "Eliminar esta categoria de serviço? Os indicadores que a utilizam ficarão sem categoria de serviço.",
         }),
         itemList: [`${serviceCategory.label} (${serviceCategory.id})`],
       },
@@ -81,7 +84,11 @@ export function HfaServiceCategoriesManager(p: Props) {
     <div class="flex h-full w-1/2 flex-col">
       <div class="ui-gap-sm flex flex-none items-center pb-4">
         <div class="ui-text-heading flex-1">
-          {t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" })} (
+          {t3({
+            en: "Service categories",
+            fr: "Catégories de service",
+            pt: "Categorias de serviço",
+          })} (
           {items.length})
         </div>
         <Show when={isAdmin()}>

@@ -1,21 +1,21 @@
-import { For, Match, Show, Switch, createSignal } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import {
-  t3,
   type CsvDetails,
+  encodeRawCsvHeader,
+  type FacilityFamily,
+  getEnabledOptionalFacilityColumns,
   type StructureColumnMappings,
   type StructureSchema,
-  type FacilityFamily,
-  encodeRawCsvHeader,
-  getEnabledOptionalFacilityColumns,
+  t3,
 } from "lib";
 import {
   Button,
   Checkbox,
+  createFormAction,
+  getSelectOptions,
   Select,
   StateHolderFormError,
-  getSelectOptions,
-  createFormAction,
 } from "panther";
 import { serverActions } from "~/server_actions";
 import { getStructureColumnLabel } from "./column_labels";
@@ -103,9 +103,12 @@ export function Step2_Csv(p: Props) {
           return {
             success: false,
             err: t3({
-              en: "Choose a column for every administrative area level, or turn off Administrative areas.",
-              fr: "Choisissez une colonne pour chaque niveau d'unité administrative, ou désactivez les unités administratives.",
-              pt: "Escolha uma coluna para cada nível de zona administrativa, ou desative as zonas administrativas.",
+              en:
+                "Choose a column for every administrative area level, or turn off Administrative areas.",
+              fr:
+                "Choisissez une colonne pour chaque niveau d'unité administrative, ou désactivez les unités administratives.",
+              pt:
+                "Escolha uma coluna para cada nível de zona administrativa, ou desative as zonas administrativas.",
             }),
           };
         }
@@ -136,7 +139,9 @@ export function Step2_Csv(p: Props) {
     for (let i = 2; i <= 4; i++) {
       const key = `admin_area_${i}` as keyof StructureColumnMappings;
       (columnMappings as Record<string, string>)[key] =
-        enabled.admin && i <= p.structureSchema.adminDepth ? (mappings[key] ?? "") : "";
+        enabled.admin && i <= p.structureSchema.adminDepth
+          ? (mappings[key] ?? "")
+          : "";
     }
     for (const col of optionalCols) {
       (columnMappings as Record<string, string>)[col] = enabled[col]
@@ -154,9 +159,12 @@ export function Step2_Csv(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="text-base-content text-sm">
         {t3({
-          en: "Turn on the columns you want to import and map each one to a column in your file. Only Facility ID is required; administrative areas are all-or-nothing.",
-          fr: "Activez les colonnes que vous voulez importer et associez chacune à une colonne de votre fichier. Seul l'identifiant d'établissement est requis ; les unités administratives sont tout ou rien.",
-          pt: "Ative as colunas que pretende importar e associe cada uma a uma coluna do seu ficheiro. Apenas o identificador do estabelecimento é obrigatório; as zonas administrativas são tudo ou nada.",
+          en:
+            "Turn on the columns you want to import and map each one to a column in your file. Only Facility ID is required; administrative areas are all-or-nothing.",
+          fr:
+            "Activez les colonnes que vous voulez importer et associez chacune à une colonne de votre fichier. Seul l'identifiant d'établissement est requis ; les unités administratives sont tout ou rien.",
+          pt:
+            "Ative as colunas que pretende importar e associe cada uma a uma coluna do seu ficheiro. Apenas o identificador do estabelecimento é obrigatório; as zonas administrativas são tudo ou nada.",
         })}
       </div>
 
@@ -168,7 +176,9 @@ export function Step2_Csv(p: Props) {
               checked={true}
               disabled
               onChange={() => {}}
-              label={`${getStructureColumnLabel("facility_id", p.structureSchema)} *`}
+              label={`${
+                getStructureColumnLabel("facility_id", p.structureSchema)
+              } *`}
             />
           </div>
           <div class="w-96">
@@ -213,8 +223,7 @@ export function Step2_Csv(p: Props) {
                         options={getSelectOptions(csvHeaders())}
                         value={tempMappings[`admin_area_${level}`]}
                         onChange={(val) =>
-                          updateMapping(`admin_area_${level}`, val)
-                        }
+                          updateMapping(`admin_area_${level}`, val)}
                         placeholder={t3({
                           en: "Choose a column…",
                           fr: "Choisir une colonne…",

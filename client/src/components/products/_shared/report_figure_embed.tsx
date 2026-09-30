@@ -17,7 +17,10 @@ import {
   type RunAuthoringContext,
   t3,
 } from "lib";
-import { buildFigureInputs, isFigureBundleStale } from "~/generate_visualization/mod";
+import {
+  buildFigureInputs,
+  isFigureBundleStale,
+} from "~/generate_visualization/mod";
 import { StaleFigureBadge } from "~/components/_shared/figure_editor/mod.ts";
 import { applyInkTheme, type FigureInkTheme } from "~/generate_report/mod";
 
@@ -59,7 +62,10 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
       };
     }
     try {
-      return { ok: true, inputs: buildFigureInputs(bundle, undefined, p.chartPalette?.()) };
+      return {
+        ok: true,
+        inputs: buildFigureInputs(bundle, undefined, p.chartPalette?.()),
+      };
     } catch (e) {
       return {
         ok: false,
@@ -108,14 +114,21 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
   return (
     <div ref={root} class="ui-spy-sm">
       <Switch>
-        {/* scheme="light": a document stays light in a dark app. Keyed
+        {
+          /* scheme="light": a document stays light in a dark app. Keyed
             colours (a table's column-header ground is the page key, CF cell
             text picks the base text key) must resolve against the light set,
             or a dark app paints black header cells and white values on pale
-            tints. Dark GROUNDS inside the report are the ink theme's job. */}
+            tints. Dark GROUNDS inside the report are the ink theme's job. */
+        }
         <Match when={inputs()}>
           {(fi) => (
-            <FigureHolder figureInputs={fi()} height="ideal" sizing="zoom" scheme="light" />
+            <FigureHolder
+              figureInputs={fi()}
+              height="ideal"
+              sizing="zoom"
+              scheme="light"
+            />
           )}
         </Match>
         <Match when={errMsg()}>

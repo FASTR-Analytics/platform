@@ -7,12 +7,12 @@ import {
 } from "lib";
 import {
   Button,
+  createDeleteAction,
   FrameTop,
+  getEditorWrapper,
   HeadingBar,
   Table,
   type TableColumn,
-  getEditorWrapper,
-  createDeleteAction,
 } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -28,15 +28,15 @@ type Props = {
 function familyHeading(family: FacilityFamily): string {
   return family === "hmis"
     ? t3({
-        en: "HMIS registry maps",
-        fr: "Cartes du registre SNIS",
-        pt: "Mapas do registo SNIS",
-      })
+      en: "HMIS registry maps",
+      fr: "Cartes du registre SNIS",
+      pt: "Mapas do registo SNIS",
+    })
     : t3({
-        en: "HFA registry maps",
-        fr: "Cartes du registre Enquêtes FOSA",
-        pt: "Mapas do registo FOSA",
-      });
+      en: "HFA registry maps",
+      fr: "Cartes du registre Enquêtes FOSA",
+      pt: "Mapas do registo FOSA",
+    });
 }
 
 export function GeoJsonManager(p: Props) {
@@ -89,9 +89,15 @@ export function GeoJsonManager(p: Props) {
         const deleteAction = createDeleteAction(
           {
             text: t3({
-              en: `Delete ${p.family === "hmis" ? "HMIS" : "HFA"} GeoJSON for admin area level ${item.adminAreaLevel}?`,
-              fr: `Supprimer le GeoJSON ${p.family === "hmis" ? "SNIS" : "Enquêtes FOSA"} pour le niveau administratif ${item.adminAreaLevel} ?`,
-              pt: `Eliminar o GeoJSON ${p.family === "hmis" ? "SNIS" : "FOSA"} para o nível de zona administrativa ${item.adminAreaLevel}?`,
+              en: `Delete ${
+                p.family === "hmis" ? "HMIS" : "HFA"
+              } GeoJSON for admin area level ${item.adminAreaLevel}?`,
+              fr: `Supprimer le GeoJSON ${
+                p.family === "hmis" ? "SNIS" : "Enquêtes FOSA"
+              } pour le niveau administratif ${item.adminAreaLevel} ?`,
+              pt: `Eliminar o GeoJSON ${
+                p.family === "hmis" ? "SNIS" : "FOSA"
+              } para o nível de zona administrativa ${item.adminAreaLevel}?`,
             }),
             itemList: [`Level ${item.adminAreaLevel}`],
           },
@@ -112,8 +118,7 @@ export function GeoJsonManager(p: Props) {
                   handleEdit(
                     p.family,
                     parseAdminAreaLevel(item.adminAreaLevel),
-                  )
-                }
+                  )}
               />
               <Button
                 iconName="trash"
@@ -155,9 +160,12 @@ export function GeoJsonManager(p: Props) {
           fallback={
             <div class="text-base-content-muted py-8 text-center">
               {t3({
-                en: "No GeoJSON maps uploaded for this registry yet. Upload a GeoJSON file to enable map visualizations.",
-                fr: "Aucune carte GeoJSON téléchargée pour ce registre. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
-                pt: "Ainda não foi carregado nenhum mapa GeoJSON para este registo. Carregue um ficheiro GeoJSON para ativar as visualizações de mapas.",
+                en:
+                  "No GeoJSON maps uploaded for this registry yet. Upload a GeoJSON file to enable map visualizations.",
+                fr:
+                  "Aucune carte GeoJSON téléchargée pour ce registre. Téléchargez un fichier GeoJSON pour activer les visualisations cartographiques.",
+                pt:
+                  "Ainda não foi carregado nenhum mapa GeoJSON para este registo. Carregue um ficheiro GeoJSON para ativar as visualizações de mapas.",
               })}
             </div>
           }

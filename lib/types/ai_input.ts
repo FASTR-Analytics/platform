@@ -75,7 +75,8 @@ export const AiTextBlockSchema = z.object({
         return wordCount <= SLIDE_TEXT_TOTAL_WORD_COUNT_MAX;
       },
       {
-        message: `Individual text block exceeds ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words`,
+        message:
+          `Individual text block exceeds ${SLIDE_TEXT_TOTAL_WORD_COUNT_MAX} words`,
       },
     ),
 });
@@ -140,35 +141,35 @@ export const AiFigureConfigPatchSchema = z.object({
   // NOTE: chart `type` is intentionally NOT editable. The figure keeps its type.
   valuesDisDisplayOpt: configDStrict.shape.valuesDisDisplayOpt.optional()
     .describe(
-      "Display slot for the value dimension — where a metric's MULTIPLE data "
-      + "values (e.g. actual vs expected) are laid out. Valid slots depend on "
-      + "the figure's type, and it has no effect at all on a figure showing a "
-      + "single data value. It is NOT a label, caption or styling control.",
+      "Display slot for the value dimension — where a metric's MULTIPLE data " +
+        "values (e.g. actual vs expected) are laid out. Valid slots depend on " +
+        "the figure's type, and it has no effect at all on a figure showing a " +
+        "single data value. It is NOT a label, caption or styling control.",
     ),
   valuesFilter: z.union([configDStrict.shape.valuesFilter, z.null()]).optional()
     .describe("Which value properties to show, or null to show all."),
   disaggregateBy: configDStrict.shape.disaggregateBy.optional()
     .describe(
-      "Replaces ALL disaggregations. Each is { disOpt, disDisplayOpt }; set a "
-      + "dimension's disDisplayOpt to 'replicant' to replicate by it. An "
-      + "existing roll-up flag is carried over onto the same dimension — "
-      + "unless ANY entry states its own `rollup` field, in which case the "
-      + "provided flags replace all existing ones (at most one entry may be "
-      + "flagged; an unavailable flag is an error). Prefer `rollupDimension` "
-      + "for roll-up changes.",
+      "Replaces ALL disaggregations. Each is { disOpt, disDisplayOpt }; set a " +
+        "dimension's disDisplayOpt to 'replicant' to replicate by it. An " +
+        "existing roll-up flag is carried over onto the same dimension — " +
+        "unless ANY entry states its own `rollup` field, in which case the " +
+        "provided flags replace all existing ones (at most one entry may be " +
+        "flagged; an unavailable flag is an error). Prefer `rollupDimension` " +
+        "for roll-up changes.",
     ),
   filterBy: configDStrict.shape.filterBy.optional()
     .describe("Replaces ALL data filters. Empty array clears."),
   selectedReplicantValue: z.union([z.string(), z.null()]).optional()
     .describe(
-      "Which replicant value to show (e.g. 'opd'); null to clear. Only "
-      + "meaningful when a disaggregation is displayed as 'replicant'.",
+      "Which replicant value to show (e.g. 'opd'); null to clear. Only " +
+        "meaningful when a disaggregation is displayed as 'replicant'.",
     ),
   rollupDimension: z.union([z.enum(ROLLUP_DIMENSIONS), z.null()]).optional()
     .describe(
-      "Add a roll-up total row ('National' / 'All facilities') collapsing this "
-      + "dimension — must be a disaggregated admin level or facility column "
-      + "(constraints apply; error if unavailable); null to remove the roll-up.",
+      "Add a roll-up total row ('National' / 'All facilities') collapsing this " +
+        "dimension — must be a disaggregated admin level or facility column " +
+        "(constraints apply; error if unavailable); null to remove the roll-up.",
     ),
   rollupPosition: z.enum(["bottom", "top"]).optional()
     .describe("'top' or 'bottom'; defaults to bottom."),
@@ -205,13 +206,13 @@ export type AiFigureConfigPatch = z.infer<typeof AiFigureConfigPatchSchema>;
 // applies: see applyFigureConfigPatch.
 export const AiVizConfigUpdateSchema = AiFigureConfigPatchSchema.extend({
   type: configDStrict.shape.type.optional().describe(
-    "Presentation type. Changing it converts the config the same way the "
-    + "editor's type dropdown does (slots remapped, style resets applied); "
-    + "fields you supply in the same call win over the conversion's choices.",
+    "Presentation type. Changing it converts the config the same way the " +
+      "editor's type dropdown does (slots remapped, style resets applied); " +
+      "fields you supply in the same call win over the conversion's choices.",
   ),
   timeseriesGrouping: configDStrict.shape.timeseriesGrouping.describe(
-    "How to group the time axis. Only valid when the (resulting) presentation "
-    + "type is timeseries.",
+    "How to group the time axis. Only valid when the (resulting) presentation " +
+      "type is timeseries.",
   ),
 });
 

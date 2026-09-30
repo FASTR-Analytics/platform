@@ -2,11 +2,11 @@ import type {
   AiMetricQuery,
   DisaggregationOption,
   GenericLongFormFetchConfig,
+  IndicatorFormat,
   IndicatorMetadata,
   ItemsHolderPresentationObject,
   JsonArrayItem,
   MetricAIDescription,
-  IndicatorFormat,
   MetricFormatAs,
   MetricWithStatus,
   PeriodBounds,
@@ -125,25 +125,25 @@ export async function getMetricDataForAI(
       rollupDim: undefined,
     }
     : metric.postAggregationExpression
-      ? {
-        values: metric.postAggregationExpression.ingredientValues,
-        groupBys: uniqueDisaggregations,
-        filters: filters,
-        periodFilter,
-        postAggregationExpression: metric.postAggregationExpression.expression,
-        rollupDim: undefined,
-      }
-      : {
-        values: valuePropsToFetch.map((prop) => ({
-          prop,
-          func: metric.valueFunc,
-        })),
-        groupBys: uniqueDisaggregations,
-        filters: filters,
-        periodFilter,
-        postAggregationExpression: undefined,
-        rollupDim: undefined,
-      };
+    ? {
+      values: metric.postAggregationExpression.ingredientValues,
+      groupBys: uniqueDisaggregations,
+      filters: filters,
+      periodFilter,
+      postAggregationExpression: metric.postAggregationExpression.expression,
+      rollupDim: undefined,
+    }
+    : {
+      values: valuePropsToFetch.map((prop) => ({
+        prop,
+        func: metric.valueFunc,
+      })),
+      groupBys: uniqueDisaggregations,
+      filters: filters,
+      periodFilter,
+      postAggregationExpression: undefined,
+      rollupDim: undefined,
+    };
 
   const res = await env.getItems({
     resultsObjectId: metric.resultsObjectId,
@@ -436,7 +436,10 @@ function formatItemsAsMarkdown(
 }
 
 // A stored value in DISPLAY units, a percent with its sign.
-export function formatIndicatorValue(value: number, formatAs: IndicatorFormat): string {
+export function formatIndicatorValue(
+  value: number,
+  formatAs: IndicatorFormat,
+): string {
   const scaled = scaleValueForFormat(value, formatAs);
   return formatAs === "percent" ? `${scaled}%` : String(scaled);
 }
@@ -448,7 +451,10 @@ export function formatIndicatorValue(value: number, formatAs: IndicatorFormat): 
 // indicator's fact. A package written before the indicator carried its own
 // direction has it only in the rule's key.
 export function describeIndicatorFacts(
-  meta: Pick<IndicatorMetadata, "format_as" | "thresholds" | "direction" | "target">,
+  meta: Pick<
+    IndicatorMetadata,
+    "format_as" | "thresholds" | "direction" | "target"
+  >,
 ): string[] {
   const formatAs = meta.format_as ?? "number";
   const direction = meta.direction ?? meta.thresholds?.direction;

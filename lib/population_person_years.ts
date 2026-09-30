@@ -76,9 +76,7 @@ export function interpolateMidYearPopulation(
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
   if (sorted.length === 1 || t <= anchorTime(first)) {
-    return sorted.length === 1
-      ? first.count
-      : extrapolate(first, sorted[1], t);
+    return sorted.length === 1 ? first.count : extrapolate(first, sorted[1], t);
   }
   if (t >= anchorTime(last)) {
     return extrapolate(last, sorted[sorted.length - 2], t);

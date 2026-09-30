@@ -40,10 +40,12 @@ function AccessTokensPanel(p: { email: string }) {
   const [label, setLabel] = createSignal("");
   const [minting, setMinting] = createSignal(false);
   const [mintError, setMintError] = createSignal<string | null>(null);
-  const [freshToken, setFreshToken] = createSignal<{
-    label: string;
-    token: string;
-  } | null>(null);
+  const [freshToken, setFreshToken] = createSignal<
+    {
+      label: string;
+      token: string;
+    } | null
+  >(null);
   const [copied, setCopied] = createSignal(false);
 
   async function mint(): Promise<void> {
@@ -121,7 +123,11 @@ function AccessTokensPanel(p: { email: string }) {
       key: "id",
       header: "",
       render: (pat) => (
-        <Button size="sm" intent="danger" onClick={() => revoke(pat)}>
+        <Button
+          size="sm"
+          intent="danger"
+          onClick={() => revoke(pat)}
+        >
           Revoke
         </Button>
       ),
@@ -133,9 +139,9 @@ function AccessTokensPanel(p: { email: string }) {
       <h1 class="ui-text-heading mb-2">Personal access tokens</h1>
       <p class="mb-6 text-sm">
         Tokens for headless clients (the MCP assistant). A token acts as{" "}
-        <span>{p.email}</span> with your permissions, on a
-        restricted route allowlist. Treat it like a password; revoke it when you
-        are done.
+        <span>{p.email}</span>{" "}
+        with your permissions, on a restricted route allowlist. Treat it like a
+        password; revoke it when you are done.
       </p>
 
       <div class="mb-2 flex items-end gap-2">
@@ -162,8 +168,8 @@ function AccessTokensPanel(p: { email: string }) {
         {(fresh) => (
           <div class="border-border bg-base-200 mb-6 rounded border p-4">
             <p class="mb-2 text-sm">
-              Token for <span>{fresh().label}</span> — copy it
-              now, it is shown only once:
+              Token for <span>{fresh().label}</span>{" "}
+              — copy it now, it is shown only once:
             </p>
             <div class="flex items-center gap-2">
               <code class="flex-1 text-sm break-all">{fresh().token}</code>

@@ -41,7 +41,8 @@ export function SharedControlsTop(p: SharedTopProps) {
                   max={10}
                   step={1}
                   value={p.tempConfig.s.nColsInCellDisplay as number}
-                  onChange={(v) => p.setTempConfig("s", "nColsInCellDisplay", v)}
+                  onChange={(v) =>
+                    p.setTempConfig("s", "nColsInCellDisplay", v)}
                   fullWidth
                   showValueInLabel
                 />

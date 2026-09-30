@@ -7,7 +7,7 @@ import {
   toPct0,
   toPct1,
 } from "panther";
-import { Show, createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { exportSlideDeckAsPdfVector } from "~/exports/export_slide_deck_as_pdf_vector";
 import { exportSlideDeckAsPptx } from "~/exports/export_slide_deck_as_pptx";
 
@@ -31,10 +31,9 @@ export function DownloadSlideDeck(
     await new Promise((res) => setTimeout(res, 0));
     const format = exportFormat();
 
-    const res =
-      format === "vector"
-        ? await exportSlideDeckAsPdfVector(p.productId, progress)
-        : await exportSlideDeckAsPptx(p.productId, progress);
+    const res = format === "vector"
+      ? await exportSlideDeckAsPdfVector(p.productId, progress)
+      : await exportSlideDeckAsPptx(p.productId, progress);
     if (res.success === false) {
       setErr(res.err);
       setPct(0);
@@ -45,25 +44,34 @@ export function DownloadSlideDeck(
 
   return (
     <ModalContainer
-      title={t3({ en: "Download slide deck", fr: "Télécharger la présentation", pt: "Transferir apresentação" })}
+      title={t3({
+        en: "Download slide deck",
+        fr: "Télécharger la présentation",
+        pt: "Transferir apresentação",
+      })}
       width="sm"
       onCancel={pct() > 0 ? undefined : () => p.close(undefined)}
       actions={[
-        ...(pct() > 0
-          ? []
-          : [
-              {
-                label: t3(TC.download),
-                onClick: attemptExport,
-                iconName: "download" as const,
-              },
-            ]),
+        ...(pct() > 0 ? [] : [
+          {
+            label: t3(TC.download),
+            onClick: attemptExport,
+            iconName: "download" as const,
+          },
+        ]),
       ]}
     >
       <div class="ui-spy-sm">
         <div class="">PDF</div>
         <RadioGroup
-          options={[{ value: "vector", label: t3({ en: "Native PDF (Recommended)", fr: "PDF natif (recommandé)", pt: "PDF nativo (recomendado)" }) }]}
+          options={[{
+            value: "vector",
+            label: t3({
+              en: "Native PDF (Recommended)",
+              fr: "PDF natif (recommandé)",
+              pt: "PDF nativo (recomendado)",
+            }),
+          }]}
           value={exportFormat()}
           onChange={setExportFormat}
         />
@@ -72,7 +80,14 @@ export function DownloadSlideDeck(
         <div class="">PPTX</div>
         <RadioGroup
           options={[
-            { value: "pptx", label: t3({ en: "Native PPTX with raster visualizations", fr: "PPTX natif avec visualisations matricielles", pt: "PPTX nativo com visualizações rasterizadas" }) },
+            {
+              value: "pptx",
+              label: t3({
+                en: "Native PPTX with raster visualizations",
+                fr: "PPTX natif avec visualisations matricielles",
+                pt: "PPTX nativo com visualizações rasterizadas",
+              }),
+            },
           ]}
           value={exportFormat()}
           onChange={setExportFormat}
@@ -84,7 +99,8 @@ export function DownloadSlideDeck(
             <div
               class="bg-primary h-full"
               style={{ width: toPct1(pct()) }}
-            ></div>
+            >
+            </div>
           </div>
           <div class="text-center">{toPct0(pct())}</div>
         </div>

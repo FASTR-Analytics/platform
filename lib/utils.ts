@@ -31,13 +31,13 @@ export function withReplicant(
 
 export function encodeRawCsvHeader(
   i_colHeader: number,
-  colHeader: string
+  colHeader: string,
 ): string {
   return `Col ${i_colHeader + 1}: ${colHeader}`;
 }
 
 export function parseJsonOrUndefined<T>(
-  str: string | null | undefined
+  str: string | null | undefined,
 ): T | undefined {
   if (!str) {
     return undefined;

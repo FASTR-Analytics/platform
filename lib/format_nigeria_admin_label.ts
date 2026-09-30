@@ -1,7 +1,10 @@
 import { ADMIN_LEVELS } from "./rollup.ts";
 import { t3 } from "./translate/mod.ts";
 import { CountryCodes } from "./types/instance.ts";
-import { BLANK_SENTINEL, BLANK_SENTINEL_LABEL } from "./validate_fetch_config.ts";
+import {
+  BLANK_SENTINEL,
+  BLANK_SENTINEL_LABEL,
+} from "./validate_fetch_config.ts";
 
 const ADMIN_AREA_DISAGGREGATIONS = new Set<string>(ADMIN_LEVELS);
 

@@ -48,7 +48,9 @@ export function registerReportPageLayout(
 
 function layoutFor(detail: ReportDetail): ReportPageLayout | undefined {
   const layout = pageLayouts.get(detail.id)?.();
-  return layout !== undefined && layout.body === detail.body ? layout : undefined;
+  return layout !== undefined && layout.body === detail.body
+    ? layout
+    : undefined;
 }
 
 export type ReportPdfBytes = {

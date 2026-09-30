@@ -1,8 +1,8 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
-  AiFigureFromMetricSchema,
   AiFigureConfigPatchSchema,
+  AiFigureFromMetricSchema,
   buildReportEmbedToken,
   collapseFastrBlankRuns,
   FASTR_REPORT_THEMES,
@@ -11,8 +11,8 @@ import {
   findReportEmbeds,
   findReportHeadings,
   getFastrReportTheme,
-  getReportFormat,
   getReplicateByProp,
+  getReportFormat,
   insertAfterReportHeading,
   type MetricWithStatus,
   type PeriodBounds,
@@ -44,15 +44,15 @@ import { validateMetricInputs } from "lib";
 import type { ClientAIToolEnv } from "../../_shared/mod.ts";
 import {
   validateFastrContainers,
+  validateFastrNewLiteralBackgrounds,
   validateFastrRewriteUsesBlocks,
   validateFastrStatPlacement,
-  validateFastrNewLiteralBackgrounds,
   validateReferenceCssReuse,
-  validateStyledReportHasStylesheet,
   validateReportBodyDelta,
   validateReportBodyForFormat,
   validateReportBodyLength,
   validateReportTokensResolve,
+  validateStyledReportHasStylesheet,
 } from "../validators/mod.ts";
 
 // Appended to a tool's ACCEPTED message when the accept-time rebase skipped
@@ -62,9 +62,11 @@ function skippedNote(
   skipped: { fromLine: number; toLine: number }[] | undefined,
 ): string {
   if (!skipped || skipped.length === 0) return "";
-  return ` NOTE: the proposed change(s) at line(s) ${formatLineRanges(
-    skipped,
-  )} were NOT applied — a collaborator edited that text while the proposal was open. Re-read the report (get_report_editor) before retrying those parts.`;
+  return ` NOTE: the proposed change(s) at line(s) ${
+    formatLineRanges(
+      skipped,
+    )
+  } were NOT applied — a collaborator edited that text while the proposal was open. Re-read the report (get_report_editor) before retrying those parts.`;
 }
 
 // Replace one verbatim occurrence of oldText with newText. Ambiguous matches
@@ -98,26 +100,31 @@ function replaceTextOccurrence(
   } else {
     if (occurrenceIndex === undefined) {
       return {
-        error: `oldText occurs ${positions.length} times. Provide occurrenceIndex (1-${positions.length}), or include more surrounding text to make it unique.`,
+        error:
+          `oldText occurs ${positions.length} times. Provide occurrenceIndex (1-${positions.length}), or include more surrounding text to make it unique.`,
       };
     }
     const p = positions[occurrenceIndex - 1];
     if (p === undefined) {
       return {
-        error: `occurrenceIndex ${occurrenceIndex} out of range (1-${positions.length}).`,
+        error:
+          `occurrenceIndex ${occurrenceIndex} out of range (1-${positions.length}).`,
       };
     }
     pos = p;
   }
-  const newBody =
-    body.slice(0, pos) + newText + body.slice(pos + oldText.length);
+  const newBody = body.slice(0, pos) + newText +
+    body.slice(pos + oldText.length);
   return { newBody };
 }
 
 // The headings index for get_report_editor: where each section starts/ends
 // (1-based lines) and, for HTML, whether it is a wrapper element or a flat
 // run — exactly what rewrite_section will replace.
-function formatHeadingsIndex(headings: ReportHeading[], format: ReportFormat): string[] {
+function formatHeadingsIndex(
+  headings: ReportHeading[],
+  format: ReportFormat,
+): string[] {
   if (headings.length === 0) return [`## Headings: none`];
   return [
     `## Headings (section = what rewrite_section replaces; lines are 1-based)`,
@@ -130,7 +137,9 @@ function formatHeadingsIndex(headings: ReportHeading[], format: ReportFormat): s
           ? ` · wrapper <${h.section.wrapperTag}>`
           : ` · flat`
         : "";
-      return `- line ${h.line}: ${"#".repeat(h.level)} ${h.text} → section ${range}${mode}`;
+      return `- line ${h.line}: ${
+        "#".repeat(h.level)
+      } ${h.text} → section ${range}${mode}`;
     }),
   ];
 }
@@ -169,21 +178,22 @@ export function getClientToolsForReportEditor(
         const figureIds = Object.keys(figs);
         const imgIds = Object.keys(ctx.getImages());
         const sel = ctx.getSelection();
-        const selectionSection =
-          sel && !sel.empty
-            ? [
-                ``,
-                `## User's current selection (lines ${sel.fromLine}-${sel.toLine})`,
-                sel.text,
-              ]
-            : [
-                `## User's current selection: none (cursor at line ${sel?.fromLine ?? 1})`,
-              ];
+        const selectionSection = sel && !sel.empty
+          ? [
+            ``,
+            `## User's current selection (lines ${sel.fromLine}-${sel.toLine})`,
+            sel.text,
+          ]
+          : [
+            `## User's current selection: none (cursor at line ${
+              sel?.fromLine ?? 1
+            })`,
+          ];
         const figureSection = figureIds.length
           ? [
-              `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
-              ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
-            ]
+            `## Figures (call get_report_figure for full config; update_report_figure to edit in place):`,
+            ...figureIds.map((id) => formatFigureIndexLine(id, figs[id])),
+          ]
           : [`## Figures: none`];
         const format = view.params.format;
         const body = ctx.getBody();
@@ -206,7 +216,9 @@ export function getClientToolsForReportEditor(
           `# REPORT EDITOR: ${view.params.reportLabel}`,
           `Format: ${formatLabel}${styleNote}${
             format === "html"
-              ? ` — embed tokens are ${buildReportEmbedToken("html", "figure", "<id>", "caption")}`
+              ? ` — embed tokens are ${
+                buildReportEmbedToken("html", "figure", "<id>", "caption")
+              }`
               : ""
           }${
             format === "fastr"
@@ -232,7 +244,11 @@ export function getClientToolsForReportEditor(
           ...formatHeadingsIndex(findReportHeadings(body, format), format),
           ``,
           ...figureSection,
-          `## Images: ${imgIds.length ? imgIds.map((id) => `image:${id}`).join(", ") : "none"}`,
+          `## Images: ${
+            imgIds.length
+              ? imgIds.map((id) => `image:${id}`).join(", ")
+              : "none"
+          }`,
           ...selectionSection,
         ].join("\n");
       },
@@ -373,16 +389,20 @@ export function getClientToolsForReportEditor(
           input.patch.valuesDisDisplayOpt !== undefined;
         let dataBounds: PeriodBounds | undefined;
         let disaggregationPossibleValues:
-          | ResultsValueInfoForPresentationObject["disaggregationPossibleValues"]
+          | ResultsValueInfoForPresentationObject[
+            "disaggregationPossibleValues"
+          ]
           | undefined;
         if (needsBounds || needsPossibleValues) {
-          const infoRes = await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-            view.context.getScope(),
-            bundle.metricId,
-          );
+          const infoRes =
+            await getResultsValueInfoForPresentationObjectFromCacheOrFetch(
+              view.context.getScope(),
+              bundle.metricId,
+            );
           if (infoRes.success) {
             dataBounds = infoRes.data.periodBounds;
-            disaggregationPossibleValues = infoRes.data.disaggregationPossibleValues;
+            disaggregationPossibleValues =
+              infoRes.data.disaggregationPossibleValues;
           }
           if (needsBounds && !dataBounds) {
             throw new AIToolFailure(
@@ -398,19 +418,26 @@ export function getClientToolsForReportEditor(
           metric,
           dataBounds,
         );
-        validateFigureConfigEdit(bundle.config, newConfig, input.patch, metric, {
-          disaggregationPossibleValues,
-        });
+        validateFigureConfigEdit(
+          bundle.config,
+          newConfig,
+          input.patch,
+          metric,
+          {
+            disaggregationPossibleValues,
+          },
+        );
 
-        const filters =
-          newConfig.d.filterBy.length > 0 ? newConfig.d.filterBy : undefined;
-        const periodFilter =
-          newConfig.d.periodFilter && periodFilterHasBounds(newConfig.d.periodFilter)
-            ? {
-                min: newConfig.d.periodFilter.min,
-                max: newConfig.d.periodFilter.max,
-              }
-            : undefined;
+        const filters = newConfig.d.filterBy.length > 0
+          ? newConfig.d.filterBy
+          : undefined;
+        const periodFilter = newConfig.d.periodFilter &&
+            periodFilterHasBounds(newConfig.d.periodFilter)
+          ? {
+            min: newConfig.d.periodFilter.min,
+            max: newConfig.d.periodFilter.max,
+          }
+          : undefined;
         await validateMetricInputs(
           env,
           bundle.metricId,
@@ -448,7 +475,9 @@ export function getClientToolsForReportEditor(
               `check their connection and try again.`,
           );
         }
-        return `Updated figure ${input.figureId}.\n${report.map((l) => `- ${l}`).join("\n")}\nThe preview is updated and saved.`;
+        return `Updated figure ${input.figureId}.\n${
+          report.map((l) => `- ${l}`).join("\n")
+        }\nThe preview is updated and saved.`;
       },
       inProgressLabel: "Updating figure...",
       completionMessage: "Updated figure",
@@ -833,10 +862,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
             metrics,
           );
           const newId = crypto.randomUUID();
-          const overrideCaption =
-            input.caption !== undefined
-              ? input.caption.replace(/\s+/g, " ").trim()
-              : undefined;
+          const overrideCaption = input.caption !== undefined
+            ? input.caption.replace(/\s+/g, " ").trim()
+            : undefined;
           // Swap every token for this figure id (preserving each caption unless
           // overridden, and — for HTML — the token's other attributes) to a
           // fresh id pointing at the new figure block. A caption override
@@ -869,10 +897,9 @@ ${FASTR_MD_SYNTAX_DOC}`,
           const prep = ctx.proposeEdit({
             newBody,
             addFigures: { [newId]: figureBlock },
-            summary:
-              overrideCaption !== undefined && embedCount > 1
-                ? `Replace figure (new caption applied to all ${embedCount} embeds)`
-                : "Replace figure",
+            summary: overrideCaption !== undefined && embedCount > 1
+              ? `Replace figure (new caption applied to all ${embedCount} embeds)`
+              : "Replace figure",
           });
           if ("skip" in prep) return prep;
           return {

@@ -1,11 +1,11 @@
 import {
-  t3,
   type PackageScope,
   type PresentationObjectConfig,
   type ResultsValue,
+  t3,
 } from "lib";
 import type { FigureInputs, StateHolder } from "panther";
-import { createEffect, createSignal, type Accessor } from "solid-js";
+import { type Accessor, createEffect, createSignal } from "solid-js";
 import {
   buildFigureInputs,
   makeFigureBundleFromFetchedData,
@@ -21,7 +21,11 @@ export async function fetchFigureInputs(
   metric: ResultsValue,
   config: PresentationObjectConfig,
 ): Promise<StateHolder<FigureInputs>> {
-  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(scope, metric, config);
+  const itemsRes = await getPresentationObjectItemsFromCacheOrFetch(
+    scope,
+    metric,
+    config,
+  );
   if (!itemsRes.success) {
     return { status: "error", err: itemsRes.err };
   }
@@ -29,18 +33,17 @@ export async function fetchFigureInputs(
   if (ih.status !== "ok") {
     return {
       status: "error",
-      err:
-        ih.status === "too_many_items"
-          ? t3({
-              en: "Too many data points",
-              fr: "Trop de points de données",
-              pt: "Demasiados pontos de dados",
-            })
-          : t3({
-              en: "No data available",
-              fr: "Aucune donnée disponible",
-              pt: "Nenhum dado disponível",
-            }),
+      err: ih.status === "too_many_items"
+        ? t3({
+          en: "Too many data points",
+          fr: "Trop de points de données",
+          pt: "Demasiados pontos de dados",
+        })
+        : t3({
+          en: "No data available",
+          fr: "Aucune donnée disponible",
+          pt: "Nenhum dado disponível",
+        }),
     };
   }
 

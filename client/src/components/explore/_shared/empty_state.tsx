@@ -9,9 +9,12 @@ export function EmptyState(p: { kind: EmptyStateKind; reason?: string }) {
     <div class="text-base-content-muted text-sm">
       {p.kind === "no_modules"
         ? t3({
-          en: "This package has no modules, so there are no results to explore.",
-          fr: "Ce paquet n'a aucun module, il n'y a donc aucun résultat à explorer.",
-          pt: "Este pacote não tem nenhum módulo, pelo que não há resultados para explorar.",
+          en:
+            "This package has no modules, so there are no results to explore.",
+          fr:
+            "Ce paquet n'a aucun module, il n'y a donc aucun résultat à explorer.",
+          pt:
+            "Este pacote não tem nenhum módulo, pelo que não há resultados para explorar.",
         })
         : p.kind === "no_preset"
         ? t3({

@@ -27,15 +27,19 @@ export const PHYSICAL_DISAGGREGATION_COLUMNS: DisaggregationOption[] = [
 export function getEnabledFacilityDisaggregationOptions(
   facilityConfig: StructureColumns,
 ): DisaggregationOption[] {
-  const facilityOptions: { option: DisaggregationOption; enabled: boolean }[] = [
-    { option: "facility_type", enabled: facilityConfig.includeTypes },
-    { option: "facility_ownership", enabled: facilityConfig.includeOwnership },
-    { option: "facility_custom_1", enabled: facilityConfig.includeCustom1 },
-    { option: "facility_custom_2", enabled: facilityConfig.includeCustom2 },
-    { option: "facility_custom_3", enabled: facilityConfig.includeCustom3 },
-    { option: "facility_custom_4", enabled: facilityConfig.includeCustom4 },
-    { option: "facility_custom_5", enabled: facilityConfig.includeCustom5 },
-  ];
+  const facilityOptions: { option: DisaggregationOption; enabled: boolean }[] =
+    [
+      { option: "facility_type", enabled: facilityConfig.includeTypes },
+      {
+        option: "facility_ownership",
+        enabled: facilityConfig.includeOwnership,
+      },
+      { option: "facility_custom_1", enabled: facilityConfig.includeCustom1 },
+      { option: "facility_custom_2", enabled: facilityConfig.includeCustom2 },
+      { option: "facility_custom_3", enabled: facilityConfig.includeCustom3 },
+      { option: "facility_custom_4", enabled: facilityConfig.includeCustom4 },
+      { option: "facility_custom_5", enabled: facilityConfig.includeCustom5 },
+    ];
   return facilityOptions.filter((f) => f.enabled).map((f) => f.option);
 }
 

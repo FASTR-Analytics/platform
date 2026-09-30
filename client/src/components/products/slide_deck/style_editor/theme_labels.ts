@@ -1,4 +1,4 @@
-import { SLIDE_DECK_THEMES, t3, type SlideDeckTheme } from "lib";
+import { SLIDE_DECK_THEMES, type SlideDeckTheme, t3 } from "lib";
 
 // Display names and one-line characters for the slide deck themes. The themes
 // themselves (which palette, face, layout and treatments each name means) live

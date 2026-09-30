@@ -1,11 +1,11 @@
 import {
+  type Accessor,
   createEffect,
   createMemo,
   createSignal,
   onMount,
-  type Accessor,
 } from "solid-js";
-import { openComponent, type MessageParam } from "panther";
+import { type MessageParam, openComponent } from "panther";
 import {
   getPendingAttachments,
   getUploads,

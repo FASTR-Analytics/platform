@@ -47,15 +47,15 @@ generates a typed server-action from it, and boot fails if the two sets diverge.
 Around that seam sit the `APIResponse` envelope, the request-scoped NDJSON
 streaming sub-protocol, the `log()` audit middleware, the instance guard
 factories, and the product guard the registry's `access` field installs.
-Reviewed against code (first review cycle, review-only; absorbs
-DOC_API_ROUTES + DOC_ACCESS_CONTROL).
+Reviewed against code (first review cycle, review-only; absorbs DOC_API_ROUTES +
+DOC_ACCESS_CONTROL).
 
 Boundaries: the add-a-route/add-a-guard **recipe** is
 [PROTOCOL_APP_ROUTES.md](PROTOCOL_APP_ROUTES.md); the generic
 envelope/boundary-validation/permission-first rules it builds on are panther's
-`protocols/PROTOCOL_DENO_API.md`, deferred there, not restated here (one
-caveat: that protocol's example code does header/permission/parse checks _inline
-in handlers_, which this app centralizes in `defineRoute` + guards; follow the
+`protocols/PROTOCOL_DENO_API.md`, deferred there, not restated here (one caveat:
+that protocol's example code does header/permission/parse checks _inline in
+handlers_, which this app centralizes in `defineRoute` + guards; follow the
 rules, not the examples). Server-side **push** (SSE/ BroadcastChannel) is
 **S3**. The streaming here is request-scoped NDJSON, a different thing. The DB
 functions handlers call, and the error funnel that produces their envelopes, are
@@ -68,17 +68,17 @@ _writes_ the `users` rows the guards here evaluate: S1 owns the gate, S15 owns
 the admin surface behind it. Client-side consumption rules (tiers, caches) are
 [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md). Sub-file custody exceptions are
 in SYSTEMS.md §4.1 (`main.ts` owned here, S2/S15 readers;
-`instance/logged_in_wrapper.tsx` owned here, S3/S14 readers; `routes/instance/users.ts` +
-`db/instance/users.ts` owned here, S15/S13 readers).
+`instance/logged_in_wrapper.tsx` owned here, S3/S14 readers;
+`routes/instance/users.ts` + `db/instance/users.ts` owned here, S15/S13
+readers).
 
 ## Contract
 
-221 registry routes, zero direct client↔server imports; expected failures
-travel as HTTP 200 + `{ success: false, err }`, and only guards and validation
-emit real 4xx/5xx. This system also owns the _inventory_ of the ~30
-off-registry endpoints (each owned by its home system): that list is the
-erosion surface of the registry seam and must stay deliberate and enumerated
-(see below).
+221 registry routes, zero direct client↔server imports; expected failures travel
+as HTTP 200 + `{ success: false, err }`, and only guards and validation emit
+real 4xx/5xx. This system also owns the _inventory_ of the ~30 off-registry
+endpoints (each owned by its home system): that list is the erosion surface of
+the registry seam and must stay deliberate and enumerated (see below).
 
 ## The registry contract (`lib/api-routes/`)
 
@@ -115,28 +115,28 @@ export const productReportRouteRegistry = {
 };
 ```
 
-| Field             | Purpose                                                                   | Runtime vs type                                              |
-| ----------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `path`            | URL path, `:name` for params                                              | real value                                                   |
-| `method`          | `GET`/`POST`/`PUT`/`DELETE`/`PATCH`                                       | real value                                                   |
-| `params`          | URL param schema (coercion where needed)                                  | **real Zod schema, validated per request**                   |
-| `body`            | request body schema, always `z.object({…})`                               | **real Zod schema, validated per request**                   |
-| `response`        | success `data` shape; omit for no-data                                    | compile-time phantom (`{} as T`), never validated at runtime |
-| `isStreaming`     | NDJSON stream protocol                                                    | real boolean                                                 |
-| `timeoutMs`       | client fetch timeout override (default 5 min; streaming routes have none) | real number                                                  |
-| `access`          | product/folder access level (`view`, `edit`, `own`); installs the guard   | real value, product registries only                          |
+| Field         | Purpose                                                                   | Runtime vs type                                              |
+| ------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `path`        | URL path, `:name` for params                                              | real value                                                   |
+| `method`      | `GET`/`POST`/`PUT`/`DELETE`/`PATCH`                                       | real value                                                   |
+| `params`      | URL param schema (coercion where needed)                                  | **real Zod schema, validated per request**                   |
+| `body`        | request body schema, always `z.object({…})`                               | **real Zod schema, validated per request**                   |
+| `response`    | success `data` shape; omit for no-data                                    | compile-time phantom (`{} as T`), never validated at runtime |
+| `isStreaming` | NDJSON stream protocol                                                    | real boolean                                                 |
+| `timeoutMs`   | client fetch timeout override (default 5 min; streaming routes have none) | real number                                                  |
+| `access`      | product/folder access level (`view`, `edit`, `own`); installs the guard   | real value, product registries only                          |
 
-`params`/`body` are never phantom: `route()` requires real Zod
-schemas for both, so a handler can trust they match their `z.infer<T>` types.
-`response` alone stays a phantom: the server is the trusted producer, and the
-only response check is the compile-time `TypedResponse` constraint on the
-handler return (a local `InferredResponse` type resolves it to
-`APIResponseWithData<T>` when `response` is set, else `APIResponseNoData`).
+`params`/`body` are never phantom: `route()` requires real Zod schemas for both,
+so a handler can trust they match their `z.infer<T>` types. `response` alone
+stays a phantom: the server is the trusted producer, and the only response check
+is the compile-time `TypedResponse` constraint on the handler return (a local
+`InferredResponse` type resolves it to `APIResponseWithData<T>` when `response`
+is set, else `APIResponseNoData`).
 
-Naming: the `products/` registry files are kebab-case
-(`slide-decks.ts`), the `instance/` ones snake_case
-(`geojson_maps.ts`); server implementation files in `server/routes/` are
-snake_case throughout. Pairing is by registry key, never by filename.
+Naming: the `products/` registry files are kebab-case (`slide-decks.ts`), the
+`instance/` ones snake_case (`geojson_maps.ts`); server implementation files in
+`server/routes/` are snake_case throughout. Pairing is by registry key, never by
+filename.
 
 **The `X | undefined` inference trap.** `route()`'s `response?:` parameter is
 optional, so `response: {} as X | undefined` silently infers as `X`: the
@@ -150,9 +150,9 @@ nullable response.
 `defineRoute(router, routeName, ...middlewares, handler)` in `route-helpers.ts`
 looks up `routeRegistry[routeName]` for path + method, registers on the Hono
 router with the lowercased method, and calls `markRouteDefined(routeName)`. Per
-request it parses `:param` segments and, for `POST`/`PUT`/`PATCH`/`DELETE`,
-the JSON body (empty-object fallback) against the registry Zod schemas,
-returning a `400 { success: false, err }` on mismatch; params get coercion
+request it parses `:param` segments and, for `POST`/`PUT`/`PATCH`/`DELETE`, the
+JSON body (empty-object fallback) against the registry Zod schemas, returning a
+`400 { success: false, err }` on mismatch; params get coercion
 (`z.coerce.number()`). Handlers receive `(c, { params, body })` fully typed and
 validated. Hono 4.5 caches `c.req.json()` internally, so `log()`, `defineRoute`,
 and a handler can all read the body safely.
@@ -166,8 +166,7 @@ casts, while shape drift (wrong/missing fields, data on a no-data route, a bare
 payload without the envelope) is a compile error at the `defineRoute` call.
 Never cast to `any` to silence this: the error means the registry and the
 implementation disagree, and one of them is wrong. `isStreaming` routes are
-exempt (they return a plain `Response` from
-`streamResponse`).
+exempt (they return a plain `Response` from `streamResponse`).
 
 The thin-handler shape is invariant: **call one DB fn →
 `if (!res.success)
@@ -177,14 +176,15 @@ push state over SSE (S3); routes never hand-build `{ success: true, data }` when
 the DB function already returns an envelope. `server/routes/products/reports.ts`
 is the canonical, fully-consistent implementation file.
 
-Three deliberate validation holes remain, all documented: `response`
-(above); the `geo.data` field of a figure bundle, schema'd as `z.unknown()`
-because GeoJSON is an external stable spec (`lib/types/_figure_bundle.ts`);
-and the per-node `style` record of a slide layout, `z.record(z.string(),
-z.unknown())` in `lib/types/_slide_config.ts`, whose values are panther's
-CSS-in-JS. The `slide`/`figures` bodies themselves parse against
-`slideConfigSchema` / `reportFiguresSchema`. Don't add new `z.unknown()` body fields to dodge
-writing a schema.
+Three deliberate validation holes remain, all documented: `response` (above);
+the `geo.data` field of a figure bundle, schema'd as `z.unknown()` because
+GeoJSON is an external stable spec (`lib/types/_figure_bundle.ts`); and the
+per-node `style` record of a slide layout, `z.record(z.string(),
+z.unknown())`
+in `lib/types/_slide_config.ts`, whose values are panther's CSS-in-JS. The
+`slide`/`figures` bodies themselves parse against `slideConfigSchema` /
+`reportFiguresSchema`. Don't add new `z.unknown()` body fields to dodge writing
+a schema.
 
 ## Consuming a route: generated server actions (client)
 
@@ -215,8 +215,8 @@ export type APIResponseNoData =
 
 Plus assertion helpers `throwIfErrWithData` / `throwIfErrNoData`. The DB layer
 produces these (S2); routes pass them through; the client unwraps them.
-`main.ts`'s `app.onError` also returns `{ success: false, err }`, at the
-default HTTP **200**, a known wart, not a pattern: clients detect failure by
+`main.ts`'s `app.onError` also returns `{ success: false, err }`, at the default
+HTTP **200**, a known wart, not a pattern: clients detect failure by
 `success: false`, not status. Real status codes exist only at the edges:
 validation 400, guards 401/403, outage 503.
 
@@ -258,8 +258,8 @@ violation**: registry keys never implemented, implemented routes not in the
 registry, duplicate `method + path` pairs, key collisions across feature
 registries, `:placeholder` segments without a matching `params` key, and body
 keys that are also path placeholders (the client strips them from the body).
-Success prints
-`✅ All N routes correctly implemented`. A broken route cannot ship.
+Success prints `✅ All N routes correctly implemented`. A broken route cannot
+ship.
 
 ## Off-registry endpoints: the complete inventory
 
@@ -287,13 +287,12 @@ here uses the registry.
 ### `authMiddleware`: Clerk (populate-not-reject); headless auth is a separate mount
 
 `server/middleware/auth.ts`: `_BYPASS_AUTH ? passthrough : clerkMiddleware()`,
-which only **populates** `getAuth(c)`: it never rejects. Rejection is the job
-of a per-route guard, so a route with no guard is reachable by any authenticated
+which only **populates** `getAuth(c)`: it never rejects. Rejection is the job of
+a per-route guard, so a route with no guard is reachable by any authenticated
 caller. Mount order matters: the OAuth discovery well-knowns and the
 `/access-tokens` SPA page are registered before the global middleware
-(anonymous-reachable: Hono runs handlers registered ahead of an `app.use`
-before it), and the global mount skips `/mcp`, which authenticates inside its
-adapter.
+(anonymous-reachable: Hono runs handlers registered ahead of an `app.use` before
+it), and the global mount skips `/mcp`, which authenticates inside its adapter.
 
 **The cookie mount takes session tokens ONLY.** `@hono/clerk-auth` v3's
 `clerkMiddleware` calls `authenticateRequest` with `acceptsToken: "any"`, so a
@@ -301,8 +300,8 @@ machine token (API key, M2M, or an OAuth access token) presented as a Bearer
 header to an ordinary cookie-mount route produces an _authenticated_ machine
 auth object, one carrying a `userId` but no `sessionClaims`.
 `getClerkSessionAuth()` is the single accessor for this and guards on
-`tokenType === "session_token"`. Never read `c.var.clerkAuth` directly: in v3
-it is the auth **function** `getAuth()` invokes, not the auth object.
+`tokenType === "session_token"`. Never read `c.var.clerkAuth` directly: in v3 it
+is the auth **function** `getAuth()` invokes, not the auth object.
 
 ### The headless credential seam
 
@@ -333,9 +332,9 @@ for a transient fault. So the mapping is allow-listed toward throwing: only
 `token-invalid` and `token-type-mismatch` resolve to `null`. Pinned by
 `server/tests/headless_oauth_auth_test.ts`.
 
-**Two judgment points, both calling that one resolver**: this is the whole
-point of the seam. Verifying only at the `/mcp` door is not enough: every MCP
-tool call dispatches server actions in-process through `headlessApp`, which runs
+**Two judgment points, both calling that one resolver**: this is the whole point
+of the seam. Verifying only at the `/mcp` door is not enough: every MCP tool
+call dispatches server actions in-process through `headlessApp`, which runs
 `headlessAuthMiddleware` per dispatch. A door-only check would let a connector
 initialize and list tools, then fail on every real tool call.
 
@@ -357,9 +356,9 @@ OAuth auth object has no email, so each resolve costs a `users.getUser` call
 actions. Without it one tool call would burn a handful of rate-limited Clerk
 calls. Only successes are cached: a bad token can never occupy a slot.
 
-> **Caveat, unverified.** The ~30 s window assumes Clerk issues
-> **opaque** (`oat_`) access tokens, which are verified through the Backend API
-> and therefore see revocation. If the OAuth application issues **JWT** access
+> **Caveat, unverified.** The ~30 s window assumes Clerk issues **opaque**
+> (`oat_`) access tokens, which are verified through the Backend API and
+> therefore see revocation. If the OAuth application issues **JWT** access
 > tokens instead, `@clerk/backend` verifies them **locally against JWKS with no
 > Backend API call**, so revocation is not observed at all until the token
 > expires (~1 h). Our cache TTL is irrelevant in that case. Which format a
@@ -411,37 +410,36 @@ LoggedInWrapper registers the browser transport (Clerk cookie, session refresh,
 reload on persistent 401) at module scope; the generated actions are identical
 wherever they run.
 
-**Transport registration doctrine** (PLAN_112 D4). The
-prohibition that matters stands verbatim: **no server code ever calls
-`setServerActionTransport`.** A process-global registration would make the app
-server issue authenticated calls under whichever identity was registered last,
-a confused-deputy shape with no per-request isolation. The sanctioned shape is
-the opposite: an **explicit per-context transport**, passed as an argument
-and never registered anywhere. `createAllServerActions(transport?)` takes one,
-and `ServerActionTransport.fetchImpl?` lets it dispatch **in-process** rather
-than over the network. The `/mcp` endpoint builds one per (token, pinned
-package) context carrying that caller's own token, with `fetchImpl:
-headlessAppFetch`, so every action runs the real headless middleware chain
-(verify + `last_used_at` stamp, deny-by-default allowlist, zod validation,
-`requireApprovedUser()` on the run-keyed package reads, logging) with no
-loopback HTTP and no shared state.
+**Transport registration doctrine** (PLAN_112 D4). The prohibition that matters
+stands verbatim: **no server code ever calls `setServerActionTransport`.** A
+process-global registration would make the app server issue authenticated calls
+under whichever identity was registered last, a confused-deputy shape with no
+per-request isolation. The sanctioned shape is the opposite: an **explicit
+per-context transport**, passed as an argument and never registered anywhere.
+`createAllServerActions(transport?)` takes one, and
+`ServerActionTransport.fetchImpl?` lets it dispatch **in-process** rather than
+over the network. The `/mcp` endpoint builds one per (token, pinned package)
+context carrying that caller's own token, with `fetchImpl:
+headlessAppFetch`, so
+every action runs the real headless middleware chain (verify + `last_used_at`
+stamp, deny-by-default allowlist, zod validation, `requireApprovedUser()` on the
+run-keyed package reads, logging) with no loopback HTTP and no shared state.
 Per-request isolation is exactly what the explicit form provides; SPA callers
 take both defaults (`createAllServerActions()`, global fetch). Pinned by
-`server/tests/pat_identity_parity_test.ts`, which drives the same route
-through the raw PAT app, an explicit transport, and a defaulted caller and
-asserts all three agree. The headless app's mount list
-and the allowlist are two hand-kept lists; `validateHeadlessMounts()`
-(`headless_app.ts`) runs at every DEV boot (`main.ts`, gated on `_IS_DEV`)
-beside `validateAllRoutesDefined()`: a structural check of Hono's route
-table (every allowlisted name's `method + path` must be registered on
-`headlessApp`) that fail-stops on a miss (they drifted once: allowlisted
-run-keyed reads whose route file was never mounted 404'd silently through
-`/mcp`); production boots skip it. The server test suite is not run at
-boot: `deno task test` is part of the verification floor
-(PROTOCOL_APP_PLANS.md), and `deno task typecheck` checks
-`server/tests/*.ts` too, so the suite is typed at the deploy gate. Note there is NO compiler-enforced
-browser-free boundary in `lib/` either: the server typecheck carries the
-TypeScript `dom` lib (`deno.json` → `"lib": [... "dom" ...]`), so a
+`server/tests/pat_identity_parity_test.ts`, which drives the same route through
+the raw PAT app, an explicit transport, and a defaulted caller and asserts all
+three agree. The headless app's mount list and the allowlist are two hand-kept
+lists; `validateHeadlessMounts()` (`headless_app.ts`) runs at every DEV boot
+(`main.ts`, gated on `_IS_DEV`) beside `validateAllRoutesDefined()`: a
+structural check of Hono's route table (every allowlisted name's `method + path`
+must be registered on `headlessApp`) that fail-stops on a miss (they drifted
+once: allowlisted run-keyed reads whose route file was never mounted 404'd
+silently through `/mcp`); production boots skip it. The server test suite is not
+run at boot: `deno task test` is part of the verification floor
+(PROTOCOL_APP_PLANS.md), and `deno task typecheck` checks `server/tests/*.ts`
+too, so the suite is typed at the deploy gate. Note there is NO
+compiler-enforced browser-free boundary in `lib/` either: the server typecheck
+carries the TypeScript `dom` lib (`deno.json` → `"lib": [... "dom" ...]`), so a
 `document`/`window` reference in a `lib/` file passes `deno check main.ts`
 clean: the boundary holds by convention plus runtime guards
 (`typeof document === "undefined"` branches, no browser globals at module
@@ -453,9 +451,10 @@ scope). Mechanical enforcement, if ever wanted, means a separate dom-less
 `server/auth/global_user.ts` is the one place a request's identity becomes a
 `GlobalUser`: the dev bypass, a headless credential (already resolved to an
 email by `headlessAuthMiddleware`) and a Clerk session all converge on
-`buildGlobalUserFromDb`, which reads the `users` row and sets `approved =
-_OPEN_ACCESS || !!row`. Every guard below calls it first, except that
-`requireGlobalPermissionOrStatusKey` lets a matching status-api key through
+`buildGlobalUserFromDb`, which reads the `users` row and sets
+`approved =
+_OPEN_ACCESS || !!row`. Every guard below calls it first, except
+that `requireGlobalPermissionOrStatusKey` lets a matching status-api key through
 before it.
 
 ### The guard factories
@@ -484,33 +483,33 @@ actor.
 (`server/middleware/userPermission.ts`): signed in (else 401) AND
 `globalUser.approved` (else 403 "awaiting approval"); sets `c.var.globalUser`
 and `c.var.mainDb`. It guards the run-keyed figure-data reads, the authoring
-context, the ready-package list, the product email send, and the copilot
-proxy and its Files route on `/ai` (PLAN_PRODUCTS_RESTRUCTURE D2, D15). The
-instance collab socket (`routes/instance/collab.ts`) applies the same
-signed-in-and-approved test inline before the upgrade rather than through
-this middleware, because its denials must travel as a post-upgrade close. Unlike
-the zero-permission `requireGlobalPermission()`, it checks `approved`.
+context, the ready-package list, the product email send, and the copilot proxy
+and its Files route on `/ai` (PLAN_PRODUCTS_RESTRUCTURE D2, D15). The instance
+collab socket (`routes/instance/collab.ts`) applies the same
+signed-in-and-approved test inline before the upgrade rather than through this
+middleware, because its denials must travel as a post-upgrade close. Unlike the
+zero-permission `requireGlobalPermission()`, it checks `approved`.
 
-**`requireProductAccess(level)`**: the guard for every product and folder
-route, and the one guard a handler in `server/routes/products/` never names.
-Each entry in `lib/api-routes/products/*` declares `access: "view" | "edit"
-| "own"` (the `route()` helper returns the field non-optional, and each
-registry closes with a `satisfies` that requires it), and `defineRoute`
-installs the middleware whenever an entry carries the field. Per request it
-authenticates (401), resolves the route's targets from the id fields the
-contract declares and nowhere else (path `product_id` / `folder_id`; body
-`productIds`, `targetProductId`, `folderId`, `parentId`), and asks
-`productAccessPolicy(user, level, targets)` in
-`server/auth/product_access.ts` once (403 on false). Today's policy returns
-`user.approved` for every level and target: every approved user is a full
-editor of every product and folder. Doctrine: the product id in the path IS
-the authority; a future permission model replaces the policy function and
-inherits the per-route access inventory, and must never be built as
-per-handler checks behind this guard. The registry's other guards never
-check `access`; instance routes do not declare it.
+**`requireProductAccess(level)`**: the guard for every product and folder route,
+and the one guard a handler in `server/routes/products/` never names. Each entry
+in `lib/api-routes/products/*` declares `access: "view" | "edit"
+| "own"` (the
+`route()` helper returns the field non-optional, and each registry closes with a
+`satisfies` that requires it), and `defineRoute` installs the middleware
+whenever an entry carries the field. Per request it authenticates (401),
+resolves the route's targets from the id fields the contract declares and
+nowhere else (path `product_id` / `folder_id`; body `productIds`,
+`targetProductId`, `folderId`, `parentId`), and asks
+`productAccessPolicy(user, level, targets)` in `server/auth/product_access.ts`
+once (403 on false). Today's policy returns `user.approved` for every level and
+target: every approved user is a full editor of every product and folder.
+Doctrine: the product id in the path IS the authority; a future permission model
+replaces the policy function and inherits the per-route access inventory, and
+must never be built as per-handler checks behind this guard. The registry's
+other guards never check `access`; instance routes do not declare it.
 
-**The `authError` flag is 401-only.** Only the 401 not-authenticated
-responses carry `authError: true`; no 403 in any guard does, and the client
+**The `authError` flag is 401-only.** Only the 401 not-authenticated responses
+carry `authError: true`; no 403 in any guard does, and the client
 (`tryCatchServer`) only inspects the flag on status 401, where it drives
 token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 401/403 = denied, 503 = retry, don't log out.
@@ -525,23 +524,22 @@ token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 | `_USER_PERMISSIONS_DEFAULT_FULL_ACCESS` / `_USER_PERMISSIONS_DEFAULT_NO_ACCESS` | presets for admins / unknown users                                         |
 
 Six instance permissions: `can_configure_users`, `can_view_users`,
-`can_view_logs`, `can_configure_settings`, `can_configure_data`,
-`can_view_data` (migration 046 removes `can_configure_assets`). There are
-no per-product permissions: product access is `productAccessPolicy` above.
-Display labels are `INSTANCE_PERMISSION_LABELS`
-(`lib/types/permission_labels.ts`). Add a key in `permissions.ts` (so the
-exhaustiveness assert and `buildUserPermissionsFromRow` stay correct), never
-inline a permission string elsewhere.
+`can_view_logs`, `can_configure_settings`, `can_configure_data`, `can_view_data`
+(migration 046 removes `can_configure_assets`). There are no per-product
+permissions: product access is `productAccessPolicy` above. Display labels are
+`INSTANCE_PERMISSION_LABELS` (`lib/types/permission_labels.ts`). Add a key in
+`permissions.ts` (so the exhaustiveness assert and `buildUserPermissionsFromRow`
+stay correct), never inline a permission string elsewhere.
 
 ### Special modes (precedence, highest first)
 
-| Mode           | Source                                             | Effect                                                                                                        |
-| -------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                       |
-| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every authenticated email treated as approved global admin                                                    |
-| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks                                                                  |
+| Mode           | Source                                             | Effect                                                                                                         |
+| -------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `_BYPASS_AUTH` | `BYPASS_AUTH` env, dev only (`&& !_IS_PRODUCTION`) | synthetic full-access dev user; Clerk disabled entirely                                                        |
+| `_OPEN_ACCESS` | `OPEN_ACCESS` env                                  | every authenticated email treated as approved global admin                                                     |
+| `is_admin`     | `users.is_admin` column                            | global admin, bypasses all permission checks                                                                   |
 | `H_USERS`      | hardcoded `lib/h_users.ts` (9 emails)              | `unlimitedAi`; the only callers of `setUserUnlimitedAi` / `setUserContactPerson`; seeded as admin rows at init |
-| granular       | `users` permission columns                         | normal least-privilege path                                                                                   |
+| granular       | `users` permission columns                         | normal least-privilege path                                                                                    |
 
 `_OPEN_ACCESS` inserts unknown emails as `is_admin` rows
 (`ON CONFLICT DO NOTHING`: an existing non-admin row is never promoted in the
@@ -566,8 +564,8 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
 - **`onError` responds 200**: never rely on HTTP status to detect a
   registry-route failure; check `success`.
 - **Don't add raw routes** outside the inventory above to "save a registry
-  entry": you silently lose client codegen, boot validation, and the guard
-  audit trail.
+  entry": you silently lose client codegen, boot validation, and the guard audit
+  trail.
 
 ## Open items
 
@@ -578,13 +576,13 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
 - **Decoupling: `lib/h_users.ts` ships access-policy emails in the client
   bundle.** Semantically server-side access-control data; move it server-side
   (client gets a boolean where needed). Bridge-pass move.
-- **Startup guard-audit: considered and DECLINED (ruled).** A
-  boot-time (or type-level) check that every `defineRoute` carries a guard or an
-  explicit public marker was audited and rejected: the full registry has exactly
-  one unguarded route (`getInstanceMeta`, deliberately public), so the rule
-  stays convention + review. Do not re-propose without a new hole. (Health.ts
-  needs no guards: the read surface is public-by-design (SYSTEM_15's exposure
-  inventory), and the mutating reset endpoint requires the status-api key.)
+- **Startup guard-audit: considered and DECLINED (ruled).** A boot-time (or
+  type-level) check that every `defineRoute` carries a guard or an explicit
+  public marker was audited and rejected: the full registry has exactly one
+  unguarded route (`getInstanceMeta`, deliberately public), so the rule stays
+  convention + review. Do not re-propose without a new hole. (Health.ts needs no
+  guards: the read surface is public-by-design (SYSTEM_15's exposure inventory),
+  and the mutating reset endpoint requires the status-api key.)
 - **Decide the `authError` contract.** It is 401-only in reality (no 403 carries
   it; the client only reads it on 401): either bless that as the contract or
   extend it to 403s deliberately.
@@ -592,8 +590,8 @@ it's a hardcoded allowlist, and expanding its use spreads policy into code.
   Clerk-authenticated email (even with no `users` row) passes. Live examples
   include `getCurrentUser` (`routes/instance/users.ts`), `sendHelpEmail`
   (`routes/instance/emails.ts`) and `recordTourEvent`
-  (`routes/instance/onboarding.ts`). A route that needs the
-  flag takes `requireApprovedUser()` (the set named above) or
+  (`routes/instance/onboarding.ts`). A route that needs the flag takes
+  `requireApprovedUser()` (the set named above) or
   `requireProductAccess(level)`, whose policy checks it.
 - Audit `H_USERS.includes()` call sites; document per site why `requireAdmin` /
   a granular permission is insufficient.

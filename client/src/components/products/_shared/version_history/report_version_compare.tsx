@@ -1,4 +1,4 @@
-import { t3, type ReportVersionLineageStep } from "lib";
+import { type ReportVersionLineageStep, t3 } from "lib";
 import {
   type AlertComponentProps,
   createQuery,
@@ -39,7 +39,11 @@ export function ReportVersionCompare(
         product_id: p.productId,
         version_id: p.versionId,
       }),
-    t3({ en: "Comparing versions...", fr: "Comparaison des versions...", pt: "A comparar versões..." }),
+    t3({
+      en: "Comparing versions...",
+      fr: "Comparaison des versions...",
+      pt: "A comparar versões...",
+    }),
   );
 
   function buildSegments(steps: ReportVersionLineageStep[]): DiffSegment[] {

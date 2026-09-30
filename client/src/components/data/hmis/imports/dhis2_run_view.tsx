@@ -1,15 +1,15 @@
 import {
-  getCalendar,
-  t3,
   type DatasetHmisImportRunSummary,
+  getCalendar,
   type HmisIndicator,
+  t3,
 } from "lib";
 import {
   Button,
-  FrameRight,
-  ProgressBar,
   createDeleteAction,
   formatPeriod,
+  FrameRight,
+  ProgressBar,
   toNum0,
   toPct0,
 } from "panther";
@@ -26,7 +26,10 @@ type Props = {
   onChanged: () => Promise<void>;
 };
 
-function pairName(dataId: string, byDataId: Map<string, HmisIndicator>): string {
+function pairName(
+  dataId: string,
+  byDataId: Map<string, HmisIndicator>,
+): string {
   const indicator = byDataId.get(dataId);
   return indicator ? indicatorNameText(indicator) : dataId;
 }
@@ -40,7 +43,8 @@ export function Dhis2RunView(p: Props) {
     const cancelAction = createDeleteAction(
       t3({
         en: "Cancel this import run? Pairs already imported are kept.",
-        fr: "Annuler cette importation ? Les paires déjà importées sont conservées.",
+        fr:
+          "Annuler cette importation ? Les paires déjà importées sont conservées.",
         pt: "Cancelar esta importação? Os pares já importados são mantidos.",
       }),
       () => serverActions.cancelDatasetHmisDhis2Run({ runId: p.run.id }),
@@ -97,8 +101,7 @@ export function Dhis2RunView(p: Props) {
       <div class="ui-gap flex items-baseline">
         <div class="font-700 text-3xl">{toPct0(fraction())}</div>
         <div class="text-sm">
-          {toNum0(completedPairs())} / {toNum0(p.run.totalPairs)}{" "}
-          {t3({
+          {toNum0(completedPairs())} / {toNum0(p.run.totalPairs)} {t3({
             en: "pairs done",
             fr: "paires traitées",
             pt: "pares concluídos",
@@ -140,9 +143,12 @@ export function Dhis2RunView(p: Props) {
 
       <div class="text-xs">
         {t3({
-          en: "Completed pairs are saved as they finish — closing this view does not stop the import. Per-indicator results are in the import status view.",
-          fr: "Les paires terminées sont sauvegardées au fur et à mesure — fermer cette vue n'arrête pas l'importation. Les résultats par indicateur sont dans l'état des importations.",
-          pt: "Os pares concluídos são guardados à medida que terminam — fechar esta vista não interrompe a importação. Os resultados por indicador estão no estado das importações.",
+          en:
+            "Completed pairs are saved as they finish — closing this view does not stop the import. Per-indicator results are in the import status view.",
+          fr:
+            "Les paires terminées sont sauvegardées au fur et à mesure — fermer cette vue n'arrête pas l'importation. Les résultats par indicateur sont dans l'état des importations.",
+          pt:
+            "Os pares concluídos são guardados à medida que terminam — fechar esta vista não interrompe a importação. Os resultados por indicador estão no estado das importações.",
         })}
       </div>
     </FrameRight>

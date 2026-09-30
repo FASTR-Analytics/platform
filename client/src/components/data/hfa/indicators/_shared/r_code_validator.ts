@@ -48,7 +48,9 @@ export function validateRCode(
     if (availableVariableIds.has(id) || otherIndicatorIds.has(id)) {
       referencedIds.push(id);
     } else {
-      unknownVariableErrors.push(`Variable '${id}' not found in this time point`);
+      unknownVariableErrors.push(
+        `Variable '${id}' not found in this time point`,
+      );
     }
   }
 
@@ -74,14 +76,36 @@ function checkRSyntax(rCode: string): string[] {
       if (ch === inString && prev !== "\\") inString = null;
       continue;
     }
-    if (ch === "#") { inComment = true; continue; }
-    if (ch === '"' || ch === "'") { inString = ch; continue; }
+    if (ch === "#") {
+      inComment = true;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = ch;
+      continue;
+    }
     if (ch === "(") paren++;
-    else if (ch === ")") { paren--; if (paren < 0) { errors.push("Unmatched ')'"); return errors; } }
-    else if (ch === "[") bracket++;
-    else if (ch === "]") { bracket--; if (bracket < 0) { errors.push("Unmatched ']'"); return errors; } }
-    else if (ch === "{") brace++;
-    else if (ch === "}") { brace--; if (brace < 0) { errors.push("Unmatched '}'"); return errors; } }
+    else if (ch === ")") {
+      paren--;
+      if (paren < 0) {
+        errors.push("Unmatched ')'");
+        return errors;
+      }
+    } else if (ch === "[") bracket++;
+    else if (ch === "]") {
+      bracket--;
+      if (bracket < 0) {
+        errors.push("Unmatched ']'");
+        return errors;
+      }
+    } else if (ch === "{") brace++;
+    else if (ch === "}") {
+      brace--;
+      if (brace < 0) {
+        errors.push("Unmatched '}'");
+        return errors;
+      }
+    }
   }
 
   if (inString) errors.push("Unterminated string literal");
@@ -123,13 +147,35 @@ function checkLoneEquals(rCode: string): string[] {
 }
 
 const BOOLEAN_FUNCS = new Set([
-  "is.na", "is.null", "grepl", "str_detect", "startsWith", "endsWith",
-  "isTRUE", "isFALSE", "xor",
+  "is.na",
+  "is.null",
+  "grepl",
+  "str_detect",
+  "startsWith",
+  "endsWith",
+  "isTRUE",
+  "isFALSE",
+  "xor",
 ]);
 const NUMERIC_FUNCS = new Set([
-  "sum", "mean", "min", "max", "abs", "sqrt", "log", "exp", "length",
-  "nchar", "rowSums", "rowMeans", "round", "ceiling", "floor",
-  "which", "ncol", "nrow",
+  "sum",
+  "mean",
+  "min",
+  "max",
+  "abs",
+  "sqrt",
+  "log",
+  "exp",
+  "length",
+  "nchar",
+  "rowSums",
+  "rowMeans",
+  "round",
+  "ceiling",
+  "floor",
+  "which",
+  "ncol",
+  "nrow",
 ]);
 // `as.numeric` / `as.integer` are deliberately NOT classified numeric: coercing a
 // comparison to 0/1 (`as.numeric(x == 1)`) is a standard way to write a *binary*
@@ -146,7 +192,10 @@ function stripOuterParens(input: string): string {
       if (s[i] === "(") depth++;
       else if (s[i] === ")") {
         depth--;
-        if (depth === 0 && i < s.length - 1) { wrapsWhole = false; break; }
+        if (depth === 0 && i < s.length - 1) {
+          wrapsWhole = false;
+          break;
+        }
       }
     }
     if (wrapsWhole && depth === 0) s = s.slice(1, -1).trim();
@@ -174,15 +223,38 @@ export function inferRCodeResultType(
   let hasArithmetic = false;
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
-    if (ch === "(" || ch === "[" || ch === "{") { depth++; continue; }
-    if (ch === ")" || ch === "]" || ch === "}") { depth--; continue; }
+    if (ch === "(" || ch === "[" || ch === "{") {
+      depth++;
+      continue;
+    }
+    if (ch === ")" || ch === "]" || ch === "}") {
+      depth--;
+      continue;
+    }
     if (depth !== 0) continue;
     const two = s.slice(i, i + 2);
-    if (two === "==" || two === "!=" || two === "<=" || two === ">=") { hasComparison = true; i++; continue; }
-    if (s.slice(i, i + 4) === "%in%") { hasComparison = true; i += 3; continue; }
-    if (ch === "<" || ch === ">") { hasComparison = true; continue; }
-    if (ch === "&" || ch === "|") { hasLogical = true; continue; }
-    if (ch === "+" || ch === "*" || ch === "/" || ch === "^") { hasArithmetic = true; continue; }
+    if (two === "==" || two === "!=" || two === "<=" || two === ">=") {
+      hasComparison = true;
+      i++;
+      continue;
+    }
+    if (s.slice(i, i + 4) === "%in%") {
+      hasComparison = true;
+      i += 3;
+      continue;
+    }
+    if (ch === "<" || ch === ">") {
+      hasComparison = true;
+      continue;
+    }
+    if (ch === "&" || ch === "|") {
+      hasLogical = true;
+      continue;
+    }
+    if (ch === "+" || ch === "*" || ch === "/" || ch === "^") {
+      hasArithmetic = true;
+      continue;
+    }
     if (ch === "-") {
       const prev = s.slice(0, i).trimEnd().slice(-1);
       if (/[a-zA-Z0-9_.)\]]/.test(prev)) hasArithmetic = true;

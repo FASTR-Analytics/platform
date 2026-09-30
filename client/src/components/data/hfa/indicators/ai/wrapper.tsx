@@ -1,6 +1,6 @@
 import {
-  AIChatProvider,
   type AIChatConfig,
+  AIChatProvider,
   FrameRightResizable,
   validateAIChatConfig,
 } from "panther";

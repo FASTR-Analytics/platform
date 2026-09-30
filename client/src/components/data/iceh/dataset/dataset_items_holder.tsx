@@ -1,4 +1,10 @@
-import { ICEH_STRATS, ICEH_STRAT_INFO, t3, TC, type IcehDisplayData } from "lib";
+import {
+  ICEH_STRAT_INFO,
+  ICEH_STRATS,
+  type IcehDisplayData,
+  t3,
+  TC,
+} from "lib";
 import {
   FrameTop,
   type ListItem,
@@ -6,7 +12,13 @@ import {
   StateHolderWrapper,
   TabsNavigation,
 } from "panther";
-import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
 import { getDatasetIcehDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { DataTab } from "./data_tab";
@@ -14,7 +26,9 @@ import { StratifiersTab } from "./stratifiers_tab";
 import { IndicatorsTab } from "./indicators_tab";
 
 export function DatasetItemsHolder() {
-  const [displayData, setDisplayData] = createSignal<StateHolder<IcehDisplayData>>({
+  const [displayData, setDisplayData] = createSignal<
+    StateHolder<IcehDisplayData>
+  >({
     status: "loading",
     msg: t3(TC.fetchingData),
   });
@@ -46,7 +60,11 @@ export function DatasetItemsHolder() {
     },
     {
       id: "stratifiers",
-      label: t3({ en: "Stratifiers", fr: "Stratificateurs", pt: "Estratificadores" }),
+      label: t3({
+        en: "Stratifiers",
+        fr: "Stratificateurs",
+        pt: "Estratificadores",
+      }),
     },
   ];
 
@@ -67,7 +85,15 @@ export function DatasetItemsHolder() {
         });
 
         return (
-          <FrameTop panelChildren={<TabsNavigation items={tabItems} value={tab()} onChange={setTab} />}>
+          <FrameTop
+            panelChildren={
+              <TabsNavigation
+                items={tabItems}
+                value={tab()}
+                onChange={setTab}
+              />
+            }
+          >
             <Show when={tab() === ("data")}>
               <DataTab dataRows={data.dataRows} />
             </Show>

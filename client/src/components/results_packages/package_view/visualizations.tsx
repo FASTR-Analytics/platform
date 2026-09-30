@@ -1,16 +1,16 @@
 import {
-  t3,
   type DerivedDefaultVisualization,
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
   type RunAuthoringContext,
+  t3,
 } from "lib";
 import {
   FigureHolder,
-  LoadingIndicator,
-  getEditorWrapper,
   type FigureInputs,
+  getEditorWrapper,
+  LoadingIndicator,
 } from "panther";
 import { For, Match, Show, Switch } from "solid-js";
 import { VisualizationEditor } from "~/components/_shared/figure_editor/mod.ts";
@@ -90,11 +90,11 @@ function DefaultVisualizationCard(p: {
     p.metric?.status === "ready" ? p.metric : undefined;
   const unavailableReason = () =>
     p.metric?.statusReason ??
-    t3({
-      en: "This metric is not available in this package",
-      fr: "Cet indicateur n'est pas disponible dans ce paquet",
-      pt: "Este indicador não está disponível neste pacote",
-    });
+      t3({
+        en: "This metric is not available in this package",
+        fr: "Cet indicateur n'est pas disponible dans ce paquet",
+        pt: "Este indicador não está disponível neste pacote",
+      });
 
   return (
     <div
@@ -161,9 +161,8 @@ function FigurePreview(p: {
         </div>
       </Match>
       <Match
-        when={
-          state().status === "ready" && (state() as { data: FigureInputs }).data
-        }
+        when={state().status === "ready" &&
+          (state() as { data: FigureInputs }).data}
         keyed
       >
         {(figureInputs) => (

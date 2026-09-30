@@ -3,7 +3,7 @@ import { generateUniqueBlockId } from "~/components/products/_shared/mod.ts";
 
 export function convertSlideType(
   slide: Slide,
-  targetType: "cover" | "section" | "content"
+  targetType: "cover" | "section" | "content",
 ): Slide {
   if (slide.type === targetType) {
     return slide;
@@ -52,7 +52,7 @@ export function convertSlideType(
     layout: {
       type: "item",
       id: generateUniqueBlockId(),
-      data: { type: "text", markdown: "" }
-    }
+      data: { type: "text", markdown: "" },
+    },
   };
 }

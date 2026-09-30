@@ -20,8 +20,7 @@ export function getClientToolsForModules(
   return [
     createAITool({
       name: "get_available_modules",
-      description:
-        "Get a list of the analysis modules in the results package",
+      description: "Get a list of the analysis modules in the results package",
       inputSchema: z.object({}),
       handler: async () => {
         return formatModulesListForAI(modules, metrics);

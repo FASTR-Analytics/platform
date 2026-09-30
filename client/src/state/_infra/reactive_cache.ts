@@ -65,7 +65,9 @@ export type ReactiveCacheConfig<Params, Data> = {
 };
 
 export interface ReactiveCache<Params, Data> {
-  get(params: Params): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }>;
+  get(
+    params: Params,
+  ): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }>;
   /** The in-memory hit only, synchronously; a miss says nothing about `get`. */
   peekMemory(params: Params): Data | undefined;
   setPromise(
@@ -74,7 +76,9 @@ export interface ReactiveCache<Params, Data> {
     version: string,
   ): Promise<void>;
   clearEntry(params: Params): Promise<void>;
-  clearEntriesWithPrefix(partialKeys: (string | number | undefined)[]): Promise<void>;
+  clearEntriesWithPrefix(
+    partialKeys: (string | number | undefined)[],
+  ): Promise<void>;
   clearMemory(): void;
 }
 
@@ -149,7 +153,9 @@ export function createReactiveCache<Params, Data>(
   /** Get from cache - ALWAYS returns version, data is undefined on miss */
   async function getCached(
     params: Params,
-  ): Promise<{ data: Data | undefined; version: string; isInflight?: boolean }> {
+  ): Promise<
+    { data: Data | undefined; version: string; isInflight?: boolean }
+  > {
     const version = currentVersion(params);
     // Version is PART of the key - different version = different key = automatic miss
     const cacheKey = `${hashKeys(config.uniquenessKeys(params))}::${version}`;
@@ -186,7 +192,9 @@ export function createReactiveCache<Params, Data>(
       const t_inflight = performance.now();
       const response = await existingUnresolved.dataPromise;
       console.log(
-        `[ReactiveCache:${config.name}] In-flight resolved (${(performance.now() - t_inflight).toFixed(0)}ms) success=${response.success} for key: ${cacheKey}`,
+        `[ReactiveCache:${config.name}] In-flight resolved (${
+          (performance.now() - t_inflight).toFixed(0)
+        }ms) success=${response.success} for key: ${cacheKey}`,
       );
       const data = response.success ? response.data : undefined;
       return { data, version, isInflight: true };
@@ -248,7 +256,9 @@ export function createReactiveCache<Params, Data>(
         return;
       }
 
-      if (config.shouldStore !== undefined && !config.shouldStore(response.data)) {
+      if (
+        config.shouldStore !== undefined && !config.shouldStore(response.data)
+      ) {
         _unresolved.delete(cacheKey);
         return;
       }
@@ -315,7 +325,9 @@ export function createReactiveCache<Params, Data>(
   /** Clear entries matching a partial key prefix. Must be a STRICT prefix of
    * the uniqueness keys: passing the complete key list matches nothing (full
    * keys are followed by "::", not "|"); use clearEntry for that. */
-  async function clearEntriesWithPrefix(partialKeys: (string | number | undefined)[]): Promise<void> {
+  async function clearEntriesWithPrefix(
+    partialKeys: (string | number | undefined)[],
+  ): Promise<void> {
     const prefix = hashKeys(partialKeys) + "|";
 
     // Clear from memory
@@ -343,7 +355,10 @@ export function createReactiveCache<Params, Data>(
       }
       await Promise.all(deletePromises);
     } catch (err) {
-      console.error(`ReactiveCache[${config.name}] clearEntriesWithPrefix error:`, err);
+      console.error(
+        `ReactiveCache[${config.name}] clearEntriesWithPrefix error:`,
+        err,
+      );
     }
   }
 

@@ -1,18 +1,18 @@
 import { Sql } from "postgres";
 import { getStoredDhis2CredentialsInfo } from "./instance_dhis2_credentials.ts";
 import {
-  APIResponseWithData,
-  InstanceDetail,
-  OtherUser,
-  throwIfErrWithData,
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  APIResponseWithData,
   buildUserPermissionsFromRow,
   type DatasetType,
   type FacilityFamily,
   type InstanceDatasetsSummary,
+  InstanceDetail,
   type InstanceIndicatorsSummary,
   type InstanceStructureSummary,
+  OtherUser,
   type StructureFamilyCounts,
+  throwIfErrWithData,
 } from "lib";
 import {
   _INSTANCE_COUNTRY_ISO3,
@@ -123,18 +123,16 @@ export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
 export async function getInstanceIndicatorsSummary(
   mainDb: Sql,
 ): Promise<InstanceIndicatorsSummary> {
-  const hmisIndicators =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM indicators`
-    )[0]?.count ?? 0;
-  const hfaIndicators =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM hfa_indicators`
-    )[0]?.count ?? 0;
+  const hmisIndicators = (
+    await mainDb<
+      { count: number }[]
+    >`SELECT COUNT(*) as count FROM indicators`
+  )[0]?.count ?? 0;
+  const hfaIndicators = (
+    await mainDb<
+      { count: number }[]
+    >`SELECT COUNT(*) as count FROM hfa_indicators`
+  )[0]?.count ?? 0;
   const indicatorsVersion = await getIndicatorsVersion(mainDb);
   const countIndicatorsVersion = await getCountIndicatorsVersion(mainDb);
   const hfaIndicatorsVersion = await getHfaIndicatorsVersion(mainDb);
@@ -224,16 +222,15 @@ export async function getInstanceDatasetsSummary(
   const hmis = await getCurrentDatasetHmisMaxVersionId(mainDb);
   // Running-run versions excluded, same as every version reader: see
   // getVersionsForDatasetHmis.
-  const hmisNVersions =
-    (
-      await mainDb<
-        { count: number }[]
-      >`SELECT COUNT(*) as count FROM dataset_hmis_versions
+  const hmisNVersions = (
+    await mainDb<
+      { count: number }[]
+    >`SELECT COUNT(*) as count FROM dataset_hmis_versions
         WHERE id NOT IN (
           SELECT version_id FROM dataset_hmis_import_runs
           WHERE status = 'running' AND version_id IS NOT NULL
         )`
-    )[0]?.count ?? 0;
+  )[0]?.count ?? 0;
   const hfaTimePointRows = await mainDb<
     {
       label: string;
@@ -276,7 +273,9 @@ export async function getInstanceDetail(
     // whole instance detail.
     const hmisSchemaRes = await getStructureSchema(mainDb, "hmis");
     const hfaSchemaRes = await getStructureSchema(mainDb, "hfa");
-    const structureSchemaHmis = hmisSchemaRes.success ? hmisSchemaRes.data : null;
+    const structureSchemaHmis = hmisSchemaRes.success
+      ? hmisSchemaRes.data
+      : null;
     const structureSchemaHfa = hfaSchemaRes.success ? hfaSchemaRes.data : null;
 
     // Get admin area labels config
@@ -294,21 +293,19 @@ export async function getInstanceDetail(
     const structureSummary = await getInstanceStructureSummary(mainDb);
     const structure = structureSummary.structure;
 
-    const hmisIndicatorsCount =
-      (
-        await mainDb<{ total_count: number }[]>`
+    const hmisIndicatorsCount = (
+      await mainDb<{ total_count: number }[]>`
         SELECT count(*) AS total_count
         FROM indicators
       `
-      ).at(0)?.total_count ?? 0;
+    ).at(0)?.total_count ?? 0;
 
-    const hfaIndicatorsCount =
-      (
-        await mainDb<{ total_count: number }[]>`
+    const hfaIndicatorsCount = (
+      await mainDb<{ total_count: number }[]>`
         SELECT count(*) AS total_count
         FROM hfa_indicators
       `
-      ).at(0)?.total_count ?? 0;
+    ).at(0)?.total_count ?? 0;
 
     const resAssets = await getAssetsForInstance(mainDb);
     if (resAssets.success === false) {
@@ -354,8 +351,8 @@ export async function getInstanceDetail(
         hfaIndicators: hfaIndicatorsCount,
       },
       assets: resAssets.data,
-      dhis2ConnectionUrl:
-        (await getStoredDhis2CredentialsInfo(mainDb))?.url ?? null,
+      dhis2ConnectionUrl: (await getStoredDhis2CredentialsInfo(mainDb))?.url ??
+        null,
       geojsonMaps: await getGeoJsonMapSummaries(mainDb),
       datasetsWithData,
       datasetVersions: {

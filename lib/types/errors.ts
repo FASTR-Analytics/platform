@@ -8,7 +8,8 @@ export const ERROR_CATEGORY = {
   UNKNOWN: "UNKNOWN",
 } as const;
 
-export type ErrorCategory = (typeof ERROR_CATEGORY)[keyof typeof ERROR_CATEGORY];
+export type ErrorCategory =
+  (typeof ERROR_CATEGORY)[keyof typeof ERROR_CATEGORY];
 
 export type CategorizedError = {
   category: ErrorCategory;

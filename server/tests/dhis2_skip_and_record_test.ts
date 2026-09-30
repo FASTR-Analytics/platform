@@ -128,9 +128,15 @@ Deno.test("an operand takes only its COC: another COC's bad value is not its ski
   );
   const bare = reductions.get(pairKey(barePair))!;
   const operand = reductions.get(pairKey(operandPair))!;
-  assertEquals(rowsOf(reductions, barePair), [{ facilityId: "FacAaaaaaa1", count: 5 }]);
+  assertEquals(rowsOf(reductions, barePair), [{
+    facilityId: "FacAaaaaaa1",
+    count: 5,
+  }]);
   assertEquals(bare.skippedValues, 2);
-  assertEquals(rowsOf(reductions, operandPair), [{ facilityId: "FacAaaaaaa1", count: 5 }]);
+  assertEquals(rowsOf(reductions, operandPair), [{
+    facilityId: "FacAaaaaaa1",
+    count: 5,
+  }]);
   assertEquals(operand.skippedValues, 1);
   assertEquals(operand.skippedValuesSample, [
     { facilityId: "FacBbbbbbb1", value: "2.5" },
@@ -154,8 +160,9 @@ Deno.test("deleted values and facilities outside the scope are ignored, not skip
 });
 
 Deno.test("the sample is capped while the count keeps growing", () => {
-  const values = Array.from({ length: SKIPPED_VALUES_SAMPLE_CAP + 5 }, (_, i) =>
-    value("FacAaaaaaa1", `${i}.5`)
+  const values = Array.from(
+    { length: SKIPPED_VALUES_SAMPLE_CAP + 5 },
+    (_, i) => value("FacAaaaaaa1", `${i}.5`),
   );
   const reductions = reduceDvsValues(values, [barePair], scope);
   const reduction = reductions.get(pairKey(barePair))!;
@@ -168,6 +175,10 @@ Deno.test("a month with no values integrates every covered pair as empty", () =>
   const reductions = reduceDvsValues([], [barePair, operandPair], scope);
   assertEquals(reductions.size, 2);
   for (const reduction of reductions.values()) {
-    assertEquals(reduction, { rows: [], skippedValues: 0, skippedValuesSample: [] });
+    assertEquals(reduction, {
+      rows: [],
+      skippedValues: 0,
+      skippedValuesSample: [],
+    });
   }
 });

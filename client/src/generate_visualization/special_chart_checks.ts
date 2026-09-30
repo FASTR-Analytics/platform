@@ -88,18 +88,29 @@ export function canUseSpecialDisruptionsChartV2(metricId: string): boolean {
 }
 
 // "Is X mode currently active?": controls rendering behavior
-export function isSpecialBarChartActive(config: PresentationObjectConfig): boolean {
+export function isSpecialBarChartActive(
+  config: PresentationObjectConfig,
+): boolean {
   return config.s.specialBarChart === true && config.d.type === "timeseries";
 }
 
-export function isSpecialCoverageChartActive(config: PresentationObjectConfig): boolean {
-  return config.s.specialCoverageChart === true && config.d.type === "timeseries";
+export function isSpecialCoverageChartActive(
+  config: PresentationObjectConfig,
+): boolean {
+  return config.s.specialCoverageChart === true &&
+    config.d.type === "timeseries";
 }
 
-export function isSpecialDisruptionsChartActive(config: PresentationObjectConfig): boolean {
-  return config.s.specialDisruptionsChart === true && config.d.type === "timeseries";
+export function isSpecialDisruptionsChartActive(
+  config: PresentationObjectConfig,
+): boolean {
+  return config.s.specialDisruptionsChart === true &&
+    config.d.type === "timeseries";
 }
 
-export function isSpecialDisruptionsChartV2Active(config: PresentationObjectConfig): boolean {
-  return config.s.specialDisruptionsChartV2 === true && config.d.type === "timeseries";
+export function isSpecialDisruptionsChartV2Active(
+  config: PresentationObjectConfig,
+): boolean {
+  return config.s.specialDisruptionsChartV2 === true &&
+    config.d.type === "timeseries";
 }

@@ -1,29 +1,29 @@
 import {
-  fastrFigureFitCss,
-  fastrForcedBreaksCss,
-  fastrParagraphSplitsCss,
-  fastrGapStretchCss,
   type APIResponseNoData,
   buildFastrPagedCss,
   buildFastrReportCss,
   buildFastrWordRasterCss,
-  type FastrPageSetup,
   FASTR_THEME_TOKENS,
+  fastrChartPalette,
+  fastrFigureFitCss,
+  fastrForcedBreaksCss,
+  fastrGapStretchCss,
   type FastrPagedFooter,
   fastrPagedRunnerJs,
+  type FastrPageSetup,
+  fastrParagraphSplitsCss,
   fastrPrintTitleHtml,
-  sizedPlaceholderImageSrc,
   FIGURE_EXPORT_WIDTH_PX,
-  fastrChartPalette,
   getFastrReportTheme,
   getReportCustomStyle,
   getReportFormat,
   getReportHtmlStyle,
   pagedDocumentScriptsHtml,
   readFastrDocumentSettings,
+  renderFastrMarkdownToHtml,
   type ReportDetail,
   type ReportDocumentShell,
-  renderFastrMarkdownToHtml,
+  sizedPlaceholderImageSrc,
 } from "lib";
 // Relative into node_modules on purpose: pagedjs's package "exports" map
 // exposes no subpath, so the bare specifier cannot reach the dist file.
@@ -103,7 +103,11 @@ export type StandaloneReportOptions = {
   // layout, and images by URL rather than inlined. `ink` is the figure's
   // ground-appropriate ink, measured exactly as the export measures it.
   cached?: {
-    figureRaster: (id: string, block: FigureBlock, ink: FigureInkTheme) => FigureRasterState;
+    figureRaster: (
+      id: string,
+      block: FigureBlock,
+      ink: FigureInkTheme,
+    ) => FigureRasterState;
     imageUrl: (id: string) => string | undefined;
   };
   // The Word export's raster frame: the print column's geometry with no
@@ -112,7 +116,10 @@ export type StandaloneReportOptions = {
   rasterFrame?: { page: FastrPageSetup };
   // Hand back the figure rasters and inlined images the document was built
   // with, so the Word export embeds the same pixels without a second render.
-  collect?: { figures: Map<string, FigureRasterState>; images: Map<string, string> };
+  collect?: {
+    figures: Map<string, FigureRasterState>;
+    images: Map<string, string>;
+  };
 };
 
 function pagedScriptsHtml(): string {
@@ -141,12 +148,17 @@ export async function buildStandaloneReportHtml(
   const paged = opts.paged !== undefined || opts.layoutOnly !== undefined ||
     opts.rasterFrame !== undefined;
   let themeCss = isFastr
-    ? buildFastrReportCss(fastrTheme, customColors ?? undefined, "", { omitPrintRules: paged })
+    ? buildFastrReportCss(fastrTheme, customColors ?? undefined, "", {
+      omitPrintRules: paged,
+    })
     : undefined;
   if (isFastr && themeCss !== undefined && opts.inlineFonts) {
     const fontImport = FASTR_THEME_TOKENS[fastrTheme].fontImport;
     if (fontImport.length > 0) {
-      themeCss = themeCss.replace(fontImport, await inlineThemeFontCss(fontImport));
+      themeCss = themeCss.replace(
+        fontImport,
+        await inlineThemeFontCss(fontImport),
+      );
     }
   }
   if (opts.layoutOnly) {
@@ -208,7 +220,11 @@ export async function buildStandaloneReportHtml(
     if (opts.cached) {
       rasters.set(
         id,
-        opts.cached.figureRaster(id, block, darkGrounds.get(id) ? lightInk : darkInk),
+        opts.cached.figureRaster(
+          id,
+          block,
+          darkGrounds.get(id) ? lightInk : darkInk,
+        ),
       );
       continue;
     }
@@ -220,7 +236,9 @@ export async function buildStandaloneReportHtml(
         undefined,
         isFastr ? fastrChartPalette(fastrTheme, customColors) : undefined,
       );
-      await loadFontsWithTimeout(new CustomFigureStyle(fi.style).getFontsToRegister());
+      await loadFontsWithTimeout(
+        new CustomFigureStyle(fi.style).getFontsToRegister(),
+      );
       // Transparent, like the preview rasters — the report's CSS owns what
       // shows behind the figure; light ink only on a detected dark ground.
       const r = await getFigureAsDataUrlBrowser(
@@ -230,7 +248,12 @@ export async function buildStandaloneReportHtml(
         ),
         FIGURE_EXPORT_WIDTH_PX,
       );
-      rasters.set(id, { state: "ready", url: r.dataUrl, width: r.width, height: r.height });
+      rasters.set(id, {
+        state: "ready",
+        url: r.dataUrl,
+        width: r.width,
+        height: r.height,
+      });
     } catch {
       // Degrades in place to the "Missing visualization" note.
       rasters.set(id, { state: "missing" });
@@ -294,7 +317,9 @@ function pagedDocumentParts(
   const setup = docSettings?.page ?? readFastrDocumentSettings("").page;
   return {
     headExtraCss: buildFastrPagedCss(setup, opts.paged.footer) +
-      (opts.paged.pageStarts !== undefined ? fastrForcedBreaksCss(opts.paged.pageStarts) : "") +
+      (opts.paged.pageStarts !== undefined
+        ? fastrForcedBreaksCss(opts.paged.pageStarts)
+        : "") +
       fastrParagraphSplitsCss(opts.paged.paraSplits ?? []) +
       fastrFigureFitCss(opts.paged.figureFits ?? []) +
       fastrGapStretchCss(opts.paged.gapStretches ?? []),
@@ -318,14 +343,20 @@ function buildLayoutOnlyDocument(
       renderFastrMarkdownToHtml(detail.body, { lineAnchors: true }),
     )
     : sanitizeReportHtml(detail.body);
-  const docSettings = isFastr ? readFastrDocumentSettings(detail.body) : undefined;
+  const docSettings = isFastr
+    ? readFastrDocumentSettings(detail.body)
+    : undefined;
   const frag = buildReportBodyNodes(
     document,
     sanitized,
     (id) => {
       if (!(id in detail.figures)) return { state: "missing" };
       const size = sizes.figureSize(id) ?? FALLBACK_FIGURE_SIZE;
-      return { state: "ready", url: sizedPlaceholderImageSrc(size.width, size.height), ...size };
+      return {
+        state: "ready",
+        url: sizedPlaceholderImageSrc(size.width, size.height),
+        ...size,
+      };
     },
     (id) => {
       if (!(id in detail.images)) return undefined;
@@ -359,7 +390,10 @@ export async function exportReportAsHtml(
     if (!res.success) return res;
     const html = await buildStandaloneReportHtml(res.data, progress);
     progress(1);
-    saveAs(new Blob([html], { type: "text/html;charset=utf-8" }), `${res.data.label}.html`);
+    saveAs(
+      new Blob([html], { type: "text/html;charset=utf-8" }),
+      `${res.data.label}.html`,
+    );
     return { success: true };
   } catch (e) {
     return {

@@ -92,7 +92,11 @@ export function processGeoJsonFromDhis2(
   areaMatchProp: string,
   areaMapping: Record<string, string>,
 ): ProcessedGeoJsonResult {
-  return processFeatures(featureCollection.features, areaMatchProp, areaMapping);
+  return processFeatures(
+    featureCollection.features,
+    areaMatchProp,
+    areaMapping,
+  );
 }
 
 function processFeatures(

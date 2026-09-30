@@ -1,9 +1,9 @@
 import { AIToolFailure, createAITool } from "panther";
 import { z } from "zod";
 import {
+  AiContentSlideSchema,
   AiCoverSlideSchema,
   AiSectionSlideSchema,
-  AiContentSlideSchema,
   getStartingConfigForSlideDeck,
   MAX_CONTENT_BLOCKS,
   type MetricWithStatus,
@@ -33,7 +33,11 @@ export function getClientToolsForDrafts(
         `Show an ad-hoc slide preview to the user inline in the chat. This is also how you show a single chart: put one from_metric figure on a content slide. Use it to propose slide content, display ideas, or when the user asks to see something charted. While a slide deck is open the user can add the draft to it from the preview.\n\nSupports three slide types:\n- 'cover': Title slide with optional title/subtitle/presenter/date\n- 'section': Section divider with title and optional subtitle\n- 'content': Content slide with optional header and blocks (text and/or figures)\n\nFor content blocks, use the same rules as create_slide: from_metric for figures (call get_metric_data first), text for markdown. IMPORTANT: Markdown tables are NOT allowed — to display tabular data, use a from_metric block with a table-type preset. Max ${MAX_CONTENT_BLOCKS} content blocks.`,
       inputSchema: z.object({
         slide: z
-          .union([AiCoverSlideSchema, AiSectionSlideSchema, AiContentSlideSchema])
+          .union([
+            AiCoverSlideSchema,
+            AiSectionSlideSchema,
+            AiContentSlideSchema,
+          ])
           .describe(
             "The slide content. Must be one of: 'cover', 'section', or 'content'.",
           ),
@@ -50,15 +54,18 @@ export function getClientToolsForDrafts(
                 await resolveFigureFromMetric(scope, block, metrics);
               } catch (err) {
                 const errMsg = err instanceof Error ? err.message : String(err);
-                throw new AIToolFailure(`Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`);
+                throw new AIToolFailure(
+                  `Failed to create figure from metric "${block.metricId}" with preset "${block.vizPresetId}": ${errMsg}`,
+                );
               }
             }
           }
         }
         const view = copilotViewController.current();
-        const deckConfig = view.id === "editing_slide_deck" || view.id === "editing_slide"
-          ? view.context.getDeckConfig()
-          : getStartingConfigForSlideDeck("Draft");
+        const deckConfig =
+          view.id === "editing_slide_deck" || view.id === "editing_slide"
+            ? view.context.getDeckConfig()
+            : getStartingConfigForSlideDeck("Draft");
         const convertedSlide = await convertAiInputToSlide(
           scope,
           input.slide,
@@ -76,7 +83,12 @@ export function getClientToolsForDrafts(
         return "Slide preview displayed to user.";
       },
       displayComponent: (props: {
-        input: { slide: z.infer<typeof AiCoverSlideSchema> | z.infer<typeof AiSectionSlideSchema> | z.infer<typeof AiContentSlideSchema> };
+        input: {
+          slide:
+            | z.infer<typeof AiCoverSlideSchema>
+            | z.infer<typeof AiSectionSlideSchema>
+            | z.infer<typeof AiContentSlideSchema>;
+        };
       }) => {
         return (
           <DraftSlidePreview
@@ -86,7 +98,8 @@ export function getClientToolsForDrafts(
           />
         );
       },
-      inProgressLabel: (input) => `Creating ${input.slide.type} slide preview...`,
+      inProgressLabel: (input) =>
+        `Creating ${input.slide.type} slide preview...`,
       completionMessage: (input) => `${input.slide.type} slide preview shown`,
     }),
   ];

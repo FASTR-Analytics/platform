@@ -13,7 +13,9 @@ const MAX_CACHED_RUNS = 20;
 const MANIFEST_CACHE = new Map<string, RunManifest>();
 const INPUT_JSON_CACHE = new Map<string, unknown>();
 
-export async function getRunManifestCached(runId: string): Promise<RunManifest> {
+export async function getRunManifestCached(
+  runId: string,
+): Promise<RunManifest> {
   const hit = MANIFEST_CACHE.get(runId);
   if (hit) return hit;
 

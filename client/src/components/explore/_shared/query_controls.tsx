@@ -1,13 +1,13 @@
 import {
-  periodChoiceId,
-  t3,
   type DatasetType,
   type GridGrain,
   type GridPeriod,
   type GridPeriodChoice,
   type GridQuery,
+  periodChoiceId,
   type ResolvedGridQuery,
   type RunAuthoringContext,
+  t3,
 } from "lib";
 import { Button, MultiSelectSearch, Select, type SelectOption } from "panther";
 
@@ -130,7 +130,8 @@ export function DroppedIndicatorsNotice(p: {
       <span class="text-base-content-muted">
         {t3({
           en: `${p.count} chosen indicator(s) are not in this package.`,
-          fr: `${p.count} indicateur(s) choisi(s) ne figurent pas dans ce paquet.`,
+          fr:
+            `${p.count} indicateur(s) choisi(s) ne figurent pas dans ce paquet.`,
           pt: `${p.count} indicador(es) escolhido(s) não estão neste pacote.`,
         })}
       </span>

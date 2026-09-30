@@ -6,8 +6,8 @@ import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { _STATUS_API_KEY } from "../exposed_env_vars.ts";
 import { getGlobalUser } from "../auth/global_user.ts";
 import {
-  type ProductAccessTargets,
   productAccessPolicy,
+  type ProductAccessTargets,
 } from "../auth/product_access.ts";
 
 type RequireGlobalPermissionOptions = {

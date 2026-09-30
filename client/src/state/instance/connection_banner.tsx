@@ -32,8 +32,7 @@ export type CollabConnectionState =
 
 const RECOVERED_FLASH_MS = 3_000;
 
-const REDUCED_MOTION =
-  typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const [connState, setConnState] = createSignal<CollabConnectionState>("idle");

@@ -1,10 +1,10 @@
 import { type AlertComponentProps, ModalContainer } from "panther";
 import {
   formatMetricsListForAI,
-  t3,
   type HfaTaxonomyForAI,
   type InstalledModuleSummary,
   type MetricWithStatus,
+  t3,
 } from "lib";
 
 // Renders the metric-list formatter VERBATIM, so a human sees exactly what
@@ -29,7 +29,11 @@ export function AIDebugPanel(p: Props) {
 
   return (
     <ModalContainer
-      title={t3({ en: "AI debug — available metrics (get_available_metrics)", fr: "Débogage IA — métriques disponibles (get_available_metrics)", pt: "Depuração da IA — métricas disponíveis (get_available_metrics)" })}
+      title={t3({
+        en: "AI debug — available metrics (get_available_metrics)",
+        fr: "Débogage IA — métriques disponibles (get_available_metrics)",
+        pt: "Depuração da IA — métricas disponíveis (get_available_metrics)",
+      })}
       width="lg"
       scroll="content"
       onClose={{ kind: "close", onClick: () => p.close() }}

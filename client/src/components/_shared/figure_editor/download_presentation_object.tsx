@@ -1,5 +1,5 @@
 import { EditorComponentProps, ModalContainer, RadioGroup } from "panther";
-import { Show, createSignal } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { t3, TC } from "lib";
 
 export function DownloadPresentationObject(
@@ -55,21 +55,46 @@ export function DownloadPresentationObject(
         <RadioGroup
           label={t3({ en: "Format", fr: "Format", pt: "Formato" })}
           options={[
-            { value: "image", label: t3({ en: "Image", fr: "Image", pt: "Imagem" }) },
+            {
+              value: "image",
+              label: t3({ en: "Image", fr: "Image", pt: "Imagem" }),
+            },
             ...(p.isTable
               ? [
-                  {
-                    value: "data-table-formatted",
-                    label: t3({ en: "Table data (as shown)", fr: "Données du tableau (telles qu'affichées)", pt: "Dados da tabela (tal como apresentados)" }),
-                  },
-                ]
+                {
+                  value: "data-table-formatted",
+                  label: t3({
+                    en: "Table data (as shown)",
+                    fr: "Données du tableau (telles qu'affichées)",
+                    pt: "Dados da tabela (tal como apresentados)",
+                  }),
+                },
+              ]
               : []),
             {
               value: "data-visualization",
-              label: t3({ en: "Aggregated data for the visualization", fr: "Données agrégées pour la visualisation", pt: "Dados agregados para a visualização" }),
+              label: t3({
+                en: "Aggregated data for the visualization",
+                fr: "Données agrégées pour la visualisation",
+                pt: "Dados agregados para a visualização",
+              }),
             },
-            { value: "data-results-file", label: t3({ en: "Results file data", fr: "Données du fichier de résultats", pt: "Dados do ficheiro de resultados" }) },
-            { value: "json-definition", label: t3({ en: "JSON definition", fr: "Définition JSON", pt: "Definição JSON" }) },
+            {
+              value: "data-results-file",
+              label: t3({
+                en: "Results file data",
+                fr: "Données du fichier de résultats",
+                pt: "Dados do ficheiro de resultados",
+              }),
+            },
+            {
+              value: "json-definition",
+              label: t3({
+                en: "JSON definition",
+                fr: "Définition JSON",
+                pt: "Definição JSON",
+              }),
+            },
           ]}
           value={format()}
           onChange={setFormat}
@@ -80,8 +105,18 @@ export function DownloadPresentationObject(
           <RadioGroup
             label={t3({ en: "Background", fr: "Arrière-plan", pt: "Fundo" })}
             options={[
-              { value: "white", label: t3({ en: "White", fr: "Blanc", pt: "Branco" }) },
-              { value: "transparent", label: t3({ en: "Transparent", fr: "Transparent", pt: "Transparente" }) },
+              {
+                value: "white",
+                label: t3({ en: "White", fr: "Blanc", pt: "Branco" }),
+              },
+              {
+                value: "transparent",
+                label: t3({
+                  en: "Transparent",
+                  fr: "Transparent",
+                  pt: "Transparente",
+                }),
+              },
             ]}
             value={transparent()}
             onChange={setTransparent}
@@ -89,8 +124,22 @@ export function DownloadPresentationObject(
           <RadioGroup
             label={t3({ en: "Margin", fr: "Marge", pt: "Margem" })}
             options={[
-              { value: "padding", label: t3({ en: "With margins", fr: "Avec marges", pt: "Com margens" }) },
-              { value: "no-padding", label: t3({ en: "No margins", fr: "Sans marges", pt: "Sem margens" }) },
+              {
+                value: "padding",
+                label: t3({
+                  en: "With margins",
+                  fr: "Avec marges",
+                  pt: "Com margens",
+                }),
+              },
+              {
+                value: "no-padding",
+                label: t3({
+                  en: "No margins",
+                  fr: "Sans marges",
+                  pt: "Sem margens",
+                }),
+              },
             ]}
             value={padding()}
             onChange={setPadding}

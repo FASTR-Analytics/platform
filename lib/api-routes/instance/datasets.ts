@@ -14,12 +14,12 @@ import {
 import type {
   DatasetHmisDetail,
   DatasetHmisImportLedgerItem,
-  HmisCsvIndicatorScan,
   DatasetHmisImportRunDetail,
   DatasetHmisImportRunSummary,
   DatasetHmisScheduledImport,
   DatasetHmisVersion,
   Dhis2ImportSchedulingInfo,
+  HmisCsvIndicatorScan,
   ItemsHolderDatasetHmisDisplay,
 } from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
@@ -78,7 +78,13 @@ const dhis2ScheduleRecurrenceSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     kind: z.literal("monthly"),
-    nth: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal("last")]),
+    nth: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal("last"),
+    ]),
     weekday: z.number().int().min(0).max(6),
     everyNMonths: z.number().int().min(1).max(12),
     anchorMonth: z.string().regex(/^\d{4}-\d{2}$/),
@@ -141,7 +147,6 @@ const hfaCsvRunConfigSchema = z.object({
   xlsFormFileName: z.string(),
   mappings: hfaCsvMappingParamsSchema,
 });
-
 
 export const datasetRouteRegistry = {
   // Core dataset operations

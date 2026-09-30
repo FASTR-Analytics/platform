@@ -2,20 +2,23 @@ import {
   APIResponseWithData,
   DisaggregationOption,
   GenericLongFormFetchConfig,
+  getFetchConfigFromPresentationObjectConfig,
+  getReplicateByProp,
+  hashFetchConfig,
   ItemsHolderPresentationObject,
   PackageScope,
   PresentationObjectConfig,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
-  getFetchConfigFromPresentationObjectConfig,
-  getReplicateByProp,
-  hashFetchConfig,
   scopeToken,
   t3,
 } from "lib";
 import { getApiResponseFromGenerator, StateHolder } from "panther";
 import { createReactiveCache } from "../_infra/reactive_cache";
-import { poItemsQueue, resultsValueInfoQueue } from "~/state/_infra/request_queue";
+import {
+  poItemsQueue,
+  resultsValueInfoQueue,
+} from "~/state/_infra/request_queue";
 import { serverActions } from "~/server_actions";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 
@@ -90,7 +93,11 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
 }
 
 export type ResolveDefaultReplicantResult =
-  | { ok: true; config: PresentationObjectConfig; fetchConfig: GenericLongFormFetchConfig }
+  | {
+    ok: true;
+    config: PresentationObjectConfig;
+    fetchConfig: GenericLongFormFetchConfig;
+  }
   | { ok: false; noValuesFor: DisaggregationOption };
 
 // Resolve the replicant value to actually fetch with. Replicant presets ship
@@ -203,8 +210,10 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
       status: "error",
       err: t3({
         en: `[INFO] No values available for "${resolvedReplicant.noValuesFor}"`,
-        fr: `[INFO] Aucune valeur disponible pour "${resolvedReplicant.noValuesFor}"`,
-        pt: `[INFO] Nenhum valor disponível para "${resolvedReplicant.noValuesFor}"`,
+        fr:
+          `[INFO] Aucune valeur disponible pour "${resolvedReplicant.noValuesFor}"`,
+        pt:
+          `[INFO] Nenhum valor disponível para "${resolvedReplicant.noValuesFor}"`,
       }),
     };
     return;
@@ -254,6 +263,10 @@ export async function getPresentationObjectItemsFromCacheOrFetch(
   }>
 > {
   return getApiResponseFromGenerator(
-    getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(scope, metric, config),
+    getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator(
+      scope,
+      metric,
+      config,
+    ),
   );
 }

@@ -31,7 +31,9 @@ export function buildSystemPromptForContext(
   // A product attached to a package that is no longer ready has no entry:
   // the run id is the honest fallback rather than a fabricated label.
   const packageLine = pkg
-    ? `**Package:** ${pkg.label}${pkg.createdAt === null ? "" : ` (generated ${pkg.createdAt})`}`
+    ? `**Package:** ${pkg.label}${
+      pkg.createdAt === null ? "" : ` (generated ${pkg.createdAt})`
+    }`
     : `**Package:** ${scope.runId}`;
   const sections: string[] = [
     ...buildInstanceContextSections(instance),

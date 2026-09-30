@@ -1,9 +1,9 @@
 import { Context, Hono } from "hono";
 import {
   DBUser,
-  getCurrentDatasetHmisMaxVersionId,
   GetAiLimitHits,
   GetAiUsageLogs,
+  getCurrentDatasetHmisMaxVersionId,
   GetInstanceWeeklyTokenUsage,
   getPgConnectionFromCacheOrNew,
   UserLog,
@@ -38,14 +38,13 @@ routesHealth.get("/health_check", async (c) => {
       lastName: u.last_name,
     }));
   // A generation in flight = a 'generating' row in the runs catalog.
-  const hasRunningModules =
-    Number(
-      (
-        await mainDb<{ n: string }[]>`
+  const hasRunningModules = Number(
+    (
+      await mainDb<{ n: string }[]>`
 SELECT count(*) AS n FROM runs WHERE status = 'generating'
 `
-      )[0].n,
-    ) > 0;
+    )[0].n,
+  ) > 0;
 
   const hmisVersion = await getCurrentDatasetHmisMaxVersionId(mainDb);
   const hfaTimePointCount = (
@@ -74,18 +73,18 @@ SELECT count(*) AS n FROM runs WHERE status = 'generating'
     serverUsers: users.map((u: DBUser) => u.email),
     lastUserLog: lastLog
       ? {
-          userEmail: lastLog.user_email,
-          endpoint: lastLog.endpoint,
-          timestamp: lastLog.timestamp,
-        }
+        userEmail: lastLog.user_email,
+        endpoint: lastLog.endpoint,
+        timestamp: lastLog.timestamp,
+      }
       : null,
     hasRunningModules,
     contactPersons,
     datasets: {
       hmis: hmisVersion
         ? {
-            versionId: hmisVersion,
-          }
+          versionId: hmisVersion,
+        }
         : null,
       hfa: hfaTimePointCount > 0 ? { timePoints: hfaTimePointCount } : null,
     },
@@ -165,24 +164,23 @@ routesHealth.get("/ai_limit_hits", async (c: Context) => {
 
 routesHealth.get("/pg_stat_statements", async (c: Context) => {
   const orderByRaw = c.req.query("orderBy");
-  const orderBy =
-    orderByRaw === "mean"
-      ? "mean_exec_time"
-      : orderByRaw === "max"
-        ? "max_exec_time"
-        : orderByRaw === "calls"
-          ? "calls"
-          : "total_exec_time";
+  const orderBy = orderByRaw === "mean"
+    ? "mean_exec_time"
+    : orderByRaw === "max"
+    ? "max_exec_time"
+    : orderByRaw === "calls"
+    ? "calls"
+    : "total_exec_time";
 
   const limitRaw = Number(c.req.query("limit"));
-  const limit =
-    Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 500
-      ? Math.floor(limitRaw)
-      : 50;
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 && limitRaw <= 500
+    ? Math.floor(limitRaw)
+    : 50;
 
   const minMeanMsRaw = Number(c.req.query("minMeanMs"));
-  const minMeanMs =
-    Number.isFinite(minMeanMsRaw) && minMeanMsRaw >= 0 ? minMeanMsRaw : 0;
+  const minMeanMs = Number.isFinite(minMeanMsRaw) && minMeanMsRaw >= 0
+    ? minMeanMsRaw
+    : 0;
 
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const statements = await mainDb<
@@ -245,7 +243,11 @@ routesHealth.post("/pg_stat_statements_reset", async (c: Context) => {
 routesHealth.get("/dhis2-indicators-export", async (c: Context) => {
   const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
   const elements = await mainDb<
-    { data_id: string; indicator_common_label: string; indicator_common_id: string }[]
+    {
+      data_id: string;
+      indicator_common_label: string;
+      indicator_common_id: string;
+    }[]
   >`
     SELECT data_id, indicator_common_label, indicator_common_id
     FROM indicators

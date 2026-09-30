@@ -1,9 +1,9 @@
 import { type HfaIndicatorVariantGroup, t3 } from "lib";
 import {
   AlertComponentProps,
-  ModalContainer,
-  Input,
   createFormAction,
+  Input,
+  ModalContainer,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -33,18 +33,36 @@ export function EditHfaIndicatorVariantGroup(
 
       const trimmedLabel = label().trim();
       if (!trimmedLabel) {
-        return { success: false, err: t3({ en: "Label is required", fr: "Le libellé est requis", pt: "A etiqueta é obrigatória" }) };
+        return {
+          success: false,
+          err: t3({
+            en: "Label is required",
+            fr: "Le libellé est requis",
+            pt: "A etiqueta é obrigatória",
+          }),
+        };
       }
 
       if (mode === "create") {
         const newId = derivedId();
         if (!newId) {
-          return { success: false, err: t3({ en: "ID is required", fr: "L'identifiant est requis", pt: "O ID é obrigatório" }) };
+          return {
+            success: false,
+            err: t3({
+              en: "ID is required",
+              fr: "L'identifiant est requis",
+              pt: "O ID é obrigatório",
+            }),
+          };
         }
         if (p.existingIds.includes(newId)) {
           return {
             success: false,
-            err: t3({ en: `ID "${newId}" already exists`, fr: `L'identifiant "${newId}" existe déjà`, pt: `O ID "${newId}" já existe` }),
+            err: t3({
+              en: `ID "${newId}" already exists`,
+              fr: `L'identifiant "${newId}" existe déjà`,
+              pt: `O ID "${newId}" já existe`,
+            }),
           };
         }
         return await serverActions.createHfaIndicatorVariantGroup({
@@ -70,11 +88,17 @@ export function EditHfaIndicatorVariantGroup(
 
   return (
     <ModalContainer
-      title={
-        mode === "create"
-          ? t3({ en: "Add variant group", fr: "Ajouter un groupe de variantes", pt: "Adicionar grupo de variantes" })
-          : t3({ en: "Update variant group", fr: "Mettre à jour le groupe de variantes", pt: "Atualizar grupo de variantes" })
-      }
+      title={mode === "create"
+        ? t3({
+          en: "Add variant group",
+          fr: "Ajouter un groupe de variantes",
+          pt: "Adicionar grupo de variantes",
+        })
+        : t3({
+          en: "Update variant group",
+          fr: "Mettre à jour le groupe de variantes",
+          pt: "Atualizar grupo de variantes",
+        })}
       form
       onCancel={() => p.close(undefined)}
       actions={[{
@@ -91,23 +115,27 @@ export function EditHfaIndicatorVariantGroup(
           fullWidth
           autoFocus
         />
-        {mode === "create" ? (
-          <Input
-            label={t3({ en: "ID", fr: "Identifiant", pt: "ID" })}
-            value={derivedId()}
-            onChange={(v) => {
-              setIdEdited(true);
-              setId(v);
-            }}
-            fullWidth
-            mono
-          />
-        ) : (
-          <div class="ui-spy-sm">
-            <div class="ui-text-caption">{t3({ en: "ID", fr: "Identifiant", pt: "ID" })}</div>
-            <div class="font-mono text-sm">{p.existing!.id}</div>
-          </div>
-        )}
+        {mode === "create"
+          ? (
+            <Input
+              label={t3({ en: "ID", fr: "Identifiant", pt: "ID" })}
+              value={derivedId()}
+              onChange={(v) => {
+                setIdEdited(true);
+                setId(v);
+              }}
+              fullWidth
+              mono
+            />
+          )
+          : (
+            <div class="ui-spy-sm">
+              <div class="ui-text-caption">
+                {t3({ en: "ID", fr: "Identifiant", pt: "ID" })}
+              </div>
+              <div class="font-mono text-sm">{p.existing!.id}</div>
+            </div>
+          )}
       </div>
     </ModalContainer>
   );

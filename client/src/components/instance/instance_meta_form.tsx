@@ -1,10 +1,10 @@
 import { t3 } from "lib";
 import {
-  ModalContainer,
-  Card,
-  StateHolderWrapper,
-  createQuery,
   type AlertComponentProps,
+  Card,
+  createQuery,
+  ModalContainer,
+  StateHolderWrapper,
 } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -107,11 +107,9 @@ export function InstanceMetaForm(p: AlertComponentProps<{}, undefined>) {
                         </div>
                         <div class="flex-1">
                           <span
-                            class={
-                              keyedMeta.openAccess
-                                ? "text-success"
-                                : "text-base-content"
-                            }
+                            class={keyedMeta.openAccess
+                              ? "text-success"
+                              : "text-base-content"}
                           >
                             {keyedMeta.openAccess
                               ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
@@ -201,23 +199,21 @@ export function InstanceMetaForm(p: AlertComponentProps<{}, undefined>) {
                         </div>
                         <div class="flex-1">
                           <span
-                            class={
-                              keyedMeta.isHealthy
-                                ? "text-success"
-                                : "text-danger"
-                            }
+                            class={keyedMeta.isHealthy
+                              ? "text-success"
+                              : "text-danger"}
                           >
                             {keyedMeta.isHealthy
                               ? t3({
-                                  en: "Healthy",
-                                  fr: "Opérationnel",
-                                  pt: "Operacional",
-                                })
+                                en: "Healthy",
+                                fr: "Opérationnel",
+                                pt: "Operacional",
+                              })
                               : t3({
-                                  en: "Unhealthy",
-                                  fr: "Non opérationnel",
-                                  pt: "Não operacional",
-                                })}
+                                en: "Unhealthy",
+                                fr: "Non opérationnel",
+                                pt: "Não operacional",
+                              })}
                           </span>
                         </div>
                       </div>

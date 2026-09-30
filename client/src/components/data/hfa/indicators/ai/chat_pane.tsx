@@ -1,15 +1,15 @@
 import {
+  ActionMenuButton,
   AIChat,
   AIChatConversationSelector,
   AIChatSystemPromptPanel,
   type AIChatSystemPromptPanelProps,
   Button,
   createAIChat,
-  ActionMenuButton,
+  type MenuItem,
   openComponent,
   openConfirm,
   useConversations,
-  type MenuItem,
 } from "panther";
 import { t3, TC } from "lib";
 import type { Accessor } from "solid-js";
@@ -38,9 +38,12 @@ export function HfaIndicatorChatPane(p: Props) {
         pt: "Eliminar conversa",
       }),
       text: t3({
-        en: "Are you sure you want to delete this conversation? This action cannot be undone.",
-        fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
-        pt: "Tem a certeza de que pretende eliminar esta conversa? Esta ação não pode ser anulada.",
+        en:
+          "Are you sure you want to delete this conversation? This action cannot be undone.",
+        fr:
+          "Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.",
+        pt:
+          "Tem a certeza de que pretende eliminar esta conversa? Esta ação não pode ser anulada.",
       }),
       intent: "danger",
       confirmButtonLabel: t3(TC.delete),
@@ -133,8 +136,10 @@ export function HfaIndicatorChatPane(p: Props) {
         <AIChat
           placeholder={t3({
             en: "Ask me to clean up labels or organise indicators...",
-            fr: "Demandez-moi d'améliorer les libellés ou d'organiser les indicateurs...",
-            pt: "Peça-me para melhorar as etiquetas ou organizar os indicadores...",
+            fr:
+              "Demandez-moi d'améliorer les libellés ou d'organiser les indicateurs...",
+            pt:
+              "Peça-me para melhorar as etiquetas ou organizar os indicadores...",
           })}
         />
       </div>

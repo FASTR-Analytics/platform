@@ -1,9 +1,9 @@
 import { t3 } from "lib";
 import {
+  type AlertComponentProps,
+  createFormAction,
   ModalContainer,
   TextArea,
-  createFormAction,
-  type AlertComponentProps,
 } from "panther";
 import { createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -43,9 +43,12 @@ export function AiContextForm(p: AlertComponentProps<{}, undefined>) {
     >
       <TextArea
         label={t3({
-          en: "Background the AI assistant should know about this country and its health system",
-          fr: "Contexte que l'assistant IA doit connaître sur ce pays et son système de santé",
-          pt: "Contexto que o assistente de IA deve conhecer sobre este país e o seu sistema de saúde",
+          en:
+            "Background the AI assistant should know about this country and its health system",
+          fr:
+            "Contexte que l'assistant IA doit connaître sur ce pays et son système de santé",
+          pt:
+            "Contexto que o assistente de IA deve conhecer sobre este país e o seu sistema de saúde",
         })}
         value={tempAiContext()}
         onChange={setTempAiContext}

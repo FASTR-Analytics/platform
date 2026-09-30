@@ -3,10 +3,10 @@ import { escapeSqlString } from "../../db/utils.ts";
 import {
   classifyChoice,
   classifyNumericSentinel,
-  isReservedHfaId,
-  parseNumericSentinels,
   type DatasetHfaCsvStagingResult,
   type HfaCsvMappingParams,
+  isReservedHfaId,
+  parseNumericSentinels,
 } from "lib";
 import { getHfaRowScanComponents } from "../../server_only_funcs_csvs/scan_hfa_rows.ts";
 import {
@@ -99,7 +99,11 @@ export async function stageHfaCsvIntoTables(args: {
   // Streaming components (filter + row-number scan shared with the wizard's
   // stateless duplicates preview route).
   const { headers, facilityIdIndex, processFilteredRows } =
-    await getHfaRowScanComponents(csvFilePath, mappings.facilityIdColumn, rowFilters);
+    await getHfaRowScanComponents(
+      csvFilePath,
+      mappings.facilityIdColumn,
+      rowFilters,
+    );
 
   // Match CSV columns to XLSForm questions.
   type CsvQuestionMapping = {
@@ -170,7 +174,9 @@ export async function stageHfaCsvIntoTables(args: {
   const reservedCollisions = variableIds.filter(isReservedHfaId);
   if (reservedCollisions.length > 0) {
     throw new Error(
-      `The variable id "${reservedCollisions[0]}" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
+      `The variable id "${
+        reservedCollisions[0]
+      }" is reserved (it collides with a function or operator used in indicator code, or with a column the analysis script generates). Rename the question in the XLSForm, and its column in the CSV, and re-upload.`,
     );
   }
 
@@ -227,12 +233,16 @@ CREATE UNLOGGED TABLE ${names.raw} (
     value: string,
     rowSeq: number,
   ) =>
-    `('${escapeSqlString(facilityId)}','${escapeSqlString(cleanedTimePoint)}','${escapeSqlString(variableId)}','${escapeSqlString(value)}',${rowSeq})`;
+    `('${escapeSqlString(facilityId)}','${
+      escapeSqlString(cleanedTimePoint)
+    }','${escapeSqlString(variableId)}','${escapeSqlString(value)}',${rowSeq})`;
 
   const flushBuffer = async () => {
     if (rowBuffer.length === 0) return;
     await importDb.unsafe(
-      `INSERT INTO ${names.raw} (facility_id, time_point, variable_id, value, row_seq) VALUES ${rowBuffer.join(",")}`,
+      `INSERT INTO ${names.raw} (facility_id, time_point, variable_id, value, row_seq) VALUES ${
+        rowBuffer.join(",")
+      }`,
     );
     rowBuffer = [];
   };
@@ -266,14 +276,14 @@ CREATE UNLOGGED TABLE ${names.raw} (
           const selectedCodes = new Set(
             value ? value.split(" ").filter((s) => s.length > 0) : [],
           );
-          const unselectedValue =
-            selectedCodes.size === 0
-              ? ""
-              : selectedCodes.has("-99")
-                ? "-99"
-                : "0";
+          const unselectedValue = selectedCodes.size === 0
+            ? ""
+            : selectedCodes.has("-99")
+            ? "-99"
+            : "0";
           for (const choice of mapping.choices) {
-            const expandedVariableId = `${mapping.question.questionId}_${choice.value}`;
+            const expandedVariableId =
+              `${mapping.question.questionId}_${choice.value}`;
             const expandedValue = selectedCodes.has(choice.value)
               ? "1"
               : unselectedValue;
@@ -325,8 +335,7 @@ CREATE UNLOGGED TABLE ${names.raw} (
   const keepTuples: string[] = [];
   for (const [facilityId, rows] of facilityRowNumbers) {
     survivingRows += rows.length;
-    const keepRow =
-      overrideByFacility.get(facilityId) ??
+    const keepRow = overrideByFacility.get(facilityId) ??
       (dedupStrategy === "first" ? rows[0] : rows[rows.length - 1]);
     keepTuples.push(`('${escapeSqlString(facilityId)}',${keepRow})`);
   }
@@ -341,7 +350,9 @@ CREATE UNLOGGED TABLE ${names.keepRows} (
   for (let i = 0; i < keepTuples.length; i += 1000) {
     const batch = keepTuples.slice(i, i + 1000);
     await importDb.unsafe(
-      `INSERT INTO ${names.keepRows} (facility_id, keep_seq) VALUES ${batch.join(",")}`,
+      `INSERT INTO ${names.keepRows} (facility_id, keep_seq) VALUES ${
+        batch.join(",")
+      }`,
     );
   }
 
@@ -423,8 +434,12 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
           ),
         );
         // "Yes"/"No" are substantive; only the carried "-99" is a sentinel.
-        dictValueRows.push(tup(cleanedTimePoint, expandedVariableId, "1", "Yes", ""));
-        dictValueRows.push(tup(cleanedTimePoint, expandedVariableId, "0", "No", ""));
+        dictValueRows.push(
+          tup(cleanedTimePoint, expandedVariableId, "1", "Yes", ""),
+        );
+        dictValueRows.push(
+          tup(cleanedTimePoint, expandedVariableId, "0", "No", ""),
+        );
         if (dkChoice && choice.value !== "-99") {
           const dkLabel = dkChoice.label.trim();
           dictValueRows.push(
@@ -439,7 +454,9 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
         }
       }
     } else if (mapping.question.type === "select_one" && mapping.choices) {
-      dictVariableRows.push(tup(cleanedTimePoint, variableId, variableLabel, variableType));
+      dictVariableRows.push(
+        tup(cleanedTimePoint, variableId, variableLabel, variableType),
+      );
       for (const choice of mapping.choices) {
         const code = choice.value;
         const label = choice.label.trim();
@@ -454,11 +471,15 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
         );
       }
     } else {
-      dictVariableRows.push(tup(cleanedTimePoint, variableId, variableLabel, variableType));
+      dictVariableRows.push(
+        tup(cleanedTimePoint, variableId, variableLabel, variableType),
+      );
       // Numeric variables have no choice list; their don't-know sentinel lives in
       // the XLSForm constraint (e.g. ". = -999999"). Synthesize a dictionary
       // row so the sentinel and its class are captured like a choice code.
-      for (const sv of parseNumericSentinels(mapping.question.constraint ?? "")) {
+      for (
+        const sv of parseNumericSentinels(mapping.question.constraint ?? "")
+      ) {
         const cls = classifyNumericSentinel(sv);
         const label = cls === "dont_know" ? "Don't know" : "Reserved value";
         dictValueRows.push(tup(cleanedTimePoint, variableId, sv, label, cls));
@@ -469,13 +490,17 @@ CREATE UNLOGGED TABLE ${names.dictValues} (
   for (let i = 0; i < dictVariableRows.length; i += 1000) {
     const batch = dictVariableRows.slice(i, i + 1000);
     await importDb.unsafe(
-      `INSERT INTO ${names.dictVars} (time_point, variable_id, variable_label, variable_type) VALUES ${batch.join(",")}`,
+      `INSERT INTO ${names.dictVars} (time_point, variable_id, variable_label, variable_type) VALUES ${
+        batch.join(",")
+      }`,
     );
   }
   for (let i = 0; i < dictValueRows.length; i += 1000) {
     const batch = dictValueRows.slice(i, i + 1000);
     await importDb.unsafe(
-      `INSERT INTO ${names.dictValues} (time_point, variable_id, value, value_label, sentinel_class) VALUES ${batch.join(",")}`,
+      `INSERT INTO ${names.dictValues} (time_point, variable_id, value, value_label, sentinel_class) VALUES ${
+        batch.join(",")
+      }`,
     );
   }
 

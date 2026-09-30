@@ -1,6 +1,8 @@
 # platform
 
-The FASTR Analytics Platform for processing, visualizing, and analyzing health data. Built with Deno, SolidJS, TypeScript, and PostgreSQL with a modular architecture for executing R-based data processing pipelines.
+The FASTR Analytics Platform for processing, visualizing, and analyzing health
+data. Built with Deno, SolidJS, TypeScript, and PostgreSQL with a modular
+architecture for executing R-based data processing pipelines.
 
 ## Setup
 
@@ -70,7 +72,8 @@ deno task dev
 cd client && npm run dev
 ```
 
-The server runs on `http://localhost:8000` and the client on `http://localhost:3000`.
+The server runs on `http://localhost:8000` and the client on
+`http://localhost:3000`.
 
 ## Type Checking
 
@@ -102,17 +105,20 @@ The script performs the following steps:
    - Output goes to `./client_dist/` which the server serves in production
 
 3. **Typecheck Gate**
-   - Runs `deno task typecheck` (server + client + `lint:systems` + `lint:structure` + `lint:text-sizes`)
+   - Runs `deno task typecheck` (server + client + `lint:systems` +
+     `lint:structure` + `lint:text-sizes`)
 
 4. **Docker Image**
-   - Builds Docker image tagged with version: `timroberton/comb:wb-fastr-server-v{version}`
+   - Builds Docker image tagged with version:
+     `timroberton/comb:wb-fastr-server-v{version}`
    - Pushes image to Docker registry
 
 5. **Git Commit**
    - Commits version bump and builds
    - Pushes to remote repository
 
-**Note**: Building is only done as part of deployment. In development, the client uses Vite's dev server and the server runs directly with Deno.
+**Note**: Building is only done as part of deployment. In development, the
+client uses Vite's dev server and the server runs directly with Deno.
 
 ## Project Structure
 
@@ -141,10 +147,17 @@ platform/
 
 ## License
 
-Copyright (c) 2025 The World Bank, Global Financing Facility for Women, Children and Adolescents (GFF), Frequent Assessments and System Tools for Resilience (FASTR) Initiative. All rights reserved.
+Copyright (c) 2025 The World Bank, Global Financing Facility for Women, Children
+and Adolescents (GFF), Frequent Assessments and System Tools for Resilience
+(FASTR) Initiative. All rights reserved.
 
-This software is proprietary and made publicly available for transparency and reference purposes only. Viewing and reviewing the source code is permitted. See [LICENSE](LICENSE) for full terms.
+This software is proprietary and made publicly available for transparency and
+reference purposes only. Viewing and reviewing the source code is permitted. See
+[LICENSE](LICENSE) for full terms.
 
 ## Third-Party Code
 
-This project depends on the Panther visualization library (`@timroberton/panther`), which is maintained separately and synced into the `panther/` directory (git-ignored). The library has its own licensing - see `panther/LICENSE.txt` and `panther/THIRD_PARTY_LICENSES.md` after syncing.
+This project depends on the Panther visualization library
+(`@timroberton/panther`), which is maintained separately and synced into the
+`panther/` directory (git-ignored). The library has its own licensing - see
+`panther/LICENSE.txt` and `panther/THIRD_PARTY_LICENSES.md` after syncing.

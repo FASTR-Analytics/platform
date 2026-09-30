@@ -10,9 +10,9 @@ import {
   type Slide,
   slideDocRoot,
   type SyncReportOpts,
-  type SyncSlideOpts,
   syncReportRegistries,
   syncReportToDoc,
+  type SyncSlideOpts,
   syncSlideToDoc,
 } from "lib";
 import * as Y from "yjs";
@@ -25,10 +25,7 @@ import {
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { _SERVER_HOST } from "~/server_actions";
-import {
-  notifyPresenceToasts,
-  resetPresenceToasts,
-} from "./presence_toasts";
+import { notifyPresenceToasts, resetPresenceToasts } from "./presence_toasts";
 import { notifyCollabConnection } from "./connection_banner";
 
 // Client manager for the instance-wide collaboration WebSocket (GET /collab):
@@ -218,7 +215,8 @@ const AWARENESS_PRUNE_ORIGIN = "awareness-presence-prune";
 /** Awareness "update" events that must NOT be shipped to the server: those
  *  just applied FROM it, and local presence-driven prunes. */
 function isLocalOnlyAwarenessOrigin(origin: unknown): boolean {
-  return origin === AWARENESS_REMOTE_ORIGIN || origin === AWARENESS_PRUNE_ORIGIN;
+  return origin === AWARENESS_REMOTE_ORIGIN ||
+    origin === AWARENESS_PRUNE_ORIGIN;
 }
 
 /** Drop the awareness states of connections the server no longer lists.
@@ -496,7 +494,11 @@ function resetSlideLineage(
   console.warn(
     `Collab: slide ${s.slideId} room re-seeded (lineage ${s.epoch} → ${epoch}); adopting the server's document`,
   );
-  const old = { doc: s.doc, awareness: s.awareness, undoManager: s.undoManager };
+  const old = {
+    doc: s.doc,
+    awareness: s.awareness,
+    undoManager: s.undoManager,
+  };
   const doc = new Y.Doc();
   Y.applyUpdate(doc, update, SLIDE_REMOTE_ORIGIN);
   const awareness = new Awareness(doc);

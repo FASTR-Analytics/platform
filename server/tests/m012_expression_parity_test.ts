@@ -12,10 +12,10 @@
 import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import {
-  type HmisIndicator,
-  type HmisIndicatorCatalogRow,
   evaluateIndicatorExpression,
   type ExpressionValues,
+  type HmisIndicator,
+  type HmisIndicatorCatalogRow,
   parseIndicatorExpression,
   POPULATION_TYPE_IDS,
   resolveHmisIndicatorCatalog,
@@ -58,12 +58,20 @@ const INDICATORS: HmisIndicator[] = [
     type: "calculated",
     expression: "coalesce(anc4, 0) / anc1",
   }, 6),
-  indicator("anc1_not5", { type: "calculated", expression: "nullif(anc1, 5)" }, 7),
+  indicator(
+    "anc1_not5",
+    { type: "calculated", expression: "nullif(anc1, 5)" },
+    7,
+  ),
   indicator("anc1_per_1000_u5", {
     type: "calculated",
     expression: `1000 * anc1 / ${POPULATION_TYPE}`,
   }, 8),
-  indicator("penta1_share", { type: "calculated", expression: "penta1 / anc1" }, 9),
+  indicator(
+    "penta1_share",
+    { type: "calculated", expression: "penta1 / anc1" },
+    9,
+  ),
   indicator("anc_gap", {
     type: "calculated",
     expression: "-anc1 + abs(anc4 - anc1)",

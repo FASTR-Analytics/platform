@@ -16,7 +16,10 @@ import type { Browser } from "@astral/astral";
 import type { APIResponseWithData, FastrWordRasterBlock } from "lib";
 import { _CHROME_PATH } from "../exposed_env_vars.ts";
 import { launchChrome, printPagedDocument } from "./paged_chrome.ts";
-import { type RasterBlockRequest, rasterizeBlocksOnPage } from "./rasterize_blocks.ts";
+import {
+  type RasterBlockRequest,
+  rasterizeBlocksOnPage,
+} from "./rasterize_blocks.ts";
 
 export const RENDER_TIMEOUT_MS = 90_000;
 const IDLE_CLOSE_MS = 5 * 60_000;
@@ -111,21 +114,24 @@ export function rasterizeReportBlocks(
   blocks: readonly RasterBlockRequest[],
   progress: (pct: number, message: string) => Promise<void>,
 ): Promise<APIResponseWithData<FastrWordRasterBlock[]>> {
-  return withReportBrowser("picturing the report's design blocks", async (b) => {
-    const page = await b.newPage();
-    try {
-      return await rasterizeBlocksOnPage(page, html, blocks, {
-        timeoutMs: RENDER_TIMEOUT_MS,
-        progress,
-      });
-    } finally {
+  return withReportBrowser(
+    "picturing the report's design blocks",
+    async (b) => {
+      const page = await b.newPage();
       try {
-        await page.close();
-      } catch {
-        // The page dying is the browser dying; the caller relaunches next time.
+        return await rasterizeBlocksOnPage(page, html, blocks, {
+          timeoutMs: RENDER_TIMEOUT_MS,
+          progress,
+        });
+      } finally {
+        try {
+          await page.close();
+        } catch {
+          // The page dying is the browser dying; the caller relaunches next time.
+        }
       }
-    }
-  });
+    },
+  );
 }
 
 // Whether this instance can render at all — the client shows a plain message

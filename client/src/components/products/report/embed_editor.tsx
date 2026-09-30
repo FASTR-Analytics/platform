@@ -50,7 +50,11 @@ export function ReportInsertEmbedButtons(p: {
           iconName="photo"
           onClick={() => p.onInsertImage()}
         >
-          {t3({ en: "Insert image", fr: "Insérer une image", pt: "Inserir imagem" })}
+          {t3({
+            en: "Insert image",
+            fr: "Insérer une image",
+            pt: "Inserir imagem",
+          })}
         </Button>
       </div>
     </Show>
@@ -135,14 +139,22 @@ export function ReportEmbedControls(p: ControlsProps) {
                           })}
                         </Button>
                       </Show>
-                      <Button size="sm" outline onClick={() => p.onSwitchFigure()}>
+                      <Button
+                        size="sm"
+                        outline
+                        onClick={() => p.onSwitchFigure()}
+                      >
                         {t3({
                           en: "Switch",
                           fr: "Changer",
                           pt: "Mudar",
                         })}
                       </Button>
-                      <Button size="sm" outline onClick={() => p.onCreateFigure()}>
+                      <Button
+                        size="sm"
+                        outline
+                        onClick={() => p.onCreateFigure()}
+                      >
                         {t3({
                           en: "New",
                           fr: "Nouvelle",
@@ -186,7 +198,12 @@ export function ReportEmbedControls(p: ControlsProps) {
                   )}
                 </Match>
               </Switch>
-              <Button size="sm" intent="danger" outline onClick={() => p.onDelete()}>
+              <Button
+                size="sm"
+                intent="danger"
+                outline
+                onClick={() => p.onDelete()}
+              >
                 {t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" })}
               </Button>
             </div>

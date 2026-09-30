@@ -56,9 +56,12 @@ export function InstanceUsers(p: Props) {
   async function showCommingSoon() {
     const _res = await openAlert({
       text: t3({
-        en: "This functionality is coming soon. For now, click on the 'edit' button for individual users.",
-        fr: "Cette fonctionnalité sera bientôt disponible. Pour l'instant, cliquez sur le bouton « modifier » pour chaque utilisateur.",
-        pt: "Esta funcionalidade estará disponível em breve. Por agora, clique no botão 'editar' para cada utilizador.",
+        en:
+          "This functionality is coming soon. For now, click on the 'edit' button for individual users.",
+        fr:
+          "Cette fonctionnalité sera bientôt disponible. Pour l'instant, cliquez sur le bouton « modifier » pour chaque utilisateur.",
+        pt:
+          "Esta funcionalidade estará disponível em breve. Por agora, clique no botão 'editar' para cada utilizador.",
       }),
     });
     return true;
@@ -95,15 +98,15 @@ export function InstanceUsers(p: Props) {
               >
                 {showHUsers()
                   ? t3({
-                      en: "Hide system users",
-                      fr: "Masquer les utilisateurs système",
-                      pt: "Ocultar utilizadores do sistema",
-                    })
+                    en: "Hide system users",
+                    fr: "Masquer les utilisateurs système",
+                    pt: "Ocultar utilizadores do sistema",
+                  })
                   : t3({
-                      en: "Show system users",
-                      fr: "Afficher les utilisateurs système",
-                      pt: "Mostrar utilizadores do sistema",
-                    })}
+                    en: "Show system users",
+                    fr: "Afficher les utilisateurs système",
+                    pt: "Mostrar utilizadores do sistema",
+                  })}
               </Button>
             </Show>
             <div class="ui-gap-sm flex items-center">
@@ -164,8 +167,7 @@ export function InstanceUsers(p: Props) {
                   email: user.email,
                   thisLoggedInUserEmail: p.thisLoggedInUserEmail,
                 },
-              })
-            }
+              })}
             showCommingSoon={showCommingSoon}
             showHUsers={showHUsers}
           />
@@ -219,11 +221,13 @@ function getGlobalPermissionSummary(user: UserData): string {
     .map((k) => t3(INSTANCE_PERMISSION_LABELS[k]))
     .join(", ");
   if (active.length > 5) {
-    return `${shown}, +${active.length - 5} ${t3({
-      en: "more",
-      fr: "de plus",
-      pt: "mais",
-    })}`;
+    return `${shown}, +${active.length - 5} ${
+      t3({
+        en: "more",
+        fr: "de plus",
+        pt: "mais",
+      })
+    }`;
   }
   return shown;
 }
@@ -307,11 +311,9 @@ function UserTable(p: {
       sortable: true,
       render: (user) => {
         const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
-        return name ? (
-          <span>{name}</span>
-        ) : (
-          <span class="text-base-content-muted">—</span>
-        );
+        return name
+          ? <span>{name}</span>
+          : <span class="text-base-content-muted">—</span>;
       },
     },
     {
@@ -377,14 +379,13 @@ function UserTable(p: {
   async function handleBulkRemoveUsers(selectedUsers: UserTableData[]) {
     const emails = selectedUsers.map((u) => u.email);
     const userCount = emails.length;
-    const userText =
-      userCount === 1
-        ? t3({ en: "this user", fr: "cet utilisateur", pt: "este utilizador" })
-        : t3({
-            en: "these users",
-            fr: "ces utilisateurs",
-            pt: "estes utilizadores",
-          });
+    const userText = userCount === 1
+      ? t3({ en: "this user", fr: "cet utilisateur", pt: "este utilizador" })
+      : t3({
+        en: "these users",
+        fr: "ces utilisateurs",
+        pt: "estes utilizadores",
+      });
 
     const deleteAction = createDeleteAction(
       {
@@ -429,39 +430,39 @@ function UserTable(p: {
   const bulkActions = createMemo<BulkAction<UserTableData>[]>(() => [
     ...(canConfigureUsers()
       ? [
-          {
-            label: t3({
-              en: "Make admin",
-              fr: "Attribuer le rôle d'administrateur",
-              pt: "Tornar administrador",
-            }),
-            intent: "primary" as const,
-            onClick: bulkMakeAdmin.click,
-            state: bulkMakeAdmin.state,
-            outline: true,
-          },
-          {
-            label: t3({
-              en: "Make non-admin",
-              fr: "Retirer le rôle d'administrateur",
-              pt: "Remover administrador",
-            }),
-            intent: "primary" as const,
-            onClick: bulkMakeNonAdmin.click,
-            state: bulkMakeNonAdmin.state,
-            outline: true,
-          },
-          {
-            label: t3({
-              en: "Edit permissions",
-              fr: "Modifier les droits d'accès",
-              pt: "Editar permissões",
-            }),
-            intent: "primary" as const,
-            outline: true,
-            onClick: handleBulkEditPermissions,
-          },
-        ]
+        {
+          label: t3({
+            en: "Make admin",
+            fr: "Attribuer le rôle d'administrateur",
+            pt: "Tornar administrador",
+          }),
+          intent: "primary" as const,
+          onClick: bulkMakeAdmin.click,
+          state: bulkMakeAdmin.state,
+          outline: true,
+        },
+        {
+          label: t3({
+            en: "Make non-admin",
+            fr: "Retirer le rôle d'administrateur",
+            pt: "Remover administrador",
+          }),
+          intent: "primary" as const,
+          onClick: bulkMakeNonAdmin.click,
+          state: bulkMakeNonAdmin.state,
+          outline: true,
+        },
+        {
+          label: t3({
+            en: "Edit permissions",
+            fr: "Modifier les droits d'accès",
+            pt: "Editar permissões",
+          }),
+          intent: "primary" as const,
+          outline: true,
+          onClick: handleBulkEditPermissions,
+        },
+      ]
       : []),
     {
       label: t3({
@@ -475,13 +476,13 @@ function UserTable(p: {
     },
     ...(canConfigureUsers()
       ? [
-          {
-            label: t3({ en: "Remove", fr: "Supprimer", pt: "Remover" }),
-            intent: "danger" as const,
-            outline: true,
-            onClick: handleBulkRemoveUsers,
-          },
-        ]
+        {
+          label: t3({ en: "Remove", fr: "Supprimer", pt: "Remover" }),
+          intent: "danger" as const,
+          outline: true,
+          onClick: handleBulkRemoveUsers,
+        },
+      ]
       : []),
   ]);
 

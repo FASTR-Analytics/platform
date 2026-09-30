@@ -41,10 +41,7 @@ import {
   dropSlideElementLedgers,
   snapshotSlideElementAuthors,
 } from "./authorship.ts";
-import {
-  drainDeckLedger,
-  restoreDeckLedger,
-} from "./deck_session_ledger.ts";
+import { drainDeckLedger, restoreDeckLedger } from "./deck_session_ledger.ts";
 import { isRoomOpen } from "./doc_rooms.ts";
 import { flushReportRoom } from "./report_rooms.ts";
 import { flushSlideRoom } from "./slide_rooms.ts";
@@ -316,7 +313,10 @@ const tracker = createVersionTracker({
         JSON.stringify({ docId }),
       ).then((res) => {
         if (!res.success) {
-          console.error(`Session activity log failed (${kind} ${docId}):`, res.err);
+          console.error(
+            `Session activity log failed (${kind} ${docId}):`,
+            res.err,
+          );
         }
       });
     }

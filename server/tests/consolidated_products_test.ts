@@ -64,7 +64,9 @@ const migratedDeck = (
 ).at(0);
 
 const hasMigratedProducts = (
-  await mainDb<{ n: number }[]>`SELECT count(*)::int AS n FROM products WHERE created_by IS NULL`
+  await mainDb<
+    { n: number }[]
+  >`SELECT count(*)::int AS n FROM products WHERE created_by IS NULL`
 )[0].n > 0;
 
 function clerkLegMiddleware(email: string) {
@@ -92,7 +94,12 @@ function productApp(): Hono {
   return app;
 }
 
-async function ok<T>(app: Hono, method: string, path: string, body?: unknown): Promise<T> {
+async function ok<T>(
+  app: Hono,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
   const res = await app.request(path, {
     method,
     headers: body === undefined ? {} : { "Content-Type": "application/json" },
@@ -106,11 +113,15 @@ async function ok<T>(app: Hono, method: string, path: string, body?: unknown): P
 
 function assertAuth(): void {
   if (_BYPASS_AUTH) {
-    throw new Error("BYPASS_AUTH is set: this harness must exercise the real auth branches. Unset it and re-run.");
+    throw new Error(
+      "BYPASS_AUTH is set: this harness must exercise the real auth branches. Unset it and re-run.",
+    );
   }
 }
 
-async function withApprovedUser(body: (app: Hono, created: string[]) => Promise<void>): Promise<void> {
+async function withApprovedUser(
+  body: (app: Hono, created: string[]) => Promise<void>,
+): Promise<void> {
   assertAuth();
   await mainDb`INSERT INTO users (email, is_admin) VALUES (${EMAIL}, FALSE) ON CONFLICT DO NOTHING`;
   const created: string[] = [];
@@ -125,36 +136,56 @@ async function withApprovedUser(body: (app: Hono, created: string[]) => Promise<
 }
 
 Deno.test({
-  name: "consolidated products: every stored bundle parses with its package and scope",
+  name:
+    "consolidated products: every stored bundle parses with its package and scope",
   ignore: !hasMigratedProducts,
   fn: async () => {
-    const slides = await mainDb<{ id: string; config: string }[]>`SELECT id, config FROM slides`;
+    const slides = await mainDb<
+      { id: string; config: string }[]
+    >`SELECT id, config FROM slides`;
     for (const s of slides) {
-      assert(slideConfigSchema.safeParse(JSON.parse(s.config)).success, `slide ${s.id}`);
+      assert(
+        slideConfigSchema.safeParse(JSON.parse(s.config)).success,
+        `slide ${s.id}`,
+      );
     }
-    const reports = await mainDb<{ id: string; figures: string }[]>`SELECT id, figures FROM reports`;
+    const reports = await mainDb<
+      { id: string; figures: string }[]
+    >`SELECT id, figures FROM reports`;
     for (const r of reports) {
-      assert(reportFiguresSchema.safeParse(JSON.parse(r.figures)).success, `report ${r.id}`);
+      assert(
+        reportFiguresSchema.safeParse(JSON.parse(r.figures)).success,
+        `report ${r.id}`,
+      );
     }
     const reportVersions = await mainDb<{ id: string; figures: string }[]>`
       SELECT id, figures FROM report_versions`;
     for (const v of reportVersions) {
       const figures = JSON.parse(v.figures) as Record<string, FigureBlockMut>;
       Object.values(figures).forEach(transformFigureBlock);
-      assert(reportFiguresSchema.safeParse(figures).success, `report version ${v.id}`);
+      assert(
+        reportFiguresSchema.safeParse(figures).success,
+        `report version ${v.id}`,
+      );
     }
     const deckVersions = await mainDb<{ id: string; slides: string }[]>`
       SELECT id, slides FROM slide_deck_versions`;
     for (const v of deckVersions) {
       for (const s of JSON.parse(v.slides) as SlideDeckVersionSlide[]) {
-        const config = s.config as { type: string; layout?: SlideLayoutNodeLike };
+        const config = s.config as {
+          type: string;
+          layout?: SlideLayoutNodeLike;
+        };
         if (config.type === "content" && config.layout) {
           walkSlideLayoutNodes(config.layout, (node) => {
             const data = node.data as FigureBlockMut | undefined;
             if (data?.type === "figure") transformFigureBlock(data);
           });
         }
-        assert(slideConfigSchema.safeParse(config).success, `deck version ${v.id} slide ${s.id}`);
+        assert(
+          slideConfigSchema.safeParse(config).success,
+          `deck version ${v.id} slide ${s.id}`,
+        );
       }
     }
   },
@@ -192,15 +223,25 @@ Deno.test({
 
       await mainDb.begin(async (sql) => {
         await sql`UPDATE reports SET body = 'changed by the harness' WHERE id = ${copy.productId}`;
-        await sql`UPDATE products SET last_updated = ${new Date().toISOString()} WHERE id = ${copy.productId}`;
+        await sql`UPDATE products SET last_updated = ${
+          new Date().toISOString()
+        } WHERE id = ${copy.productId}`;
       });
-      await ok(app, "POST", `/products/${copy.productId}/report/versions/${version.data.versionId}/restore`);
+      await ok(
+        app,
+        "POST",
+        `/products/${copy.productId}/report/versions/${version.data.versionId}/restore`,
+      );
 
       const restored = (
-        await mainDb<{ body: string; figures: string }[]>`SELECT body, figures FROM reports WHERE id = ${copy.productId}`
+        await mainDb<
+          { body: string; figures: string }[]
+        >`SELECT body, figures FROM reports WHERE id = ${copy.productId}`
       )[0];
       assertEquals(restored.body, data.data.body);
-      assert(reportFiguresSchema.safeParse(JSON.parse(restored.figures)).success);
+      assert(
+        reportFiguresSchema.safeParse(JSON.parse(restored.figures)).success,
+      );
     });
   },
 });
@@ -210,9 +251,14 @@ Deno.test({
   ignore: migratedDeck === undefined,
   fn: async () => {
     await withApprovedUser(async (app, created) => {
-      const copy = await ok<{ productId: string }>(app, "POST", `/products/${migratedDeck!.id}/duplicate`, {
-        adminArea2: migratedDeck!.admin_area_2,
-      });
+      const copy = await ok<{ productId: string }>(
+        app,
+        "POST",
+        `/products/${migratedDeck!.id}/duplicate`,
+        {
+          adminArea2: migratedDeck!.admin_area_2,
+        },
+      );
       created.push(copy.productId);
 
       const data = await loadSlideDeckVersionData(mainDb, copy.productId);
@@ -229,8 +275,14 @@ Deno.test({
       if (!version.success) throw new Error(version.err);
 
       const removed = data.data.slides[0].id;
-      await ok(app, "DELETE", `/products/${copy.productId}/slides`, { slideIds: [removed] });
-      await ok(app, "POST", `/products/${copy.productId}/slide-deck/versions/${version.data.versionId}/restore`);
+      await ok(app, "DELETE", `/products/${copy.productId}/slides`, {
+        slideIds: [removed],
+      });
+      await ok(
+        app,
+        "POST",
+        `/products/${copy.productId}/slide-deck/versions/${version.data.versionId}/restore`,
+      );
 
       const slides = await mainDb<{ config: string }[]>`
         SELECT config FROM slides WHERE slide_deck_id = ${copy.productId}`;

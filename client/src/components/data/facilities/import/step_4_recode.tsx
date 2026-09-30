@@ -1,33 +1,42 @@
 import {
-  t3,
-  TC,
   _RECODABLE_FACILITY_COLUMNS,
-  encodeRawCsvHeader,
   type CsvDetails,
+  encodeRawCsvHeader,
   type FacilityFamily,
-  type StructureSchema,
   type StructureColumnMappings,
   type StructureRecodableColumn,
   type StructureRecodes,
+  type StructureSchema,
   type StructureStagedColumnValues,
   type StructureStagedRecodeRows,
   type StructureStagingResult,
+  t3,
+  TC,
 } from "lib";
 import {
   Button,
   Checkbox,
+  createFormAction,
   Input,
   Select,
+  type StateHolder,
   StateHolderFormError,
   StateHolderWrapper,
   Table,
-  createFormAction,
-  toNum0,
-  type StateHolder,
   type TableColumn,
+  toNum0,
 } from "panther";
-import { For, Match, Show, Switch, batch, createEffect, createMemo, createSignal } from "solid-js";
-import { unwrap, type SetStoreFunction } from "solid-js/store";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
+import { type SetStoreFunction, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { getStructureColumnLabel } from "./column_labels";
 
@@ -250,7 +259,7 @@ export function Step4Recode(p: Props) {
         targetOptionCache.set(value, opt);
       }
       return opt;
-    }),
+    })
   );
 
   // Unmapped file columns offerable as display-only context in the table
@@ -265,7 +274,10 @@ export function Step4Recode(p: Props) {
       ),
     );
     return csvDetails.headers
-      .map((header, i) => ({ value: encodeRawCsvHeader(i, header), label: header }))
+      .map((header, i) => ({
+        value: encodeRawCsvHeader(i, header),
+        label: header,
+      }))
       .filter(
         (o) => !mappedRefs.has(o.value) && !contextColumns.includes(o.value),
       );
@@ -376,9 +388,12 @@ export function Step4Recode(p: Props) {
         return {
           success: false,
           err: t3({
-            en: "This upload was staged before value reassignment existed — re-stage the data to use this feature.",
-            fr: "Ce téléversement a été préparé avant l'existence de la réassignation des valeurs — relancez la préparation pour utiliser cette fonctionnalité.",
-            pt: "Este carregamento foi preparado antes de existir a reatribuição de valores — repita a preparação para usar esta funcionalidade.",
+            en:
+              "This upload was staged before value reassignment existed — re-stage the data to use this feature.",
+            fr:
+              "Ce téléversement a été préparé avant l'existence de la réassignation des valeurs — relancez la préparation pour utiliser cette fonctionnalité.",
+            pt:
+              "Este carregamento foi preparado antes de existir a reatribuição de valores — repita a preparação para usar esta funcionalidade.",
           }),
         };
       }
@@ -406,9 +421,12 @@ export function Step4Recode(p: Props) {
       </div>
       <div class="text-base-content text-sm">
         {t3({
-          en: "Some files classify facilities with values like “Other”. Here you can reassign such values facility by facility before the import writes them. Counts and rows are shown per facility — duplicate rows in your file are already resolved exactly as the import will resolve them. This step is optional — continue to the import if nothing needs reassigning.",
-          fr: "Certains fichiers classent les établissements avec des valeurs comme « Autre ». Vous pouvez ici réassigner ces valeurs établissement par établissement avant que l'importation ne les écrive. Les décomptes et les lignes sont présentés par établissement — les lignes en double de votre fichier sont déjà résolues exactement comme l'importation les résoudra. Cette étape est facultative — passez à l'importation si rien n'est à réassigner.",
-          pt: "Alguns ficheiros classificam os estabelecimentos com valores como «Outro». Aqui pode reatribuir esses valores estabelecimento a estabelecimento antes de a importação os escrever. As contagens e as linhas são apresentadas por estabelecimento — as linhas duplicadas do seu ficheiro já estão resolvidas exatamente como a importação as resolverá. Esta etapa é opcional — avance para a importação se nada precisar de reatribuição.",
+          en:
+            "Some files classify facilities with values like “Other”. Here you can reassign such values facility by facility before the import writes them. Counts and rows are shown per facility — duplicate rows in your file are already resolved exactly as the import will resolve them. This step is optional — continue to the import if nothing needs reassigning.",
+          fr:
+            "Certains fichiers classent les établissements avec des valeurs comme « Autre ». Vous pouvez ici réassigner ces valeurs établissement par établissement avant que l'importation ne les écrive. Les décomptes et les lignes sont présentés par établissement — les lignes en double de votre fichier sont déjà résolues exactement comme l'importation les résoudra. Cette étape est facultative — passez à l'importation si rien n'est à réassigner.",
+          pt:
+            "Alguns ficheiros classificam os estabelecimentos com valores como «Outro». Aqui pode reatribuir esses valores estabelecimento a estabelecimento antes de a importação os escrever. As contagens e as linhas são apresentadas por estabelecimento — as linhas duplicadas do seu ficheiro já estão resolvidas exatamente como a importação as resolverá. Esta etapa é opcional — avance para a importação se nada precisar de reatribuição.",
         })}
       </div>
 
@@ -417,9 +435,12 @@ export function Step4Recode(p: Props) {
         fallback={
           <div class="text-base-content-muted text-sm">
             {t3({
-              en: "None of the staged columns can be reassigned. Continue to the import.",
-              fr: "Aucune des colonnes préparées ne peut être réassignée. Passez à l'importation.",
-              pt: "Nenhuma das colunas preparadas pode ser reatribuída. Avance para a importação.",
+              en:
+                "None of the staged columns can be reassigned. Continue to the import.",
+              fr:
+                "Aucune des colonnes préparées ne peut être réassignée. Passez à l'importation.",
+              pt:
+                "Nenhuma das colunas preparadas pode ser reatribuída. Avance para a importação.",
             })}
           </div>
         }
@@ -465,9 +486,12 @@ export function Step4Recode(p: Props) {
               <Show when={valuesData.truncated}>
                 <div class="text-danger text-sm">
                   {t3({
-                    en: "This column has more than 200 distinct values — only the 200 most frequent are shown and selectable.",
-                    fr: "Cette colonne compte plus de 200 valeurs distinctes — seules les 200 plus fréquentes sont affichées et sélectionnables.",
-                    pt: "Esta coluna tem mais de 200 valores distintos — apenas os 200 mais frequentes são mostrados e selecionáveis.",
+                    en:
+                      "This column has more than 200 distinct values — only the 200 most frequent are shown and selectable.",
+                    fr:
+                      "Cette colonne compte plus de 200 valeurs distinctes — seules les 200 plus fréquentes sont affichées et sélectionnables.",
+                    pt:
+                      "Esta coluna tem mais de 200 valores distintos — apenas os 200 mais frequentes são mostrados e selecionáveis.",
                   })}
                 </div>
               </Show>
@@ -480,9 +504,12 @@ export function Step4Recode(p: Props) {
           fallback={
             <div class="text-base-content-muted text-sm">
               {t3({
-                en: "Check one or more values above to list the affected facilities.",
-                fr: "Cochez une ou plusieurs valeurs ci-dessus pour lister les établissements concernés.",
-                pt: "Marque um ou mais valores acima para listar os estabelecimentos afetados.",
+                en:
+                  "Check one or more values above to list the affected facilities.",
+                fr:
+                  "Cochez une ou plusieurs valeurs ci-dessus pour lister les établissements concernés.",
+                pt:
+                  "Marque um ou mais valores acima para listar os estabelecimentos afetados.",
               })}
             </div>
           }
@@ -549,17 +576,33 @@ export function Step4Recode(p: Props) {
                 <Show when={rowsData.total > rowsData.rows.length}>
                   <div class="text-danger text-sm">
                     {t3({
-                      en: `Only the first ${toNum0(rowsData.rows.length)} of ${toNum0(rowsData.total)} facilities are shown — uncheck some values to narrow the list.`,
-                      fr: `Seuls les ${toNum0(rowsData.rows.length)} premiers établissements sur ${toNum0(rowsData.total)} sont affichés — décochez des valeurs pour restreindre la liste.`,
-                      pt: `Apenas os primeiros ${toNum0(rowsData.rows.length)} de ${toNum0(rowsData.total)} estabelecimentos são mostrados — desmarque alguns valores para restringir a lista.`,
+                      en: `Only the first ${toNum0(rowsData.rows.length)} of ${
+                        toNum0(rowsData.total)
+                      } facilities are shown — uncheck some values to narrow the list.`,
+                      fr: `Seuls les ${
+                        toNum0(rowsData.rows.length)
+                      } premiers établissements sur ${
+                        toNum0(rowsData.total)
+                      } sont affichés — décochez des valeurs pour restreindre la liste.`,
+                      pt: `Apenas os primeiros ${
+                        toNum0(rowsData.rows.length)
+                      } de ${
+                        toNum0(rowsData.total)
+                      } estabelecimentos são mostrados — desmarque alguns valores para restringir a lista.`,
                     })}
                   </div>
                 </Show>
                 <div class="text-sm">
                   {t3({
-                    en: `${toNum0(assignedCount())} of ${toNum0(rowsData.total)} facilities assigned`,
-                    fr: `${toNum0(assignedCount())} sur ${toNum0(rowsData.total)} établissements assignés`,
-                    pt: `${toNum0(assignedCount())} de ${toNum0(rowsData.total)} estabelecimentos atribuídos`,
+                    en: `${toNum0(assignedCount())} of ${
+                      toNum0(rowsData.total)
+                    } facilities assigned`,
+                    fr: `${toNum0(assignedCount())} sur ${
+                      toNum0(rowsData.total)
+                    } établissements assignés`,
+                    pt: `${toNum0(assignedCount())} de ${
+                      toNum0(rowsData.total)
+                    } estabelecimentos atribuídos`,
                   })}
                 </div>
               </div>
@@ -570,9 +613,12 @@ export function Step4Recode(p: Props) {
         <Show when={!p.step3Result.stagingNonce}>
           <div class="text-danger text-sm">
             {t3({
-              en: "This upload was staged before value reassignment existed — re-stage the data to use this feature.",
-              fr: "Ce téléversement a été préparé avant l'existence de la réassignation des valeurs — relancez la préparation pour utiliser cette fonctionnalité.",
-              pt: "Este carregamento foi preparado antes de existir a reatribuição de valores — repita a preparação para usar esta funcionalidade.",
+              en:
+                "This upload was staged before value reassignment existed — re-stage the data to use this feature.",
+              fr:
+                "Ce téléversement a été préparé avant l'existence de la réassignation des valeurs — relancez la préparation pour utiliser cette fonctionnalité.",
+              pt:
+                "Este carregamento foi preparado antes de existir a reatribuição de valores — repita a preparação para usar esta funcionalidade.",
             })}
           </div>
         </Show>

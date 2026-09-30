@@ -1,16 +1,16 @@
 import {
-  t3,
   type DatasetHmisImportLedgerItem,
   type Dhis2RunPairInput,
   type HmisIndicator,
+  t3,
 } from "lib";
 import {
   Button,
+  type StateHolder,
   StateHolderWrapper,
   Table,
-  toNum0,
-  type StateHolder,
   type TableColumn,
+  toNum0,
 } from "panther";
 import { Show } from "solid-js";
 import { WrapOnUnderscore } from "~/components/data/hmis/_shared/mod.ts";
@@ -66,7 +66,9 @@ export function LedgerTable(p: Props) {
       sortValue: (item) => indicatorOf(item)?.indicator_common_id ?? "",
       render: (item) => (
         <span class="font-mono">
-          <WrapOnUnderscore text={indicatorOf(item)?.indicator_common_id ?? ""} />
+          <WrapOnUnderscore
+            text={indicatorOf(item)?.indicator_common_id ?? ""}
+          />
         </span>
       ),
     },
@@ -76,7 +78,9 @@ export function LedgerTable(p: Props) {
       sortable: true,
       sortValue: (item) => indicatorOf(item)?.indicator_common_label ?? "",
       render: (item) => (
-        <WrapOnUnderscore text={indicatorOf(item)?.indicator_common_label ?? ""} />
+        <WrapOnUnderscore
+          text={indicatorOf(item)?.indicator_common_label ?? ""}
+        />
       ),
     },
     {
@@ -122,10 +126,10 @@ export function LedgerTable(p: Props) {
         return item.items.some((i) => i.route === "backfill")
           ? importRouteLabel("backfill")
           : t3({
-              en: "Never imported",
-              fr: "Jamais importé",
-              pt: "Nunca importado",
-            });
+            en: "Never imported",
+            fr: "Jamais importé",
+            pt: "Nunca importado",
+          });
       },
     },
     {
@@ -193,8 +197,7 @@ export function LedgerTable(p: Props) {
                     en: "Retry failed pairs",
                     fr: "Réessayer les paires en échec",
                     pt: "Repetir os pares falhados",
-                  })}{" "}
-                  ({toNum0(failedCount)})
+                  })} ({toNum0(failedCount)})
                 </Button>
               </div>
             </Show>

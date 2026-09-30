@@ -74,7 +74,12 @@ export function ShareReport(
     const check = emailRecipientsSchema.safeParse(recipients);
     if (!check.success) {
       const invalid = check.error.issues
-        .map((i) => (typeof i.path[0] === "number" ? recipients[i.path[0]] : undefined))
+        .map((
+          i,
+        ) => (typeof i.path[0] === "number"
+          ? recipients[i.path[0]]
+          : undefined)
+        )
         .filter((v): v is string => v !== undefined);
       setErr(
         invalid.length > 0
@@ -85,8 +90,10 @@ export function ShareReport(
           })
           : t3({
             en: `Select at most 50 recipients (currently ${recipients.length})`,
-            fr: `Sélectionnez au maximum 50 destinataires (actuellement ${recipients.length})`,
-            pt: `Selecione no máximo 50 destinatários (atualmente ${recipients.length})`,
+            fr:
+              `Sélectionnez au maximum 50 destinataires (actuellement ${recipients.length})`,
+            pt:
+              `Selecione no máximo 50 destinatários (atualmente ${recipients.length})`,
           }),
       );
       return;
@@ -135,7 +142,11 @@ export function ShareReport(
 
   return (
     <ModalContainer
-      title={t3({ en: "Email this file", fr: "Envoyer ce fichier par email", pt: "Enviar este ficheiro por email" })}
+      title={t3({
+        en: "Email this file",
+        fr: "Envoyer ce fichier par email",
+        pt: "Enviar este ficheiro por email",
+      })}
       width="md"
       onCancel={pct() > 0 || sent() ? undefined : () => p.close(undefined)}
       actions={sent()
@@ -148,7 +159,9 @@ export function ShareReport(
         : pct() > 0
         ? []
         : [{
-          label: `${t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })} (${allRecipients().length})`,
+          label: `${
+            t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })
+          } (${allRecipients().length})`,
           onClick: handleSend,
           iconName: "arrowRight" as const,
           intent: "success" as const,
@@ -170,10 +183,18 @@ export function ShareReport(
             columns={columns}
             keyField="email"
             defaultSort={{ key: "email", direction: "asc" }}
-            noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur", pt: "Sem utilizadores" })}
+            noRowsMessage={t3({
+              en: "No users",
+              fr: "Aucun utilisateur",
+              pt: "Sem utilizadores",
+            })}
             selectedKeys={selectedKeys}
             setSelectedKeys={setSelectedKeys}
-            selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
+            selectionLabel={t3({
+              en: "user",
+              fr: "utilisateur",
+              pt: "utilizador",
+            })}
             paddingY="compact"
           />
         </div>
@@ -187,8 +208,10 @@ export function ShareReport(
           onChange={setAdditionalEmails}
           placeholder={t3({
             en: "Add emails separated by comma, semicolon, or line break",
-            fr: "Ajouter des emails séparés par virgule, point-virgule ou saut de ligne",
-            pt: "Adicione emails separados por vírgula, ponto e vírgula ou quebra de linha",
+            fr:
+              "Ajouter des emails séparés par virgule, point-virgule ou saut de ligne",
+            pt:
+              "Adicione emails separados por vírgula, ponto e vírgula ou quebra de linha",
           })}
           fullWidth
           height="80px"
@@ -196,7 +219,11 @@ export function ShareReport(
         <Show when={allRecipients().length > 0}>
           <div>
             <label class="ui-label">
-              {t3({ en: "Recipients", fr: "Destinataires", pt: "Destinatários" })} (
+              {t3({
+                en: "Recipients",
+                fr: "Destinataires",
+                pt: "Destinatários",
+              })} (
               {allRecipients().length})
             </label>
             <div class="pt-1 text-xs">
@@ -218,15 +245,19 @@ export function ShareReport(
         />
         <div class="text-base-content-muted text-xs">
           {t3({
-            en: "The report is attached as a PDF, on the paper size set in Page → Print setup.",
-            fr: "Le rapport est joint en PDF, au format papier défini dans Page → Mise en page.",
-            pt: "O relatório segue em PDF, no tamanho de papel definido em Página → Impressão.",
+            en:
+              "The report is attached as a PDF, on the paper size set in Page → Print setup.",
+            fr:
+              "Le rapport est joint en PDF, au format papier défini dans Page → Mise en page.",
+            pt:
+              "O relatório segue em PDF, no tamanho de papel definido em Página → Impressão.",
           })}
         </div>
         <Show when={pct() > 0}>
           <div class="ui-spy-sm">
             <div class="bg-base-300 h-8 w-full">
-              <div class="bg-primary h-full" style={{ width: toPct1(pct()) }}></div>
+              <div class="bg-primary h-full" style={{ width: toPct1(pct()) }}>
+              </div>
             </div>
             <div class="text-center">{toPct0(pct())}</div>
           </div>

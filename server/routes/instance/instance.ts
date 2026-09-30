@@ -69,7 +69,11 @@ defineRoute(
   requireGlobalPermission("can_configure_settings"),
   log("updateStructureSchema"),
   async (c, { body }) => {
-    const res = await setStructureSchema(c.var.mainDb, body.family, body.schema);
+    const res = await setStructureSchema(
+      c.var.mainDb,
+      body.family,
+      body.schema,
+    );
     if (res.success) {
       await notifyInstanceConfigUpdatedFromDb(c.var.mainDb);
     }
@@ -105,7 +109,15 @@ defineRoute(
   },
 );
 
-defineRoute(routesInstance, "getDiskSpace", requireGlobalPermission(), async (c) => {
-  const res = await checkFreeDiskSpace();
-  return c.json({ success: true, data: { ok: res.ok, availableGB: res.availableGB } });
-});
+defineRoute(
+  routesInstance,
+  "getDiskSpace",
+  requireGlobalPermission(),
+  async (c) => {
+    const res = await checkFreeDiskSpace();
+    return c.json({
+      success: true,
+      data: { ok: res.ok, availableGB: res.availableGB },
+    });
+  },
+);

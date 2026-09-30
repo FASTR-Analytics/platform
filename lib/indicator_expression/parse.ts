@@ -31,8 +31,7 @@ export type ExpressionNode =
   | { kind: "call"; name: ExpressionFunctionName; args: ExpressionNode[] };
 
 export const EXPRESSION_FUNCTION_NAMES = ["abs", "coalesce", "nullif"] as const;
-export type ExpressionFunctionName =
-  (typeof EXPRESSION_FUNCTION_NAMES)[number];
+export type ExpressionFunctionName = (typeof EXPRESSION_FUNCTION_NAMES)[number];
 
 export const BARE_IDENTIFIER_PATTERN = /^[a-z][a-z0-9_]*$/;
 
@@ -56,7 +55,11 @@ type Token =
   // identifier, so an indicator literally named `abs` written as `[abs]` never
   // collides with the function.
   | { type: "identifier"; name: string; quoted: boolean; at: number }
-  | { type: "punct"; value: "+" | "-" | "*" | "/" | "(" | ")" | ","; at: number };
+  | {
+    type: "punct";
+    value: "+" | "-" | "*" | "/" | "(" | ")" | ",";
+    at: number;
+  };
 
 function tokenize(source: string): Token[] {
   const tokens: Token[] = [];
@@ -136,10 +139,14 @@ export function parseIndicatorExpression(source: string): ExpressionNode {
   const peek = (): Token | undefined => tokens[pos];
   const expectPunct = (value: string): void => {
     const token = peek();
-    if (token === undefined || token.type !== "punct" || token.value !== value) {
+    if (
+      token === undefined || token.type !== "punct" || token.value !== value
+    ) {
       throw new ExpressionSyntaxError(
         `Expected ${JSON.stringify(value)}${
-          token === undefined ? " at end of expression" : ` at position ${token.at}`
+          token === undefined
+            ? " at end of expression"
+            : ` at position ${token.at}`
         }`,
       );
     }
@@ -164,7 +171,9 @@ export function parseIndicatorExpression(source: string): ExpressionNode {
       ) {
         if (!isFunctionName(token.name)) {
           throw new ExpressionSyntaxError(
-            `Unknown function ${JSON.stringify(token.name)} at position ${token.at} — only ${
+            `Unknown function ${
+              JSON.stringify(token.name)
+            } at position ${token.at} — only ${
               EXPRESSION_FUNCTION_NAMES.join(", ")
             } are available`,
           );
@@ -172,13 +181,18 @@ export function parseIndicatorExpression(source: string): ExpressionNode {
         pos++;
         const args: ExpressionNode[] = [];
         const closing = peek();
-        if (closing !== undefined && closing.type === "punct" && closing.value === ")") {
+        if (
+          closing !== undefined && closing.type === "punct" &&
+          closing.value === ")"
+        ) {
           pos++;
         } else {
           for (;;) {
             args.push(parseSum());
             const sep = peek();
-            if (sep !== undefined && sep.type === "punct" && sep.value === ",") {
+            if (
+              sep !== undefined && sep.type === "punct" && sep.value === ","
+            ) {
               pos++;
               continue;
             }

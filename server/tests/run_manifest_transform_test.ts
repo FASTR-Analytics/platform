@@ -127,33 +127,39 @@ async function exists(path: string): Promise<boolean> {
 }
 
 Deno.test("block 9 renames the pre-1.72 stamps and drops the keys nothing reads", async () => {
-  const runDir = await writeScratchPackage({ datasets: [
-    {
-      datasetType: "hmis",
-      lastUpdated: "2026-08-26T00:00:00.000Z",
-      info: {
-        version: HMIS_VERSION,
-        windowing: { takeAllIndicators: true },
-        totalRows: 12,
-        structureLastUpdated: "2026-08-19T00:00:00.000Z",
-        indicatorMappingsVersion: "aaa",
-        baseIndicatorMappingsVersion: "bbb",
-        facilityColumnsConfig: {},
-        maxAdminArea: 2,
-        calculatedIndicatorsVersion: "ccc",
+  const runDir = await writeScratchPackage({
+    datasets: [
+      {
+        datasetType: "hmis",
+        lastUpdated: "2026-08-26T00:00:00.000Z",
+        info: {
+          version: HMIS_VERSION,
+          windowing: { takeAllIndicators: true },
+          totalRows: 12,
+          structureLastUpdated: "2026-08-19T00:00:00.000Z",
+          indicatorMappingsVersion: "aaa",
+          baseIndicatorMappingsVersion: "bbb",
+          facilityColumnsConfig: {},
+          maxAdminArea: 2,
+          calculatedIndicatorsVersion: "ccc",
+        },
       },
-    },
-    {
-      datasetType: "hfa",
-      lastUpdated: "2026-08-26T00:00:00.000Z",
-      info: { _legacy: true, facilityColumnsHash: "ddd", hfaCacheHash: "eee" },
-    },
-    {
-      datasetType: "iceh",
-      lastUpdated: "2026-08-26T00:00:00.000Z",
-      info: { icehCacheHash: "fff" },
-    },
-  ] });
+      {
+        datasetType: "hfa",
+        lastUpdated: "2026-08-26T00:00:00.000Z",
+        info: {
+          _legacy: true,
+          facilityColumnsHash: "ddd",
+          hfaCacheHash: "eee",
+        },
+      },
+      {
+        datasetType: "iceh",
+        lastUpdated: "2026-08-26T00:00:00.000Z",
+        info: { icehCacheHash: "fff" },
+      },
+    ],
+  });
 
   const outcome = await transformRunManifestFile(runDir);
   assert(outcome.kind === "ok");
@@ -201,13 +207,15 @@ Deno.test("a stamp already under its current name is kept, and a package written
     indicatorsVersion: "new",
     countIndicatorsVersion: "new",
   };
-  const runDir = await writeScratchPackage({ datasets: [
-    {
-      datasetType: "hmis",
-      lastUpdated: "2026-09-01T00:00:00.000Z",
-      info: { ...current, indicatorMappingsVersion: "old" },
-    },
-  ] });
+  const runDir = await writeScratchPackage({
+    datasets: [
+      {
+        datasetType: "hmis",
+        lastUpdated: "2026-09-01T00:00:00.000Z",
+        info: { ...current, indicatorMappingsVersion: "old" },
+      },
+    ],
+  });
   const outcome = await transformRunManifestFile(runDir);
   assert(outcome.kind === "ok");
   assertEquals(outcome.manifest.datasets[0].info, current);
@@ -215,7 +223,10 @@ Deno.test("a stamp already under its current name is kept, and a package written
 
 Deno.test("block 11 stamps a legacy blob from the frozen map and its metrics from the module", async () => {
   const runDir = await writeScratchPackage({
-    modules: [runModule("m012", legacyBlob("m012")), runModule("m010", legacyBlob("m010"))],
+    modules: [
+      runModule("m012", legacyBlob("m012")),
+      runModule("m010", legacyBlob("m010")),
+    ],
     metrics: [runMetric("m12-01-01", "m012"), runMetric("m10-01-01", "m010")],
   });
 

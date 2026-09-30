@@ -1,6 +1,6 @@
 import { NO_STORED_DHIS2_CONNECTION, t3 } from "lib";
-import { Button, StateHolderFormError, createFormAction } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { Button, createFormAction, StateHolderFormError } from "panther";
+import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import type { WizardState } from "./wizard";
@@ -37,17 +37,28 @@ export function Step1Dhis2(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="ui-text-heading">{t3({ en: "Step 1: Connect to DHIS2", fr: "Étape 1 : Se connecter à DHIS2", pt: "Passo 1: Ligar ao DHIS2" })}</div>
+      <div class="ui-text-heading">
+        {t3({
+          en: "Step 1: Connect to DHIS2",
+          fr: "Étape 1 : Se connecter à DHIS2",
+          pt: "Passo 1: Ligar ao DHIS2",
+        })}
+      </div>
 
       <Show when={!connected()}>
         <Show
           when={instanceState.dhis2ConnectionUrl}
-          fallback={<div class="text-danger text-sm">{t3(NO_STORED_DHIS2_CONNECTION)}</div>}
+          fallback={
+            <div class="text-danger text-sm">
+              {t3(NO_STORED_DHIS2_CONNECTION)}
+            </div>
+          }
           keyed
         >
           {(url) => (
             <div class="text-sm">
-              {t3({ en: "Connection:", fr: "Connexion :", pt: "Ligação:" })}{" "}
+              {t3({ en: "Connection:", fr: "Connexion :", pt: "Ligação:" })}
+              {" "}
               <span class="font-700">{url}</span>
             </div>
           )}
@@ -71,17 +82,28 @@ export function Step1Dhis2(p: Props) {
 
       <Show when={connected()}>
         <div class="ui-spy-sm">
-          <div class="text-sm">{t3({ en: "Available DHIS2 levels", fr: "Niveaux DHIS2 disponibles", pt: "Níveis DHIS2 disponíveis" })}</div>
+          <div class="text-sm">
+            {t3({
+              en: "Available DHIS2 levels",
+              fr: "Niveaux DHIS2 disponibles",
+              pt: "Níveis DHIS2 disponíveis",
+            })}
+          </div>
           <div class="text-base-content-muted text-sm">
-            {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })} {state.dhis2ConnectionUrl()}
+            {t3({ en: "Connected to", fr: "Connecté à", pt: "Ligado a" })}{" "}
+            {state.dhis2ConnectionUrl()}
           </div>
         </div>
 
         <div class="rounded border">
           <div class="bg-base-100 flex border-b px-3 py-2 text-sm font-700">
-            <div class="w-1/4">{t3({ en: "Level", fr: "Niveau", pt: "Nível" })}</div>
+            <div class="w-1/4">
+              {t3({ en: "Level", fr: "Niveau", pt: "Nível" })}
+            </div>
             <div class="w-1/2">{t3({ en: "Name", fr: "Nom", pt: "Nome" })}</div>
-            <div class="w-1/4">{t3({ en: "Org units", fr: "Unités", pt: "Unidades" })}</div>
+            <div class="w-1/4">
+              {t3({ en: "Org units", fr: "Unités", pt: "Unidades" })}
+            </div>
           </div>
           <For each={state.dhis2Levels()}>
             {(level) => (

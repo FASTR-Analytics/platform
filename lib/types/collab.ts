@@ -97,7 +97,10 @@ export type CollabClientMessage =
     type: "report_update";
     data: { productId: string; reportId: string; update: string };
   }
-  | { type: "report_unsubscribe"; data: { productId: string; reportId: string } }
+  | {
+    type: "report_unsubscribe";
+    data: { productId: string; reportId: string };
+  }
   | {
     type: "report_awareness_update";
     data: { productId: string; reportId: string; update: string };
@@ -253,7 +256,12 @@ export type CollabServerMessage =
   // session doc carries a different epoch must not merge this sync into it.
   | {
     type: "slide_sync";
-    data: { slideId: string; update: string; stateVector: string; epoch?: string };
+    data: {
+      slideId: string;
+      update: string;
+      stateVector: string;
+      epoch?: string;
+    };
   }
   | { type: "slide_update"; data: { slideId: string; update: string } }
   | {
@@ -265,7 +273,12 @@ export type CollabServerMessage =
   // Report CRDT sync (parallel family: see the client message note).
   | {
     type: "report_sync";
-    data: { reportId: string; update: string; stateVector: string; epoch?: string };
+    data: {
+      reportId: string;
+      update: string;
+      stateVector: string;
+      epoch?: string;
+    };
   }
   | { type: "report_update"; data: { reportId: string; update: string } }
   | {

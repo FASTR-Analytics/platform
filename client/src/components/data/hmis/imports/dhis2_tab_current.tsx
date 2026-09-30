@@ -1,17 +1,17 @@
 import {
-  t3,
   type DatasetHmisImportRunSummary,
   type DatasetHmisScheduledImport,
   type HmisIndicator,
+  t3,
 } from "lib";
 import { recurrenceLabel } from "./_shared/mod.ts";
 import {
   Button,
   CollapsibleSection,
-  Table,
   createDeleteAction,
-  toNum0,
+  Table,
   type TableColumn,
+  toNum0,
 } from "panther";
 import { For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -105,12 +105,11 @@ export function Dhis2TabCurrent(p: Props) {
                     en: "Next scheduled import:",
                     fr: "Prochaine importation planifiée :",
                     pt: "Próxima importação agendada:",
-                  })}{" "}
-                  {next.kind === "one_shot" && next.runAt
+                  })} {next.kind === "one_shot" && next.runAt
                     ? new Date(next.runAt).toLocaleString()
                     : next.recurrence
-                      ? recurrenceLabel(next.recurrence)
-                      : ""}
+                    ? recurrenceLabel(next.recurrence)
+                    : ""}
                   {" — "}
                   {t3({
                     en: "see the Future tab",
@@ -138,9 +137,9 @@ export function Dhis2TabCurrent(p: Props) {
                       pt: "Importação em curso",
                     })}{" "}
                     <span class="font-400 text-sm">
-                      — {toNum0(run().succeededPairs + run().failedPairs)} /{" "}
-                      {toNum0(run().totalPairs)}{" "}
-                      {t3({
+                      — {toNum0(run().succeededPairs + run().failedPairs)} /
+                      {" "}
+                      {toNum0(run().totalPairs)} {t3({
                         en: "pairs done",
                         fr: "paires traitées",
                         pt: "pares concluídos",
@@ -183,9 +182,12 @@ export function Dhis2TabCurrent(p: Props) {
           </div>
           <div class="text-sm">
             {t3({
-              en: "These start automatically, in order, once the current import (or CSV operation) finishes. They run with the stored credentials.",
-              fr: "Elles démarrent automatiquement, dans l'ordre, dès que l'importation en cours (ou l'opération CSV) se termine. Elles utilisent les identifiants enregistrés.",
-              pt: "Estas começam automaticamente, por ordem, assim que a importação atual (ou a operação CSV) terminar. Utilizam as credenciais guardadas.",
+              en:
+                "These start automatically, in order, once the current import (or CSV operation) finishes. They run with the stored credentials.",
+              fr:
+                "Elles démarrent automatiquement, dans l'ordre, dès que l'importation en cours (ou l'opération CSV) se termine. Elles utilisent les identifiants enregistrés.",
+              pt:
+                "Estas começam automaticamente, por ordem, assim que a importação atual (ou a operação CSV) terminar. Utilizam as credenciais guardadas.",
             })}
           </div>
           <Table

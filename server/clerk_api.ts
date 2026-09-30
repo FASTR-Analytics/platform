@@ -32,7 +32,8 @@ export async function verifyClerkEmailOwnership(
   if (!response.ok) {
     return {
       ok: false,
-      err: `Could not verify your account with Clerk (status ${response.status})`,
+      err:
+        `Could not verify your account with Clerk (status ${response.status})`,
     };
   }
   const user = (await response.json()) as ClerkUser;

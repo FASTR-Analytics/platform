@@ -10,7 +10,14 @@
 //
 //   deno test -A --env-file server/tests/indicator_data_key_test.ts
 
-import { assert, assertEquals, assertMatch, assertNotEquals, assertRejects, assertStringIncludes } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertMatch,
+  assertNotEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "@std/assert";
 import {
   DHIS2_OPERAND_PATTERN,
   DHIS2_UID_PATTERN,
@@ -28,12 +35,14 @@ import {
 } from "../db/instance/indicators.ts";
 import { narrowIndicatorDefinition } from "../routes/instance/indicators.ts";
 
-const SCHEMA_PATH = new URL("../db/instance/_main_database.sql", import.meta.url)
-  .pathname;
+const SCHEMA_PATH =
+  new URL("../db/instance/_main_database.sql", import.meta.url)
+    .pathname;
 const DB_PREFIX = "data_key_test_";
 
 const ELEMENT = "AbCdEfGhIj1";
-const KEY_SHAPE = /^u_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const KEY_SHAPE =
+  /^u_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const admin = getPgConnection("postgres", { max: 1 });
 for (
@@ -80,7 +89,9 @@ async function dictionary(): Promise<Map<string, HmisIndicator>> {
 }
 
 function keyOf(i: HmisIndicator): string {
-  assert(i.definition.type === "uploaded" || i.definition.type === "dhis2_element");
+  assert(
+    i.definition.type === "uploaded" || i.definition.type === "dhis2_element",
+  );
   return i.definition.data_id;
 }
 
@@ -105,7 +116,10 @@ Deno.test("the table requires a key on every Uploaded row", async () => {
   const err = await assertRejects(() =>
     db`INSERT INTO indicators (indicator_common_id, indicator_common_label, definition_type) VALUES ('keyless', 'Keyless', 'uploaded')`
   );
-  assertStringIncludes(err instanceof Error ? err.message : String(err), "indicators_fields_check");
+  assertStringIncludes(
+    err instanceof Error ? err.message : String(err),
+    "indicators_fields_check",
+  );
 });
 
 Deno.test("a generated key is u_ plus a UUID, outside both DHIS2 shapes, and never repeats", () => {
@@ -136,9 +150,10 @@ Deno.test("a create generates each Uploaded indicator's key; two creates never s
 Deno.test("no path accepts a client-supplied Uploaded key: the route schema strips it, the narrowing drops it, an update keeps the stored key", async () => {
   // The registry types the body as its parsed shape; the runtime value is
   // the Zod schema the route middleware parses with.
-  const bodySchema = indicatorRouteRegistry.createIndicators.body as unknown as z.ZodType<
-    { indicators: { definition: unknown }[] }
-  >;
+  const bodySchema = indicatorRouteRegistry.createIndicators
+    .body as unknown as z.ZodType<
+      { indicators: { definition: unknown }[] }
+    >;
   const parsed = bodySchema.parse({
     indicators: [{
       indicator_common_id: "opd",
@@ -159,10 +174,16 @@ Deno.test("no path accepts a client-supplied Uploaded key: the route schema stri
   );
 
   await reset();
-  const created = await createIndicators(db, [indicator("opd", { type: "uploaded" })]);
+  const created = await createIndicators(db, [
+    indicator("opd", { type: "uploaded" }),
+  ]);
   assert(created.success, created.success ? "" : created.err);
   const before = keyOf((await dictionary()).get("opd")!);
-  const updated = await updateIndicator(db, "opd", indicator("opd_visits", { type: "uploaded" }, "OPD visits"));
+  const updated = await updateIndicator(
+    db,
+    "opd",
+    indicator("opd_visits", { type: "uploaded" }, "OPD visits"),
+  );
   assert(updated.success, updated.success ? "" : updated.err);
   const after = (await dictionary()).get("opd_visits")!;
   assertEquals(keyOf(after), before);
@@ -177,19 +198,41 @@ Deno.test("retyping keeps the key: a DHIS2 element made Uploaded keeps its UID, 
   ]);
   assert(created.success, created.success ? "" : created.err);
   await seedRows(ELEMENT);
-  const toUploaded = await updateIndicator(db, "anc1", indicator("anc1", { type: "uploaded" }));
+  const toUploaded = await updateIndicator(
+    db,
+    "anc1",
+    indicator("anc1", { type: "uploaded" }),
+  );
   assert(toUploaded.success, toUploaded.success ? "" : toUploaded.err);
-  assertEquals((await dictionary()).get("anc1")!.definition, { type: "uploaded", data_id: ELEMENT });
-  const backToElement = await updateIndicator(db, "anc1", indicator("anc1", { type: "dhis2_element", data_id: ELEMENT }));
+  assertEquals((await dictionary()).get("anc1")!.definition, {
+    type: "uploaded",
+    data_id: ELEMENT,
+  });
+  const backToElement = await updateIndicator(
+    db,
+    "anc1",
+    indicator("anc1", { type: "dhis2_element", data_id: ELEMENT }),
+  );
   assert(backToElement.success, backToElement.success ? "" : backToElement.err);
 
   const opdKey = keyOf((await dictionary()).get("opd")!);
   await seedRows(opdKey);
-  const withRows = await updateIndicator(db, "opd", indicator("opd", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }));
+  const withRows = await updateIndicator(
+    db,
+    "opd",
+    indicator("opd", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }),
+  );
   assert(!withRows.success);
-  assertStringIncludes(withRows.err, "Cannot make an indicator that has data a DHIS2 element");
+  assertStringIncludes(
+    withRows.err,
+    "Cannot make an indicator that has data a DHIS2 element",
+  );
   await db`DELETE FROM dataset_hmis WHERE data_id = ${opdKey}`;
-  const withoutRows = await updateIndicator(db, "opd", indicator("opd", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }));
+  const withoutRows = await updateIndicator(
+    db,
+    "opd",
+    indicator("opd", { type: "dhis2_element", data_id: "KlMnOpQrSt2" }),
+  );
   assert(withoutRows.success, withoutRows.success ? "" : withoutRows.err);
   assertEquals((await dictionary()).get("opd")!.definition, {
     type: "dhis2_element",
@@ -206,10 +249,21 @@ Deno.test("a retype from Sum or Calculated to Uploaded generates a key", async (
     indicator("share", { type: "calculated", expression: "anc1 / 2" }),
   ]);
   assert(created.success, created.success ? "" : created.err);
-  const fromSum = await updateIndicator(db, "total", indicator("total", { type: "uploaded" }));
+  const fromSum = await updateIndicator(
+    db,
+    "total",
+    indicator("total", { type: "uploaded" }),
+  );
   assert(fromSum.success, fromSum.success ? "" : fromSum.err);
-  const fromCalculated = await updateIndicator(db, "share", indicator("share", { type: "uploaded" }));
-  assert(fromCalculated.success, fromCalculated.success ? "" : fromCalculated.err);
+  const fromCalculated = await updateIndicator(
+    db,
+    "share",
+    indicator("share", { type: "uploaded" }),
+  );
+  assert(
+    fromCalculated.success,
+    fromCalculated.success ? "" : fromCalculated.err,
+  );
   const d = await dictionary();
   assertMatch(keyOf(d.get("total")!), KEY_SHAPE);
   assertMatch(keyOf(d.get("share")!), KEY_SHAPE);

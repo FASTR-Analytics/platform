@@ -6,7 +6,10 @@ import type {
   Slide,
 } from "lib";
 import { serverActions } from "~/server_actions";
-import { _SLIDE_CACHE, getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
+import {
+  _SLIDE_CACHE,
+  getSlideFromCacheOrFetch,
+} from "~/state/products/t2_slides";
 import { findStaleFiguresInLayout } from "~/generate_visualization/mod";
 import { updateFigureToScope } from "~/components/_shared/figure_editor/mod.ts";
 import { updateBlockInLayout } from "./slide_transforms/mod.ts";
@@ -33,7 +36,9 @@ export async function collectDeckStaleFigures(
   for (const slideId of slideIds) {
     const res = await getSlideFromCacheOrFetch(productId, slideId);
     if (!res.success || res.data.slide.type !== "content") continue;
-    for (const stale of findStaleFiguresInLayout(res.data.slide.layout, scope)) {
+    for (
+      const stale of findStaleFiguresInLayout(res.data.slide.layout, scope)
+    ) {
       out.push({ slideId, blockId: stale.blockId, bundle: stale.bundle });
     }
   }
@@ -94,8 +99,15 @@ export async function updateAllDeckFigures(
     // Refill the per-slide cache under the new version now, the way the slide
     // editor does after its own save, so the card re-renders before the SSE
     // version flip lands.
-    const refetch = serverActions.getSlide({ product_id: productId, slide_id: slideId });
-    await _SLIDE_CACHE.setPromise(refetch, { productId, slideId }, writeRes.data.lastUpdated);
+    const refetch = serverActions.getSlide({
+      product_id: productId,
+      slide_id: slideId,
+    });
+    await _SLIDE_CACHE.setPromise(
+      refetch,
+      { productId, slideId },
+      writeRes.data.lastUpdated,
+    );
     await refetch;
   }
 
@@ -108,8 +120,10 @@ function replaceFigureBundles(
 ): ContentSlide["layout"] {
   let next = layout;
   for (const [blockId, bundle] of byBlockId) {
-    next = updateBlockInLayout(next, blockId, (b) =>
-      b.type !== "figure" ? b : { type: "figure", bundle },
+    next = updateBlockInLayout(
+      next,
+      blockId,
+      (b) => b.type !== "figure" ? b : { type: "figure", bundle },
     );
   }
   return next;

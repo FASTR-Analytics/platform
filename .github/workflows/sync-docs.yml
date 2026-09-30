@@ -5,15 +5,15 @@ on:
     branches:
       - main
     paths:
-      - 'server/**/*.ts'
-      - 'client/src/**/*.tsx'
-      - 'client/src/**/*.ts'
-      - 'lib/**/*.ts'
-      - 'VERSION'
+      - "server/**/*.ts"
+      - "client/src/**/*.tsx"
+      - "client/src/**/*.ts"
+      - "lib/**/*.ts"
+      - "VERSION"
   workflow_dispatch:
     inputs:
       diff_base:
-        description: 'Commit SHA to diff against (defaults to previous deploy commit)'
+        description: "Commit SHA to diff against (defaults to previous deploy commit)"
         required: false
 
 permissions:

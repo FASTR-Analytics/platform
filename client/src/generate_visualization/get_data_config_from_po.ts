@@ -14,9 +14,6 @@ import {
   type DisaggregationOption,
   FigureLocalization,
   type FigureScope,
-  pickLang,
-  PresentationObjectConfig,
-  ResultsValueForVisualization,
   formatNigeriaAdminAreaLabel,
   getDisaggregatorDisplayProp,
   getRollupDimension,
@@ -26,8 +23,11 @@ import {
   isPieCompletionMode,
   isRollupActive,
   PERIOD_DISAGGREGATION_OPTIONS,
-  PIE_COMPLETION_TOTAL,
   periodOptionToPeriodType,
+  pickLang,
+  PIE_COMPLETION_TOTAL,
+  PresentationObjectConfig,
+  ResultsValueForVisualization,
   ROLLUP_PIN_IDS,
   sampleNProp,
   TC,
@@ -38,7 +38,10 @@ import { getNigeriaAdminAreaLabelReplacements } from "./format_admin_area_labels
 // The scope a bundle was resolved under, threaded through the data-config
 // builders for one reason: the roll-up row's label (getRollupRowLabel).
 
-function getNigeriaLabelReplacements(countryIso3: string | undefined, jsonArray?: any[]): Record<string, string> {
+function getNigeriaLabelReplacements(
+  countryIso3: string | undefined,
+  jsonArray?: any[],
+): Record<string, string> {
   if (countryIso3 === CountryCodes.Nigeria && jsonArray) {
     return getNigeriaAdminAreaLabelReplacements(jsonArray);
   }
@@ -91,7 +94,12 @@ function buildLabelReplacements(
   // All pin ids (current admin + facility sentinels + render-compat legacy)
   // map to the one active roll-up's label: only one roll-up can be active,
   // and a grid only ever carries the sentinel its own dimension emitted.
-  const rollupLabel = getRollupRowLabel(config, localization.language, localization.countryIso3, scope);
+  const rollupLabel = getRollupRowLabel(
+    config,
+    localization.language,
+    localization.countryIso3,
+    scope,
+  );
   return {
     ...base,
     ...Object.fromEntries(ROLLUP_PIN_IDS.map((id) => [id, rollupLabel])),
@@ -111,10 +119,16 @@ function getRollupRowLabel(
 ): string {
   const ctx = getRollupLabelContext(config);
   if (ctx?.kind === "pinned" && ctx.value) {
-    return `${resolveAdminAreaLabel(ctx.value, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
+    return `${resolveAdminAreaLabel(ctx.value, countryIso3)} — ${
+      pickLang(language, { en: "All areas", fr: "Toutes les zones" })
+    }`;
   }
   if (ctx?.kind === "all_facilities") {
-    return pickLang(language, { en: "All facilities", fr: "Tous les établissements", pt: "Todos os estabelecimentos" });
+    return pickLang(language, {
+      en: "All facilities",
+      fr: "Tous les établissements",
+      pt: "Todos os estabelecimentos",
+    });
   }
   // AA2 scope: the scope filter is server-injected and never in the PO
   // config, so the context still reads national while the row totals one
@@ -125,7 +139,9 @@ function getRollupRowLabel(
   // scope it was resolved under, so an export, a thumbnail or a version
   // preview labels the row correctly outside any authoring shell.
   if (scope.adminArea2 !== null) {
-    return `${resolveAdminAreaLabel(scope.adminArea2, countryIso3)} — ${pickLang(language, { en: "All areas", fr: "Toutes les zones" })}`;
+    return `${resolveAdminAreaLabel(scope.adminArea2, countryIso3)} — ${
+      pickLang(language, { en: "All areas", fr: "Toutes les zones" })
+    }`;
   }
   return pickLang(language, TC.national);
 }
@@ -133,7 +149,10 @@ function getRollupRowLabel(
 // Display label for a raw admin-area value. Nigeria has a dedicated cleaner; every
 // other country uses the raw value as-is (the existing replacement maps don't carry
 // admin_area_2 names).
-function resolveAdminAreaLabel(value: string, countryIso3: string | undefined): string {
+function resolveAdminAreaLabel(
+  value: string,
+  countryIso3: string | undefined,
+): string {
   return countryIso3 === CountryCodes.Nigeria
     ? formatNigeriaAdminAreaLabel(value)
     : value;
@@ -143,7 +162,9 @@ function resolveAdminAreaLabel(value: string, countryIso3: string | undefined): 
 // (and the legacy sentinel from stored figure grids) to the configured position.
 // Declarative so it stays structuredClone-safe inside stored FigureInputs.
 // Pinning by raw id is a no-op on axes without these ids.
-function getRollupAwareSort(config: PresentationObjectConfig): HeaderSortConfig {
+function getRollupAwareSort(
+  config: PresentationObjectConfig,
+): HeaderSortConfig {
   if (!isRollupActive(config)) {
     return "by-label";
   }
@@ -222,7 +243,9 @@ function getCustomOrderSort(
 // "01".."09" onto the very label tie-break this code exists to avoid. The
 // comment in get_date_label_replacements.ts claiming values are 1-12 is wrong;
 // it is harmless only because that path uses parseInt.
-function getPeriodAxisSort(prop: string | undefined): HeaderSortConfig | undefined {
+function getPeriodAxisSort(
+  prop: string | undefined,
+): HeaderSortConfig | undefined {
   return prop !== undefined && PERIOD_DISAGGREGATION_OPTIONS.has(prop)
     ? "by-id"
     : undefined;
@@ -302,10 +325,23 @@ export function getTimeseriesJsonDataConfigFromPresentationObjectConfig(
 
   const periodType = periodOptionToPeriodType(config.d.timeseriesGrouping);
 
-  const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
-  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
-  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col", "colGroup"], effectiveValueProps);
-  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps);
+  const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "series",
+  ], effectiveValueProps);
+  const paneProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["cell"],
+    effectiveValueProps,
+  );
+  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "col",
+    "colGroup",
+  ], effectiveValueProps);
+  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "row",
+    "rowGroup",
+  ], effectiveValueProps);
 
   return {
     valueProps: effectiveValueProps,
@@ -350,15 +386,33 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   // Only force the value-prop axis onto columns when there's more than one value
   // prop to differentiate: otherwise this created a column header even when the
   // user configured no col/row disaggregator at all.
-  const colProp =
-    getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps) ??
+  const colProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["col"],
+    effectiveValueProps,
+  ) ??
     (effectiveValueProps.length > 1 ? "--v" : undefined);
-  const rowProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
-  const colGroupProp = getDisaggregatorDisplayProp(resultsValue, config, ["colGroup"], effectiveValueProps);
-  const rowGroupProp = getDisaggregatorDisplayProp(resultsValue, config, ["rowGroup"], effectiveValueProps);
+  const rowProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["row"],
+    effectiveValueProps,
+  );
+  const colGroupProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "colGroup",
+  ], effectiveValueProps);
+  const rowGroupProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "rowGroup",
+  ], effectiveValueProps);
 
   const dateLabelReplacements = jsonArray
-    ? getDateLabelReplacements(jsonArray, [colProp, rowProp, colGroupProp, rowGroupProp], localization.calendar)
+    ? getDateLabelReplacements(jsonArray, [
+      colProp,
+      rowProp,
+      colGroupProp,
+      rowGroupProp,
+    ], localization.calendar)
     : {};
 
   // No eligibility check: the server only emits __n_* for HFA facility-level
@@ -366,8 +420,8 @@ export function getTableJsonDataConfigFromPresentationObjectConfig(
   // from before the feature therefore render exactly as they did.
   const nProps = config.s.showNValues
     ? Object.fromEntries(
-        effectiveValueProps.map((prop) => [prop, sampleNProp(prop)]),
-      )
+      effectiveValueProps.map((prop) => [prop, sampleNProp(prop)]),
+    )
     : undefined;
 
   return {
@@ -411,15 +465,36 @@ function getChartJsonDataConfig(
     throw new Error("Bad config type");
   }
 
-  const indicatorPropRaw = getDisaggregatorDisplayProp(resultsValue, config, ["indicator"], effectiveValueProps);
+  const indicatorPropRaw = getDisaggregatorDisplayProp(resultsValue, config, [
+    "indicator",
+  ], effectiveValueProps);
   const indicatorProp = indicatorPropRaw ?? "--v";
-  const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
-  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
-  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col", "colGroup"], effectiveValueProps);
-  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row", "rowGroup"], effectiveValueProps);
+  const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "series",
+  ], effectiveValueProps);
+  const paneProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["cell"],
+    effectiveValueProps,
+  );
+  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "col",
+    "colGroup",
+  ], effectiveValueProps);
+  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "row",
+    "rowGroup",
+  ], effectiveValueProps);
 
   const dateLabelReplacements = jsonArray
-    ? getDateLabelReplacements(jsonArray, [indicatorProp, seriesProp, paneProp, laneProp, tierProp], localization.calendar)
+    ? getDateLabelReplacements(jsonArray, [
+      indicatorProp,
+      seriesProp,
+      paneProp,
+      laneProp,
+      tierProp,
+    ], localization.calendar)
     : {};
 
   return {
@@ -467,7 +542,16 @@ export function getChartOVJsonDataConfigFromPresentationObjectConfig(
   jsonArray?: any[],
 ): ChartOVJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, indicatorSortOrder, localization, scope, jsonArray),
+    ...getChartJsonDataConfig(
+      resultsValue,
+      config,
+      effectiveValueProps,
+      indicatorLabelReplacements,
+      indicatorSortOrder,
+      localization,
+      scope,
+      jsonArray,
+    ),
     membership: { indicator: "unbalanced", lane: "unbalanced" },
     proportional: { bands: true, panes: true },
   };
@@ -501,11 +585,30 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
   if (config.d.type !== "pie") {
     throw new Error("Bad config type");
   }
-  const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, ["series"], effectiveValueProps);
-  const indicatorProp = getDisaggregatorDisplayProp(resultsValue, config, ["indicator"], effectiveValueProps);
-  const paneProp = getDisaggregatorDisplayProp(resultsValue, config, ["cell"], effectiveValueProps);
-  const laneProp = getDisaggregatorDisplayProp(resultsValue, config, ["col"], effectiveValueProps);
-  const tierProp = getDisaggregatorDisplayProp(resultsValue, config, ["row"], effectiveValueProps);
+  const seriesProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "series",
+  ], effectiveValueProps);
+  const indicatorProp = getDisaggregatorDisplayProp(resultsValue, config, [
+    "indicator",
+  ], effectiveValueProps);
+  const paneProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["cell"],
+    effectiveValueProps,
+  );
+  const laneProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["col"],
+    effectiveValueProps,
+  );
+  const tierProp = getDisaggregatorDisplayProp(
+    resultsValue,
+    config,
+    ["row"],
+    effectiveValueProps,
+  );
   return {
     valueProps: effectiveValueProps,
     seriesProp,
@@ -513,7 +616,9 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
     paneProp,
     laneProp,
     tierProp,
-    total: isPieCompletionMode(config, effectiveFormatAs) ? PIE_COMPLETION_TOTAL : undefined,
+    total: isPieCompletionMode(config, effectiveFormatAs)
+      ? PIE_COMPLETION_TOTAL
+      : undefined,
     sort: {
       // Slices sort applies under "none" only (panther gates sort.series on
       // sortSeriesValues); the Pies repeat axis is always sorted.
@@ -526,9 +631,13 @@ export function getPieJsonDataConfigFromPresentationObjectConfig(
     sortSeriesValues: config.s.sortIndicatorValues,
     groupSmallSlices: config.s.pieGroupSmallSlices
       ? {
-          threshold: config.s.pieGroupSmallSlices,
-          label: pickLang(localization.language, { en: "Other", fr: "Autre", pt: "Outro" }),
-        }
+        threshold: config.s.pieGroupSmallSlices,
+        label: pickLang(localization.language, {
+          en: "Other",
+          fr: "Autre",
+          pt: "Outro",
+        }),
+      }
       : undefined,
     labelReplacements: buildLabelReplacements(
       resultsValue,
@@ -553,7 +662,16 @@ export function getChartOHJsonDataConfigFromPresentationObjectConfig(
   jsonArray?: any[],
 ): ChartOHJsonDataConfig {
   return {
-    ...getChartJsonDataConfig(resultsValue, config, effectiveValueProps, indicatorLabelReplacements, indicatorSortOrder, localization, scope, jsonArray),
+    ...getChartJsonDataConfig(
+      resultsValue,
+      config,
+      effectiveValueProps,
+      indicatorLabelReplacements,
+      indicatorSortOrder,
+      localization,
+      scope,
+      jsonArray,
+    ),
     membership: { indicator: "unbalanced", tier: "unbalanced" },
     proportional: { bands: true, panes: true },
   };

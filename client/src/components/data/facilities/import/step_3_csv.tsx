@@ -1,10 +1,10 @@
-import { t3, type FacilityFamily } from "lib";
+import { type FacilityFamily, t3 } from "lib";
 import {
   Button,
+  createFormAction,
+  getProgress,
   ProgressBar,
   StateHolderFormError,
-  getProgress,
-  createFormAction,
 } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -17,20 +17,30 @@ type Props = {
 export function Step3_Csv(p: Props) {
   const { progressFrom0To100, progressMsg, onProgress } = getProgress();
 
-  const executeImport = createFormAction(async () => {
-    const res = await serverActions.structureStep3Csv_StageDataStreaming(
-      { family: p.family },
-      onProgress,
-    );
-    if (res.success === false) {
-      await p.silentRefresUploadAttempt();
-    }
-    return res;
-  }, p.silentRefresUploadAttempt, p.silentRefreshInstance);
+  const executeImport = createFormAction(
+    async () => {
+      const res = await serverActions.structureStep3Csv_StageDataStreaming(
+        { family: p.family },
+        onProgress,
+      );
+      if (res.success === false) {
+        await p.silentRefresUploadAttempt();
+      }
+      return res;
+    },
+    p.silentRefresUploadAttempt,
+    p.silentRefreshInstance,
+  );
 
   return (
     <div class="ui-pad ui-spy">
-      <div class="ui-text-heading">{t3({ en: "Ready to import from csv", fr: "Prêt à importer depuis le CSV", pt: "Pronto para importar a partir do CSV" })}</div>
+      <div class="ui-text-heading">
+        {t3({
+          en: "Ready to import from csv",
+          fr: "Prêt à importer depuis le CSV",
+          pt: "Pronto para importar a partir do CSV",
+        })}
+      </div>
       <ProgressBar
         progressFrom0To100={progressFrom0To100()}
         progressMsg={progressMsg()}
@@ -44,7 +54,11 @@ export function Step3_Csv(p: Props) {
           state={executeImport.state()}
           iconName="database"
         >
-          {t3({ en: "Start import", fr: "Démarrer l'importation", pt: "Iniciar importação" })}
+          {t3({
+            en: "Start import",
+            fr: "Démarrer l'importation",
+            pt: "Iniciar importação",
+          })}
         </Button>
       </div>
     </div>

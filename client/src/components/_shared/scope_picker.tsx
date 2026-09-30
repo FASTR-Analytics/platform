@@ -14,7 +14,9 @@ export type ScopeSelection =
 export function scopeSelectionFromStored(
   adminArea2: string | null,
 ): ScopeSelection {
-  return adminArea2 === null ? { mode: "national" } : { mode: "single", adminArea2 };
+  return adminArea2 === null
+    ? { mode: "national" }
+    : { mode: "single", adminArea2 };
 }
 
 // undefined = incomplete (single mode with no area chosen).
@@ -30,7 +32,9 @@ type Props = {
 };
 
 export function ScopePicker(p: Props) {
-  const areasQuery = createQuery<string[]>(() => serverActions.listAdminArea2s({}));
+  const areasQuery = createQuery<string[]>(() =>
+    serverActions.listAdminArea2s({})
+  );
 
   const chosenArea = () =>
     p.selection.mode === "single" ? p.selection.adminArea2 : undefined;
@@ -51,9 +55,9 @@ export function ScopePicker(p: Props) {
           },
           {
             value: "single",
-            label: `${
-              t3({ en: "Single", fr: "Unique :", pt: "Único:" })
-            } ${t3(getAdminAreaLabel(2))}`,
+            label: `${t3({ en: "Single", fr: "Unique :", pt: "Único:" })} ${
+              t3(getAdminAreaLabel(2))
+            }`,
           },
         ]}
         onChange={(v) =>
@@ -110,9 +114,12 @@ export function ScopePicker(p: Props) {
       </Show>
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: "Within a scope, the results package is read as if it contained only that area. Metrics with no area breakdown remain national.",
-          fr: "Dans une portée, le paquet de résultats est lu comme s'il ne contenait que cette zone. Les indicateurs sans ventilation par zone restent nationaux.",
-          pt: "Dentro de um âmbito, o pacote de resultados é lido como se contivesse apenas essa zona. Os indicadores sem desagregação por zona permanecem nacionais.",
+          en:
+            "Within a scope, the results package is read as if it contained only that area. Metrics with no area breakdown remain national.",
+          fr:
+            "Dans une portée, le paquet de résultats est lu comme s'il ne contenait que cette zone. Les indicateurs sans ventilation par zone restent nationaux.",
+          pt:
+            "Dentro de um âmbito, o pacote de resultados é lido como se contivesse apenas essa zona. Os indicadores sem desagregação por zona permanecem nacionais.",
         })}
       </div>
     </div>

@@ -14,9 +14,9 @@ import {
   createDeckStyleContext,
   DEFAULT_TEXT_SIZE_KEY,
   getLetterSpacing,
-  getSlideFontInfo,
   getSlideDeckThemeColorPreset,
   getSlideDeckThemeSpec,
+  getSlideFontInfo,
   getTextColorForBackground,
   resolveLogoSizing,
   TEXT_SIZE_REL,
@@ -34,9 +34,7 @@ import type {
   SplitConfig,
 } from "panther";
 import { getBaseText, resolvePageStyle } from "panther";
-import {
-  buildFigureInputs,
-} from "~/generate_visualization/mod";
+import { buildFigureInputs } from "~/generate_visualization/mod";
 import { _SERVER_HOST } from "~/server_actions";
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
 import { FASTR_LOGO_VALUES } from "./fastr_logos";
@@ -89,20 +87,17 @@ export function buildStyleForSlide(
     pattern ? { pattern } : undefined,
   );
 
-  const coverFontSizes =
-    slide.type === "cover"
-      ? (slide as CoverSlide)
-      : ({} as Partial<CoverSlide>);
+  const coverFontSizes = slide.type === "cover"
+    ? (slide as CoverSlide)
+    : ({} as Partial<CoverSlide>);
 
-  const sectionFontSizes =
-    slide.type === "section"
-      ? (slide as SectionSlide)
-      : ({} as Partial<SectionSlide>);
+  const sectionFontSizes = slide.type === "section"
+    ? (slide as SectionSlide)
+    : ({} as Partial<SectionSlide>);
 
-  const footerText =
-    slide.type === "content"
-      ? (config.globalFooterText ?? slide.footer)
-      : undefined;
+  const footerText = slide.type === "content"
+    ? (config.globalFooterText ?? slide.footer)
+    : undefined;
   const hasFooter = !!footerText?.trim();
   const fontFamily = themeSpec.fontFamily;
 
@@ -308,8 +303,9 @@ export async function convertSlideToPageInputs(
   slideIndex: number | undefined,
   config: SlideDeckConfig,
 ): Promise<APIResponseWithData<PageInputs>> {
-  const backgroundDetail =
-    slide.type !== "content" ? await getBackgroundDetail(config) : {};
+  const backgroundDetail = slide.type !== "content"
+    ? await getBackgroundDetail(config)
+    : {};
   const style = buildStyleForSlide(slide, config, backgroundDetail.pattern);
   const watermark = config.useWatermark ? config.watermarkText : undefined;
 
@@ -320,9 +316,9 @@ export async function convertSlideToPageInputs(
     );
     const titleLogos = showCoverLogos
       ? await loadLogos(
-          config.logos.cover.selected,
-          config.logos.availableCustom,
-        )
+        config.logos.cover.selected,
+        config.logos.availableCustom,
+      )
       : [];
     return {
       success: true,
@@ -374,15 +370,15 @@ export async function convertSlideToPageInputs(
 
   const headerLogos = showHeaderLogos
     ? await loadLogos(
-        config.logos.header.selected,
-        config.logos.availableCustom,
-      )
+      config.logos.header.selected,
+      config.logos.availableCustom,
+    )
     : [];
   const footerLogos = showFooterLogos
     ? await loadLogos(
-        config.logos.footer.selected,
-        config.logos.availableCustom,
-      )
+      config.logos.footer.selected,
+      config.logos.availableCustom,
+    )
     : [];
 
   let splitImage: HTMLImageElement | undefined;
@@ -478,10 +474,9 @@ async function convertLayoutNode(
         data: { spacer: true },
       };
     }
-    const resolved =
-      node.data.type === "text"
-        ? resolveTextBackground(node.data.style?.textBackground, primaryColor)
-        : undefined;
+    const resolved = node.data.type === "text"
+      ? resolveTextBackground(node.data.style?.textBackground, primaryColor)
+      : undefined;
     return {
       type: "item",
       id: node.id,
@@ -501,10 +496,8 @@ async function convertLayoutNode(
     span: node.span,
     children: Array.isArray(node.children)
       ? await Promise.all(
-          node.children.map((c) =>
-            convertLayoutNode(c, primaryColor, deckStyle),
-          ),
-        )
+        node.children.map((c) => convertLayoutNode(c, primaryColor, deckStyle)),
+      )
       : [],
   };
 }

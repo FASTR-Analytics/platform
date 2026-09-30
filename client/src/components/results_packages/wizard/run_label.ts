@@ -18,7 +18,7 @@ export function freeRunLabel(
   if (!isRunLabelTaken(base, catalogue)) {
     return base;
   }
-  for (let n = 2; ; n++) {
+  for (let n = 2;; n++) {
     const candidate = `${base} (${n})`;
     if (!isRunLabelTaken(candidate, catalogue)) {
       return candidate;

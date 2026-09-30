@@ -1,10 +1,13 @@
-import { t3, PAGE_HEIGHT_DU, PAGE_WIDTH_DU } from "lib";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, t3 } from "lib";
 import type { SlideDeckConfig } from "lib";
-import { PageHolder, type PageInputs, getBaseText } from "panther";
+import { getBaseText, PageHolder, type PageInputs } from "panther";
 import { createEffect, createSignal, onCleanup } from "solid-js";
 import { buildStyleForSlide } from "~/generate_slide_deck/convert_slide_to_page_inputs";
 import { FASTR_LOGO_VALUES } from "~/generate_slide_deck/fastr_logos";
-import { getBackgroundDetail, type BackgroundDetail } from "~/generate_slide_deck/get_overlay_image";
+import {
+  type BackgroundDetail,
+  getBackgroundDetail,
+} from "~/generate_slide_deck/get_overlay_image";
 import { getImgFromCacheOrFetch } from "~/state/products/t2_images";
 import { _SERVER_HOST } from "~/server_actions";
 
@@ -35,7 +38,11 @@ function getCoverPageInputs(
   bgDetail: BackgroundDetail,
   logos: HTMLImageElement[],
 ): PageInputs {
-  const style = buildStyleForSlide({ type: "cover", title: "" }, config, bgDetail.pattern);
+  const style = buildStyleForSlide(
+    { type: "cover", title: "" },
+    config,
+    bgDetail.pattern,
+  );
   return {
     type: "cover",
     title: t3({ en: "Title", fr: "Titre", pt: "Título" }),
@@ -50,7 +57,11 @@ function getSectionPageInputs(
   config: SlideDeckConfig,
   bgDetail: BackgroundDetail,
 ): PageInputs {
-  const style = buildStyleForSlide({ type: "section", sectionTitle: "" }, config, bgDetail.pattern);
+  const style = buildStyleForSlide(
+    { type: "section", sectionTitle: "" },
+    config,
+    bgDetail.pattern,
+  );
   return {
     type: "section",
     sectionTitle: t3({ en: "Section", fr: "Section", pt: "Secção" }),
@@ -59,7 +70,8 @@ function getSectionPageInputs(
   };
 }
 
-const LOREM_TEXT = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+const LOREM_TEXT =
+  `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet.
 
@@ -73,13 +85,17 @@ function getContentPageInputs(
   footerLogos: HTMLImageElement[],
 ): PageInputs {
   const style = buildStyleForSlide(
-    { type: "content", layout: { type: "item", id: "a", data: { type: "text", markdown: "" } } },
+    {
+      type: "content",
+      layout: { type: "item", id: "a", data: { type: "text", markdown: "" } },
+    },
     config,
   );
   return {
     type: "freeform",
     header: t3({ en: "Header", fr: "En-tête", pt: "Cabeçalho" }),
-    footer: config.globalFooterText || t3({ en: "Footer", fr: "Pied de page", pt: "Rodapé" }),
+    footer: config.globalFooterText ||
+      t3({ en: "Footer", fr: "Pied de page", pt: "Rodapé" }),
     headerLogos,
     footerLogos,
     content: {
@@ -113,10 +129,18 @@ export function ContentSlideMiniPreview(p: StylePreviewProps) {
 }
 
 export function StylePreview(p: StylePreviewProps) {
-  const [bgDetail, setBgDetail] = createSignal<BackgroundDetail | undefined>(undefined);
-  const [coverLogos, setCoverLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
-  const [headerLogos, setHeaderLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
-  const [footerLogos, setFooterLogos] = createSignal<HTMLImageElement[] | undefined>(undefined);
+  const [bgDetail, setBgDetail] = createSignal<BackgroundDetail | undefined>(
+    undefined,
+  );
+  const [coverLogos, setCoverLogos] = createSignal<
+    HTMLImageElement[] | undefined
+  >(undefined);
+  const [headerLogos, setHeaderLogos] = createSignal<
+    HTMLImageElement[] | undefined
+  >(undefined);
+  const [footerLogos, setFooterLogos] = createSignal<
+    HTMLImageElement[] | undefined
+  >(undefined);
 
   // Spread so every element read is tracked: per-index writes
   // (setTempConfig("logos", "availableCustom", i, v)) keep the array
@@ -179,9 +203,11 @@ export function StylePreview(p: StylePreviewProps) {
     load();
   });
 
-  const coverInputs = () => getCoverPageInputs(p.config, bgDetail() ?? {}, coverLogos() ?? []);
+  const coverInputs = () =>
+    getCoverPageInputs(p.config, bgDetail() ?? {}, coverLogos() ?? []);
   const sectionInputs = () => getSectionPageInputs(p.config, bgDetail() ?? {});
-  const contentInputs = () => getContentPageInputs(p.config, headerLogos() ?? [], footerLogos() ?? []);
+  const contentInputs = () =>
+    getContentPageInputs(p.config, headerLogos() ?? [], footerLogos() ?? []);
 
   return (
     <div>

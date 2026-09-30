@@ -31,7 +31,7 @@ export class MigrationFailure extends Error {
 
 const INSTANCE_MIGRATIONS_DIR = join(
   dirname(new URL(import.meta.url).pathname),
-  "instance"
+  "instance",
 );
 
 export async function runInstanceMigrations(sql: Sql): Promise<void> {
@@ -40,14 +40,16 @@ export async function runInstanceMigrations(sql: Sql): Promise<void> {
       sql,
       INSTANCE_MIGRATIONS_DIR,
       TS_MIGRATIONS,
-      "instance"
+      "instance",
     );
   } catch (error) {
     const filename = error instanceof MigrationFailure ? error.filename : "?";
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`\n[sql-migration] FAILED: ${filename}`);
     console.error(`Error: ${errorMessage}`);
-    console.error(`\n[sql-migration] FAILED — Server will not start. Fix the migration and redeploy.\n`);
+    console.error(
+      `\n[sql-migration] FAILED — Server will not start. Fix the migration and redeploy.\n`,
+    );
     Deno.exit(1);
   }
 }
@@ -60,7 +62,7 @@ export async function runMigrationsInDir(
   sql: Sql,
   dir: string,
   tsMigrations: Record<string, TsMigration>,
-  label: string
+  label: string,
 ): Promise<void> {
   await ensureMigrationsTableExists(sql);
 
@@ -68,7 +70,7 @@ export async function runMigrationsInDir(
   const appliedMigrations = await getAppliedMigrations(sql);
 
   const pendingMigrations = migrationFiles.filter(
-    (m) => !appliedMigrations.has(m.id)
+    (m) => !appliedMigrations.has(m.id),
   );
 
   if (pendingMigrations.length === 0) {
@@ -76,7 +78,7 @@ export async function runMigrationsInDir(
   }
 
   console.log(
-    `Running ${pendingMigrations.length} ${label} migration(s)...`
+    `Running ${pendingMigrations.length} ${label} migration(s)...`,
   );
 
   for (const migration of pendingMigrations) {
@@ -99,7 +101,7 @@ async function ensureMigrationsTableExists(sql: Sql): Promise<void> {
 
 async function getMigrationFiles(
   dir: string,
-  tsMigrations: Record<string, TsMigration>
+  tsMigrations: Record<string, TsMigration>,
 ): Promise<MigrationFile[]> {
   try {
     const entries: MigrationFile[] = [];
@@ -116,7 +118,7 @@ async function getMigrationFiles(
       const run = isTs ? tsMigrations[id] : undefined;
       if (isTs && run === undefined) {
         throw new Error(
-          `Migration ${entry.name} has no entry in TS_MIGRATIONS (server/db/migrations/runner.ts). Register it, or it would be silently skipped.`
+          `Migration ${entry.name} has no entry in TS_MIGRATIONS (server/db/migrations/runner.ts). Register it, or it would be silently skipped.`,
         );
       }
       entries.push({
@@ -143,11 +145,15 @@ async function getAppliedMigrations(sql: Sql): Promise<Set<string>> {
   return new Set(rows.map((r) => r.migration_id));
 }
 
-async function applyMigration(sql: Sql, migration: MigrationFile): Promise<void> {
+async function applyMigration(
+  sql: Sql,
+  migration: MigrationFile,
+): Promise<void> {
   console.log(`  Applying migration: ${migration.filename}`);
 
-  const migrationSQL =
-    migration.run === null ? await Deno.readTextFile(migration.filepath) : null;
+  const migrationSQL = migration.run === null
+    ? await Deno.readTextFile(migration.filepath)
+    : null;
 
   await sql.begin(async (tx) => {
     // Transaction-local, so a migration that seeds user-facing text (079's

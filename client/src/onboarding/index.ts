@@ -84,7 +84,8 @@ export function setupTours(opts: {
     // The deck's rail is on screen in both views (a slide is open beside it
     // whenever the deck has one).
     "deck-editor": () =>
-      currentView().id === "editing_slide_deck" || currentView().id === "editing_slide",
+      currentView().id === "editing_slide_deck" ||
+      currentView().id === "editing_slide",
     "slide-cover": () => editingSlideOfType("cover"),
     "slide-section": () => editingSlideOfType("section"),
     "slide-content": () => editingSlideOfType("content"),
@@ -125,7 +126,7 @@ export function setupTours(opts: {
       page: "instance-results-packages",
       when: () =>
         resolveVisibleTarget(tourTarget("instance-results-packages-table")) !==
-        null,
+          null,
       tour: buildInstanceResultsPackagesCatalogueTour(),
     },
     { page: "instance-assets", tour: buildInstanceAssetsTour() },
@@ -179,8 +180,8 @@ export function setupTours(opts: {
         return view.id === "editing_slide_deck"
           ? view.context.getSlideIds().length
           : view.id === "editing_report"
-            ? Object.keys(view.context.getFigures()).length
-            : 0;
+          ? Object.keys(view.context.getFigures()).length
+          : 0;
       },
     ],
     tours,

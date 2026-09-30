@@ -1,18 +1,18 @@
 import {
+  type DatasetHmisWindowing,
   DEFAULT_PERIOD_END,
   DEFAULT_PERIOD_START,
+  type StructureSchema,
   t3,
   TC,
-  type DatasetHmisWindowing,
-  type StructureSchema,
 } from "lib";
 import {
   Button,
+  createDeleteAction,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
   Input,
-  createDeleteAction,
 } from "panther";
 import { createSignal } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
@@ -29,19 +29,18 @@ export function DeleteData(
     undefined
   >,
 ) {
-  const [tempWindowing, setTempWindowing] =
-    createStore<DatasetHmisWindowing>(
-      structuredClone({
-        start: DEFAULT_PERIOD_START,
-        end: DEFAULT_PERIOD_END,
-        takeAllIndicators: true,
-        takeAllAdminArea2s: true,
-        indicatorsToInclude: [],
-        adminArea2sToInclude: [],
-        takeAllAdminArea3s: true,
-        adminArea3sToInclude: [],
-      }),
-    );
+  const [tempWindowing, setTempWindowing] = createStore<DatasetHmisWindowing>(
+    structuredClone({
+      start: DEFAULT_PERIOD_START,
+      end: DEFAULT_PERIOD_END,
+      takeAllIndicators: true,
+      takeAllAdminArea2s: true,
+      indicatorsToInclude: [],
+      adminArea2sToInclude: [],
+      takeAllAdminArea3s: true,
+      adminArea3sToInclude: [],
+    }),
+  );
 
   const [checkText, setCheckText] = createSignal("");
 
@@ -114,9 +113,15 @@ export function DeleteData(
       </div>
       <div class="ui-spy-sm">
         <div class="">
-          {t3({ en: "If you want to delete this data, write", fr: "Pour supprimer ces données, écrivez", pt: "Se pretende eliminar estes dados, escreva" })}{" "}
-          <span class="font-700">yes please delete</span>{" "}
-          {t3({ en: "in the input box", fr: "dans le champ de saisie", pt: "na caixa de introdução" })}
+          {t3({
+            en: "If you want to delete this data, write",
+            fr: "Pour supprimer ces données, écrivez",
+            pt: "Se pretende eliminar estes dados, escreva",
+          })} <span class="font-700">yes please delete</span> {t3({
+            en: "in the input box",
+            fr: "dans le champ de saisie",
+            pt: "na caixa de introdução",
+          })}
         </div>
         <div class="w-96">
           <Input value={checkText()} onChange={setCheckText} />

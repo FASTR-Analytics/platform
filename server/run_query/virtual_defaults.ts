@@ -1,9 +1,9 @@
 import { z } from "zod";
 import {
-  deriveDefaultVisualizationsForModule,
-  vizPresetInstalled,
   type DerivedDefaultVisualization,
+  deriveDefaultVisualizationsForModule,
   type RunManifest,
+  vizPresetInstalled,
 } from "lib";
 import { _INSTANCE_LANGUAGE } from "../exposed_env_vars.ts";
 

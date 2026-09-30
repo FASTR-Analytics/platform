@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { adminAreaLevelSchema, type GeoJsonMapSummary } from "../../types/mod.ts";
+import {
+  adminAreaLevelSchema,
+  type GeoJsonMapSummary,
+} from "../../types/mod.ts";
 import { route } from "../route-utils.ts";
 
 type Dhis2FeatureContext = {
@@ -53,7 +56,10 @@ export const geojsonMapRouteRegistry = {
     // adminAreaLevel stays a plain number: the delete handler has no 2|3|4 guard and the
     // client sources this from `number`-typed map summaries. Tightening belongs with a
     // GeoJsonMapSummary type change, not here.
-    body: z.object({ family: facilityFamilySchema, adminAreaLevel: z.number() }),
+    body: z.object({
+      family: facilityFamilySchema,
+      adminAreaLevel: z.number(),
+    }),
   }),
   getAdminAreaOptionsForLevel: route({
     path: "/geojson-maps/admin-area-options/:family/:level",

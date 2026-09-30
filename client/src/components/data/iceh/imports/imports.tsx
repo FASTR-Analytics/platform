@@ -1,19 +1,19 @@
-import { t3, type IcehImportRunSummary } from "lib";
+import { type IcehImportRunSummary, t3 } from "lib";
 import {
   Button,
   CollapsibleSection,
+  createQuery,
   EditorComponentProps,
   FrameTop,
+  getEditorWrapper,
   HeadingBar,
+  openComponent,
   StateHolderWrapper,
   Table,
-  createQuery,
-  getEditorWrapper,
-  openComponent,
-  toNum0,
   type TableColumn,
+  toNum0,
 } from "panther";
-import { For, Show, onCleanup, onMount } from "solid-js";
+import { For, onCleanup, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { IcehNeedsReviewCard } from "./needs_review_card";
 import { IcehRunDetail } from "./run_detail";
@@ -44,7 +44,10 @@ export function DatasetIcehImports(p: Props) {
   onMount(() => {
     pollingIntervalId = setInterval(async () => {
       const state = runs.state();
-      if (state.status === "ready" && state.data.some((r) => r.status === "running")) {
+      if (
+        state.status === "ready" &&
+        state.data.some((r) => r.status === "running")
+      ) {
         await runs.silentFetch();
       }
     }, 2000);
@@ -86,7 +89,11 @@ export function DatasetIcehImports(p: Props) {
     },
     {
       key: "nRowsIntegrated",
-      header: t3({ en: "Values imported", fr: "Valeurs importées", pt: "Valores importados" }),
+      header: t3({
+        en: "Values imported",
+        fr: "Valeurs importées",
+        pt: "Valores importados",
+      }),
       alignH: "right",
       render: (run) =>
         run.nRowsIntegrated !== undefined ? toNum0(run.nRowsIntegrated) : "",
@@ -111,11 +118,19 @@ export function DatasetIcehImports(p: Props) {
         panelChildren={
           <HeadingBar
             onBack={() => p.close(undefined)}
-            heading={t3({ en: "Imports", fr: "Importations", pt: "Importações" })}
+            heading={t3({
+              en: "Imports",
+              fr: "Importations",
+              pt: "Importações",
+            })}
           >
             <div class="ui-gap-sm flex flex-none items-center">
               <Button onClick={openWizard} iconName="upload">
-                {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
+                {t3({
+                  en: "New import",
+                  fr: "Nouvelle importation",
+                  pt: "Nova importação",
+                })}
               </Button>
               <Button iconName="refresh" onClick={() => runs.fetch()} />
             </div>
@@ -125,61 +140,64 @@ export function DatasetIcehImports(p: Props) {
         <StateHolderWrapper state={runs.state()}>
           {(keyedRuns) => (
             <>
-            <For each={keyedRuns.filter((r) => r.status === "needs_review")}>
-              {(run) => <IcehNeedsReviewCard run={run} onChanged={refresh} />}
-            </For>
+              <For each={keyedRuns.filter((r) => r.status === "needs_review")}>
+                {(run) => <IcehNeedsReviewCard run={run} onChanged={refresh} />}
+              </For>
 
-            <Show
-              when={keyedRuns.find((r) => r.status === "running")}
-              fallback={
-                <div class="ui-pad ui-spy-sm rounded border">
-                  <div class="text-sm">
-                    {t3({
-                      en: "No import running.",
-                      fr: "Aucune importation en cours.",
-                      pt: "Nenhuma importação em curso.",
-                    })}
+              <Show
+                when={keyedRuns.find((r) => r.status === "running")}
+                fallback={
+                  <div class="ui-pad ui-spy-sm rounded border">
+                    <div class="text-sm">
+                      {t3({
+                        en: "No import running.",
+                        fr: "Aucune importation en cours.",
+                        pt: "Nenhuma importação em curso.",
+                      })}
+                    </div>
+                    <Button onClick={openWizard} iconName="upload">
+                      {t3({
+                        en: "New import",
+                        fr: "Nouvelle importation",
+                        pt: "Nova importação",
+                      })}
+                    </Button>
                   </div>
-                  <Button onClick={openWizard} iconName="upload">
-                    {t3({ en: "New import", fr: "Nouvelle importation", pt: "Nova importação" })}
-                  </Button>
-                </div>
-              }
-              keyed
-            >
-              {(run) => (
-                <CollapsibleSection
-                  defaultOpen
-                  boldHeader
-                  title={t3({
-                    en: "Import in progress",
-                    fr: "Importation en cours",
-                    pt: "Importação em curso",
-                  })}
-                >
-                  <IcehRunView run={run} onChanged={refresh} />
-                </CollapsibleSection>
-              )}
-            </Show>
-
-            <div class="ui-spy-sm">
-              <div class="ui-text-heading">
-                {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
-              </div>
-              <Table
-                data={keyedRuns.filter((r) => r.status !== "needs_review")}
-                columns={columns}
-                keyField="id"
-                onRowClick={(run) =>
-                  void openEditor({ element: IcehRunDetail, props: { run } })
                 }
-                noRowsMessage={t3({
-                  en: "No imports yet",
-                  fr: "Aucune importation pour le moment",
-                  pt: "Ainda não há importações",
-                })}
-              />
-            </div>
+                keyed
+              >
+                {(run) => (
+                  <CollapsibleSection
+                    defaultOpen
+                    boldHeader
+                    title={t3({
+                      en: "Import in progress",
+                      fr: "Importation en cours",
+                      pt: "Importação em curso",
+                    })}
+                  >
+                    <IcehRunView run={run} onChanged={refresh} />
+                  </CollapsibleSection>
+                )}
+              </Show>
+
+              <div class="ui-spy-sm">
+                <div class="ui-text-heading">
+                  {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
+                </div>
+                <Table
+                  data={keyedRuns.filter((r) => r.status !== "needs_review")}
+                  columns={columns}
+                  keyField="id"
+                  onRowClick={(run) =>
+                    void openEditor({ element: IcehRunDetail, props: { run } })}
+                  noRowsMessage={t3({
+                    en: "No imports yet",
+                    fr: "Aucune importation pour le moment",
+                    pt: "Ainda não há importações",
+                  })}
+                />
+              </div>
             </>
           )}
         </StateHolderWrapper>

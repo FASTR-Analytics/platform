@@ -1,39 +1,39 @@
 import {
-  t3,
   type APIResponseNoData,
-  type HfaDictionaryForValidation,
   composeHfaIndicatorLabel,
+  type HfaDictionaryForValidation,
   type HfaIndicator,
   type HfaIndicatorCategory,
+  type HfaIndicatorCode,
   type HfaIndicatorServiceCategory,
   type HfaIndicatorSubCategory,
-  type HfaIndicatorCode,
   type HfaIndicatorVariantCode,
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
+  t3,
 } from "lib";
 import {
   Button,
+  createButtonAction,
+  createQuery,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
   Input,
   MultiSelect,
+  openConfirm,
   RadioGroup,
   Select,
   StateHolderWrapper,
   TextArea,
-  createButtonAction,
-  createQuery,
-  openConfirm,
 } from "panther";
-import { createSignal, For, Show, type Accessor } from "solid-js";
+import { type Accessor, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
   hasRCodeErrors,
-  validateRCode,
   type RCodeValidationResult,
+  validateRCode,
 } from "./_shared/mod.ts";
 
 type TempCodeEntry = {
@@ -81,15 +81,26 @@ export function HfaIndicatorCodeEditor(
   >,
 ) {
   const codeQuery = createQuery(
-    () => serverActions.getHfaIndicatorCode({ indicatorId: p.indicator.indicatorId }),
-    t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
+    () =>
+      serverActions.getHfaIndicatorCode({
+        indicatorId: p.indicator.indicatorId,
+      }),
+    t3({
+      en: "Loading code...",
+      fr: "Chargement du code...",
+      pt: "A carregar o código...",
+    }),
   );
   const variantCodeQuery = createQuery(
     () =>
       serverActions.getHfaIndicatorVariantCode({
         indicatorId: p.indicator.indicatorId,
       }),
-    t3({ en: "Loading code...", fr: "Chargement du code...", pt: "A carregar o código..." }),
+    t3({
+      en: "Loading code...",
+      fr: "Chargement du code...",
+      pt: "A carregar o código...",
+    }),
   );
 
   const [needsSaving, setNeedsSaving] = createSignal(false);
@@ -127,7 +138,11 @@ export function HfaIndicatorCodeEditor(
                   intent="success"
                   iconName="save"
                 >
-                  {t3({ en: "Save and close", fr: "Sauvegarder et quitter", pt: "Guardar e fechar" })}
+                  {t3({
+                    en: "Save and close",
+                    fr: "Sauvegarder et quitter",
+                    pt: "Guardar e fechar",
+                  })}
                 </Button>
                 <Button
                   intent="success"
@@ -144,7 +159,9 @@ export function HfaIndicatorCodeEditor(
             </div>
           }
           heading={composeHfaIndicatorLabel(p.indicator, "compact")}
-          subheading={p.indicator.shortLabel.trim() ? p.indicator.definition : undefined}
+          subheading={p.indicator.shortLabel.trim()
+            ? p.indicator.definition
+            : undefined}
         >
           <Show when={!p.showAi()}>
             <Button iconName="chevronLeft" outline onClick={p.openAi}>
@@ -156,7 +173,10 @@ export function HfaIndicatorCodeEditor(
     >
       <StateHolderWrapper state={codeQuery.state()} loadingAndErrorPad="md">
         {(codeSnippets) => (
-          <StateHolderWrapper state={variantCodeQuery.state()} loadingAndErrorPad="md">
+          <StateHolderWrapper
+            state={variantCodeQuery.state()}
+            loadingAndErrorPad="md"
+          >
             {(variantCodeSnippets) => (
               <EditorInner
                 indicator={p.indicator}
@@ -249,7 +269,9 @@ function EditorInner(p: {
   const otherIndicatorIds = new Set(otherIndicators.map((i) => i.indicatorId));
   // Variant snippets may legitimately reference their own parent indicator
   // (e.g. `vacc == 1 & q12 == 2`), so their validation set includes it.
-  const allIndicatorIdsInclSelf = new Set(p.indicators.map((i) => i.indicatorId));
+  const allIndicatorIdsInclSelf = new Set(
+    p.indicators.map((i) => i.indicatorId),
+  );
 
   const currentTpIndex = () =>
     state.code.findIndex((c) => c.timePoint === selectedTimePoint());
@@ -269,7 +291,9 @@ function EditorInner(p: {
     );
     if (variable) return variable.variableLabel;
     const indicator = otherIndicators.find((i) => i.indicatorId === id);
-    return indicator ? composeHfaIndicatorLabel(indicator, "compact") : undefined;
+    return indicator
+      ? composeHfaIndicatorLabel(indicator, "compact")
+      : undefined;
   };
 
   const roundsConsistency = () => {
@@ -340,11 +364,16 @@ function EditorInner(p: {
   };
 
   // Variant entries to save: current group's items only, non-empty code.
-  const variantCodeToSave = (): { timePoint: string; itemId: string; rCode: string }[] => {
+  const variantCodeToSave = (): {
+    timePoint: string;
+    itemId: string;
+    rCode: string;
+  }[] => {
     const entries: { timePoint: string; itemId: string; rCode: string }[] = [];
     for (const tp of p.dictionary.timePoints) {
       for (const item of currentGroupItems()) {
-        const rCode = (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "").trim();
+        const rCode =
+          (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "").trim();
         if (rCode) {
           entries.push({ timePoint: tp.timePoint, itemId: item.id, rCode });
         }
@@ -361,9 +390,12 @@ function EditorInner(p: {
       return {
         success: false,
         err: t3({
-          en: `Filter code requires R code for time point "${filterOnly.timePoint}"`,
-          fr: `Le code filtre nécessite un code R pour le point temporel « ${filterOnly.timePoint} »`,
-          pt: `O código de filtro requer código R para o ponto temporal "${filterOnly.timePoint}"`,
+          en:
+            `Filter code requires R code for time point "${filterOnly.timePoint}"`,
+          fr:
+            `Le code filtre nécessite un code R pour le point temporel « ${filterOnly.timePoint} »`,
+          pt:
+            `O código de filtro requer código R para o ponto temporal "${filterOnly.timePoint}"`,
         }),
       };
     }
@@ -374,8 +406,10 @@ function EditorInner(p: {
         success: false,
         err: t3({
           en: "An indicator with variant code must also have overall R code",
-          fr: "Un indicateur avec du code de variante doit aussi avoir un code R global",
-          pt: "Um indicador com código de variante também deve ter código R global",
+          fr:
+            "Un indicateur avec du code de variante doit aussi avoir un code R global",
+          pt:
+            "Um indicador com código de variante também deve ter código R global",
         }),
       };
     }
@@ -471,7 +505,9 @@ function EditorInner(p: {
       "code",
       currentTpIndex(),
       "rCode",
-      (prev) => prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + symbol + " ",
+      (prev) =>
+        prev + (prev.length === 0 || /\s$/.test(prev) ? "" : " ") + symbol +
+        " ",
     );
     markDirty();
   }
@@ -495,37 +531,74 @@ function EditorInner(p: {
                 markDirty();
               }}
               options={[
-                { value: "", label: t3({ en: "— None —", fr: "— Aucune —", pt: "— Nenhuma —" }) },
+                {
+                  value: "",
+                  label: t3({
+                    en: "— None —",
+                    fr: "— Aucune —",
+                    pt: "— Nenhuma —",
+                  }),
+                },
                 ...p.categories.map((c) => ({ value: c.id, label: c.label })),
               ]}
             />
             <Select
-              label={t3({ en: "Sub-category", fr: "Sous-catégorie", pt: "Subcategoria" })}
+              label={t3({
+                en: "Sub-category",
+                fr: "Sous-catégorie",
+                pt: "Subcategoria",
+              })}
               value={state.subCategoryId ?? ""}
               onChange={(v) => {
                 setState("subCategoryId", v || null);
                 markDirty();
               }}
-              options={
-                state.categoryId
-                  ? [
-                      { value: "", label: t3({ en: "— None —", fr: "— Aucune —", pt: "— Nenhuma —" }) },
-                      ...filteredSubCategories().map((sc) => ({ value: sc.id, label: sc.label })),
-                    ]
-                  : [{ value: "", label: t3({ en: "— Select category first —", fr: "— Sélectionnez d'abord une catégorie —", pt: "— Selecione primeiro uma categoria —" }) }]
-              }
+              options={state.categoryId
+                ? [
+                  {
+                    value: "",
+                    label: t3({
+                      en: "— None —",
+                      fr: "— Aucune —",
+                      pt: "— Nenhuma —",
+                    }),
+                  },
+                  ...filteredSubCategories().map((sc) => ({
+                    value: sc.id,
+                    label: sc.label,
+                  })),
+                ]
+                : [{
+                  value: "",
+                  label: t3({
+                    en: "— Select category first —",
+                    fr: "— Sélectionnez d'abord une catégorie —",
+                    pt: "— Selecione primeiro uma categoria —",
+                  }),
+                }]}
             />
             <MultiSelect
-              label={t3({ en: "Service categories", fr: "Catégories de service", pt: "Categorias de serviço" })}
+              label={t3({
+                en: "Service categories",
+                fr: "Catégories de service",
+                pt: "Categorias de serviço",
+              })}
               values={state.serviceCategoryIds}
               onChange={(v) => {
                 setState("serviceCategoryIds", v);
                 markDirty();
               }}
-              options={p.serviceCategories.map((sc) => ({ value: sc.id, label: sc.label }))}
+              options={p.serviceCategories.map((sc) => ({
+                value: sc.id,
+                label: sc.label,
+              }))}
             />
             <Select
-              label={t3({ en: "Variant group", fr: "Groupe de variantes", pt: "Grupo de variantes" })}
+              label={t3({
+                en: "Variant group",
+                fr: "Groupe de variantes",
+                pt: "Grupo de variantes",
+              })}
               value={state.variantGroupId ?? ""}
               onChange={async (v) => {
                 const newGroupId = v || null;
@@ -534,9 +607,10 @@ function EditorInner(p: {
                 const hasOldCode = oldItems.some((item) =>
                   p.dictionary.timePoints.some(
                     (tp) =>
-                      (state.variantCode[variantKey(tp.timePoint, item.id)] ?? "")
+                      (state.variantCode[variantKey(tp.timePoint, item.id)] ??
+                        "")
                         .trim() !== "",
-                  ),
+                  )
                 );
                 if (hasOldCode) {
                   const confirmed = await openConfirm({
@@ -546,9 +620,12 @@ function EditorInner(p: {
                       pt: "Mudar de grupo de variantes?",
                     }),
                     text: t3({
-                      en: "This indicator has per-item code for the current group. Switching deletes that code when you save.",
-                      fr: "Cet indicateur a du code par élément pour le groupe actuel. Changer de groupe supprime ce code lors de la sauvegarde.",
-                      pt: "Este indicador tem código por item para o grupo atual. Mudar de grupo elimina esse código ao guardar.",
+                      en:
+                        "This indicator has per-item code for the current group. Switching deletes that code when you save.",
+                      fr:
+                        "Cet indicateur a du code par élément pour le groupe actuel. Changer de groupe supprime ce code lors de la sauvegarde.",
+                      pt:
+                        "Este indicador tem código por item para o grupo atual. Mudar de grupo elimina esse código ao guardar.",
                     }),
                     intent: "danger",
                     confirmButtonLabel: t3({
@@ -574,7 +651,11 @@ function EditorInner(p: {
                   // shows deleted code as if it were still persisted.
                   for (const item of oldItems) {
                     for (const tp of p.dictionary.timePoints) {
-                      setState("variantCode", variantKey(tp.timePoint, item.id), "");
+                      setState(
+                        "variantCode",
+                        variantKey(tp.timePoint, item.id),
+                        "",
+                      );
                     }
                   }
                 }
@@ -582,8 +663,18 @@ function EditorInner(p: {
                 markDirty();
               }}
               options={[
-                { value: "", label: t3({ en: "— None —", fr: "— Aucun —", pt: "— Nenhum —" }) },
-                ...p.variantGroups.map((g) => ({ value: g.id, label: g.label })),
+                {
+                  value: "",
+                  label: t3({
+                    en: "— None —",
+                    fr: "— Aucun —",
+                    pt: "— Nenhum —",
+                  }),
+                },
+                ...p.variantGroups.map((g) => ({
+                  value: g.id,
+                  label: g.label,
+                })),
               ]}
             />
             <RadioGroup
@@ -605,20 +696,34 @@ function EditorInner(p: {
               ]}
             />
             <RadioGroup
-              label={t3({ en: "Aggregation", fr: "Agrégation", pt: "Agregação" })}
+              label={t3({
+                en: "Aggregation",
+                fr: "Agrégation",
+                pt: "Agregação",
+              })}
               value={state.aggregation}
               onChange={(v) => {
                 setState("aggregation", v as "sum" | "avg");
                 markDirty();
               }}
               options={[
-                { value: "sum", label: t3({ en: "Sum", fr: "Somme", pt: "Soma" }) },
-                { value: "avg", label: t3({ en: "Average", fr: "Moyenne", pt: "Média" }) },
+                {
+                  value: "sum",
+                  label: t3({ en: "Sum", fr: "Somme", pt: "Soma" }),
+                },
+                {
+                  value: "avg",
+                  label: t3({ en: "Average", fr: "Moyenne", pt: "Média" }),
+                },
               ]}
             />
           </div>
           <Input
-            label={t3({ en: "Short label", fr: "Libellé court", pt: "Etiqueta curta" })}
+            label={t3({
+              en: "Short label",
+              fr: "Libellé court",
+              pt: "Etiqueta curta",
+            })}
             value={state.shortLabel}
             onChange={(v) => {
               setState("shortLabel", v);
@@ -627,7 +732,11 @@ function EditorInner(p: {
             fullWidth
           />
           <Input
-            label={t3({ en: "Long label", fr: "Libellé long", pt: "Etiqueta longa" })}
+            label={t3({
+              en: "Long label",
+              fr: "Libellé long",
+              pt: "Etiqueta longa",
+            })}
             value={state.definition}
             onChange={(v) => {
               setState("definition", v);
@@ -641,7 +750,11 @@ function EditorInner(p: {
       <div class="flex min-h-0 flex-1">
         <div class="flex h-full w-48 flex-none flex-col overflow-auto border-r">
           <div class="ui-pad-sm ui-text-heading">
-            {t3({ en: "Time points", fr: "Points temporels", pt: "Pontos temporais" })}
+            {t3({
+              en: "Time points",
+              fr: "Points temporels",
+              pt: "Pontos temporais",
+            })}
           </div>
           <For each={p.dictionary.timePoints}>
             {(tp) => {
@@ -659,7 +772,11 @@ function EditorInner(p: {
                 >
                   <div>{tp.timePoint}</div>
                   <div class="text-base-content-muted text-xs">
-                    {hasCode() ? "" : t3({ en: "no code", fr: "aucun code", pt: "sem código" })}
+                    {hasCode() ? "" : t3({
+                      en: "no code",
+                      fr: "aucun code",
+                      pt: "sem código",
+                    })}
                   </div>
                 </button>
               );
@@ -685,9 +802,21 @@ function EditorInner(p: {
                 <div>
                   <TextArea
                     label={t3({
-                      en: `R code (${state.type === "binary" ? "should evaluate to TRUE/FALSE" : "should evaluate to numeric"})`,
-                      fr: `Code R (${state.type === "binary" ? "doit évaluer à TRUE/FALSE" : "doit évaluer à numérique"})`,
-                      pt: `Código R (${state.type === "binary" ? "deve avaliar para TRUE/FALSE" : "deve avaliar para numérico"})`,
+                      en: `R code (${
+                        state.type === "binary"
+                          ? "should evaluate to TRUE/FALSE"
+                          : "should evaluate to numeric"
+                      })`,
+                      fr: `Code R (${
+                        state.type === "binary"
+                          ? "doit évaluer à TRUE/FALSE"
+                          : "doit évaluer à numérique"
+                      })`,
+                      pt: `Código R (${
+                        state.type === "binary"
+                          ? "deve avaliar para TRUE/FALSE"
+                          : "deve avaliar para numérico"
+                      })`,
                     })}
                     value={state.code[currentTpIndex()].rCode}
                     onChange={(v) => {
@@ -699,24 +828,28 @@ function EditorInner(p: {
                     mono
                   />
                   <Show
-                    when={
-                      currentRCodeValidation().referencedIds.length > 0 ||
+                    when={currentRCodeValidation().referencedIds.length > 0 ||
                       currentRCodeValidation().warnings.length > 0 ||
                       currentRCodeValidation().unknownVariableErrors.length >
                         0 ||
-                      currentRCodeValidation().syntaxErrors.length > 0
-                    }
+                      currentRCodeValidation().syntaxErrors.length > 0}
                   >
                     <div class="mt-1">
                       <For each={currentRCodeValidation().syntaxErrors}>
                         {(e) => (
                           <div class="text-danger font-700 text-xs">
-                            {t3({ en: "Syntax: ", fr: "Syntaxe : ", pt: "Sintaxe: " })}
+                            {t3({
+                              en: "Syntax: ",
+                              fr: "Syntaxe : ",
+                              pt: "Sintaxe: ",
+                            })}
                             {e}
                           </div>
                         )}
                       </For>
-                      <For each={currentRCodeValidation().unknownVariableErrors}>
+                      <For
+                        each={currentRCodeValidation().unknownVariableErrors}
+                      >
                         {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
                       <For each={currentRCodeValidation().referencedIds}>
@@ -750,9 +883,11 @@ function EditorInner(p: {
                 <div>
                   <TextArea
                     label={t3({
-                      en: "Filter code (optional, should evaluate to TRUE/FALSE)",
+                      en:
+                        "Filter code (optional, should evaluate to TRUE/FALSE)",
                       fr: "Code filtre (optionnel, doit évaluer à TRUE/FALSE)",
-                      pt: "Código de filtro (opcional, deve avaliar para TRUE/FALSE)",
+                      pt:
+                        "Código de filtro (opcional, deve avaliar para TRUE/FALSE)",
                     })}
                     value={state.code[currentTpIndex()].rFilterCode}
                     onChange={(v) => {
@@ -764,38 +899,42 @@ function EditorInner(p: {
                     mono
                   />
                   <Show
-                    when={
-                      state.code[currentTpIndex()].rFilterCode.trim() &&
-                      !state.code[currentTpIndex()].rCode.trim()
-                    }
+                    when={state.code[currentTpIndex()].rFilterCode.trim() &&
+                      !state.code[currentTpIndex()].rCode.trim()}
                   >
                     <div class="text-danger font-700 mt-1 text-xs">
                       {t3({
                         en: "Filter code requires R code for this time point",
-                        fr: "Le code filtre nécessite un code R pour ce point temporel",
-                        pt: "O código de filtro requer código R para este ponto temporal",
+                        fr:
+                          "Le code filtre nécessite un code R pour ce point temporel",
+                        pt:
+                          "O código de filtro requer código R para este ponto temporal",
                       })}
                     </div>
                   </Show>
                   <Show
-                    when={
-                      currentFilterValidation().referencedIds.length > 0 ||
+                    when={currentFilterValidation().referencedIds.length > 0 ||
                       currentFilterValidation().warnings.length > 0 ||
                       currentFilterValidation().unknownVariableErrors.length >
                         0 ||
-                      currentFilterValidation().syntaxErrors.length > 0
-                    }
+                      currentFilterValidation().syntaxErrors.length > 0}
                   >
                     <div class="mt-1">
                       <For each={currentFilterValidation().syntaxErrors}>
                         {(e) => (
                           <div class="text-danger font-700 text-xs">
-                            {t3({ en: "Syntax: ", fr: "Syntaxe : ", pt: "Sintaxe: " })}
+                            {t3({
+                              en: "Syntax: ",
+                              fr: "Syntaxe : ",
+                              pt: "Sintaxe: ",
+                            })}
                             {e}
                           </div>
                         )}
                       </For>
-                      <For each={currentFilterValidation().unknownVariableErrors}>
+                      <For
+                        each={currentFilterValidation().unknownVariableErrors}
+                      >
                         {(e) => <div class="text-danger text-xs">{e}</div>}
                       </For>
                       <For each={currentFilterValidation().referencedIds}>
@@ -830,14 +969,18 @@ function EditorInner(p: {
                   <div class="ui-spy-sm border-t pt-3">
                     <div class="ui-text-heading">
                       {t3({
-                        en: "Variant items (per-item numerator, shares this time point's filter code)",
-                        fr: "Éléments de variante (numérateur par élément, partage le code filtre de ce point temporel)",
-                        pt: "Itens de variante (numerador por item, partilha o código de filtro deste ponto temporal)",
+                        en:
+                          "Variant items (per-item numerator, shares this time point's filter code)",
+                        fr:
+                          "Éléments de variante (numérateur par élément, partage le code filtre de ce point temporel)",
+                        pt:
+                          "Itens de variante (numerador por item, partilha o código de filtro deste ponto temporal)",
                       })}
                     </div>
                     <For each={currentGroupItems()}>
                       {(item) => {
-                        const key = () => variantKey(selectedTimePoint(), item.id);
+                        const key = () =>
+                          variantKey(selectedTimePoint(), item.id);
                         const validation = (): RCodeValidationResult =>
                           validateRCode(
                             state.variantCode[key()] ?? "",
@@ -858,26 +1001,32 @@ function EditorInner(p: {
                               mono
                             />
                             <Show
-                              when={
-                                validation().syntaxErrors.length > 0 ||
+                              when={validation().syntaxErrors.length > 0 ||
                                 validation().unknownVariableErrors.length > 0 ||
-                                validation().warnings.length > 0
-                              }
+                                validation().warnings.length > 0}
                             >
                               <div class="mt-1">
                                 <For each={validation().syntaxErrors}>
                                   {(e) => (
                                     <div class="text-danger font-700 text-xs">
-                                      {t3({ en: "Syntax: ", fr: "Syntaxe : ", pt: "Sintaxe: " })}
+                                      {t3({
+                                        en: "Syntax: ",
+                                        fr: "Syntaxe : ",
+                                        pt: "Sintaxe: ",
+                                      })}
                                       {e}
                                     </div>
                                   )}
                                 </For>
                                 <For each={validation().unknownVariableErrors}>
-                                  {(e) => <div class="text-danger text-xs">{e}</div>}
+                                  {(e) => (
+                                    <div class="text-danger text-xs">{e}</div>
+                                  )}
                                 </For>
                                 <For each={validation().warnings}>
-                                  {(w) => <div class="text-warning text-xs">{w}</div>}
+                                  {(w) => (
+                                    <div class="text-warning text-xs">{w}</div>
+                                  )}
                                 </For>
                               </div>
                             </Show>
@@ -949,7 +1098,9 @@ function EditorInner(p: {
                     {(dict) => (
                       <For
                         each={dict().variables.filter(
-                          (v) => searchMatches(v.variableId) || searchMatches(v.variableLabel),
+                          (v) =>
+                            searchMatches(v.variableId) ||
+                            searchMatches(v.variableLabel),
                         )}
                       >
                         {(v) => {
@@ -995,7 +1146,7 @@ function EditorInner(p: {
                     </div>
                     <For
                       each={otherIndicators.filter((i) =>
-                        searchMatches(composeHfaIndicatorLabel(i, "full")),
+                        searchMatches(composeHfaIndicatorLabel(i, "full"))
                       )}
                     >
                       {(i) => (

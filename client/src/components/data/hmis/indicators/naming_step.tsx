@@ -8,10 +8,10 @@
 // server applies the same rules again.
 import {
   definitionDataId,
-  type HmisIndicator,
   describeNewIndicatorIdIssue,
   generateIndicatorId,
   getNewIndicatorIdIssue,
+  type HmisIndicator,
   type IndicatorFormat,
   type IndicatorNamingInput,
   parseIndicatorExpression,
@@ -83,7 +83,9 @@ export function createNamingState(args: {
   indicators: HmisIndicator[];
 }): NamingState {
   const owners = ownersOfDataIds(args.indicators);
-  const existingIds = new Set(args.indicators.map((i) => i.indicator_common_id));
+  const existingIds = new Set(
+    args.indicators.map((i) => i.indicator_common_id),
+  );
   const elements = args.elements.map<NamingValueRow>((candidate) => {
     const importedAs = owners.get(candidate.data_id);
     if (importedAs !== undefined) {
@@ -100,7 +102,11 @@ export function createNamingState(args: {
       existingIds,
     });
     existingIds.add(indicatorId);
-    return { ...candidate, indicator_id: indicatorId, label: candidate.data_label };
+    return {
+      ...candidate,
+      indicator_id: indicatorId,
+      label: candidate.data_label,
+    };
   });
   const calculated = args.calculated.map<NamingCalculatedRow>((candidate) => {
     const indicatorId = generateIndicatorId({
@@ -120,19 +126,26 @@ function idIssueText(id: string): string | undefined {
 }
 
 function labelRequired(key: string): string {
-  return `${key}: ${t3({
-    en: "a label is required",
-    fr: "une étiquette est requise",
-    pt: "é necessária uma etiqueta",
-  })}`;
+  return `${key}: ${
+    t3({
+      en: "a label is required",
+      fr: "une étiquette est requise",
+      pt: "é necessária uma etiqueta",
+    })
+  }`;
 }
 
 function chosenTwice(key: string, id: string): string {
-  return `${key}: ${t3({
-    en: `"${id}" is chosen more than once; one indicator carries one DHIS2 id`,
-    fr: `« ${id} » est choisi plus d'une fois ; un indicateur ne porte qu'un identifiant DHIS2`,
-    pt: `"${id}" é escolhido mais de uma vez; um indicador tem um único ID DHIS2`,
-  })}`;
+  return `${key}: ${
+    t3({
+      en:
+        `"${id}" is chosen more than once; one indicator carries one DHIS2 id`,
+      fr:
+        `« ${id} » est choisi plus d'une fois ; un indicateur ne porte qu'un identifiant DHIS2`,
+      pt:
+        `"${id}" é escolhido mais de uma vez; um indicador tem um único ID DHIS2`,
+    })
+  }`;
 }
 
 // Everything that would make the server refuse the save, stated where the
@@ -156,11 +169,13 @@ export function namingIssues(
       issues.push(`${row.data_id}: ${issue}`);
     } else if (existingIds.has(id)) {
       issues.push(
-        `${row.data_id}: ${t3({
-          en: `"${id}" already exists; choose another id`,
-          fr: `« ${id} » existe déjà ; choisissez un autre identifiant`,
-          pt: `"${id}" já existe; escolha outro ID`,
-        })}`,
+        `${row.data_id}: ${
+          t3({
+            en: `"${id}" already exists; choose another id`,
+            fr: `« ${id} » existe déjà ; choisissez un autre identifiant`,
+            pt: `"${id}" já existe; escolha outro ID`,
+          })
+        }`,
       );
     }
     if (row.label.trim() === "") {
@@ -174,11 +189,13 @@ export function namingIssues(
       issues.push(`${row.key}: ${describeNewIndicatorIdIssue(issue)}`);
     } else if (existingIds.has(id) || chosen.has(id)) {
       issues.push(
-        `${row.key}: ${t3({
-          en: `"${id}" is already used`,
-          fr: `« ${id} » est déjà utilisé`,
-          pt: `"${id}" já está a ser utilizado`,
-        })}`,
+        `${row.key}: ${
+          t3({
+            en: `"${id}" is already used`,
+            fr: `« ${id} » est déjà utilisé`,
+            pt: `"${id}" já está a ser utilizado`,
+          })
+        }`,
       );
     }
     chosen.add(id);
@@ -212,7 +229,10 @@ export function namingInputFromState(state: NamingState): IndicatorNamingInput {
 
 // The formula as the transaction will store it, over the ids the elements
 // are taking; the raw formula while an id is still blank or unparseable.
-function previewExpression(row: NamingCalculatedRow, state: NamingState): string {
+function previewExpression(
+  row: NamingCalculatedRow,
+  state: NamingState,
+): string {
   const landing: Record<string, string> = {};
   for (const element of state.elements) {
     const id = element.indicator_id.trim();
@@ -239,13 +259,20 @@ export function NamingStep(p: {
       <Show when={p.state.elements.length > 0}>
         <div class="ui-spy-sm">
           <div class="ui-text-heading">
-            {t3({ en: "Data elements", fr: "Éléments de données", pt: "Elementos de dados" })}
+            {t3({
+              en: "Data elements",
+              fr: "Éléments de données",
+              pt: "Elementos de dados",
+            })}
           </div>
           <div class="ui-text-caption">
             {t3({
-              en: "Each element becomes a new DHIS2 element indicator under the id shown (edit it here; the indicator can be renamed later).",
-              fr: "Chaque élément devient un nouvel indicateur élément DHIS2 sous l'identifiant affiché (modifiez-le ici ; l'indicateur pourra être renommé ensuite).",
-              pt: "Cada elemento torna-se um novo indicador elemento DHIS2 com o ID mostrado (edite-o aqui; o indicador pode ser renomeado depois).",
+              en:
+                "Each element becomes a new DHIS2 element indicator under the id shown (edit it here; the indicator can be renamed later).",
+              fr:
+                "Chaque élément devient un nouvel indicateur élément DHIS2 sous l'identifiant affiché (modifiez-le ici ; l'indicateur pourra être renommé ensuite).",
+              pt:
+                "Cada elemento torna-se um novo indicador elemento DHIS2 com o ID mostrado (edite-o aqui; o indicador pode ser renomeado depois).",
             })}
           </div>
           <ElementRows state={p.state} setState={p.setState} />
@@ -263,9 +290,12 @@ export function NamingStep(p: {
           </div>
           <div class="ui-text-caption">
             {t3({
-              en: "Each DHIS2 indicator becomes a calculated indicator whose formula is over the indicators its operands become.",
-              fr: "Chaque indicateur DHIS2 devient un indicateur calculé dont la formule porte sur les indicateurs que ses opérandes deviennent.",
-              pt: "Cada indicador DHIS2 torna-se um indicador calculado cuja fórmula é sobre os indicadores em que os seus operandos se tornam.",
+              en:
+                "Each DHIS2 indicator becomes a calculated indicator whose formula is over the indicators its operands become.",
+              fr:
+                "Chaque indicateur DHIS2 devient un indicateur calculé dont la formule porte sur les indicateurs que ses opérandes deviennent.",
+              pt:
+                "Cada indicador DHIS2 torna-se um indicador calculado cuja fórmula é sobre os indicadores em que os seus operandos se tornam.",
             })}
           </div>
           <For each={p.state.calculated}>
@@ -283,14 +313,16 @@ export function NamingStep(p: {
                       pt: "ID do indicador",
                     })}
                     value={row.indicator_id}
-                    onChange={(v) => p.setState("calculated", index(), "indicator_id", v)}
+                    onChange={(v) =>
+                      p.setState("calculated", index(), "indicator_id", v)}
                     mono
                     fullWidth
                   />
                   <Input
                     label={t3(TC.label)}
                     value={row.label}
-                    onChange={(v) => p.setState("calculated", index(), "label", v)}
+                    onChange={(v) =>
+                      p.setState("calculated", index(), "label", v)}
                     fullWidth
                   />
                 </div>
@@ -298,7 +330,9 @@ export function NamingStep(p: {
                   <span class="text-base-content-muted">
                     {t3({ en: "Formula:", fr: "Formule :", pt: "Fórmula:" })}
                   </span>{" "}
-                  <span class="font-mono">{previewExpression(row, p.state)}</span>
+                  <span class="font-mono">
+                    {previewExpression(row, p.state)}
+                  </span>
                   <span class="text-base-content-muted ml-3">
                     {indicatorFormatWord(row.format_as)}
                   </span>
@@ -345,8 +379,7 @@ function ElementRows(p: {
                   en: "Already added as",
                   fr: "Déjà ajouté sous",
                   pt: "Já adicionado como",
-                })}{" "}
-                <span class="font-mono">{row.importedAs}</span>
+                })} <span class="font-mono">{row.importedAs}</span>
               </div>
             }
           >
@@ -358,7 +391,8 @@ function ElementRows(p: {
                   pt: "ID do indicador",
                 })}
                 value={row.indicator_id}
-                onChange={(v) => p.setState("elements", index(), "indicator_id", v)}
+                onChange={(v) =>
+                  p.setState("elements", index(), "indicator_id", v)}
                 mono
                 fullWidth
               />

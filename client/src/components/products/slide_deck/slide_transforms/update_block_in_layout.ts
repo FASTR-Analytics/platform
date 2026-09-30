@@ -21,7 +21,7 @@ export function updateBlockInLayout(
   return {
     ...layout,
     children: layout.children.map((child) =>
-      updateBlockInLayout(child as LayoutNode<ContentBlock>, targetId, updater),
+      updateBlockInLayout(child as LayoutNode<ContentBlock>, targetId, updater)
     ),
   };
 }

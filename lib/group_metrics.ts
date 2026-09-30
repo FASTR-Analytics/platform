@@ -70,7 +70,7 @@ type GroupMetricsOptions = {
 
 export function groupMetricsByLabel(
   metrics: MetricWithStatus[],
-  options?: GroupMetricsOptions
+  options?: GroupMetricsOptions,
 ): MetricGroup[] {
   const filtered = options?.onlyReady
     ? metrics.filter((m) => m.status === "ready")
@@ -94,7 +94,7 @@ export function groupMetricsByLabel(
 }
 
 export function createMetricLookup(
-  metrics: MetricWithStatus[]
+  metrics: MetricWithStatus[],
 ): Map<string, MetricWithStatus> {
   return new Map(metrics.map((m) => [m.id, m]));
 }
@@ -108,7 +108,7 @@ export function getMetricDisplayLabel(metric: MetricWithStatus): string {
 export function groupMetricsByModule(
   metrics: MetricWithStatus[],
   modules: InstalledModuleSummary[],
-  options?: GroupMetricsOptions
+  options?: GroupMetricsOptions,
 ): MetricsByModule[] {
   const filtered = options?.onlyReady
     ? metrics.filter((m) => m.status === "ready")

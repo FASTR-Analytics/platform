@@ -1,8 +1,8 @@
 import {
   AlertComponentProps,
   Callout,
-  ModalContainer,
   createButtonAction,
+  ModalContainer,
 } from "panther";
 import { createSignal, Show } from "solid-js";
 import { type Dhis2LabelRefresh, t3 } from "lib";
@@ -31,7 +31,9 @@ export function RefreshDhis2LabelsModal(p: Props) {
         pt: "Atualizar nomes DHIS2",
       })}
       {...(result()
-        ? { onClose: { kind: "done" as const, onClick: () => p.close(undefined) } }
+        ? {
+          onClose: { kind: "done" as const, onClick: () => p.close(undefined) },
+        }
         : {
           onCancel: () => p.close(undefined),
           actions: [{
@@ -43,7 +45,10 @@ export function RefreshDhis2LabelsModal(p: Props) {
         })}
     >
       <div class="ui-spy text-sm">
-        <Show when={result()} fallback={<Explanation elementCount={p.elementCount} />}>
+        <Show
+          when={result()}
+          fallback={<Explanation elementCount={p.elementCount} />}
+        >
           {(r) => <Result result={r()} />}
         </Show>
       </div>
@@ -56,16 +61,22 @@ function Explanation(p: { elementCount: number }) {
     <>
       <div>
         {t3({
-          en: "Reads the current name of every DHIS2 element indicator from DHIS2, by its DHIS2 id, and stores it as the indicator's DHIS2 name.",
-          fr: "Lit le nom actuel de chaque indicateur élément DHIS2 depuis DHIS2, par son identifiant DHIS2, et l'enregistre comme nom DHIS2 de l'indicateur.",
-          pt: "Lê o nome atual de cada indicador elemento DHIS2 a partir do DHIS2, pelo seu ID DHIS2, e guarda-o como nome DHIS2 do indicador.",
+          en:
+            "Reads the current name of every DHIS2 element indicator from DHIS2, by its DHIS2 id, and stores it as the indicator's DHIS2 name.",
+          fr:
+            "Lit le nom actuel de chaque indicateur élément DHIS2 depuis DHIS2, par son identifiant DHIS2, et l'enregistre comme nom DHIS2 de l'indicateur.",
+          pt:
+            "Lê o nome atual de cada indicador elemento DHIS2 a partir do DHIS2, pelo seu ID DHIS2, e guarda-o como nome DHIS2 do indicador.",
         })}
       </div>
       <div>
         {t3({
-          en: "Labels, ids and data are not changed. An element DHIS2 no longer has keeps its stored name.",
-          fr: "Les libellés, les identifiants et les données ne changent pas. Un élément que DHIS2 n'a plus conserve son nom enregistré.",
-          pt: "Os rótulos, os IDs e os dados não mudam. Um elemento que o DHIS2 já não tem mantém o nome guardado.",
+          en:
+            "Labels, ids and data are not changed. An element DHIS2 no longer has keeps its stored name.",
+          fr:
+            "Les libellés, les identifiants et les données ne changent pas. Un élément que DHIS2 n'a plus conserve son nom enregistré.",
+          pt:
+            "Os rótulos, os IDs e os dados não mudam. Um elemento que o DHIS2 já não tem mantém o nome guardado.",
         })}
       </div>
       <div class="font-700">
@@ -84,9 +95,12 @@ function Result(p: { result: Dhis2LabelRefresh }) {
     <>
       <Callout intent="success" pad="sm">
         {t3({
-          en: `${p.result.refreshed} DHIS2 name(s) updated, ${p.result.unchanged} already current.`,
-          fr: `${p.result.refreshed} nom(s) DHIS2 mis à jour, ${p.result.unchanged} déjà à jour.`,
-          pt: `${p.result.refreshed} nome(s) DHIS2 atualizado(s), ${p.result.unchanged} já atual(is).`,
+          en:
+            `${p.result.refreshed} DHIS2 name(s) updated, ${p.result.unchanged} already current.`,
+          fr:
+            `${p.result.refreshed} nom(s) DHIS2 mis à jour, ${p.result.unchanged} déjà à jour.`,
+          pt:
+            `${p.result.refreshed} nome(s) DHIS2 atualizado(s), ${p.result.unchanged} já atual(is).`,
         })}
       </Callout>
       <Show when={p.result.notFound.length > 0}>
@@ -95,8 +109,7 @@ function Result(p: { result: Dhis2LabelRefresh }) {
             en: "Not found in DHIS2, left as they are:",
             fr: "Introuvables dans DHIS2, laissés tels quels :",
             pt: "Não encontrados no DHIS2, mantidos como estão:",
-          })}{" "}
-          <span class="font-mono">{p.result.notFound.join(", ")}</span>
+          })} <span class="font-mono">{p.result.notFound.join(", ")}</span>
         </Callout>
       </Show>
     </>

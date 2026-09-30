@@ -17,8 +17,4 @@ export {
   indicatorFormatsFrom,
   indicatorRulesFrom,
 } from "./results_value_info_core.ts";
-export type {
-  QueryContext,
-  RunVersionInfo,
-  SqlRowsExecutor,
-} from "./types.ts";
+export type { QueryContext, RunVersionInfo, SqlRowsExecutor } from "./types.ts";

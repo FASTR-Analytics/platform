@@ -1,4 +1,4 @@
-import { t3, type Dhis2Credentials } from "lib";
+import { type Dhis2Credentials, t3 } from "lib";
 import { Button, Input } from "panther";
 import type { Accessor, Setter } from "solid-js";
 import { createSignal } from "solid-js";
@@ -34,7 +34,11 @@ export function Dhis2CredentialsEditor(p: Props) {
         disabled={p.disabled}
       />
       <Input
-        label={t3({ en: "DHIS2 Username", fr: "Nom d'utilisateur DHIS2", pt: "Nome de utilizador DHIS2" })}
+        label={t3({
+          en: "DHIS2 Username",
+          fr: "Nom d'utilisateur DHIS2",
+          pt: "Nome de utilizador DHIS2",
+        })}
         type={showCredentials() ? "text" : "password"}
         value={p.credentials().username}
         onChange={(v) => handleCredentialChange("username", v)}
@@ -43,7 +47,11 @@ export function Dhis2CredentialsEditor(p: Props) {
         disabled={p.disabled}
       />
       <Input
-        label={t3({ en: "DHIS2 Password", fr: "Mot de passe DHIS2", pt: "Palavra-passe DHIS2" })}
+        label={t3({
+          en: "DHIS2 Password",
+          fr: "Mot de passe DHIS2",
+          pt: "Palavra-passe DHIS2",
+        })}
         type={showCredentials() ? "text" : "password"}
         value={p.credentials().password}
         onChange={(v) => handleCredentialChange("password", v)}
@@ -59,8 +67,16 @@ export function Dhis2CredentialsEditor(p: Props) {
         size="sm"
       >
         {showCredentials()
-          ? t3({ en: "Hide credentials", fr: "Masquer les identifiants", pt: "Ocultar credenciais" })
-          : t3({ en: "Show credentials", fr: "Afficher les identifiants", pt: "Mostrar credenciais" })}
+          ? t3({
+            en: "Hide credentials",
+            fr: "Masquer les identifiants",
+            pt: "Ocultar credenciais",
+          })
+          : t3({
+            en: "Show credentials",
+            fr: "Afficher les identifiants",
+            pt: "Mostrar credenciais",
+          })}
       </Button>
     </div>
   );

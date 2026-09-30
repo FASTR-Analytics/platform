@@ -78,7 +78,9 @@ type StepDiff = {
 
 type Attribution = { who?: string; whoExact: boolean; whoEmail?: string };
 
-type InsertInterval = { from: number; to: number; stepIdx: number } & Attribution;
+type InsertInterval =
+  & { from: number; to: number; stepIdx: number }
+  & Attribution;
 
 function fallbackAttribution(step: VersionStep): Attribution {
   return {
@@ -276,7 +278,12 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
   // Complete ledgers make this insert-only; its deletions are ledger gaps.
   type GhostMapping = {
     info: GhostInfo;
-    hunks: readonly { fromA: number; toA: number; fromB: number; toB: number }[];
+    hunks: readonly {
+      fromA: number;
+      toA: number;
+      fromB: number;
+      toB: number;
+    }[];
   };
   const ghostMappings: (GhostMapping | null | undefined)[] = steps.map(
     () => undefined,
@@ -356,7 +363,13 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     for (const h of m.hunks) {
       if (pos < h.fromA && pos < b) {
         const end = Math.min(h.fromA, b);
-        emitGhostRuns(m.info, pos + (pb - pa), end + (pb - pa), pos - a, pieces);
+        emitGhostRuns(
+          m.info,
+          pos + (pb - pa),
+          end + (pb - pa),
+          pos - a,
+          pieces,
+        );
         pos = end;
       }
       if (pos >= b) {
@@ -596,7 +609,10 @@ export function computeAttributedDiff(steps: VersionStep[]): DiffSegment[] {
     if (h.fromA < h.toA) {
       for (const piece of removedAttribution(h.fromA, h.toA)) {
         segments.push({
-          text: base.slice(h.fromA + piece.off, h.fromA + piece.off + piece.len),
+          text: base.slice(
+            h.fromA + piece.off,
+            h.fromA + piece.off + piece.len,
+          ),
           kind: "removed",
           who: piece.who,
           whoExact: piece.whoExact,

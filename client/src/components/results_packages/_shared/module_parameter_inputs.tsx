@@ -1,4 +1,4 @@
-import { t3, type ModuleParameter } from "lib";
+import { type ModuleParameter, t3 } from "lib";
 import { Checkbox, Input, Select } from "panther";
 import { For, Match, Switch } from "solid-js";
 
@@ -56,10 +56,8 @@ export function ModuleParameterInputs(p: Props) {
                 })}
               >
                 <Match
-                  when={
-                    inputParameter.input.inputType === "number" ||
-                    inputParameter.input.inputType === "text"
-                  }
+                  when={inputParameter.input.inputType === "number" ||
+                    inputParameter.input.inputType === "text"}
                 >
                   <Input
                     label={inputParameter.description}
@@ -70,10 +68,8 @@ export function ModuleParameterInputs(p: Props) {
                   />
                 </Match>
                 <Match
-                  when={
-                    inputParameter.input.inputType === "select" &&
-                    inputParameter.input.options
-                  }
+                  when={inputParameter.input.inputType === "select" &&
+                    inputParameter.input.options}
                   keyed
                 >
                   {(keyedOptions) => (

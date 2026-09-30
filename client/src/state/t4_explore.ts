@@ -1,4 +1,4 @@
-import { MODULE_FAMILY_ORDER, type DatasetType, type GridQuery } from "lib";
+import { type DatasetType, type GridQuery, MODULE_FAMILY_ORDER } from "lib";
 import { createSignal } from "solid-js";
 
 // The Explore page's selections, module level so they outlive the page's

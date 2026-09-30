@@ -1,8 +1,8 @@
 import { Sql } from "postgres";
 import {
-  StructureIntegrateStrategy,
   _OPTIONAL_FACILITY_COLUMNS,
   type FacilityFamily,
+  StructureIntegrateStrategy,
   type StructureRecodes,
 } from "lib";
 import { escapeSqlString } from "../db/utils.ts";
@@ -36,10 +36,11 @@ export async function integrateStructureFromStaging(
   stagingTableName: string,
   strategy: StructureIntegrateStrategy,
   family: FacilityFamily,
-  recodes: StructureRecodes
+  recodes: StructureRecodes,
 ): Promise<IntegrateStructureResult> {
-  const facilitiesTable =
-    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
+  const facilitiesTable = family === "hmis"
+    ? "facilities_hmis"
+    : "facilities_hfa";
   try {
     // Source of truth for column scope: the columns the file actually staged.
     const stagedColumns = await getStagedColumns(mainDb, stagingTableName);
@@ -48,7 +49,7 @@ export async function integrateStructureFromStaging(
       stagedColumns.includes(col)
     );
     const unstagedOptionalColumns = _OPTIONAL_FACILITY_COLUMNS.filter(
-      (col) => !stagedColumns.includes(col)
+      (col) => !stagedColumns.includes(col),
     );
 
     // Should be unreachable: recodes are cleared on every reconfiguration and
@@ -56,17 +57,19 @@ export async function integrateStructureFromStaging(
     const recodeJoins = buildRecodeJoins(recodes);
     for (const rc of recodeJoins) {
       if (!stagedColumns.includes(rc.col)) {
-        throw new Error("Recoded column not staged — re-stage and review again");
+        throw new Error(
+          "Recoded column not staged — re-stage and review again",
+        );
       }
     }
 
     // Insert-capable intents need admin areas to place new facilities (the
     // facilities table requires them NOT NULL). The UI blocks this; guard anyway.
-    const isInsertIntent =
-      strategy.type === "replace_all" || strategy.type === "add_and_update";
+    const isInsertIntent = strategy.type === "replace_all" ||
+      strategy.type === "add_and_update";
     if (isInsertIntent && !stagedAdminAreas) {
       throw new Error(
-        'Admin areas must be mapped to add facilities. Map the admin area columns, or choose "Update existing facilities only".'
+        'Admin areas must be mapped to add facilities. Map the admin area columns, or choose "Update existing facilities only".',
       );
     }
 
@@ -77,7 +80,7 @@ export async function integrateStructureFromStaging(
         mainDb,
         stagingTableName,
         facilitiesTable,
-        family
+        family,
       );
     }
 
@@ -101,7 +104,7 @@ export async function integrateStructureFromStaging(
           await assertAbsentFacilitiesUnreferenced(
             sql,
             stagingTableName,
-            family
+            family,
           );
           await insertAdminAreasFromStaging(sql, stagingTableName, family);
           const result = await upsertFacilities(
@@ -110,14 +113,14 @@ export async function integrateStructureFromStaging(
             stagingTableName,
             writeColumns,
             recodeJoins,
-            unstagedOptionalColumns
+            unstagedOptionalColumns,
           );
           inserted = result.inserted;
           updated = result.updated;
           deleted = await deleteFacilitiesAbsentFromStaging(
             sql,
             facilitiesTable,
-            stagingTableName
+            stagingTableName,
           );
           await cleanupUnusedAdminAreas(sql, family);
           break;
@@ -131,7 +134,7 @@ export async function integrateStructureFromStaging(
             stagingTableName,
             writeColumns,
             recodeJoins,
-            []
+            [],
           );
           inserted = result.inserted;
           updated = result.updated;
@@ -152,7 +155,7 @@ export async function integrateStructureFromStaging(
               facilitiesTable,
               stagingTableName,
               writeColumns,
-              recodeJoins
+              recodeJoins,
             );
           }
           if (stagedAdminAreas) {
@@ -168,14 +171,16 @@ export async function integrateStructureFromStaging(
       // leave an integrated structure unstamped.
       await sql`
         INSERT INTO instance_config (config_key, config_json_value)
-        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        VALUES ('structure_last_updated', ${
+        JSON.stringify(new Date().toISOString())
+      })
         ON CONFLICT (config_key)
         DO UPDATE SET config_json_value = EXCLUDED.config_json_value
       `;
     });
 
     console.log(
-      `Structure integration complete: ${inserted} inserted, ${updated} updated, ${deleted} deleted`
+      `Structure integration complete: ${inserted} inserted, ${updated} updated, ${deleted} deleted`,
     );
 
     return { success: true, inserted, updated, deleted };
@@ -186,10 +191,9 @@ export async function integrateStructureFromStaging(
       inserted: 0,
       updated: 0,
       deleted: 0,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unknown error during integration",
+      error: error instanceof Error
+        ? error.message
+        : "Unknown error during integration",
     };
   }
 }
@@ -206,7 +210,7 @@ export async function integrateStructureFromStaging(
  */
 export async function getStagedColumns(
   sql: Sql,
-  stagingTableName: string
+  stagingTableName: string,
 ): Promise<string[]> {
   const rows = await sql<{ column_name: string }[]>`
     SELECT column_name FROM information_schema.columns
@@ -226,7 +230,7 @@ async function assertAllStagedFacilitiesExist(
   sql: Sql,
   stagingTableName: string,
   facilitiesTable: string,
-  family: FacilityFamily
+  family: FacilityFamily,
 ): Promise<void> {
   const unmatched = await sql.unsafe(`
     SELECT s.facility_id, COUNT(*) OVER () AS total_unmatched
@@ -241,11 +245,12 @@ async function assertAllStagedFacilitiesExist(
   }
   const totalUnmatched = Number(unmatched[0].total_unmatched);
   const sample = unmatched.map((r) => r.facility_id).join(", ");
-  const more =
-    totalUnmatched > unmatched.length ? `, … (${totalUnmatched} total)` : "";
+  const more = totalUnmatched > unmatched.length
+    ? `, … (${totalUnmatched} total)`
+    : "";
   const familyLabel = family === "hmis" ? "HMIS" : "HFA";
   throw new Error(
-    `${totalUnmatched} facility ID(s) in your file do not match any existing ${familyLabel} facility in the backbone, so their data would not be imported. Examples: ${sample}${more}. Check that the facility ID column is mapped to the column that holds the backbone's facility IDs, and that you are importing into the correct dataset (HMIS vs HFA).`
+    `${totalUnmatched} facility ID(s) in your file do not match any existing ${familyLabel} facility in the backbone, so their data would not be imported. Examples: ${sample}${more}. Check that the facility ID column is mapped to the column that holds the backbone's facility IDs, and that you are importing into the correct dataset (HMIS vs HFA).`,
   );
 }
 
@@ -259,14 +264,14 @@ async function assertAllStagedFacilitiesExist(
  */
 export function absentFacilitiesSql(
   stagingTableName: string,
-  family: FacilityFamily
+  family: FacilityFamily,
 ): string {
-  const facilitiesTable =
-    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
-  const blocked =
-    family === "hmis"
-      ? "EXISTS (SELECT 1 FROM dataset_hmis d WHERE d.facility_id = f.facility_id)"
-      : "EXISTS (SELECT 1 FROM hfa_data d WHERE d.facility_id = f.facility_id) OR EXISTS (SELECT 1 FROM hfa_facility_weights w WHERE w.facility_id = f.facility_id)";
+  const facilitiesTable = family === "hmis"
+    ? "facilities_hmis"
+    : "facilities_hfa";
+  const blocked = family === "hmis"
+    ? "EXISTS (SELECT 1 FROM dataset_hmis d WHERE d.facility_id = f.facility_id)"
+    : "EXISTS (SELECT 1 FROM hfa_data d WHERE d.facility_id = f.facility_id) OR EXISTS (SELECT 1 FROM hfa_facility_weights w WHERE w.facility_id = f.facility_id)";
   return `
     SELECT f.facility_id, (${blocked}) AS blocked
     FROM ${facilitiesTable} f
@@ -285,10 +290,11 @@ export function absentFacilitiesSql(
 async function assertAbsentFacilitiesUnreferenced(
   sql: Sql,
   stagingTableName: string,
-  family: FacilityFamily
+  family: FacilityFamily,
 ): Promise<void> {
-  const facilitiesTable =
-    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
+  const facilitiesTable = family === "hmis"
+    ? "facilities_hmis"
+    : "facilities_hfa";
   // FOR UPDATE conflicts with the KEY SHARE lock every FK insert takes on the
   // referenced row, so a concurrent dataset or weights write on an absent
   // facility waits for this transaction and then fails its FK, instead of
@@ -314,15 +320,15 @@ async function assertAbsentFacilitiesUnreferenced(
   }
   const totalBlocked = Number(blocked[0].total_blocked);
   const sample = blocked.map((r) => r.facility_id).join(", ");
-  const more =
-    totalBlocked > blocked.length ? `, … (${totalBlocked} total)` : "";
+  const more = totalBlocked > blocked.length
+    ? `, … (${totalBlocked} total)`
+    : "";
   const familyLabel = family === "hmis" ? "HMIS" : "HFA";
-  const references =
-    family === "hmis"
-      ? "HMIS dataset records"
-      : "HFA dataset records or sampling weights";
+  const references = family === "hmis"
+    ? "HMIS dataset records"
+    : "HFA dataset records or sampling weights";
   throw new Error(
-    `${totalBlocked} ${familyLabel} facility(ies) not in your file still have ${references}, so they cannot be deleted. Examples: ${sample}${more}. Keep them in your file, or delete their data first, then replace the facilities.`
+    `${totalBlocked} ${familyLabel} facility(ies) not in your file still have ${references}, so they cannot be deleted. Examples: ${sample}${more}. Keep them in your file, or delete their data first, then replace the facilities.`,
   );
 }
 
@@ -347,7 +353,8 @@ export function buildDedupOrderClause(writeColumns: string[]): string {
   }
   const completeness = writeColumns
     .map(
-      (col) => `(CASE WHEN ${col} IS NOT NULL AND ${col} <> '' THEN 1 ELSE 0 END)`
+      (col) =>
+        `(CASE WHEN ${col} IS NOT NULL AND ${col} <> '' THEN 1 ELSE 0 END)`,
     )
     .join(" + ");
   return `(${completeness}) DESC, rowid`;
@@ -377,7 +384,7 @@ function buildRecodeJoins(recodes: StructureRecodes): RecodeJoin[] {
       valuesSql: Object.entries(map as Record<string, string>)
         .map(
           ([fid, val]) =>
-            `('${escapeSqlString(fid)}','${escapeSqlString(val)}')`
+            `('${escapeSqlString(fid)}','${escapeSqlString(val)}')`,
         )
         .join(","),
     }));
@@ -394,12 +401,12 @@ function recodedSelectList(cols: string[], recodeJoins: RecodeJoin[]): string {
 
 function recodeJoinClauses(
   stagingTableName: string,
-  recodeJoins: RecodeJoin[]
+  recodeJoins: RecodeJoin[],
 ): string {
   return recodeJoins
     .map(
       (r) =>
-        `LEFT JOIN (VALUES ${r.valuesSql}) AS ${r.alias}(fid, val) ON ${r.alias}.fid = ${stagingTableName}.facility_id`
+        `LEFT JOIN (VALUES ${r.valuesSql}) AS ${r.alias}(fid, val) ON ${r.alias}.fid = ${stagingTableName}.facility_id`,
     )
     .join("\n      ");
 }
@@ -418,7 +425,7 @@ async function upsertFacilities(
   stagingTableName: string,
   writeColumns: string[],
   recodeJoins: RecodeJoin[],
-  blankColumns: string[]
+  blankColumns: string[],
 ): Promise<{ inserted: number; updated: number }> {
   const cols = ["facility_id", ...writeColumns];
   const beforeRows = await sql.unsafe(`
@@ -460,7 +467,7 @@ async function updateExistingFacilities(
   facilitiesTable: string,
   stagingTableName: string,
   writeColumns: string[],
-  recodeJoins: RecodeJoin[]
+  recodeJoins: RecodeJoin[],
 ): Promise<number> {
   const setClause = writeColumns
     .map((col) => `${col} = s.${col}`)
@@ -469,7 +476,9 @@ async function updateExistingFacilities(
     UPDATE ${facilitiesTable}
     SET ${setClause}
     FROM (
-      SELECT ${recodedSelectList(["facility_id", ...writeColumns], recodeJoins)},
+      SELECT ${
+    recodedSelectList(["facility_id", ...writeColumns], recodeJoins)
+  },
              ROW_NUMBER() OVER (
                PARTITION BY facility_id
                ORDER BY ${buildDedupOrderClause(writeColumns)}
@@ -492,7 +501,7 @@ async function updateExistingFacilities(
 async function deleteFacilitiesAbsentFromStaging(
   sql: Sql,
   facilitiesTable: string,
-  stagingTableName: string
+  stagingTableName: string,
 ): Promise<number> {
   const result = await sql.unsafe(`
     DELETE FROM ${facilitiesTable} f
@@ -509,7 +518,7 @@ async function deleteFacilitiesAbsentFromStaging(
 async function insertAdminAreasFromStaging(
   sql: Sql,
   stagingTableName: string,
-  family: FacilityFamily
+  family: FacilityFamily,
 ): Promise<AdminAreaCounts> {
   console.log(`Processing ${family} admin areas from staging...`);
 
@@ -568,12 +577,13 @@ async function insertAdminAreasFromStaging(
  */
 export async function cleanupUnusedAdminAreas(
   sql: Sql,
-  family: FacilityFamily
+  family: FacilityFamily,
 ): Promise<void> {
   console.log(`Cleaning up unused ${family} admin areas...`);
 
-  const facilitiesTable =
-    family === "hmis" ? "facilities_hmis" : "facilities_hfa";
+  const facilitiesTable = family === "hmis"
+    ? "facilities_hmis"
+    : "facilities_hfa";
 
   // Delete unused admin areas in reverse order (4 -> 3 -> 2 -> 1).
   // An admin area is "used" if the family's facilities table references it:
@@ -616,6 +626,6 @@ export async function cleanupUnusedAdminAreas(
   console.log(
     `Cleaned up ${
       deleted4.count + deleted3.count + deleted2.count + deleted1.count
-    } unused admin area records`
+    } unused admin area records`,
   );
 }

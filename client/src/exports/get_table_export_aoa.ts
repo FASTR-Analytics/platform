@@ -34,7 +34,7 @@ export function getTableExportAoa(inputs: TableInputs): string[][] {
   // the group header, so dropping it here would export a different number than
   // the screen shows.
   const cols = colGroups.flatMap((g) =>
-    g.cols.map((c) => ({ col: c, group: g })),
+    g.cols.map((c) => ({ col: c, group: g }))
   );
   const nCols = cols.length;
   // Data rows only (group-header rows carry no cells, matching measure).

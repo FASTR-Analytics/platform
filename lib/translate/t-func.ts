@@ -1,7 +1,4 @@
-import {
-  type Language,
-  type TranslatableString,
-} from "@timroberton/panther";
+import { type Language, type TranslatableString } from "@timroberton/panther";
 import { InstanceCalendar } from "../types/mod.ts";
 
 export { getLanguage, setLanguage, t3 } from "@timroberton/panther";

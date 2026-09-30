@@ -20,7 +20,10 @@ import {
   type ExpressionNode,
   parseIndicatorExpression,
 } from "./parse.ts";
-import { isPopulationTypeId, POPULATION_TYPE_IDS } from "../types/population.ts";
+import {
+  isPopulationTypeId,
+  POPULATION_TYPE_IDS,
+} from "../types/population.ts";
 
 // The results object carries eight ingredient slots (PLAN_1a §1.5).
 export const MAX_INDICATOR_EXPRESSION_INGREDIENTS = 8;

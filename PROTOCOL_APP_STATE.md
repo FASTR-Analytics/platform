@@ -2,10 +2,10 @@
 
 > **App-specific protocol** (not panther's cross-project `PROTOCOL_*`): the
 > T1–T5 client-state tier model, the app-specific read/write rules, and the
-> state inventory. Read it when building anything that holds or fetches
-> client state. The state _machinery_ (stores, `_infra/`, SSE bridges) is
-> owned by S3; the server-side producer (BroadcastChannel → SSE, notify
-> catalog, `last_updated` coupling) is
+> state inventory. Read it when building anything that holds or fetches client
+> state. The state _machinery_ (stores, `_infra/`, SSE bridges) is owned by S3;
+> the server-side producer (BroadcastChannel → SSE, notify catalog,
+> `last_updated` coupling) is
 > [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md).
 >
 > **Base layer, read first and never restated here:** the generic construction
@@ -22,13 +22,13 @@
 Every piece of client state belongs to exactly one tier. If you can't classify
 it, the tier system needs updating, not a workaround.
 
-| Tier | Name              | Data origin                                | Reactive via SSE?                               | State files?                        |
-| ---- | ----------------- | ------------------------------------------ | ----------------------------------------------- | ----------------------------------- |
-| T1   | SSE store         | Server pushes to client                    | Yes: real-time, multi-user                      | `t1_*`                              |
-| T2   | Reactive cache    | Client fetches, version-keyed by T1 fields | Yes: refetches when the T1 version key changes  | `t2_*`                              |
-| T3   | On-demand fetch   | Client fetches                             | No: fetched fresh every time, not cached        | None, lives in components           |
-| T4   | Client-persistent | Originates on client                       | No                                              | `t4_*`                              |
-| T5   | Component-local   | Originates on client                       | No                                              | None, `createSignal` in components  |
+| Tier | Name              | Data origin                                | Reactive via SSE?                              | State files?                       |
+| ---- | ----------------- | ------------------------------------------ | ---------------------------------------------- | ---------------------------------- |
+| T1   | SSE store         | Server pushes to client                    | Yes: real-time, multi-user                     | `t1_*`                             |
+| T2   | Reactive cache    | Client fetches, version-keyed by T1 fields | Yes: refetches when the T1 version key changes | `t2_*`                             |
+| T3   | On-demand fetch   | Client fetches                             | No: fetched fresh every time, not cached       | None, lives in components          |
+| T4   | Client-persistent | Originates on client                       | No                                             | `t4_*`                             |
+| T5   | Component-local   | Originates on client                       | No                                             | None, `createSignal` in components |
 
 State files carry their tier prefix so files sort by tier; T3 and T5 have no
 files by definition. T4 vs T5: T4 state must survive component unmount
@@ -61,17 +61,16 @@ mutation API → server route handler mutates → calls a `notifyInstance*(...)`
 function → BroadcastChannel → SSE endpoint → client handler in `t1_sse` → store
 setter. The setters in `t1_store` are called by the SSE handler only.
 
-**T1 read mechanics.** Importing the store directly (`instanceState`) in
-JSX / `createEffect` / `createMemo` is a **live read**:
-Solid tracks field-level dependencies. The exported getter functions call
-`unwrap()` internally and are **snapshot reads**: use them in async code, cache
-version-key callbacks, and event handlers. Snapshot-read getters are named
-`getSnapshot*` (`getSnapshotInstanceState()`,
-`getSnapshotInstanceLocalization()`) so the read mode is visible at the call
-site. Generic live/snapshot semantics:
+**T1 read mechanics.** Importing the store directly (`instanceState`) in JSX /
+`createEffect` / `createMemo` is a **live read**: Solid tracks field-level
+dependencies. The exported getter functions call `unwrap()` internally and are
+**snapshot reads**: use them in async code, cache version-key callbacks, and
+event handlers. Snapshot-read getters are named `getSnapshot*`
+(`getSnapshotInstanceState()`, `getSnapshotInstanceLocalization()`) so the read
+mode is visible at the call site. Generic live/snapshot semantics:
 PROTOCOL_UI_STATE "Read Modes". (The codebase also uses "snapshot" for _stored_
-snapshots, e.g. `FigureBundle.snapshotAt`, viz data persisted onto a slide.
-Same concept, persisted.)
+snapshots, e.g. `FigureBundle.snapshotAt`, viz data persisted onto a slide. Same
+concept, persisted.)
 
 **Boundary component.** `InstanceSSEBoundary` owns the connection lifecycle
 (`onMount` connect, `onCleanup` disconnect) and gates children on `isReady`.
@@ -81,52 +80,50 @@ derived lookups) from the one file.
 
 ### Instance T1 fields
 
-| Data                  | Fields on `InstanceState`                                                                                                                  | SSE event                    | Version key for T2                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | --------------------------------------- |
-| Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear`, `countryIso3` (all env-sourced; `countryIso3` also rides `config_updated`, unchanged) | `starting` only              | none                                    |
-| Instance config       | `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`, `aiContext`                                          | `config_updated`             | none                                    |
-| Products              | `products` (full `ProductSummary[]`, maintained PER ROW: `products_upserted` carries only the changed rows, `products_deleted` the ids)     | `products_upserted` / `products_deleted` | `lastUpdated.products[id]` (the row's own stamp, written from the summary) |
-| Folders               | `folders` (full `Folder[]`)                                                                                                                | `folders_updated`            | none                                    |
-| Ready packages        | `readyPackages` (`ReadyPackage[]`, approved users; the `runsCatalog` idiom: `starting` fill plus a refetch on the catalogue nonce)         | `runs_catalog_updated`       | none                                    |
-| Product stamps        | `lastUpdated.slides[id]`                                                                                                                   | `last_updated` (`slides` only) | `lastUpdated.slides[id]`                |
-| Users                 | `users` (full `OtherUser[]`)                                                                                                               | `users_updated`              | none                                    |
-| Assets                | `assets` (full `AssetInfo[]`)                                                                                                              | `assets_updated`             | none                                    |
-| GeoJSON maps          | `geojsonMaps` (full `GeoJsonMapSummary[]`)                                                                                                 | `geojson_maps_updated`       | none                                    |
-| Runs catalogue        | `runsCatalog` (full `RunCatalogItem[]`), `runsCatalogSignal` (nonce)                                                                       | `runs_catalog_updated`       | none                                    |
-| Pinned package        | `pinnedRunId` (bare id, `null` = nothing pinned; unfiltered, every client)                                                                 | `pinned_run_updated`         | none                                    |
-| Structure summary     | `structure` (counts), `structureLastUpdated`                                                                                               | `structure_updated`          | `structureLastUpdated`                  |
-| HFA weights           | `hfaWeights`                                                                                                                               | `structure_updated`          | none                                    |
-| Indicator summary     | `indicators` (counts), `indicatorsVersion`, `countIndicatorsVersion`, `hfaIndicatorsVersion`                                 | `indicators_updated`         | all three version fields                |
-| HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention` | `datasets_updated`           | `datasetVersions.hmis` + structure hash |
-| HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                 | `datasets_updated`           | `hfaCacheHash`                          |
-| ICEH dataset summary  | `icehCacheHash`                                                                                                                            | `datasets_updated`           | `icehCacheHash`                         |
-| Population store      | `populationLevel` (the setting, undefined until set), `populationRowCount`, `populationCoverage` (per type vs the HMIS structure at that level), `populationLastUpdated` | `population_updated`         | `populationLastUpdated`                 |
-| Current user          | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions`                                            | `users_updated` (re-derived) | none                                    |
+| Data                  | Fields on `InstanceState`                                                                                                                                                | SSE event                                | Version key for T2                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------- |
+| Immutable per session | `instanceName`, `instanceLanguage`, `instanceCalendar`, `instanceFiscalYear`, `countryIso3` (all env-sourced; `countryIso3` also rides `config_updated`, unchanged)      | `starting` only                          | none                                                                       |
+| Instance config       | `structureSchemaHmis`, `structureSchemaHfa`, `adminAreaLabels`, `dhis2ConnectionUrl`, `aiContext`                                                                        | `config_updated`                         | none                                                                       |
+| Products              | `products` (full `ProductSummary[]`, maintained PER ROW: `products_upserted` carries only the changed rows, `products_deleted` the ids)                                  | `products_upserted` / `products_deleted` | `lastUpdated.products[id]` (the row's own stamp, written from the summary) |
+| Folders               | `folders` (full `Folder[]`)                                                                                                                                              | `folders_updated`                        | none                                                                       |
+| Ready packages        | `readyPackages` (`ReadyPackage[]`, approved users; the `runsCatalog` idiom: `starting` fill plus a refetch on the catalogue nonce)                                       | `runs_catalog_updated`                   | none                                                                       |
+| Product stamps        | `lastUpdated.slides[id]`                                                                                                                                                 | `last_updated` (`slides` only)           | `lastUpdated.slides[id]`                                                   |
+| Users                 | `users` (full `OtherUser[]`)                                                                                                                                             | `users_updated`                          | none                                                                       |
+| Assets                | `assets` (full `AssetInfo[]`)                                                                                                                                            | `assets_updated`                         | none                                                                       |
+| GeoJSON maps          | `geojsonMaps` (full `GeoJsonMapSummary[]`)                                                                                                                               | `geojson_maps_updated`                   | none                                                                       |
+| Runs catalogue        | `runsCatalog` (full `RunCatalogItem[]`), `runsCatalogSignal` (nonce)                                                                                                     | `runs_catalog_updated`                   | none                                                                       |
+| Pinned package        | `pinnedRunId` (bare id, `null` = nothing pinned; unfiltered, every client)                                                                                               | `pinned_run_updated`                     | none                                                                       |
+| Structure summary     | `structure` (counts), `structureLastUpdated`                                                                                                                             | `structure_updated`                      | `structureLastUpdated`                                                     |
+| HFA weights           | `hfaWeights`                                                                                                                                                             | `structure_updated`                      | none                                                                       |
+| Indicator summary     | `indicators` (counts), `indicatorsVersion`, `countIndicatorsVersion`, `hfaIndicatorsVersion`                                                                             | `indicators_updated`                     | all three version fields                                                   |
+| HMIS dataset summary  | `datasetsWithData`, `datasetVersions.hmis`, `hmisNVersions`, `hmisImportRunActive`, `hmisImportRunsQueued`, `hmisScheduledImportAttention`                               | `datasets_updated`                       | `datasetVersions.hmis` + structure hash                                    |
+| HFA dataset summary   | `datasetsWithData`, `datasetVersions.hfa`, `hfaTimePoints`, `hfaCacheHash`                                                                                               | `datasets_updated`                       | `hfaCacheHash`                                                             |
+| ICEH dataset summary  | `icehCacheHash`                                                                                                                                                          | `datasets_updated`                       | `icehCacheHash`                                                            |
+| Population store      | `populationLevel` (the setting, undefined until set), `populationRowCount`, `populationCoverage` (per type vs the HMIS structure at that level), `populationLastUpdated` | `population_updated`                     | `populationLastUpdated`                                                    |
+| Current user          | `currentUserEmail`, `currentUserApproved`, `currentUserIsGlobalAdmin`, `currentUserPermissions`                                                                          | `users_updated` (re-derived)             | none                                                                       |
 
 **Per-connection fields:** `currentUser*` are per-user, re-derived by finding
 the current user in the broadcast list on `users_updated`. `runsCatalog` is
-per-user by a signal-plus-own-fetch shape: run labels
-must not fan out (Q-B), so `runs_catalog_updated` carries only a data-free
-NONCE (`crypto.randomUUID()`, not a timestamp: two same-millisecond
-mutations minted identical ISO strings and the store's equality guard
-silently dropped the second refetch; a nonce cannot collide and needs no
-cross-worker counter coordination) and each entitled client
+per-user by a signal-plus-own-fetch shape: run labels must not fan out (Q-B), so
+`runs_catalog_updated` carries only a data-free NONCE (`crypto.randomUUID()`,
+not a timestamp: two same-millisecond mutations minted identical ISO strings and
+the store's equality guard silently dropped the second refetch; a nonce cannot
+collide and needs no cross-worker counter coordination) and each entitled client
 (`can_configure_data` / global-admin) fetches `listRunCatalog` through its
-per-request guard; the boundary's effect also tracks the user's OWN
-entitlement, so a mid-session grant fetches the catalogue and a revocation
-clears it to `[]`, live, with no connection-captured gating. The starting
-payload fills it per user, AND stamps a fresh nonce, so the
-boundary refetches after every `starting`. RULED DELIBERATE (2026-08-15),
-not waste: that refetch is what makes reconnect self-healing (backfill runs
-and any missed signal surface there); the payload fill exists to prevent an
-empty flash while it resolves, and `defer: true` only skips the mount-time
-no-op run. A failed boundary catalogue fetch only console-errors, keeping
-stale rows visible: accepted. The
-ephemeral `run_progress`/`r_script` filter on the instance channel is also
-live (re-derived from each `users_updated` in the forward loop). See
-SYSTEM_03 †. `users` is `[]` for an UNAPPROVED connection (starting payload
-and every `users_updated`, until a roster names them. SYSTEM_03 †). All
-other fields are identical across clients.
+per-request guard; the boundary's effect also tracks the user's OWN entitlement,
+so a mid-session grant fetches the catalogue and a revocation clears it to `[]`,
+live, with no connection-captured gating. The starting payload fills it per
+user, AND stamps a fresh nonce, so the boundary refetches after every
+`starting`. RULED DELIBERATE (2026-08-15), not waste: that refetch is what makes
+reconnect self-healing (backfill runs and any missed signal surface there); the
+payload fill exists to prevent an empty flash while it resolves, and
+`defer: true` only skips the mount-time no-op run. A failed boundary catalogue
+fetch only console-errors, keeping stale rows visible: accepted. The ephemeral
+`run_progress`/`r_script` filter on the instance channel is also live
+(re-derived from each `users_updated` in the forward loop). See SYSTEM_03 †.
+`users` is `[]` for an UNAPPROVED connection (starting payload and every
+`users_updated`, until a roster names them. SYSTEM_03 †). All other fields are
+identical across clients.
 
 The table-name list for `lastUpdated` (a nested
 `Record<LastUpdateTableName, Record<string, string>>`) has one source of truth:
@@ -134,17 +131,17 @@ The table-name list for `lastUpdated` (a nested
 
 ### The collab WS store: T1-adjacent
 
-`state/instance/collab.ts` (S16) is the one deliberate sibling of the T1
-store outside the `t1_*` naming: the instance-wide collaboration WebSocket
-manager, holding a Solid store of presence peers plus the per-document Yjs
-session handles (each opened with its product id). It follows T1 discipline:
+`state/instance/collab.ts` (S16) is the one deliberate sibling of the T1 store
+outside the `t1_*` naming: the instance-wide collaboration WebSocket manager,
+holding a Solid store of presence peers plus the per-document Yjs session
+handles (each opened with its product id). It follows T1 discipline:
 server-pushed only (the WS `presence_state`/awareness handlers are the sole
-store writers; components never write it), connected by
-`InstanceSSEBoundary` once the user is approved and disconnected with the
-SSE connection. Its transport, however, is the
-collab WebSocket rather than SSE, and its Y.Doc sessions are imperative
-edit-draft machinery owned by the editor bridges, not reactive state. Read presence via
-the exported accessors (`otherPeers()` etc.). Machinery and protocol:
+store writers; components never write it), connected by `InstanceSSEBoundary`
+once the user is approved and disconnected with the SSE connection. Its
+transport, however, is the collab WebSocket rather than SSE, and its Y.Doc
+sessions are imperative edit-draft machinery owned by the editor bridges, not
+reactive state. Read presence via the exported accessors (`otherPeers()` etc.).
+Machinery and protocol:
 [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md).
 
 ## T2: reactive cache
@@ -159,11 +156,11 @@ flipped version signal.
 **App override of the panther base pattern: never refetch after a mutation.**
 Panther's canonical actions pass `query.silentFetch` as a success callback; this
 app forbids post-mutation `silentFetch()` / `fetch()` / manual `refresh()`
-absolutely. Server route handlers already call `notifyInstance*(...)`; SSE
-flips the version key; the watching `createEffect` re-runs; the cache misses. A
-manual refetch duplicates work and races SSE. If you want to "refresh" a
-`createQuery` after a mutation, that view is long-lived enough that it must
-become a live read. Convert it.
+absolutely. Server route handlers already call `notifyInstance*(...)`; SSE flips
+the version key; the watching `createEffect` re-runs; the cache misses. A manual
+refetch duplicates work and races SSE. If you want to "refresh" a `createQuery`
+after a mutation, that view is long-lived enough that it must become a live
+read. Convert it.
 
 ### Variant A vs Variant B
 
@@ -210,22 +207,22 @@ createEffect(() => {
 
 All use `createReactiveCache`, except GeoJSON.
 
-| Data                               | File                        | Version key(s)                                                       |
-| ---------------------------------- | --------------------------- | -------------------------------------------------------------------- |
-| HMIS display items (data rows)     | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `countIndicatorsVersion` (the analysed count rows only, a calculated-definition edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys)  |
-| HFA display items (data rows)      | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
-| ICEH display items (data rows)     | `instance/t2_datasets.ts`   | `icehCacheHash`                                                      |
-| HFA dictionary (variable metadata) | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                       |
-| Indicator full list                | `instance/t2_indicators.ts` | `indicatorsVersion` (the FULL stamp: every indicator row, whatever its type)         |
-| HFA indicator full list            | `instance/t2_indicators.ts` | `hfaIndicatorsVersion`                                               |
-| Structure items (facility/admin)   | `instance/t2_structure.ts`  | `family` + `structureLastUpdated` + `hashStructureSchema(family)`    |
-| GeoJSON map data                   | `instance/t2_geojson.ts`    | `uploadedAt` per (family, admin level)                               |
-| Population type store (the grid)   | `instance/t2_population.ts` | `populationLastUpdated` (bumped by every store write) + `structureLastUpdated` (rows are laid out against the structure) |
-| Results-package detail (settings + files per module) | `instance/t2_runs.ts` | `[runId]` + constant `"immutable"`: immutable-by-identity like `t2_images`; never invalidated (a ready run dir never changes)  |
+| Data                                                 | File                        | Version key(s)                                                                                                                                                                                     |
+| ---------------------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HMIS display items (data rows)                       | `instance/t2_datasets.ts`   | `datasetVersions.hmis` + `countIndicatorsVersion` (the analysed count rows only, a calculated-definition edit changes nothing here) + `structureLastUpdated` (HMIS schema hash in uniqueness keys) |
+| HFA display items (data rows)                        | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                                                                                                                                                     |
+| ICEH display items (data rows)                       | `instance/t2_datasets.ts`   | `icehCacheHash`                                                                                                                                                                                    |
+| HFA dictionary (variable metadata)                   | `instance/t2_datasets.ts`   | `hfaCacheHash`                                                                                                                                                                                     |
+| Indicator full list                                  | `instance/t2_indicators.ts` | `indicatorsVersion` (the FULL stamp: every indicator row, whatever its type)                                                                                                                       |
+| HFA indicator full list                              | `instance/t2_indicators.ts` | `hfaIndicatorsVersion`                                                                                                                                                                             |
+| Structure items (facility/admin)                     | `instance/t2_structure.ts`  | `family` + `structureLastUpdated` + `hashStructureSchema(family)`                                                                                                                                  |
+| GeoJSON map data                                     | `instance/t2_geojson.ts`    | `uploadedAt` per (family, admin level)                                                                                                                                                             |
+| Population type store (the grid)                     | `instance/t2_population.ts` | `populationLastUpdated` (bumped by every store write) + `structureLastUpdated` (rows are laid out against the structure)                                                                           |
+| Results-package detail (settings + files per module) | `instance/t2_runs.ts`       | `[runId]` + constant `"immutable"`: immutable-by-identity like `t2_images`; never invalidated (a ready run dir never changes)                                                                      |
 
 - **HMIS special case:** the display cache is bypassed entirely (no read, no
-  write) while `hmisImportRunActive`: "revisit at same version = cache hit"
-  does not hold during a live DHIS2 run.
+  write) while `hmisImportRunActive`: "revisit at same version = cache hit" does
+  not hold during a live DHIS2 run.
 - **GeoJSON is bespoke:** a preloaded memory-Map + idb-keyval cache (preloaded
   on `starting` / `geojson_maps_updated`), with non-reactive sync reads via
   `getGeoJsonSync(family, level)`, not `createReactiveCache`.
@@ -235,16 +232,16 @@ All use `createReactiveCache`, except GeoJSON.
 Version keys read `InstanceState` through the cache's `versionKey(params, ins)`
 callback (no readiness gate; an absent stamp yields the `"unknown"` sentinel).
 
-| Data                          | File                                 | Version key(s)                                           | Variant |
-| ----------------------------- | ------------------------------------ | -------------------------------------------------------- | ------- |
-| Slide content                 | `products/t2_slides.ts`              | `lastUpdated.slides[slideId]` (uniqueness: the slide id; the product id only scopes the wire) | B |
-| Slide deck detail             | `products/t2_slide_deck_detail.ts`   | `lastUpdated.products[productId]`                        | B       |
-| Report detail                 | `products/t2_report_detail.ts`       | `lastUpdated.products[productId]`                        | B       |
-| Figure data (PO items, metric info) | `products/t2_figure_data.ts`   | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
-| Explore grid rows             | `products/t2_grid_items.ts`          | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
-| Replicant options             | `products/t2_replicant_options.ts`   | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key | A |
-| Run authoring context         | `instance/t2_run_authoring_context.ts` | `[runId]` + constant `"immutable"`                     | A       |
-| Image blobs                   | `products/t2_images.ts`              | URL-keyed (`TimCacheD`, immutable, with failure backoff) | none    |
+| Data                                | File                                   | Version key(s)                                                                                | Variant |
+| ----------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- | ------- |
+| Slide content                       | `products/t2_slides.ts`                | `lastUpdated.slides[slideId]` (uniqueness: the slide id; the product id only scopes the wire) | B       |
+| Slide deck detail                   | `products/t2_slide_deck_detail.ts`     | `lastUpdated.products[productId]`                                                             | B       |
+| Report detail                       | `products/t2_report_detail.ts`         | `lastUpdated.products[productId]`                                                             | B       |
+| Figure data (PO items, metric info) | `products/t2_figure_data.ts`           | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key                        | A       |
+| Explore grid rows                   | `products/t2_grid_items.ts`            | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key                        | A       |
+| Replicant options                   | `products/t2_replicant_options.ts`     | constant `"immutable"`; `(runId, scopeToken, …)` in the uniqueness key                        | A       |
+| Run authoring context               | `instance/t2_run_authoring_context.ts` | `[runId]` + constant `"immutable"`                                                            | A       |
+| Image blobs                         | `products/t2_images.ts`                | URL-keyed (`TimCacheD`, immutable, with failure backoff)                                      | none    |
 
 `t2_images.ts` is not a reactive cache: it uses `TimCacheD`
 (`_infra/indexeddb_cache.ts`) with the URL as both key and version, never reads
@@ -253,13 +250,13 @@ immutable.
 
 `instance/t2_runs.ts` is the second immutable-by-identity cache, built on
 `createReactiveCache` with a constant version key: a results package's detail
-never changes once the run is ready, so nothing invalidates it. Bump the
-cache name when `RunDetail` changes shape.
+never changes once the run is ready, so nothing invalidates it. Bump the cache
+name when `RunDetail` changes shape.
 
 ### Sentinel version
 
-The version string `"unknown"` marks "not ready": `versionKey` callbacks
-return it when the entity's version input doesn't exist yet, e.g.
+The version string `"unknown"` marks "not ready": `versionKey` callbacks return
+it when the entity's version input doesn't exist yet, e.g.
 `ins.lastUpdated.slides[slideId] ?? "unknown"`, and `setPromise` refuses to
 persist under it.
 
@@ -295,18 +292,18 @@ style editor. Wrong for: slide lists (SSE keeps ordering fresh).
 
 ### Imperative listener side-channel
 
-One sanctioned ephemeral-event hook per channel for consumers that need
-event notification without subscribing to the store:
+One sanctioned ephemeral-event hook per channel for consumers that need event
+notification without subscribing to the store:
 
-- `addLastUpdatedListener(fn)` in `client/src/state/instance/t1_sse.tsx`:
-  fires with `(tableName, ids, timestamp)` for the `last_updated` message
-  (`slides`) and for every row of `products_upserted` (`products`, the
-  product's own stamp). Used by the slide and report editors to keep their
-  optimistic-save timestamp fresh under collab checkpoints, and by the copilot
-  to notice slide edits and changes to its product.
+- `addLastUpdatedListener(fn)` in `client/src/state/instance/t1_sse.tsx`: fires
+  with `(tableName, ids, timestamp)` for the `last_updated` message (`slides`)
+  and for every row of `products_upserted` (`products`, the product's own
+  stamp). Used by the slide and report editors to keep their optimistic-save
+  timestamp fresh under collab checkpoints, and by the copilot to notice slide
+  edits and changes to its product.
 
-Returns a cleanup function; register in `onMount`, clean up in `onCleanup`.
-The instance channel also has the pair for generation telemetry
+Returns a cleanup function; register in `onMount`, clean up in `onCleanup`. The
+instance channel also has the pair for generation telemetry
 (`addInstanceRunProgressListener` / `addInstanceRScriptListener`).
 
 ## T3: on-demand fetch
@@ -316,25 +313,23 @@ reactive, not cached, no state files. **Upload attempts are always T3
 component-local**: transient per-user workflow state (signal + polling), not
 shared.
 
-Instance-level: structure upload attempts (in the structure dataset
-component), HMIS import runs (`data/hmis/imports/`: the shell's
-`createQuery` reads for runs, scheduling and indicator labels; the runs poll
-and both runs and scheduling refresh on the SSE summary flags) and the
-HMIS import ledger (`data/hmis/dataset/dataset.tsx`: a full-table read into
-the page's `createSignal<StateHolder>`, refetched by a `createEffect` on
-`datasetVersions.hmis` and `hmisImportRunActive`; SYSTEM_06), HFA
-import runs (`data/hfa/imports/`), ICEH import runs
-(`data/iceh/imports/`), user logs, HMIS version history modal,
-HFA indicator R code
-(`data/hfa/indicators/indicator_code_editor.tsx`), user-permission
-editors, instance meta modal, profile refresh, the results-package wizard's
-module options + defaults
-(`results_packages/wizard/wizard.tsx`, read once per open,
-client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap fetches
-(GlobalUser, InstanceMeta, needed before SSE connects).
+Instance-level: structure upload attempts (in the structure dataset component),
+HMIS import runs (`data/hmis/imports/`: the shell's `createQuery` reads for
+runs, scheduling and indicator labels; the runs poll and both runs and
+scheduling refresh on the SSE summary flags) and the HMIS import ledger
+(`data/hmis/dataset/dataset.tsx`: a full-table read into the page's
+`createSignal<StateHolder>`, refetched by a `createEffect` on
+`datasetVersions.hmis` and `hmisImportRunActive`; SYSTEM_06), HFA import runs
+(`data/hfa/imports/`), ICEH import runs (`data/iceh/imports/`), user logs, HMIS
+version history modal, HFA indicator R code
+(`data/hfa/indicators/indicator_code_editor.tsx`), user-permission editors,
+instance meta modal, profile refresh, the results-package wizard's module
+options + defaults (`results_packages/wizard/wizard.tsx`, read once per open,
+client-local until launch), and the `instance/logged_in_wrapper.tsx` bootstrap
+fetches (GlobalUser, InstanceMeta, needed before SSE connects).
 
-Run-keyed: a package's script / log bytes and a failed run's
-file listing (`results_packages/package_view/view_{script,logs,files}.tsx`).
+Run-keyed: a package's script / log bytes and a failed run's file listing
+(`results_packages/package_view/view_{script,logs,files}.tsx`).
 
 ## T4: client-persistent
 
@@ -350,4 +345,3 @@ There is no instance-scoped T4 file (DHIS2 credentials are held server-side).
 
 `createSignal()` inside a component: search text, selected tabs, loading flags,
 form inputs, AI chat drafts. Dies on unmount; no files.
-

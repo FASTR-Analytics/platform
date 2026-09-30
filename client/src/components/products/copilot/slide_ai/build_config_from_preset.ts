@@ -33,8 +33,8 @@ export function buildConfigFromPreset(
   const preset = resultsValue.vizPresets?.find((p) => p.id === vizPresetId);
 
   if (!preset) {
-    const available =
-      resultsValue.vizPresets?.map((p) => p.id).join(", ") || "none";
+    const available = resultsValue.vizPresets?.map((p) => p.id).join(", ") ||
+      "none";
     throw new Error(
       `Viz preset "${vizPresetId}" not found for metric "${metricId}". Available presets: ${available}`,
     );
@@ -77,7 +77,7 @@ export function buildConfigFromPreset(
             : "none (this preset does not support filters)";
           throw new Error(
             `Invalid filter dimension "${f.disOpt}" for preset "${vizPresetId}". ` +
-            `Allowed filter dimensions: ${allowed}`,
+              `Allowed filter dimensions: ${allowed}`,
           );
         }
       }
@@ -91,7 +91,8 @@ export function buildConfigFromPreset(
   }
 
   if (input.startDate != null && input.endDate != null) {
-    const targetPeriodOption = resultsValue.mostGranularTimePeriodColumnInResultsFile;
+    const targetPeriodOption =
+      resultsValue.mostGranularTimePeriodColumnInResultsFile;
     if (!targetPeriodOption) {
       // Same rule as update_viz_config: silently ignoring the requested
       // range would show all data under a success message.

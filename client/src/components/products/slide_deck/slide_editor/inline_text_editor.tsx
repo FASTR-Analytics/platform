@@ -21,9 +21,9 @@ import {
   slideBackspace,
   slideDeleteForward,
   slideDeleteRange,
+  type SlideEditResult,
   slideInsertText,
   slideRangeHasStyle,
-  type SlideEditResult,
   slideToggleStyle,
   slideWordAt,
   SRC_BREAK,
@@ -32,7 +32,10 @@ import {
 } from "lib";
 import type { MeasuredPage } from "panther";
 import { defaultKeymap } from "@codemirror/commands";
-import { insertNewlineContinueMarkup, markdown } from "@codemirror/lang-markdown";
+import {
+  insertNewlineContinueMarkup,
+  markdown,
+} from "@codemirror/lang-markdown";
 import { EditorSelection, EditorState, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
@@ -53,8 +56,8 @@ import type { SlideSession } from "~/state/instance/collab";
 import {
   buildBlockGeometry,
   buildTitleGeometry,
-  type CaretBox,
   caretAt,
+  type CaretBox,
   type DuRect,
   lineEdgeOffset,
   offsetAt,
@@ -147,7 +150,9 @@ export function InlineTextEditor(p: Props) {
   // The typing state: what Bold/Italic toggled with nothing selected, which
   // the next typed text takes instead of the style it would inherit (bold
   // off at the end of a bold word). Cleared when the caret moves on its own.
-  const [pending, setPending] = createSignal<{ bold?: boolean; italic?: boolean }>({});
+  const [pending, setPending] = createSignal<
+    { bold?: boolean; italic?: boolean }
+  >({});
   // Up/down keep the column they started from.
   let goalX: number | undefined;
 
@@ -188,7 +193,9 @@ export function InlineTextEditor(p: Props) {
   const marks = createMemo(() => {
     const s = sel();
     const text = docText();
-    if (!isMarkdown) return { bold: false, italic: false, headingLevel: 0, quote: false };
+    if (!isMarkdown) {
+      return { bold: false, italic: false, headingLevel: 0, quote: false };
+    }
     const an = analysis();
     const from = Math.min(s.anchor, s.head);
     const to = Math.max(s.anchor, s.head);
@@ -201,19 +208,26 @@ export function InlineTextEditor(p: Props) {
       // The char the caret follows: what typing here continues.
       let i = from - 1;
       while (i >= 0 && an.kind[i] !== SRC_VISIBLE && text[i] !== "\n") i--;
-      const st = i >= 0 && an.kind[i] === SRC_VISIBLE ? an.srcStyle[i] : undefined;
+      const st = i >= 0 && an.kind[i] === SRC_VISIBLE
+        ? an.srcStyle[i]
+        : undefined;
       const pd = pending();
       bold = pd.bold ?? !!st?.bold;
       italic = pd.italic ?? !!st?.italic;
     }
     const lineStart = text.lastIndexOf("\n", s.head - 1) + 1;
-    const line = text.slice(lineStart, text.indexOf("\n", s.head) < 0 ? text.length : text.indexOf("\n", s.head));
+    const line = text.slice(
+      lineStart,
+      text.indexOf("\n", s.head) < 0 ? text.length : text.indexOf("\n", s.head),
+    );
     const m = /^\s*([-*+]|\d+[.)])\s/.exec(line);
     const h = HEADING_LINE.exec(line);
     return {
       bold,
       italic,
-      list: m ? (/\d/.test(m[1]) ? "numbered" as const : "bullet" as const) : undefined,
+      list: m
+        ? (/\d/.test(m[1]) ? "numbered" as const : "bullet" as const)
+        : undefined,
       headingLevel: h ? h[2].length : 0,
       quote: QUOTE_LINE.test(line),
     };
@@ -272,8 +286,11 @@ export function InlineTextEditor(p: Props) {
       const an = analysis();
       const out: { src: number; ch: string }[] = [];
       for (let i = 0; i < an.kind.length; i++) {
-        if (an.kind[i] === SRC_VISIBLE) out.push({ src: i, ch: an.srcChar[i] ?? an.src[i] });
-        else if (an.kind[i] === SRC_BREAK && an.src[i] === "\n") out.push({ src: i, ch: "\n" });
+        if (an.kind[i] === SRC_VISIBLE) {
+          out.push({ src: i, ch: an.srcChar[i] ?? an.src[i] });
+        } else if (an.kind[i] === SRC_BREAK && an.src[i] === "\n") {
+          out.push({ src: i, ch: "\n" });
+        }
       }
       return out;
     }
@@ -307,7 +324,10 @@ export function InlineTextEditor(p: Props) {
       .join("");
   }
 
-  function move(fn: (g: TextGeometry, head: number) => number, extend: boolean): boolean {
+  function move(
+    fn: (g: TextGeometry, head: number) => number,
+    extend: boolean,
+  ): boolean {
     const g = liveGeom();
     if (!view || !g) return true;
     const s = view.state.selection.main;
@@ -339,7 +359,10 @@ export function InlineTextEditor(p: Props) {
     if (isMarkdown) {
       dispatchEdit(slideDeleteRange(analysis(), s.from, s.to));
     } else {
-      view.dispatch({ changes: { from: s.from, to: s.to, insert: "" }, userEvent: "delete" });
+      view.dispatch({
+        changes: { from: s.from, to: s.to, insert: "" },
+        userEvent: "delete",
+      });
     }
     return true;
   }
@@ -413,11 +436,21 @@ export function InlineTextEditor(p: Props) {
       if (!l.text.trim()) continue;
       const any = /^(\s*)([-*+]|\d+[.)])\s+/.exec(l.text);
       if (allOn) {
-        if (any) changes.push({ from: l.from + any[1].length, to: l.from + any[0].length, insert: "" });
+        if (any) {
+          changes.push({
+            from: l.from + any[1].length,
+            to: l.from + any[0].length,
+            insert: "",
+          });
+        }
       } else {
         const ins = ordered ? `${k++}. ` : "- ";
         if (any) {
-          changes.push({ from: l.from + any[1].length, to: l.from + any[0].length, insert: ins });
+          changes.push({
+            from: l.from + any[1].length,
+            to: l.from + any[0].length,
+            insert: ins,
+          });
         } else {
           const lead = /^\s*/.exec(l.text)![0].length;
           changes.push({ from: l.from + lead, to: l.from + lead, insert: ins });
@@ -437,7 +470,11 @@ export function InlineTextEditor(p: Props) {
     const state = view.state;
     const s = state.selection.main;
     const changes: { from: number; to: number; insert: string }[] = [];
-    for (let n = state.doc.lineAt(s.from).number; n <= state.doc.lineAt(s.to).number; n++) {
+    for (
+      let n = state.doc.lineAt(s.from).number;
+      n <= state.doc.lineAt(s.to).number;
+      n++
+    ) {
       const l = state.doc.line(n);
       if (!l.text.trim()) continue;
       const cur = HEADING_LINE.exec(l.text);
@@ -445,7 +482,11 @@ export function InlineTextEditor(p: Props) {
       const ins = level > 0 ? `${"#".repeat(level)} ` : "";
       changes.push(
         cur
-          ? { from: l.from + cur[1].length, to: l.from + cur[0].length, insert: ins }
+          ? {
+            from: l.from + cur[1].length,
+            to: l.from + cur[0].length,
+            insert: ins,
+          }
           : { from: l.from + lead, to: l.from + lead, insert: ins },
       );
     }
@@ -461,15 +502,24 @@ export function InlineTextEditor(p: Props) {
     const state = view.state;
     const s = state.selection.main;
     const lines = [];
-    for (let n = state.doc.lineAt(s.from).number; n <= state.doc.lineAt(s.to).number; n++) {
+    for (
+      let n = state.doc.lineAt(s.from).number;
+      n <= state.doc.lineAt(s.to).number;
+      n++
+    ) {
       const l = state.doc.line(n);
       if (l.text.trim()) lines.push(l);
     }
-    const allOn = lines.length > 0 && lines.every((l) => QUOTE_LINE.test(l.text));
+    const allOn = lines.length > 0 &&
+      lines.every((l) => QUOTE_LINE.test(l.text));
     const changes = lines.map((l) => {
       const q = QUOTE_LINE.exec(l.text);
       if (allOn && q) {
-        return { from: l.from + q[1].length, to: l.from + q[0].length, insert: "" };
+        return {
+          from: l.from + q[1].length,
+          to: l.from + q[0].length,
+          insert: "",
+        };
       }
       const lead = /^\s*/.exec(l.text)![0].length;
       return { from: l.from + lead, to: l.from + lead, insert: "> " };
@@ -489,7 +539,9 @@ export function InlineTextEditor(p: Props) {
     deleteSelectionIfAny();
     const s = view.state.selection.main;
     const line = view.state.doc.lineAt(s.head);
-    if (LIST_LINE.test(line.text) && insertNewlineContinueMarkup(view)) return true;
+    if (LIST_LINE.test(line.text) && insertNewlineContinueMarkup(view)) {
+      return true;
+    }
     insertText("\n", "input");
     return true;
   }
@@ -501,19 +553,41 @@ export function InlineTextEditor(p: Props) {
     if (out) {
       const lead = /^ {1,2}/.exec(line.text);
       if (lead) {
-        view.dispatch({ changes: { from: line.from, to: line.from + lead[0].length }, userEvent: "input" });
+        view.dispatch({
+          changes: { from: line.from, to: line.from + lead[0].length },
+          userEvent: "input",
+        });
       }
     } else {
-      view.dispatch({ changes: { from: line.from, insert: "  " }, userEvent: "input" });
+      view.dispatch({
+        changes: { from: line.from, insert: "  " },
+        userEvent: "input",
+      });
     }
     return true;
   }
 
   const keys = [
-    { key: "ArrowLeft", run: () => horizontal(-1, false), shift: () => horizontal(-1, true) },
-    { key: "ArrowRight", run: () => horizontal(1, false), shift: () => horizontal(1, true) },
-    { key: "ArrowUp", run: () => vertical(-1, false), shift: () => vertical(-1, true) },
-    { key: "ArrowDown", run: () => vertical(1, false), shift: () => vertical(1, true) },
+    {
+      key: "ArrowLeft",
+      run: () => horizontal(-1, false),
+      shift: () => horizontal(-1, true),
+    },
+    {
+      key: "ArrowRight",
+      run: () => horizontal(1, false),
+      shift: () => horizontal(1, true),
+    },
+    {
+      key: "ArrowUp",
+      run: () => vertical(-1, false),
+      shift: () => vertical(-1, true),
+    },
+    {
+      key: "ArrowDown",
+      run: () => vertical(1, false),
+      shift: () => vertical(1, true),
+    },
     {
       key: "Home",
       run: () => move((g, h) => lineEdgeOffset(g, h, false), false),
@@ -548,7 +622,10 @@ export function InlineTextEditor(p: Props) {
       run: () => {
         if (!isMarkdown) return false;
         if (deleteSelectionIfAny()) return true;
-        const r = slideDeleteForward(analysis(), view!.state.selection.main.head);
+        const r = slideDeleteForward(
+          analysis(),
+          view!.state.selection.main.head,
+        );
         return r ? dispatchEdit(r) : false;
       },
     },
@@ -558,7 +635,9 @@ export function InlineTextEditor(p: Props) {
         if (!isMarkdown) return false;
         if (deleteSelectionIfAny()) return true;
         const head = view!.state.selection.main.head;
-        return dispatchEdit(slideDeleteRange(analysis(), wordStep(head, -1), head));
+        return dispatchEdit(
+          slideDeleteRange(analysis(), wordStep(head, -1), head),
+        );
       },
     },
     { key: "Enter", run: enter },
@@ -617,7 +696,9 @@ export function InlineTextEditor(p: Props) {
           ...(isMarkdown ? [markdown()] : []),
           ...(yText && session
             ? [
-              yCollab(yText, session.awareness, { undoManager: session.undoManager }),
+              yCollab(yText, session.awareness, {
+                undoManager: session.undoManager,
+              }),
               yCaretHygiene(yText, session.awareness),
             ]
             : []),
@@ -625,7 +706,10 @@ export function InlineTextEditor(p: Props) {
             // A second space in a row would never be drawn (panther
             // collapses whitespace runs): keep the one rather than add
             // invisible text.
-            if (text === " " && from === to && v.state.doc.sliceString(from - 1, from) === " ") {
+            if (
+              text === " " && from === to &&
+              v.state.doc.sliceString(from - 1, from) === " "
+            ) {
               return true;
             }
             if (!isMarkdown) return false;
@@ -751,7 +835,9 @@ export function InlineTextEditor(p: Props) {
     e.preventDefault();
     e.clipboardData.setData(
       "text/plain",
-      isMarkdown ? renderedText(s.from, s.to) : view.state.sliceDoc(s.from, s.to),
+      isMarkdown
+        ? renderedText(s.from, s.to)
+        : view.state.sliceDoc(s.from, s.to),
     );
     if (cut) deleteSelectionIfAny();
     return true;
@@ -864,7 +950,10 @@ export function InlineTextEditor(p: Props) {
         | { name?: string; color?: string; colorLight?: string; email?: string }
         | undefined;
       if (!user || (me?.email && user.email === me.email)) return;
-      const cur = state.cursor as { anchor?: unknown; head?: unknown } | null | undefined;
+      const cur = state.cursor as
+        | { anchor?: unknown; head?: unknown }
+        | null
+        | undefined;
       if (!cur?.anchor || !cur.head) return;
       const abs = (rel: unknown) => {
         try {
@@ -908,18 +997,25 @@ export function InlineTextEditor(p: Props) {
     const caret = caretAt(g, s.head);
     const c = px(caret.x, caret.top);
     return {
-      bounds: { left: b.x, top: b.y, width: g.bounds.w * b.s, height: g.bounds.h * b.s },
+      bounds: {
+        left: b.x,
+        top: b.y,
+        width: g.bounds.w * b.s,
+        height: g.bounds.h * b.s,
+      },
       caret: {
         left: c.x,
         top: c.y,
         height: Math.max(8, (caret.bottom - caret.top) * c.s),
       },
-      rects: s.anchor === s.head
-        ? []
-        : selectionRects(g, Math.min(s.anchor, s.head), Math.max(s.anchor, s.head)).map((q) => {
-          const o = px(q.x, q.y);
-          return { left: o.x, top: o.y, width: q.w * o.s, height: q.h * o.s };
-        }),
+      rects: s.anchor === s.head ? [] : selectionRects(
+        g,
+        Math.min(s.anchor, s.head),
+        Math.max(s.anchor, s.head),
+      ).map((q) => {
+        const o = px(q.x, q.y);
+        return { left: o.x, top: o.y, width: q.w * o.s, height: q.h * o.s };
+      }),
       editable: g.editable,
       scale: b.s,
     };
@@ -964,7 +1060,11 @@ export function InlineTextEditor(p: Props) {
       {/* The hidden editor: focused, invisible, parked under the caret. */}
       <div
         ref={host}
-        aria-label={t3({ en: "Slide text", fr: "Texte de la diapositive", pt: "Texto do diapositivo" })}
+        aria-label={t3({
+          en: "Slide text",
+          fr: "Texte de la diapositive",
+          pt: "Texto do diapositivo",
+        })}
         style={{
           position: "fixed",
           width: "1px",

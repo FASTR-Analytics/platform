@@ -14,7 +14,11 @@ export function ReportImagePicker(p: AlertComponentProps<object, PickedImage>) {
   return (
     <ModalContainer
       width="md"
-      title={t3({ en: "Insert image", fr: "Insérer une image", pt: "Inserir imagem" })}
+      title={t3({
+        en: "Insert image",
+        fr: "Insérer une image",
+        pt: "Inserir imagem",
+      })}
       onCancel={() => p.close(undefined)}
       actions={[
         {
@@ -26,8 +30,16 @@ export function ReportImagePicker(p: AlertComponentProps<object, PickedImage>) {
     >
       <div class="ui-spy">
         <FileUploadSelector
-          buttonLabel={t3({ en: "Upload image", fr: "Téléverser une image", pt: "Carregar imagem" })}
-          selectLabel={t3({ en: "Image file", fr: "Fichier image", pt: "Ficheiro de imagem" })}
+          buttonLabel={t3({
+            en: "Upload image",
+            fr: "Téléverser une image",
+            pt: "Carregar imagem",
+          })}
+          selectLabel={t3({
+            en: "Image file",
+            fr: "Fichier image",
+            pt: "Ficheiro de imagem",
+          })}
           filter={(a) => a.isImage}
           value={imgFile()}
           onChange={setImgFile}

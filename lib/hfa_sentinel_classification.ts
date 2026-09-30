@@ -22,7 +22,10 @@ export type SentinelClass =
 // dont_know. Covers EN + common FR/PT wordings; anything unmatched is left to
 // the review step.
 const LABEL_PATTERNS: [SentinelClass, RegExp][] = [
-  ["dont_know", /don'?t know|do not know|unknown|not known|ne sai[ts] pas|não sabe|\bdk\b/i],
+  [
+    "dont_know",
+    /don'?t know|do not know|unknown|not known|ne sai[ts] pas|não sabe|\bdk\b/i,
+  ],
   ["refused", /refus|declin|recus/i],
   ["not_applicable", /not applicable|não se aplica|sans objet|\bn\/?a\b/i],
   ["other", /\bother\b|\bautre\b|\boutros?\b/i],

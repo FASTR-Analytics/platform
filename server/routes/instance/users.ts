@@ -1,6 +1,10 @@
 import { Hono } from "hono";
 import type { Sql } from "postgres";
-import { type APIResponseWithData, H_USERS, type RenameEmailInstanceResult } from "lib";
+import {
+  type APIResponseWithData,
+  H_USERS,
+  type RenameEmailInstanceResult,
+} from "lib";
 import { verifyClerkEmailOwnership } from "../../clerk_api.ts";
 import { renameAuthorEmails } from "../../collab/authorship.ts";
 import { renameDeckLedgerEmails } from "../../collab/deck_session_ledger.ts";
@@ -391,15 +395,28 @@ async function renameUserEmailLocally(
   newEmail: string,
   actor: string,
 ): Promise<APIResponseWithData<LocalRenameResult>> {
-  const mainRes = await renameUserEmailInMainDb(mainDb, oldEmail, newEmail, actor);
+  const mainRes = await renameUserEmailInMainDb(
+    mainDb,
+    oldEmail,
+    newEmail,
+    actor,
+  );
   if (!mainRes.success) {
     return mainRes;
   }
-  closeConnectionsForEmail(oldEmail, COLLAB_CLOSE_UNAUTHORIZED, "email renamed");
+  closeConnectionsForEmail(
+    oldEmail,
+    COLLAB_CLOSE_UNAUTHORIZED,
+    "email renamed",
+  );
   renameVersionEditorEmail(oldEmail, newEmail);
   renameDeckLedgerEmails(oldEmail, newEmail);
   renameAuthorEmails(oldEmail, newEmail);
-  const productsRes = await renameUserEmailInProducts(mainDb, oldEmail, newEmail);
+  const productsRes = await renameUserEmailInProducts(
+    mainDb,
+    oldEmail,
+    newEmail,
+  );
   notifyInstanceUsersUpdated(await getInstanceUsers(mainDb));
   if (!productsRes.success) {
     return productsRes;
@@ -433,14 +450,18 @@ defineRoute(
       return c.json({ success: false, err: "Invalid email address" });
     }
     if (oldEmail === newEmail) {
-      return c.json({ success: false, err: "The new email is the same as the old one" });
+      return c.json({
+        success: false,
+        err: "The new email is the same as the old one",
+      });
     }
     // No globalUser = fleet-internal machine call (status-api-key path).
     const actor = c.var.globalUser?.email as string | undefined;
     if (actor && actor.toLowerCase() === oldEmail) {
       return c.json({
         success: false,
-        err: "You cannot rename your own email here. Use Change email in your profile instead.",
+        err:
+          "You cannot rename your own email here. Use Change email in your profile instead.",
       });
     }
     const res = await renameUserEmailLocally(
@@ -513,9 +534,12 @@ async function discoverPeers(
       let id: string | undefined;
       while ((id = queue.shift()) !== undefined) {
         try {
-          const response = await fetch(`https://${id}.${FLEET_DOMAIN}/health_check`, {
-            signal: AbortSignal.timeout(10_000),
-          });
+          const response = await fetch(
+            `https://${id}.${FLEET_DOMAIN}/health_check`,
+            {
+              signal: AbortSignal.timeout(10_000),
+            },
+          );
           if (!response.ok) {
             throw new Error(`status ${response.status}`);
           }
@@ -560,9 +584,14 @@ async function renameOnPeer(
     );
     if (!response.ok) {
       // 404 = the instance runs an image without this route yet.
-      return { row: { id, status: "failed", error: `HTTP ${response.status}` }, warnings: [] };
+      return {
+        row: { id, status: "failed", error: `HTTP ${response.status}` },
+        warnings: [],
+      };
     }
-    const res = (await response.json()) as APIResponseWithData<LocalRenameResult>;
+    const res = (await response.json()) as APIResponseWithData<
+      LocalRenameResult
+    >;
     if (!res.success) {
       return { row: { id, status: "failed", error: res.err }, warnings: [] };
     }
@@ -594,7 +623,10 @@ defineRoute(
       return c.json({ success: false, err: "Invalid email address" });
     }
     if (oldEmail === newEmail) {
-      return c.json({ success: false, err: "The new email is the same as the old one" });
+      return c.json({
+        success: false,
+        err: "The new email is the same as the old one",
+      });
     }
     // Deliberately NO approved check: approval is keyed to the session's
     // current email, and mid-rename the JWT can legitimately carry either
@@ -626,7 +658,11 @@ defineRoute(
       if (!auth?.userId) {
         return c.json({ success: false, err: "Not authenticated" }, 401);
       }
-      const ownership = await verifyClerkEmailOwnership(auth.userId, oldEmail, newEmail);
+      const ownership = await verifyClerkEmailOwnership(
+        auth.userId,
+        oldEmail,
+        newEmail,
+      );
       if (!ownership.ok) {
         return c.json({ success: false, err: ownership.err });
       }
@@ -721,7 +757,9 @@ defineRoute(
       }),
     );
     instances.push(
-      ...peerRows.filter((row): row is RenameEmailInstanceResult => row !== null),
+      ...peerRows.filter((row): row is RenameEmailInstanceResult =>
+        row !== null
+      ),
     );
     if (instances.some((i) => i.status !== "updated")) {
       warnings.push(

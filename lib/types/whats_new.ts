@@ -16,14 +16,56 @@ export type WhatsNewLayoutPreset =
 // (duplicated there: repos share no code; keep in sync).
 export const WHATS_NEW_LAYOUTS: Record<
   WhatsNewLayoutPreset,
-  { hasImage: boolean; row: boolean; imageFirst: boolean; widthPct: number; cover: boolean }
+  {
+    hasImage: boolean;
+    row: boolean;
+    imageFirst: boolean;
+    widthPct: number;
+    cover: boolean;
+  }
 > = {
-  textOnly: { hasImage: false, row: false, imageFirst: false, widthPct: 0, cover: false },
-  heroTop: { hasImage: true, row: false, imageFirst: true, widthPct: 100, cover: false },
-  imageBottom: { hasImage: true, row: false, imageFirst: false, widthPct: 100, cover: false },
-  imageLeft: { hasImage: true, row: true, imageFirst: true, widthPct: 40, cover: false },
-  imageRight: { hasImage: true, row: true, imageFirst: false, widthPct: 40, cover: false },
-  cover: { hasImage: true, row: false, imageFirst: true, widthPct: 100, cover: true },
+  textOnly: {
+    hasImage: false,
+    row: false,
+    imageFirst: false,
+    widthPct: 0,
+    cover: false,
+  },
+  heroTop: {
+    hasImage: true,
+    row: false,
+    imageFirst: true,
+    widthPct: 100,
+    cover: false,
+  },
+  imageBottom: {
+    hasImage: true,
+    row: false,
+    imageFirst: false,
+    widthPct: 100,
+    cover: false,
+  },
+  imageLeft: {
+    hasImage: true,
+    row: true,
+    imageFirst: true,
+    widthPct: 40,
+    cover: false,
+  },
+  imageRight: {
+    hasImage: true,
+    row: true,
+    imageFirst: false,
+    widthPct: 40,
+    cover: false,
+  },
+  cover: {
+    hasImage: true,
+    row: false,
+    imageFirst: true,
+    widthPct: 100,
+    cover: true,
+  },
 };
 
 // Per-page media scale. The preset fixes WHERE media sits and its base width;

@@ -1,4 +1,4 @@
-import { t3, type IcehStrat } from "lib";
+import { type IcehStrat, t3 } from "lib";
 import { Table, type TableColumn } from "panther";
 
 type DisplayRow = {
@@ -13,7 +13,11 @@ export function StratifiersTab(p: { strats: DisplayRow[] }) {
   const columns: TableColumn<DisplayRow>[] = [
     {
       key: "strat",
-      header: t3({ en: "Stratifier", fr: "Stratificateur", pt: "Estratificador" }),
+      header: t3({
+        en: "Stratifier",
+        fr: "Stratificateur",
+        pt: "Estratificador",
+      }),
       sortable: true,
       render: (item) => <span class="font-mono">{item.strat}</span>,
     },
@@ -24,10 +28,18 @@ export function StratifiersTab(p: { strats: DisplayRow[] }) {
     },
     {
       key: "isEquityDimension",
-      header: t3({ en: "Equity dimension", fr: "Dimension d'équité", pt: "Dimensão de equidade" }),
+      header: t3({
+        en: "Equity dimension",
+        fr: "Dimension d'équité",
+        pt: "Dimensão de equidade",
+      }),
       sortable: true,
       render: (item) => (
-        <span class={item.isEquityDimension ? "text-success" : "text-base-content-muted"}>
+        <span
+          class={item.isEquityDimension
+            ? "text-success"
+            : "text-base-content-muted"}
+        >
           {item.isEquityDimension
             ? t3({ en: "Yes", fr: "Oui", pt: "Sim" })
             : t3({ en: "No", fr: "Non", pt: "Não" })}

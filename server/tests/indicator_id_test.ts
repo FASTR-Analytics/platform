@@ -96,7 +96,10 @@ Deno.test("generator: every output passes the validator as a count", () => {
       "anc1",
     ]
   ) {
-    assertEquals(getNewIndicatorIdIssue(generate(label), "uploaded"), undefined);
+    assertEquals(
+      getNewIndicatorIdIssue(generate(label), "uploaded"),
+      undefined,
+    );
   }
 });
 
@@ -120,7 +123,10 @@ Deno.test("validator: a special id is accepted as a count or sum and refused as 
   for (const id of SPECIAL_INDICATOR_IDS) {
     assertEquals(getNewIndicatorIdIssue(id, "uploaded"), undefined);
     assertEquals(getNewIndicatorIdIssue(id, "sum"), undefined);
-    assertEquals(getNewIndicatorIdIssue(id, "calculated"), "special_calculated");
+    assertEquals(
+      getNewIndicatorIdIssue(id, "calculated"),
+      "special_calculated",
+    );
     assertEquals(getSpecialIndicatorTypeIssue(id, "uploaded"), undefined);
     assertEquals(getSpecialIndicatorTypeIssue(id, "sum"), undefined);
     assertEquals(
@@ -128,7 +134,10 @@ Deno.test("validator: a special id is accepted as a count or sum and refused as 
       "special_calculated",
     );
   }
-  assertEquals(getSpecialIndicatorTypeIssue("anc4_rate", "calculated"), undefined);
+  assertEquals(
+    getSpecialIndicatorTypeIssue("anc4_rate", "calculated"),
+    undefined,
+  );
 });
 
 Deno.test("validator: an ordinary id passes for either type", () => {

@@ -137,7 +137,9 @@ const R_LOGICAL_OPERATOR_ALIASES = new Map<string, string>([
 ]);
 
 const R_LOGICAL_OPERATOR_REGEX = new RegExp(
-  `(^|[^A-Za-z0-9_.])(${[...R_LOGICAL_OPERATOR_ALIASES.keys()].join("|")})(?![A-Za-z0-9_.])`,
+  `(^|[^A-Za-z0-9_.])(${
+    [...R_LOGICAL_OPERATOR_ALIASES.keys()].join("|")
+  })(?![A-Za-z0-9_.])`,
   "gi",
 );
 

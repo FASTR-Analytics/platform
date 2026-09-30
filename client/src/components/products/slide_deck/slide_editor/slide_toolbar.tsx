@@ -170,8 +170,8 @@ function blockTypeLabel(type: BlockType | undefined): string {
   return type === "figure"
     ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
     : type === "image"
-      ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
-      : t3({ en: "Text", fr: "Texte", pt: "Texto" });
+    ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
+    : t3({ en: "Text", fr: "Texte", pt: "Texto" });
 }
 
 // The report toolbar's text-style names.
@@ -237,12 +237,11 @@ export function SlideToolbar(p: Props) {
   // else the selected one.
   const activeTitle = () => {
     const e = p.editing;
-    const id =
-      e?.kind === "title"
-        ? e.primitiveId
-        : e
-          ? undefined
-          : p.selectedTextTarget;
+    const id = e?.kind === "title"
+      ? e.primitiveId
+      : e
+      ? undefined
+      : p.selectedTextTarget;
     return id ? slideTextField(id) : undefined;
   };
 
@@ -260,15 +259,21 @@ export function SlideToolbar(p: Props) {
   };
   const titleSize = () => {
     const st = styledTitle()?.style;
-    return st ? ((slideRec()[st.size] as number | undefined) ?? st.sizeDefault) : 0;
+    return st
+      ? ((slideRec()[st.size] as number | undefined) ?? st.sizeDefault)
+      : 0;
   };
   const titleBold = () => {
     const st = styledTitle()?.style;
-    return st ? ((slideRec()[st.bold] as boolean | undefined) ?? st.boldDefault) : false;
+    return st
+      ? ((slideRec()[st.bold] as boolean | undefined) ?? st.boldDefault)
+      : false;
   };
   const titleItalic = () => {
     const st = styledTitle()?.style;
-    return st ? ((slideRec()[st.italic] as boolean | undefined) ?? false) : false;
+    return st
+      ? ((slideRec()[st.italic] as boolean | undefined) ?? false)
+      : false;
   };
   const setTitleSize = (n: number) => {
     const st = styledTitle()?.style;
@@ -356,15 +361,15 @@ export function SlideToolbar(p: Props) {
         value: "inherit",
         label: showByDefault
           ? t3({
-              en: "Default (show)",
-              fr: "Défaut (afficher)",
-              pt: "Predefinição (mostrar)",
-            })
+            en: "Default (show)",
+            fr: "Défaut (afficher)",
+            pt: "Predefinição (mostrar)",
+          })
           : t3({
-              en: "Default (hide)",
-              fr: "Défaut (masquer)",
-              pt: "Predefinição (ocultar)",
-            }),
+            en: "Default (hide)",
+            fr: "Défaut (masquer)",
+            pt: "Predefinição (ocultar)",
+          }),
       },
       {
         value: "show",
@@ -381,8 +386,10 @@ export function SlideToolbar(p: Props) {
           <PopoverRow
             active={cur() === o.value}
             onClick={() =>
-              p.setTempSlide(field, o.value === "inherit" ? undefined : o.value)
-            }
+              p.setTempSlide(
+                field,
+                o.value === "inherit" ? undefined : o.value,
+              )}
           >
             {o.label}
           </PopoverRow>
@@ -413,8 +420,9 @@ export function SlideToolbar(p: Props) {
   // While typing on the canvas, a click in the toolbar must not take focus
   // from the (hidden) text editor.
   const keepFocus = (e: MouseEvent) => {
-    if (p.editing && (e.target as Element).closest("button"))
+    if (p.editing && (e.target as Element).closest("button")) {
       e.preventDefault();
+    }
   };
 
   // The menu row (Slide, Insert, Layout…). The deck renders it beside its
@@ -540,7 +548,8 @@ export function SlideToolbar(p: Props) {
                       <Caption>
                         {t3({
                           en: "Footer text is set for the whole deck",
-                          fr: "Le pied de page est défini pour toute la présentation",
+                          fr:
+                            "Le pied de page est défini pour toute la présentation",
                           pt: "O rodapé é definido para toda a apresentação",
                         })}
                       </Caption>
@@ -607,12 +616,14 @@ export function SlideToolbar(p: Props) {
                     onClick={() =>
                       split()
                         ? p.setTempSlide("split", "placement", side)
-                        : p.setTempSlide("split", {
+                        : p.setTempSlide(
+                          "split",
+                          {
                             placement: side,
                             sizeAsPct: 15,
                             fill: { type: "plain" },
-                          } satisfies ContentSlideSplit)
-                    }
+                          } satisfies ContentSlideSplit,
+                        )}
                   >
                     {side === "left"
                       ? t3({ en: "Left", fr: "Gauche", pt: "Esquerda" })
@@ -633,8 +644,7 @@ export function SlideToolbar(p: Props) {
                           <PopoverRow
                             active={sp().sizeAsPct === pct}
                             onClick={() =>
-                              p.setTempSlide("split", "sizeAsPct", pct)
-                            }
+                              p.setTempSlide("split", "sizeAsPct", pct)}
                           >
                             {pct}%
                           </PopoverRow>
@@ -652,8 +662,7 @@ export function SlideToolbar(p: Props) {
                     <PopoverRow
                       active={sp().fill.type === "plain"}
                       onClick={() =>
-                        p.setTempSlide("split", "fill", { type: "plain" })
-                      }
+                        p.setTempSlide("split", "fill", { type: "plain" })}
                     >
                       {t3({ en: "Plain", fr: "Uni", pt: "Liso" })}
                     </PopoverRow>
@@ -664,8 +673,7 @@ export function SlideToolbar(p: Props) {
                         p.setTempSlide("split", "fill", {
                           type: "pattern",
                           patternType: "ovals",
-                        })
-                      }
+                        })}
                     >
                       {t3({ en: "Pattern", fr: "Motif", pt: "Padrão" })}
                     </PopoverRow>
@@ -676,8 +684,7 @@ export function SlideToolbar(p: Props) {
                         p.setTempSlide("split", "fill", {
                           type: "image",
                           imgFile: "",
-                        })
-                      }
+                        })}
                     >
                       {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
                     </PopoverRow>
@@ -686,16 +693,15 @@ export function SlideToolbar(p: Props) {
                         <For each={PATTERNS}>
                           {(pat) => (
                             <PopoverRow
-                              active={
-                                (sp().fill as { patternType?: PatternType })
-                                  .patternType === pat.value
-                              }
+                              active={(sp().fill as {
+                                patternType?: PatternType;
+                              })
+                                .patternType === pat.value}
                               onClick={() =>
                                 p.setTempSlide("split", "fill", {
                                   type: "pattern",
                                   patternType: pat.value,
-                                })
-                              }
+                                })}
                             >
                               {pat.label()}
                             </PopoverRow>
@@ -719,16 +725,14 @@ export function SlideToolbar(p: Props) {
                         >
                           {(file) => (
                             <PopoverRow
-                              active={
-                                (sp().fill as { imgFile?: string }).imgFile ===
-                                file
-                              }
+                              active={(sp().fill as { imgFile?: string })
+                                .imgFile ===
+                                file}
                               onClick={() =>
                                 p.setTempSlide("split", "fill", {
                                   type: "image",
                                   imgFile: file,
-                                })
-                              }
+                                })}
                             >
                               <span class="truncate">{file}</span>
                             </PopoverRow>
@@ -754,13 +758,17 @@ export function SlideToolbar(p: Props) {
     >
       <Show when={p.menuRowHost} fallback={menuRow()}>
         {(host) => (
-          <Portal mount={host()} ref={(el) => el.classList.add("contents")}>
+          <Portal
+            mount={host()}
+            ref={(el) => el.classList.add("contents")}
+          >
             {menuRow()}
           </Portal>
         )}
       </Show>
 
-      {/* The report toolbar's row (report/toolbar.tsx), in its order and
+      {
+        /* The report toolbar's row (report/toolbar.tsx), in its order and
           grouping: undo/redo | text style | bold, italic, size | lists, quote
           | then whatever is selected. Every text control is ALWAYS here,
           greyed when nothing it applies to is being typed into or selected,
@@ -768,7 +776,8 @@ export function SlideToolbar(p: Props) {
           underline, highlight, link and colour are not here: the slide
           renderer (panther's markdown) draws none of them. Undo and redo
           were already always present, so nothing shifts once the room
-          syncs. */}
+          syncs. */
+      }
       <ToolButton
         label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
         disabled={undoGreyed()}
@@ -785,8 +794,10 @@ export function SlideToolbar(p: Props) {
       </ToolButton>
       <ToolbarDivider />
 
-      {/* A selected figure or image swaps the text controls for its own, as
-          selecting an embed does in the report (and an image in Google Docs). */}
+      {
+        /* A selected figure or image swaps the text controls for its own, as
+          selecting an embed does in the report (and an image in Google Docs). */
+      }
       <Show
         when={!embedBlockId()}
         fallback={
@@ -813,8 +824,10 @@ export function SlideToolbar(p: Props) {
           </>
         }
       >
-        {/* Text style: a body block's heading level while typing in it; for
-            a title, the field's own name (its look is set below). */}
+        {
+          /* Text style: a body block's heading level while typing in it; for
+            a title, the field's own name (its look is set below). */
+        }
         <ToolbarPopover
           disabled={!typing()}
           label={<span class="w-24 truncate text-left">{styleFace()}</span>}
@@ -878,8 +891,10 @@ export function SlideToolbar(p: Props) {
         >
           <span class="italic">I</span>
         </ToolButton>
-        {/* − N +: a title's size. A body block has none to step (the slide
-            renderer sizes body text to fit its block). */}
+        {
+          /* − N +: a title's size. A body block has none to step (the slide
+            renderer sizes body text to fit its block). */
+        }
         <div class="flex items-center">
           <ToolButton
             label={t3({
@@ -945,17 +960,22 @@ export function SlideToolbar(p: Props) {
           <span class="font-700">"</span>
         </ToolButton>
 
-        {/* What is selected, AFTER the text controls, as the report's block
+        {
+          /* What is selected, AFTER the text controls, as the report's block
             segment comes after its own: a text block's kind, layout and
             options; a title's reset; or, with nothing selected, how to
-            start. */}
+            start. */
+        }
         <Switch
           fallback={
             <span class="text-base-content-muted px-2 text-sm">
               {t3({
-                en: "Double-click text on the slide to type, or click a block for its options",
-                fr: "Double-cliquez sur un texte pour écrire, ou cliquez sur un bloc pour ses options",
-                pt: "Faça duplo clique num texto para escrever, ou clique num bloco para as suas opções",
+                en:
+                  "Double-click text on the slide to type, or click a block for its options",
+                fr:
+                  "Double-cliquez sur un texte pour écrire, ou cliquez sur un bloc pour ses options",
+                pt:
+                  "Faça duplo clique num texto para escrever, ou clique num bloco para as suas opções",
               })}
             </span>
           }
@@ -969,8 +989,7 @@ export function SlideToolbar(p: Props) {
                 <Show when={!p.editing}>
                   <TextButton
                     onClick={() =>
-                      p.onEditText({ kind: "block", id: blockId() })
-                    }
+                      p.onEditText({ kind: "block", id: blockId() })}
                   >
                     <Icon iconName="pencil" class="h-4 w-4" />
                     {t3({
@@ -1021,8 +1040,9 @@ function TextBlockControls(p: Props & { blockId: string }) {
   const bg = () => {
     if (p.tempSlide.type !== "content") return "none";
     const hit = findById((p.tempSlide as ContentSlide).layout, p.blockId);
-    const data =
-      hit?.node.type === "item" ? (hit.node.data as TextBlock) : undefined;
+    const data = hit?.node.type === "item"
+      ? (hit.node.data as TextBlock)
+      : undefined;
     return data?.style?.textBackground ?? "none";
   };
   return (
@@ -1063,9 +1083,12 @@ function TextBlockControls(p: Props & { blockId: string }) {
       </ToolbarPopover>
       <TextButton
         title={t3({
-          en: "Edit this block's markdown source (code blocks, links, anything typing can't reach)",
-          fr: "Modifier la source markdown de ce bloc (blocs de code, liens, etc.)",
-          pt: "Editar a fonte markdown deste bloco (blocos de código, ligações, etc.)",
+          en:
+            "Edit this block's markdown source (code blocks, links, anything typing can't reach)",
+          fr:
+            "Modifier la source markdown de ce bloc (blocs de code, liens, etc.)",
+          pt:
+            "Editar a fonte markdown deste bloco (blocos de código, ligações, etc.)",
         })}
         onClick={() => p.onEditMarkdown(p.blockId)}
       >
@@ -1080,8 +1103,10 @@ function FigureControls(p: Props & { blockId: string; block: FigureBlock }) {
   const hasBundle = () => p.block.bundle !== undefined;
   return (
     <>
-      {/* Resolved under another package or scope than the deck now serves
-          from (D4): shown, never blocking. */}
+      {
+        /* Resolved under another package or scope than the deck now serves
+          from (D4): shown, never blocking. */
+      }
       <Show when={p.staleFigureBundle} keyed>
         {(stale) => (
           <StaleFigureBadge
@@ -1107,15 +1132,15 @@ function FigureControls(p: Props & { blockId: string; block: FigureBlock }) {
         <Icon iconName="chart" class="h-4 w-4" />
         {hasBundle()
           ? t3({
-              en: "Replace visualization",
-              fr: "Remplacer la visualisation",
-              pt: "Substituir visualização",
-            })
+            en: "Replace visualization",
+            fr: "Remplacer la visualisation",
+            pt: "Substituir visualização",
+          })
           : t3({
-              en: "Insert visualization",
-              fr: "Insérer une visualisation",
-              pt: "Inserir visualização",
-            })}
+            en: "Insert visualization",
+            fr: "Insérer une visualisation",
+            pt: "Inserir visualização",
+          })}
       </TextButton>
       <Show when={hasBundle()}>
         <TextButton

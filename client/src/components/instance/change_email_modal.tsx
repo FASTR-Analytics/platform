@@ -3,11 +3,11 @@ import type { RenameEmailInstanceResult } from "lib";
 import type { EmailAddressResource } from "@clerk/types";
 import {
   type AlertComponentProps,
+  createButtonAction,
   ModalContainer,
   TextArea,
-  createButtonAction,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { clerk } from "~/state/_infra/clerk";
 import { serverActions } from "~/server_actions";
 
@@ -40,7 +40,9 @@ function clerkErrMessage(error: unknown): string {
 export function ChangeEmailModal(
   p: AlertComponentProps<{ currentEmail: string }, undefined>,
 ) {
-  const [phase, setPhase] = createSignal<"enter" | "verify" | "report">("enter");
+  const [phase, setPhase] = createSignal<"enter" | "verify" | "report">(
+    "enter",
+  );
   const [newEmail, setNewEmail] = createSignal("");
   const [code, setCode] = createSignal("");
   const [preview, setPreview] = createSignal<RenameEmailInstanceResult[]>([]);
@@ -66,12 +68,18 @@ export function ChangeEmailModal(
   // Clerk primary before the call would make the session resolve to an email
   // with no row and get rejected. Shared by the verify step and the report's
   // Retry; every part is safe to re-run.
-  async function runRename(): Promise<{ success: true } | { success: false; err: string }> {
+  async function runRename(): Promise<
+    { success: true } | { success: false; err: string }
+  > {
     const address = findNewAddress();
     if (!address || address.verification?.status !== "verified") {
       return {
         success: false,
-        err: t3({ en: "The new address is not verified yet", fr: "La nouvelle adresse n'est pas encore vérifiée", pt: "O novo endereço ainda não está verificado" }),
+        err: t3({
+          en: "The new address is not verified yet",
+          fr: "La nouvelle adresse n'est pas encore vérifiée",
+          pt: "O novo endereço ainda não está verificado",
+        }),
       };
     }
     const res = await serverActions.renameUserEmailEverywhere({
@@ -119,7 +127,11 @@ export function ChangeEmailModal(
     if (email.length === 0 || email === oldEmail) {
       return {
         success: false,
-        err: t3({ en: "Enter a new email address", fr: "Saisissez une nouvelle adresse e-mail", pt: "Introduza um novo endereço de e-mail" }),
+        err: t3({
+          en: "Enter a new email address",
+          fr: "Saisissez une nouvelle adresse e-mail",
+          pt: "Introduza um novo endereço de e-mail",
+        }),
       };
     }
     const res = await serverActions.renameUserEmailEverywhere({
@@ -134,16 +146,23 @@ export function ChangeEmailModal(
     if (res.data.instances.length === 0) {
       return {
         success: false,
-        err: t3({ en: "Your account was not found on any instance", fr: "Votre compte n'a été trouvé sur aucune instance", pt: "A sua conta não foi encontrada em nenhuma instância" }),
+        err: t3({
+          en: "Your account was not found on any instance",
+          fr: "Votre compte n'a été trouvé sur aucune instance",
+          pt: "A sua conta não foi encontrada em nenhuma instância",
+        }),
       };
     }
     if (res.data.instances.some((i) => i.status === "conflict")) {
       return {
         success: false,
         err: t3({
-          en: "The new email already belongs to another user on the instances marked below — resolve that first",
-          fr: "Le nouvel e-mail appartient déjà à un autre utilisateur sur les instances indiquées ci-dessous — résolvez cela d'abord",
-          pt: "O novo e-mail já pertence a outro utilizador nas instâncias indicadas abaixo — resolva isso primeiro",
+          en:
+            "The new email already belongs to another user on the instances marked below — resolve that first",
+          fr:
+            "Le nouvel e-mail appartient déjà à un autre utilisateur sur les instances indiquées ci-dessous — résolvez cela d'abord",
+          pt:
+            "O novo e-mail já pertence a outro utilizador nas instâncias indicadas abaixo — resolva isso primeiro",
         }),
       };
     }
@@ -168,14 +187,22 @@ export function ChangeEmailModal(
     if (!address) {
       return {
         success: false,
-        err: t3({ en: "The new address is missing from your account — start again", fr: "La nouvelle adresse manque sur votre compte — recommencez", pt: "O novo endereço não consta da sua conta — recomece" }),
+        err: t3({
+          en: "The new address is missing from your account — start again",
+          fr: "La nouvelle adresse manque sur votre compte — recommencez",
+          pt: "O novo endereço não consta da sua conta — recomece",
+        }),
       };
     }
     if (address.verification?.status !== "verified") {
       if (code().trim().length === 0) {
         return {
           success: false,
-          err: t3({ en: "Enter the code from the email", fr: "Saisissez le code reçu par e-mail", pt: "Introduza o código recebido por e-mail" }),
+          err: t3({
+            en: "Enter the code from the email",
+            fr: "Saisissez le code reçu par e-mail",
+            pt: "Introduza o código recebido por e-mail",
+          }),
         };
       }
       try {
@@ -209,15 +236,38 @@ export function ChangeEmailModal(
   const statusLabel = (status: RenameEmailInstanceResult["status"]) => {
     switch (status) {
       case "pending":
-        return { text: t3({ en: "Will be renamed", fr: "Sera renommé", pt: "Será renomeado" }), class: "text-base-content" };
+        return {
+          text: t3({
+            en: "Will be renamed",
+            fr: "Sera renommé",
+            pt: "Será renomeado",
+          }),
+          class: "text-base-content",
+        };
       case "updated":
-        return { text: t3({ en: "Renamed", fr: "Renommé", pt: "Renomeado" }), class: "text-success" };
+        return {
+          text: t3({ en: "Renamed", fr: "Renommé", pt: "Renomeado" }),
+          class: "text-success",
+        };
       case "conflict":
-        return { text: t3({ en: "Conflict — the new email is already in use", fr: "Conflit — le nouvel e-mail est déjà utilisé", pt: "Conflito — o novo e-mail já está em utilização" }), class: "text-danger" };
+        return {
+          text: t3({
+            en: "Conflict — the new email is already in use",
+            fr: "Conflit — le nouvel e-mail est déjà utilisé",
+            pt: "Conflito — o novo e-mail já está em utilização",
+          }),
+          class: "text-danger",
+        };
       case "failed":
-        return { text: t3({ en: "Failed", fr: "Échec", pt: "Falhou" }), class: "text-danger" };
+        return {
+          text: t3({ en: "Failed", fr: "Échec", pt: "Falhou" }),
+          class: "text-danger",
+        };
       case "unreachable":
-        return { text: t3({ en: "Unreachable", fr: "Injoignable", pt: "Inacessível" }), class: "text-warning" };
+        return {
+          text: t3({ en: "Unreachable", fr: "Injoignable", pt: "Inacessível" }),
+          class: "text-warning",
+        };
     }
   };
 
@@ -231,7 +281,9 @@ export function ChangeEmailModal(
               <span class="font-700">{instance.id}</span>
               <span class={label.class}>{label.text}</span>
               <Show when={instance.error && instance.status === "failed"}>
-                <span class="text-base-content-muted text-xs">{instance.error}</span>
+                <span class="text-base-content-muted text-xs">
+                  {instance.error}
+                </span>
               </Show>
             </div>
           );
@@ -259,13 +311,21 @@ export function ChangeEmailModal(
           cancelDisabled: busy(),
           actions: [
             {
-              label: t3({ en: "Resend code", fr: "Renvoyer le code", pt: "Reenviar o código" }),
+              label: t3({
+                en: "Resend code",
+                fr: "Renvoyer le code",
+                pt: "Reenviar o código",
+              }),
               onClick: resend.click,
               state: resend.state(),
               outline: true,
             },
             {
-              label: t3({ en: "Verify and rename everywhere", fr: "Vérifier et renommer partout", pt: "Verificar e renomear em todo o lado" }),
+              label: t3({
+                en: "Verify and rename everywhere",
+                fr: "Vérifier et renommer partout",
+                pt: "Verificar e renomear em todo o lado",
+              }),
               onClick: verify.click,
               state: verify.state(),
               intent: "danger" as const,
@@ -275,18 +335,28 @@ export function ChangeEmailModal(
         };
       case "report":
         return {
-          actions: allGreen(report()?.instances ?? []) && primaryDone() ? [] : [{
-            label: t3({ en: "Retry", fr: "Réessayer", pt: "Tentar novamente" }),
-            onClick: retry.click,
-            state: retry.state(),
-          }],
+          actions: allGreen(report()?.instances ?? []) && primaryDone()
+            ? []
+            : [{
+              label: t3({
+                en: "Retry",
+                fr: "Réessayer",
+                pt: "Tentar novamente",
+              }),
+              onClick: retry.click,
+              state: retry.state(),
+            }],
         };
     }
   };
 
   return (
     <ModalContainer
-      title={t3({ en: "Change email", fr: "Changer d'e-mail", pt: "Alterar e-mail" })}
+      title={t3({
+        en: "Change email",
+        fr: "Changer d'e-mail",
+        pt: "Alterar e-mail",
+      })}
       width="lg"
       {...footer()}
     >
@@ -294,16 +364,27 @@ export function ChangeEmailModal(
         <div class="flex flex-col gap-4">
           <div class="text-sm">
             {t3({
-              en: "This changes your email on every FASTR instance you have access to, keeping all your permissions and history. You will need to enter a code sent to the new address.",
-              fr: "Ceci change votre e-mail sur toutes les instances FASTR auxquelles vous avez accès, en conservant vos permissions et votre historique. Vous devrez saisir un code envoyé à la nouvelle adresse.",
-              pt: "Isto altera o seu e-mail em todas as instâncias FASTR a que tem acesso, mantendo as suas permissões e o seu histórico. Terá de introduzir um código enviado para o novo endereço.",
+              en:
+                "This changes your email on every FASTR instance you have access to, keeping all your permissions and history. You will need to enter a code sent to the new address.",
+              fr:
+                "Ceci change votre e-mail sur toutes les instances FASTR auxquelles vous avez accès, en conservant vos permissions et votre historique. Vous devrez saisir un code envoyé à la nouvelle adresse.",
+              pt:
+                "Isto altera o seu e-mail em todas as instâncias FASTR a que tem acesso, mantendo as suas permissões e o seu histórico. Terá de introduzir um código enviado para o novo endereço.",
             })}
           </div>
           <div class="text-base-content-muted text-sm">
-            {t3({ en: "Current address", fr: "Adresse actuelle", pt: "Endereço atual" })}: {oldEmail}
+            {t3({
+              en: "Current address",
+              fr: "Adresse actuelle",
+              pt: "Endereço atual",
+            })}: {oldEmail}
           </div>
           <TextArea
-            label={t3({ en: "New email address", fr: "Nouvelle adresse e-mail", pt: "Novo endereço de e-mail" })}
+            label={t3({
+              en: "New email address",
+              fr: "Nouvelle adresse e-mail",
+              pt: "Novo endereço de e-mail",
+            })}
             value={newEmail()}
             onChange={setNewEmail}
             fullWidth
@@ -327,20 +408,33 @@ export function ChangeEmailModal(
       <Show when={phase() === "verify"}>
         <div class="flex flex-col gap-4">
           <div class="text-sm">
-            {t3({ en: "Your account was found on these instances:", fr: "Votre compte a été trouvé sur ces instances :", pt: "A sua conta foi encontrada nestas instâncias:" })}
+            {t3({
+              en: "Your account was found on these instances:",
+              fr: "Votre compte a été trouvé sur ces instances :",
+              pt: "A sua conta foi encontrada nestas instâncias:",
+            })}
           </div>
           <InstanceList items={preview()} />
           <div class="border-t pt-4 text-sm">
-            {t3({ en: "Enter the code sent to", fr: "Saisissez le code envoyé à", pt: "Introduza o código enviado para" })}{" "}
-            <span class="font-700">{cleanNewEmail()}</span>.{" "}
             {t3({
-              en: "A correct code completes the change everywhere automatically.",
-              fr: "Un code correct effectue le changement partout automatiquement.",
-              pt: "Um código correto conclui a alteração em todo o lado automaticamente.",
+              en: "Enter the code sent to",
+              fr: "Saisissez le code envoyé à",
+              pt: "Introduza o código enviado para",
+            })} <span class="font-700">{cleanNewEmail()}</span>. {t3({
+              en:
+                "A correct code completes the change everywhere automatically.",
+              fr:
+                "Un code correct effectue le changement partout automatiquement.",
+              pt:
+                "Um código correto conclui a alteração em todo o lado automaticamente.",
             })}
           </div>
           <TextArea
-            label={t3({ en: "Verification code", fr: "Code de vérification", pt: "Código de verificação" })}
+            label={t3({
+              en: "Verification code",
+              fr: "Code de vérification",
+              pt: "Código de verificação",
+            })}
             value={code()}
             onChange={setCode}
             fullWidth
@@ -372,15 +466,23 @@ export function ChangeEmailModal(
                 fallback={
                   <div class="text-warning text-sm">
                     {t3({
-                      en: "Not everything was renamed yet. Your old address stays on your account until it completes — retrying is safe.",
-                      fr: "Tout n'a pas encore été renommé. Votre ancienne adresse reste sur votre compte jusqu'à la fin — réessayer est sans risque.",
-                      pt: "Ainda não foi tudo renomeado. O seu endereço antigo permanece na sua conta até à conclusão — tentar novamente é seguro.",
+                      en:
+                        "Not everything was renamed yet. Your old address stays on your account until it completes — retrying is safe.",
+                      fr:
+                        "Tout n'a pas encore été renommé. Votre ancienne adresse reste sur votre compte jusqu'à la fin — réessayer est sans risque.",
+                      pt:
+                        "Ainda não foi tudo renomeado. O seu endereço antigo permanece na sua conta até à conclusão — tentar novamente é seguro.",
                     })}
                   </div>
                 }
               >
                 <div class="text-success text-sm">
-                  {t3({ en: "Your email was changed everywhere. Reloading…", fr: "Votre e-mail a été changé partout. Rechargement…", pt: "O seu e-mail foi alterado em todo o lado. A recarregar…" })}
+                  {t3({
+                    en: "Your email was changed everywhere. Reloading…",
+                    fr: "Votre e-mail a été changé partout. Rechargement…",
+                    pt:
+                      "O seu e-mail foi alterado em todo o lado. A recarregar…",
+                  })}
                 </div>
               </Show>
             </div>

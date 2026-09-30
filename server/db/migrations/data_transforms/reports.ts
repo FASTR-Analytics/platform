@@ -27,10 +27,10 @@ import {
 } from "./po_config.ts";
 import {
   type FigureBlockMut,
+  getTransformLocalization,
   rawJsonNeedsFigureBlockTransform,
   transformFigureBlock,
   transformFigureBlockToBundle,
-  getTransformLocalization,
 } from "./_figure_block.ts";
 
 export async function migrateReports(

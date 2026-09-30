@@ -64,26 +64,28 @@ import { liveConnectionIds } from "~/state/instance/collab";
 // the overlay renders peers' bubbles). Cleared on Enter (after a short linger),
 // Escape, disable, and unmount.
 
-export type PointerAwarenessState = {
-  /** Monotonic per-tab CLICK counter, bumped on every primary-button press
-   *  over the surface. Peers render an expanding ring ("click ripple") at
-   *  the pointer position whenever it increases: the counter (not a flag)
-   *  makes repeat clicks at the same spot animate again. Optional so states
-   *  from pre-feature clients stay valid. */
-  click?: number;
-} &
-  // x,y in slide DU (PAGE_WIDTH_DU × PAGE_HEIGHT_DU)
-  (| { surface: "slide"; scope: string; x: number; y: number }
+export type PointerAwarenessState =
+  & {
+    /** Monotonic per-tab CLICK counter, bumped on every primary-button press
+     *  over the surface. Peers render an expanding ring ("click ripple") at
+     *  the pointer position whenever it increases: the counter (not a flag)
+     *  makes repeat clicks at the same spot animate again. Optional so states
+     *  from pre-feature clients stay valid. */
+    click?: number;
+  }
+  & // x,y in slide DU (PAGE_WIDTH_DU × PAGE_HEIGHT_DU)
+  (
+    | { surface: "slide"; scope: string; x: number; y: number }
     // x,y normalized 0..1 of the viz preview canvas rect
     | { surface: "viz-preview"; scope: string; x: number; y: number }
     // x normalized 0..1 of the tab scroll-container width; y in content px
     | {
-        surface: "viz-panel";
-        scope: string;
-        tab: "data" | "style" | "text";
-        x: number;
-        y: number;
-      }
+      surface: "viz-panel";
+      scope: string;
+      tab: "data" | "style" | "text";
+      x: number;
+      y: number;
+    }
     // (There is no "page" surface: every surface belongs to a document
     // session.)
     // A named CHROME region of any surface family ([data-cursor-zone]
@@ -134,8 +136,7 @@ const MODIFIER_KEYS = new Set([
 
 // Evaluated once: dropping the transform transition makes positions snap
 // instead of glide, which is exactly what reduced-motion asks for.
-const REDUCED_MOTION =
-  typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ── Pure mappers (DOM-free; exercised by the scratch harness) ────────────────
@@ -829,10 +830,9 @@ export function LiveCursorsOverlay(p: {
         | { text?: string }
         | null
         | undefined;
-      const chat =
-        typeof chatState?.text === "string"
-          ? chatState.text.slice(0, CHAT_MAX_LEN)
-          : undefined;
+      const chat = typeof chatState?.text === "string"
+        ? chatState.text.slice(0, CHAT_MAX_LEN)
+        : undefined;
       const info = moveInfo.get(clientID);
       const lastMoveAt = info ? info.lastMoveAt : now;
       const idle = now - lastMoveAt;
@@ -858,8 +858,7 @@ export function LiveCursorsOverlay(p: {
       }
       // Hover-reveal: your own mouse near the cursor brings a faded chip back.
       const m = mouse();
-      const hovered =
-        m !== undefined &&
+      const hovered = m !== undefined &&
         Math.hypot(m.x - pos.x, m.y - pos.y) < HOVER_REVEAL_PX;
       byPerson.set(personKey(user), {
         lastMoveAt,
@@ -897,14 +896,15 @@ export function LiveCursorsOverlay(p: {
                 height: `${RIPPLE_SIZE_PX}px`,
                 border: `2px solid ${r.color}`,
                 ...(REDUCED_MOTION
-                  ? // Static ring, gone on removal: no expansion motion.
-                    {
-                      transform: "translate(-50%, -50%) scale(0.5)",
-                      opacity: 0.6,
-                    }
+                  // Static ring, gone on removal: no expansion motion.
+                  ? {
+                    transform: "translate(-50%, -50%) scale(0.5)",
+                    opacity: 0.6,
+                  }
                   : {
-                      animation: `collab-click-ripple ${RIPPLE_MS}ms ease-out forwards`,
-                    }),
+                    animation:
+                      `collab-click-ripple ${RIPPLE_MS}ms ease-out forwards`,
+                  }),
               }}
             />
           )}
@@ -921,10 +921,12 @@ export function LiveCursorsOverlay(p: {
                   : { transition: "transform 100ms linear" }),
               }}
             >
-              {/* The glyph's tip sits about 2px in from its box corner, so
+              {
+                /* The glyph's tip sits about 2px in from its box corner, so
                   the box is pulled back to put the tip on the hotspot. The
                   white glow stands in for an outline on same-colour
-                  backgrounds. */}
+                  backgrounds. */
+              }
               <span
                 class="block -translate-x-0.5 -translate-y-0.5"
                 style={{

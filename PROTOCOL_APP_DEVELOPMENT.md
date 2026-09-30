@@ -1,14 +1,14 @@
 # PROTOCOL (App): Development & Verification Loop
 
-> **App-specific working protocol.** How to get from "I changed some code" to
-> "I have watched this behave correctly," with the **MCP surface as a
-> first-class system under test** rather than an incidental instrument.
+> **App-specific working protocol.** How to get from "I changed some code" to "I
+> have watched this behave correctly," with the **MCP surface as a first-class
+> system under test** rather than an incidental instrument.
 >
 > This is about **verification mechanics**. What to build lives in the
 > `SYSTEM_NN_*.md` files; how to author a route / worker / migration / AI tool
 > lives in the sibling `PROTOCOL_APP_*.md` recipes. The one rule this file
-> inherits from `CLAUDE.md` and never restates elsewhere: **verify by
-> executing, not by reading.**
+> inherits from `CLAUDE.md` and never restates elsewhere: **verify by executing,
+> not by reading.**
 
 ---
 
@@ -32,14 +32,14 @@ traversing all of it:
 Each rung below is defined by **which links it skips**. A rung is not "less
 thorough"; it is blind to specific links, and you have to know which.
 
-| Rung | Instrument | Skips |
-| --- | --- | --- |
-| 0 | Direct execution + validators | 1–7: no server at all |
-| 1a | JSON-RPC probe → localhost | 1, 2, 3 (and 5 under `BYPASS_AUTH`) |
-| 1b | Local dev + a real client over OAuth | 4, and it uses the **dev** Clerk instance, not prod's |
-| 2a | JSON-RPC probe → testing-tim + PAT | 1, 2, 3: PATs never touch OAuth |
-| 2b | Real client → testing-tim over OAuth | **nothing, this is the end-to-end test** |
-| 3 | `ssh` + `psql`, **read-only** | all of it: a diagnostic, never a verification |
+| Rung | Instrument                           | Skips                                                 |
+| ---- | ------------------------------------ | ----------------------------------------------------- |
+| 0    | Direct execution + validators        | 1–7: no server at all                                 |
+| 1a   | JSON-RPC probe → localhost           | 1, 2, 3 (and 5 under `BYPASS_AUTH`)                   |
+| 1b   | Local dev + a real client over OAuth | 4, and it uses the **dev** Clerk instance, not prod's |
+| 2a   | JSON-RPC probe → testing-tim + PAT   | 1, 2, 3: PATs never touch OAuth                       |
+| 2b   | Real client → testing-tim over OAuth | **nothing, this is the end-to-end test**              |
+| 3    | `ssh` + `psql`, **read-only**        | all of it: a diagnostic, never a verification         |
 
 Rung 2b has historically been the missing one. Reaching it is the point of this
 loop.
@@ -58,11 +58,11 @@ Consequences, which are structural rather than annoyances:
 - **Connector setup is a between-sessions step**, done once by a human.
 - **In-session, the agent's instrument is the raw JSON-RPC probe** (below). It
   needs no connector, works against any origin, and returns the wire response
-  rather than a model's paraphrase of it, which is what you want when the
-  thing under test *is* the tool.
+  rather than a model's paraphrase of it, which is what you want when the thing
+  under test _is_ the tool.
 - **Sequence the work accordingly**: change + deploy in one session, exercise
-  the connector in the next. Do not plan a single session that both ships an
-  MCP change and dogfoods it through a connector.
+  the connector in the next. Do not plan a single session that both ships an MCP
+  change and dogfoods it through a connector.
 
 ---
 
@@ -104,8 +104,8 @@ cd client && npm run dev   # SPA on :3000, hot-reloads
 Boot is ~15s cold (schema migrations, the JSON data-transform sweeps and the
 run-manifest sweep all run against the main DB) and ~3s warm. Two self-checks
 fail-stop the boot: the route validation and, in dev only, the headless mount
-check. The server test suite does not run at boot; run
-`deno task test` yourself (it is part of the verification floor).
+check. The server test suite does not run at boot; run `deno task test` yourself
+(it is part of the verification floor).
 
 ### 1a. The JSON-RPC probe: `./mcp_probe`
 
@@ -128,8 +128,8 @@ FASTR_PAT=fastr_pat_… ./mcp_probe testing-tim --list
 
 It handles the streamable-HTTP handshake (initialize → session id →
 `notifications/initialized` → call), prints the tool's text content, and exits
-non-zero on a JSON-RPC error, a tool-level `isError`, or a bad credential,
-with the 401-vs-503 distinction spelled out, since those mean different things.
+non-zero on a JSON-RPC error, a tool-level `isError`, or a bad credential, with
+the 401-vs-503 distinction spelled out, since those mean different things.
 
 **This is the agent's default MCP instrument**: no connector, so no session
 restart. It proves links 4–7 and says nothing about 1–3.
@@ -140,11 +140,11 @@ only authority on what a tool actually accepts.
 
 ### The three local auth modes: pick deliberately
 
-| Mode | Boot | Identity | What it skips |
-| --- | --- | --- | --- |
-| `BYPASS_AUTH` (the `.env` default) | `deno task dev` | seeded admin `dev@offline.local` | link 5 entirely, **and because that identity is an instance admin, permission gating is never exercised** |
-| PAT | `BYPASS_AUTH= deno task dev` | whoever you minted for | links 1–3 |
-| OAuth | `BYPASS_AUTH= deno task dev` + `claude mcp login` | the Clerk account you sign in as | link 4 only |
+| Mode                               | Boot                                              | Identity                         | What it skips                                                                                             |
+| ---------------------------------- | ------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `BYPASS_AUTH` (the `.env` default) | `deno task dev`                                   | seeded admin `dev@offline.local` | link 5 entirely, **and because that identity is an instance admin, permission gating is never exercised** |
+| PAT                                | `BYPASS_AUTH= deno task dev`                      | whoever you minted for           | links 1–3                                                                                                 |
+| OAuth                              | `BYPASS_AUTH= deno task dev` + `claude mcp login` | the Clerk account you sign in as | link 4 only                                                                                               |
 
 ```bash
 deno task mint-pat you@example.com claude   # PAT, for the probe or a header connector
@@ -174,9 +174,9 @@ rung-2b findings by construction.
 ./deploy_testing [--validate-migrations] [--validate-queries]
 ```
 
-- Deploys the **working tree**, uncommitted changes included. No git
-  operations, no `VERSION` bump. That is what makes it an iteration tool rather
-  than a release.
+- Deploys the **working tree**, uncommitted changes included. No git operations,
+  no `VERSION` bump. That is what makes it an iteration tool rather than a
+  release.
 - Gates on `deno task typecheck` and `./validate_protocols` **before** the
   expensive build; the migration and query rigs are opt-in flags.
 - Pushes to the **fixed** tag `timroberton/comb:wb-fastr-server-vtesting-tim`,
@@ -201,12 +201,11 @@ Target: `testing-tim` (app port 9151, Postgres 19151),
 
 ### A deploy target proves only as much as the data on it
 
-`get_overview` reporting "no results package is pinned" on an unseeded
-instance is the correct answer, not a bug. It means the only claim that target
-supports is "the new bytes boot and serve." Before treating an instance as a
-verification rung, confirm it carries a PINNED package with known data, and a
-approved user whose primary email matches the credential
-you connect with.
+`get_overview` reporting "no results package is pinned" on an unseeded instance
+is the correct answer, not a bug. It means the only claim that target supports
+is "the new bytes boot and serve." Before treating an instance as a verification
+rung, confirm it carries a PINNED package with known data, and a approved user
+whose primary email matches the credential you connect with.
 
 **Verify with disposable fixtures**: create what you need, use it, delete it.
 Never arrange a fixture by editing an existing named row, and never by writing
@@ -226,24 +225,23 @@ change.
 ```
 
 It reads the protected-resource document, the Clerk authorization-server
-document (warning loudly if `registration_endpoint` is absent: without it
-Claude cannot register itself and "Connect" spins and fails), and the
-unauthenticated `401` challenge. On local dev with `BYPASS_AUTH` that last check
-returns 200 and says so; anywhere else a non-401 is a real finding.
+document (warning loudly if `registration_endpoint` is absent: without it Claude
+cannot register itself and "Connect" spins and fails), and the unauthenticated
+`401` challenge. On local dev with `BYPASS_AUTH` that last check returns 200 and
+says so; anywhere else a non-401 is a real finding.
 
-**The exposed surface is the AI assistant's *shared* tools over the pinned
-package**: 6 reads, no writes (S13 principle 2). Module internals (script,
-logs, settings) and the browser-only editor tools (slide-deck, slide and
-report editing, figure updates, draft previews, ask-the-user) are SPA-only by
-design and must stay out.
+**The exposed surface is the AI assistant's _shared_ tools over the pinned
+package**: 6 reads, no writes (S13 principle 2). Module internals (script, logs,
+settings) and the browser-only editor tools (slide-deck, slide and report
+editing, figure updates, draft previews, ask-the-user) are SPA-only by design
+and must stay out.
 
 So MCP exercises: the route registry and `APIResponse` envelope, server actions,
 the run-keyed metric reads (items, value info), the query/formatting layer,
 `get_overview` and prompt assembly, the pin resolution, and the approved-user
-gate. It does **not**
-exercise ingestion, module execution, viz or slide authoring, exports, client
-rendering, product access, or SSE. Drive those with Playwright
-against testing-tim.
+gate. It does **not** exercise ingestion, module execution, viz or slide
+authoring, exports, client rendering, product access, or SSE. Drive those with
+Playwright against testing-tim.
 
 **Writes.** `approvalMode: "delegate"` means the gate is the client's own
 tool-permission prompt, not a second in-protocol elicitation, so a user who has
@@ -255,8 +253,8 @@ than on remembering.
 **When adding a tool**, check all four: it appears in `--list`, its `--schema`
 matches what you meant to accept, it is reachable via a real call, and its
 permission gate actually denies. The first three are probe one-liners; the
-fourth needs a non-admin identity, which means `BYPASS_AUTH= deno task dev`
-with a PAT, or rung 2.
+fourth needs a non-admin identity, which means `BYPASS_AUTH= deno task dev` with
+a PAT, or rung 2.
 
 **Shared-tool content stays surface-neutral** (S13 principle 2). Three greps,
 each expected to print nothing:
@@ -273,8 +271,8 @@ grep -rn "getRunModule" server/middleware/headless_allowlist.ts          # the a
 
 Connection recipes and credentials live in
 [PROTOCOL_ACCESS_DBS.md](PROTOCOL_ACCESS_DBS.md). That document is written for
-production instances; the same commands work against any `testing*` instance
-by swapping the container name.
+production instances; the same commands work against any `testing*` instance by
+swapping the container name.
 
 **Read-only, always**: `SELECT` and `information_schema` only, on testing
 instances as much as on production. A `psql` session finds out what is stored;
@@ -296,16 +294,16 @@ docker exec pg psql -U postgres -d main -c 'SELECT id, type, label, run_id FROM 
 
 ## Choosing a rung
 
-| Question | Rung |
-| --- | --- |
-| Does this function / SQL / gate return the right thing? | 0 |
-| Does this route, tool, or query behave end to end? | 1a |
-| Does the client render / behave correctly? | 1 (`:3000`) |
-| Does a permission gate actually deny? | 1 auth-on, or 2 |
-| Does the OAuth flow work at all? | 1b |
-| **Does the whole MCP chain work for a real user?** | **2b** |
-| Does auth, caching, the built bundle, or R execution work? | 2 |
-| What is actually stored on a deployed instance? | 3 |
+| Question                                                   | Rung            |
+| ---------------------------------------------------------- | --------------- |
+| Does this function / SQL / gate return the right thing?    | 0               |
+| Does this route, tool, or query behave end to end?         | 1a              |
+| Does the client render / behave correctly?                 | 1 (`:3000`)     |
+| Does a permission gate actually deny?                      | 1 auth-on, or 2 |
+| Does the OAuth flow work at all?                           | 1b              |
+| **Does the whole MCP chain work for a real user?**         | **2b**          |
+| Does auth, caching, the built bundle, or R execution work? | 2               |
+| What is actually stored on a deployed instance?            | 3               |
 
 A change touching persistence needs **all three** persistence layers enumerated
 before it is done: DB JSON (migration), Valkey (cache prefix), and stored

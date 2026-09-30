@@ -2,20 +2,20 @@ import {
   ChartSeriesInfo,
   Color,
   ColorKeyOrString,
-  type GlobalStyleOptions,
-  type TextInfoOptions,
+  type CustomFigureStyleOptions,
   type FontInfo,
+  getAdjustedColor,
+  getFormatterFunc,
+  type GlobalStyleOptions,
   type HeaderItem,
   MapRegionInfo,
   NO_DISAGGREGATION_HEADER_ID,
   PieSliceInfo,
   TableCellInfo,
   TableHeaderInfo,
-  getAdjustedColor,
-  getFormatterFunc,
-  toNum0,
-  type CustomFigureStyleOptions,
+  type TextInfoOptions,
   type TickLabelFormatterOption,
+  toNum0,
 } from "panther";
 import {
   _CF_COMPARISON,
@@ -23,13 +23,13 @@ import {
   _CF_RED,
   _COLOR_WATERMARK_GREY,
   _RANDOM_BLUE,
-  getAbcQualScale,
-  getAbcQualScale2,
   type DeckStyleContext,
   type EffectiveIndicatorFacts,
   type FastrChartPalette,
-  type IndicatorFormat,
+  getAbcQualScale,
+  getAbcQualScale2,
   getSlideFontInfo,
+  type IndicatorFormat,
   isPieCompletionMode,
   isRollupActive,
   ROLLUP_PIN_IDS,
@@ -216,9 +216,9 @@ export function getTableCellsContent(
   return {
     func: cfOn
       ? {
-          backgroundColor: 777 as const,
-          textColorStrategy: getCfCellTextColorStrategy(deckStyle),
-        }
+        backgroundColor: 777 as const,
+        textColorStrategy: getCfCellTextColorStrategy(deckStyle),
+      }
       : undefined,
     // Unconditional per-value resolution. A "percent"/"number" metric owns its
     // format and formatForValue returns the declaration whatever the ids say;
@@ -331,10 +331,12 @@ export function getScaleTickLabelFormatter(
 // dimension instead, and none of them is ever an admin area on a chart.
 export function getIndicatorIdsForChartValue(
   effectiveValueProps: string[],
-  info: Pick<
-    ChartSeriesInfo,
-    "seriesHeader" | "laneHeader" | "tierHeader" | "paneHeader"
-  > & { indicatorHeader: HeaderItem | undefined },
+  info:
+    & Pick<
+      ChartSeriesInfo,
+      "seriesHeader" | "laneHeader" | "tierHeader" | "paneHeader"
+    >
+    & { indicatorHeader: HeaderItem | undefined },
 ): (string | undefined)[] {
   return [
     effectiveValueProps.length === 1 ? effectiveValueProps[0] : undefined,
@@ -388,16 +390,15 @@ export function getMapRegionsContent(
     },
     textFormatter: (info: MapRegionInfo) => {
       const regionText = showRegion ? info.featureId : "";
-      const dataText =
-        showData && info.value !== undefined
-          ? formatIndicatorValue(
-              info.value,
-              effectiveFormat.formatForValue(
-                getIndicatorIdsForMapRegion(effectiveValueProps, info),
-              ),
-              config.s.decimalPlaces ?? 0,
-            )
-          : "";
+      const dataText = showData && info.value !== undefined
+        ? formatIndicatorValue(
+          info.value,
+          effectiveFormat.formatForValue(
+            getIndicatorIdsForMapRegion(effectiveValueProps, info),
+          ),
+          config.s.decimalPlaces ?? 0,
+        )
+        : "";
       if (regionText && dataText) return `${regionText}\n${dataText}`;
       return regionText || dataText;
     },
@@ -420,14 +421,14 @@ export function getPieSlicesContent(config: PresentationObjectConfig) {
     func: { dataLabel: { show: config.s.showDataLabels } },
     textFormatter: config.s.showDataLabels
       ? (info: PieSliceInfo) => {
-          const share = getFormatterFunc(
-            "percent",
-            config.s.decimalPlaces ?? 0,
-          )(info.share);
-          return info.seriesHeader.id === NO_DISAGGREGATION_HEADER_ID
-            ? share
-            : `${info.seriesHeader.label} ${share}`;
-        }
+        const share = getFormatterFunc(
+          "percent",
+          config.s.decimalPlaces ?? 0,
+        )(info.share);
+        return info.seriesHeader.id === NO_DISAGGREGATION_HEADER_ID
+          ? share
+          : `${info.seriesHeader.label} ${share}`;
+      }
       : undefined,
   };
 }
@@ -452,14 +453,13 @@ function getColorPropHeaderId(
   info: ChartSeriesInfo,
   seriesColorFuncPropToUse: "series" | "cell" | "row" | "col" | undefined,
 ): string {
-  const header =
-    seriesColorFuncPropToUse === "cell"
-      ? info.paneHeader
-      : seriesColorFuncPropToUse === "col"
-        ? info.laneHeader
-        : seriesColorFuncPropToUse === "row"
-          ? info.tierHeader
-          : info.seriesHeader;
+  const header = seriesColorFuncPropToUse === "cell"
+    ? info.paneHeader
+    : seriesColorFuncPropToUse === "col"
+    ? info.laneHeader
+    : seriesColorFuncPropToUse === "row"
+    ? info.tierHeader
+    : info.seriesHeader;
   return header.id;
 }
 
@@ -554,14 +554,13 @@ function getIndex(
   if (seriesColorFuncPropToUse === undefined) {
     return info.i_series;
   }
-  const indexProp: keyof ChartSeriesInfo =
-    seriesColorFuncPropToUse === "series"
-      ? "i_series"
-      : seriesColorFuncPropToUse === "cell"
-        ? "i_pane"
-        : seriesColorFuncPropToUse === "col"
-          ? "i_lane"
-          : "i_tier";
+  const indexProp: keyof ChartSeriesInfo = seriesColorFuncPropToUse === "series"
+    ? "i_series"
+    : seriesColorFuncPropToUse === "cell"
+    ? "i_pane"
+    : seriesColorFuncPropToUse === "col"
+    ? "i_lane"
+    : "i_tier";
   return info[indexProp] ?? info.i_series;
 }
 
@@ -572,13 +571,12 @@ function getN(
   if (seriesColorFuncPropToUse === undefined) {
     return info.nSerieses;
   }
-  const nProp: keyof ChartSeriesInfo =
-    seriesColorFuncPropToUse === "series"
-      ? "nSerieses"
-      : seriesColorFuncPropToUse === "cell"
-        ? "nPanes"
-        : seriesColorFuncPropToUse === "col"
-          ? "nLanes"
-          : "nTiers";
+  const nProp: keyof ChartSeriesInfo = seriesColorFuncPropToUse === "series"
+    ? "nSerieses"
+    : seriesColorFuncPropToUse === "cell"
+    ? "nPanes"
+    : seriesColorFuncPropToUse === "col"
+    ? "nLanes"
+    : "nTiers";
   return info[nProp] ?? info.nSerieses;
 }

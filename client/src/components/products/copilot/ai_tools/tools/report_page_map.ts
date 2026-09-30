@@ -5,7 +5,11 @@
 // will have (the size cache, measured first) and images their natural size,
 // as in the editor, so the map is the PDF's pages give or take a fit.
 
-import { fastrPageMapText, type FastrPagedResult, type ReportDetail } from "lib";
+import {
+  type FastrPagedResult,
+  fastrPageMapText,
+  type ReportDetail,
+} from "lib";
 import { createReportPaginator } from "~/components/products/_shared/mod.ts";
 import { createFigureSizeCache } from "~/generate_report/mod";
 import { fastrPagedFooter } from "~/exports/export_report_as_paged_pdf";
@@ -29,9 +33,12 @@ export async function describeReportPages(
     await Promise.all(imageIds.map(async (id) => {
       const entry = detail.images[id];
       if (!entry) return;
-      const size = await new Promise<{ width: number; height: number } | undefined>((resolve) => {
+      const size = await new Promise<
+        { width: number; height: number } | undefined
+      >((resolve) => {
         const img = new Image();
-        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onload = () =>
+          resolve({ width: img.naturalWidth, height: img.naturalHeight });
         img.onerror = () => resolve(undefined);
         img.src = assetUrl(entry.imgFile);
       });
@@ -40,7 +47,8 @@ export async function describeReportPages(
     for (;;) {
       const pending = figureIds.filter((id) => {
         const block = detail.figures[id];
-        return block !== undefined && block.bundle !== undefined && figureSizes.get(id, block) === undefined;
+        return block !== undefined && block.bundle !== undefined &&
+          figureSizes.get(id, block) === undefined;
       });
       if (pending.length === 0 || Date.now() - started > SIZE_WAIT_MS) break;
       await new Promise<void>((resolve) => {
@@ -48,25 +56,32 @@ export async function describeReportPages(
         setTimeout(resolve, 500);
       });
     }
-    const result = await new Promise<FastrPagedResult | undefined>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("The page layout timed out.")), LAYOUT_WAIT_MS);
-      const paginator = createReportPaginator({
-        detail: () => detail,
-        footer: () => fastrPagedFooter(detail.label),
-        figureSize: (id) => {
-          const block = detail.figures[id];
-          return block ? figureSizes.get(id, block) : undefined;
-        },
-        imageSize: (id) => imageSizes.get(id),
-        onResult: (r) => {
-          clearTimeout(timer);
-          paginator.dispose();
-          resolve(r);
-        },
-      });
-      paginator.requestNow();
-    });
-    if (result === undefined) return "The page layout did not run (the body may be empty).";
+    const result = await new Promise<FastrPagedResult | undefined>(
+      (resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("The page layout timed out.")),
+          LAYOUT_WAIT_MS,
+        );
+        const paginator = createReportPaginator({
+          detail: () => detail,
+          footer: () => fastrPagedFooter(detail.label),
+          figureSize: (id) => {
+            const block = detail.figures[id];
+            return block ? figureSizes.get(id, block) : undefined;
+          },
+          imageSize: (id) => imageSizes.get(id),
+          onResult: (r) => {
+            clearTimeout(timer);
+            paginator.dispose();
+            resolve(r);
+          },
+        });
+        paginator.requestNow();
+      },
+    );
+    if (result === undefined) {
+      return "The page layout did not run (the body may be empty).";
+    }
     return fastrPageMapText(result, detail.body);
   } finally {
     figureSizes.dispose();

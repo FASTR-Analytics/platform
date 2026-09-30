@@ -1,36 +1,36 @@
 import {
+  buildFastrCoverTileCss,
+  buildFastrReportCss,
+  cardTilesSnippet,
+  columnsSnippet,
+  coverSnippet,
   FASTR_BLOCK_SNIPPETS,
+  FASTR_COVER_LAYOUTS,
+  FASTR_COVER_PRESETS,
   FASTR_INK_ROLES,
+  FASTR_LOGO_ALIGNS,
+  FASTR_LOGO_SIZES,
   FASTR_REPORT_THEMES,
   FASTR_THEME_TOKENS,
+  FASTR_TOC_DEFAULT_DEPTH,
   FASTR_TONES,
-  fastrSurfaceTone,
-  fastrToneOf,
   type FastrBlockName,
+  type FastrCoverPreset,
   type FastrFencePatch,
   type FastrInkRole,
   type FastrOpenFence,
   type FastrReportTheme,
+  fastrSurfaceTone,
   type FastrThemeColorOverride,
   type FastrTone,
-  buildFastrCoverTileCss,
-  buildFastrReportCss,
-  coverSnippet,
-  FASTR_COVER_LAYOUTS,
-  FASTR_COVER_PRESETS,
-  FASTR_LOGO_ALIGNS,
-  FASTR_LOGO_SIZES,
-  FASTR_TOC_DEFAULT_DEPTH,
-  type FastrCoverPreset,
+  fastrToneOf,
   isFastrBlockName,
-  type TableCellAction,
-  cardTilesSnippet,
-  columnsSnippet,
   renderFastrMarkdownToHtml,
   statTilesSnippet,
   STEPS_MAX_PICK,
   stepsSnippet,
   t3,
+  type TableCellAction,
   TILES_MAX_COLS,
 } from "lib";
 import {
@@ -464,8 +464,10 @@ export function ReportToolbar(p: Props) {
   //    header's MenuRow.
   const menuRow = () => (
     <>
-      {/* File: the whole-document operations, as in Google Docs' File
-            menu. Download moved here from the header. */}
+      {
+        /* File: the whole-document operations, as in Google Docs' File
+            menu. Download moved here from the header. */
+      }
       <Popover
         menu
         label={t3({ en: "File", fr: "Fichier", pt: "Ficheiro" })}
@@ -543,8 +545,10 @@ export function ReportToolbar(p: Props) {
                     </PopoverRow>
                   }
                 >
-                  {/* Logos opens the picker: the FASTR logos and the
-                      instance's images, in the order they will sit. */}
+                  {
+                    /* Logos opens the picker: the FASTR logos and the
+                      instance's images, in the order they will sit. */
+                  }
                   <Match when={row.name === "logos"}>
                     <Show when={p.canInsertEmbeds()}>
                       <PopoverRow
@@ -558,8 +562,10 @@ export function ReportToolbar(p: Props) {
                       </PopoverRow>
                     </Show>
                   </Match>
-                  {/* Cover page opens a flyout of the cover compositions,
-                      each thumbnail the REAL cover under the current theme. */}
+                  {
+                    /* Cover page opens a flyout of the cover compositions,
+                      each thumbnail the REAL cover under the current theme. */
+                  }
                   <Match when={row.name === "cover"}>
                     <MenuFlyout label={fastrBlockLabel(row.name)}>
                       <CoverPicker
@@ -590,78 +596,78 @@ export function ReportToolbar(p: Props) {
                     </MenuFlyout>
                   </Match>
                   <Match
-                    when={
-                      row.name === "stat" ||
+                    when={row.name === "stat" ||
                       row.name === "tiles" ||
                       row.name === "columns" ||
-                      row.name === "steps"
-                    }
+                      row.name === "steps"}
                   >
-                    {/* Stat, the card grid, Columns and Steps open a count
+                    {
+                      /* Stat, the card grid, Columns and Steps open a count
                         flyout, like Table's grid: hover picks how many
-                        (across, or steps down), a click inserts the block. */}
+                        (across, or steps down), a click inserts the block. */
+                    }
                     <MenuFlyout label={fastrBlockLabel(row.name)}>
                       <TilesPicker
                         max={row.name === "steps" ? STEPS_MAX_PICK : undefined}
-                        caption={
-                          row.name === "steps"
-                            ? (n) =>
-                                n === 1
-                                  ? t3({
-                                      en: "1 step",
-                                      fr: "1 étape",
-                                      pt: "1 passo",
-                                    })
-                                  : `${n} ${t3({ en: "steps", fr: "étapes", pt: "passos" })}`
-                            : undefined
-                        }
+                        caption={row.name === "steps"
+                          ? (n) =>
+                            n === 1
+                              ? t3({
+                                en: "1 step",
+                                fr: "1 étape",
+                                pt: "1 passo",
+                              })
+                              : `${n} ${
+                                t3({ en: "steps", fr: "étapes", pt: "passos" })
+                              }`
+                          : undefined}
                         onPick={(n) => {
                           p.api()?.insertBlockOnNewLine(
                             row.name === "stat"
                               ? statTilesSnippet(
-                                  n,
-                                  t3({
-                                    en: "Stat",
-                                    fr: "Chiffre",
-                                    pt: "Indicador",
-                                  }),
-                                )
+                                n,
+                                t3({
+                                  en: "Stat",
+                                  fr: "Chiffre",
+                                  pt: "Indicador",
+                                }),
+                              )
                               : row.name === "tiles"
-                                ? cardTilesSnippet(
-                                    n,
-                                    t3({
-                                      en: "Card",
-                                      fr: "Carte",
-                                      pt: "Cartão",
-                                    }),
-                                    t3({
-                                      en: "Text",
-                                      fr: "Texte",
-                                      pt: "Texto",
-                                    }),
-                                  )
-                                : row.name === "columns"
-                                  ? columnsSnippet(
-                                      n,
-                                      t3({
-                                        en: "Text",
-                                        fr: "Texte",
-                                        pt: "Texto",
-                                      }),
-                                      t3({
-                                        en: "Heading",
-                                        fr: "Titre",
-                                        pt: "Título",
-                                      }),
-                                    )
-                                  : stepsSnippet(
-                                      n,
-                                      t3({
-                                        en: "Step",
-                                        fr: "Étape",
-                                        pt: "Passo",
-                                      }),
-                                    ),
+                              ? cardTilesSnippet(
+                                n,
+                                t3({
+                                  en: "Card",
+                                  fr: "Carte",
+                                  pt: "Cartão",
+                                }),
+                                t3({
+                                  en: "Text",
+                                  fr: "Texte",
+                                  pt: "Texto",
+                                }),
+                              )
+                              : row.name === "columns"
+                              ? columnsSnippet(
+                                n,
+                                t3({
+                                  en: "Text",
+                                  fr: "Texte",
+                                  pt: "Texto",
+                                }),
+                                t3({
+                                  en: "Heading",
+                                  fr: "Titre",
+                                  pt: "Título",
+                                }),
+                              )
+                              : stepsSnippet(
+                                n,
+                                t3({
+                                  en: "Step",
+                                  fr: "Étape",
+                                  pt: "Passo",
+                                }),
+                              ),
                           );
                           close();
                         }}
@@ -672,9 +678,11 @@ export function ReportToolbar(p: Props) {
               )}
             </For>
             <MenuDivider />
-            {/* Table opens a grid picker flyout, Google Docs style: hover
+            {
+              /* Table opens a grid picker flyout, Google Docs style: hover
                   sets the size, a click inserts. (Link is not a widget: it
-                  lives on the toolbar row and Ctrl+K.) */}
+                  lives on the toolbar row and Ctrl+K.) */
+            }
             <MenuFlyout
               label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
             >
@@ -740,12 +748,16 @@ export function ReportToolbar(p: Props) {
       >
         {(close) => (
           <div class="ui-spy-sm flex w-56 flex-col">
-            {/* Theme and Background open flyouts, the way Insert's pickers
-                  do: the menu stays one short list of names. */}
+            {
+              /* Theme and Background open flyouts, the way Insert's pickers
+                  do: the menu stays one short list of names. */
+            }
             <MenuFlyout label={t3({ en: "Theme", fr: "Thème", pt: "Tema" })}>
-              {/* A FASTR body carries no CSS, so re-theming is safe at any
+              {
+                /* A FASTR body carries no CSS, so re-theming is safe at any
                     time. Each tile is the theme's own palette and heading
-                    face, drawn straight from its tokens. */}
+                    face, drawn straight from its tokens. */
+              }
               <div class="bg-base-100 ui-pad-sm shadow-floating max-h-80 w-64 overflow-y-auto rounded border">
                 <div class="grid grid-cols-2 gap-1">
                   <For each={FASTR_REPORT_THEMES}>
@@ -794,15 +806,15 @@ export function ReportToolbar(p: Props) {
                     p.onPatchPageSetup({
                       background: tone === "default" ? undefined : tone,
                       bg: undefined,
-                    })
-                  }
+                    })}
                   onLiteral={(color) =>
-                    p.onPatchPageSetup({ bg: color, background: undefined })
-                  }
+                    p.onPatchPageSetup({ bg: color, background: undefined })}
                   onPick={close}
                 />
-                {/* A PHOTO as the page ground, with the overlay that keeps
-                      text legible on it — the format's `bg=image:<id>`. */}
+                {
+                  /* A PHOTO as the page ground, with the overlay that keeps
+                      text legible on it — the format's `bg=image:<id>`. */
+                }
                 <div class="border-base-300 mt-2 border-t pt-2">
                   <div class="text-base-content-muted pb-1 text-xs">
                     {t3({ en: "Image", fr: "Image", pt: "Imagem" })}
@@ -852,17 +864,17 @@ export function ReportToolbar(p: Props) {
                         >
                           {mode === "dark"
                             ? t3({
-                                en: "Darken",
-                                fr: "Assombrir",
-                                pt: "Escurecer",
-                              })
+                              en: "Darken",
+                              fr: "Assombrir",
+                              pt: "Escurecer",
+                            })
                             : mode === "light"
-                              ? t3({
-                                  en: "Lighten",
-                                  fr: "Éclaircir",
-                                  pt: "Clarear",
-                                })
-                              : t3({ en: "None", fr: "Aucun", pt: "Nenhuma" })}
+                            ? t3({
+                              en: "Lighten",
+                              fr: "Éclaircir",
+                              pt: "Clarear",
+                            })
+                            : t3({ en: "None", fr: "Aucun", pt: "Nenhuma" })}
                         </PopoverRow>
                       )}
                     </For>
@@ -874,10 +886,10 @@ export function ReportToolbar(p: Props) {
               active={psAttr("numbering") === "sections"}
               onClick={() =>
                 p.onPatchPageSetup({
-                  numbering:
-                    psAttr("numbering") === "sections" ? undefined : "sections",
-                })
-              }
+                  numbering: psAttr("numbering") === "sections"
+                    ? undefined
+                    : "sections",
+                })}
             >
               <span class="flex-1">
                 {t3({
@@ -890,10 +902,12 @@ export function ReportToolbar(p: Props) {
                 <Icon iconName="check" class="h-3.5 w-3.5" />
               </Show>
             </PopoverRow>
-            {/* The printed sheet is A4 (the page-size choice was removed
+            {
+              /* The printed sheet is A4 (the page-size choice was removed
                 2026-09-30; a report that already names another size keeps
                 it). Orientation is the one sheet choice; margins stay at
-                their default. */}
+                their default. */
+            }
             <MenuFlyout
               label={t3({
                 en: "Orientation",
@@ -924,21 +938,19 @@ export function ReportToolbar(p: Props) {
                 >
                   {(opt) => (
                     <PopoverRow
-                      active={
-                        (psAttr("orientation") ?? "portrait") === opt.value
-                      }
+                      active={(psAttr("orientation") ?? "portrait") ===
+                        opt.value}
                       onClick={() =>
                         p.onPatchPageSetup({
-                          orientation:
-                            opt.value === "portrait" ? undefined : opt.value,
-                        })
-                      }
+                          orientation: opt.value === "portrait"
+                            ? undefined
+                            : opt.value,
+                        })}
                     >
                       <span class="flex-1">{opt.label}</span>
                       <Show
-                        when={
-                          (psAttr("orientation") ?? "portrait") === opt.value
-                        }
+                        when={(psAttr("orientation") ?? "portrait") ===
+                          opt.value}
                       >
                         <Icon iconName="check" class="h-3.5 w-3.5" />
                       </Show>
@@ -970,15 +982,20 @@ export function ReportToolbar(p: Props) {
 
       <Show when={p.menuRowHost} fallback={menuRow()}>
         {(host) => (
-          <Portal mount={host()} ref={(el) => el.classList.add("contents")}>
+          <Portal
+            mount={host()}
+            ref={(el) => el.classList.add("contents")}
+          >
             {menuRow()}
           </Portal>
         )}
       </Show>
 
-      {/* ── The toolbar row: text controls, block segment, or the selected
+      {
+        /* ── The toolbar row: text controls, block segment, or the selected
              embed's controls (which replace the text controls, as selecting
-             an image does in Google Docs) ─────────────────────────────────── */}
+             an image does in Google Docs) ─────────────────────────────────── */
+      }
       <Show
         when={p.embedKind() === undefined}
         fallback={
@@ -987,8 +1004,10 @@ export function ReportToolbar(p: Props) {
           </div>
         }
       >
-        {/* Undo / redo lead the pill, as in Google Docs. The report
-              header carries its own pair for the other formats only. */}
+        {
+          /* Undo / redo lead the pill, as in Google Docs. The report
+              header carries its own pair for the other formats only. */
+        }
         <div class="flex items-center gap-0.5">
           <ToolButton
             label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
@@ -1030,11 +1049,13 @@ export function ReportToolbar(p: Props) {
                     >
                       {level === 0
                         ? t3({
-                            en: "Normal text",
-                            fr: "Texte normal",
-                            pt: "Texto normal",
-                          })
-                        : `${t3({ en: "Heading", fr: "Titre", pt: "Título" })} ${level}`}
+                          en: "Normal text",
+                          fr: "Texte normal",
+                          pt: "Texto normal",
+                        })
+                        : `${
+                          t3({ en: "Heading", fr: "Titre", pt: "Título" })
+                        } ${level}`}
                     </PopoverRow>
                   )}
                 </For>
@@ -1063,17 +1084,18 @@ export function ReportToolbar(p: Props) {
           <ToolButton
             active={() => marks()?.underline === true}
             onClick={() =>
-              p.api()?.setInlineUnderline(marks()?.underline !== true)
-            }
+              p.api()?.setInlineUnderline(marks()?.underline !== true)}
             label={t3({ en: "Underline", fr: "Souligné", pt: "Sublinhado" })}
           >
             <span class="underline">U</span>
           </ToolButton>
-          {/* Text size — `[phrase]{size=N}`, points like a word processor,
+          {
+            /* Text size — `[phrase]{size=N}`, points like a word processor,
                 as Google Docs' − N + stepper. With no explicit mark the box
                 shows the size the text actually RENDERS at (measured from the
                 DOM by the editor, so a theme's heading scale is honoured), and
-                the stepper steps from that. */}
+                the stepper steps from that. */
+          }
           <div class="flex items-center">
             <ToolButton
               label={t3({
@@ -1166,18 +1188,18 @@ export function ReportToolbar(p: Props) {
               <Icon iconName="plus" class="h-3.5 w-3.5" />
             </ToolButton>
           </div>
-          {/* Highlight: the same panel shape as the ground and ink
-                pickers, but only literal colours — a stripe IS the colour. */}
+          {
+            /* Highlight: the same panel shape as the ground and ink
+                pickers, but only literal colours — a stripe IS the colour. */
+          }
           <Popover
             chevron={false}
             label={
               <span
                 class="font-700 rounded px-1 leading-none"
-                style={
-                  marks()?.highlight !== undefined
-                    ? { "background-color": marks()?.highlight }
-                    : { "border-bottom": "3px solid #ffe08a" }
-                }
+                style={marks()?.highlight !== undefined
+                  ? { "background-color": marks()?.highlight }
+                  : { "border-bottom": "3px solid #ffe08a" }}
               >
                 H
               </span>
@@ -1207,26 +1229,30 @@ export function ReportToolbar(p: Props) {
             label={`${t3({ en: "Link", fr: "Lien", pt: "Ligação" })} (Ctrl+K)`}
             onClick={() => p.api()?.insertLink()}
           >
-            {/* panther's icon set has no chain glyph, so the link button
-                  uses a letterform like B/I/U do. */}
+            {
+              /* panther's icon set has no chain glyph, so the link button
+                  uses a letterform like B/I/U do. */
+            }
             <span class="underline">↗</span>
           </ToolButton>
           <Popover
             chevron={false}
             label={
               <span class={scopeClass}>
-                {/* border-current: the bar under the A takes the role's
+                {
+                  /* border-current: the bar under the A takes the role's
                       own colour — or the literal — as Google Docs' colour
-                      button does. */}
+                      button does. */
+                }
                 <span
-                  class={`${roleClassOf(
-                    marks()?.role,
-                  )} font-700 border-b-2 border-current px-0.5 leading-none`}
-                  style={
-                    marks()?.color !== undefined
-                      ? { color: marks()?.color }
-                      : undefined
-                  }
+                  class={`${
+                    roleClassOf(
+                      marks()?.role,
+                    )
+                  } font-700 border-b-2 border-current px-0.5 leading-none`}
+                  style={marks()?.color !== undefined
+                    ? { color: marks()?.color }
+                    : undefined}
                 >
                   A
                 </span>
@@ -1285,8 +1311,10 @@ export function ReportToolbar(p: Props) {
           </ToolButton>
         </div>
 
-        {/* The caret is in a TABLE: rows and columns, in the pill rather
-              than only behind a right-click. */}
+        {
+          /* The caret is in a TABLE: rows and columns, in the pill rather
+              than only behind a right-click. */
+        }
         <Show when={p.context()?.table !== undefined}>
           <Divider />
           <div class="flex items-center gap-0.5">
@@ -1342,7 +1370,7 @@ export function ReportToolbar(p: Props) {
                             control.options.find(
                               (o) =>
                                 o.value ===
-                                (attrValue(control.attr) ?? control.fallback),
+                                  (attrValue(control.attr) ?? control.fallback),
                             )?.label ?? control.fallback
                           }`}
                           title={control.label}
@@ -1352,10 +1380,8 @@ export function ReportToolbar(p: Props) {
                               <For each={control.options}>
                                 {(option) => (
                                   <PopoverRow
-                                    active={
-                                      (attrValue(control.attr) ??
-                                        control.fallback) === option.value
-                                    }
+                                    active={(attrValue(control.attr) ??
+                                      control.fallback) === option.value}
                                     onClick={() => {
                                       patch(
                                         control.attr,
@@ -1395,11 +1421,13 @@ export function ReportToolbar(p: Props) {
                   </ToolButton>
                 </Show>
 
-                {/* One background menu: tone presets over literal colours.
+                {
+                  /* One background menu: tone presets over literal colours.
                       The trigger swatch shows whichever ground is active. Not
                       on a tiles or columns GRID: a ground behind the whole row
                       reads as a mistake (the cards and columns inside take
-                      their own), so the grid offers none. */}
+                      their own), so the grid offers none. */
+                }
                 <Show
                   when={block().name !== "tiles" && block().name !== "columns"}
                 >
@@ -1413,7 +1441,7 @@ export function ReportToolbar(p: Props) {
                               <span
                                 class={`fm-tone fm-tone--${
                                   attrValue(toneAttrFor(block().name)) ??
-                                  "default"
+                                    "default"
                                 } inline-block h-3.5 w-3.5 rounded-full`}
                               />
                             </span>
@@ -1434,25 +1462,22 @@ export function ReportToolbar(p: Props) {
                     {(close) => (
                       <GroundPanel
                         scopeClass={scopeClass}
-                        tone={
-                          attrValue("bg") !== undefined
-                            ? "literal"
-                            : (fastrSurfaceTone(block().attrs) ?? "default")
-                        }
+                        tone={attrValue("bg") !== undefined
+                          ? "literal"
+                          : (fastrSurfaceTone(block().attrs) ?? "default")}
                         literal={attrValue("bg")}
                         onTone={(tone) =>
                           patchGround({
-                            [toneAttrFor(block().name)]:
-                              tone === "default" ? undefined : tone,
+                            [toneAttrFor(block().name)]: tone === "default"
+                              ? undefined
+                              : tone,
                             bg: undefined,
-                          })
-                        }
+                          })}
                         onLiteral={(color) =>
                           patchGround({
                             [toneAttrFor(block().name)]: undefined,
                             bg: color,
-                          })
-                        }
+                          })}
                         onPick={close}
                       />
                     )}
@@ -1550,15 +1575,15 @@ function DetailRows(p: {
     },
     ...(p.stats.lastSaved
       ? [
-          {
-            label: t3({
-              en: "Last saved",
-              fr: "Dernier enregistrement",
-              pt: "Última gravação",
-            }),
-            value: p.stats.lastSaved,
-          },
-        ]
+        {
+          label: t3({
+            en: "Last saved",
+            fr: "Dernier enregistrement",
+            pt: "Última gravação",
+          }),
+          value: p.stats.lastSaved,
+        },
+      ]
       : []),
   ];
   return (
@@ -1742,10 +1767,10 @@ function TableGridPicker(p: { onPick: (cols: number, rows: number) => void }) {
               type="button"
               class="h-4 w-4 rounded-[2px] border"
               classList={{
-                "bg-primary-subtle border-primary":
-                  cell.c <= hover().c && cell.r <= hover().r,
-                "bg-base-200 border-base-300":
-                  cell.c > hover().c || cell.r > hover().r,
+                "bg-primary-subtle border-primary": cell.c <= hover().c &&
+                  cell.r <= hover().r,
+                "bg-base-200 border-base-300": cell.c > hover().c ||
+                  cell.r > hover().r,
               }}
               onMouseEnter={() => setHover({ c: cell.c, r: cell.r })}
               onClick={() => p.onPick(cell.c, cell.r)}
@@ -1792,8 +1817,8 @@ function GroundPanel(p: {
               type="button"
               class="ui-focusable h-6 cursor-pointer overflow-hidden rounded"
               classList={{
-                "ring-2 ring-primary":
-                  p.literal === undefined && p.tone === tone,
+                "ring-2 ring-primary": p.literal === undefined &&
+                  p.tone === tone,
               }}
               title={fastrToneLabel(tone)}
               onClick={() => {
@@ -1863,14 +1888,12 @@ function InkPanel(p: {
               type="button"
               class="ui-focusable h-6 cursor-pointer overflow-hidden rounded border"
               classList={{
-                "ring-2 ring-primary":
-                  p.literal === undefined && p.role === role,
+                "ring-2 ring-primary": p.literal === undefined &&
+                  p.role === role,
               }}
-              title={
-                role === undefined
-                  ? t3({ en: "None", fr: "Aucune", pt: "Nenhuma" })
-                  : fastrRoleLabel(role)
-              }
+              title={role === undefined
+                ? t3({ en: "None", fr: "Aucune", pt: "Nenhuma" })
+                : fastrRoleLabel(role)}
               onClick={() => {
                 p.onRole(role);
                 p.onPick?.();
@@ -1919,8 +1942,7 @@ function LiteralColours(p: {
               type="button"
               class="ui-focusable h-6 cursor-pointer rounded border"
               classList={{
-                "ring-2 ring-primary":
-                  p.literal !== undefined &&
+                "ring-2 ring-primary": p.literal !== undefined &&
                   p.literal.toLowerCase() === color.toLowerCase(),
               }}
               style={{ "background-color": color }}

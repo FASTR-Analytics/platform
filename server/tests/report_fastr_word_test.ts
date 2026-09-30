@@ -8,7 +8,12 @@
 //
 // Run: deno test -A server/tests/report_fastr_word_test.ts
 
-import { assert, assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
 import { Packer } from "docx";
 import JSZip from "jszip";
 import {
@@ -18,19 +23,25 @@ import {
   cssColorToHex,
   dataUrlToWordImage,
   fastrWordBlockSelector,
-  fastrWordMeasureJs,
-  fastrWordRasterBlockIds,
   type FastrWordBuildInput,
+  fastrWordMeasureJs,
   type FastrWordRasterBlock,
+  fastrWordRasterBlockIds,
   type FastrWordRasterKind,
   type FastrWordRasterText,
 } from "../../lib/mod.ts";
 
-const FIXTURE = new URL("./fixtures/fastr_pdf/kitchen_sink.md", import.meta.url);
+const FIXTURE = new URL(
+  "./fixtures/fastr_pdf/kitchen_sink.md",
+  import.meta.url,
+);
 const PNG_1X1 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
-function text(t: string, over: Partial<FastrWordRasterText> = {}): FastrWordRasterText {
+function text(
+  t: string,
+  over: Partial<FastrWordRasterText> = {},
+): FastrWordRasterText {
   return {
     left: 40,
     top: 30,
@@ -74,10 +85,15 @@ function fakeRaster(
 
 type Built = { xml: string; zip: JSZip; files: string[] };
 
-async function build(body: string, over: Partial<FastrWordBuildInput> = {}): Promise<Built> {
+async function build(
+  body: string,
+  over: Partial<FastrWordBuildInput> = {},
+): Promise<Built> {
   const tokens = createFastrMarkdownIt().parse(body, {});
   const rasters = new Map<number, FastrWordRasterBlock>();
-  for (const b of fastrWordRasterBlockIds(tokens)) rasters.set(b.id, fakeRaster(b.id, b.kind));
+  for (const b of fastrWordRasterBlockIds(tokens)) {
+    rasters.set(b.id, fakeRaster(b.id, b.kind));
+  }
   const doc = buildFastrWordDocument({
     tokens,
     body,
@@ -85,7 +101,8 @@ async function build(body: string, over: Partial<FastrWordBuildInput> = {}): Pro
     theme: "default",
     footer: { title: "Quarterly review", pageWord: "Page", ofWord: "of" },
     rasters,
-    figure: () => dataUrlToWordImage(`data:image/png;base64,${PNG_1X1}`, 1920, 1080),
+    figure: () =>
+      dataUrlToWordImage(`data:image/png;base64,${PNG_1X1}`, 1920, 1080),
     image: () => undefined,
     ...over,
   });
@@ -111,20 +128,31 @@ Deno.test("raster block ids: the outermost decorative blocks, by fence line", as
     { id: 79, kind: "band" },
   ]);
   // A stat inside a column is pictured on its own; a card inside tiles is not.
-  const nested = ":::columns{cols=2}\n:::col\n:::stat{value=\"1\" label=\"one\"}\n:::\n:::col\ntext\n:::\n:::\n\n:::tiles\n:::card{title=\"c\"}\nx\n:::\n:::\n";
+  const nested =
+    ':::columns{cols=2}\n:::col\n:::stat{value="1" label="one"}\n:::\n:::col\ntext\n:::\n:::\n\n:::tiles\n:::card{title="c"}\nx\n:::\n:::\n';
   const t2 = createFastrMarkdownIt().parse(nested, {});
-  assertEquals(fastrWordRasterBlockIds(t2).map((b) => b.kind), ["stat", "tiles"]);
+  assertEquals(fastrWordRasterBlockIds(t2).map((b) => b.kind), [
+    "stat",
+    "tiles",
+  ]);
 });
 
 Deno.test("raster frame and measure script contracts", () => {
-  const css = buildFastrWordRasterCss({ size: "a4", orientation: "portrait", margin: "normal" });
+  const css = buildFastrWordRasterCss({
+    size: "a4",
+    orientation: "portrait",
+    margin: "normal",
+  });
   // A4 at 96dpi is 794px; the normal margin 68px; the column 658px.
   assertStringIncludes(css, "body { width: 658px;");
   assertStringIncludes(css, "--fm-bleed-margin: -68px;");
   assertStringIncludes(css, "min-height: 1123px");
   assertStringIncludes(css, ".fm-word-hide");
   assert(fastrWordMeasureJs().startsWith("(function (id)"));
-  assertEquals(fastrWordBlockSelector(9), '[data-line="9"]:not([data-line="9"] *)');
+  assertEquals(
+    fastrWordBlockSelector(9),
+    '[data-line="9"]:not([data-line="9"] *)',
+  );
   assertEquals(cssColorToHex("#abc"), "aabbcc");
   assertEquals(cssColorToHex("#11223344"), "112233");
   assertEquals(cssColorToHex("rgb(1, 2, 3)"), "010203");
@@ -141,7 +169,7 @@ Deno.test("kitchen sink: native structures, overlays, sections and footer", asyn
   assertStringIncludes(xml, ">1. </w:t>");
   assertStringIncludes(xml, ">2. </w:t>");
   // The contents block is a live field over levels 1-2, updated on open.
-  assertStringIncludes(xml, 'TOC \\h \\o &quot;1-2&quot;');
+  assertStringIncludes(xml, "TOC \\h \\o &quot;1-2&quot;");
   const settings = await zip.file("word/settings.xml")!.async("string");
   assertStringIncludes(settings, "<w:updateFields");
   // Four pictures behind the text, one anchor each, one text box per element.
@@ -153,7 +181,10 @@ Deno.test("kitchen sink: native structures, overlays, sections and footer", asyn
   // The filling cover is its own section with no margins, first in the file.
   const firstSect = xml.indexOf("<w:sectPr");
   assert(firstSect > 0);
-  const firstSectXml = xml.slice(firstSect, xml.indexOf("</w:sectPr>", firstSect));
+  const firstSectXml = xml.slice(
+    firstSect,
+    xml.indexOf("</w:sectPr>", firstSect),
+  );
   assertStringIncludes(firstSectXml, 'w:top="0"');
   // Cover, normal, columns, normal after the columns: four sections.
   assertEquals(count(xml, "<w:sectPr"), 4);
@@ -192,7 +223,7 @@ Deno.test("marks, tables, quotes and an unpictured block", async () => {
     "| --- | ---: |",
     "| 1 | 2 |",
     "",
-    ":::quote{cite=\"Someone\"}",
+    ':::quote{cite="Someone"}',
     "Words.",
     ":::",
     "",
@@ -218,7 +249,9 @@ Deno.test("marks, tables, quotes and an unpictured block", async () => {
   assertStringIncludes(xml, '<w:jc w:val="right"/>');
   assertStringIncludes(xml, "Someone");
   // Two lists, two numbering instances.
-  const numIds = new Set([...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => m[1]));
+  const numIds = new Set(
+    [...xml.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => m[1]),
+  );
   assertEquals(numIds.size, 2);
   assertStringIncludes(xml, 'w:ascii="Consolas"');
   assertStringIncludes(xml, "<w:drawing>");
@@ -243,8 +276,13 @@ Deno.test("marks, tables, quotes and an unpictured block", async () => {
 });
 
 Deno.test("embedded fonts, page ground and a natural cover", async () => {
-  const body = ":::report{background=ink}\n:::cover{kicker=\"K\"}\n# Title\n:::\n\n## After\n\nText.\n";
-  const font = { name: "Inter", data: new Uint8Array(256).fill(7), weight: 400 };
+  const body =
+    ':::report{background=ink}\n:::cover{kicker="K"}\n# Title\n:::\n\n## After\n\nText.\n';
+  const font = {
+    name: "Inter",
+    data: new Uint8Array(256).fill(7),
+    weight: 400,
+  };
   const { xml, zip, files } = await build(body, { fonts: [font] });
   assert(files.includes("word/fonts/Inter.odttf"));
   const fontTable = await zip.file("word/fontTable.xml")!.async("string");
@@ -263,10 +301,15 @@ Deno.test("embedded fonts, page ground and a natural cover", async () => {
 });
 
 Deno.test("a logos row: its logos side by side in one aligned paragraph", async () => {
-  const body = `Intro.\n\n:::logos{src="image:a image:gone image:b" align=center size=l}\n\nAfter.`;
+  const body =
+    `Intro.\n\n:::logos{src="image:a image:gone image:b" align=center size=l}\n\nAfter.`;
   const { xml } = await build(body, {
     image: (id) =>
-      id === "gone" ? undefined : dataUrlToWordImage(`data:image/png;base64,${PNG_1X1}`, id === "a" ? 200 : 100, 50),
+      id === "gone" ? undefined : dataUrlToWordImage(
+        `data:image/png;base64,${PNG_1X1}`,
+        id === "a" ? 200 : 100,
+        50,
+      ),
   });
   // Two drawings (the missing logo drops out), in one centred paragraph.
   assertEquals(count(xml, "<w:drawing>"), 2);

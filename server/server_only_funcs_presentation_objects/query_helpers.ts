@@ -5,8 +5,8 @@ import type {
 } from "lib";
 import {
   BLANK_SENTINEL,
-  INTEGER_FILTER_COLUMNS,
   inferPeriodFormatFromValuesIfTheSame,
+  INTEGER_FILTER_COLUMNS,
   isRollupDimension,
   MULTI_MEMBERSHIP_DELIMITER,
   MULTI_MEMBERSHIP_FILTER_COLUMNS,
@@ -46,7 +46,9 @@ const BLANK_WHITESPACE_CHARS = String.raw`E' \t\r\n'`;
  * half-match. That reintroduces the same defect in a new form.
  */
 export function blankFoldedRef(columnRef: string): string {
-  return `CASE WHEN ${blankPredicate(columnRef)} THEN '${BLANK_SENTINEL}' ELSE ${columnRef} END`;
+  return `CASE WHEN ${
+    blankPredicate(columnRef)
+  } THEN '${BLANK_SENTINEL}' ELSE ${columnRef} END`;
 }
 
 /**
@@ -296,7 +298,8 @@ function buildSelectQuery(
   let fromClause = `FROM ${sourceTable}`;
 
   if (queryContext.needsFacilityJoin && facilityCTEName) {
-    fromClause += `\nLEFT JOIN ${facilityCTEName} f ON ${sourceTable}.facility_id = f.facility_id`;
+    fromClause +=
+      `\nLEFT JOIN ${facilityCTEName} f ON ${sourceTable}.facility_id = f.facility_id`;
   }
 
   /////////////////////////
@@ -306,10 +309,9 @@ function buildSelectQuery(
   /////////////////////////
   const adjustedSelectColumns = groupBys.map(selectRef);
 
-  const selectStr =
-    adjustedSelectColumns.length === 0
-      ? aggregateColumns
-      : `${adjustedSelectColumns.join(", ")}, ${aggregateColumns}`;
+  const selectStr = adjustedSelectColumns.length === 0
+    ? aggregateColumns
+    : `${adjustedSelectColumns.join(", ")}, ${aggregateColumns}`;
 
   ////////////////////////
   //                    //
@@ -323,10 +325,9 @@ function buildSelectQuery(
     queryContext,
   );
 
-  const whereClause =
-    whereStatements.length === 0
-      ? ""
-      : `WHERE ${whereStatements.join(" AND ")}`;
+  const whereClause = whereStatements.length === 0
+    ? ""
+    : `WHERE ${whereStatements.join(" AND ")}`;
 
   ///////////////////////////
   //                       //
@@ -341,10 +342,9 @@ function buildSelectQuery(
     ...applyColumnPrefixes(extraGroupByColumns),
   ];
 
-  const groupByClause =
-    adjustedGroupByColumns.length === 0
-      ? ""
-      : `GROUP BY ${adjustedGroupByColumns.join(", ")}`;
+  const groupByClause = adjustedGroupByColumns.length === 0
+    ? ""
+    : `GROUP BY ${adjustedGroupByColumns.join(", ")}`;
 
   ////////////////////
   //                //
@@ -423,8 +423,7 @@ export function buildWhereClause(
       // Case-insensitive comparison for text columns. BLANK_SENTINEL cannot ride
       // the IN list: `NULL IN ('__BLANK')` is NULL, never true, so it splits
       // out into its own OR-ed predicate matching both blank routes.
-      const wantsBlank =
-        shouldFoldBlank(filter.disOpt, queryContext) &&
+      const wantsBlank = shouldFoldBlank(filter.disOpt, queryContext) &&
         filter.values.some((v) => String(v) === BLANK_SENTINEL);
       const namedValues = wantsBlank
         ? filter.values.filter((v) => String(v) !== BLANK_SENTINEL)
@@ -444,7 +443,9 @@ export function buildWhereClause(
       // predicates; the `values.length === 0` guard above covers the truly
       // empty filter.
       whereStatements.push(
-        predicates.length === 1 ? predicates[0] : `(${predicates.join(" OR ")})`,
+        predicates.length === 1
+          ? predicates[0]
+          : `(${predicates.join(" OR ")})`,
       );
     }
   }
@@ -594,7 +595,9 @@ function buildSampleNColumns(
     .filter((valueObj) => valueObj.func !== "identity")
     .map(
       (valueObj) =>
-        `(${distinctFacilities} FILTER (WHERE ${sourceTable}.${valueObj.prop} IS NOT NULL))::int AS ${sampleNProp(valueObj.prop)}`,
+        `(${distinctFacilities} FILTER (WHERE ${sourceTable}.${valueObj.prop} IS NOT NULL))::int AS ${
+          sampleNProp(valueObj.prop)
+        }`,
     );
 }
 
@@ -625,14 +628,13 @@ export function applyPostAggregationExpression(
 
   // Colliding columns re-project their __dis_ alias back to the bare name,
   // see paeCollidingGroupBys.
-  const groupByPrefix =
-    groupBys.length === 0
-      ? ""
-      : `${groupBys
-          .map((gb) =>
-            collidingGroupBys.has(gb) ? `${collisionAlias(gb)} AS ${gb}` : gb,
-          )
-          .join(", ")}, `;
+  const groupByPrefix = groupBys.length === 0 ? "" : `${
+    groupBys
+      .map((gb) =>
+        collidingGroupBys.has(gb) ? `${collisionAlias(gb)} AS ${gb}` : gb
+      )
+      .join(", ")
+  }, `;
 
   // The wrapper drops every inner column it doesn't re-project, so the sample-n
   // column has to be named here, renamed to the target the client looks for,
@@ -642,7 +644,8 @@ export function applyPostAggregationExpression(
     : "";
 
   // Build the post-aggregation wrapper
-  const wrappedQuery = `SELECT ${groupByPrefix}(${safeExpression}) as ${value}${sampleNSuffix} FROM (${sqlQuery}) AS subq`;
+  const wrappedQuery =
+    `SELECT ${groupByPrefix}(${safeExpression}) as ${value}${sampleNSuffix} FROM (${sqlQuery}) AS subq`;
 
   // If there are CTEs, they need to be moved to the outer level
   // This is handled by the caller in buildCombinedQuery

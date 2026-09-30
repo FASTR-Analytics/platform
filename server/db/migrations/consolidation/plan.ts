@@ -579,7 +579,12 @@ export async function planConsolidation(args: {
       type: "slide_deck",
       label: deck.label,
       folderId: folderIdFor(
-        resolveLegacyFolder("slide deck", deck.id, deck.folder_id, deckFoldersById),
+        resolveLegacyFolder(
+          "slide deck",
+          deck.id,
+          deck.folder_id,
+          deckFoldersById,
+        ),
       ),
       runId,
       adminArea2,
@@ -609,7 +614,12 @@ export async function planConsolidation(args: {
       type: "report",
       label: report.label,
       folderId: folderIdFor(
-        resolveLegacyFolder("report", report.id, report.folder_id, reportFoldersById),
+        resolveLegacyFolder(
+          "report",
+          report.id,
+          report.folder_id,
+          reportFoldersById,
+        ),
       ),
       runId,
       adminArea2,
@@ -744,11 +754,20 @@ export async function planConsolidation(args: {
   }
 
   const droppedCounts: DroppedCounts = {
-    presentationObjects: await countIfTableExists(projectDb, "presentation_objects"),
-    visualizationFolders: await countIfTableExists(projectDb, "visualization_folders"),
+    presentationObjects: await countIfTableExists(
+      projectDb,
+      "presentation_objects",
+    ),
+    visualizationFolders: await countIfTableExists(
+      projectDb,
+      "visualization_folders",
+    ),
     dashboards: await countIfTableExists(projectDb, "dashboards"),
     dashboardItems: await countIfTableExists(projectDb, "dashboard_items"),
-    dashboardItemGroups: await countIfTableExists(projectDb, "dashboard_item_groups"),
+    dashboardItemGroups: await countIfTableExists(
+      projectDb,
+      "dashboard_item_groups",
+    ),
   };
 
   const aiContext = project.ai_context.trim() === ""

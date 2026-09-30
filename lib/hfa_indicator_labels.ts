@@ -25,7 +25,11 @@ export function getHfaIndicatorMeasure(
   if (type === "binary" && aggregation === "avg") {
     return {
       kind: "percent",
-      label: { en: "% of facilities", fr: "% d'établissements", pt: "% de estabelecimentos" },
+      label: {
+        en: "% of facilities",
+        fr: "% d'établissements",
+        pt: "% de estabelecimentos",
+      },
     };
   }
   if (aggregation === "avg") {
@@ -40,7 +44,11 @@ export function getHfaIndicatorMeasure(
   }
   return {
     kind: "number",
-    label: { en: "total across facilities", fr: "total entre établissements", pt: "total entre estabelecimentos" },
+    label: {
+      en: "total across facilities",
+      fr: "total entre établissements",
+      pt: "total entre estabelecimentos",
+    },
   };
 }
 

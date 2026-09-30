@@ -1,9 +1,9 @@
-import { t3, type HmisIndicator } from "lib";
+import { type HmisIndicator, t3 } from "lib";
 import {
+  createQuery,
   Input,
   StateHolderWrapper,
   Table,
-  createQuery,
   type TableColumn,
 } from "panther";
 import { createEffect, createSignal } from "solid-js";
@@ -98,15 +98,15 @@ export function Dhis2IndicatorPicker(p: Props) {
             <div class="ui-text-heading">
               {p.selectedIds().length === 1
                 ? t3({
-                    en: "1 selected indicator",
-                    fr: "1 indicateur sélectionné",
-                    pt: "1 indicador selecionado",
-                  })
+                  en: "1 selected indicator",
+                  fr: "1 indicateur sélectionné",
+                  pt: "1 indicador selecionado",
+                })
                 : t3({
-                    en: `${p.selectedIds().length} selected indicators`,
-                    fr: `${p.selectedIds().length} indicateurs sélectionnés`,
-                    pt: `${p.selectedIds().length} indicadores selecionados`,
-                  })}
+                  en: `${p.selectedIds().length} selected indicators`,
+                  fr: `${p.selectedIds().length} indicateurs sélectionnés`,
+                  pt: `${p.selectedIds().length} indicadores selecionados`,
+                })}
             </div>
             <div class="w-80">
               <Input
@@ -133,8 +133,7 @@ export function Dhis2IndicatorPicker(p: Props) {
             keyField="indicator_common_id"
             selectedKeys={selectedKeysSet}
             setSelectedKeys={(keys) =>
-              p.setSelectedIds(Array.from(keys) as string[])
-            }
+              p.setSelectedIds(Array.from(keys) as string[])}
             paddingY="compact"
             maxHeight="500px"
             noRowsMessage={t3({

@@ -2,11 +2,11 @@ import type { Sql } from "postgres";
 import {
   getMergedModuleConfigSelections,
   MODULE_REGISTRY,
-  throwIfErrWithData,
   type ModuleConfigSelections,
   type ModuleDefinitionDetail,
   type ModuleId,
   type RunGenerationStep2Result,
+  throwIfErrWithData,
 } from "lib";
 import { _INSTANCE_LANGUAGE } from "../../exposed_env_vars.ts";
 import { getModuleDefinitionDetail } from "../../module_loader/mod.ts";
@@ -82,7 +82,10 @@ export async function resolveRunModules(
     }
 
     const configSelections = getMergedModuleConfigSelections(
-      { parameterDefinitions: [], parameterSelections: selection.parameterSelections },
+      {
+        parameterDefinitions: [],
+        parameterSelections: selection.parameterSelections,
+      },
       detail.configRequirements,
     );
     const scriptText = generateScript(
@@ -109,7 +112,8 @@ function sortByDependencies(modules: ResolvedRunModule[]): ResolvedRunModule[] {
   const registryIndex = new Map(MODULE_REGISTRY.map((m, i) => [m.id, i]));
   const byRegistry = modules.toSorted(
     (a, b) =>
-      (registryIndex.get(a.moduleId) ?? 0) - (registryIndex.get(b.moduleId) ?? 0),
+      (registryIndex.get(a.moduleId) ?? 0) -
+      (registryIndex.get(b.moduleId) ?? 0),
   );
   const done = new Set<string>();
   const ordered: ResolvedRunModule[] = [];

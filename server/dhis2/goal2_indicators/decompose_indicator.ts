@@ -101,9 +101,12 @@ export function parseDhis2Indicator(indicator: {
       }),
       format_as: formatAs,
       note: {
-        en: "The DHIS2 factor is 1000. The app has no per-1000 format, so the expression multiplies by 1000 and the indicator is shown as a number.",
-        fr: "Le facteur DHIS2 est 1000. L'application n'a pas de format pour 1000, donc l'expression multiplie par 1000 et l'indicateur est affiché comme un nombre.",
-        pt: "O fator DHIS2 é 1000. A aplicação não tem um formato por 1000, pelo que a expressão multiplica por 1000 e o indicador é mostrado como um número.",
+        en:
+          "The DHIS2 factor is 1000. The app has no per-1000 format, so the expression multiplies by 1000 and the indicator is shown as a number.",
+        fr:
+          "Le facteur DHIS2 est 1000. L'application n'a pas de format pour 1000, donc l'expression multiplie par 1000 et l'indicateur est affiché comme un nombre.",
+        pt:
+          "O fator DHIS2 é 1000. A aplicação não tem um formato por 1000, pelo que a expressão multiplica por 1000 e o indicador é mostrado como um número.",
       },
     };
   }
@@ -140,7 +143,11 @@ function parseSide(source: string, side: Side): SideResult {
   const operands = tokenized.tokens.flatMap((t) =>
     t.kind === "operand" ? [t.operand] : []
   );
-  return { accepted: true, node: parsed.node, operands: dedupeOperands(operands) };
+  return {
+    accepted: true,
+    node: parsed.node,
+    operands: dedupeOperands(operands),
+  };
 }
 
 // One pass over the source. A recognised token is pushed; the first thing
@@ -196,7 +203,10 @@ function tokenize(source: string): TokenizeResult {
     }
     if (ch === "[") {
       const close = rest.indexOf("]");
-      return { ok: false, term: close === -1 ? rest : rest.slice(0, close + 1) };
+      return {
+        ok: false,
+        term: close === -1 ? rest : rest.slice(0, close + 1),
+      };
     }
     const name = NAME_PATTERN.exec(rest);
     if (name !== null) {

@@ -7,40 +7,48 @@
 // calculated over the indicators they become. The server re-reads every
 // element and indicator and judges them itself.
 import {
-  describeDhis2ParseRefusal,
   describeDhis2ElementRefusal,
-  t3,
-  type Dhis2DataElementSearchItem,
-  type Dhis2IndicatorSearchItem,
+  describeDhis2ParseRefusal,
   type DHIS2CategoryOptionCombo,
+  type Dhis2DataElementSearchItem,
   dhis2ElementName,
+  type Dhis2IndicatorSearchItem,
   type HmisIndicator,
+  t3,
 } from "lib";
 import {
   Badge,
-  Callout,
-  FrameTop,
-  HeadingBar,
-  TextArea,
   Button,
-  StateHolderFormError,
+  Callout,
+  createButtonAction,
   createFormAction,
   type EditorComponentProps,
+  FrameTop,
+  HeadingBar,
   type Intent,
-  createButtonAction,
+  StateHolderFormError,
+  TextArea,
 } from "panther";
-import { batch, createMemo, createSignal, Match, Show, Switch, For } from "solid-js";
+import {
+  batch,
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
   createNamingState,
-  namingInputFromState,
-  namingIssues,
-  NamingStep,
   EMPTY_NAMING_STATE,
   type NamingCalculatedCandidate,
   type NamingElementCandidate,
+  namingInputFromState,
+  namingIssues,
   type NamingState,
+  NamingStep,
 } from "./naming_step";
 
 type Props = EditorComponentProps<{}, undefined>;
@@ -83,7 +91,10 @@ function itemName(item: SelectedItem): string {
     case "element":
       return item.element.name;
     case "operand":
-      return dhis2ElementName(item.element, operandId(item.element.id, item.coc));
+      return dhis2ElementName(
+        item.element,
+        operandId(item.element.id, item.coc),
+      );
     case "indicator":
       return item.indicator.name;
   }
@@ -91,11 +102,13 @@ function itemName(item: SelectedItem): string {
 
 function elementRefusal(de: Dhis2DataElementSearchItem): string | undefined {
   if (de.verdict.accepted) return undefined;
-  return `${t3({
-    en: "Cannot be added:",
-    fr: "Ne peut pas être ajouté :",
-    pt: "Não pode ser adicionado:",
-  })} ${t3(describeDhis2ElementRefusal(de.verdict.refusal))}`;
+  return `${
+    t3({
+      en: "Cannot be added:",
+      fr: "Ne peut pas être ajouté :",
+      pt: "Não pode ser adicionado:",
+    })
+  } ${t3(describeDhis2ElementRefusal(de.verdict.refusal))}`;
 }
 
 function indicatorRefusal(
@@ -103,19 +116,23 @@ function indicatorRefusal(
 ): string | undefined {
   const { parse, operands } = indicator.decomposition;
   if (!parse.accepted) {
-    return `${t3({
-      en: "Cannot be decomposed:",
-      fr: "Ne peut pas être décomposé :",
-      pt: "Não pode ser decomposto:",
-    })} ${t3(describeDhis2ParseRefusal(parse.refusal))}`;
+    return `${
+      t3({
+        en: "Cannot be decomposed:",
+        fr: "Ne peut pas être décomposé :",
+        pt: "Não pode ser decomposto:",
+      })
+    } ${t3(describeDhis2ParseRefusal(parse.refusal))}`;
   }
   const refused = operands.find((o) => !o.verdict.accepted);
   if (refused !== undefined && !refused.verdict.accepted) {
-    return `${t3({
-      en: `Operand ${refused.data_id} cannot be added:`,
-      fr: `L'opérande ${refused.data_id} ne peut pas être ajouté :`,
-      pt: `O operando ${refused.data_id} não pode ser adicionado:`,
-    })} ${t3(describeDhis2ElementRefusal(refused.verdict.refusal))}`;
+    return `${
+      t3({
+        en: `Operand ${refused.data_id} cannot be added:`,
+        fr: `L'opérande ${refused.data_id} ne peut pas être ajouté :`,
+        pt: `O operando ${refused.data_id} não pode ser adicionado:`,
+      })
+    } ${t3(describeDhis2ElementRefusal(refused.verdict.refusal))}`;
   }
   return undefined;
 }
@@ -185,9 +202,12 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     if (!response.success) {
       return {
         success: false,
-        err:
-          response.err ||
-          t3({ en: "Search failed", fr: "Échec de la recherche", pt: "Falha na pesquisa" }),
+        err: response.err ||
+          t3({
+            en: "Search failed",
+            fr: "Échec de la recherche",
+            pt: "Falha na pesquisa",
+          }),
       };
     }
 
@@ -228,7 +248,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     const labels = new Map<string, string>();
     for (const id of ids) {
       const element = elements.get(id.split(".")[0]);
-      labels.set(id, element === undefined ? id : dhis2ElementName(element, id));
+      labels.set(
+        id,
+        element === undefined ? id : dhis2ElementName(element, id),
+      );
     }
     return labels;
   }
@@ -238,7 +261,11 @@ export function Dhis2IndicatorSelectForm(p: Props) {
     if (items.length === 0) {
       return {
         success: false,
-        err: t3({ en: "No items selected", fr: "Aucun élément sélectionné", pt: "Nenhum elemento selecionado" }),
+        err: t3({
+          en: "No items selected",
+          fr: "Aucun élément sélectionné",
+          pt: "Nenhum elemento selecionado",
+        }),
       };
     }
     const dictionaryRes = await serverActions.getIndicators({});
@@ -386,7 +413,8 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               fr: "Nommer les nouveaux indicateurs",
               pt: "Nomear os novos indicadores",
             })}
-          onBack={() => phase() === "select" ? p.close(undefined) : setPhase("select")}
+          onBack={() =>
+            phase() === "select" ? p.close(undefined) : setPhase("select")}
         >
           <Switch>
             <Match when={phase() === "select"}>
@@ -397,7 +425,11 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                 intent="primary"
                 disabled={selected().length === 0}
               >
-                {t3({ en: "Next: name indicators", fr: "Suivant : nommer les indicateurs", pt: "Seguinte: nomear indicadores" })} (
+                {t3({
+                  en: "Next: name indicators",
+                  fr: "Suivant : nommer les indicateurs",
+                  pt: "Seguinte: nomear indicadores",
+                })} (
                 {selected().length})
               </Button>
             </Match>
@@ -419,7 +451,11 @@ export function Dhis2IndicatorSelectForm(p: Props) {
       <Show when={phase() === "name"}>
         <div class="ui-pad h-full w-full overflow-auto">
           <div class="mx-auto max-w-5xl">
-            <NamingStep state={naming} setState={setNaming} indicators={dictionary()} />
+            <NamingStep
+              state={naming}
+              setState={setNaming}
+              indicators={dictionary()}
+            />
           </div>
         </div>
       </Show>
@@ -446,9 +482,12 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                     value={tempSearchQuery()}
                     onChange={setTempSearchQuery}
                     placeholder={t3({
-                      en: 'e.g. Antenatal care (searches for "Antenatal care" as one term)\ne.g. BFeLG7TNOvq, CKCRDq0NBHy (searches for two IDs and combines results)\n\nUse commas, semicolons, or new lines to search multiple terms at once.',
-                      fr: "ex. Soins prénatals (recherche « Soins prénatals » comme un seul terme)\nex. BFeLG7TNOvq, CKCRDq0NBHy (recherche deux ID et combine les résultats)\n\nUtilisez des virgules, points-virgules ou retours à la ligne pour rechercher plusieurs termes.",
-                      pt: "p. ex. Cuidados pré-natais (pesquisa «Cuidados pré-natais» como um único termo)\np. ex. BFeLG7TNOvq, CKCRDq0NBHy (pesquisa dois IDs e combina os resultados)\n\nUtilize vírgulas, pontos e vírgulas ou novas linhas para pesquisar vários termos de uma só vez.",
+                      en:
+                        'e.g. Antenatal care (searches for "Antenatal care" as one term)\ne.g. BFeLG7TNOvq, CKCRDq0NBHy (searches for two IDs and combines results)\n\nUse commas, semicolons, or new lines to search multiple terms at once.',
+                      fr:
+                        "ex. Soins prénatals (recherche « Soins prénatals » comme un seul terme)\nex. BFeLG7TNOvq, CKCRDq0NBHy (recherche deux ID et combine les résultats)\n\nUtilisez des virgules, points-virgules ou retours à la ligne pour rechercher plusieurs termes.",
+                      pt:
+                        "p. ex. Cuidados pré-natais (pesquisa «Cuidados pré-natais» como um único termo)\np. ex. BFeLG7TNOvq, CKCRDq0NBHy (pesquisa dois IDs e combina os resultados)\n\nUtilize vírgulas, pontos e vírgulas ou novas linhas para pesquisar vários termos de uma só vez.",
                     })}
                     label={t3({
                       en: "Search by name, code, or ID",
@@ -487,9 +526,15 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               <Show when={search.state().status === "ready"}>
                 <Callout intent="success" pad="sm" class="w-full flex-none">
                   <div class="font-700">
-                    {t3({ en: "Search completed:", fr: "Recherche terminée :", pt: "Pesquisa concluída:" })}{" "}
-                    {totalResultCount()}{" "}
-                    {t3({ en: "results found", fr: "résultats trouvés", pt: "resultados encontrados" })}
+                    {t3({
+                      en: "Search completed:",
+                      fr: "Recherche terminée :",
+                      pt: "Pesquisa concluída:",
+                    })} {totalResultCount()} {t3({
+                      en: "results found",
+                      fr: "résultats trouvés",
+                      pt: "resultados encontrados",
+                    })}
                   </div>
                 </Callout>
               </Show>
@@ -500,8 +545,10 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                     <div class="text-base-content">
                       {t3({
                         en: "No results found. Try a different search term.",
-                        fr: "Aucun résultat trouvé. Essayez un autre terme de recherche.",
-                        pt: "Nenhum resultado encontrado. Experimente outro termo de pesquisa.",
+                        fr:
+                          "Aucun résultat trouvé. Essayez un autre terme de recherche.",
+                        pt:
+                          "Nenhum resultado encontrado. Experimente outro termo de pesquisa.",
                       })}
                     </div>
                   </div>
@@ -526,17 +573,25 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                               <span class="text-base-content flex-none font-mono text-xs">
                                 {indicator.id}
                               </span>
-                              {addButton({ kind: "indicator", indicator }, refusal)}
+                              {addButton(
+                                { kind: "indicator", indicator },
+                                refusal,
+                              )}
                             </div>
                             <Show
                               when={refusal}
                               fallback={
                                 <div class="text-base-content-muted mt-1 font-mono text-xs">
-                                  {indicator.numerator} / {indicator.denominator}
+                                  {indicator.numerator} /{" "}
+                                  {indicator.denominator}
                                 </div>
                               }
                             >
-                              {(text) => <div class="text-danger mt-1 text-xs">{text()}</div>}
+                              {(text) => (
+                                <div class="text-danger mt-1 text-xs">
+                                  {text()}
+                                </div>
+                              )}
                             </Show>
                           </div>
                         );
@@ -553,11 +608,9 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                                 <Show when={hasDisaggregation(de)}>
                                   <Button
                                     onClick={() => toggleExpanded(de.id)}
-                                    iconName={
-                                      isExpanded(de.id)
-                                        ? "chevronDown"
-                                        : "chevronRight"
-                                    }
+                                    iconName={isExpanded(de.id)
+                                      ? "chevronDown"
+                                      : "chevronRight"}
                                     intent="neutral"
                                     outline
                                   />
@@ -573,29 +626,45 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                                 <Show when={hasDisaggregation(de)}>
                                   <span class="flex-none">
                                     <Badge intent="warning">
-                                      {getCOCs(de).length}{" "}
-                                      {t3({ en: "COCs", fr: "COCs", pt: "COCs" })}
+                                      {getCOCs(de).length} {t3({
+                                        en: "COCs",
+                                        fr: "COCs",
+                                        pt: "COCs",
+                                      })}
                                     </Badge>
                                   </span>
                                 </Show>
                                 <span class="text-base-content flex-none font-mono text-xs">
                                   {de.id}
                                 </span>
-                                {addButton({ kind: "element", element: de }, refusal)}
+                                {addButton(
+                                  { kind: "element", element: de },
+                                  refusal,
+                                )}
                               </div>
                               <Show when={refusal}>
-                                {(text) => <div class="text-danger mt-1 text-xs">{text()}</div>}
+                                {(text) => (
+                                  <div class="text-danger mt-1 text-xs">
+                                    {text()}
+                                  </div>
+                                )}
                               </Show>
                             </div>
 
-                            <Show when={hasDisaggregation(de) && isExpanded(de.id)}>
+                            <Show
+                              when={hasDisaggregation(de) && isExpanded(de.id)}
+                            >
                               <div class="bg-base-200 border-t">
                                 <For each={getCOCs(de)}>
                                   {(coc) => (
                                     <div class="ui-gap-sm ui-pad-sm flex items-center border-b pl-10 last:border-b-0">
                                       <span class="flex-none">
                                         <Badge intent="neutral">
-                                          {t3({ en: "COC", fr: "COC", pt: "COC" })}
+                                          {t3({
+                                            en: "COC",
+                                            fr: "COC",
+                                            pt: "COC",
+                                          })}
                                         </Badge>
                                       </span>
                                       <span class="font-400 flex-1 truncate">
@@ -604,7 +673,11 @@ export function Dhis2IndicatorSelectForm(p: Props) {
                                       <span class="text-base-content flex-none font-mono text-xs">
                                         {operandId(de.id, coc)}
                                       </span>
-                                      {addButton({ kind: "operand", element: de, coc }, refusal)}
+                                      {addButton({
+                                        kind: "operand",
+                                        element: de,
+                                        coc,
+                                      }, refusal)}
                                     </div>
                                   )}
                                 </For>
@@ -623,12 +696,19 @@ export function Dhis2IndicatorSelectForm(p: Props) {
           <div class="ui-pad h-full w-0 flex-1 overflow-auto border-l">
             <div class="mb-4">
               <div class="ui-text-heading">
-                {t3({ en: "Selected items", fr: "Éléments sélectionnés", pt: "Elementos selecionados" })}
+                {t3({
+                  en: "Selected items",
+                  fr: "Éléments sélectionnés",
+                  pt: "Elementos selecionados",
+                })}
               </div>
               <Show when={selected().length > 0}>
                 <div class="text-base-content text-sm">
-                  {selected().length}{" "}
-                  {t3({ en: "items selected", fr: "éléments sélectionnés", pt: "elementos selecionados" })}
+                  {selected().length} {t3({
+                    en: "items selected",
+                    fr: "éléments sélectionnés",
+                    pt: "elementos selecionados",
+                  })}
                 </div>
               </Show>
             </div>
@@ -637,9 +717,12 @@ export function Dhis2IndicatorSelectForm(p: Props) {
               fallback={
                 <div class="text-base-content-muted text-sm">
                   {t3({
-                    en: "No items selected. Search for items and click 'Add' from search results.",
-                    fr: "Aucun élément sélectionné. Recherchez des éléments et cliquez sur « Ajouter » dans les résultats.",
-                    pt: "Nenhum elemento selecionado. Pesquise elementos e clique em «Adicionar» nos resultados.",
+                    en:
+                      "No items selected. Search for items and click 'Add' from search results.",
+                    fr:
+                      "Aucun élément sélectionné. Recherchez des éléments et cliquez sur « Ajouter » dans les résultats.",
+                    pt:
+                      "Nenhum elemento selecionado. Pesquise elementos e clique em «Adicionar» nos resultados.",
                   })}
                 </div>
               }

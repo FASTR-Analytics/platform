@@ -1,23 +1,23 @@
 import {
-  getMergedModuleConfigSelections,
-  t3,
   type DatasetType,
+  getMergedModuleConfigSelections,
   type ModuleId,
   type RunGenerationDefaults,
   type RunGenerationModuleOptions,
   type RunGenerationStep1Result,
+  t3,
 } from "lib";
 import {
   AlertComponentProps,
+  createFormAction,
+  createQuery,
+  getStepper,
   LoadingIndicator,
   ModalContainer,
   StateHolderWrapper,
   StepperChipsWithTitles,
-  createFormAction,
-  createQuery,
-  getStepper,
 } from "panther";
-import { Show, createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { getModuleParameterInvalidMsg } from "../_shared/mod.ts";
 import { serverActions } from "~/server_actions";
@@ -25,7 +25,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { freeRunLabel, isRunLabelTaken } from "./run_label";
 import { buildModuleGraph, familiesOf, isOfferable } from "./module_graph";
 import { StepConfirm } from "./step_3_confirm";
-import { StepData, type FamilyBlockedReason } from "./step_1_data";
+import { type FamilyBlockedReason, StepData } from "./step_1_data";
 import { StepModules } from "./step_2_modules";
 
 type StepKind = "data" | "modules" | "confirm";
@@ -153,8 +153,8 @@ function WizardInner(p: InnerProps) {
   const [selected, setSelected] = createStore<Record<string, boolean>>(
     Object.fromEntries(p.defaults.moduleIds.map((id) => [id, true])),
   );
-  const paramValues: Record<string, Record<string, string>> =
-    Object.fromEntries(
+  const paramValues: Record<string, Record<string, string>> = Object
+    .fromEntries(
       p.options.modules.map((o) => [
         o.id,
         getMergedModuleConfigSelections(
@@ -179,7 +179,7 @@ function WizardInner(p: InnerProps) {
     return ids;
   });
   const chosen = createMemo(() =>
-    p.options.modules.filter((o) => chosenIds().has(o.id)),
+    p.options.modules.filter((o) => chosenIds().has(o.id))
   );
   const invalidDefaultLabels = createMemo(() =>
     chosen()
@@ -190,19 +190,21 @@ function WizardInner(p: InnerProps) {
               param,
               paramValues[o.id][param.replacementString],
             ) !== undefined,
-        ),
+        )
       )
-      .map((o) => o.label),
+      .map((o) => o.label)
   );
 
   // Step 3: confirm.
   const [label, setLabel] = createSignal(
     freeRunLabel(
-      `${t3({
-        en: "Results package",
-        fr: "Paquet de résultats",
-        pt: "Pacote de resultados",
-      })} ${new Date().toISOString().slice(0, 10)}`,
+      `${
+        t3({
+          en: "Results package",
+          fr: "Paquet de résultats",
+          pt: "Pacote de resultados",
+        })
+      } ${new Date().toISOString().slice(0, 10)}`,
       instanceState.runsCatalog,
     ),
   );
@@ -292,33 +294,33 @@ function WizardInner(p: InnerProps) {
       actions={[
         ...(stepper.currentStep() > 0
           ? [
-              {
-                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
-                onClick: stepper.goPrev,
-                outline: true,
-              },
-            ]
+            {
+              label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+              onClick: stepper.goPrev,
+              outline: true,
+            },
+          ]
           : []),
         ...(isLastStep()
           ? [
-              {
-                label: t3({
-                  en: "Launch generation",
-                  fr: "Lancer la génération",
-                  pt: "Iniciar a geração",
-                }),
-                onClick: launch.click,
-                state: launch.state(),
-                iconName: "check" as const,
-              },
-            ]
+            {
+              label: t3({
+                en: "Launch generation",
+                fr: "Lancer la génération",
+                pt: "Iniciar a geração",
+              }),
+              onClick: launch.click,
+              state: launch.state(),
+              iconName: "check" as const,
+            },
+          ]
           : [
-              {
-                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
-                onClick: stepper.goNext,
-                disabled: !stepper.canGoNext(),
-              },
-            ]),
+            {
+              label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+              onClick: stepper.goNext,
+              disabled: !stepper.canGoNext(),
+            },
+          ]),
       ]}
     >
       <div class="min-h-96">

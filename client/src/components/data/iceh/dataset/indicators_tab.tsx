@@ -1,4 +1,4 @@
-import { t3, type IcehIndicator } from "lib";
+import { type IcehIndicator, t3 } from "lib";
 import { Table, type TableColumn } from "panther";
 
 type DisplayRow = IcehIndicator & { _key: string };
@@ -14,9 +14,7 @@ export function IndicatorsTab(p: { indicators: IcehIndicator[] }) {
       key: "indicatorCode",
       header: t3({ en: "Code", fr: "Code", pt: "Código" }),
       sortable: true,
-      render: (item) => (
-        <span class="font-mono">{item.indicatorCode}</span>
-      ),
+      render: (item) => <span class="font-mono">{item.indicatorCode}</span>,
     },
     {
       key: "indicatorName",

@@ -4,7 +4,11 @@
 // with no id is dropped at the fetcher, so nothing downstream sees the wire
 // shape.
 
-import type { DHIS2CategoryOptionCombo, DHIS2DataElement, DHIS2Indicator } from "lib";
+import type {
+  DHIS2CategoryOptionCombo,
+  DHIS2DataElement,
+  DHIS2Indicator,
+} from "lib";
 import { FetchOptions, getDHIS2 } from "../common/base_fetcher.ts";
 
 type IdNameWire = {
@@ -38,7 +42,10 @@ type DataElementWire = {
   dataSetElements:
     | Array<{
       dataSet:
-        | { id: string | null | undefined; periodType: string | null | undefined }
+        | {
+          id: string | null | undefined;
+          periodType: string | null | undefined;
+        }
         | null
         | undefined;
     }>

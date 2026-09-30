@@ -45,8 +45,8 @@ import type {
 } from "lib";
 import type { FetchOptions } from "../../dhis2/common/base_fetcher.ts";
 import {
-  PROGRESS_WRITE_INTERVAL_MS,
   createThrottledProgressWriter,
+  PROGRESS_WRITE_INTERVAL_MS,
   truncateWorkerError,
 } from "../worker_contract.ts";
 import {
@@ -151,10 +151,10 @@ async function run(std: RunWorkerMessage) {
   // catch path can persist whatever was known when the run died.
   let statsInputs:
     | {
-        routes: Map<string, ElementRoute>;
-        unknownIds: string[];
-        dhis2IndicatorIds: string[];
-      }
+      routes: Map<string, ElementRoute>;
+      unknownIds: string[];
+      dhis2IndicatorIds: string[];
+    }
     | null = null;
   const buildRunStatsJson = (): string | null => {
     if (!statsInputs) {
@@ -181,7 +181,9 @@ async function run(std: RunWorkerMessage) {
   const activePairs = new Map<string, Dhis2RunPair>();
   let progressPhase: "classifying" | "fetching" | "finalizing" = "classifying";
 
-  const writeProgress = createThrottledProgressWriter<DatasetHmisImportRunProgress>(
+  const writeProgress = createThrottledProgressWriter<
+    DatasetHmisImportRunProgress
+  >(
     PROGRESS_WRITE_INTERVAL_MS,
     async (progress) => {
       // status guard: never resurrect progress on a cancelled/errored run.
@@ -243,7 +245,9 @@ async function run(std: RunWorkerMessage) {
     return versionPromise;
   };
 
-  function buildRunStagingResult(totalPairs: number): DatasetDhis2StagingResult {
+  function buildRunStagingResult(
+    totalPairs: number,
+  ): DatasetDhis2StagingResult {
     return {
       kind: "dhis2",
       dateImported: runStartedIso,
@@ -421,7 +425,9 @@ async function run(std: RunWorkerMessage) {
       metadataFetchOptions,
     );
 
-    const unknownReason = (id: string): "not_found" | "dhis2_indicator" | undefined => {
+    const unknownReason = (
+      id: string,
+    ): "not_found" | "dhis2_indicator" | undefined => {
       const route = routes.get(id);
       return route?.kind === "unknown" ? route.reason : undefined;
     };
@@ -513,7 +519,9 @@ async function run(std: RunWorkerMessage) {
     for (const [dataElementId, group] of byElement) {
       const allPeriods = Array.from(
         new Set(
-          Array.from(group.periodsByDataId.values()).flatMap((s) => Array.from(s)),
+          Array.from(group.periodsByDataId.values()).flatMap((s) =>
+            Array.from(s)
+          ),
         ),
       ).sort((a, b) => a - b);
       for (const periodId of allPeriods) {
@@ -688,7 +696,11 @@ async function run(std: RunWorkerMessage) {
         return;
       }
 
-      const reductions = reduceDvsValues(values, task.coveredPairs, facilitySet);
+      const reductions = reduceDvsValues(
+        values,
+        task.coveredPairs,
+        facilitySet,
+      );
       for (const covered of task.coveredPairs) {
         const pair = toPair(covered);
         const reduction = reductions.get(pairKey(covered))!;
@@ -826,7 +838,9 @@ async function run(std: RunWorkerMessage) {
       `DHIS2 import run ${runId} complete: ${succeededPairsCount} pairs succeeded, ` +
         `${failedPairsCount} failed, ${totalRowsInserted} rows inserted, ` +
         `${totalRowsDeleted} stale rows deleted` +
-        (mintedVersionId !== null ? `, version ${mintedVersionId}` : ", no version (zero pairs succeeded)"),
+        (mintedVersionId !== null
+          ? `, version ${mintedVersionId}`
+          : ", no version (zero pairs succeeded)"),
     );
 
     await importDb.end();
@@ -896,4 +910,3 @@ function countRoutes(
   }
   return n;
 }
-

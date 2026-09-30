@@ -4,42 +4,42 @@ import { APIResponseNoData, APIResponseWithData } from "lib";
 import type { UserLog } from "lib";
 
 export async function AddLog(
-    mainDb: Sql,
-    user_email: string,
-    endpoint: string,
-    endpoint_result: string,
-    details?: string,
+  mainDb: Sql,
+  user_email: string,
+  endpoint: string,
+  endpoint_result: string,
+  details?: string,
 ): Promise<APIResponseNoData> {
-    return await tryCatchDatabaseAsync(async () => {
-        await mainDb`
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb`
 INSERT INTO user_logs
     (user_email, endpoint, endpoint_result, details)
 VALUES
     (${user_email}, ${endpoint}, ${endpoint_result}, ${details ?? null})
         `;
-        return { success: true };
-    });
+    return { success: true };
+  });
 }
 
 export async function GetLogs(
-    mainDb: Sql,
+  mainDb: Sql,
 ): Promise<APIResponseWithData<UserLog[]>> {
-    return await tryCatchDatabaseAsync(async () => {
-        const logs: UserLog[] = await mainDb`
+  return await tryCatchDatabaseAsync(async () => {
+    const logs: UserLog[] = await mainDb`
 SELECT id, user_email, timestamp, endpoint, endpoint_result, details
 FROM user_logs
 ORDER BY timestamp DESC
         `;
-        return { success: true, data: logs };
-    });
+    return { success: true, data: logs };
+  });
 }
 
 export async function DeleteOldLogs(
-    mainDb: Sql,
+  mainDb: Sql,
 ): Promise<APIResponseNoData> {
-    return await tryCatchDatabaseAsync(async () => {
-        await mainDb.begin(async (sql) => {
-            await sql`
+  return await tryCatchDatabaseAsync(async () => {
+    await mainDb.begin(async (sql) => {
+      await sql`
 INSERT INTO user_logs_aggregate (user_email, endpoint, endpoint_result, week_start, count)
 SELECT
     user_email,
@@ -54,12 +54,12 @@ GROUP BY user_email, endpoint, endpoint_result, DATE_TRUNC('week', timestamp)::d
 ON CONFLICT (user_email, endpoint, endpoint_result, week_start)
 DO UPDATE SET count = user_logs_aggregate.count + EXCLUDED.count
             `;
-            await sql`
+      await sql`
 DELETE FROM user_logs
 WHERE timestamp < NOW() - INTERVAL '7 days'
   AND endpoint != 'getCurrentUser'
             `;
-        });
-        return { success: true };
     });
+    return { success: true };
+  });
 }

@@ -74,11 +74,15 @@ export function autoSelectHmisCsvMapping(
   const chosen = new Map<string, string>();
   for (const value of values) {
     const candidates = new Set<string>();
-    for (const i of byNormalisedId.get(normaliseIndicatorMatchKey(value)) ?? []) {
+    for (
+      const i of byNormalisedId.get(normaliseIndicatorMatchKey(value)) ?? []
+    ) {
       candidates.add(definitionDataId(i.definition)!);
     }
     const element = elementsByUid.get(value);
-    if (element !== undefined) candidates.add(definitionDataId(element.definition)!);
+    if (element !== undefined) {
+      candidates.add(definitionDataId(element.definition)!);
+    }
     if (candidates.size === 1) chosen.set(value, [...candidates][0]);
   }
   const uses = new Map<string, number>();
@@ -88,7 +92,9 @@ export function autoSelectHmisCsvMapping(
   const mapping: HmisCsvMapping = {};
   for (const value of values) {
     const target = chosen.get(value);
-    mapping[value] = target !== undefined && uses.get(target) === 1 ? target : null;
+    mapping[value] = target !== undefined && uses.get(target) === 1
+      ? target
+      : null;
   }
   return mapping;
 }
@@ -245,7 +251,10 @@ export type DatasetStagingResult =
 // Import Ledger Types
 // ============================================================================
 
-export type DatasetHmisLedgerSkippedValue = { facilityId: string; value: string };
+export type DatasetHmisLedgerSkippedValue = {
+  facilityId: string;
+  value: string;
+};
 
 // One row per (data id, month): the latest import state of that pair
 // (PLAN_DHIS2_IMPORTER WS-B). status 'error' keeps the last data-bearing
@@ -349,13 +358,13 @@ export type DatasetHmisImportRunStatus =
 // staging/integrating percentage.
 export type DatasetHmisImportRunProgress =
   | {
-      phase: "classifying" | "fetching" | "finalizing";
-      activePairs: Dhis2RunPair[];
-    }
+    phase: "classifying" | "fetching" | "finalizing";
+    activePairs: Dhis2RunPair[];
+  }
   | {
-      phase: "staging" | "integrating";
-      percent: number;
-    };
+    phase: "staging" | "integrating";
+    percent: number;
+  };
 
 // The summary projection of a run's selection: window selections pass
 // through unchanged (the history label shows the indicator count with the
@@ -431,16 +440,16 @@ export type DatasetHmisImportRunStats = {
 // a manual launch.
 export type Dhis2ScheduleSelection =
   | {
-      kind: "last_n_months";
-      indicatorIds: string[];
-      monthsBack: number;
-    }
+    kind: "last_n_months";
+    indicatorIds: string[];
+    monthsBack: number;
+  }
   | {
-      kind: "explicit_range";
-      indicatorIds: string[];
-      startPeriod: number;
-      endPeriod: number;
-    };
+    kind: "explicit_range";
+    indicatorIds: string[];
+    startPeriod: number;
+    endPeriod: number;
+  };
 
 export type DatasetHmisScheduledImportKind = "one_shot" | "recurring";
 
@@ -449,34 +458,34 @@ export type DatasetHmisScheduledImportKind = "one_shot" | "recurring";
 // anchor, never counted from the last fire (PLAN_SCHEDULE_RECURRENCE).
 export type Dhis2ScheduleRecurrence =
   | {
-      kind: "daily";
-      // "HH:MM" wall time in `timezone` (IANA), all kinds.
-      startTime: string;
-      timezone: string;
-    }
+    kind: "daily";
+    // "HH:MM" wall time in `timezone` (IANA), all kinds.
+    startTime: string;
+    timezone: string;
+  }
   | {
-      kind: "weekly";
-      // The date of the FIRST occurrence ("YYYY-MM-DD", a wall date in
-      // `timezone`). The weekday is derived from it: no separate field to
-      // keep consistent. Occurrences are firstRunDate + k·7·everyNWeeks days.
-      firstRunDate: string;
-      everyNWeeks: number;
-      startTime: string;
-      timezone: string;
-    }
+    kind: "weekly";
+    // The date of the FIRST occurrence ("YYYY-MM-DD", a wall date in
+    // `timezone`). The weekday is derived from it: no separate field to
+    // keep consistent. Occurrences are firstRunDate + k·7·everyNWeeks days.
+    firstRunDate: string;
+    everyNWeeks: number;
+    startTime: string;
+    timezone: string;
+  }
   | {
-      kind: "monthly";
-      // nth `weekday` of the month ("first Thursday"); "last" = final one.
-      nth: 1 | 2 | 3 | 4 | "last";
-      // 0 (Sunday) – 6 (Saturday).
-      weekday: number;
-      everyNMonths: number;
-      // Anchor month ("YYYY-MM") for everyNMonths > 1 phase: months where
-      // monthsSince(anchorMonth) % everyNMonths !== 0 have no occurrence.
-      anchorMonth: string;
-      startTime: string;
-      timezone: string;
-    };
+    kind: "monthly";
+    // nth `weekday` of the month ("first Thursday"); "last" = final one.
+    nth: 1 | 2 | 3 | 4 | "last";
+    // 0 (Sunday) – 6 (Saturday).
+    weekday: number;
+    everyNMonths: number;
+    // Anchor month ("YYYY-MM") for everyNMonths > 1 phase: months where
+    // monthsSince(anchorMonth) % everyNMonths !== 0 have no occurrence.
+    anchorMonth: string;
+    startTime: string;
+    timezone: string;
+  };
 
 // "launched" = a run was started (last_run_id points at it). "refused" = the
 // fire was blocked at fire time (no stored credentials, or the stored URL
@@ -484,7 +493,10 @@ export type Dhis2ScheduleRecurrence =
 // "missed" = the fire window
 // (occurrence + grace) passed with no fire (server down); skipping loudly
 // beats firing into daytime load (PLAN_DHIS2_IMPORTER §2.7).
-export type DatasetHmisScheduledImportOutcome = "launched" | "refused" | "missed";
+export type DatasetHmisScheduledImportOutcome =
+  | "launched"
+  | "refused"
+  | "missed";
 
 export type DatasetHmisScheduledImport = {
   id: number;

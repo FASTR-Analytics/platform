@@ -77,20 +77,27 @@ export function ShareSlideDeck(
     const check = emailRecipientsSchema.safeParse(recipients);
     if (!check.success) {
       const invalid = check.error.issues
-        .map((i) => (typeof i.path[0] === "number" ? recipients[i.path[0]] : undefined))
+        .map((
+          i,
+        ) => (typeof i.path[0] === "number"
+          ? recipients[i.path[0]]
+          : undefined)
+        )
         .filter((v): v is string => v !== undefined);
       setErr(
         invalid.length > 0
           ? t3({
-              en: `Not a valid email address: ${invalid.join(", ")}`,
-              fr: `Adresse email non valide : ${invalid.join(", ")}`,
-              pt: `Endereço de email inválido: ${invalid.join(", ")}`,
-            })
+            en: `Not a valid email address: ${invalid.join(", ")}`,
+            fr: `Adresse email non valide : ${invalid.join(", ")}`,
+            pt: `Endereço de email inválido: ${invalid.join(", ")}`,
+          })
           : t3({
-              en: `Select at most 50 recipients (currently ${recipients.length})`,
-              fr: `Sélectionnez au maximum 50 destinataires (actuellement ${recipients.length})`,
-              pt: `Selecione no máximo 50 destinatários (atualmente ${recipients.length})`,
-            }),
+            en: `Select at most 50 recipients (currently ${recipients.length})`,
+            fr:
+              `Sélectionnez au maximum 50 destinataires (actuellement ${recipients.length})`,
+            pt:
+              `Selecione no máximo 50 destinatários (atualmente ${recipients.length})`,
+          }),
       );
       return;
     }
@@ -141,15 +148,23 @@ export function ShareSlideDeck(
 
   return (
     <ModalContainer
-      title={t3({ en: "Share slide deck", fr: "Partager la présentation", pt: "Partilhar apresentação" })}
+      title={t3({
+        en: "Share slide deck",
+        fr: "Partager la présentation",
+        pt: "Partilhar apresentação",
+      })}
       width="md"
       {...(sent()
-        ? { onClose: { kind: "done" as const, onClick: () => p.close(undefined) } }
+        ? {
+          onClose: { kind: "done" as const, onClick: () => p.close(undefined) },
+        }
         : {
           onCancel: pct() === 0 ? () => p.close(undefined) : undefined,
           actions: pct() === 0
             ? [{
-              label: `${t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })} (${allRecipients().length})`,
+              label: `${
+                t3({ en: "Send", fr: "Envoyer", pt: "Enviar" })
+              } (${allRecipients().length})`,
               onClick: handleSend,
               iconName: "arrowRight" as const,
             }]
@@ -167,23 +182,35 @@ export function ShareSlideDeck(
       </Show>
       <Show when={!sent()}>
         {/* <div class="ui-spy-sm"> */}
-        {/* <label class="ui-label"></label>
-          <div style={{ "max-height": "200px", overflow: "auto" }}> */}
+        {
+          /* <label class="ui-label"></label>
+          <div style={{ "max-height": "200px", overflow: "auto" }}> */
+        }
         <div class="h-56">
           <Table
             data={userRows()}
             columns={columns}
             keyField="email"
             defaultSort={{ key: "email", direction: "asc" }}
-            noRowsMessage={t3({ en: "No users", fr: "Aucun utilisateur", pt: "Sem utilizadores" })}
+            noRowsMessage={t3({
+              en: "No users",
+              fr: "Aucun utilisateur",
+              pt: "Sem utilizadores",
+            })}
             selectedKeys={selectedKeys}
             setSelectedKeys={setSelectedKeys}
-            selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
+            selectionLabel={t3({
+              en: "user",
+              fr: "utilisateur",
+              pt: "utilizador",
+            })}
             paddingY="compact"
           />
         </div>
-        {/* </div>
-        </div> */}
+        {
+          /* </div>
+        </div> */
+        }
         <TextArea
           label={t3({
             en: "Additional emails",
@@ -194,8 +221,10 @@ export function ShareSlideDeck(
           onChange={setAdditionalEmails}
           placeholder={t3({
             en: "Add emails separated by comma, semicolon, or line break",
-            fr: "Ajouter des emails séparés par virgule, point-virgule ou saut de ligne",
-            pt: "Adicione emails separados por vírgula, ponto e vírgula ou quebra de linha",
+            fr:
+              "Ajouter des emails séparés par virgule, point-virgule ou saut de ligne",
+            pt:
+              "Adicione emails separados por vírgula, ponto e vírgula ou quebra de linha",
           })}
           fullWidth
           height="80px"
@@ -203,7 +232,11 @@ export function ShareSlideDeck(
         <Show when={allRecipients().length > 0}>
           <div class="">
             <label class="ui-label">
-              {t3({ en: "Recipients", fr: "Destinataires", pt: "Destinatários" })} (
+              {t3({
+                en: "Recipients",
+                fr: "Destinataires",
+                pt: "Destinatários",
+              })} (
               {allRecipients().length})
             </label>
             <div class="pt-1 text-xs">
@@ -229,7 +262,8 @@ export function ShareSlideDeck(
               <div
                 class="bg-primary h-full"
                 style={{ width: toPct1(pct()) }}
-              ></div>
+              >
+              </div>
             </div>
             <div class="text-center">{toPct0(pct())}</div>
           </div>

@@ -36,13 +36,25 @@ const BASE = {
 
 Deno.test("figure bundle: a bundle without the pair is rejected", () => {
   const RUN = "00000000-0000-4000-8000-000000000000";
-  assertEquals(figureBundleSchema.safeParse({ ...BASE, provenance: { runId: RUN } }).success, false);
   assertEquals(
-    figureBundleSchema.safeParse({ ...BASE, scope: { adminArea2: null }, provenance: { runId: null } }).success,
+    figureBundleSchema.safeParse({ ...BASE, provenance: { runId: RUN } })
+      .success,
     false,
   );
   assertEquals(
-    figureBundleSchema.safeParse({ ...BASE, scope: { adminArea2: null }, provenance: {} }).success,
+    figureBundleSchema.safeParse({
+      ...BASE,
+      scope: { adminArea2: null },
+      provenance: { runId: null },
+    }).success,
+    false,
+  );
+  assertEquals(
+    figureBundleSchema.safeParse({
+      ...BASE,
+      scope: { adminArea2: null },
+      provenance: {},
+    }).success,
     false,
   );
 });

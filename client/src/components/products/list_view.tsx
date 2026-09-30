@@ -1,12 +1,12 @@
 import {
-  t3,
   type Folder,
   type ListSort,
   type ProductSummary,
   type SortMode,
+  t3,
 } from "lib";
 import { Button, Icon, type IconName } from "panther";
-import { Index, Match, Show, Switch, type JSX } from "solid-js";
+import { Index, type JSX, Match, Show, Switch } from "solid-js";
 import { packageLabel, scopeLabel } from "~/components/_shared/mod.ts";
 import { GENERAL_ID, generalLabel } from "./_shared/mod.ts";
 import type { ProductTreeRow } from "./_shared/mod.ts";
@@ -57,8 +57,8 @@ export function ListView(p: Props) {
     p.sort.mode !== mode
       ? "arrowsUpDown"
       : p.sort.direction === "asc"
-        ? "arrowUp"
-        : "arrowDown";
+      ? "arrowUp"
+      : "arrowDown";
 
   function headerSortButton(label: string, mode: SortMode): JSX.Element {
     return (
@@ -141,8 +141,7 @@ export function ListView(p: Props) {
         }}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget || !r().hasContents) return;
-          const toggles =
-            e.key === "Enter" ||
+          const toggles = e.key === "Enter" ||
             e.key === " " ||
             (e.key === "ArrowRight" && !r().expanded) ||
             (e.key === "ArrowLeft" && r().expanded);
@@ -152,8 +151,10 @@ export function ListView(p: Props) {
         }}
       >
         <div class="ui-pad-sm ui-gap-sm flex items-start">
-          {/* The chevron marks a folder, faded when there is nothing inside
-              to open. */}
+          {
+            /* The chevron marks a folder, faded when there is nothing inside
+              to open. */
+          }
           {rowIcon(
             r().depth,
             r().expanded ? "chevronDown" : "chevronRight",
@@ -298,8 +299,10 @@ export function ListView(p: Props) {
         </div>
         <div />
       </div>
-      {/* Index, not For: every recompute makes new row objects, and keying by
-          position keeps a toggled folder row, and its focus, in place. */}
+      {
+        /* Index, not For: every recompute makes new row objects, and keying by
+          position keeps a toggled folder row, and its focus, in place. */
+      }
       <Index each={p.rows} fallback={<div class="ui-pad">{p.fallback}</div>}>
         {(row) => (
           <Switch>

@@ -1,8 +1,8 @@
 import type { Sql } from "postgres";
 import {
+  type APIResponseWithData,
   MODULE_REGISTRY,
   RUN_MANIFEST_SCHEMA_VERSION,
-  type APIResponseWithData,
   type RunGenerationStep1Result,
   type RunGenerationStep2Result,
   type RunProgress,
@@ -11,8 +11,8 @@ import {
 import { _IS_PRODUCTION } from "../../exposed_env_vars.ts";
 import { getPgConnectionFromCacheOrNew } from "../../db/mod.ts";
 import {
-  HMIS_IMPORT_RUN_IN_PROGRESS_MSG,
   hasRunningDatasetHmisImportRun,
+  HMIS_IMPORT_RUN_IN_PROGRESS_MSG,
 } from "../../db/instance/dataset_hmis_import_runs.ts";
 import {
   createGeneratingRun,
@@ -27,8 +27,8 @@ import { checkSpaceForDataset } from "../../utils/disk_space.ts";
 import { getGenerateRunContainerName } from "./container_name.ts";
 import { instantiateGenerateRunWorker } from "./instantiate_worker.ts";
 import {
-  RUN_GENERATION_ENDED_CHANNEL,
   type GenerateRunEndedData,
+  RUN_GENERATION_ENDED_CHANNEL,
 } from "./types.ts";
 
 // Host side of the run pipeline (PLAN_RESULTS_RUNS item 2): launch takes the

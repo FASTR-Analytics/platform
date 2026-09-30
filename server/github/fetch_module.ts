@@ -53,10 +53,11 @@ export async function fetchCommits(
   owner: string,
   repo: string,
   path: string,
-  branch: string
+  branch: string,
 ): Promise<APIResponseWithData<GitHubCommit[]>> {
   try {
-    const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${branch}&per_page=10`;
+    const url =
+      `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&sha=${branch}&per_page=10`;
 
     const response = await githubFetch(url, GITHUB_API_HEADERS);
 
@@ -102,10 +103,11 @@ export async function fetchRawScript(
   owner: string,
   repo: string,
   path: string,
-  commit: string
+  commit: string,
 ): Promise<APIResponseWithData<string>> {
   try {
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${commit}/${path}`;
+    const url =
+      `https://raw.githubusercontent.com/${owner}/${repo}/${commit}/${path}`;
 
     const response = await githubFetch(url);
 
@@ -118,7 +120,8 @@ export async function fetchRawScript(
       }
       return {
         success: false,
-        err: `Failed to fetch script: ${response.status} ${response.statusText}`,
+        err:
+          `Failed to fetch script: ${response.status} ${response.statusText}`,
       };
     }
 

@@ -15,6 +15,7 @@ import { NO_STORED_DHIS2_CONNECTION } from "lib";
 import type { Sql } from "postgres";
 import {
   claimScheduledImportOccurrence,
+  type EnabledScheduledImportRow,
   getEnabledScheduledImportRows,
   getInstanceDatasetsSummary,
   getOldestQueuedDatasetHmisImportRun,
@@ -24,12 +25,11 @@ import {
   launchDatasetHmisDhis2ImportRun,
   launchQueuedDatasetHmisCsvImportRun,
   launchQueuedDatasetHmisImportRun,
+  type QueuedDatasetHmisImportRun,
   recordScheduledImportOutcome,
   refuseQueuedDatasetHmisImportRun,
   revertScheduledImportClaim,
   sweepSpentOneShotScheduledImports,
-  type EnabledScheduledImportRow,
-  type QueuedDatasetHmisImportRun,
 } from "../../db/mod.ts";
 import type {
   Dhis2RunSelectionInput,
@@ -195,7 +195,12 @@ export function mostRecentOccurrenceMs(
   recurrence: Dhis2ScheduleRecurrence,
 ): number | null {
   const nowWall = getWallClockInZone(nowMs, recurrence.timezone);
-  const todayUtcNoon = Date.UTC(nowWall.year, nowWall.month - 1, nowWall.day, 12);
+  const todayUtcNoon = Date.UTC(
+    nowWall.year,
+    nowWall.month - 1,
+    nowWall.day,
+    12,
+  );
 
   if (recurrence.kind === "daily") {
     const today = occurrenceAtUtcNoonMs(
@@ -220,8 +225,8 @@ export function mostRecentOccurrenceMs(
     if (daysSinceAnchor < 0) {
       return null;
     }
-    let candidateUtcNoon =
-      anchorUtcNoon + Math.floor(daysSinceAnchor / cycleDays) * cycleDays * DAY_MS;
+    let candidateUtcNoon = anchorUtcNoon +
+      Math.floor(daysSinceAnchor / cycleDays) * cycleDays * DAY_MS;
     let occ = occurrenceAtUtcNoonMs(
       candidateUtcNoon,
       recurrence.startTime,
@@ -243,14 +248,16 @@ export function mostRecentOccurrenceMs(
 
   // monthly: candidate = the most recent month on the everyNMonths cycle
   // from anchorMonth; its occurrence is the nth weekday at startTime.
-  const [anchorYear, anchorMonth] = recurrence.anchorMonth.split("-").map(Number);
-  const monthsSinceAnchor =
-    (nowWall.year - anchorYear) * 12 + (nowWall.month - anchorMonth);
+  const [anchorYear, anchorMonth] = recurrence.anchorMonth.split("-").map(
+    Number,
+  );
+  const monthsSinceAnchor = (nowWall.year - anchorYear) * 12 +
+    (nowWall.month - anchorMonth);
   if (monthsSinceAnchor < 0) {
     return null;
   }
-  let cycleMonths =
-    monthsSinceAnchor - (monthsSinceAnchor % recurrence.everyNMonths);
+  let cycleMonths = monthsSinceAnchor -
+    (monthsSinceAnchor % recurrence.everyNMonths);
   for (let i = 0; i < 2; i++) {
     if (cycleMonths < 0) {
       return null;
@@ -359,8 +366,8 @@ export function currentPeriodIdForCalendar(
 }
 
 export function minusMonthsPeriodId(periodId: number, months: number): number {
-  const totalMonths =
-    Math.floor(periodId / 100) * 12 + ((periodId % 100) - 1) - months;
+  const totalMonths = Math.floor(periodId / 100) * 12 + ((periodId % 100) - 1) -
+    months;
   return Math.floor(totalMonths / 12) * 100 + (totalMonths % 12) + 1;
 }
 
@@ -455,7 +462,9 @@ export async function tickDhis2ImportScheduler(): Promise<void> {
         );
         if (claimed) {
           console.warn(
-            `Schedule ${schedule.id}: occurrence ${new Date(decision.occurrenceMs).toISOString()} missed (window + grace passed)`,
+            `Schedule ${schedule.id}: occurrence ${
+              new Date(decision.occurrenceMs).toISOString()
+            } missed (window + grace passed)`,
           );
           await recordScheduledImportOutcome(mainDb, schedule.id, {
             outcome: "missed",
@@ -557,8 +566,7 @@ async function fireSchedule(
   if (!stored) {
     await recordScheduledImportOutcome(mainDb, schedule.id, {
       outcome: "refused",
-      error:
-        NO_STORED_DHIS2_CONNECTION.en,
+      error: NO_STORED_DHIS2_CONNECTION.en,
       disable,
     });
     await notifyDatasets(mainDb);

@@ -1,4 +1,4 @@
-import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, t3, type SlideDeckConfig } from "lib";
+import { PAGE_HEIGHT_DU, PAGE_WIDTH_DU, type SlideDeckConfig, t3 } from "lib";
 import {
   Button,
   EditorComponentProps,
@@ -131,7 +131,8 @@ export function SlidePresenter(p: Props) {
   // preload effect above re-renders whichever evicted slides are still needed.
   createEffect(() => {
     const stale = [...pages()].filter(
-      ([id, entry]) => instanceState.lastUpdated.slides[id] !== entry.renderedAt,
+      ([id, entry]) =>
+        instanceState.lastUpdated.slides[id] !== entry.renderedAt,
     );
     if (stale.length === 0) {
       return;
@@ -290,7 +291,8 @@ export function SlidePresenter(p: Props) {
           class="bg-base-100 relative"
           style={{
             "aspect-ratio": `${PAGE_WIDTH_DU} / ${PAGE_HEIGHT_DU}`,
-            width: `min(100vw, calc(100vh * ${PAGE_WIDTH_DU} / ${PAGE_HEIGHT_DU}))`,
+            width:
+              `min(100vw, calc(100vh * ${PAGE_WIDTH_DU} / ${PAGE_HEIGHT_DU}))`,
           }}
         >
           <Show when={!currentPage() || currentPage()!.status === "loading"}>
@@ -336,8 +338,16 @@ export function SlidePresenter(p: Props) {
             intent="base-100"
             iconName={isFullscreen() ? "minimize" : "maximize"}
             ariaLabel={isFullscreen()
-              ? t3({ en: "Exit full screen", fr: "Quitter le plein écran", pt: "Sair do ecrã inteiro" })
-              : t3({ en: "Full screen", fr: "Plein écran", pt: "Ecrã inteiro" })}
+              ? t3({
+                en: "Exit full screen",
+                fr: "Quitter le plein écran",
+                pt: "Sair do ecrã inteiro",
+              })
+              : t3({
+                en: "Full screen",
+                fr: "Plein écran",
+                pt: "Ecrã inteiro",
+              })}
             onClick={toggleFullscreen}
           />
           <Button
@@ -359,7 +369,11 @@ export function SlidePresenter(p: Props) {
               ghost
               intent="base-100"
               iconName="chevronLeft"
-              ariaLabel={t3({ en: "Previous slide", fr: "Diapositive précédente", pt: "Diapositivo anterior" })}
+              ariaLabel={t3({
+                en: "Previous slide",
+                fr: "Diapositive précédente",
+                pt: "Diapositivo anterior",
+              })}
               disabled={currentIndex() === 0}
               onClick={goPrev}
             />
@@ -370,7 +384,11 @@ export function SlidePresenter(p: Props) {
               ghost
               intent="base-100"
               iconName="chevronRight"
-              ariaLabel={t3({ en: "Next slide", fr: "Diapositive suivante", pt: "Diapositivo seguinte" })}
+              ariaLabel={t3({
+                en: "Next slide",
+                fr: "Diapositive suivante",
+                pt: "Diapositivo seguinte",
+              })}
               disabled={currentIndex() === total() - 1}
               onClick={goNext}
             />

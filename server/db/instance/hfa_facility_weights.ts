@@ -22,7 +22,7 @@ import { tryCatchDatabaseAsync } from "../utils.ts";
 const UPSERT_BATCH_SIZE = 5000;
 
 export async function getHfaWeightsCoverage(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<HfaWeightsCoverage[]> {
   const perTimePoint = await mainDb<
     {
@@ -63,9 +63,11 @@ export async function getHfaWeightsCoverage(
 
 export async function getHfaFacilityWeightsItems(
   mainDb: Sql,
-  limit?: number
+  limit?: number,
 ): Promise<
-  APIResponseWithData<{ totalCount: number; headers: string[]; items: Record<string, string>[] }>
+  APIResponseWithData<
+    { totalCount: number; headers: string[]; items: Record<string, string>[] }
+  >
 > {
   return await tryCatchDatabaseAsync(async () => {
     const timePoints = (
@@ -129,7 +131,10 @@ export async function importHfaFacilityWeights(
       SELECT label FROM hfa_time_points WHERE label = ${timePoint}
     `;
     if (tpRows.length === 0) {
-      return { success: false, err: `Time point "${timePoint}" does not exist.` };
+      return {
+        success: false,
+        err: `Time point "${timePoint}" does not exist.`,
+      };
     }
 
     const assetFilePath = resolveAssetFilePath(assetFileName);
@@ -143,13 +148,25 @@ export async function importHfaFacilityWeights(
     let facilityIdIndex: number;
     let weightIndex: number;
     try {
-      facilityIdIndex = getCsvColumnIndex(encodedHeaderToIndexMap, mappings, "facilityIdColumn");
-      weightIndex = getCsvColumnIndex(encodedHeaderToIndexMap, mappings, "weightColumn");
+      facilityIdIndex = getCsvColumnIndex(
+        encodedHeaderToIndexMap,
+        mappings,
+        "facilityIdColumn",
+      );
+      weightIndex = getCsvColumnIndex(
+        encodedHeaderToIndexMap,
+        mappings,
+        "weightColumn",
+      );
     } catch (e) {
-      return { success: false, err: e instanceof Error ? e.message : String(e) };
+      return {
+        success: false,
+        err: e instanceof Error ? e.message : String(e),
+      };
     }
 
-    const rows: { facility_id: string; time_point: string; weight: number }[] = [];
+    const rows: { facility_id: string; time_point: string; weight: number }[] =
+      [];
     const seenFacilities = new Set<string>();
     const duplicateFacilities = new Set<string>();
     const invalidWeights: string[] = [];
@@ -180,13 +197,17 @@ export async function importHfaFacilityWeights(
     if (invalidWeights.length > 0) {
       return {
         success: false,
-        err: `${invalidWeights.length} cell(s) are invalid (weight must be a positive number, or blank for not-in-sample). First examples: ${invalidWeights.slice(0, 5).join("; ")}`,
+        err:
+          `${invalidWeights.length} cell(s) are invalid (weight must be a positive number, or blank for not-in-sample). First examples: ${
+            invalidWeights.slice(0, 5).join("; ")
+          }`,
       };
     }
     if (duplicateFacilities.size > 0) {
       return {
         success: false,
-        err: `${duplicateFacilities.size} facility ID(s) appear more than once in the CSV.`,
+        err:
+          `${duplicateFacilities.size} facility ID(s) appear more than once in the CSV.`,
       };
     }
     if (rows.length === 0) {
@@ -199,20 +220,31 @@ export async function importHfaFacilityWeights(
     }
 
     return await mainDb.begin(
-      async (sql: Sql): Promise<APIResponseWithData<HfaFacilityWeightsImportResult>> => {
+      async (
+        sql: Sql,
+      ): Promise<APIResponseWithData<HfaFacilityWeightsImportResult>> => {
         // Existence check inside the write transaction, so a facility deleted
         // between check and insert surfaces as this rejection, not a raw FK error
         const knownFacilities = new Set(
-          (await sql<{ facility_id: string }[]>`SELECT facility_id FROM facilities_hfa`)
-            .map((r) => r.facility_id)
+          (await sql<
+            { facility_id: string }[]
+          >`SELECT facility_id FROM facilities_hfa`)
+            .map((r) => r.facility_id),
         );
-        const unknownFacilities = [...new Set(
-          rows.filter((r) => !knownFacilities.has(r.facility_id)).map((r) => r.facility_id)
-        )];
+        const unknownFacilities = [
+          ...new Set(
+            rows.filter((r) => !knownFacilities.has(r.facility_id)).map((r) =>
+              r.facility_id
+            ),
+          ),
+        ];
         if (unknownFacilities.length > 0) {
           return {
             success: false,
-            err: `${unknownFacilities.length} facility ID(s) not in the HFA registry. First: ${unknownFacilities.slice(0, 10).join(", ")}`,
+            err:
+              `${unknownFacilities.length} facility ID(s) not in the HFA registry. First: ${
+                unknownFacilities.slice(0, 10).join(", ")
+              }`,
           };
         }
 
@@ -220,33 +252,43 @@ export async function importHfaFacilityWeights(
         await sql`DELETE FROM hfa_facility_weights WHERE time_point = ${timePoint}`;
         for (let i = 0; i < rows.length; i += UPSERT_BATCH_SIZE) {
           const batch = rows.slice(i, i + UPSERT_BATCH_SIZE);
-          await sql`INSERT INTO hfa_facility_weights ${sql(batch, "facility_id", "time_point", "weight")}`;
+          await sql`INSERT INTO hfa_facility_weights ${
+            sql(batch, "facility_id", "time_point", "weight")
+          }`;
         }
         await sql`
           INSERT INTO instance_config (config_key, config_json_value)
-          VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+          VALUES ('structure_last_updated', ${
+          JSON.stringify(new Date().toISOString())
+        })
           ON CONFLICT (config_key)
           DO UPDATE SET config_json_value = EXCLUDED.config_json_value
         `;
 
         return {
           success: true,
-          data: { rowsImported: rows.length, rowsSkippedNoWeight, timePointsCovered: [timePoint] },
+          data: {
+            rowsImported: rows.length,
+            rowsSkippedNoWeight,
+            timePointsCovered: [timePoint],
+          },
         };
-      }
+      },
     );
   });
 }
 
 export async function deleteAllHfaFacilityWeights(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {
       await sql`DELETE FROM hfa_facility_weights`;
       await sql`
         INSERT INTO instance_config (config_key, config_json_value)
-        VALUES ('structure_last_updated', ${JSON.stringify(new Date().toISOString())})
+        VALUES ('structure_last_updated', ${
+        JSON.stringify(new Date().toISOString())
+      })
         ON CONFLICT (config_key)
         DO UPDATE SET config_json_value = EXCLUDED.config_json_value
       `;

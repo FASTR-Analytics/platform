@@ -1,11 +1,11 @@
 import {
   AlertComponentProps,
+  createFormAction,
   ModalContainer,
   SortableList,
-  createFormAction,
 } from "panther";
 import { createSignal } from "solid-js";
-import { t3, type HmisIndicator } from "lib";
+import { type HmisIndicator, t3 } from "lib";
 import { serverActions } from "~/server_actions";
 
 // One order for the whole dictionary (PLAN_1a §1.9): it is what every

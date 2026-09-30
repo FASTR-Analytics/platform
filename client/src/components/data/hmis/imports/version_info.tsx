@@ -1,4 +1,4 @@
-import { t3, type DatasetHmisVersion } from "lib";
+import { type DatasetHmisVersion, t3 } from "lib";
 import { openAlert } from "panther";
 import { serverActions } from "~/server_actions";
 
@@ -24,9 +24,12 @@ export async function fetchDatasetHmisVersion(
         pt: "Detalhes da versão indisponíveis",
       }),
       text: t3({
-        en: "This version's import information cannot be shown right now — the import may still be running, or the version may have been deleted.",
-        fr: "Les informations d'importation de cette version ne peuvent pas être affichées pour le moment — l'importation est peut-être encore en cours, ou la version a peut-être été supprimée.",
-        pt: "As informações de importação desta versão não podem ser mostradas neste momento — a importação pode ainda estar em curso, ou a versão pode ter sido eliminada.",
+        en:
+          "This version's import information cannot be shown right now — the import may still be running, or the version may have been deleted.",
+        fr:
+          "Les informations d'importation de cette version ne peuvent pas être affichées pour le moment — l'importation est peut-être encore en cours, ou la version a peut-être été supprimée.",
+        pt:
+          "As informações de importação desta versão não podem ser mostradas neste momento — a importação pode ainda estar em curso, ou a versão pode ter sido eliminada.",
       }),
       intent: "danger",
     });

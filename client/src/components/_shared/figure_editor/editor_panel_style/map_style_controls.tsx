@@ -5,7 +5,7 @@ import {
   selectCf,
   t3,
 } from "lib";
-import { Checkbox, RadioGroup, getSelectOptions } from "panther";
+import { Checkbox, getSelectOptions, RadioGroup } from "panther";
 import { Show } from "solid-js";
 import { SetStoreFunction } from "solid-js/store";
 import { metricAllowsNegativeScale } from "~/generate_visualization/special_chart_checks";
@@ -27,7 +27,9 @@ type Props = {
 export function MapStyleControls(p: Props) {
   return (
     <>
-      <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+      <StyleSection
+        label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}
+      >
         <>
           <RadioGroup
             label={t3({
@@ -38,7 +40,11 @@ export function MapStyleControls(p: Props) {
             options={[
               {
                 value: "equirectangular",
-                label: t3({ en: "Equirectangular", fr: "Équirectangulaire", pt: "Equirretangular" }),
+                label: t3({
+                  en: "Equirectangular",
+                  fr: "Équirectangulaire",
+                  pt: "Equirretangular",
+                }),
               },
               {
                 value: "mercator",
@@ -46,7 +52,11 @@ export function MapStyleControls(p: Props) {
               },
               {
                 value: "naturalEarth1",
-                label: t3({ en: "Natural Earth", fr: "Natural Earth", pt: "Natural Earth" }),
+                label: t3({
+                  en: "Natural Earth",
+                  fr: "Natural Earth",
+                  pt: "Natural Earth",
+                }),
               },
             ]}
             value={p.tempConfig.s.mapProjection}
@@ -55,14 +65,17 @@ export function MapStyleControls(p: Props) {
                 "s",
                 "mapProjection",
                 v as "equirectangular" | "mercator" | "naturalEarth1",
-              )
-            }
+              )}
           />
           <div class="pt-0.5"></div>
           <Checkbox
             checked={p.tempConfig.s.hideLegend}
             onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-            label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
+            label={t3({
+              en: "Hide legend",
+              fr: "Masquer la légende",
+              pt: "Ocultar legenda",
+            })}
           />
         </>
       </StyleSection>
@@ -82,7 +95,9 @@ export function MapStyleControls(p: Props) {
           offerIndicatorSource={p.offerIndicatorCfSource}
         />
       </StyleSection>
-      <StyleSection label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}>
+      <StyleSection
+        label={t3({ en: "Labels", fr: "Étiquettes", pt: "Rótulos" })}
+      >
         <>
           <Checkbox
             checked={p.tempConfig.s.mapShowRegionLabels ?? false}
@@ -103,9 +118,8 @@ export function MapStyleControls(p: Props) {
             })}
           />
           <Show
-            when={
-              p.tempConfig.s.mapShowRegionLabels || p.tempConfig.s.showDataLabels
-            }
+            when={p.tempConfig.s.mapShowRegionLabels ||
+              p.tempConfig.s.showDataLabels}
           >
             <StyleRevealGroup>
               <RadioGroup
@@ -134,20 +148,21 @@ export function MapStyleControls(p: Props) {
                     "s",
                     "mapDataLabelMode",
                     v as "centroid" | "callout" | "auto",
-                  )
-                }
+                  )}
               />
             </StyleRevealGroup>
           </Show>
           <Show
-            when={
-              p.tempConfig.s.showDataLabels &&
-              p.effectiveFormatAs !== "rate_per_10k"
-            }
+            when={p.tempConfig.s.showDataLabels &&
+              p.effectiveFormatAs !== "rate_per_10k"}
           >
             <StyleRevealGroup>
               <RadioGroup
-                label={t3({ en: "Decimal places", fr: "Décimales", pt: "Casas decimais" })}
+                label={t3({
+                  en: "Decimal places",
+                  fr: "Décimales",
+                  pt: "Casas decimais",
+                })}
                 options={getSelectOptions(["0", "1", "2", "3"])}
                 value={String(p.tempConfig.s.decimalPlaces)}
                 onChange={(v) =>
@@ -155,8 +170,7 @@ export function MapStyleControls(p: Props) {
                     "s",
                     "decimalPlaces",
                     Number(v) as 0 | 1 | 2 | 3,
-                  )
-                }
+                  )}
                 horizontal
               />
             </StyleRevealGroup>

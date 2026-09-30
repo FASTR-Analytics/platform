@@ -2,13 +2,13 @@ import {
   type AuthorRun,
   canonicalJson,
   type ContentBlock,
-  type SlideDeckSlideEditors,
-  type SlideDeckVersionDetail,
   PAGE_HEIGHT_DU,
   PAGE_WIDTH_DU,
   presenceColorForKey,
   type Slide,
   type SlideDeckConfig,
+  type SlideDeckSlideEditors,
+  type SlideDeckVersionDetail,
   t3,
 } from "lib";
 import {
@@ -22,8 +22,8 @@ import {
   openConfirm,
   PageHolder,
   type PageInputs,
-  StateHolderWrapper,
   type StateHolder,
+  StateHolderWrapper,
 } from "panther";
 import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { convertSlideToPageInputs } from "~/generate_slide_deck/convert_slide_to_page_inputs";
@@ -108,13 +108,13 @@ export function DeckVersionPreview(p: {
   const version = createQuery(
     async (): Promise<
       | {
-          success: true;
-          data: {
-            v: SlideDeckVersionDetail;
-            prev: SlideDeckVersionDetail | null;
-            prevFailed: boolean;
-          };
-        }
+        success: true;
+        data: {
+          v: SlideDeckVersionDetail;
+          prev: SlideDeckVersionDetail | null;
+          prevFailed: boolean;
+        };
+      }
       | { success: false; err: string }
     > => {
       const res = await serverActions.getSlideDeckVersion({
@@ -158,9 +158,12 @@ export function DeckVersionPreview(p: {
         pt: "Restaurar esta versão?",
       }),
       text: t3({
-        en: "The slide deck will be reset to this version. Your current content is saved as a version first — nothing is lost.",
-        fr: "La présentation sera réinitialisée à cette version. Votre contenu actuel est d'abord enregistré comme version — rien n'est perdu.",
-        pt: "A apresentação será reposta para esta versão. O seu conteúdo atual é primeiro guardado como versão — nada se perde.",
+        en:
+          "The slide deck will be reset to this version. Your current content is saved as a version first — nothing is lost.",
+        fr:
+          "La présentation sera réinitialisée à cette version. Votre contenu actuel est d'abord enregistré comme version — rien n'est perdu.",
+        pt:
+          "A apresentação será reposta para esta versão. O seu conteúdo atual é primeiro guardado como versão — nada se perde.",
       }),
       confirmButtonLabel: t3({
         en: "Restore",
@@ -191,7 +194,9 @@ export function DeckVersionPreview(p: {
           fr: "Restaurer comme copie",
           pt: "Restaurar como cópia",
         }),
-        initialLabel: `${v.label} (${new Date(v.createdAt).toLocaleDateString()})`,
+        initialLabel: `${v.label} (${
+          new Date(v.createdAt).toLocaleDateString()
+        })`,
         // The copy lands beside the source product (D16: a new product needs a
         // folder like createProduct does).
         save: (label: string) =>
@@ -230,15 +235,17 @@ export function DeckVersionPreview(p: {
         }
         const se: SlideDeckSlideEditors | null = v.slideEditors;
         for (const touch of Object.values(se?.slides ?? {})) {
-          for (const email of [
-            ...(touch.edited ?? []),
-            ...(touch.added ?? []),
-            ...(touch.removed ?? []),
-            ...Object.values(touch.elements ?? {}).flat(),
-            ...Object.values(touch.elementsAdded ?? {}).flat(),
-            ...Object.values(touch.elementsRemoved ?? {}).flat(),
-            ...Object.values(touch.elementsTextDeleted ?? {}).flat(),
-          ]) {
+          for (
+            const email of [
+              ...(touch.edited ?? []),
+              ...(touch.added ?? []),
+              ...(touch.removed ?? []),
+              ...Object.values(touch.elements ?? {}).flat(),
+              ...Object.values(touch.elementsAdded ?? {}).flat(),
+              ...Object.values(touch.elementsRemoved ?? {}).flat(),
+              ...Object.values(touch.elementsTextDeleted ?? {}).flat(),
+            ]
+          ) {
             addName(email);
           }
           for (const runs of Object.values(touch.elementAuthors ?? {})) {
@@ -252,10 +259,12 @@ export function DeckVersionPreview(p: {
             }
           }
         }
-        for (const email of [
-          ...(se?.settings ?? []),
-          ...(se?.reordered ?? []),
-        ]) {
+        for (
+          const email of [
+            ...(se?.settings ?? []),
+            ...(se?.reordered ?? []),
+          ]
+        ) {
           addName(email);
         }
 
@@ -273,20 +282,18 @@ export function DeckVersionPreview(p: {
             return {
               label: emails.map((e) => names[e] ?? e).join(", "),
               exact: true,
-              color:
-                emails.length === 1
-                  ? presenceColorForKey(emails[0])
-                  : UNKNOWN_COLOR,
+              color: emails.length === 1
+                ? presenceColorForKey(emails[0])
+                : UNKNOWN_COLOR,
               email: emails.length === 1 ? emails[0] : undefined,
             };
           }
           return {
             label: sessionEditors,
             exact: v.editors.length === 1,
-            color:
-              v.editors.length === 1
-                ? presenceColorForKey(v.editors[0].email)
-                : UNKNOWN_COLOR,
+            color: v.editors.length === 1
+              ? presenceColorForKey(v.editors[0].email)
+              : UNKNOWN_COLOR,
             email: v.editors.length === 1 ? v.editors[0].email : undefined,
           };
         }
@@ -358,10 +365,10 @@ export function DeckVersionPreview(p: {
           return ch.blockType === "image"
             ? t3({ en: "Image", fr: "Image", pt: "Imagem" })
             : t3({
-                en: "Text block",
-                fr: "Bloc de texte",
-                pt: "Bloco de texto",
-              });
+              en: "Text block",
+              fr: "Bloc de texte",
+              pt: "Bloco de texto",
+            });
         }
 
         // The figure's caption (from either side's bundle): with several viz
@@ -391,8 +398,8 @@ export function DeckVersionPreview(p: {
               (ch.kind === "removed"
                 ? sl?.elementsRemoved?.[ch.key]
                 : ch.kind === "added"
-                  ? sl?.elementsAdded?.[ch.key]
-                  : undefined) ??
+                ? sl?.elementsAdded?.[ch.key]
+                : undefined) ??
                 sl?.elements?.[ch.key] ??
                 sl?.edited,
             );
@@ -403,30 +410,35 @@ export function DeckVersionPreview(p: {
             const removedBy =
               ch.kind === "edited" && textDeleters && textDeleters.length > 0
                 ? {
-                    label: textDeleters.map((e) => names[e] ?? e).join(", "),
-                    exact: textDeleters.length === 1,
-                    email:
-                      textDeleters.length === 1 ? textDeleters[0] : undefined,
-                  }
+                  label: textDeleters.map((e) => names[e] ?? e).join(", "),
+                  exact: textDeleters.length === 1,
+                  email: textDeleters.length === 1
+                    ? textDeleters[0]
+                    : undefined,
+                }
                 : undefined;
-            const verb =
-              ch.kind === "added"
-                ? t3({ en: "added by", fr: "ajouté par", pt: "adicionado por" })
-                : ch.kind === "removed"
-                  ? t3({
-                      en: "removed by",
-                      fr: "supprimé par",
-                      pt: "removido por",
-                    })
-                  : t3({
-                      en: "edited by",
-                      fr: "modifié par",
-                      pt: "editado por",
-                    });
-            const oneOf =
-              !who.exact && who.label.includes(",")
-                ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
-                : "";
+            const verb = ch.kind === "added"
+              ? t3({ en: "added by", fr: "ajouté par", pt: "adicionado por" })
+              : ch.kind === "removed"
+              ? t3({
+                en: "removed by",
+                fr: "supprimé par",
+                pt: "removido por",
+              })
+              : t3({
+                en: "edited by",
+                fr: "modifié par",
+                pt: "editado por",
+              });
+            const oneOf = !who.exact && who.label.includes(",")
+              ? `${
+                t3({
+                  en: "one of:",
+                  fr: "l'une de ces personnes :",
+                  pt: "uma destas pessoas:",
+                })
+              } `
+              : "";
             return {
               heading: `${elementLabel(ch)} — ${verb} ${oneOf}${who.label}`,
               color: who.color,
@@ -451,27 +463,30 @@ export function DeckVersionPreview(p: {
           kind: "edited" | "added" | "removed",
         ): SlideBadge {
           const who = whoFor(slideId, kind);
-          const verb =
-            kind === "added"
-              ? t3({ en: "Added by", fr: "Ajoutée par", pt: "Adicionado por" })
-              : kind === "edited"
-                ? t3({ en: "Edited by", fr: "Modifiée par", pt: "Editado por" })
-                : t3({
-                    en: "Removed by",
-                    fr: "Supprimée par",
-                    pt: "Removido por",
-                  });
-          const oneOf =
-            !who.exact && who.label.includes(",")
-              ? `${t3({ en: "one of:", fr: "l'une de ces personnes :", pt: "uma destas pessoas:" })} `
-              : "";
+          const verb = kind === "added"
+            ? t3({ en: "Added by", fr: "Ajoutée par", pt: "Adicionado por" })
+            : kind === "edited"
+            ? t3({ en: "Edited by", fr: "Modifiée par", pt: "Editado por" })
+            : t3({
+              en: "Removed by",
+              fr: "Supprimée par",
+              pt: "Removido por",
+            });
+          const oneOf = !who.exact && who.label.includes(",")
+            ? `${
+              t3({
+                en: "one of:",
+                fr: "l'une de ces personnes :",
+                pt: "uma destas pessoas:",
+              })
+            } `
+            : "";
           return {
-            text:
-              kind === "added"
-                ? t3({ en: "New", fr: "Nouvelle", pt: "Novo" })
-                : kind === "edited"
-                  ? t3({ en: "Edited", fr: "Modifiée", pt: "Editado" })
-                  : t3({ en: "Removed", fr: "Supprimée", pt: "Removido" }),
+            text: kind === "added"
+              ? t3({ en: "New", fr: "Nouvelle", pt: "Novo" })
+              : kind === "edited"
+              ? t3({ en: "Edited", fr: "Modifiée", pt: "Editado" })
+              : t3({ en: "Removed", fr: "Supprimée", pt: "Removido" }),
             color: who.color,
             title: `${verb} ${oneOf}${who.label}`,
           };
@@ -484,28 +499,26 @@ export function DeckVersionPreview(p: {
           const status: "new" | "edited" | undefined = prevFailed
             ? undefined
             : prev === null
-              ? "new"
-              : !old
-                ? "new"
-                : canonicalJson(old.config) !== canonicalJson(s.config)
-                  ? "edited"
-                  : undefined;
+            ? "new"
+            : !old
+            ? "new"
+            : canonicalJson(old.config) !== canonicalJson(s.config)
+            ? "edited"
+            : undefined;
           return {
             slideId: s.id,
             config: s.config,
             deckConfig: v.deckConfig,
             ghost: false,
             status,
-            badge:
-              status === "new"
-                ? badgeFor(s.id, "added")
-                : status === "edited"
-                  ? badgeFor(s.id, "edited")
-                  : undefined,
-            rows:
-              status === "edited" && old
-                ? elementRows(s.id, diffSlideElements(old.config, s.config))
-                : undefined,
+            badge: status === "new"
+              ? badgeFor(s.id, "added")
+              : status === "edited"
+              ? badgeFor(s.id, "edited")
+              : undefined,
+            rows: status === "edited" && old
+              ? elementRows(s.id, diffSlideElements(old.config, s.config))
+              : undefined,
           };
         });
         if (prev !== null) {
@@ -540,44 +553,57 @@ export function DeckVersionPreview(p: {
         const removedCount = entries.filter(
           (e) => e.status === "removed",
         ).length;
-        const survivorOrderChanged =
-          prev !== null &&
+        const survivorOrderChanged = prev !== null &&
           orderedSlides
-            .filter((s) => prevById.has(s.id))
-            .map((s) => s.id)
-            .join(",") !==
+              .filter((s) => prevById.has(s.id))
+              .map((s) => s.id)
+              .join(",") !==
             prevOrdered
               .filter((s) => currentIds.has(s.id))
               .map((s) => s.id)
               .join(",");
-        const settingsChanged =
-          prev !== null &&
+        const settingsChanged = prev !== null &&
           (prev.label !== v.label ||
             canonicalJson(prev.deckConfig) !== canonicalJson(v.deckConfig));
         const namesOf = (emails: string[] | undefined) =>
           emails && emails.length > 0
             ? ` (${emails.map((e) => names[e] ?? e).join(", ")})`
             : "";
-        const summaryParts =
-          prev === null
-            ? []
-            : [
-                addedCount > 0
-                  ? `${addedCount} ${t3({ en: "added", fr: "ajoutée(s)", pt: "adicionado(s)" })}`
-                  : "",
-                editedCount > 0
-                  ? `${editedCount} ${t3({ en: "edited", fr: "modifiée(s)", pt: "editado(s)" })}`
-                  : "",
-                removedCount > 0
-                  ? `${removedCount} ${t3({ en: "removed", fr: "supprimée(s)", pt: "removido(s)" })}`
-                  : "",
-                survivorOrderChanged
-                  ? `${t3({ en: "slides reordered", fr: "diapositives réordonnées", pt: "diapositivos reordenados" })}${namesOf(se?.reordered)}`
-                  : "",
-                settingsChanged
-                  ? `${t3({ en: "deck settings changed", fr: "paramètres de la présentation modifiés", pt: "definições da apresentação alteradas" })}${namesOf(se?.settings)}`
-                  : "",
-              ].filter(Boolean);
+        const summaryParts = prev === null ? [] : [
+          addedCount > 0
+            ? `${addedCount} ${
+              t3({ en: "added", fr: "ajoutée(s)", pt: "adicionado(s)" })
+            }`
+            : "",
+          editedCount > 0
+            ? `${editedCount} ${
+              t3({ en: "edited", fr: "modifiée(s)", pt: "editado(s)" })
+            }`
+            : "",
+          removedCount > 0
+            ? `${removedCount} ${
+              t3({ en: "removed", fr: "supprimée(s)", pt: "removido(s)" })
+            }`
+            : "",
+          survivorOrderChanged
+            ? `${
+              t3({
+                en: "slides reordered",
+                fr: "diapositives réordonnées",
+                pt: "diapositivos reordenados",
+              })
+            }${namesOf(se?.reordered)}`
+            : "",
+          settingsChanged
+            ? `${
+              t3({
+                en: "deck settings changed",
+                fr: "paramètres de la présentation modifiés",
+                pt: "definições da apresentação alteradas",
+              })
+            }${namesOf(se?.settings)}`
+            : "",
+        ].filter(Boolean);
 
         return (
           <div class="flex h-full min-h-0 flex-col">
@@ -588,15 +614,21 @@ export function DeckVersionPreview(p: {
                   <span>
                     {prevFailed
                       ? t3({
-                          en: "Could not load the previous version — session changes cannot be highlighted here.",
-                          fr: "Impossible de charger la version précédente — les modifications de cette session ne peuvent pas être mises en évidence ici.",
-                          pt: "Não foi possível carregar a versão anterior — as alterações desta sessão não podem ser destacadas aqui.",
-                        })
+                        en:
+                          "Could not load the previous version — session changes cannot be highlighted here.",
+                        fr:
+                          "Impossible de charger la version précédente — les modifications de cette session ne peuvent pas être mises en évidence ici.",
+                        pt:
+                          "Não foi possível carregar a versão anterior — as alterações desta sessão não podem ser destacadas aqui.",
+                      })
                       : t3({
-                          en: "First version — every slide is new in this session.",
-                          fr: "Première version — chaque diapositive est nouvelle dans cette session.",
-                          pt: "Primeira versão — todos os diapositivos são novos nesta sessão.",
-                        })}
+                        en:
+                          "First version — every slide is new in this session.",
+                        fr:
+                          "Première version — chaque diapositive est nouvelle dans cette session.",
+                        pt:
+                          "Primeira versão — todos os diapositivos são novos nesta sessão.",
+                      })}
                   </span>
                 }
               >
@@ -610,13 +642,11 @@ export function DeckVersionPreview(p: {
                   {": "}
                 </span>
                 <span>
-                  {summaryParts.length > 0
-                    ? summaryParts.join(" · ")
-                    : t3({
-                        en: "no slide changes",
-                        fr: "aucune modification des diapositives",
-                        pt: "sem alterações de diapositivos",
-                      })}
+                  {summaryParts.length > 0 ? summaryParts.join(" · ") : t3({
+                    en: "no slide changes",
+                    fr: "aucune modification des diapositives",
+                    pt: "sem alterações de diapositivos",
+                  })}
                 </span>
                 <Show
                   when={removedCount > 0 || addedCount > 0 || editedCount > 0}
@@ -625,8 +655,10 @@ export function DeckVersionPreview(p: {
                     {" — "}
                     {t3({
                       en: "hover a badge to see who made the change.",
-                      fr: "survolez un badge pour voir qui a fait la modification.",
-                      pt: "passe o cursor sobre um selo para ver quem fez a alteração.",
+                      fr:
+                        "survolez un badge pour voir qui a fait la modification.",
+                      pt:
+                        "passe o cursor sobre um selo para ver quem fez a alteração.",
                     })}
                   </span>
                 </Show>
@@ -665,7 +697,11 @@ export function DeckVersionPreview(p: {
                 <Button
                   iconName="chevronLeft"
                   intent="base-100"
-                  ariaLabel={t3({ en: "Previous page", fr: "Page précédente", pt: "Página anterior" })}
+                  ariaLabel={t3({
+                    en: "Previous page",
+                    fr: "Page précédente",
+                    pt: "Página anterior",
+                  })}
                   disabled={page() === 0}
                   onClick={() => setPage(page() - 1)}
                 />
@@ -675,7 +711,11 @@ export function DeckVersionPreview(p: {
                 <Button
                   iconName="chevronRight"
                   intent="base-100"
-                  ariaLabel={t3({ en: "Next page", fr: "Page suivante", pt: "Página seguinte" })}
+                  ariaLabel={t3({
+                    en: "Next page",
+                    fr: "Page suivante",
+                    pt: "Página seguinte",
+                  })}
                   disabled={page() >= totalPages - 1}
                   onClick={() => setPage(page() + 1)}
                 />
@@ -839,11 +879,9 @@ function ExpandedVersionSlideModal(
                       {(b) => (
                         <BlockSnapshot
                           block={b}
-                          caption={
-                            row.newBlock
-                              ? t3({ en: "Before", fr: "Avant", pt: "Antes" })
-                              : undefined
-                          }
+                          caption={row.newBlock
+                            ? t3({ en: "Before", fr: "Avant", pt: "Antes" })
+                            : undefined}
                           dimmed
                         />
                       )}
@@ -852,11 +890,9 @@ function ExpandedVersionSlideModal(
                       {(b) => (
                         <BlockSnapshot
                           block={b}
-                          caption={
-                            row.oldBlock
-                              ? t3({ en: "After", fr: "Après", pt: "Depois" })
-                              : undefined
-                          }
+                          caption={row.oldBlock
+                            ? t3({ en: "After", fr: "Après", pt: "Depois" })
+                            : undefined}
                         />
                       )}
                     </Show>

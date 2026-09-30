@@ -1,8 +1,4 @@
-import type {
-  PromptCategory,
-  FlattenedPrompt,
-  ParseResult,
-} from "./types";
+import type { FlattenedPrompt, ParseResult, PromptCategory } from "./types";
 
 export function parsePromptsMarkdown(markdown: string): ParseResult {
   const categories: PromptCategory[] = [];
@@ -97,7 +93,8 @@ export function parsePromptsMarkdown(markdown: string): ParseResult {
   return {
     categories: filteredCategories,
     status: "ok",
-    message: `Loaded ${totalPrompts} prompts in ${filteredCategories.length} categories`,
+    message:
+      `Loaded ${totalPrompts} prompts in ${filteredCategories.length} categories`,
   };
 }
 

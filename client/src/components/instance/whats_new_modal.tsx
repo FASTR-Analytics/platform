@@ -4,30 +4,29 @@ import {
   isWhatsNewVideo,
   isWhatsNewYouTube,
   t3,
-  whatsNewYouTubeEmbedUrl,
   WHATS_NEW_LAYOUTS,
   whatsNewMediaWidthPct,
   type WhatsNewPage,
   type WhatsNewPost,
   type WhatsNewText,
+  whatsNewYouTubeEmbedUrl,
 } from "lib";
 import {
+  type AlertComponentProps,
   MarkdownPresentationJsx,
   ModalContainer,
-  type AlertComponentProps,
 } from "panther";
 import {
-  For,
-  Index,
-  Show,
   createEffect,
   createSignal,
+  For,
+  Index,
   onCleanup,
   onMount,
+  Show,
 } from "solid-js";
 
-const REDUCED_MOTION =
-  typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export type WhatsNewModalOutcome = "skipped" | "completed";
@@ -92,9 +91,7 @@ export function WhatsNewModal(
       width="lg"
       scroll="content"
       title={rt(p.post.title)}
-      onCancel={
-        multiPage() && !isLast() ? () => p.close("skipped") : undefined
-      }
+      onCancel={multiPage() && !isLast() ? () => p.close("skipped") : undefined}
       cancelLabel={t3({ en: "Skip", fr: "Passer", pt: "Ignorar" })}
       footer={
         <Show when={multiPage()}>
@@ -116,35 +113,41 @@ export function WhatsNewModal(
       actions={[
         ...(multiPage()
           ? [
-              {
-                label: "",
-                ariaLabel: t3({ en: "Previous", fr: "Précédent", pt: "Anterior" }),
-                intent: "neutral" as const,
-                iconName: "chevronLeft" as const,
-                disabled: pageIndex() === 0,
-                onClick: prev,
-              },
-            ]
+            {
+              label: "",
+              ariaLabel: t3({
+                en: "Previous",
+                fr: "Précédent",
+                pt: "Anterior",
+              }),
+              intent: "neutral" as const,
+              iconName: "chevronLeft" as const,
+              disabled: pageIndex() === 0,
+              onClick: prev,
+            },
+          ]
           : []),
         multiPage() && !isLast()
           ? {
-              label: "",
-              ariaLabel: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
-              iconName: "chevronRight",
-              onClick: next,
-            }
+            label: "",
+            ariaLabel: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+            iconName: "chevronRight",
+            onClick: next,
+          }
           : {
-              label: t3({ en: "Done", fr: "Terminé", pt: "Concluído" }),
-              iconName: "x",
-              onClick: () => p.close("completed"),
-            },
+            label: t3({ en: "Done", fr: "Terminé", pt: "Concluído" }),
+            iconName: "x",
+            onClick: () => p.close("completed"),
+          },
       ]}
     >
-      {/* Fixed height so the modal doesn't resize as pages change; long
+      {
+        /* Fixed height so the modal doesn't resize as pages change; long
           pages scroll inside their own layer. Inactive pages are `invisible`
           rather than `hidden`: visibility:hidden keeps them laid out and
           rendered, so their media loads normally, whereas display:none lets
-          the browser deprioritise it. */}
+          the browser deprioritise it. */
+      }
       <div class="relative h-[min(600px,60vh)]">
         <Index each={pages()}>
           {(pg, i) => (
@@ -209,13 +212,13 @@ function WhatsNewPageContent(p: {
             <Show when={showImage() && layout().imageFirst}>
               <WhatsNewMedia
                 src={p.page.imageUrl!}
-                wrapClass={
-                  layout().row
-                    ? "relative shrink-0 rounded"
-                    : "relative mx-auto rounded"
-                }
+                wrapClass={layout().row
+                  ? "relative shrink-0 rounded"
+                  : "relative mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
-                width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
+                width={`${
+                  whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)
+                }%`}
                 active={p.active}
                 canLoad={p.canLoad}
                 onLoaded={p.onLoaded}
@@ -227,13 +230,13 @@ function WhatsNewPageContent(p: {
             <Show when={showImage() && !layout().imageFirst}>
               <WhatsNewMedia
                 src={p.page.imageUrl!}
-                wrapClass={
-                  layout().row
-                    ? "relative shrink-0 rounded"
-                    : "relative mx-auto rounded"
-                }
+                wrapClass={layout().row
+                  ? "relative shrink-0 rounded"
+                  : "relative mx-auto rounded"}
                 imgClass="w-full rounded object-contain"
-                width={`${whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)}%`}
+                width={`${
+                  whatsNewMediaWidthPct(p.page.layoutPreset, p.page.mediaSize)
+                }%`}
                 active={p.active}
                 canLoad={p.canLoad}
                 onLoaded={p.onLoaded}
@@ -363,14 +366,18 @@ function WhatsNewMedia(p: {
         classList={{ "min-h-[10rem]": !loaded() }}
         style={p.width ? { width: p.width } : undefined}
       >
-        {/* Quiet placeholder holds the slot so surrounding text never
-            reflows; prefetching means it's usually a blink at most */}
+        {
+          /* Quiet placeholder holds the slot so surrounding text never
+            reflows; prefetching means it's usually a blink at most */
+        }
         <Show when={!loaded()}>
           <div class="bg-base-200 absolute inset-0 rounded" />
         </Show>
-        {/* The player is mounted only while its page is visible: every page
+        {
+          /* The player is mounted only while its page is visible: every page
             stays in the DOM, and N background YouTube iframes would be a
-            heavy, pointless load */}
+            heavy, pointless load */
+        }
         <Show
           when={!youTubeUrl()}
           fallback={
@@ -388,9 +395,11 @@ function WhatsNewMedia(p: {
             </Show>
           }
         >
-          {/* Video appears as soon as it has a frame: no opacity ramp; fading
+          {
+            /* Video appears as soon as it has a frame: no opacity ramp; fading
             in a video's first frame reads as sluggish, and by the time the
-            page is shown the clip is already buffered in this very element */}
+            page is shown the clip is already buffered in this very element */
+          }
           <Show
             when={!isVideo()}
             fallback={

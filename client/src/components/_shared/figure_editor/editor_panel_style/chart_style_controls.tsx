@@ -24,82 +24,103 @@ type Props = {
 export function ChartStyleControls(p: Props) {
   return (
     <>
-      <StyleSection label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}>
+      <StyleSection
+        label={t3({ en: "Display", fr: "Affichage", pt: "Exibição" })}
+      >
         <>
           <RadioGroup
-            label={t3({ en: "Display format", fr: "Format d'affichage", pt: "Formato de exibição" })}
+            label={t3({
+              en: "Display format",
+              fr: "Format d'affichage",
+              pt: "Formato de exibição",
+            })}
             options={[
-              { value: "bars", label: t3({ en: "Bars", fr: "Barres", pt: "Barras" }) },
-              { value: "points", label: t3({ en: "Points", fr: "Points", pt: "Pontos" }) },
-              { value: "lines", label: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }) },
+              {
+                value: "bars",
+                label: t3({ en: "Bars", fr: "Barres", pt: "Barras" }),
+              },
+              {
+                value: "points",
+                label: t3({ en: "Points", fr: "Points", pt: "Pontos" }),
+              },
+              {
+                value: "lines",
+                label: t3({ en: "Lines", fr: "Lignes", pt: "Linhas" }),
+              },
             ]}
-            value={
-              p.tempConfig.s.content === "lines-points" ||
-              p.tempConfig.s.content === "lines-area"
-                ? "lines"
-                : p.tempConfig.s.content === "points-connectors"
-                  ? "points"
-                  : p.tempConfig.s.content
-            }
+            value={p.tempConfig.s.content === "lines-points" ||
+                p.tempConfig.s.content === "lines-area"
+              ? "lines"
+              : p.tempConfig.s.content === "points-connectors"
+              ? "points"
+              : p.tempConfig.s.content}
             onChange={(v) =>
               p.setTempConfig(
                 "s",
                 "content",
                 v as "bars" | "points" | "lines",
-              )
-            }
+              )}
             horizontal
           />
           <Show when={p.tempConfig.s.content === "bars"}>
             <StyleRevealGroup>
               <Checkbox
-                label={t3({ en: "Stacked bars", fr: "Histogramme empilé", pt: "Barras empilhadas" })}
+                label={t3({
+                  en: "Stacked bars",
+                  fr: "Histogramme empilé",
+                  pt: "Barras empilhadas",
+                })}
                 checked={p.tempConfig.s.barsStacked}
                 onChange={(v) => p.setTempConfig("s", "barsStacked", v)}
               />
             </StyleRevealGroup>
           </Show>
           <Show
-            when={
-              p.tempConfig.s.content === "points" ||
-              p.tempConfig.s.content === "points-connectors"
-            }
+            when={p.tempConfig.s.content === "points" ||
+              p.tempConfig.s.content === "points-connectors"}
           >
             <StyleRevealGroup>
               <Checkbox
-                label={t3({ en: "Add connectors", fr: "Ajouter des connecteurs", pt: "Adicionar conectores" })}
+                label={t3({
+                  en: "Add connectors",
+                  fr: "Ajouter des connecteurs",
+                  pt: "Adicionar conectores",
+                })}
                 checked={p.tempConfig.s.content === "points-connectors"}
                 onChange={(v) =>
                   p.setTempConfig(
                     "s",
                     "content",
                     v ? "points-connectors" : "points",
-                  )
-                }
+                  )}
               />
             </StyleRevealGroup>
           </Show>
           <Show
-            when={
-              p.tempConfig.s.content === "lines" ||
+            when={p.tempConfig.s.content === "lines" ||
               p.tempConfig.s.content === "lines-points" ||
-              p.tempConfig.s.content === "lines-area"
-            }
+              p.tempConfig.s.content === "lines-area"}
           >
             <StyleRevealGroup>
               <Checkbox
-                label={t3({ en: "Add points", fr: "Ajouter des points", pt: "Adicionar pontos" })}
+                label={t3({
+                  en: "Add points",
+                  fr: "Ajouter des points",
+                  pt: "Adicionar pontos",
+                })}
                 checked={p.tempConfig.s.content === "lines-points"}
                 onChange={(v) =>
-                  p.setTempConfig("s", "content", v ? "lines-points" : "lines")
-                }
+                  p.setTempConfig("s", "content", v ? "lines-points" : "lines")}
               />
               <Checkbox
-                label={t3({ en: "Fill area", fr: "Remplir la zone", pt: "Preencher área" })}
+                label={t3({
+                  en: "Fill area",
+                  fr: "Remplir la zone",
+                  pt: "Preencher área",
+                })}
                 checked={p.tempConfig.s.content === "lines-area"}
                 onChange={(v) =>
-                  p.setTempConfig("s", "content", v ? "lines-area" : "lines")
-                }
+                  p.setTempConfig("s", "content", v ? "lines-area" : "lines")}
               />
             </StyleRevealGroup>
           </Show>
@@ -126,7 +147,11 @@ export function ChartStyleControls(p: Props) {
           <Checkbox
             checked={p.tempConfig.s.hideLegend}
             onChange={(v) => p.setTempConfig("s", "hideLegend", v)}
-            label={t3({ en: "Hide legend", fr: "Masquer la légende", pt: "Ocultar legenda" })}
+            label={t3({
+              en: "Hide legend",
+              fr: "Masquer la légende",
+              pt: "Ocultar legenda",
+            })}
           />
         </>
       </StyleSection>
@@ -140,15 +165,18 @@ export function ChartStyleControls(p: Props) {
         >
           <div class="ui-spy-sm">
             <Checkbox
-              label={t3({ en: "Descending", fr: "Décroissant", pt: "Descendente" })}
+              label={t3({
+                en: "Descending",
+                fr: "Décroissant",
+                pt: "Descendente",
+              })}
               checked={p.tempConfig.s.sortIndicatorValues === "descending"}
               onChange={(v) =>
                 p.setTempConfig(
                   "s",
                   "sortIndicatorValues",
                   v ? "descending" : "none",
-                )
-              }
+                )}
             />
             <Checkbox
               label={t3({ en: "Ascending", fr: "Croissant", pt: "Ascendente" })}
@@ -158,8 +186,7 @@ export function ChartStyleControls(p: Props) {
                   "s",
                   "sortIndicatorValues",
                   v ? "ascending" : "none",
-                )
-              }
+                )}
             />
           </div>
         </Field>

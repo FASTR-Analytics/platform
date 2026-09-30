@@ -91,7 +91,8 @@ function canonicalScalar(val: unknown): unknown {
  */
 export function storedMatchesDoc(stored: unknown, doc: unknown): boolean {
   const docJson = canonicalJson(doc);
-  return canonicalJson(stored) === docJson && !docJson.includes(NON_FINITE_MARK);
+  return canonicalJson(stored) === docJson &&
+    !docJson.includes(NON_FINITE_MARK);
 }
 
 /** Key-order-independent JSON, for content equality checks (materialized doc
@@ -99,21 +100,27 @@ export function storedMatchesDoc(stored: unknown, doc: unknown): boolean {
  * comparisons produce false differences). Non-finite numbers are rendered
  * distinctly rather than collapsing to `null`: see canonicalScalar. */
 export function canonicalJson(v: unknown): string {
-  return JSON.stringify(v, (_k, val) =>
-    val && typeof val === "object" && !Array.isArray(val)
-      ? Object.keys(val as object).sort().reduce(
-        (a: Record<string, unknown>, k) => {
-          a[k] = (val as Record<string, unknown>)[k];
-          return a;
-        },
-        {},
-      )
-      : canonicalScalar(val)
+  return JSON.stringify(
+    v,
+    (_k, val) =>
+      val && typeof val === "object" && !Array.isArray(val)
+        ? Object.keys(val as object).sort().reduce(
+          (a: Record<string, unknown>, k) => {
+            a[k] = (val as Record<string, unknown>)[k];
+            return a;
+          },
+          {},
+        )
+        : canonicalScalar(val),
   );
 }
 
 /** LWW set of a primitive value; deletes on undefined; no-op when unchanged. */
-export function setScalar(m: Y.Map<unknown>, key: string, value: unknown): void {
+export function setScalar(
+  m: Y.Map<unknown>,
+  key: string,
+  value: unknown,
+): void {
   if (value === undefined) {
     if (m.has(key)) {
       m.delete(key);
@@ -138,7 +145,11 @@ export function setScalar(m: Y.Map<unknown>, key: string, value: unknown): void 
 const lastOpaqueRef = new WeakMap<Y.Map<unknown>, Map<string, unknown>>();
 
 /** LWW set of an opaque JSON value (figure bundles, style records). */
-export function setOpaque(m: Y.Map<unknown>, key: string, value: unknown): void {
+export function setOpaque(
+  m: Y.Map<unknown>,
+  key: string,
+  value: unknown,
+): void {
   let cache = lastOpaqueRef.get(m);
   if (!cache) {
     cache = new Map();
@@ -214,7 +225,9 @@ export function syncText(yText: Y.Text, next: string): void {
     p++;
   }
   let s = 0;
-  while (s < maxPre - p && cur[cur.length - 1 - s] === next[next.length - 1 - s]) {
+  while (
+    s < maxPre - p && cur[cur.length - 1 - s] === next[next.length - 1 - s]
+  ) {
     s++;
   }
   const midCur = cur.slice(p, cur.length - s);
@@ -406,7 +419,9 @@ export function readDocEpoch(doc: Y.Doc): string | undefined {
 
 /** The doc's epoch, assigning one when it has none (a freshly seeded doc, or
  *  a restored doc from before epochs). `assigned` says a write happened. */
-export function ensureDocEpoch(doc: Y.Doc): { epoch: string; assigned: boolean } {
+export function ensureDocEpoch(
+  doc: Y.Doc,
+): { epoch: string; assigned: boolean } {
   const existing = readDocEpoch(doc);
   if (existing !== undefined) {
     return { epoch: existing, assigned: false };

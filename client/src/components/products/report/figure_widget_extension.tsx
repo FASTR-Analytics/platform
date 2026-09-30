@@ -21,7 +21,10 @@ import {
   type ReportFormat,
   t3,
 } from "lib";
-import { type FigureStaleContext, ReportFigureEmbed } from "~/components/products/_shared/mod.ts";
+import {
+  type FigureStaleContext,
+  ReportFigureEmbed,
+} from "~/components/products/_shared/mod.ts";
 import type { FigureInkTheme } from "~/generate_report/mod";
 
 export type EmbedKind = "figure" | "image";
@@ -47,7 +50,10 @@ export type EmbedResolver = {
   // size: the live embed takes the same box BEFORE it draws, so its widget
   // never measures a transient height. Undefined while the size is being
   // measured; the host calls the editor's refreshEmbedSizes when it lands.
-  figureSize?: (id: string, block: FigureBlock) => { width: number; height: number } | undefined;
+  figureSize?: (
+    id: string,
+    block: FigureBlock,
+  ) => { width: number; height: number } | undefined;
   imageSize?: (id: string) => { width: number; height: number } | undefined;
 };
 
@@ -95,8 +101,7 @@ class EmbedWidget extends WidgetType {
           classList={{
             "border-primary border-2":
               this.resolver.getSelectedId() === this.id,
-            "hover:border-primary":
-              this.resolver.getSelectedId() !== this.id,
+            "hover:border-primary": this.resolver.getSelectedId() !== this.id,
           }}
         >
           <Switch>
@@ -109,8 +114,7 @@ class EmbedWidget extends WidgetType {
                       en: "Missing visualization:",
                       fr: "Visualisation manquante :",
                       pt: "Visualização em falta:",
-                    })}{" "}
-                    {this.id}
+                    })} {this.id}
                   </div>
                 }
               >
@@ -130,8 +134,11 @@ class EmbedWidget extends WidgetType {
                 when={this.resolver.getImage(this.id)}
                 fallback={
                   <div class="text-danger text-xs">
-                    {t3({ en: "Missing image:", fr: "Image manquante :", pt: "Imagem em falta:" })}{" "}
-                    {this.id}
+                    {t3({
+                      en: "Missing image:",
+                      fr: "Image manquante :",
+                      pt: "Imagem em falta:",
+                    })} {this.id}
                   </div>
                 }
               >

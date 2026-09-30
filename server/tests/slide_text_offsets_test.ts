@@ -3,10 +3,10 @@ import {
   analyzeSlideMarkdown,
   assignRunsToUnit,
   escapeTypedSlideText,
-  type SlideEditResult,
   slideBackspace,
   slideDeleteForward,
   slideDeleteRange,
+  type SlideEditResult,
   slideInsertText,
   slideToggleStyle,
   slideWordAt,
@@ -23,7 +23,7 @@ const CORPUS = [
   "**bold** x",
   "1. 1st\n2. two",
   "[a](http://u) up",
-  "it's \"quoted\"",
+  'it\'s "quoted"',
   "- a\n  - nested *em*\n- b",
   "> quote line\n> more\n>\n> second para",
   "# Heading\n\npara one\nline two<br>three",
@@ -35,7 +35,12 @@ const CORPUS = [
   "plain text with  two spaces",
 ];
 
-const CURLY: Record<string, string> = { "‘": "'", "’": "'", "“": '"', "”": '"' };
+const CURLY: Record<string, string> = {
+  "‘": "'",
+  "’": "'",
+  "“": '"',
+  "”": '"',
+};
 
 Deno.test("every drawn char maps to the source char it came from, in order", () => {
   for (const src of CORPUS) {
@@ -47,7 +52,11 @@ Deno.test("every drawn char maps to the source char it came from, in order", () 
         const s = u.toSrc[k];
         if (u.text[k] === "\n") continue;
         assert(s >= 0, `${JSON.stringify(src)}: unmapped ${u.text[k]}@${k}`);
-        assertEquals(CURLY[u.text[k]] ?? u.text[k], src[s], JSON.stringify(src));
+        assertEquals(
+          CURLY[u.text[k]] ?? u.text[k],
+          src[s],
+          JSON.stringify(src),
+        );
         assert(s > last, `${JSON.stringify(src)}: out of order at ${k}`);
         assertEquals(an.kind[s], SRC_VISIBLE);
         last = s;
@@ -115,7 +124,10 @@ Deno.test("measured runs are assigned their span of the unit text", () => {
   ]);
 });
 
-function apply(src: string, r: SlideEditResult | undefined): string | undefined {
+function apply(
+  src: string,
+  r: SlideEditResult | undefined,
+): string | undefined {
   if (!r) return undefined;
   let out = src;
   for (const c of [...r.changes].sort((a, b) => b.from - a.from)) {
@@ -133,15 +145,26 @@ Deno.test("deletions keep the formatting of what remains", () => {
     ["x [link](u) y", 3, 7, "x  y"],
   ];
   for (const [src, from, to, want] of cases) {
-    const got = apply(src, slideDeleteRange(analyzeSlideMarkdown(src), from, to));
+    const got = apply(
+      src,
+      slideDeleteRange(analyzeSlideMarkdown(src), from, to),
+    );
     assertEquals(got, want, `${JSON.stringify(src)} [${from},${to})`);
     // And what remains renders exactly the undeleted text.
-    const rendered = analyzeSlideMarkdown(got!).units.map((u) => u.text).join("|").trim();
+    const rendered = analyzeSlideMarkdown(got!).units.map((u) => u.text).join(
+      "|",
+    ).trim();
     const expectText = analyzeSlideMarkdown(src).units
-      .map((u) => [...u.text].filter((_, k) => u.toSrc[k] < from || u.toSrc[k] >= to).join(""))
+      .map((u) =>
+        [...u.text].filter((_, k) => u.toSrc[k] < from || u.toSrc[k] >= to)
+          .join("")
+      )
       .join("")
       .trim();
-    assertEquals(rendered.replace(/\s+/g, " "), expectText.replace(/\s+/g, " "));
+    assertEquals(
+      rendered.replace(/\s+/g, " "),
+      expectText.replace(/\s+/g, " "),
+    );
   }
 });
 
@@ -190,7 +213,13 @@ Deno.test("a caret that restyles the word it sits in stays a caret", () => {
   assertEquals(apply("say hello world", r), "say **hello** world");
   // Two chars into the word, after the opener now.
   assertEquals([r.anchor, r.head], [8, 8]);
-  const back = slideToggleStyle(analyzeSlideMarkdown("say **hello** world"), 6, 11, "bold", 8)!;
+  const back = slideToggleStyle(
+    analyzeSlideMarkdown("say **hello** world"),
+    6,
+    11,
+    "bold",
+    8,
+  )!;
   assertEquals(apply("say **hello** world", back), "say hello world");
   assertEquals([back.anchor, back.head], [6, 6]);
 });
@@ -201,7 +230,10 @@ Deno.test("typed text is escaped so it renders literally", () => {
   assertEquals(escapeTypedSlideText("x < y"), "x < y");
   // Round trip: the escaped text renders as typed.
   const typed = "5 * 3 [x] `y` ~~z~~";
-  assertEquals(analyzeSlideMarkdown(escapeTypedSlideText(typed)).units[0].text, typed);
+  assertEquals(
+    analyzeSlideMarkdown(escapeTypedSlideText(typed)).units[0].text,
+    typed,
+  );
 });
 
 Deno.test("word ranges come from rendered text, spanning syntax", () => {
@@ -242,5 +274,8 @@ Deno.test("typing continues the formatting it is typed into, validly", () => {
   assert(!analyzeSlideMarkdown(off.doc).srcStyle[off.caret - 1]?.bold);
   const on = typeAt("hello ", 6, "w", { bold: true });
   assertEquals(on.doc, "hello **w**");
-  assertEquals(typeAt("a *b* c", 4, "d", { italic: false, bold: true }).doc, "a *b***d** c");
+  assertEquals(
+    typeAt("a *b* c", 4, "d", { italic: false, bold: true }).doc,
+    "a *b***d** c",
+  );
 });

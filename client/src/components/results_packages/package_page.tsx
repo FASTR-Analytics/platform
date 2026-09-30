@@ -1,51 +1,51 @@
 import {
-  MODULE_FAMILY_ORDER,
   compareModules,
-  getModuleFamilyLabel,
-  t3,
-  TC,
   type DatasetType,
+  getModuleFamilyLabel,
   type InstalledModuleSummary,
+  MODULE_FAMILY_ORDER,
   type PackageScope,
   type RunAuthoringContext,
   type RunCatalogItem,
   type RunDetail,
   type RunListingItem,
   type RunProgress,
+  t3,
+  TC,
 } from "lib";
 import {
   Button,
-  FrameTop,
-  HeadingBar,
-  LoadingIndicator,
-  StateHolderWrapper,
-  TabsNavigation,
   createButtonAction,
   createDeleteAction,
   formatFileSize,
+  FrameTop,
   getEditorWrapper,
+  HeadingBar,
+  LoadingIndicator,
   openConfirm,
   type StateHolder,
+  StateHolderWrapper,
+  TabsNavigation,
 } from "panther";
 import {
-  Match,
-  Show,
-  Switch,
   createEffect,
   createMemo,
   createSignal,
+  Match,
+  Show,
+  Switch,
 } from "solid-js";
 import {
   FailedDetail,
   FamilyPane,
+  type OpenEditor,
   PinnedBadge,
   RunStatusBadge,
   StatusBar,
-  type OpenEditor,
 } from "./package_view/mod.ts";
 import {
-  storedValueFromScopeSelection,
   type ScopeSelection,
+  storedValueFromScopeSelection,
 } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -80,7 +80,7 @@ type FamilyModules = { family: DatasetType; modules: InstalledModuleSummary[] };
 // shown is removed.
 export function ResultsPackagePage(p: Props) {
   const run = createMemo(() =>
-    instanceState.runsCatalog.find((r) => r.id === p.runId),
+    instanceState.runsCatalog.find((r) => r.id === p.runId)
   );
   let seen = false;
   createEffect(() => {
@@ -154,9 +154,12 @@ function PackageBody(p: {
   const deletePackage = createDeleteAction(
     {
       text: t3({
-        en: "Delete this results package? Its files and cached results are permanently removed.",
-        fr: "Supprimer ce paquet de résultats ? Ses fichiers et ses résultats mis en cache sont définitivement supprimés.",
-        pt: "Eliminar este pacote de resultados? Os seus ficheiros e resultados em cache são removidos permanentemente.",
+        en:
+          "Delete this results package? Its files and cached results are permanently removed.",
+        fr:
+          "Supprimer ce paquet de résultats ? Ses fichiers et ses résultats mis en cache sont définitivement supprimés.",
+        pt:
+          "Eliminar este pacote de resultados? Os seus ficheiros e resultados em cache são removidos permanentemente.",
       }),
       itemList: [p.run.label],
     },
@@ -177,9 +180,12 @@ function PackageBody(p: {
         pt: "Fixar este pacote de resultados?",
       }),
       text: t3({
-        en: "It becomes the instance's pinned package: new decks and reports start on it. Existing products keep their package.",
-        fr: "Il devient le paquet épinglé de l'instance : les nouvelles présentations et les nouveaux rapports l'utilisent. Les produits existants gardent leur paquet.",
-        pt: "Passa a ser o pacote fixado da instância: as novas apresentações e os novos relatórios começam com ele. Os produtos existentes mantêm o seu pacote.",
+        en:
+          "It becomes the instance's pinned package: new decks and reports start on it. Existing products keep their package.",
+        fr:
+          "Il devient le paquet épinglé de l'instance : les nouvelles présentations et les nouveaux rapports l'utilisent. Les produits existants gardent leur paquet.",
+        pt:
+          "Passa a ser o pacote fixado da instância: as novas apresentações e os novos relatórios começam com ele. Os produtos existentes mantêm o seu pacote.",
       }),
       confirmButtonLabel: t3({ en: "Pin", fr: "Épingler", pt: "Fixar" }),
     });
@@ -190,7 +196,7 @@ function PackageBody(p: {
   });
 
   const unpinPackage = createButtonAction(() =>
-    serverActions.unpinResultsPackage({ run_id: p.run.id }),
+    serverActions.unpinResultsPackage({ run_id: p.run.id })
   );
 
   // The ready reads, both T2 and immutable by identity. A run that becomes
@@ -214,8 +220,8 @@ function PackageBody(p: {
       !detail.success
         ? { status: "error", err: detail.err }
         : !ctx.success
-          ? { status: "error", err: ctx.err }
-          : { status: "ready", data: { detail: detail.data, ctx: ctx.data } },
+        ? { status: "error", err: ctx.err }
+        : { status: "ready", data: { detail: detail.data, ctx: ctx.data } },
     );
   });
   const readyReads = (): ReadyReads | undefined => {
@@ -324,7 +330,8 @@ function PackageBody(p: {
           <div class="ui-pad text-base-content-muted text-sm">
             {t3({
               en: "Results appear here once generation completes.",
-              fr: "Les résultats apparaîtront ici une fois la génération terminée.",
+              fr:
+                "Les résultats apparaîtront ici une fois la génération terminée.",
               pt: "Os resultados aparecem aqui quando a geração terminar.",
             })}
           </div>
@@ -351,13 +358,13 @@ function FamilyTabs(p: {
         .filter((m) => m.family === family)
         .toSorted(compareModules);
       return modules.length === 0 ? [] : [{ family, modules }];
-    }),
+    })
   );
   const [chosenFamily, setChosenFamily] = createSignal<DatasetType>();
   const active = createMemo(
     () =>
       modulesByFamily().find((f) => f.family === chosenFamily()) ??
-      modulesByFamily()[0],
+        modulesByFamily()[0],
   );
   const [chosenModule, setChosenModule] = createSignal<
     Partial<Record<DatasetType, string>>
@@ -408,15 +415,13 @@ function FamilyTabs(p: {
           <FamilyPane
             runId={p.runId}
             modules={family.modules}
-            selectedModuleId={
-              chosenModule()[family.family] ?? family.modules[0].id
-            }
+            selectedModuleId={chosenModule()[family.family] ??
+              family.modules[0].id}
             onSelectModule={(moduleId) =>
               setChosenModule((prev) => ({
                 ...prev,
                 [family.family]: moduleId,
-              }))
-            }
+              }))}
             detail={p.detail}
             ctx={p.ctx}
             scope={scope()}
@@ -438,10 +443,10 @@ function provenanceLine(run: RunListingItem): string {
     run.createdBy,
     run.provenance === "synthetic-backfill"
       ? t3({
-          en: "created from pre-existing results",
-          fr: "créé à partir de résultats préexistants",
-          pt: "criado a partir de resultados preexistentes",
-        })
+        en: "created from pre-existing results",
+        fr: "créé à partir de résultats préexistants",
+        pt: "criado a partir de resultados preexistentes",
+      })
       : null,
     run.summary?.diskSizeBytes != null
       ? formatFileSize(run.summary.diskSizeBytes, 1)

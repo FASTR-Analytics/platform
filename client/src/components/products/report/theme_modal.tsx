@@ -11,15 +11,12 @@ import {
   Button,
   Icon,
   ModalContainer,
-  StateHolderFormError,
   type StateHolderFormAction,
+  StateHolderFormError,
 } from "panther";
 import { createSignal, For, onMount, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
-import {
-  fastrThemeCaption,
-  fastrThemeLabel,
-} from "./fastr_theme_labels";
+import { fastrThemeCaption, fastrThemeLabel } from "./fastr_theme_labels";
 import {
   FastrCustomThemeMock,
   fastrMockScopeClass,
@@ -93,7 +90,9 @@ export function ReportThemeModal(p: Props) {
   const [applied, setApplied] = createSignal<
     { lastUpdated: string; config: ReportConfig } | undefined
   >();
-  const [template, setTemplate] = createSignal<FastrReportTemplate>("policy_brief");
+  const [template, setTemplate] = createSignal<FastrReportTemplate>(
+    "policy_brief",
+  );
   const templateScope = () => {
     const sel = selected();
     return sel?.kind === "custom"
@@ -102,7 +101,9 @@ export function ReportThemeModal(p: Props) {
   };
   const finish = (t?: FastrReportTemplate) => {
     const a = applied();
-    if (a) p.close(t === undefined ? { applied: a } : { applied: a, template: t });
+    if (a) {
+      p.close(t === undefined ? { applied: a } : { applied: a, template: t });
+    }
   };
 
   onMount(() => {
@@ -169,8 +170,16 @@ export function ReportThemeModal(p: Props) {
         })}
       subtitle={p.offerTemplates
         ? step() === "theme"
-          ? t3({ en: "Step 1 of 2: theme", fr: "Étape 1 sur 2 : thème", pt: "Passo 1 de 2: tema" })
-          : t3({ en: "Step 2 of 2: template", fr: "Étape 2 sur 2 : modèle", pt: "Passo 2 de 2: modelo" })
+          ? t3({
+            en: "Step 1 of 2: theme",
+            fr: "Étape 1 sur 2 : thème",
+            pt: "Passo 1 de 2: tema",
+          })
+          : t3({
+            en: "Step 2 of 2: template",
+            fr: "Étape 2 sur 2 : modèle",
+            pt: "Passo 2 de 2: modelo",
+          })
         : undefined}
       // Step 2's cancel is Skip: the theme is already applied, so it closes
       // with that and no template.
@@ -180,14 +189,23 @@ export function ReportThemeModal(p: Props) {
         : undefined}
       footer={step() === "template"
         ? (
-          <Button intent="neutral" outline iconName="chevronLeft" onClick={() => setStep("theme")}>
+          <Button
+            intent="neutral"
+            outline
+            iconName="chevronLeft"
+            onClick={() => setStep("theme")}
+          >
             {t3({ en: "Back", fr: "Retour", pt: "Voltar" })}
           </Button>
         )
         : undefined}
       actions={step() === "template"
         ? [{
-          label: t3({ en: "Use template", fr: "Utiliser le modèle", pt: "Usar modelo" }),
+          label: t3({
+            en: "Use template",
+            fr: "Utiliser le modèle",
+            pt: "Usar modelo",
+          }),
           onClick: () => finish(template()),
           iconName: "check" as const,
           intent: "success" as const,
@@ -195,11 +213,17 @@ export function ReportThemeModal(p: Props) {
         : [{
           label: p.offerTemplates
             ? t3({ en: "Next", fr: "Suivant", pt: "Seguinte" })
-            : t3({ en: "Apply theme", fr: "Appliquer le thème", pt: "Aplicar tema" }),
+            : t3({
+              en: "Apply theme",
+              fr: "Appliquer le thème",
+              pt: "Aplicar tema",
+            }),
           onClick: () => void apply(selected()),
           state: saveState(),
           disabled: selected() === undefined,
-          iconName: p.offerTemplates ? "chevronRight" as const : "check" as const,
+          iconName: p.offerTemplates
+            ? "chevronRight" as const
+            : "check" as const,
           intent: "success" as const,
         }]}
     >
@@ -216,9 +240,12 @@ export function ReportThemeModal(p: Props) {
       <div class="ui-spy-sm" classList={{ hidden: step() !== "theme" }}>
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "The theme is the report's real stylesheet, so these previews are exactly what you get. You can change it again at any time from the Page menu.",
-            fr: "Le thème est la feuille de style réelle du rapport : ces aperçus sont exactement ce que vous obtiendrez. Vous pouvez en changer à tout moment depuis le menu Page.",
-            pt: "O tema é a folha de estilos real do relatório, por isso estas pré-visualizações são exatamente o que vai obter. Pode alterá-lo a qualquer momento no menu Página.",
+            en:
+              "The theme is the report's real stylesheet, so these previews are exactly what you get. You can change it again at any time from the Page menu.",
+            fr:
+              "Le thème est la feuille de style réelle du rapport : ces aperçus sont exactement ce que vous obtiendrez. Vous pouvez en changer à tout moment depuis le menu Page.",
+            pt:
+              "O tema é a folha de estilos real do relatório, por isso estas pré-visualizações são exatamente o que vai obter. Pode alterá-lo a qualquer momento no menu Página.",
           })}
         </div>
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -275,7 +302,11 @@ export function ReportThemeModal(p: Props) {
                     role="button"
                     tabIndex={0}
                     class="bg-base-100 hover:bg-base-200 absolute top-3 right-3 rounded border p-1"
-                    title={t3({ en: "Edit style", fr: "Modifier le style", pt: "Editar estilo" })}
+                    title={t3({
+                      en: "Edit style",
+                      fr: "Modifier le style",
+                      pt: "Editar estilo",
+                    })}
                     onClick={(e) => {
                       e.stopPropagation();
                       p.close({ editStyle: { style } });
@@ -291,9 +322,12 @@ export function ReportThemeModal(p: Props) {
         <Show when={customStyles().length > 0}>
           <div class="text-base-content-muted text-xs">
             {t3({
-              en: "A saved style contributes only its colours here: its design brief guides the AI in HTML reports, and its stylesheet targets markup FASTR Markdown does not produce.",
-              fr: "Un style enregistré n'apporte ici que ses couleurs : son guide de style oriente l'IA dans les rapports HTML, et sa feuille de style vise un balisage que FASTR Markdown ne produit pas.",
-              pt: "Um estilo guardado contribui aqui apenas com as suas cores: o seu guia de estilo orienta a IA nos relatórios HTML, e a sua folha de estilos visa marcação que o FASTR Markdown não produz.",
+              en:
+                "A saved style contributes only its colours here: its design brief guides the AI in HTML reports, and its stylesheet targets markup FASTR Markdown does not produce.",
+              fr:
+                "Un style enregistré n'apporte ici que ses couleurs : son guide de style oriente l'IA dans les rapports HTML, et sa feuille de style vise un balisage que FASTR Markdown ne produit pas.",
+              pt:
+                "Um estilo guardado contribui aqui apenas com as suas cores: o seu guia de estilo orienta a IA nos relatórios HTML, e a sua folha de estilos visa marcação que o FASTR Markdown não produz.",
             })}
           </div>
         </Show>

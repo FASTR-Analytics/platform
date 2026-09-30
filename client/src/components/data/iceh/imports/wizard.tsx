@@ -1,12 +1,12 @@
-import { t3, type IcehStep1Result } from "lib";
+import { type IcehStep1Result, t3 } from "lib";
 import {
   AlertComponentProps,
-  ModalContainer,
-  StepperChipsWithTitles,
   createFormAction,
   getStepper,
+  ModalContainer,
+  StepperChipsWithTitles,
 } from "panther";
-import { Show, createMemo, createSignal } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
 
@@ -66,7 +66,11 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
 
   const stepLabels = [
     t3({ en: "Upload", fr: "Téléversement", pt: "Carregamento" }),
-    t3({ en: "Review & launch", fr: "Vérifier et lancer", pt: "Rever e iniciar" }),
+    t3({
+      en: "Review & launch",
+      fr: "Vérifier et lancer",
+      pt: "Rever e iniciar",
+    }),
   ];
 
   const submit = createFormAction(
@@ -95,30 +99,50 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
     return (
       <div class="rounded border p-4">
         <h4 class="ui-text-heading mb-2">
-          {t3({ en: "Zip Contents", fr: "Contenu du zip", pt: "Conteúdo do zip" })}
+          {t3({
+            en: "Zip Contents",
+            fr: "Contenu du zip",
+            pt: "Conteúdo do zip",
+          })}
         </h4>
         <div class="text-sm">
           <p>
-            <strong>{t3({ en: "Country:", fr: "Pays :", pt: "País:" })}</strong>{" "}
+            <strong>{t3({ en: "Country:", fr: "Pays :", pt: "País:" })}</strong>
+            {" "}
             {result.countryName} ({result.countryIso})
           </p>
           <p>
-            <strong>{t3({ en: "Indicators:", fr: "Indicateurs :", pt: "Indicadores:" })}</strong>{" "}
+            <strong>
+              {t3({
+                en: "Indicators:",
+                fr: "Indicateurs :",
+                pt: "Indicadores:",
+              })}
+            </strong>{" "}
             {result.indicatorCount}
           </p>
           <p>
             <strong>
-              {t3({ en: "Data rows:", fr: "Lignes de données :", pt: "Linhas de dados:" })}
+              {t3({
+                en: "Data rows:",
+                fr: "Lignes de données :",
+                pt: "Linhas de dados:",
+              })}
             </strong>{" "}
             {result.dataRowCount.toLocaleString()}
           </p>
           <p>
-            <strong>{t3({ en: "Years:", fr: "Années :", pt: "Anos:" })}</strong>{" "}
+            <strong>{t3({ en: "Years:", fr: "Années :", pt: "Anos:" })}</strong>
+            {" "}
             {result.years.join(", ")}
           </p>
           <p>
             <strong>
-              {t3({ en: "Disaggregators:", fr: "Désagrégateurs :", pt: "Desagregadores:" })}
+              {t3({
+                en: "Disaggregators:",
+                fr: "Désagrégateurs :",
+                pt: "Desagregadores:",
+              })}
             </strong>{" "}
             {result.strats.join(", ")}
           </p>
@@ -133,7 +157,11 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
       topPanel={
         <div class="flex items-center justify-between">
           <div class="ui-text-heading">
-            {t3({ en: "New ICEH import", fr: "Nouvelle importation ICEH", pt: "Nova importação ICEH" })}
+            {t3({
+              en: "New ICEH import",
+              fr: "Nouvelle importation ICEH",
+              pt: "Nova importação ICEH",
+            })}
           </div>
           <StepperChipsWithTitles stepper={stepper} labels={stepLabels} />
         </div>
@@ -142,41 +170,52 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
       actions={[
         ...(stepper.currentStep() > 0
           ? [
-              {
-                label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
-                onClick: stepper.goPrev,
-                outline: true,
-              },
-            ]
+            {
+              label: t3({ en: "Back", fr: "Retour", pt: "Voltar" }),
+              onClick: stepper.goPrev,
+              outline: true,
+            },
+          ]
           : []),
         ...(isLastStep()
           ? [
-              {
-                label: t3({ en: "Start import", fr: "Démarrer l'importation", pt: "Iniciar a importação" }),
-                onClick: submit.click,
-                state: submit.state(),
-              },
-            ]
+            {
+              label: t3({
+                en: "Start import",
+                fr: "Démarrer l'importation",
+                pt: "Iniciar a importação",
+              }),
+              onClick: submit.click,
+              state: submit.state(),
+            },
+          ]
           : [
-              {
-                label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
-                onClick: stepper.goNext,
-                disabled: !stepper.canGoNext(),
-              },
-            ]),
+            {
+              label: t3({ en: "Next", fr: "Suivant", pt: "Seguinte" }),
+              onClick: stepper.goNext,
+              disabled: !stepper.canGoNext(),
+            },
+          ]),
       ]}
     >
       <div class="ui-spy min-h-[24rem]">
         <Show when={currentStepKind() === "upload"}>
           <div class="ui-spy">
             <h3 class="ui-text-heading">
-              {t3({ en: "ICEH Zip File", fr: "Fichier Zip ICEH", pt: "Ficheiro Zip ICEH" })}
+              {t3({
+                en: "ICEH Zip File",
+                fr: "Fichier Zip ICEH",
+                pt: "Ficheiro Zip ICEH",
+              })}
             </h3>
             <p class="text-base-content-muted">
               {t3({
-                en: "Upload a zip file downloaded from the ICEH Retriever (equidade.org/retriever). The zip should contain results_csv.csv and indicators.xlsx.",
-                fr: "Téléversez un fichier zip téléchargé depuis le Retriever ICEH (equidade.org/retriever). Le zip doit contenir results_csv.csv et indicators.xlsx.",
-                pt: "Carregue um ficheiro zip transferido do Retriever ICEH (equidade.org/retriever). O zip deve conter results_csv.csv e indicators.xlsx.",
+                en:
+                  "Upload a zip file downloaded from the ICEH Retriever (equidade.org/retriever). The zip should contain results_csv.csv and indicators.xlsx.",
+                fr:
+                  "Téléversez un fichier zip téléchargé depuis le Retriever ICEH (equidade.org/retriever). Le zip doit contenir results_csv.csv et indicators.xlsx.",
+                pt:
+                  "Carregue um ficheiro zip transferido do Retriever ICEH (equidade.org/retriever). O zip deve conter results_csv.csv e indicators.xlsx.",
               })}
             </p>
             <FileUploadSelector
@@ -185,7 +224,11 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
                 fr: "Téléverser un fichier zip",
                 pt: "Carregar um ficheiro zip",
               })}
-              selectLabel={t3({ en: "Or select an existing file", fr: "Ou sélectionnez un fichier existant", pt: "Ou selecione um ficheiro existente" })}
+              selectLabel={t3({
+                en: "Or select an existing file",
+                fr: "Ou sélectionnez un fichier existant",
+                pt: "Ou selecione um ficheiro existente",
+              })}
               filter={(a) => a.isZip}
               value={zipFileName()}
               onChange={(next) => {
@@ -205,23 +248,33 @@ export function IcehWizard(p: AlertComponentProps<object, IcehWizardResult>) {
         <Show when={currentStepKind() === "review"}>
           <div class="ui-spy">
             <h3 class="ui-text-heading">
-              {t3({ en: "Confirm import", fr: "Confirmer l'importation", pt: "Confirmar a importação" })}
+              {t3({
+                en: "Confirm import",
+                fr: "Confirmer l'importation",
+                pt: "Confirmar a importação",
+              })}
             </h3>
             <Show when={preview()} keyed>
               {(result) => previewPanel(result)}
             </Show>
             <p class="text-warning">
               {t3({
-                en: "This imports the indicators in this file, replacing any existing data for those same indicators and keeping all other indicators. Imports are cumulative. This cannot be undone.",
-                fr: "Cela importe les indicateurs de ce fichier, en remplaçant les données existantes pour ces mêmes indicateurs et en conservant tous les autres indicateurs. Les importations sont cumulatives. Cette action ne peut pas être annulée.",
-                pt: "Isto importa os indicadores deste ficheiro, substituindo os dados existentes para esses mesmos indicadores e mantendo todos os outros indicadores. As importações são cumulativas. Esta ação não pode ser anulada.",
+                en:
+                  "This imports the indicators in this file, replacing any existing data for those same indicators and keeping all other indicators. Imports are cumulative. This cannot be undone.",
+                fr:
+                  "Cela importe les indicateurs de ce fichier, en remplaçant les données existantes pour ces mêmes indicateurs et en conservant tous les autres indicateurs. Les importations sont cumulatives. Cette action ne peut pas être annulée.",
+                pt:
+                  "Isto importa os indicadores deste ficheiro, substituindo os dados existentes para esses mesmos indicadores e mantendo todos os outros indicadores. As importações são cumulativas. Esta ação não pode ser anulada.",
               })}
             </p>
             <p class="text-sm">
               {t3({
-                en: "Staging validates every row; a fully clean file integrates automatically, while skipped rows hold the import for your review before anything is merged.",
-                fr: "La préparation valide chaque ligne ; un fichier entièrement valide s'intègre automatiquement, tandis que des lignes ignorées mettent l'importation en attente de votre vérification avant toute fusion.",
-                pt: "A preparação valida todas as linhas; um ficheiro totalmente válido integra-se automaticamente, enquanto linhas ignoradas colocam a importação em espera para a sua revisão antes de qualquer fusão.",
+                en:
+                  "Staging validates every row; a fully clean file integrates automatically, while skipped rows hold the import for your review before anything is merged.",
+                fr:
+                  "La préparation valide chaque ligne ; un fichier entièrement valide s'intègre automatiquement, tandis que des lignes ignorées mettent l'importation en attente de votre vérification avant toute fusion.",
+                pt:
+                  "A preparação valida todas as linhas; um ficheiro totalmente válido integra-se automaticamente, enquanto linhas ignoradas colocam a importação em espera para a sua revisão antes de qualquer fusão.",
               })}
             </p>
           </div>

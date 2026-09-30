@@ -1,4 +1,8 @@
-import { FASTR_THEME_TOKENS, type FastrReportTheme, type FastrWordFont } from "lib";
+import {
+  FASTR_THEME_TOKENS,
+  type FastrReportTheme,
+  type FastrWordFont,
+} from "lib";
 
 // The theme's typefaces for embedding in a Word file. Word embeds TrueType,
 // and the browser cannot ask Google Fonts for TrueType (the user agent is not
@@ -36,7 +40,10 @@ function load(family: string): Promise<FastrWordFont | undefined> {
       const data = new Uint8Array(await resp.arrayBuffer());
       return { name: family, data, weight: entry.weight };
     })().catch((e) => {
-      console.warn(`The ${family} face could not be loaded for embedding; Word will substitute.`, e);
+      console.warn(
+        `The ${family} face could not be loaded for embedding; Word will substitute.`,
+        e,
+      );
       cache.delete(family);
       return undefined;
     });
@@ -48,9 +55,13 @@ function load(family: string): Promise<FastrWordFont | undefined> {
 // The faces a theme's body and headings use, ready for the document's
 // `fonts`. Never throws: a face that cannot be fetched is left out and the
 // document still names it, so Word substitutes rather than the export failing.
-export async function loadThemeFontsForWord(theme: FastrReportTheme): Promise<FastrWordFont[]> {
+export async function loadThemeFontsForWord(
+  theme: FastrReportTheme,
+): Promise<FastrWordFont[]> {
   const tokens = FASTR_THEME_TOKENS[theme] ?? FASTR_THEME_TOKENS.default;
-  const families = [...new Set([firstFamily(tokens.fontBody), firstFamily(tokens.fontHeading)])];
+  const families = [
+    ...new Set([firstFamily(tokens.fontBody), firstFamily(tokens.fontHeading)]),
+  ];
   const faces = await Promise.all(families.map(load));
   return faces.filter((f): f is FastrWordFont => f !== undefined);
 }

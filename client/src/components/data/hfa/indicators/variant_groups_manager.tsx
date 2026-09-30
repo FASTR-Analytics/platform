@@ -1,16 +1,16 @@
 import {
-  t3,
   type HfaIndicator,
   type HfaIndicatorVariantGroup,
   type HfaIndicatorVariantItem,
+  t3,
 } from "lib";
 import {
   Button,
-  SortableList,
-  openComponent,
   createDeleteAction,
+  openComponent,
+  SortableList,
 } from "panther";
-import { Show, createEffect, createMemo } from "solid-js";
+import { createEffect, createMemo, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -38,7 +38,7 @@ export function HfaVariantGroupsManager(p: Props) {
   });
 
   const selectedGroup = createMemo(() =>
-    p.variantGroups.find((g) => g.id === p.selectedGroupId),
+    p.variantGroups.find((g) => g.id === p.selectedGroupId)
   );
 
   return (
@@ -58,7 +58,8 @@ export function HfaVariantGroupsManager(p: Props) {
             <div class="text-base-content-muted pt-2 text-sm">
               {t3({
                 en: "Select a variant group to manage its items.",
-                fr: "Sélectionnez un groupe de variantes pour gérer ses éléments.",
+                fr:
+                  "Sélectionnez un groupe de variantes pour gérer ses éléments.",
                 pt: "Selecione um grupo de variantes para gerir os seus itens.",
               })}
             </div>
@@ -140,9 +141,12 @@ function GroupsPane(p: {
     const deleteAction = createDeleteAction(
       {
         text: t3({
-          en: "Delete this variant group? Its items and their code will also be deleted. Deletion is refused while any indicator is still assigned to the group.",
-          fr: "Supprimer ce groupe de variantes ? Ses éléments et leur code seront également supprimés. La suppression est refusée tant qu'un indicateur est encore assigné au groupe.",
-          pt: "Eliminar este grupo de variantes? Os seus itens e o respetivo código também serão eliminados. A eliminação é recusada enquanto algum indicador ainda estiver atribuído ao grupo.",
+          en:
+            "Delete this variant group? Its items and their code will also be deleted. Deletion is refused while any indicator is still assigned to the group.",
+          fr:
+            "Supprimer ce groupe de variantes ? Ses éléments et leur code seront également supprimés. La suppression est refusée tant qu'un indicateur est encore assigné au groupe.",
+          pt:
+            "Eliminar este grupo de variantes? Os seus itens e o respetivo código também serão eliminados. A eliminação é recusada enquanto algum indicador ainda estiver atribuído ao grupo.",
         }),
         itemList: [`${group.label} (${group.id})`],
       },
@@ -155,7 +159,11 @@ function GroupsPane(p: {
     <>
       <div class="ui-gap-sm flex flex-none items-center pb-4">
         <div class="ui-text-heading flex-1">
-          {t3({ en: "Variant groups", fr: "Groupes de variantes", pt: "Grupos de variantes" })} ({items.length})
+          {t3({
+            en: "Variant groups",
+            fr: "Groupes de variantes",
+            pt: "Grupos de variantes",
+          })} ({items.length})
         </div>
         <Show when={isAdmin()}>
           <Button onClick={handleCreate} iconName="plus" intent="primary">
@@ -169,9 +177,12 @@ function GroupsPane(p: {
           fallback={
             <div class="text-base-content-muted text-sm">
               {t3({
-                en: "No variant groups. A variant group defines the response options (items) an indicator can be broken down by — assign a group to an indicator in its code editor.",
-                fr: "Aucun groupe de variantes. Un groupe de variantes définit les options de réponse (éléments) selon lesquelles un indicateur peut être ventilé — assignez un groupe à un indicateur dans son éditeur de code.",
-                pt: "Nenhum grupo de variantes. Um grupo de variantes define as opções de resposta (itens) pelas quais um indicador pode ser desagregado — atribua um grupo a um indicador no seu editor de código.",
+                en:
+                  "No variant groups. A variant group defines the response options (items) an indicator can be broken down by — assign a group to an indicator in its code editor.",
+                fr:
+                  "Aucun groupe de variantes. Un groupe de variantes définit les options de réponse (éléments) selon lesquelles un indicateur peut être ventilé — assignez un groupe à un indicateur dans son éditeur de code.",
+                pt:
+                  "Nenhum grupo de variantes. Um grupo de variantes define as opções de resposta (itens) pelas quais um indicador pode ser desagregado — atribua um grupo a um indicador no seu editor de código.",
               })}
             </div>
           }
@@ -321,9 +332,12 @@ function ItemsPane(p: {
     const deleteAction = createDeleteAction(
       {
         text: t3({
-          en: "Delete this variant item? Any per-item code authored for it will also be deleted.",
-          fr: "Supprimer cet élément de variante ? Tout code par élément qui lui est associé sera également supprimé.",
-          pt: "Eliminar este item de variante? Qualquer código por item associado também será eliminado.",
+          en:
+            "Delete this variant item? Any per-item code authored for it will also be deleted.",
+          fr:
+            "Supprimer cet élément de variante ? Tout code par élément qui lui est associé sera également supprimé.",
+          pt:
+            "Eliminar este item de variante? Qualquer código por item associado também será eliminado.",
         }),
         itemList: [`${item.label} (${item.id})`],
       },

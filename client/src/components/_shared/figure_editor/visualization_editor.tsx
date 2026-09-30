@@ -8,7 +8,7 @@ import {
   t3,
   TC,
 } from "lib";
-import { AlertComponentProps, StateHolderWrapper, createQuery } from "panther";
+import { AlertComponentProps, createQuery, StateHolderWrapper } from "panther";
 import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
@@ -89,7 +89,10 @@ export function VisualizationEditor(
   );
 
   return (
-    <StateHolderWrapper state={resultsValueInfo.state()} loadingAndErrorPad="md">
+    <StateHolderWrapper
+      state={resultsValueInfo.state()}
+      loadingAndErrorPad="md"
+    >
       {(keyedResultsValueInfo: ResultsValueInfoForPresentationObject) => (
         <VisualizationEditorInner
           scope={p.scope}

@@ -18,27 +18,45 @@ const RUN_B = "00000000-0000-4000-8000-00000000000b";
 
 // The predicate reads only `scope` and `provenance`; the rest of the bundle
 // is irrelevant to it, so the fixture carries only those two fields.
-function bundle(runId: string, scope: { adminArea2: string | null }): FigureBundle {
+function bundle(
+  runId: string,
+  scope: { adminArea2: string | null },
+): FigureBundle {
   return { provenance: { runId }, scope } as FigureBundle;
 }
 
 const CONTAINER: PackageScope = { runId: RUN_A, adminArea2: "Kano" };
 
 Deno.test("stale: matching run and matching scope is not stale", () => {
-  assertEquals(isFigureBundleStale(bundle(RUN_A, { adminArea2: "Kano" }), CONTAINER), false);
+  assertEquals(
+    isFigureBundleStale(bundle(RUN_A, { adminArea2: "Kano" }), CONTAINER),
+    false,
+  );
 });
 
 Deno.test("stale: mismatching run with matching scope is stale", () => {
-  assertEquals(isFigureBundleStale(bundle(RUN_B, { adminArea2: "Kano" }), CONTAINER), true);
+  assertEquals(
+    isFigureBundleStale(bundle(RUN_B, { adminArea2: "Kano" }), CONTAINER),
+    true,
+  );
 });
 
 Deno.test("stale: matching run with mismatching scope is stale", () => {
-  assertEquals(isFigureBundleStale(bundle(RUN_A, { adminArea2: null }), CONTAINER), true);
-  assertEquals(isFigureBundleStale(bundle(RUN_A, { adminArea2: "Lagos" }), CONTAINER), true);
+  assertEquals(
+    isFigureBundleStale(bundle(RUN_A, { adminArea2: null }), CONTAINER),
+    true,
+  );
+  assertEquals(
+    isFigureBundleStale(bundle(RUN_A, { adminArea2: "Lagos" }), CONTAINER),
+    true,
+  );
 });
 
 Deno.test("stale: mismatching run and mismatching scope is stale", () => {
-  assertEquals(isFigureBundleStale(bundle(RUN_B, { adminArea2: null }), CONTAINER), true);
+  assertEquals(
+    isFigureBundleStale(bundle(RUN_B, { adminArea2: null }), CONTAINER),
+    true,
+  );
 });
 
 Deno.test("stale: the layout walk reports figure blocks with a bundle, in layout order", () => {
@@ -46,11 +64,23 @@ Deno.test("stale: the layout walk reports figure blocks with a bundle, in layout
     type: "rows",
     id: "root",
     children: [
-      { type: "item", id: "b1", data: { type: "figure", bundle: bundle(RUN_B, { adminArea2: "Kano" }) } },
+      {
+        type: "item",
+        id: "b1",
+        data: { type: "figure", bundle: bundle(RUN_B, { adminArea2: "Kano" }) },
+      },
       { type: "item", id: "b2", data: { type: "text", text: "" } },
       { type: "item", id: "b3", data: { type: "figure" } },
-      { type: "item", id: "b4", data: { type: "figure", bundle: bundle(RUN_A, { adminArea2: "Kano" }) } },
-      { type: "item", id: "b5", data: { type: "figure", bundle: bundle(RUN_A, { adminArea2: null }) } },
+      {
+        type: "item",
+        id: "b4",
+        data: { type: "figure", bundle: bundle(RUN_A, { adminArea2: "Kano" }) },
+      },
+      {
+        type: "item",
+        id: "b5",
+        data: { type: "figure", bundle: bundle(RUN_A, { adminArea2: null }) },
+      },
     ],
   } as unknown as Parameters<typeof findStaleFiguresInLayout>[0];
   assertEquals(
@@ -61,9 +91,18 @@ Deno.test("stale: the layout walk reports figure blocks with a bundle, in layout
 
 Deno.test("stale: the report walk reports registry entries with a stale bundle", () => {
   const figures = {
-    f1: { type: "figure" as const, bundle: bundle(RUN_A, { adminArea2: "Kano" }) },
+    f1: {
+      type: "figure" as const,
+      bundle: bundle(RUN_A, { adminArea2: "Kano" }),
+    },
     f2: { type: "figure" as const },
-    f3: { type: "figure" as const, bundle: bundle(RUN_B, { adminArea2: "Kano" }) },
+    f3: {
+      type: "figure" as const,
+      bundle: bundle(RUN_B, { adminArea2: "Kano" }),
+    },
   };
-  assertEquals(findStaleFiguresInReport(figures, CONTAINER).map((s) => s.figureId), ["f3"]);
+  assertEquals(
+    findStaleFiguresInReport(figures, CONTAINER).map((s) => s.figureId),
+    ["f3"],
+  );
 });

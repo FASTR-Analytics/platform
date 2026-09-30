@@ -1,13 +1,13 @@
 import {
-  t3,
-  getStartingConfigForSlideDeck,
-  PAGE_HEIGHT_DU,
-  PAGE_WIDTH_DU,
   type AiSlideInput,
+  getStartingConfigForSlideDeck,
   type MetricWithStatus,
   type PackageScope,
+  PAGE_HEIGHT_DU,
+  PAGE_WIDTH_DU,
   type Slide,
   type SlideDeckConfig,
+  t3,
 } from "lib";
 import type { AlertComponentProps, PageInputs, StateHolder } from "panther";
 import {
@@ -53,7 +53,11 @@ function openDeckId(): string | undefined {
 export function DraftSlidePreview(p: Props) {
   const [slideState, setSlideState] = createSignal<StateHolder<SlideState>>({
     status: "loading",
-    msg: t3({ en: "Loading slide...", fr: "Chargement de la diapositive...", pt: "A carregar diapositivo..." }),
+    msg: t3({
+      en: "Loading slide...",
+      fr: "Chargement de la diapositive...",
+      pt: "A carregar diapositivo...",
+    }),
   });
 
   function getDeckConfig(): SlideDeckConfig {
@@ -99,7 +103,11 @@ export function DraftSlidePreview(p: Props) {
   });
 
   const addToDeckLabel = () =>
-    t3({ en: "Add to this deck", fr: "Ajouter à cette présentation", pt: "Adicionar a esta apresentação" });
+    t3({
+      en: "Add to this deck",
+      fr: "Ajouter à cette présentation",
+      pt: "Adicionar a esta apresentação",
+    });
 
   function openExpandedView() {
     const state = slideState();
@@ -132,9 +140,11 @@ export function DraftSlidePreview(p: Props) {
             <SlideStateWrapper state={slideState()} />
           </div>
         </div>
-        {/* Actions are hidden on error: the card still renders so the error
+        {
+          /* Actions are hidden on error: the card still renders so the error
             message is visible instead of
-            the whole preview vanishing under a "slide preview shown" line. */}
+            the whole preview vanishing under a "slide preview shown" line. */
+        }
         <Show when={slideState().status !== "error"}>
           <div class="flex gap-1.5 border-t p-1.5">
             <Button
@@ -198,7 +208,12 @@ function ExpandedSlideModal(
     <ModalContainer
       width="2xl"
       {...(p.onAddToDeck === undefined
-        ? { onClose: { kind: "close" as const, onClick: () => p.close(undefined) } }
+        ? {
+          onClose: {
+            kind: "close" as const,
+            onClick: () => p.close(undefined),
+          },
+        }
         : {
           onCancel: () => p.close(undefined),
           actions: [{

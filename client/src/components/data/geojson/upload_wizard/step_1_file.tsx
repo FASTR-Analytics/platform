@@ -1,5 +1,5 @@
 import { t3 } from "lib";
-import { Button, StateHolderFormError, createFormAction } from "panther";
+import { Button, createFormAction, StateHolderFormError } from "panther";
 import { serverActions } from "~/server_actions";
 import { FileUploadSelector } from "~/components/_shared/mod.ts";
 import type { WizardState } from "./wizard";
@@ -15,9 +15,18 @@ export function Step1File(p: Props) {
     async () => {
       const fileName = state.selectedFileName();
       if (!fileName) {
-        return { success: false, err: t3({ en: "Please select a file", fr: "Veuillez sélectionner un fichier", pt: "Selecione um ficheiro" }) };
+        return {
+          success: false,
+          err: t3({
+            en: "Please select a file",
+            fr: "Veuillez sélectionner un fichier",
+            pt: "Selecione um ficheiro",
+          }),
+        };
       }
-      const res = await serverActions.analyzeGeoJsonUpload({ assetFileName: fileName });
+      const res = await serverActions.analyzeGeoJsonUpload({
+        assetFileName: fileName,
+      });
       if (res.success) {
         state.setAnalysisResult(res.data);
         if (res.data.properties.length > 0) {
@@ -32,12 +41,27 @@ export function Step1File(p: Props) {
 
   return (
     <div class="ui-spy">
-      <div class="ui-text-heading">{t3({ en: "Step 1: Select GeoJSON file", fr: "Étape 1 : Sélectionner le fichier GeoJSON", pt: "Passo 1: Selecionar o ficheiro GeoJSON" })}</div>
+      <div class="ui-text-heading">
+        {t3({
+          en: "Step 1: Select GeoJSON file",
+          fr: "Étape 1 : Sélectionner le fichier GeoJSON",
+          pt: "Passo 1: Selecionar o ficheiro GeoJSON",
+        })}
+      </div>
 
       <FileUploadSelector
-        buttonLabel={t3({ en: "Upload new GeoJSON file", fr: "Téléverser un nouveau fichier GeoJSON", pt: "Carregar um novo ficheiro GeoJSON" })}
-        selectLabel={t3({ en: "Or select existing file", fr: "Ou sélectionner un fichier existant", pt: "Ou selecionar um ficheiro existente" })}
-        filter={(a) => a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json")}
+        buttonLabel={t3({
+          en: "Upload new GeoJSON file",
+          fr: "Téléverser un nouveau fichier GeoJSON",
+          pt: "Carregar um novo ficheiro GeoJSON",
+        })}
+        selectLabel={t3({
+          en: "Or select existing file",
+          fr: "Ou sélectionner un fichier existant",
+          pt: "Ou selecionar um ficheiro existente",
+        })}
+        filter={(a) =>
+          a.fileName.endsWith(".geojson") || a.fileName.endsWith(".json")}
         value={state.selectedFileName()}
         onChange={state.setSelectedFileName}
       />

@@ -1,29 +1,29 @@
 import {
   ADMIN_AREA_COLUMNS,
+  type AdminAreaLevel,
   POPULATION_TYPES,
+  type PopulationGridArea,
   populationTypeLabel,
+  type PopulationTypeStore,
   populationYearRangeLabel,
   t3,
   TC,
-  type PopulationGridArea,
-  type AdminAreaLevel,
-  type PopulationTypeStore,
 } from "lib";
 import {
   Button,
+  createDeleteAction,
   Csv,
   FrameLeft,
   FrameTop,
   HeadingBar,
+  type ListItem,
+  type StateHolder,
   StateHolderWrapper,
   TableFromCsv,
   TabsNavigation,
-  createDeleteAction,
   toNum0,
-  type ListItem,
-  type StateHolder,
 } from "panther";
-import { Show, createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getPopulationTypeStoreFromCacheOrFetch } from "~/state/instance/t2_population";
@@ -43,8 +43,8 @@ export function PopulationGrid(p: Props) {
   const activeType = createMemo(
     () =>
       selectedType() ??
-      POPULATION_TYPES.find((t) => coverageFor(t.id) !== undefined)?.id ??
-      POPULATION_TYPES[0].id,
+        POPULATION_TYPES.find((t) => coverageFor(t.id) !== undefined)?.id ??
+        POPULATION_TYPES[0].id,
   );
   const tabItems = createMemo<ListItem<string>[]>(() =>
     POPULATION_TYPES.map((t) => {
@@ -52,14 +52,13 @@ export function PopulationGrid(p: Props) {
       return {
         id: t.id,
         label: t3(t.label),
-        dot:
-          coverage === undefined
-            ? undefined
-            : coverage.complete
-              ? "success"
-              : "danger",
+        dot: coverage === undefined
+          ? undefined
+          : coverage.complete
+          ? "success"
+          : "danger",
       };
-    }),
+    })
   );
 
   return (
@@ -114,15 +113,17 @@ function CoverageStrip(p: { years: number[]; areas: PopulationGridArea[] }) {
     p.areas.filter((a) => Object.keys(a.cells).length > 0).length;
   const yearsWithGaps = createMemo(() =>
     p.years.filter((year) =>
-      p.areas.some((a) => a.cells[String(year)] === undefined),
-    ),
+      p.areas.some((a) => a.cells[String(year)] === undefined)
+    )
   );
   const text = () => {
     if (yearsWithGaps().length === 0) {
       return t3({
         en: `All ${toNum0(total())} areas have a value for every year.`,
         fr: `Les ${toNum0(total())} unités ont une valeur pour chaque année.`,
-        pt: `Todas as ${toNum0(total())} zonas têm um valor para todos os anos.`,
+        pt: `Todas as ${
+          toNum0(total())
+        } zonas têm um valor para todos os anos.`,
       });
     }
     const areas = t3({
@@ -130,18 +131,17 @@ function CoverageStrip(p: { years: number[]; areas: PopulationGridArea[] }) {
       fr: `Unités avec données : ${toNum0(withData())} sur ${toNum0(total())}.`,
       pt: `Zonas com dados: ${toNum0(withData())} de ${toNum0(total())}.`,
     });
-    const years =
-      yearsWithGaps().length === p.years.length
-        ? t3({
-            en: "Every year has gaps.",
-            fr: "Chaque année a des lacunes.",
-            pt: "Todos os anos têm lacunas.",
-          })
-        : t3({
-            en: `Years with gaps: ${yearsWithGaps().join(", ")}.`,
-            fr: `Années avec lacunes : ${yearsWithGaps().join(", ")}.`,
-            pt: `Anos com lacunas: ${yearsWithGaps().join(", ")}.`,
-          });
+    const years = yearsWithGaps().length === p.years.length
+      ? t3({
+        en: "Every year has gaps.",
+        fr: "Chaque année a des lacunes.",
+        pt: "Todos os anos têm lacunas.",
+      })
+      : t3({
+        en: `Years with gaps: ${yearsWithGaps().join(", ")}.`,
+        fr: `Années avec lacunes : ${yearsWithGaps().join(", ")}.`,
+        pt: `Anos com lacunas: ${yearsWithGaps().join(", ")}.`,
+      });
     return `${areas} ${years}`;
   };
   return (
@@ -195,9 +195,12 @@ function PopulationTypeGrid(p: {
   const deleteTypeData = createDeleteAction(
     {
       text: t3({
-        en: "Delete every stored value of this population type, for every year and area? Other population types are kept.",
-        fr: "Supprimer toutes les valeurs enregistrées de ce type de population, pour toutes les années et unités ? Les autres types de population sont conservés.",
-        pt: "Eliminar todos os valores guardados deste tipo de população, para todos os anos e zonas? Os outros tipos de população são mantidos.",
+        en:
+          "Delete every stored value of this population type, for every year and area? Other population types are kept.",
+        fr:
+          "Supprimer toutes les valeurs enregistrées de ce type de population, pour toutes les années et unités ? Les autres types de population sont conservés.",
+        pt:
+          "Eliminar todos os valores guardados deste tipo de população, para todos os anos e zonas? Os outros tipos de população são mantidos.",
       }),
       itemList: [typeLabel()],
     },
@@ -242,10 +245,10 @@ function PopulationTypeGrid(p: {
             <Show when={data.populationLevel} keyed>
               {(level) => {
                 const structureAreas = createMemo(() =>
-                  data.areas.filter((a) => !a.stale),
+                  data.areas.filter((a) => !a.stale)
                 );
                 const staleAreas = createMemo(() =>
-                  data.areas.filter((a) => a.stale),
+                  data.areas.filter((a) => a.stale)
                 );
                 return (
                   <div class="flex h-full w-full flex-col">
@@ -275,9 +278,12 @@ function PopulationTypeGrid(p: {
                           </span>{" "}
                           <span class="text-base-content-muted">
                             {t3({
-                              en: "These rows are kept and exported but never count towards completeness.",
-                              fr: "Ces lignes sont conservées et exportées, mais ne comptent jamais pour la complétude.",
-                              pt: "Estas linhas são mantidas e exportadas, mas nunca contam para a completude.",
+                              en:
+                                "These rows are kept and exported but never count towards completeness.",
+                              fr:
+                                "Ces lignes sont conservées et exportées, mais ne comptent jamais pour la complétude.",
+                              pt:
+                                "Estas linhas são mantidas e exportadas, mas nunca contam para a completude.",
                             })}
                           </span>
                         </div>

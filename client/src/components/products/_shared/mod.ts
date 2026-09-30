@@ -5,11 +5,11 @@ export {
 export { DuplicateProductsModal } from "./duplicate_products_modal.tsx";
 export { generalLabel, topLevelLabel } from "./folder_labels.ts";
 export {
-  GENERAL_ID,
   buildProductTree,
   childFolders,
   descendantIds,
   folderPathOptions,
+  GENERAL_ID,
   productTreeRows,
 } from "./folder_tree.ts";
 export type { ProductTreeRow } from "./folder_tree.ts";

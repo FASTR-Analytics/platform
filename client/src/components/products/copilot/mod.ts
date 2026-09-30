@@ -1,5 +1,9 @@
 export { ProductCopilotHost } from "./copilot.tsx";
-export { copilotViewController, copilotViews, restoreCopilotView } from "./_shared/mod.ts";
+export {
+  copilotViewController,
+  copilotViews,
+  restoreCopilotView,
+} from "./_shared/mod.ts";
 export type {
   CopilotViewDefs,
   CopilotViewId,

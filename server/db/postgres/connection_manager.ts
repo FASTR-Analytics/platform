@@ -53,7 +53,7 @@ export function getPgConnection(
   options?: {
     max?: number;
     readonly?: boolean;
-  }
+  },
 ): Sql {
   return postgres({
     ...DEFAULT_CONNECTION_OPTIONS,
@@ -67,7 +67,7 @@ export function getPgConnection(
  */
 export function getPgConnectionFromCacheOrNew(
   id: string,
-  permissions: "READ_ONLY" | "READ_AND_WRITE"
+  permissions: "READ_ONLY" | "READ_AND_WRITE",
 ): Sql {
   try {
     const key = `${id}_${permissions}`;
@@ -95,7 +95,7 @@ export function getPgConnectionFromCacheOrNew(
     throw new Error(
       `Could not get db with id: ${id} - ${
         e instanceof Error ? e.message : String(e)
-      }`
+      }`,
     );
   }
 }
@@ -105,7 +105,7 @@ export function getPgConnectionFromCacheOrNew(
  */
 export async function closePgConnection(
   id: string,
-  permissions?: "READ_ONLY" | "READ_AND_WRITE"
+  permissions?: "READ_ONLY" | "READ_AND_WRITE",
 ): Promise<void> {
   const keys = permissions
     ? [`${id}_${permissions}`]
@@ -135,7 +135,7 @@ export async function closeAllConnections(): Promise<void> {
       conn.sql
         .end()
         .catch((e) => console.error(`Error closing connection ${key}:`, e))
-    )
+    ),
   );
 }
 
@@ -182,4 +182,3 @@ export function getConnectionStats() {
 
   return stats;
 }
-

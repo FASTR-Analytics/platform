@@ -1,4 +1,4 @@
-import { t3, type IcehDataRow } from "lib";
+import { type IcehDataRow, t3 } from "lib";
 import { Csv, TableFromCsv } from "panther";
 import { createMemo } from "solid-js";
 
@@ -9,9 +9,7 @@ export function DataTab(p: { dataRows: IcehDataRow[] }) {
     <TableFromCsv
       csv={csv()}
       knownTotalCount={p.dataRows.length}
-      cellFormatter={(str) =>
-        str === "null" || str === "undefined" ? "-" : str
-      }
+      cellFormatter={(str) => str === "null" || str === "undefined" ? "-" : str}
       alignText="left"
       unsorted
     />

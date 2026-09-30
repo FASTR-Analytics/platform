@@ -1,4 +1,9 @@
-import { SLIDE_DECK_THEMES, t3, type SlideDeckConfig, type SlideDeckTheme } from "lib";
+import {
+  SLIDE_DECK_THEMES,
+  type SlideDeckConfig,
+  type SlideDeckTheme,
+  t3,
+} from "lib";
 import { For } from "solid-js";
 import { PresetCard } from "./preset_card.tsx";
 import { ContentSlideMiniPreview } from "./style_preview.tsx";

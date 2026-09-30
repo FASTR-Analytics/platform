@@ -80,7 +80,9 @@ function createSessionCache<T extends { fetchedAt: number }>(
   };
 }
 
-export const metadataSessionCache =
-  createSessionCache<CachedGeoJsonMetadata>(MAX_METADATA_ENTRIES);
-export const heavyGeoJsonSessionCache =
-  createSessionCache<CachedHeavyGeoJson>(MAX_HEAVY_ENTRIES);
+export const metadataSessionCache = createSessionCache<CachedGeoJsonMetadata>(
+  MAX_METADATA_ENTRIES,
+);
+export const heavyGeoJsonSessionCache = createSessionCache<CachedHeavyGeoJson>(
+  MAX_HEAVY_ENTRIES,
+);

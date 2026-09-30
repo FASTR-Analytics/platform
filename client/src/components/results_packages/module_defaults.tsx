@@ -1,26 +1,26 @@
 import {
   getMergedModuleConfigSelections,
-  t3,
   type RunGenerationDefaults,
   type RunGenerationModuleOption,
   type RunGenerationModuleOptions,
+  t3,
 } from "lib";
 import {
   Button,
   Checkbox,
+  createFormAction,
+  createQuery,
   EditorComponentProps,
   FrameTop,
   HeadingBar,
   StateHolderFormError,
   StateHolderWrapper,
-  createFormAction,
-  createQuery,
 } from "panther";
-import { For, Show, batch, createSignal } from "solid-js";
+import { batch, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import {
-  ModuleParameterInputs,
   getModuleParameterInvalidMsg,
+  ModuleParameterInputs,
 } from "./_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 
@@ -184,20 +184,22 @@ function ModuleDefaultsInner(p: {
           return o.parameters.some((param) =>
             entries[param.replacementString] !== undefined &&
             getModuleParameterInvalidMsg(
-              param,
-              entries[param.replacementString],
-            ) !== undefined
+                param,
+                entries[param.replacementString],
+              ) !== undefined
           );
         })
         .map((o) => o.label);
       if (invalidLabels.length > 0) {
         return {
           success: false,
-          err: `${t3({
-            en: "Fix the invalid parameter values for",
-            fr: "Corrigez les valeurs de paramètres non valides pour",
-            pt: "Corrija os valores de parâmetros inválidos para",
-          })}: ${invalidLabels.join(", ")}`,
+          err: `${
+            t3({
+              en: "Fix the invalid parameter values for",
+              fr: "Corrigez les valeurs de paramètres non valides pour",
+              pt: "Corrija os valores de parâmetros inválidos para",
+            })
+          }: ${invalidLabels.join(", ")}`,
         };
       }
 
@@ -225,9 +227,7 @@ function ModuleDefaultsInner(p: {
             ...Object.fromEntries(
               p.options.modules.flatMap((o) => {
                 const entries = savedEntriesFor(o);
-                return Object.keys(entries).length > 0
-                  ? [[o.id, entries]]
-                  : [];
+                return Object.keys(entries).length > 0 ? [[o.id, entries]] : [];
               }),
             ),
           },
@@ -241,9 +241,12 @@ function ModuleDefaultsInner(p: {
     <>
       <div class="text-base-content-muted max-w-2xl">
         {t3({
-          en: "These defaults configure the generation wizard when a new results package is generated. Module parameter values are set only here and apply to every package that includes the module.",
-          fr: "Ces valeurs par défaut configurent l'assistant de génération lors de la création d'un nouveau paquet de résultats. Les valeurs des paramètres des modules se règlent uniquement ici et s'appliquent à chaque paquet qui inclut le module.",
-          pt: "Estas predefinições configuram o assistente de geração quando um novo pacote de resultados é gerado. Os valores dos parâmetros dos módulos definem-se apenas aqui e aplicam-se a todos os pacotes que incluam o módulo.",
+          en:
+            "These defaults configure the generation wizard when a new results package is generated. Module parameter values are set only here and apply to every package that includes the module.",
+          fr:
+            "Ces valeurs par défaut configurent l'assistant de génération lors de la création d'un nouveau paquet de résultats. Les valeurs des paramètres des modules se règlent uniquement ici et s'appliquent à chaque paquet qui inclut le module.",
+          pt:
+            "Estas predefinições configuram o assistente de geração quando um novo pacote de resultados é gerado. Os valores dos parâmetros dos módulos definem-se apenas aqui e aplicam-se a todos os pacotes que incluam o módulo.",
         })}
       </div>
 
@@ -285,9 +288,12 @@ function ModuleDefaultsInner(p: {
       </h3>
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: "Checked modules are pre-selected in the wizard. Parameter values apply whenever the module is included.",
-          fr: "Les modules cochés sont présélectionnés dans l'assistant. Les valeurs des paramètres s'appliquent chaque fois que le module est inclus.",
-          pt: "Os módulos marcados são pré-selecionados no assistente. Os valores dos parâmetros aplicam-se sempre que o módulo é incluído.",
+          en:
+            "Checked modules are pre-selected in the wizard. Parameter values apply whenever the module is included.",
+          fr:
+            "Les modules cochés sont présélectionnés dans l'assistant. Les valeurs des paramètres s'appliquent chaque fois que le module est inclus.",
+          pt:
+            "Os módulos marcados são pré-selecionados no assistente. Os valores dos parâmetros aplicam-se sempre que o módulo é incluído.",
         })}
       </div>
 

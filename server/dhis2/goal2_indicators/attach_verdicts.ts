@@ -4,16 +4,16 @@
 
 import type {
   DHIS2DataElement,
-  DHIS2Indicator,
   Dhis2DataElementSearchItem,
+  DHIS2Indicator,
   Dhis2IndicatorSearchItem,
 } from "lib";
 import type { FetchOptions } from "../common/base_fetcher.ts";
 import { parseDhis2Indicator } from "./decompose_indicator.ts";
 import { getDataElementsFromDHIS2 } from "./get_indicators_from_dhis2.ts";
 import {
-  getDhis2OperandVerdict,
   getDhis2ElementVerdict,
+  getDhis2OperandVerdict,
 } from "./element_eligibility.ts";
 
 const ID_FILTER_CHUNK_SIZE = 100;

@@ -1,19 +1,19 @@
 import {
-  getCalendar,
-  t3,
   type DatasetHmisImportLedgerItem,
   type Dhis2RunPairInput,
+  getCalendar,
   type HmisIndicator,
+  t3,
 } from "lib";
 import {
   Button,
   EditorComponentProps,
+  formatPeriod,
   FrameTop,
   HeadingBar,
   Table,
-  formatPeriod,
-  toNum0,
   type TableColumn,
+  toNum0,
 } from "panther";
 import { indicatorNameText } from "~/components/data/hmis/_shared/mod.ts";
 import { importRouteLabel, type LedgerPeriodWindow } from "./ledger_table";
@@ -132,7 +132,11 @@ export function ImportLedgerIndicatorDetail(
     },
     {
       key: "route",
-      header: t3({ en: "Imported via", fr: "Importé via", pt: "Importado via" }),
+      header: t3({
+        en: "Imported via",
+        fr: "Importé via",
+        pt: "Importado via",
+      }),
       render: (row) => (row.item ? importRouteLabel(row.item.route) : ""),
     },
     {
@@ -150,14 +154,20 @@ export function ImportLedgerIndicatorDetail(
           // Backfill rows predate tracking; anything else with no timestamp
           // has never successfully imported: leave the cell empty rather
           // than implying a pre-tracking import.
-          return row.item.route === "backfill" ? importRouteLabel("backfill") : "";
+          return row.item.route === "backfill"
+            ? importRouteLabel("backfill")
+            : "";
         }
         return new Date(row.item.importedAt).toLocaleString();
       },
     },
     {
       key: "error",
-      header: t3({ en: "Error detail", fr: "Détail de l'erreur", pt: "Detalhe do erro" }),
+      header: t3({
+        en: "Error detail",
+        fr: "Détail de l'erreur",
+        pt: "Detalhe do erro",
+      }),
       render: (row) => {
         const { message } = splitError(row.item?.error);
         return (

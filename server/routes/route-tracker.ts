@@ -5,7 +5,9 @@ import { routeRegistry, routeRegistryIndividualCount } from "lib";
 const definedRoutes = new Set<keyof typeof routeRegistry>();
 
 // Export function to mark a route as defined
-export function markRouteDefined<K extends keyof typeof routeRegistry>(routeName: K) {
+export function markRouteDefined<K extends keyof typeof routeRegistry>(
+  routeName: K,
+) {
   definedRoutes.add(routeName);
 }
 
@@ -13,14 +15,16 @@ export function markRouteDefined<K extends keyof typeof routeRegistry>(routeName
 export function validateAllRoutesDefined(): void {
   console.log("\n🔍 Validating route definitions...\n");
 
-  const allRoutes = Object.keys(routeRegistry) as (keyof typeof routeRegistry)[];
+  const allRoutes = Object.keys(
+    routeRegistry,
+  ) as (keyof typeof routeRegistry)[];
   const definedRoutesList = Array.from(definedRoutes);
 
   // Check for missing routes (in registry but not implemented)
-  const missing = allRoutes.filter(route => !definedRoutes.has(route));
+  const missing = allRoutes.filter((route) => !definedRoutes.has(route));
 
   // Check for extra routes (implemented but not in registry)
-  const extra = definedRoutesList.filter(route => !allRoutes.includes(route));
+  const extra = definedRoutesList.filter((route) => !allRoutes.includes(route));
 
   // Check for key collisions across feature registries (a collision reduces the merged count)
   const mergedCount = allRoutes.length;
@@ -42,7 +46,9 @@ export function validateAllRoutesDefined(): void {
 
   if (missing.length > 0) {
     hasErrors = true;
-    console.error(`❌ Missing routes: ${missing.length} routes not implemented`);
+    console.error(
+      `❌ Missing routes: ${missing.length} routes not implemented`,
+    );
     for (const route of missing) {
       const routeInfo = routeRegistry[route];
       console.error(`   - ${route}: ${routeInfo.method} ${routeInfo.path}`);
@@ -52,7 +58,9 @@ export function validateAllRoutesDefined(): void {
 
   if (extra.length > 0) {
     hasErrors = true;
-    console.error(`❌ Extra routes: ${extra.length} routes defined but not in registry`);
+    console.error(
+      `❌ Extra routes: ${extra.length} routes defined but not in registry`,
+    );
     for (const route of extra) {
       console.error(`   - ${String(route)}`);
     }
@@ -61,7 +69,9 @@ export function validateAllRoutesDefined(): void {
 
   if (keyCollision) {
     hasErrors = true;
-    console.error(`❌ Registry key collision: ${routeRegistryIndividualCount} individual routes but only ${mergedCount} after merge — a key name is duplicated across feature registries`);
+    console.error(
+      `❌ Registry key collision: ${routeRegistryIndividualCount} individual routes but only ${mergedCount} after merge — a key name is duplicated across feature registries`,
+    );
     console.error("");
   }
 
@@ -83,23 +93,31 @@ export function validateAllRoutesDefined(): void {
     const pathKeys = (entry.path.match(/:(\w+)/g) ?? [])
       .map((p: string) => p.slice(1))
       .sort();
-    const isZodObject = paramsSchema instanceof z.ZodType && "shape" in paramsSchema;
+    const isZodObject = paramsSchema instanceof z.ZodType &&
+      "shape" in paramsSchema;
     if (isZodObject) {
-      const schemaKeys = Object.keys((paramsSchema as z.ZodObject<any>).shape).sort();
+      const schemaKeys = Object.keys((paramsSchema as z.ZodObject<any>).shape)
+        .sort();
       if (JSON.stringify(schemaKeys) !== JSON.stringify(pathKeys)) {
         schemaPathMismatches.push(
-          `${routeName}: path [${pathKeys.join(", ")}] ≠ schema [${schemaKeys.join(", ")}]`
+          `${routeName}: path [${pathKeys.join(", ")}] ≠ schema [${
+            schemaKeys.join(", ")
+          }]`,
         );
       }
     } else if (pathKeys.length > 0) {
       schemaPathMismatches.push(
-        `${routeName}: path [${pathKeys.join(", ")}] has placeholders but no z.object params schema`
+        `${routeName}: path [${
+          pathKeys.join(", ")
+        }] has placeholders but no z.object params schema`,
       );
     }
   }
   if (schemaPathMismatches.length > 0) {
     hasErrors = true;
-    console.error(`❌ Schema/path placeholder mismatches: ${schemaPathMismatches.length}`);
+    console.error(
+      `❌ Schema/path placeholder mismatches: ${schemaPathMismatches.length}`,
+    );
     for (const mp of schemaPathMismatches) {
       console.error(`   - ${mp}`);
     }
@@ -114,19 +132,25 @@ export function validateAllRoutesDefined(): void {
   const bodyTransportConflicts: string[] = [];
   for (const [routeName, entry] of Object.entries(routeRegistry)) {
     const bodySchema = (entry as any).body;
-    if (!(bodySchema instanceof z.ZodType) || !("shape" in bodySchema)) continue;
+    if (!(bodySchema instanceof z.ZodType) || !("shape" in bodySchema)) {
+      continue;
+    }
     const pathKeys = new Set(
       (entry.path.match(/:(\w+)/g) ?? []).map((p: string) => p.slice(1)),
     );
     for (const key of Object.keys((bodySchema as z.ZodObject<any>).shape)) {
       if (pathKeys.has(key)) {
-        bodyTransportConflicts.push(`${routeName}: body key "${key}" is also a path placeholder (stripped from body)`);
+        bodyTransportConflicts.push(
+          `${routeName}: body key "${key}" is also a path placeholder (stripped from body)`,
+        );
       }
     }
   }
   if (bodyTransportConflicts.length > 0) {
     hasErrors = true;
-    console.error(`❌ Body/transport conflicts: ${bodyTransportConflicts.length}`);
+    console.error(
+      `❌ Body/transport conflicts: ${bodyTransportConflicts.length}`,
+    );
     for (const c of bodyTransportConflicts) {
       console.error(`   - ${c}`);
     }
@@ -134,7 +158,9 @@ export function validateAllRoutesDefined(): void {
   }
 
   if (hasErrors) {
-    console.error("💥 Route validation failed — fix the above errors before shipping.\n");
+    console.error(
+      "💥 Route validation failed — fix the above errors before shipping.\n",
+    );
     Deno.exit(1);
   } else {
     console.log(`✅ All ${allRoutes.length} routes correctly implemented!\n`);

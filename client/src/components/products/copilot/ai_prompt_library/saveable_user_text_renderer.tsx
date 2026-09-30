@@ -1,6 +1,9 @@
 import { type Component } from "solid-js";
-import { createMarkdownIt, openComponent, Icon } from "panther";
-import { SaveToPromptLibraryModal, type SaveToPromptLibraryResult } from "./save_to_prompt_library_modal";
+import { createMarkdownIt, Icon, openComponent } from "panther";
+import {
+  SaveToPromptLibraryModal,
+  type SaveToPromptLibraryResult,
+} from "./save_to_prompt_library_modal";
 import { t3 } from "lib";
 
 const md = createMarkdownIt();
@@ -11,7 +14,9 @@ function stripAIContext(text: string): string {
 
 type UserTextItem = { type: "user_text"; text: string };
 
-export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (props) => {
+export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (
+  props,
+) => {
   const displayText = () => stripAIContext(props.item.text);
 
   const handleSave = async () => {
@@ -25,7 +30,11 @@ export const SaveableUserTextRenderer: Component<{ item: UserTextItem }> = (prop
     <div class="group ml-auto flex max-w-[80%] items-start gap-1">
       <button
         type="button"
-        title={t3({ en: "Save to prompt library", fr: "Enregistrer dans la bibliothèque", pt: "Guardar na biblioteca de prompts" })}
+        title={t3({
+          en: "Save to prompt library",
+          fr: "Enregistrer dans la bibliothèque",
+          pt: "Guardar na biblioteca de prompts",
+        })}
         onClick={handleSave}
         class="bg-base-100 text-base-content-muted hover:text-base-content mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded border opacity-0 transition-opacity group-hover:opacity-100"
       >

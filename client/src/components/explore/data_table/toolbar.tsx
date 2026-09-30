@@ -1,9 +1,9 @@
 import {
-  t3,
   type AdminLevel,
   type GridColumns,
   type GridPeriodChoice,
   type GridQuery,
+  t3,
 } from "lib";
 import { Button, Input, Select, type SelectOption } from "panther";
 import { type JSX, Show } from "solid-js";
@@ -67,9 +67,12 @@ export function Toolbar(p: {
           keyed
           fallback={
             <Select
-              value={p.query.unit.kind === "strat" ? p.query.unit.strat : undefined}
+              value={p.query.unit.kind === "strat"
+                ? p.query.unit.strat
+                : undefined}
               options={p.stratOptions}
-              onChange={(strat) => p.onChange({ unit: { kind: "strat", strat } })}
+              onChange={(strat) =>
+                p.onChange({ unit: { kind: "strat", strat } })}
               size="sm"
             />
           }
@@ -78,7 +81,8 @@ export function Toolbar(p: {
             <Select
               value={unit.level}
               options={p.levelOptions}
-              onChange={(level) => p.onChange({ unit: { kind: "admin", level } })}
+              onChange={(level) =>
+                p.onChange({ unit: { kind: "admin", level } })}
               disabled={p.levelOptions.length === 0}
               size="sm"
             />

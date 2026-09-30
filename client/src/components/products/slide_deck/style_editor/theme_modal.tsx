@@ -1,4 +1,9 @@
-import { SLIDE_DECK_THEMES, t3, type SlideDeckConfig, type SlideDeckTheme } from "lib";
+import {
+  SLIDE_DECK_THEMES,
+  type SlideDeckConfig,
+  type SlideDeckTheme,
+  t3,
+} from "lib";
 import { type AlertComponentProps, ModalContainer } from "panther";
 import { createSignal, For } from "solid-js";
 import { ContentSlideMiniPreview } from "./style_preview.tsx";
@@ -38,7 +43,11 @@ export function SlideDeckThemeModal(p: Props) {
         pt: `Escolha um tema para “${p.deckLabel}”`,
       })}
       actions={[{
-        label: t3({ en: "Apply theme", fr: "Appliquer le thème", pt: "Aplicar tema" }),
+        label: t3({
+          en: "Apply theme",
+          fr: "Appliquer le thème",
+          pt: "Aplicar tema",
+        }),
         onClick: () => p.close(selected()),
         iconName: "check" as const,
         intent: "success" as const,
@@ -47,9 +56,12 @@ export function SlideDeckThemeModal(p: Props) {
       <div class="ui-spy-sm">
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "The theme sets the deck's colours, type and page furniture. You can change it again at any time from the Deck menu.",
-            fr: "Le thème définit les couleurs, la typographie et la mise en page de la présentation. Vous pouvez en changer à tout moment depuis le menu Présentation.",
-            pt: "O tema define as cores, a tipografia e os elementos de página da apresentação. Pode alterá-lo a qualquer momento no menu Apresentação.",
+            en:
+              "The theme sets the deck's colours, type and page furniture. You can change it again at any time from the Deck menu.",
+            fr:
+              "Le thème définit les couleurs, la typographie et la mise en page de la présentation. Vous pouvez en changer à tout moment depuis le menu Présentation.",
+            pt:
+              "O tema define as cores, a tipografia e os elementos de página da apresentação. Pode alterá-lo a qualquer momento no menu Apresentação.",
           })}
         </div>
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3">

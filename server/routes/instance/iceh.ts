@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import {
-  getDatasetIcehDetail,
-  getDatasetIcehDisplayData,
   deleteDatasetIcehData,
   deleteDatasetIcehIndicators,
+  getDatasetIcehDetail,
+  getDatasetIcehDisplayData,
 } from "../../db/instance/dataset_iceh.ts";
 import {
   cancelDatasetIcehImportRun,
@@ -29,7 +29,7 @@ defineRoute(
   async (c) => {
     const res = await getDatasetIcehDetail(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -40,7 +40,7 @@ defineRoute(
   async (c) => {
     const res = await getDatasetIcehDisplayData(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 // Stateless: parses the zip from the named asset for the wizard's
@@ -65,7 +65,7 @@ defineRoute(
         err: e instanceof Error ? e.message : String(e),
       });
     }
-  }
+  },
 );
 
 defineRoute(
@@ -84,7 +84,7 @@ defineRoute(
       },
     });
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -94,7 +94,7 @@ defineRoute(
   async (c) => {
     const res = await getDatasetIcehImportRunSummaries(c.var.mainDb);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -113,7 +113,7 @@ defineRoute(
       },
     });
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -124,7 +124,7 @@ defineRoute(
   async (c, { body }) => {
     const res = await cancelDatasetIcehImportRun(c.var.mainDb, body.runId);
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -135,10 +135,12 @@ defineRoute(
   async (c) => {
     const res = await deleteDatasetIcehData(c.var.mainDb);
     if (res.success) {
-      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
-  }
+  },
 );
 
 defineRoute(
@@ -147,10 +149,15 @@ defineRoute(
   requireGlobalPermission("can_configure_data"),
   log("deleteDatasetIcehIndicators"),
   async (c, { body }) => {
-    const res = await deleteDatasetIcehIndicators(c.var.mainDb, body.indicatorCodes);
+    const res = await deleteDatasetIcehIndicators(
+      c.var.mainDb,
+      body.indicatorCodes,
+    );
     if (res.success) {
-      notifyInstanceDatasetsUpdated(await getInstanceDatasetsSummary(c.var.mainDb));
+      notifyInstanceDatasetsUpdated(
+        await getInstanceDatasetsSummary(c.var.mainDb),
+      );
     }
     return c.json(res);
-  }
+  },
 );

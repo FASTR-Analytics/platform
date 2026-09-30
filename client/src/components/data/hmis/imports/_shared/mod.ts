@@ -1,1 +1,5 @@
-export { dayOfWeekLabel, recurrenceLabel, weekdayOfWallDate } from "./recurrence_label.ts";
+export {
+  dayOfWeekLabel,
+  recurrenceLabel,
+  weekdayOfWallDate,
+} from "./recurrence_label.ts";

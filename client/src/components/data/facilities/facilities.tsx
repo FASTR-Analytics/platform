@@ -1,25 +1,28 @@
 import {
   ALL_ADMIN_AREA_LEVELS,
-  t3,
-  TC,
   type FacilityFamily,
   type StructureUploadAttemptDetail,
+  t3,
+  TC,
 } from "lib";
 import {
   Button,
+  createButtonAction,
+  createDeleteAction,
   Csv,
   FrameRight,
   FrameTop,
-  HeadingBar,
   getEditorWrapper,
-  createButtonAction,
-  createDeleteAction,
+  HeadingBar,
   toNum0,
 } from "panther";
-import { For, Match, Show, Switch, createSignal, onMount } from "solid-js";
+import { createSignal, For, Match, onMount, Show, Switch } from "solid-js";
 import { StructureUploadAttemptForm } from "./import/mod.ts";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
-import { instanceState, structureSchemaForFamily } from "~/state/instance/t1_store";
+import {
+  instanceState,
+  structureSchemaForFamily,
+} from "~/state/instance/t1_store";
 import { getAdminAreaLabel } from "~/state/instance/_util_disaggregation_label";
 import { StructureWithCsv } from "./with_csv";
 
@@ -30,8 +33,16 @@ type Props = {
 
 function familyLabel(family: FacilityFamily) {
   return family === "hmis"
-    ? t3({ en: "HMIS facilities", fr: "Établissements SNIS", pt: "Estabelecimentos SNIS" })
-    : t3({ en: "HFA facilities", fr: "Établissements Enquêtes FOSA", pt: "Estabelecimentos FOSA" });
+    ? t3({
+      en: "HMIS facilities",
+      fr: "Établissements SNIS",
+      pt: "Estabelecimentos SNIS",
+    })
+    : t3({
+      en: "HFA facilities",
+      fr: "Établissements Enquêtes FOSA",
+      pt: "Estabelecimentos FOSA",
+    });
 }
 
 // Admin areas are DERIVED from the facility rows: each facility carries its
@@ -69,9 +80,12 @@ function AdminAreaSummary(p: { family: FacilityFamily }) {
             </For>
             <div class="ui-text-caption">
               {t3({
-                en: "Derived from the facility rows — created and removed automatically by imports.",
-                fr: "Dérivées des lignes d'établissements — créées et supprimées automatiquement par les importations.",
-                pt: "Derivadas das linhas de estabelecimentos — criadas e removidas automaticamente pelas importações.",
+                en:
+                  "Derived from the facility rows — created and removed automatically by imports.",
+                fr:
+                  "Dérivées des lignes d'établissements — créées et supprimées automatiquement par les importations.",
+                pt:
+                  "Derivadas das linhas de estabelecimentos — criadas e removidas automaticamente pelas importações.",
               })}
             </div>
           </div>
@@ -84,7 +98,9 @@ function AdminAreaSummary(p: { family: FacilityFamily }) {
 export function Facilities(p: Props) {
   const { openEditor, EditorWrapper } = getEditorWrapper();
 
-  const [csvDataIsReady, setCsvDataIsReady] = createSignal<Csv<any> | null>(null);
+  const [csvDataIsReady, setCsvDataIsReady] = createSignal<Csv<any> | null>(
+    null,
+  );
 
   const [uploadAttempt, setUploadAttempt] = createSignal<
     StructureUploadAttemptDetail | undefined
@@ -133,15 +149,19 @@ export function Facilities(p: Props) {
     const deleteAction = createDeleteAction(
       p.family === "hmis"
         ? t3({
-            en: "Are you sure you want to delete all HMIS facilities?",
-            fr: "Êtes-vous sûr de vouloir supprimer tous les établissements SNIS ?",
-            pt: "Tem a certeza de que pretende eliminar todos os estabelecimentos SNIS?",
-          })
+          en: "Are you sure you want to delete all HMIS facilities?",
+          fr:
+            "Êtes-vous sûr de vouloir supprimer tous les établissements SNIS ?",
+          pt:
+            "Tem a certeza de que pretende eliminar todos os estabelecimentos SNIS?",
+        })
         : t3({
-            en: "Are you sure you want to delete all HFA facilities?",
-            fr: "Êtes-vous sûr de vouloir supprimer tous les établissements Enquêtes FOSA ?",
-            pt: "Tem a certeza de que pretende eliminar todos os estabelecimentos FOSA?",
-          }),
+          en: "Are you sure you want to delete all HFA facilities?",
+          fr:
+            "Êtes-vous sûr de vouloir supprimer tous les établissements Enquêtes FOSA ?",
+          pt:
+            "Tem a certeza de que pretende eliminar todos os estabelecimentos FOSA?",
+        }),
       () => serverActions.deleteFamilyFacilities({ family: p.family }),
       fetchUploadAttempt,
     );
@@ -157,7 +177,10 @@ export function Facilities(p: Props) {
     <EditorWrapper>
       <FrameTop
         panelChildren={
-          <HeadingBar onBack={() => p.close(undefined)} heading={familyLabel(p.family)}>
+          <HeadingBar
+            onBack={() => p.close(undefined)}
+            heading={familyLabel(p.family)}
+          >
             <Show when={csvDataIsReady()}>
               <Button
                 iconName="download"
@@ -180,8 +203,16 @@ export function Facilities(p: Props) {
                 <Switch>
                   {/* Fetched per family, so any returned attempt is this family's. */}
                   <Match when={uploadAttempt()}>
-                    <Button onClick={openUploadAttempt} iconName="upload" fullWidth>
-                      {t3({ en: "Resume importing", fr: "Reprendre l'importation", pt: "Retomar a importação" })}
+                    <Button
+                      onClick={openUploadAttempt}
+                      iconName="upload"
+                      fullWidth
+                    >
+                      {t3({
+                        en: "Resume importing",
+                        fr: "Reprendre l'importation",
+                        pt: "Retomar a importação",
+                      })}
                     </Button>
                   </Match>
                   <Match when={true}>
@@ -191,7 +222,11 @@ export function Facilities(p: Props) {
                       iconName="upload"
                       fullWidth
                     >
-                      {t3({ en: "Import facilities", fr: "Importer des établissements", pt: "Importar estabelecimentos" })}
+                      {t3({
+                        en: "Import facilities",
+                        fr: "Importer des établissements",
+                        pt: "Importar estabelecimentos",
+                      })}
                     </Button>
                   </Match>
                 </Switch>
@@ -203,7 +238,11 @@ export function Facilities(p: Props) {
                     iconName="trash"
                     fullWidth
                   >
-                    {t3({ en: "Delete facilities", fr: "Supprimer les établissements", pt: "Eliminar estabelecimentos" })}
+                    {t3({
+                      en: "Delete facilities",
+                      fr: "Supprimer les établissements",
+                      pt: "Eliminar estabelecimentos",
+                    })}
                   </Button>
                 </Show>
 
@@ -217,7 +256,11 @@ export function Facilities(p: Props) {
               when={facilityCount() > 0}
               fallback={
                 <div class="ui-pad">
-                  {t3({ en: "No facilities imported", fr: "Aucun établissement importé", pt: "Nenhum estabelecimento importado" })}
+                  {t3({
+                    en: "No facilities imported",
+                    fr: "Aucun établissement importé",
+                    pt: "Nenhum estabelecimento importado",
+                  })}
                 </div>
               }
             >

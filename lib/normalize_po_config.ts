@@ -122,7 +122,7 @@ export function dropStorageInvalidTransientsInFigures(
 
 export function normalizePOConfigForStorage(
   config: PresentationObjectConfig,
-  resultsValue: RollupEligibilityInputs
+  resultsValue: RollupEligibilityInputs,
 ): PresentationObjectConfig {
   // Canonical roll-up off-state is both entry fields absent. The flag survives
   // transient gate closures while editing (the editor no longer eagerly clears
@@ -137,11 +137,11 @@ export function normalizePOConfigForStorage(
       disaggregateBy: dropped.d.disaggregateBy.map((entry) =>
         entry.disOpt === rollupDim && entry.rollup === true
           ? {
-              disOpt: entry.disOpt,
-              disDisplayOpt: entry.disDisplayOpt,
-              rollup: true,
-              rollupPosition: entry.rollupPosition ?? "bottom",
-            }
+            disOpt: entry.disOpt,
+            disDisplayOpt: entry.disDisplayOpt,
+            rollup: true,
+            rollupPosition: entry.rollupPosition ?? "bottom",
+          }
           : { disOpt: entry.disOpt, disDisplayOpt: entry.disDisplayOpt }
       ),
     },
@@ -172,7 +172,7 @@ export function getEffectivePOConfig(
     dateRange?: { min: number; max: number };
     valueProps?: string[];
     singleValueDims?: ReadonlySet<DisaggregationOption>;
-  }
+  },
 ): EffectivePOConfigResult {
   const dateRange = context?.dateRange;
   const valueProps = context?.valueProps;
@@ -182,19 +182,21 @@ export function getEffectivePOConfig(
   const dateRangeFmt = dateRange
     ? inferPeriodFormatFromValue(dateRange.min)
     : undefined;
-  const singleYear =
-    dateRange &&
+  const singleYear = dateRange &&
     (dateRangeFmt === "year"
       ? dateRange.min === dateRange.max
       : dateRangeFmt === "quarter_id"
-        ? Math.floor(dateRange.min / 10) === Math.floor(dateRange.max / 10)
-        : Math.floor(dateRange.min / 100) === Math.floor(dateRange.max / 100));
+      ? Math.floor(dateRange.min / 10) === Math.floor(dateRange.max / 10)
+      : Math.floor(dateRange.min / 100) === Math.floor(dateRange.max / 100));
 
   const ineffectiveDisaggregators: IneffectiveDisaggregator[] = [];
 
   const effectiveDisaggregateBy = config.d.disaggregateBy.filter((d) => {
     if (hasOnlyOneFilteredValue(config, d.disOpt)) {
-      ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "filtered_to_one_value" });
+      ineffectiveDisaggregators.push({
+        disOpt: d.disOpt,
+        reason: "filtered_to_one_value",
+      });
       return false;
     }
 
@@ -209,17 +211,26 @@ export function getEffectivePOConfig(
       d.disDisplayOpt !== "mapArea" &&
       singleValueDims?.has(d.disOpt)
     ) {
-      ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "single_value" });
+      ineffectiveDisaggregators.push({
+        disOpt: d.disOpt,
+        reason: "single_value",
+      });
       return false;
     }
 
     if (singlePeriod && PERIOD_DISAGGREGATION_OPTIONS.has(d.disOpt)) {
-      ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "single_period" });
+      ineffectiveDisaggregators.push({
+        disOpt: d.disOpt,
+        reason: "single_period",
+      });
       return false;
     }
 
     if (singleYear && d.disOpt === "year") {
-      ineffectiveDisaggregators.push({ disOpt: d.disOpt, reason: "single_year" });
+      ineffectiveDisaggregators.push({
+        disOpt: d.disOpt,
+        reason: "single_year",
+      });
       return false;
     }
 

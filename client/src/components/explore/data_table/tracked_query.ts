@@ -1,6 +1,6 @@
-import { t3, TC, type APIResponseWithData } from "lib";
+import { type APIResponseWithData, t3, TC } from "lib";
 import type { StateHolder } from "panther";
-import { createEffect, createSignal, type Accessor } from "solid-js";
+import { type Accessor, createEffect, createSignal } from "solid-js";
 
 // A read that re-runs whenever a tracked input of `source` changes (the
 // scope, the metric, the config), unlike panther's createQuery, which runs

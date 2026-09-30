@@ -1,21 +1,21 @@
 import {
-  t3,
   type FacilityFamily,
   type StructureColumns,
   type StructureSchema,
+  t3,
 } from "lib";
 import {
   Button,
-  Checkbox,
   Card,
+  Checkbox,
+  createButtonAction,
   FrameTop,
+  getSelectOptions,
   HeadingBar,
   Input,
   RadioGroup,
-  createButtonAction,
-  getSelectOptions,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { structureSchemaForFamily } from "~/state/instance/t1_store";
 
@@ -188,19 +188,17 @@ export function FamilyConfiguration(p: Props) {
       panelChildren={
         <HeadingBar
           onBack={() => p.close(undefined)}
-          heading={
-            p.family === "hmis"
-              ? t3({
-                en: "HMIS configuration",
-                fr: "Configuration SNIS",
-                pt: "Configuração SNIS",
-              })
-              : t3({
-                en: "HFA configuration",
-                fr: "Configuration Enquêtes FOSA",
-                pt: "Configuração FOSA",
-              })
-          }
+          heading={p.family === "hmis"
+            ? t3({
+              en: "HMIS configuration",
+              fr: "Configuration SNIS",
+              pt: "Configuração SNIS",
+            })
+            : t3({
+              en: "HFA configuration",
+              fr: "Configuration Enquêtes FOSA",
+              pt: "Configuração FOSA",
+            })}
         />
       }
     >
@@ -230,9 +228,12 @@ export function FamilyConfiguration(p: Props) {
           <div class="ui-spy-sm">
             <div class="ui-text-caption">
               {t3({
-                en: "How many admin area levels this registry's facilities are organised into. Changing it requires deleting this registry's facilities first.",
-                fr: "Nombre de niveaux d'unités administratives utilisés par les établissements de ce registre. Toute modification nécessite d'abord la suppression des établissements de ce registre.",
-                pt: "Quantos níveis de zonas administrativas os estabelecimentos deste registo utilizam. Alterá-lo exige eliminar primeiro os estabelecimentos deste registo.",
+                en:
+                  "How many admin area levels this registry's facilities are organised into. Changing it requires deleting this registry's facilities first.",
+                fr:
+                  "Nombre de niveaux d'unités administratives utilisés par les établissements de ce registre. Toute modification nécessite d'abord la suppression des établissements de ce registre.",
+                pt:
+                  "Quantos níveis de zonas administrativas os estabelecimentos deste registo utilizam. Alterá-lo exige eliminar primeiro os estabelecimentos deste registo.",
               })}
             </div>
             <RadioGroup
@@ -268,9 +269,12 @@ export function FamilyConfiguration(p: Props) {
           <div class="ui-spy-sm">
             <div class="ui-text-caption">
               {t3({
-                en: "Which optional columns this registry's facility imports carry, and the label each is shown under.",
-                fr: "Colonnes facultatives présentes dans les importations d'établissements de ce registre, et le libellé sous lequel chacune est affichée.",
-                pt: "Colunas opcionais incluídas nas importações de estabelecimentos deste registo e o rótulo com que cada uma é apresentada.",
+                en:
+                  "Which optional columns this registry's facility imports carry, and the label each is shown under.",
+                fr:
+                  "Colonnes facultatives présentes dans les importations d'établissements de ce registre, et le libellé sous lequel chacune est affichée.",
+                pt:
+                  "Colunas opcionais incluídas nas importações de estabelecimentos deste registo e o rótulo com que cada uma é apresentada.",
               })}
             </div>
             <div class="ui-gap ui-spy-sm">
@@ -292,9 +296,12 @@ export function FamilyConfiguration(p: Props) {
                           value={col(option.labelKey) ?? ""}
                           onChange={(value) => setCol(option.labelKey, value)}
                           placeholder={t3({
-                            en: `Custom label for ${option.label.toLowerCase()}`,
-                            fr: `Libellé personnalisé pour ${option.label.toLowerCase()}`,
-                            pt: `Rótulo personalizado para ${option.label.toLowerCase()}`,
+                            en:
+                              `Custom label for ${option.label.toLowerCase()}`,
+                            fr:
+                              `Libellé personnalisé pour ${option.label.toLowerCase()}`,
+                            pt:
+                              `Rótulo personalizado para ${option.label.toLowerCase()}`,
                           })}
                           fullWidth
                         />

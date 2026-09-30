@@ -91,7 +91,11 @@ async function ok<T>(
   body?: unknown,
 ): Promise<T> {
   const res = await call(app, method, path, body);
-  assertEquals(res.status, 200, `${method} ${path}: ${JSON.stringify(res.body)}`);
+  assertEquals(
+    res.status,
+    200,
+    `${method} ${path}: ${JSON.stringify(res.body)}`,
+  );
   assert(res.body.success, `${method} ${path}: ${JSON.stringify(res.body)}`);
   return res.body.data as T;
 }
@@ -171,19 +175,35 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
   try {
     // Guard: unauthenticated is 401, unapproved is 403, on a read and a write.
     const anonymous = productApp(null);
-    assertEquals((await call(anonymous, "GET", "/products/xxxx/slide-deck")).status, 401);
     assertEquals(
-      (await call(anonymous, "POST", "/products", { type: "slide_deck", folderId: null })).status,
+      (await call(anonymous, "GET", "/products/xxxx/slide-deck")).status,
+      401,
+    );
+    assertEquals(
+      (await call(anonymous, "POST", "/products", {
+        type: "slide_deck",
+        folderId: null,
+      })).status,
       401,
     );
     const unapproved = productApp(UNAPPROVED_EMAIL);
-    assertEquals((await call(unapproved, "GET", "/products/xxxx/slide-deck")).status, 403);
     assertEquals(
-      (await call(unapproved, "POST", "/products", { type: "slide_deck", folderId: null })).status,
+      (await call(unapproved, "GET", "/products/xxxx/slide-deck")).status,
       403,
     );
     assertEquals(
-      (await call(unapproved, "POST", "/folders", { label: "x", color: null, parentId: null })).status,
+      (await call(unapproved, "POST", "/products", {
+        type: "slide_deck",
+        folderId: null,
+      })).status,
+      403,
+    );
+    assertEquals(
+      (await call(unapproved, "POST", "/folders", {
+        label: "x",
+        color: null,
+        parentId: null,
+      })).status,
       403,
     );
 
@@ -201,7 +221,14 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assert(ID_ALPHABET.test(deck.productId), deck.productId);
     assert(ID_ALPHABET.test(report.productId), report.productId);
     const rows = await mainDb<
-      { id: string; type: string; label: string; run_id: string; admin_area_2: string | null; created_by: string }[]
+      {
+        id: string;
+        type: string;
+        label: string;
+        run_id: string;
+        admin_area_2: string | null;
+        created_by: string;
+      }[]
     >`SELECT id, type, label, run_id, admin_area_2, created_by FROM products WHERE id = ANY(${createdProductIds})`;
     const byId = new Map(rows.map((r) => [r.id, r]));
     assertEquals(byId.get(deck.productId)?.label, "Untitled deck");
@@ -269,19 +296,29 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(unapprovedState.data.products, []);
     assertEquals(unapprovedState.data.folders, []);
     assertEquals(unapprovedState.data.readyPackages, []);
-    assertEquals(unapprovedState.data.lastUpdated, { products: {}, slides: {} });
+    assertEquals(unapprovedState.data.lastUpdated, {
+      products: {},
+      slides: {},
+    });
 
     // Package: a ready run is accepted, a non-ready run is refused in the
     // UPDATE and leaves the pointer alone.
     await ok(app, "PUT", `/products/${deck.productId}/package`, {
       runId: otherReady.id,
     });
-    const refused = await call(app, "PUT", `/products/${deck.productId}/package`, {
-      runId: failedRunId,
-    });
+    const refused = await call(
+      app,
+      "PUT",
+      `/products/${deck.productId}/package`,
+      {
+        runId: failedRunId,
+      },
+    );
     assertEquals(refused.body.success, false);
     const pointer = (
-      await mainDb<{ run_id: string }[]>`SELECT run_id FROM products WHERE id = ${deck.productId}`
+      await mainDb<
+        { run_id: string }[]
+      >`SELECT run_id FROM products WHERE id = ${deck.productId}`
     )[0];
     assertEquals(pointer.run_id, otherReady.id);
 
@@ -290,7 +327,9 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       adminArea2: "Harness Area",
     });
     const scoped = (
-      await mainDb<{ admin_area_2: string | null }[]>`SELECT admin_area_2 FROM products WHERE id = ${deck.productId}`
+      await mainDb<
+        { admin_area_2: string | null }[]
+      >`SELECT admin_area_2 FROM products WHERE id = ${deck.productId}`
     )[0];
     assertEquals(scoped.admin_area_2, "Harness Area");
 
@@ -333,7 +372,11 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     });
     assertEquals(missingUpdate.status, 404);
     assertEquals(missingUpdate.body, { success: false, err: FOLDER_NOT_FOUND });
-    const missingDelete = await call(app, "DELETE", `/folders/${missingFolder}`);
+    const missingDelete = await call(
+      app,
+      "DELETE",
+      `/folders/${missingFolder}`,
+    );
     assertEquals(missingDelete.status, 404);
     assertEquals(missingDelete.body, { success: false, err: FOLDER_NOT_FOUND });
     await ok(app, "PUT", "/products/folder", {
@@ -347,40 +390,76 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     );
     assertEquals(freed.freedProductIds, [report.productId]);
     const reparented = (
-      await mainDb<{ parent_id: string | null }[]>`SELECT parent_id FROM folders WHERE id = ${folderC.folderId}`
+      await mainDb<
+        { parent_id: string | null }[]
+      >`SELECT parent_id FROM folders WHERE id = ${folderC.folderId}`
     )[0];
     assertEquals(reparented.parent_id, folderA.folderId);
     const reportFolder = (
-      await mainDb<{ folder_id: string | null }[]>`SELECT folder_id FROM products WHERE id = ${report.productId}`
+      await mainDb<
+        { folder_id: string | null }[]
+      >`SELECT folder_id FROM products WHERE id = ${report.productId}`
     )[0];
     assertEquals(reportFolder.folder_id, folderA.folderId);
 
     // A new deck is EMPTY until its theme is first chosen; that write makes
     // its cover, and a later write that repeats the choice makes no second.
-    const emptyAtFirst = await ok<{ id: string }[]>(app, "GET", `/products/${deck.productId}/slides`);
+    const emptyAtFirst = await ok<{ id: string }[]>(
+      app,
+      "GET",
+      `/products/${deck.productId}/slides`,
+    );
     assertEquals(emptyAtFirst.length, 0);
-    const detail = await ok<{ config: SlideDeckConfig }>(app, "GET", `/products/${deck.productId}/slide-deck`);
+    const detail = await ok<{ config: SlideDeckConfig }>(
+      app,
+      "GET",
+      `/products/${deck.productId}/slide-deck`,
+    );
     assertEquals(detail.config.themeChosen, false);
-    const chosen = { ...detail.config, theme: "minimal" as const, themeChosen: true };
-    await ok(app, "PUT", `/products/${deck.productId}/slide-deck/config`, { config: chosen });
-    await ok(app, "PUT", `/products/${deck.productId}/slide-deck/config`, { config: chosen });
-    const initialSlides = await ok<{ id: string }[]>(app, "GET", `/products/${deck.productId}/slides`);
+    const chosen = {
+      ...detail.config,
+      theme: "minimal" as const,
+      themeChosen: true,
+    };
+    await ok(app, "PUT", `/products/${deck.productId}/slide-deck/config`, {
+      config: chosen,
+    });
+    await ok(app, "PUT", `/products/${deck.productId}/slide-deck/config`, {
+      config: chosen,
+    });
+    const initialSlides = await ok<{ id: string }[]>(
+      app,
+      "GET",
+      `/products/${deck.productId}/slides`,
+    );
     assertEquals(initialSlides.length, 1);
     const coverId = initialSlides[0].id;
-    const coverRow = await mainDb<{ config: string }[]>`SELECT config FROM slides WHERE id = ${coverId}`;
+    const coverRow = await mainDb<
+      { config: string }[]
+    >`SELECT config FROM slides WHERE id = ${coverId}`;
     assertEquals(JSON.parse(coverRow[0].config).type, "cover");
 
     // Slides in the first deck (after its cover), then a duplicate carrying
     // the same pair, then two slides copied to the duplicate with their
     // configs verbatim.
-    const slide1 = await ok<{ slideId: string }>(app, "POST", `/products/${deck.productId}/slides`, {
-      position: { toEnd: true },
-      slide: textSlide("one"),
-    });
-    const slide2 = await ok<{ slideId: string }>(app, "POST", `/products/${deck.productId}/slides`, {
-      position: { toEnd: true },
-      slide: textSlide("two"),
-    });
+    const slide1 = await ok<{ slideId: string }>(
+      app,
+      "POST",
+      `/products/${deck.productId}/slides`,
+      {
+        position: { toEnd: true },
+        slide: textSlide("one"),
+      },
+    );
+    const slide2 = await ok<{ slideId: string }>(
+      app,
+      "POST",
+      `/products/${deck.productId}/slides`,
+      {
+        position: { toEnd: true },
+        slide: textSlide("two"),
+      },
+    );
     assert(ID_ALPHABET.test(slide1.slideId), slide1.slideId);
     const moved = await ok<{ slides: { id: string }[] }>(
       app,
@@ -388,24 +467,42 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       `/products/${deck.productId}/slides/move`,
       { slideIds: [slide2.slideId], position: { toStart: true } },
     );
-    assertEquals(moved.slides.map((s) => s.id), [slide2.slideId, coverId, slide1.slideId]);
+    assertEquals(moved.slides.map((s) => s.id), [
+      slide2.slideId,
+      coverId,
+      slide1.slideId,
+    ]);
 
     // A deck write aimed at a report is a 404 with no side effect: the
     // registry row keeps its label and stamp.
     const reportBefore = (
-      await mainDb<{ label: string; last_updated: string }[]>`SELECT label, last_updated FROM products WHERE id = ${report.productId}`
+      await mainDb<
+        { label: string; last_updated: string }[]
+      >`SELECT label, last_updated FROM products WHERE id = ${report.productId}`
     )[0];
-    const crossType = await call(app, "PUT", `/products/${report.productId}/slide-deck/config`, {
-      config: getStartingConfigForSlideDeck("Overwritten"),
-    });
+    const crossType = await call(
+      app,
+      "PUT",
+      `/products/${report.productId}/slide-deck/config`,
+      {
+        config: getStartingConfigForSlideDeck("Overwritten"),
+      },
+    );
     assertEquals(crossType.status, 404);
     assertEquals(crossType.body.success, false);
-    const crossDelete = await call(app, "DELETE", `/products/${report.productId}/slides`, {
-      slideIds: [slide1.slideId],
-    });
+    const crossDelete = await call(
+      app,
+      "DELETE",
+      `/products/${report.productId}/slides`,
+      {
+        slideIds: [slide1.slideId],
+      },
+    );
     assertEquals(crossDelete.status, 404);
     const reportAfter = (
-      await mainDb<{ label: string; last_updated: string }[]>`SELECT label, last_updated FROM products WHERE id = ${report.productId}`
+      await mainDb<
+        { label: string; last_updated: string }[]
+      >`SELECT label, last_updated FROM products WHERE id = ${report.productId}`
     )[0];
     assertEquals(reportAfter, reportBefore);
     const copy = await ok<{ productId: string }>(
@@ -416,11 +513,22 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     );
     createdProductIds.push(copy.productId);
     const pairs = await mainDb<
-      { id: string; run_id: string; admin_area_2: string | null; label: string }[]
+      {
+        id: string;
+        run_id: string;
+        admin_area_2: string | null;
+        label: string;
+      }[]
     >`SELECT id, run_id, admin_area_2, label FROM products WHERE id IN (${deck.productId}, ${copy.productId})`;
     assertEquals(new Set(pairs.map((p) => p.run_id)), new Set([otherReady.id]));
-    assertEquals(new Set(pairs.map((p) => p.admin_area_2)), new Set(["Harness Area"]));
-    assertEquals(pairs.find((p) => p.id === copy.productId)?.label, "Untitled deck (copy)");
+    assertEquals(
+      new Set(pairs.map((p) => p.admin_area_2)),
+      new Set(["Harness Area"]),
+    );
+    assertEquals(
+      pairs.find((p) => p.id === copy.productId)?.label,
+      "Untitled deck (copy)",
+    );
     // The scope is the caller's: a national copy of an area deck keeps the
     // package and takes the new scope.
     const national = await ok<{ productId: string }>(
@@ -431,30 +539,53 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     );
     createdProductIds.push(national.productId);
     const nationalRow = (
-      await mainDb<{ run_id: string; admin_area_2: string | null }[]>`SELECT run_id, admin_area_2 FROM products WHERE id = ${national.productId}`
+      await mainDb<
+        { run_id: string; admin_area_2: string | null }[]
+      >`SELECT run_id, admin_area_2 FROM products WHERE id = ${national.productId}`
     )[0];
     assertEquals(nationalRow, { run_id: otherReady.id, admin_area_2: null });
     const copied = await ok<{ newSlideIds: string[] }>(
       app,
       "POST",
       `/products/${deck.productId}/slides/copy-to-slide-deck`,
-      { slideIds: [slide1.slideId, slide2.slideId], targetProductId: copy.productId },
+      {
+        slideIds: [slide1.slideId, slide2.slideId],
+        targetProductId: copy.productId,
+      },
     );
     assertEquals(copied.newSlideIds.length, 2);
-    const configs = await mainDb<{ id: string; config: string; slide_deck_id: string }[]>`
+    const configs = await mainDb<
+      { id: string; config: string; slide_deck_id: string }[]
+    >`
       SELECT id, config, slide_deck_id FROM slides
-      WHERE id IN (${slide1.slideId}, ${slide2.slideId}, ${copied.newSlideIds[0]}, ${copied.newSlideIds[1]})
+      WHERE id IN (${slide1.slideId}, ${slide2.slideId}, ${
+      copied.newSlideIds[0]
+    }, ${copied.newSlideIds[1]})
     `;
     const configOf = (id: string) => configs.find((c) => c.id === id)!;
-    assertEquals(configOf(copied.newSlideIds[0]).config, configOf(slide1.slideId).config);
-    assertEquals(configOf(copied.newSlideIds[1]).config, configOf(slide2.slideId).config);
+    assertEquals(
+      configOf(copied.newSlideIds[0]).config,
+      configOf(slide1.slideId).config,
+    );
+    assertEquals(
+      configOf(copied.newSlideIds[1]).config,
+      configOf(slide2.slideId).config,
+    );
     assertEquals(configOf(copied.newSlideIds[0]).slide_deck_id, copy.productId);
-    const targetSlides = await ok<{ id: string }[]>(app, "GET", `/products/${copy.productId}/slides`);
+    const targetSlides = await ok<{ id: string }[]>(
+      app,
+      "GET",
+      `/products/${copy.productId}/slides`,
+    );
     // The duplicate's three (cover + two) plus the two copied in.
     assertEquals(targetSlides.length, 5);
 
     // A slide id under the wrong product is a 404; under its own it reads.
-    const wrong = await call(app, "GET", `/products/${report.productId}/slides/${slide1.slideId}`);
+    const wrong = await call(
+      app,
+      "GET",
+      `/products/${report.productId}/slides/${slide1.slideId}`,
+    );
     assertEquals(wrong.status, 404);
     assertEquals(wrong.body.success, false);
     const right = await ok<{ id: string; deckId: string }>(
@@ -467,12 +598,20 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     // The delete guard refuses while a product points at the run.
     const guarded = await deleteRunCatalogRow(mainDb, otherReady.id);
     assertEquals(guarded.success, false);
-    assert(!guarded.success && guarded.err.includes("in use"), JSON.stringify(guarded));
+    assert(
+      !guarded.success && guarded.err.includes("in use"),
+      JSON.stringify(guarded),
+    );
 
     // One batch delete of every product: CASCADE takes the slides with them.
-    const deleted = await ok<{ deletedIds: string[] }>(app, "DELETE", "/products", {
-      productIds: createdProductIds,
-    });
+    const deleted = await ok<{ deletedIds: string[] }>(
+      app,
+      "DELETE",
+      "/products",
+      {
+        productIds: createdProductIds,
+      },
+    );
     assertEquals(new Set(deleted.deletedIds), new Set(createdProductIds));
     const remaining = (
       await mainDb<{ products: number; slides: number }[]>`

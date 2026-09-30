@@ -1,7 +1,7 @@
 import {
   FASTR_REPORT_TEMPLATES,
-  fastrReportTemplateBody,
   type FastrReportTemplate,
+  fastrReportTemplateBody,
   renderFastrMarkdownToHtml,
   t3,
 } from "lib";
@@ -26,17 +26,20 @@ export function ReportTemplateGallery(p: {
 }) {
   const html = (template: FastrReportTemplate) => {
     const body = fastrReportTemplateBody(template, p.reportLabel);
-    return body.length === 0
-      ? undefined
-      : sanitizeReportHtml(renderFastrMarkdownToHtml(body, { lineAnchors: false }));
+    return body.length === 0 ? undefined : sanitizeReportHtml(
+      renderFastrMarkdownToHtml(body, { lineAnchors: false }),
+    );
   };
   return (
     <div class="ui-spy-sm">
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: "A template gives the report its sections and blocks, with grey guidance in each slot to type over. The AI is told which template you chose and writes to its shape.",
-          fr: "Un modèle donne au rapport ses sections et ses blocs, avec des indications grises à remplacer dans chaque emplacement. L'IA sait quel modèle vous avez choisi et écrit selon sa forme.",
-          pt: "Um modelo dá ao relatório as suas secções e blocos, com indicações a cinzento em cada espaço para substituir. A IA sabe que modelo escolheu e escreve de acordo com a sua forma.",
+          en:
+            "A template gives the report its sections and blocks, with grey guidance in each slot to type over. The AI is told which template you chose and writes to its shape.",
+          fr:
+            "Un modèle donne au rapport ses sections et ses blocs, avec des indications grises à remplacer dans chaque emplacement. L'IA sait quel modèle vous avez choisi et écrit selon sa forme.",
+          pt:
+            "Um modelo dá ao relatório as suas secções e blocos, com indicações a cinzento em cada espaço para substituir. A IA sabe que modelo escolheu e escreve de acordo com a sua forma.",
         })}
       </div>
       <div class="grid grid-cols-3 gap-4">
@@ -52,7 +55,10 @@ export function ReportTemplateGallery(p: {
               onClick={() => p.onSelect(template)}
               onDblClick={() => p.onPick(template)}
             >
-              <FastrTemplateMock scopeClass={p.scopeClass} html={html(template)} />
+              <FastrTemplateMock
+                scopeClass={p.scopeClass}
+                html={html(template)}
+              />
               <div class="text-base-content font-700 mt-1.5">
                 {fastrTemplateLabel(template)}
               </div>

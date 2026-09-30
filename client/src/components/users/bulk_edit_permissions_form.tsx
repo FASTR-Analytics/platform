@@ -1,12 +1,14 @@
-import {
-  AlertComponentProps,
-  ModalContainer,
-  createFormAction,
-} from "panther";
+import { AlertComponentProps, createFormAction, ModalContainer } from "panther";
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
-import { t3, TC, type UserPermission, USER_PERMISSIONS, INSTANCE_PERMISSION_LABELS } from "lib";
+import {
+  INSTANCE_PERMISSION_LABELS,
+  t3,
+  TC,
+  USER_PERMISSIONS,
+  type UserPermission,
+} from "lib";
 
 type TriState = true | false | "unchanged";
 
@@ -53,7 +55,17 @@ export function BulkEditPermissionsForm(
   return (
     <ModalContainer
       width="sm"
-      title={t3({ en: `Edit permissions for ${userCount} user${userCount === 1 ? "" : "s"}`, fr: `Modifier les permissions pour ${userCount} utilisateur${userCount === 1 ? "" : "s"}`, pt: `Editar permissões para ${userCount} utilizador${userCount === 1 ? "" : "es"}` })}
+      title={t3({
+        en: `Edit permissions for ${userCount} user${
+          userCount === 1 ? "" : "s"
+        }`,
+        fr: `Modifier les permissions pour ${userCount} utilisateur${
+          userCount === 1 ? "" : "s"
+        }`,
+        pt: `Editar permissões para ${userCount} utilizador${
+          userCount === 1 ? "" : "es"
+        }`,
+      })}
       actions={[
         {
           label: t3(TC.save),
@@ -66,7 +78,12 @@ export function BulkEditPermissionsForm(
     >
       <div class="space-y-1">
         <div class="ui-text-caption mb-2">
-          {t3({ en: "Click to cycle: unchanged \u2192 true \u2192 false", fr: "Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux", pt: "Clique para alternar: inalterado \u2192 verdadeiro \u2192 falso" })}
+          {t3({
+            en: "Click to cycle: unchanged \u2192 true \u2192 false",
+            fr: "Cliquer pour alterner : inchangé \u2192 vrai \u2192 faux",
+            pt:
+              "Clique para alternar: inalterado \u2192 verdadeiro \u2192 falso",
+          })}
         </div>
         <For each={USER_PERMISSIONS}>
           {(key: UserPermission) => (
@@ -94,11 +111,14 @@ function TriStateCheckbox(p: {
   };
 
   const boxClass = () => {
-    const base = "w-4 h-4 rounded border flex items-center justify-center text-xs flex-none";
-    if (p.value === true)
+    const base =
+      "w-4 h-4 rounded border flex items-center justify-center text-xs flex-none";
+    if (p.value === true) {
       return `${base} bg-primary border-primary text-primary-content`;
-    if (p.value === false)
+    }
+    if (p.value === false) {
       return `${base} border-danger text-danger-subtle-content bg-danger-subtle font-700`;
+    }
     return `${base} bg-base-200 text-base-content`;
   };
 
@@ -109,7 +129,10 @@ function TriStateCheckbox(p: {
   };
 
   return (
-    <label class="flex items-center gap-2 cursor-pointer select-none py-1" onClick={() => p.onChange()}>
+    <label
+      class="flex items-center gap-2 cursor-pointer select-none py-1"
+      onClick={() => p.onChange()}
+    >
       <span class={boxClass()}>{icon()}</span>
       <span class={labelClass()}>{p.label}</span>
     </label>

@@ -1,13 +1,13 @@
-import { t3, type Folder } from "lib";
+import { type Folder, t3 } from "lib";
 import {
+  type AlertComponentProps,
+  createFormAction,
   ModalContainer,
   RadioGroup,
-  createFormAction,
-  type AlertComponentProps,
 } from "panther";
 import { createMemo, createSignal } from "solid-js";
 import { serverActions } from "~/server_actions";
-import { GENERAL_ID, folderPathOptions, generalLabel } from "./_shared/mod.ts";
+import { folderPathOptions, GENERAL_ID, generalLabel } from "./_shared/mod.ts";
 
 type Props = {
   // What is being moved: a batch of products, or one folder (folders are never
@@ -35,8 +35,9 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
   const folderOptions = createMemo(() => [
     { value: GENERAL_ID, label: generalLabel() },
     ...folderPathOptions(p.folders, {
-      excludeSubtree:
-        p.target.kind === "folder" ? p.target.folder.id : undefined,
+      excludeSubtree: p.target.kind === "folder"
+        ? p.target.folder.id
+        : undefined,
     }),
   ]);
 
@@ -79,15 +80,15 @@ export function MoveToFolderModal(p: AlertComponentProps<Props, ReturnType>) {
     }
     return p.target.productIds.length > 1
       ? t3({
-          en: `Move ${p.target.productIds.length} products to folder`,
-          fr: `Déplacer ${p.target.productIds.length} produits vers un dossier`,
-          pt: `Mover ${p.target.productIds.length} produtos para uma pasta`,
-        })
+        en: `Move ${p.target.productIds.length} products to folder`,
+        fr: `Déplacer ${p.target.productIds.length} produits vers un dossier`,
+        pt: `Mover ${p.target.productIds.length} produtos para uma pasta`,
+      })
       : t3({
-          en: "Move to folder",
-          fr: "Déplacer vers un dossier",
-          pt: "Mover para uma pasta",
-        });
+        en: "Move to folder",
+        fr: "Déplacer vers un dossier",
+        pt: "Mover para uma pasta",
+      });
   };
 
   return (

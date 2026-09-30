@@ -1,10 +1,10 @@
 import {
-  NO_STORED_DHIS2_CONNECTION,
-  t3,
   type FacilityFamily,
+  NO_STORED_DHIS2_CONNECTION,
   type StructureDhis2ConnectionSnapshot,
+  t3,
 } from "lib";
-import { Button, StateHolderFormError, createFormAction } from "panther";
+import { Button, createFormAction, StateHolderFormError } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
@@ -33,12 +33,18 @@ export function Step1_Dhis2(p: Props) {
     <div class="ui-pad ui-spy">
       <div class="ui-spy-sm">
         <div class="ui-text-heading">
-          {t3({ en: "DHIS2 Connection", fr: "Connexion DHIS2", pt: "Ligação DHIS2" })}
+          {t3({
+            en: "DHIS2 Connection",
+            fr: "Connexion DHIS2",
+            pt: "Ligação DHIS2",
+          })}
         </div>
         <div class="ui-spy rounded border p-4">
           <Show
             when={instanceState.dhis2ConnectionUrl}
-            fallback={<div class="text-danger">{t3(NO_STORED_DHIS2_CONNECTION)}</div>}
+            fallback={
+              <div class="text-danger">{t3(NO_STORED_DHIS2_CONNECTION)}</div>
+            }
             keyed
           >
             {(url) => (
@@ -47,8 +53,7 @@ export function Step1_Dhis2(p: Props) {
                   en: "Use stored connection:",
                   fr: "Utiliser la connexion enregistrée :",
                   pt: "Utilizar a ligação guardada:",
-                })}{" "}
-                <span class="font-700">{url}</span>
+                })} <span class="font-700">{url}</span>
               </div>
             )}
           </Show>
@@ -61,8 +66,7 @@ export function Step1_Dhis2(p: Props) {
                     en: "DHIS2 connection confirmed:",
                     fr: "Connexion DHIS2 confirmée :",
                     pt: "Ligação DHIS2 confirmada:",
-                  })}{" "}
-                  {step1Result.url}
+                  })} {step1Result.url}
                 </span>
               </div>
             )}
@@ -78,7 +82,11 @@ export function Step1_Dhis2(p: Props) {
           disabled={!instanceState.dhis2ConnectionUrl}
           iconName="save"
         >
-          {t3({ en: "Confirm and continue", fr: "Confirmer et continuer", pt: "Confirmar e continuar" })}
+          {t3({
+            en: "Confirm and continue",
+            fr: "Confirmer et continuer",
+            pt: "Confirmar e continuar",
+          })}
         </Button>
       </div>
     </div>

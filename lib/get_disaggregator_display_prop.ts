@@ -1,7 +1,7 @@
 import {
-  get_DISAGGREGATION_DISPLAY_OPTIONS,
   type DisaggregationDisplayOption,
   type DisaggregationOption,
+  get_DISAGGREGATION_DISPLAY_OPTIONS,
 } from "./types/presentation_objects.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { ResultsValueForVisualization } from "./types/modules.ts";
@@ -35,7 +35,7 @@ export function getDisaggregatorDisplayProp(
   _resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
   props: DisaggregationDisplayOption[],
-  effectiveValueProps: string[]
+  effectiveValueProps: string[],
 ): DisaggregationOption | "--v" | undefined {
   if (effectiveValueProps.length > 1) {
     if (props.includes(config.d.valuesDisDisplayOpt)) {
@@ -57,7 +57,9 @@ export function getDisaggregatorDisplayProp(
 // effective config → safe on raw config everywhere. Does NOT account for temporal
 // degeneracy (single_period/single_year); for that use getEffectivePOConfig.
 export function getReplicateByProp(
-  config: { d: Pick<PresentationObjectConfig["d"], "disaggregateBy" | "filterBy"> }
+  config: {
+    d: Pick<PresentationObjectConfig["d"], "disaggregateBy" | "filterBy">;
+  },
 ): DisaggregationOption | undefined {
   for (const dis of config.d.disaggregateBy) {
     if (
@@ -73,7 +75,7 @@ export function getReplicateByProp(
 export function hasDuplicateDisaggregatorDisplayOptions(
   _resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
-  effectiveValueProps: string[]
+  effectiveValueProps: string[],
 ) {
   const disDisplayOpts: DisaggregationDisplayOption[] = [];
   if (effectiveValueProps.length > 1) {
@@ -92,7 +94,7 @@ export function getNextAvailableDisaggregationDisplayOption(
   _resultsValue: ResultsValueForVisualization,
   config: PresentationObjectConfig,
   disOpt: DisaggregationOption,
-  effectiveValueProps: string[]
+  effectiveValueProps: string[],
 ): DisaggregationDisplayOption {
   const otherExistingOpts = config.d.disaggregateBy
     .filter((d) => d.disOpt !== disOpt)

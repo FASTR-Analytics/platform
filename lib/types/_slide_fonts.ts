@@ -9,13 +9,40 @@ type SlideFontConfig = {
 };
 
 export const SLIDE_FONTS: SlideFontConfig[] = [
-  { family: "International Inter", label: "Inter", regularWeight: 400, boldWeight: 800, letterSpacing: "-0.02em" },
-  { family: "Fira Sans", label: "Fira Sans", regularWeight: 400, boldWeight: 800, letterSpacing: "0px" },
-  { family: "Merriweather", label: "Merriweather", regularWeight: 400, boldWeight: 700, letterSpacing: "0px" },
-  { family: "Poppins", label: "Poppins", regularWeight: 400, boldWeight: 700, letterSpacing: "0px" },
+  {
+    family: "International Inter",
+    label: "Inter",
+    regularWeight: 400,
+    boldWeight: 800,
+    letterSpacing: "-0.02em",
+  },
+  {
+    family: "Fira Sans",
+    label: "Fira Sans",
+    regularWeight: 400,
+    boldWeight: 800,
+    letterSpacing: "0px",
+  },
+  {
+    family: "Merriweather",
+    label: "Merriweather",
+    regularWeight: 400,
+    boldWeight: 700,
+    letterSpacing: "0px",
+  },
+  {
+    family: "Poppins",
+    label: "Poppins",
+    regularWeight: 400,
+    boldWeight: 700,
+    letterSpacing: "0px",
+  },
 ];
 
-export const SLIDE_FONT_FAMILIES = SLIDE_FONTS.map((f) => f.family) as [string, ...string[]];
+export const SLIDE_FONT_FAMILIES = SLIDE_FONTS.map((f) => f.family) as [
+  string,
+  ...string[],
+];
 
 export type SlideFontFamily = (typeof SLIDE_FONTS)[number]["family"];
 

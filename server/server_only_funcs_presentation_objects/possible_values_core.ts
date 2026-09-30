@@ -16,9 +16,9 @@ import {
 import { REPLICANT_OPTIONS_QUERY_LIMIT } from "./consts.ts";
 import {
   type DynamicPeriodColumn,
+  getPeriodColumnExpression,
   PERIOD_COLUMN_EXPRESSIONS,
   QUARTER_ID_COLUMN_EXPRESSIONS,
-  getPeriodColumnExpression,
 } from "./period_helpers.ts";
 import type { QueryContext, SqlRowsExecutor } from "./types.ts";
 
@@ -136,17 +136,15 @@ export async function getPossibleValuesCore(
       columnPrefixes,
       queryContext,
     );
-    const whereClause =
-      whereStatements.length === 0
-        ? ""
-        : `WHERE ${whereStatements.join(" AND ")}`;
+    const whereClause = whereStatements.length === 0
+      ? ""
+      : `WHERE ${whereStatements.join(" AND ")}`;
 
     // Check if this is a dynamic period column (derivable from period_id or quarter_id)
-    const isDynamicPeriodColumn =
-      (queryContext.hasPeriodId &&
-        (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(
-          disaggregationOption,
-        )) ||
+    const isDynamicPeriodColumn = (queryContext.hasPeriodId &&
+      (DYNAMIC_PERIOD_COLUMNS as readonly string[]).includes(
+        disaggregationOption,
+      )) ||
       (queryContext.hasQuarterId &&
         disaggregationOption in QUARTER_ID_COLUMN_EXPRESSIONS);
 
@@ -179,22 +177,22 @@ export async function getPossibleValuesCore(
           calendar,
         );
       } else {
-        columnRef =
-          QUARTER_ID_COLUMN_EXPRESSIONS[
-            disaggregationOption as keyof typeof QUARTER_ID_COLUMN_EXPRESSIONS
-          ];
+        columnRef = QUARTER_ID_COLUMN_EXPRESSIONS[
+          disaggregationOption as keyof typeof QUARTER_ID_COLUMN_EXPRESSIONS
+        ];
       }
     } else {
       // Regular column
-      columnRef =
-        columnPrefixes.get(disaggregationOption) || disaggregationOption;
+      columnRef = columnPrefixes.get(disaggregationOption) ||
+        disaggregationOption;
     }
 
     const isMultiMembership = MULTI_MEMBERSHIP_FILTER_COLUMNS.has(
       disaggregationOption,
     );
     if (isMultiMembership) {
-      columnRef = `unnest(string_to_array(${columnRef}, '${MULTI_MEMBERSHIP_DELIMITER}'))`;
+      columnRef =
+        `unnest(string_to_array(${columnRef}, '${MULTI_MEMBERSHIP_DELIMITER}'))`;
     } else if (shouldFoldBlank(disaggregationOption, queryContext)) {
       // Fold NULL/blank onto the sentinel here, using the SAME emitter and the
       // SAME gate the SELECT, GROUP BY and WHERE use, so an option id and an
@@ -220,7 +218,8 @@ export async function getPossibleValuesCore(
         if (!columnExists) {
           return {
             success: false,
-            err: `Column ${disaggregationOption} does not exist in the facilities table`,
+            err:
+              `Column ${disaggregationOption} does not exist in the facilities table`,
           };
         }
       }
@@ -231,7 +230,9 @@ export async function getPossibleValuesCore(
       if (needsPeriodCTE) {
         // Need both period and facility CTEs
         const derivedColumns = queryContext.hasPeriodId
-          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id", calendar)} AS quarter_id`
+          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${
+            getPeriodColumnExpression("quarter_id", calendar)
+          } AS quarter_id`
           : `${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`;
         ctePrefix = `WITH period_data AS (
   SELECT *,
@@ -239,24 +240,29 @@ export async function getPossibleValuesCore(
   FROM ${tableName}
 ),
 facility_subset AS (
-  SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
-    ", ",
-  )}
+  SELECT facility_id, ${
+          queryContext.requestedOptionalFacilityColumns.join(
+            ", ",
+          )
+        }
   FROM ${facilitiesTable}
 )
 `;
         sourceTable = "period_data";
       } else {
         ctePrefix = `WITH facility_subset AS (
-  SELECT facility_id, ${queryContext.requestedOptionalFacilityColumns.join(
-    ", ",
-  )}
+  SELECT facility_id, ${
+          queryContext.requestedOptionalFacilityColumns.join(
+            ", ",
+          )
+        }
   FROM ${facilitiesTable}
 )
 `;
       }
 
-      sqlQuery = `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
+      sqlQuery =
+        `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
 LEFT JOIN facility_subset f ON ${sourceTable}.facility_id = f.facility_id
 ${whereClause}
@@ -280,7 +286,9 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
       if (needsPeriodCTE) {
         // Wrap in period CTE
         const derivedColumns = queryContext.hasPeriodId
-          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${getPeriodColumnExpression("quarter_id", calendar)} AS quarter_id`
+          ? `${PERIOD_COLUMN_EXPRESSIONS.year} AS year,\n    ${PERIOD_COLUMN_EXPRESSIONS.month} AS month,\n    ${
+            getPeriodColumnExpression("quarter_id", calendar)
+          } AS quarter_id`
           : `${QUARTER_ID_COLUMN_EXPRESSIONS.year} AS year`;
         const ctePrefix = `WITH period_data AS (
   SELECT *,
@@ -289,7 +297,8 @@ LIMIT ${REPLICANT_OPTIONS_QUERY_LIMIT}`;
 )
 `;
         sourceTable = "period_data";
-        sqlQuery = `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
+        sqlQuery =
+          `${ctePrefix}SELECT DISTINCT ${columnRef} AS disaggregation_value
 FROM ${sourceTable}
 ${whereClause}
 ORDER BY ${orderByRef}

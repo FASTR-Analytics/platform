@@ -1,25 +1,25 @@
 import { Sql } from "postgres";
 import {
   ADMIN_AREA_COLUMNS,
+  type AdminAreaLevel,
   type APIResponseNoData,
   type APIResponseWithData,
   collectIdentifiers,
   type InstancePopulationSummary,
   parseAdminAreaLevel,
-  POPULATION_TYPE_IDS,
-  type PopulationAnchor,
   POPULATION_CSV_REQUIRED_COLUMNS,
   POPULATION_PREVIEW_MISSING_AREAS_CAP,
+  POPULATION_TYPE_IDS,
+  type PopulationAnchor,
   populationAreaKey,
   populationCompleteness,
-  populationCoverage,
   type PopulationCoverage,
+  populationCoverage,
   populationDisplayPath,
   type PopulationGridArea,
   type PopulationImportPreview,
   type PopulationImportPreviewType,
   type PopulationImportResult,
-  type AdminAreaLevel,
   type PopulationTypeStore,
 } from "lib";
 import { getCsvStreamComponents } from "../../server_only_funcs_csvs/get_csv_components_streaming_fast.ts";
@@ -71,7 +71,8 @@ export async function setPopulationLevel(
     if (level > resSchema.data.adminDepth) {
       return {
         success: false,
-        err: `The HMIS structure only goes to admin area level ${resSchema.data.adminDepth}`,
+        err:
+          `The HMIS structure only goes to admin area level ${resSchema.data.adminDepth}`,
       };
     }
     const storedRows = await mainDb.begin(async (sql) => {
@@ -90,7 +91,8 @@ export async function setPopulationLevel(
     if (storedRows > 0) {
       return {
         success: false,
-        err: `Delete all population data first: ${storedRows} rows are stored at the current population level`,
+        err:
+          `Delete all population data first: ${storedRows} rows are stored at the current population level`,
       };
     }
     return { success: true };
@@ -102,9 +104,10 @@ export async function getInstancePopulationSummary(
 ): Promise<InstancePopulationSummary> {
   const populationLevel = await getPopulationLevel(mainDb);
   const populationRowCount = await getPopulationRowCount(mainDb);
-  const populationCoverage = populationLevel === undefined || populationRowCount === 0
-    ? []
-    : await computePopulationCoverage(mainDb, populationLevel);
+  const populationCoverage =
+    populationLevel === undefined || populationRowCount === 0
+      ? []
+      : await computePopulationCoverage(mainDb, populationLevel);
   const stampRow = (
     await mainDb<{ config_json_value: string }[]>`
       SELECT config_json_value FROM instance_config
@@ -203,15 +206,23 @@ export async function getPopulationTypeStore(
   return await tryCatchDatabaseAsync(async () => {
     const level = await getPopulationLevel(mainDb);
     if (level === undefined) {
-      return { success: true, data: { populationLevel: undefined, years: [], areas: [] } };
+      return {
+        success: true,
+        data: { populationLevel: undefined, years: [], areas: [] },
+      };
     }
     const structureAreas = await listHmisStructureAreas(mainDb, level);
-    const rows = await mainDb<(PopulationAreaRow & { year: number; count: number })[]>`
+    const rows = await mainDb<
+      (PopulationAreaRow & { year: number; count: number })[]
+    >`
       SELECT admin_area_1, admin_area_2, admin_area_3, admin_area_4, year, count
       FROM population
       WHERE population_type = ${populationType} AND admin_area_level = ${level}
     `;
-    const byKey = new Map<string, { names: string[]; cells: Record<string, number> }>();
+    const byKey = new Map<
+      string,
+      { names: string[]; cells: Record<string, number> }
+    >();
     const years = new Set<number>();
     for (const r of rows) {
       const names = areaNames(r);
@@ -303,7 +314,9 @@ export async function getPopulationAnchors(
   populationType: string,
   level: AdminAreaLevel,
 ): Promise<Map<string, PopulationAnchor[]>> {
-  const rows = await mainDb<(PopulationAreaRow & { year: number; count: number })[]>`
+  const rows = await mainDb<
+    (PopulationAreaRow & { year: number; count: number })[]
+  >`
     SELECT admin_area_1, admin_area_2, admin_area_3, admin_area_4, year, count
     FROM population
     WHERE population_type = ${populationType}
@@ -346,7 +359,10 @@ type PopulationStoreRow = PopulationAreaRow & {
   count: number;
 };
 
-type ParsedPopulationCsv = { level: AdminAreaLevel; rows: PopulationStoreRow[] };
+type ParsedPopulationCsv = {
+  level: AdminAreaLevel;
+  rows: PopulationStoreRow[];
+};
 
 // Fixed-column CSV (lib/types/population.ts POPULATION_CSV_REQUIRED_COLUMNS):
 // admin_area_2 [admin_area_3 [admin_area_4]], year, population_type, count,
@@ -395,7 +411,8 @@ export async function parsePopulationCsv(
     if (level > adminDepth) {
       return {
         success: false,
-        err: `The file is at admin area level ${level}, but the HMIS structure only goes to level ${adminDepth}`,
+        err:
+          `The file is at admin area level ${level}, but the HMIS structure only goes to level ${adminDepth}`,
       };
     }
     const populationLevel = await getPopulationLevel(mainDb);
@@ -406,7 +423,10 @@ export async function parsePopulationCsv(
       };
     }
     if (level !== populationLevel) {
-      return { success: false, err: levelMismatchMessage(level, populationLevel) };
+      return {
+        success: false,
+        err: levelMismatchMessage(level, populationLevel),
+      };
     }
 
     const knownTypes = new Set(POPULATION_TYPE_IDS);
@@ -443,7 +463,10 @@ export async function parsePopulationCsv(
       const typeId = cell(row, iType);
       const yearRaw = cell(row, iYear);
       const countRaw = cell(row, iCount);
-      if (a2 === "" && a3 === "" && a4 === "" && typeId === "" && yearRaw === "" && countRaw === "") {
+      if (
+        a2 === "" && a3 === "" && a4 === "" && typeId === "" &&
+        yearRaw === "" && countRaw === ""
+      ) {
         return;
       }
       if (problems.length >= 20) return;
@@ -454,7 +477,9 @@ export async function parsePopulationCsv(
       const level1 = level1ByPath.get(populationAreaKey(["", a2, a3, a4]));
       if (level1 === undefined) {
         problems.push(
-          `line ${line}: area "${[a2, a3, a4].filter((s) => s !== "").join(" / ")}" is not in the HMIS structure at level ${level}`,
+          `line ${line}: area "${
+            [a2, a3, a4].filter((s) => s !== "").join(" / ")
+          }" is not in the HMIS structure at level ${level}`,
         );
         return;
       }
@@ -467,7 +492,9 @@ export async function parsePopulationCsv(
       }
       if (!knownTypes.has(typeId)) {
         problems.push(
-          `line ${line}: unknown population type "${typeId}" (one of ${POPULATION_TYPE_IDS.join(", ")})`,
+          `line ${line}: unknown population type "${typeId}" (one of ${
+            POPULATION_TYPE_IDS.join(", ")
+          })`,
         );
         return;
       }
@@ -483,9 +510,13 @@ export async function parsePopulationCsv(
         );
         return;
       }
-      const key = `${typeId}|${populationAreaKey([level1, a2, a3, a4])}|${year}`;
+      const key = `${typeId}|${
+        populationAreaKey([level1, a2, a3, a4])
+      }|${year}`;
       if (seen.has(key)) {
-        problems.push(`line ${line}: duplicate of an earlier row (same type, area and year)`);
+        problems.push(
+          `line ${line}: duplicate of an earlier row (same type, area and year)`,
+        );
         return;
       }
       seen.add(key);
@@ -630,7 +661,9 @@ export async function importPopulationCsv(
       // between the parse and the write.
       await sql`LOCK TABLE population IN SHARE ROW EXCLUSIVE MODE`;
       const populationLevel = await getPopulationLevel(sql);
-      if (populationLevel !== level) return { written: false, level: populationLevel };
+      if (populationLevel !== level) {
+        return { written: false, level: populationLevel };
+      }
       for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
         const batch = rows.slice(i, i + INSERT_BATCH_SIZE);
         await sql`

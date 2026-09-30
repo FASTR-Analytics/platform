@@ -2,22 +2,22 @@ import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
   ADMIN_AREA_COLUMNS,
+  type DatasetType,
+  type HfaIndicator,
+  type HfaIndicatorCode,
+  type HfaIndicatorVariantCode,
+  type HmisIndicatorCatalogRow,
   listMonthlyPeriodIds,
   personYearsForMonth,
   populationAreaKey,
   populationCellCoverage,
   populationTypesReferencedByCatalog,
-  throwIfErrWithData,
-  type HmisIndicatorCatalogRow,
-  type DatasetType,
-  type HfaIndicator,
-  type HfaIndicatorCode,
-  type HfaIndicatorVariantCode,
-  type RunManifestDataset,
   type RunGenerationStep1Result,
+  type RunManifestDataset,
   type RunPopulation,
   type RunPopulationCoverage,
   type RunStage,
+  throwIfErrWithData,
 } from "lib";
 import {
   dbRowToHfaIndicator,
@@ -28,18 +28,18 @@ import {
 import { computeDatasetHfaRunCapture } from "../../runs/capture_inputs/hfa.ts";
 import {
   computeDatasetHmisRunCapture,
-  RUN_FACILITY_COLUMN_NAMES,
   type DatasetCsvTarget,
+  RUN_FACILITY_COLUMN_NAMES,
   type RunFacilityRow,
 } from "../../runs/capture_inputs/hmis.ts";
 import { computeDatasetIcehRunCapture } from "../../runs/capture_inputs/iceh.ts";
 import { _RUNS_DIR_PATH_POSTGRES_INTERNAL } from "../../exposed_env_vars.ts";
 import {
+  type ExportedColumn,
   exportRowsToParquet,
   readCsvHeaders,
   runInputFilePath,
   runTmpDirPath,
-  type ExportedColumn,
 } from "../../runs/mod.ts";
 import { writeParquetFromCsv } from "../../run_query/mod.ts";
 import { sha256HexOfFile } from "./input_key.ts";
@@ -95,8 +95,8 @@ export type PreparedRunInputs = {
 
 // The captured facilities columns are all-text; the run parquet declares the
 // same (§2.3 declared types, never inferred).
-const FACILITY_PARQUET_COLUMNS: ExportedColumn[] =
-  RUN_FACILITY_COLUMN_NAMES.map((name) => ({
+const FACILITY_PARQUET_COLUMNS: ExportedColumn[] = RUN_FACILITY_COLUMN_NAMES
+  .map((name) => ({
     name,
     duckDbType: "VARCHAR",
   }));
@@ -266,7 +266,10 @@ export async function prepareRunInputs(
   if (step1.iceh) {
     selectedFamilies.push("iceh");
     await onStage({ kind: "exporting", family: "iceh" });
-    const res = await computeDatasetIcehRunCapture(mainDb, runCsvTarget("iceh"));
+    const res = await computeDatasetIcehRunCapture(
+      mainDb,
+      runCsvTarget("iceh"),
+    );
     throwIfErrWithData(res);
     const capture = res.data;
     datasets.push({
@@ -343,7 +346,9 @@ async function writePopulationPersonYears(
     adminDepth: number;
   },
 ): Promise<RunPopulation> {
-  const populationTypes = populationTypesReferencedByCatalog(capture.indicators);
+  const populationTypes = populationTypesReferencedByCatalog(
+    capture.indicators,
+  );
   const extractMonths = {
     firstPeriodId: capture.periodRange.min,
     lastPeriodId: capture.periodRange.max,
@@ -416,7 +421,10 @@ async function writePopulationPersonYears(
       const cells = populationCellCoverage(anchors, periodIds);
       if (cells.length === 0) continue;
       areasCovered++;
-      firstCoveredPeriodId = Math.min(firstCoveredPeriodId ?? Infinity, cells[0]);
+      firstCoveredPeriodId = Math.min(
+        firstCoveredPeriodId ?? Infinity,
+        cells[0],
+      );
       lastCoveredPeriodId = Math.max(
         lastCoveredPeriodId ?? -Infinity,
         cells[cells.length - 1],

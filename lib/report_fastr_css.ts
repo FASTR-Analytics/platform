@@ -13,13 +13,13 @@
 
 import { cssColorLuminance } from "./fastr_markdown_blocks.ts";
 import {
+  deriveFastrThemeColors,
   FASTR_GROUNDS,
   FASTR_HEADING_TAGS,
-  type FastrGround,
-  deriveFastrThemeColors,
-  fastrHeadingStyle,
   FASTR_THEME_TOKENS,
   type FastrDerivedColors,
+  type FastrGround,
+  fastrHeadingStyle,
   type FastrReportTheme,
   type FastrThemeColorOverride,
   type FastrThemeTokens,
@@ -43,7 +43,8 @@ function selectors(scope: string): { root: string; d: string; vars: string } {
 // changes a ground's darkness re-points them (ON_DARK_GROUND, ON_LIGHT_GROUND).
 const SEMANTIC_ROLES = ["info", "success", "warning", "danger"] as const;
 function semanticVarsCss(ground: "light" | "dark"): string {
-  return SEMANTIC_ROLES.map((r) => `  --fm-${r}: var(--fm-${r}-${ground});`).join("\n");
+  return SEMANTIC_ROLES.map((r) => `  --fm-${r}: var(--fm-${r}-${ground});`)
+    .join("\n");
 }
 
 // Grounds that ARE one of the theme's three hues. A hue-named mark on one of
@@ -118,7 +119,9 @@ export function buildFastrToneCss(
     toneRuleCss(
       d,
       tone,
-      tone === "paper" ? { accent: "var(--fm-accent-ground)", accentText } : undefined,
+      tone === "paper"
+        ? { accent: "var(--fm-accent-ground)", accentText }
+        : undefined,
       c.grounds[tone].ink === c.lightInk,
     )
   ).join("\n");
@@ -132,7 +135,11 @@ export function buildFastrToneCss(
 // protects future themes and a custom style's colour override.
 const MIN_TEXT_SEPARATION = 0.25;
 
-export function fastrAccentTextFor(accent: string, surface: string, ink: string): string {
+export function fastrAccentTextFor(
+  accent: string,
+  surface: string,
+  ink: string,
+): string {
   const a = cssColorLuminance(accent);
   const s = cssColorLuminance(surface);
   if (a === undefined || s === undefined) return accent;
@@ -156,13 +163,23 @@ export function fastrDerivedColorsFor(
     const scheme = lum !== undefined && lum < 0.5 ? "dark" : "light";
     return {
       ...deriveFastrThemeColors(
-        { ...tokens.palette, paper: colors.page, ink: colors.ink, accent: colors.accent },
+        {
+          ...tokens.palette,
+          paper: colors.page,
+          ink: colors.ink,
+          accent: colors.accent,
+        },
         scheme,
       ),
       scheme,
     };
   }
-  return { ...tokens, page: colors.page, ink: colors.ink, accent: colors.accent };
+  return {
+    ...tokens,
+    page: colors.page,
+    ink: colors.ink,
+    accent: colors.accent,
+  };
 }
 
 export function buildFastrThemeVarsCss(
@@ -1029,13 +1046,15 @@ ${d}.fm-pagebreak { display: block; height: 0; margin: 0; padding: 0; overflow: 
 /* ── Document header (:::report) — applied to <html> ──────────────────────── */
 ${d}.fm-doc--wide { --fm-measure: 74rem; }
 ${d}.fm-doc--full { --fm-measure: 100rem; }
-${scope === "" ? "" : `
+${
+    scope === "" ? "" : `
 /* Scoped context (a picker tile): the viewport is not the page, so nothing may
    bleed to it — the geometry is neutralised at the root and every band, cover
    and full-width figure follows. */
 ${scope} { --fm-bleed-margin: 0; --fm-bleed-pad: 1.4em; }
 ${d}.fm-cover { min-height: 0; }
-`}
+`
+  }
 `;
 }
 
@@ -1581,7 +1600,9 @@ ${d}.fm-peer-layer {
 }
 /* GAP above the box is page-side; the extra 8px is interior headroom so the
    title clears the box's own top border (the box starts at +GAP exactly). */
-${d}.cm-fm-chrome-open { padding-top: ${FM_BOX_GAP + 8}px; padding-bottom: 0.2rem; }
+${d}.cm-fm-chrome-open { padding-top: ${
+    FM_BOX_GAP + 8
+  }px; padding-bottom: 0.2rem; }
 ${d}.cm-fm-chrome-cap {
   height: ${FM_BOX_PAD_BOTTOM}px;
   padding-bottom: ${FM_BOX_GAP}px;

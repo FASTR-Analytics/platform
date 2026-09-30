@@ -1,8 +1,8 @@
 import { Sql } from "postgres";
 import {
   APIResponseWithData,
-  throwIfErrWithData,
   type RunDatasetHfaInfo,
+  throwIfErrWithData,
 } from "lib";
 import { getStructureSchema } from "../../db/instance/config.ts";
 import { computeHfaCacheHash } from "../../db/instance/dataset_hfa.ts";
@@ -17,9 +17,9 @@ import {
 import { getHfaIndicatorsVersion } from "../../db/instance/instance.ts";
 import { tryCatchDatabaseAsync } from "../../db/utils.ts";
 import {
+  type DatasetCsvTarget,
   ensureDatasetCsvTargetDir,
   RUN_FACILITY_COLUMN_NAMES,
-  type DatasetCsvTarget,
   type RunFacilityRow,
 } from "./hmis.ts";
 
@@ -68,7 +68,9 @@ export async function computeDatasetHfaRunCapture(
     // Validate and capture staleness metadata BEFORE the export: a hash
     // captured after it can mask a concurrent instance import (new hash
     // stored against pre-import CSV data).
-    const hasData = (await mainDb<{ count: number }[]>`SELECT COUNT(*) as count FROM hfa_data LIMIT 1`)[0].count > 0;
+    const hasData = (await mainDb<
+      { count: number }[]
+    >`SELECT COUNT(*) as count FROM hfa_data LIMIT 1`)[0].count > 0;
     if (!hasData) {
       throw new Error("No HFA data available to generate from");
     }
@@ -163,12 +165,16 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     `;
 
     // Fetch HFA sub-categories from instance DB for snapshot
-    const hfaSubCategoriesForSnapshot = await mainDb<DBHfaIndicatorSubCategory[]>`
+    const hfaSubCategoriesForSnapshot = await mainDb<
+      DBHfaIndicatorSubCategory[]
+    >`
       SELECT id, category_id, label, sort_order FROM hfa_indicator_sub_categories ORDER BY category_id, sort_order, label
     `;
 
     // Fetch HFA service categories from instance DB for snapshot
-    const hfaServiceCategoriesForSnapshot = await mainDb<DBHfaIndicatorServiceCategory[]>`
+    const hfaServiceCategoriesForSnapshot = await mainDb<
+      DBHfaIndicatorServiceCategory[]
+    >`
       SELECT id, label, sort_order FROM hfa_indicator_service_categories ORDER BY sort_order, label
     `;
 
@@ -176,10 +182,14 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     // snapshot. Explicit deterministic ORDER BY throughout: the generated
     // script text is a module inputKey ingredient, so nondeterministic order
     // would churn memoized reuse.
-    const hfaVariantGroupsForSnapshot = await mainDb<DBHfaIndicatorVariantGroup[]>`
+    const hfaVariantGroupsForSnapshot = await mainDb<
+      DBHfaIndicatorVariantGroup[]
+    >`
       SELECT id, label, sort_order FROM hfa_indicator_variant_groups ORDER BY sort_order, id
     `;
-    const hfaVariantItemsForSnapshot = await mainDb<DBHfaIndicatorVariantItem[]>`
+    const hfaVariantItemsForSnapshot = await mainDb<
+      DBHfaIndicatorVariantItem[]
+    >`
       SELECT id, group_id, label, sort_order FROM hfa_indicator_variant_items ORDER BY group_id, sort_order, id
     `;
     const hfaVariantCodeRowsForSnapshot = (
@@ -277,4 +287,3 @@ COPY (${exportStatement}) TO '${csvTarget.postgresPath}' WITH (FORMAT CSV, HEADE
     };
   });
 }
-

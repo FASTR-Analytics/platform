@@ -48,7 +48,10 @@ export function SlideEditorCursors(p: {
     const du = viewportToDu(r, { x: cx, y: cy }, PAGE_WIDTH_DU, PAGE_HEIGHT_DU);
     return { surface: "slide", scope: p.slideId, x: du.x, y: du.y };
   }
-  function toPointerOrZone(cx: number, cy: number): PointerAwarenessState | null {
+  function toPointerOrZone(
+    cx: number,
+    cy: number,
+  ): PointerAwarenessState | null {
     // Canvas first (DU space); chrome (header, settings panel, the area
     // around the canvas) via the shared zone fallback.
     return toPointer(cx, cy) ?? zonePointerAt(p.slideId, cx, cy);
@@ -95,8 +98,10 @@ export function SlideEditorCursors(p: {
         suppressed={p.covered()}
         accepts={accepts}
       />
-      {/* Cursor chat: "/" over the canvas opens a message bubble on your
-          live cursor. */}
+      {
+        /* Cursor chat: "/" over the canvas opens a message bubble on your
+          live cursor. */
+      }
       <CursorChatInput
         awareness={p.awareness}
         enabled={p.enabled}

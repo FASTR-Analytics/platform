@@ -1,8 +1,8 @@
 import {
   getModuleFamilyLabel,
+  type MetricsByModule,
   MODULE_FAMILY_ORDER,
   t3,
-  type MetricsByModule,
 } from "lib";
 import { type ListEntry, type ListItem, SelectList } from "panther";
 import { createMemo } from "solid-js";
@@ -39,7 +39,11 @@ export function ModuleSidebar(p: Props) {
     };
     const allItem: ModuleItem = {
       id: "all",
-      label: t3({ en: "All modules", fr: "Tous les modules", pt: "Todos os módulos" }),
+      label: t3({
+        en: "All modules",
+        fr: "Tous les modules",
+        pt: "Todos os módulos",
+      }),
       meta: p.totalMetricCount,
     };
 

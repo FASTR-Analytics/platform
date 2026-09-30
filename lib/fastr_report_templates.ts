@@ -43,7 +43,13 @@ function attr(text: string): string {
 function policyBriefBody(title: string): string {
   return [
     `:::cover{tone=ink layout=poster kicker="${
-      attr(t3({ en: "[Organisation · Month Year]", fr: "[Organisation · Mois Année]", pt: "[Organização · Mês Ano]" }))
+      attr(
+        t3({
+          en: "[Organisation · Month Year]",
+          fr: "[Organisation · Mois Année]",
+          pt: "[Organização · Mês Ano]",
+        }),
+      )
     }" sub="${
       attr(t3({
         en: "[One sentence: the decision this brief asks for]",
@@ -54,18 +60,53 @@ function policyBriefBody(title: string): string {
     `# ${title}`,
     ":::",
     "",
-    `## ${t3({ en: "Key messages", fr: "Messages clés", pt: "Mensagens-chave" })}`,
+    `## ${
+      t3({ en: "Key messages", fr: "Messages clés", pt: "Mensagens-chave" })
+    }`,
     "",
     ph(t3({
-      en: "Two or three sentences a minister could repeat: what is happening, why it matters, and what should be done.",
-      fr: "Deux ou trois phrases qu'un ministre pourrait répéter : ce qui se passe, pourquoi c'est important et ce qu'il faut faire.",
-      pt: "Duas ou três frases que um ministro poderia repetir: o que está a acontecer, porque importa e o que deve ser feito.",
+      en:
+        "Two or three sentences a minister could repeat: what is happening, why it matters, and what should be done.",
+      fr:
+        "Deux ou trois phrases qu'un ministre pourrait répéter : ce qui se passe, pourquoi c'est important et ce qu'il faut faire.",
+      pt:
+        "Duas ou três frases que um ministro poderia repetir: o que está a acontecer, porque importa e o que deve ser feito.",
     })),
     "",
     ":::tiles{cols=3}",
-    `:::stat{value="00%" label="${attr(t3({ en: "[Headline indicator]", fr: "[Indicateur principal]", pt: "[Indicador principal]" }))}" delta="${attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))}" dir=up tone=accent}`,
-    `:::stat{value="00%" label="${attr(t3({ en: "[Second indicator]", fr: "[Deuxième indicateur]", pt: "[Segundo indicador]" }))}" delta="${attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))}" dir=down}`,
-    `:::stat{value="00" label="${attr(t3({ en: "[Third indicator]", fr: "[Troisième indicateur]", pt: "[Terceiro indicador]" }))}" delta="${attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))}" dir=flat}`,
+    `:::stat{value="00%" label="${
+      attr(
+        t3({
+          en: "[Headline indicator]",
+          fr: "[Indicateur principal]",
+          pt: "[Indicador principal]",
+        }),
+      )
+    }" delta="${
+      attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))
+    }" dir=up tone=accent}`,
+    `:::stat{value="00%" label="${
+      attr(
+        t3({
+          en: "[Second indicator]",
+          fr: "[Deuxième indicateur]",
+          pt: "[Segundo indicador]",
+        }),
+      )
+    }" delta="${
+      attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))
+    }" dir=down}`,
+    `:::stat{value="00" label="${
+      attr(
+        t3({
+          en: "[Third indicator]",
+          fr: "[Troisième indicateur]",
+          pt: "[Terceiro indicador]",
+        }),
+      )
+    }" delta="${
+      attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))
+    }" dir=flat}`,
     ":::",
     "",
     `## ${t3({ en: "The problem", fr: "Le problème", pt: "O problema" })}`,
@@ -77,20 +118,34 @@ function policyBriefBody(title: string): string {
     })),
     "",
     ph(t3({
-      en: "A second paragraph on the scale and the trend. Insert the one figure that shows it after this paragraph.",
-      fr: "Un second paragraphe sur l'ampleur et la tendance. Insérez après lui la figure qui le montre.",
-      pt: "Um segundo parágrafo sobre a dimensão e a tendência. Insira depois dele a figura que o mostra.",
+      en:
+        "A second paragraph on the scale and the trend. Insert the one figure that shows it after this paragraph.",
+      fr:
+        "Un second paragraphe sur l'ampleur et la tendance. Insérez après lui la figure qui le montre.",
+      pt:
+        "Um segundo parágrafo sobre a dimensão e a tendência. Insira depois dele a figura que o mostra.",
     })),
     "",
-    `## ${t3({ en: "What the evidence shows", fr: "Ce que montrent les données", pt: "O que mostram os dados" })}`,
+    `## ${
+      t3({
+        en: "What the evidence shows",
+        fr: "Ce que montrent les données",
+        pt: "O que mostram os dados",
+      })
+    }`,
     "",
     ph(t3({
-      en: "Two or three short paragraphs of findings, each opening with its conclusion.",
-      fr: "Deux ou trois courts paragraphes de constats, chacun commençant par sa conclusion.",
-      pt: "Dois ou três parágrafos curtos de constatações, cada um a começar pela sua conclusão.",
+      en:
+        "Two or three short paragraphs of findings, each opening with its conclusion.",
+      fr:
+        "Deux ou trois courts paragraphes de constats, chacun commençant par sa conclusion.",
+      pt:
+        "Dois ou três parágrafos curtos de constatações, cada um a começar pela sua conclusão.",
     })),
     "",
-    `:::callout{kind=warning title="${attr(t3({ en: "Caveat", fr: "Réserve", pt: "Ressalva" }))}"}`,
+    `:::callout{kind=warning title="${
+      attr(t3({ en: "Caveat", fr: "Réserve", pt: "Ressalva" }))
+    }"}`,
     ph(t3({
       en: "The one limitation in the data a reader must keep in mind.",
       fr: "La limite des données que le lecteur doit garder en tête.",
@@ -98,7 +153,13 @@ function policyBriefBody(title: string): string {
     })),
     ":::",
     "",
-    `## ${t3({ en: "Policy options", fr: "Options politiques", pt: "Opções de política" })}`,
+    `## ${
+      t3({
+        en: "Policy options",
+        fr: "Options politiques",
+        pt: "Opções de política",
+      })
+    }`,
     "",
     ":::columns{cols=2}",
     ":::col{tone=paper}",
@@ -119,7 +180,9 @@ function policyBriefBody(title: string): string {
     ":::",
     ":::",
     "",
-    `## ${t3({ en: "Recommendations", fr: "Recommandations", pt: "Recomendações" })}`,
+    `## ${
+      t3({ en: "Recommendations", fr: "Recommandations", pt: "Recomendações" })
+    }`,
     "",
     ":::steps",
     ph(t3({
@@ -128,9 +191,21 @@ function policyBriefBody(title: string): string {
       pt: "A primeira ação, quem a executa e até quando.",
     })),
     "",
-    ph(t3({ en: "The second action.", fr: "La deuxième action.", pt: "A segunda ação." })),
+    ph(
+      t3({
+        en: "The second action.",
+        fr: "La deuxième action.",
+        pt: "A segunda ação.",
+      }),
+    ),
     "",
-    ph(t3({ en: "The third action.", fr: "La troisième action.", pt: "A terceira ação." })),
+    ph(
+      t3({
+        en: "The third action.",
+        fr: "La troisième action.",
+        pt: "A terceira ação.",
+      }),
+    ),
     ":::",
     "",
     ":::band{tone=ink}",
@@ -145,12 +220,22 @@ function policyBriefBody(title: string): string {
 }
 
 function longFormBody(title: string): string {
-  const para = (en: string, fr: string, pt: string) => [ph(t3({ en, fr, pt })), ""];
+  const para = (
+    en: string,
+    fr: string,
+    pt: string,
+  ) => [ph(t3({ en, fr, pt })), ""];
   return [
     ":::report{numbering=sections}",
     "",
     `:::cover{tone=ink layout=frame fill=page kicker="${
-      attr(t3({ en: "[Organisation · Year]", fr: "[Organisation · Année]", pt: "[Organização · Ano]" }))
+      attr(
+        t3({
+          en: "[Organisation · Year]",
+          fr: "[Organisation · Année]",
+          pt: "[Organização · Ano]",
+        }),
+      )
     }" sub="${
       attr(t3({
         en: "[What this report covers, the period, and who it is for]",
@@ -161,9 +246,13 @@ function longFormBody(title: string): string {
     `# ${title}`,
     ":::",
     "",
-    `:::contents{title="${attr(t3({ en: "Contents", fr: "Sommaire", pt: "Índice" }))}" depth=3}`,
+    `:::contents{title="${
+      attr(t3({ en: "Contents", fr: "Sommaire", pt: "Índice" }))
+    }" depth=3}`,
     "",
-    `## ${t3({ en: "Executive summary", fr: "Résumé", pt: "Sumário executivo" })}`,
+    `## ${
+      t3({ en: "Executive summary", fr: "Résumé", pt: "Sumário executivo" })
+    }`,
     "",
     ...para(
       "The whole report in one paragraph: the question, the answer, and what should happen next.",
@@ -171,9 +260,39 @@ function longFormBody(title: string): string {
       "Todo o relatório num parágrafo: a pergunta, a resposta e o que deve acontecer a seguir.",
     ),
     ":::tiles{cols=3}",
-    `:::stat{value="00%" label="${attr(t3({ en: "[Headline indicator]", fr: "[Indicateur principal]", pt: "[Indicador principal]" }))}" delta="${attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))}" dir=up tone=accent}`,
-    `:::stat{value="00%" label="${attr(t3({ en: "[Second indicator]", fr: "[Deuxième indicateur]", pt: "[Segundo indicador]" }))}" delta="${attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))}" dir=flat}`,
-    `:::stat{value="00" label="${attr(t3({ en: "[Third indicator]", fr: "[Troisième indicateur]", pt: "[Terceiro indicador]" }))}" delta="${attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))}" dir=down}`,
+    `:::stat{value="00%" label="${
+      attr(
+        t3({
+          en: "[Headline indicator]",
+          fr: "[Indicateur principal]",
+          pt: "[Indicador principal]",
+        }),
+      )
+    }" delta="${
+      attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))
+    }" dir=up tone=accent}`,
+    `:::stat{value="00%" label="${
+      attr(
+        t3({
+          en: "[Second indicator]",
+          fr: "[Deuxième indicateur]",
+          pt: "[Segundo indicador]",
+        }),
+      )
+    }" delta="${
+      attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))
+    }" dir=flat}`,
+    `:::stat{value="00" label="${
+      attr(
+        t3({
+          en: "[Third indicator]",
+          fr: "[Troisième indicateur]",
+          pt: "[Terceiro indicador]",
+        }),
+      )
+    }" delta="${
+      attr(t3({ en: "[change]", fr: "[évolution]", pt: "[variação]" }))
+    }" dir=down}`,
     ":::",
     "",
     ...para(
@@ -197,38 +316,73 @@ function longFormBody(title: string): string {
       "Ce que le rapport cherche à établir, en deux ou trois questions.",
       "O que o relatório pretende responder, em duas ou três perguntas.",
     ),
-    `## ${t3({ en: "Methods and data", fr: "Méthodes et données", pt: "Métodos e dados" })}`,
+    `## ${
+      t3({
+        en: "Methods and data",
+        fr: "Méthodes et données",
+        pt: "Métodos e dados",
+      })
+    }`,
     "",
     ...para(
       "The data sources, the period, the indicators, and how they were calculated.",
       "Les sources de données, la période, les indicateurs et leur mode de calcul.",
       "As fontes de dados, o período, os indicadores e como foram calculados.",
     ),
-    `:::callout{kind=note title="${attr(t3({ en: "Data quality", fr: "Qualité des données", pt: "Qualidade dos dados" }))}"}`,
+    `:::callout{kind=note title="${
+      attr(
+        t3({
+          en: "Data quality",
+          fr: "Qualité des données",
+          pt: "Qualidade dos dados",
+        }),
+      )
+    }"}`,
     ph(t3({
-      en: "Reporting completeness, known gaps, and how they affect what follows.",
-      fr: "La complétude des rapports, les lacunes connues et leur effet sur la suite.",
-      pt: "A completude dos relatórios, as lacunas conhecidas e o seu efeito no que se segue.",
+      en:
+        "Reporting completeness, known gaps, and how they affect what follows.",
+      fr:
+        "La complétude des rapports, les lacunes connues et leur effet sur la suite.",
+      pt:
+        "A completude dos relatórios, as lacunas conhecidas e o seu efeito no que se segue.",
     })),
     ":::",
     "",
     `## ${t3({ en: "Findings", fr: "Résultats", pt: "Resultados" })}`,
     "",
-    `### ${t3({ en: "[First finding]", fr: "[Premier constat]", pt: "[Primeira constatação]" })}`,
+    `### ${
+      t3({
+        en: "[First finding]",
+        fr: "[Premier constat]",
+        pt: "[Primeira constatação]",
+      })
+    }`,
     "",
     ...para(
       "Open with the conclusion, then the evidence. Insert the figure that shows it after this paragraph, and a paragraph that reads it.",
       "Commencez par la conclusion, puis les données. Insérez après ce paragraphe la figure qui le montre, et un paragraphe qui la lit.",
       "Comece pela conclusão e depois os dados. Insira depois deste parágrafo a figura que o mostra, e um parágrafo que a lê.",
     ),
-    `### ${t3({ en: "[Second finding]", fr: "[Deuxième constat]", pt: "[Segunda constatação]" })}`,
+    `### ${
+      t3({
+        en: "[Second finding]",
+        fr: "[Deuxième constat]",
+        pt: "[Segunda constatação]",
+      })
+    }`,
     "",
     ...para(
       "The same shape: conclusion, evidence, figure, reading.",
       "La même forme : conclusion, données, figure, lecture.",
       "A mesma forma: conclusão, dados, figura, leitura.",
     ),
-    `### ${t3({ en: "[Third finding]", fr: "[Troisième constat]", pt: "[Terceira constatação]" })}`,
+    `### ${
+      t3({
+        en: "[Third finding]",
+        fr: "[Troisième constat]",
+        pt: "[Terceira constatação]",
+      })
+    }`,
     "",
     ...para(
       "The same shape: conclusion, evidence, figure, reading.",
@@ -250,7 +404,9 @@ function longFormBody(title: string): string {
       "Ce que les constats signifient ensemble, ce qu'ils ne montrent pas et comment ils se comparent à d'autres sources.",
       "O que as constatações significam em conjunto, o que não mostram e como se comparam com outras fontes.",
     ),
-    `## ${t3({ en: "Recommendations", fr: "Recommandations", pt: "Recomendações" })}`,
+    `## ${
+      t3({ en: "Recommendations", fr: "Recommandations", pt: "Recomendações" })
+    }`,
     "",
     ":::steps",
     ph(t3({
@@ -259,14 +415,32 @@ function longFormBody(title: string): string {
       pt: "A primeira recomendação, quem a executa e até quando.",
     })),
     "",
-    ph(t3({ en: "The second recommendation.", fr: "La deuxième recommandation.", pt: "A segunda recomendação." })),
+    ph(
+      t3({
+        en: "The second recommendation.",
+        fr: "La deuxième recommandation.",
+        pt: "A segunda recomendação.",
+      }),
+    ),
     "",
-    ph(t3({ en: "The third recommendation.", fr: "La troisième recommandation.", pt: "A terceira recomendação." })),
+    ph(
+      t3({
+        en: "The third recommendation.",
+        fr: "La troisième recommandation.",
+        pt: "A terceira recomendação.",
+      }),
+    ),
     ":::",
     "",
     `## ${t3({ en: "Annex", fr: "Annexe", pt: "Anexo" })}`,
     "",
-    `### ${t3({ en: "Indicator definitions", fr: "Définitions des indicateurs", pt: "Definições dos indicadores" })}`,
+    `### ${
+      t3({
+        en: "Indicator definitions",
+        fr: "Définitions des indicateurs",
+        pt: "Definições dos indicadores",
+      })
+    }`,
     "",
     ...para(
       "Each indicator's numerator, denominator and source.",
@@ -303,7 +477,9 @@ export function fastrReportTemplateBody(
 
 // English, model-facing: what the template MEANS, so the AI writes to its
 // shape. Rides the editing view's instructions (getEditingReportInstructions).
-export function fastrReportTemplateBrief(template: FastrReportTemplate): string {
+export function fastrReportTemplateBrief(
+  template: FastrReportTemplate,
+): string {
   const placeholders =
     "The template's skeleton marks every slot with placeholder guidance written as a muted mark, `[What goes here]{.muted}` (and square-bracketed text in attributes such as a cover's kicker or a stat's label). When you write into the report, REPLACE every placeholder with real content and drop the mark; never leave one behind, and never copy the guidance text itself into the report.";
   switch (template) {

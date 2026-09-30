@@ -40,12 +40,14 @@ export async function getIcehCacheHash(mainDb: Sql): Promise<string> {
   const yearsResult = await mainDb<{ year: number }[]>`
     SELECT DISTINCT year FROM iceh_data ORDER BY year
   `;
-  const input = `${runMarker}|${indicatorCount}:${dataRowCount}:${yearsResult.map((r) => r.year).join(",")}`;
+  const input = `${runMarker}|${indicatorCount}:${dataRowCount}:${
+    yearsResult.map((r) => r.year).join(",")
+  }`;
   return createHash("md5").update(input).digest("hex").slice(0, 12);
 }
 
 export async function getDatasetIcehDetail(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<IcehDataDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const indicatorCount = await mainDb<{ count: number }[]>`
@@ -68,7 +70,7 @@ export async function getDatasetIcehDetail(
 }
 
 export async function getDatasetIcehDisplayData(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<IcehDisplayData>> {
   return await tryCatchDatabaseAsync(async () => {
     const indicatorRows = await mainDb<{
@@ -125,7 +127,7 @@ export async function getDatasetIcehDisplayData(
 }
 
 export async function deleteDatasetIcehData(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     await mainDb.begin(async (sql) => {

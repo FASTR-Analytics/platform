@@ -1,9 +1,9 @@
 import type {
-  Slide,
-  ContentBlock,
   AiContentBlockInput,
+  ContentBlock,
   MetricWithStatus,
   PackageScope,
+  Slide,
 } from "lib";
 import type { LayoutNode } from "panther";
 import { resolveFigureFromMetric } from "./resolve_figure_from_metric";
@@ -24,9 +24,17 @@ export async function getSlideWithUpdatedBlocks(
     return node.children.flatMap(collectItemIds);
   }
   const layoutIds = collectItemIds(currentSlide.layout);
-  const unknownIds = updates.filter(u => !layoutIds.includes(u.blockId)).map(u => u.blockId);
+  const unknownIds = updates.filter((u) => !layoutIds.includes(u.blockId)).map(
+    (u) => u.blockId,
+  );
   if (unknownIds.length > 0) {
-    throw new Error(`Block ID(s) not found in slide: ${unknownIds.join(", ")}. Available block IDs: ${layoutIds.join(", ")}. Use get_slide to see current block IDs.`);
+    throw new Error(
+      `Block ID(s) not found in slide: ${
+        unknownIds.join(", ")
+      }. Available block IDs: ${
+        layoutIds.join(", ")
+      }. Use get_slide to see current block IDs.`,
+    );
   }
 
   // Existing blocks by id, so an edit preserves fields the AI's input schema
@@ -56,12 +64,16 @@ export async function getSlideWithUpdatedBlocks(
       );
     } else {
       try {
-        const figureBlock = await resolveFigureFromMetric(scope, update.newContent, metrics);
+        const figureBlock = await resolveFigureFromMetric(
+          scope,
+          update.newContent,
+          metrics,
+        );
         updateMap.set(update.blockId, figureBlock);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `Failed to create figure from metric "${update.newContent.metricId}" with preset "${update.newContent.vizPresetId}": ${errMsg}`
+          `Failed to create figure from metric "${update.newContent.metricId}" with preset "${update.newContent.vizPresetId}": ${errMsg}`,
         );
       }
     }
@@ -70,7 +82,9 @@ export async function getSlideWithUpdatedBlocks(
   // Walk layout tree and apply updates. Spread-and-override so node-level
   // overrides (style, alignV, minH, maxH) survive: reconstructing from a fixed
   // field list would silently drop them.
-  function updateLayoutNode(node: LayoutNode<ContentBlock>): LayoutNode<ContentBlock> {
+  function updateLayoutNode(
+    node: LayoutNode<ContentBlock>,
+  ): LayoutNode<ContentBlock> {
     if (node.type === "item") {
       const updatedBlock = updateMap.get(node.id);
       return updatedBlock ? { ...node, data: updatedBlock } : node;

@@ -17,13 +17,13 @@ export const corsMiddleware = cors({
   ],
   exposeHeaders: [
     "Location",
-    "Upload-Offset", 
+    "Upload-Offset",
     "Upload-Length",
     "Tus-Resumable",
     "Tus-Version",
     "Tus-Extension",
     "Tus-Max-Size",
     "X-Upload-Complete",
-    "X-Upload-Filename"
+    "X-Upload-Filename",
   ],
 });

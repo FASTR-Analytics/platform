@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { type Context, Hono } from "hono";
 import type { TypedResponse } from "hono";
 import type { JSONParsed } from "hono/utils/types";
 import { z } from "zod";
@@ -29,15 +29,14 @@ type RouteHandler<K extends keyof typeof routeRegistry> = (
   args: {
     params: RouteParams<K>;
     body: RouteBody<K>;
-  }
-) => (typeof routeRegistry)[K] extends { isStreaming: true }
-  ? Promise<Response>
+  },
+) => (typeof routeRegistry)[K] extends { isStreaming: true } ? Promise<Response>
   : Promise<Response & TypedResponse<JSONParsed<RouteEnvelope<K>>>>;
 
 // Format a ZodError into a single readable string for the APIResponse err field.
 function zodErr(error: z.ZodError): string {
   return error.issues
-    .map(i => (i.path.length > 0 ? i.path.join(".") + ": " : "") + i.message)
+    .map((i) => (i.path.length > 0 ? i.path.join(".") + ": " : "") + i.message)
     .join("; ");
 }
 
@@ -81,7 +80,10 @@ export function defineRoute<K extends keyof typeof routeRegistry>(
     // Extract body if it's a method that typically has a body
     let body: any = {};
     const method = route.method as string;
-    if (method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE") {
+    if (
+      method === "POST" || method === "PUT" || method === "PATCH" ||
+      method === "DELETE"
+    ) {
       // Parse with {} fallback so a missing/invalid-JSON body still goes through the
       // schema below (and 400s on required fields) instead of bypassing validation.
       let rawBody: unknown = {};

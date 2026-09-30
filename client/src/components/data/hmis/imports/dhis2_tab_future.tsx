@@ -1,5 +1,11 @@
-import { t3, type DatasetHmisScheduledImport } from "lib";
-import { Button, Table, createDeleteAction, toNum0, type TableColumn } from "panther";
+import { type DatasetHmisScheduledImport, t3 } from "lib";
+import {
+  Button,
+  createDeleteAction,
+  Table,
+  type TableColumn,
+  toNum0,
+} from "panther";
 import { Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { recurrenceLabel } from "./_shared/mod.ts";
@@ -33,25 +39,41 @@ function whenLabel(s: DatasetHmisScheduledImport): string {
 }
 
 function selectionLabel(s: DatasetHmisScheduledImport): string {
-  return `${toNum0(s.selection.indicatorIds.length)} ${t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" })} × ${
+  return `${toNum0(s.selection.indicatorIds.length)} ${
+    t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" })
+  } × ${
     s.selection.kind === "explicit_range"
       ? `${s.selection.startPeriod}–${s.selection.endPeriod}`
-      : `${t3({ en: "last", fr: "derniers", pt: "últimos" })} ${toNum0(s.selection.monthsBack)} ${t3({ en: "months", fr: "mois", pt: "meses" })}`
+      : `${t3({ en: "last", fr: "derniers", pt: "últimos" })} ${
+        toNum0(s.selection.monthsBack)
+      } ${t3({ en: "months", fr: "mois", pt: "meses" })}`
   }`;
 }
 
-function recurringOutcomeLabel(s: DatasetHmisScheduledImport): { text: string; danger: boolean } {
+function recurringOutcomeLabel(
+  s: DatasetHmisScheduledImport,
+): { text: string; danger: boolean } {
   if (!s.lastOutcome) {
     return {
-      text: t3({ en: "Not run yet", fr: "Pas encore exécutée", pt: "Ainda não executada" }),
+      text: t3({
+        en: "Not run yet",
+        fr: "Pas encore exécutée",
+        pt: "Ainda não executada",
+      }),
       danger: false,
     };
   }
   if (s.lastOutcome === "refused") {
-    return { text: t3({ en: "Skipped", fr: "Ignorée", pt: "Ignorada" }), danger: true };
+    return {
+      text: t3({ en: "Skipped", fr: "Ignorée", pt: "Ignorada" }),
+      danger: true,
+    };
   }
   if (s.lastOutcome === "missed") {
-    return { text: t3({ en: "Missed", fr: "Manquée", pt: "Falhada" }), danger: true };
+    return {
+      text: t3({ en: "Missed", fr: "Manquée", pt: "Falhada" }),
+      danger: true,
+    };
   }
   if (s.lastRunStatus === "error") {
     return {
@@ -63,10 +85,15 @@ function recurringOutcomeLabel(s: DatasetHmisScheduledImport): { text: string; d
       danger: true,
     };
   }
-  return { text: t3({ en: "Ran", fr: "Exécutée", pt: "Executada" }), danger: false };
+  return {
+    text: t3({ en: "Ran", fr: "Exécutée", pt: "Executada" }),
+    danger: false,
+  };
 }
 
-function oneTimeStatusLabel(s: DatasetHmisScheduledImport): { text: string; danger: boolean } {
+function oneTimeStatusLabel(
+  s: DatasetHmisScheduledImport,
+): { text: string; danger: boolean } {
   if (!s.lastOutcome) {
     return {
       text: t3({ en: "Scheduled", fr: "Planifiée", pt: "Agendada" }),
@@ -89,18 +116,39 @@ function oneTimeStatusLabel(s: DatasetHmisScheduledImport): { text: string; dang
   };
 }
 
-function EditDeleteActions(p: { schedule: DatasetHmisScheduledImport; onEdit: (s: DatasetHmisScheduledImport) => Promise<void>; onChanged: () => Promise<void> }) {
+function EditDeleteActions(
+  p: {
+    schedule: DatasetHmisScheduledImport;
+    onEdit: (s: DatasetHmisScheduledImport) => Promise<void>;
+    onChanged: () => Promise<void>;
+  },
+) {
   const deleteSchedule = createDeleteAction(
-    t3({ en: "Delete this schedule?", fr: "Supprimer cette planification ?", pt: "Eliminar este agendamento?" }),
+    t3({
+      en: "Delete this schedule?",
+      fr: "Supprimer cette planification ?",
+      pt: "Eliminar este agendamento?",
+    }),
     () => serverActions.deleteDatasetHmisDhis2Schedule({ id: p.schedule.id }),
     p.onChanged,
   );
   return (
     <div class="ui-gap-sm flex justify-end">
-      <Button onClick={() => p.onEdit(p.schedule)} size="sm" outline iconName="pencil">
+      <Button
+        onClick={() => p.onEdit(p.schedule)}
+        size="sm"
+        outline
+        iconName="pencil"
+      >
         {t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
       </Button>
-      <Button onClick={deleteSchedule.click} size="sm" outline intent="danger" iconName="trash" />
+      <Button
+        onClick={deleteSchedule.click}
+        size="sm"
+        outline
+        intent="danger"
+        iconName="trash"
+      />
     </div>
   );
 }
@@ -132,14 +180,20 @@ export function Dhis2TabFuture(p: Props) {
     },
     {
       key: "lastOutcome",
-      header: t3({ en: "Last run", fr: "Dernière exécution", pt: "Última execução" }),
+      header: t3({
+        en: "Last run",
+        fr: "Dernière exécution",
+        pt: "Última execução",
+      }),
       render: (s) => {
         const o = recurringOutcomeLabel(s);
         return (
           <div>
             <span class={o.danger ? "text-danger font-700" : ""}>
               {o.text}
-              {s.lastFiredAt ? ` — ${new Date(s.lastFiredAt).toLocaleString()}` : ""}
+              {s.lastFiredAt
+                ? ` — ${new Date(s.lastFiredAt).toLocaleString()}`
+                : ""}
             </span>
             <Show when={o.danger && s.lastError}>
               <div class="ui-text-caption text-danger">{s.lastError}</div>
@@ -156,7 +210,13 @@ export function Dhis2TabFuture(p: Props) {
     {
       key: "id",
       header: "",
-      render: (s) => <EditDeleteActions schedule={s} onEdit={p.onEdit} onChanged={p.onChanged} />,
+      render: (s) => (
+        <EditDeleteActions
+          schedule={s}
+          onEdit={p.onEdit}
+          onChanged={p.onChanged}
+        />
+      ),
     },
   ];
 
@@ -196,7 +256,13 @@ export function Dhis2TabFuture(p: Props) {
     {
       key: "id",
       header: "",
-      render: (s) => <EditDeleteActions schedule={s} onEdit={p.onEdit} onChanged={p.onChanged} />,
+      render: (s) => (
+        <EditDeleteActions
+          schedule={s}
+          onEdit={p.onEdit}
+          onChanged={p.onChanged}
+        />
+      ),
     },
   ];
 
@@ -207,15 +273,27 @@ export function Dhis2TabFuture(p: Props) {
           <Show when={recurring().length > 0}>
             <div class="ui-spy-sm">
               <div class="ui-text-heading">
-                {t3({ en: "Recurring imports", fr: "Importations récurrentes", pt: "Importações recorrentes" })}
+                {t3({
+                  en: "Recurring imports",
+                  fr: "Importations récurrentes",
+                  pt: "Importações recorrentes",
+                })}
               </div>
-              <Table data={recurring()} columns={recurringColumns} keyField="id" />
+              <Table
+                data={recurring()}
+                columns={recurringColumns}
+                keyField="id"
+              />
             </div>
           </Show>
           <Show when={oneTime().length > 0}>
             <div class="ui-spy-sm">
               <div class="ui-text-heading">
-                {t3({ en: "One-time imports", fr: "Importations ponctuelles", pt: "Importações pontuais" })}
+                {t3({
+                  en: "One-time imports",
+                  fr: "Importations ponctuelles",
+                  pt: "Importações pontuais",
+                })}
               </div>
               <Table data={oneTime()} columns={oneTimeColumns} keyField="id" />
             </div>
@@ -225,9 +303,12 @@ export function Dhis2TabFuture(p: Props) {
       <Match when={visible().length === 0}>
         <div class="text-sm">
           {t3({
-            en: "No scheduled imports. To schedule one, click New DHIS2 import and, when asked when to run it, choose Once, at a set time or Recurring.",
-            fr: "Aucune importation planifiée. Pour en planifier une, cliquez sur Nouvelle importation DHIS2 et, quand on vous demande quand l'exécuter, choisissez Une fois, à une heure donnée ou Récurrente.",
-            pt: "Não há importações agendadas. Para agendar uma, clique em Nova importação DHIS2 e, quando for perguntado quando a executar, escolha Uma vez, a uma hora definida ou Recorrente.",
+            en:
+              "No scheduled imports. To schedule one, click New DHIS2 import and, when asked when to run it, choose Once, at a set time or Recurring.",
+            fr:
+              "Aucune importation planifiée. Pour en planifier une, cliquez sur Nouvelle importation DHIS2 et, quand on vous demande quand l'exécuter, choisissez Une fois, à une heure donnée ou Récurrente.",
+            pt:
+              "Não há importações agendadas. Para agendar uma, clique em Nova importação DHIS2 e, quando for perguntado quando a executar, escolha Uma vez, a uma hora definida ou Recorrente.",
           })}
         </div>
       </Match>

@@ -1,13 +1,13 @@
-import { t3, type InstanceConfigAdminAreaLabels } from "lib";
+import { type InstanceConfigAdminAreaLabels, t3 } from "lib";
 import {
   Button,
   Card,
+  createButtonAction,
   FrameTop,
   HeadingBar,
   Input,
-  createButtonAction,
 } from "panther";
-import { For, Show, createSignal } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState, maxDepth } from "~/state/instance/t1_store";
 
@@ -94,9 +94,12 @@ export function AdminAreaLabels(p: Props) {
           <div class="ui-spy-sm">
             <div class="ui-text-caption">
               {t3({
-                en: 'These names are shared by both facility registries. Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
-                fr: "Ces noms sont partagés par les deux registres d'établissements. Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
-                pt: 'Estes nomes são partilhados pelos dois registos de estabelecimentos. Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
+                en:
+                  'These names are shared by both facility registries. Enter the singular form (e.g. "District" not "Districts"). Leave blank to use the default.',
+                fr:
+                  "Ces noms sont partagés par les deux registres d'établissements. Saisissez la forme singulière (par ex. « District » et non « Districts »). Laissez vide pour utiliser la valeur par défaut.",
+                pt:
+                  'Estes nomes são partilhados pelos dois registos de estabelecimentos. Introduza a forma singular (por ex. "Distrito" e não "Distritos"). Deixe em branco para utilizar a predefinição.',
               })}
             </div>
             <For

@@ -93,10 +93,8 @@ export async function getAssetsForInstance(
     const stat = await Deno.stat(filePath);
     const lowerName = dirEntry.name.toLowerCase();
     const isCsv = lowerName.endsWith(".csv");
-    const isXlsx =
-      lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls");
-    const isImage =
-      lowerName.endsWith(".png") ||
+    const isXlsx = lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls");
+    const isImage = lowerName.endsWith(".png") ||
       lowerName.endsWith(".jpg") ||
       lowerName.endsWith(".jpeg") ||
       lowerName.endsWith(".gif") ||

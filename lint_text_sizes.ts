@@ -22,7 +22,8 @@ const EXEMPT: Record<string, string> = {
 
 const ARBITRARY = /\btext-\[(\d+(\.\d+)?)(px|pt|rem|em)\]/g;
 const TEXT_MD = /\btext-md\b/g;
-const INLINE = /(?:font-size|fontSize)\s*["']?\s*[:=]\s*["'`]?\s*\d+(\.\d+)?(px|pt)\b/g;
+const INLINE =
+  /(?:font-size|fontSize)\s*["']?\s*[:=]\s*["'`]?\s*\d+(\.\d+)?(px|pt)\b/g;
 
 type Hit = { file: string; line: number; message: string };
 
@@ -40,11 +41,13 @@ async function trackedFiles(): Promise<string[]> {
 function scan(file: string, text: string): Hit[] {
   const hits: Hit[] = [];
   text.split("\n").forEach((line, i) => {
-    for (const [re, what] of [
-      [ARBITRARY, "arbitrary text size"],
-      [TEXT_MD, "`text-md` is not a token"],
-      [INLINE, "inline font-size in a fixed unit"],
-    ] as const) {
+    for (
+      const [re, what] of [
+        [ARBITRARY, "arbitrary text size"],
+        [TEXT_MD, "`text-md` is not a token"],
+        [INLINE, "inline font-size in a fixed unit"],
+      ] as const
+    ) {
       for (const m of line.matchAll(re)) {
         hits.push({ file, line: i + 1, message: `${what}: ${m[0]}` });
       }

@@ -1,32 +1,32 @@
 import {
-  t3,
   type DatasetHmisImportLedgerItem,
   type Dhis2RunPairInput,
   type HmisIndicator,
   type ItemsHolderDatasetHmisDisplay,
+  t3,
 } from "lib";
 import {
   Badge,
   Button,
   Callout,
   FrameTop,
+  getEditorWrapper,
   HeadingBar,
+  type ListItem,
+  openComponent,
+  type StateHolder,
   StateHolderWrapper,
   TabsNavigation,
-  getEditorWrapper,
-  openComponent,
-  type ListItem,
-  type StateHolder,
 } from "panther";
 import {
-  Match,
-  Show,
-  Switch,
   createEffect,
   createMemo,
   createSignal,
+  Match,
   on,
   onCleanup,
+  Show,
+  Switch,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
@@ -37,8 +37,8 @@ import {
 import { getDatasetHmisDisplayInfoFromCacheOrFetch } from "~/state/instance/t2_datasets";
 import { getIndicatorsFromCacheOrFetch } from "~/state/instance/t2_indicators";
 import {
-  indicatorsByDataId,
   indicatorNameText,
+  indicatorsByDataId,
 } from "~/components/data/hmis/_shared/mod.ts";
 import { DatasetHmisImports } from "../imports/mod.ts";
 import {
@@ -48,7 +48,7 @@ import {
 } from "../imports/mod.ts";
 import { DeleteData } from "./delete_data";
 import { ImportLedgerIndicatorDetail } from "./import_ledger_indicator_detail";
-import { LedgerTable, type LedgerPeriodWindow } from "./ledger_table";
+import { type LedgerPeriodWindow, LedgerTable } from "./ledger_table";
 import {
   DatasetDisplayPresentation,
   type VizConfig,
@@ -178,15 +178,17 @@ export function InstanceDatasetHmis(p: Props) {
   function importNoticeText(result: Dhis2WizardResult): string {
     return result.landedTab === "current"
       ? t3({
-          en: "The import has been started. Follow it under Imports, Current.",
-          fr: "L'importation a été lancée. Suivez-la sous Importations, En cours.",
-          pt: "A importação foi iniciada. Acompanhe-a em Importações, Atual.",
-        })
+        en: "The import has been started. Follow it under Imports, Current.",
+        fr:
+          "L'importation a été lancée. Suivez-la sous Importations, En cours.",
+        pt: "A importação foi iniciada. Acompanhe-a em Importações, Atual.",
+      })
       : t3({
-          en: "The import has been scheduled. Follow it under Imports, Future.",
-          fr: "L'importation a été planifiée. Suivez-la sous Importations, À venir.",
-          pt: "A importação foi agendada. Acompanhe-a em Importações, Futuro.",
-        });
+        en: "The import has been scheduled. Follow it under Imports, Future.",
+        fr:
+          "L'importation a été planifiée. Suivez-la sous Importations, À venir.",
+        pt: "A importação foi agendada. Acompanhe-a em Importações, Futuro.",
+      });
   }
 
   async function openWizard(entry: Dhis2WizardEntry) {
@@ -213,11 +215,13 @@ export function InstanceDatasetHmis(p: Props) {
       await openWizard({
         kind: "presetPairs",
         pairs,
-        label: `${t3({
-          en: "Re-importing",
-          fr: "Réimportation de",
-          pt: "A reimportar",
-        })} ${indicator ? indicatorNameText(indicator) : dataId}:`,
+        label: `${
+          t3({
+            en: "Re-importing",
+            fr: "Réimportation de",
+            pt: "A reimportar",
+          })
+        } ${indicator ? indicatorNameText(indicator) : dataId}:`,
       });
     }
   }
@@ -361,7 +365,10 @@ export function InstanceDatasetHmis(p: Props) {
                     </div>
                   }
                 >
-                  <StateHolderWrapper state={itemsHolder()} loadingAndErrorPad="md">
+                  <StateHolderWrapper
+                    state={itemsHolder()}
+                    loadingAndErrorPad="md"
+                  >
                     {(keyedDatasetItems) => (
                       <DatasetDisplayPresentation
                         displayItems={keyedDatasetItems}

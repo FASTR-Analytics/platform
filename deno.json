@@ -3,7 +3,7 @@
   "nodeModulesDir": "auto",
   "links": ["./vendor/postgres"],
   "fmt": {
-    "exclude": ["client/"]
+    "exclude": ["client/public/", "client/package-lock.json", "vendor/"]
   },
   "lint": {
     "exclude": ["client/"],
@@ -56,9 +56,9 @@
   "tasks": {
     "dev": "deno run --allow-all --env-file --unstable-broadcast-channel main.ts",
     "build:client": "cd client && npm run build",
-    "build:help-buttons": "deno run --allow-read --allow-write --allow-env build_help_buttons.ts",
+    "build:help-buttons": "deno run --allow-read --allow-write --allow-env --allow-run=deno build_help_buttons.ts",
     "build:server": "echo 'No server build steps'",
-    "typecheck": "deno check main.ts server/tests/*.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n' && deno task lint:systems && deno task lint:structure && deno task lint:text-sizes",
+    "typecheck": "deno fmt --check && deno check main.ts server/tests/*.ts && echo '✓ Server typecheck passed' && sh -c 'cd client && npm run typecheck' && echo '✓ Client typecheck passed\n\n' && deno task lint:systems && deno task lint:structure && deno task lint:text-sizes",
     "test": "BYPASS_AUTH= deno test -A --no-check --env-file --unstable-broadcast-channel server/tests/",
     "lint:systems": "deno run --allow-read --allow-run lint_systems.ts",
     "lint:structure": "deno run --allow-read lint_structure.ts",

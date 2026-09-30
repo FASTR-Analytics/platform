@@ -3,21 +3,18 @@ import {
   _GLOBAL_MIN_YEAR_FOR_PERIODS,
 } from "@timroberton/panther";
 import { Sql } from "postgres";
-import type {
-  DatasetHmisWindowing,
-  StructureSchema,
-} from "lib";
+import type { DatasetHmisWindowing, StructureSchema } from "lib";
 import {
   APIResponseNoData,
   APIResponseWithData,
   DatasetHmisDetail,
-  parseAa3CompositeKey,
-  PeriodBounds,
-  parseJsonOrUndefined,
-  throwIfErrWithData,
   type DatasetHmisVersion,
   type DatasetStagingResult,
   type ItemsHolderDatasetHmisDisplay,
+  parseAa3CompositeKey,
+  parseJsonOrUndefined,
+  PeriodBounds,
+  throwIfErrWithData,
 } from "lib";
 import { escapeSqlString, tryCatchDatabaseAsync } from "../utils.ts";
 import { reconcileHmisLedgerPairsAfterDelete } from "./dataset_hmis_import_ledger.ts";
@@ -38,7 +35,7 @@ import type { DBDatasetHmisVersion } from "./_main_database_types.ts";
 //////////////////////////////////////////////////////
 
 export async function getDatasetHmisDetail(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<DatasetHmisDetail>> {
   return await tryCatchDatabaseAsync(async () => {
     const resVersions = await getVersionsForDatasetHmis(mainDb);
@@ -76,7 +73,7 @@ export async function getDatasetHmisDetail(
 // they compute MAX(id) inline in their own transaction (run worker, CSV
 // integrate worker, windowed delete).
 export async function getVersionsForDatasetHmis(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<APIResponseWithData<DatasetHmisVersion[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const csvVersions = (
@@ -96,8 +93,8 @@ export async function getVersionsForDatasetHmis(
         nRowsUpdated: rawDatatableVersion.n_rows_updated ?? undefined,
         stagingResult: rawDatatableVersion.staging_result
           ? parseJsonOrUndefined<DatasetStagingResult>(
-              rawDatatableVersion.staging_result
-            )
+            rawDatatableVersion.staging_result,
+          )
           : undefined,
       };
     });
@@ -109,7 +106,7 @@ export async function getVersionsForDatasetHmis(
 
 export async function deleteAllDatasetHmisData(
   mainDb: Sql,
-  windowing: DatasetHmisWindowing
+  windowing: DatasetHmisWindowing,
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // A delete minting a version id while an integration is mid-transaction
@@ -148,12 +145,15 @@ export async function deleteAllDatasetHmisData(
     const delAa3Items = windowing.adminArea3sToInclude ?? [];
     if (!(windowing.takeAllAdminArea3s ?? true) && delAa3Items.length > 0) {
       const pairs = delAa3Items.map((key) => parseAa3CompositeKey(key));
-      facilitySubquery = `SELECT facility_id FROM facilities_hmis WHERE (admin_area_3, admin_area_2) IN (VALUES ${pairs
-        .map(
-          (p) =>
-            `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`
-        )
-        .join(", ")})`;
+      facilitySubquery =
+        `SELECT facility_id FROM facilities_hmis WHERE (admin_area_3, admin_area_2) IN (VALUES ${
+          pairs
+            .map(
+              (p) =>
+                `('${escapeSqlString(p.aa3)}', '${escapeSqlString(p.aa2)}')`,
+            )
+            .join(", ")
+        })`;
     } else if (
       !windowing.takeAllAdminArea2s &&
       windowing.adminArea2sToInclude.length > 0
@@ -161,7 +161,8 @@ export async function deleteAllDatasetHmisData(
       const adminAreaList = windowing.adminArea2sToInclude
         .map((aa) => `'${escapeSqlString(aa)}'`)
         .join(", ");
-      facilitySubquery = `SELECT facility_id FROM facilities_hmis WHERE admin_area_2 IN (${adminAreaList})`;
+      facilitySubquery =
+        `SELECT facility_id FROM facilities_hmis WHERE admin_area_2 IN (${adminAreaList})`;
     }
 
     // Delete and version-record insert in one transaction: the recorded
@@ -191,20 +192,18 @@ export async function deleteAllDatasetHmisData(
       // non-facility-scoped deletion wipes the pair's whole window, so those
       // records go too; a facility-scoped deletion keeps them (partial
       // deletion doesn't invalidate pair-level state).
-      const ledgerPairs = facilitySubquery
-        ? []
-        : (
-            await sql.unsafe<
-              { data_id: string; period_id: number }[]
-            >(`
+      const ledgerPairs = facilitySubquery ? [] : (
+        await sql.unsafe<
+          { data_id: string; period_id: number }[]
+        >(`
               SELECT data_id, period_id
               FROM dataset_hmis_import_ledger
               WHERE ${conditions.join(" AND ")}
             `)
-          ).map((r) => ({
-            dataId: r.data_id,
-            periodId: r.period_id,
-          }));
+      ).map((r) => ({
+        dataId: r.data_id,
+        periodId: r.period_id,
+      }));
 
       const deleteResult = await sql.unsafe(`
         DELETE FROM dataset_hmis
@@ -243,12 +242,14 @@ export async function deleteAllDatasetHmisData(
           ${-deleteCount},
           ${-deleteCount},
           0,
-          ${JSON.stringify({
-            kind: "deletion",
-            windowing: windowing,
-            rowsDeleted: deleteCount,
-            dateImported: new Date().toISOString(),
-          })}
+          ${
+        JSON.stringify({
+          kind: "deletion",
+          windowing: windowing,
+          rowsDeleted: deleteCount,
+          dateImported: new Date().toISOString(),
+        })
+      }
         )
       `;
 
@@ -293,7 +294,7 @@ export async function getDatasetHmisItemsForDisplay(
   mainDb: Sql,
   versionId: number | undefined,
   indicatorsVersion: string | undefined,
-  structureSchema: StructureSchema
+  structureSchema: StructureSchema,
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
     // The windowing tree is HMIS data's own registry tree: HFA areas are
@@ -350,17 +351,16 @@ export async function getDatasetHmisItemsForDisplay(
       mainDb,
       versionId,
       indicatorsVersion,
-      sharedData
+      sharedData,
     );
   });
 }
-
 
 async function getDatasetHmisItemsForDisplayByIndicator(
   mainDb: Sql,
   versionId: number | undefined,
   indicatorsVersion: string | undefined,
-  sharedData: SharedDataForDisplay
+  sharedData: SharedDataForDisplay,
 ): Promise<APIResponseWithData<ItemsHolderDatasetHmisDisplay>> {
   return await tryCatchDatabaseAsync(async () => {
     // Ledger reads (~1,440 rows for Nigeria) instead of a GROUP BY scan over
@@ -410,11 +410,9 @@ async function getDatasetHmisItemsForDisplayByIndicator(
       WHERE l.n_records > 0`;
 
     const periodBounds: PeriodBounds = {
-      min:
-        periodBoundsResult[0]?.min_period ??
+      min: periodBoundsResult[0]?.min_period ??
         _GLOBAL_MIN_YEAR_FOR_PERIODS * 100 + 1,
-      max:
-        periodBoundsResult[0]?.max_period ??
+      max: periodBoundsResult[0]?.max_period ??
         _GLOBAL_MAX_YEAR_FOR_PERIODS * 100 + 12,
     };
 
@@ -436,11 +434,10 @@ async function getDatasetHmisItemsForDisplayByIndicator(
   });
 }
 
-
 // Reader: running-run versions excluded; see getVersionsForDatasetHmis.
 // Never use for minting a version id.
 export async function getCurrentDatasetHmisMaxVersionId(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<number | undefined> {
   const maxId = (
     await mainDb<{ max_id: number }[]>`
@@ -456,7 +453,7 @@ WHERE id NOT IN (
 
 // Reader: running-run versions excluded; see getVersionsForDatasetHmis.
 export async function getCurrentDatasetHmisVersion(
-  mainDb: Sql
+  mainDb: Sql,
 ): Promise<DatasetHmisVersion | undefined> {
   const rawDatasetVersion = (
     await mainDb<DBDatasetHmisVersion[]>`
@@ -479,8 +476,8 @@ LIMIT 1
     nRowsUpdated: rawDatasetVersion.n_rows_updated ?? undefined,
     stagingResult: rawDatasetVersion.staging_result
       ? parseJsonOrUndefined<DatasetStagingResult>(
-          rawDatasetVersion.staging_result
-        )
+        rawDatasetVersion.staging_result,
+      )
       : undefined,
   };
   return datasetVersion;

@@ -142,7 +142,7 @@ export const ICEH_STRAT_INFO: Record<IcehStrat, IcehStratInfo> = {
 };
 
 const RAW_TO_NORMALIZED = Object.fromEntries(
-  Object.entries(ICEH_STRAT_INFO).map(([k, v]) => [v.rawValue, k])
+  Object.entries(ICEH_STRAT_INFO).map(([k, v]) => [v.rawValue, k]),
 ) as Record<string, IcehStrat>;
 
 export function normalizeIcehStrat(raw: string): IcehStrat | undefined {

@@ -1,22 +1,22 @@
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type {
+  AssetInfo,
   FacilityFamily,
+  FigureLocalization,
   Folder,
-  ProductSummary,
-  StructureSchema,
+  GeoJsonMapSummary,
   InstanceConfig,
   InstanceDatasetsSummary,
   InstanceIndicatorsSummary,
   InstancePopulationSummary,
   InstanceState,
   InstanceStructureSummary,
-  AssetInfo,
-  GeoJsonMapSummary,
-  OtherUser,
   LastUpdateTableName,
-  FigureLocalization,
+  OtherUser,
+  ProductSummary,
   ReadyPackage,
   RunCatalogItem,
+  StructureSchema,
 } from "lib";
 
 // ============================================================================
@@ -167,7 +167,9 @@ const FALLBACK_STRUCTURE_SCHEMA: StructureSchema = {
   includeCustom5: false,
 };
 
-export function structureSchemaForFamily(family: FacilityFamily): StructureSchema {
+export function structureSchemaForFamily(
+  family: FacilityFamily,
+): StructureSchema {
   const schema = family === "hmis"
     ? instanceState.structureSchemaHmis
     : instanceState.structureSchemaHfa;
@@ -191,7 +193,12 @@ export function upsertInstanceProducts(products: ProductSummary[]): void {
     } else {
       setInstanceState("products", index, reconcile(product));
     }
-    setInstanceState("lastUpdated", "products", product.id, product.lastUpdated);
+    setInstanceState(
+      "lastUpdated",
+      "products",
+      product.id,
+      product.lastUpdated,
+    );
   }
 }
 
@@ -326,21 +333,21 @@ export function updateCurrentUser(me: OtherUser | undefined): void {
     reconcile(
       me
         ? {
-            can_configure_users: me.can_configure_users,
-            can_view_users: me.can_view_users,
-            can_view_logs: me.can_view_logs,
-            can_configure_settings: me.can_configure_settings,
-            can_configure_data: me.can_configure_data,
-            can_view_data: me.can_view_data,
-          }
+          can_configure_users: me.can_configure_users,
+          can_view_users: me.can_view_users,
+          can_view_logs: me.can_view_logs,
+          can_configure_settings: me.can_configure_settings,
+          can_configure_data: me.can_configure_data,
+          can_view_data: me.can_view_data,
+        }
         : {
-            can_configure_users: false,
-            can_view_users: false,
-            can_view_logs: false,
-            can_configure_settings: false,
-            can_configure_data: false,
-            can_view_data: false,
-          },
+          can_configure_users: false,
+          can_view_users: false,
+          can_view_logs: false,
+          can_configure_settings: false,
+          can_configure_data: false,
+          can_view_data: false,
+        },
     ),
   );
 }

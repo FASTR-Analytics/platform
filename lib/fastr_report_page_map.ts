@@ -7,7 +7,10 @@
 // the model can act on with the format's page budget (fastr_markdown_spec.ts).
 // =============================================================================
 
-import { fastrLiveRegions, type FastrLiveRegion } from "./fastr_live_regions.ts";
+import {
+  type FastrLiveRegion,
+  fastrLiveRegions,
+} from "./fastr_live_regions.ts";
 import {
   fastrPageMarginPx,
   fastrSheetPx,
@@ -23,7 +26,10 @@ export const FASTR_PAGE_STUB_SHARE = 0.4;
 
 type MapBlock = { line: number; height: number; label: string };
 
-export function fastrPageMapText(result: FastrPagedResult, body: string): string {
+export function fastrPageMapText(
+  result: FastrPagedResult,
+  body: string,
+): string {
   if (result.total === 0 || result.blocks === undefined) {
     return "The report has no pages yet (an empty body, or the layout did not run).";
   }
@@ -36,13 +42,21 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
   };
   const lines = body.split("\n");
   const regions = fastrLiveRegions(lines);
-  const owner: (FastrLiveRegion | undefined)[] = new Array(lines.length).fill(undefined);
+  const owner: (FastrLiveRegion | undefined)[] = new Array(lines.length).fill(
+    undefined,
+  );
   for (const r of regions) {
-    for (let i = r.startLine; i <= r.endLine && i < lines.length; i++) owner[i] = r;
+    for (let i = r.startLine; i <= r.endLine && i < lines.length; i++) {
+      owner[i] = r;
+    }
   }
   const blocks: MapBlock[] = result.blocks
     .filter((b) => b.line >= 0 && b.line < lines.length)
-    .map((b) => ({ line: b.line, height: b.height, label: labelOf(b.line, lines, owner) }))
+    .map((b) => ({
+      line: b.line,
+      height: b.height,
+      label: labelOf(b.line, lines, owner),
+    }))
     .sort((a, b) => a.line - b.line);
   const pages = result.pages;
   const out: string[] = [];
@@ -53,7 +67,10 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
     const next = pages[i + 1];
     const from = page.firstLine ?? 0;
     const to = next?.firstLine ?? lines.length;
-    const area = fastrPageArea(geometry, { cover: page.cover, flushTop: page.flushTop });
+    const area = fastrPageArea(geometry, {
+      cover: page.cover,
+      flushTop: page.flushTop,
+    });
     const fill = pct(page.contentHeight, area);
     const last = next === undefined;
     const own = blocks.filter((b) => b.line >= from && b.line < to);
@@ -63,7 +80,11 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
     let blankPx = 0;
     const flushBlanks = () => {
       if (blanks === 0) return;
-      rows.push(`  ${String(pct(blankPx, area)).padStart(3)}%  blank line${blanks > 1 ? `s x${blanks}` : ""}`);
+      rows.push(
+        `  ${String(pct(blankPx, area)).padStart(3)}%  blank line${
+          blanks > 1 ? `s x${blanks}` : ""
+        }`,
+      );
       blanks = 0;
       blankPx = 0;
     };
@@ -81,22 +102,33 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
     // space between them, shown so the column adds up.
     const boxes = own.reduce((sum, b) => sum + b.height, 0);
     if (own.length > 0 && page.contentHeight - boxes > area * 0.005) {
-      rows.push(`  ${String(pct(page.contentHeight - boxes, area)).padStart(3)}%  spacing between blocks`);
+      rows.push(
+        `  ${
+          String(pct(page.contentHeight - boxes, area)).padStart(3)
+        }%  spacing between blocks`,
+      );
     }
     let note = "";
     if (!last && fill < 100 * FASTR_PAGE_SHORT_SHARE) {
-      const at = next !== undefined ? blocks.findIndex((b) => b.line === next.firstLine) : -1;
+      const at = next !== undefined
+        ? blocks.findIndex((b) => b.line === next.firstLine)
+        : -1;
       const culprit = at >= 0 ? blocks[at] : undefined;
       // A heading moves for the block after it: name that block.
-      const kept = culprit !== undefined && /^(section )?heading /.test(culprit.label) ? blocks[at + 1] : undefined;
+      const kept =
+        culprit !== undefined && /^(section )?heading /.test(culprit.label)
+          ? blocks[at + 1]
+          : undefined;
       const why = culprit !== undefined
         ? kept !== undefined
-          ? `the next block did not fit and moved whole to page ${page.number + 1}: ${kept.label} (${
+          ? `the next block did not fit and moved whole to page ${
+            page.number + 1
+          }: ${kept.label} (${
             pct(kept.height, area)
           }%), with the ${culprit.label} above it`
-          : `the next block did not fit and moved whole to page ${page.number + 1}: ${culprit.label} (${
-            pct(culprit.height, area)
-          }%)`
+          : `the next block did not fit and moved whole to page ${
+            page.number + 1
+          }: ${culprit.label} (${pct(culprit.height, area)}%)`
         : `the next page starts inside a block`;
       note = `, SHORT: ${why}`;
       problems.push(
@@ -107,7 +139,9 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
     // break or a break=after follows), and the heading is cut off from
     // what it introduces.
     const tail = own[own.length - 1];
-    if (!last && tail !== undefined && /^(section )?heading /.test(tail.label)) {
+    if (
+      !last && tail !== undefined && /^(section )?heading /.test(tail.label)
+    ) {
       note += `, STRANDED: ${tail.label}`;
       problems.push(
         `Page ${page.number} ends with the ${tail.label}: a page break stands between it and its section. Move the break above the heading.`,
@@ -118,15 +152,23 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
       problems.push(
         `Page ${page.number} (the last) is ${fill}% full with ${own.length} block${
           own.length === 1 ? "" : "s"
-        }: a stub. Give it the closing section, or fold its blocks into page ${page.number - 1} by trimming there.`,
+        }: a stub. Give it the closing section, or fold its blocks into page ${
+          page.number - 1
+        } by trimming there.`,
       );
     }
-    out.push(`Page ${page.number} of ${pages.length}${last ? " (last)" : ""}: ${fill}% full${note}`);
+    out.push(
+      `Page ${page.number} of ${pages.length}${
+        last ? " (last)" : ""
+      }: ${fill}% full${note}`,
+    );
     out.push(...rows);
   }
   out.push("");
   if (problems.length === 0) {
-    out.push("Every page is set: none but the last is short, and the last is not a stub.");
+    out.push(
+      "Every page is set: none but the last is short, and the last is not a stub.",
+    );
   } else {
     out.push("Problems:");
     for (const p of problems) out.push(`- ${p}`);
@@ -135,27 +177,41 @@ export function fastrPageMapText(result: FastrPagedResult, body: string): string
 }
 
 // One line naming a block for the model, from its source.
-function labelOf(line: number, lines: string[], owner: (FastrLiveRegion | undefined)[]): string {
+function labelOf(
+  line: number,
+  lines: string[],
+  owner: (FastrLiveRegion | undefined)[],
+): string {
   const r = owner[line];
   if (r !== undefined && r.startLine === line) return regionLabel(r, lines);
   const text = lines[line] ?? "";
   if (text.trim().length === 0) return "blank line";
   const h = /^(#{1,6})\s+(.*)$/.exec(text);
-  if (h) return `${h[1].length === 1 ? "section heading" : "heading"} "${clip(strip(h[2]), 60)}"`;
+  if (h) {
+    return `${h[1].length === 1 ? "section heading" : "heading"} "${
+      clip(strip(h[2]), 60)
+    }"`;
+  }
   if (/^\s*(?:[-*+]|\d+[.)])\s+/.test(text)) {
     let n = line;
     let items = 0;
-    while (n < lines.length && lines[n].trim().length > 0 && owner[n] === undefined) {
+    while (
+      n < lines.length && lines[n].trim().length > 0 && owner[n] === undefined
+    ) {
       if (/^\s*(?:[-*+]|\d+[.)])\s+/.test(lines[n])) items++;
       n++;
     }
     return `list (${items} item${items === 1 ? "" : "s"})`;
   }
-  if (/^\s*>/.test(text)) return `quote "${clip(strip(text.replace(/^\s*>\s?/, "")), 40)}"`;
+  if (/^\s*>/.test(text)) {
+    return `quote "${clip(strip(text.replace(/^\s*>\s?/, "")), 40)}"`;
+  }
   if (/^\s*(```|~~~)/.test(text)) return "code block";
   let n = line;
   let words = 0;
-  while (n < lines.length && lines[n].trim().length > 0 && owner[n] === undefined) {
+  while (
+    n < lines.length && lines[n].trim().length > 0 && owner[n] === undefined
+  ) {
     words += lines[n].trim().split(/\s+/).length;
     n++;
   }
@@ -164,7 +220,9 @@ function labelOf(line: number, lines: string[], owner: (FastrLiveRegion | undefi
 
 function regionLabel(r: FastrLiveRegion, lines: string[]): string {
   const inner = lines.slice(r.startLine + 1, r.endLine);
-  if (r.kind === "table") return `table (${Math.max(0, r.endLine - r.startLine - 1)} rows)`;
+  if (r.kind === "table") {
+    return `table (${Math.max(0, r.endLine - r.startLine - 1)} rows)`;
+  }
   if (r.kind === "embed") {
     const m = /!\[([^\]]*)\]\((figure|image):/.exec(lines[r.startLine] ?? "");
     return m ? `${m[2]} "${clip(m[1], 50)}"` : "figure";
@@ -191,9 +249,13 @@ function regionLabel(r: FastrLiveRegion, lines: string[]): string {
       return `steps (${items} step${items === 1 ? "" : "s"})`;
     }
     case "callout":
-      return `callout${title ? ` "${clip(title, 40)}"` : ""} (${prose(inner)} words)`;
+      return `callout${title ? ` "${clip(title, 40)}"` : ""} (${
+        prose(inner)
+      } words)`;
     case "band":
-      return `band "${clip(strip(inner.find((l) => l.trim().length > 0) ?? ""), 50)}" (${prose(inner)} words)`;
+      return `band "${
+        clip(strip(inner.find((l) => l.trim().length > 0) ?? ""), 50)
+      }" (${prose(inner)} words)`;
     case "quote":
       return `quote block (${prose(inner)} words)`;
     case "contents":
@@ -221,7 +283,11 @@ function paragraphs(inner: string[]): number {
 }
 function prose(inner: string[]): number {
   let words = 0;
-  for (const l of inner) if (!/^:::/.test(l)) words += l.trim().length === 0 ? 0 : l.trim().split(/\s+/).length;
+  for (const l of inner) {
+    if (!/^:::/.test(l)) {
+      words += l.trim().length === 0 ? 0 : l.trim().split(/\s+/).length;
+    }
+  }
   return words;
 }
 function strip(text: string): string {

@@ -109,7 +109,11 @@ function dbRowToDefinition(row: DBIndicatorCommon): HmisIndicatorDefinition {
     case "uploaded":
       return { type: "uploaded", data_id: row.data_id! };
     case "dhis2_element":
-      return { type: "dhis2_element", data_id: row.data_id!, dhis2_label: row.dhis2_label };
+      return {
+        type: "dhis2_element",
+        data_id: row.data_id!,
+        dhis2_label: row.dhis2_label,
+      };
     case "sum":
       return { type: "sum", members: row.members };
     case "calculated":
@@ -178,8 +182,12 @@ function typeRuleError(
 
 // A DHIS2 element's data id is DHIS2-shaped (the table's CHECK). An
 // Uploaded indicator's is not user input.
-function dataIdError(definition: HmisIndicatorDefinitionInput): string | undefined {
-  if (definition.type === "dhis2_element" && !isDhis2ShapedId(definition.data_id)) {
+function dataIdError(
+  definition: HmisIndicatorDefinitionInput,
+): string | undefined {
+  if (
+    definition.type === "dhis2_element" && !isDhis2ShapedId(definition.data_id)
+  ) {
     return `DHIS2 id ${
       JSON.stringify(definition.data_id)
     } must be a data element UID or a UID.COC operand`;
@@ -201,7 +209,9 @@ function membersRuleError(
   }
   const seen = new Set<string>();
   for (const member of definition.members) {
-    if (seen.has(member)) return `Member ${JSON.stringify(member)} is listed twice`;
+    if (seen.has(member)) {
+      return `Member ${JSON.stringify(member)} is listed twice`;
+    }
     seen.add(member);
     if (member === ownId) return "A sum cannot be its own member";
     const type = types.get(member);
@@ -232,7 +242,9 @@ async function loadExpressionDictionaryEntries(
   return [
     ...stored.map((r) => ({
       id: r.indicator_common_id,
-      type: r.definition_type === "calculated" ? "calculated" as const : "leaf" as const,
+      type: r.definition_type === "calculated"
+        ? "calculated" as const
+        : "leaf" as const,
       expression: r.expression,
     })),
     ...POPULATION_TYPE_IDS.map((id) => ({
@@ -300,7 +312,9 @@ async function checkDefinitionsResolve(
     entries.set(id, {
       id,
       type: definition.type === "calculated" ? "calculated" : "leaf",
-      expression: definition.type === "calculated" ? definition.expression : null,
+      expression: definition.type === "calculated"
+        ? definition.expression
+        : null,
     });
   }
   const dictionary = buildExpressionDictionary([...entries.values()]);
@@ -322,7 +336,9 @@ async function checkDefinitionsResolve(
   // repointing an indicator at a new expression invalidates every chain
   // that runs through it.
   for (const entry of entries.values()) {
-    if (entry.type !== "calculated" || pendingDefinitions.has(entry.id)) continue;
+    if (entry.type !== "calculated" || pendingDefinitions.has(entry.id)) {
+      continue;
+    }
     try {
       resolveIndicatorExpression({
         ownId: entry.id,
@@ -595,7 +611,9 @@ async function insertIndicators(
         VALUES (
           ${indicator.indicator_common_id}, ${indicator.indicator_common_label},
           ${d.definition_type}, ${d.expression}, ${d.data_id},
-          ${d.definition_type === "dhis2_element" ? indicator.dhis2_label : null},
+          ${
+        d.definition_type === "dhis2_element" ? indicator.dhis2_label : null
+      },
           ${indicator.include_in_analysis},
           ${indicator.format_as},
           ${thresholdsToDb(indicator.thresholds, indicator.direction)},
@@ -626,7 +644,10 @@ export async function createIndicators(
       return { success: false, err };
     }
     await mainDb.begin((sql) =>
-      insertIndicators(sql, indicators.map((i) => ({ ...i, dhis2_label: null })))
+      insertIndicators(
+        sql,
+        indicators.map((i) => ({ ...i, dhis2_label: null })),
+      )
     );
     return { success: true, data: { created: indicators.length } };
   });
@@ -643,7 +664,9 @@ type NamingPlan =
 // The naming step as the server applies it: each element with the DHIS2
 // label the route read from live metadata (NULL when the element could not
 // be read, in which case its verdict refuses the save anyway).
-export type NamingElementInput = IndicatorNamingElement & { dhis2_label: string | null };
+export type NamingElementInput = IndicatorNamingElement & {
+  dhis2_label: string | null;
+};
 
 export type NamingInput = {
   elements: NamingElementInput[];
@@ -672,7 +695,10 @@ async function planIndicatorNaming(
 
   for (const element of input.elements) {
     if (landing.has(element.data_id)) {
-      return { ok: false, err: `DHIS2 id ${element.data_id} is listed more than once.` };
+      return {
+        ok: false,
+        err: `DHIS2 id ${element.data_id} is listed more than once.`,
+      };
     }
     const owner = ownerOfDataId.get(element.data_id);
     if (owner !== undefined) {
@@ -718,9 +744,10 @@ async function planIndicatorNaming(
       if (unnamed.length > 0) {
         return {
           ok: false,
-          err: `${calculated.indicator_id}: its formula names DHIS2 ids that were not named: ${
-            unnamed.join(", ")
-          }`,
+          err:
+            `${calculated.indicator_id}: its formula names DHIS2 ids that were not named: ${
+              unnamed.join(", ")
+            }`,
         };
       }
       expression = writeIndicatorExpression(
@@ -792,7 +819,10 @@ export async function getDhis2ElementDataIds(
     WHERE definition_type = 'dhis2_element'
     ORDER BY indicator_common_id
   `;
-  return rows.map((r) => ({ indicator_common_id: r.indicator_common_id, data_id: r.data_id }));
+  return rows.map((r) => ({
+    indicator_common_id: r.indicator_common_id,
+    data_id: r.data_id,
+  }));
 }
 
 // Writes the DHIS2 label the route read for each element, by indicator id,
@@ -848,15 +878,17 @@ export async function createIndicatorsFromDhis2(
       if (!operand.verdict.accepted) {
         return {
           success: false,
-          err: `DHIS2 indicator ${indicator.uid}: operand ${operand.data_id} cannot be imported: ${
-            t3(describeDhis2ElementRefusal(operand.verdict.refusal))
-          }`,
+          err:
+            `DHIS2 indicator ${indicator.uid}: operand ${operand.data_id} cannot be imported: ${
+              t3(describeDhis2ElementRefusal(operand.verdict.refusal))
+            }`,
         };
       }
       if (!named.has(operand.data_id)) {
         return {
           success: false,
-          err: `DHIS2 indicator ${indicator.uid}: operand ${operand.data_id} was not named`,
+          err:
+            `DHIS2 indicator ${indicator.uid}: operand ${operand.data_id} was not named`,
         };
       }
     }
@@ -868,7 +900,9 @@ export async function createIndicatorsFromDhis2(
     });
   }
   return await applyIndicatorNaming(mainDb, {
-    elements: input.elements.map(({ verdict: _verdict, ...element }) => element),
+    elements: input.elements.map(({ verdict: _verdict, ...element }) =>
+      element
+    ),
     calculated,
   });
 }
@@ -926,7 +960,10 @@ export async function updateIndicator(
       if (err) return { success: false, err };
     }
 
-    const typeIssue = getSpecialIndicatorTypeIssue(newId, update.definition.type);
+    const typeIssue = getSpecialIndicatorTypeIssue(
+      newId,
+      update.definition.type,
+    );
     if (typeIssue) {
       return {
         success: false,
@@ -942,7 +979,11 @@ export async function updateIndicator(
 
     const current = (
       await mainDb<
-        { definition_type: HmisIndicatorType; data_id: string | null; dhis2_label: string | null }[]
+        {
+          definition_type: HmisIndicatorType;
+          data_id: string | null;
+          dhis2_label: string | null;
+        }[]
       >`
         SELECT definition_type, data_id, dhis2_label FROM indicators
         WHERE indicator_common_id = ${oldIndicatorId}
@@ -1021,9 +1062,10 @@ export async function updateIndicator(
     // The DHIS2 label describes the data id it was read for: it stays while
     // the indicator remains a DHIS2 element under the same id and goes
     // otherwise, since no path re-reads it.
-    const dhis2Label = d.definition_type === "dhis2_element" && d.data_id === current.data_id
-      ? current.dhis2_label
-      : null;
+    const dhis2Label =
+      d.definition_type === "dhis2_element" && d.data_id === current.data_id
+        ? current.dhis2_label
+        : null;
     await mainDb.begin(async (sql) => {
       await sql`
         UPDATE indicators
@@ -1060,7 +1102,9 @@ async function renameReferences(
   from: string,
   to: string,
 ): Promise<void> {
-  const calculated = await sql<{ indicator_common_id: string; expression: string }[]>`
+  const calculated = await sql<
+    { indicator_common_id: string; expression: string }[]
+  >`
     SELECT indicator_common_id, expression FROM indicators
     WHERE definition_type = 'calculated' AND expression IS NOT NULL
   `;
@@ -1125,9 +1169,10 @@ export async function setIndicatorsIncludeInAnalysis(
       if (specials.length > 0) {
         return {
           success: false,
-          err: `Special indicators are always analysed and cannot be excluded: ${
-            specials.join(", ")
-          }`,
+          err:
+            `Special indicators are always analysed and cannot be excluded: ${
+              specials.join(", ")
+            }`,
         };
       }
     }
@@ -1185,7 +1230,11 @@ export async function deleteIndicators(
       };
     }
 
-    const naming = await sumsNaming(mainDb, indicatorIds, new Set(indicatorIds));
+    const naming = await sumsNaming(
+      mainDb,
+      indicatorIds,
+      new Set(indicatorIds),
+    );
     if (naming.length > 0) {
       return {
         success: false,
@@ -1202,9 +1251,10 @@ export async function deleteIndicators(
     if (blocked.length > 0) {
       return {
         success: false,
-        err: `Cannot delete indicators that other indicators are defined from: ${
-          blocked.join("; ")
-        }`,
+        err:
+          `Cannot delete indicators that other indicators are defined from: ${
+            blocked.join("; ")
+          }`,
       };
     }
 

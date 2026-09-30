@@ -43,14 +43,15 @@ export function createAuthHeader(credentials: {
 export function buildUrl(
   endpoint: string,
   customUrl: string,
-  params?: URLSearchParams | Record<string, string>
+  params?: URLSearchParams | Record<string, string>,
 ): string {
   const baseUrl = customUrl.replace(/\/$/, "");
   const url = new URL(`${baseUrl}${endpoint}`);
 
   if (params) {
-    const searchParams =
-      params instanceof URLSearchParams ? params : new URLSearchParams(params);
+    const searchParams = params instanceof URLSearchParams
+      ? params
+      : new URLSearchParams(params);
 
     searchParams.forEach((value, key) => {
       url.searchParams.append(key, value);
@@ -65,7 +66,7 @@ export function buildUrl(
  */
 export async function fetchFromDHIS2<T = any>(
   endpoint: string,
-  options: FetchOptions
+  options: FetchOptions,
 ): Promise<T> {
   const {
     retryOptions,
@@ -184,7 +185,7 @@ async function readJsonBodyWithCap<T>(
  */
 async function createDHIS2Error(
   response: Response,
-  url: string
+  url: string,
 ): Promise<DHIS2FetchError> {
   let errorDetails = "";
   let responseBody = "";
@@ -205,7 +206,7 @@ async function createDHIS2Error(
   }
 
   const error = new Error(
-    `DHIS2 API Error (${response.status}): ${response.statusText}. ${errorDetails}`
+    `DHIS2 API Error (${response.status}): ${response.statusText}. ${errorDetails}`,
   ) as DHIS2FetchError;
 
   error.status = response.status;
@@ -260,9 +261,12 @@ export async function validateDhis2Connection(
         valid: false,
         reason: "invalid_url",
         message: {
-          en: "This URL does not point to a valid DHIS2 instance. Please check the base URL (e.g. https://dhis2.example.org).",
-          fr: "Cette URL ne pointe pas vers une instance DHIS2 valide. Veuillez vérifier l'URL de base (ex. https://dhis2.example.org).",
-          pt: "Este URL não aponta para uma instância DHIS2 válida. Verifique o URL de base (ex.: https://dhis2.example.org).",
+          en:
+            "This URL does not point to a valid DHIS2 instance. Please check the base URL (e.g. https://dhis2.example.org).",
+          fr:
+            "Cette URL ne pointe pas vers une instance DHIS2 valide. Veuillez vérifier l'URL de base (ex. https://dhis2.example.org).",
+          pt:
+            "Este URL não aponta para uma instância DHIS2 válida. Verifique o URL de base (ex.: https://dhis2.example.org).",
         },
       };
     }
@@ -271,9 +275,12 @@ export async function validateDhis2Connection(
       valid: false,
       reason: "dhis2_unavailable",
       message: {
-        en: "Could not connect to a DHIS2 server at this URL. Check that the URL is correct and that the DHIS2 instance is running.",
-        fr: "Impossible de se connecter à un serveur DHIS2 à cette URL. Vérifiez que l'URL est correcte et que l'instance DHIS2 est en cours d'exécution.",
-        pt: "Não foi possível ligar a um servidor DHIS2 neste URL. Verifique se o URL está correto e se a instância DHIS2 está em execução.",
+        en:
+          "Could not connect to a DHIS2 server at this URL. Check that the URL is correct and that the DHIS2 instance is running.",
+        fr:
+          "Impossible de se connecter à un serveur DHIS2 à cette URL. Vérifiez que l'URL est correcte et que l'instance DHIS2 est en cours d'exécution.",
+        pt:
+          "Não foi possível ligar a um servidor DHIS2 neste URL. Verifique se o URL está correto e se a instância DHIS2 está em execução.",
       },
     };
   } finally {
@@ -297,14 +304,20 @@ export async function validateDhis2Connection(
       signal: phase2Controller.signal,
       redirect: "manual",
     });
-    if (response.status === 401 || response.status === 403 || response.status === 302) {
+    if (
+      response.status === 401 || response.status === 403 ||
+      response.status === 302
+    ) {
       return {
         valid: false,
         reason: "bad_credentials",
         message: {
-          en: "A DHIS2 server was found and is online, but authentication failed. Check your username and password, and verify that the URL is correct.",
-          fr: "Un serveur DHIS2 a été trouvé et est en ligne, mais l'authentification a échoué. Vérifiez votre nom d'utilisateur et votre mot de passe, et confirmez que l'URL est correcte.",
-          pt: "Foi encontrado um servidor DHIS2 online, mas a autenticação falhou. Verifique o seu nome de utilizador e a sua palavra-passe, e confirme que o URL está correto.",
+          en:
+            "A DHIS2 server was found and is online, but authentication failed. Check your username and password, and verify that the URL is correct.",
+          fr:
+            "Un serveur DHIS2 a été trouvé et est en ligne, mais l'authentification a échoué. Vérifiez votre nom d'utilisateur et votre mot de passe, et confirmez que l'URL est correcte.",
+          pt:
+            "Foi encontrado um servidor DHIS2 online, mas a autenticação falhou. Verifique o seu nome de utilizador e a sua palavra-passe, e confirme que o URL está correto.",
         },
       };
     }
@@ -313,9 +326,12 @@ export async function validateDhis2Connection(
         valid: false,
         reason: "server_error",
         message: {
-          en: `The DHIS2 server was reached but returned an unexpected error (status ${response.status}). Please try again.`,
-          fr: `Le serveur DHIS2 a été atteint mais a renvoyé une erreur inattendue (statut ${response.status}). Veuillez réessayer.`,
-          pt: `O servidor DHIS2 foi contactado mas devolveu um erro inesperado (estado ${response.status}). Tente novamente, por favor.`,
+          en:
+            `The DHIS2 server was reached but returned an unexpected error (status ${response.status}). Please try again.`,
+          fr:
+            `Le serveur DHIS2 a été atteint mais a renvoyé une erreur inattendue (statut ${response.status}). Veuillez réessayer.`,
+          pt:
+            `O servidor DHIS2 foi contactado mas devolveu um erro inesperado (estado ${response.status}). Tente novamente, por favor.`,
         },
       };
     }
@@ -325,9 +341,12 @@ export async function validateDhis2Connection(
       valid: false,
       reason: "server_error",
       message: {
-        en: "Connection to DHIS2 failed during authentication. Please try again.",
-        fr: "La connexion à DHIS2 a échoué lors de l'authentification. Veuillez réessayer.",
-        pt: "A ligação ao DHIS2 falhou durante a autenticação. Tente novamente, por favor.",
+        en:
+          "Connection to DHIS2 failed during authentication. Please try again.",
+        fr:
+          "La connexion à DHIS2 a échoué lors de l'authentification. Veuillez réessayer.",
+        pt:
+          "A ligação ao DHIS2 falhou durante a autenticação. Tente novamente, por favor.",
       },
     };
   } finally {
@@ -341,7 +360,7 @@ export async function validateDhis2Connection(
 export async function getDHIS2<T = any>(
   endpoint: string,
   options: FetchOptions,
-  params?: URLSearchParams | Record<string, string>
+  params?: URLSearchParams | Record<string, string>,
 ): Promise<T> {
   const url = buildUrl(endpoint, options.dhis2Credentials.url, params);
   return fetchFromDHIS2<T>(url, {
@@ -349,4 +368,3 @@ export async function getDHIS2<T = any>(
     method: "GET",
   });
 }
-

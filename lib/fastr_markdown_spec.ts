@@ -13,7 +13,8 @@ export const FASTR_BLOCK_SNIPPETS: { name: FastrBlockName; snippet: string }[] =
   [
     {
       name: "callout",
-      snippet: `:::callout{kind=warning title="Data caveat"}\nReporting completeness was 62% this quarter.\n:::`,
+      snippet:
+        `:::callout{kind=warning title="Data caveat"}\nReporting completeness was 62% this quarter.\n:::`,
     },
     {
       name: "tiles",

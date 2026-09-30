@@ -21,9 +21,9 @@ import { z } from "zod";
 import {
   composeHfaIndicatorLabel,
   getHfaIndicatorMeasure,
-  ICEH_STRAT_INFO,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
+  ICEH_STRAT_INFO,
   type IndicatorMetadata,
   PACKAGE_INDICATOR_TYPES,
   type RunHmisIndicator,
@@ -248,7 +248,8 @@ async function deriveIndicatorMetadata(
       await readRows("hfa_indicators_snapshot.json", hfaIndicatorRow)
     ).sort(
       (a, b) =>
-        a.sort_order - b.sort_order || a.indicator_id.localeCompare(b.indicator_id),
+        a.sort_order - b.sort_order ||
+        a.indicator_id.localeCompare(b.indicator_id),
     );
     for (const row of hfaIndicators) {
       metadata.push({

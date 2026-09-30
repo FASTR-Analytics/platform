@@ -23,8 +23,7 @@ const TOAST_MS = 4_000;
 const LEAVE_GRACE_MS = 4_000;
 const MAX_TOASTS = 4;
 
-const REDUCED_MOTION =
-  typeof globalThis.matchMedia === "function" &&
+const REDUCED_MOTION = typeof globalThis.matchMedia === "function" &&
   globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ── Toast host (lazily mounted into document.body on first toast) ────────────
@@ -63,11 +62,9 @@ function PresenceToastHost() {
         {(t) => (
           <div
             class="bg-primary text-primary-content shadow-floating flex items-center gap-2 rounded px-3 py-2 text-sm"
-            style={
-              REDUCED_MOTION
-                ? {}
-                : { animation: "presence-toast-in 150ms ease-out" }
-            }
+            style={REDUCED_MOTION
+              ? {}
+              : { animation: "presence-toast-in 150ms ease-out" }}
           >
             <span
               class="ring-base-100/60 h-2.5 w-2.5 flex-none rounded-full ring-1"

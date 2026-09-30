@@ -1,14 +1,14 @@
 import {
-  getMetricDisplayLabel,
-  primaryMetricFor,
-  t3,
   type DatasetType,
+  getMetricDisplayLabel,
   type GridColumns,
   type GridQuery,
   type InstalledModuleSummary,
   type MetricWithStatus,
   type PackageScope,
+  primaryMetricFor,
   type RunAuthoringContext,
+  t3,
 } from "lib";
 import { FrameTop, SelectV2 } from "panther";
 import { createMemo, For, type JSX, Match, Show, Switch } from "solid-js";
@@ -21,10 +21,12 @@ import { Timeseries } from "./timeseries";
 // The HMIS primary module offers its first ready metric as a table of counts
 // and as a timeseries, and no other module has a view yet. When module definitions declare
 // views, `viewsFor` reads them instead and the rest of the page stands.
-type ExploreView = { id: string; label: string; metric: MetricWithStatus } & (
-  | { kind: "data_table"; columns: GridColumns }
-  | { kind: "timeseries" }
-);
+type ExploreView =
+  & { id: string; label: string; metric: MetricWithStatus }
+  & (
+    | { kind: "data_table"; columns: GridColumns }
+    | { kind: "timeseries" }
+  );
 
 function viewsFor(
   module: InstalledModuleSummary,
@@ -140,9 +142,7 @@ export function ModuleView(
 
 // It wraps because the selects have fixed widths.
 function SelectorsRow(p: { children: JSX.Element }) {
-  return (
-    <div class="ui-gap-sm flex flex-wrap items-center">{p.children}</div>
-  );
+  return <div class="ui-gap-sm flex flex-wrap items-center">{p.children}</div>;
 }
 
 // The placeholder and the no-metric state sit under the selectors row where
@@ -155,7 +155,9 @@ function Fallback(p: { selectors: JSX.Element; children: JSX.Element }) {
   );
 }
 
-function ViewBody(p: ViewProps & { view: ExploreView; selectors: JSX.Element }) {
+function ViewBody(
+  p: ViewProps & { view: ExploreView; selectors: JSX.Element },
+) {
   return (
     <Switch>
       <Match when={p.view.kind === "data_table" ? p.view : undefined}>
@@ -199,8 +201,10 @@ function Placeholder(p: {
       <div class="text-base-content-muted">
         {t3({
           en: "No view is built for this module yet. Its metrics:",
-          fr: "Aucune vue n'est encore construite pour ce module. Ses métriques :",
-          pt: "Ainda não há nenhuma vista construída para este módulo. As suas métricas:",
+          fr:
+            "Aucune vue n'est encore construite pour ce module. Ses métriques :",
+          pt:
+            "Ainda não há nenhuma vista construída para este módulo. As suas métricas:",
         })}
       </div>
       <ul class="text-base-content-muted">

@@ -164,10 +164,10 @@ export async function findDeckWithSlideOfType(
 const openTabOnly = (
   tab: InstanceTab,
 ): TourCatalogueEntry["navigate"] =>
-  (openTab) => {
-    openTab(tab);
-    return Promise.resolve({});
-  };
+(openTab) => {
+  openTab(tab);
+  return Promise.resolve({});
+};
 const openProduct = (
   openTab: (tab: InstanceTab) => void,
   product: ProductSummary | undefined,
@@ -249,7 +249,8 @@ export function getTourCatalogue(
         pt: "Visão geral dos produtos",
       }),
       description: t3({
-        en: "The Products page: searching, filtering by type, sorting and folders.",
+        en:
+          "The Products page: searching, filtering by type, sorting and folders.",
         fr: "La page Produits : recherche, filtre par type, tri et dossiers.",
         pt: "A página Produtos: pesquisa, filtro por tipo, ordenação e pastas.",
       }),
@@ -266,7 +267,8 @@ export function getTourCatalogue(
       }),
       description: t3({
         en: "Starting a new product, and organising products into folders.",
-        fr: "Démarrer un nouveau produit et organiser les produits en dossiers.",
+        fr:
+          "Démarrer un nouveau produit et organiser les produits en dossiers.",
         pt: "Começar um novo produto e organizar os produtos em pastas.",
       }),
       available: () => instanceState.currentUserApproved,
@@ -283,8 +285,10 @@ export function getTourCatalogue(
       }),
       description: t3({
         en: "What a product row shows, and the actions behind a right-click.",
-        fr: "Ce que montre une ligne de produit et les actions accessibles par clic droit.",
-        pt: "O que mostra uma linha de produto e as ações acessíveis com o botão direito.",
+        fr:
+          "Ce que montre une ligne de produit et les actions accessibles par clic droit.",
+        pt:
+          "O que mostra uma linha de produto e as ações acessíveis com o botão direito.",
       }),
       available: () => hasProducts(),
       unavailableReason: reasonNeedProduct,
@@ -301,8 +305,10 @@ export function getTourCatalogue(
       }),
       description: t3({
         en: "A walkthrough of the deck editor. Opens your first slide deck.",
-        fr: "Visite de l'éditeur de présentation. Ouvre votre première présentation.",
-        pt: "Visita ao editor de apresentações. Abre a sua primeira apresentação.",
+        fr:
+          "Visite de l'éditeur de présentation. Ouvre votre première présentation.",
+        pt:
+          "Visita ao editor de apresentações. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0,
       unavailableReason: reasonNeedDeck,
@@ -318,8 +324,10 @@ export function getTourCatalogue(
       }),
       description: t3({
         en: "Slide cards inside a deck. Opens your first slide deck.",
-        fr: "Les cartes de diapositives dans une présentation. Ouvre votre première présentation.",
-        pt: "Os cartões de diapositivos numa apresentação. Abre a sua primeira apresentação.",
+        fr:
+          "Les cartes de diapositives dans une présentation. Ouvre votre première présentation.",
+        pt:
+          "Os cartões de diapositivos numa apresentação. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0 && firstDeckHasSlides(),
       unavailableReason: () =>
@@ -353,9 +361,12 @@ export function getTourCatalogue(
         pt: "Histórico de versões da apresentação",
       }),
       description: t3({
-        en: "Browsing and restoring earlier versions. Opens your first slide deck.",
-        fr: "Parcourir et restaurer des versions antérieures. Ouvre votre première présentation.",
-        pt: "Consultar e restaurar versões anteriores. Abre a sua primeira apresentação.",
+        en:
+          "Browsing and restoring earlier versions. Opens your first slide deck.",
+        fr:
+          "Parcourir et restaurer des versions antérieures. Ouvre votre première présentation.",
+        pt:
+          "Consultar e restaurar versões anteriores. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0,
       unavailableReason: reasonNeedDeck,
@@ -370,9 +381,12 @@ export function getTourCatalogue(
         pt: "Definições da apresentação",
       }),
       description: t3({
-        en: "The Deck menu: theme, logos, footer and page numbers. Opens your first slide deck.",
-        fr: "Le menu Présentation : thème, logos, pied de page et numéros de page. Ouvre votre première présentation.",
-        pt: "O menu Apresentação: tema, logótipos, rodapé e números de página. Abre a sua primeira apresentação.",
+        en:
+          "The Deck menu: theme, logos, footer and page numbers. Opens your first slide deck.",
+        fr:
+          "Le menu Présentation : thème, logos, pied de page et numéros de page. Ouvre votre première présentation.",
+        pt:
+          "O menu Apresentação: tema, logótipos, rodapé e números de página. Abre a sua primeira apresentação.",
       }),
       available: () => decks().length > 0,
       unavailableReason: reasonNeedDeck,
@@ -387,9 +401,12 @@ export function getTourCatalogue(
         pt: "Editor de diapositivo de capa",
       }),
       description: t3({
-        en: "Editing a cover slide. Opens the first cover slide found in your slide decks.",
-        fr: "Modifier une diapositive de couverture. Ouvre la première diapositive de couverture trouvée dans vos présentations.",
-        pt: "Editar um diapositivo de capa. Abre o primeiro diapositivo de capa encontrado nas suas apresentações.",
+        en:
+          "Editing a cover slide. Opens the first cover slide found in your slide decks.",
+        fr:
+          "Modifier une diapositive de couverture. Ouvre la première diapositive de couverture trouvée dans vos présentations.",
+        pt:
+          "Editar um diapositivo de capa. Abre o primeiro diapositivo de capa encontrado nas suas apresentações.",
       }),
       available: () => slideTourAvailable("cover", slideTypesPresent),
       unavailableReason: () =>
@@ -407,9 +424,12 @@ export function getTourCatalogue(
         pt: "Editor de diapositivo de secção",
       }),
       description: t3({
-        en: "Editing a section slide. Opens the first section slide found in your slide decks.",
-        fr: "Modifier une diapositive de section. Ouvre la première diapositive de section trouvée dans vos présentations.",
-        pt: "Editar um diapositivo de secção. Abre o primeiro diapositivo de secção encontrado nas suas apresentações.",
+        en:
+          "Editing a section slide. Opens the first section slide found in your slide decks.",
+        fr:
+          "Modifier une diapositive de section. Ouvre la première diapositive de section trouvée dans vos présentations.",
+        pt:
+          "Editar um diapositivo de secção. Abre o primeiro diapositivo de secção encontrado nas suas apresentações.",
       }),
       available: () => slideTourAvailable("section", slideTypesPresent),
       unavailableReason: () =>
@@ -427,9 +447,12 @@ export function getTourCatalogue(
         pt: "Editor de diapositivo de conteúdo",
       }),
       description: t3({
-        en: "Editing a content slide. Opens the first content slide found in your slide decks.",
-        fr: "Modifier une diapositive de contenu. Ouvre la première diapositive de contenu trouvée dans vos présentations.",
-        pt: "Editar um diapositivo de conteúdo. Abre o primeiro diapositivo de conteúdo encontrado nas suas apresentações.",
+        en:
+          "Editing a content slide. Opens the first content slide found in your slide decks.",
+        fr:
+          "Modifier une diapositive de contenu. Ouvre la première diapositive de contenu trouvée dans vos présentations.",
+        pt:
+          "Editar um diapositivo de conteúdo. Abre o primeiro diapositivo de conteúdo encontrado nas suas apresentações.",
       }),
       available: () => slideTourAvailable("content", slideTypesPresent),
       unavailableReason: () =>
@@ -466,8 +489,10 @@ export function getTourCatalogue(
       }),
       description: t3({
         en: "Working with embedded visualizations. Opens your first report.",
-        fr: "Travailler avec des visualisations intégrées. Ouvre votre premier rapport.",
-        pt: "Trabalhar com visualizações incorporadas. Abre o seu primeiro relatório.",
+        fr:
+          "Travailler avec des visualisations intégrées. Ouvre votre premier rapport.",
+        pt:
+          "Trabalhar com visualizações incorporadas. Abre o seu primeiro relatório.",
       }),
       available: () => reports().length > 0 && firstReportHasEmbeds(),
       unavailableReason: () =>
@@ -484,8 +509,10 @@ export function getTourCatalogue(
       }),
       description: t3({
         en: "Browsing and restoring earlier versions. Opens your first report.",
-        fr: "Parcourir et restaurer des versions antérieures. Ouvre votre premier rapport.",
-        pt: "Consultar e restaurar versões anteriores. Abre o seu primeiro relatório.",
+        fr:
+          "Parcourir et restaurer des versions antérieures. Ouvre votre premier rapport.",
+        pt:
+          "Consultar e restaurar versões anteriores. Abre o seu primeiro relatório.",
       }),
       available: () => reports().length > 0,
       unavailableReason: reasonNeedReport,
@@ -501,9 +528,12 @@ export function getTourCatalogue(
         pt: "Bem-vindo ao FASTR",
       }),
       description: t3({
-        en: "The instance itself: navigation, language, release notes and where to find help.",
-        fr: "L'instance elle-même : navigation, langue, nouveautés et où trouver de l'aide.",
-        pt: "A própria instância: navegação, idioma, novidades e onde encontrar ajuda.",
+        en:
+          "The instance itself: navigation, language, release notes and where to find help.",
+        fr:
+          "L'instance elle-même : navigation, langue, nouveautés et où trouver de l'aide.",
+        pt:
+          "A própria instância: navegação, idioma, novidades e onde encontrar ajuda.",
       }),
       available: () => true,
       navigate: openTabOnly("products"),
@@ -518,7 +548,8 @@ export function getTourCatalogue(
       }),
       description: t3({
         en: "Where data is uploaded once for the whole instance.",
-        fr: "Où les données sont importées une seule fois pour toute l'instance.",
+        fr:
+          "Où les données sont importées une seule fois pour toute l'instance.",
         pt: "Onde os dados são carregados uma única vez para toda a instância.",
       }),
       available: () =>
@@ -535,8 +566,10 @@ export function getTourCatalogue(
         pt: "Visão geral dos pacotes de resultados",
       }),
       description: t3({
-        en: "Generating a package for the instance, and the catalogue of the ones it holds.",
-        fr: "Générer un paquet pour l'instance et le catalogue de ceux qu'elle détient.",
+        en:
+          "Generating a package for the instance, and the catalogue of the ones it holds.",
+        fr:
+          "Générer un paquet pour l'instance et le catalogue de ceux qu'elle détient.",
         pt: "Gerar um pacote para a instância e o catálogo dos que ela detém.",
       }),
       // Mirrors the instance shell's own gate for this tab.
@@ -553,9 +586,12 @@ export function getTourCatalogue(
         pt: "O catálogo de pacotes",
       }),
       description: t3({
-        en: "Opening a package from the list, reading its status bar, and when one can be deleted.",
-        fr: "Ouvrir un paquet depuis la liste, lire sa barre d'état, et quand il peut être supprimé.",
-        pt: "Abrir um pacote a partir da lista, ler a sua barra de estado, e quando pode ser eliminado.",
+        en:
+          "Opening a package from the list, reading its status bar, and when one can be deleted.",
+        fr:
+          "Ouvrir un paquet depuis la liste, lire sa barre d'état, et quand il peut être supprimé.",
+        pt:
+          "Abrir um pacote a partir da lista, ler a sua barra de estado, e quando pode ser eliminado.",
       }),
       available: () => (admin() || perms().can_configure_data) && hasPackage(),
       unavailableReason: () =>

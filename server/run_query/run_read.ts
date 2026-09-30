@@ -1,45 +1,45 @@
 import { z } from "zod";
 import type { Sql } from "postgres";
 import {
+  type APIResponseWithData,
+  catalogExpressionEvaluationStrict,
   compareModules,
   composeHfaIndicatorLabel,
+  type DatasetType,
+  type DisaggregationOption,
   disaggregationOption,
+  type GenericLongFormFetchConfig,
   getDisaggregationAllowedPresentationOptions,
   getEnabledOptionalFacilityColumns,
   getHfaIndicatorMeasure,
   getStartingModuleConfigSelections,
-  metricAIDescriptionInstalled,
-  moduleDefinitionInstalledStrict,
-  parseInstalledModuleDefinition,
-  parsePresentationObjectConfig,
-  catalogExpressionEvaluationStrict,
-  postAggregationExpressionStrict,
-  scopeToken,
-  throwIfErrWithData,
-  vizPresetInstalled,
-  type APIResponseWithData,
-  type RunDataset,
-  type DatasetType,
-  type DisaggregationOption,
-  type GenericLongFormFetchConfig,
   type HfaIndicatorAggregation,
   type HfaIndicatorType,
   type IndicatorMetadata,
-  toIndicatorMetadataDisplay,
   type InstalledModuleSummary,
   type InstalledModuleWithConfigSelections,
   type ItemsHolderPresentationObject,
   type ItemsHolderResultsObject,
+  metricAIDescriptionInstalled,
   type MetricWithStatus,
+  moduleDefinitionInstalledStrict,
+  parseInstalledModuleDefinition,
+  parsePresentationObjectConfig,
   type PeriodBounds,
   type PeriodOption,
+  postAggregationExpressionStrict,
   type ResultsValue,
   type ResultsValueInfoForPresentationObject,
   type RunAuthoringContextHfaTaxonomy,
+  type RunDataset,
   type RunManifest,
   type RunMetric,
   type RunModule,
   type RunResultsObject,
+  scopeToken,
+  throwIfErrWithData,
+  toIndicatorMetadataDisplay,
+  vizPresetInstalled,
 } from "lib";
 import {
   escapeSqlString,
@@ -392,31 +392,37 @@ export async function getIcehIndicatorsFromManifestInputs(
 export async function getHfaTaxonomyFromManifestInputs(
   ctx: RunInputSource,
 ): Promise<RunAuthoringContextHfaTaxonomy> {
-  const [indicators, categories, subCategories, serviceCategories, variantGroups, variantItems] =
-    await Promise.all([
-      readInputRows(ctx, "hfa_indicators_snapshot.json", hfaTaxonomyIndicatorRow),
-      readInputRows(ctx, "hfa_indicator_categories_snapshot.json", labeledRow),
-      readInputRows(
-        ctx,
-        "hfa_indicator_sub_categories_snapshot.json",
-        hfaSubCategoryRow,
-      ),
-      readInputRows(
-        ctx,
-        "hfa_indicator_service_categories_snapshot.json",
-        labeledRow,
-      ),
-      readInputRows(
-        ctx,
-        "hfa_indicator_variant_groups_snapshot.json",
-        labeledRow,
-      ),
-      readInputRows(
-        ctx,
-        "hfa_indicator_variant_items_snapshot.json",
-        hfaVariantItemRow,
-      ),
-    ]);
+  const [
+    indicators,
+    categories,
+    subCategories,
+    serviceCategories,
+    variantGroups,
+    variantItems,
+  ] = await Promise.all([
+    readInputRows(ctx, "hfa_indicators_snapshot.json", hfaTaxonomyIndicatorRow),
+    readInputRows(ctx, "hfa_indicator_categories_snapshot.json", labeledRow),
+    readInputRows(
+      ctx,
+      "hfa_indicator_sub_categories_snapshot.json",
+      hfaSubCategoryRow,
+    ),
+    readInputRows(
+      ctx,
+      "hfa_indicator_service_categories_snapshot.json",
+      labeledRow,
+    ),
+    readInputRows(
+      ctx,
+      "hfa_indicator_variant_groups_snapshot.json",
+      labeledRow,
+    ),
+    readInputRows(
+      ctx,
+      "hfa_indicator_variant_items_snapshot.json",
+      hfaVariantItemRow,
+    ),
+  ]);
   return {
     categories: categories
       .toSorted((a, b) => a.sort_order - b.sort_order)
@@ -496,8 +502,9 @@ export function enrichMetricFromManifest(
     (value) => ({
       value,
       isRequired: requiredOptions.includes(value),
-      allowedPresentationOptions:
-        getDisaggregationAllowedPresentationOptions(value),
+      allowedPresentationOptions: getDisaggregationAllowedPresentationOptions(
+        value,
+      ),
     }),
   );
   return {
@@ -509,8 +516,8 @@ export function enrichMetricFromManifest(
     datasetFamily: metric.datasetFamily ?? undefined,
     postAggregationExpression: metric.post_aggregation_expression
       ? postAggregationExpressionStrict.parse(
-          JSON.parse(metric.post_aggregation_expression),
-        )
+        JSON.parse(metric.post_aggregation_expression),
+      )
       : undefined,
     catalogExpressionEvaluation: metric.catalog_expression_evaluation
       ? catalogExpressionEvaluationStrict.parse(
@@ -519,8 +526,8 @@ export function enrichMetricFromManifest(
       : undefined,
     valueLabelReplacements: metric.value_label_replacements
       ? z
-          .record(z.string(), z.string())
-          .parse(JSON.parse(metric.value_label_replacements))
+        .record(z.string(), z.string())
+        .parse(JSON.parse(metric.value_label_replacements))
       : undefined,
     label: metric.label,
     variantLabel: metric.variant_label ?? undefined,
@@ -564,7 +571,7 @@ export function findMissingRequiredGroupBys(
     .map((m) =>
       z
         .array(disaggregationOption)
-        .parse(JSON.parse(m.required_disaggregation_options)),
+        .parse(JSON.parse(m.required_disaggregation_options))
     );
   if (requiredSets.length === 0) return [];
   const [first, ...rest] = requiredSets;
@@ -862,7 +869,9 @@ export async function getPresentationObjectItemsFromRun(
     ctx.manifest,
     resultsObjectId,
   );
-  if (res.success && catalogEvaluation !== undefined && res.data.status === "ok") {
+  if (
+    res.success && catalogEvaluation !== undefined && res.data.status === "ok"
+  ) {
     res.data.items = applyCatalogExpressionsToItems(
       res.data.items,
       catalog,
@@ -957,7 +966,8 @@ export async function getResultsValueInfoFromRun(
     resultsValue.disaggregationOptions.map((d) => d.value),
     indicatorFormatsFrom(indicatorMetadata),
     indicatorRulesFrom(indicatorMetadata),
-    (disOpt) => getPossibleValuesFromRun(ctx, resultsObjectId, disOpt, labelMap, []),
+    (disOpt) =>
+      getPossibleValuesFromRun(ctx, resultsObjectId, disOpt, labelMap, []),
   );
 }
 

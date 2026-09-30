@@ -1,10 +1,10 @@
 export {
+  type DuckDbRow,
   escapeSqlLiteral,
   executeSqlOverParquet,
-  type DuckDbRow,
   type ParquetView,
 } from "./duckdb_executor.ts";
-export { writeParquetFromCsv, type CsvColumn } from "./csv_to_parquet.ts";
+export { type CsvColumn, writeParquetFromCsv } from "./csv_to_parquet.ts";
 export {
   computeResultsObjectColumnsToExclude,
   duckDbTypeForDeclaredColumnType,
@@ -20,13 +20,12 @@ export {
 } from "./run_data_reads.ts";
 export {
   enrichMetricFromManifest,
+  findMissingRequiredGroupBys,
   getDatasetFamilyFromRun,
   getHfaTaxonomyFromManifestInputs,
   getIcehIndicatorsFromManifestInputs,
   getIndicatorMetadataFromRun,
   getMetricsWithStatusFromManifest,
-  findMissingRequiredGroupBys,
-  getRunDatasetsFromManifest,
   getModuleIdForMetricFromRun,
   getModuleIdForResultsObjectFromRun,
   getModuleSummariesFromManifest,
@@ -37,6 +36,7 @@ export {
   getReadyRunReadContext,
   getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
+  getRunDatasetsFromManifest,
   getRunReadContextForRun,
   getRunVersionInfo,
   moduleHasRun,

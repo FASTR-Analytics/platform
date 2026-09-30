@@ -1,7 +1,7 @@
 import {
-  GenericLongFormFetchConfig,
   type DatasetType,
   type DisaggregationOption,
+  GenericLongFormFetchConfig,
   type OptionalFacilityColumn,
 } from "lib";
 import type { QueryContext } from "./types.ts";
@@ -52,7 +52,7 @@ export function computeFacilityContext(
         .filter((col): col is DisaggFacilityColumn =>
           enabledFacilityColumns.includes(col as OptionalFacilityColumn)
         ),
-    ])
+    ]),
   ];
 
   const facilityFilters = fetchConfig.filters.filter((filter) =>
@@ -61,7 +61,7 @@ export function computeFacilityContext(
 
   const nonFacilityFilters = fetchConfig.filters.filter(
     (filter) =>
-      !enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn)
+      !enabledFacilityColumns.includes(filter.disOpt as OptionalFacilityColumn),
   );
 
   return {

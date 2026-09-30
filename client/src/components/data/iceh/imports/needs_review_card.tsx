@@ -1,4 +1,4 @@
-import { t3, type IcehImportRunSummary } from "lib";
+import { type IcehImportRunSummary, t3 } from "lib";
 import {
   Button,
   CollapsibleSection,
@@ -49,14 +49,21 @@ export function IcehNeedsReviewCard(p: Props) {
   return (
     <div class="border-warning ui-pad ui-spy-sm rounded border">
       <div class="ui-text-heading">
-        {t3({ en: "Import needs review", fr: "Importation à vérifier", pt: "Importação a rever" })}
+        {t3({
+          en: "Import needs review",
+          fr: "Importation à vérifier",
+          pt: "Importação a rever",
+        })}
         <span class="font-400 ml-2 font-mono text-sm">{p.run.zipFileName}</span>
       </div>
       <div class="text-sm">
         {t3({
-          en: "Some rows were skipped during staging for reasons the file cannot explain, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import.",
-          fr: "Des lignes ont été ignorées pendant la préparation pour des raisons que le fichier ne peut expliquer, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation.",
-          pt: "Algumas linhas foram ignoradas durante a preparação por razões que o ficheiro não pode explicar, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação.",
+          en:
+            "Some rows were skipped during staging for reasons the file cannot explain, so nothing has been merged yet. Review the results below, then integrate the surviving rows or discard the import.",
+          fr:
+            "Des lignes ont été ignorées pendant la préparation pour des raisons que le fichier ne peut expliquer, rien n'a donc encore été fusionné. Vérifiez les résultats ci-dessous, puis intégrez les lignes retenues ou abandonnez l'importation.",
+          pt:
+            "Algumas linhas foram ignoradas durante a preparação por razões que o ficheiro não pode explicar, pelo que nada foi ainda fundido. Reveja os resultados abaixo e depois integre as linhas retidas ou descarte a importação.",
         })}
       </div>
       <Show when={p.run.diagnostics} keyed>
@@ -79,7 +86,11 @@ export function IcehNeedsReviewCard(p: Props) {
           state={integrateAnyway.state()}
           intent="success"
         >
-          {t3({ en: "Integrate anyway", fr: "Intégrer malgré tout", pt: "Integrar mesmo assim" })}
+          {t3({
+            en: "Integrate anyway",
+            fr: "Intégrer malgré tout",
+            pt: "Integrar mesmo assim",
+          })}
         </Button>
         <Button onClick={attemptDiscard} intent="danger" outline>
           {t3({ en: "Discard", fr: "Abandonner", pt: "Descartar" })}

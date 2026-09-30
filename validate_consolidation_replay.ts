@@ -61,7 +61,9 @@ const CONSOLIDATION_FILES = [
 
 const CONTAINER = Deno.env.get("REPLAY_CONTAINER");
 if (CONTAINER === undefined) {
-  console.error("REPLAY_CONTAINER is not set; run this through ./validate_consolidation_replay.");
+  console.error(
+    "REPLAY_CONTAINER is not set; run this through ./validate_consolidation_replay.",
+  );
   Deno.exit(2);
 }
 
@@ -85,7 +87,10 @@ function check(condition: boolean, message: string): void {
 
 // ── Database helpers ─────────────────────────────────────────────────────────
 
-async function withDb<T>(name: string, body: (db: Sql) => Promise<T>): Promise<T> {
+async function withDb<T>(
+  name: string,
+  body: (db: Sql) => Promise<T>,
+): Promise<T> {
   const db = getPgConnection(name, { max: 2 });
   try {
     return await body(db);
@@ -99,7 +104,9 @@ async function createDatabase(name: string, template?: string): Promise<void> {
     if (template === undefined) {
       await admin`CREATE DATABASE ${admin(name)}`;
     } else {
-      await admin`CREATE DATABASE ${admin(name)} WITH TEMPLATE ${admin(template)}`;
+      await admin`CREATE DATABASE ${admin(name)} WITH TEMPLATE ${
+        admin(template)
+      }`;
     }
   });
 }
@@ -115,7 +122,11 @@ async function gitShow(path: string): Promise<string> {
     stderr: "piped",
   }).output();
   if (!result.success) {
-    throw new Error(`git show ${LEGACY_COMMIT}:${path} failed: ${new TextDecoder().decode(result.stderr)}`);
+    throw new Error(
+      `git show ${LEGACY_COMMIT}:${path} failed: ${
+        new TextDecoder().decode(result.stderr)
+      }`,
+    );
   }
   return new TextDecoder().decode(result.stdout);
 }
@@ -127,27 +138,45 @@ async function loadLegacyFile(db: Sql, path: string): Promise<void> {
 // The legacy project migrations, written to a throwaway directory the runner
 // can scan.
 async function legacyProjectMigrationDir(): Promise<string> {
-  const dir = await Deno.makeTempDir({ prefix: "wb-fastr-legacy-project-migrations-" });
+  const dir = await Deno.makeTempDir({
+    prefix: "wb-fastr-legacy-project-migrations-",
+  });
   const listing = await new Deno.Command("git", {
-    args: ["-C", ROOT, "ls-tree", "--name-only", LEGACY_COMMIT, `${LEGACY_PROJECT_MIGRATIONS}/`],
+    args: [
+      "-C",
+      ROOT,
+      "ls-tree",
+      "--name-only",
+      LEGACY_COMMIT,
+      `${LEGACY_PROJECT_MIGRATIONS}/`,
+    ],
     stdout: "piped",
   }).output();
-  const paths = new TextDecoder().decode(listing.stdout).split("\n").filter((p) => p.endsWith(".sql"));
+  const paths = new TextDecoder().decode(listing.stdout).split("\n").filter((
+    p,
+  ) => p.endsWith(".sql"));
   for (const path of paths) {
-    await Deno.writeTextFile(join(dir, path.split("/").at(-1)!), await gitShow(path));
+    await Deno.writeTextFile(
+      join(dir, path.split("/").at(-1)!),
+      await gitShow(path),
+    );
   }
   return dir;
 }
 
 async function count(db: Sql, table: string): Promise<number> {
-  const rows = await db<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM ${db(table)}`;
+  const rows = await db<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM ${
+    db(table)
+  }`;
   return rows[0].n;
 }
 
 async function listSqlFiles(dir: string): Promise<string[]> {
   const names: string[] = [];
   for await (const entry of Deno.readDir(dir)) {
-    if (entry.isFile && entry.name.endsWith(".sql") && !entry.name.startsWith("_")) {
+    if (
+      entry.isFile && entry.name.endsWith(".sql") && !entry.name.startsWith("_")
+    ) {
       names.push(entry.name);
     }
   }
@@ -159,7 +188,9 @@ type ShellVariant = "no_aggregate_alter" | "no_log_alters";
 // The instance migrations without the consolidation, the state every live
 // instance was in before 000, 201 and 202 shipped.
 async function preConsolidationMigrationDir(): Promise<string> {
-  const dir = await Deno.makeTempDir({ prefix: "wb-fastr-consolidation-replay-" });
+  const dir = await Deno.makeTempDir({
+    prefix: "wb-fastr-consolidation-replay-",
+  });
   for (const name of await listSqlFiles(INSTANCE_DIR)) {
     if (!CONSOLIDATION_FILES.includes(name)) {
       await Deno.copyFile(join(INSTANCE_DIR, name), join(dir, name));
@@ -170,16 +201,23 @@ async function preConsolidationMigrationDir(): Promise<string> {
 
 // The instance migrations with 000 weakened for a negative control and 201
 // and 202 left out.
-async function negativeControlMigrationDir(variant: ShellVariant): Promise<string> {
+async function negativeControlMigrationDir(
+  variant: ShellVariant,
+): Promise<string> {
   const dir = await preConsolidationMigrationDir();
-  let shell = await Deno.readTextFile(join(INSTANCE_DIR, "000_legacy_project_shell.sql"));
+  let shell = await Deno.readTextFile(
+    join(INSTANCE_DIR, "000_legacy_project_shell.sql"),
+  );
   if (variant === "no_aggregate_alter") {
     shell = shell.replace(
       "ALTER TABLE IF EXISTS user_logs_aggregate ADD COLUMN IF NOT EXISTS project_id text;",
       "",
     );
   } else if (variant === "no_log_alters") {
-    shell = shell.replaceAll(/ALTER TABLE IF EXISTS \w+ ADD COLUMN IF NOT EXISTS project_id text;/g, "");
+    shell = shell.replaceAll(
+      /ALTER TABLE IF EXISTS \w+ ADD COLUMN IF NOT EXISTS project_id text;/g,
+      "",
+    );
   }
   await Deno.writeTextFile(join(dir, "000_legacy_project_shell.sql"), shell);
   return dir;
@@ -203,7 +241,9 @@ async function dumpSchema(database: string): Promise<string> {
     stderr: "piped",
   }).output();
   if (!result.success) {
-    throw new Error(`pg_dump ${database} failed: ${new TextDecoder().decode(result.stderr)}`);
+    throw new Error(
+      `pg_dump ${database} failed: ${new TextDecoder().decode(result.stderr)}`,
+    );
   }
   return new TextDecoder()
     .decode(result.stdout)
@@ -216,7 +256,11 @@ async function dumpSchema(database: string): Promise<string> {
     .join("\n");
 }
 
-async function schemasMatch(a: string, b: string, message: string): Promise<void> {
+async function schemasMatch(
+  a: string,
+  b: string,
+  message: string,
+): Promise<void> {
   const [dumpA, dumpB] = await Promise.all([dumpSchema(a), dumpSchema(b)]);
   const same = dumpA === dumpB;
   check(same, message);
@@ -235,7 +279,11 @@ async function schemasMatch(a: string, b: string, message: string): Promise<void
 // ── Seed data ────────────────────────────────────────────────────────────────
 
 function bundle(): string {
-  return JSON.stringify({ metricId: "m1", provenance: { runId: null }, items: [] });
+  return JSON.stringify({
+    metricId: "m1",
+    provenance: { runId: null },
+    items: [],
+  });
 }
 
 function layoutWithFigure(): string {
@@ -243,7 +291,10 @@ function layoutWithFigure(): string {
     layout: {
       type: "rows",
       children: [
-        { type: "item", data: { type: "figure", bundle: JSON.parse(bundle()) } },
+        {
+          type: "item",
+          data: { type: "figure", bundle: JSON.parse(bundle()) },
+        },
         { type: "item", data: { type: "text", text: "hello" } },
       ],
     },
@@ -252,7 +303,10 @@ function layoutWithFigure(): string {
 
 function layoutWithPlaceholder(): string {
   return JSON.stringify({
-    layout: { type: "cols", children: [{ type: "item", data: { type: "figure" } }] },
+    layout: {
+      type: "cols",
+      children: [{ type: "item", data: { type: "figure" } }],
+    },
   });
 }
 
@@ -280,8 +334,13 @@ async function seedProjectDatabase(db: Sql): Promise<void> {
   await db`INSERT INTO reports (id, label, body, figures, images, last_updated, folder_id, crdt_state, crdt_state_last_updated, body_authors) VALUES
     ('r1', 'Report A', '<p>a</p>', ${figures}, '{}', ${T}, 'rf1', 'AAA=', ${T}, '[{"email":"editor@example.org","length":8}]'),
     ('r2', 'Report B', '', '{}', '{}', ${T}, NULL, NULL, NULL, NULL)`;
-  const versionSlides = JSON.stringify([{ id: "s1", config: JSON.parse(layoutWithFigure()) }]);
-  const slideEditors = JSON.stringify({ slides: { s1: [{ email: "editor@example.org" }] } });
+  const versionSlides = JSON.stringify([{
+    id: "s1",
+    config: JSON.parse(layoutWithFigure()),
+  }]);
+  const slideEditors = JSON.stringify({
+    slides: { s1: [{ email: "editor@example.org" }] },
+  });
   await db`INSERT INTO deck_versions
     (id, deck_id, created_at, label, deck_config, slides, editors, content_hash, restored_from_version_id, slide_editors) VALUES
     (${DV1}, 'd1', ${T}, 'v1', '{}', ${versionSlides}, '[]', 'h1', NULL, ${slideEditors}),
@@ -330,7 +389,10 @@ function collectBundles(node: unknown, out: BundleSighting[]): void {
   const record = node as Record<string, unknown>;
   const data = record.data as Record<string, unknown> | undefined;
   if (data?.type === "figure" && data.bundle !== undefined) {
-    const b = data.bundle as { scope?: { adminArea2?: unknown }; provenance?: { runId?: unknown } };
+    const b = data.bundle as {
+      scope?: { adminArea2?: unknown };
+      provenance?: { runId?: unknown };
+    };
     out.push({ runId: b.provenance?.runId, adminArea2: b.scope?.adminArea2 });
   }
   if (Array.isArray(record.children)) {
@@ -342,7 +404,11 @@ function collectBundles(node: unknown, out: BundleSighting[]): void {
 
 function bundlesInFiguresMap(figuresJson: string): BundleSighting[] {
   const out: BundleSighting[] = [];
-  for (const block of Object.values(JSON.parse(figuresJson) as Record<string, unknown>)) {
+  for (
+    const block of Object.values(
+      JSON.parse(figuresJson) as Record<string, unknown>,
+    )
+  ) {
     collectBundles({ data: block }, out);
   }
   return out;
@@ -372,7 +438,9 @@ async function assertConsolidated(db: Sql): Promise<void> {
     parent_id: string | null;
     created_by: string | null;
   };
-  const folders = await db<FolderRow[]>`SELECT id, label, color, parent_id, created_by FROM folders`;
+  const folders = await db<
+    FolderRow[]
+  >`SELECT id, label, color, parent_id, created_by FROM folders`;
   const products = await db<ProductRow[]>`
     SELECT id, type, label, folder_id, run_id, admin_area_2, created_by, created_at FROM products`;
 
@@ -380,7 +448,8 @@ async function assertConsolidated(db: Sql): Promise<void> {
   const children = folders.filter((f) => f.parent_id !== null);
   check(folders.length === 4, `4 folders planned (got ${folders.length})`);
   check(
-    roots.length === 2 && roots.every((f) => ["Project One", "Project Two"].includes(f.label)),
+    roots.length === 2 &&
+      roots.every((f) => ["Project One", "Project Two"].includes(f.label)),
     "two root folders, one per ready project, labelled by the project",
   );
   check(
@@ -392,13 +461,20 @@ async function assertConsolidated(db: Sql): Promise<void> {
     children.every((f) => f.color === "#ff0000"),
     "the merged child keeps the first non-null legacy colour",
   );
-  check(!folders.some((f) => f.label === "Empty"), "a sub-folder with no product is not emitted");
   check(
-    folders.every((f) => f.created_by === null) && products.every((p) => p.created_by === null && p.created_at === null),
+    !folders.some((f) => f.label === "Empty"),
+    "a sub-folder with no product is not emitted",
+  );
+  check(
+    folders.every((f) => f.created_by === null) &&
+      products.every((p) => p.created_by === null && p.created_at === null),
     "no invented provenance on folders or products",
   );
 
-  check(products.length === 8, `8 products: 4 per ready project, the pending_deletion copy skipped (got ${products.length})`);
+  check(
+    products.length === 8,
+    `8 products: 4 per ready project, the pending_deletion copy skipped (got ${products.length})`,
+  );
   const rootOne = roots.find((f) => f.label === "Project One")!;
   const childOne = children.find((f) => f.parent_id === rootOne.id)!;
   const byLabelOne = new Map(
@@ -423,12 +499,19 @@ async function assertConsolidated(db: Sql): Promise<void> {
   );
   const legacyIds = new Set(["d1", "d2", "r1", "r2"]);
   check(
-    one.every((p) => legacyIds.has(p.id)) && two.every((p) => !legacyIds.has(p.id) && p.id.length === 4),
+    one.every((p) => legacyIds.has(p.id)) &&
+      two.every((p) => !legacyIds.has(p.id) && p.id.length === 4),
     "the first project keeps its ids; the template copy's colliding ids are re-minted as 4-char ids",
   );
 
   const slides = await db<
-    { id: string; slide_deck_id: string; config: string; sort_order: number; crdt_state: string | null }[]
+    {
+      id: string;
+      slide_deck_id: string;
+      config: string;
+      sort_order: number;
+      crdt_state: string | null;
+    }[]
   >`SELECT id, slide_deck_id, config, sort_order, crdt_state FROM slides`;
   check(slides.length === 6, `6 slides (got ${slides.length})`);
   const legacySlideIds = new Set(["s1", "s2", "s3"]);
@@ -438,56 +521,102 @@ async function assertConsolidated(db: Sql): Promise<void> {
   );
 
   const deckVersions = await db<
-    { id: string; slide_deck_id: string; slides: string; slide_editors: string | null; restored_from_version_id: string | null }[]
+    {
+      id: string;
+      slide_deck_id: string;
+      slides: string;
+      slide_editors: string | null;
+      restored_from_version_id: string | null;
+    }[]
   >`SELECT id, slide_deck_id, slides, slide_editors, restored_from_version_id FROM slide_deck_versions`;
-  check(deckVersions.length === 4, `4 slide deck versions (got ${deckVersions.length})`);
+  check(
+    deckVersions.length === 4,
+    `4 slide deck versions (got ${deckVersions.length})`,
+  );
   const deckVersionIds = new Set(deckVersions.map((v) => v.id));
   check(
     deckVersions.filter((v) => v.restored_from_version_id !== null).every((v) =>
       deckVersionIds.has(v.restored_from_version_id!) &&
-      deckVersions.find((o) => o.id === v.restored_from_version_id)!.slide_deck_id === v.slide_deck_id
+      deckVersions.find((o) => o.id === v.restored_from_version_id)!
+          .slide_deck_id === v.slide_deck_id
     ),
     "slide_deck_versions.restored_from_version_id follows the re-minted version id within the deck",
   );
   check(
     deckVersions.every((v) => {
-      const deckSlideIds = new Set(slides.filter((s) => s.slide_deck_id === v.slide_deck_id).map((s) => s.id));
+      const deckSlideIds = new Set(
+        slides.filter((s) => s.slide_deck_id === v.slide_deck_id).map((s) =>
+          s.id
+        ),
+      );
       const snapshot = JSON.parse(v.slides) as { id: string }[];
-      const editorKeys = v.slide_editors === null
-        ? []
-        : Object.keys((JSON.parse(v.slide_editors) as { slides: Record<string, unknown> }).slides);
-      return snapshot.every((s) => deckSlideIds.has(s.id)) && editorKeys.every((k) => deckSlideIds.has(k));
+      const editorKeys = v.slide_editors === null ? [] : Object.keys(
+        (JSON.parse(v.slide_editors) as { slides: Record<string, unknown> })
+          .slides,
+      );
+      return snapshot.every((s) => deckSlideIds.has(s.id)) &&
+        editorKeys.every((k) => deckSlideIds.has(k));
     }),
     "version snapshots' slides[].id and slide_editors keys follow the re-minted slide ids",
   );
 
-  const reportVersions = await db<{ id: string; report_id: string; figures: string; restored_from_version_id: string | null }[]>`
+  const reportVersions = await db<
+    {
+      id: string;
+      report_id: string;
+      figures: string;
+      restored_from_version_id: string | null;
+    }[]
+  >`
     SELECT id, report_id, figures, restored_from_version_id FROM report_versions`;
-  check(reportVersions.length === 4, `4 report versions (got ${reportVersions.length})`);
+  check(
+    reportVersions.length === 4,
+    `4 report versions (got ${reportVersions.length})`,
+  );
   const reportVersionIds = new Set(reportVersions.map((v) => v.id));
   check(
-    reportVersions.filter((v) => v.restored_from_version_id !== null).every((v) =>
+    reportVersions.filter((v) => v.restored_from_version_id !== null).every((
+      v,
+    ) =>
       reportVersionIds.has(v.restored_from_version_id!) &&
-      reportVersions.find((o) => o.id === v.restored_from_version_id)!.report_id === v.report_id
+      reportVersions.find((o) => o.id === v.restored_from_version_id)!
+          .report_id === v.report_id
     ),
     "report_versions.restored_from_version_id follows the re-minted version id within the report",
   );
 
   // Stamps on all four surfaces, each checked against its owning product.
-  const scopeOf = new Map(products.map((p) => [p.id, { runId: p.run_id, adminArea2: p.admin_area_2 }]));
+  const scopeOf = new Map(
+    products.map((
+      p,
+    ) => [p.id, { runId: p.run_id, adminArea2: p.admin_area_2 }]),
+  );
   const stamped = (sightings: BundleSighting[], productId: string): boolean => {
     const expected = scopeOf.get(productId)!;
-    return sightings.every((s) => s.runId === expected.runId && s.adminArea2 === expected.adminArea2);
+    return sightings.every((s) =>
+      s.runId === expected.runId && s.adminArea2 === expected.adminArea2
+    );
   };
-  const reports = await db<{ id: string; figures: string; crdt_state: string | null; body_authors: string | null }[]>`
+  const reports = await db<
+    {
+      id: string;
+      figures: string;
+      crdt_state: string | null;
+      body_authors: string | null;
+    }[]
+  >`
     SELECT id, figures, crdt_state, body_authors FROM reports`;
   check(
     slides.every((s) => s.crdt_state === null) &&
       reports.every((r) => r.crdt_state === null && r.body_authors === null),
     "no legacy co-editing state or live authorship ledger is carried, so rooms re-seed from the stamped JSON",
   );
-  const liveSlideBundles = slides.flatMap((s) => bundlesInSlideConfig(s.config));
-  const liveReportBundles = reports.flatMap((r) => bundlesInFiguresMap(r.figures));
+  const liveSlideBundles = slides.flatMap((s) =>
+    bundlesInSlideConfig(s.config)
+  );
+  const liveReportBundles = reports.flatMap((r) =>
+    bundlesInFiguresMap(r.figures)
+  );
   const deckVersionBundles = deckVersions.flatMap((v) =>
     (JSON.parse(v.slides) as { config: unknown }[]).flatMap((s) => {
       const out: BundleSighting[] = [];
@@ -495,14 +624,18 @@ async function assertConsolidated(db: Sql): Promise<void> {
       return out;
     })
   );
-  const reportVersionBundles = reportVersions.flatMap((v) => bundlesInFiguresMap(v.figures));
+  const reportVersionBundles = reportVersions.flatMap((v) =>
+    bundlesInFiguresMap(v.figures)
+  );
   check(
     liveSlideBundles.length === 4 && liveReportBundles.length === 2 &&
       deckVersionBundles.length === 4 && reportVersionBundles.length === 4,
     "every seeded bundle survives on all four surfaces (4 + 2 + 4 + 4)",
   );
   check(
-    slides.every((s) => stamped(bundlesInSlideConfig(s.config), s.slide_deck_id)) &&
+    slides.every((s) =>
+      stamped(bundlesInSlideConfig(s.config), s.slide_deck_id)
+    ) &&
       reports.every((r) => stamped(bundlesInFiguresMap(r.figures), r.id)) &&
       deckVersions.every((v) =>
         stamped(
@@ -514,11 +647,15 @@ async function assertConsolidated(db: Sql): Promise<void> {
           v.slide_deck_id,
         )
       ) &&
-      reportVersions.every((v) => stamped(bundlesInFiguresMap(v.figures), v.report_id)),
+      reportVersions.every((v) =>
+        stamped(bundlesInFiguresMap(v.figures), v.report_id)
+      ),
     "every bundle is stamped with its owning product's run_id and admin_area_2",
   );
   check(
-    slides.filter((s) => s.sort_order === 1).every((s) => !s.config.includes("bundle")),
+    slides.filter((s) => s.sort_order === 1).every((s) =>
+      !s.config.includes("bundle")
+    ),
     "placeholder figure blocks stay bundle-less",
   );
 
@@ -538,41 +675,63 @@ async function assertConsolidated(db: Sql): Promise<void> {
 }
 
 async function replayLiveInstance(): Promise<void> {
-  console.log("\n=== (a) Live instance: base, migrations, two template-identical projects ===");
+  console.log(
+    "\n=== (a) Live instance: base, migrations, two template-identical projects ===",
+  );
   await createDatabase("main");
   await withDb("main", async (db) => {
     await loadLegacyFile(db, LEGACY_MAIN_BASE);
-    await runMigrationsInDir(db, await preConsolidationMigrationDir(), {}, "instance");
+    await runMigrationsInDir(
+      db,
+      await preConsolidationMigrationDir(),
+      {},
+      "instance",
+    );
     await seedLegacyMain(db);
   });
 
   await createDatabase(P1);
   await withDb(P1, async (db) => {
     await loadLegacyFile(db, LEGACY_PROJECT_BASE);
-    await runMigrationsInDir(db, await legacyProjectMigrationDir(), {}, "project");
+    await runMigrationsInDir(
+      db,
+      await legacyProjectMigrationDir(),
+      {},
+      "project",
+    );
     const at041 = await db<{ one: number }[]>`
       SELECT 1 AS one FROM schema_migrations WHERE migration_id = '041_drop_frozen_results_plane'`;
-    check(at041.length === 1, "the seeded project database is at 041_drop_frozen_results_plane");
+    check(
+      at041.length === 1,
+      "the seeded project database is at 041_drop_frozen_results_plane",
+    );
     await seedProjectDatabase(db);
   });
   await createDatabase(P2, P1);
   await createDatabase(P3, P1);
 
-  console.log("\n=== Dry-run of the seeded instance before the migrations run ===");
+  console.log(
+    "\n=== Dry-run of the seeded instance before the migrations run ===",
+  );
   const dryRun = await dryRunInstance({
     name: "replay",
     host: Deno.env.get("PG_HOST") ?? "localhost",
     port: parseInt(Deno.env.get("PG_PORT") ?? "5432", 10),
     password: Deno.env.get("PG_PASSWORD") ?? "",
   });
-  check(dryRun.fails.length === 0, `dry-run reports zero FAIL (${dryRun.fails.join("; ")})`);
   check(
-    dryRun.pendingDeletion.length === 1 && dryRun.centralReporting.length === 1 &&
+    dryRun.fails.length === 0,
+    `dry-run reports zero FAIL (${dryRun.fails.join("; ")})`,
+  );
+  check(
+    dryRun.pendingDeletion.length === 1 &&
+      dryRun.centralReporting.length === 1 &&
       dryRun.runIdNull.length === 1 && dryRun.pinnedRunId === RUN_PIN,
     "dry-run lists the pending_deletion, central-reporting and run_id NULL projects and the pin",
   );
   check(
-    dryRun.viewerOnlyUsers.length === 1 && dryRun.viewerOnlyUsers[0] === "viewer@example.org" &&
+    dryRun.viewerOnlyUsers.length === 1 &&
+      dryRun.viewerOnlyUsers[0] === "viewer@example.org" &&
       dryRun.usersWithNoProjectRole === 1,
     "dry-run names the viewer-only user and counts the user with no project role",
   );
@@ -597,8 +756,11 @@ async function replayLiveInstance(): Promise<void> {
       remaps: planned.remaps,
     };
     check(
-      JSON.stringify(actual) === JSON.stringify(planned) && planned.remaps === 11,
-      `the dry-run's planned counts match what 201 inserted (${JSON.stringify(planned)})`,
+      JSON.stringify(actual) === JSON.stringify(planned) &&
+        planned.remaps === 11,
+      `the dry-run's planned counts match what 201 inserted (${
+        JSON.stringify(planned)
+      })`,
     );
   });
 }
@@ -611,7 +773,11 @@ async function buildReference(): Promise<void> {
   await withDb("main_reference", async (db) => {
     await loadFile(db, MAIN_BASE);
   });
-  await schemasMatch("main", "main_reference", "(a) migrated schema is byte-identical to the base");
+  await schemasMatch(
+    "main",
+    "main_reference",
+    "(a) migrated schema is byte-identical to the base",
+  );
 }
 
 // ── (b) Users, logs and aggregates through 202 ───────────────────────────────
@@ -640,13 +806,17 @@ async function replayLogsMerge(): Promise<void> {
     const aggregates = await db<{ endpoint: string; count: number }[]>`
       SELECT endpoint, count FROM user_logs_aggregate ORDER BY endpoint`;
     check(
-      aggregates.length === 2 && aggregates[0].count === 13 && aggregates[1].count === 2,
+      aggregates.length === 2 && aggregates[0].count === 13 &&
+        aggregates[1].count === 2,
       "aggregate rows differing only by project_id merged, counts summed",
     );
     const userColumns = await db<{ column_name: string }[]>`
       SELECT column_name FROM information_schema.columns
       WHERE table_name = 'users' AND (column_name LIKE 'default_project_%' OR column_name = 'can_create_projects')`;
-    check(userColumns.length === 0, "the 17 default_project_* columns and can_create_projects dropped");
+    check(
+      userColumns.length === 0,
+      "the 17 default_project_* columns and can_create_projects dropped",
+    );
     const index = await db<{ indexdef: string }[]>`
       SELECT indexdef FROM pg_indexes WHERE indexname = 'idx_user_logs_aggregate_unique'`;
     check(
@@ -675,7 +845,9 @@ async function expectFailureAt(
   });
   check(
     failedAt !== null && (failedAt as string).startsWith(expectedPrefix),
-    `000 (${variant}) fails at ${expectedPrefix} on the base (failed at ${failedAt ?? "nothing"})`,
+    `000 (${variant}) fails at ${expectedPrefix} on the base (failed at ${
+      failedAt ?? "nothing"
+    })`,
   );
 }
 
@@ -686,16 +858,29 @@ async function replayNegativeControls(): Promise<void> {
 }
 
 async function replayFreshPath(): Promise<void> {
-  console.log("\n=== (d) Fresh path: the base plus the whole instance directory in one pass ===");
+  console.log(
+    "\n=== (d) Fresh path: the base plus the whole instance directory in one pass ===",
+  );
   await createDatabase("main_fresh", "main_reference");
-  const expected = (await listSqlFiles(INSTANCE_DIR)).length + Object.keys(TS_MIGRATIONS).length;
+  const expected = (await listSqlFiles(INSTANCE_DIR)).length +
+    Object.keys(TS_MIGRATIONS).length;
   await withDb("main_fresh", async (db) => {
     await runMigrationsInDir(db, INSTANCE_DIR, TS_MIGRATIONS, "fresh");
     const applied = await count(db, "schema_migrations");
-    check(applied === expected, `${expected} migrations recorded on the fresh path (got ${applied})`);
-    check(await count(db, "products") === 0, "201 on a database with no projects inserts nothing");
+    check(
+      applied === expected,
+      `${expected} migrations recorded on the fresh path (got ${applied})`,
+    );
+    check(
+      await count(db, "products") === 0,
+      "201 on a database with no projects inserts nothing",
+    );
   });
-  await schemasMatch("main_fresh", "main_reference", "(d) fresh-path schema is byte-identical to the base");
+  await schemasMatch(
+    "main_fresh",
+    "main_reference",
+    "(d) fresh-path schema is byte-identical to the base",
+  );
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────

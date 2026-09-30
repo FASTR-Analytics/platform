@@ -15,12 +15,48 @@ import {
 const GROUP_BYS = ["admin_area_2", "indicator_common_id", "period_id"];
 
 const ITEMS: JsonArrayItem[] = [
-  { admin_area_2: ROLLUP_SENTINEL, indicator_common_id: "anc1", period_id: 202401, value: 0.72, __n_value: 40 },
-  { admin_area_2: "Abia", indicator_common_id: "anc1", period_id: 202401, value: null, __n_value: 0 },
-  { admin_area_2: "Abia", indicator_common_id: "anc4", period_id: 202402, value: "0.5", __n_value: 12 },
-  { admin_area_2: BLANK_SENTINEL, indicator_common_id: "anc4", period_id: 202402, value: 3, __n_value: null },
-  { admin_area_2: "", indicator_common_id: "anc1", period_id: 202402, value: 1, __n_value: 1 },
-  { admin_area_2: null, indicator_common_id: "anc1", period_id: 202401, value: 2, __n_value: 1 },
+  {
+    admin_area_2: ROLLUP_SENTINEL,
+    indicator_common_id: "anc1",
+    period_id: 202401,
+    value: 0.72,
+    __n_value: 40,
+  },
+  {
+    admin_area_2: "Abia",
+    indicator_common_id: "anc1",
+    period_id: 202401,
+    value: null,
+    __n_value: 0,
+  },
+  {
+    admin_area_2: "Abia",
+    indicator_common_id: "anc4",
+    period_id: 202402,
+    value: "0.5",
+    __n_value: 12,
+  },
+  {
+    admin_area_2: BLANK_SENTINEL,
+    indicator_common_id: "anc4",
+    period_id: 202402,
+    value: 3,
+    __n_value: null,
+  },
+  {
+    admin_area_2: "",
+    indicator_common_id: "anc1",
+    period_id: 202402,
+    value: 1,
+    __n_value: 1,
+  },
+  {
+    admin_area_2: null,
+    indicator_common_id: "anc1",
+    period_id: 202401,
+    value: 2,
+    __n_value: 1,
+  },
 ];
 
 Deno.test("grid items: decode reproduces every row, value and type", () => {
@@ -39,11 +75,19 @@ Deno.test("grid items: each groupBy holds its distinct values once, in first-see
 });
 
 Deno.test("grid items: every non-groupBy column is a value column", () => {
-  assertEquals(encodeGridItems(ITEMS, GROUP_BYS).valueProps, ["value", "__n_value"]);
+  assertEquals(encodeGridItems(ITEMS, GROUP_BYS).valueProps, [
+    "value",
+    "__n_value",
+  ]);
 });
 
 Deno.test("grid items: an empty row set round-trips", () => {
   const encoded = encodeGridItems([], GROUP_BYS);
-  assertEquals(encoded, { levels: [[], [], []], rows: [], valueProps: [], values: [] });
+  assertEquals(encoded, {
+    levels: [[], [], []],
+    rows: [],
+    valueProps: [],
+    values: [],
+  });
   assertEquals(decodeGridItems(encoded, GROUP_BYS), []);
 });

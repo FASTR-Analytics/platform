@@ -184,7 +184,11 @@ export function recordDeckReordered(deckId: string, email: string): void {
   ledgerFor(deckId).reordered.add(email);
 }
 
-function renameInSet(set: Set<string> | undefined, oldEmail: string, newEmail: string): void {
+function renameInSet(
+  set: Set<string> | undefined,
+  oldEmail: string,
+  newEmail: string,
+): void {
   if (set?.has(oldEmail)) {
     set.delete(oldEmail);
     set.add(newEmail);
@@ -193,7 +197,10 @@ function renameInSet(set: Set<string> | undefined, oldEmail: string, newEmail: s
 
 /** User email rename: re-key the email in every open deck/element ledger so
  *  the next drain freezes attribution under the new address. */
-export function renameDeckLedgerEmails(oldEmail: string, newEmail: string): void {
+export function renameDeckLedgerEmails(
+  oldEmail: string,
+  newEmail: string,
+): void {
   for (const ledger of ledgers.values()) {
     for (const touch of ledger.slides.values()) {
       renameInSet(touch.edited, oldEmail, newEmail);
@@ -246,8 +253,7 @@ export function drainDeckLedger(
         elementsTextDeleted[elementKey] = [...et.textDeleted];
       }
     }
-    const nonEmpty = (r: Record<string, string[]>) =>
-      Object.keys(r).length > 0;
+    const nonEmpty = (r: Record<string, string[]>) => Object.keys(r).length > 0;
     slides[slideId] = {
       ...(touch.edited ? { edited: [...touch.edited] } : {}),
       ...(touch.added ? { added: [...touch.added] } : {}),

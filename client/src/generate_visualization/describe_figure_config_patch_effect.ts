@@ -20,8 +20,12 @@ function deepEqual(a: unknown, b: unknown): boolean {
     typeof a === "object" && typeof b === "object" &&
     a !== null && b !== null && !Array.isArray(a) && !Array.isArray(b)
   ) {
-    const aKeys = Object.keys(a).filter((k) => (a as Record<string, unknown>)[k] !== undefined);
-    const bKeys = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined);
+    const aKeys = Object.keys(a).filter((k) =>
+      (a as Record<string, unknown>)[k] !== undefined
+    );
+    const bKeys = Object.keys(b).filter((k) =>
+      (b as Record<string, unknown>)[k] !== undefined
+    );
     if (aKeys.length !== bKeys.length) return false;
     return aKeys.every((k) =>
       deepEqual(
@@ -63,7 +67,12 @@ export function describeFigureConfigPatchEffect(
   return suppliedKeys.map((key) => {
     const minusOne = { ...patch };
     delete minusOne[key];
-    const without = applyFigureConfigPatch(config, minusOne, source, dataBounds);
+    const without = applyFigureConfigPatch(
+      config,
+      minusOne,
+      source,
+      dataBounds,
+    );
     return deepEqual(full, without)
       ? `${key}: no change (the stored config already matched)`
       : `${key}: applied`;

@@ -20,7 +20,10 @@ type OrgUnitLevelsResponse = {
 };
 
 type OrgUnitLevelCountsResponse = {
-  organisationUnits: Array<{ level: number | null | undefined }> | null | undefined;
+  organisationUnits:
+    | Array<{ level: number | null | undefined }>
+    | null
+    | undefined;
 };
 
 type RootOrgUnitsResponse = {

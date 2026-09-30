@@ -1,4 +1,4 @@
-import { fetchFromDHIS2, buildUrl } from "../common/base_fetcher.ts";
+import { buildUrl, fetchFromDHIS2 } from "../common/base_fetcher.ts";
 import type { Dhis2Credentials } from "lib";
 import type { GeoJsonFeature, GeoJsonFeatureCollection } from "./types.ts";
 
@@ -34,7 +34,9 @@ export async function fetchOrgUnitsGeoJsonForLevel(
   });
 
   if (result.type !== "FeatureCollection" || !Array.isArray(result.features)) {
-    throw new Error("Invalid GeoJSON response from DHIS2: expected a FeatureCollection");
+    throw new Error(
+      "Invalid GeoJSON response from DHIS2: expected a FeatureCollection",
+    );
   }
 
   return { type: "FeatureCollection", features: result.features };

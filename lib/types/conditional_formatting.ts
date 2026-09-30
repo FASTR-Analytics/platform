@@ -90,10 +90,9 @@ export function selectCf(s: CfStorage): ConditionalFormatting {
         type: "scale",
         scale: buildContinuousScaleConfig(s),
         steps: s.cfScaleSteps >= 2 ? s.cfScaleSteps : undefined,
-        domain:
-          s.cfScaleDomainKind === "fixed"
-            ? { kind: "fixed", min: s.cfScaleDomainMin, max: s.cfScaleDomainMax }
-            : { kind: "auto" },
+        domain: s.cfScaleDomainKind === "fixed"
+          ? { kind: "fixed", min: s.cfScaleDomainMin, max: s.cfScaleDomainMax }
+          : { kind: "auto" },
         noDataColor: s.cfScaleNoDataColor || undefined,
       };
     case "thresholds":
@@ -117,7 +116,10 @@ function storedBucketToBucket(
 
 function buildContinuousScaleConfig(s: CfStorage): ContinuousScaleConfig {
   if (s.cfScalePaletteKind === "preset") {
-    return { palette: s.cfScalePalettePreset as never, reverse: s.cfScaleReverse };
+    return {
+      palette: s.cfScalePalettePreset as never,
+      reverse: s.cfScaleReverse,
+    };
   }
   if (s.cfScaleCustomMid) {
     return {
@@ -159,12 +161,15 @@ export function flattenCf(cf: ConditionalFormatting): CfStorage {
       cfScaleReverse: scaleState.reverse,
       cfScaleSteps: cf.steps ?? 0,
       cfScaleDomainKind: cf.domain.kind,
-      cfScaleDomainMin: cf.domain.kind === "fixed" ? cf.domain.min : base.cfScaleDomainMin,
-      cfScaleDomainMax: cf.domain.kind === "fixed" ? cf.domain.max : base.cfScaleDomainMax,
-      cfScaleNoDataColor:
-        typeof cf.noDataColor === "string"
-          ? cf.noDataColor
-          : base.cfScaleNoDataColor,
+      cfScaleDomainMin: cf.domain.kind === "fixed"
+        ? cf.domain.min
+        : base.cfScaleDomainMin,
+      cfScaleDomainMax: cf.domain.kind === "fixed"
+        ? cf.domain.max
+        : base.cfScaleDomainMax,
+      cfScaleNoDataColor: typeof cf.noDataColor === "string"
+        ? cf.noDataColor
+        : base.cfScaleNoDataColor,
     };
   }
   return {
@@ -172,16 +177,16 @@ export function flattenCf(cf: ConditionalFormatting): CfStorage {
     cfMode: "thresholds",
     cfThresholdCutoffs: cf.cutoffs,
     cfThresholdBuckets: cf.buckets.map((b) =>
-      b.label === undefined ? { color: b.color } : { color: b.color, label: b.label }
+      b.label === undefined
+        ? { color: b.color }
+        : { color: b.color, label: b.label }
     ),
     cfThresholdDirection: cf.direction ?? "higher-is-better",
-    cfThresholdNoDataColor:
-      typeof cf.noDataColor === "string"
-        ? cf.noDataColor
-        : base.cfThresholdNoDataColor,
+    cfThresholdNoDataColor: typeof cf.noDataColor === "string"
+      ? cf.noDataColor
+      : base.cfThresholdNoDataColor,
   };
 }
-
 
 function parseContinuousScaleConfigForStorage(scale: ContinuousScaleConfig): {
   kind: "preset" | "custom";
@@ -194,7 +199,12 @@ function parseContinuousScaleConfigForStorage(scale: ContinuousScaleConfig): {
   const empty = { from: "", mid: "", to: "", preset: "" };
   if (typeof scale === "string") {
     if (scale.endsWith(":rev")) {
-      return { ...empty, kind: "preset", preset: scale.slice(0, -4), reverse: true };
+      return {
+        ...empty,
+        kind: "preset",
+        preset: scale.slice(0, -4),
+        reverse: true,
+      };
     }
     return { ...empty, kind: "preset", preset: scale, reverse: false };
   }
@@ -362,31 +372,53 @@ function symmetricBucketLabels(
   for (let i = 0; i < n; i++) {
     if (i === middleIdx) {
       const mag = fmt(cutoffs[middleIdx]); // smallest positive cutoff
-      out.push(pickLang(language, { en: `Within ${mag}`, fr: `À ${mag} près`, pt: `Dentro de ${mag}` }));
+      out.push(
+        pickLang(language, {
+          en: `Within ${mag}`,
+          fr: `À ${mag} près`,
+          pt: `Dentro de ${mag}`,
+        }),
+      );
     } else if (i < middleIdx) {
       if (i === 0) {
         const mag = fmt(-cutoffs[0]);
         out.push(
-          pickLang(language, { en: `More than ${mag} below`, fr: `Plus de ${mag} en dessous`, pt: `Mais de ${mag} abaixo` }),
+          pickLang(language, {
+            en: `More than ${mag} below`,
+            fr: `Plus de ${mag} en dessous`,
+            pt: `Mais de ${mag} abaixo`,
+          }),
         );
       } else {
         const lo = fmt(-cutoffs[i]);
         const hi = fmt(-cutoffs[i - 1]);
         out.push(
-          pickLang(language, { en: `${lo} – ${hi} below`, fr: `${lo} – ${hi} en dessous`, pt: `${lo} – ${hi} abaixo` }),
+          pickLang(language, {
+            en: `${lo} – ${hi} below`,
+            fr: `${lo} – ${hi} en dessous`,
+            pt: `${lo} – ${hi} abaixo`,
+          }),
         );
       }
     } else {
       if (i === n - 1) {
         const mag = fmt(cutoffs[cutoffs.length - 1]);
         out.push(
-          pickLang(language, { en: `More than ${mag} above`, fr: `Plus de ${mag} au-dessus`, pt: `Mais de ${mag} acima` }),
+          pickLang(language, {
+            en: `More than ${mag} above`,
+            fr: `Plus de ${mag} au-dessus`,
+            pt: `Mais de ${mag} acima`,
+          }),
         );
       } else {
         const lo = fmt(cutoffs[i - 1]);
         const hi = fmt(cutoffs[i]);
         out.push(
-          pickLang(language, { en: `${lo} – ${hi} above`, fr: `${lo} – ${hi} au-dessus`, pt: `${lo} – ${hi} acima` }),
+          pickLang(language, {
+            en: `${lo} – ${hi} above`,
+            fr: `${lo} – ${hi} au-dessus`,
+            pt: `${lo} – ${hi} acima`,
+          }),
         );
       }
     }

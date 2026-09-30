@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - 'server/**/*.ts'
-      - 'client/src/**/*.tsx'
-      - 'client/src/**/*.ts'
-      - 'lib/**/*.ts'
-      - 'VERSION'
+      - "server/**/*.ts"
+      - "client/src/**/*.tsx"
+      - "client/src/**/*.ts"
+      - "lib/**/*.ts"
+      - "VERSION"
 
 permissions:
   contents: write

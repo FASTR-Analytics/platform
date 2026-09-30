@@ -67,7 +67,11 @@ export function ReportVersionPreview(p: {
         product_id: p.productId,
         version_id: p.versionId,
       }),
-    t3({ en: "Loading version...", fr: "Chargement de la version...", pt: "A carregar a versão..." }),
+    t3({
+      en: "Loading version...",
+      fr: "Chargement de la version...",
+      pt: "A carregar a versão...",
+    }),
   );
 
   // What the selected session changed, shown by default (Google-Docs-style);
@@ -75,40 +79,51 @@ export function ReportVersionPreview(p: {
   const [mode, setMode] = createSignal<PreviewMode>("edits");
 
   function renderEmbedFor(v: ReportVersionDetail) {
-    return (src: string, alt: string, line?: number): JSX.Element | undefined => {
+    return (
+      src: string,
+      alt: string,
+      line?: number,
+    ): JSX.Element | undefined => {
       const fig = /^figure:(.+)$/.exec(src);
       if (fig) {
         const fb = v.figures[fig[1]];
-        return fb ? (
-          <div class="ui-pad my-4 rounded border" data-line={line}>
-            <ReportFigureEmbed figure={fb} />
-          </div>
-        ) : (
-          <div class="text-danger text-xs" data-line={line}>
-            {t3({
-              en: "Missing visualization:",
-              fr: "Visualisation manquante :",
-              pt: "Visualização em falta:",
-            })}{" "}
-            {fig[1]}
-          </div>
-        );
+        return fb
+          ? (
+            <div class="ui-pad my-4 rounded border" data-line={line}>
+              <ReportFigureEmbed figure={fb} />
+            </div>
+          )
+          : (
+            <div class="text-danger text-xs" data-line={line}>
+              {t3({
+                en: "Missing visualization:",
+                fr: "Visualisation manquante :",
+                pt: "Visualização em falta:",
+              })} {fig[1]}
+            </div>
+          );
       }
       const img = /^image:(.+)$/.exec(src);
       if (img) {
         const ib = v.images[img[1]];
-        return ib ? (
-          <img
-            class="w-full"
-            src={resolveLogoUrl(ib.imgFile)}
-            alt={alt}
-            data-line={line}
-          />
-        ) : (
-          <div class="text-danger text-xs" data-line={line}>
-            {t3({ en: "Missing image:", fr: "Image manquante :", pt: "Imagem em falta:" })} {img[1]}
-          </div>
-        );
+        return ib
+          ? (
+            <img
+              class="w-full"
+              src={resolveLogoUrl(ib.imgFile)}
+              alt={alt}
+              data-line={line}
+            />
+          )
+          : (
+            <div class="text-danger text-xs" data-line={line}>
+              {t3({
+                en: "Missing image:",
+                fr: "Image manquante :",
+                pt: "Imagem em falta:",
+              })} {img[1]}
+            </div>
+          );
       }
       return undefined;
     };
@@ -127,13 +142,24 @@ export function ReportVersionPreview(p: {
 
   async function restore(v: ReportVersionDetail) {
     const ok = await openConfirm({
-      title: t3({ en: "Restore this version?", fr: "Restaurer cette version ?", pt: "Restaurar esta versão?" }),
-      text: t3({
-        en: "The report will be reset to this version. Your current content is saved as a version first — nothing is lost.",
-        fr: "Le rapport sera réinitialisé à cette version. Votre contenu actuel est d'abord enregistré comme version — rien n'est perdu.",
-        pt: "O relatório será reposto para esta versão. O seu conteúdo atual é primeiro guardado como versão — nada se perde.",
+      title: t3({
+        en: "Restore this version?",
+        fr: "Restaurer cette version ?",
+        pt: "Restaurar esta versão?",
       }),
-      confirmButtonLabel: t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" }),
+      text: t3({
+        en:
+          "The report will be reset to this version. Your current content is saved as a version first — nothing is lost.",
+        fr:
+          "Le rapport sera réinitialisé à cette version. Votre contenu actuel est d'abord enregistré comme version — rien n'est perdu.",
+        pt:
+          "O relatório será reposto para esta versão. O seu conteúdo atual é primeiro guardado como versão — nada se perde.",
+      }),
+      confirmButtonLabel: t3({
+        en: "Restore",
+        fr: "Restaurer",
+        pt: "Restaurar",
+      }),
     });
     if (!ok) {
       return;
@@ -153,8 +179,14 @@ export function ReportVersionPreview(p: {
     await openComponent({
       element: CopyVersionModal,
       props: {
-        header: t3({ en: "Restore as copy", fr: "Restaurer comme copie", pt: "Restaurar como cópia" }),
-        initialLabel: `${v.label} (${new Date(v.createdAt).toLocaleDateString()})`,
+        header: t3({
+          en: "Restore as copy",
+          fr: "Restaurer comme copie",
+          pt: "Restaurar como cópia",
+        }),
+        initialLabel: `${v.label} (${
+          new Date(v.createdAt).toLocaleDateString()
+        })`,
         // The copy lands beside the source product (D16: a new product needs a
         // folder like createProduct does).
         save: (label: string) =>
@@ -177,11 +209,19 @@ export function ReportVersionPreview(p: {
               items={[
                 {
                   id: "edits",
-                  label: t3({ en: "Edits in this session", fr: "Modifications de cette session", pt: "Edições desta sessão" }),
+                  label: t3({
+                    en: "Edits in this session",
+                    fr: "Modifications de cette session",
+                    pt: "Edições desta sessão",
+                  }),
                 },
                 {
                   id: "preview",
-                  label: t3({ en: "Preview", fr: "Aperçu", pt: "Pré-visualização" }),
+                  label: t3({
+                    en: "Preview",
+                    fr: "Aperçu",
+                    pt: "Pré-visualização",
+                  }),
                 },
               ]}
               value={mode()}
@@ -227,13 +267,21 @@ export function ReportVersionPreview(p: {
           <div class="ui-pad ui-gap-sm flex items-center border-t">
             <Show when={p.getCurrentBody}>
               <Button outline onClick={() => compareWithCurrent(v)}>
-                {t3({ en: "Compare with current", fr: "Comparer avec l'actuel", pt: "Comparar com o atual" })}
+                {t3({
+                  en: "Compare with current",
+                  fr: "Comparer avec l'actuel",
+                  pt: "Comparar com o atual",
+                })}
               </Button>
             </Show>
             <div class="flex-1" />
             <Show when={p.canRestore}>
               <Button outline onClick={() => restoreAsCopy(v)}>
-                {t3({ en: "Restore as copy", fr: "Restaurer comme copie", pt: "Restaurar como cópia" })}
+                {t3({
+                  en: "Restore as copy",
+                  fr: "Restaurer comme copie",
+                  pt: "Restaurar como cópia",
+                })}
               </Button>
               <Button onClick={() => restore(v)}>
                 {t3({ en: "Restore", fr: "Restaurer", pt: "Restaurar" })}
@@ -298,7 +346,10 @@ function SessionEdits(p: {
   }>(
     async () => {
       if (!p.previousVersionId) {
-        return { success: true as const, data: { body: "", figures: {}, images: {} } };
+        return {
+          success: true as const,
+          data: { body: "", figures: {}, images: {} },
+        };
       }
       const res = await serverActions.getReportVersion({
         product_id: p.productId,
@@ -315,7 +366,11 @@ function SessionEdits(p: {
         }
         : res;
     },
-    t3({ en: "Loading session edits...", fr: "Chargement des modifications...", pt: "A carregar as edições..." }),
+    t3({
+      en: "Loading session edits...",
+      fr: "Chargement des modifications...",
+      pt: "A carregar as edições...",
+    }),
   );
 
   return (
@@ -357,15 +412,21 @@ function SessionEdits(p: {
         // key -> the embed's alt text, so each change card carries the same
         // name as its highlighted token in the body diff (current body first:
         // freshest alt; prev body covers removed embeds).
-        const embedLabels = collectEmbedLabels([p.version.body, prev.body], p.format);
+        const embedLabels = collectEmbedLabels(
+          [p.version.body, prev.body],
+          p.format,
+        );
         return (
           <div class="bg-base-200 min-h-0 flex-1 overflow-auto px-8 py-6">
             <Show when={!p.previousVersionId}>
               <div class="ui-text-caption mx-auto mb-2 w-full max-w-4xl">
                 {t3({
-                  en: "First version — the whole document was created in this session.",
-                  fr: "Première version — l'ensemble du document a été créé dans cette session.",
-                  pt: "Primeira versão — todo o documento foi criado nesta sessão.",
+                  en:
+                    "First version — the whole document was created in this session.",
+                  fr:
+                    "Première version — l'ensemble du document a été créé dans cette session.",
+                  pt:
+                    "Primeira versão — todo o documento foi criado nesta sessão.",
                 })}
               </div>
             </Show>
@@ -402,8 +463,16 @@ function SessionEdits(p: {
                       what="figure"
                       label={embedLabels.get(ch.key) ??
                         (ch.newVal ?? ch.oldVal)?.bundle?.config.t.caption}
-                      old={ch.oldVal && <ReportFigureEmbed figure={ch.oldVal} />}
-                      neu={ch.newVal && <ReportFigureEmbed figure={ch.newVal} />}
+                      old={ch.oldVal && (
+                        <ReportFigureEmbed
+                          figure={ch.oldVal}
+                        />
+                      )}
+                      neu={ch.newVal && (
+                        <ReportFigureEmbed
+                          figure={ch.newVal}
+                        />
+                      )}
                     />
                   )}
                 </For>
@@ -542,18 +611,31 @@ function VizChangeRow(p: {
     ? t3({ en: "Visualization", fr: "Visualisation", pt: "Visualização" })
     : t3({ en: "Image", fr: "Image", pt: "Imagem" });
   const kindLabel = p.kind === "added"
-    ? t3({ en: "added in this session", fr: "ajoutée dans cette session", pt: "adicionada nesta sessão" })
+    ? t3({
+      en: "added in this session",
+      fr: "ajoutée dans cette session",
+      pt: "adicionada nesta sessão",
+    })
     : p.kind === "removed"
-    ? t3({ en: "removed in this session", fr: "supprimée dans cette session", pt: "removida nesta sessão" })
-    : t3({ en: "edited in this session", fr: "modifiée dans cette session", pt: "editada nesta sessão" });
+    ? t3({
+      en: "removed in this session",
+      fr: "supprimée dans cette session",
+      pt: "removida nesta sessão",
+    })
+    : t3({
+      en: "edited in this session",
+      fr: "modifiée dans cette session",
+      pt: "editada nesta sessão",
+    });
   return (
     <div class="bg-base-100 mb-4 rounded border p-3">
       <div class="ui-text-caption mb-2">
         {whatLabel}
         <Show when={p.label}>
-          {" "}<span class="font-700">“{p.label}”</span>
-        </Show>
-        {" "}— {kindLabel}
+          {" "}
+          <span class="font-700">“{p.label}”</span>
+        </Show>{" "}
+        — {kindLabel}
       </div>
       <div classList={{ "grid grid-cols-2 gap-3": p.kind === "edited" }}>
         <Show when={p.old}>

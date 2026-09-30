@@ -2,13 +2,13 @@ import { Sql } from "postgres";
 import {
   APIResponseNoData,
   APIResponseWithData,
-  parseJsonOrThrow,
   type DatasetHmisImportRunStatus,
   type DatasetHmisScheduledImport,
   type DatasetHmisScheduledImportFields,
   type DatasetHmisScheduledImportOutcome,
   type Dhis2ScheduleRecurrence,
   type Dhis2ScheduleSelection,
+  parseJsonOrThrow,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { isValidPeriodId } from "./dataset_hmis_import_runs.ts";
@@ -81,7 +81,9 @@ function validateScheduleFields(
     throw new Error(`Unknown timezone: "${rec.timezone}".`);
   }
   if (fields.selection.kind !== "last_n_months") {
-    throw new Error("A recurring schedule needs a rolling last-N-months window.");
+    throw new Error(
+      "A recurring schedule needs a rolling last-N-months window.",
+    );
   }
   if (rec.kind === "weekly") {
     // Round-trip check: V8 rolls impossible dates over ("2026-02-29" →
@@ -288,10 +290,10 @@ export async function revertScheduledImportClaim(
   await mainDb`
     UPDATE dataset_hmis_scheduled_imports
     SET last_fired_at = ${
-      previousLastFiredAtMs === null
-        ? null
-        : new Date(previousLastFiredAtMs).toISOString()
-    }
+    previousLastFiredAtMs === null
+      ? null
+      : new Date(previousLastFiredAtMs).toISOString()
+  }
     WHERE id = ${id}
       AND last_fired_at = ${new Date(claimedOccurrenceMs).toISOString()}
   `;

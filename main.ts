@@ -134,8 +134,7 @@ app.notFound((c) => {
   return c.json(
     {
       success: false,
-      err:
-        `Unknown route: ${c.req.method} ${c.req.path}. ` +
+      err: `Unknown route: ${c.req.method} ${c.req.path}. ` +
         "The app may have been updated since this page was loaded — reload the page and try again.",
     },
     404,

@@ -19,12 +19,15 @@ import type {
   DatasetHmisImportRunProgress,
 } from "lib";
 import {
-  PROGRESS_WRITE_INTERVAL_MS,
   createThrottledProgressWriter,
+  PROGRESS_WRITE_INTERVAL_MS,
   truncateWorkerError,
 } from "../worker_contract.ts";
 import type { ImportHmisDataCsvWorkerPayload } from "./instantiate_worker.ts";
-import { dropHmisCsvStagingTables, stageHmisCsvIntoTables } from "./stage_csv.ts";
+import {
+  dropHmisCsvStagingTables,
+  stageHmisCsvIntoTables,
+} from "./stage_csv.ts";
 import { integrateStagedHmisCsvData } from "./integrate_staged.ts";
 
 (self as unknown as Worker).onmessage = (e) => {
@@ -69,7 +72,9 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
   const importDb = createBulkImportConnection("main");
   const mainDb = createWorkerReadConnection("main");
 
-  const writeProgress = createThrottledProgressWriter<DatasetHmisImportRunProgress>(
+  const writeProgress = createThrottledProgressWriter<
+    DatasetHmisImportRunProgress
+  >(
     PROGRESS_WRITE_INTERVAL_MS,
     async (progress) => {
       // Status guard: never resurrect progress on a cancelled/errored run.
@@ -110,8 +115,12 @@ async function run(payload: ImportHmisDataCsvWorkerPayload) {
         const v = stagingResult.validation;
         throw new Error(
           `All rows were dropped during staging: ` +
-            `${v?.invalidFacilities.rowsDropped ?? 0} with unknown facilities, ` +
-            `${v?.skippedByMapping.rowsDropped ?? 0} under values the mapping skipped. ` +
+            `${
+              v?.invalidFacilities.rowsDropped ?? 0
+            } with unknown facilities, ` +
+            `${
+              v?.skippedByMapping.rowsDropped ?? 0
+            } under values the mapping skipped. ` +
             `Check the columns and the mapping and try again.`,
         );
       }

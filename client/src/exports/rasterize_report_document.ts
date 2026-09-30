@@ -109,7 +109,10 @@ function safeCuts(
     contentEnd = Math.max(contentEnd, bottom);
     if (box.classList.contains("fm-cover")) {
       const ground = doc.defaultView?.getComputedStyle(box).backgroundColor;
-      forced.set(bottom, ground && ground !== "rgba(0, 0, 0, 0)" ? ground : "#ffffff");
+      forced.set(
+        bottom,
+        ground && ground !== "rgba(0, 0, 0, 0)" ? ground : "#ffffff",
+      );
     }
   }
   return { cuts: cuts.sort((a, b) => a - b), forced, contentEnd };
@@ -165,7 +168,10 @@ export async function rasterizeReportPages(
     const { cuts, forced, contentEnd } = safeCuts(doc);
     // The document's own end, NOT scrollHeight: a trailing margin would
     // otherwise become a blank final page.
-    const total = Math.max(1, Math.min(doc.body.scrollHeight, Math.ceil(contentEnd)));
+    const total = Math.max(
+      1,
+      Math.min(doc.body.scrollHeight, Math.ceil(contentEnd)),
+    );
     const html2canvas = (await import("html2canvas")).default;
     const canvas = await html2canvas(doc.body, {
       scale: 2,

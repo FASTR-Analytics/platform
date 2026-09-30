@@ -2,11 +2,11 @@ import { t3 } from "lib";
 import {
   Button,
   Icon,
+  type IconName,
   ModalContainer,
   SelectList,
-  type IconName,
 } from "panther";
-import { Show, createSignal, type JSX } from "solid-js";
+import { createSignal, type JSX, Show } from "solid-js";
 
 export type TourCategory = {
   id: string;
@@ -94,13 +94,11 @@ export function TourRow(p: {
         <div class="text-base-content flex items-center gap-2">
           <span class="font-700">{p.label}</span>
           <span class="text-base-content-muted rounded-full border px-2 py-0.5 text-xs whitespace-nowrap">
-            {p.seen
-              ? t3({ en: "Seen", fr: "Vue", pt: "Vista" })
-              : t3({
-                  en: "Not seen yet",
-                  fr: "Pas encore vue",
-                  pt: "Ainda não vista",
-                })}
+            {p.seen ? t3({ en: "Seen", fr: "Vue", pt: "Vista" }) : t3({
+              en: "Not seen yet",
+              fr: "Pas encore vue",
+              pt: "Ainda não vista",
+            })}
           </span>
         </div>
         <div class="text-base-content-muted mt-1 text-sm">{p.description}</div>

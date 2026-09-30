@@ -3,7 +3,7 @@ import { type APIResponseWithData, type CsvDetails } from "lib";
 
 export async function getCsvDetails(
   assetFilePath: string,
-  fileName: string
+  fileName: string,
 ): Promise<APIResponseWithData<CsvDetails>> {
   try {
     let csvFile: Uint8Array;

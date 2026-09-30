@@ -40,7 +40,9 @@ defineRoute(
   requireGlobalPermission("can_view_data"),
   log("getPopulationTypeStore"),
   async (c, { body }) => {
-    return c.json(await getPopulationTypeStore(c.var.mainDb, body.populationType));
+    return c.json(
+      await getPopulationTypeStore(c.var.mainDb, body.populationType),
+    );
   },
 );
 
@@ -121,7 +123,12 @@ routesPopulation.get(
     const header = [...areaColumns, "year", "population_type", "count"];
     const lines = [header.join(",")];
     for (const r of rows) {
-      const names = [r.admin_area_1, r.admin_area_2, r.admin_area_3, r.admin_area_4]
+      const names = [
+        r.admin_area_1,
+        r.admin_area_2,
+        r.admin_area_3,
+        r.admin_area_4,
+      ]
         .slice(0, columnCount);
       lines.push(
         [...names, String(r.year), r.population_type, String(r.count)]

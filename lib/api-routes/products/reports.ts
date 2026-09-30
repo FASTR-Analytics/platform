@@ -7,7 +7,10 @@ import {
   reportStyleBodySchema,
 } from "../../types/mod.ts";
 import type { ReportConfig, ReportDetail } from "../../types/reports.ts";
-import { FASTR_WORD_RASTER_BLOCKS, type FastrWordRasterBlock } from "../../report_fastr_word.ts";
+import {
+  FASTR_WORD_RASTER_BLOCKS,
+  type FastrWordRasterBlock,
+} from "../../report_fastr_word.ts";
 import type { ReportCustomStyle } from "../../types/report_styles.ts";
 import type {
   ReportVersionDetail,

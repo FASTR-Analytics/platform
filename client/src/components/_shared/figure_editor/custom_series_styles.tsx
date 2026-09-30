@@ -1,4 +1,9 @@
-import { AlertComponentProps, Button, ColorPicker, ModalContainer } from "panther";
+import {
+  AlertComponentProps,
+  Button,
+  ColorPicker,
+  ModalContainer,
+} from "panther";
 import { For } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { CustomSeriesStyle, t3, TC } from "lib";
@@ -54,7 +59,11 @@ export function CustomSeriesStyles(
 
   return (
     <ModalContainer
-      title={t3({ en: "Custom series colors", fr: "Couleurs de séries personnalisées", pt: "Cores de séries personalizadas" })}
+      title={t3({
+        en: "Custom series colors",
+        fr: "Couleurs de séries personnalisées",
+        pt: "Cores de séries personalizadas",
+      })}
       width="md"
       actions={[{ label: t3(TC.save), onClick: done, iconName: "save" }]}
       onCancel={() => p.close(undefined)}
@@ -65,12 +74,14 @@ export function CustomSeriesStyles(
             return (
               <div class="ui-gap-sm flex items-center">
                 <div class="flex-none">{i() + 1}.</div>
-                <div class="flex-1"><ColorPicker
-                  value={s.color}
-                  onChange={(c) => update(i(), c)}
-                  position="right"
-                  fullWidth
-                /></div>
+                <div class="flex-1">
+                  <ColorPicker
+                    value={s.color}
+                    onChange={(c) => update(i(), c)}
+                    position="right"
+                    fullWidth
+                  />
+                </div>
 
                 <Button
                   onClick={() => del(i())}

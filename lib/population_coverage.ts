@@ -5,7 +5,10 @@
 // at the population level is stale: counted, shown, never part of
 // completeness.
 
-import type { PopulationCoverage, PopulationYearCoverage } from "./types/population.ts";
+import type {
+  PopulationCoverage,
+  PopulationYearCoverage,
+} from "./types/population.ts";
 import type { AdminAreaLevel } from "./types/structure.ts";
 
 // Written as a char code rather than a literal so the file stays text: NUL

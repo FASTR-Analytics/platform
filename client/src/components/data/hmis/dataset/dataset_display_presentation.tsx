@@ -1,24 +1,24 @@
 import {
-  ItemsHolderDatasetHmisDisplay,
   getAbcQualScale,
   getCalendar,
+  ItemsHolderDatasetHmisDisplay,
   t3,
 } from "lib";
 import {
-  FigureInputs,
+  ButtonGroup,
+  type CustomFigureStyleOptions,
   FigureHolder,
+  FigureInputs,
   FrameLeftResizable,
+  FrameTop,
   MultiSelectSearch,
+  PresenceGrid,
+  presenceGridColumnsFromPeriods,
   RadioGroup,
   StateHolder,
   StateHolderWrapper,
-  type CustomFigureStyleOptions,
-  FrameTop,
-  ButtonGroup,
-  PresenceGrid,
-  presenceGridColumnsFromPeriods,
 } from "panther";
-import { Show, createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { liveFigureStyle } from "~/generate_visualization/mod";
 import type { SetStoreFunction } from "solid-js/store";
 
@@ -45,7 +45,7 @@ export function DatasetDisplayPresentation(p: Props) {
       return p.displayItems.vizItems;
     }
     return p.displayItems.vizItems.filter((row) =>
-      indicatorsToVizualize.includes(row["indicator_common_id"]),
+      indicatorsToVizualize.includes(row["indicator_common_id"])
     );
   });
 
@@ -54,8 +54,8 @@ export function DatasetDisplayPresentation(p: Props) {
 
     const value = p.vizConfig.value;
 
-    const showLegend =
-      p.vizConfig.indicators.length > 0 && p.vizConfig.indicators.length < 6;
+    const showLegend = p.vizConfig.indicators.length > 0 &&
+      p.vizConfig.indicators.length < 6;
 
     const style: CustomFigureStyleOptions = liveFigureStyle({
       surrounds: {
@@ -92,18 +92,17 @@ export function DatasetDisplayPresentation(p: Props) {
           periodType: "year-month",
           seriesProp: "indicator_common_id",
           labelReplacements: p.displayItems.indicatorLabelReplacements,
-          yScaleAxisLabel:
-            value === "count"
-              ? t3({
-                  en: "Number of records",
-                  fr: "Nombre d'enregistrements",
-                  pt: "Número de registos",
-                })
-              : t3({
-                  en: "Number of service counts",
-                  fr: "Nombre de prestations de services",
-                  pt: "Número de prestações de serviços",
-                }),
+          yScaleAxisLabel: value === "count"
+            ? t3({
+              en: "Number of records",
+              fr: "Nombre d'enregistrements",
+              pt: "Número de registos",
+            })
+            : t3({
+              en: "Number of service counts",
+              fr: "Nombre de prestations de services",
+              pt: "Número de prestações de serviços",
+            }),
         },
       },
       style,
@@ -118,7 +117,7 @@ export function DatasetDisplayPresentation(p: Props) {
       p.displayItems.periodBounds,
       p.vizConfig.heatMapAxis,
       getCalendar(),
-    ),
+    )
   );
 
   const presenceRows = createMemo(() =>
@@ -128,17 +127,16 @@ export function DatasetDisplayPresentation(p: Props) {
       .map((id) => ({
         id,
         label: p.displayItems.indicatorLabelReplacements[id] ?? id,
-      })),
+      }))
   );
 
   // Presence, not magnitude (PLAN_A8 ruling 3): a cell is filled where the
   // indicator has at least one record in the period. Column ids are the
   // period ids as strings, the year being the month id's leading four digits.
   const presenceCells = createMemo(() => {
-    const columnIdOf =
-      p.vizConfig.heatMapAxis === "year-month"
-        ? (periodId: number) => String(periodId)
-        : (periodId: number) => String(Math.floor(periodId / 100));
+    const columnIdOf = p.vizConfig.heatMapAxis === "year-month"
+      ? (periodId: number) => String(periodId)
+      : (periodId: number) => String(Math.floor(periodId / 100));
     const filled = new Set<string>();
     for (const row of filteredVizItems()) {
       filled.add(
@@ -147,7 +145,7 @@ export function DatasetDisplayPresentation(p: Props) {
     }
     const columns = presenceColumns().columns;
     return presenceRows().map((row) =>
-      columns.map((column) => filled.has(`${row.id}|${column.id}`)),
+      columns.map((column) => filled.has(`${row.id}|${column.id}`))
     );
   });
 
@@ -198,8 +196,7 @@ export function DatasetDisplayPresentation(p: Props) {
               ]}
               value={p.vizConfig.figureType}
               onChange={(v) =>
-                p.setVizConfig("figureType", v as VizConfig["figureType"])
-              }
+                p.setVizConfig("figureType", v as VizConfig["figureType"])}
             />
             <Show when={isLine()}>
               <ButtonGroup
@@ -249,8 +246,7 @@ export function DatasetDisplayPresentation(p: Props) {
                 ]}
                 value={p.vizConfig.heatMapAxis}
                 onChange={(v) =>
-                  p.setVizConfig("heatMapAxis", v as VizConfig["heatMapAxis"])
-                }
+                  p.setVizConfig("heatMapAxis", v as VizConfig["heatMapAxis"])}
               />
             </Show>
           </div>

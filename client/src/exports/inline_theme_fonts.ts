@@ -36,8 +36,12 @@ async function inline(fontImport: string): Promise<string> {
   if (!cssResp.ok) throw new Error(`${cssResp.status} fetching ${m[1]}`);
   const css = await cssResp.text();
   // Each @font-face block is one subset of one weight; keep the Latin ones.
-  const blocks = css.split(/(?=@font-face)/).filter((b) => b.startsWith("@font-face"));
-  const kept = blocks.filter((b) => !/unicode-range:/i.test(b) || KEEP_RANGE_RE.test(b));
+  const blocks = css.split(/(?=@font-face)/).filter((b) =>
+    b.startsWith("@font-face")
+  );
+  const kept = blocks.filter((b) =>
+    !/unicode-range:/i.test(b) || KEEP_RANGE_RE.test(b)
+  );
   const out: string[] = [];
   for (const block of kept) {
     const u = FONT_URL_RE.exec(block);
@@ -57,7 +61,10 @@ export function inlineThemeFontCss(fontImport: string): Promise<string> {
   let p = cache.get(fontImport);
   if (p === undefined) {
     p = inline(fontImport).catch((e) => {
-      console.warn("Theme fonts could not be inlined; the PDF loads them live.", e);
+      console.warn(
+        "Theme fonts could not be inlined; the PDF loads them live.",
+        e,
+      );
       cache.delete(fontImport);
       return fontImport;
     });

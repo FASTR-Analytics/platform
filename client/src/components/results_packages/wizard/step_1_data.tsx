@@ -1,4 +1,4 @@
-import { t3, type DatasetType, type RunGenerationStep1Result } from "lib";
+import { type DatasetType, type RunGenerationStep1Result, t3 } from "lib";
 import { Checkbox } from "panther";
 import { For, Show } from "solid-js";
 
@@ -21,9 +21,12 @@ export function StepData(p: Props) {
       pt: "Nenhum dado deste tipo foi carregado nesta instância",
     }),
     hmis_import_running: t3({
-      en: "A DHIS2 import run is in progress. Wait for it to complete or cancel it.",
-      fr: "Une importation DHIS2 est en cours. Attendez qu'elle se termine ou annulez-la.",
-      pt: "Uma importação DHIS2 está em curso. Aguarde a sua conclusão ou cancele-a.",
+      en:
+        "A DHIS2 import run is in progress. Wait for it to complete or cancel it.",
+      fr:
+        "Une importation DHIS2 est en cours. Attendez qu'elle se termine ou annulez-la.",
+      pt:
+        "Uma importação DHIS2 está em curso. Aguarde a sua conclusão ou cancele-a.",
     }),
   };
 
@@ -58,9 +61,12 @@ export function StepData(p: Props) {
         </h3>
         <div class="text-base-content-muted text-sm">
           {t3({
-            en: "Choose which data families this results package is generated from. Each included family is captured in full.",
-            fr: "Choisissez les familles de données à partir desquelles ce paquet de résultats est généré. Chaque famille incluse est capturée dans son intégralité.",
-            pt: "Escolha as famílias de dados a partir das quais este pacote de resultados é gerado. Cada família incluída é capturada na íntegra.",
+            en:
+              "Choose which data families this results package is generated from. Each included family is captured in full.",
+            fr:
+              "Choisissez les familles de données à partir desquelles ce paquet de résultats est généré. Chaque famille incluse est capturée dans son intégralité.",
+            pt:
+              "Escolha as famílias de dados a partir das quais este pacote de resultados é gerado. Cada família incluída é capturada na íntegra.",
           })}
         </div>
       </div>
