@@ -960,25 +960,25 @@ export function buildInstanceResultsPackagesTour(): TourDefinition {
 // created instance holds no packages, so the first target does not exist, and
 // a tour that runs against nothing still writes its seen-flag. The tour walks
 // from the list into a package: the first step completes when the user clicks
-// a row's View button, which opens that package's page, and the second waits
+// a row, which opens that package's page, and the second waits
 // for the status bar's usage row there. The page covers the shell, so the list
-// row could not be shown after a page had been opened first.
+// could not be shown after a page had been opened first.
 export function buildInstanceResultsPackagesCatalogueTour(): TourDefinition {
   return {
     id: "instance-results-packages-catalogue",
     steps: [
       {
-        id: "view",
-        target: tourTarget("instance-results-packages-view"),
+        id: "catalogue",
+        target: tourTarget("instance-results-packages-table"),
         title: t3({
           en: "The package catalogue",
           fr: "Le catalogue des paquets",
           pt: "O catálogo de pacotes",
         }),
         body: t3({
-          en: "Every package this instance holds, newest first, with its status and which products use it. Click View to open a package's page.",
-          fr: "Tous les paquets de cette instance, du plus récent au plus ancien, avec leur état et les produits qui les utilisent. Cliquez sur Voir pour ouvrir la page d'un paquet.",
-          pt: "Todos os pacotes desta instância, do mais recente ao mais antigo, com o seu estado e os produtos que os usam. Clique em Ver para abrir a página de um pacote.",
+          en: "Every package this instance holds, newest first, with its status and which products use it. Click a row to open a package's page.",
+          fr: "Tous les paquets de cette instance, du plus récent au plus ancien, avec leur état et les produits qui les utilisent. Cliquez sur une ligne pour ouvrir la page d'un paquet.",
+          pt: "Todos os pacotes desta instância, do mais recente ao mais antigo, com o seu estado e os produtos que os usam. Clique numa linha para abrir a página de um pacote.",
         }),
         placement: "bottom",
         advanceOn: "click",

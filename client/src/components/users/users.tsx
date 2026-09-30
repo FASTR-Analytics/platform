@@ -358,22 +358,6 @@ function UserTable(p: {
         </span>
       ),
     },
-    {
-      key: "actions",
-      header: "",
-      alignH: "right",
-      render: (user) => (
-        <div class="flex justify-end gap-1">
-          <Button
-            onClick={() => p.onUserClick(user)}
-            iconName="pencil"
-            ghost
-            size="sm"
-            ariaLabel={t3({ en: "Edit", fr: "Modifier", pt: "Editar" })}
-          />
-        </div>
-      ),
-    },
   ];
 
   const bulkMakeAdmin = createButtonAction(

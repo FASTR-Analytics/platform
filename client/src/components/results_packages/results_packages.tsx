@@ -221,24 +221,6 @@ export function InstanceResultsPackages() {
         </span>
       ),
     },
-    {
-      key: "view",
-      header: "",
-      alignH: "right",
-      width: "1%",
-      render: (run) => (
-        <Button
-          data-tour="instance-results-packages-view"
-          size="sm"
-          ghost
-          iconName="chevronRight"
-          iconPosition="right"
-          onClick={() => openPackagePage(run.id)}
-        >
-          {t3({ en: "View", fr: "Voir", pt: "Ver" })}
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -283,15 +265,17 @@ export function InstanceResultsPackages() {
         when={instanceState.runsCatalog.length > 0}
         fallback={<EmptyState iconName="package" title={emptyMessage()} />}
       >
-        <Table
-          data={instanceState.runsCatalog}
-          columns={columns()}
-          keyField="id"
-          defaultSort={{ key: "createdAt", direction: "desc" }}
-          onRowClick={(run) => openPackagePage(run.id)}
-          bulkActions={bulkActions()}
-          selectionLabel={t3({ en: "package", fr: "paquet", pt: "pacote" })}
-        />
+        <div class="h-full w-full" data-tour="instance-results-packages-table">
+          <Table
+            data={instanceState.runsCatalog}
+            columns={columns()}
+            keyField="id"
+            defaultSort={{ key: "createdAt", direction: "desc" }}
+            onRowClick={(run) => openPackagePage(run.id)}
+            bulkActions={bulkActions()}
+            selectionLabel={t3({ en: "package", fr: "paquet", pt: "pacote" })}
+          />
+        </div>
       </Show>
     </FrameTop>
   );

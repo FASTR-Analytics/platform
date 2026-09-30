@@ -5,7 +5,6 @@ import {
   t3,
 } from "lib";
 import {
-  Button,
   type EditorComponentProps,
   openComponent,
   Table,
@@ -509,23 +508,6 @@ const DATA_ROW_COLUMNS = (): TableColumn<DataRow>[] => [
     header: "",
     width: "8rem",
     render: (row) => <StatusMark status={row.status} />,
-  },
-  {
-    key: "view",
-    header: "",
-    alignH: "right",
-    width: "1%",
-    render: (row) => (
-      <Button
-        size="sm"
-        ghost
-        iconName="chevronRight"
-        iconPosition="right"
-        onClick={() => row.onClick()}
-      >
-        {t3({ en: "View", fr: "Voir", pt: "Ver" })}
-      </Button>
-    ),
   },
 ];
 

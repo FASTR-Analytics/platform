@@ -118,13 +118,13 @@ export function setupTours(opts: {
     // Deferred until the instance actually holds a package: merges into the
     // intro's run when a list row is on screen, or starts on its own once the
     // first generation's refetch lands (if the admin is still on the list)
-    // or on the next visit. The row must be rendered, not merely in the DOM:
-    // an open package page hides the list under the shell wrapper, and the
-    // wizard opens the page before the launched run's row lands.
+    // or on the next visit. The table must be rendered, not merely in the
+    // DOM: an open package page hides the list under the shell wrapper, and
+    // the wizard opens the page before the launched run's row lands.
     {
       page: "instance-results-packages",
       when: () =>
-        resolveVisibleTarget(tourTarget("instance-results-packages-view")) !==
+        resolveVisibleTarget(tourTarget("instance-results-packages-table")) !==
         null,
       tour: buildInstanceResultsPackagesCatalogueTour(),
     },
