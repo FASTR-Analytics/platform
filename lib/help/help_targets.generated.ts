@@ -40,29 +40,35 @@ export const HELP_TARGETS = {
   "amod-configure": {
     page: "admin-guide/modules",
     anchor: {
-      en: "configuring-module-parameters",
-      fr: "configurer-les-paramètres-dun-module",
+      en: "configuring-module-defaults",
+      fr: "configurer-les-paramètres-par-défaut-des-modules",
     },
     title: {
-      en: "Configuring module parameters",
-      fr: "Configurer les paramètres d'un module",
+      en: "Configuring module defaults",
+      fr: "Configurer les paramètres par défaut des modules",
     },
     summary: {
       en:
-        "Many modules accept parameters that control their behavior. A data quality module might let you set thresholds for outliers. A coverage module might need target population figures. Click Settings on…",
+        "Instance administrators can set default module selections and parameter values that pre-fill the results package generation wizard. Navigate to Results packages at the instance level and click Module…",
       fr:
-        "De nombreux modules acceptent des paramètres qui contrôlent leur comportement. Un module de qualité des données peut vous permettre de définir des seuils pour les valeurs aberrantes. Un module de…",
+        "Les administrateurs de l'instance peuvent définir des sélections de modules par défaut et des valeurs de paramètres qui préremplissent l'assistant de génération de lots de résultats. Accédez à Lots…",
     },
   },
   "amod-install": {
     page: "admin-guide/modules",
-    anchor: { en: "installing-modules", fr: "installer-des-modules" },
-    title: { en: "Installing modules", fr: "Installer des modules" },
+    anchor: {
+      en: "generating-a-results-package",
+      fr: "générer-un-lot-de-résultats",
+    },
+    title: {
+      en: "Generating a results package",
+      fr: "Générer un lot de résultats",
+    },
     summary: {
       en:
-        "Navigate to Modules in the left sidebar. The page lists all modules available for your instance, showing which are currently enabled and which are available to install. Modules that are installed…",
+        "To produce module outputs, generate a new results package from the instance Results packages page. Click Generate new results package to open the wizard. The wizard walks you through three steps:…",
       fr:
-        "Ouvrez Modules dans la barre latérale de gauche. La page liste tous les modules disponibles pour votre instance, en indiquant ceux qui sont actuellement activés et ceux qui peuvent être installés.…",
+        "Pour produire des résultats de modules, générez un nouveau lot de résultats depuis la page Lots de résultats de l'instance. Cliquez sur Générer un nouveau lot de résultats pour ouvrir l'assistant.…",
     },
   },
   "amod-status": {
@@ -77,9 +83,9 @@ export const HELP_TARGETS = {
     },
     summary: {
       en:
-        "Each module displays its current status in the module list: Ready means results are available. You'll see timestamps for definitions and when the module last ran. Running indicates the module is…",
+        "Each module in a results package displays its current generation status: Ready means results are available. You'll see timestamps and which data and parameter versions produced the output. Running…",
       fr:
-        "Chaque module affiche son état actuel dans la liste des modules : Prêt signifie que les résultats sont disponibles. Vous verrez les horodatages des définitions et de la dernière exécution du module.…",
+        "Chaque module dans un lot de résultats affiche son état de génération actuel : Prêt signifie que les résultats sont disponibles. Vous verrez les horodatages et les versions de données et de…",
     },
   },
   "aproj-create": {
@@ -88,7 +94,7 @@ export const HELP_TARGETS = {
     title: { en: "Creating a project", fr: "Créer un projet" },
     summary: {
       en:
-        'Any user with the "Create projects" permission can start a new project from the home screen. Click Create project, enter a name that identifies the project\'s scope, and the system will set up an…',
+        'Any user with the "Create projects" permission can start a new project from the home screen. Click Create project, enter a name that identifies the project\'s scope, and choose a project scope —…',
       fr:
         "Tout utilisateur disposant de la permission « Créer des projets » peut démarrer un nouveau projet depuis l'écran d'accueil. Cliquez sur Créer un projet, saisissez un nom qui identifie la portée du…",
     },
@@ -96,18 +102,18 @@ export const HELP_TARGETS = {
   "aproj-data-window": {
     page: "admin-guide/projects",
     anchor: {
-      en: "configuring-the-data-window",
-      fr: "configurer-la-fenêtre-de-données",
+      en: "attaching-a-results-package",
+      fr: "associer-un-lot-de-résultats",
     },
     title: {
-      en: "Configuring the data window",
-      fr: "Configurer la fenêtre de données",
+      en: "Attaching a results package",
+      fr: "Associer un lot de résultats",
     },
     summary: {
       en:
-        "The data window determines which subset of your instance's data flows into the project. When you import HMIS data at the instance level, all of that data becomes available for windowing into projects…",
+        "A results package is generated at the instance level and contains pre-computed module outputs. To make data and analytical results available in a project, open the project and navigate to Results…",
       fr:
-        "La fenêtre de données détermine quel sous-ensemble des données de votre instance alimente le projet. Lorsque vous importez des données HMIS au niveau de l'instance, toutes ces données deviennent…",
+        "Un lot de résultats est généré au niveau de l'instance et contient des résultats de modules précalculés. Pour rendre les données et les résultats analytiques disponibles dans un projet, ouvrez le…",
     },
   },
   "aproj-lock": {
@@ -199,9 +205,9 @@ export const HELP_TARGETS = {
     title: { en: "Import workflow", fr: "Déroulement de l'importation" },
     summary: {
       en:
-        "Navigate to the Data section and select HFA Data. Click Start new import to begin a four-step process. 1. Upload files. Select or upload both your CSV data file and XLSForm questionnaire file. 2.…",
+        "Navigate to the Data section and select HFA Data. The sidebar shows an Imports button that opens the imports history and lets you start a new import from within that surface. The import wizard…",
       fr:
-        "Accédez à la section Données et sélectionnez Données HFA. Cliquez sur Démarrer une nouvelle importation pour lancer un processus en quatre étapes. 1. Charger les fichiers. Sélectionnez ou chargez à…",
+        "Accédez à la section Données et sélectionnez Données HFA. La barre latérale propose un bouton Importations qui ouvre l'historique des importations et permet de démarrer une nouvelle importation…",
     },
   },
   "hfa-required-files": {
@@ -232,9 +238,9 @@ export const HELP_TARGETS = {
     title: { en: "CSV import workflow", fr: "Processus d'importation CSV" },
     summary: {
       en:
-        "A CSV import has four steps: upload the file, match its columns to the four required fields, map the values in the indicator column to your indicators, and launch. FASTR then stages the file and…",
+        "Click Upload CSV file. A CSV import has four steps: upload the file, match its columns to the four required fields, map the values in the indicator column to your indicators, and launch. Nothing is…",
       fr:
-        "Une importation CSV comporte quatre étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, associer les valeurs de la colonne indicateur à vos indicateurs, puis lancer. FASTR…",
+        "Cliquez sur Téléverser un fichier CSV. Une importation CSV comporte quatre étapes : téléverser le fichier, associer ses colonnes aux quatre champs requis, associer les valeurs de la colonne…",
     },
   },
   "hmis-dhis2": {
@@ -243,9 +249,9 @@ export const HELP_TARGETS = {
     title: { en: "DHIS2 import workflow", fr: "Processus d'importation DHIS2" },
     summary: {
       en:
-        "A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It uses the instance's stored DHIS2 connection, which is set in the…",
+        "Click New DHIS2 import. A DHIS2 import fetches the values facilities reported, one DHIS2 element and month at a time, directly from your DHIS2 server. It uses the instance's stored DHIS2 connection,…",
       fr:
-        "Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2. Elle utilise la connexion DHIS2…",
+        "Cliquez sur Nouvelle importation DHIS2. Une importation DHIS2 récupère les valeurs rapportées par les établissements, un élément DHIS2 et un mois à la fois, directement depuis votre serveur DHIS2.…",
     },
   },
   "hmis-validation": {
@@ -260,9 +266,9 @@ export const HELP_TARGETS = {
     },
     summary: {
       en:
-        "For a CSV import, the staging results list every issue by category, with a count and sample rows. The categories are: rows with missing required fields, rows with invalid values, facilities not in…",
+        "For a CSV import, the staging results list every issue by category with a count: rows with missing required fields, rows with invalid values, facilities not in your facility list (with sample rows),…",
       fr:
-        "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie, avec un nombre et des exemples de lignes. Les catégories sont : lignes avec des champs requis…",
+        "Pour une importation CSV, les résultats de la préparation listent chaque problème par catégorie avec un nombre : lignes avec des champs requis manquants, lignes avec des valeurs invalides,…",
     },
   },
   "ind-calculated": {
@@ -288,9 +294,9 @@ export const HELP_TARGETS = {
     },
     summary: {
       en:
-        "Click Add indicators from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored DHIS2 connection, which is set in the DHIS2 connection card…",
+        "Click Add from DHIS2 to add data elements from your DHIS2 server to the list as DHIS2 elements. FASTR uses the instance's stored DHIS2 connection, which is set in the DHIS2 connection card on the…",
       fr:
-        "Cliquez sur Ajouter des indicateurs depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion DHIS2 enregistrée de…",
+        "Cliquez sur Ajouter depuis DHIS2 pour ajouter des éléments de données de votre serveur DHIS2 à la liste, sous forme d'éléments DHIS2. FASTR utilise la connexion DHIS2 enregistrée de l'instance,…",
     },
   },
   "ind-include": {
@@ -310,9 +316,9 @@ export const HELP_TARGETS = {
     title: { en: "The indicator list", fr: "La liste des indicateurs" },
     summary: {
       en:
-        "The list shows every indicator with its id, label, type and definition. The Type column has four values: DHIS2 element is a count fetched from DHIS2. The Defined by column shows the DHIS2 id of the…",
+        "The list shows every indicator with its id, label, type, definition, Include checkbox and, for a calculated indicator, its status. The heading above the list counts the indicators, or says how many…",
       fr:
-        "La liste affiche chaque indicateur avec son identifiant, son libellé, son type et sa définition. La colonne Type prend quatre valeurs : Élément DHIS2 est un comptage récupéré depuis DHIS2. La colonne…",
+        "La liste affiche chaque indicateur avec son identifiant, son libellé, son type, sa définition, sa case Inclure et, pour un indicateur calculé, son statut. L'en-tête au-dessus de la liste compte les…",
     },
   },
   "ind-r-code": {
@@ -382,7 +388,7 @@ export const HELP_TARGETS = {
     title: { en: "Health facilities", fr: "Établissements de santé" },
     summary: {
       en:
-        "FASTR maintains two separate facility registries: one for HMIS facilities and one for HFA facilities. Both registries share the same admin area hierarchy, but each has its own import flow and its own…",
+        "FASTR maintains two separate facility registries: one for HMIS facilities and one for HFA facilities. Both registries share the same admin area hierarchy, but each has its own import flow, its own…",
       fr:
         "FASTR maintient deux registres d'établissements distincts : l'un pour les établissements SNIS et l'autre pour les établissements Enquêtes FOSA. Les deux registres partagent la même hiérarchie de…",
     },
@@ -393,9 +399,9 @@ export const HELP_TARGETS = {
     title: { en: "GeoJSON for maps", fr: "GeoJSON pour les cartes" },
     summary: {
       en:
-        "Map visualizations require geographic boundary data in GeoJSON format. Upload one GeoJSON file per admin area level - typically for Admin Area 2 (regions) and Admin Area 3 (districts). Each GeoJSON…",
+        "Map visualizations require geographic boundary data in GeoJSON format. FASTR maintains separate GeoJSON maps for the HMIS registry and the HFA registry. Upload one GeoJSON file per admin area level…",
       fr:
-        "Les visualisations cartographiques nécessitent des données de limites géographiques au format GeoJSON. Chargez un fichier GeoJSON par niveau de zone administrative - généralement pour la Zone…",
+        "Les visualisations cartographiques nécessitent des données de limites géographiques au format GeoJSON. FASTR maintient des cartes GeoJSON distinctes pour le registre SNIS et le registre Enquêtes…",
     },
   },
   "umod-metrics": {
@@ -427,9 +433,9 @@ export const HELP_TARGETS = {
     },
     summary: {
       en:
-        "While you typically interact with module results through visualizations, you can inspect raw outputs directly from the Modules tab. Click the menu button on any ready module to access Logs (R console…",
+        "While you typically interact with module results through visualizations, you can inspect raw outputs from the Results package tab if you have the appropriate permissions. Access Logs (R console…",
       fr:
-        "Bien que vous interagissiez généralement avec les résultats des modules par l'intermédiaire des visualisations, vous pouvez inspecter les sorties brutes directement depuis l'onglet Modules. Cliquez…",
+        "Bien que vous interagissiez généralement avec les résultats des modules par l'intermédiaire des visualisations, vous pouvez inspecter les sorties brutes depuis l'onglet Lot de résultats si vous…",
     },
   },
   "umod-status": {
@@ -438,26 +444,26 @@ export const HELP_TARGETS = {
     title: { en: "Module status", fr: "État des modules" },
     summary: {
       en:
-        "The Modules tab shows each installed module and its current state. A status badge next to each module name tells you what's happening: Ready - Results are current; you can create visualizations…",
+        "The Results package tab shows the package your project is served from, including which modules it contains and their generation status: Ready - Results are available; you can create visualizations…",
       fr:
-        "L'onglet Modules affiche chaque module installé et son état actuel. Un badge d'état situé à côté du nom de chaque module vous indique ce qui se passe : Prêt - Les résultats sont à jour ; vous pouvez…",
+        "L'onglet Lot de résultats affiche le lot auquel votre projet est associé, notamment les modules qu'il contient et leur état de génération : Prêt - Les résultats sont disponibles ; vous pouvez créer…",
     },
   },
   "uproj-data-window": {
     page: "user-guide/projects",
     anchor: {
-      en: "understanding-the-data-window",
-      fr: "comprendre-la-fenêtre-de-données",
+      en: "understanding-the-results-package",
+      fr: "comprendre-le-lot-de-résultats",
     },
     title: {
-      en: "Understanding the data window",
-      fr: "Comprendre la fenêtre de données",
+      en: "Understanding the results package",
+      fr: "Comprendre le lot de résultats",
     },
     summary: {
       en:
-        "Every project works with a specific subset of your organization's data. This subset is called the data window, and it defines the boundaries of everything you can analyze or visualize within that…",
+        "Every project is served from a results package - a bundle of pre-computed module outputs generated at the instance level. The results package determines which metrics and data are available for…",
       fr:
-        "Chaque projet travaille avec un sous-ensemble spécifique des données de votre organisation. Ce sous-ensemble est appelé la fenêtre de données, et il définit les limites de tout ce que vous pouvez…",
+        "Chaque projet est servi depuis un lot de résultats - un ensemble de résultats de modules précalculés généré au niveau de l'instance. Le lot de résultats détermine quelles métriques et données sont…",
     },
   },
   "uproj-locked": {
@@ -521,9 +527,9 @@ export const HELP_TARGETS = {
     title: { en: "Creating a visualization", fr: "Créer une visualisation" },
     summary: {
       en:
-        'Every visualization starts with a metric. Metrics are the analytical outputs produced by your modules - things like "ANC1 coverage rate" or "data completeness score." When you create a visualization,…',
+        'To create visualizations, the project needs a results package attached first. Every visualization starts with a metric. Metrics are the analytical outputs produced by your modules - things like "ANC1…',
       fr:
-        "Chaque visualisation commence par un indicateur. Les indicateurs sont les résultats analytiques produits par vos modules - des éléments comme le « taux de couverture CPN1 » ou le « score de…",
+        "Pour créer des visualisations, le projet doit d'abord avoir un paquet de résultats rattaché. Chaque visualisation commence par un indicateur. Les indicateurs sont les résultats analytiques produits…",
     },
   },
   "viz-data-tab": {
