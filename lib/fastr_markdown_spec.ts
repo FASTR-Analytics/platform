@@ -148,18 +148,18 @@ Blocks (open with \`:::name{attributes}\`, close with a bare \`:::\`):
 
   :::logos{src="image:<id> image:<id>" align=left|center|right|spread size=s|m|l}
   A row of logos: the ministry's, the partners', FASTR's. One line, no
-  closing \`:::\`. Each logo is an image the USER placed from Insert → Logos,
+  closing \`:::\`. Each logo is an image the USER placed from Widgets → Logos,
   so never invent an \`image:\` id: keep, move or re-align a logos line that
   is already there, and when the user asks for logos you cannot see, leave
-  the line out and tell them to add it from Insert → Logos. It sits well as
+  the line out and tell them to add it from Widgets → Logos. It sits well as
   the first or last line inside a cover, or inside the closing band.
 
-  :::report{background=muted numbering=sections pagesize=a4 orientation=portrait}
+  :::report{background=muted numbering=sections orientation=portrait}
   The document header. \`numbering=sections\` numbers the TOP-LEVEL headings
   (1., 1.1) — a heading inside a block is not a section, so it is skipped.
-  \`pagesize\` is a4 or letter and \`orientation\` portrait or landscape:
-  the printed sheet, and what the editor's page boxes show. Landscape suits
-  a report built around wide tables.
+  Reports print on A4. \`orientation\` is portrait or landscape: the
+  printed sheet, and what the editor's page boxes show. Landscape suits a
+  report built around wide tables. Never write a page size.
 
 Backgrounds — say the ROLE, not the colour:
 

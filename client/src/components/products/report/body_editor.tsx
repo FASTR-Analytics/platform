@@ -65,7 +65,6 @@ import {
   paginationField,
 } from "./live_preview_extension";
 import { fastrContainerFences } from "./fastr_fence_extension";
-import { createPagedEditSurface, type PagedSurface } from "./paged_edit_surface";
 import { rebaseProposedEdits, type SkippedRange } from "~/components/products/_shared/mod.ts";
 import { darkMode } from "~/state/t4_ui";
 
@@ -247,15 +246,6 @@ type Props = {
   // page. Toggled at runtime (Edit <-> Split) via a compartment, so flipping it
   // preserves undo, scroll, selection and the collab binding.
   livePreview?: () => boolean;
-  // Edit ON the printed pages (paged_edit_surface.ts): the pane shows the
-  // PDF's own pages in a frame with the in-place editors attached, the
-  // CodeMirror view kept mounted (hidden) as the model. buildPagedHtml gives
-  // the paged standalone document for a body; pagesKey changes whenever the
-  // document must be re-laid out for a reason other than an edit (theme,
-  // rasters, label).
-  pages?: () => boolean;
-  buildPagedHtml?: (body: string) => Promise<string>;
-  pagesKey?: () => string;
   ref?: (api: ReportEditorApi) => void;
 };
 
@@ -284,9 +274,6 @@ export type ReportBlockContext = {
 
 export function ReportBodyEditor(p: Props) {
   let parent!: HTMLDivElement;
-  let pagesHost!: HTMLDivElement;
-  let surface: PagedSurface | undefined;
-  const pagesOn = () => isFastr && (p.pages?.() ?? false) && p.buildPagedHtml !== undefined;
   let view: EditorView | undefined;
   let detachSelectionHover: (() => void) | undefined;
   let scrollRAF = 0;
@@ -346,8 +333,45 @@ export function ReportBodyEditor(p: Props) {
     imageSize: (id) => p.imageSize?.(id),
   };
 
+  // The pane's scrollbar (live preview). The sheet's own scroller is only as
+  // wide as the sheet and draws no bar (livePreviewTheme), so a bar at the
+  // pane's edge stands in for it: a thin native scroller whose spacer is the
+  // sheet's scroll height, its scrollTop mirrored both ways. The wheel is
+  // forwarded from anywhere in the pane (paneWheel), so the ground beside the
+  // sheet scrolls it too.
+  let paneBar!: HTMLDivElement;
+  let paneBarSpacer!: HTMLDivElement;
+  const barShown = () => isFastr && (p.livePreview?.() ?? false);
+  const syncPaneBar = () => {
+    if (!view || !paneBar) return;
+    const s = view.scrollDOM;
+    paneBarSpacer.style.height = `${s.scrollHeight}px`;
+    if (Math.abs(paneBar.scrollTop - s.scrollTop) >= 1) paneBar.scrollTop = s.scrollTop;
+  };
+  // The bar and the sheet are both the pane's height, so the same scrollTop
+  // is the same place; a write that already matches is not echoed back.
+  const onPaneBarScroll = () => {
+    if (!view) return;
+    const s = view.scrollDOM;
+    if (Math.abs(paneBar.scrollTop - s.scrollTop) >= 1) s.scrollTop = paneBar.scrollTop;
+  };
+  const paneWheel = (e: WheelEvent) => {
+    if (!view || !barShown() || e.ctrlKey || e.defaultPrevented) return;
+    const target = e.target as Node | null;
+    // Over the sheet the scroller scrolls itself; over the bar, the bar.
+    if (target && (view.scrollDOM.contains(target) || paneBar.contains(target))) return;
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? view.scrollDOM.clientHeight : 1;
+    view.scrollDOM.scrollBy({ top: e.deltaY * unit });
+  };
+  // Shown again after Split: its spacer and position
+  // were not tracked while hidden.
+  createEffect(() => {
+    if (barShown()) requestAnimationFrame(syncPaneBar);
+  });
+
   // rAF-throttle scroll events so getTopLine reads at most once per frame.
   const onScroll = () => {
+    syncPaneBar();
     if (scrollRAF) return;
     scrollRAF = requestAnimationFrame(() => {
       scrollRAF = 0;
@@ -468,7 +492,6 @@ export function ReportBodyEditor(p: Props) {
           : [embedWidgets(resolver, p.format)]),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) p.onBodyChange(u.state.doc.toString());
-          if (u.docChanged) surface?.schedule();
           // Push, not poll: a timer would still be wrong between ticks, and
           // this is exact and free. Guarded inside emitContext.
           if (isFastr && (u.docChanged || u.selectionSet)) {
@@ -493,6 +516,9 @@ export function ReportBodyEditor(p: Props) {
     }
     view.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     ro?.observe(view.scrollDOM);
+    // The sheet's height changes with every edit and layout pass: the bar's
+    // spacer follows the content box.
+    ro?.observe(view.contentDOM);
     if (prevScroll !== undefined) view.scrollDOM.scrollTop = prevScroll;
     if (prevSel) {
       const len = view.state.doc.length;
@@ -1033,7 +1059,10 @@ export function ReportBodyEditor(p: Props) {
 
   onMount(() => {
     // Re-evaluate the centering pad threshold whenever the scroller resizes.
-    ro = new ResizeObserver(() => applyCenterTheme());
+    ro = new ResizeObserver(() => {
+      applyCenterTheme();
+      syncPaneBar();
+    });
     const collab = p.collab?.();
     bindKey = bindKeyOf(collab);
     buildView(collab);
@@ -1079,27 +1108,6 @@ export function ReportBodyEditor(p: Props) {
     if (isFastr) applyLivePreview(on);
   });
 
-  // The paged surface: created once the view exists, shown while `pages` is
-  // on, re-laid out when the host's key changes, given the collab binding for
-  // peer carets.
-  onMount(() => {
-    if (!isFastr || !p.buildPagedHtml) return;
-    const build = p.buildPagedHtml;
-    surface = createPagedEditSurface(pagesHost, {
-      view: () => view,
-      buildHtml: build,
-      onSelectEmbed: (kind, id) => p.onSelectEmbed(kind, id),
-      onEditLogos: (fence) => p.onEditLogos?.(fence),
-    });
-    createEffect(() => surface?.setActive(pagesOn()));
-    createEffect(() => {
-      p.pagesKey?.();
-      if (pagesOn()) surface?.refresh();
-    });
-    createEffect(() => surface?.setPresence(p.collab?.()));
-  });
-  onCleanup(() => surface?.dispose());
-
   // Rebuild when the collab binding appears (plain -> live upgrade shortly
   // after open), the edit permission flips (permissions can arrive late), or
   // the theme toggles (darkMarkdownExtensions is baked into the extension
@@ -1137,7 +1145,7 @@ export function ReportBodyEditor(p: Props) {
   });
 
   return (
-    <div class="relative h-full w-full">
+    <div class="relative h-full w-full" onWheel={paneWheel}>
       <div
         ref={parent}
         class="h-full w-full"
@@ -1147,11 +1155,15 @@ export function ReportBodyEditor(p: Props) {
           // stays on the editor white.
           "bg-base-100": !(p.livePreview?.() ?? false),
         }}
-        style={pagesOn()
-          ? "position:absolute;inset:0;visibility:hidden;pointer-events:none"
-          : undefined}
       />
-      <div ref={pagesHost} class="absolute inset-0" classList={{ hidden: !pagesOn() }} />
+      <div
+        ref={paneBar}
+        class="absolute inset-y-0 right-0 w-4 overflow-y-scroll"
+        classList={{ hidden: !barShown() }}
+        onScroll={onPaneBarScroll}
+      >
+        <div ref={paneBarSpacer} class="w-px" />
+      </div>
     </div>
   );
 }

@@ -1457,3 +1457,139 @@ export function enterBesideRegionEdit(doc: string, pos: number): EditResult | un
   }
   return { changes: [{ from, to: from, insert: "\n" }], selection: { anchor: from } };
 }
+
+// ── Deleting through a formatted phrase ──────────────────────────────────────
+// A `[phrase]{size=18}` shows only its words: the `[` and `]{…}` are hidden
+// and atomic in the editor, so a selection or a run of Backspaces can take
+// the words and leave a marker behind (`]{size=18}` on its own, or
+// `{size=18}` glued to the line above). An edit over `text` from `from` to
+// `to` (offsets into it) is re-cut so the phrase stays whole or goes whole:
+// - every word of a phrase deleted: its markers go with it (typing over it
+//   from its first word keeps the formatting instead, as a word processor
+//   does, the typed text landing inside the phrase);
+// - some of its words deleted: its markers are kept, so the words left keep
+//   their formatting.
+// Undefined when the edit needs no change.
+export type FastrMarkAwareEdit = {
+  // Ranges to delete, ascending, in `text` offsets.
+  deletes: [number, number][];
+  // Where the typed text goes.
+  insertAt: number;
+};
+
+const EDIT_MARK_RE = /\[([^\]\n]*)\]\{([^}\n]*)\}/g;
+
+export function fastrMarkAwareEdit(
+  text: string,
+  from: number,
+  to: number,
+  inserting: boolean,
+): FastrMarkAwareEdit | undefined {
+  if (to <= from) return undefined;
+  let lo = from;
+  let hi = to;
+  let insertAt = from;
+  const keep: [number, number][] = [];
+  const re = new RegExp(EDIT_MARK_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (!parseFastrMarkAttrs(m[2])) continue;
+    const open = m.index;
+    const close = open + 1 + m[1].length;
+    const end = open + m[0].length;
+    if (!(from < end && to > open)) continue;
+    const covered = from <= open + 1 && to >= close;
+    if (covered && (!inserting || from < open)) {
+      lo = Math.min(lo, open);
+      hi = Math.max(hi, end);
+      continue;
+    }
+    if (from <= open) keep.push([open, open + 1]);
+    if (to > close) keep.push([close, end]);
+    if (covered && inserting) insertAt = open + 1;
+  }
+  // An edit that only reached a hidden marker (Backspace just after a
+  // phrase, Delete just before one) takes the phrase's nearest visible
+  // character instead.
+  if (!inserting && lo === from && hi === to) {
+    const hit = markerOnly(text, from, to);
+    if (hit !== undefined) return fastrMarkAwareEdit(text, hit[0], hit[1], false) ?? { deletes: [hit], insertAt: hit[0] };
+  }
+  let deletes: [number, number][] = [[lo, hi]];
+  for (const [a, b] of keep) {
+    deletes = deletes.flatMap(([x, y]): [number, number][] =>
+      b <= x || a >= y
+        ? [[x, y]]
+        : [[x, a], [b, y]].filter(([p, q]) => q > p) as [number, number][]
+    );
+  }
+  if (
+    deletes.length === 1 && deletes[0][0] === from && deletes[0][1] === to &&
+    insertAt === from
+  ) {
+    return undefined;
+  }
+  return { deletes, insertAt };
+}
+
+// The label character next to the marker an edit falls inside, when the
+// edit touches nothing but one phrase's `[` or `]{…}` (the whole atomic
+// marker in the editor, one hidden character of it in a block's island).
+function markerOnly(
+  text: string,
+  from: number,
+  to: number,
+): [number, number] | undefined {
+  const re = new RegExp(EDIT_MARK_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (!parseFastrMarkAttrs(m[2]) || m[1].length === 0) continue;
+    const open = m.index;
+    const close = open + 1 + m[1].length;
+    const end = open + m[0].length;
+    if (from >= close && to <= end) return [close - 1, close];
+    if (from >= open && to <= open + 1) return [open + 1, open + 2];
+  }
+  return undefined;
+}
+
+// The same rule for an editor that hands over whole text rather than a
+// change (a block's paragraph island commits its text per keystroke): the
+// one edit between `before` and `after` is found by their common ends, and
+// re-cut. The corrected text and the caret after the edit, or undefined
+// when `after` stands.
+export function fastrMarkAwareRewrite(
+  before: string,
+  after: string,
+): { text: string; caret: number } | undefined {
+  let p = 0;
+  while (p < before.length && p < after.length && before[p] === after[p]) p++;
+  let b = before.length;
+  let a = after.length;
+  while (b > p && a > p && before[b - 1] === after[a - 1]) {
+    b--;
+    a--;
+  }
+  const insert = after.slice(p, a);
+  const edit = fastrMarkAwareEdit(before, p, b, insert.length > 0);
+  if (!edit) return undefined;
+  let text = "";
+  let pos = 0;
+  let caret = -1;
+  const place = () => {
+    if (caret >= 0) return;
+    text += before.slice(pos, edit.insertAt) + insert;
+    pos = edit.insertAt;
+    caret = text.length;
+  };
+  for (const [x, y] of edit.deletes) {
+    if (insert.length > 0 && edit.insertAt <= x) place();
+    text += before.slice(pos, x);
+    if (caret < 0 && insert.length === 0) caret = text.length;
+    pos = y;
+  }
+  if (insert.length > 0) place();
+  text += before.slice(pos);
+  if (caret < 0) caret = text.length;
+  return text === after ? undefined : { text, caret };
+}

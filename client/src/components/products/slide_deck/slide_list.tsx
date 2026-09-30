@@ -5,9 +5,6 @@ import {
   type RunAuthoringContext,
   type Slide,
   type SlideDeckConfig,
-  getDefaultCoverSlide,
-  getDefaultSectionSlide,
-  getDefaultContentSlide,
 } from "lib";
 import {
   Button,
@@ -15,8 +12,6 @@ import {
   FrameTop,
   HeadingBar,
   LoadingIndicator,
-  type MenuItem,
-  MenuButton,
   createDeleteAction,
   openAlert,
   openComponent,
@@ -45,7 +40,7 @@ import {
   PackageScopeChip,
   ProductTitle,
 } from "~/components/products/_shared/mod.ts";
-import { DeckFileMenu, DeckMenu } from "./deck_menu";
+import { AddSlideMenu, DeckFileMenu, DeckMenu } from "./deck_menu";
 import { SlideDeckThemeModal } from "./style_editor/mod.ts";
 import { PackageScopeModal } from "~/components/products/_shared/mod.ts";
 import {
@@ -89,6 +84,7 @@ type Props = {
   present: () => Promise<void>;
   openVersionHistory: () => Promise<void>;
   deckConfig: SlideDeckConfig;
+  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<void>;
 };
 
 export function SlideList(p: Props) {
@@ -475,36 +471,6 @@ export function SlideList(p: Props) {
     }
   }
 
-  const addSlideMenuItems = (): MenuItem[] => [
-    {
-      label: t3({
-        en: "Cover slide",
-        fr: "Diapositive de couverture",
-        pt: "Diapositivo de capa",
-      }),
-      icon: "plus",
-      onClick: () => addSlide(getDefaultCoverSlide()),
-    },
-    {
-      label: t3({
-        en: "Section slide",
-        fr: "Diapositive de section",
-        pt: "Diapositivo de secção",
-      }),
-      icon: "plus",
-      onClick: () => addSlide(getDefaultSectionSlide()),
-    },
-    {
-      label: t3({
-        en: "Content slide",
-        fr: "Diapositive de contenu",
-        pt: "Diapositivo de conteúdo",
-      }),
-      icon: "plus",
-      onClick: () => addSlide(getDefaultContentSlide()),
-    },
-  ];
-
   // ── Stale figures (D4) ──────────────────────────────────────────────────────
   // Recomputed whenever the deck's slide set changes or the container is
   // reattached or rescoped. The slides are already in the per-slide cache
@@ -561,34 +527,12 @@ export function SlideList(p: Props) {
 
   const canEditFigures = () => canEditProduct(p.productId);
 
-  // The Deck menu edits the deck's config with no Save button, so what it
-  // touches is shown at once and saved behind it; the deck's own refetch then
-  // lands on the same value and releases the override. A failed save drops
-  // the override, so the header snaps back to what the server actually holds.
-  const [configOverride, setConfigOverride] = createSignal<
-    SlideDeckConfig | undefined
-  >();
-  const deckConfig = () => configOverride() ?? p.deckConfig;
-  createEffect(
-    on(
-      () => p.deckConfig,
-      () => setConfigOverride(undefined),
-      { defer: true },
-    ),
-  );
-
-  async function patchDeckConfig(patch: Partial<SlideDeckConfig>) {
-    const next = { ...deckConfig(), ...patch };
-    setConfigOverride(next);
-    const res = await serverActions.updateSlideDeckConfig({
-      product_id: p.productId,
-      config: next,
-    });
-    if (res.success === false) {
-      setConfigOverride(undefined);
-      await openAlert({ text: res.err, intent: "danger" });
-    }
-  }
+  // The Deck menu edits the deck's config with no Save button: the deck
+  // applies each change at once (rail, open slide and this header alike) and
+  // saves it behind (slide_deck.tsx, patchDeckConfig).
+  const deckConfig = () => p.deckConfig;
+  const patchDeckConfig = (patch: Partial<SlideDeckConfig>) =>
+    p.patchDeckConfig(patch);
 
   // A deck nobody has chosen a look for yet: ask now, once per open, as a new
   // report does. Only a deck minted since the modal existed carries
@@ -680,19 +624,6 @@ export function SlideList(p: Props) {
       {/* Holds its width while empty, so the buttons do not shift when the
           dot arrives. */}
       <div class="flex min-w-16 items-center" ref={p.onStatusHost} />
-      <MenuButton
-        position="bottom-end"
-        items={addSlideMenuItems}
-        id="deck-add-slide-button"
-        iconName="plus"
-        outline
-      >
-        {t3({
-          en: "Add slide",
-          fr: "Ajouter une diapositive",
-          pt: "Adicionar diapositivo",
-        })}
-      </MenuButton>
       <Show when={p.slideIds.length > 0}>
         <Button
           id="deck-present-button"
@@ -725,18 +656,16 @@ export function SlideList(p: Props) {
     </div>
   );
   // Three rows, each ruled off from the next (Google Slides): back, the name
-  // and the deck's actions in panther's HeadingBar; the menus (File, Deck,
-  // then the open slide's Slide, Insert..., portaled in by the slide
-  // toolbar); and the toolbar for whatever is selected.
+  // and the deck's actions in panther's HeadingBar; the menus (Add slide,
+  // File, Deck, then the open slide's Slide, Insert..., portaled in by the
+  // slide toolbar); and the toolbar for whatever is selected.
   const headerPanel = (
     <div data-cursor-zone="header" data-tour="deck-toolbar">
       <HeadingBar onBack={() => p.handleClose()} heading={headerTitle}>
         {headerActions}
       </HeadingBar>
-      <MenuRow
-        ref={p.onMenuRowHost}
-        closesHeader={p.currentSlideId === undefined || !canEditFigures()}
-      >
+      <MenuRow ref={p.onMenuRowHost}>
+        <AddSlideMenu onAdd={(slide) => void addSlide(slide)} />
         <DeckFileMenu
           onDownload={() => void p.download()}
           onShare={() => void p.share()}

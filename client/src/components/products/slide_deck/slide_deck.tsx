@@ -1,4 +1,5 @@
 import {
+  canonicalJson,
   type PackageScope,
   type ProductSummary,
   type RunAuthoringContext,
@@ -8,7 +9,7 @@ import {
   productScope,
   t3,
 } from "lib";
-import { LoadingIndicator } from "panther";
+import { LoadingIndicator, openAlert } from "panther";
 import { instanceState, productById } from "~/state/instance/t1_store";
 import {
   AIToolFailure,
@@ -16,7 +17,7 @@ import {
   getEditorWrapper,
   openComponent,
 } from "panther";
-import { createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, on, onCleanup, onMount, Show, untrack } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { getSlideFromCacheOrFetch, peekSlide } from "~/state/products/t2_slides";
 import { getSlideDeckDetailFromCacheOrFetch } from "~/state/products/t2_slide_deck_detail";
@@ -106,6 +107,28 @@ export function SlideDeckEditor(p: Props) {
     if (row === undefined && !loading) p.close(undefined);
   });
 
+  // Every deck-config change (the Deck menu, the first-open theme question) is
+  // applied HERE at once, so the rail and the open slide show it on the
+  // click, and saved behind it. The config lives on this component, above the
+  // editor and the rail, which is why the optimism does too. A failed save
+  // puts back what the server holds.
+  let configSavesInFlight = 0;
+  async function patchDeckConfig(patch: Partial<SlideDeckConfig>) {
+    const before = deckConfig();
+    const next = { ...before, ...patch };
+    setDeckConfig(next);
+    configSavesInFlight++;
+    const res = await serverActions.updateSlideDeckConfig({
+      product_id: p.productId,
+      config: next,
+    });
+    configSavesInFlight--;
+    if (res.success === false) {
+      setDeckConfig(before);
+      await openAlert({ text: res.err, intent: "danger" });
+    }
+  }
+
   // The copilot's deck view: set once the deck has loaded, and what the
   // slide editor beside the rail returns to between slides. Read live: a
   // reattach remounts the copilot on the new pair, and the tools of that
@@ -133,8 +156,15 @@ export function SlideDeckEditor(p: Props) {
       const res = await getSlideDeckDetailFromCacheOrFetch(p.productId);
       if (controller.signal.aborted) return;
       if (res.success) {
-        setSlideIds(res.data.slideIds);
-        setDeckConfig(res.data.config);
+        // One write: slides that arrive with a config (the cover the first
+        // theme choice makes) must never render a frame under the old one.
+        // While a config save of ours is in flight, the optimistic config
+        // already IS what we sent, and a refetch landing mid-flight would
+        // flick the deck back to an older value.
+        batch(() => {
+          setSlideIds(res.data.slideIds);
+          if (configSavesInFlight === 0) setDeckConfig(res.data.config);
+        });
       }
       setIsLoading(false);
       if (!aiContextSet) {
@@ -170,6 +200,7 @@ export function SlideDeckEditor(p: Props) {
       authoringContext={authoringContext()}
       deckLabel={deckLabel()}
       deckConfig={deckConfig()}
+      patchDeckConfig={patchDeckConfig}
       slideIds={slideIds()}
       isLoading={isLoading()}
       setSelectedSlideIds={setSelectedSlideIds}
@@ -187,6 +218,7 @@ function SlideDeckEditorInner(p: {
   authoringContext: RunAuthoringContext | undefined;
   deckLabel: string;
   deckConfig: SlideDeckConfig;
+  patchDeckConfig: (patch: Partial<SlideDeckConfig>) => Promise<void>;
   slideIds: string[];
   isLoading: boolean;
   setSelectedSlideIds: (ids: string[]) => void;
@@ -203,6 +235,10 @@ function SlideDeckEditorInner(p: {
     EditorWrapper: SettingsEditorWrapper,
   } = getEditorWrapper();
   const { openEditor: openHistoryEditor, EditorWrapper: HistoryEditorWrapper } =
+    getEditorWrapper();
+  // Where the open slide's sub-editors go (the visualization editor): over the
+  // whole deck, like Settings and History, not inside the slide pane.
+  const { openEditor: openDeckEditor, EditorWrapper: DeckEditorWrapper } =
     getEditorWrapper();
 
   async function handleOpenSettings() {
@@ -374,7 +410,10 @@ function SlideDeckEditorInner(p: {
 
   // The deck config the editor was mounted with: a change of substance (the
   // settings modal) remounts it, a refetch of the same config does not.
-  const deckConfigKey = createMemo(() => JSON.stringify(p.deckConfig));
+  // Key-order blind: the optimistic config (a spread of the old one) and the
+  // server's (rebuilt in schema order) are the same deck, and must not
+  // remount the editor a second time when the refetch lands.
+  const deckConfigKey = createMemo(() => canonicalJson(p.deckConfig));
   const editorKey = createMemo(() => {
     const es = editorSlide();
     return es === undefined ? undefined : { ...es, key: `${es.slideId}|${deckConfigKey()}` };
@@ -403,6 +442,7 @@ function SlideDeckEditorInner(p: {
   return (
     <HistoryEditorWrapper>
       <SettingsEditorWrapper>
+        <DeckEditorWrapper>
         <SlideList
           productId={p.productId}
           product={p.product}
@@ -422,6 +462,7 @@ function SlideDeckEditorInner(p: {
           present={present}
           openVersionHistory={openVersionHistory}
           deckConfig={p.deckConfig}
+          patchDeckConfig={p.patchDeckConfig}
           onToolbarHost={setToolbarHost}
           onMenuRowHost={setMenuRowHost}
           onStatusHost={setStatusHost}
@@ -451,6 +492,7 @@ function SlideDeckEditorInner(p: {
                 toolbarHost={toolbarHost()}
                 menuRowHost={menuRowHost()}
                 statusHost={statusHost()}
+                openHostEditor={openDeckEditor}
                 deckContext={p.deckContext}
                 onApi={(api) => {
                   editorApi = api;
@@ -460,6 +502,7 @@ function SlideDeckEditorInner(p: {
             )}
           </Show>
         </SlideList>
+        </DeckEditorWrapper>
       </SettingsEditorWrapper>
     </HistoryEditorWrapper>
   );

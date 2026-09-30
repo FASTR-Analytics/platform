@@ -89,6 +89,8 @@ import {
   deleteFastrBlockEdit,
   type FastrBlockName,
   parseContainerFence,
+  fastrMarkAwareEdit,
+  fastrMarkAwareRewrite,
   parseFastrMarkAttrs,
   readFastrDocumentSettings,
   renderFastrMarkdownToHtml,
@@ -120,10 +122,9 @@ export const FM_LIVE_SCOPE_CLASS = "fm-live-scope";
 
 
 // ── Document-aware helpers ───────────────────────────────────────────────────
-// The in-place editors run in two places: inside CodeMirror widgets (the app
-// document) and on the pages of the paged surface, which live in an iframe.
-// Every selection, range and listener must belong to the element's OWN
-// document, and a menu anchored to an iframe event needs the frame's offset.
+// Every selection, range and listener belongs to the element's OWN document,
+// and a menu anchored to an iframe event needs the frame's offset (the
+// in-place editors once also ran on the pages of an iframe; kept general).
 function docOf(el: Node): Document {
   return el.ownerDocument ?? document;
 }
@@ -1212,21 +1213,6 @@ export function attachStatEditors(
 // line(s) — inline markdown stays authorable — while the surrounding block
 // keeps its rendered form. Enter/blur commits (a changed text is one
 // dispatch; the widget re-renders), Escape restores the rendered content.
-// Set by a paged-mode island action that closes the island and moves the
-// CodeMirror selection on purpose (Enter splitting a paragraph, Backspace
-// removing an empty one): the paged surface reads it at its next swap and
-// reopens the island at that selection.
-export const pagedCaretIntent = { pending: false };
-
-export type TextIslandOptions = {
-  // The paged surface (paged_edit_surface.ts): no widget rebuilds, the
-  // island's source is read from the LIVE doc on activation (the frame may
-  // be a beat behind a remote edit), Enter splits the paragraph and
-  // Backspace on an empty one removes it — the paragraph-level editing a
-  // page needs when every line is an island.
-  paged?: boolean;
-};
-
 // The last source line (relative) of the island starting at `rel`: a
 // paragraph runs over consecutive non-blank lines (breaks render as <br>).
 export function textIslandEndRel(
@@ -1252,7 +1238,6 @@ export function attachTextEditor(
   regionStartLine: number,
   sourceLines: string[],
   rel: number,
-  opts?: TextIslandOptions,
 ) {
   const sourceOf = (lines: string[]) =>
     lines.slice(rel, textIslandEndRel(lines, rel, el.tagName) + 1).join("\n");
@@ -1270,8 +1255,19 @@ export function attachTextEditor(
     if (!el.isContentEditable || !el.isConnected) return;
     // A line break at the very end waits for the text after it: committed
     // alone it would be a blank line, which ends the paragraph.
-    const next = (el.textContent ?? "").replace(/\r/g, "").replace(/\n+$/, "");
+    let next = (el.textContent ?? "").replace(/\r/g, "").replace(/\n+$/, "");
     if (next === committed) return;
+    // A formatted phrase stays whole or goes whole: its hidden markers are
+    // spans in this island, which a selection or a Backspace can take apart
+    // from the words (fastrMarkAwareRewrite). The corrected text is redrawn
+    // here with the caret where the edit left it.
+    const fixed = fastrMarkAwareRewrite(committed, next);
+    if (fixed !== undefined) {
+      next = fixed.text;
+      renderEditableSource(next);
+      placeCaret(fixed.caret);
+      if (next === committed) return;
+    }
     const doc = view.state.doc;
     const line1 = regionStartLine + rel + 1;
     const endLine1 = committedEndLine1();
@@ -1291,8 +1287,6 @@ export function attachTextEditor(
       const host = view.contentDOM.querySelector(
         `[data-region-line="${regionStartLine}"]`,
       );
-      // No host (the paged surface): nothing rebuilds under the island, so
-      // it stays open and mirrored; the surface re-lays the page out later.
       if (!host) return;
       stopMirror();
       const target = [...host.querySelectorAll<HTMLElement>(`[data-line="${rel}"]`)]
@@ -1308,7 +1302,7 @@ export function attachTextEditor(
   // them, so a commit round-trips byte-identically and the selection mirror's
   // Range-based offsets stay source offsets), and the marked phrase keeps its
   // real colour. Emphasis/code/link syntax stays visible — it is typed.
-  const renderEditableSource = () => {
+  const renderEditableSource = (source = original) => {
     el.textContent = "";
     const hiddenSpan = (t: string) => {
       const s = docOf(el).createElement("span");
@@ -1338,7 +1332,7 @@ export function attachTextEditor(
       parent.append(docOf(el).createTextNode(text.slice(last)));
     };
     const frag = docOf(el).createDocumentFragment();
-    let rest = original;
+    let rest = source;
     const hm = /^(#{1,6} )/.exec(rest);
     if (hm && /^H[1-6]$/.test(el.tagName)) {
       frag.append(hiddenSpan(hm[1]));
@@ -1368,12 +1362,6 @@ export function attachTextEditor(
   };
   const activate = (caretAt?: number) => {
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
-    if (opts?.paged) {
-      // The frame is rendered from the doc as it was; the island edits the
-      // doc as it IS.
-      original = sourceOf(view.state.doc.toString().split("\n"));
-      committed = original;
-    }
     renderEditableSource();
     try {
       el.contentEditable = "plaintext-only";
@@ -1387,6 +1375,11 @@ export function attachTextEditor(
     // Caret at the end: the swap changed the text under the press, so a
     // precise position is not meaningful. A re-open after a line break
     // passes the source offset the caret stood at instead.
+    placeCaret(caretAt);
+  };
+  // The caret at a source offset (textContent offsets, hidden spans
+  // included), or at the end.
+  const placeCaret = (caretAt?: number) => {
     const sel = winOf(el).getSelection();
     if (sel) {
       const range = docOf(el).createRange();
@@ -1590,52 +1583,6 @@ export function attachTextEditor(
     }
     return { text, at };
   };
-  // Paged editing: Enter splits the island at the caret into two paragraphs
-  // (a list item gets a sibling item with the same marker), and the caret is
-  // placed at the start of the new one — the surface re-lays the page out
-  // and opens that island from the CM selection.
-  const splitParagraph = () => {
-    const doc = view.state.doc;
-    const line1 = regionStartLine + rel + 1;
-    const endLine1 = committedEndLine1();
-    if (endLine1 > doc.lines) {
-      el.blur();
-      return;
-    }
-    const { text, at } = caretOffset();
-    const before = text.slice(0, at).trimEnd();
-    const after = text.slice(at).trimStart();
-    const marker = el.tagName === "LI"
-      ? (/^(\s*(?:[-*+]|\d+\.)\s+)/.exec(text)?.[1] ?? "- ")
-      : undefined;
-    const joiner = marker !== undefined ? `\n${marker}` : "\n\n";
-    const insert = `${before}${joiner}${after}`;
-    stopMirror();
-    el.contentEditable = "false";
-    pagedCaretIntent.pending = true;
-    const from = doc.line(line1).from;
-    committed = insert;
-    view.dispatch({
-      changes: { from, to: doc.line(endLine1).to, insert },
-      selection: { anchor: from + before.length + joiner.length },
-    });
-  };
-  // Paged editing: Backspace in an EMPTY island removes the line (and the
-  // blank line above it), leaving the caret at the end of what came before.
-  const removeEmptyLine = () => {
-    const doc = view.state.doc;
-    const line1 = regionStartLine + rel + 1;
-    if (line1 > doc.lines) return;
-    const line = doc.line(line1);
-    let from = line1 > 1 ? doc.line(line1 - 1).to : line.from;
-    if (line1 > 2 && doc.line(line1 - 1).text.trim().length === 0) {
-      from = doc.line(line1 - 2).to;
-    }
-    stopMirror();
-    el.contentEditable = "false";
-    pagedCaretIntent.pending = true;
-    view.dispatch({ changes: { from, to: line.to, insert: "" }, selection: { anchor: from } });
-  };
   // Inside a block (a card in a tiles row, a column, a callout, a band, a
   // quote, a cover), Enter is a LINE BREAK in the same text, as in a word
   // processor's text box, not a new paragraph or the end of editing: a
@@ -1679,17 +1626,9 @@ export function attachTextEditor(
       e.preventDefault();
       if (el.tagName === "P" && el.parentElement?.classList.contains("fm-steps")) {
         splitStep();
-      } else if (opts?.paged && /^(P|LI|H[1-6])$/.test(el.tagName)) {
-        splitParagraph();
       } else {
         el.blur();
       }
-    } else if (
-      opts?.paged && e.key === "Backspace" &&
-      (el.textContent ?? "").trim().length === 0 && el.tagName === "P"
-    ) {
-      e.preventDefault();
-      removeEmptyLine();
     } else if (e.key === "Escape") {
       e.preventDefault();
       // The live commits already changed the document: put the original
@@ -3314,6 +3253,51 @@ const concealPlugin = ViewPlugin.fromClass(ConcealPluginValue, {
     EditorView.atomicRanges.of((view) =>
       view.plugin(plugin)?.atomic ?? Decoration.none
     ),
+});
+
+// Deleting or typing over a formatted phrase: its hidden markers go with its
+// last word or stay with the words left, never alone (fastrMarkAwareEdit).
+// One user edit at a time, as the keyboard makes them; a multi-cursor or
+// programmatic change passes through untouched.
+const markAwareEdits = CMEditorState.transactionFilter.of((tr) => {
+  if (!tr.docChanged || !(tr.isUserEvent("delete") || tr.isUserEvent("input"))) {
+    return tr;
+  }
+  let single: { from: number; to: number; insert: string } | undefined;
+  let count = 0;
+  tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+    count++;
+    single = { from: fromA, to: toA, insert: inserted.toString() };
+  });
+  if (count !== 1 || !single || single.to <= single.from) return tr;
+  const doc = tr.startState.doc;
+  const first = doc.lineAt(single.from);
+  const last = doc.lineAt(single.to);
+  const base = first.from;
+  const edit = fastrMarkAwareEdit(
+    doc.sliceString(first.from, last.to),
+    single.from - base,
+    single.to - base,
+    single.insert.length > 0,
+  );
+  if (!edit || (edit.deletes.length === 0 && single.insert.length === 0)) return tr;
+  const changes: { from: number; to?: number; insert?: string }[] = edit.deletes.map(
+    ([a, b]) => ({ from: base + a, to: base + b }),
+  );
+  if (single.insert.length > 0) changes.push({ from: base + edit.insertAt, insert: single.insert });
+  const set = tr.startState.changes(changes);
+  const caret = set.mapPos(
+    single.insert.length > 0 || edit.deletes.length === 0
+      ? base + edit.insertAt
+      : base + edit.deletes[0][0],
+    1,
+  );
+  return {
+    changes: set,
+    selection: EditorSelection.cursor(caret),
+    userEvent: tr.annotation(Transaction.userEvent),
+    scrollIntoView: tr.scrollIntoView,
+  };
 });
 
 // ── Peer presence on collapsed regions ───────────────────────────────────────
@@ -6021,6 +6005,7 @@ export function livePreviewExtensions(
     ...liveRegionExtensions(resolver),
     surfaceLineField,
     concealPlugin,
+    markAwareEdits,
     livePreviewTheme,
     sheetBleedVars,
     docGroundPlugin(resolver),

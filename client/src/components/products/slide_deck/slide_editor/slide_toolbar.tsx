@@ -174,6 +174,13 @@ function blockTypeLabel(type: BlockType | undefined): string {
       : t3({ en: "Text", fr: "Texte", pt: "Texto" });
 }
 
+// The report toolbar's text-style names.
+function headingName(level: number): string {
+  return level === 0
+    ? t3({ en: "Normal text", fr: "Texte normal", pt: "Texto normal" })
+    : `${t3({ en: "Heading", fr: "Titre", pt: "Título" })} ${level}`;
+}
+
 function Caption(p: { children: JSX.Element }) {
   return (
     <div class="text-base-content-muted px-2 pt-1 pb-0.5 text-xs">
@@ -238,6 +245,108 @@ export function SlideToolbar(p: Props) {
           : p.selectedTextTarget;
     return id ? slideTextField(id) : undefined;
   };
+
+  // ── What the text controls act on ─────────────────────────────────────────
+  // Typing in a body block: its inline editor's commands.
+  const typing = () =>
+    p.editing?.kind === "block" && p.inlineApi?.isMarkdown
+      ? p.inlineApi
+      : undefined;
+  // A title with a look of its own (cover/section titles): size, bold,
+  // italic live on the slide as fields.
+  const styledTitle = () => {
+    const f = activeTitle();
+    return f?.style ? f : undefined;
+  };
+  const titleSize = () => {
+    const st = styledTitle()?.style;
+    return st ? ((slideRec()[st.size] as number | undefined) ?? st.sizeDefault) : 0;
+  };
+  const titleBold = () => {
+    const st = styledTitle()?.style;
+    return st ? ((slideRec()[st.bold] as boolean | undefined) ?? st.boldDefault) : false;
+  };
+  const titleItalic = () => {
+    const st = styledTitle()?.style;
+    return st ? ((slideRec()[st.italic] as boolean | undefined) ?? false) : false;
+  };
+  const setTitleSize = (n: number) => {
+    const st = styledTitle()?.style;
+    if (st) p.setTempSlide(st.size, Math.max(st.min, Math.min(st.max, n)));
+  };
+  const setTitleStyle = (which: "bold" | "italic", on: boolean) => {
+    const st = styledTitle()?.style;
+    if (st) p.setTempSlide(st[which], on);
+  };
+  // The text-style box's face: a body block's heading level, else the
+  // title's own name, else the report's resting face.
+  const styleFace = () => {
+    const api = typing();
+    if (api) return headingName(api.marks().headingLevel);
+    const f = activeTitle();
+    return f ? f.label() : headingName(0);
+  };
+
+  // ── What block is selected ────────────────────────────────────────────────
+  // A figure or image: its controls replace the text controls.
+  const embedBlockId = () => {
+    const t = selectedBlock()?.type;
+    return !p.editing && (t === "figure" || t === "image")
+      ? p.selectedBlockId
+      : undefined;
+  };
+  // A text block, being typed into or just selected.
+  const textBlockId = () => {
+    if (p.editing?.kind === "block") return p.editing.id;
+    return !p.editing && selectedBlock()?.type === "text"
+      ? p.selectedBlockId
+      : undefined;
+  };
+  // Any block's kind and its layout menu, the head of its segment.
+  const blockKindControls = (blockId: string) => (
+    <>
+      <ToolbarPopover
+        tour="slide-block-type"
+        label={<span>{blockTypeLabel(selectedBlock()?.type)}</span>}
+        title={t3({
+          en: "Content type",
+          fr: "Type de contenu",
+          pt: "Tipo de conteúdo",
+        })}
+      >
+        {(close) => (
+          <For each={["text", "figure", "image"] as BlockType[]}>
+            {(bt) => (
+              <PopoverRow
+                active={selectedBlock()?.type === bt}
+                onClick={() => {
+                  p.onBlockTypeChange(blockId, bt);
+                  close();
+                }}
+              >
+                {blockTypeLabel(bt)}
+              </PopoverRow>
+            )}
+          </For>
+        )}
+      </ToolbarPopover>
+      <TextButton
+        tour="slide-layout-button"
+        title={t3({
+          en: "Split, add, move or delete blocks",
+          fr: "Diviser, ajouter, déplacer ou supprimer des blocs",
+          pt: "Dividir, adicionar, mover ou eliminar blocos",
+        })}
+        onClick={(e) => {
+          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          p.onShowLayoutMenu(r.left, r.bottom);
+        }}
+      >
+        <Icon iconName="layoutGrid" class="h-4 w-4" />
+        {t3({ en: "Layout", fr: "Mise en page", pt: "Disposição" })}
+      </TextButton>
+    </>
+  );
 
   const logoRows = (field: string, showByDefault: boolean) => {
     const cur = () =>
@@ -651,9 +760,15 @@ export function SlideToolbar(p: Props) {
         )}
       </Show>
 
-      {/* Undo and redo lead the toolbar and are ALWAYS here: a pair that
-            appeared once the room synced would shove the rest of the row
-            sideways, which is the one thing a toolbar must not do. */}
+      {/* The report toolbar's row (report/toolbar.tsx), in its order and
+          grouping: undo/redo | text style | bold, italic, size | lists, quote
+          | then whatever is selected. Every text control is ALWAYS here,
+          greyed when nothing it applies to is being typed into or selected,
+          so the row never reflows as the selection moves. The report's
+          underline, highlight, link and colour are not here: the slide
+          renderer (panther's markdown) draws none of them. Undo and redo
+          were already always present, so nothing shifts once the room
+          syncs. */}
       <ToolButton
         label={t3({ en: "Undo", fr: "Annuler", pt: "Anular" })}
         disabled={undoGreyed()}
@@ -670,280 +785,234 @@ export function SlideToolbar(p: Props) {
       </ToolButton>
       <ToolbarDivider />
 
-      <Switch
+      {/* A selected figure or image swaps the text controls for its own, as
+          selecting an embed does in the report (and an image in Google Docs). */}
+      <Show
+        when={!embedBlockId()}
         fallback={
-          <span class="text-base-content-muted px-1 text-sm">
-            {t3({
-              en: "Double-click text on the slide to type, or click a block for its options",
-              fr: "Double-cliquez sur un texte pour écrire, ou cliquez sur un bloc pour ses options",
-              pt: "Faça duplo clique num texto para escrever, ou clique num bloco para as suas opções",
-            })}
-          </span>
+          <>
+            {blockKindControls(embedBlockId()!)}
+            <ToolbarDivider />
+            <Switch>
+              <Match when={selectedBlock()?.type === "figure"}>
+                <FigureControls
+                  {...p}
+                  blockId={embedBlockId()!}
+                  block={selectedBlock() as FigureBlock}
+                />
+              </Match>
+              <Match when={selectedBlock()?.type === "image"}>
+                <ImageControls
+                  {...p}
+                  blockId={embedBlockId()!}
+                  block={selectedBlock() as ImageBlock}
+                  assets={imageAssets()}
+                />
+              </Match>
+            </Switch>
+          </>
         }
       >
-        {/* Typing in a text block: character and paragraph formatting. */}
-        <Match
-          when={
-            p.editing?.kind === "block" && p.inlineApi?.isMarkdown
-              ? p.inlineApi
-              : undefined
-          }
+        {/* Text style: a body block's heading level while typing in it; for
+            a title, the field's own name (its look is set below). */}
+        <ToolbarPopover
+          disabled={!typing()}
+          label={<span class="w-24 truncate text-left">{styleFace()}</span>}
+          title={t3({
+            en: "Text style",
+            fr: "Style de texte",
+            pt: "Estilo de texto",
+          })}
         >
-          {(api) => (
-            <>
-              <ToolButton
-                label={t3({
-                  en: "Bold (Ctrl+B)",
-                  fr: "Gras (Ctrl+B)",
-                  pt: "Negrito (Ctrl+B)",
-                })}
-                active={() => api().marks().bold}
-                onClick={() => api().toggleStyle("bold")}
-              >
-                <span class="font-700">B</span>
-              </ToolButton>
-              <ToolButton
-                label={t3({
-                  en: "Italic (Ctrl+I)",
-                  fr: "Italique (Ctrl+I)",
-                  pt: "Itálico (Ctrl+I)",
-                })}
-                active={() => api().marks().italic}
-                onClick={() => api().toggleStyle("italic")}
-              >
-                <span class="italic">I</span>
-              </ToolButton>
-              <ToolbarDivider />
-              <ToolButton
-                label={t3({
-                  en: "Bulleted list",
-                  fr: "Liste à puces",
-                  pt: "Lista com marcadores",
-                })}
-                active={() => api().marks().list === "bullet"}
-                onClick={() => api().toggleList(false)}
-              >
-                •
-              </ToolButton>
-              <ToolButton
-                label={t3({
-                  en: "Numbered list",
-                  fr: "Liste numérotée",
-                  pt: "Lista numerada",
-                })}
-                active={() => api().marks().list === "numbered"}
-                onClick={() => api().toggleList(true)}
-              >
-                <span class="text-xs">1.</span>
-              </ToolButton>
-              <ToolbarDivider />
-              <TextBlockControls
-                {...p}
-                blockId={(p.editing as { id: string }).id}
-              />
-            </>
+          {(close) => (
+            <div class="ui-spy-sm flex flex-col">
+              <For each={[0, 1, 2, 3]}>
+                {(level) => (
+                  <PopoverRow
+                    active={(typing()?.marks().headingLevel ?? 0) === level}
+                    onClick={() => {
+                      typing()?.setHeadingLevel(level);
+                      close();
+                    }}
+                  >
+                    {headingName(level)}
+                  </PopoverRow>
+                )}
+              </For>
+            </div>
           )}
-        </Match>
+        </ToolbarPopover>
+        <ToolbarDivider />
 
-        {/* A cover/section title, being typed into or selected. */}
-        <Match when={activeTitle()?.style ? activeTitle() : undefined}>
-          {(f) => {
-            const st = () => f().style!;
-            const size = () =>
-              (slideRec()[st().size] as number | undefined) ?? st().sizeDefault;
-            const bold = () =>
-              (slideRec()[st().bold] as boolean | undefined) ??
-              st().boldDefault;
-            const italic = () =>
-              (slideRec()[st().italic] as boolean | undefined) ?? false;
-            const setSize = (n: number) =>
-              p.setTempSlide(
-                st().size,
-                Math.max(st().min, Math.min(st().max, n)),
-              );
-            return (
-              <>
-                <span class="text-base-content-muted px-1 text-sm">
-                  {f().label()}
-                </span>
-                <ToolbarDivider />
-                <ToolButton
-                  label={t3({
-                    en: "Smaller",
-                    fr: "Plus petit",
-                    pt: "Mais pequeno",
-                  })}
-                  onClick={() => setSize(size() - 1)}
-                >
-                  <Icon iconName="minus" class="h-4 w-4" />
-                </ToolButton>
-                <span class="border-base-300 bg-base-100 flex h-6 w-8 items-center justify-center rounded border text-sm">
-                  {size()}
-                </span>
-                <ToolButton
-                  label={t3({
-                    en: "Larger",
-                    fr: "Plus grand",
-                    pt: "Maior",
-                  })}
-                  onClick={() => setSize(size() + 1)}
-                >
-                  <Icon iconName="plus" class="h-4 w-4" />
-                </ToolButton>
-                <ToolbarDivider />
-                <ToolButton
-                  label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
-                  active={bold}
-                  onClick={() => p.setTempSlide(st().bold, !bold())}
-                >
-                  <span class="font-700">B</span>
-                </ToolButton>
-                <ToolButton
-                  label={t3({
-                    en: "Italic",
-                    fr: "Italique",
-                    pt: "Itálico",
-                  })}
-                  active={italic}
-                  onClick={() => p.setTempSlide(st().italic, !italic())}
-                >
-                  <span class="italic">I</span>
-                </ToolButton>
-                <ToolbarDivider />
-                <ToolButton
-                  label={t3({
-                    en: "Reset to default",
-                    fr: "Réinitialiser",
-                    pt: "Repor predefinição",
-                  })}
-                  onClick={() => {
-                    p.setTempSlide(st().size, undefined);
-                    p.setTempSlide(st().bold, undefined);
-                    p.setTempSlide(st().italic, undefined);
-                  }}
-                >
-                  <Icon iconName="refresh" class="h-4 w-4" />
-                </ToolButton>
-              </>
-            );
+        <ToolButton
+          label={t3({
+            en: "Bold (Ctrl+B)",
+            fr: "Gras (Ctrl+B)",
+            pt: "Negrito (Ctrl+B)",
+          })}
+          disabled={!typing() && !styledTitle()}
+          active={() =>
+            typing()?.marks().bold ?? (styledTitle() ? titleBold() : false)}
+          onClick={() => {
+            const api = typing();
+            if (api) api.toggleStyle("bold");
+            else if (styledTitle()) setTitleStyle("bold", !titleBold());
           }}
-        </Match>
-
-        {/* Header / sub header / date / footer: plain text, no styles. */}
-        <Match
-          when={
-            p.editing?.kind === "title" || (!p.editing && p.selectedTextTarget)
-              ? activeTitle()
-              : undefined
-          }
         >
-          {(f) => (
-            <span class="text-base-content-muted px-1 text-sm">
-              {f().label()}
-              {" · "}
+          <span class="font-700">B</span>
+        </ToolButton>
+        <ToolButton
+          label={t3({
+            en: "Italic (Ctrl+I)",
+            fr: "Italique (Ctrl+I)",
+            pt: "Itálico (Ctrl+I)",
+          })}
+          disabled={!typing() && !styledTitle()}
+          active={() =>
+            typing()?.marks().italic ?? (styledTitle() ? titleItalic() : false)}
+          onClick={() => {
+            const api = typing();
+            if (api) api.toggleStyle("italic");
+            else if (styledTitle()) setTitleStyle("italic", !titleItalic());
+          }}
+        >
+          <span class="italic">I</span>
+        </ToolButton>
+        {/* − N +: a title's size. A body block has none to step (the slide
+            renderer sizes body text to fit its block). */}
+        <div class="flex items-center">
+          <ToolButton
+            label={t3({
+              en: "Decrease text size",
+              fr: "Réduire la taille du texte",
+              pt: "Diminuir o tamanho do texto",
+            })}
+            disabled={!styledTitle()}
+            onClick={() => setTitleSize(titleSize() - 1)}
+          >
+            <Icon iconName="minus" class="h-3.5 w-3.5" />
+          </ToolButton>
+          <span
+            class="bg-base-100 inline-block w-8 rounded border text-center text-xs leading-5"
+            classList={{ "text-base-content-muted opacity-50": !styledTitle() }}
+          >
+            {styledTitle() ? titleSize() : "–"}
+          </span>
+          <ToolButton
+            label={t3({
+              en: "Increase text size",
+              fr: "Augmenter la taille du texte",
+              pt: "Aumentar o tamanho do texto",
+            })}
+            disabled={!styledTitle()}
+            onClick={() => setTitleSize(titleSize() + 1)}
+          >
+            <Icon iconName="plus" class="h-3.5 w-3.5" />
+          </ToolButton>
+        </div>
+        <ToolbarDivider />
+
+        <ToolButton
+          label={t3({
+            en: "Bulleted list",
+            fr: "Liste à puces",
+            pt: "Lista com marcas",
+          })}
+          disabled={!typing()}
+          active={() => typing()?.marks().list === "bullet"}
+          onClick={() => typing()?.toggleList(false)}
+        >
+          <span>•</span>
+        </ToolButton>
+        <ToolButton
+          label={t3({
+            en: "Numbered list",
+            fr: "Liste numérotée",
+            pt: "Lista numerada",
+          })}
+          disabled={!typing()}
+          active={() => typing()?.marks().list === "numbered"}
+          onClick={() => typing()?.toggleList(true)}
+        >
+          <span class="text-xs">1.</span>
+        </ToolButton>
+        <ToolButton
+          label={t3({ en: "Quote", fr: "Citation", pt: "Citação" })}
+          disabled={!typing()}
+          active={() => typing()?.marks().quote === true}
+          onClick={() => typing()?.toggleQuote()}
+        >
+          <span class="font-700">"</span>
+        </ToolButton>
+
+        {/* What is selected, AFTER the text controls, as the report's block
+            segment comes after its own: a text block's kind, layout and
+            options; a title's reset; or, with nothing selected, how to
+            start. */}
+        <Switch
+          fallback={
+            <span class="text-base-content-muted px-2 text-sm">
               {t3({
-                en: "styled by the deck theme",
-                fr: "mise en forme par le thème",
-                pt: "estilo definido pelo tema",
+                en: "Double-click text on the slide to type, or click a block for its options",
+                fr: "Double-cliquez sur un texte pour écrire, ou cliquez sur un bloc pour ses options",
+                pt: "Faça duplo clique num texto para escrever, ou clique num bloco para as suas opções",
               })}
             </span>
-          )}
-        </Match>
-
-        {/* A selected layout block. */}
-        <Match
-          when={
-            p.selectedBlockId && selectedBlock() ? p.selectedBlockId : undefined
           }
         >
-          {(blockId) => {
-            const block = () => selectedBlock();
-            return (
+          <Match when={textBlockId()}>
+            {(blockId) => (
               <>
-                <ToolbarPopover
-                  tour="slide-block-type"
-                  label={<span>{blockTypeLabel(block()?.type)}</span>}
-                  title={t3({
-                    en: "Content type",
-                    fr: "Type de contenu",
-                    pt: "Tipo de conteúdo",
-                  })}
-                >
-                  {(close) => (
-                    <For each={["text", "figure", "image"] as BlockType[]}>
-                      {(bt) => (
-                        <PopoverRow
-                          active={block()?.type === bt}
-                          onClick={() => {
-                            p.onBlockTypeChange(blockId(), bt);
-                            close();
-                          }}
-                        >
-                          {blockTypeLabel(bt)}
-                        </PopoverRow>
-                      )}
-                    </For>
-                  )}
-                </ToolbarPopover>
-                <TextButton
-                  tour="slide-layout-button"
-                  title={t3({
-                    en: "Split, add, move or delete blocks",
-                    fr: "Diviser, ajouter, déplacer ou supprimer des blocs",
-                    pt: "Dividir, adicionar, mover ou eliminar blocos",
-                  })}
-                  onClick={(e) => {
-                    const r = (
-                      e.currentTarget as HTMLElement
-                    ).getBoundingClientRect();
-                    p.onShowLayoutMenu(r.left, r.bottom);
-                  }}
-                >
-                  <Icon iconName="layoutGrid" class="h-4 w-4" />
-                  {t3({
-                    en: "Layout",
-                    fr: "Mise en page",
-                    pt: "Disposição",
-                  })}
-                </TextButton>
                 <ToolbarDivider />
-                <Switch>
-                  <Match when={block()?.type === "text"}>
-                    <TextButton
-                      onClick={() =>
-                        p.onEditText({ kind: "block", id: blockId() })
-                      }
-                    >
-                      <Icon iconName="pencil" class="h-4 w-4" />
-                      {t3({
-                        en: "Edit text",
-                        fr: "Modifier le texte",
-                        pt: "Editar texto",
-                      })}
-                    </TextButton>
-                    <TextBlockControls {...p} blockId={blockId()} />
-                  </Match>
-                  <Match when={block()?.type === "figure"}>
-                    <FigureControls
-                      {...p}
-                      blockId={blockId()}
-                      block={block() as FigureBlock}
-                    />
-                  </Match>
-                  <Match when={block()?.type === "image"}>
-                    <ImageControls
-                      {...p}
-                      blockId={blockId()}
-                      block={block() as ImageBlock}
-                      assets={imageAssets()}
-                    />
-                  </Match>
-                </Switch>
+                {blockKindControls(blockId())}
+                <ToolbarDivider />
+                <Show when={!p.editing}>
+                  <TextButton
+                    onClick={() =>
+                      p.onEditText({ kind: "block", id: blockId() })
+                    }
+                  >
+                    <Icon iconName="pencil" class="h-4 w-4" />
+                    {t3({
+                      en: "Edit text",
+                      fr: "Modifier le texte",
+                      pt: "Editar texto",
+                    })}
+                  </TextButton>
+                </Show>
+                <TextBlockControls {...p} blockId={blockId()} />
               </>
-            );
-          }}
-        </Match>
-      </Switch>
+            )}
+          </Match>
+          <Match when={styledTitle()}>
+            <ToolbarDivider />
+            <ToolButton
+              label={t3({
+                en: "Reset to default",
+                fr: "Réinitialiser",
+                pt: "Repor predefinição",
+              })}
+              onClick={() => {
+                const st = styledTitle()!.style!;
+                p.setTempSlide(st.size, undefined);
+                p.setTempSlide(st.bold, undefined);
+                p.setTempSlide(st.italic, undefined);
+              }}
+            >
+              <Icon iconName="refresh" class="h-4 w-4" />
+            </ToolButton>
+          </Match>
+          <Match when={activeTitle()}>
+            <span class="text-base-content-muted px-2 text-sm">
+              {t3({
+                en: "Styled by the deck theme",
+                fr: "Mise en forme par le thème",
+                pt: "Estilo definido pelo tema",
+              })}
+            </span>
+          </Match>
+        </Switch>
+      </Show>
     </ToolbarRow>
   );
 }

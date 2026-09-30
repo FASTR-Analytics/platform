@@ -139,10 +139,6 @@ type Props = {
   onOpenThemeModal: () => void;
   // Pick or upload an image to use as the PAGE ground; resolves to its id.
   onPickPageImage: () => Promise<string | undefined>;
-  // Whether Edit is the printed pages themselves (paged_edit_surface.ts) or
-  // the CodeMirror live preview with page seams.
-  showPages: () => boolean;
-  onToggleShowPages: () => void;
   documentStats: () => {
     words: number;
     headings: number;
@@ -527,9 +523,8 @@ export function ReportToolbar(p: Props) {
       </Popover>
       <Popover
         menu
-        label={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-        title={t3({ en: "Insert", fr: "Insérer", pt: "Inserir" })}
-        tour="report-insert-buttons"
+        label={t3({ en: "Widgets", fr: "Widgets", pt: "Widgets" })}
+        title={t3({ en: "Widgets", fr: "Widgets", pt: "Widgets" })}
       >
         {(close) => (
           <div class="ui-spy-sm flex w-56 flex-col">
@@ -677,17 +672,9 @@ export function ReportToolbar(p: Props) {
               )}
             </For>
             <MenuDivider />
-            <PopoverRow
-              active={false}
-              onClick={() => {
-                p.api()?.insertLink();
-                close();
-              }}
-            >
-              {t3({ en: "Link", fr: "Lien", pt: "Ligação" })}
-            </PopoverRow>
             {/* Table opens a grid picker flyout, Google Docs style: hover
-                  sets the size, a click inserts. */}
+                  sets the size, a click inserts. (Link is not a widget: it
+                  lives on the toolbar row and Ctrl+K.) */}
             <MenuFlyout
               label={t3({ en: "Table", fr: "Tableau", pt: "Tabela" })}
             >
@@ -698,8 +685,23 @@ export function ReportToolbar(p: Props) {
                 }}
               />
             </MenuFlyout>
-            <Show when={p.canInsertEmbeds()}>
-              <MenuDivider />
+          </div>
+        )}
+      </Popover>
+      {/* Visualizations and images: the embeds, beside the widgets. */}
+      <Show when={p.canInsertEmbeds()}>
+        <Popover
+          menu
+          label={t3({ en: "Figures", fr: "Figures", pt: "Figuras" })}
+          title={t3({
+            en: "Visualizations and images",
+            fr: "Visualisations et images",
+            pt: "Visualizações e imagens",
+          })}
+          tour="report-insert-buttons"
+        >
+          {(close) => (
+            <div class="ui-spy-sm flex w-56 flex-col">
               <PopoverRow
                 active={false}
                 onClick={() => {
@@ -722,10 +724,10 @@ export function ReportToolbar(p: Props) {
               >
                 {t3({ en: "Image…", fr: "Image…", pt: "Imagem…" })}
               </PopoverRow>
-            </Show>
-          </div>
-        )}
-      </Popover>
+            </div>
+          )}
+        </Popover>
+      </Show>
 
       <Popover
         menu
@@ -888,43 +890,10 @@ export function ReportToolbar(p: Props) {
                 <Icon iconName="check" class="h-3.5 w-3.5" />
               </Show>
             </PopoverRow>
-            {/* The printed sheet: what the PDF is printed on and what the
-                  editor's page boxes show. Margins stay at their default. */}
-            <MenuFlyout
-              label={t3({
-                en: "Page size",
-                fr: "Format de page",
-                pt: "Tamanho da página",
-              })}
-            >
-              <div class="bg-base-100 ui-spy-sm shadow-floating flex w-40 flex-col rounded border p-1">
-                <For
-                  each={[
-                    { value: "a4", label: "A4" },
-                    {
-                      value: "letter",
-                      label: t3({ en: "Letter", fr: "Lettre US", pt: "Carta" }),
-                    },
-                  ]}
-                >
-                  {(opt) => (
-                    <PopoverRow
-                      active={(psAttr("pagesize") ?? "a4") === opt.value}
-                      onClick={() =>
-                        p.onPatchPageSetup({
-                          pagesize: opt.value === "a4" ? undefined : opt.value,
-                        })
-                      }
-                    >
-                      <span class="flex-1">{opt.label}</span>
-                      <Show when={(psAttr("pagesize") ?? "a4") === opt.value}>
-                        <Icon iconName="check" class="h-3.5 w-3.5" />
-                      </Show>
-                    </PopoverRow>
-                  )}
-                </For>
-              </div>
-            </MenuFlyout>
+            {/* The printed sheet is A4 (the page-size choice was removed
+                2026-09-30; a report that already names another size keeps
+                it). Orientation is the one sheet choice; margins stay at
+                their default. */}
             <MenuFlyout
               label={t3({
                 en: "Orientation",
@@ -978,21 +947,6 @@ export function ReportToolbar(p: Props) {
                 </For>
               </div>
             </MenuFlyout>
-            <PopoverRow
-              active={p.showPages()}
-              onClick={() => p.onToggleShowPages()}
-            >
-              <span class="flex-1">
-                {t3({
-                  en: "Edit on rendered pages (experimental)",
-                  fr: "Modifier sur les pages rendues (expérimental)",
-                  pt: "Editar nas páginas renderizadas (experimental)",
-                })}
-              </span>
-              <Show when={p.showPages()}>
-                <Icon iconName="check" class="h-3.5 w-3.5" />
-              </Show>
-            </PopoverRow>
             <MenuFlyout
               label={t3({
                 en: "Document details",

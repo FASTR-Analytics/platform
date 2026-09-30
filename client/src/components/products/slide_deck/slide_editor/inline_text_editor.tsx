@@ -96,9 +96,18 @@ export type InlineTextApi = {
   isMarkdown: boolean;
   toggleStyle: (prop: "bold" | "italic") => void;
   toggleList: (ordered: boolean) => void;
-  /** Bold/italic at the caret (or over the whole selection) and the list
-   *  kind of the caret's line. */
-  marks: () => { bold: boolean; italic: boolean; list?: "bullet" | "numbered" };
+  /** The caret's lines become a heading of this level (0: normal text). */
+  setHeadingLevel: (level: number) => void;
+  toggleQuote: () => void;
+  /** Bold/italic at the caret (or over the whole selection), and the list,
+   *  heading level and quote of the caret's line. */
+  marks: () => {
+    bold: boolean;
+    italic: boolean;
+    list?: "bullet" | "numbered";
+    headingLevel: number;
+    quote: boolean;
+  };
   focus: () => void;
 };
 
@@ -116,6 +125,8 @@ type PeerMark = {
 };
 
 const LIST_LINE = /^\s*([-*+]|\d+[.)])\s/;
+const HEADING_LINE = /^(\s*)(#{1,6})\s+/;
+const QUOTE_LINE = /^(\s*)>\s?/;
 
 const CARET_CSS =
   "@keyframes slide-inline-caret-blink{0%,55%{opacity:1}56%,100%{opacity:0}}" +
@@ -177,7 +188,7 @@ export function InlineTextEditor(p: Props) {
   const marks = createMemo(() => {
     const s = sel();
     const text = docText();
-    if (!isMarkdown) return { bold: false, italic: false };
+    if (!isMarkdown) return { bold: false, italic: false, headingLevel: 0, quote: false };
     const an = analysis();
     const from = Math.min(s.anchor, s.head);
     const to = Math.max(s.anchor, s.head);
@@ -198,10 +209,13 @@ export function InlineTextEditor(p: Props) {
     const lineStart = text.lastIndexOf("\n", s.head - 1) + 1;
     const line = text.slice(lineStart, text.indexOf("\n", s.head) < 0 ? text.length : text.indexOf("\n", s.head));
     const m = /^\s*([-*+]|\d+[.)])\s/.exec(line);
+    const h = HEADING_LINE.exec(line);
     return {
       bold,
       italic,
       list: m ? (/\d/.test(m[1]) ? "numbered" as const : "bullet" as const) : undefined,
+      headingLevel: h ? h[2].length : 0,
+      quote: QUOTE_LINE.test(line),
     };
   });
 
@@ -410,6 +424,56 @@ export function InlineTextEditor(p: Props) {
         }
       }
     }
+    if (changes.length) {
+      view.dispatch({ changes, userEvent: "input", scrollIntoView: false });
+    }
+    return true;
+  }
+
+  // The report toolbar's text-style box, for slides: a heading is its `#`
+  // prefix, on every line of the selection. Normal text drops the prefix.
+  function setHeadingLevel(level: number): boolean {
+    if (!view || !isMarkdown) return true;
+    const state = view.state;
+    const s = state.selection.main;
+    const changes: { from: number; to: number; insert: string }[] = [];
+    for (let n = state.doc.lineAt(s.from).number; n <= state.doc.lineAt(s.to).number; n++) {
+      const l = state.doc.line(n);
+      if (!l.text.trim()) continue;
+      const cur = HEADING_LINE.exec(l.text);
+      const lead = /^\s*/.exec(l.text)![0].length;
+      const ins = level > 0 ? `${"#".repeat(level)} ` : "";
+      changes.push(
+        cur
+          ? { from: l.from + cur[1].length, to: l.from + cur[0].length, insert: ins }
+          : { from: l.from + lead, to: l.from + lead, insert: ins },
+      );
+    }
+    if (changes.length) {
+      view.dispatch({ changes, userEvent: "input", scrollIntoView: false });
+    }
+    return true;
+  }
+
+  // Quote on every non-blank line of the selection, or off when all have it.
+  function toggleQuote(): boolean {
+    if (!view || !isMarkdown) return true;
+    const state = view.state;
+    const s = state.selection.main;
+    const lines = [];
+    for (let n = state.doc.lineAt(s.from).number; n <= state.doc.lineAt(s.to).number; n++) {
+      const l = state.doc.line(n);
+      if (l.text.trim()) lines.push(l);
+    }
+    const allOn = lines.length > 0 && lines.every((l) => QUOTE_LINE.test(l.text));
+    const changes = lines.map((l) => {
+      const q = QUOTE_LINE.exec(l.text);
+      if (allOn && q) {
+        return { from: l.from + q[1].length, to: l.from + q[0].length, insert: "" };
+      }
+      const lead = /^\s*/.exec(l.text)![0].length;
+      return { from: l.from + lead, to: l.from + lead, insert: "> " };
+    });
     if (changes.length) {
       view.dispatch({ changes, userEvent: "input", scrollIntoView: false });
     }
@@ -641,6 +705,14 @@ export function InlineTextEditor(p: Props) {
       },
       toggleList: (ordered) => {
         toggleList(ordered);
+        view?.focus();
+      },
+      setHeadingLevel: (level) => {
+        setHeadingLevel(level);
+        view?.focus();
+      },
+      toggleQuote: () => {
+        toggleQuote();
         view?.focus();
       },
       marks,

@@ -136,6 +136,11 @@ type SlideEditorInnerProps = {
   // Where the deck wants the slide's live/save dot: its header, beside the
   // deck's own actions (the report header's save status, for slides).
   statusHost?: HTMLElement;
+  // The deck's own full-size editor host. A sub-editor this slide opens (the
+  // visualization editor) belongs over the WHOLE deck, header and rail
+  // included, as Settings and History are; this editor's own wrapper only
+  // covers the slide pane beside the rail. Absent, it opens here.
+  openHostEditor?: ReturnType<typeof getEditorWrapper>["openEditor"];
   // The deck the slide sits in, read live: the copilot's slide view carries
   // the deck's tools too, since the deck's rail is always beside the slide.
   deckContext: {
@@ -1061,7 +1066,7 @@ export function SlideEditor(p: Props) {
       setEditingFigureBlockId(blockId);
       try {
         const result = await withCanvasCovered(
-          openEditor({
+          (p.openHostEditor ?? openEditor)({
             element: VisualizationEditor,
             props: {
               label: metric.label,

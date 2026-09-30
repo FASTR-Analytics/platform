@@ -957,3 +957,75 @@ Deno.test("enterBesideRegionEdit: prose and the report header are left alone", (
   const r = enterBesideRegionEdit(doc, doc.length);
   assertEquals(r && apply(doc, r), "Text\n\n:::pagebreak\n");
 });
+
+// ── Deleting through a formatted phrase ──────────────────────────────────────
+
+import {
+  fastrMarkAwareEdit,
+  fastrMarkAwareRewrite,
+} from "../../lib/fastr_markdown_edits.ts";
+
+// Applies fastrMarkAwareEdit the way the editor's filter does.
+function markEdit(text: string, from: number, to: number, insert = ""): string {
+  const e = fastrMarkAwareEdit(text, from, to, insert.length > 0);
+  if (!e) return text.slice(0, from) + insert + text.slice(to);
+  let out = "";
+  let pos = 0;
+  let placed = insert.length === 0;
+  for (const [a, b] of e.deletes) {
+    if (!placed && e.insertAt <= a) {
+      out += text.slice(pos, e.insertAt) + insert;
+      pos = e.insertAt;
+      placed = true;
+    }
+    out += text.slice(pos, a);
+    pos = b;
+  }
+  if (!placed) {
+    out += text.slice(pos, e.insertAt) + insert;
+    pos = Math.max(pos, e.insertAt);
+  }
+  return out + text.slice(pos);
+}
+
+Deno.test("a formatted phrase is deleted whole or kept whole, never as a stray marker", () => {
+  const whole = "[All sized]{size=18}";
+  // Home, Shift+End, Backspace: the words and the hidden `[` (Nick,
+  // 2026-09-30: `]{size=18}` was left behind).
+  assertEquals(markEdit(whole, 0, 10), "");
+  assertEquals(markEdit(whole, 1, 10), "");
+  // Backspacing letter by letter: the last letter takes the markers.
+  assertEquals(markEdit("[x]{size=18}", 1, 2), "");
+  // Some of the words: the rest keep their formatting.
+  assertEquals(markEdit(whole, 9, 10), "[All size]{size=18}");
+  const mid = "Last [big words]{size=18} paragraph.";
+  assertEquals(markEdit(mid, 0, 9), "[ words]{size=18} paragraph.");
+  assertEquals(markEdit(mid, 7, 30), "Last [b]{size=18}graph.");
+  assertEquals(markEdit(mid, 0, mid.length), "");
+  // Backspace just after a phrase / Delete just before one (the atomic
+  // marker whole): the phrase's nearest letter goes instead.
+  assertEquals(markEdit(mid, 15, 25), "Last [big word]{size=18} paragraph.");
+  assertEquals(markEdit(mid, 5, 6), "Last [ig words]{size=18} paragraph.");
+  // Typing over a phrase from its first letter keeps the formatting; over a
+  // whole line from before it, the text is plain.
+  assertEquals(markEdit(whole, 0, 10, "Y"), "[Y]{size=18}");
+  assertEquals(markEdit(mid, 0, mid.length, "Z"), "Z");
+  // Only role/size marks: a link is ordinary markdown.
+  assertEquals(fastrMarkAwareEdit("[a b](http://x.org)", 0, 3, false), undefined);
+  // An edit that touches no phrase needs no change.
+  assertEquals(fastrMarkAwareEdit(mid, 0, 4, false), undefined);
+});
+
+Deno.test("a block's paragraph island gets the same phrase rule from its whole text", () => {
+  assertEquals(fastrMarkAwareRewrite("[All sized]{size=18}", "]{size=18}"), { text: "", caret: 0 });
+  assertEquals(fastrMarkAwareRewrite("[x]{size=18}", "[]{size=18}"), { text: "", caret: 0 });
+  assertEquals(
+    fastrMarkAwareRewrite("Keep [big words]{size=18} here.", "]{size=18} here."),
+    { text: " here.", caret: 0 },
+  );
+  // Backspace after the phrase took a hidden `}`: its last letter goes.
+  assertEquals(fastrMarkAwareRewrite("A [ab]{size=9} b", "A [ab]{size=9 b"), { text: "A [a]{size=9} b", caret: 4 });
+  // Ordinary edits stand.
+  assertEquals(fastrMarkAwareRewrite("[All sized]{size=18}", "[All size]{size=18}"), undefined);
+  assertEquals(fastrMarkAwareRewrite("Keep [big words]{size=18} here.", ""), undefined);
+});

@@ -1208,11 +1208,14 @@ ${d}.cm-editor.cm-focused { outline: none; }
    its negative-z children. */
 ${d}.cm-scroller {
   background: var(--fm-page);
-  /* The sheet's edge on the pane's base-200: a near-white page on a
-     near-white ground needs a drawn edge, not just the tone step. The same
-     edge as the paged surface's sheets (paged_edit_surface.ts). */
-  box-shadow: 0 0 0 1px var(--color-border, #cacaca), 0 2px 6px rgba(0, 0, 0, 0.16),
-    0 12px 32px rgba(0, 0, 0, 0.2);
+  /* The sheet's edge on the pane's base-200: a hairline in the app's border
+     colour, as a slide deck frames its slides, and no drop shadow. INSET and
+     on the sides only: the sheet runs the pane's full height, and a seam's
+     gap (.fm-page-gutter__band, an in-flow child) paints over an inset
+     shadow, so each sheet's side edges stop at the gap instead of running
+     on through it. */
+  box-shadow: inset 1px 0 0 var(--color-base-300, #d9d9d9),
+    inset -1px 0 0 var(--color-base-300, #d9d9d9);
   /* The scroller is a flex item: without an explicit width it would shrink
      to fit content. */
   width: 100%;
@@ -1651,22 +1654,18 @@ ${d}.fm-page-gutter__foot {
   color: var(--fm-ink-muted);
   font-variant-numeric: tabular-nums;
 }
-/* The gap between two sheets: the app's own ground, seen between them. It is
-   the surface the sheet is laid on (the pane either side of it is the same
-   token), so the gap follows the app into dark mode with everything else
-   rather than staying a light slab cut through a dark screen. What marks the
-   break is the paper, not the gap: each sheet's cut edge is a hairline of the
-   DOCUMENT's ink, and the sheet above casts into the gap from its edge, so
-   the seam reads on a ground of any colour, including one the same white as
-   the paper. */
+/* The gap between two sheets: the app's own ground, the same colour as the
+   pane either side of it, so it reads as the pane showing between two sheets
+   (in dark mode too). The sheets' cut edges are the same hairline as their
+   side edges (the scroller's), in the app's border colour; no shadow, which
+   tinted the gap darker than the pane beside it. */
 ${d}.fm-page-gutter__band {
   display: block;
   height: 30px;
   background: var(--color-base-200, #f2f2f2);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
-    inset 0 -1px 0 color-mix(in srgb, var(--fm-ink) 20%, transparent),
-    inset 0 7px 6px -7px color-mix(in srgb, var(--fm-ink) 45%, transparent);
+    inset 0 1px 0 var(--color-base-300, #d9d9d9),
+    inset 0 -1px 0 var(--color-base-300, #d9d9d9);
 }
 /* The next page's top margin. Before the document's first line too, when
    page 1 is not a cover (a cover has no margins). */
@@ -1701,7 +1700,10 @@ ${d}tr.fm-page-gutter-row { border: 0 !important; background: none !important; }
    the theme's thead th rules onto them): inert copies. */
 ${d}tr.fm-page-gutter-repeat { pointer-events: none; user-select: none; }
 ${d}td.fm-page-gutter--cell {
-  /* A cell, whatever the seam's own display; no margins on a cell. */
+  /* A cell, whatever the seam's own display; no margins on a cell. It is
+     only as wide as the table, so it takes no sheet edges: the scroller's
+     show beside the table. */
+  box-shadow: none !important;
   display: table-cell;
   margin: 0;
   padding-top: 0;
@@ -1715,7 +1717,10 @@ ${d}.fm-page-gutter--inner {
   padding-right: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
-  box-shadow: none !important;
+  /* The block's own shadow never, but the SHEET's side edges (the scroller's
+     inset hairlines, which this strip paints over). */
+  box-shadow: inset 1px 0 0 var(--color-base-300, #d9d9d9),
+    inset -1px 0 0 var(--color-base-300, #d9d9d9) !important;
   background: var(--fm-page-ground, var(--fm-page));
   color: var(--fm-ink-muted);
   counter-increment: none !important;
