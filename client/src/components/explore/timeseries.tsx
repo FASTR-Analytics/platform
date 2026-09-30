@@ -63,8 +63,10 @@ export function Timeseries(p: {
 
   return (
     <FrameTop
+      panelPad="md"
+      panelSpy="sm"
       panelChildren={
-        <div class="ui-pad ui-spy-sm">
+        <>
           {p.selectors}
           <div class="ui-gap-sm flex flex-wrap items-end">
             <IndicatorsControl
@@ -88,7 +90,7 @@ export function Timeseries(p: {
               onClear={clearDropped}
             />
           </Show>
-        </div>
+        </>
       }
     >
       <div class="ui-pad-x h-full w-full overflow-y-auto pb-4">

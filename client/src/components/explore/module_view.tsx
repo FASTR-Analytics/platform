@@ -149,7 +149,7 @@ function SelectorsRow(p: { children: JSX.Element }) {
 // the views put it, so the module select is on screen in every branch.
 function Fallback(p: { selectors: JSX.Element; children: JSX.Element }) {
   return (
-    <FrameTop panelChildren={<div class="ui-pad">{p.selectors}</div>}>
+    <FrameTop panelPad="md" panelChildren={p.selectors}>
       {p.children}
     </FrameTop>
   );

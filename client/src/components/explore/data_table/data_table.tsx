@@ -228,8 +228,10 @@ function ReadyFamilyTable(p: {
 
   return (
     <FrameTop
+      panelPad="md"
+      panelSpy="sm"
       panelChildren={
-        <div class="ui-pad ui-spy-sm">
+        <>
           <Toolbar
             selectors={p.selectors}
             columns={p.columns}
@@ -255,7 +257,7 @@ function ReadyFamilyTable(p: {
               onClear={clearDropped}
             />
           </Show>
-        </div>
+        </>
       }
     >
       <div class="ui-pad-x h-full pb-4">
