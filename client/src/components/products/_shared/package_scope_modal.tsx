@@ -83,9 +83,13 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
     onCleanup(() => {
       live = false;
     });
-    void count(pair).then((n) => {
-      if (live) setStaleCount(n);
-    });
+    const showCount = async () => {
+      const n = await count(pair);
+      if (live) {
+        setStaleCount(n);
+      }
+    };
+    void showCount();
   });
 
   const save = createFormAction(
