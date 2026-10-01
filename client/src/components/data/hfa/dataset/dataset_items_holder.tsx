@@ -4,7 +4,6 @@ import {
   t3,
 } from "lib";
 import {
-  Input,
   StateHolder,
   StateHolderWrapper,
   Table,
@@ -70,22 +69,12 @@ export function DatasetItemsHolder(p: { cacheHash: string }) {
 function DatasetDisplayPresentation(p: {
   displayItems: ItemsHolderDatasetHfaDisplay;
 }) {
-  const [searchText, setSearchText] = createSignal("");
-
-  const rows = createMemo<DisplayRow[]>(() => {
-    const search = searchText().toLowerCase();
-    const allRows: DisplayRow[] = p.displayItems.rows.map((r) => ({
+  const rows = createMemo<DisplayRow[]>(() =>
+    p.displayItems.rows.map((r) => ({
       ...r,
       _key: `${r.variableId}|${r.timePoint}`,
-    }));
-    if (!search) return allRows;
-    return allRows.filter(
-      (r) =>
-        r.variableId.toLowerCase().includes(search) ||
-        r.variableLabel.toLowerCase().includes(search) ||
-        r.questionnaireValues.toLowerCase().includes(search),
-    );
-  });
+    }))
+  );
 
   const columns: TableColumn<DisplayRow>[] = [
     {
@@ -157,37 +146,33 @@ function DatasetDisplayPresentation(p: {
   ];
 
   return (
-    <div class="flex h-full w-full flex-col">
-      <div class="flex-none border-b p-2">
-        <div class="w-96">
-          <Input
-            placeholder={t3({
+    <div class="ui-pad h-full w-full">
+      <Table
+        data={rows()}
+        columns={columns}
+        keyField="_key"
+        noRowsMessage={t3({
+          en: "No variables found",
+          fr: "Aucune variable trouvée",
+          pt: "Nenhuma variável encontrada",
+        })}
+        itemLabel={{
+          one: t3({ en: "variable", fr: "variable", pt: "variável" }),
+          other: t3({ en: "variables", fr: "variables", pt: "variáveis" }),
+        }}
+        searchValue={(r) =>
+          `${r.variableId} ${r.variableLabel} ${r.questionnaireValues}`}
+        toolbar={{
+          search: {
+            placeholder: t3({
               en: "Search variables...",
               fr: "Rechercher des variables...",
               pt: "Pesquisar variáveis...",
-            })}
-            value={searchText()}
-            onChange={setSearchText}
-            label={t3({ en: "Search", fr: "Recherche", pt: "Pesquisar" })}
-            searchIcon
-            clearable
-            fullWidth
-          />
-        </div>
-      </div>
-      <div class="ui-pad min-h-0 flex-1">
-        <Table
-          data={rows()}
-          columns={columns}
-          keyField="_key"
-          noRowsMessage={t3({
-            en: "No variables found",
-            fr: "Aucune variable trouvée",
-            pt: "Nenhuma variável encontrada",
-          })}
-          paddingY="compact"
-        />
-      </div>
+            }),
+          },
+        }}
+        paddingY="compact"
+      />
     </div>
   );
 }
