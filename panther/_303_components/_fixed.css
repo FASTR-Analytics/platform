@@ -257,7 +257,7 @@
   --ui-gap-lg: 1.5rem; /* gap-6 */
 
   --ui-spy-sm: 0.5rem; /* space-y-2 */
-  --ui-spy: 1.5rem; /* space-y-6 */
+  --ui-spy: 1.25rem; /* space-y-5 */
   --ui-spy-lg: 2rem; /* space-y-8 */
 
   /* Table cell padding, one var per value of Table's paddingX / paddingY
@@ -724,7 +724,7 @@
   }
 }
 
-@utility ui-spy { /* = space-y-6 */
+@utility ui-spy { /* = space-y-5 */
   & > :not([hidden]) ~ :not([hidden]) {
     margin-top: var(--ui-spy);
   }
