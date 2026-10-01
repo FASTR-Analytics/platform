@@ -707,11 +707,14 @@ function IndicatorsTable(p: {
                 pt: "Nenhum indicador corresponde",
               })}
             bulkActions={bulkActions()}
-            selectionLabel={t3({
-              en: "indicator",
-              fr: "indicateur",
-              pt: "indicador",
-            })}
+            itemLabel={{
+              one: t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
+              other: t3({
+                en: "indicators",
+                fr: "indicateurs",
+                pt: "indicadores",
+              }),
+            }}
           />
         </div>
       </div>

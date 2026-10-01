@@ -273,7 +273,10 @@ export function InstanceResultsPackages() {
             defaultSort={{ key: "createdAt", direction: "desc" }}
             onRowClick={(run) => openPackagePage(run.id)}
             bulkActions={bulkActions()}
-            selectionLabel={t3({ en: "package", fr: "paquet", pt: "pacote" })}
+            itemLabel={{
+              one: t3({ en: "package", fr: "paquet", pt: "pacote" }),
+              other: t3({ en: "packages", fr: "paquets", pt: "pacotes" }),
+            }}
           />
         </div>
       </Show>

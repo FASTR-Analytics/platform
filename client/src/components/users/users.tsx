@@ -499,7 +499,10 @@ function UserTable(p: {
       })}
       onRowClick={p.onUserClick}
       bulkActions={bulkActions()}
-      selectionLabel={t3({ en: "user", fr: "utilisateur", pt: "utilizador" })}
+      itemLabel={{
+        one: t3({ en: "user", fr: "utilisateur", pt: "utilizador" }),
+        other: t3({ en: "users", fr: "utilisateurs", pt: "utilizadores" }),
+      }}
     />
   );
 }

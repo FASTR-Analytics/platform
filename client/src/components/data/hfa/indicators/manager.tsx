@@ -1223,11 +1223,18 @@ export function HfaIndicatorsManager(p: Props) {
                             pt: "Nenhum indicador HFA configurado",
                           })}
                         bulkActions={bulkActions()}
-                        selectionLabel={t3({
-                          en: "indicator",
-                          fr: "indicateur",
-                          pt: "indicador",
-                        })}
+                        itemLabel={{
+                          one: t3({
+                            en: "indicator",
+                            fr: "indicateur",
+                            pt: "indicador",
+                          }),
+                          other: t3({
+                            en: "indicators",
+                            fr: "indicateurs",
+                            pt: "indicadores",
+                          }),
+                        }}
                         initialScrollTop={indicatorsScrollTop}
                         onScrollTopChange={(v) => {
                           indicatorsScrollTop = v;

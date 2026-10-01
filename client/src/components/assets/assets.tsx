@@ -269,7 +269,10 @@ function AssetTable(p: {
         pt: "Ainda não foram carregados recursos",
       })}
       bulkActions={bulkActions()}
-      selectionLabel={t3({ en: "asset", fr: "ressource", pt: "recurso" })}
+      itemLabel={{
+        one: t3({ en: "asset", fr: "ressource", pt: "recurso" }),
+        other: t3({ en: "assets", fr: "ressources", pt: "recursos" }),
+      }}
     />
   );
 }
