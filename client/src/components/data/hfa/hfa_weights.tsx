@@ -16,6 +16,7 @@ import {
   getSelectOptions,
   HeadingBar,
   Select,
+  SelectSearch,
   StateHolderFormError,
   StateHolderWrapper,
   TableFromCsv,
@@ -453,7 +454,7 @@ function MapStep(p: {
             <div class="flex items-center gap-4">
               <div class="w-48 flex-none text-sm">{row.label}</div>
               <div class="flex-1">
-                <Select
+                <SelectSearch
                   options={headerOptions()}
                   value={mappings[row.key]}
                   onChange={(v) => setMappings(row.key, v)}

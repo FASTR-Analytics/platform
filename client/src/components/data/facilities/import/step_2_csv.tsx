@@ -14,7 +14,7 @@ import {
   Checkbox,
   createFormAction,
   getSelectOptions,
-  Select,
+  SelectSearch,
   StateHolderFormError,
 } from "panther";
 import { serverActions } from "~/server_actions";
@@ -182,7 +182,7 @@ export function Step2_Csv(p: Props) {
             />
           </div>
           <div class="w-96">
-            <Select
+            <SelectSearch
               options={getSelectOptions(csvHeaders())}
               value={tempMappings["facility_id"]}
               onChange={(val) => updateMapping("facility_id", val)}
@@ -219,7 +219,7 @@ export function Step2_Csv(p: Props) {
                       )}
                     </div>
                     <div class="w-96">
-                      <Select
+                      <SelectSearch
                         options={getSelectOptions(csvHeaders())}
                         value={tempMappings[`admin_area_${level}`]}
                         onChange={(val) =>
@@ -252,7 +252,7 @@ export function Step2_Csv(p: Props) {
               </div>
               <div class="w-96">
                 <Show when={enabled[col]}>
-                  <Select
+                  <SelectSearch
                     options={getSelectOptions(csvHeaders())}
                     value={tempMappings[col]}
                     onChange={(val) => updateMapping(col, val)}

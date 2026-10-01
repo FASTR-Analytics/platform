@@ -16,6 +16,7 @@ import {
   ModalContainer,
   RadioGroup,
   Select,
+  SelectSearch,
   StepperChipsWithTitles,
 } from "panther";
 import { createMemo, createSignal, For, Show } from "solid-js";
@@ -386,7 +387,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                 })}
               </h3>
               <div class="w-80">
-                <Select
+                <SelectSearch
                   label={t3({
                     en: "Select the column containing facility IDs",
                     fr:
@@ -451,7 +452,7 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                   {(filter, i) => (
                     <div class="ui-gap-sm flex items-center">
                       <div class="w-80">
-                        <Select
+                        <SelectSearch
                           options={getSelectOptions(csvHeaders())}
                           value={filter.column}
                           onChange={(val) => {
