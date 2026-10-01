@@ -1,5 +1,5 @@
 import { type ModuleParameter, t3 } from "lib";
-import { Checkbox, Input, Select } from "panther";
+import { Input, Select } from "panther";
 import { For, Match, Switch } from "solid-js";
 
 type Props = {
@@ -84,18 +84,22 @@ export function ModuleParameterInputs(p: Props) {
                   )}
                 </Match>
                 <Match when={inputParameter.input.inputType === "boolean"}>
-                  <div class="ui-spy-sm">
-                    <div class="ui-label">{inputParameter.description}</div>
-                    <Checkbox
-                      label={t3({
-                        en: "Yes / No",
-                        fr: "Oui / Non",
-                        pt: "Sim / Não",
-                      })}
-                      checked={value() === "TRUE"}
-                      onChange={(v) => onChange(v ? "TRUE" : "FALSE")}
-                    />
-                  </div>
+                  <Select
+                    label={inputParameter.description}
+                    options={[
+                      {
+                        value: "TRUE",
+                        label: t3({ en: "Yes", fr: "Oui", pt: "Sim" }),
+                      },
+                      {
+                        value: "FALSE",
+                        label: t3({ en: "No", fr: "Non", pt: "Não" }),
+                      },
+                    ]}
+                    value={value()}
+                    onChange={onChange}
+                    fullWidth
+                  />
                 </Match>
               </Switch>
             </div>
