@@ -118,6 +118,21 @@ pure function of the canonical form and lives in `lib/types/scope.ts` beside the
 schema, in the style of `hashFetchConfig` (`lib/get_fetch_config_from_po.ts`).
 The hash is derived on read and is never stored in the database.
 
+The hashed form holds only the constrained parts: an unconstrained key is left
+out at every level, so a dimension added later leaves every existing hash
+unchanged.
+
+```ts
+// hashed form of { geography: { adminArea2: "Kano" }, everything else null }
+{ geography: { adminArea2: "KANO" } }
+
+// hashed form of a scope limited only by years
+{ time: { years: { start: 2020, end: 2022 } } }
+
+// hashed form of the "All data" scope
+{}
+```
+
 A scope is independent of packages. A definition that names an area, module or
 indicator a package lacks attaches fine and yields no rows.
 
@@ -465,7 +480,8 @@ and the view ignores them). The Scopes tab. Grants.
 **Gates.** `./validate_migrations`, `./validate_fresh_boot`,
 `./validate_migrations_replay`, `./validate_consolidation_replay`,
 `./validate_queries` (the case axis becomes a scope definition). A committed
-test proves the hash is stable across key order, list order and area case. A
+test proves the hash is stable across key order, list order and area case, and
+that a definition carrying an extra unconstrained key hashes the same. A
 committed test runs the figure transform over a legacy bundle whose area matches
 the product and one whose area differs, and asserts fresh and stale
 respectively.
