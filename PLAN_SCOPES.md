@@ -12,7 +12,7 @@ column for that dimension. A table with no such column is served whole, as long
 as its module is allowed. The full statement is at the top of §2.
 
 **Next step: Review 5.** Each session sets this line in its final commit. Its
-values are `Do N`, `Review N` and `Fix N` for steps 1 to 5. The review of step 5
+values are `Do N`, `Review N` and `Fix N` for steps 1 to 6. The review of step 6
 deletes this file.
 
 All work is on `version2`. Repos touched: this app only.
@@ -29,7 +29,7 @@ and docs rule are `PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
 - Branch: `version2` (PROTOCOL_APP_PLANS names `tim-branch`; this plan overrides
   it, as PLAN_PRODUCTS_RESTRUCTURE does).
 - Floor and conditional gates: as PROTOCOL_APP_PLANS lists them.
-- Build log: §8. Last step: 5.
+- Build log: §8. Last step: 6.
 - A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, the SYSTEM file for each
   area the step names, §2 and §3 of this plan, the step's own section in §4, and
   §8.
@@ -97,6 +97,12 @@ label is free text and implies nothing.
 ---
 
 ## 2. The model
+
+> **Step 6 changes this model.** R31 to R37 (§3) replace the definition shape of
+> §2.1, the predicate's choice of section in §2.3, the null scope of §2.4 and
+> §2.5, and the "Scopes tab" of §2.7. Where this section and those rulings
+> disagree, the rulings win. Steps 1 to 5 were built against this section as
+> written.
 
 ### The default principle
 
@@ -422,6 +428,101 @@ any ready package at any scope" and SYSTEM_08's "not a security boundary" are
 replaced by R5 to R7. The steps rewrite the SYSTEM prose. That plan's file is
 not edited.
 
+Rulings R31 to R37 were made by Tim on 2026-10-01, after step 4, and are built
+by step 6. They overrule R9, R17, R18, R19, R20 and the "All data" half of R21,
+and R16 for the one reserved id.
+
+**R31. "All data" is one reserved scope whose id is the literal string
+`"all-data"`.** (Tim) Not a UUID, and not null. Scope ids are `"all-data"` or a
+UUID: one shared Zod schema in `lib` (`scopeIdSchema`, with
+`ALL_DATA_SCOPE_ID = "all-data"`) replaces every `z.uuid()` that validates a
+scope id. The row is seeded by migration 204 with the label "All data" and the
+unconstrained definition. It cannot be edited (neither label nor definition) or
+deleted: `updateScope` and `deleteScope` refuse it with a typed failure, and the
+Scopes page shows it read-only. `scopes.id`, `products.scope_id` and
+`user_scopes.scope_id` are `text`, so no column type changes.
+
+**R32. There is no null scope anywhere.** (Tim) `products.scope_id` stays NOT
+NULL. `scopeId` on every run-keyed read and the authoring context is a required
+string. The package page and `/mcp` read through `"all-data"`. "Whole package"
+leaves the UI and the code: `WHOLE_PACKAGE_DEFINITION_HASH`,
+`wholePackageLabel`, `ScopeSelect`'s `allowWholePackage` and the null branches
+of `loadScopeDefinition`, `canUseScope` and `resolvePackageScope` go. Every
+scope select lists "All data" first, as an ordinary option. A null scope must
+never mean "everything": a lost value would silently widen access, and
+`NOT (scope_id = ANY(...))` is NULL, not true, for a NULL `scope_id` (§8, step
+5). This replaces R20.
+
+**R33. A restricted user may be granted "All data"** _(proposed)_, as an
+ordinary grant: they then read unfiltered data through it. They still have no
+Explore, no `/mcp` and no package page (R13).
+
+**R34. The definition is per family, and family comes first.** (Tim) A
+definition has one section per family. Each section is either excluded or
+included, and only an included section has dimensions. The shape:
+
+```ts
+type YearRange = { start: number; end: number }; // four-digit years
+type Included<Dims> = {
+  include: true;
+  modules: string[] | null;
+  indicators: string[] | null;
+} & Dims;
+type ScopeDefinition = {
+  hmis:
+    | { include: false }
+    | Included<{ adminArea2: string | null; years: YearRange | null }>;
+  hfa:
+    | { include: false }
+    | Included<{ adminArea2: string | null; timePoints: string[] | null }>;
+  iceh: { include: false } | Included<{ years: YearRange | null }>;
+};
+```
+
+Inside an included section, null means "no limit on this dimension" and nothing
+else. An empty list is refused by the schema, so the only way to drop a family
+is `include: false`. ICEH has no geography and its own year range, separate from
+HMIS. Each section's `indicators` filters that family's indicator column
+(`indicator_common_id`, `hfa_indicator`, `iceh_indicator`), and its `modules`
+lists only that family's modules. The "All data" definition is every section
+included with every dimension null. The canonical form and the hash follow
+§2.1's rules (null dropped at every level, lists sorted and de-duplicated, areas
+upper-cased); `include` is always kept.
+
+**R35. The predicate picks the section by the module's family.** Every module
+declares its family (`family` is required in both definition schemas, and the
+manifest transform stamps it for m001 to m012 in older packages), so R19's
+"family is undeclarable" no longer holds and R19 is overruled. A results object
+whose family section is excluded, or whose module is outside the section's
+module list, is empty (`FALSE`). Within the section, the default principle (R8)
+stands: each dimension filters only when the results object has its column. The
+geography part uses the section's own area, so HMIS and HFA can spell an area
+differently. The facilities views take the area of their own family:
+`facilities_hmis` the HMIS area, `facilities_hfa` the HFA area. Period bounds
+are clamped to the section's years (HMIS or ICEH; HFA has none). The authoring
+context drops every module whose section is excluded or which is outside its
+section's list (R28).
+
+**R36. The Scopes editor is tabbed HMIS, HFA, ICEH.** (Tim) The label sits above
+the tabs. Each tab opens with an "Include" switch; when it is on, the tab shows
+that family's dimensions: the area picker (HMIS and HFA only), years (HMIS and
+ICEH) or time points (HFA), that family's modules, and that family's indicators.
+Each area picker lists its own family's admin-area-2 registry (`listAdminArea2s`
+takes the family). The scopes table summarises each family. "All data" opens
+read-only.
+
+**R37. Existing data.** (Tim) Migration 204 is rewritten in place (nothing that
+ran it has shipped, §7). It seeds `"all-data"`, and one scope per distinct
+`products.admin_area_2` whose HMIS and HFA sections both carry that area, HMIS
+and HFA included, ICEH included unconstrained: what those products show today.
+National products move to `"all-data"`. The legacy figure-stamp transform
+(`_figure_block.ts`) computes the new shape's hash. The dev database, which has
+run the old 204, is converted once by an uncommitted script that rewrites its
+scope rows to the new shape (the "All data" row to the id `"all-data"`, its
+products and grants repointed) and re-stamps its stored figures under the new
+hashes, so a fresh figure stays fresh. The Do session records what the script
+did in §8.
+
 ---
 
 ## 4. Steps
@@ -433,6 +534,7 @@ not edited.
 | 3    | Time and data dimensions                             |
 | 4    | The Scopes tab                                       |
 | 5    | Grants and enforcement                               |
+| 6    | Per-family definition, the reserved "All data" scope |
 
 ### Step 1: The scoped view, geography only
 
@@ -634,7 +736,79 @@ upsert outside the grants and asserts the rewrite, and a product moving into a
 hidden folder and asserts the folder appears. `./validate_migrations`,
 `./validate_fresh_boot`.
 
-**Ends with.** Several commits, each green. The review deletes this file.
+**Ends with.** Several commits, each green.
+
+### Step 6: Per-family definition and the reserved "All data" scope
+
+Planning is part of this step. The Do session reads R31 to R37 and §8, then
+greps every use of the definition's fields, `scopeId: null`, `string | null`
+scope ids, `WHOLE_PACKAGE`, "Whole package" and `z.uuid()` on a scope id, and
+lists the files it will touch in §8 before changing code.
+
+**Surface.**
+
+- lib: `lib/types/scope.ts`, `lib/types/_figure_bundle.ts`,
+  `lib/types/instance.ts` (`canUseScope`),
+  `lib/api-routes/instance/{run_generation,scopes,structure}.ts`,
+  `lib/api-routes/products/products.ts`, `lib/explore_grid_query.ts`.
+- Schema and data: `server/db/instance/_main_database.sql`,
+  `server/db/migrations/instance/204_scopes.sql`,
+  `server/db/migrations/data_transforms/{_figure_block,slide_config,reports}.ts`.
+- Server: `server/db/instance/{scopes,structure,users}.ts`,
+  `server/routes/instance/{scopes,structure,run_generation}.ts`,
+  `server/run_query/**`, `server/mcp/**`, `server/auth/product_access.ts`,
+  `server/db/products/**`, `server/routes/products/**`,
+  `server/task_management/build_instance_state.ts`.
+- Client: `client/src/components/scopes/**`,
+  `client/src/components/_shared/{scope_select,package_label,figure_preview}.ts*`,
+  `client/src/components/results_packages/**`,
+  `client/src/components/explore/**`, `client/src/components/products/**`,
+  `client/src/components/users/user_scopes.tsx`,
+  `client/src/state/instance/t1_store.ts`, `client/src/state/products/t2_*.ts`,
+  `client/src/state/t4_explore.ts`, `client/src/generate_visualization/**`, and
+  their importers.
+- Tests and rig: `server/tests/**`, `query_rig/**`.
+- Docs: SYSTEMS.md vocabulary, SYSTEM_02, 03, 05, 08, 09, 10, 11, 12, 13, 15
+  prose and globs, PROTOCOL_APP_QUERY_RIG, PROTOCOL_APP_STATE's cache table.
+
+**Deliverable.**
+
+- R31: `ALL_DATA_SCOPE_ID`, `scopeIdSchema` and the `"all-data"` row; the update
+  and delete routes refuse it; the Scopes page shows it read-only.
+- R32: no null scope id in any type, route body, query or component. Explore and
+  the package page select "All data" by default where they defaulted to the
+  whole package.
+- R34: the schema, canonical form and hash in `lib/types/scope.ts`; the hash
+  test rewritten for the new shape.
+- R35: `scopePredicateFor`, the facilities views, the period-bounds clamp and
+  the authoring-context filter. `FigureBundle.scope.adminArea2` is the area of
+  the figure's own family (null for ICEH), so the roll-up label and the Explore
+  level read the right spelling.
+- R36: the tabbed editor. It also takes step 4's review notes: list signals
+  seeded with copies, not store arrays; a failed options read still renders the
+  controls; no em-dash in the orphan annotation.
+- R37: migration 204, the figure-stamp transform, the copilot's scope line per
+  family, and the dev conversion.
+- `PO_CACHE_VERSION` and the client cache names are bumped if any cached
+  payload's shape changes; the Do session records which.
+
+**Not in this step.** Geography as a set of areas (R9 stands for each family).
+Owner, edit and view levels.
+
+**Gates.** `./validate_queries` with cases for: an excluded family on each read
+kind; a module outside its section's list; HMIS and HFA sections naming
+differently spelled areas, each filtering only its own family's tables and its
+own facilities view; ICEH years separate from HMIS years; the default principle
+per family. Each new predicate part gets a mutation row in
+PROTOCOL_APP_QUERY_RIG. `./validate_migrations`, `./validate_fresh_boot`,
+`./validate_migrations_replay`, `./validate_consolidation_replay`. A committed
+test that the scope routes refuse to edit or delete `"all-data"`, that the
+schema refuses an empty list, and that the legacy figure transform keeps a fresh
+figure fresh under the new hash. `scope_grants_routes_test.ts` reads through
+`"all-data"` where it read the whole package. The floor.
+
+**Ends with.** Several commits, each green: lib, schema and migration; server
+and rig; client; docs may ride each. The review deletes this file.
 
 ---
 
@@ -652,6 +826,7 @@ hidden folder and asserts the folder appears. `./validate_migrations`,
 | Figure transform fresh and stale test | 2             |
 | Restricted-user route test            | 5             |
 | SSE filter test                       | 5             |
+| "All data" route refusal test         | 6             |
 
 ---
 
@@ -675,7 +850,7 @@ hidden folder and asserts the folder appears. `./validate_migrations`,
 
 ## 7. Rollout and rollback
 
-Nothing ships until step 5's review passes, and not before
+Nothing ships until step 6's review passes, and not before
 PLAN_PRODUCTS_RESTRUCTURE has finished its fleet deploy (its step 13), so
 migrations 204 and 205 never ride the same deploy as 200 to 203. After that it
 ships as one release through `./deploy_testing`, then `./deploy`.
