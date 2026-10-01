@@ -137,18 +137,25 @@ CREATE INDEX idx_folders_parent_id ON folders(parent_id);
 -- product carries it (products.scope_id, no cascade). Migration 204 seeds the
 -- one reserved row, 'all-data', which is never edited or deleted.
 CREATE TABLE scopes (
-  id text PRIMARY KEY NOT NULL,        -- uuid, or 'all-data'
-  label text NOT NULL,
+  id text PRIMARY KEY NOT NULL
+    CHECK (id = 'all-data' OR id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  label text NOT NULL CHECK (label <> ''),
   definition text NOT NULL,
-  created_by text,                     -- email
-  created_at text,
+  created_by text,                     -- email, NULL on a seeded row
+  created_at text NOT NULL,
   last_updated text NOT NULL
 );
 
--- A restricted user's grants (users.all_scopes = FALSE).
+-- Labels are how a product picks a scope, so they are unique per instance,
+-- case-insensitively.
+CREATE UNIQUE INDEX scopes_label_unique ON scopes (lower(label));
+
+-- A restricted user's grants (users.all_scopes = FALSE). 'all-data' limits
+-- nothing, so it is never a grant: holding all data is all_scopes = TRUE.
 CREATE TABLE user_scopes (
   email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-  scope_id text NOT NULL REFERENCES scopes(id) ON DELETE CASCADE,
+  scope_id text NOT NULL REFERENCES scopes(id) ON DELETE CASCADE
+    CHECK (scope_id <> 'all-data'),
   PRIMARY KEY (email, scope_id)
 );
 

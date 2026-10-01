@@ -18,13 +18,16 @@
 -- migration drops, so a second run and a fresh database both skip it.
 
 CREATE TABLE IF NOT EXISTS scopes (
-  id text PRIMARY KEY NOT NULL,
-  label text NOT NULL,
+  id text PRIMARY KEY NOT NULL
+    CHECK (id = 'all-data' OR id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  label text NOT NULL CHECK (label <> ''),
   definition text NOT NULL,
   created_by text,
-  created_at text,
+  created_at text NOT NULL,
   last_updated text NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS scopes_label_unique ON scopes (lower(label));
 
 INSERT INTO scopes (id, label, definition, created_by, created_at, last_updated)
 VALUES (

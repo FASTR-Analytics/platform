@@ -81,7 +81,7 @@ export type DBScope = {
   label: string;
   definition: string;
   created_by: string | null;
-  created_at: string | null;
+  created_at: string;
   last_updated: string;
 };
 

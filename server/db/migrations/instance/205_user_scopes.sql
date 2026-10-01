@@ -8,7 +8,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS all_scopes boolean NOT NULL DEFAULT T
 
 CREATE TABLE IF NOT EXISTS user_scopes (
   email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
-  scope_id text NOT NULL REFERENCES scopes(id) ON DELETE CASCADE,
+  scope_id text NOT NULL REFERENCES scopes(id) ON DELETE CASCADE
+    CHECK (scope_id <> 'all-data'),
   PRIMARY KEY (email, scope_id)
 );
 
