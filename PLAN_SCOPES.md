@@ -290,11 +290,11 @@ Rescope, copy slides, duplicate and version restore carry stored figure data as
 they do today. (Tim)
 
 **R16. Scope ids are UUIDs from `crypto.randomUUID()`**, as `folders.id` and
-`runs.id` are. _(proposed)_
+`runs.id` are.
 
 **R17. The indicator list is one list per indicator column**:
 `indicator_common_id`, `hfa_indicator`, `iceh_indicator`. A results object with
-none of the three columns is empty when any list is set. _(proposed)_
+none of the three columns is empty when any list is set.
 
 **R18. The time dimension is whole years plus an optional list of HFA time
 points.** Health facility assessment outputs carry `time_point`, a text label
@@ -304,16 +304,15 @@ neither kind of time column is empty when `years` is set. _(proposed)_
 
 **R19. The predicate is decided by column presence, never by dataset family.**
 The family is undeclarable for modules whose inputs are all upstream results
-objects (the comment above `computeScopeFilters`). _(proposed)_
+objects (the comment above `computeScopeFilters`).
 
 **R20. `scopeId: null` on the wire means the whole package**, and is refused for
 a restricted user. `/mcp` and the package page's default use it. Products always
-carry a scope. _(proposed)_
+carry a scope.
 
 **R21. The migration seeds one unconstrained scope labelled "All data" and one
 scope per distinct `products.admin_area_2`**, labelled with the area name.
 National products move to "All data". Seeded scopes are ordinary rows.
-_(proposed)_
 
 **R22. Creating a product opens a dialog for package and scope.** The package
 defaults to the pin. The scope has no default unless the user can use exactly
@@ -336,14 +335,14 @@ _(proposed)_
 
 **R27. Period bounds from the manifest are clamped to the scope's years.** The
 geography ruling in SYSTEM_09 (the replicant path keeps the package-wide stamp)
-stands. _(proposed)_
+stands.
 
 **R28. The authoring context is filtered by `modules` only.** Indicator lists in
-it are metadata (R5). _(proposed)_
+it are metadata (R5).
 
 **R29. A client whose own scope access changes reconnects its SSE stream**, as
 it does on moving from unapproved to approved. The server closes that user's
-collab sockets with `closeConnectionsForEmail`. _(proposed)_
+collab sockets with `closeConnectionsForEmail`.
 
 **R30. Supersedes.** PLAN_PRODUCTS_RESTRUCTURE D7's "any approved user can read
 any ready package at any scope" and SYSTEM_08's "not a security boundary" are
