@@ -6,9 +6,7 @@ the code. HMIS and ICEH items are excluded.
 **Compiled:** 2026-10-01, on branch `version2`.
 
 **Keeping it current.** When an item lands, move its row to "Already done" with
-the date and the commit, in the same commit as the code. The quick fixes are
-built by [PLAN_HFA_QUICK_FIXES.md](PLAN_HFA_QUICK_FIXES.md), whose steps do
-this.
+the date and the commit.
 
 ## Sources
 
@@ -27,11 +25,7 @@ Nothing was run in the app.
 
 ## Quick fixes
 
-Built by [PLAN_HFA_QUICK_FIXES.md](PLAN_HFA_QUICK_FIXES.md).
-
-| Id | Issue                                                                              | Raised by          | State in code                                                                                                           | Fix                                                                                 |
-| -- | ---------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Q7 | An "add" button to create an indicator from an unused variable (High in the sheet) | Meghan, 2026-09-14 | The unused-variables modal is a read-only list (`client/src/components/data/hfa/indicators/unused_variables_modal.tsx`) | An Add button that opens the new-indicator form with the variable's label filled in |
+None open. Q1 to Q7 were built on 2026-10-01 and are under "Already done".
 
 ## Waiting on the HFA team
 
@@ -138,6 +132,9 @@ Verified in code or commits:
   parameter's description, in every module's settings (2026-10-01, `426dc5f17`).
 - Q5: a held HFA data import lists up to 10 of the facility ids it could not
   find, under the not-found count (2026-10-01, `aaf25accf`).
+- Q7: each row of the unused-variables modal has an Add button that opens the
+  new-indicator form with the variable's label as the long label (2026-10-01,
+  `dd3fab1a2`).
 
 From Tim's emails only, not re-verified:
 
