@@ -98,14 +98,19 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "25" (2026-09-22): manifest schema v13 (module blobs declare family, tier
 // and sortOrder; metrics[].datasetFamily is non-null). metric_info payloads
 // carry datasetFamily, so "24" entries may hold null where it is now declared.
-const PO_CACHE_VERSION = "25";
+// "26" (2026-10-01): scopes (PLAN_SCOPES step 2). The trailing key segment
+// is the hash of the scope's definition, where "25" entries carry the
+// percent-encoded area name, and every payload's `scopeToken` is that hash.
+const PO_CACHE_VERSION = "26";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the four data caches, so two products
-// on the same run share entries. The scopeToken rides beside it: payloads are
-// computed under the caller's AA2 scope, so two products share entries only
-// when they share BOTH run and scope. Required on the uniqueness side so every
-// exists/read site is forced to supply it (an optional would compile and
+// on the same run share entries. The scopeToken rides beside it: the hash of
+// the scope's definition (scopeDefinitionHash, lib/types/scope.ts). Payloads
+// are computed under that definition, so two reads share entries only when
+// they share BOTH run and definition, whatever the scope's id or label, and an
+// edited definition lands on new keys. Required on the uniqueness side so
+// every exists/read site is forced to supply it (an optional would compile and
 // silently mis-key); trailing segment so the `${runId}|`/`${runId}::` prefix
 // scans in `runs/delete_run.ts` keep working.
 export type PoDataVersionParams = {

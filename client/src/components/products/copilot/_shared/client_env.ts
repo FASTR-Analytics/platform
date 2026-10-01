@@ -74,7 +74,7 @@ export function createCopilotAIToolEnv(scope: PackageScope): ClientAIToolEnv {
           run_id: scope.runId,
           resultsObjectId,
           fetchConfig,
-          adminArea2: scope.adminArea2,
+          scopeId: scope.scopeId,
         })
       );
       _PO_ITEMS_CACHE.setPromise(newPromise, params, version);

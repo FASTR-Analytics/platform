@@ -14,15 +14,14 @@ import {
   type GridColumns,
   type GridQuery,
   type MetricWithStatus,
-  type PackageScope,
   periodChoicesFor,
   resolveGridQuery,
   type RunAuthoringContext,
   type VizPreset,
 } from "lib";
 
-const NATIONAL: PackageScope = { runId: "run", adminArea2: null };
-const KANO: PackageScope = { runId: "run", adminArea2: "Kano" };
+const NATIONAL: string | null = null;
+const KANO: string | null = "Kano";
 
 const AVAILABLE: GridAvailable = {
   hfaTimePoints: ["Round 1", "Round 2"],

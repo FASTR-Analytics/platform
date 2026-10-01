@@ -99,7 +99,7 @@ import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { ReportEditorCursors } from "./cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
-import { productById } from "~/state/instance/t1_store";
+import { productById, resolveScope } from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
@@ -823,7 +823,9 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       props: {
         product: row,
         countStaleUnder: (pair: PackageScope) =>
-          Promise.resolve(findStaleFiguresInReport(figures(), pair).length),
+          Promise.resolve(
+            findStaleFiguresInReport(figures(), resolveScope(pair)).length,
+          ),
       },
     });
   }
@@ -838,7 +840,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   // than the container now serves from, live off the registry and the pair.
   const staleFigures = () => {
     const pair = scope();
-    return pair ? findStaleFiguresInReport(figures(), pair) : [];
+    return pair ? findStaleFiguresInReport(figures(), resolveScope(pair)) : [];
   };
   // What each embed needs to show its own badge and commit its own update.
   function figureStale(id: string): FigureStaleContext | undefined {

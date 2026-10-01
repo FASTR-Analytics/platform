@@ -41,10 +41,9 @@ const runModuleParamsSchema = z.object({
   module_id: z.string(),
 });
 
-// The scope half of a figure read: null is national, and an empty string is
-// neither national nor a real area (the shape products.admin_area_2 is
-// written under).
-const adminArea2Schema = z.string().min(1).nullable();
+// The scope half of a figure read: the id of a `scopes` row, or null for the
+// whole package.
+const scopeIdSchema = z.uuid().nullable();
 
 export const runGenerationRouteRegistry = {
   // The instance catalogue (item 3): every run, newest first, with the
@@ -114,11 +113,11 @@ export const runGenerationRouteRegistry = {
     params: runModuleParamsSchema,
     response: {} as InstalledModuleWithConfigSelections,
   }),
-  // The figure-data mount (S9): the caller supplies the (runId, adminArea2)
-  // pair its product carries, and `null` adminArea2 means national. The reads
-  // require runs.status = 'ready'; adminArea2 is shape-validated here and
-  // escaped server-side. /mcp reaches getRunPresentationObjectItems and
-  // getRunResultsValueInfo at national scope through the headless allowlist.
+  // The figure-data mount (S9): the caller supplies the (runId, scopeId) pair
+  // its product carries, and a null scopeId means the whole package. The
+  // reads require runs.status = 'ready' and an existing scope. /mcp reaches
+  // getRunPresentationObjectItems and getRunResultsValueInfo with a null
+  // scope through the headless allowlist.
   // Guarded requireApprovedUser(): package data is an instance-level resource.
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
@@ -127,7 +126,7 @@ export const runGenerationRouteRegistry = {
     body: z.object({
       resultsObjectId: z.string(),
       fetchConfig: genericLongFormFetchConfigSchema,
-      adminArea2: adminArea2Schema,
+      scopeId: scopeIdSchema,
     }),
     response: {} as ItemsHolderPresentationObject,
   }),
@@ -141,7 +140,7 @@ export const runGenerationRouteRegistry = {
     body: z.object({
       resultsObjectId: z.string(),
       fetchConfig: genericLongFormFetchConfigSchema,
-      adminArea2: adminArea2Schema,
+      scopeId: scopeIdSchema,
     }),
     response: {} as GridItemsHolder,
   }),
@@ -149,7 +148,7 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/run/:run_id/results_value_info",
     method: "POST",
     params: z.object({ run_id: z.string() }),
-    body: z.object({ metricId: z.string(), adminArea2: adminArea2Schema }),
+    body: z.object({ metricId: z.string(), scopeId: scopeIdSchema }),
     response: {} as ResultsValueInfoForPresentationObject,
   }),
   // The replicant dimension's option list: what bounds the per-value figure
@@ -165,20 +164,19 @@ export const runGenerationRouteRegistry = {
       metricId: z.string(),
       replicateBy: disaggregationOption,
       fetchConfig: genericLongFormFetchConfigSchema,
-      adminArea2: adminArea2Schema,
+      scopeId: scopeIdSchema,
     }),
     response: {} as RunReplicantOptions,
   }),
-  // The raw results-object preview, scoped like the other reads:
-  // getResultsObjectItemsFromRun applies the scope filter itself, so an AA2
-  // product's preview must carry its area or it shows national rows.
+  // The raw results-object preview, scoped like the other reads: a product's
+  // preview must carry its scope or it shows the whole package.
   getRunResultsObjectItems: route({
     path: "/run_generation/run/:run_id/results_object_items/:results_object_id",
     method: "POST",
     // results_object_id is a module-defined filename (e.g.
     // "M10_hfa_results.csv"), not a uuid.
     params: z.object({ run_id: z.string(), results_object_id: z.string() }),
-    body: z.object({ adminArea2: adminArea2Schema }),
+    body: z.object({ scopeId: scopeIdSchema }),
     response: {} as ItemsHolderResultsObject,
   }),
   // Everything an author needs FROM a package, a pure function of the run

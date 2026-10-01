@@ -189,8 +189,7 @@ cannot drift. A preview renders through the one shared helper,
 `createFigurePreview`, the tracked signal over it): it reads its rows through
 the scope-keyed `state/products/t2_figure_data.ts` (S9) and assembles them with
 `makeFigureBundleFromFetchedData(scope, ...)` + `buildFigureInputs`, so
-reopening a preset under the same `(runId,
-scopeToken)` is a cache hit and a
+reopening a preset under the same `(runId, definitionHash)` is a cache hit and a
 preset is never a row (D6). The package page's default-visualization cards (S8)
 render through the same helper, so a default seen there and later inserted under
 the same pair is one cache entry. Custom configs go through
@@ -209,12 +208,16 @@ does not call it.
 approved user: a compact `HeadingBar` whose tabs are the families the package
 has any module for, in `MODULE_FAMILY_ORDER`, with a package `Select` over
 `instanceState.readyPackages` (opening on the pin, else the newest ready
-package) and an area `Select` over `listAdminArea2s` whose first option is
-National. Every selection lives in `state/t4_explore.ts`, module level so it
-outlives the page's mount: the family (`exploreFamily`), the module per family
-(`exploreModules`) and the view per module (`exploreViews`) persist in
-localStorage; the package, the area and the per-family query (`exploreQueries`)
-last the session, so a deleted package can never be a stored default. Each is
+package) and the shared `ScopeSelect` over the T1 scopes list. Explore always
+reads through a named scope and has no whole-package option: with nothing
+chosen, or when the chosen scope has been deleted, it uses the first scope whose
+definition is unconstrained, else the first scope in the list, and with no scope
+at all it shows a line saying none exists in place of the explorer. Every
+selection lives in `state/t4_explore.ts`, module level so it outlives the page's
+mount: the family (`exploreFamily`), the module per family (`exploreModules`)
+and the view per module (`exploreViews`) persist in localStorage; the package,
+the scope (`exploreScopeId`) and the per-family query (`exploreQueries`) last
+the session, so a deleted package can never be a stored default. Each is
 resolved against the package on every read: a choice the package lacks falls
 back to the first offered (the package to the pin, else the newest ready one)
 without being overwritten. The authoring context is read through
@@ -390,28 +393,28 @@ query to `resolveGridQuery` and `deriveGridConfig`. `deriveTimeseriesConfig`
 derives the timeseries view's config from the same query ("Timeseries" above).
 `primaryMetricFor` is the family's primary module's first ready metric by id,
 the one metric the page offers a data table for. `defaultGridQuery` opens at the
-scope's level plus one (national: admin area 2; an admin area 2 scope: 3), every
-indicator, ICEH on its first stratifier, and every period ("All"); in Indicators
-mode HFA and ICEH resolve that to their latest time point or year.
-`resolveGridQuery` maps the query onto what the current package and scope can
-answer on every read and never rewrites the caller's state: an unoffered family
-becomes the first offered, a level becomes one the metric's
-`disaggregationOptions` carry and deeper than the scope (`levelOptionsFor`), a
-stratifier becomes an available one, indicators are intersected with the
-family's dictionary (the dropped ids are returned for the page's notice), and
-time values are intersected with the available ones. Time is never a column
-group: HFA survey rounds and ICEH years are never pooled, so HFA and ICEH in
-Indicators mode resolve to exactly one time point or year (the latest chosen,
-else the latest available), and `deriveGridConfig` returns undefined for such a
-query without one. `deriveGridConfig` takes the primary metric's first preset
-through `deriveConfigFromVizPreset` and replaces `d` whole with a table: the
-unit as `row` (admin levels carry `rollup: true`, position top; ICEH's `level`
-has no roll-up), then the indicator dimension as `col` in Indicators mode, or
-the time dimension as `col` and the indicator dimension as `colGroup` in Time
-mode; filters for the ICEH stratifier, chosen indicators and HFA or ICEH time
-values; HMIS windows as `periodFilter`. `periodChoicesFor` lists the period
-control's choices, offering HFA and ICEH "All" only in Time mode. Tested in
-`server/tests/explore_grid_query_test.ts`.
+scope's level plus one (a scope with no area: admin area 2; a single-area scope:
+3; the area is `resolveScope(scope).adminArea2`), every indicator, ICEH on its
+first stratifier, and every period ("All"); in Indicators mode HFA and ICEH
+resolve that to their latest time point or year. `resolveGridQuery` maps the
+query onto what the current package and scope can answer on every read and never
+rewrites the caller's state: an unoffered family becomes the first offered, a
+level becomes one the metric's `disaggregationOptions` carry and deeper than the
+scope (`levelOptionsFor`), a stratifier becomes an available one, indicators are
+intersected with the family's dictionary (the dropped ids are returned for the
+page's notice), and time values are intersected with the available ones. Time is
+never a column group: HFA survey rounds and ICEH years are never pooled, so HFA
+and ICEH in Indicators mode resolve to exactly one time point or year (the
+latest chosen, else the latest available), and `deriveGridConfig` returns
+undefined for such a query without one. `deriveGridConfig` takes the primary
+metric's first preset through `deriveConfigFromVizPreset` and replaces `d` whole
+with a table: the unit as `row` (admin levels carry `rollup: true`, position
+top; ICEH's `level` has no roll-up), then the indicator dimension as `col` in
+Indicators mode, or the time dimension as `col` and the indicator dimension as
+`colGroup` in Time mode; filters for the ICEH stratifier, chosen indicators and
+HFA or ICEH time values; HMIS windows as `periodFilter`. `periodChoicesFor`
+lists the period control's choices, offering HFA and ICEH "All" only in Time
+mode. Tested in `server/tests/explore_grid_query_test.ts`.
 
 ## Replicant machinery
 

@@ -45,7 +45,7 @@ import {
 
 // The package-data reads the run-keyed instance routes serve
 // (routes/instance/run_generation.ts, the caller supplying the (runId,
-// adminArea2) pair its product carries), written once over a RunReadContext.
+// scopeId) pair its product carries), written once over a RunReadContext.
 // Cache check before the queue (a
 // duplicate must not consume a slot), then the expensive query under the
 // shared concurrency limit. The queues are module-level on purpose: the limit

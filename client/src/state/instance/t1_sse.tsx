@@ -24,6 +24,7 @@ import {
   updateInstancePopulation,
   updateInstanceReadyPackages,
   updateInstanceRunsCatalog,
+  updateInstanceScopes,
   updateInstanceStructure,
   updateInstanceUsers,
   updatePinnedRunId,
@@ -201,6 +202,9 @@ export function connectInstanceSSE(): void {
           break;
         case "products_deleted":
           removeInstanceProducts(msg.data.ids);
+          break;
+        case "scopes_updated":
+          updateInstanceScopes(msg.data.scopes);
           break;
         case "folders_updated":
           updateInstanceFolders(msg.data.folders);

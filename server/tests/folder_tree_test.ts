@@ -43,7 +43,7 @@ function product(
     label,
     folderId,
     runId: "run",
-    adminArea2: null,
+    scopeId: "scope",
     createdBy: null,
     createdAt: null,
     lastUpdated,

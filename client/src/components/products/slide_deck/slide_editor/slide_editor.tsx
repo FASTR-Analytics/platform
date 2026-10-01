@@ -1,3 +1,4 @@
+import { resolveScope } from "~/state/instance/t1_store";
 import { trackStore } from "@solid-primitives/deep";
 import type {
   ContentBlock,
@@ -1144,7 +1145,7 @@ export function SlideEditor(p: Props) {
   });
   const staleFigures = () =>
     tempSlide.type === "content"
-      ? findStaleFiguresInLayout(tempSlide.layout, p.scope)
+      ? findStaleFiguresInLayout(tempSlide.layout, resolveScope(p.scope))
       : [];
   const [updatingFigures, setUpdatingFigures] = createSignal(false);
 

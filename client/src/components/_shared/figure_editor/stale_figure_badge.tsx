@@ -8,7 +8,7 @@ import {
 } from "lib";
 import { Button } from "panther";
 import { createSignal, Show } from "solid-js";
-import { packageLabel, scopeLabel } from "../mod.ts";
+import { figureScopeLabel, packageLabel } from "../mod.ts";
 import { getAdminAreaLabelForLevel } from "~/state/instance/_util_disaggregation_label";
 import {
   resolveFigureBundleInteractively,
@@ -98,7 +98,7 @@ function describePackageIssue(
 // What a bundle says it came from, for the badge and the header caption.
 function bundleOriginLabel(bundle: FigureBundle): string {
   return `${packageLabel(bundle.provenance.runId)} · ${
-    scopeLabel(bundle.scope.adminArea2)
+    figureScopeLabel(bundle.scope)
   }`;
 }
 
@@ -121,7 +121,7 @@ export function StaleFigureBadge(p: BadgeProps) {
     setBusy(true);
     setReason(undefined);
     const res = await updateFigureToScope(
-      { runId: p.scope.runId, adminArea2: p.scope.adminArea2 },
+      { runId: p.scope.runId, scopeId: p.scope.scopeId },
       p.authoringContext,
       p.bundle,
     );

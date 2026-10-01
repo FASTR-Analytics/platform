@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { _DATASET_LIMIT, type GenericLongFormFetchConfig } from "lib";
 import {
   getRunGenerationDefaultsConfig,
@@ -8,6 +8,7 @@ import {
   listReadyPackages,
   listRunCatalog,
 } from "../../db/instance/run_generation.ts";
+import { SCOPE_NOT_FOUND } from "../../db/instance/scopes.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
 import { requireApprovedUser } from "../../middleware/userPermission.ts";
@@ -49,6 +50,13 @@ import { defineRoute } from "../route-helpers.ts";
 // arrives over instance SSE (the catalogue).
 
 export const routesRunGeneration = new Hono();
+
+// A figure-data read that names an unknown scope is a 404, like a product
+// route naming an unknown product. Every other context failure keeps the
+// default status: the client transport reads the envelope on any status.
+function readContextFailure(c: Context, res: { success: false; err: string }) {
+  return c.json(res, res.err === SCOPE_NOT_FOUND ? 404 : 200);
+}
 
 defineRoute(
   routesRunGeneration,
@@ -243,9 +251,9 @@ defineRoute(
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
       params.run_id,
-      body.adminArea2,
+      body.scopeId,
     );
-    if (ctxRes.success === false) return c.json(ctxRes);
+    if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(
       await readRunItems(ctxRes.data, {
         resultsObjectId: body.resultsObjectId,
@@ -263,9 +271,9 @@ defineRoute(
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
       params.run_id,
-      body.adminArea2,
+      body.scopeId,
     );
-    if (ctxRes.success === false) return c.json(ctxRes);
+    if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(
       await readRunGridItems(ctxRes.data, {
         resultsObjectId: body.resultsObjectId,
@@ -283,9 +291,9 @@ defineRoute(
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
       params.run_id,
-      body.adminArea2,
+      body.scopeId,
     );
-    if (ctxRes.success === false) return c.json(ctxRes);
+    if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(await readRunResultsValueInfo(ctxRes.data, body.metricId));
   },
 );
@@ -300,9 +308,9 @@ defineRoute(
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
       params.run_id,
-      body.adminArea2,
+      body.scopeId,
     );
-    if (ctxRes.success === false) return c.json(ctxRes);
+    if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     const metricRes = resolveMetricFromRun(ctxRes.data, body.metricId);
     if (metricRes.success === false) return c.json(metricRes);
     return c.json(
@@ -316,7 +324,7 @@ defineRoute(
 );
 
 // The raw results-object preview, scoped like every other figure-data read:
-// getResultsObjectItemsFromRun applies computeScopeFilters itself.
+// it runs against the same scoped view.
 defineRoute(
   routesRunGeneration,
   "getRunResultsObjectItems",
@@ -326,9 +334,9 @@ defineRoute(
     const ctxRes = await getReadyRunReadContext(
       c.var.mainDb,
       params.run_id,
-      body.adminArea2,
+      body.scopeId,
     );
-    if (ctxRes.success === false) return c.json(ctxRes);
+    if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(
       await getResultsObjectItemsFromRun(
         ctxRes.data,

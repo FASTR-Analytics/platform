@@ -28,6 +28,7 @@ import {
   rawJsonNeedsForcedTransform,
 } from "./po_config.ts";
 import {
+  adminArea2OfStoredScope,
   type FigureBlockMut,
   getTransformLocalization,
   rawJsonNeedsFigureBlockTransform,
@@ -50,13 +51,14 @@ export async function migrateReports(
       figures: string;
       images: string;
       run_id: string;
-      admin_area_2: string | null;
+      scope_definition: string;
     }[]
   >`
     SELECT r.id, p.label, r.config, r.body, r.figures, r.images,
-           p.run_id, p.admin_area_2
+           p.run_id, sc.definition AS scope_definition
     FROM reports r
     JOIN products p ON p.id = r.id
+    JOIN scopes sc ON sc.id = p.scope_id
   `;
   const now = new Date().toISOString();
   let rowsTransformed = 0;
@@ -97,7 +99,7 @@ export async function migrateReports(
         transformFigureBlock(block as FigureBlockMut);
         transformFigureBlockToBundle(block as FigureBlockMut, localization, {
           runId: row.run_id,
-          adminArea2: row.admin_area_2,
+          adminArea2: adminArea2OfStoredScope(row.scope_definition),
         });
       }
     }

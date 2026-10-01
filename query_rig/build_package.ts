@@ -5,7 +5,8 @@ import {
   type RunManifestDataset,
   type RunMetric,
   type RunModule,
-  scopeToken,
+  UNCONSTRAINED_SCOPE_DEFINITION,
+  WHOLE_PACKAGE_DEFINITION_HASH,
 } from "lib";
 import { RUN_FACILITY_COLUMN_NAMES } from "../server/runs/capture_inputs/hmis.ts";
 import {
@@ -180,8 +181,8 @@ export async function buildFixturePackage(
     runId,
     runDir,
     manifest,
-    adminArea2: null,
-    scopeToken: scopeToken(null),
+    scope: UNCONSTRAINED_SCOPE_DEFINITION,
+    scopeToken: WHOLE_PACKAGE_DEFINITION_HASH,
   };
 }
 

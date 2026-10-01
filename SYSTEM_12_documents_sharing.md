@@ -7,7 +7,7 @@ globs:
   - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
   - client/src/components/_shared/presence_avatars.tsx
-  - client/src/components/_shared/scope_picker.tsx
+  - client/src/components/_shared/scope_select.tsx
   - client/src/components/products/*.ts
   - client/src/components/products/*.tsx
   - client/src/components/products/_shared/*.ts
@@ -41,9 +41,11 @@ globs:
   - lib/report_sections.ts
   - lib/slide_text_offsets.ts
   - server/db/instance/report_styles.ts
+  - server/db/instance/scopes.ts
   - server/db/products/**
   - server/report_pdf/**
   - server/routes/instance/emails.ts
+  - server/routes/instance/scopes.ts
   - server/routes/products/**
   - server/tests/scope_definition_hash_test.ts
   - server/tests/consolidated_products_test.ts
@@ -90,16 +92,21 @@ S1's `lib/api-routes/products/*`); on the client, the Products page and its
 surfaces (`client/src/components/products/**`: the explorer page, the pure
 `folder_tree.ts` derivations and their harness, the tree list view, the two menu
 builders, the folder and move modals, the type registry `product_types.ts`,
-`product_settings.tsx` for name and folder, `package_scope_chip.tsx` and
+`product_settings.tsx` for name and folder, `create_product_modal.tsx` for the
+package and scope a new product names, `package_scope_chip.tsx` and
 `package_scope_modal.tsx` for the pair, the duplicate modal,
-`_shared/package_label.ts`) and the two editors (`slide_deck/**`, `report/**`),
-which take `{ productId }` and read label, package and scope live from the T1
-products row. Lib: slide/report types, plus the product contracts
-(`lib/types/products.ts`: `ProductType`, `Folder`, `ProductBase`,
-`ProductSummary`; `lib/types/scope.ts`: `PackageScope`, `scopeToken`) that
-describe the products registry below. Custody wrinkle: the two logo editors are
-this system's under `products/slide_deck/**`, and the FASTR logo table they read
-is S10's `generate_slide_deck/fastr_logos.ts`.
+`_shared/package_label.ts`, `_shared/scope_select.tsx`) and the two editors
+(`slide_deck/**`, `report/**`), which take `{ productId }` and read label,
+package and scope live from the T1 products row. Lib: slide/report types, plus
+the product contracts (`lib/types/products.ts`: `ProductType`, `Folder`,
+`ProductBase`, `ProductSummary`; `lib/types/scope.ts`: `ScopeDefinition`,
+`scopeDefinitionHash`, `Scope`, `PackageScope`, `ResolvedPackageScope`) that
+describe the products registry below. The scope entity is this system's too:
+`server/db/instance/scopes.ts`, `server/routes/instance/scopes.ts` and
+`server/tests/scope_definition_hash_test.ts` ("Scopes" below; the registry is
+S1's `lib/api-routes/instance/scopes.ts`). Custody wrinkle: the two logo editors
+are this system's under `products/slide_deck/**`, and the FASTR logo table they
+read is S10's `generate_slide_deck/fastr_logos.ts`.
 
 Two harnesses cover the product plane, both against the dev database.
 `server/tests/products_routes_test.ts` drives the product, folder, slide-deck,
@@ -141,17 +148,17 @@ unauthenticated product surface: a deck reaches recipients as an emailed PDF
 instances by `200_products.sql`): `folders` (nested through a nullable
 `parent_id` self-reference), `products` (id, `type` in {`slide_deck`, `report`},
 label, `folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
-`admin_area_2`, `created_by`, `created_at`, `last_updated`), and one detail
-table per type keyed by the same id, `slide_decks` and `reports`, with `slides`,
-`slide_deck_versions` and `report_versions` hanging off them, all
-`ON DELETE
-CASCADE`. The two detail tables carry a fixed `type` column and a
-composite FK on `(id, type)` against `products`, so a detail row can exist only
-in the table its registry type names; whether the detail row exists at all is a
-writer rule (one transaction per product create), not a constraint. Row types
-are `DBFolder`, `DBProduct`, `DBSlideDeck`, `DBSlide`, `DBSlideDeckVersion`,
-`DBReport` and `DBReportVersion` in
-`server/db/instance/_main_database_types.ts`; the layer's barrel
+`created_by`, `created_at`, `last_updated`, `scope_id NOT NULL` referencing
+`scopes` without cascade), and one detail table per type keyed by the same id,
+`slide_decks` and `reports`, with `slides`, `slide_deck_versions` and
+`report_versions` hanging off them, all `ON DELETE
+CASCADE`. The two detail
+tables carry a fixed `type` column and a composite FK on `(id, type)` against
+`products`, so a detail row can exist only in the table its registry type names;
+whether the detail row exists at all is a writer rule (one transaction per
+product create), not a constraint. Row types are `DBFolder`, `DBProduct`,
+`DBSlideDeck`, `DBSlide`, `DBSlideDeckVersion`, `DBReport` and `DBReportVersion`
+in `server/db/instance/_main_database_types.ts`; the layer's barrel
 `server/db/products/mod.ts` is star-exported from `server/db/mod.ts`. The shared
 contracts are `lib/types/products.ts` and `lib/types/scope.ts`.
 
@@ -165,33 +172,34 @@ cross-type surface: one summary query for both types (`listProducts` /
 first answers the theme question, the first-open wizard in practice, makes the
 deck's cover in the same transaction, under a row lock, and only while the deck
 has no slides: see `updateSlideDeckConfig`, whose route announces the new slide
-as createSlide does), resolves `run_id` from
-`runs WHERE
-pinned AND status = 'ready'` inside the insert and returns the typed
-`NO_READY_PINNED_PACKAGE` when nothing qualifies; `updateProductLabel`,
-`moveProductsToFolder`, `setProductScope`; `deleteProducts` is one
+as createSlide does), takes `runId` and `scopeId` from the caller, checks inside
+the insert that the run is `ready` and that both rows exist, and returns the
+typed `PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies;
+`updateProductLabel`, `moveProductsToFolder`, `setProductScope` (takes a
+`scopeId`, and the scope's existence is checked in the UPDATE: an unknown scope
+is `SCOPE_NOT_FOUND`, a 404 through `_respond.ts`); `deleteProducts` is one
 `DELETE
 ... WHERE id = ANY` on the registry, with the batch's slide ids pre-read
 inside the transaction for the room closers; `duplicateProduct` clones `run_id`
-through `INSERT ... SELECT`, takes the scope from the body (the duplicate
-modal's "keep" sends each source's own) and copies the detail through a per-type
-`Record<ProductType, fn>`. `folders.ts`: `updateFolder` is also the move and
-refuses a cycle with a recursive CTE walking up from the new parent inside the
-same transaction (`FOLDER_CYCLE`, through the envelope); `deleteFolder`
-reparents child folders and products one level and returns `freedProductIds`.
-`slide_decks.ts`, `slides.ts`, `move_slides.ts`, `copy_slides.ts`
-(`copySlidesToSlideDeck`, the cross-deck reuse path: configs copied verbatim,
-scoped by the source product), `reports.ts` and `versions.ts` hold the per-type
-detail: every slide read and write is scoped by `product_id` AND `slide_id`, the
-label lives on `products` and the detail reads join it, and the version
-functions carry the `SlideDeck` stem on the `slide_deck_versions` table
-(`insertSlideDeckVersion`, `latestSlideDeckVersionHash`,
-`copySlideDeckFromVersion`). Every detail mutation opens its transaction with
-`touchProduct` (`_product_row.ts`, which also holds the two type not-found
-constants): one `UPDATE products ... WHERE id AND type` that stamps
-`last_updated` (and the label when the write carries one) and throws the
-writer's type not-found when it matches nothing, so a missing id or a report id
-sent to a deck route rolls back with no side effect and leaves as a 404.
+through `INSERT ... SELECT`, takes `scopeId` from the body (the duplicate
+modal's "keep" sends each source's own; an unknown scope is `SCOPE_NOT_FOUND`)
+and copies the detail through a per-type `Record<ProductType, fn>`.
+`folders.ts`: `updateFolder` is also the move and refuses a cycle with a
+recursive CTE walking up from the new parent inside the same transaction
+(`FOLDER_CYCLE`, through the envelope); `deleteFolder` reparents child folders
+and products one level and returns `freedProductIds`. `slide_decks.ts`,
+`slides.ts`, `move_slides.ts`, `copy_slides.ts` (`copySlidesToSlideDeck`, the
+cross-deck reuse path: configs copied verbatim, scoped by the source product),
+`reports.ts` and `versions.ts` hold the per-type detail: every slide read and
+write is scoped by `product_id` AND `slide_id`, the label lives on `products`
+and the detail reads join it, and the version functions carry the `SlideDeck`
+stem on the `slide_deck_versions` table (`insertSlideDeckVersion`,
+`latestSlideDeckVersionHash`, `copySlideDeckFromVersion`). Every detail mutation
+opens its transaction with `touchProduct` (`_product_row.ts`, which also holds
+the two type not-found constants): one `UPDATE products ... WHERE id AND type`
+that stamps `last_updated` (and the label when the write carries one) and throws
+the writer's type not-found when it matches nothing, so a missing id or a report
+id sent to a deck route rolls back with no side effect and leaves as a 404.
 `updateFolder` and `deleteFolder` throw `FOLDER_NOT_FOUND` the same way.
 `setProductRun`, the products half of the run delete guard and
 `listReadyPackages` live in `db/instance/run_generation.ts`. Ids mint at four
@@ -212,6 +220,72 @@ handlers in registration order. Every mutation re-reads the touched summaries
 through `notifyInstanceProductsUpserted` (S3), slide writes also stamp
 `notifyInstanceLastUpdated("slides", ...)`, and package or delete changes
 re-nonce the runs catalogue.
+
+### Scopes
+
+A scope is a row in `scopes` (`id` uuid from `crypto.randomUUID()`, `label`,
+`definition` as JSON, `created_by`, `created_at`, `last_updated`; created by
+`204_scopes.sql`, S2). The definition is a `ScopeDefinition`
+(`lib/types/scope.ts`, strict Zod): `geography` (`{ adminArea2 }` or null),
+`time` (`years` as `{ start, end }` or null, `hfaTimePoints` as a list or null),
+`modules` (a list or null) and `indicators` (`hmis`, `hfa`, `iceh`, each a list
+or null). Null means unconstrained at every level. What a definition filters,
+and that only geography filters today, is S8 "Scope" and S9 "The scoped view".
+
+`scopeDefinitionHash(definition)` is the SHA-256 of the definition's canonical
+form: only the constrained parts (a null is left out at every level, and so is
+an object that leaves empty), keys sorted, lists sorted and de-duplicated, the
+area upper-cased. The hash is derived on read and never stored. It is the
+`scopeToken` of every server cache key and payload, the scope half of every
+client cache key (S9), and the `definitionHash` a figure bundle records (S10).
+`WHOLE_PACKAGE_DEFINITION_HASH` is the hash of the unconstrained definition,
+which is what a read with no scope resolves to.
+`server/tests/scope_definition_hash_test.ts` pins the hash.
+
+`PackageScope` is `{ runId, scopeId: string | null }`. A product's pair always
+names a scope (`productScope(product)`); a null scope id means the whole package
+and is used only by surfaces with no product, the package page (S8) and `/mcp`
+(S13). `resolvePackageScope(scope, scopes)` returns a `ResolvedPackageScope`,
+the pair plus the `definitionHash` and `adminArea2` looked up in a scopes list.
+A scope id the list does not hold resolves to `missing:<id>`, a hash no payload
+carries.
+
+**DB layer** (`server/db/instance/scopes.ts`): `listScopes` (ordered by label),
+`getScope`, `createScope`, `updateScope` and `deleteScope`. Create and update
+trim the label, refuse an empty one, refuse a label another scope already has
+(compared case-insensitively, `SCOPE_LABEL_TAKEN`) and re-parse the definition
+with the strict schema. `deleteScope` refuses while a product carries the scope
+(`SCOPE_IN_USE`): the check and the delete are one statement, and the
+`products.scope_id` foreign key is the backstop. `rowToScope` derives
+`definitionHash` on every read.
+
+**Routes** (`server/routes/instance/scopes.ts` over
+`lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
+`updateScope` (`PUT /scopes/:scope_id`) and `deleteScope`
+(`DELETE /scopes/:scope_id`), each guarded
+`requireGlobalPermission({ requireAdmin: true })`. An unknown id on update or
+delete is a 404. There is no list route: every successful write re-reads the
+whole list and broadcasts it as `scopes_updated` (S3), and
+`InstanceState.scopes` (`Scope[]`: id, label, definition, definitionHash,
+lastUpdated) rides the `starting` payload for approved connections. No client
+surface calls the three routes.
+
+**On the client** the list is `instanceState.scopes` in T1
+(`updateInstanceScopes`). `resolveScope(scope)` and `figureScopeStamp(scope)` in
+`state/instance/t1_store.ts` resolve a pair against it, reactively, for cache
+keys, the stale check and the bundle stamp. `ScopeSelect`
+(`components/_shared/scope_select.tsx`) is the one control that picks a scope,
+by label; its `allowWholePackage` prop adds a "Whole package" option that
+reports a null id. It is used by the create dialog, `PackageScopeModal`, the
+duplicate modal, Explore (S11) and the package page (S8, the only caller that
+allows the whole package). `components/_shared/package_label.ts` names things:
+`scopeLabel(scopeId)` (the scope's label, "Whole package" for null, "Unlisted
+scope" for an id the list lacks), `wholePackageLabel()`, and
+`figureScopeLabel(stamp)` for a stored bundle, which records a hash and no id:
+the label of a scope whose definition still hashes the same, else "Whole
+package" for the unconstrained hash, else the bundle's area, else "An earlier
+scope definition". `packageScopeCaption` and `PackageScopeChip` show "package ·
+scope" from those.
 
 ## Slide decks
 
@@ -497,18 +571,21 @@ nested folder, and for a root folder the top level for its folders and General
 for its products.
 
 Create is one **New** button whose menu offers New deck, New report and New
-folder, with no modal for products. Everything is created at the root, where a
-product shows under General, and moved from its menu. The two product entries
-are separate `createButtonAction`s over `createProduct` (separate, because one
-shared action's request-id guard would discard all but the most recent click's
-callback). The server mints the label and resolves the pin, and the product
-entries disable before the click when no ready package is pinned. The editor
-opens on the SSE echo, on the page's own `awaitingProductId` wait for a product
-it just created, or through `pendingEditorOpen({ kind: "product" })`, the one
-opener the tours, the copilot and the `?product=<id>` deep link share
-(`_PRODUCT_QUERY_PARAM`; the parameter is consumed into that request and
-cleared, and an id still absent once the store is ready is dropped as a dead
-link).
+folder. Everything is created at the root, where a product shows under General,
+and moved from its menu. Each product entry opens `CreateProductModal`
+(`create_product_modal.tsx`), which asks for the two things the row needs at
+insert: a results package (a `Select` over `readyPackages`, starting on the pin
+when the pin is ready, else on the only ready package when there is exactly one)
+and a scope (`ScopeSelect`, starting chosen only when exactly one scope exists).
+Create calls `createProduct` with both; the server mints the label, and its
+typed `PACKAGE_OR_SCOPE_UNAVAILABLE` shows in the dialog when the package or
+scope went away while it was open. The product entries disable before the click
+when there is no ready package or no scope. The editor opens on the SSE echo, on
+the page's own `awaitingProductId` wait for a product it just created, or
+through `pendingEditorOpen({ kind: "product" })`, the one opener the tours, the
+copilot and the `?product=<id>` deep link share (`_PRODUCT_QUERY_PARAM`; the
+parameter is consumed into that request and cleared, and an id still absent once
+the store is ready is dropped as a dead link).
 
 The deck view's `SlideList` renders cards in the vendored SortableJS wrapper
 (multiDrag; optimistic local order; reorder diffs the moved run and calls

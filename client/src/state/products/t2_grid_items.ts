@@ -8,10 +8,10 @@ import {
   type JsonArrayItem,
   type PackageScope,
   type PeriodBounds,
-  scopeToken,
 } from "lib";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { poItemsQueue } from "~/state/_infra/request_queue";
+import { resolveScope } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 
 // The Explore Data table's rows under one PackageScope: the grid read
@@ -36,10 +36,10 @@ type GridItemsParams = {
 
 const _GRID_ITEMS_CACHE = createReactiveCache<GridItemsParams, GridItemsHolder>(
   {
-    name: "run_grid_items",
+    name: "run_grid_items_v2",
     uniquenessKeys: (params) => [
       params.scope.runId,
-      scopeToken(params.scope.adminArea2),
+      resolveScope(params.scope).definitionHash,
       params.resultsObjectId,
       hashFetchConfig(params.fetchConfig),
     ],
@@ -71,7 +71,7 @@ export async function getGridRowsFromCacheOrFetch(
       run_id: scope.runId,
       resultsObjectId,
       fetchConfig,
-      adminArea2: scope.adminArea2,
+      scopeId: scope.scopeId,
     })
   );
   _GRID_ITEMS_CACHE.setPromise(newPromise, params, version);

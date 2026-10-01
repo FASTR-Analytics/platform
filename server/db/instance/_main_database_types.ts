@@ -69,7 +69,16 @@ export type DBProduct = {
   label: string;
   folder_id: string | null;
   run_id: string;
-  admin_area_2: string | null;
+  scope_id: string;
+  created_by: string | null;
+  created_at: string | null;
+  last_updated: string;
+};
+
+export type DBScope = {
+  id: string;
+  label: string;
+  definition: string;
   created_by: string | null;
   created_at: string | null;
   last_updated: string;

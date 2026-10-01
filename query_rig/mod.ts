@@ -1,8 +1,9 @@
 import type { Sql } from "postgres";
 import {
   BLANK_SENTINEL,
-  scopeToken,
+  scopeDefinitionHash,
   setCalendar,
+  UNCONSTRAINED_SCOPE_DEFINITION,
   validateFetchConfig,
 } from "lib";
 import { getSingleValueDimsFromPossibleValues } from "lib";
@@ -49,20 +50,20 @@ async function prepare(fx: Fixture): Promise<Prepared> {
   return { fixture: fx, mainDb, ctx, labelMap };
 }
 
-// A read context is the (run, scope) pair the caller supplies (D7), built
-// here rather than through getReadyRunReadContext because that gate reads the
-// catalog row for `status = 'ready'` and the rig's packages exist only on
-// disk. Calendar is a run input: the read path takes it from the manifest,
+// A read context is a run and a resolved scope definition, built here rather
+// than through getReadyRunReadContext because that gate reads the catalog row
+// for `status = 'ready'` and the `scopes` row, and the rig's packages exist
+// only on disk and its scopes only in the case table. Calendar is a run input: the read path takes it from the manifest,
 // never from the env global, so a case that flips the calendar reads the same
 // package through a context whose manifest says so.
 function contextFor(c: Case, p: Prepared): RunReadContext {
   const calendar = c.calendar ?? "gregorian";
-  const adminArea2 = c.adminArea2 ?? null;
+  const scope = c.scope ?? UNCONSTRAINED_SCOPE_DEFINITION;
   return {
     ...p.ctx,
     manifest: { ...p.ctx.manifest, calendar },
-    adminArea2,
-    scopeToken: scopeToken(adminArea2),
+    scope,
+    scopeToken: scopeDefinitionHash(scope),
   };
 }
 

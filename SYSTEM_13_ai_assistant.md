@@ -83,22 +83,22 @@ the query pipeline the data tools call is **S9**.
    [build_tools.ts](client/src/components/products/copilot/build_tools.ts):
    module internals ×4 (`/mcp` is for seeing results, ruled), the editors and
    the draft preview. `/mcp` binds the instance's **pinned** results package
-   (national scope, run-keyed instance routes, gate = an approved user) and
-   exposes only the shared tools + `get_overview`: 6 read-only tools, no writes.
-   **Interpretation context rides the grounding and the shared reads, not extra
-   tools**: `buildPackageGroundingSections` lists every HMIS indicator of the
-   package with its format, direction, thresholds, target and, for a calculated
-   indicator, its flattened formula (the manifest's `hmisIndicators`, in
-   dictionary order; the indicator's type is deliberately absent, an
-   implementation detail no reader needs), and `get_metric_data` fetches value
-   info beside the items and states the metric's full period coverage plus, per
-   indicator in the Dimension Summary, the same facts (`describeIndicatorFacts`:
-   direction on its own line item whatever the rule's shape, thresholds in
-   display units mirroring the scorecard's inclusive cutoff rule, target);
-   `buildPackageGroundingSections` states the package's calendar and period
-   coverage (finest physical time column; `/mcp` only, since the SPA holds no
-   manifest). Nothing about modules, provenance, or unavailable metrics goes
-   into the AI context: it does not help read a metric (ruled). A separate
+   (the whole package, `scopeId: null`, on the run-keyed instance routes, gate =
+   an approved user) and exposes only the shared tools + `get_overview`: 6
+   read-only tools, no writes. **Interpretation context rides the grounding and
+   the shared reads, not extra tools**: `buildPackageGroundingSections` lists
+   every HMIS indicator of the package with its format, direction, thresholds,
+   target and, for a calculated indicator, its flattened formula (the manifest's
+   `hmisIndicators`, in dictionary order; the indicator's type is deliberately
+   absent, an implementation detail no reader needs), and `get_metric_data`
+   fetches value info beside the items and states the metric's full period
+   coverage plus, per indicator in the Dimension Summary, the same facts
+   (`describeIndicatorFacts`: direction on its own line item whatever the rule's
+   shape, thresholds in display units mirroring the scorecard's inclusive cutoff
+   rule, target); `buildPackageGroundingSections` states the package's calendar
+   and period coverage (finest physical time column; `/mcp` only, since the SPA
+   holds no manifest). Nothing about modules, provenance, or unavailable metrics
+   goes into the AI context: it does not help read a metric (ruled). A separate
    indicator-dictionary tool was considered and dropped as redundant. The `/mcp`
    surface is stateless above the wire: the pin is read from the DB on every
    call (a pin-move is visible on the next call; `get_overview` answers without

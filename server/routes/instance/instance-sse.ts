@@ -128,6 +128,7 @@ routesInstanceSSE.get(
             msg.type === "products_upserted" ||
             msg.type === "products_deleted" ||
             msg.type === "folders_updated" ||
+            msg.type === "scopes_updated" ||
             msg.type === "last_updated"
           ) {
             return isApproved ? msg : null;

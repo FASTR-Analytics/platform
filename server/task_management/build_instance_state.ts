@@ -11,6 +11,7 @@ import {
   listReadyPackages,
   listRunCatalog,
 } from "../db/instance/run_generation.ts";
+import { listScopes } from "../db/instance/scopes.ts";
 import { listFolders } from "../db/products/folders.ts";
 import { listProducts } from "../db/products/products.ts";
 import { listSlideLastUpdated } from "../db/products/slides.ts";
@@ -96,6 +97,7 @@ export async function buildInstanceStateWithoutProducts(
     products: [],
     folders: [],
     readyPackages: [],
+    scopes: [],
     lastUpdated: { products: {}, slides: {} },
     users: rosterForCaller,
     assets: res.data.assets,
@@ -139,7 +141,7 @@ export async function buildInstanceStateWithoutProducts(
 
 /**
  * The full instance-SSE `starting` payload: the grounding half plus the
- * product plane (products, folders, ready packages and the last_updated
+ * product plane (products, folders, ready packages, scopes and the last_updated
  * cache-version index; PLAN_PRODUCTS_RESTRUCTURE D8).
  *
  * The product plane is withheld from an UNAPPROVED connection by the same
@@ -157,11 +159,12 @@ export async function buildInstanceState(
     return res;
   }
 
-  const [productsRes, foldersRes, packagesRes, slideStampsRes] = await Promise
-    .all([
+  const [productsRes, foldersRes, packagesRes, scopesRes, slideStampsRes] =
+    await Promise.all([
       listProducts(mainDb),
       listFolders(mainDb),
       listReadyPackages(mainDb),
+      listScopes(mainDb),
       listSlideLastUpdated(mainDb),
     ]);
   for (
@@ -169,6 +172,7 @@ export async function buildInstanceState(
       ["products", productsRes],
       ["folders", foldersRes],
       ["readyPackages", packagesRes],
+      ["scopes", scopesRes],
       ["slide stamps", slideStampsRes],
     ] as const
   ) {
@@ -192,6 +196,7 @@ export async function buildInstanceState(
       products,
       folders: foldersRes.success ? foldersRes.data : [],
       readyPackages: packagesRes.success ? packagesRes.data : [],
+      scopes: scopesRes.success ? scopesRes.data : [],
       lastUpdated: {
         products: productStamps,
         slides: slideStampsRes.success ? slideStampsRes.data : {},

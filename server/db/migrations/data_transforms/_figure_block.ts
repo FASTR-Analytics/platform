@@ -23,11 +23,13 @@
 // =============================================================================
 
 import {
+  geographyOnlyScopeDefinition,
   getRollupPosition,
   INDICATOR_FORMAT_METRIC_IDS,
   isRollupActive,
   presentationObjectConfigSchema,
   ROLLUP_PIN_IDS,
+  scopeDefinitionHash,
   trafficLightThresholdsToRule,
 } from "lib";
 import {
@@ -62,12 +64,23 @@ export type FigureLocalizationForTransform = {
   countryIso3: string;
 };
 
-// The (package, scope) pair of the product that stores the figure block: what
-// a bundle records as the run and scope it was resolved under.
+// The package and the area of the product that stores the figure block: what
+// a backfilled bundle records as the run and scope it was resolved under.
 export type FigurePairForTransform = {
   runId: string;
   adminArea2: string | null;
 };
+
+// The area of a product's scope, read from the stored definition JSON without
+// the schema: the sweeps run before anything has validated the scopes table.
+export function adminArea2OfStoredScope(definitionJson: string): string | null {
+  const geography = (JSON.parse(definitionJson) as {
+    geography?: { adminArea2?: unknown } | null;
+  }).geography;
+  return typeof geography?.adminArea2 === "string"
+    ? geography.adminArea2
+    : null;
+}
 
 // Slide-layout walk: shared by the slide_config boot transform and the
 // consolidation planner (consolidation/plan.ts) so the two traverse slide
@@ -344,6 +357,32 @@ export function transformFigureBlock(block: FigureBlockMut): void {
     const { runId } = bundle.provenance as { runId?: unknown };
     bundle.provenance = { runId };
   }
+
+  // Block: the scope stamp gained the definition hash (PLAN_SCOPES step 2).
+  // A bundle stamped with only its area gets the hash of that area alone,
+  // which is the hash of the scope migration 204 gave its product, so a
+  // figure that was fresh stays fresh and a stale one stays stale. The strict
+  // schema rejects the old shape, which is what sends the row here.
+  if (
+    bundle &&
+    bundle.scope &&
+    typeof bundle.scope === "object" &&
+    !("definitionHash" in bundle.scope)
+  ) {
+    bundle.scope = scopeStampForArea(
+      (bundle.scope as { adminArea2?: unknown }).adminArea2,
+    );
+  }
+}
+
+function scopeStampForArea(
+  adminArea2: unknown,
+): { definitionHash: string; adminArea2: string | null } {
+  const area = typeof adminArea2 === "string" ? adminArea2 : null;
+  return {
+    definitionHash: scopeDefinitionHash(geographyOnlyScopeDefinition(area)),
+    adminArea2: area,
+  };
 }
 
 // ── P2 bundle conversion ──────────────────────────────────────────────────────
@@ -431,7 +470,7 @@ function buildBundleFromFigureInputs(
     metricId,
     snapshotAt,
     indicatorMetadata,
-    scope: { adminArea2: pair.adminArea2 },
+    scope: scopeStampForArea(pair.adminArea2),
     provenance: { runId: pair.runId },
   };
 

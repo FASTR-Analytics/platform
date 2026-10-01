@@ -59,6 +59,8 @@ const CONSOLIDATION_FILES = [
   "202_drop_project_layer.sql",
 ];
 
+const LAST_CONSOLIDATION_FILE = "202_drop_project_layer.sql";
+
 const CONTAINER = Deno.env.get("REPLAY_CONTAINER");
 if (CONTAINER === undefined) {
   console.error(
@@ -186,13 +188,15 @@ async function listSqlFiles(dir: string): Promise<string[]> {
 type ShellVariant = "no_aggregate_alter" | "no_log_alters";
 
 // The instance migrations without the consolidation, the state every live
-// instance was in before 000, 201 and 202 shipped.
+// instance was in before 000, 201 and 202 shipped. A migration that sorts
+// after 202 is left for the full run: it was written for the consolidated
+// schema (204 drops the products.admin_area_2 column 201 writes).
 async function preConsolidationMigrationDir(): Promise<string> {
   const dir = await Deno.makeTempDir({
     prefix: "wb-fastr-consolidation-replay-",
   });
   for (const name of await listSqlFiles(INSTANCE_DIR)) {
-    if (!CONSOLIDATION_FILES.includes(name)) {
+    if (!CONSOLIDATION_FILES.includes(name) && name < LAST_CONSOLIDATION_FILE) {
       await Deno.copyFile(join(INSTANCE_DIR, name), join(dir, name));
     }
   }
@@ -441,8 +445,13 @@ async function assertConsolidated(db: Sql): Promise<void> {
   const folders = await db<
     FolderRow[]
   >`SELECT id, label, color, parent_id, created_by FROM folders`;
+  // 204 runs after the consolidation and moves each product's area into its
+  // scope's definition, so the area 201 wrote is read back from there.
   const products = await db<ProductRow[]>`
-    SELECT id, type, label, folder_id, run_id, admin_area_2, created_by, created_at FROM products`;
+    SELECT p.id, p.type, p.label, p.folder_id, p.run_id,
+           s.definition::jsonb #>> '{geography,adminArea2}' AS admin_area_2,
+           p.created_by, p.created_at
+    FROM products p JOIN scopes s ON s.id = p.scope_id`;
 
   const roots = folders.filter((f) => f.parent_id === null);
   const children = folders.filter((f) => f.parent_id !== null);
@@ -491,11 +500,11 @@ async function assertConsolidated(db: Sql): Promise<void> {
   const two = products.filter((p) => p.run_id === RUN_PIN);
   check(
     one.length === 4 && one.every((p) => p.admin_area_2 === AA2),
-    "Project One's products carry its run_id and admin_area_2",
+    "Project One's products carry its run_id and a scope on its admin_area_2",
   );
   check(
     two.length === 4 && two.every((p) => p.admin_area_2 === null),
-    "Project Two (run_id NULL) is attached to the pin at national scope",
+    "Project Two (run_id NULL) is attached to the pin on an unconstrained scope",
   );
   const legacyIds = new Set(["d1", "d2", "r1", "r2"]);
   check(
@@ -650,7 +659,7 @@ async function assertConsolidated(db: Sql): Promise<void> {
       reportVersions.every((v) =>
         stamped(bundlesInFiguresMap(v.figures), v.report_id)
       ),
-    "every bundle is stamped with its owning product's run_id and admin_area_2",
+    "every bundle is stamped with its owning product's run_id and area",
   );
   check(
     slides.filter((s) => s.sort_order === 1).every((s) =>

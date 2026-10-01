@@ -1,8 +1,7 @@
 import { useSearchParams } from "@solidjs/router";
-import { type Folder, type ProductSummary, t3 } from "lib";
+import { type Folder, type ProductSummary, type ProductType, t3 } from "lib";
 import {
   Button,
-  createButtonAction,
   createDeleteAction,
   FrameTop,
   getFirstString,
@@ -41,6 +40,7 @@ import {
 import { ProductCopilotHost } from "~/components/products/copilot/mod.ts";
 import { DuplicateProductsModal } from "./_shared/mod.ts";
 import { PackageScopeModal } from "./_shared/mod.ts";
+import { CreateProductModal } from "./create_product_modal";
 import { EditFolderModal } from "./edit_folder_modal";
 import { buildFolderMenu } from "./folder_menu";
 import {
@@ -225,17 +225,17 @@ export function Products() {
     return productTreeRows(productTree(), (id) => open.has(id));
   });
 
-  // A new product's package is the pin, resolved server-side (D5), so with no
-  // ready pinned package there is nothing to create against. T1 already knows
+  // A new product names a ready package and a scope in its create dialog, so
+  // with none of either there is nothing to create against. T1 already knows
   // that, so the buttons say so BEFORE the click. The server's typed
-  // NO_READY_PINNED_PACKAGE still comes back through the action's alert: it
-  // is the authority, and it covers the race where the pin moves between
-  // render and click.
+  // PACKAGE_OR_SCOPE_UNAVAILABLE still comes back through the dialog: it is
+  // the authority, and it covers a package or scope removed while the dialog
+  // is open.
   const canEdit = () => instanceState.currentUserApproved;
   const canCreateProduct = () =>
     canEdit() &&
-    instanceState.pinnedRunId !== null &&
-    instanceState.readyPackages.some((x) => x.id === instanceState.pinnedRunId);
+    instanceState.readyPackages.length > 0 &&
+    instanceState.scopes.length > 0;
 
   async function openCreatedProduct(data: { productId: string }) {
     const product = instanceState.products.find((x) => x.id === data.productId);
@@ -248,18 +248,13 @@ export function Products() {
     }
   }
 
-  // ONE ACTION PER TYPE: createButtonAction owns a request-id guard that
-  // drops the callback of any but the most recent click, so a shared action
-  // would discard the first product's open when a second create starts while
-  // the first is in flight.
-  const createDeck = createButtonAction(
-    () => serverActions.createProduct({ type: "slide_deck", folderId: null }),
-    openCreatedProduct,
-  );
-  const createReport = createButtonAction(
-    () => serverActions.createProduct({ type: "report", folderId: null }),
-    openCreatedProduct,
-  );
+  async function createProduct(type: ProductType) {
+    const created = await openComponent({
+      element: CreateProductModal,
+      props: { type, title: PRODUCT_TYPE_REGISTRY[type].createLabel() },
+    });
+    if (created) await openCreatedProduct(created);
+  }
 
   async function openSettings(product: ProductSummary) {
     await openComponent({ element: ProductSettings, props: { product } });
@@ -433,13 +428,13 @@ export function Products() {
           label: PRODUCT_TYPE_REGISTRY.slide_deck.createLabel(),
           icon: PRODUCT_TYPE_REGISTRY.slide_deck.icon,
           disabled: !canCreateProduct(),
-          onClick: () => void createDeck.click(),
+          onClick: () => void createProduct("slide_deck"),
         },
         {
           label: PRODUCT_TYPE_REGISTRY.report.createLabel(),
           icon: PRODUCT_TYPE_REGISTRY.report.icon,
           disabled: !canCreateProduct(),
-          onClick: () => void createReport.click(),
+          onClick: () => void createProduct("report"),
         },
         { type: "divider" },
         {
@@ -458,10 +453,6 @@ export function Products() {
       ],
     });
   }
-
-  const isCreating = () =>
-    createDeck.state().status === "loading" ||
-    createReport.state().status === "loading";
 
   function emptyState(): JSX.Element {
     return (
@@ -544,18 +535,18 @@ export function Products() {
                 <Show when={!canCreateProduct()}>
                   <span class="text-base-content-muted text-xs">
                     {t3({
-                      en: "An admin must generate and pin a results package",
+                      en:
+                        "An admin must generate a results package and create a scope",
                       fr:
-                        "Un administrateur doit générer et épingler un paquet de résultats",
+                        "Un administrateur doit générer un paquet de résultats et créer une portée",
                       pt:
-                        "Um administrador tem de gerar e fixar um pacote de resultados",
+                        "Um administrador tem de gerar um pacote de resultados e criar um âmbito",
                     })}
                   </span>
                 </Show>
                 <Button
                   data-tour="products-new"
                   iconName="plus"
-                  loading={isCreating()}
                   onClick={openNewMenu}
                 >
                   {t3({ en: "New", fr: "Nouveau", pt: "Novo" })}

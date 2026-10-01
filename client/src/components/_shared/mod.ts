@@ -21,16 +21,13 @@ export {
 } from "./live_cursors.tsx";
 export type { PointerAwarenessState } from "./live_cursors.tsx";
 export {
+  figureScopeLabel,
   packageLabel,
   packageScopeCaption,
   scopeLabel,
+  wholePackageLabel,
 } from "./package_label.ts";
 export { PresenceAvatars } from "./presence_avatars.tsx";
-export {
-  ScopePicker,
-  scopeSelectionFromStored,
-  storedValueFromScopeSelection,
-} from "./scope_picker.tsx";
-export type { ScopeSelection } from "./scope_picker.tsx";
+export { ScopeSelect, scopeSelectLabel } from "./scope_select.tsx";
 export { cleanupUppy, createUppyInstance } from "./uppy_file_upload.ts";
 export type { UppyFileUploadConfig } from "./uppy_file_upload.ts";

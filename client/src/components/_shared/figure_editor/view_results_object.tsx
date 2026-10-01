@@ -14,9 +14,9 @@ import { _SERVER_HOST } from "~/server_actions";
 import { serverActions } from "~/server_actions";
 
 // The RAW results file behind a metric, read straight from the run directory
-// under the caller's PackageScope (D7). Scoped, not national: the read applies
-// the same area filter the figure queries do, so an AA2 product's raw preview
-// shows that product's rows.
+// under the caller's PackageScope. The read runs against the same scoped view
+// the figure queries do, so a product's raw preview shows that product's
+// rows.
 export function ViewResultsObject(
   p: EditorComponentProps<
     {
@@ -32,7 +32,7 @@ export function ViewResultsObject(
       return await serverActions.getRunResultsObjectItems({
         run_id: p.scope.runId,
         results_object_id: p.resultsObjectId,
-        adminArea2: p.scope.adminArea2,
+        scopeId: p.scope.scopeId,
       });
     },
     t3({

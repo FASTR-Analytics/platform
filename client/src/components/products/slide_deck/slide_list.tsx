@@ -501,7 +501,7 @@ export function SlideList(p: Props) {
       return;
     }
     void rescanStaleFigures(
-      { runId: scope.runId, adminArea2: scope.adminArea2 },
+      { runId: scope.runId, scopeId: scope.scopeId },
       slideIds,
     );
   });
@@ -514,7 +514,7 @@ export function SlideList(p: Props) {
     const result = await updateAllDeckFigures(
       p.productId,
       [...p.slideIds],
-      { runId: scope.runId, adminArea2: scope.adminArea2 },
+      { runId: scope.runId, scopeId: scope.scopeId },
       context,
     );
     await rescanStaleFigures(scope, [...p.slideIds]);

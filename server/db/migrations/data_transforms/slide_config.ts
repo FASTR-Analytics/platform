@@ -35,6 +35,7 @@ import { slideConfigSchema, TEXT_SIZE_KEYS, TEXT_SIZE_REL } from "lib";
 import type { TextSizeKey } from "lib";
 import type { Sql } from "postgres";
 import {
+  adminArea2OfStoredScope,
   type FigureLocalizationForTransform,
   type FigurePairForTransform,
   getTransformLocalization,
@@ -186,12 +187,14 @@ export async function migrateSlideConfigs(
       slide_deck_id: string;
       config: string;
       run_id: string;
-      admin_area_2: string | null;
+      scope_definition: string;
     }[]
   >`
-    SELECT s.id, s.slide_deck_id, s.config, p.run_id, p.admin_area_2
+    SELECT s.id, s.slide_deck_id, s.config, p.run_id,
+           sc.definition AS scope_definition
     FROM slides s
     JOIN products p ON p.id = s.slide_deck_id
+    JOIN scopes sc ON sc.id = p.scope_id
   `;
   const now = new Date().toISOString();
   let rowsTransformed = 0;
@@ -231,7 +234,7 @@ export async function migrateSlideConfigs(
     if (config.type === "content" && config.layout) {
       transformLayoutNode(config.layout as LayoutNode, localization, {
         runId: row.run_id,
-        adminArea2: row.admin_area_2,
+        adminArea2: adminArea2OfStoredScope(row.scope_definition),
       });
     }
 

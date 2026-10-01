@@ -136,20 +136,28 @@ FigureBundle = {
   geo?: GeoRef;                            // maps only: {kind:"level"} | {kind:"data"} (see Geo)
   localization: { language; calendar; countryIso3; fiscalYear }; // REQUIRED, frozen, see Localization
   metricId: string;                        // re-query pointer for the update action ONLY (never render)
-  scope?: { adminArea2: string | null };   // the scope the bundle was resolved under; null = national
+  scope: { definitionHash: string; adminArea2: string | null }; // the hash of the scope definition the bundle
+                                           // was resolved under, and that definition's area (null = no area)
   snapshotAt: string;
   provenance: { runId: string };            // the results package the bundle was resolved under
 };
 ```
 
-`scope` and `provenance.runId` are the (package, scope) pair the bundle was
-resolved under (PLAN_PRODUCTS_RESTRUCTURE D4). Every assembly site stamps them
-from its container's `PackageScope` (the product's live pair, read from the T1
-products row by the deck and report editors): the metric-keyed resolvers,
-`makeFigureBundleFromFetchedData` and the live editor's transient bundle. The
-pair lives on the bundle and never in `config`, so it stays out of the fetch
-hash (S9). Both are required, with national as an explicit `adminArea2: null`.
-The pin is `server/tests/figure_bundle_schema_test.ts`.
+`scope` and `provenance.runId` record what the bundle was resolved under
+(PLAN_PRODUCTS_RESTRUCTURE D4): the package, and the hash of the scope's
+definition at that moment (`scopeDefinitionHash`, `lib/types/scope.ts`). The
+bundle records the hash and not the scope's id. `adminArea2` is the definition's
+area, kept because the roll-up row label is rendered from the frozen bundle
+(below). Every assembly site stamps them from its container's `PackageScope`
+(the product's live `{ runId, scopeId }`, read from the T1 products row by the
+deck and report editors) through `figureScopeStamp`
+(`client/src/state/instance/t1_store.ts`), which looks the scope up in the T1
+scopes list: the metric-keyed resolvers, `makeFigureBundleFromFetchedData` and
+the live editor's transient bundle. A null scope id stamps
+`WHOLE_PACKAGE_DEFINITION_HASH`, the hash of the unconstrained definition. The
+stamp lives on the bundle and never in `config`, so it stays out of the fetch
+hash (S9). Both are required, and a definition with no area is an explicit
+`adminArea2: null`. The pin is `server/tests/figure_bundle_schema_test.ts`.
 
 **Why `resultsValue` is a projection, not the whole metric (proven, not
 asserted):** `buildFigureInputs` and every downstream builder
@@ -296,7 +304,7 @@ or rate axis its own formatter. It is the one deliberate per-surface text size
 in the app, against PROTOCOL_ALL_SIZING rule 3: a live figure's labels read
 beside a data grid at the grid's size.
 
-### Roll-up row label under an AA2 scope
+### Roll-up row label under a single-area scope
 
 `getRollupRowLabel` (in `get_data_config_from_po.ts`) has one display-side
 override: when the bundle's `scope.adminArea2` is set and the label context
@@ -311,11 +319,17 @@ itself in SYSTEM_08.
 
 ### The captured pair and staleness
 
-A figure is stale when the pair its bundle records differs from the pair its
-container serves from: `isFigureBundleStale(bundle, containerScope)` in
+A figure is stale when what its bundle records differs from what its container
+serves from: `isFigureBundleStale(bundle, containerScope)` in
 [figure_staleness.ts](client/src/generate_visualization/figure_staleness.ts)
-compares `provenance.runId` and `scope.adminArea2` against the container's
-`PackageScope`; a difference in either half makes it stale. It is pure
+compares `provenance.runId` against the container's package and
+`scope.definitionHash` against the current hash of the container's scope; a
+difference in either half makes it stale. The container side is a
+`ResolvedPackageScope`: callers pass the product's `PackageScope` through
+`resolveScope` (T1), so the check follows the scopes list. Editing a scope's
+definition therefore marks every figure resolved under it stale, in every
+product that carries the scope, and renaming a scope does not. Two scopes whose
+definitions hash the same are interchangeable to the check. It is pure
 (type-only imports, so `server/tests/figure_staleness_test.ts` loads it under
 Deno). `findStaleFiguresInLayout` and `findStaleFiguresInReport` walk a slide
 layout and a report's figure registry with it. Nothing rewrites a stored bundle
@@ -503,8 +517,7 @@ types a threshold in the wrong units. That is why the CF editor's `ValueInput`
 scales BOTH percent and `rate_per_10k` between stored and displayed units rather
 than trusting a raw number input, and why its top cutoff has no hardcoded
 ceiling of 1. (Also confirmed: `resultsValueInfo` does NOT refetch on a filter
-edit, since its cache keys on `(runId,
-scopeToken, metricId)` only, which is
+edit, since its cache keys on `(runId, definitionHash, metricId)` only, which is
 exactly why the resolver is config-based and reacts to the draft config with no
 fetch.)
 

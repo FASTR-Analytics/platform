@@ -10,6 +10,7 @@ import { indicatorsDhis2RouteRegistry } from "./instance/indicators_dhis2.ts";
 import { instanceRouteRegistry } from "./instance/instance.ts";
 import { populationRouteRegistry } from "./instance/population.ts";
 import { runGenerationRouteRegistry } from "./instance/run_generation.ts";
+import { scopeRouteRegistry } from "./instance/scopes.ts";
 import { structureRouteRegistry } from "./instance/structure.ts";
 import { userRouteRegistry } from "./instance/users.ts";
 import { emailRouteRegistry } from "./instance/emails.ts";
@@ -38,6 +39,7 @@ export const routeRegistryIndividualCount =
   Object.keys(instanceRouteRegistry).length +
   Object.keys(populationRouteRegistry).length +
   Object.keys(runGenerationRouteRegistry).length +
+  Object.keys(scopeRouteRegistry).length +
   Object.keys(structureRouteRegistry).length +
   Object.keys(userRouteRegistry).length +
   Object.keys(emailRouteRegistry).length +
@@ -64,6 +66,7 @@ export const routeRegistry = {
   ...instanceRouteRegistry,
   ...populationRouteRegistry,
   ...runGenerationRouteRegistry,
+  ...scopeRouteRegistry,
   ...structureRouteRegistry,
   ...userRouteRegistry,
   ...emailRouteRegistry,

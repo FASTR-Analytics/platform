@@ -93,7 +93,7 @@ function createReplicantOptions(p: ReplicateByOptionsProps) {
     }
     // Tracked reads, all before the first await: a product reattached mid-edit
     // moves the scope, which must re-query.
-    const scope = { runId: p.scope.runId, adminArea2: p.scope.adminArea2 };
+    const scope = { runId: p.scope.runId, scopeId: p.scope.scopeId };
     const metricId = p.metric.id;
     const replicateBy = p.replicateBy;
     const fetchConfig = resFetchConfig.data;

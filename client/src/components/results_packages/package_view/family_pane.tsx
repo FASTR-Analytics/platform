@@ -7,7 +7,6 @@ import {
 } from "lib";
 import { type ListEntry, SelectList } from "panther";
 import { createMemo, Show } from "solid-js";
-import type { ScopeSelection } from "~/components/_shared/mod.ts";
 import { ModulePane } from "./module_pane";
 import type { OpenEditor } from "./visualizations";
 
@@ -24,8 +23,7 @@ export function FamilyPane(p: {
   detail: RunDetail;
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  selection: ScopeSelection;
-  onChangeScope: (s: ScopeSelection) => void;
+  onChangeScope: (scopeId: string | null) => void;
   openEditor: OpenEditor;
 }) {
   const items = createMemo((): ListEntry<string>[] => {
@@ -75,7 +73,6 @@ export function FamilyPane(p: {
               )}
               ctx={p.ctx}
               scope={p.scope}
-              selection={p.selection}
               onChangeScope={p.onChangeScope}
               openEditor={p.openEditor}
             />

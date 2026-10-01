@@ -3,11 +3,14 @@ import type {
   ContentSlide,
   FigureBlock,
   FigureBundle,
-  PackageScope,
+  ResolvedPackageScope,
 } from "lib";
 
-// Staleness: a per-figure comparison of the pair a bundle was resolved under
-// against the pair its container serves from. Nothing rewrites stored bundles
+// Staleness: a per-figure comparison of what a bundle was resolved under (its
+// package and the hash of its scope's definition at that moment) against the
+// package its container serves from and the current hash of the container's
+// scope. Editing a scope's definition therefore marks every figure resolved
+// under it stale. Nothing rewrites stored bundles
 // behind the user's back, so a mixed-package document is a visible,
 // intentional state, and the badge is the whole mechanism: reattach and scope
 // change never block. Pure: no fetches, no stores, no components. The update
@@ -16,10 +19,10 @@ import type {
 
 export function isFigureBundleStale(
   bundle: FigureBundle,
-  containerScope: PackageScope,
+  containerScope: ResolvedPackageScope,
 ): boolean {
   return bundle.provenance.runId !== containerScope.runId ||
-    bundle.scope.adminArea2 !== containerScope.adminArea2;
+    bundle.scope.definitionHash !== containerScope.definitionHash;
 }
 
 // The stale figures of a slide layout, in layout order. `blockId` is the
@@ -33,7 +36,7 @@ type SlideLayout = ContentSlide["layout"];
 
 export function findStaleFiguresInLayout(
   layout: SlideLayout,
-  containerScope: PackageScope,
+  containerScope: ResolvedPackageScope,
 ): StaleSlideFigure[] {
   const out: StaleSlideFigure[] = [];
   walkLayout(layout, (blockId, block) => {
@@ -67,7 +70,7 @@ export type StaleReportFigure = {
 
 export function findStaleFiguresInReport(
   figures: Record<string, FigureBlock>,
-  containerScope: PackageScope,
+  containerScope: ResolvedPackageScope,
 ): StaleReportFigure[] {
   const out: StaleReportFigure[] = [];
   for (const [figureId, entry] of Object.entries(figures)) {

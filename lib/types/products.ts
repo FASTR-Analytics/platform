@@ -28,7 +28,7 @@ export type ProductBase = {
   // A product is always attached to exactly one package and never follows
   // the pin; the pin is only the default for a new product.
   runId: string;
-  adminArea2: string | null;
+  scopeId: string;
   // null = pre-restructure row (no invented provenance at consolidation).
   createdBy: string | null;
   createdAt: string | null;
@@ -50,5 +50,5 @@ export type ProductSummary =
   });
 
 export function productScope(product: ProductBase): PackageScope {
-  return { runId: product.runId, adminArea2: product.adminArea2 };
+  return { runId: product.runId, scopeId: product.scopeId };
 }

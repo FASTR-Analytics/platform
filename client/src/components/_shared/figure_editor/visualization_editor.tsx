@@ -89,7 +89,7 @@ export function VisualizationEditor(
   const resultsValueInfo = createQuery(
     () =>
       getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-        { runId: p.scope.runId, adminArea2: p.scope.adminArea2 },
+        { runId: p.scope.runId, scopeId: p.scope.scopeId },
         p.metric.id,
       ),
     t3(TC.loading),

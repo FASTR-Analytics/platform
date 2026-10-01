@@ -107,14 +107,14 @@ pending a separate ruling if ever wanted: `dhis2ConnectionUrl`, the
 structure/indicator/dataset summaries, and assets; likewise approved non-admin
 users still receive the full roster. The product plane rides the same roster
 rule (PLAN_PRODUCTS_RESTRUCTURE D8): `buildInstanceState` leaves `products`,
-`folders`, `readyPackages` and the `lastUpdated` index empty for an unapproved
-connection, and the forward loop drops `products_upserted`, `products_deleted`,
-`folders_updated` and `last_updated` while the connection's user is absent from
-the roster. The `readyPackages` labels are approved-user data by design: a
-deliberate narrowing of Q-B to generation telemetry (`RunListingItem`'s
-progress, summary and provenance), because every product card shows the label of
-the package it serves from. No other message on the channel is filtered per
-user.
+`folders`, `readyPackages`, `scopes` and the `lastUpdated` index empty for an
+unapproved connection, and the forward loop drops `products_upserted`,
+`products_deleted`, `folders_updated`, `scopes_updated` and `last_updated` while
+the connection's user is absent from the roster. The `readyPackages` labels are
+approved-user data by design: a deliberate narrowing of Q-B to generation
+telemetry (`RunListingItem`'s progress, summary and provenance), because every
+product card shows the label of the package it serves from. No other message on
+the channel is filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process, which is how a background worker's progress
@@ -183,19 +183,22 @@ field every surface derives its Pinned badge from. Its callers,
 `server/runs/pin_run.ts`'s `pinRun` and `unpinRun`, each fire it once and then
 fire the catalogue nonce, because the catalogue rows carry the pinned flag),
 `notifyInstanceRunProgress` (`run_progress`), `notifyInstanceRScript`
-(`r_script`), and the product plane's four:
+(`r_script`), and the product plane's five:
 `notifyInstanceProductsUpserted(mainDb, ids)` (`products_upserted`, the ONLY
 product-list message: it re-reads the summaries for the ids a mutation touched
 and broadcasts them per row, never the whole list, so a checkpoint on one deck
 never re-sends every card; a failed re-read is logged and swallowed because the
 write has already committed), `notifyInstanceProductsDeleted`
 (`products_deleted`), `notifyInstanceFoldersUpdated` (`folders_updated`, whole
-list) and `notifyInstanceLastUpdated(tableName, ids, ts)` (`last_updated`,
-carrying `slides` only: a product's own stamp rides its summary, so emitting it
-here too would version the same read twice). Generation telemetry
-(`run_progress`, `r_script`) has no other channel: a product points only at a
-ready run, so nothing else has a live view of a generation. The generate_run
-emitters call `notifyInstanceRunProgress` / `notifyInstanceRScript` directly.
+list), `notifyInstanceScopesUpdated` (`scopes_updated`, whole list, fired by
+every scope write in `server/routes/instance/scopes.ts`; there is no scope list
+route, so `starting` and this message are how a client holds scopes) and
+`notifyInstanceLastUpdated(tableName, ids, ts)` (`last_updated`, carrying
+`slides` only: a product's own stamp rides its summary, so emitting it here too
+would version the same read twice). Generation telemetry (`run_progress`,
+`r_script`) has no other channel: a product points only at a ready run, so
+nothing else has a live view of a generation. The generate_run emitters call
+`notifyInstanceRunProgress` / `notifyInstanceRScript` directly.
 
 **The `last_updated` entry point.**
 `notifyInstanceLastUpdated(tableName, ids,
@@ -298,11 +301,13 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
 **Two version layers on the run-keyed caches.** Each layer has a distinct job
 (PLAN_RESULTS_RUNS §2.5 keyed the data dimension onto the run):
 
-1. **Identity**: the immutable `runId` (which run the data came from) and the
-   `scopeToken` lead the UNIQUENESS hash. Data never changes under a run, so no
-   write ever needs to out-version an entry.
+1. **Identity**: the immutable `runId` (which run the data came from) leads the
+   UNIQUENESS hash and the `scopeToken` trails it. The token is the hash of the
+   scope's definition (`scopeDefinitionHash`, `lib/types/scope.ts`), not the
+   scope's id or label. Data never changes under a run, and an edited definition
+   hashes to new keys, so no write ever needs to out-version an entry.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"23"`, bump history in the adjacent comment) is a manually-bumped semantic
+   `"26"`, bump history in the adjacent comment) is a manually-bumped semantic
    version used as the `versionHash` of all three; bump it when the _generated
    SQL, payload semantics or payload shape_ change so old entries miss without a
    prefix migration.
@@ -310,7 +315,7 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
 **The cache catalog**: five `_UPPER_SNAKE` module-level singletons (four in
 `server/routes/caches/visualizations.ts`, one in
 `server/routes/caches/dataset.ts`). The four data caches are run-scoped: two
-products on the same run and scope share entries.
+reads on the same run under definitions that hash the same share entries.
 
 | Singleton                        | prefix           | uniquenessHash                                              | versionHash                            |
 | -------------------------------- | ---------------- | ----------------------------------------------------------- | -------------------------------------- |
@@ -369,11 +374,13 @@ Two version idioms exist. Product documents version on the SSE-pushed
 (`state/products/t2_figure_data.ts`, `t2_replicant_options.ts`,
 `state/instance/t2_runs.ts`, `t2_run_authoring_context.ts`) versions on the
 constant `"immutable"` with the identity leading the UNIQUENESS key (`runId` in
-all four; the two `state/products/` caches add `scopeToken` beside it): a ready
-package never changes, so nothing invalidates an entry and a late response
-cannot land under another package's key. There is no response-side identity
-guard; the key already names the package and the scope. Old IndexedDB entries
-become unreachable via the version flip and age out: no purge.
+all four; the `state/products/` caches add the scope's definition hash beside
+it, read from T1 with `resolveScope`): a ready package never changes, and an
+edited scope definition hashes to a new key, so nothing invalidates an entry and
+a late response cannot land under another package's key. There is no
+response-side identity guard; the key already names the package and the scope.
+Old IndexedDB entries become unreachable via the version flip and age out: no
+purge.
 
 Around it:
 

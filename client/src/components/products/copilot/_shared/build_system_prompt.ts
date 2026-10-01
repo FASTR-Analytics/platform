@@ -42,7 +42,10 @@ export function buildSystemPromptForContext(
     "The open product is attached to exactly one results package at one scope; every figure inside it, and every metric read you make, resolves under that pair.",
     "",
     packageLine,
-    `**Scope:** ${scope.adminArea2 === null ? "national" : scope.adminArea2}`,
+    `**Scope:** ${
+      instance.scopes.find((s) => s.id === scope.scopeId)?.label ??
+        "whole package"
+    }`,
     ...buildPackageGroundingSections({
       calendar: instance.instanceCalendar,
       datasets: authoringContext.datasets,

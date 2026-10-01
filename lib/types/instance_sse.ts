@@ -18,6 +18,7 @@ import type {
   InstancePopulationSummary,
   PopulationCoverage,
 } from "./population.ts";
+import type { Scope } from "./scope.ts";
 import type { AdminAreaLevel } from "./structure.ts";
 import type {
   ReadyPackage,
@@ -65,6 +66,10 @@ export type InstanceState = {
   products: ProductSummary[];
   folders: Folder[];
   readyPackages: ReadyPackage[];
+  // Every scope, whole on `scopes_updated`. A product names its scope by id,
+  // and the client resolves the label, the area and the definition hash (the
+  // cache-key token and the stale check) from here.
+  scopes: Scope[];
   lastUpdated: Record<LastUpdateTableName, Record<string, string>>;
   // [] for an unapproved connection (its user absent from the roster), in
   // the starting payload and every users_updated, until a roster names them
@@ -226,6 +231,7 @@ export type InstanceSseMessage =
   | { type: "products_upserted"; data: { products: ProductSummary[] } }
   | { type: "products_deleted"; data: { ids: string[] } }
   | { type: "folders_updated"; data: { folders: Folder[] } }
+  | { type: "scopes_updated"; data: { scopes: Scope[] } }
   | {
     type: "last_updated";
     data: {

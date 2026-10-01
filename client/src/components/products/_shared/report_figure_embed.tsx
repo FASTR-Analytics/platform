@@ -1,3 +1,4 @@
+import { resolveScope } from "~/state/instance/t1_store";
 import {
   createEffect,
   createMemo,
@@ -101,7 +102,10 @@ export function ReportFigureEmbed(p: Props): JSX.Element {
   const staleBadge = () => {
     const bundle = p.figure.bundle;
     const stale = p.stale;
-    if (!bundle || !stale || !isFigureBundleStale(bundle, stale.scope)) {
+    if (
+      !bundle || !stale ||
+      !isFigureBundleStale(bundle, resolveScope(stale.scope))
+    ) {
       return undefined;
     }
     return { bundle, stale };

@@ -127,21 +127,38 @@ CREATE TABLE folders (
 
 CREATE INDEX idx_folders_parent_id ON folders(parent_id);
 
+-- A scope is a named definition of what a product may read from its package:
+-- geography, time and data (ScopeDefinition, lib/types/scope.ts). `definition`
+-- is that JSON; its hash is derived on read and never stored. Scopes are
+-- independent of packages. A scope cannot be deleted while a product carries
+-- it (products.scope_id, no cascade).
+CREATE TABLE scopes (
+  id text PRIMARY KEY NOT NULL,        -- uuid
+  label text NOT NULL,
+  definition text NOT NULL,
+  created_by text,                     -- email
+  created_at text,
+  last_updated text NOT NULL
+);
+
+-- scope_id is the last column because migration 204 adds it to a live table,
+-- and a migrated instance and a fresh one must dump the same schema.
 CREATE TABLE products (
   id text PRIMARY KEY NOT NULL,        -- 4-char nanoid (legacy 3-char kept)
   type text NOT NULL CHECK (type IN ('slide_deck', 'report')),
   label text NOT NULL,
   folder_id text REFERENCES folders(id) ON DELETE SET NULL,
   run_id text NOT NULL REFERENCES runs(id),  -- no cascade: the delete-run guard
-  admin_area_2 text,                   -- NULL = national
   created_by text,                     -- email
   created_at text,
   last_updated text NOT NULL,
+  scope_id text NOT NULL REFERENCES scopes(id),  -- no cascade: the delete-scope guard
   UNIQUE (id, type)                    -- target of the detail tables' composite FK
 );
 
 CREATE INDEX idx_products_folder_id ON products(folder_id);
 CREATE INDEX idx_products_run_id ON products(run_id);
+CREATE INDEX idx_products_scope_id ON products(scope_id);
 CREATE INDEX idx_products_type ON products(type);
 CREATE INDEX idx_products_last_updated ON products(last_updated);
 

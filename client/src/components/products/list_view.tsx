@@ -1,13 +1,16 @@
 import {
   type Folder,
   type ListSort,
+  productScope,
   type ProductSummary,
   type SortMode,
   t3,
+  WHOLE_PACKAGE_DEFINITION_HASH,
 } from "lib";
 import { Button, Icon, type IconName } from "panther";
 import { Index, type JSX, Match, Show, Switch } from "solid-js";
 import { packageLabel, scopeLabel } from "~/components/_shared/mod.ts";
+import { resolveScope } from "~/state/instance/t1_store";
 import { GENERAL_ID, generalLabel } from "./_shared/mod.ts";
 import type { ProductTreeRow } from "./_shared/mod.ts";
 import { PRODUCT_TYPE_REGISTRY } from "./product_types";
@@ -244,10 +247,12 @@ export function ListView(p: Props) {
         <div
           class="ui-pad-sm"
           classList={{
-            "text-base-content-muted": product().adminArea2 === null,
+            "text-base-content-muted":
+              resolveScope(productScope(product())).definitionHash ===
+                WHOLE_PACKAGE_DEFINITION_HASH,
           }}
         >
-          {scopeLabel(product().adminArea2)}
+          {scopeLabel(product().scopeId)}
         </div>
         <div class="ui-pad-sm text-base-content-muted">
           {dateLabel(product().lastUpdated)}

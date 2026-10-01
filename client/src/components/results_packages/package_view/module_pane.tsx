@@ -7,7 +7,7 @@ import {
 } from "lib";
 import { Button, formatFileSize } from "panther";
 import { createMemo, For, Show } from "solid-js";
-import { ScopePicker, type ScopeSelection } from "~/components/_shared/mod.ts";
+import { ScopeSelect, scopeSelectLabel } from "~/components/_shared/mod.ts";
 import {
   canViewPackageContents,
   canViewPackageLogs,
@@ -17,7 +17,7 @@ import { ViewLogs } from "./view_logs";
 import { ViewScript } from "./view_script";
 import { ModuleVisualizations, type OpenEditor } from "./visualizations";
 
-// One module of a READY package, whole: the page scope picker, the module's
+// One module of a READY package, whole: the page scope select, the module's
 // default visualizations under that scope, then its settings, Script and
 // Logs viewers and output files from the T2 detail. The module is named from
 // the package's own manifest, so one that has left the registry still reads
@@ -28,8 +28,7 @@ export function ModulePane(p: {
   detailModule: RunDetail["modules"][number] | undefined;
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  selection: ScopeSelection;
-  onChangeScope: (s: ScopeSelection) => void;
+  onChangeScope: (scopeId: string | null) => void;
   openEditor: OpenEditor;
 }) {
   const presets = createMemo(() => {
@@ -53,7 +52,12 @@ export function ModulePane(p: {
   return (
     <div class="ui-spy">
       <div class="ui-text-heading">{p.module.label}</div>
-      <ScopePicker selection={p.selection} onChange={p.onChangeScope} />
+      <ScopeSelect
+        label={scopeSelectLabel()}
+        scopeId={p.scope.scopeId}
+        onChange={p.onChangeScope}
+        allowWholePackage
+      />
       <ModuleVisualizations
         presets={presets()}
         ctx={p.ctx}

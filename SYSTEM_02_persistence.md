@@ -71,6 +71,19 @@ for existing instances, in `200_products.sql` in `IF NOT EXISTS` form.
 `server/db/products/**` reads and writes it
 ([SYSTEM_12](SYSTEM_12_documents_sharing.md)).
 
+The `scopes` table (`id` uuid, `label`, `definition` as `ScopeDefinition` JSON,
+`created_by`, `created_at`, `last_updated`) sits beside it, and
+`products.scope_id` (`NOT NULL`, references `scopes(id)` with no cascade) is the
+last column of `products`. `204_scopes.sql` creates the table and seeds one
+unconstrained scope labelled "All data" whenever the table is empty, a fresh
+instance included, so a product can always be created. On an instance that still
+has `products.admin_area_2` it also seeds one scope per distinct area, labelled
+with the area name, backfills `scope_id` (a product with no area takes the
+unconstrained scope), sets `NOT NULL` and the foreign key, and drops
+`admin_area_2`. That block is guarded on the column it drops, so a second run
+and a fresh database skip it. `server/db/instance/scopes.ts` reads and writes
+the table (S12 "Scopes").
+
 The connection id (`"postgres"` or `"main"`) is the connection-cache key and the
 database name passed to `getPgConnectionFromCacheOrNew`. Request handlers
 receive the `main` pool as `c.var.mainDb`, set by the permission middleware.
@@ -313,7 +326,9 @@ server has verified-current schema and stored-JSON shapes. The sequence:
    skipped. The three product transforms bump the owning `products.last_updated`
    on every row they rewrite (`slide_config` also bumps `slides.last_updated`),
    and their figure-block conversions stamp each bundle with the owning
-   product's `(run_id, admin_area_2)` pair.
+   product's `run_id` and the area of its scope (`slide_config` and `reports`
+   join `scopes` on `products.scope_id` and read the area from the stored
+   definition with `adminArea2OfStoredScope`).
 5. **Runs.** The tmp-dir sweep, the DuckDB spill reset, the interrupted
    generation flip and the run-manifest transform run last; they are S8's
    ([SYSTEM_08](SYSTEM_08_results_packages.md)).
@@ -426,9 +441,19 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
   (`_INSTANCE_LANGUAGE`/`_INSTANCE_CALENDAR`/`_INSTANCE_COUNTRY_ISO3`), threaded
   through both figure sweeps, so backfilled figures carry the real country
   (drives admin-area relabelling at render).
-- **The (package, scope) pair.** `scope` is `{ adminArea2 }` and `provenance` is
-  `{ runId }`, both taken from the owning product row
-  (`FigurePairForTransform`). Both are required by `figureBundleSchema`.
+- **The (package, scope) stamp.** `scope` is `{ definitionHash, adminArea2 }`
+  and `provenance` is `{ runId }`. A backfilled bundle takes the run id from the
+  owning product row and the area from that product's scope definition
+  (`FigurePairForTransform`), and its `definitionHash` is the hash of that area
+  alone (`scopeDefinitionHash(geographyOnlyScopeDefinition(area))`). Both are
+  required by `figureBundleSchema`.
+- **A bundle stamped with only its area.** The last block of
+  `transformFigureBlock` rewrites a stored `scope: { adminArea2 }` to
+  `{ definitionHash, adminArea2 }`, with the hash of that area alone. That is
+  the hash of the scope `204_scopes.sql` gives a product with the same area, so
+  a figure whose area matched its product is still fresh after the transform,
+  and one whose area differed is still stale. The strict `figureBundleSchema`
+  rejects the old shape, which is what routes the row through the transform.
 - **Invalid config fails fast.** A missing/invalid `source.config` **throws**
   rather than producing a silent blank (which would masquerade as "empty" past
   `figureBlockSchema`), so the failing boot names it.

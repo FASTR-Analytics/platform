@@ -224,28 +224,46 @@ export const WHOLE_PACKAGE_DEFINITION_HASH = scopeDefinitionHash(
 );
 
 // PackageScope is the (package, scope) pair every figure read resolves
-// under: the results package a product is attached to (`products.run_id`)
-// and its admin-area-2 identity (`products.admin_area_2`; null = national).
-// The pair keys server cache entries and client cache versions only. It
+// under: the results package a product is attached to (`products.run_id`) and
+// its scope (`products.scope_id`). A null scope is the whole package, which
+// only a surface with no product uses (the package page, /mcp). The pair
 // never enters a figure's stored config or its fetch hash: a data-layer knob
 // there causes spurious refetches and gets frozen into stored snapshots.
 
 export type PackageScope = {
   runId: string;
+  scopeId: string | null;
+};
+
+export function packageScopesEqual(a: PackageScope, b: PackageScope): boolean {
+  return a.runId === b.runId && a.scopeId === b.scopeId;
+}
+
+// A pair with its scope looked up in the scopes list: the definition hash is
+// the token in cache keys and figure stamps and the other half of the stale
+// check, and the area drives the roll-up row label and the Explore level. A
+// scope id that the list does not hold resolves to a hash no payload carries,
+// so nothing is read or written under another scope's key.
+export type ResolvedPackageScope = PackageScope & {
+  definitionHash: string;
   adminArea2: string | null;
 };
 
-// The one scope token for server cache keys, response-holder stamps and the
-// client version key. encodeURIComponent keeps it readable in Valkey keys and
-// escapes `|` (the cache-segment separator); the tilde replace closes the one
-// unreserved character that would collide with the client version-key
-// separator.
-export function scopeToken(adminArea2: string | null): string {
-  return adminArea2 === null
-    ? "national"
-    : encodeURIComponent(adminArea2.toUpperCase()).replaceAll("~", "%7E");
-}
-
-export function packageScopesEqual(a: PackageScope, b: PackageScope): boolean {
-  return a.runId === b.runId && a.adminArea2 === b.adminArea2;
+export function resolvePackageScope(
+  scope: PackageScope,
+  scopes: Scope[],
+): ResolvedPackageScope {
+  if (scope.scopeId === null) {
+    return {
+      ...scope,
+      definitionHash: WHOLE_PACKAGE_DEFINITION_HASH,
+      adminArea2: null,
+    };
+  }
+  const found = scopes.find((s) => s.id === scope.scopeId);
+  return {
+    ...scope,
+    definitionHash: found?.definitionHash ?? `missing:${scope.scopeId}`,
+    adminArea2: found?.definition.geography?.adminArea2 ?? null,
+  };
 }

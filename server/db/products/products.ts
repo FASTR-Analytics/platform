@@ -9,6 +9,7 @@ import {
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import { type DBProduct } from "../instance/_main_database_types.ts";
+import { SCOPE_NOT_FOUND } from "../instance/scopes.ts";
 import { generateUniqueProductId } from "../../utils/id_generation.ts";
 import {
   duplicateSlideDeckDetail,
@@ -23,11 +24,11 @@ import { carryReportCrdtStamps } from "./_product_row.ts";
  *  in lockstep with that set. */
 export const PRODUCT_NOT_FOUND = "Product not found";
 
-// The pin is only the DEFAULT for a new product (D5), so an instance with no
-// ready pinned package cannot create one: a typed failure the client renders
-// as "an admin must generate a results package", never a throw.
-export const NO_READY_PINNED_PACKAGE =
-  "There is no pinned results package — an admin must generate and pin one before creating decks or reports";
+// A product is created on a package and a scope the caller names. A package
+// that is not ready, or either row gone since the dialog opened, is a typed
+// failure, never a throw.
+export const PACKAGE_OR_SCOPE_UNAVAILABLE =
+  "The results package is not ready, or the package or scope no longer exists";
 
 const NEW_PRODUCT_LABELS: Record<ProductType, TranslatableString> = {
   slide_deck: {
@@ -63,7 +64,7 @@ function rowToProductBase(row: DBProduct): ProductBase {
     label: row.label,
     folderId: row.folder_id,
     runId: row.run_id,
-    adminArea2: row.admin_area_2,
+    scopeId: row.scope_id,
     createdBy: row.created_by,
     createdAt: row.created_at,
     lastUpdated: row.last_updated,
@@ -161,14 +162,16 @@ const INSERT_DETAIL_BY_TYPE: Record<
 };
 
 // The registry row and its detail row go in ONE transaction (the D1 writer
-// rule). `run_id` is resolved from the pin INSIDE the insert, so there is no
-// read-then-write window; `admin_area_2` starts national; the server mints
-// the label in the instance language.
+// rule). The caller names the package and the scope; the ready gate and both
+// existence checks are INSIDE the insert, so there is no read-then-write
+// window. The server mints the label in the instance language.
 export async function createProduct(
   mainDb: Sql,
   args: {
     type: ProductType;
     folderId: string | null;
+    runId: string;
+    scopeId: string;
     createdBy: string;
   },
 ): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
@@ -180,12 +183,13 @@ export async function createProduct(
     const inserted = await mainDb.begin(async (sql) => {
       const rows = await sql<{ id: string }[]>`
         INSERT INTO products
-          (id, type, label, folder_id, run_id, admin_area_2, created_by, created_at, last_updated)
+          (id, type, label, folder_id, run_id, scope_id, created_by, created_at, last_updated)
         SELECT
           ${productId}, ${args.type}, ${label}, ${args.folderId},
-          r.id, NULL, ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
-        FROM runs r
-        WHERE r.pinned AND r.status = 'ready'
+          r.id, s.id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
+        FROM runs r, scopes s
+        WHERE r.id = ${args.runId} AND r.status = 'ready'
+          AND s.id = ${args.scopeId}
         RETURNING id
       `;
       if (rows.length === 0) {
@@ -196,7 +200,7 @@ export async function createProduct(
     });
 
     if (!inserted) {
-      return { success: false, err: NO_READY_PINNED_PACKAGE };
+      return { success: false, err: PACKAGE_OR_SCOPE_UNAVAILABLE };
     }
     return { success: true, data: { productId, lastUpdated } };
   });
@@ -293,7 +297,7 @@ export async function deleteProducts(
 export async function setProductScope(
   mainDb: Sql,
   productId: string,
-  adminArea2: string | null,
+  scopeId: string,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -301,13 +305,15 @@ export async function setProductScope(
       await carryReportCrdtStamps(sql, [productId], lastUpdated);
       return await sql`
         UPDATE products
-        SET admin_area_2 = ${adminArea2}, last_updated = ${lastUpdated}
+        SET scope_id = ${scopeId}, last_updated = ${lastUpdated}
         WHERE id = ${productId}
+          AND EXISTS (SELECT 1 FROM scopes WHERE id = ${scopeId})
         RETURNING id
       `;
     });
     if (rows.length === 0) {
-      throw new Error(PRODUCT_NOT_FOUND);
+      const scope = await mainDb`SELECT 1 FROM scopes WHERE id = ${scopeId}`;
+      throw new Error(scope.length === 0 ? SCOPE_NOT_FOUND : PRODUCT_NOT_FOUND);
     }
     return { success: true, data: { lastUpdated } };
   });
@@ -334,7 +340,7 @@ export async function duplicateProduct(
   mainDb: Sql,
   productId: string,
   createdBy: string,
-  adminArea2: string | null,
+  scopeId: string,
 ): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const source = (
@@ -351,14 +357,19 @@ export async function duplicateProduct(
     const label = `${source.label} (${t3(COPY_SUFFIX)})`;
 
     await mainDb.begin(async (sql) => {
-      await sql`
+      const inserted = await sql`
         INSERT INTO products
-          (id, type, label, folder_id, run_id, admin_area_2, created_by, created_at, last_updated)
+          (id, type, label, folder_id, run_id, scope_id, created_by, created_at, last_updated)
         SELECT
-          ${newProductId}, type, ${label}, folder_id, run_id, ${adminArea2},
+          ${newProductId}, p.type, ${label}, p.folder_id, p.run_id, s.id,
           ${createdBy}, ${lastUpdated}, ${lastUpdated}
-        FROM products WHERE id = ${productId}
+        FROM products p, scopes s
+        WHERE p.id = ${productId} AND s.id = ${scopeId}
+        RETURNING id
       `;
+      if (inserted.length === 0) {
+        throw new Error(SCOPE_NOT_FOUND);
+      }
       await DUPLICATE_DETAIL_BY_TYPE[source.type](
         sql,
         productId,

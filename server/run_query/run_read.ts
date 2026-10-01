@@ -36,15 +36,18 @@ import {
   type RunMetric,
   type RunModule,
   type RunResultsObject,
-  scopeToken,
+  type ScopeDefinition,
+  scopeDefinitionHash,
   throwIfErrWithData,
   toIndicatorMetadataDisplay,
+  UNCONSTRAINED_SCOPE_DEFINITION,
   vizPresetInstalled,
 } from "lib";
 import {
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "../db/utils.ts";
+import { getScope } from "../db/instance/scopes.ts";
 import { parseModuleConfigSelections } from "../runs/module_config.ts";
 import {
   getRunManifestCached,
@@ -90,31 +93,31 @@ export type RunReadContext = {
   runId: string;
   runDir: string;
   manifest: RunManifest;
-  // The caller's admin-area-2 identity (a product's admin_area_2); null =
-  // national. Every view a read runs against is built under it (viewsFor).
-  adminArea2: string | null;
+  // The resolved scope definition. Every view a read runs against is built
+  // under it (viewsFor). `scopeToken` is its hash, the cache-key segment.
+  scope: ScopeDefinition;
   scopeToken: string;
 };
 
 // The lenses onto one read core. A read context is (run, scope). The DATA
 // lens (getReadyRunReadContext) takes both halves from the caller, the
-// (runId, adminArea2) pair a product carries, and gates on a ready package:
+// (runId, scopeId) pair a product carries, and gates on a ready package:
 // every run-keyed figure-data route uses it. The manifest lens
-// (getRunReadContextForRun) takes the run id at national scope with no ready
-// gate, for the package-internals reads. Everything below the context is
-// shared.
+// (getRunReadContextForRun) takes the run id as the whole package with no
+// ready gate, for the package-internals reads. Everything below the context
+// is shared.
 
 async function buildRunReadContext(
   runId: string,
-  adminArea2: string | null,
+  scope: ScopeDefinition,
 ): Promise<RunReadContext> {
   const manifest = await getRunManifestCached(runId);
   return {
     runId,
     runDir: runDirPath(runId),
     manifest,
-    adminArea2,
-    scopeToken: scopeToken(adminArea2),
+    scope,
+    scopeToken: scopeDefinitionHash(scope),
   };
 }
 
@@ -128,7 +131,10 @@ export async function getRunReadContextForRun(
     return { success: false, err: "Invalid results package id" };
   }
   try {
-    return { success: true, data: await buildRunReadContext(runId, null) };
+    return {
+      success: true,
+      data: await buildRunReadContext(runId, UNCONSTRAINED_SCOPE_DEFINITION),
+    };
   } catch (e) {
     return {
       success: false,
@@ -138,15 +144,16 @@ export async function getRunReadContextForRun(
 }
 
 // The data lens. Both halves arrive over the wire: the run id becomes a path
-// (shape-checked here) and adminArea2 becomes a SQL literal (escaped in
-// scopePredicateFor) and a Valkey key segment (percent-encoded by
-// scopeToken). `runs.status = 'ready'` is checked against the catalog, not
-// the manifest: a generating run has no manifest file at all, but a FAILED
-// one can have a published partial dir, and neither may serve figures.
+// (shape-checked here) and the scope id names a `scopes` row whose definition
+// is loaded here (null is the whole package). The definition's values become
+// SQL literals (escaped in scopePredicateFor) and its hash the cache-key
+// segment. `runs.status = 'ready'` is checked against the catalog, not the
+// manifest: a generating run has no manifest file at all, but a FAILED one
+// can have a published partial dir, and neither may serve figures.
 export async function getReadyRunReadContext(
   mainDb: Sql,
   runId: string,
-  adminArea2: string | null,
+  scopeId: string | null,
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
@@ -163,9 +170,15 @@ SELECT status FROM runs WHERE id = ${runId}
     if (row.status !== "ready") {
       return { success: false, err: "This results package is not ready" };
     }
+    let scope = UNCONSTRAINED_SCOPE_DEFINITION;
+    if (scopeId !== null) {
+      const scopeRes = await getScope(mainDb, scopeId);
+      if (scopeRes.success === false) return scopeRes;
+      scope = scopeRes.data.definition;
+    }
     return {
       success: true,
-      data: await buildRunReadContext(runId, adminArea2),
+      data: await buildRunReadContext(runId, scope),
     };
   } catch (e) {
     return {
@@ -208,7 +221,7 @@ function viewsFor(ctx: RunReadContext, resultsObjectId: string): ParquetView[] {
     views.push({
       viewName: getResultsObjectTableName(resultsObjectId),
       parquetPath: runResultsObjectParquetPath(ctx.runDir, ro.moduleId, ro.id),
-      predicate: scopePredicateFor(ctx.adminArea2, ro, ctx.manifest),
+      predicate: scopePredicateFor(ctx.scope, ro, ctx.manifest),
     });
   }
   return views;
@@ -760,11 +773,12 @@ function hasFacilitiesParquet(manifest: RunManifest, table: string): boolean {
 // immutable, so this branch still guards every package generated before that
 // lands.
 export function scopePredicateFor(
-  adminArea2: string | null,
+  definition: ScopeDefinition,
   ro: RunResultsObject,
   manifest: RunManifest,
 ): string | undefined {
-  if (adminArea2 === null) return undefined;
+  if (definition.geography === null) return undefined;
+  const adminArea2 = definition.geography.adminArea2;
   const inArea = (column: string) =>
     `UPPER(${column}) = UPPER('${escapeSqlLiteral(adminArea2)}')`;
   const columnNames = new Set(ro.columns.map((c) => c.name));
@@ -982,7 +996,7 @@ export async function getResultsObjectItemsFromRun(
     // The manifest rowCount is package-wide, so it is the view's count only
     // when the view is the whole parquet.
     const isWholeParquet =
-      scopePredicateFor(ctx.adminArea2, ro, ctx.manifest) === undefined;
+      scopePredicateFor(ctx.scope, ro, ctx.manifest) === undefined;
     const totalCount = isWholeParquet ? ro.rowCount : Number(
       (await execute(`SELECT COUNT(*) AS total_count FROM ${tableName}`))
         .at(0)?.total_count ?? 0,

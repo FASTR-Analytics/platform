@@ -27,7 +27,7 @@ globs:
 > `server_only_funcs_presentation_objects/` take their `QueryContext` from the
 > manifest and their executor from DuckDB over the run's parquet. Caches are
 > run-keyed. The constants in `server/routes/caches/visualizations.ts` are the
-> authority for the live keying (`PO_CACHE_VERSION` is "23"); SYSTEM_03's cache
+> authority for the live keying (`PO_CACHE_VERSION` is "26"); SYSTEM_03's cache
 > catalog restates them. Calendar threads via `QueryContext`, not
 > `getCalendar()` at the call sites.
 
@@ -64,11 +64,11 @@ PresentationObjectConfig + ResultsValue                       (client, lib)
     │ getFetchConfigFromPresentationObjectConfig
     ▼
 GenericLongFormFetchConfig  ──hashFetchConfig──►  cache identity (both tiers)
-    │ POST /run_generation/run/:run_id/presentation_object_items  { …, adminArea2 }
+    │ POST /run_generation/run/:run_id/presentation_object_items  { …, scopeId }
     │   (Zod schema + validateFetchConfig)
     ▼
 readRunItems → getPresentationObjectItemsFromRun              (server)
-    │ getReadyRunReadContext(runId, adminArea2) → RunReadContext
+    │ getReadyRunReadContext(runId, scopeId) → RunReadContext
     │ buildQueryContextFromManifest → getPeriodBoundsCore → getPeriodFilterExactBounds
     │ buildCombinedQuery:  CTEManager → main ∪ rollup → PAE wrap → WITH → LIMIT
     ▼
@@ -616,12 +616,12 @@ word for all seven columns, so no per-column or per-instance naming is needed;
 fr/pt use the app's established "établissement" / "estabelecimento"). The same
 context drives the editor checkbox text, so row and checkbox can't tell
 different stories. One display-side override (S10's `getRollupRowLabel`): under
-a product AA2 scope the filter is the server's view predicate and never in the
-config, so the context still reads national while the SQL totals one area: a
-bundle whose stored scope carries an `adminArea2`, read with a national context,
-renders the pinned form ("{Area} — All areas") instead. Display-only; the scope
-is never pushed into the config (that would reach the fetch config and the cache
-hash).
+a scope whose geography names an area the filter is the server's view predicate
+and never in the config, so the context still reads national while the SQL
+totals one area: a bundle whose stored scope carries an `adminArea2`, read with
+a national context, renders the pinned form ("{Area} — All areas") instead.
+Display-only; the scope is never pushed into the config (that would reach the
+fetch config and the cache hash).
 
 **Position is display-only.** The entry's `rollupPosition` ("top"/"bottom", read
 via `getRollupPosition`) drives client-side sort pinning (`ROLLUP_PIN_IDS`) and
@@ -638,21 +638,32 @@ exclude the roll-up row (double-counting hazard).
 ## The scoped view
 
 The scope is the caller's: it arrives over the wire beside the run id on the
-run-keyed reads (`adminArea2`, null = national; PLAN_PRODUCTS_RESTRUCTURE D7).
-It is enforced **in the DuckDB view every query runs against**, in one place, so
-the shared Cores and the query builders are untouched and a read path cannot
-forget it. `getReadyRunReadContext` shape-checks the run id and derives
-`scopeToken`. `viewsFor` (run_read.ts) builds the views for one read, and gives
-the results object's view the predicate
-`scopePredicateFor(adminArea2, ro,
-manifest)` returns. `executeSqlOverParquet`
+run-keyed reads as `scopeId`, the id of a `scopes` row, or null for the whole
+package (PLAN_PRODUCTS_RESTRUCTURE D7). `getReadyRunReadContext` shape-checks
+the run id, loads the scope's definition (an unknown id is `SCOPE_NOT_FOUND`,
+answered 404; null resolves to the unconstrained definition) and puts the
+`ScopeDefinition` on the context as `scope`, with its hash as `scopeToken`. The
+definition is applied **in the DuckDB view every query runs against**, in one
+place, so the shared Cores and the query builders are untouched and a read path
+cannot forget it. `viewsFor` (run_read.ts) builds the views for one read, and
+gives the results object's view the predicate
+`scopePredicateFor(definition, ro, manifest)` returns. `executeSqlOverParquet`
 appends it:
 `CREATE VIEW x AS SELECT * FROM read_parquet(...) WHERE <predicate>`.
 `scopePredicateFor` is pure and decides per results object from the manifest
 column stamps, never from a baked list, because a new module output can change
-the split. `./validate_queries` pins every branch below with scope as a case
-axis (`adminArea2` on a case; the runner also asserts the echoed fetchConfig is
-the request and the holder's (run, scope) identity on every items case):
+the split.
+
+**Only the geography part is applied.** `scopePredicateFor` reads
+`definition.geography` and nothing else: a definition with no geography gives no
+predicate on any view. The time, module and indicator parts are part of the
+definition and of its hash, so they change the cache key, and they filter no
+rows.
+
+`./validate_queries` pins every branch below with scope as a case axis (a
+`ScopeDefinition` as `scope` on a case; the runner also asserts the echoed
+fetchConfig is the request and the holder's (run, scope) identity on every items
+case). `<aa2>` is `definition.geography.adminArea2`:
 
 - RO has `admin_area_2` → `UPPER(admin_area_2) = UPPER('<aa2>')`, the area
   escaped with `escapeSqlLiteral`. A PO whose own filterBy names a different AA2
@@ -705,14 +716,19 @@ delete (`runs/delete_run.ts`):
 | `replicant_opts` | runId + resultsObject + replicateBy + `hashFetchConfig` + scopeToken | `PO_CACHE_VERSION` |
 
 The four caches key on the immutable run, not on any caller (two callers on one
-run share entries), plus the **scopeToken** (`scopeToken`,
-`lib/types/scope.ts`): payloads are computed under the caller's AA2 scope, so
-sharing requires BOTH run and scope to match. The run id leads and the token
-trails on every key. scopeToken is **required** on the uniqueness-param types
-(an optional would compile and silently mis-key) and rides as the **trailing**
-segment so the `${runId}|`/`${runId}::` prefix scans in `delete_run.ts` keep
-working. Both are REQUIRED on every data payload (`RunVersionInfo`). The run id
-is also the figure's provenance.
+run share entries), plus the **scopeToken**: the hash of the scope's definition
+(`scopeDefinitionHash`, `lib/types/scope.ts`; a SHA-256 of the canonical form,
+which holds only the constrained parts, with keys sorted, lists sorted and
+de-duplicated and the area upper-cased). Payloads are computed under that
+definition, so sharing requires BOTH run and definition hash to match, whatever
+the scope's id or label: two scopes with equivalent definitions share entries, a
+whole-package read (`WHOLE_PACKAGE_DEFINITION_HASH`) shares with any
+unconstrained scope, and an edited definition reads under new keys. The run id
+leads and the token trails on every key. scopeToken is **required** on the
+uniqueness-param types (an optional would compile and silently mis-key) and
+rides as the **trailing** segment so the `${runId}|`/`${runId}::` prefix scans
+in `delete_run.ts` keep working. Both are REQUIRED on every data payload
+(`RunVersionInfo`). The run id is also the figure's provenance.
 
 Payloads carry the key ingredients (`runId`, `scopeToken`) so `parseData` can
 reproduce the uniqueness hash byte-identically to `uniquenessHashFromParams`;
@@ -720,15 +736,16 @@ the version hash on both sides is the constant. That pairing is the `TimCacheC`
 contract; a mismatch silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
-Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "23")
+Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "26")
 is folded into the version hash: bump it when a code change alters the _meaning_
 of a cached payload without any data change, and once per manifest transform
 block (full history in the comment block above the constant; "19" is the payload
 shape without the write-only freshness pair: `runId` + `scopeToken` are the
-whole identity; "20" to "23" track the indicator restructure's payload and
-manifest-schema changes). A payload _shape_ change is also a meaning change for
-these keys, so it takes the same bump (the version hash carries no data
-dimension that would otherwise orphan old-shape entries).
+whole identity; "20" to "25" track the indicator restructure's payload and
+manifest-schema changes; "26" is the `scopeToken` as the definition hash). A
+payload _shape_ change is also a meaning change for these keys, so it takes the
+same bump (the version hash carries no data dimension that would otherwise
+orphan old-shape entries).
 
 The instance **facility-columns config** is not a cache dimension and needs
 none: the manifest freezes the per-family structure schema
@@ -745,9 +762,8 @@ check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
 `server/run_query/run_data_reads.ts` and are mounted on the run-keyed instance
 routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo` /
 `getRunReplicantOptions`, plus `getRunResultsObjectItems`, all under
-`routes/instance/run_generation.ts`, the caller supplying
-`(run_id,
-adminArea2)`, `runs.status = 'ready'` required, guarded
+`routes/instance/run_generation.ts`, the caller supplying `(run_id, scopeId)`,
+`runs.status = 'ready'` and an existing scope required, guarded
 `requireApprovedUser()`; the manifest-only `getRunAuthoringContext` sits beside
 them under the same guard but takes no scope and no ready gate). The replicant
 read is keyed by results object (the cache identity); the route narrows its
@@ -769,24 +785,30 @@ exists (see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 
 **Client (IndexedDB, `createReactiveCache`).**
 [t2_figure_data.ts](client/src/state/products/t2_figure_data.ts)
-(`run_metric_info`, `run_po_items`) and
+(`run_metric_info_v2`, `run_po_items_v2`) and
 [t2_replicant_options.ts](client/src/state/products/t2_replicant_options.ts)
-(`run_replicant_options`) are the three reads against the run-keyed mount
+(`run_replicant_options_v2`) are the three reads against the run-keyed mount
 (`getRunResultsValueInfo`, `getRunPresentationObjectItems`,
 `getRunReplicantOptions`; PLAN_PRODUCTS_RESTRUCTURE D7): the caller passes a
-`PackageScope` and the pair leads the UNIQUENESS key as
-`runId |
-scopeToken(adminArea2) | ...` while the version key is the constant
-`"immutable"` (the `t2_runs.ts` idiom). Two-tier (LRU memory, default 100, +
-IndexedDB); a package never changes, so nothing invalidates an entry, old
-entries are left to the deploy flush (LoggedInWrapper clears site caches on
-version change: dev has no deploy, hence the stale-IndexedDB trap), and a
-response cannot land under a key belonging to another package or scope because
-the key already names both, so there is no response-side guard. The same
-`resolveDefaultReplicant` policy (first valid value, fresh config copy, never
-mutate) and the same aliasing contract on the yielded config apply. Consumers:
-the embedded figure editor and the slide and report editors' post-insert reads
-(S11, S12), and the insert-figure wizard's preset previews (S11).
+`PackageScope` (`{ runId, scopeId }`) and the pair leads the UNIQUENESS key as
+`runId | definitionHash | ...` while the version key is the constant
+`"immutable"` (the `t2_runs.ts` idiom). The hash is
+`resolveScope(scope).definitionHash`, looked up in the T1 scopes list
+(`client/src/state/instance/t1_store.ts`): a null scope id resolves to
+`WHOLE_PACKAGE_DEFINITION_HASH`, and an id the list does not hold resolves to a
+`missing:<id>` token that no payload carries. The wire carries the scope id and
+the key carries the hash, so an edit to a scope's definition, arriving on
+`scopes_updated`, moves every read under that scope to new keys. Two-tier (LRU
+memory, default 100, + IndexedDB); a package never changes, so nothing
+invalidates an entry, old entries are left to the deploy flush (LoggedInWrapper
+clears site caches on version change: dev has no deploy, hence the
+stale-IndexedDB trap), and a response cannot land under a key belonging to
+another package or scope because the key already names both, so there is no
+response-side guard. The same `resolveDefaultReplicant` policy (first valid
+value, fresh config copy, never mutate) and the same aliasing contract on the
+yielded config apply. Consumers: the embedded figure editor and the slide and
+report editors' post-insert reads (S11, S12), and the insert-figure wizard's
+preset previews (S11).
 
 ## Client query flow
 
@@ -816,9 +838,8 @@ table's pivot consumes them unchanged; `server/tests/grid_items_test.ts` proves
 the round trip. It is cached in `_GRID_ITEMS_CACHE` (`grid_items`), keyed as
 `po_items`, and purged with the run. On the client, `t2_grid_items.ts`
 (`getGridRowsFromCacheOrFetch`) is the `t2_figure_data` idiom for it:
-`createReactiveCache` keyed
-`runId | scopeToken |
-resultsObjectId | hashFetchConfig` with version
+`createReactiveCache` (`run_grid_items_v2`) keyed
+`runId | definitionHash | resultsObjectId | hashFetchConfig` with version
 `"immutable"`, on the items queue, storing the encoded payload and handing
 callers the decoded rows.
 
@@ -842,9 +863,10 @@ bundle freezes:
   type-proven to read no fourth metric field (gate in S10).
 - **The pair is free**: the fetch already names its `PackageScope`, so the
   bundle stamps it at zero cost (`provenance: { runId }` and
-  `scope: {
-  adminArea2 }`, both required), the basis for the stale badge that
-  compares it to the container product's pair without per-figure re-query (S10).
+  `scope: { definitionHash, adminArea2 }`, both required; `figureScopeStamp` in
+  `t1_store.ts` reads the hash and the area from the T1 scopes list), the basis
+  for the stale badge that compares it to the container product's package and
+  its scope's current definition hash without per-figure re-query (S10).
 
 ## Traps
 

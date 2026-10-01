@@ -10,7 +10,6 @@ import {
   PresentationObjectConfig,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
-  scopeToken,
   t3,
 } from "lib";
 import { getApiResponseFromGenerator, StateHolder } from "panther";
@@ -19,6 +18,7 @@ import {
   poItemsQueue,
   resultsValueInfoQueue,
 } from "~/state/_infra/request_queue";
+import { resolveScope } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 
@@ -28,7 +28,7 @@ import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 // resolved under its container's pair (D3), so every surface that shows one
 // (a preset preview, an embedded figure, the Explore page) shares these
 // entries. Version key CONSTANT, identity in the UNIQUENESS key: a package is
-// immutable, so `(runId, scopeToken)` leads the key instead of versioning it,
+// immutable, so `(runId, definitionHash)` leads the key instead of versioning it,
 // and a late response cannot land under a key belonging to another package
 // or scope.
 
@@ -36,10 +36,10 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   { scope: PackageScope; metricId: string },
   ResultsValueInfoForPresentationObject
 >({
-  name: "run_metric_info",
+  name: "run_metric_info_v2",
   uniquenessKeys: (params) => [
     params.scope.runId,
-    scopeToken(params.scope.adminArea2),
+    resolveScope(params.scope).definitionHash,
     params.metricId,
   ],
   versionKey: () => "immutable",
@@ -61,10 +61,10 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   },
   ItemsHolderPresentationObject
 >({
-  name: "run_po_items",
+  name: "run_po_items_v2",
   uniquenessKeys: (params) => [
     params.scope.runId,
-    scopeToken(params.scope.adminArea2),
+    resolveScope(params.scope).definitionHash,
     params.resultsObjectId,
     hashFetchConfig(params.fetchConfig),
   ],
@@ -85,7 +85,7 @@ export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
     serverActions.getRunResultsValueInfo({
       run_id: scope.runId,
       metricId,
-      adminArea2: scope.adminArea2,
+      scopeId: scope.scopeId,
     })
   );
   _METRIC_INFO_CACHE.setPromise(newPromise, params, version);
@@ -239,7 +239,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
       run_id: scope.runId,
       resultsObjectId: metric.resultsObjectId,
       fetchConfig: finalFetchConfig,
-      adminArea2: scope.adminArea2,
+      scopeId: scope.scopeId,
     })
   );
   _PO_ITEMS_CACHE.setPromise(newPromise, params, version);

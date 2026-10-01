@@ -1,17 +1,23 @@
-import { ALL_FACILITIES_SENTINEL, BLANK_SENTINEL, ROLLUP_SENTINEL } from "lib";
+import {
+  ALL_FACILITIES_SENTINEL,
+  BLANK_SENTINEL,
+  geographyOnlyScopeDefinition,
+  ROLLUP_SENTINEL,
+} from "lib";
 import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
   InstanceCalendar,
+  ScopeDefinition,
 } from "lib";
 
 export type Case = {
   name: string;
   fixture: string;
   calendar?: InstanceCalendar;
-  // The caller's admin-area-2 scope (D7). Absent = national, the identity
-  // the rest of the corpus runs at.
-  adminArea2?: string;
+  // The scope definition the read resolves under. Absent = unconstrained,
+  // the whole package, which the rest of the corpus runs at.
+  scope?: ScopeDefinition;
   // "possibleValues" runs the option-list query for `disOpt`, reusing
   // fetchConfig.filters as the filter set the route would pass.
   entry?: "items" | "possibleValues" | "metricInfo";
@@ -1133,7 +1139,9 @@ const QUARTER_DERIVATION: Case[] = [
   },
 ];
 
-// Admin-area-2 scope (D7). Scope is the second half of a read context, and
+const area = geographyOnlyScopeDefinition;
+
+// The geography dimension. Scope is the second half of a read context, and
 // it is applied as a predicate on the view the query runs against, which the
 // caller's fetch config never shows, so every case here is paired with the
 // national reading of the same query. The branches of scopePredicateFor each
@@ -1145,7 +1153,7 @@ const SCOPE_CASES: Case[] = [
   {
     name: "scope: RO carrying admin_area_2 is filtered directly",
     fixture: "hmis_monthly",
-    adminArea2: "A2_south",
+    scope: area("A2_south"),
     fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
     // National returns both areas (35 / 17): the group-by case above.
     expect: { status: "ok", rows: [{ admin_area_2: "A2_south", value: 17 }] },
@@ -1153,7 +1161,7 @@ const SCOPE_CASES: Case[] = [
   {
     name: "scope: the direct filter also bounds a child-level grouping",
     fixture: "hmis_monthly",
-    adminArea2: "A2_south",
+    scope: area("A2_south"),
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
     // National holds A3_alpha 30 and A3_beta 5 as well.
     expect: {
@@ -1167,7 +1175,7 @@ const SCOPE_CASES: Case[] = [
   {
     name: "scope: the scope matches case-insensitively, like any filter value",
     fixture: "hmis_monthly",
-    adminArea2: "a2_SOUTH",
+    scope: area("a2_SOUTH"),
     fetchConfig: { ...base(), groupBys: ["admin_area_2"] },
     expect: { status: "ok", rows: [{ admin_area_2: "A2_south", value: 17 }] },
   },
@@ -1187,7 +1195,7 @@ const SCOPE_CASES: Case[] = [
   {
     name: "scope: scoped option list offers only the scoped area",
     fixture: "hmis_monthly",
-    adminArea2: "A2_south",
+    scope: area("A2_south"),
     entry: "possibleValues",
     disOpt: "admin_area_2",
     fetchConfig: { ...base(), groupBys: [] },
@@ -1207,7 +1215,7 @@ const SCOPE_CASES: Case[] = [
   {
     name: "scope: metric info option lists narrow under scope",
     fixture: "hfa_divergent_schema",
-    adminArea2: "A2_south",
+    scope: area("A2_south"),
     entry: "metricInfo",
     fetchConfig: { ...base(), groupBys: [] },
     // The scope rides the context, not the arguments, so it reaches the whole
@@ -1234,7 +1242,7 @@ const SCOPE_CASES: Case[] = [
     name:
       "scope: admin3-only RO filters by children DERIVED from the facilities parquet",
     fixture: "hmis_admin3_only",
-    adminArea2: "A2_south",
+    scope: area("A2_south"),
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
     // A2_south's children are A3_gamma (f3) and A3_delta (f4, f5); the
     // subquery on the facilities view matches them by NAME.
@@ -1250,7 +1258,7 @@ const SCOPE_CASES: Case[] = [
     name:
       "scope: a scope with no children in the facilities parquet matches nothing",
     fixture: "hmis_admin3_only",
-    adminArea2: "A2_nowhere",
+    scope: area("A2_nowhere"),
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
     // The subquery on the facilities view returns no children, so the IN
     // matches nothing.
@@ -1271,7 +1279,7 @@ const SCOPE_CASES: Case[] = [
   {
     name: "scope: an admin RO whose scope cannot be derived fails CLOSED",
     fixture: "admin3_no_facilities",
-    adminArea2: "A2_south",
+    scope: area("A2_south"),
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
     // No facilities parquet, so the predicate is FALSE: blank is wrong
     // visibly, national data under a regional heading is wrong silently.
@@ -1280,7 +1288,7 @@ const SCOPE_CASES: Case[] = [
   {
     name: "scope: an RO with no admin column at all stays unfiltered",
     fixture: "hfa_variants",
-    adminArea2: "A2_south",
+    scope: area("A2_south"),
     fetchConfig: { ...base(), groupBys: ["hfa_indicator", "hfa_variant_item"] },
     // The dimension does not apply. Identical to the national reading of
     // the same group-by (38 / 6 / 2): a national RO carries no area to

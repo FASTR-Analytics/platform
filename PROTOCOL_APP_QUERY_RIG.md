@@ -18,11 +18,11 @@ produce the parquet and the manifest into a throwaway runs directory. It then
 runs the **production** run read path (`server/run_query/run_read.ts`:
 `getPresentationObjectItemsFromRun`, `getPossibleValuesFromRun`,
 `getResultsValueInfoFromRun`) against it over a `RunReadContext` at the case's
-scope (national unless the case names an `adminArea2`). Config → SQL → DuckDB
-over parquet → real rows: the engine production serves from, not a stand-in.
-Nothing is mocked and there is no test seam. A throwaway Postgres survives only
-for what the package builder reads from the MAIN database (the per-family
-structure schema rows in `instance_config`).
+scope (the unconstrained definition, the whole package, unless the case carries
+a `scope`). Config → SQL → DuckDB over parquet → real rows: the engine
+production serves from, not a stand-in. Nothing is mocked and there is no test
+seam. A throwaway Postgres survives only for what the package builder reads from
+the MAIN database (the per-family structure schema rows in `instance_config`).
 
 ```bash
 ./validate_queries            # ~10s: container up, 15 packages built, 76 cases
@@ -42,7 +42,7 @@ typechecks itself before running, since `query_rig/` sits outside
 | `query_rig/mod.ts`           | runner: build packages, loop cases, summarise                                 |
 | `query_rig/cases.ts`         | **the case table**, where you add coverage                                    |
 | `query_rig/fixtures.ts`      | F1–F15                                                                        |
-| `query_rig/build_package.ts` | fixture → structure-schema rows + results package + national `RunReadContext` |
+| `query_rig/build_package.ts` | fixture → structure-schema rows + results package + unscoped `RunReadContext` |
 | `query_rig/harness.ts`       | connections, schema loading, multiset compare                                 |
 
 ## Adding a case
@@ -70,13 +70,17 @@ literal, one place to look.
   (substring match).
 - `calendar: "ethiopian"` flips `setCalendar()` for that case:
   `getQuarterIdExpression` emits different SQL per calendar.
-- `adminArea2: "A2_south"` reads through a context scoped to that area (the
-  `(runId, adminArea2)` pair the run-keyed routes take; absent = national).
-  Scope is a predicate on the view the query runs against, which the caller's
-  fetch config never shows, so pair every scoped case with the national reading
-  of the same query. On every items case the runner also asserts that the echoed
-  `fetchConfig` is the request and that the holder's `runId` / `scopeToken` are
-  the context's.
+- `scope: geographyOnlyScopeDefinition("A2_south")` reads through a context
+  whose `scope` is that `ScopeDefinition` and whose `scopeToken` is its hash.
+  The rig builds the context itself, because the production gate
+  (`getReadyRunReadContext`) loads the definition from a `scopes` row and the
+  rig's scopes exist only in the case table. Absent = the unconstrained
+  definition. Only the geography part of a definition changes what a read
+  returns. Scope is a predicate on the view the query runs against, which the
+  caller's fetch config never shows, so pair every scoped case with the unscoped
+  reading of the same query. On every items case the runner also asserts that
+  the echoed `fetchConfig` is the request and that the holder's `runId` /
+  `scopeToken` are the context's.
 - `entry: "possibleValues"` with `disOpt` runs the option-list query instead of
   the items query, reusing `fetchConfig.filters` as the filter set.
 - `entry: "metricInfo"` resolves the fixture's `metric` through the enricher and

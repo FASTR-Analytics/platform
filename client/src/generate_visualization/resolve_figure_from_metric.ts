@@ -12,7 +12,10 @@ import { serverActions } from "~/server_actions";
 import { poItemsQueue } from "~/state/_infra/request_queue";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
-import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
+import {
+  figureScopeStamp,
+  getSnapshotInstanceLocalization,
+} from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
 // (AI adapter in components/products/copilot/slide_ai). No AI types imported here.
@@ -55,7 +58,7 @@ export async function resolveFigureBundleFromMetric(
         run_id: scope.runId,
         resultsObjectId,
         fetchConfig,
-        adminArea2: scope.adminArea2,
+        scopeId: scope.scopeId,
       })
     );
 
@@ -91,7 +94,7 @@ export async function resolveFigureBundleFromMetric(
     geo,
     localization: getSnapshotInstanceLocalization(),
     metricId,
-    scope: { adminArea2: scope.adminArea2 },
+    scope: figureScopeStamp(scope),
     snapshotAt: new Date().toISOString(),
     provenance: { runId: scope.runId },
   };

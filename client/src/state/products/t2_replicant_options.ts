@@ -5,17 +5,17 @@ import {
   hashFetchConfig,
   PackageScope,
   RunReplicantOptions,
-  scopeToken,
 } from "lib";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { resultsValueInfoQueue } from "~/state/_infra/request_queue";
+import { resolveScope } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 
 // The valid values of a figure's replicant dimension, read under one
 // PackageScope through the run-keyed mount (PLAN_PRODUCTS_RESTRUCTURE D7).
 // Version key CONSTANT, identity in the UNIQUENESS key: a package is
 // immutable and the scope is another axis of the question, so
-// `(runId, scopeToken)` leads the key instead of versioning it, and a
+// `(runId, definitionHash)` leads the key instead of versioning it, and a
 // response cannot land under a key belonging to another package or scope.
 const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   {
@@ -26,10 +26,10 @@ const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   },
   RunReplicantOptions
 >({
-  name: "run_replicant_options",
+  name: "run_replicant_options_v2",
   uniquenessKeys: (params) => [
     params.scope.runId,
-    scopeToken(params.scope.adminArea2),
+    resolveScope(params.scope).definitionHash,
     params.metricId,
     params.replicateBy,
     hashFetchConfig(params.fetchConfig),
@@ -55,7 +55,7 @@ export async function getReplicantOptionsFromCacheOrFetch(
       metricId,
       replicateBy,
       fetchConfig,
-      adminArea2: scope.adminArea2,
+      scopeId: scope.scopeId,
     })
   );
   _REPLICANT_OPTIONS_CACHE.setPromise(newPromise, params, version);

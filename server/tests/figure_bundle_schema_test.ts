@@ -1,6 +1,6 @@
-// Schema pin for the (package, scope) pair a stored FigureBundle records:
-// `scope` and `provenance.runId` are required, national is an explicit null,
-// and an unknown key inside the pair is rejected.
+// Schema pin for what a stored FigureBundle records it was resolved under:
+// `scope` (the definition hash and the area) and `provenance.runId` are
+// required, no area is an explicit null, and an unknown key is rejected.
 //
 //   deno test -A --env-file server/tests/figure_bundle_schema_test.ts
 
@@ -44,7 +44,7 @@ Deno.test("figure bundle: a bundle without the pair is rejected", () => {
   assertEquals(
     figureBundleSchema.safeParse({
       ...BASE,
-      scope: { adminArea2: null },
+      scope: { definitionHash: "h", adminArea2: null },
       provenance: { runId: null },
     }).success,
     false,
@@ -52,7 +52,7 @@ Deno.test("figure bundle: a bundle without the pair is rejected", () => {
   assertEquals(
     figureBundleSchema.safeParse({
       ...BASE,
-      scope: { adminArea2: null },
+      scope: { definitionHash: "h", adminArea2: null },
       provenance: {},
     }).success,
     false,
@@ -62,24 +62,35 @@ Deno.test("figure bundle: a bundle without the pair is rejected", () => {
 Deno.test("figure bundle: a bundle captured under a pair parses with both fields", () => {
   const parsed = figureBundleSchema.parse({
     ...BASE,
-    scope: { adminArea2: "Kano" },
+    scope: { definitionHash: "h", adminArea2: "Kano" },
     provenance: { runId: "00000000-0000-4000-8000-000000000000" },
   });
-  assertEquals(parsed.scope, { adminArea2: "Kano" });
+  assertEquals(parsed.scope, { definitionHash: "h", adminArea2: "Kano" });
   assertEquals(parsed.provenance.runId, "00000000-0000-4000-8000-000000000000");
 });
 
-Deno.test("figure bundle: national scope is an explicit null, and an unknown scope key is rejected", () => {
+Deno.test("figure bundle: no area is an explicit null, and an unknown scope key is rejected", () => {
   const parsed = figureBundleSchema.parse({
     ...BASE,
-    scope: { adminArea2: null },
+    scope: { definitionHash: "h", adminArea2: null },
     provenance: { runId: "00000000-0000-4000-8000-000000000000" },
   });
-  assertEquals(parsed.scope, { adminArea2: null });
+  assertEquals(parsed.scope, { definitionHash: "h", adminArea2: null });
   const rejected = figureBundleSchema.safeParse({
     ...BASE,
-    scope: { adminArea2: null, runId: "x" },
+    scope: { definitionHash: "h", adminArea2: null, runId: "x" },
     provenance: { runId: "00000000-0000-4000-8000-000000000000" },
   });
   assertEquals(rejected.success, false);
+});
+
+Deno.test("figure bundle: a scope stamped with only its area is rejected", () => {
+  assertEquals(
+    figureBundleSchema.safeParse({
+      ...BASE,
+      scope: { adminArea2: "Kano" },
+      provenance: { runId: "00000000-0000-4000-8000-000000000000" },
+    }).success,
+    false,
+  );
 });

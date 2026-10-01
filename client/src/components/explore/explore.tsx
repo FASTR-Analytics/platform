@@ -10,6 +10,7 @@ import {
   type RunAuthoringContext,
   t3,
   TC,
+  WHOLE_PACKAGE_DEFINITION_HASH,
 } from "lib";
 import {
   createQuery,
@@ -21,25 +22,23 @@ import {
   StateHolderWrapper,
 } from "panther";
 import { createMemo, type JSX, Show } from "solid-js";
-import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import {
-  exploreAdminArea2,
   exploreFamily,
   exploreModules,
   explorePackageId,
   exploreQueries,
-  setExploreAdminArea2,
+  exploreScopeId,
   setExploreFamily,
   setExploreModule,
   setExplorePackageId,
   setExploreQuery,
+  setExploreScopeId,
 } from "~/state/t4_explore";
+import { ScopeSelect } from "~/components/_shared/mod.ts";
 import { EmptyState } from "./_shared/mod.ts";
 import { ModuleView } from "./module_view";
-
-const NATIONAL = "__national__";
 
 function familiesInPackage(ctx: RunAuthoringContext): DatasetType[] {
   return MODULE_FAMILY_ORDER.filter((family) =>
@@ -102,19 +101,17 @@ export function Explore() {
     )[0]
       ?.id;
   });
-  const areas = createQuery<string[]>(() => serverActions.listAdminArea2s({}));
-  const areaOptions = createMemo(() => {
-    const state = areas.state();
-    const list = state.status === "ready" ? state.data : [];
-    return [
-      {
-        value: NATIONAL,
-        label: t3({ en: "National", fr: "National", pt: "Nacional" }),
-      },
-      ...list.map((a) => ({ value: a, label: a })),
-    ];
+  // Explore always reads through a named scope. It falls back to an
+  // unconstrained one, else the first, whenever the chosen one is gone.
+  const scopeId = createMemo((): string | undefined => {
+    const scopes = instanceState.scopes;
+    const chosen = exploreScopeId();
+    if (chosen !== null && scopes.some((s) => s.id === chosen)) return chosen;
+    return (
+      scopes.find((s) => s.definitionHash === WHOLE_PACKAGE_DEFINITION_HASH) ??
+        scopes.at(0)
+    )?.id;
   });
-
   return (
     <Show
       when={packageId()}
@@ -133,29 +130,45 @@ export function Explore() {
       }
     >
       {(runId) => (
-        <PackageExplorer
-          scope={{ runId, adminArea2: exploreAdminArea2() }}
-          controls={
-            <div class="ui-gap-sm flex items-center">
-              <Select
-                value={runId}
-                options={instanceState.readyPackages.map((pkg) => ({
-                  value: pkg.id,
-                  label: pkg.label,
-                }))}
-                onChange={setExplorePackageId}
-                size="sm"
-              />
-              <Select
-                value={exploreAdminArea2() ?? NATIONAL}
-                options={areaOptions()}
-                onChange={(v) =>
-                  setExploreAdminArea2(v === NATIONAL ? null : v)}
-                size="sm"
-              />
+        <Show
+          when={scopeId()}
+          fallback={
+            <div class="ui-pad text-base-content-muted text-sm">
+              {t3({
+                en:
+                  "No scope exists yet. A global admin creates one on the Scopes page.",
+                fr:
+                  "Aucune portée n'existe encore. Un administrateur global en crée une sur la page Portées.",
+                pt:
+                  "Ainda não existe nenhum âmbito. Um administrador global cria um na página Âmbitos.",
+              })}
             </div>
           }
-        />
+        >
+          {(chosenScopeId) => (
+            <PackageExplorer
+              scope={{ runId, scopeId: chosenScopeId() }}
+              controls={
+                <div class="ui-gap-sm flex items-center">
+                  <Select
+                    value={runId}
+                    options={instanceState.readyPackages.map((pkg) => ({
+                      value: pkg.id,
+                      label: pkg.label,
+                    }))}
+                    onChange={setExplorePackageId}
+                    size="sm"
+                  />
+                  <ScopeSelect
+                    scopeId={chosenScopeId()}
+                    onChange={setExploreScopeId}
+                    size="sm"
+                  />
+                </div>
+              }
+            />
+          )}
+        </Show>
       )}
     </Show>
   );

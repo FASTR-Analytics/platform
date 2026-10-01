@@ -12,16 +12,24 @@ import { assert, assertEquals, assertNotEquals } from "@std/assert";
 import { Hono } from "hono";
 import {
   type ContentSlide,
+  geographyOnlyScopeDefinition,
   getStartingConfigForSlideDeck,
   type GlobalUser,
   type ProductSummary,
   type SlideDeckConfig,
+  UNCONSTRAINED_SCOPE_DEFINITION,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
   deleteRunCatalogRow,
   getPinnedRunId,
 } from "../db/instance/run_generation.ts";
+import {
+  createScope,
+  deleteScope,
+  SCOPE_IN_USE,
+  SCOPE_NOT_FOUND,
+} from "../db/instance/scopes.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { FOLDER_CYCLE, FOLDER_NOT_FOUND } from "../db/products/mod.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
@@ -168,6 +176,22 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     VALUES (${failedRunId}, 'products harness failed run', 'failed', 'wizard')
   `;
 
+  const harnessTag = crypto.randomUUID().slice(0, 8);
+  const allScope = await createScope(mainDb, {
+    label: `Harness all ${harnessTag}`,
+    definition: UNCONSTRAINED_SCOPE_DEFINITION,
+    createdBy: APPROVED_EMAIL,
+  });
+  const areaScope = await createScope(mainDb, {
+    label: `Harness area ${harnessTag}`,
+    definition: geographyOnlyScopeDefinition("Harness Area"),
+    createdBy: APPROVED_EMAIL,
+  });
+  if (!allScope.success) throw new Error(allScope.err);
+  if (!areaScope.success) throw new Error(areaScope.err);
+  const allScopeId = allScope.data.scopeId;
+  const areaScopeId = areaScope.data.scopeId;
+
   const app = productApp(APPROVED_EMAIL);
   const createdProductIds: string[] = [];
   const createdFolderIds: string[] = [];
@@ -183,6 +207,8 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       (await call(anonymous, "POST", "/products", {
         type: "slide_deck",
         folderId: null,
+        runId: pinnedRunId,
+        scopeId: allScopeId,
       })).status,
       401,
     );
@@ -195,6 +221,8 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       (await call(unapproved, "POST", "/products", {
         type: "slide_deck",
         folderId: null,
+        runId: pinnedRunId,
+        scopeId: allScopeId,
       })).status,
       403,
     );
@@ -207,15 +235,36 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       403,
     );
 
-    // Create a deck and a report: 4-char ids, localised label, run_id = pin.
+    // Create names its package and scope: a run that is not ready and a
+    // scope that does not exist are both refused, and nothing is inserted.
+    for (
+      const bad of [
+        { runId: failedRunId, scopeId: allScopeId },
+        { runId: pinnedRunId, scopeId: crypto.randomUUID() },
+      ]
+    ) {
+      const refusedCreate = await call(app, "POST", "/products", {
+        type: "slide_deck",
+        folderId: null,
+        ...bad,
+      });
+      assertEquals(refusedCreate.body.success, false);
+    }
+
+    // Create a deck and a report: 4-char ids, localised label, the package
+    // and scope the caller named.
     const deck = await ok<{ productId: string }>(app, "POST", "/products", {
       type: "slide_deck",
       folderId: null,
+      runId: pinnedRunId,
+      scopeId: allScopeId,
     });
     createdProductIds.push(deck.productId);
     const report = await ok<{ productId: string }>(app, "POST", "/products", {
       type: "report",
       folderId: null,
+      runId: pinnedRunId,
+      scopeId: allScopeId,
     });
     createdProductIds.push(report.productId);
     assert(ID_ALPHABET.test(deck.productId), deck.productId);
@@ -226,16 +275,16 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
         type: string;
         label: string;
         run_id: string;
-        admin_area_2: string | null;
+        scope_id: string;
         created_by: string;
       }[]
-    >`SELECT id, type, label, run_id, admin_area_2, created_by FROM products WHERE id = ANY(${createdProductIds})`;
+    >`SELECT id, type, label, run_id, scope_id, created_by FROM products WHERE id = ANY(${createdProductIds})`;
     const byId = new Map(rows.map((r) => [r.id, r]));
     assertEquals(byId.get(deck.productId)?.label, "Untitled deck");
     assertEquals(byId.get(report.productId)?.label, "Untitled report");
     for (const r of rows) {
       assertEquals(r.run_id, pinnedRunId);
-      assertEquals(r.admin_area_2, null);
+      assertEquals(r.scope_id, allScopeId);
       assertEquals(r.created_by, APPROVED_EMAIL);
     }
     const detailCounts = (
@@ -270,7 +319,6 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       false,
     );
     assertEquals(Object.keys(deckSummary).sort(), [
-      "adminArea2",
       "createdAt",
       "createdBy",
       "firstSlideId",
@@ -279,8 +327,16 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       "label",
       "lastUpdated",
       "runId",
+      "scopeId",
       "type",
     ]);
+    const harnessScope = approvedState.data.scopes.find((sc) =>
+      sc.id === areaScopeId
+    );
+    assertEquals(harnessScope?.definition.geography, {
+      adminArea2: "Harness Area",
+    });
+    assert(harnessScope?.definitionHash.length === 64);
     assertEquals(
       approvedState.data.lastUpdated.products[deck.productId],
       deckSummary.lastUpdated,
@@ -296,6 +352,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(unapprovedState.data.products, []);
     assertEquals(unapprovedState.data.folders, []);
     assertEquals(unapprovedState.data.readyPackages, []);
+    assertEquals(unapprovedState.data.scopes, []);
     assertEquals(unapprovedState.data.lastUpdated, {
       products: {},
       slides: {},
@@ -322,16 +379,29 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     )[0];
     assertEquals(pointer.run_id, otherReady.id);
 
-    // Scope.
+    // Scope: an existing scope is set, an unknown one is a 404 that leaves
+    // the pointer alone, and a scope a product carries cannot be deleted.
     await ok(app, "PUT", `/products/${deck.productId}/scope`, {
-      adminArea2: "Harness Area",
+      scopeId: areaScopeId,
     });
+    const unknownScope = await call(
+      app,
+      "PUT",
+      `/products/${deck.productId}/scope`,
+      { scopeId: crypto.randomUUID() },
+    );
+    assertEquals(unknownScope.status, 404);
+    assertEquals(unknownScope.body, { success: false, err: SCOPE_NOT_FOUND });
     const scoped = (
       await mainDb<
-        { admin_area_2: string | null }[]
-      >`SELECT admin_area_2 FROM products WHERE id = ${deck.productId}`
+        { scope_id: string }[]
+      >`SELECT scope_id FROM products WHERE id = ${deck.productId}`
     )[0];
-    assertEquals(scoped.admin_area_2, "Harness Area");
+    assertEquals(scoped.scope_id, areaScopeId);
+    assertEquals(await deleteScope(mainDb, areaScopeId), {
+      success: false,
+      err: SCOPE_IN_USE,
+    });
 
     // Folders: three nested, a cycle refused, the middle one deleted.
     const folderA = await ok<{ folderId: string }>(app, "POST", "/folders", {
@@ -509,41 +579,41 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       app,
       "POST",
       `/products/${deck.productId}/duplicate`,
-      { adminArea2: "Harness Area" },
+      { scopeId: areaScopeId },
     );
     createdProductIds.push(copy.productId);
     const pairs = await mainDb<
       {
         id: string;
         run_id: string;
-        admin_area_2: string | null;
+        scope_id: string;
         label: string;
       }[]
-    >`SELECT id, run_id, admin_area_2, label FROM products WHERE id IN (${deck.productId}, ${copy.productId})`;
+    >`SELECT id, run_id, scope_id, label FROM products WHERE id IN (${deck.productId}, ${copy.productId})`;
     assertEquals(new Set(pairs.map((p) => p.run_id)), new Set([otherReady.id]));
     assertEquals(
-      new Set(pairs.map((p) => p.admin_area_2)),
-      new Set(["Harness Area"]),
+      new Set(pairs.map((p) => p.scope_id)),
+      new Set([areaScopeId]),
     );
     assertEquals(
       pairs.find((p) => p.id === copy.productId)?.label,
       "Untitled deck (copy)",
     );
-    // The scope is the caller's: a national copy of an area deck keeps the
-    // package and takes the new scope.
-    const national = await ok<{ productId: string }>(
+    // The scope is the caller's: a copy of an area deck under another scope
+    // keeps the package and takes the new scope.
+    const rescoped = await ok<{ productId: string }>(
       app,
       "POST",
       `/products/${deck.productId}/duplicate`,
-      { adminArea2: null },
+      { scopeId: allScopeId },
     );
-    createdProductIds.push(national.productId);
-    const nationalRow = (
+    createdProductIds.push(rescoped.productId);
+    const rescopedRow = (
       await mainDb<
-        { run_id: string; admin_area_2: string | null }[]
-      >`SELECT run_id, admin_area_2 FROM products WHERE id = ${national.productId}`
+        { run_id: string; scope_id: string }[]
+      >`SELECT run_id, scope_id FROM products WHERE id = ${rescoped.productId}`
     )[0];
-    assertEquals(nationalRow, { run_id: otherReady.id, admin_area_2: null });
+    assertEquals(rescopedRow, { run_id: otherReady.id, scope_id: allScopeId });
     const copied = await ok<{ newSlideIds: string[] }>(
       app,
       "POST",
@@ -630,6 +700,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     if (createdFolderIds.length > 0) {
       await mainDb`DELETE FROM folders WHERE id = ANY(${createdFolderIds})`;
     }
+    await mainDb`DELETE FROM scopes WHERE id IN (${allScopeId}, ${areaScopeId})`;
     await mainDb`DELETE FROM runs WHERE id = ${failedRunId}`;
     await mainDb`DELETE FROM users WHERE email = ${APPROVED_EMAIL}`;
     await closeAllConnections();

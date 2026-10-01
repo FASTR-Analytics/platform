@@ -13,7 +13,10 @@ import { assertReplicantValid } from "./assert_replicant_valid";
 import { getAdminAreaLevelFromMapConfig } from "./get_admin_area_level_from_config";
 import { resolveFigureBundleFromMetric } from "./resolve_figure_from_metric";
 import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
-import { getSnapshotInstanceLocalization } from "~/state/instance/t1_store";
+import {
+  figureScopeStamp,
+  getSnapshotInstanceLocalization,
+} from "~/state/instance/t1_store";
 import { getPresentationObjectItemsFromCacheOrFetch } from "~/state/products/t2_figure_data";
 
 // Unified figure resolver: given a metric + a full config, validate the
@@ -177,7 +180,7 @@ export function makeFigureBundleFromFetchedData(
       : undefined,
     localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
-    scope: { adminArea2: scope.adminArea2 },
+    scope: figureScopeStamp(scope),
     snapshotAt: new Date().toISOString(),
     provenance: { runId: scope.runId },
   };

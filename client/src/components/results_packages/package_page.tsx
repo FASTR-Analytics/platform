@@ -43,10 +43,6 @@ import {
   RunStatusBadge,
   StatusBar,
 } from "./package_view/mod.ts";
-import {
-  type ScopeSelection,
-  storedValueFromScopeSelection,
-} from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
@@ -369,19 +365,18 @@ function FamilyTabs(p: {
   const [chosenModule, setChosenModule] = createSignal<
     Partial<Record<DatasetType, string>>
   >({});
-  const [selection, setSelection] = createSignal<ScopeSelection>({
-    mode: "national",
-  });
-  const [adminArea2, setAdminArea2] = createSignal<string | null>(null);
-  function changeScope(next: ScopeSelection): void {
-    setSelection(next);
-    const stored = storedValueFromScopeSelection(next);
-    if (stored !== undefined) setAdminArea2(stored);
-  }
-  const scope = (): PackageScope => ({
-    runId: p.runId,
-    adminArea2: adminArea2(),
-  });
+  // The page starts on the whole package. A scope deleted while it is chosen
+  // falls back to it.
+  const [chosenScopeId, setChosenScopeId] = createSignal<string | null>(null);
+  const scope = (): PackageScope => {
+    const chosen = chosenScopeId();
+    return {
+      runId: p.runId,
+      scopeId: instanceState.scopes.some((s) => s.id === chosen)
+        ? chosen
+        : null,
+    };
+  };
 
   return (
     <Show
@@ -425,8 +420,7 @@ function FamilyTabs(p: {
             detail={p.detail}
             ctx={p.ctx}
             scope={scope()}
-            selection={selection()}
-            onChangeScope={changeScope}
+            onChangeScope={setChosenScopeId}
             openEditor={p.openEditor}
           />
         </FrameTop>

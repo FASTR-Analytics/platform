@@ -8,11 +8,7 @@ import {
   RadioGroup,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
-import {
-  ScopePicker,
-  type ScopeSelection,
-  storedValueFromScopeSelection,
-} from "~/components/_shared/mod.ts";
+import { ScopeSelect } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 
 type Props = {
@@ -24,31 +20,27 @@ type ReturnType = { productIds: string[] } | undefined;
 type ScopeChoice = "keep" | "set";
 
 // `duplicateProduct` keeps the source's package and mints its own label (D5);
-// the scope is the one thing to decide here, because a national deck copied
-// per area is the way area products are made. The default keeps each
-// original's scope, so a plain duplicate stays one click.
+// the scope is the one thing to decide here, because a deck copied per scope
+// is the way scoped products are made. The default keeps each original's
+// scope, so a plain duplicate stays one click.
 export function DuplicateProductsModal(
   p: AlertComponentProps<Props, ReturnType>,
 ) {
   const progress = getProgress();
   const [scopeChoice, setScopeChoice] = createSignal<ScopeChoice>("keep");
-  const [tempScope, setTempScope] = createSignal<ScopeSelection>({
-    mode: "national",
-  });
+  const [tempScopeId, setTempScopeId] = createSignal<string | undefined>();
 
   const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
-      const chosen = scopeChoice() === "set"
-        ? storedValueFromScopeSelection(tempScope())
-        : undefined;
+      const chosen = scopeChoice() === "set" ? tempScopeId() : undefined;
       if (scopeChoice() === "set" && chosen === undefined) {
         return {
           success: false,
           err: t3({
-            en: "Select an area, or choose national scope",
-            fr: "Sélectionnez une zone ou choisissez la portée nationale",
-            pt: "Selecione uma zona ou escolha o âmbito nacional",
+            en: "Select a scope for the copies",
+            fr: "Sélectionnez une portée pour les copies",
+            pt: "Selecione um âmbito para as cópias",
           }),
         };
       }
@@ -67,7 +59,7 @@ export function DuplicateProductsModal(
         );
         const res = await serverActions.duplicateProduct({
           product_id: product.id,
-          adminArea2: chosen === undefined ? product.adminArea2 : chosen,
+          scopeId: chosen ?? product.scopeId,
         });
         if (!res.success) {
           return {
@@ -145,7 +137,13 @@ export function DuplicateProductsModal(
           onChange={setScopeChoice}
         />
         <Show when={scopeChoice() === "set"}>
-          <ScopePicker selection={tempScope()} onChange={setTempScope} />
+          <ScopeSelect
+            scopeId={tempScopeId()}
+            onChange={(v) => {
+              if (v !== null) setTempScopeId(v);
+            }}
+            fullWidth
+          />
         </Show>
         <div class="ui-spy-sm max-h-64 overflow-auto">
           <For each={p.products}>

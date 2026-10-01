@@ -8,6 +8,7 @@ import {
   SLIDE_NOT_FOUND,
   VERSION_NOT_FOUND,
 } from "../../db/products/mod.ts";
+import { SCOPE_NOT_FOUND } from "../../db/instance/scopes.ts";
 
 const NOT_FOUND_ERRORS = new Set<string>([
   PRODUCT_NOT_FOUND,
@@ -16,6 +17,7 @@ const NOT_FOUND_ERRORS = new Set<string>([
   REPORT_NOT_FOUND,
   SLIDE_NOT_FOUND,
   VERSION_NOT_FOUND,
+  SCOPE_NOT_FOUND,
 ]);
 
 // Every product-plane handler answers through this: a not-found envelope

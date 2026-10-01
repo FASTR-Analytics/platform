@@ -1,3 +1,4 @@
+import { resolveScope } from "~/state/instance/t1_store";
 import {
   type DatasetType,
   defaultGridQuery,
@@ -52,9 +53,20 @@ export function Timeseries(p: {
   setQuery: (query: GridQuery) => void;
 }) {
   const intent = (): GridQuery =>
-    p.query ?? defaultGridQuery(p.family, p.scope, p.ctx, NO_TIME_VALUES);
+    p.query ?? defaultGridQuery(
+      p.family,
+      resolveScope(p.scope).adminArea2,
+      p.ctx,
+      NO_TIME_VALUES,
+    );
   const resolved = createMemo(() =>
-    resolveGridQuery(intent(), "time", p.scope, p.ctx, NO_TIME_VALUES)
+    resolveGridQuery(
+      intent(),
+      "time",
+      resolveScope(p.scope).adminArea2,
+      p.ctx,
+      NO_TIME_VALUES,
+    )
   );
   const { update, clearDropped } = queryEditors(intent, resolved, p.setQuery);
   const derived = createMemo(() =>

@@ -3,6 +3,7 @@ import type {
   AssetInfo,
   FacilityFamily,
   FigureLocalization,
+  FigureScope,
   Folder,
   GeoJsonMapSummary,
   InstanceConfig,
@@ -13,11 +14,15 @@ import type {
   InstanceStructureSummary,
   LastUpdateTableName,
   OtherUser,
+  PackageScope,
   ProductSummary,
   ReadyPackage,
+  ResolvedPackageScope,
   RunCatalogItem,
+  Scope,
   StructureSchema,
 } from "lib";
+import { resolvePackageScope } from "lib";
 
 // ============================================================================
 // Store
@@ -42,6 +47,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   products: [],
   folders: [],
   readyPackages: [],
+  scopes: [],
   lastUpdated: { products: {}, slides: {} },
   users: [],
   assets: [],
@@ -224,6 +230,23 @@ export function updateInstanceFolders(folders: Folder[]): void {
 
 export function updateInstanceReadyPackages(packages: ReadyPackage[]): void {
   setInstanceState("readyPackages", reconcile(packages));
+}
+
+export function updateInstanceScopes(scopes: Scope[]): void {
+  setInstanceState("scopes", reconcile(scopes));
+}
+
+// A pair with its scope read from T1. Reactive where it is called in a
+// tracking context, so a stale check or a caption follows an edit to the
+// scope's definition or label.
+export function resolveScope(scope: PackageScope): ResolvedPackageScope {
+  return resolvePackageScope(scope, instanceState.scopes);
+}
+
+// What a bundle resolved under this pair records beside its run id.
+export function figureScopeStamp(scope: PackageScope): FigureScope {
+  const { definitionHash, adminArea2 } = resolveScope(scope);
+  return { definitionHash, adminArea2 };
 }
 
 // The cache-version index (S3's last_updated to SSE to cache triangle). The

@@ -127,13 +127,15 @@ Every doc has one home along two axes, construction (HOW) vs architecture
 (a slide deck or a report: one row in `products`, one id namespace), **folder**
 (a node in the nested products tree; `parent_id` NULL is the root), **package**
 (a results package: a `runs` row plus its run directory; "run" stays the
-internal name), **pin** (the instance's pinned package), **scope** (a product's
-`(package, admin area 2)` pair; NULL admin area is national), **figure**
-(`{ metricId, config }` resolved under a scope and stored as a `FigureBundle`
-inside a product), **preset** (a default visualization derived from a package's
-manifest, not a stored thing) and **authoring context** (what an author needs
-from a package to build figures: metrics, modules, indicators, taxonomy,
-presets). UI strings use the same nouns with one substitution: a figure is a
+internal name), **pin** (the instance's pinned package), **scope** (a named row
+in `scopes`: a label and a definition of what a read may take from a package, by
+geography, time and data; a product carries exactly one by id, and a read that
+names no scope takes the whole package), **figure** (`{ metricId, config }`
+resolved under a (package, scope) pair and stored as a `FigureBundle` inside a
+product), **preset** (a default visualization derived from a package's manifest,
+not a stored thing) and **authoring context** (what an author needs from a
+package to build figures: metrics, modules, indicators, taxonomy, presets). UI
+strings use the same nouns with one substitution: a figure is a
 **visualization** on screen, in every language and in every surface (slide and
 report editors, badges, downloads, tours), because "figures" reads as numbers to
 this app's users and the same object will appear standalone in the Explore tab.

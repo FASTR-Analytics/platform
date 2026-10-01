@@ -60,6 +60,8 @@ defineRoute(
     const res = await createProduct(c.var.mainDb, {
       type: body.type,
       folderId: body.folderId,
+      runId: body.runId,
+      scopeId: body.scopeId,
       createdBy: c.var.globalUser.email,
     });
     if (!res.success) {
@@ -182,7 +184,7 @@ defineRoute(
     const res = await setProductScope(
       c.var.mainDb,
       params.product_id,
-      body.adminArea2,
+      body.scopeId,
     );
     if (!res.success) {
       return respond(c, res);
@@ -201,7 +203,7 @@ defineRoute(
       c.var.mainDb,
       params.product_id,
       c.var.globalUser.email,
-      body.adminArea2,
+      body.scopeId,
     );
     if (!res.success) {
       return respond(c, res);

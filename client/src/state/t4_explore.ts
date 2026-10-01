@@ -58,7 +58,7 @@ export const [explorePackageId, setExplorePackageId] = createSignal<
   string | null
 >(null);
 
-export const [exploreAdminArea2, setExploreAdminArea2] = createSignal<
+export const [exploreScopeId, setExploreScopeId] = createSignal<
   string | null
 >(null);
 

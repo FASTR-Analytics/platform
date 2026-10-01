@@ -1,3 +1,4 @@
+import { resolveScope } from "~/state/instance/t1_store";
 import type {
   ContentSlide,
   FigureBundle,
@@ -37,7 +38,10 @@ export async function collectDeckStaleFigures(
     const res = await getSlideFromCacheOrFetch(productId, slideId);
     if (!res.success || res.data.slide.type !== "content") continue;
     for (
-      const stale of findStaleFiguresInLayout(res.data.slide.layout, scope)
+      const stale of findStaleFiguresInLayout(
+        res.data.slide.layout,
+        resolveScope(scope),
+      )
     ) {
       out.push({ slideId, blockId: stale.blockId, bundle: stale.bundle });
     }
@@ -65,7 +69,10 @@ export async function updateAllDeckFigures(
   for (const slideId of slideIds) {
     const res = await getSlideFromCacheOrFetch(productId, slideId);
     if (!res.success || res.data.slide.type !== "content") continue;
-    const stale = findStaleFiguresInLayout(res.data.slide.layout, scope);
+    const stale = findStaleFiguresInLayout(
+      res.data.slide.layout,
+      resolveScope(scope),
+    );
     if (stale.length === 0) continue;
 
     const resolved = new Map<string, FigureBundle>();

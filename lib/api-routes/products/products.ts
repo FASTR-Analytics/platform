@@ -12,15 +12,18 @@ export const productIdParamsSchema = z.object({ product_id: z.string() });
 // own. Every entry declares `access`; defineRoute installs the guard from it
 // (PLAN_PRODUCTS_RESTRUCTURE §3.2).
 export const productRouteRegistry = {
-  // The server mints the label and resolves run_id from the pinned package;
-  // the client sends neither. Fails typed (NO_READY_PINNED_PACKAGE) when no
-  // ready package is pinned.
+  // The caller names the package and the scope (a create dialog asks for
+  // both); the server mints the label. Fails typed
+  // (PACKAGE_OR_SCOPE_UNAVAILABLE) when the package is not ready or either
+  // row is gone.
   createProduct: route({
     path: "/products",
     method: "POST",
     body: z.object({
       type: z.enum(PRODUCT_TYPES),
       folderId: z.uuid().nullable(),
+      runId: z.string(),
+      scopeId: z.uuid(),
     }),
     response: {} as { productId: string; lastUpdated: string },
     access: "edit",
@@ -71,19 +74,19 @@ export const productRouteRegistry = {
     path: "/products/:product_id/scope",
     method: "PUT",
     params: productIdParamsSchema,
-    body: z.object({ adminArea2: z.string().min(1).nullable() }),
+    body: z.object({ scopeId: z.uuid() }),
     response: {} as { lastUpdated: string },
     access: "edit",
   }),
 
   // Clones run_id verbatim into the source's folder under the scope the
-  // caller names (the source's own to keep it): a national deck copied per
-  // area is how area products are made (D5).
+  // caller names (the source's own to keep it): a deck copied per scope is
+  // how scoped products are made (D5).
   duplicateProduct: route({
     path: "/products/:product_id/duplicate",
     method: "POST",
     params: productIdParamsSchema,
-    body: z.object({ adminArea2: z.string().min(1).nullable() }),
+    body: z.object({ scopeId: z.uuid() }),
     response: {} as { productId: string; lastUpdated: string },
     access: "edit",
   }),

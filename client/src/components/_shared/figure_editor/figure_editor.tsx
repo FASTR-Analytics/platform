@@ -125,7 +125,7 @@ export function VisualizationEditorInner(p: InnerProps) {
   // live, so a reattach mid-edit refetches the preview under the new package.
   const scope = (): PackageScope => ({
     runId: p.scope.runId,
-    adminArea2: p.scope.adminArea2,
+    scopeId: p.scope.scopeId,
   });
   const moduleIdForMetric = () =>
     p.authoringContext.metrics.find((m) => m.id === metric.id)?.moduleId ?? "";
@@ -658,7 +658,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         label,
         metricId: metric.id,
         runId: downloadScope.runId,
-        adminArea2: downloadScope.adminArea2,
+        scopeId: downloadScope.scopeId,
         config: unwrap(tempConfig),
       };
       downloadJson(jsonDef, `${fileStem}_definition.json`);

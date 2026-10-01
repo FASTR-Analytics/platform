@@ -19,12 +19,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import {
-  ScopePicker,
-  type ScopeSelection,
-  scopeSelectionFromStored,
-  storedValueFromScopeSelection,
-} from "~/components/_shared/mod.ts";
+import { ScopeSelect, scopeSelectLabel } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
 
@@ -44,9 +39,7 @@ type ReturnType = { lastUpdated: string } | undefined;
 // action (D4). The count below is the one forewarning.
 export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
   const [tempRunId, setTempRunId] = createSignal(p.product.runId);
-  const [tempScope, setTempScope] = createSignal<ScopeSelection>(
-    scopeSelectionFromStored(p.product.adminArea2),
-  );
+  const [tempScopeId, setTempScopeId] = createSignal(p.product.scopeId);
 
   // Captured at open, never derived from the current pick: an option list that
   // moved with the selection would rebuild every <option> node on each pick.
@@ -73,19 +66,17 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
     ];
   });
 
-  const candidate = (): PackageScope | undefined => {
-    const adminArea2 = storedValueFromScopeSelection(tempScope());
-    return adminArea2 === undefined
-      ? undefined
-      : { runId: tempRunId(), adminArea2 };
-  };
+  const candidate = (): PackageScope => ({
+    runId: tempRunId(),
+    scopeId: tempScopeId(),
+  });
 
   const [staleCount, setStaleCount] = createSignal<number | undefined>();
   createEffect(() => {
     const count = p.countStaleUnder;
     const pair = candidate();
     setStaleCount(undefined);
-    if (!count || !pair || packageScopesEqual(pair, productScope(p.product))) {
+    if (!count || packageScopesEqual(pair, productScope(p.product))) {
       return;
     }
     let live = true;
@@ -100,18 +91,6 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
   const save = createFormAction(
     async (e: MouseEvent) => {
       e.preventDefault();
-      const adminArea2 = storedValueFromScopeSelection(tempScope());
-      if (adminArea2 === undefined) {
-        return {
-          success: false,
-          err: t3({
-            en: "Select an area, or choose national scope",
-            fr: "Sélectionnez une zone ou choisissez la portée nationale",
-            pt: "Selecione uma zona ou escolha o âmbito nacional",
-          }),
-        };
-      }
-
       // Only what actually changed is written; each write bumps the product's
       // version, and every open surface re-renders off the SSE echo.
       let lastUpdated = p.product.lastUpdated;
@@ -123,10 +102,10 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
         if (!res.success) return res;
         lastUpdated = res.data.lastUpdated;
       }
-      if (adminArea2 !== p.product.adminArea2) {
+      if (tempScopeId() !== p.product.scopeId) {
         const res = await serverActions.setProductScope({
           product_id: p.product.id,
-          adminArea2,
+          scopeId: tempScopeId(),
         });
         if (!res.success) return res;
         lastUpdated = res.data.lastUpdated;
@@ -165,7 +144,14 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
           onChange={setTempRunId}
           fullWidth
         />
-        <ScopePicker selection={tempScope()} onChange={setTempScope} />
+        <ScopeSelect
+          label={scopeSelectLabel()}
+          scopeId={tempScopeId()}
+          onChange={(v) => {
+            if (v !== null) setTempScopeId(v);
+          }}
+          fullWidth
+        />
         <Show when={staleCount()} keyed>
           {(n) => (
             <Callout intent="warning" pad="sm">

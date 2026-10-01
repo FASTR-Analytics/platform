@@ -16,7 +16,7 @@ export function PackageScopeChip(p: Props) {
   const text = () => {
     if (!p.product) return "";
     return `${packageLabel(p.product.runId)} · ${
-      scopeLabel(p.product.adminArea2)
+      scopeLabel(p.product.scopeId)
     }`;
   };
   const layout =

@@ -224,9 +224,9 @@ Duplicate names within a level are therefore ambiguous. The wizard warns but
 cannot fix. The two registries' name-spaces are independent and are never
 reconciled (migration 076; instance migration 081 drops the shared
 `admin_areas_1..4` tables and the global `max_admin_area` / `facility_columns`
-config rows that 076 left in place as its rollback path). A product's AA2 scope
-is deliberately registry-agnostic: the name is matched against whichever
-registry each results object belongs to, at read time.
+config rows that 076 left in place as its rollback path). The area a scope's
+geography names is deliberately registry-agnostic: the name is matched against
+whichever registry each results object belongs to, at read time.
 
 FK topology: `facilities_{family} → admin_areas_{family}_4` CASCADE;
 `dataset_hmis`/`hfa_data → facilities_*` are RESTRICT-behaving NO ACTION
@@ -1062,8 +1062,8 @@ layer.
   the import in the step-4 summary.
 - Permissions: structure, weights and population reads are `can_view_data`,
   including the population CSV export, except `listAdminArea2s` (zero-permission
-  `requireGlobalPermission()`, any signed-in user, for the scope picker) and the
-  population import template (`can_configure_data`); geojson reads are
+  `requireGlobalPermission()`, any signed-in user; no client surface calls it)
+  and the population import template (`can_configure_data`); geojson reads are
   zero-permission too; the HMIS and HFA dictionary reads and every mutation are
   `can_configure_data`; config mutations `can_configure_settings`. Several
   manager UIs still gate their write buttons on `currentUserIsGlobalAdmin`

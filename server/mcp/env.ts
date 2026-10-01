@@ -2,7 +2,7 @@ import type { AIToolEnv, ServerActionsType } from "lib";
 
 // The /mcp injection of the shared AI-tool environment (lib/ai_tools/env.ts),
 // bound to ONE results package: the instance's pinned package, resolved per
-// call by the context cache, at national scope (adminArea2 null: /mcp has no
+// call by the context cache, as the whole package (scopeId null: /mcp has no
 // product to take a scope from, and no tool schema accepts one; the SPA
 // copilot binds one pair per product mount instead, see D15). Every
 // getter is the run-keyed instance route it fronts (D7), dispatched
@@ -20,13 +20,13 @@ export function createMcpAIToolEnv(
         run_id: runId,
         resultsObjectId,
         fetchConfig,
-        adminArea2: null,
+        scopeId: null,
       }),
     getResultsValueInfo: (metricId) =>
       serverActions.getRunResultsValueInfo({
         run_id: runId,
         metricId,
-        adminArea2: null,
+        scopeId: null,
       }),
   };
 }

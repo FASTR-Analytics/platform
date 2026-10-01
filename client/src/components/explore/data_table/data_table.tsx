@@ -49,8 +49,10 @@ import {
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
+  figureScopeStamp,
   getSnapshotInstanceLocalization,
   instanceState,
+  resolveScope,
 } from "~/state/instance/t1_store";
 import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import {
@@ -140,9 +142,20 @@ function ReadyFamilyTable(p: {
   // Until the user edits it, the family's query is the default for the
   // current scope, so it follows a scope change.
   const intent = (): GridQuery =>
-    p.query ?? defaultGridQuery(p.family, p.scope, p.ctx, available());
+    p.query ?? defaultGridQuery(
+      p.family,
+      resolveScope(p.scope).adminArea2,
+      p.ctx,
+      available(),
+    );
   const resolved = createMemo(() =>
-    resolveGridQuery(intent(), p.columns, p.scope, p.ctx, available())
+    resolveGridQuery(
+      intent(),
+      p.columns,
+      resolveScope(p.scope).adminArea2,
+      p.ctx,
+      available(),
+    )
   );
   const { update, clearDropped } = queryEditors(intent, resolved, p.setQuery);
 
@@ -254,7 +267,10 @@ function ReadyFamilyTable(p: {
             selectors={p.selectors}
             columns={p.columns}
             query={resolved().query}
-            levelOptions={levelOptionsFor(p.metric, p.scope).map((level) => ({
+            levelOptions={levelOptionsFor(
+              p.metric,
+              resolveScope(p.scope).adminArea2,
+            ).map((level) => ({
               value: level,
               label: t3(getDisplayDisaggregationLabel(level, p.family)),
             }))}
@@ -371,7 +387,7 @@ function buildGrid(args: {
     dateRange: rows.dateRange,
     localization: getSnapshotInstanceLocalization(),
     metricId: metric.id,
-    scope: { adminArea2: args.scope.adminArea2 },
+    scope: figureScopeStamp(args.scope),
     snapshotAt: "",
     provenance: { runId: args.scope.runId },
   };

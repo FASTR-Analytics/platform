@@ -9,7 +9,6 @@ import type { VizPreset } from "./types/_metric_installed.ts";
 import type { PresentationObjectConfig } from "./types/_presentation_object_config.ts";
 import type { DisaggregationOption } from "./types/presentation_objects.ts";
 import type { RunAuthoringContext } from "./types/run_authoring_context.ts";
-import type { PackageScope } from "./types/scope.ts";
 
 // The Explore Data table's controls' state (SYSTEM_11 "Grid query model").
 // The columns mode is the view's and is passed beside it; the figure config
@@ -103,8 +102,10 @@ export function familiesOffered(ctx: RunAuthoringContext): DatasetType[] {
   );
 }
 
-function scopeLevel(scope: PackageScope): number {
-  return scope.adminArea2 === null ? 1 : 2;
+// The admin level a scope is pinned to: 2 under a single-area scope, 1
+// otherwise.
+function scopeLevel(scopeAdminArea2: string | null): number {
+  return scopeAdminArea2 === null ? 1 : 2;
 }
 
 function levelNumber(level: AdminLevel): number {
@@ -113,20 +114,20 @@ function levelNumber(level: AdminLevel): number {
 
 export function levelOptionsFor(
   metric: MetricWithStatus | undefined,
-  scope: PackageScope,
+  scopeAdminArea2: string | null,
 ): AdminLevel[] {
   const offered = new Set(metric?.disaggregationOptions.map((d) => d.value));
   return ADMIN_LEVELS.filter((level) =>
-    offered.has(level) && levelNumber(level) > scopeLevel(scope)
+    offered.has(level) && levelNumber(level) > scopeLevel(scopeAdminArea2)
   );
 }
 
 function resolveLevel(
   wanted: AdminLevel,
   metric: MetricWithStatus | undefined,
-  scope: PackageScope,
+  scopeAdminArea2: string | null,
 ): AdminLevel {
-  const valid = levelOptionsFor(metric, scope);
+  const valid = levelOptionsFor(metric, scopeAdminArea2);
   if (valid.includes(wanted)) return wanted;
   if (valid.length > 0) return valid[0];
   const offered = ADMIN_LEVELS.filter((level) =>
@@ -191,7 +192,7 @@ function resolvePeriod(
 
 export function defaultGridQuery(
   family: DatasetType,
-  scope: PackageScope,
+  scopeAdminArea2: string | null,
   ctx: RunAuthoringContext,
   available: GridAvailable,
 ): GridQuery {
@@ -201,9 +202,9 @@ export function defaultGridQuery(
     : {
       kind: "admin",
       level: resolveLevel(
-        ADMIN_LEVELS[scopeLevel(scope) - 1] ?? "admin_area_2",
+        ADMIN_LEVELS[scopeLevel(scopeAdminArea2) - 1] ?? "admin_area_2",
         metric,
-        scope,
+        scopeAdminArea2,
       ),
     };
   return {
@@ -221,7 +222,7 @@ export function defaultGridQuery(
 export function resolveGridQuery(
   query: GridQuery,
   columns: GridColumns,
-  scope: PackageScope,
+  scopeAdminArea2: string | null,
   ctx: RunAuthoringContext,
   available: GridAvailable,
 ): ResolvedGridQuery {
@@ -231,7 +232,7 @@ export function resolveGridQuery(
     : offered[0] ?? query.family;
   const base: GridQuery = family === query.family
     ? query
-    : defaultGridQuery(family, scope, ctx, available);
+    : defaultGridQuery(family, scopeAdminArea2, ctx, available);
   const metric = primaryMetricFor(family, ctx);
 
   const unit: GridUnit = family === "iceh"
@@ -247,7 +248,7 @@ export function resolveGridQuery(
       level: resolveLevel(
         base.unit.kind === "admin" ? base.unit.level : "admin_area_2",
         metric,
-        scope,
+        scopeAdminArea2,
       ),
     };
 

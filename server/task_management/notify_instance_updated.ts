@@ -13,6 +13,7 @@ import type {
   OtherUser,
   ProductSummary,
   RunProgress,
+  Scope,
 } from "lib";
 import {
   getAdminAreaLabelsConfig,
@@ -101,6 +102,10 @@ export function notifyInstanceProductsDeleted(ids: string[]) {
 }
 
 // Folders are few and change rarely, so the whole list rides each change.
+export function notifyInstanceScopesUpdated(scopes: Scope[]) {
+  notifyInstanceUpdate({ type: "scopes_updated", data: { scopes } });
+}
+
 export function notifyInstanceFoldersUpdated(folders: Folder[]) {
   notifyInstanceUpdate({ type: "folders_updated", data: { folders } });
 }

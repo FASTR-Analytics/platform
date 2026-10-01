@@ -51,8 +51,8 @@ const migratedReportVersion = (
 ).at(0);
 
 const migratedDeck = (
-  await mainDb<{ id: string; admin_area_2: string | null }[]>`
-    SELECT p.id, p.admin_area_2 FROM products p
+  await mainDb<{ id: string; scope_id: string }[]>`
+    SELECT p.id, p.scope_id FROM products p
     WHERE p.type = 'slide_deck' AND p.created_by IS NULL
       AND (SELECT count(*) FROM slides s WHERE s.slide_deck_id = p.id) >= 2
       AND EXISTS (
@@ -256,7 +256,7 @@ Deno.test({
         "POST",
         `/products/${migratedDeck!.id}/duplicate`,
         {
-          adminArea2: migratedDeck!.admin_area_2,
+          scopeId: migratedDeck!.scope_id,
         },
       );
       created.push(copy.productId);

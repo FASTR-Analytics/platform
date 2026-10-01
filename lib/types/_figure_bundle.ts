@@ -130,12 +130,16 @@ export const figureBundleSchema = z.strictObject({
   geo: geoRefSchema.optional(),
   localization: figureLocalizationSchema,
   metricId: z.string(),
-  // `scope` and `provenance.runId` are the (package, scope) pair the bundle
-  // was RESOLVED under: compared against the container's pair for staleness
-  // (client/src/generate_visualization/figure_staleness.ts) and read by
-  // getRollupRowLabel. They live here and not in `config` so they stay out of
-  // the fetch hash (SYSTEM_09).
+  // `scope` and `provenance.runId` are what the bundle was RESOLVED under:
+  // the package and the hash of the scope's definition at that moment. They
+  // are compared against the container's package and its scope's current hash
+  // for staleness (client/src/generate_visualization/figure_staleness.ts), so
+  // editing a scope marks every figure resolved under it stale. `adminArea2`
+  // is the definition's area, kept because getRollupRowLabel renders the
+  // roll-up row label from the frozen bundle. They live here and not in
+  // `config` so they stay out of the fetch hash (SYSTEM_09).
   scope: z.strictObject({
+    definitionHash: z.string(),
     adminArea2: z.string().nullable(),
   }),
   snapshotAt: z.string(),
