@@ -78,11 +78,13 @@ last column of `products`. `204_scopes.sql` creates the table and seeds one
 unconstrained scope labelled "All data" whenever the table is empty, a fresh
 instance included, so a product can always be created. On an instance that still
 has `products.admin_area_2` it also seeds one scope per distinct area, labelled
-with the area name, backfills `scope_id` (a product with no area takes the
-unconstrained scope), sets `NOT NULL` and the foreign key, and drops
-`admin_area_2`. That block is guarded on the column it drops, so a second run
-and a fresh database skip it. `server/db/instance/scopes.ts` reads and writes
-the table (S12 "Scopes").
+with the area name. Areas are distinct case-insensitively, so two spellings of
+one area share a scope, and an area whose name is already a scope's label gets
+the suffix " (area)". It then backfills `scope_id` on the same case-insensitive
+match (a product with no area takes the unconstrained scope), sets `NOT NULL`
+and the foreign key, and drops `admin_area_2`. That block is guarded on the
+column it drops, so a second run and a fresh database skip it.
+`server/db/instance/scopes.ts` reads and writes the table (S12 "Scopes").
 
 The connection id (`"postgres"` or `"main"`) is the connection-cache key and the
 database name passed to `getPgConnectionFromCacheOrNew`. Request handlers
