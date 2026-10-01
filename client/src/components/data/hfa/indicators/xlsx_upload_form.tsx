@@ -10,6 +10,7 @@ import {
   Input,
   openAlert,
   pickFileAsArrayBuffer,
+  plural,
   RadioGroup,
   Select,
   type StateHolder,
@@ -218,6 +219,26 @@ function ImportModeRadio(p: {
   );
 }
 
+function indicatorCount(shape: WorkbookShape): string {
+  const n = shape.indicators.length;
+  return `${n} ${
+    plural(n, {
+      one: t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
+      other: t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" }),
+    })
+  }`;
+}
+
+function categoryCount(shape: WorkbookShape): string {
+  const n = shape.categories.length;
+  return `${n} ${
+    plural(n, {
+      one: t3({ en: "category", fr: "catégorie", pt: "categoria" }),
+      other: t3({ en: "categories", fr: "catégories", pt: "categorias" }),
+    })
+  }`;
+}
+
 function DefaultStep(p: {
   existingIndicatorIds: string[];
   uploadMode: "replace" | "add";
@@ -256,11 +277,17 @@ function DefaultStep(p: {
           <div class="text-sm">
             {t3({
               en:
-                `The default FASTR HFA indicator set was fetched from the FASTR resource hub on GitHub: ${shape.indicators.length} indicator(s) in ${shape.categories.length} category(ies).`,
+                `The default FASTR HFA indicator set was fetched from the FASTR resource hub on GitHub: ${
+                  indicatorCount(shape)
+                } in ${categoryCount(shape)}.`,
               fr:
-                `L'ensemble d'indicateurs HFA FASTR par défaut a été récupéré depuis le hub de ressources FASTR sur GitHub : ${shape.indicators.length} indicateur(s) dans ${shape.categories.length} catégorie(s).`,
+                `L'ensemble d'indicateurs HFA FASTR par défaut a été récupéré depuis le hub de ressources FASTR sur GitHub : ${
+                  indicatorCount(shape)
+                } dans ${categoryCount(shape)}.`,
               pt:
-                `O conjunto predefinido de indicadores HFA FASTR foi obtido do hub de recursos FASTR no GitHub: ${shape.indicators.length} indicador(es) em ${shape.categories.length} categoria(s).`,
+                `O conjunto predefinido de indicadores HFA FASTR foi obtido do hub de recursos FASTR no GitHub: ${
+                  indicatorCount(shape)
+                } em ${categoryCount(shape)}.`,
             })}
           </div>
           <ImportModeRadio
@@ -386,6 +413,30 @@ function ReconcileStep(p: {
 }) {
   const N = p.shape.xlsxCount;
   const M = p.timePoints.length;
+  const codeColumns = `${N} ${
+    plural(N, {
+      one: t3({
+        en: "code column",
+        fr: "colonne de code",
+        pt: "coluna de código",
+      }),
+      other: t3({
+        en: "code columns",
+        fr: "colonnes de code",
+        pt: "colunas de código",
+      }),
+    })
+  }`;
+  const timePoints = `${M} ${
+    plural(M, {
+      one: t3({ en: "time point", fr: "point temporel", pt: "ponto temporal" }),
+      other: t3({
+        en: "time points",
+        fr: "points temporels",
+        pt: "pontos temporais",
+      }),
+    })
+  }`;
 
   // Scenario detection
   const allLabeled = N > 0 && p.shape.xlsxLabels.every((l) => l !== null);
@@ -606,11 +657,10 @@ function ReconcileStep(p: {
       </div>
       <div class="text-base-content-muted text-sm">
         {t3({
-          en: `XLSX has ${N} code column(s). Platform has ${M} time point(s).`,
+          en: `XLSX has ${codeColumns}. Platform has ${timePoints}.`,
           fr:
-            `Le classeur contient ${N} colonne(s) de code. La plateforme a ${M} point(s) temporel(s).`,
-          pt:
-            `O XLSX tem ${N} coluna(s) de código. A plataforma tem ${M} ponto(s) temporal(is).`,
+            `Le classeur contient ${codeColumns}. La plateforme a ${timePoints}.`,
+          pt: `O XLSX tem ${codeColumns}. A plataforma tem ${timePoints}.`,
         })}
       </div>
 

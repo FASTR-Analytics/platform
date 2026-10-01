@@ -8,6 +8,7 @@ import {
   Button,
   createDeleteAction,
   openComponent,
+  plural,
   SortableList,
 } from "panther";
 import { createEffect, createMemo, Show } from "solid-js";
@@ -244,11 +245,16 @@ function GroupRow(p: {
       </div>
       <Show when={p.indicatorCount > 0}>
         <div class="ui-text-caption flex-none">
-          {t3({
-            en: `${p.indicatorCount} indicator(s)`,
-            fr: `${p.indicatorCount} indicateur(s)`,
-            pt: `${p.indicatorCount} indicador(es)`,
-          })}
+          {`${p.indicatorCount} ${
+            plural(p.indicatorCount, {
+              one: t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
+              other: t3({
+                en: "indicators",
+                fr: "indicateurs",
+                pt: "indicadores",
+              }),
+            })
+          }`}
         </div>
       </Show>
       <Show when={p.onEdit}>

@@ -22,6 +22,7 @@ import {
   openConfirm,
   PageHolder,
   type PageInputs,
+  plural,
   type StateHolder,
   StateHolderWrapper,
 } from "panther";
@@ -572,17 +573,26 @@ export function DeckVersionPreview(p: {
         const summaryParts = prev === null ? [] : [
           addedCount > 0
             ? `${addedCount} ${
-              t3({ en: "added", fr: "ajoutée(s)", pt: "adicionado(s)" })
+              plural(addedCount, {
+                one: t3({ en: "added", fr: "ajoutée", pt: "adicionado" }),
+                other: t3({ en: "added", fr: "ajoutées", pt: "adicionados" }),
+              })
             }`
             : "",
           editedCount > 0
             ? `${editedCount} ${
-              t3({ en: "edited", fr: "modifiée(s)", pt: "editado(s)" })
+              plural(editedCount, {
+                one: t3({ en: "edited", fr: "modifiée", pt: "editado" }),
+                other: t3({ en: "edited", fr: "modifiées", pt: "editados" }),
+              })
             }`
             : "",
           removedCount > 0
             ? `${removedCount} ${
-              t3({ en: "removed", fr: "supprimée(s)", pt: "removido(s)" })
+              plural(removedCount, {
+                one: t3({ en: "removed", fr: "supprimée", pt: "removido" }),
+                other: t3({ en: "removed", fr: "supprimées", pt: "removidos" }),
+              })
             }`
             : "",
           survivorOrderChanged

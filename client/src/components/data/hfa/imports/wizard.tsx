@@ -16,6 +16,7 @@ import {
   getStepper,
   Input,
   ModalContainer,
+  plural,
   RadioGroup,
   Select,
   SelectSearch,
@@ -714,7 +715,10 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
                 {preview()?.groups.length ?? 0}
                 {mappings.dedupOverrides.length > 0
                   ? ` (${mappings.dedupOverrides.length} ${
-                    t3({ en: "manual", fr: "manuel(s)", pt: "manual(is)" })
+                    plural(mappings.dedupOverrides.length, {
+                      one: t3({ en: "manual", fr: "manuel", pt: "manual" }),
+                      other: t3({ en: "manual", fr: "manuels", pt: "manuais" }),
+                    })
                   })`
                   : ""}
               </div>

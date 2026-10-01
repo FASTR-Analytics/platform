@@ -20,6 +20,7 @@ import {
   Checkbox,
   getSelectOptions,
   Icon,
+  plural,
   Select,
   TextArea,
 } from "panther";
@@ -204,6 +205,14 @@ export function DeckFileMenu(p: {
   selectedCount: number;
   onCopyToDeck: () => void;
 }) {
+  const selectedSlideCount = () =>
+    `${p.selectedCount} ${
+      plural(p.selectedCount, {
+        one: t3({ en: "slide", fr: "diapositive", pt: "diapositivo" }),
+        other: t3({ en: "slides", fr: "diapositives", pt: "diapositivos" }),
+      })
+    }`;
+
   return (
     <ToolbarPopover
       menu
@@ -255,11 +264,9 @@ export function DeckFileMenu(p: {
           >
             {p.selectedCount > 0
               ? t3({
-                en: `Copy ${p.selectedCount} slide(s) to deck…`,
-                fr:
-                  `Copier ${p.selectedCount} diapositive(s) vers une présentation…`,
-                pt:
-                  `Copiar ${p.selectedCount} diapositivo(s) para apresentação…`,
+                en: `Copy ${selectedSlideCount()} to deck…`,
+                fr: `Copier ${selectedSlideCount()} vers une présentation…`,
+                pt: `Copiar ${selectedSlideCount()} para apresentação…`,
               })
               : t3({
                 en: "Copy to deck…",

@@ -1,5 +1,5 @@
 import { type DatasetHfaCsvStagingResult, t3 } from "lib";
-import { toNum0 } from "panther";
+import { plural, toNum0 } from "panther";
 import { Show } from "solid-js";
 
 type Props = {
@@ -152,10 +152,17 @@ export function HfaStagingSummary(p: Props) {
                 })}
               {p.result.nDedupOverridesApplied > 0 &&
                 `; ${toNum0(p.result.nDedupOverridesApplied)} ${
-                  t3({
-                    en: "manual override(s)",
-                    fr: "remplacement(s) manuel(s)",
-                    pt: "substituição(ões) manual(is)",
+                  plural(p.result.nDedupOverridesApplied, {
+                    one: t3({
+                      en: "manual override",
+                      fr: "remplacement manuel",
+                      pt: "substituição manual",
+                    }),
+                    other: t3({
+                      en: "manual overrides",
+                      fr: "remplacements manuels",
+                      pt: "substituições manuais",
+                    }),
                   })
                 }`}
             </span>

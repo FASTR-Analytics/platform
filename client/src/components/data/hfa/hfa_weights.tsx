@@ -18,6 +18,7 @@ import {
   getEditorWrapper,
   getSelectOptions,
   HeadingBar,
+  plural,
   Select,
   SelectSearch,
   StateHolderFormError,
@@ -528,17 +529,26 @@ function DoneStep(
       </div>
       <Show when={p.result.rowsSkippedNoWeight > 0}>
         <div class="text-base-content-muted text-sm">
-          {t3({
-            en: `${
-              toNum0(p.result.rowsSkippedNoWeight)
-            } blank cell(s) — not in sample`,
-            fr: `${
-              toNum0(p.result.rowsSkippedNoWeight)
-            } cellule(s) vide(s) — hors échantillon`,
-            pt: `${
-              toNum0(p.result.rowsSkippedNoWeight)
-            } célula(s) vazia(s) — fora da amostra`,
-          })}
+          {`${toNum0(p.result.rowsSkippedNoWeight)} ${
+            plural(p.result.rowsSkippedNoWeight, {
+              one: t3({
+                en: "blank cell",
+                fr: "cellule vide",
+                pt: "célula vazia",
+              }),
+              other: t3({
+                en: "blank cells",
+                fr: "cellules vides",
+                pt: "células vazias",
+              }),
+            })
+          } — ${
+            t3({
+              en: "not in sample",
+              fr: "hors échantillon",
+              pt: "fora da amostra",
+            })
+          }`}
         </div>
       </Show>
       <div class="ui-gap-sm flex">

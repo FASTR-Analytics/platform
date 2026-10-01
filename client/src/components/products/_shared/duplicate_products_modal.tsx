@@ -4,6 +4,7 @@ import {
   createFormAction,
   getProgress,
   ModalContainer,
+  plural,
   ProgressBar,
   RadioGroup,
 } from "panther";
@@ -62,15 +63,22 @@ export function DuplicateProductsModal(
           scopeId: chosen ?? product.scopeId,
         });
         if (!res.success) {
+          const duplicated = `${productIds.length} ${
+            plural(productIds.length, {
+              one: t3({ en: "duplicated", fr: "dupliqué", pt: "duplicado" }),
+              other: t3({
+                en: "duplicated",
+                fr: "dupliqués",
+                pt: "duplicados",
+              }),
+            })
+          }`;
           return {
             success: false,
             err: t3({
-              en:
-                `Failed on "${product.label}": ${res.err}. ${productIds.length} duplicated.`,
-              fr:
-                `Échec sur « ${product.label} » : ${res.err}. ${productIds.length} dupliqué(s).`,
-              pt:
-                `Falhou em "${product.label}": ${res.err}. ${productIds.length} duplicado(s).`,
+              en: `Failed on "${product.label}": ${res.err}. ${duplicated}.`,
+              fr: `Échec sur « ${product.label} » : ${res.err}. ${duplicated}.`,
+              pt: `Falhou em "${product.label}": ${res.err}. ${duplicated}.`,
             }),
           };
         }

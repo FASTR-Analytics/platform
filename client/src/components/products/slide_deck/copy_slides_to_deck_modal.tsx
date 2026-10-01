@@ -4,6 +4,7 @@ import {
   createFormAction,
   getSelectOptionsFromIdLabel,
   ModalContainer,
+  plural,
   Select,
 } from "panther";
 import { createMemo, createSignal } from "solid-js";
@@ -60,14 +61,20 @@ export function CopySlidesToDeckModal(
     },
   );
 
+  const slideCount = () =>
+    `${p.slideIds.length} ${
+      plural(p.slideIds.length, {
+        one: t3({ en: "slide", fr: "diapositive", pt: "diapositivo" }),
+        other: t3({ en: "slides", fr: "diapositives", pt: "diapositivos" }),
+      })
+    }`;
+
   return (
     <ModalContainer
       title={t3({
-        en: `Copy ${p.slideIds.length} slide(s) to another deck`,
-        fr:
-          `Copier ${p.slideIds.length} diapositive(s) vers une autre présentation`,
-        pt:
-          `Copiar ${p.slideIds.length} diapositivo(s) para outra apresentação`,
+        en: `Copy ${slideCount()} to another deck`,
+        fr: `Copier ${slideCount()} vers une autre présentation`,
+        pt: `Copiar ${slideCount()} para outra apresentação`,
       })}
       form
       onCancel={() => p.close(undefined)}
