@@ -271,21 +271,22 @@ lastUpdated) rides the `starting` payload for approved connections. No client
 surface calls the three routes.
 
 **On the client** the list is `instanceState.scopes` in T1
-(`updateInstanceScopes`). `resolveScope(scope)` and `figureScopeStamp(scope)` in
-`state/instance/t1_store.ts` resolve a pair against it, reactively, for cache
-keys, the stale check and the bundle stamp. `ScopeSelect`
-(`components/_shared/scope_select.tsx`) is the one control that picks a scope,
-by label; its `allowWholePackage` prop adds a "Whole package" option that
-reports a null id. It is used by the create dialog, `PackageScopeModal`, the
-duplicate modal, Explore (S11) and the package page (S8, the only caller that
-allows the whole package). `components/_shared/package_label.ts` names things:
-`scopeLabel(scopeId)` (the scope's label, "Whole package" for null, "Unlisted
-scope" for an id the list lacks), `wholePackageLabel()`, and
-`figureScopeLabel(stamp)` for a stored bundle, which records a hash and no id:
-the label of a scope whose definition still hashes the same, else "Whole
-package" for the unconstrained hash, else the bundle's area, else "An earlier
-scope definition". `packageScopeCaption` and `PackageScopeChip` show "package ·
-scope" from those.
+(`updateInstanceScopes`). `resolveScope(scope)` in `state/instance/t1_store.ts`
+resolves a pair against it, reactively, for cache keys and the stale check.
+`figureScopeStamp(scope, scopeToken)` builds the bundle stamp: the hash is the
+`scopeToken` of the payload the bundle was built from, and only the area comes
+from the list. `ScopeSelect` (`components/_shared/scope_select.tsx`) is the one
+control that picks a scope, by label; its `allowWholePackage` prop adds a "Whole
+package" option that reports a null id. It is used by the create dialog,
+`PackageScopeModal`, the duplicate modal, Explore (S11) and the package page
+(S8, the only caller that allows the whole package).
+`components/_shared/package_label.ts` names things: `scopeLabel(scopeId)` (the
+scope's label, "Whole package" for null, "Unlisted scope" for an id the list
+lacks), `wholePackageLabel()`, and `figureScopeLabel(stamp)` for a stored
+bundle, which records a hash and no id: the label of a scope whose definition
+still hashes the same, else "Whole package" for the unconstrained hash, else the
+bundle's area, else "An earlier scope definition". `packageScopeCaption` and
+`PackageScopeChip` show "package · scope" from those.
 
 ## Slide decks
 

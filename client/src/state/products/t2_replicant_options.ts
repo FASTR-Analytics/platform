@@ -4,11 +4,12 @@ import {
   GenericLongFormFetchConfig,
   hashFetchConfig,
   PackageScope,
+  ResolvedPackageScope,
   RunReplicantOptions,
 } from "lib";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { resultsValueInfoQueue } from "~/state/_infra/request_queue";
-import { resolveScope } from "~/state/instance/t1_store";
+import { answersKeyedScope, resolveScope } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 
 // The valid values of a figure's replicant dimension, read under one
@@ -19,7 +20,7 @@ import { serverActions } from "~/server_actions";
 // response cannot land under a key belonging to another package or scope.
 const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   {
-    scope: PackageScope;
+    scope: ResolvedPackageScope;
     metricId: string;
     replicateBy: DisaggregationOption;
     fetchConfig: GenericLongFormFetchConfig;
@@ -29,12 +30,13 @@ const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   name: "run_replicant_options_v2",
   uniquenessKeys: (params) => [
     params.scope.runId,
-    resolveScope(params.scope).definitionHash,
+    params.scope.definitionHash,
     params.metricId,
     params.replicateBy,
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: () => "immutable",
+  shouldStore: answersKeyedScope,
 });
 
 export async function getReplicantOptionsFromCacheOrFetch(
@@ -43,7 +45,12 @@ export async function getReplicantOptionsFromCacheOrFetch(
   replicateBy: DisaggregationOption,
   fetchConfig: GenericLongFormFetchConfig,
 ): Promise<APIResponseWithData<RunReplicantOptions>> {
-  const params = { scope, metricId, replicateBy, fetchConfig };
+  const params = {
+    scope: resolveScope(scope),
+    metricId,
+    replicateBy,
+    fetchConfig,
+  };
   const { data, version } = await _REPLICANT_OPTIONS_CACHE.get(params);
   if (data) {
     return { success: true, data } as const;

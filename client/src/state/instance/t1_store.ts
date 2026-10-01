@@ -243,10 +243,30 @@ export function resolveScope(scope: PackageScope): ResolvedPackageScope {
   return resolvePackageScope(scope, instanceState.scopes);
 }
 
-// What a bundle resolved under this pair records beside its run id.
-export function figureScopeStamp(scope: PackageScope): FigureScope {
-  const { definitionHash, adminArea2 } = resolveScope(scope);
-  return { definitionHash, adminArea2 };
+// The server resolves a scope id against the `scopes` row at request time,
+// and this store learns of an edit only when `scopes_updated` arrives, so the
+// two can disagree for a moment (or for as long as the stream is down). A
+// figure-data cache therefore keys by the hash resolved when the read starts
+// and stores a response only when the server computed it under that hash.
+export function answersKeyedScope(
+  data: { scopeToken: string },
+  params: { scope: ResolvedPackageScope },
+): boolean {
+  return data.scopeToken === params.scope.definitionHash;
+}
+
+// What a bundle resolved under this pair records beside its run id. The hash
+// is the one the server computed the rows under (the payload's scopeToken),
+// never this store's: rows read under a definition the store has since
+// replaced must read as stale.
+export function figureScopeStamp(
+  scope: PackageScope,
+  scopeToken: string,
+): FigureScope {
+  return {
+    definitionHash: scopeToken,
+    adminArea2: resolveScope(scope).adminArea2,
+  };
 }
 
 // The cache-version index (S3's last_updated to SSE to cache triangle). The

@@ -18,7 +18,7 @@ import {
 import { getSlideFromCacheOrFetch } from "~/state/products/t2_slides";
 import { getReplicantOptionsFromCacheOrFetch } from "~/state/products/t2_replicant_options";
 import { poItemsQueue } from "~/state/_infra/request_queue";
-import { instanceState } from "~/state/instance/t1_store";
+import { instanceState, resolveScope } from "~/state/instance/t1_store";
 
 // The SPA's injection of the shared AI-tool environment (lib/ai_tools/env.ts):
 // cache-backed getters over the run-keyed package routes (so chat tool calls
@@ -64,7 +64,11 @@ export function createCopilotAIToolEnv(scope: PackageScope): ClientAIToolEnv {
     // run-keyed read derives the metric's finest physical time column from
     // the package manifest itself, so the caller's hint is redundant here.
     getItems: async ({ resultsObjectId, fetchConfig }) => {
-      const params = { scope, resultsObjectId, fetchConfig };
+      const params = {
+        scope: resolveScope(scope),
+        resultsObjectId,
+        fetchConfig,
+      };
       const { data, version } = await _PO_ITEMS_CACHE.get(params);
       if (data) {
         return { success: true, data };

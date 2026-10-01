@@ -387,7 +387,7 @@ function buildGrid(args: {
     dateRange: rows.dateRange,
     localization: getSnapshotInstanceLocalization(),
     metricId: metric.id,
-    scope: figureScopeStamp(args.scope),
+    scope: figureScopeStamp(args.scope, rows.scopeToken),
     snapshotAt: "",
     provenance: { runId: args.scope.runId },
   };

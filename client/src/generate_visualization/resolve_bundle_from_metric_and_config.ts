@@ -180,7 +180,7 @@ export function makeFigureBundleFromFetchedData(
       : undefined,
     localization: getSnapshotInstanceLocalization(),
     metricId: resultsValue.id,
-    scope: figureScopeStamp(scope),
+    scope: figureScopeStamp(scope, ih.scopeToken),
     snapshotAt: new Date().toISOString(),
     provenance: { runId: scope.runId },
   };

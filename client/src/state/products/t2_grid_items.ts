@@ -8,10 +8,11 @@ import {
   type JsonArrayItem,
   type PackageScope,
   type PeriodBounds,
+  type ResolvedPackageScope,
 } from "lib";
 import { createReactiveCache } from "../_infra/reactive_cache";
 import { poItemsQueue } from "~/state/_infra/request_queue";
-import { resolveScope } from "~/state/instance/t1_store";
+import { answersKeyedScope, resolveScope } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 
 // The Explore Data table's rows under one PackageScope: the grid read
@@ -24,12 +25,13 @@ export type GridRows =
     items: JsonArrayItem[];
     indicatorMetadata: IndicatorMetadataDisplay[];
     dateRange: PeriodBounds | undefined;
+    scopeToken: string;
   }
   | { status: "too_many_cells" }
   | { status: "no_data_available" };
 
 type GridItemsParams = {
-  scope: PackageScope;
+  scope: ResolvedPackageScope;
   resultsObjectId: string;
   fetchConfig: GenericLongFormFetchConfig;
 };
@@ -39,11 +41,12 @@ const _GRID_ITEMS_CACHE = createReactiveCache<GridItemsParams, GridItemsHolder>(
     name: "run_grid_items_v2",
     uniquenessKeys: (params) => [
       params.scope.runId,
-      resolveScope(params.scope).definitionHash,
+      params.scope.definitionHash,
       params.resultsObjectId,
       hashFetchConfig(params.fetchConfig),
     ],
     versionKey: () => "immutable",
+    shouldStore: answersKeyedScope,
   },
 );
 
@@ -54,6 +57,7 @@ function toGridRows(holder: GridItemsHolder): GridRows {
     items: decodeGridItems(holder, holder.fetchConfig.groupBys),
     indicatorMetadata: holder.indicatorMetadata,
     dateRange: holder.dateRange,
+    scopeToken: holder.scopeToken,
   };
 }
 
@@ -62,7 +66,7 @@ export async function getGridRowsFromCacheOrFetch(
   resultsObjectId: string,
   fetchConfig: GenericLongFormFetchConfig,
 ): Promise<APIResponseWithData<GridRows>> {
-  const params = { scope, resultsObjectId, fetchConfig };
+  const params = { scope: resolveScope(scope), resultsObjectId, fetchConfig };
   const { data, version } = await _GRID_ITEMS_CACHE.get(params);
   if (data) return { success: true, data: toGridRows(data) };
 

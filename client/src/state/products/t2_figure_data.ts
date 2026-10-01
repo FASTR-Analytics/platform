@@ -8,6 +8,7 @@ import {
   ItemsHolderPresentationObject,
   PackageScope,
   PresentationObjectConfig,
+  ResolvedPackageScope,
   ResultsValue,
   ResultsValueInfoForPresentationObject,
   t3,
@@ -18,7 +19,7 @@ import {
   poItemsQueue,
   resultsValueInfoQueue,
 } from "~/state/_infra/request_queue";
-import { resolveScope } from "~/state/instance/t1_store";
+import { answersKeyedScope, resolveScope } from "~/state/instance/t1_store";
 import { serverActions } from "~/server_actions";
 import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 
@@ -30,16 +31,17 @@ import { getReplicantOptionsFromCacheOrFetch } from "./t2_replicant_options";
 // entries. Version key CONSTANT, identity in the UNIQUENESS key: a package is
 // immutable, so `(runId, definitionHash)` leads the key instead of versioning it,
 // and a late response cannot land under a key belonging to another package
-// or scope.
+// or scope. The hash is resolved once, when the read starts, and a response is
+// stored only if the server computed it under that hash (answersKeyedScope).
 
 export const _METRIC_INFO_CACHE = createReactiveCache<
-  { scope: PackageScope; metricId: string },
+  { scope: ResolvedPackageScope; metricId: string },
   ResultsValueInfoForPresentationObject
 >({
   name: "run_metric_info_v2",
   uniquenessKeys: (params) => [
     params.scope.runId,
-    resolveScope(params.scope).definitionHash,
+    params.scope.definitionHash,
     params.metricId,
   ],
   versionKey: () => "immutable",
@@ -47,7 +49,8 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   // status inside a successful payload; with a constant version, freezing it
   // would pin the effective-format resolver's "cannot enumerate" fallback for
   // good.
-  shouldStore: (data) =>
+  shouldStore: (data, params) =>
+    answersKeyedScope(data, params) &&
     !Object.values(data.disaggregationPossibleValues).some(
       (s) => s.status === "error",
     ),
@@ -55,7 +58,7 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
 
 export const _PO_ITEMS_CACHE = createReactiveCache<
   {
-    scope: PackageScope;
+    scope: ResolvedPackageScope;
     resultsObjectId: string;
     fetchConfig: GenericLongFormFetchConfig;
   },
@@ -64,18 +67,19 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   name: "run_po_items_v2",
   uniquenessKeys: (params) => [
     params.scope.runId,
-    resolveScope(params.scope).definitionHash,
+    params.scope.definitionHash,
     params.resultsObjectId,
     hashFetchConfig(params.fetchConfig),
   ],
   versionKey: () => "immutable",
+  shouldStore: answersKeyedScope,
 });
 
 export async function getResultsValueInfoForPresentationObjectFromCacheOrFetch(
   scope: PackageScope,
   metricId: string,
 ): Promise<APIResponseWithData<ResultsValueInfoForPresentationObject>> {
-  const params = { scope, metricId };
+  const params = { scope: resolveScope(scope), metricId };
   const { data, version } = await _METRIC_INFO_CACHE.get(params);
   if (data) {
     return { success: true, data } as const;
@@ -222,7 +226,7 @@ export async function* getPresentationObjectItemsFromCacheOrFetch_AsyncGenerator
   const finalFetchConfig = resolvedReplicant.fetchConfig;
 
   const params = {
-    scope,
+    scope: resolveScope(scope),
     resultsObjectId: metric.resultsObjectId,
     fetchConfig: finalFetchConfig,
   };

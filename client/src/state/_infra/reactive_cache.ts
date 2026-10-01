@@ -59,9 +59,11 @@ export type ReactiveCacheConfig<Params, Data> = {
    * Payload-side storability guard. A SUCCESSFUL response can still embed a
    * transient failure (e.g. metric_info's per-dimension `error` status);
    * returning false serves the payload to the caller without freezing it into
-   * memory/IndexedDB, so the next request retries.
+   * memory/IndexedDB, so the next request retries. The params are the ones
+   * the entry is keyed by, so a guard can refuse a payload that does not
+   * answer its key.
    */
-  shouldStore?: (data: Data) => boolean;
+  shouldStore?: (data: Data, params: Params) => boolean;
 };
 
 export interface ReactiveCache<Params, Data> {
@@ -257,7 +259,8 @@ export function createReactiveCache<Params, Data>(
       }
 
       if (
-        config.shouldStore !== undefined && !config.shouldStore(response.data)
+        config.shouldStore !== undefined &&
+        !config.shouldStore(response.data, params)
       ) {
         _unresolved.delete(cacheKey);
         return;

@@ -15,6 +15,7 @@ import { geoJsonFamilyFor, getGeoJsonSync } from "~/state/instance/t2_geojson";
 import {
   figureScopeStamp,
   getSnapshotInstanceLocalization,
+  resolveScope,
 } from "~/state/instance/t1_store";
 
 // Plain-inputs resolver: takes the metric data already resolved by the caller
@@ -46,7 +47,7 @@ export async function resolveFigureBundleFromMetric(
     fetchConfig,
   } = inputs;
 
-  const params = { scope, resultsObjectId, fetchConfig };
+  const params = { scope: resolveScope(scope), resultsObjectId, fetchConfig };
   const { data, version } = await _PO_ITEMS_CACHE.get(params);
 
   let itemsHolder;
@@ -94,7 +95,7 @@ export async function resolveFigureBundleFromMetric(
     geo,
     localization: getSnapshotInstanceLocalization(),
     metricId,
-    scope: figureScopeStamp(scope),
+    scope: figureScopeStamp(scope, itemsHolder.scopeToken),
     snapshotAt: new Date().toISOString(),
     provenance: { runId: scope.runId },
   };

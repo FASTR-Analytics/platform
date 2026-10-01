@@ -803,12 +803,14 @@ memory, default 100, + IndexedDB); a package never changes, so nothing
 invalidates an entry, old entries are left to the deploy flush (LoggedInWrapper
 clears site caches on version change: dev has no deploy, hence the
 stale-IndexedDB trap), and a response cannot land under a key belonging to
-another package or scope because the key already names both, so there is no
-response-side guard. The same `resolveDefaultReplicant` policy (first valid
-value, fresh config copy, never mutate) and the same aliasing contract on the
-yielded config apply. Consumers: the embedded figure editor and the slide and
-report editors' post-insert reads (S11, S12), and the insert-figure wizard's
-preset previews (S11).
+another package because the key already names it. The scope half is guarded on
+the response: the hash is resolved once when the read starts, and a response
+whose `scopeToken` differs from it (T1 is behind or ahead of the `scopes` row
+the server read) is served but not stored (`answersKeyedScope`, S3). The same
+`resolveDefaultReplicant` policy (first valid value, fresh config copy, never
+mutate) and the same aliasing contract on the yielded config apply. Consumers:
+the embedded figure editor and the slide and report editors' post-insert reads
+(S11, S12), and the insert-figure wizard's preset previews (S11).
 
 ## Client query flow
 
@@ -864,9 +866,10 @@ bundle freezes:
 - **The pair is free**: the fetch already names its `PackageScope`, so the
   bundle stamps it at zero cost (`provenance: { runId }` and
   `scope: { definitionHash, adminArea2 }`, both required; `figureScopeStamp` in
-  `t1_store.ts` reads the hash and the area from the T1 scopes list), the basis
-  for the stale badge that compares it to the container product's package and
-  its scope's current definition hash without per-figure re-query (S10).
+  `t1_store.ts` takes the hash from the payload's `scopeToken`, the definition
+  the server computed the rows under, and the area from the T1 scopes list), the
+  basis for the stale badge that compares it to the container product's package
+  and its scope's current definition hash without per-figure re-query (S10).
 
 ## Traps
 

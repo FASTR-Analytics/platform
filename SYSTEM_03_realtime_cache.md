@@ -357,17 +357,18 @@ in-flight dedup and no failure caching) in `createReactiveCache`
 cache. Config: `name` (IndexedDB key prefix), `uniquenessKeys(params)`
 (auto-hashed with `|`), `versionKey(params, instanceState)` (reads the one T1
 store, the instance store, as a non-reactive snapshot), optional `maxSize`
-(memory LRU, default 100) and optional `shouldStore(data)` (a payload-side
-guard: a successful response it refuses is served but not stored). Cache key:
-`<name>/<uniquenessHash>::<versionHash>`. Version is part of the key, so a
-version flip is an automatic miss. Two tiers: memory LRU map, then IndexedDB
-(`idb-keyval`); an in-flight `_unresolved` map dedups concurrent identical
-fetches; failures are never cached; the sentinel version `"unknown"` (a
-`lastUpdated` field the store has not received yet) is refused by `setPromise`.
-Consumer semantics and the composite-key caveat are in PROTOCOL_APP_STATE
-"Sentinel version". `clearEntry` clears all versions of one uniqueness key;
-`clearEntriesWithPrefix` requires a STRICT prefix of the uniqueness keys (a
-complete key list matches nothing: full keys are followed by `::`, not `|`).
+(memory LRU, default 100) and optional `shouldStore(data, params)` (a
+payload-side guard: a successful response it refuses is served but not stored).
+Cache key: `<name>/<uniquenessHash>::<versionHash>`. Version is part of the key,
+so a version flip is an automatic miss. Two tiers: memory LRU map, then
+IndexedDB (`idb-keyval`); an in-flight `_unresolved` map dedups concurrent
+identical fetches; failures are never cached; the sentinel version `"unknown"`
+(a `lastUpdated` field the store has not received yet) is refused by
+`setPromise`. Consumer semantics and the composite-key caveat are in
+PROTOCOL_APP_STATE "Sentinel version". `clearEntry` clears all versions of one
+uniqueness key; `clearEntriesWithPrefix` requires a STRICT prefix of the
+uniqueness keys (a complete key list matches nothing: full keys are followed by
+`::`, not `|`).
 
 Two version idioms exist. Product documents version on the SSE-pushed
 `lastUpdated` maps (`slide`, `slide_deck_detail`, `report_detail`). Package data
@@ -375,12 +376,15 @@ Two version idioms exist. Product documents version on the SSE-pushed
 `state/instance/t2_runs.ts`, `t2_run_authoring_context.ts`) versions on the
 constant `"immutable"` with the identity leading the UNIQUENESS key (`runId` in
 all four; the `state/products/` caches add the scope's definition hash beside
-it, read from T1 with `resolveScope`): a ready package never changes, and an
-edited scope definition hashes to a new key, so nothing invalidates an entry and
-a late response cannot land under another package's key. There is no
-response-side identity guard; the key already names the package and the scope.
-Old IndexedDB entries become unreachable via the version flip and age out: no
-purge.
+it, read from T1 with `resolveScope` once, when the read starts): a ready
+package never changes, and an edited scope definition hashes to a new key, so
+nothing invalidates an entry and a late response cannot land under another
+package's key. The scope half has a response-side guard, `answersKeyedScope`
+(`t1_store.ts`), as each cache's `shouldStore`: the server resolves the scope id
+against the `scopes` row at request time, T1 learns of an edit only when
+`scopes_updated` arrives, and a response whose `scopeToken` is not the hash in
+its key is served but never stored. Old IndexedDB entries become unreachable via
+the version flip and age out: no purge.
 
 Around it:
 
