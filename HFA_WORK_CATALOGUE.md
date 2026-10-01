@@ -29,10 +29,9 @@ Nothing was run in the app.
 
 Built by [PLAN_HFA_QUICK_FIXES.md](PLAN_HFA_QUICK_FIXES.md).
 
-| Id | Issue                                                                              | Raised by          | State in code                                                                                                                       | Fix                                                                                 |
-| -- | ---------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Q5 | Data upload should check that all facility ids are in the facility list            | Tim, 2026-09-29    | The check exists and holds the run in "needs review", but shows a count only, never the ids (`lib/types/dataset_hfa_import.ts:107`) | Show a sample of the missing ids                                                    |
-| Q7 | An "add" button to create an indicator from an unused variable (High in the sheet) | Meghan, 2026-09-14 | The unused-variables modal is a read-only list (`client/src/components/data/hfa/indicators/unused_variables_modal.tsx`)             | An Add button that opens the new-indicator form with the variable's label filled in |
+| Id | Issue                                                                              | Raised by          | State in code                                                                                                           | Fix                                                                                 |
+| -- | ---------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Q7 | An "add" button to create an indicator from an unused variable (High in the sheet) | Meghan, 2026-09-14 | The unused-variables modal is a read-only list (`client/src/components/data/hfa/indicators/unused_variables_modal.tsx`) | An Add button that opens the new-indicator form with the variable's label filled in |
 
 ## Waiting on the HFA team
 
@@ -137,6 +136,8 @@ Verified in code or commits:
   Admin, type and ownership columns wait on W3.
 - Q4: a boolean module parameter is a Yes/No select labelled with the
   parameter's description, in every module's settings (2026-10-01, `426dc5f17`).
+- Q5: a held HFA data import lists up to 10 of the facility ids it could not
+  find, under the not-found count (2026-10-01, `aaf25accf`).
 
 From Tim's emails only, not re-verified:
 
