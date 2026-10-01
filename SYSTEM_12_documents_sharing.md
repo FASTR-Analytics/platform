@@ -45,6 +45,7 @@ globs:
   - server/report_pdf/**
   - server/routes/instance/emails.ts
   - server/routes/products/**
+  - server/tests/scope_definition_hash_test.ts
   - server/tests/consolidated_products_test.ts
   - server/tests/fastr_live_regions_test.ts
   - server/tests/fastr_markdown_edits_test.ts
