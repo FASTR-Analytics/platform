@@ -226,7 +226,7 @@ owns the sticky header and takes `maxHeight`, or the parent's definite height.
 - **Floating** (the default): above the frame, outside its border, with no
   padding, background or border of its own, so its content starts and ends at
   the frame's outer edges. The space between it and the frame is stack spacing
-  on the Table's root, sized by `toolbar.spy` (a `PadSize`, default `"md"`;
+  on the Table's root, sized by `toolbar.spy` (a `PadSize`, default `"sm"`;
   `"none"` puts the toolbar against the frame).
 - **Nested** (`toolbar={{ nested: true }}`): inside the frame, above the scroll
   box, with a background and a bottom border. Its horizontal padding is always

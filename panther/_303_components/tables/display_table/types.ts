@@ -72,7 +72,7 @@ export type TableProps<T, K extends keyof T = keyof T> =
     // whenever there are bulk actions.
     // It floats above the frame by default, unpadded, `spy` away from it;
     // `nested` puts it inside the frame, inset like the cells and padded
-    // vertically by `pad`. Both sizes default to "md".
+    // vertically by `pad`. `spy` defaults to "sm", `pad` to "md".
     toolbar?:
       & {
         search?: boolean | { placeholder?: string };

@@ -272,7 +272,7 @@ export function Table<
 
   const floatingSpyClass = () => {
     const tb = toolbar();
-    return showToolbar() && !tb?.nested ? spyClass(tb?.spy ?? "md") : "";
+    return showToolbar() && !tb?.nested ? spyClass(tb?.spy ?? "sm") : "";
   };
   const nestedPadYClass = () => {
     const tb = toolbar();
