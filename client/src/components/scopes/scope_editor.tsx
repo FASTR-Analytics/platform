@@ -27,6 +27,7 @@ import {
   TabsNavigation,
 } from "panther";
 import { type Accessor, createSignal, Match, Show, Switch } from "solid-js";
+import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState, resolveScope } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
@@ -185,41 +186,39 @@ type SectionFields = {
   indicators: string[] | null;
 };
 
+// The lists are copied out of the stored definition, which is a T1 store
+// object: the draft is one snapshot, and a `scopes_updated` that arrives while
+// the editor is open changes nothing in it.
 function sectionFields(
   section: ScopeDefinition[DatasetType],
 ): SectionFields {
   const included = section.include ? section : undefined;
+  const copy = (list: string[] | null) => list === null ? null : [...list];
   return {
     include: section.include,
     adminArea2: included !== undefined && "adminArea2" in included
       ? included.adminArea2
       : null,
     years: included !== undefined && "years" in included
-      ? included.years
+      ? included.years === null ? null : { ...included.years }
       : null,
     timePoints: included !== undefined && "timePoints" in included
-      ? included.timePoints
+      ? copy(included.timePoints)
       : null,
-    modules: included?.modules ?? null,
-    indicators: included?.indicators ?? null,
+    modules: copy(included?.modules ?? null),
+    indicators: copy(included?.indicators ?? null),
   };
 }
 
-// The lists are copied out of the stored definition, which is a T1 store
-// object: the draft is one snapshot, and a `scopes_updated` that arrives while
-// the editor is open changes nothing in it.
 function createSectionDraft(stored: SectionFields) {
-  const copy = (list: string[] | null) => list === null ? null : [...list];
   const [include, setInclude] = createSignal(stored.include);
   const [area, setArea] = createSignal<AreaSelection>(
     areaSelectionFromStored(stored.adminArea2),
   );
-  const [years, setYears] = createSignal(
-    stored.years === null ? null : { ...stored.years },
-  );
-  const [timePoints, setTimePoints] = createSignal(copy(stored.timePoints));
-  const [modules, setModules] = createSignal(copy(stored.modules));
-  const [indicators, setIndicators] = createSignal(copy(stored.indicators));
+  const [years, setYears] = createSignal(stored.years);
+  const [timePoints, setTimePoints] = createSignal(stored.timePoints);
+  const [modules, setModules] = createSignal(stored.modules);
+  const [indicators, setIndicators] = createSignal(stored.indicators);
   return {
     stored,
     include,
@@ -503,13 +502,9 @@ export function AllDataScopeView(
 ) {
   return (
     <ModalContainer
-      title={p.scope.label}
+      title={scopeDisplayLabel(p.scope)}
       width="md"
-      onCancel={() => p.close(undefined)}
-      actions={[{
-        label: t3({ en: "Close", fr: "Fermer", pt: "Fechar" }),
-        onClick: () => p.close(undefined),
-      }]}
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
     >
       <div class="ui-spy">
         <div>
