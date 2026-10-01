@@ -4,6 +4,7 @@ export * from "./server_actions/mod.ts";
 export * from "./ai_tools/mod.ts";
 export * from "./consts.ts";
 export * from "./convert_period_value.ts";
+export * from "./period_id_for_date.ts";
 export * from "./derive_default_visualizations.ts";
 export * from "./figure_package_issue.ts";
 export * from "./convert_visualization_type.ts";

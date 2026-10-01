@@ -536,11 +536,12 @@ into its inputs plus the dataset version stamps the manifest records
 - `getCsvDetails` (both CSV families' header parse) reads the whole file into
   memory for headers; the streaming variant's header read is one 64 KB
   `file.read()` (wide XLSForm exports / short reads → confusing failure).
-- Ethiopian-calendar period math (`periodIdForDate`, `lib/period_id_for_date.ts`,
-  used by the DHIS2 wizard, the import scheduler and the scope editor's year
-  slider) assumes 12 months (no Pagume); untranslated strings in the delete flows and
-  Period/TimeIndex selectors; `facilityOwnwershipsToInclude` typo is the
-  persisted canonical field (fixing it = stored-JSON migration).
+- Ethiopian-calendar period math (`periodIdForDate`,
+  `lib/period_id_for_date.ts`, used by the DHIS2 wizard, the import scheduler
+  and the scope editor's year slider) assumes 12 months (no Pagume);
+  untranslated strings in the delete flows and Period/TimeIndex selectors;
+  `facilityOwnwershipsToInclude` typo is the persisted canonical field (fixing
+  it = stored-JSON migration).
 - **Decoupling: heal the db→worker inversion.** The run spawn sites
   (`dataset_*_import_runs.ts`) still live in `server/db/instance/` and spawn Web
   Workers (the directory lie survived the consolidation; the fixed staging-table

@@ -11,7 +11,7 @@
 // ============================================================================
 
 import { _INSTANCE_CALENDAR } from "../../exposed_env_vars.ts";
-import { NO_STORED_DHIS2_CONNECTION } from "lib";
+import { NO_STORED_DHIS2_CONNECTION, periodIdForDate } from "lib";
 import type { Sql } from "postgres";
 import {
   claimScheduledImportOccurrence,
@@ -35,7 +35,6 @@ import type {
   Dhis2RunSelectionInput,
   Dhis2ScheduleRecurrence,
   Dhis2ScheduleSelection,
-  InstanceCalendar,
 } from "lib";
 import { notifyInstanceDatasetsUpdated } from "../../task_management/notify_instance_updated.ts";
 import { getWorker } from "../worker_store.ts";
@@ -347,24 +346,6 @@ export function decideScheduleFire(
   return { action: "missed", occurrenceMs };
 }
 
-// Rolling-window resolution at fire time: the current instance-calendar
-// month plus the previous monthsBack months. Mirrors the client launcher's
-// period arithmetic (the app models both calendars as 12 months/year).
-export function currentPeriodIdForCalendar(
-  calendar: InstanceCalendar,
-  now: Date,
-): number {
-  const gregorianYear = now.getFullYear();
-  const gregorianMonth = now.getMonth() + 1;
-  if (calendar === "ethiopian") {
-    if (gregorianMonth >= 9) {
-      return (gregorianYear - 7) * 100 + (gregorianMonth - 8);
-    }
-    return (gregorianYear - 8) * 100 + (gregorianMonth + 4);
-  }
-  return gregorianYear * 100 + gregorianMonth;
-}
-
 export function minusMonthsPeriodId(periodId: number, months: number): number {
   const totalMonths = Math.floor(periodId / 100) * 12 + ((periodId % 100) - 1) -
     months;
@@ -375,7 +356,9 @@ export function resolveRollingSelection(selection: {
   indicatorIds: string[];
   monthsBack: number;
 }): Dhis2RunSelectionInput {
-  const endPeriod = currentPeriodIdForCalendar(_INSTANCE_CALENDAR, new Date());
+  // Rolling-window resolution at fire time: the current instance-calendar
+  // month plus the previous monthsBack months.
+  const endPeriod = periodIdForDate(_INSTANCE_CALENDAR, new Date());
   return {
     kind: "window",
     indicatorIds: selection.indicatorIds,

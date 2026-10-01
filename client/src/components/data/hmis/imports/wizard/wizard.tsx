@@ -8,14 +8,15 @@ import {
   type Dhis2SelectionDescription,
   getCalendar,
   type HmisIndicator,
+  type InstanceCalendar,
   NO_STORED_DHIS2_CONNECTION,
+  periodIdForDate,
   POPULATION_TYPE_IDS,
   t3,
 } from "lib";
 import { recurrenceLabel } from "../_shared/mod.ts";
 import {
   AlertComponentProps,
-  type CalendarType,
   createFormAction,
   getLocalTimezone,
   getStepper,
