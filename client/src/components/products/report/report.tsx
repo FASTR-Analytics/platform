@@ -107,7 +107,16 @@ import {
 import { canEditProduct } from "~/state/instance/product_access";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
-import { setShowAi, showAi } from "~/state/t4_ui";
+import {
+  reportOutlineClosed,
+  setReportOutlineClosed,
+  setShowAi,
+  showAi,
+} from "~/state/t4_ui";
+import {
+  REPORT_OUTLINE_WIDTH_PX,
+  ReportDocumentOutline,
+} from "./document_outline.tsx";
 import {
   findStaleFiguresInReport,
   resolveFigureBundleInteractively,
@@ -755,8 +764,53 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     disarmSettle();
   }
 
+  // The outline sidebar (FASTR Edit): the headings the report's own contents
+  // block would list, re-derived per edit but only re-rendered when one
+  // changes, and the line being read (probed a little below the viewport top,
+  // so a heading just jumped to counts as in view).
+  const outlineShown = () =>
+    !isLoading() && format() === "fastr" && mode() === "edit";
+  const outlineItems = createMemo(
+    () => (outlineShown() ? fastrDocumentOutline(body()) : []),
+    [],
+    {
+      equals: (a, b) =>
+        a.length === b.length &&
+        a.every((it, i) =>
+          it.line === b[i].line && it.level === b[i].level &&
+          it.text === b[i].text
+        ),
+    },
+  );
+  const [outlineViewLine, setOutlineViewLine] = createSignal<number>();
+  // The sidebar floats over the ground beside the centred page, Google Docs
+  // style, and pushes the page right only by as much as it would otherwise
+  // overlap it (a narrow window), never more than its own width. With pad x
+  // the page's left edge sits at x + (row - x - sheet) / 2; keeping that
+  // clear of the sidebar plus a gap solves to the clamp below.
+  const [editorRowWidth, setEditorRowWidth] = createSignal(0);
+  const outlineSheetPx = createMemo(() =>
+    outlineShown() ? pageBoxOf(body()).sheetPx : 0
+  );
+  const outlinePagePad = () => {
+    if (!outlineShown() || reportOutlineClosed()) return 0;
+    const clearance = REPORT_OUTLINE_WIDTH_PX + 16;
+    const need = 2 * clearance + outlineSheetPx() - editorRowWidth();
+    return Math.min(REPORT_OUTLINE_WIDTH_PX, Math.max(0, need));
+  };
+  function readOutlineViewLine() {
+    setOutlineViewLine(editorApi?.getLineAt(96));
+  }
+  createEffect(() => {
+    outlineItems();
+    if (outlineShown() && !reportOutlineClosed()) {
+      requestAnimationFrame(readOutlineViewLine);
+    }
+  });
+
   // Editor scrolled (fires in Edit + Split). In Split, drive the preview.
   function onEditorScroll() {
+    if (outlineShown()) readOutlineViewLine();
     if (syncing) return;
     const line = editorApi?.getTopLine();
     if (line === undefined) return;
@@ -2203,7 +2257,47 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             and preview (right) sit side by side. A staged AI edit is reviewed in
             a locking modal (see proposeEdit), so nothing here is hidden for it. */
         }
-        <div class="flex min-h-0 flex-1">
+        <div
+          class="relative flex min-h-0 flex-1"
+          ref={(el) => {
+            const ro = new ResizeObserver(() =>
+              setEditorRowWidth(el.clientWidth)
+            );
+            ro.observe(el);
+            onCleanup(() => ro.disconnect());
+          }}
+        >
+          <Show when={outlineShown()}>
+            <Show
+              when={!reportOutlineClosed()}
+              fallback={
+                <div class="absolute left-2 top-2 z-10">
+                  <Button
+                    ghost
+                    size="sm"
+                    iconName="chevronRight"
+                    iconPosition="right"
+                    onClick={() => setReportOutlineClosed(false)}
+                  >
+                    {t3({
+                      en: "Report tabs",
+                      fr: "Onglets du rapport",
+                      pt: "Separadores do relatório",
+                    })}
+                  </Button>
+                </div>
+              }
+            >
+              <div class="absolute inset-y-0 left-0 z-10">
+                <ReportDocumentOutline
+                  items={outlineItems()}
+                  viewLine={outlineViewLine()}
+                  onSelect={(line) => editorApi?.goToLine(line)}
+                  onClose={() => setReportOutlineClosed(true)}
+                />
+              </div>
+            </Show>
+          </Show>
           {
             /* In Split, cap the editor pane to the editor's max content width
               (column + gutter) so it doesn't stretch to half: the preview takes
@@ -2216,7 +2310,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             data-tour="report-code-pane"
             style={mode() === "split"
               ? { "max-width": `${EDITOR_PANE_MAX_REM}rem` }
-              : undefined}
+              : { "padding-left": `${outlinePagePad()}px` }}
           >
             {
               /* Live preview: the theme sheet, scoped to the editor wrapper, so
