@@ -70,6 +70,11 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
       csvFileName: csv,
       xlsFormFileName: xlsForm,
     });
+    // A file changed while this parse was in flight: its headers belong to
+    // files no longer selected, and the newer parse will supply the right ones.
+    if (csv !== csvFileName() || xlsForm !== xlsFormFileName()) {
+      return;
+    }
     if (res.success) {
       setHeaders(res.data.headers.map((v, i) => encodeRawCsvHeader(i, v)));
       if (mappings.facilityIdColumn === "") {
