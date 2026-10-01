@@ -238,9 +238,10 @@ function HfaWeightsImportForm(_p: { close: (p: unknown) => void }) {
       pad="md"
       panelChildren={
         <HeadingBar
-          onBack={wizard().step !== "upload"
-            ? () => setWizard({ step: "upload" })
-            : undefined}
+          onBack={() =>
+            wizard().step === "upload"
+              ? _p.close(undefined)
+              : setWizard({ step: "upload" })}
           heading={wizard().step === "upload"
             ? t3({
               en: "Import weights",

@@ -364,11 +364,21 @@ export function InstanceData(p: Props) {
           ? weights
             .map(
               (tp) =>
-                `${tp.timePoint}: ${toNum0(tp.facilitiesWithDataAndWeight)}/${
-                  toNum0(
-                    tp.facilitiesWithData,
-                  )
-                }`,
+                tp.facilitiesWithData === 0 && tp.weightCount > 0
+                  ? t3({
+                    en: `${tp.timePoint}: ${
+                      toNum0(tp.weightCount)
+                    } weights, no data yet`,
+                    fr: `${tp.timePoint} : ${
+                      toNum0(tp.weightCount)
+                    } pondérations, pas encore de données`,
+                    pt: `${tp.timePoint}: ${
+                      toNum0(tp.weightCount)
+                    } pesos, ainda sem dados`,
+                  })
+                  : `${tp.timePoint}: ${
+                    toNum0(tp.facilitiesWithDataAndWeight)
+                  }/${toNum0(tp.facilitiesWithData)}`,
             )
             .join(" · ")
           : t3({
