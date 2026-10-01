@@ -1,6 +1,7 @@
 import {
   H_USERS,
   INSTANCE_PERMISSION_LABELS,
+  type ScopeAccess,
   t3,
   TC,
   USER_PERMISSIONS,
@@ -175,6 +176,7 @@ type UserData = {
   firstName?: string;
   lastName?: string;
   isContactPerson: boolean;
+  scopeAccess: ScopeAccess;
 } & Record<UserPermission, boolean>;
 
 function hasGlobalPermissions(user: UserData): boolean {
@@ -212,12 +214,13 @@ function getGlobalPermissionSummary(user: UserData): string {
       pt: "Sem permissões especiais",
     });
   }
-  const shown = active
-    .slice(0, 5)
-    .map((k) => t3(INSTANCE_PERMISSION_LABELS[k]))
-    .join(", ");
-  if (active.length > 5) {
-    return `${shown}, +${active.length - 5} ${
+  return summariseLabels(active.map((k) => t3(INSTANCE_PERMISSION_LABELS[k])));
+}
+
+function summariseLabels(labels: string[]): string {
+  const shown = labels.slice(0, 5).join(", ");
+  if (labels.length > 5) {
+    return `${shown}, +${labels.length - 5} ${
       t3({
         en: "more",
         fr: "de plus",
@@ -226,6 +229,29 @@ function getGlobalPermissionSummary(user: UserData): string {
     }`;
   }
   return shown;
+}
+
+function getScopeLabels(user: UserData): string[] {
+  if (user.scopeAccess.all) return [];
+  const scopeIds = new Set(user.scopeAccess.scopeIds);
+  return instanceState.scopes
+    .filter((s) => scopeIds.has(s.id))
+    .map((s) => s.label);
+}
+
+function getScopesLabel(user: UserData): string {
+  if (user.scopeAccess.all) {
+    return t3({
+      en: "All scopes",
+      fr: "Toutes les portées",
+      pt: "Todos os âmbitos",
+    });
+  }
+  const labels = getScopeLabels(user);
+  if (labels.length === 0) {
+    return t3({ en: "No scopes", fr: "Aucune portée", pt: "Nenhum âmbito" });
+  }
+  return summariseLabels(labels);
 }
 
 type UserTableData = UserData & {
@@ -356,6 +382,23 @@ function UserTable(p: {
             : "text-base-content-muted"}
         >
           {getStatusLabel(user)}
+        </span>
+      ),
+    },
+    {
+      key: "scopeAccess",
+      header: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
+      sortable: true,
+      sortValue: getScopesLabel,
+      filterable: true,
+      filterValue: getScopesLabel,
+      render: (user) => (
+        <span
+          class={!user.scopeAccess.all && getScopeLabels(user).length === 0
+            ? "text-base-content-muted"
+            : ""}
+        >
+          {getScopesLabel(user)}
         </span>
       ),
     },
