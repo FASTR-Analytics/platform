@@ -449,7 +449,7 @@ async function assertConsolidated(db: Sql): Promise<void> {
   // scope's definition, so the area 201 wrote is read back from there.
   const products = await db<ProductRow[]>`
     SELECT p.id, p.type, p.label, p.folder_id, p.run_id,
-           s.definition::jsonb #>> '{geography,adminArea2}' AS admin_area_2,
+           s.definition::jsonb #>> '{hmis,adminArea2}' AS admin_area_2,
            p.created_by, p.created_at
     FROM products p JOIN scopes s ON s.id = p.scope_id`;
 
@@ -504,7 +504,7 @@ async function assertConsolidated(db: Sql): Promise<void> {
   );
   check(
     two.length === 4 && two.every((p) => p.admin_area_2 === null),
-    "Project Two (run_id NULL) is attached to the pin on an unconstrained scope",
+    "Project Two (run_id NULL) is attached to the pin on a scope with no area",
   );
   const legacyIds = new Set(["d1", "d2", "r1", "r2"]);
   check(

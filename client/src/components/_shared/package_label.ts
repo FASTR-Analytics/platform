@@ -1,4 +1,4 @@
-import { type FigureScope, t3, WHOLE_PACKAGE_DEFINITION_HASH } from "lib";
+import { type FigureScope, t3 } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 
 // The package a product serves from, by LABEL. Ready-package labels are
@@ -18,17 +18,8 @@ export function packageLabel(runId: string): string {
   });
 }
 
-export function wholePackageLabel(): string {
-  return t3({
-    en: "Whole package",
-    fr: "Paquet entier",
-    pt: "Pacote inteiro",
-  });
-}
-
-// A scope by LABEL, from instance T1. A null id is the whole package.
-export function scopeLabel(scopeId: string | null): string {
-  if (scopeId === null) return wholePackageLabel();
+// A scope by LABEL, from instance T1.
+export function scopeLabel(scopeId: string): string {
   return instanceState.scopes.find((s) => s.id === scopeId)?.label ??
     t3({
       en: "Unlisted scope",
@@ -46,9 +37,6 @@ export function figureScopeLabel(stamp: FigureScope): string {
     (s) => s.definitionHash === stamp.definitionHash,
   );
   if (match) return match.label;
-  if (stamp.definitionHash === WHOLE_PACKAGE_DEFINITION_HASH) {
-    return wholePackageLabel();
-  }
   return stamp.adminArea2 ??
     t3({
       en: "An earlier scope definition",

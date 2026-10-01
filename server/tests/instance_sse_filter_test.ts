@@ -3,6 +3,7 @@
 // plane. Pure apart from the slide lookup, which is stubbed.
 
 import { assertEquals } from "@std/assert";
+import { ALL_DATA_SCOPE_DEFINITION } from "lib";
 import type {
   Folder,
   InstanceSseMessage,
@@ -170,12 +171,7 @@ Deno.test("scopes and slide stamps are cut to the grants", async () => {
       scopes: [GRANTED, OTHER].map((id) => ({
         id,
         label: id,
-        definition: {
-          geography: null,
-          time: { years: null, hfaTimePoints: null },
-          modules: null,
-          indicators: { hmis: null, hfa: null, iceh: null },
-        },
+        definition: ALL_DATA_SCOPE_DEFINITION,
         definitionHash: "h",
         lastUpdated: "t",
       })),

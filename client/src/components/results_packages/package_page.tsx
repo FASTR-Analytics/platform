@@ -1,4 +1,5 @@
 import {
+  ALL_DATA_SCOPE_ID,
   compareModules,
   type DatasetType,
   getModuleFamilyLabel,
@@ -210,7 +211,7 @@ function PackageBody(p: {
     const [detail, ctx] = await Promise.all([
       getRunDetailFromCacheOrFetch(runId),
       getRunAuthoringContextFromCacheOrFetch(
-        resolveScope({ runId, scopeId: null }),
+        resolveScope({ runId, scopeId: ALL_DATA_SCOPE_ID }),
       ),
     ]);
     if (requestId !== requestCounter) return;
@@ -367,16 +368,16 @@ function FamilyTabs(p: {
   const [chosenModule, setChosenModule] = createSignal<
     Partial<Record<DatasetType, string>>
   >({});
-  // The page starts on the whole package. A scope deleted while it is chosen
-  // falls back to it.
-  const [chosenScopeId, setChosenScopeId] = createSignal<string | null>(null);
+  // The page starts on "All data". A scope deleted while it is chosen falls
+  // back to it.
+  const [chosenScopeId, setChosenScopeId] = createSignal(ALL_DATA_SCOPE_ID);
   const scope = (): PackageScope => {
     const chosen = chosenScopeId();
     return {
       runId: p.runId,
       scopeId: instanceState.scopes.some((s) => s.id === chosen)
         ? chosen
-        : null,
+        : ALL_DATA_SCOPE_ID,
     };
   };
 

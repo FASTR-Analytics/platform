@@ -1,11 +1,11 @@
 import {
+  ALL_DATA_DEFINITION_HASH,
   type Folder,
   type ListSort,
   productScope,
   type ProductSummary,
   type SortMode,
   t3,
-  WHOLE_PACKAGE_DEFINITION_HASH,
 } from "lib";
 import { Button, Icon, type IconName } from "panther";
 import { Index, type JSX, Match, Show, Switch } from "solid-js";
@@ -249,7 +249,7 @@ export function ListView(p: Props) {
           classList={{
             "text-base-content-muted":
               resolveScope(productScope(product())).definitionHash ===
-                WHOLE_PACKAGE_DEFINITION_HASH,
+                ALL_DATA_DEFINITION_HASH,
           }}
         >
           {scopeLabel(product().scopeId)}

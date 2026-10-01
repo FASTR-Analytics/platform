@@ -131,12 +131,13 @@ CREATE TABLE folders (
 CREATE INDEX idx_folders_parent_id ON folders(parent_id);
 
 -- A scope is a named definition of what a product may read from its package:
--- geography, time and data (ScopeDefinition, lib/types/scope.ts). `definition`
--- is that JSON; its hash is derived on read and never stored. Scopes are
--- independent of packages. A scope cannot be deleted while a product carries
--- it (products.scope_id, no cascade).
+-- one section per dataset family (ScopeDefinition, lib/types/scope.ts).
+-- `definition` is that JSON; its hash is derived on read and never stored.
+-- Scopes are independent of packages. A scope cannot be deleted while a
+-- product carries it (products.scope_id, no cascade). Migration 204 seeds the
+-- one reserved row, 'all-data', which is never edited or deleted.
 CREATE TABLE scopes (
-  id text PRIMARY KEY NOT NULL,        -- uuid
+  id text PRIMARY KEY NOT NULL,        -- uuid, or 'all-data'
   label text NOT NULL,
   definition text NOT NULL,
   created_by text,                     -- email

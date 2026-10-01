@@ -83,9 +83,10 @@ the query pipeline the data tools call is **S9**.
    [build_tools.ts](client/src/components/products/copilot/build_tools.ts):
    module internals ×4 (`/mcp` is for seeing results, ruled), the editors and
    the draft preview. `/mcp` binds the instance's **pinned** results package
-   (the whole package, `scopeId: null`, on the run-keyed instance routes, gate =
-   an approved unrestricted user: `resolvePackageContext` refuses a restricted
-   one with a tool failure, PLAN_SCOPES R13) and exposes only the shared tools +
+   (under the reserved "All data" scope, `scopeId: "all-data"`, on the run-keyed
+   instance routes, gate = an approved unrestricted user:
+   `resolvePackageContext` refuses a restricted one with a tool failure, even
+   one who holds a grant on "All data") and exposes only the shared tools +
    `get_overview`: 6 read-only tools, no writes. **Interpretation context rides
    the grounding and the shared reads, not extra tools**:
    `buildPackageGroundingSections` lists every HMIS indicator of the package
@@ -578,15 +579,17 @@ identical:
 ([build_system_prompt.ts](client/src/components/products/copilot/_shared/build_system_prompt.ts)):
 date header + instance/terminology section (country, admin-area labels, data
 sources) + results-package section (the package label and generation time, the
-scope's label and what its definition limits reads to: area, years, HFA time
-points, modules and indicator lists, with the rule that a limit applies only to
-a table that has a column for it; the package's datasets and indicator lists) +
-the instance-level `ai_context` + reference-doc catalog (`SPA_INFO_TOPICS`) +
-base instructions (read-data-first, no fabrication, indicator directionality) +
-the tool catalog. The accessor takes no view argument, so the prompt is
-**byte-stable across navigation within one package** and its prompt-cache
-breakpoint keeps hitting: the per-view instructions (still exported from this
-file, with short primary-tool pointers) are composed by the view registry
+scope's label and one line per dataset family saying what its section does:
+excluded, included with no limits, or limited to an area, years, time points,
+modules and indicators, each listed in full, with the rule that a limit applies
+only to a table that has a column for it; the package's datasets and indicator
+lists) + the instance-level `ai_context` + reference-doc catalog
+(`SPA_INFO_TOPICS`) + base instructions (read-data-first, no fabrication,
+indicator directionality) + the tool catalog. The accessor takes no view
+argument, so the prompt is **byte-stable across navigation within one package**
+and its prompt-cache breakpoint keeps hitting: the per-view instructions (still
+exported from this file, with short primary-tool pointers) are composed by the
+view registry
 ([ai_views.ts](client/src/components/products/copilot/_shared/ai_views.ts)) and
 delivered ephemerally per turn, and the hand-typed tool list was replaced by
 panther's `buildToolCatalog(tools)`, composed ONCE in the wrapper. Cache rule:

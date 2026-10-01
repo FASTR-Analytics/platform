@@ -1,5 +1,6 @@
 import type { Sql } from "postgres";
 import {
+  ALL_DATA_SCOPE_ID,
   type APIResponseNoData,
   type APIResponseWithData,
   parseScopeDefinition,
@@ -15,6 +16,8 @@ export const SCOPE_NOT_FOUND = "Scope not found";
 export const SCOPE_IN_USE =
   "This scope cannot be deleted while a product uses it";
 export const SCOPE_LABEL_TAKEN = "Another scope already has this label";
+export const SCOPE_RESERVED =
+  'The "All data" scope cannot be edited or deleted';
 const SCOPE_LABEL_EMPTY = "A scope needs a label";
 
 function rowToScope(row: DBScope): Scope {
@@ -33,7 +36,8 @@ export async function listScopes(
 ): Promise<APIResponseWithData<Scope[]>> {
   return await tryCatchDatabaseAsync(async () => {
     const rows = await mainDb<DBScope[]>`
-      SELECT * FROM scopes ORDER BY LOWER(label), id
+      SELECT * FROM scopes
+      ORDER BY (id = ${ALL_DATA_SCOPE_ID}) DESC, LOWER(label), id
     `;
     return { success: true, data: rows.map(rowToScope) };
   });
@@ -102,6 +106,9 @@ export async function updateScope(
   scopeId: string,
   args: { label: string; definition: ScopeDefinition },
 ): Promise<APIResponseNoData> {
+  if (scopeId === ALL_DATA_SCOPE_ID) {
+    return { success: false, err: SCOPE_RESERVED };
+  }
   return await tryCatchDatabaseAsync(async () => {
     const label = args.label.trim();
     const definition = JSON.stringify(
@@ -130,6 +137,9 @@ export async function deleteScope(
   mainDb: Sql,
   scopeId: string,
 ): Promise<APIResponseNoData> {
+  if (scopeId === ALL_DATA_SCOPE_ID) {
+    return { success: false, err: SCOPE_RESERVED };
+  }
   return await tryCatchDatabaseAsync(async () => {
     const outcome = await mainDb.begin(async (sql) => {
       const existing = await sql`

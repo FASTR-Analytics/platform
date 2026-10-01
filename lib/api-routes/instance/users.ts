@@ -8,6 +8,7 @@ import type {
   UserPermission,
 } from "../../types/mod.ts";
 import { USER_PERMISSIONS } from "../../types/mod.ts";
+import { scopeIdSchema } from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
 
 const emailParamsSchema = z.object({ email: z.string() });
@@ -27,7 +28,7 @@ const userPermissionsSchema = z
 
 const scopeAccessSchema = z.discriminatedUnion("all", [
   z.object({ all: z.literal(true) }),
-  z.object({ all: z.literal(false), scopeIds: z.array(z.uuid()) }),
+  z.object({ all: z.literal(false), scopeIds: z.array(scopeIdSchema) }),
 ]);
 
 export const userRouteRegistry = {

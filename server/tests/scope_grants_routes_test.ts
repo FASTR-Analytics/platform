@@ -12,6 +12,7 @@ import { join } from "@std/path";
 import { Hono } from "hono";
 import { AIToolFailure } from "@timroberton/panther";
 import {
+  ALL_DATA_SCOPE_ID,
   ALL_SCOPES,
   type CollabServerMessage,
   geographyOnlyScopeDefinition,
@@ -300,7 +301,8 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     );
     await ok(open, "GET", `/products/${outside.productId}/report`);
 
-    // Data reads: inside a grant, outside it, and the whole package.
+    // Data reads: inside a grant, outside it, and "All data", which is a
+    // scope like any other. No read takes a null scope.
     const contextPath = `/run_generation/run/${runId}/authoring_context`;
     const context = await ok<RunAuthoringContext>(
       limited,
@@ -313,11 +315,19 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       403,
     );
     assertEquals(
-      (await call(limited, "POST", contextPath, { scopeId: null })).status,
+      (await call(limited, "POST", contextPath, { scopeId: ALL_DATA_SCOPE_ID }))
+        .status,
       403,
     );
     await ok(open, "POST", contextPath, { scopeId: other });
-    await ok(open, "POST", contextPath, { scopeId: null });
+    await ok(open, "POST", contextPath, { scopeId: ALL_DATA_SCOPE_ID });
+    for (const app of [limited, open]) {
+      for (const body of [{ scopeId: null }, {}]) {
+        const res = await call(app, "POST", contextPath, body);
+        assertEquals(res.status, 400);
+        assertEquals(res.body.success, false);
+      }
+    }
     const metricId = context.metrics.at(0)?.id;
     assert(metricId !== undefined, "the pinned package has no metric");
     const infoPath = `/run_generation/run/${runId}/results_value_info`;
@@ -326,7 +336,7 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
         .status,
       200,
     );
-    for (const scopeId of [other, null]) {
+    for (const scopeId of [other, ALL_DATA_SCOPE_ID]) {
       assertEquals(
         (await call(limited, "POST", infoPath, { metricId, scopeId })).status,
         403,
@@ -336,6 +346,29 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
         200,
       );
     }
+
+    // "All data" is granted like any other scope (R33): the restricted user
+    // then reads through it, and loses it again with the grant.
+    const widened = await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
+      all: false,
+      scopeIds: [granted, ALL_DATA_SCOPE_ID],
+    });
+    assert(widened.success, JSON.stringify(widened));
+    await ok(limited, "POST", contextPath, { scopeId: ALL_DATA_SCOPE_ID });
+    assertEquals(
+      (await call(limited, "POST", contextPath, { scopeId: other })).status,
+      403,
+    );
+    const narrowed = await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
+      all: false,
+      scopeIds: [granted],
+    });
+    assert(narrowed.success, JSON.stringify(narrowed));
+    assertEquals(
+      (await call(limited, "POST", contextPath, { scopeId: ALL_DATA_SCOPE_ID }))
+        .status,
+      403,
+    );
 
     // A product's scope set to a scope the user does not hold (R14), and a
     // new product naming one.
@@ -514,7 +547,7 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       0,
     );
 
-    // /mcp reads the whole package, which a restricted user is refused.
+    // /mcp reads through "All data" and is refused to a restricted user.
     await assertRejects(
       () => resolvePackageContext({ token: "t", email: LIMITED_EMAIL }, runId),
       AIToolFailure,

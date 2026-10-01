@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PRODUCT_TYPES } from "../../types/products.ts";
+import { scopeIdSchema } from "../../types/scope.ts";
 import { type ProductAccessLevel, route } from "../route-utils.ts";
 
 // A product id is a short nanoid, never a uuid, and never length-validated:
@@ -23,7 +24,7 @@ export const productRouteRegistry = {
       type: z.enum(PRODUCT_TYPES),
       folderId: z.uuid().nullable(),
       runId: z.string(),
-      scopeId: z.uuid(),
+      scopeId: scopeIdSchema,
     }),
     response: {} as { productId: string; lastUpdated: string },
     access: "edit",
@@ -74,7 +75,7 @@ export const productRouteRegistry = {
     path: "/products/:product_id/scope",
     method: "PUT",
     params: productIdParamsSchema,
-    body: z.object({ scopeId: z.uuid() }),
+    body: z.object({ scopeId: scopeIdSchema }),
     response: {} as { lastUpdated: string },
     access: "edit",
   }),
@@ -86,7 +87,7 @@ export const productRouteRegistry = {
     path: "/products/:product_id/duplicate",
     method: "POST",
     params: productIdParamsSchema,
-    body: z.object({ scopeId: z.uuid() }),
+    body: z.object({ scopeId: scopeIdSchema }),
     response: {} as { productId: string; lastUpdated: string },
     access: "edit",
   }),

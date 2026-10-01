@@ -1,4 +1,11 @@
-import { type Scope, type ScopeDefinition, t3 } from "lib";
+import {
+  ALL_DATA_SCOPE_ID,
+  type DatasetType,
+  getModuleFamilyLabel,
+  type Scope,
+  type ScopeDefinition,
+  t3,
+} from "lib";
 import {
   Button,
   type EditorComponentProps,
@@ -8,98 +15,102 @@ import {
   Table,
   type TableColumn,
 } from "panther";
+import { createMemo } from "solid-js";
 import { instanceState } from "~/state/instance/t1_store";
-import { ScopeEditor } from "./scope_editor";
+import { AllDataScopeView, ScopeEditor } from "./scope_editor";
 
 type ScopeRow = {
   id: string;
   label: string;
-  geography: string;
-  time: string;
-  data: string;
+  hmis: string;
+  hfa: string;
+  iceh: string;
   productCount: number;
 };
 
-const noLimit = () =>
-  t3({ en: "No limit", fr: "Aucune limite", pt: "Sem limite" });
-
-function describeTime(time: ScopeDefinition["time"]): string {
-  const parts = [
-    time.years === null ? undefined : `${time.years.start}–${time.years.end}`,
-    time.hfaTimePoints === null ? undefined : time.hfaTimePoints.join(", "),
-  ].filter((part) => part !== undefined);
-  return parts.length === 0 ? noLimit() : parts.join("; ");
+function countOf(
+  list: string[] | null,
+  one: string,
+  other: string,
+): string | undefined {
+  return list === null
+    ? undefined
+    : `${list.length} ${list.length === 1 ? one : other}`;
 }
 
-function describeData(definition: ScopeDefinition): string {
-  const count = (list: string[] | null, one: string, other: string) =>
-    list === null
-      ? undefined
-      : `${list.length} ${list.length === 1 ? one : other}`;
+// One family's section in a few words: excluded, unlimited, or its limits.
+function describeSection(section: ScopeDefinition[DatasetType]): string {
+  if (!section.include) {
+    return t3({ en: "Excluded", fr: "Exclue", pt: "Excluída" });
+  }
   const parts = [
-    count(
-      definition.modules,
+    "adminArea2" in section ? section.adminArea2 ?? undefined : undefined,
+    "years" in section && section.years !== null
+      ? `${section.years.start}–${section.years.end}`
+      : undefined,
+    "timePoints" in section && section.timePoints !== null
+      ? section.timePoints.join(", ")
+      : undefined,
+    countOf(
+      section.modules,
       t3({ en: "module", fr: "module", pt: "módulo" }),
       t3({ en: "modules", fr: "modules", pt: "módulos" }),
     ),
-    count(
-      definition.indicators.hmis,
-      t3({ en: "HMIS indicator", fr: "indicateur HMIS", pt: "indicador HMIS" }),
-      t3({
-        en: "HMIS indicators",
-        fr: "indicateurs HMIS",
-        pt: "indicadores HMIS",
-      }),
-    ),
-    count(
-      definition.indicators.hfa,
-      t3({ en: "HFA indicator", fr: "indicateur HFA", pt: "indicador HFA" }),
-      t3({
-        en: "HFA indicators",
-        fr: "indicateurs HFA",
-        pt: "indicadores HFA",
-      }),
-    ),
-    count(
-      definition.indicators.iceh,
-      t3({ en: "ICEH indicator", fr: "indicateur ICEH", pt: "indicador ICEH" }),
-      t3({
-        en: "ICEH indicators",
-        fr: "indicateurs ICEH",
-        pt: "indicadores ICEH",
-      }),
+    countOf(
+      section.indicators,
+      t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
+      t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" }),
     ),
   ].filter((part) => part !== undefined);
-  return parts.length === 0 ? noLimit() : parts.join("; ");
+  return parts.length === 0
+    ? t3({ en: "No limits", fr: "Aucune limite", pt: "Sem limites" })
+    : parts.join("; ");
 }
 
-function productCountFor(scopeId: string): number {
-  return instanceState.products.filter((p) => p.scopeId === scopeId).length;
+function productCountsByScope(): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const product of instanceState.products) {
+    counts.set(product.scopeId, (counts.get(product.scopeId) ?? 0) + 1);
+  }
+  return counts;
 }
 
-function toRow(scope: Scope): ScopeRow {
+function toRow(scope: Scope, counts: Map<string, number>): ScopeRow {
   return {
     id: scope.id,
     label: scope.label,
-    geography: scope.definition.geography?.adminArea2 ?? noLimit(),
-    time: describeTime(scope.definition.time),
-    data: describeData(scope.definition),
-    productCount: productCountFor(scope.id),
+    hmis: describeSection(scope.definition.hmis),
+    hfa: describeSection(scope.definition.hfa),
+    iceh: describeSection(scope.definition.iceh),
+    productCount: counts.get(scope.id) ?? 0,
   };
 }
 
 type Props = EditorComponentProps<Record<never, never>, undefined>;
 
 // Scopes are created, edited and deleted here, by global admins only (the
-// scope routes are guarded the same way). A product picks one by label.
+// scope routes are guarded the same way). A product picks one by label. The
+// reserved "All data" scope is listed and opens read-only.
 export function ScopesPage(p: Props) {
+  const rows = createMemo(() => {
+    const counts = productCountsByScope();
+    return instanceState.scopes.map((scope) => toRow(scope, counts));
+  });
+
   function openEditor(scope: Scope | undefined) {
+    const productCount = scope === undefined
+      ? 0
+      : productCountsByScope().get(scope.id) ?? 0;
+    if (scope?.id === ALL_DATA_SCOPE_ID) {
+      void openComponent({
+        element: AllDataScopeView,
+        props: { scope, productCount },
+      });
+      return;
+    }
     void openComponent({
       element: ScopeEditor,
-      props: {
-        scope,
-        productCount: scope === undefined ? 0 : productCountFor(scope.id),
-      },
+      props: { scope, productCount },
     });
   }
 
@@ -109,19 +120,9 @@ export function ScopesPage(p: Props) {
       header: t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" }),
       sortable: true,
     },
-    {
-      key: "geography",
-      header: t3({ en: "Geography", fr: "Géographie", pt: "Geografia" }),
-      sortable: true,
-    },
-    {
-      key: "time",
-      header: t3({ en: "Time", fr: "Période", pt: "Período" }),
-    },
-    {
-      key: "data",
-      header: t3({ en: "Data", fr: "Données", pt: "Dados" }),
-    },
+    { key: "hmis", header: getModuleFamilyLabel("hmis") },
+    { key: "hfa", header: getModuleFamilyLabel("hfa") },
+    { key: "iceh", header: getModuleFamilyLabel("iceh") },
     {
       key: "productCount",
       header: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
@@ -141,7 +142,7 @@ export function ScopesPage(p: Props) {
       }
     >
       <Table
-        data={instanceState.scopes.map(toRow)}
+        data={rows()}
         columns={columns}
         defaultSort={{ key: "label", direction: "asc" }}
         keyField="id"

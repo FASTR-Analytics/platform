@@ -1,16 +1,18 @@
--- Scopes (PLAN_SCOPES step 2). A product's scope was one column,
+-- Scopes (PLAN_SCOPES). A product's scope was one column,
 -- products.admin_area_2 (NULL = national). It becomes a row in `scopes` that
 -- the product points at.
 --
--- Seeding: one unconstrained scope labelled "All data" on an instance that
--- has no scope yet, fresh instances included, so a product can always be
--- created. Then, on an instance that still has products.admin_area_2, one
--- scope per distinct area, labelled with the area name. Areas are distinct
--- case-insensitively, as the view predicate and the definition hash compare
--- them, and as scope labels must be: two spellings of one area share a scope,
--- and an area whose name is already a scope's label gets the suffix
--- " (area)". National products move to the unconstrained scope. Seeded scopes
--- are ordinary rows.
+-- Seeding: the one reserved scope, id 'all-data', labelled "All data", on
+-- every instance, fresh ones included, so a product can always be created.
+-- Its definition includes every family and limits nothing. Then, on an
+-- instance that still has products.admin_area_2, one scope per distinct area,
+-- labelled with the area name: HMIS and HFA included and both held to that
+-- area, ICEH included whole, which is what those products showed. Areas are
+-- distinct case-insensitively, as the view predicate and the definition hash
+-- compare them, and as scope labels must be: two spellings of one area share
+-- a scope, and an area whose name is already a scope's label gets the suffix
+-- " (area)". National products move to 'all-data'. The area scopes are
+-- ordinary rows.
 --
 -- The backfill block is guarded on products.admin_area_2, which this
 -- migration drops, so a second run and a fresh database both skip it.
@@ -25,19 +27,21 @@ CREATE TABLE IF NOT EXISTS scopes (
 );
 
 INSERT INTO scopes (id, label, definition, created_by, created_at, last_updated)
-SELECT
-  gen_random_uuid()::text,
+VALUES (
+  'all-data',
   'All data',
-  '{"geography":null,"time":{"years":null,"hfaTimePoints":null},"modules":null,"indicators":{"hmis":null,"hfa":null,"iceh":null}}',
+  '{"hmis":{"include":true,"modules":null,"indicators":null,"adminArea2":null,"years":null},"hfa":{"include":true,"modules":null,"indicators":null,"adminArea2":null,"timePoints":null},"iceh":{"include":true,"modules":null,"indicators":null,"years":null}}',
   NULL,
   to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
   to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-WHERE NOT EXISTS (SELECT 1 FROM scopes);
+)
+ON CONFLICT (id) DO NOTHING;
 
 DO $$
 DECLARE
   stamp text := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
-  unconstrained_id text;
+  seed record;
+  area_scope_id text;
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -46,59 +50,70 @@ BEGIN
   ) THEN
     ALTER TABLE products ADD COLUMN IF NOT EXISTS scope_id text;
 
-    SELECT id INTO unconstrained_id FROM scopes
-    WHERE definition::jsonb = '{"geography":null,"time":{"years":null,"hfaTimePoints":null},"modules":null,"indicators":{"hmis":null,"hfa":null,"iceh":null}}'::jsonb
-    ORDER BY created_at, id
-    LIMIT 1;
-
-    IF unconstrained_id IS NULL THEN
-      unconstrained_id := gen_random_uuid()::text;
-      INSERT INTO scopes (id, label, definition, created_by, created_at, last_updated)
-      VALUES (
-        unconstrained_id,
-        'All data',
-        '{"geography":null,"time":{"years":null,"hfaTimePoints":null},"modules":null,"indicators":{"hmis":null,"hfa":null,"iceh":null}}',
-        NULL, stamp, stamp
-      );
-    END IF;
-
-    INSERT INTO scopes (id, label, definition, created_by, created_at, last_updated)
-    SELECT
-      gen_random_uuid()::text,
-      CASE
-        WHEN EXISTS (SELECT 1 FROM scopes s WHERE LOWER(s.label) = LOWER(areas.area))
-        THEN areas.area || ' (area)'
-        ELSE areas.area
-      END,
-      json_build_object(
-        'geography', json_build_object('adminArea2', areas.area),
-        'time', json_build_object('years', NULL, 'hfaTimePoints', NULL),
-        'modules', NULL,
-        'indicators', json_build_object('hmis', NULL, 'hfa', NULL, 'iceh', NULL)
-      )::text,
-      NULL, stamp, stamp
-    FROM (
+    FOR seed IN
       SELECT MIN(admin_area_2) AS area FROM products
       WHERE admin_area_2 IS NOT NULL
       GROUP BY UPPER(admin_area_2)
-    ) areas
-    WHERE NOT EXISTS (
-      SELECT 1 FROM scopes s
-      WHERE UPPER(s.definition::jsonb #>> '{geography,adminArea2}') = UPPER(areas.area)
-        AND s.definition::jsonb - 'geography' = '{"time":{"years":null,"hfaTimePoints":null},"modules":null,"indicators":{"hmis":null,"hfa":null,"iceh":null}}'::jsonb
-    );
-
-    UPDATE products p
-    SET scope_id = (
-      SELECT s.id FROM scopes s
-      WHERE UPPER(s.definition::jsonb #>> '{geography,adminArea2}') = UPPER(p.admin_area_2)
-        AND s.definition::jsonb - 'geography' = '{"time":{"years":null,"hfaTimePoints":null},"modules":null,"indicators":{"hmis":null,"hfa":null,"iceh":null}}'::jsonb
+    LOOP
+      -- An area scope is recognised by its definition, compared with both
+      -- areas upper-cased, so a run that stopped after seeding finds its own
+      -- row again.
+      SELECT s.id INTO area_scope_id FROM scopes s
+      WHERE jsonb_set(
+          jsonb_set(
+            s.definition::jsonb, '{hmis,adminArea2}',
+            to_jsonb(UPPER(s.definition::jsonb #>> '{hmis,adminArea2}'))
+          ),
+          '{hfa,adminArea2}',
+          to_jsonb(UPPER(s.definition::jsonb #>> '{hfa,adminArea2}'))
+        ) = jsonb_build_object(
+          'hmis', jsonb_build_object(
+            'include', TRUE, 'modules', NULL, 'indicators', NULL,
+            'adminArea2', UPPER(seed.area), 'years', NULL
+          ),
+          'hfa', jsonb_build_object(
+            'include', TRUE, 'modules', NULL, 'indicators', NULL,
+            'adminArea2', UPPER(seed.area), 'timePoints', NULL
+          ),
+          'iceh', jsonb_build_object(
+            'include', TRUE, 'modules', NULL, 'indicators', NULL, 'years', NULL
+          )
+        )
       ORDER BY s.created_at, s.id
-      LIMIT 1
-    )
-    WHERE p.admin_area_2 IS NOT NULL AND p.scope_id IS NULL;
+      LIMIT 1;
 
-    UPDATE products SET scope_id = unconstrained_id
+      IF area_scope_id IS NULL THEN
+        area_scope_id := gen_random_uuid()::text;
+        INSERT INTO scopes (id, label, definition, created_by, created_at, last_updated)
+        VALUES (
+          area_scope_id,
+          CASE
+            WHEN EXISTS (SELECT 1 FROM scopes s WHERE LOWER(s.label) = LOWER(seed.area))
+            THEN seed.area || ' (area)'
+            ELSE seed.area
+          END,
+          json_build_object(
+            'hmis', json_build_object(
+              'include', TRUE, 'modules', NULL, 'indicators', NULL,
+              'adminArea2', seed.area, 'years', NULL
+            ),
+            'hfa', json_build_object(
+              'include', TRUE, 'modules', NULL, 'indicators', NULL,
+              'adminArea2', seed.area, 'timePoints', NULL
+            ),
+            'iceh', json_build_object(
+              'include', TRUE, 'modules', NULL, 'indicators', NULL, 'years', NULL
+            )
+          )::text,
+          NULL, stamp, stamp
+        );
+      END IF;
+
+      UPDATE products SET scope_id = area_scope_id
+      WHERE UPPER(admin_area_2) = UPPER(seed.area) AND scope_id IS NULL;
+    END LOOP;
+
+    UPDATE products SET scope_id = 'all-data'
     WHERE admin_area_2 IS NULL AND scope_id IS NULL;
 
     ALTER TABLE products ALTER COLUMN scope_id SET NOT NULL;

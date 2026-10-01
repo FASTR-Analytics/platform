@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { scopeDefinitionSchema } from "../../types/scope.ts";
+import { scopeDefinitionSchema, scopeIdSchema } from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
 
-const scopeIdParamsSchema = z.object({ scope_id: z.uuid() });
+const scopeIdParamsSchema = z.object({ scope_id: scopeIdSchema });
 
 const scopeBodySchema = z.object({
   label: z.string(),
@@ -21,14 +21,14 @@ export const scopeRouteRegistry = {
   }),
   // Editing a definition changes its hash, so every figure resolved under the
   // scope shows as stale and every cached payload under the old hash is
-  // simply never asked for again.
+  // simply never asked for again. The reserved "All data" scope is refused.
   updateScope: route({
     path: "/scopes/:scope_id",
     method: "PUT",
     params: scopeIdParamsSchema,
     body: scopeBodySchema,
   }),
-  // Refused while a product carries the scope.
+  // Refused while a product carries the scope, and for "All data".
   deleteScope: route({
     path: "/scopes/:scope_id",
     method: "DELETE",

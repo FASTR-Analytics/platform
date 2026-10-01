@@ -71,20 +71,23 @@ for existing instances, in `200_products.sql` in `IF NOT EXISTS` form.
 `server/db/products/**` reads and writes it
 ([SYSTEM_12](SYSTEM_12_documents_sharing.md)).
 
-The `scopes` table (`id` uuid, `label`, `definition` as `ScopeDefinition` JSON,
-`created_by`, `created_at`, `last_updated`) sits beside it, and
-`products.scope_id` (`NOT NULL`, references `scopes(id)` with no cascade) is the
-last column of `products`. `204_scopes.sql` creates the table and seeds one
-unconstrained scope labelled "All data" whenever the table is empty, a fresh
-instance included, so a product can always be created. On an instance that still
-has `products.admin_area_2` it also seeds one scope per distinct area, labelled
-with the area name. Areas are distinct case-insensitively, so two spellings of
-one area share a scope, and an area whose name is already a scope's label gets
-the suffix " (area)". It then backfills `scope_id` on the same case-insensitive
-match (a product with no area takes the unconstrained scope), sets `NOT NULL`
-and the foreign key, and drops `admin_area_2`. That block is guarded on the
-column it drops, so a second run and a fresh database skip it.
-`server/db/instance/scopes.ts` reads and writes the table (S12 "Scopes").
+The `scopes` table (`id` a uuid or the reserved `all-data`, `label`,
+`definition` as `ScopeDefinition` JSON, `created_by`, `created_at`,
+`last_updated`) sits beside it, and `products.scope_id` (`NOT NULL`, references
+`scopes(id)` with no cascade) is the last column of `products`. `204_scopes.sql`
+creates the table and seeds the reserved row, id `all-data`, labelled "All
+data", on every instance, a fresh one included, so a product can always be
+created. Its definition includes every family and limits nothing. On an instance
+that still has `products.admin_area_2` it also seeds one scope per distinct
+area, labelled with the area name, whose HMIS and HFA sections both carry that
+area and whose ICEH section is included whole: what those products showed. Areas
+are distinct case-insensitively, so two spellings of one area share a scope, and
+an area whose name is already a scope's label gets the suffix " (area)". It then
+backfills `scope_id` on the same case-insensitive match (a product with no area
+takes `all-data`), sets `NOT NULL` and the foreign key, and drops
+`admin_area_2`. That block is guarded on the column it drops, so a second run
+and a fresh database skip it. `server/db/instance/scopes.ts` reads and writes
+the table (S12 "Scopes").
 
 The connection id (`"postgres"` or `"main"`) is the connection-cache key and the
 database name passed to `getPgConnectionFromCacheOrNew`. Request handlers
@@ -446,16 +449,19 @@ PROTOCOL_APP_MIGRATIONS data-transform (one deploy, no offline script).
 - **The (package, scope) stamp.** `scope` is `{ definitionHash, adminArea2 }`
   and `provenance` is `{ runId }`. A backfilled bundle takes the run id from the
   owning product row and the area from that product's scope definition
-  (`FigurePairForTransform`), and its `definitionHash` is the hash of that area
-  alone (`scopeDefinitionHash(geographyOnlyScopeDefinition(area))`). Both are
-  required by `figureBundleSchema`.
+  (`FigurePairForTransform`, read from the scope's HMIS section, else its HFA
+  section), and its `definitionHash` is the hash of the definition limited by
+  that area alone (`scopeDefinitionHash(geographyOnlyScopeDefinition(area))`:
+  HMIS and HFA both held to the area, ICEH included whole; with no area, the
+  "All data" definition). Both are required by `figureBundleSchema`.
 - **A bundle stamped with only its area.** The last block of
   `transformFigureBlock` rewrites a stored `scope: { adminArea2 }` to
-  `{ definitionHash, adminArea2 }`, with the hash of that area alone. That is
-  the hash of the scope `204_scopes.sql` gives a product with the same area, so
-  a figure whose area matched its product is still fresh after the transform,
-  and one whose area differed is still stale. The strict `figureBundleSchema`
-  rejects the old shape, which is what routes the row through the transform.
+  `{ definitionHash, adminArea2 }`, with the hash of the definition limited by
+  that area alone. That is the hash of the scope `204_scopes.sql` gives a
+  product with the same area (`all-data` for none), so a figure whose area
+  matched its product is still fresh after the transform, and one whose area
+  differed is still stale. The strict `figureBundleSchema` rejects the old
+  shape, which is what routes the row through the transform.
 - **Invalid config fails fast.** A missing/invalid `source.config` **throws**
   rather than producing a silent blank (which would masquerade as "empty" past
   `figureBlockSchema`), so the failing boot names it.

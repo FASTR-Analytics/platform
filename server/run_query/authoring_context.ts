@@ -11,9 +11,10 @@ import { deriveVirtualDefaults } from "./virtual_defaults.ts";
 
 // The RunAuthoringContext contract is documented on the type
 // (lib/types/run_authoring_context.ts). This is its one builder: the manifest
-// plus the input mirrors captured beside it, no database read. The scope's
-// module list removes the modules outside it, with their metrics and presets;
-// no other part of the scope changes the payload (R28).
+// plus the input mirrors captured beside it, no database read. The scope
+// removes each module whose family section is excluded or which is outside
+// its section's module list, with its metrics and presets; no other part of
+// the scope changes the payload (indicator lists are package metadata).
 export async function buildRunAuthoringContext(
   ctx: RunReadContext,
 ): Promise<RunAuthoringContext> {
@@ -23,19 +24,20 @@ export async function buildRunAuthoringContext(
     getIcehIndicatorsFromManifestInputs(inputSource),
     getHfaTaxonomyFromManifestInputs(inputSource),
   ]);
-  const allowedModules = ctx.scope.modules;
-  const moduleAllowed = (moduleId: string) =>
-    allowedModules === null || allowedModules.includes(moduleId);
+  const modules = getModuleSummariesFromManifest(manifest).filter((m) => {
+    const section = ctx.scope[m.family];
+    return section.include &&
+      (section.modules === null || section.modules.includes(m.id));
+  });
+  const moduleIds = new Set(modules.map((m) => m.id));
   const metrics = getMetricsWithStatusFromManifest(manifest).filter((m) =>
-    moduleAllowed(m.moduleId)
+    moduleIds.has(m.moduleId)
   );
   const metricIds = new Set(metrics.map((m) => m.id));
   return {
     runId: manifest.runId,
     scopeToken: ctx.scopeToken,
-    modules: getModuleSummariesFromManifest(manifest).filter((m) =>
-      moduleAllowed(m.id)
-    ),
+    modules,
     metrics,
     datasets: getRunDatasetsFromManifest(manifest),
     hmisIndicators: manifest.hmisIndicators,

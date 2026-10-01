@@ -99,7 +99,7 @@ export function buildMcpToolsForPrincipal(principal: McpPrincipal): AnyTool[] {
         ...buildPackageGroundingSections(ctx.grounding),
         ...buildDataCoverageSections(instanceState),
         "",
-        "Every tool here reads the whole package. Discover metric ids with get_available_metrics; never invent them.",
+        "Every tool here reads all data in the package. Discover metric ids with get_available_metrics; never invent them.",
         "",
         "---",
         "",

@@ -56,6 +56,7 @@ globs:
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
   - server/tests/scope_grants_routes_test.ts
+  - server/tests/scope_routes_test.ts
   - server/tests/report_fastr_markdown_test.ts
   - server/tests/report_fastr_word_test.ts
   - server/tests/report_format_conversion_test.ts
@@ -226,49 +227,78 @@ re-nonce the runs catalogue.
 
 ### Scopes
 
-A scope is a row in `scopes` (`id` uuid from `crypto.randomUUID()`, `label`,
-`definition` as JSON, `created_by`, `created_at`, `last_updated`; created by
-`204_scopes.sql`, S2). The definition is a `ScopeDefinition`
-(`lib/types/scope.ts`, strict Zod): `geography` (`{ adminArea2 }` or null),
-`time` (`years` as `{ start, end }` or null, `hfaTimePoints` as a list or null),
-`modules` (a list or null) and `indicators` (`hmis`, `hfa`, `iceh`, each a list
-or null). Null means unconstrained at every level. What a definition filters is
-S8 "Scope" and S9 "The scoped view".
+A scope is a row in `scopes` (`id`, `label`, `definition` as JSON, `created_by`,
+`created_at`, `last_updated`; created by `204_scopes.sql`, S2). A scope id is a
+uuid from `crypto.randomUUID()` or the one reserved id, `all-data`
+(`ALL_DATA_SCOPE_ID`); `scopeIdSchema` (`lib/types/scope.ts`) is the one schema
+every route validates a scope id with, and it takes no null. The definition is a
+`ScopeDefinition` (same file, strict Zod), one section per dataset family:
+
+```ts
+type Included<Dims> = {
+  include: true;
+  modules: string[] | null;
+  indicators: string[] | null;
+} & Dims;
+type ScopeDefinition = {
+  hmis:
+    | { include: false }
+    | Included<{ adminArea2: string | null; years: YearRange | null }>;
+  hfa:
+    | { include: false }
+    | Included<{ adminArea2: string | null; timePoints: string[] | null }>;
+  iceh: { include: false } | Included<{ years: YearRange | null }>;
+};
+```
+
+Inside an included section null means no limit on that dimension and nothing
+else. The schema refuses an empty list, so the only way to drop a family is
+`include: false`; it also refuses a year outside four digits and a range that
+ends before it starts. Each section's `modules` lists that family's modules and
+its `indicators` filters that family's indicator column. `"All data"`
+(`ALL_DATA_SCOPE_DEFINITION`) is every section included with every dimension
+null. What a definition filters is S8 "Scope" and S9 "The scoped view".
 
 `scopeDefinitionHash(definition)` is the SHA-256 of the definition's canonical
-form: only the constrained parts (a null is left out at every level, and so is
-an object that leaves empty), keys sorted, lists sorted and de-duplicated, the
-area upper-cased. The hash is derived on read and never stored. It is the
+form: `include` always, and otherwise only the limited parts (a null is left out
+at every level), keys sorted, lists sorted and de-duplicated, each area
+upper-cased. The hash is derived on read and never stored. It is the
 `scopeToken` of every server cache key and payload, the scope half of every
 client cache key (S9), and the `definitionHash` a figure bundle records (S10).
-`WHOLE_PACKAGE_DEFINITION_HASH` is the hash of the unconstrained definition,
-which is what a read with no scope resolves to.
-`server/tests/scope_definition_hash_test.ts` pins the hash.
+`ALL_DATA_DEFINITION_HASH` is the hash of the "All data" definition.
+`server/tests/scope_definition_hash_test.ts` pins the hash and what the schema
+refuses.
 
-`PackageScope` is `{ runId, scopeId: string | null }`. A product's pair always
-names a scope (`productScope(product)`); a null scope id means the whole package
-and is used only by surfaces with no product, the package page (S8) and `/mcp`
-(S13). `resolvePackageScope(scope, scopes)` returns a `ResolvedPackageScope`,
-the pair plus the `definitionHash` and `adminArea2` looked up in a scopes list.
-A scope id the list does not hold resolves to `missing:<id>`, a hash no payload
-carries.
+`PackageScope` is `{ runId, scopeId: string }`. Every pair names a scope: a
+product's is its own (`productScope(product)`), and a surface with no product
+(the package page, S8; Explore, S11; `/mcp`, S13) uses "All data" until another
+is chosen. There is no null scope: a lost value must never read as "everything".
+`resolvePackageScope(scope, scopes)` returns a `ResolvedPackageScope`, the pair
+plus the `definitionHash` and the `areas` (`{ hmis, hfa }`, the area each
+section holds its family to) looked up in a scopes list;
+`scopeAreaForFamily(areas, family)` picks one. A scope id the list does not hold
+resolves to `missing:<id>`, a hash no payload carries.
 
-**DB layer** (`server/db/instance/scopes.ts`): `listScopes` (ordered by label),
-`getScope`, `createScope`, `updateScope` and `deleteScope`. Create and update
-trim the label, refuse an empty one, refuse a label another scope already has
-(compared case-insensitively, `SCOPE_LABEL_TAKEN`) and re-parse the definition
-with the strict schema. `deleteScope` refuses while a product carries the scope
-(`SCOPE_IN_USE`): the check and the delete are one statement, and the
-`products.scope_id` foreign key is the backstop. `rowToScope` derives
-`definitionHash` on every read.
+**DB layer** (`server/db/instance/scopes.ts`): `listScopes` ("All data" first,
+then by label), `getScope`, `createScope`, `updateScope` and `deleteScope`.
+Create and update trim the label, refuse an empty one, refuse a label another
+scope already has (compared case-insensitively, `SCOPE_LABEL_TAKEN`) and
+re-parse the definition with the strict schema. `updateScope` and `deleteScope`
+refuse the reserved scope before touching the database (`SCOPE_RESERVED`):
+neither its label nor its definition can change, and it cannot be deleted.
+`deleteScope` refuses while a product carries the scope (`SCOPE_IN_USE`): the
+check and the delete are one statement, and the `products.scope_id` foreign key
+is the backstop. `rowToScope` derives `definitionHash` on every read.
 
 **Routes** (`server/routes/instance/scopes.ts` over
 `lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
 `updateScope` (`PUT /scopes/:scope_id`) and `deleteScope`
 (`DELETE /scopes/:scope_id`), each guarded
 `requireGlobalPermission({ requireAdmin: true })`. An unknown id on update or
-delete is a 404. There is no list route: every successful write re-reads the
-whole list and broadcasts it as `scopes_updated` (S3), and
+delete is a 404, and `all-data` on either is a 403 (`SCOPE_RESERVED`).
+`server/tests/scope_routes_test.ts` pins both refusals and that the routes take
+only the per-family definition. There is no list route: every successful write
+re-reads the whole list and broadcasts it as `scopes_updated` (S3), and
 `InstanceState.scopes` (`Scope[]`: id, label, definition, definitionHash,
 lastUpdated) rides the `starting` payload for approved connections, cut to the
 granted scopes for a restricted one (S3). The Scopes page (S15,
@@ -279,19 +309,18 @@ re-broadcasts the roster (`users_updated`).
 **On the client** the list is `instanceState.scopes` in T1
 (`updateInstanceScopes`). `resolveScope(scope)` in `state/instance/t1_store.ts`
 resolves a pair against it, reactively, for cache keys and the stale check.
-`figureScopeStamp(scope, scopeToken)` builds the bundle stamp: the hash is the
-`scopeToken` of the payload the bundle was built from, and only the area comes
-from the list. `ScopeSelect` (`components/_shared/scope_select.tsx`) is the one
-control that picks a scope, by label; its `allowWholePackage` prop adds a "Whole
-package" option that reports a null id. It is used by the create dialog,
-`PackageScopeModal`, the duplicate modal, Explore (S11) and the package page
-(S8, the only caller that allows the whole package).
+`figureScopeStamp(scope, scopeToken, family)` builds the bundle stamp: the hash
+is the `scopeToken` of the payload the bundle was built from, and only the area
+(that of the figure's family) comes from the list. `ScopeSelect`
+(`components/_shared/scope_select.tsx`) is the one control that picks a scope,
+by label, in the order the list arrives: "All data" first, as an ordinary
+option. It is used by the create dialog, `PackageScopeModal`, the duplicate
+modal, Explore (S11) and the package page (S8).
 `components/_shared/package_label.ts` names things: `scopeLabel(scopeId)` (the
-scope's label, "Whole package" for null, "Unlisted scope" for an id the list
-lacks), `wholePackageLabel()`, and `figureScopeLabel(stamp)` for a stored
-bundle, which records a hash and no id: the label of a scope whose definition
-still hashes the same, else "Whole package" for the unconstrained hash, else the
-bundle's area, else "An earlier scope definition". `packageScopeCaption` and
+scope's label, "Unlisted scope" for an id the list lacks) and
+`figureScopeLabel(stamp)` for a stored bundle, which records a hash and no id:
+the label of a scope whose definition still hashes the same, else the bundle's
+area, else "An earlier scope definition". `packageScopeCaption` and
 `PackageScopeChip` show "package · scope" from those.
 
 ## Slide decks

@@ -209,20 +209,20 @@ approved user: a compact `HeadingBar` whose tabs are the families the package
 has any module for, in `MODULE_FAMILY_ORDER`, with a package `Select` over
 `instanceState.readyPackages` (opening on the pin, else the newest ready
 package) and the shared `ScopeSelect` over the T1 scopes list. Explore always
-reads through a named scope and has no whole-package option: with nothing
-chosen, or when the chosen scope has been deleted, it uses the first scope whose
-definition is unconstrained, else the first scope in the list, and with no scope
-at all it shows a line saying none exists in place of the explorer. Every
-selection lives in `state/t4_explore.ts`, module level so it outlives the page's
-mount: the family (`exploreFamily`), the module per family (`exploreModules`)
-and the view per module (`exploreViews`) persist in localStorage; the package,
-the scope (`exploreScopeId`) and the per-family query (`exploreQueries`) last
-the session, so a deleted package can never be a stored default. Each is
-resolved against the package on every read: a choice the package lacks falls
-back to the first offered (the package to the pin, else the newest ready one)
-without being overwritten. The authoring context is read through
-`t2_run_authoring_context`. The page writes nothing: no insert into a product,
-no persisted draft, no copilot, no help buttons.
+reads through a named scope: it opens on "All data" (`exploreScopeId` starts as
+`ALL_DATA_SCOPE_ID`) and falls back to it when the chosen scope has been
+deleted. The admin level it offers and defaults to follows the area the scope
+holds the open family to (`scopeAreaForFamily`), so one scope can pin HMIS to an
+area and leave HFA national. Every selection lives in `state/t4_explore.ts`,
+module level so it outlives the page's mount: the family (`exploreFamily`), the
+module per family (`exploreModules`) and the view per module (`exploreViews`)
+persist in localStorage; the package, the scope (`exploreScopeId`) and the
+per-family query (`exploreQueries`) last the session, so a deleted package can
+never be a stored default. Each is resolved against the package on every read: a
+choice the package lacks falls back to the first offered (the package to the
+pin, else the newest ready one) without being overwritten. The authoring context
+is read through `t2_run_authoring_context`. The page writes nothing: no insert
+into a product, no persisted draft, no copilot, no help buttons.
 
 Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its
 first row in every state is the selectors row: a `SelectV2` over the family's

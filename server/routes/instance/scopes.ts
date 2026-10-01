@@ -1,10 +1,12 @@
 import { Hono } from "hono";
+import type { APIResponseNoData } from "lib";
 import type { Sql } from "postgres";
 import {
   createScope,
   deleteScope,
   listScopes,
   SCOPE_NOT_FOUND,
+  SCOPE_RESERVED,
   updateScope,
 } from "../../db/instance/scopes.ts";
 import { log } from "../../middleware/logging.ts";
@@ -17,6 +19,15 @@ import {
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesScopes = new Hono();
+
+function failureStatus(res: APIResponseNoData): 200 | 403 | 404 {
+  if (res.success) return 200;
+  return res.err === SCOPE_NOT_FOUND
+    ? 404
+    : res.err === SCOPE_RESERVED
+    ? 403
+    : 200;
+}
 
 // The write has committed, so a failed re-read is logged and swallowed, as
 // notifyInstanceProductsUpserted does.
@@ -52,7 +63,7 @@ defineRoute(
   async (c, { params, body }) => {
     const res = await updateScope(c.var.mainDb, params.scope_id, body);
     if (res.success) await notifyScopes(c.var.mainDb);
-    return c.json(res, !res.success && res.err === SCOPE_NOT_FOUND ? 404 : 200);
+    return c.json(res, failureStatus(res));
   },
 );
 
@@ -69,6 +80,6 @@ defineRoute(
       // scope access changed for every user who held it.
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
     }
-    return c.json(res, !res.success && res.err === SCOPE_NOT_FOUND ? 404 : 200);
+    return c.json(res, failureStatus(res));
   },
 );

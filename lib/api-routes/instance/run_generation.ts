@@ -21,6 +21,7 @@ import type {
 } from "../../types/mod.ts";
 import type { GridItemsHolder } from "../../grid_items.ts";
 import { genericLongFormFetchConfigSchema } from "../../validate_fetch_config.ts";
+import { scopeIdSchema } from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
 
 // Results-package launch wizard + catalogue (PLAN_RESULTS_RUNS item 2,
@@ -40,10 +41,6 @@ const runModuleParamsSchema = z.object({
   run_id: z.string(),
   module_id: z.string(),
 });
-
-// The scope half of a figure read: the id of a `scopes` row, or null for the
-// whole package.
-const scopeIdSchema = z.uuid().nullable();
 
 export const runGenerationRouteRegistry = {
   // The instance catalogue (item 3): every run, newest first, with the
@@ -114,10 +111,10 @@ export const runGenerationRouteRegistry = {
     response: {} as InstalledModuleWithConfigSelections,
   }),
   // The figure-data mount (S9): the caller supplies the (runId, scopeId) pair
-  // its product carries, and a null scopeId means the whole package. The
-  // reads require runs.status = 'ready' and an existing scope. /mcp reaches
-  // getRunPresentationObjectItems and getRunResultsValueInfo with a null
-  // scope through the headless allowlist.
+  // its product carries. The reads require runs.status = 'ready' and an
+  // existing scope. /mcp reaches getRunPresentationObjectItems and
+  // getRunResultsValueInfo under the "All data" scope through the headless
+  // allowlist.
   // Guarded requireApprovedUser(): package data is an instance-level resource.
   getRunPresentationObjectItems: route({
     path: "/run_generation/run/:run_id/presentation_object_items",
@@ -169,7 +166,7 @@ export const runGenerationRouteRegistry = {
     response: {} as RunReplicantOptions,
   }),
   // The raw results-object preview, scoped like the other reads: a product's
-  // preview must carry its scope or it shows the whole package.
+  // preview shows only what its scope allows.
   getRunResultsObjectItems: route({
     path: "/run_generation/run/:run_id/results_object_items/:results_object_id",
     method: "POST",

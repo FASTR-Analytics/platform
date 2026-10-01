@@ -27,6 +27,7 @@ import {
   getModuleWithConfigSelectionsFromManifest,
   getReadyRunReadContext,
   getResultsObjectItemsFromRun,
+  getRunManifestForRun,
   getRunReadContextForRun,
   readRunGridItems,
   readRunItems,
@@ -54,7 +55,7 @@ export const routesRunGeneration = new Hono();
 
 // A figure-data read that names an unknown scope is a 404, like a product
 // route naming an unknown product, and one a restricted caller does not hold
-// (or the whole package) is a 403. Every other context failure keeps the
+// is a 403. Every other context failure keeps the
 // default status: the client transport reads the envelope on any status.
 function readContextFailure(c: Context, res: { success: false; err: string }) {
   const status = res.err === SCOPE_NOT_FOUND
@@ -219,18 +220,18 @@ defineRoute(
 );
 
 // One module's configuration as generated: the AI tools' get_module_settings
-// read. Manifest only (the national manifest lens): no scope, no data.
+// read. Manifest only: no scope, no data.
 defineRoute(
   routesRunGeneration,
   "getRunModuleWithConfigSelections",
   requireGlobalPermission("can_view_data"),
   log("getRunModuleWithConfigSelections"),
   async (c, { params }) => {
-    const ctxRes = await getRunReadContextForRun(params.run_id);
-    if (ctxRes.success === false) return c.json(ctxRes);
+    const manifestRes = await getRunManifestForRun(params.run_id);
+    if (manifestRes.success === false) return c.json(manifestRes);
     return c.json(
       getModuleWithConfigSelectionsFromManifest(
-        ctxRes.data.manifest,
+        manifestRes.data,
         params.module_id,
       ),
     );
@@ -241,15 +242,15 @@ defineRoute(
 // The figure-data mount
 ///////////////////////////////////////////////////////////////////////////////
 
-// The caller supplies the (runId, scopeId) pair its product carries, and a
-// null scopeId means the whole package. getReadyRunReadContext shape-checks
-// the run id (it becomes a path), gates on runs.status = 'ready' and loads
-// the scope's definition; the read path escapes the definition's values.
-// /mcp reaches getRunPresentationObjectItems and getRunResultsValueInfo with
-// a null scope through the headless allowlist.
+// The caller supplies the (runId, scopeId) pair its product carries.
+// getReadyRunReadContext shape-checks the run id (it becomes a path), gates
+// on runs.status = 'ready' and loads the scope's definition; the read path
+// escapes the definition's values. /mcp reaches
+// getRunPresentationObjectItems and getRunResultsValueInfo under the "All
+// data" scope through the headless allowlist.
 // Guard: requireApprovedUser(), then the caller's grants in the read context:
-// an unrestricted user reads any ready package at any scope or whole, and a
-// restricted one only through a scope they hold (PLAN_SCOPES §2.4).
+// an unrestricted user reads any ready package at any scope, and a restricted
+// one only through a scope they hold.
 
 defineRoute(
   routesRunGeneration,
@@ -368,11 +369,12 @@ defineRoute(
   "getRunAuthoringContext",
   requireApprovedUser(),
   async (c, { params, body }) => {
-    const ctxRes = await getRunReadContextForRun(params.run_id, {
-      mainDb: c.var.mainDb,
-      scopeId: body.scopeId,
-      access: c.var.globalUser.scopeAccess,
-    });
+    const ctxRes = await getRunReadContextForRun(
+      c.var.mainDb,
+      params.run_id,
+      body.scopeId,
+      c.var.globalUser.scopeAccess,
+    );
     if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json({
       success: true,

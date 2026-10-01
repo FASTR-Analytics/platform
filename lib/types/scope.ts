@@ -1,55 +1,117 @@
 import { z } from "zod";
+import type { DatasetType } from "./datasets.ts";
 
 // A scope is a named, admin-created row in `scopes`: a label and a definition
-// with three dimensions (geography, time, data). A product carries one by id,
-// and every figure read resolves under the pair (package, scope). `null`
-// means unconstrained at every level, so the definition with every part null
-// filters nothing. The server builds the definition into the DuckDB view each
-// query runs against (scopePredicateFor, server/run_query/run_read.ts).
+// with one section per dataset family. A section is excluded, or included
+// with that family's dimensions (area, years or time points, modules,
+// indicators). Inside an included section `null` means no limit on that
+// dimension and nothing else; the only way to drop a family is
+// `include: false`. A product carries a scope by id, and every figure read
+// resolves under the pair (package, scope). The server builds the definition
+// into the DuckDB view each query runs against (scopePredicateFor,
+// server/run_query/run_read.ts).
 
-const idListSchema = z.array(z.string().min(1)).nullable();
+// The one reserved scope: every section included, no dimension limited. Its
+// row is seeded by migration 204 and can be neither edited nor deleted.
+export const ALL_DATA_SCOPE_ID = "all-data";
+
+export const scopeIdSchema = z.union([
+  z.literal(ALL_DATA_SCOPE_ID),
+  z.uuid(),
+]);
+
+// An empty list would match no data, which is what `include: false` says.
+const idListSchema = z.array(z.string().min(1)).min(1).nullable();
+
+const adminArea2Schema = z.string().min(1).nullable();
 
 // The view predicate converts a year to the results object's time column, and
 // that conversion reads a value's format off its digit count.
 const fourDigitYear = z.number().int().min(1000).max(9999);
 
-export const scopeDefinitionSchema = z.strictObject({
-  geography: z.strictObject({ adminArea2: z.string().min(1) }).nullable(),
-  time: z.strictObject({
-    years: z
-      .strictObject({ start: fourDigitYear, end: fourDigitYear })
-      .refine((y) => y.start <= y.end, "start must not be after end")
-      .nullable(),
-    hfaTimePoints: idListSchema,
-  }),
+const yearRangeSchema = z
+  .strictObject({ start: fourDigitYear, end: fourDigitYear })
+  .refine((y) => y.start <= y.end, "start must not be after end")
+  .nullable();
+
+const excludedSectionSchema = z.strictObject({ include: z.literal(false) });
+
+// `modules` lists only the section's own family's modules, and `indicators`
+// filters that family's indicator column (SCOPE_INDICATOR_COLUMN).
+const includedSection = {
+  include: z.literal(true),
   modules: idListSchema,
-  indicators: z.strictObject({
-    hmis: idListSchema, // column indicator_common_id
-    hfa: idListSchema, // column hfa_indicator
-    iceh: idListSchema, // column iceh_indicator
-  }),
+  indicators: idListSchema,
+};
+
+export const scopeDefinitionSchema = z.strictObject({
+  hmis: z.discriminatedUnion("include", [
+    excludedSectionSchema,
+    z.strictObject({
+      ...includedSection,
+      adminArea2: adminArea2Schema,
+      years: yearRangeSchema,
+    }),
+  ]),
+  hfa: z.discriminatedUnion("include", [
+    excludedSectionSchema,
+    z.strictObject({
+      ...includedSection,
+      adminArea2: adminArea2Schema,
+      timePoints: idListSchema,
+    }),
+  ]),
+  iceh: z.discriminatedUnion("include", [
+    excludedSectionSchema,
+    z.strictObject({ ...includedSection, years: yearRangeSchema }),
+  ]),
 });
 
 export type ScopeDefinition = z.infer<typeof scopeDefinitionSchema>;
 
-export const UNCONSTRAINED_SCOPE_DEFINITION: ScopeDefinition = {
-  geography: null,
-  time: { years: null, hfaTimePoints: null },
-  modules: null,
-  indicators: { hmis: null, hfa: null, iceh: null },
-};
+export type YearRange = { start: number; end: number };
+
+export const SCOPE_INDICATOR_COLUMN = {
+  hmis: "indicator_common_id",
+  hfa: "hfa_indicator",
+  iceh: "iceh_indicator",
+} as const satisfies Record<DatasetType, string>;
 
 export function parseScopeDefinition(raw: string): ScopeDefinition {
   return scopeDefinitionSchema.parse(JSON.parse(raw));
 }
 
+// Limited by geography alone: HMIS and HFA both carry the area, and ICEH,
+// which has no geography, is included whole. What a product on one admin
+// area 2 showed before scopes had sections.
 export function geographyOnlyScopeDefinition(
   adminArea2: string | null,
 ): ScopeDefinition {
+  const unlimited = { include: true, modules: null, indicators: null } as const;
   return {
-    ...UNCONSTRAINED_SCOPE_DEFINITION,
-    geography: adminArea2 === null ? null : { adminArea2 },
+    hmis: { ...unlimited, adminArea2, years: null },
+    hfa: { ...unlimited, adminArea2, timePoints: null },
+    iceh: { ...unlimited, years: null },
   };
+}
+
+export const ALL_DATA_SCOPE_DEFINITION = geographyOnlyScopeDefinition(null);
+
+// The area a definition holds a family's tables to. ICEH has no geography.
+export type ScopeAreas = { hmis: string | null; hfa: string | null };
+
+export function scopeAreasOf(definition: ScopeDefinition): ScopeAreas {
+  return {
+    hmis: definition.hmis.include ? definition.hmis.adminArea2 : null,
+    hfa: definition.hfa.include ? definition.hfa.adminArea2 : null,
+  };
+}
+
+export function scopeAreaForFamily(
+  areas: ScopeAreas,
+  family: DatasetType | undefined,
+): string | null {
+  return family === "hmis" || family === "hfa" ? areas[family] : null;
 }
 
 // What a client holds for a scope (instance T1). `definitionHash` is derived
@@ -188,19 +250,24 @@ function sha256Hex(text: string): string {
   return Array.from(h, (x) => x.toString(16).padStart(8, "0")).join("");
 }
 
-type Canonical = string | number | Canonical[] | { [key: string]: Canonical };
+type Canonical =
+  | string
+  | number
+  | boolean
+  | Canonical[]
+  | { [key: string]: Canonical };
 
-// The hashed form holds only the constrained parts: a null is left out at
-// every level, and so is an object left empty by that, so a dimension added
-// later leaves every existing hash unchanged. Keys are sorted, lists are
-// sorted and de-duplicated, and the area is upper-cased because the view
-// predicate compares it case-insensitively.
+// The hashed form holds only the limited parts: a null is left out at every
+// level, so a dimension added later leaves every existing hash unchanged.
+// `include` is always kept. Keys are sorted, lists are sorted and
+// de-duplicated, and an area is upper-cased because the view predicate
+// compares it case-insensitively.
 function canonicalValue(value: unknown, key: string): Canonical | undefined {
   if (value === null || value === undefined) return undefined;
   if (typeof value === "string") {
     return key === "adminArea2" ? value.toUpperCase() : value;
   }
-  if (typeof value === "number") return value;
+  if (typeof value === "number" || typeof value === "boolean") return value;
   if (Array.isArray(value)) {
     return [...new Set(value.map(String))].toSorted();
   }
@@ -222,21 +289,21 @@ export function scopeDefinitionHash(definition: ScopeDefinition): string {
   return sha256Hex(JSON.stringify(canonicalValue(definition, "") ?? {}));
 }
 
-// A read with no scope (`scopeId: null` on the wire) is the whole package.
-export const WHOLE_PACKAGE_DEFINITION_HASH = scopeDefinitionHash(
-  UNCONSTRAINED_SCOPE_DEFINITION,
+export const ALL_DATA_DEFINITION_HASH = scopeDefinitionHash(
+  ALL_DATA_SCOPE_DEFINITION,
 );
 
 // PackageScope is the (package, scope) pair every figure read resolves
 // under: the results package a product is attached to (`products.run_id`) and
-// its scope (`products.scope_id`). A null scope is the whole package, which
-// only a surface with no product uses (the package page, /mcp). The pair
-// never enters a figure's stored config or its fetch hash: a data-layer knob
-// there causes spurious refetches and gets frozen into stored snapshots.
+// its scope (`products.scope_id`). A surface with no product (the package
+// page, Explore, /mcp) names its scope too, "All data" by default: there is
+// no null scope. The pair never enters a figure's stored config or its fetch
+// hash: a data-layer knob there causes spurious refetches and gets frozen
+// into stored snapshots.
 
 export type PackageScope = {
   runId: string;
-  scopeId: string | null;
+  scopeId: string;
 };
 
 export function packageScopesEqual(a: PackageScope, b: PackageScope): boolean {
@@ -245,29 +312,24 @@ export function packageScopesEqual(a: PackageScope, b: PackageScope): boolean {
 
 // A pair with its scope looked up in the scopes list: the definition hash is
 // the token in cache keys and figure stamps and the other half of the stale
-// check, and the area drives the roll-up row label and the Explore level. A
+// check, and the areas drive the roll-up row label and the Explore level. A
 // scope id that the list does not hold resolves to a hash no payload carries,
 // so nothing is read or written under another scope's key.
 export type ResolvedPackageScope = PackageScope & {
   definitionHash: string;
-  adminArea2: string | null;
+  areas: ScopeAreas;
 };
 
 export function resolvePackageScope(
   scope: PackageScope,
   scopes: Scope[],
 ): ResolvedPackageScope {
-  if (scope.scopeId === null) {
-    return {
-      ...scope,
-      definitionHash: WHOLE_PACKAGE_DEFINITION_HASH,
-      adminArea2: null,
-    };
-  }
   const found = scopes.find((s) => s.id === scope.scopeId);
   return {
     ...scope,
     definitionHash: found?.definitionHash ?? `missing:${scope.scopeId}`,
-    adminArea2: found?.definition.geography?.adminArea2 ?? null,
+    areas: found === undefined
+      ? { hmis: null, hfa: null }
+      : scopeAreasOf(found.definition),
   };
 }

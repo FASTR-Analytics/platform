@@ -23,7 +23,7 @@ export function FamilyPane(p: {
   detail: RunDetail;
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  onChangeScope: (scopeId: string | null) => void;
+  onChangeScope: (scopeId: string) => void;
   openEditor: OpenEditor;
 }) {
   const items = createMemo((): ListEntry<string>[] => {

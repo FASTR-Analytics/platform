@@ -38,6 +38,7 @@ export {
   getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
   getRunDatasetsFromManifest,
+  getRunManifestForRun,
   getRunReadContextForRun,
   getRunVersionInfo,
   moduleHasRun,

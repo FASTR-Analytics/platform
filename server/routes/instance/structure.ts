@@ -65,11 +65,12 @@ function parseFacilityFamily(raw: string): FacilityFamily | undefined {
 defineRoute(
   routesStructure,
   "listAdminArea2s",
-  // Any authenticated user: feeds the scope picker (see registry).
+  // Any authenticated user: feeds the scope editor's area pickers (see
+  // registry).
   requireGlobalPermission(),
   log("listAdminArea2s"),
-  async (c) => {
-    const res = await listAdminArea2s(c.var.mainDb);
+  async (c, { params }) => {
+    const res = await listAdminArea2s(c.var.mainDb, params.family);
     return c.json(res);
   },
 );

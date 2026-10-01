@@ -1,9 +1,9 @@
 import type { Sql } from "postgres";
 import {
+  ALL_DATA_SCOPE_DEFINITION,
   BLANK_SENTINEL,
   scopeDefinitionHash,
   setCalendar,
-  UNCONSTRAINED_SCOPE_DEFINITION,
   validateFetchConfig,
 } from "lib";
 import { getSingleValueDimsFromPossibleValues } from "lib";
@@ -60,7 +60,7 @@ async function prepare(fx: Fixture): Promise<Prepared> {
 // package through a context whose manifest says so.
 function contextFor(c: Case, p: Prepared): RunReadContext {
   const calendar = c.calendar ?? "gregorian";
-  const scope = c.scope ?? UNCONSTRAINED_SCOPE_DEFINITION;
+  const scope = c.scope ?? ALL_DATA_SCOPE_DEFINITION;
   return {
     ...p.ctx,
     manifest: { ...p.ctx.manifest, calendar },

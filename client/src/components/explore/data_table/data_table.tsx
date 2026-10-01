@@ -21,6 +21,7 @@ import {
   resolveGridQuery,
   type ResultsValueInfoForPresentationObject,
   type RunAuthoringContext,
+  scopeAreaForFamily,
   t3,
 } from "lib";
 import {
@@ -144,7 +145,7 @@ function ReadyFamilyTable(p: {
   const intent = (): GridQuery =>
     p.query ?? defaultGridQuery(
       p.family,
-      resolveScope(p.scope).adminArea2,
+      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
       p.ctx,
       available(),
     );
@@ -152,7 +153,7 @@ function ReadyFamilyTable(p: {
     resolveGridQuery(
       intent(),
       p.columns,
-      resolveScope(p.scope).adminArea2,
+      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
       p.ctx,
       available(),
     )
@@ -269,7 +270,7 @@ function ReadyFamilyTable(p: {
             query={resolved().query}
             levelOptions={levelOptionsFor(
               p.metric,
-              resolveScope(p.scope).adminArea2,
+              scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
             ).map((level) => ({
               value: level,
               label: t3(getDisplayDisaggregationLabel(level, p.family)),
@@ -387,7 +388,7 @@ function buildGrid(args: {
     dateRange: rows.dateRange,
     localization: getSnapshotInstanceLocalization(),
     metricId: metric.id,
-    scope: figureScopeStamp(args.scope, rows.scopeToken),
+    scope: figureScopeStamp(args.scope, rows.scopeToken, args.family),
     snapshotAt: "",
     provenance: { runId: args.scope.runId },
   };

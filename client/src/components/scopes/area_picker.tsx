@@ -1,4 +1,4 @@
-import { t3 } from "lib";
+import { type FacilityFamily, t3 } from "lib";
 import { createQuery, RadioGroup, Select, StateHolderWrapper } from "panther";
 import { Show } from "solid-js";
 import { serverActions } from "~/server_actions";
@@ -18,13 +18,15 @@ export function areaSelectionFromStored(
 }
 
 type Props = {
+  // The section's own family: its area is picked from that family's registry.
+  family: FacilityFamily;
   selection: AreaSelection;
   onChange: (s: AreaSelection) => void;
 };
 
 export function AreaPicker(p: Props) {
   const areasQuery = createQuery<string[]>(() =>
-    serverActions.listAdminArea2s({})
+    serverActions.listAdminArea2s({ family: p.family })
   );
 
   const chosenArea = () =>
@@ -64,9 +66,9 @@ export function AreaPicker(p: Props) {
             // The options array must be referentially STABLE across picks: a
             // selection-dependent list would recreate every <option> node on
             // each pick and the browser resets the select to its first
-            // option. The one entry that isn't in the structure list is the
-            // INITIAL stored value (a structure re-upload can orphan it:
-            // cleanupUnusedAdminAreas); it stays visible and selectable
+            // option. The one entry that isn't in the family's structure list
+            // is the INITIAL stored value (a structure re-upload can orphan
+            // it: cleanupUnusedAdminAreas); it stays visible and selectable
             // because a blank select whose next save rewrites the scope is a
             // silent change to every product that carries it. Users can only
             // ever pick from this fixed list, so no later selection can need
@@ -76,13 +78,13 @@ export function AreaPicker(p: Props) {
               ...(initial !== undefined && !areas.includes(initial)
                 ? [{
                   value: initial,
-                  label: `${initial} — ${
+                  label: `${initial} (${
                     t3({
                       en: "not in the current structure",
                       fr: "absente de la structure actuelle",
                       pt: "não consta da estrutura atual",
                     })
-                  }`,
+                  })`,
                 }]
                 : []),
               ...areas.map((a) => ({ value: a, label: a })),

@@ -73,13 +73,15 @@ export type FigurePairForTransform = {
 
 // The area of a product's scope, read from the stored definition JSON without
 // the schema: the sweeps run before anything has validated the scopes table.
+// A scope migration 204 seeded for an area carries it on both the HMIS and the
+// HFA section.
 export function adminArea2OfStoredScope(definitionJson: string): string | null {
-  const geography = (JSON.parse(definitionJson) as {
-    geography?: { adminArea2?: unknown } | null;
-  }).geography;
-  return typeof geography?.adminArea2 === "string"
-    ? geography.adminArea2
-    : null;
+  const definition = JSON.parse(definitionJson) as {
+    hmis?: { adminArea2?: unknown };
+    hfa?: { adminArea2?: unknown };
+  };
+  const area = definition.hmis?.adminArea2 ?? definition.hfa?.adminArea2;
+  return typeof area === "string" ? area : null;
 }
 
 // Slide-layout walk: shared by the slide_config boot transform and the
@@ -359,8 +361,9 @@ export function transformFigureBlock(block: FigureBlockMut): void {
   }
 
   // Block: the scope stamp gained the definition hash (PLAN_SCOPES step 2).
-  // A bundle stamped with only its area gets the hash of that area alone,
-  // which is the hash of the scope migration 204 gave its product, so a
+  // A bundle stamped with only its area gets the hash of the definition
+  // limited by that area alone (geographyOnlyScopeDefinition), which is the
+  // hash of the scope migration 204 gave its product, so a
   // figure that was fresh stays fresh and a stale one stays stale. The strict
   // schema rejects the old shape, which is what sends the row here.
   if (

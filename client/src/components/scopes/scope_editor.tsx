@@ -1,8 +1,14 @@
 import {
+  ALL_DATA_SCOPE_DEFINITION,
+  ALL_DATA_SCOPE_ID,
   type APIResponseWithData,
+  type DatasetType,
+  getModuleFamilyLabel,
+  MODULE_FAMILY_ORDER,
   type Scope,
   type ScopeDefinition,
   t3,
+  type YearRange,
 } from "lib";
 import {
   type AlertComponentProps,
@@ -15,8 +21,9 @@ import {
   MultiSelectSearch,
   type SelectOption,
   StateHolderWrapper,
+  TabsNavigation,
 } from "panther";
-import { createSignal, Show } from "solid-js";
+import { type Accessor, createSignal, Match, Show, Switch } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState, resolveScope } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
@@ -34,55 +41,68 @@ type Props = {
 
 type Option = SelectOption<string>;
 
+type FamilyOptions = { modules: Option[]; indicators: Option[] };
+
 type ScopeOptions = {
+  families: Record<DatasetType, FamilyOptions>;
   hfaTimePoints: Option[];
-  modules: Option[];
-  hmisIndicators: Option[];
-  hfaIndicators: Option[];
-  icehIndicators: Option[];
+  // Why the module and indicator lists are empty, when the read failed.
+  err: string | undefined;
 };
 
 // A scope is independent of packages, so there is no one list of the modules
 // and indicators a definition may name. The editor offers what the pinned
-// package holds (the first ready package when nothing is pinned), read as the
-// whole package, and the HFA time points of the instance. With no ready
-// package the lists are empty and a definition keeps what it already names.
+// package holds (the first ready package when nothing is pinned), read under
+// "All data", and the HFA time points of the instance. With no ready package,
+// or when that read fails, the lists are empty and a definition keeps what it
+// already names: the editor's controls never depend on the read succeeding.
 async function loadScopeOptions(): Promise<APIResponseWithData<ScopeOptions>> {
   const hfaTimePoints = instanceState.hfaTimePoints.map((tp) => ({
     value: tp.label,
     label: tp.label,
   }));
+  const none: FamilyOptions = { modules: [], indicators: [] };
+  const empty = (err: string | undefined) => ({
+    success: true as const,
+    data: {
+      families: { hmis: none, hfa: none, iceh: none },
+      hfaTimePoints,
+      err,
+    },
+  });
   const pkg = instanceState.readyPackages.find(
     (p) => p.id === instanceState.pinnedRunId,
   ) ?? instanceState.readyPackages.at(0);
-  if (pkg === undefined) {
-    return {
-      success: true,
-      data: {
-        hfaTimePoints,
-        modules: [],
-        hmisIndicators: [],
-        hfaIndicators: [],
-        icehIndicators: [],
-      },
-    };
-  }
+  if (pkg === undefined) return empty(undefined);
   const res = await getRunAuthoringContextFromCacheOrFetch(
-    resolveScope({ runId: pkg.id, scopeId: null }),
+    resolveScope({ runId: pkg.id, scopeId: ALL_DATA_SCOPE_ID }),
   );
-  if (res.success === false) return res;
+  if (res.success === false) return empty(res.err);
   const withId = (o: { id: string; label: string }) => ({
     value: o.id,
     label: `${o.label} (${o.id})`,
   });
+  const modulesOf = (family: DatasetType) =>
+    res.data.modules.filter((m) => m.family === family).map(withId);
   return {
     success: true,
     data: {
+      families: {
+        hmis: {
+          modules: modulesOf("hmis"),
+          indicators: res.data.hmisIndicators.map(withId),
+        },
+        hfa: {
+          modules: modulesOf("hfa"),
+          indicators: res.data.hfaTaxonomy.indicators.map(withId),
+        },
+        iceh: {
+          modules: modulesOf("iceh"),
+          indicators: res.data.icehIndicators.map(withId),
+        },
+      },
       hfaTimePoints,
-      modules: res.data.modules.map(withId),
-      hmisIndicators: res.data.hmisIndicators.map(withId),
-      hfaIndicators: res.data.hfaTaxonomy.indicators.map(withId),
-      icehIndicators: res.data.icehIndicators.map(withId),
+      err: undefined,
     },
   };
 }
@@ -99,13 +119,13 @@ function withStoredValues(
   return [
     ...orphans.map((value) => ({
       value,
-      label: `${value} — ${
+      label: `${value} (${
         t3({
           en: "not in the current options",
           fr: "absent des options actuelles",
           pt: "não consta das opções atuais",
         })
-      }`,
+      })`,
     })),
     ...offered,
   ];
@@ -145,104 +165,410 @@ function parseYear(text: string): number | undefined {
   return /^[1-9]\d{3}$/.test(text.trim()) ? Number(text.trim()) : undefined;
 }
 
+// Every dimension any family has, so one draft serves the three sections.
+// Each tab shows, and each built section keeps, only its own family's.
+type SectionFields = {
+  include: boolean;
+  adminArea2: string | null;
+  years: YearRange | null;
+  timePoints: string[] | null;
+  modules: string[] | null;
+  indicators: string[] | null;
+};
+
+function sectionFields(
+  section: ScopeDefinition[DatasetType],
+): SectionFields {
+  const included = section.include ? section : undefined;
+  return {
+    include: section.include,
+    adminArea2: included !== undefined && "adminArea2" in included
+      ? included.adminArea2
+      : null,
+    years: included !== undefined && "years" in included
+      ? included.years
+      : null,
+    timePoints: included !== undefined && "timePoints" in included
+      ? included.timePoints
+      : null,
+    modules: included?.modules ?? null,
+    indicators: included?.indicators ?? null,
+  };
+}
+
+// The lists are copied out of the stored definition, which is a T1 store
+// object: the draft is one snapshot, and a `scopes_updated` that arrives while
+// the editor is open changes nothing in it.
+function createSectionDraft(stored: SectionFields) {
+  const copy = (list: string[] | null) => list === null ? null : [...list];
+  const [include, setInclude] = createSignal(stored.include);
+  const [area, setArea] = createSignal<AreaSelection>(
+    areaSelectionFromStored(stored.adminArea2),
+  );
+  const [limitYears, setLimitYears] = createSignal(stored.years !== null);
+  const [startYear, setStartYear] = createSignal(
+    stored.years === null ? "" : String(stored.years.start),
+  );
+  const [endYear, setEndYear] = createSignal(
+    stored.years === null ? "" : String(stored.years.end),
+  );
+  const [timePoints, setTimePoints] = createSignal(copy(stored.timePoints));
+  const [modules, setModules] = createSignal(copy(stored.modules));
+  const [indicators, setIndicators] = createSignal(copy(stored.indicators));
+  return {
+    stored,
+    include,
+    setInclude,
+    area,
+    setArea,
+    limitYears,
+    setLimitYears,
+    startYear,
+    setStartYear,
+    endYear,
+    setEndYear,
+    timePoints,
+    setTimePoints,
+    modules,
+    setModules,
+    indicators,
+    setIndicators,
+  };
+}
+
+type SectionDraft = ReturnType<typeof createSectionDraft>;
+
+const HAS_YEARS: Record<DatasetType, boolean> = {
+  hmis: true,
+  hfa: false,
+  iceh: true,
+};
+
+function draftArea(draft: SectionDraft): APIResponseWithData<string | null> {
+  const area = draft.area();
+  if (area.mode === "all") return { success: true, data: null };
+  return area.adminArea2 === undefined
+    ? {
+      success: false,
+      err: t3({
+        en: "Select an area, or choose every area",
+        fr: "Sélectionnez une zone, ou choisissez toutes les zones",
+        pt: "Selecione uma zona, ou escolha todas as zonas",
+      }),
+    }
+    : { success: true, data: area.adminArea2 };
+}
+
+function draftYears(
+  draft: SectionDraft,
+): APIResponseWithData<YearRange | null> {
+  if (!draft.limitYears()) return { success: true, data: null };
+  const start = parseYear(draft.startYear());
+  const end = parseYear(draft.endYear());
+  return start === undefined || end === undefined || start > end
+    ? {
+      success: false,
+      err: t3({
+        en:
+          "Enter a first and a last year as four digits, the first not after the last",
+        fr:
+          "Saisissez une première et une dernière année à quatre chiffres, la première n'étant pas postérieure à la dernière",
+        pt:
+          "Introduza um primeiro e um último ano com quatro dígitos, o primeiro não posterior ao último",
+      }),
+    }
+    : { success: true, data: { start, end } };
+}
+
+// The schema refuses an empty list: it would match no data, which is what
+// leaving the family out says.
+function draftList(
+  list: string[] | null,
+): APIResponseWithData<string[] | null> {
+  return list !== null && list.length === 0
+    ? {
+      success: false,
+      err: t3({
+        en:
+          "A limit with nothing selected matches no data. Select at least one, or remove the limit",
+        fr:
+          "Une limite sans sélection ne correspond à aucune donnée. Sélectionnez-en au moins un, ou retirez la limite",
+        pt:
+          "Um limite sem seleção não corresponde a nenhum dado. Selecione pelo menos um, ou remova o limite",
+      }),
+    }
+    : { success: true, data: list };
+}
+
+function buildDefinition(
+  drafts: Record<DatasetType, SectionDraft>,
+): APIResponseWithData<ScopeDefinition> {
+  // An error is named by its family, since its tab may not be the open one.
+  const failed = (family: DatasetType, err: string) => ({
+    success: false as const,
+    err: `${getModuleFamilyLabel(family)}: ${err}`,
+  });
+  const common = (family: DatasetType) => {
+    const modules = draftList(drafts[family].modules());
+    if (modules.success === false) return failed(family, modules.err);
+    const indicators = draftList(drafts[family].indicators());
+    if (indicators.success === false) return failed(family, indicators.err);
+    return {
+      success: true as const,
+      data: {
+        include: true as const,
+        modules: modules.data,
+        indicators: indicators.data,
+      },
+    };
+  };
+
+  let hmis: ScopeDefinition["hmis"] = { include: false };
+  if (drafts.hmis.include()) {
+    const base = common("hmis");
+    if (base.success === false) return base;
+    const area = draftArea(drafts.hmis);
+    if (area.success === false) return failed("hmis", area.err);
+    const years = draftYears(drafts.hmis);
+    if (years.success === false) return failed("hmis", years.err);
+    hmis = { ...base.data, adminArea2: area.data, years: years.data };
+  }
+  let hfa: ScopeDefinition["hfa"] = { include: false };
+  if (drafts.hfa.include()) {
+    const base = common("hfa");
+    if (base.success === false) return base;
+    const area = draftArea(drafts.hfa);
+    if (area.success === false) return failed("hfa", area.err);
+    const timePoints = draftList(drafts.hfa.timePoints());
+    if (timePoints.success === false) return failed("hfa", timePoints.err);
+    hfa = { ...base.data, adminArea2: area.data, timePoints: timePoints.data };
+  }
+  let iceh: ScopeDefinition["iceh"] = { include: false };
+  if (drafts.iceh.include()) {
+    const base = common("iceh");
+    if (base.success === false) return base;
+    const years = draftYears(drafts.iceh);
+    if (years.success === false) return failed("iceh", years.err);
+    iceh = { ...base.data, years: years.data };
+  }
+  return { success: true, data: { hmis, hfa, iceh } };
+}
+
+// One family's tab: the include switch, then that family's own dimensions.
+function SectionTab(p: {
+  family: DatasetType;
+  draft: SectionDraft;
+  options: FamilyOptions;
+  timePointOptions: Option[];
+}) {
+  const name = () => getModuleFamilyLabel(p.family);
+  // Once per tab: the options must not change while the user toggles.
+  const moduleOptions = withStoredValues(
+    p.options.modules,
+    p.draft.stored.modules,
+  );
+  const indicatorOptions = withStoredValues(
+    p.options.indicators,
+    p.draft.stored.indicators,
+  );
+  const timePointOptions = withStoredValues(
+    p.timePointOptions,
+    p.draft.stored.timePoints,
+  );
+  return (
+    <div class="ui-spy">
+      <Checkbox
+        label={t3({
+          en: `Include ${name()}`,
+          fr: `Inclure ${name()}`,
+          pt: `Incluir ${name()}`,
+        })}
+        checked={p.draft.include()}
+        onChange={p.draft.setInclude}
+      />
+      <Show
+        when={p.draft.include()}
+        fallback={
+          <div class="text-base-content-muted text-sm">
+            {t3({
+              en:
+                `This scope shows no ${name()} data: every ${name()} table is empty and no ${name()} module is offered.`,
+              fr:
+                `Cette portée ne montre aucune donnée ${name()} : chaque tableau ${name()} est vide et aucun module ${name()} n'est proposé.`,
+              pt:
+                `Este âmbito não mostra dados ${name()}: todas as tabelas ${name()} ficam vazias e nenhum módulo ${name()} é oferecido.`,
+            })}
+          </div>
+        }
+      >
+        <Show
+          when={p.family === "hmis" || p.family === "hfa"
+            ? p.family
+            : undefined}
+        >
+          {(facilityFamily) => (
+            <AreaPicker
+              family={facilityFamily()}
+              selection={p.draft.area()}
+              onChange={p.draft.setArea}
+            />
+          )}
+        </Show>
+        <Show when={HAS_YEARS[p.family]}>
+          <div class="ui-spy-sm">
+            <Checkbox
+              label={t3({
+                en: "Limit years",
+                fr: "Limiter les années",
+                pt: "Limitar os anos",
+              })}
+              checked={p.draft.limitYears()}
+              onChange={p.draft.setLimitYears}
+            />
+            <Show when={p.draft.limitYears()}>
+              <div class="ui-gap-sm flex items-end">
+                <Input
+                  label={t3({
+                    en: "First year",
+                    fr: "Première année",
+                    pt: "Primeiro ano",
+                  })}
+                  value={p.draft.startYear()}
+                  onChange={p.draft.setStartYear}
+                />
+                <Input
+                  label={t3({
+                    en: "Last year",
+                    fr: "Dernière année",
+                    pt: "Último ano",
+                  })}
+                  value={p.draft.endYear()}
+                  onChange={p.draft.setEndYear}
+                />
+              </div>
+            </Show>
+          </div>
+        </Show>
+        <Show when={p.family === "hfa"}>
+          <LimitedList
+            limitLabel={t3({
+              en: "Limit time points",
+              fr: "Limiter les points temporels",
+              pt: "Limitar os pontos temporais",
+            })}
+            values={p.draft.timePoints()}
+            onChange={p.draft.setTimePoints}
+            options={timePointOptions}
+          />
+        </Show>
+        <LimitedList
+          limitLabel={t3({
+            en: "Limit modules",
+            fr: "Limiter les modules",
+            pt: "Limitar os módulos",
+          })}
+          values={p.draft.modules()}
+          onChange={p.draft.setModules}
+          options={moduleOptions}
+        />
+        <LimitedList
+          limitLabel={t3({
+            en: "Limit indicators",
+            fr: "Limiter les indicateurs",
+            pt: "Limitar os indicadores",
+          })}
+          values={p.draft.indicators()}
+          onChange={p.draft.setIndicators}
+          options={indicatorOptions}
+        />
+      </Show>
+    </div>
+  );
+}
+
+function ProductCountLine(p: { productCount: number; reserved: boolean }) {
+  return (
+    <div class="text-base-content-muted text-sm">
+      <Switch>
+        <Match when={p.productCount === 0}>
+          {t3({
+            en: "No product carries this scope.",
+            fr: "Aucun produit ne porte cette portée.",
+            pt: "Nenhum produto tem este âmbito.",
+          })}
+        </Match>
+        <Match when={p.reserved}>
+          {t3({
+            en: `${p.productCount} product(s) carry this scope.`,
+            fr: `${p.productCount} produit(s) portent cette portée.`,
+            pt: `${p.productCount} produto(s) têm este âmbito.`,
+          })}
+        </Match>
+        <Match when={true}>
+          {t3({
+            en:
+              `${p.productCount} product(s) carry this scope, so it cannot be deleted. Changing what it limits marks every visualization in them as out of date.`,
+            fr:
+              `${p.productCount} produit(s) portent cette portée, elle ne peut donc pas être supprimée. Modifier ce qu'elle limite marque chaque visualisation de ces produits comme obsolète.`,
+            pt:
+              `${p.productCount} produto(s) têm este âmbito, pelo que não pode ser eliminado. Alterar o que ele limita marca todas as visualizações desses produtos como desatualizadas.`,
+          })}
+        </Match>
+      </Switch>
+    </div>
+  );
+}
+
+// "All data" is the one reserved scope: the routes refuse to edit or delete
+// it, so it opens as a statement of what it is.
+export function AllDataScopeView(
+  p: AlertComponentProps<{ scope: Scope; productCount: number }, undefined>,
+) {
+  return (
+    <ModalContainer
+      title={p.scope.label}
+      width="md"
+      onCancel={() => p.close(undefined)}
+      actions={[{
+        label: t3({ en: "Close", fr: "Fermer", pt: "Fechar" }),
+        onClick: () => p.close(undefined),
+      }]}
+    >
+      <div class="ui-spy">
+        <div>
+          {t3({
+            en:
+              "This scope is built in. It includes HMIS, HFA and ICEH data and limits nothing. It cannot be edited or deleted.",
+            fr:
+              "Cette portée est intégrée. Elle inclut les données HMIS, HFA et ICEH et ne limite rien. Elle ne peut être ni modifiée ni supprimée.",
+            pt:
+              "Este âmbito é incorporado. Inclui os dados HMIS, HFA e ICEH e não limita nada. Não pode ser editado nem eliminado.",
+          })}
+        </div>
+        <ProductCountLine productCount={p.productCount} reserved />
+      </div>
+    </ModalContainer>
+  );
+}
+
 export function ScopeEditor(
   p: AlertComponentProps<Props, undefined>,
 ) {
-  const stored = p.scope?.definition;
+  const stored = p.scope?.definition ?? ALL_DATA_SCOPE_DEFINITION;
   const optionsQuery = createQuery(loadScopeOptions);
 
   const [tempLabel, setTempLabel] = createSignal(p.scope?.label ?? "");
-  const [tempArea, setTempArea] = createSignal<AreaSelection>(
-    areaSelectionFromStored(stored?.geography?.adminArea2 ?? null),
-  );
-  const [tempLimitYears, setTempLimitYears] = createSignal(
-    (stored?.time.years ?? null) !== null,
-  );
-  const [tempStartYear, setTempStartYear] = createSignal(
-    stored?.time.years ? String(stored.time.years.start) : "",
-  );
-  const [tempEndYear, setTempEndYear] = createSignal(
-    stored?.time.years ? String(stored.time.years.end) : "",
-  );
-  const [tempTimePoints, setTempTimePoints] = createSignal(
-    stored?.time.hfaTimePoints ?? null,
-  );
-  const [tempModules, setTempModules] = createSignal(stored?.modules ?? null);
-  const [tempHmis, setTempHmis] = createSignal(
-    stored?.indicators.hmis ?? null,
-  );
-  const [tempHfa, setTempHfa] = createSignal(stored?.indicators.hfa ?? null);
-  const [tempIceh, setTempIceh] = createSignal(
-    stored?.indicators.iceh ?? null,
-  );
-
-  function buildDefinition(): APIResponseWithData<ScopeDefinition> {
-    const area = tempArea();
-    if (area.mode === "single" && area.adminArea2 === undefined) {
-      return {
-        success: false,
-        err: t3({
-          en: "Select an area, or choose every area",
-          fr: "Sélectionnez une zone, ou choisissez toutes les zones",
-          pt: "Selecione uma zona, ou escolha todas as zonas",
-        }),
-      };
-    }
-    const start = parseYear(tempStartYear());
-    const end = parseYear(tempEndYear());
-    if (
-      tempLimitYears() &&
-      (start === undefined || end === undefined || start > end)
-    ) {
-      return {
-        success: false,
-        err: t3({
-          en:
-            "Enter a first and a last year as four digits, the first not after the last",
-          fr:
-            "Saisissez une première et une dernière année à quatre chiffres, la première n'étant pas postérieure à la dernière",
-          pt:
-            "Introduza um primeiro e um último ano com quatro dígitos, o primeiro não posterior ao último",
-        }),
-      };
-    }
-    const lists = [
-      tempTimePoints(),
-      tempModules(),
-      tempHmis(),
-      tempHfa(),
-      tempIceh(),
-    ];
-    if (lists.some((list) => list !== null && list.length === 0)) {
-      return {
-        success: false,
-        err: t3({
-          en:
-            "A limit with nothing selected matches no data. Select at least one, or remove the limit",
-          fr:
-            "Une limite sans sélection ne correspond à aucune donnée. Sélectionnez-en au moins un, ou retirez la limite",
-          pt:
-            "Um limite sem seleção não corresponde a nenhum dado. Selecione pelo menos um, ou remova o limite",
-        }),
-      };
-    }
-    return {
-      success: true,
-      data: {
-        geography: area.mode === "single" && area.adminArea2 !== undefined
-          ? { adminArea2: area.adminArea2 }
-          : null,
-        time: {
-          years: tempLimitYears() && start !== undefined && end !== undefined
-            ? { start, end }
-            : null,
-          hfaTimePoints: tempTimePoints(),
-        },
-        modules: tempModules(),
-        indicators: { hmis: tempHmis(), hfa: tempHfa(), iceh: tempIceh() },
-      },
-    };
-  }
+  const drafts: Record<DatasetType, SectionDraft> = {
+    hmis: createSectionDraft(sectionFields(stored.hmis)),
+    hfa: createSectionDraft(sectionFields(stored.hfa)),
+    iceh: createSectionDraft(sectionFields(stored.iceh)),
+  };
+  const [tab, setTab] = createSignal<DatasetType>("hmis");
+  const tabs: Accessor<{ id: DatasetType; label: string }[]> = () =>
+    MODULE_FAMILY_ORDER.map((family) => ({
+      id: family,
+      label: getModuleFamilyLabel(family),
+    }));
 
   const save = createFormAction(
     async (e: MouseEvent) => {
@@ -258,7 +584,7 @@ export function ScopeEditor(
           }),
         };
       }
-      const definition = buildDefinition();
+      const definition = buildDefinition(drafts);
       if (definition.success === false) return definition;
       const body = { label, definition: definition.data };
       return p.scope === undefined
@@ -306,153 +632,66 @@ export function ScopeEditor(
         },
       ]}
     >
-      <StateHolderWrapper state={optionsQuery.state()}>
-        {(options) => {
-          const timePointOptions = withStoredValues(
-            options.hfaTimePoints,
-            stored?.time.hfaTimePoints ?? null,
-          );
-          const moduleOptions = withStoredValues(
-            options.modules,
-            stored?.modules ?? null,
-          );
-          const hmisOptions = withStoredValues(
-            options.hmisIndicators,
-            stored?.indicators.hmis ?? null,
-          );
-          const hfaOptions = withStoredValues(
-            options.hfaIndicators,
-            stored?.indicators.hfa ?? null,
-          );
-          const icehOptions = withStoredValues(
-            options.icehIndicators,
-            stored?.indicators.iceh ?? null,
-          );
-          return (
-            <div class="ui-spy">
-              <Input
-                label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
-                value={tempLabel()}
-                onChange={setTempLabel}
-                autoFocus
-                fullWidth
-              />
-              <Show when={p.scope !== undefined}>
-                <div class="text-base-content-muted text-sm">
-                  {p.productCount === 0
-                    ? t3({
-                      en: "No product carries this scope.",
-                      fr: "Aucun produit ne porte cette portée.",
-                      pt: "Nenhum produto tem este âmbito.",
-                    })
-                    : t3({
+      <div class="ui-spy">
+        <Input
+          label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
+          value={tempLabel()}
+          onChange={setTempLabel}
+          autoFocus
+          fullWidth
+        />
+        <Show when={p.scope !== undefined}>
+          <ProductCountLine productCount={p.productCount} reserved={false} />
+        </Show>
+        <div class="text-base-content-muted text-sm">
+          {t3({
+            en:
+              "Each family has its own limits. A limit applies to a table only when the table has a column for it. A table without one is shown whole, unless its module is outside the family's module limit.",
+            fr:
+              "Chaque famille a ses propres limites. Une limite s'applique à un tableau seulement s'il a une colonne correspondante. Un tableau sans cette colonne est affiché en entier, sauf si son module est hors de la limite de modules de la famille.",
+            pt:
+              "Cada família tem os seus próprios limites. Um limite aplica-se a uma tabela apenas quando esta tem uma coluna correspondente. Uma tabela sem essa coluna é mostrada por inteiro, exceto se o seu módulo estiver fora do limite de módulos da família.",
+          })}
+        </div>
+        <TabsNavigation
+          items={tabs()}
+          value={tab()}
+          onChange={setTab}
+          noPad
+        />
+        <StateHolderWrapper state={optionsQuery.state()}>
+          {(options) => (
+            <>
+              <Show when={options.err}>
+                {(err) => (
+                  <div class="text-danger text-sm">
+                    {t3({
                       en:
-                        `${p.productCount} product(s) carry this scope, so it cannot be deleted. Changing what it limits marks every visualization in them as out of date.`,
+                        "The modules and indicators of the current package could not be read, so none are offered:",
                       fr:
-                        `${p.productCount} produit(s) portent cette portée, elle ne peut donc pas être supprimée. Modifier ce qu'elle limite marque chaque visualisation de ces produits comme obsolète.`,
+                        "Les modules et indicateurs du paquet actuel n'ont pas pu être lus, aucun n'est donc proposé :",
                       pt:
-                        `${p.productCount} produto(s) têm este âmbito, pelo que não pode ser eliminado. Alterar o que ele limita marca todas as visualizações desses produtos como desatualizadas.`,
-                    })}
-                </div>
-              </Show>
-              <div class="text-base-content-muted text-sm">
-                {t3({
-                  en:
-                    "A limit applies to a table only when the table has a column for it. A table without one is shown whole, unless its module is outside the module limit.",
-                  fr:
-                    "Une limite s'applique à un tableau seulement s'il a une colonne correspondante. Un tableau sans cette colonne est affiché en entier, sauf si son module est hors de la limite de modules.",
-                  pt:
-                    "Um limite aplica-se a uma tabela apenas quando esta tem uma coluna correspondente. Uma tabela sem essa coluna é mostrada por inteiro, exceto se o seu módulo estiver fora do limite de módulos.",
-                })}
-              </div>
-              <AreaPicker selection={tempArea()} onChange={setTempArea} />
-              <div class="ui-spy-sm">
-                <Checkbox
-                  label={t3({
-                    en: "Limit years",
-                    fr: "Limiter les années",
-                    pt: "Limitar os anos",
-                  })}
-                  checked={tempLimitYears()}
-                  onChange={setTempLimitYears}
-                />
-                <Show when={tempLimitYears()}>
-                  <div class="ui-gap-sm flex items-end">
-                    <Input
-                      label={t3({
-                        en: "First year",
-                        fr: "Première année",
-                        pt: "Primeiro ano",
-                      })}
-                      value={tempStartYear()}
-                      onChange={setTempStartYear}
-                    />
-                    <Input
-                      label={t3({
-                        en: "Last year",
-                        fr: "Dernière année",
-                        pt: "Último ano",
-                      })}
-                      value={tempEndYear()}
-                      onChange={setTempEndYear}
-                    />
+                        "Não foi possível ler os módulos e indicadores do pacote atual, pelo que nenhum é oferecido:",
+                    })} {err()}
                   </div>
-                </Show>
-              </div>
-              <LimitedList
-                limitLabel={t3({
-                  en: "Limit HFA time points",
-                  fr: "Limiter les points temporels HFA",
-                  pt: "Limitar os pontos temporais HFA",
-                })}
-                values={tempTimePoints()}
-                onChange={setTempTimePoints}
-                options={timePointOptions}
-              />
-              <LimitedList
-                limitLabel={t3({
-                  en: "Limit modules",
-                  fr: "Limiter les modules",
-                  pt: "Limitar os módulos",
-                })}
-                values={tempModules()}
-                onChange={setTempModules}
-                options={moduleOptions}
-              />
-              <LimitedList
-                limitLabel={t3({
-                  en: "Limit HMIS indicators",
-                  fr: "Limiter les indicateurs HMIS",
-                  pt: "Limitar os indicadores HMIS",
-                })}
-                values={tempHmis()}
-                onChange={setTempHmis}
-                options={hmisOptions}
-              />
-              <LimitedList
-                limitLabel={t3({
-                  en: "Limit HFA indicators",
-                  fr: "Limiter les indicateurs HFA",
-                  pt: "Limitar os indicadores HFA",
-                })}
-                values={tempHfa()}
-                onChange={setTempHfa}
-                options={hfaOptions}
-              />
-              <LimitedList
-                limitLabel={t3({
-                  en: "Limit ICEH indicators",
-                  fr: "Limiter les indicateurs ICEH",
-                  pt: "Limitar os indicadores ICEH",
-                })}
-                values={tempIceh()}
-                onChange={setTempIceh}
-                options={icehOptions}
-              />
-            </div>
-          );
-        }}
-      </StateHolderWrapper>
+                )}
+              </Show>
+              <Switch>
+                {MODULE_FAMILY_ORDER.map((family) => (
+                  <Match when={tab() === family}>
+                    <SectionTab
+                      family={family}
+                      draft={drafts[family]}
+                      options={options.families[family]}
+                      timePointOptions={options.hfaTimePoints}
+                    />
+                  </Match>
+                ))}
+              </Switch>
+            </>
+          )}
+        </StateHolderWrapper>
+      </div>
     </ModalContainer>
   );
 }

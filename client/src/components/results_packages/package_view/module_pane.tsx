@@ -28,7 +28,7 @@ export function ModulePane(p: {
   detailModule: RunDetail["modules"][number] | undefined;
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  onChangeScope: (scopeId: string | null) => void;
+  onChangeScope: (scopeId: string) => void;
   openEditor: OpenEditor;
 }) {
   const presets = createMemo(() => {
@@ -56,7 +56,6 @@ export function ModulePane(p: {
         label={scopeSelectLabel()}
         scopeId={p.scope.scopeId}
         onChange={p.onChangeScope}
-        allowWholePackage
       />
       <ModuleVisualizations
         presets={presets()}

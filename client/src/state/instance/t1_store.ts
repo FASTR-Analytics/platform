@@ -2,6 +2,7 @@ import { type Accessor, createMemo } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type {
   AssetInfo,
+  DatasetType,
   FacilityFamily,
   FigureLocalization,
   FigureScope,
@@ -27,6 +28,7 @@ import {
   ALL_SCOPES,
   permissionsUnderScopeAccess,
   resolvePackageScope,
+  scopeAreaForFamily,
 } from "lib";
 
 // ============================================================================
@@ -283,14 +285,16 @@ export function answersKeyedScope(
 // What a bundle resolved under this pair records beside its run id. The hash
 // is the one the server computed the rows under (the payload's scopeToken),
 // never this store's: rows read under a definition the store has since
-// replaced must read as stale.
+// replaced must read as stale. The area is the one the scope holds the
+// figure's own family to.
 export function figureScopeStamp(
   scope: PackageScope,
   scopeToken: string,
+  family: DatasetType | undefined,
 ): FigureScope {
   return {
     definitionHash: scopeToken,
-    adminArea2: resolveScope(scope).adminArea2,
+    adminArea2: scopeAreaForFamily(resolveScope(scope).areas, family),
   };
 }
 

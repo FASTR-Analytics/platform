@@ -1228,8 +1228,8 @@ export const F18_ICEH_SCOPE_DIMS: Fixture = {
 };
 
 // F19: an HFA results object that carries a physical year column beside
-// time_point. Its rounds are governed by the time-point list alone (R18), so
-// a year range must leave it whole and its period bounds unclamped.
+// time_point. The HFA section has no years, so the year range of another
+// section must leave it whole and its period bounds unclamped.
 export const F19_HFA_DATED_ROUNDS: Fixture = {
   name: "hfa_dated_rounds",
   family: "hfa",
@@ -1258,6 +1258,34 @@ export const F19_HFA_DATED_ROUNDS: Fixture = {
   firstPeriodOption: "year",
 };
 
+// F20: an ICEH results object with neither a year nor an indicator column, so
+// neither dimension of the ICEH section applies to it.
+// By strat: group_a = 1, group_b = 2.
+export const F20_ICEH_NO_DIMS: Fixture = {
+  name: "iceh_no_dims",
+  family: "iceh",
+  adminDepth: 4,
+  moduleId: "m_scope_iceh_plain",
+  moduleDefinition: {
+    scriptGenerationType: "standard",
+    dataSources: [{ sourceType: "dataset", datasetType: "iceh" }],
+  },
+  resultsObjectId: "dddddddd-1111-2222-3333-444444444444",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: null,
+  roColumns: [
+    { name: "strat", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    { strat: "group_a", value: 1 },
+    { strat: "group_b", value: 2 },
+  ],
+  indicators: [],
+  metric: sumMetric("metric_scope_iceh_plain"),
+  firstPeriodOption: undefined,
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -1278,4 +1306,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F17_HFA_SCOPE_DIMS,
   F18_ICEH_SCOPE_DIMS,
   F19_HFA_DATED_ROUNDS,
+  F20_ICEH_NO_DIMS,
 ];

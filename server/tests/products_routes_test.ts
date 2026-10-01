@@ -11,6 +11,7 @@
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 import { Hono } from "hono";
 import {
+  ALL_DATA_SCOPE_DEFINITION,
   ALL_SCOPES,
   type ContentSlide,
   geographyOnlyScopeDefinition,
@@ -18,7 +19,6 @@ import {
   type GlobalUser,
   type ProductSummary,
   type SlideDeckConfig,
-  UNCONSTRAINED_SCOPE_DEFINITION,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import {
@@ -181,7 +181,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
   const harnessTag = crypto.randomUUID().slice(0, 8);
   const allScope = await createScope(mainDb, {
     label: `Harness all ${harnessTag}`,
-    definition: UNCONSTRAINED_SCOPE_DEFINITION,
+    definition: ALL_DATA_SCOPE_DEFINITION,
     createdBy: APPROVED_EMAIL,
   });
   const areaScope = await createScope(mainDb, {
@@ -335,9 +335,10 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     const harnessScope = approvedState.data.scopes.find((sc) =>
       sc.id === areaScopeId
     );
-    assertEquals(harnessScope?.definition.geography, {
-      adminArea2: "Harness Area",
-    });
+    assertEquals(
+      harnessScope?.definition,
+      geographyOnlyScopeDefinition("Harness Area"),
+    );
     assert(harnessScope?.definitionHash.length === 64);
     assertEquals(
       approvedState.data.lastUpdated.products[deck.productId],

@@ -250,10 +250,11 @@ export async function resolvePackageContext(
   const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
-  // The door check: the run-keyed routes require an approved user (D7) and
-  // refuse a restricted user's whole-package read (PLAN_SCOPES R13, R20) on
+  // The door check. The run-keyed routes require an approved user (D7) on
   // every dispatch regardless; judging it here gives the model one clean
-  // failure instead of a denial on each tool.
+  // failure instead of a denial on each tool. A restricted user has no /mcp
+  // at all, and this is the one place that says so: the routes would serve
+  // one who holds a grant on "All data".
   const globalUser = await resolveGlobalUser(principal);
   if (!globalUser.approved) {
     throw new AIToolFailure(
@@ -262,7 +263,7 @@ export async function resolvePackageContext(
   }
   if (!globalUser.scopeAccess.all) {
     throw new AIToolFailure(
-      "Your account is limited to some scopes, and this connection reads the whole results package. Ask an instance admin if you need it.",
+      "Your account is limited to some scopes, and this connection reads all data in the results package. Ask an instance admin if you need it.",
     );
   }
 

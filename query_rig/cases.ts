@@ -11,14 +11,14 @@ import type {
   PeriodBounds,
   ScopeDefinition,
 } from "lib";
-import { UNCONSTRAINED_SCOPE_DEFINITION } from "lib";
+import { ALL_DATA_SCOPE_DEFINITION } from "lib";
 
 export type Case = {
   name: string;
   fixture: string;
   calendar?: InstanceCalendar;
-  // The scope definition the read resolves under. Absent = unconstrained,
-  // the whole package, which the rest of the corpus runs at.
+  // The scope definition the read resolves under. Absent = "All data", which
+  // the rest of the corpus runs at.
   scope?: ScopeDefinition;
   // "possibleValues" runs the option-list query for `disOpt`, reusing
   // fetchConfig.filters as the filter set the route would pass.
@@ -1351,11 +1351,36 @@ type ScopeMatrixRow = {
 
 type WholeReading = Omit<ScopeMatrixRow, "name" | "scope">;
 
-const whole = UNCONSTRAINED_SCOPE_DEFINITION;
+const whole = ALL_DATA_SCOPE_DEFINITION;
 
-// The whole-package reading of each fixture in the matrix. A row whose
-// dimension does not apply to the fixture spreads its fixture's entry, so the
-// default principle is asserted as "the same rows as the whole package".
+type Included<F extends keyof ScopeDefinition> = Extract<
+  ScopeDefinition[F],
+  { include: true }
+>;
+
+const NO_LIMITS = { include: true, modules: null, indicators: null } as const;
+
+// "All data" with one family's section limited.
+const hmisScope = (limits: Partial<Included<"hmis">>): ScopeDefinition => ({
+  ...whole,
+  hmis: { ...NO_LIMITS, adminArea2: null, years: null, ...limits },
+});
+const hfaScope = (limits: Partial<Included<"hfa">>): ScopeDefinition => ({
+  ...whole,
+  hfa: { ...NO_LIMITS, adminArea2: null, timePoints: null, ...limits },
+});
+const icehScope = (limits: Partial<Included<"iceh">>): ScopeDefinition => ({
+  ...whole,
+  iceh: { ...NO_LIMITS, years: null, ...limits },
+});
+const excluding = (family: keyof ScopeDefinition): ScopeDefinition => ({
+  ...whole,
+  [family]: { include: false },
+});
+
+// The "All data" reading of each fixture in the matrix. A row whose dimension
+// does not apply to the fixture spreads its fixture's entry, so the default
+// principle is asserted as "the same rows as under All data".
 const WHOLE: Record<string, WholeReading> = {
   hmis: {
     fixture: "hmis_scope_dims",
@@ -1423,6 +1448,24 @@ const WHOLE: Record<string, WholeReading> = {
     ],
     rawCount: 6,
   },
+  hfaPlain: {
+    fixture: "hfa_divergent_schema",
+    disOpt: "admin_area_2",
+    rows: [
+      { admin_area_2: "A2_north", value: 30, __n_value: 2 },
+      { admin_area_2: "A2_south", value: 5, __n_value: 1 },
+    ],
+    rawCount: 3,
+  },
+  icehPlain: {
+    fixture: "iceh_no_dims",
+    disOpt: "strat",
+    rows: [
+      { strat: "group_a", value: 1 },
+      { strat: "group_b", value: 2 },
+    ],
+    rawCount: 2,
+  },
 };
 
 const EMPTY = { rows: [], rawCount: 0 };
@@ -1430,30 +1473,115 @@ const EMPTY = { rows: [], rawCount: 0 };
 const SCOPE_MATRIX_ROWS: ScopeMatrixRow[] = [
   ...Object.values(WHOLE).map((w) => ({
     ...w,
-    name: `whole package: ${w.fixture}`,
+    name: `all data: ${w.fixture}`,
     scope: undefined,
   })),
 
-  // Modules.
+  // An excluded family, and the other families it leaves alone.
+  {
+    ...WHOLE.hmis,
+    ...EMPTY,
+    name: "family: an excluded HMIS section empties an HMIS results object",
+    scope: excluding("hmis"),
+  },
+  {
+    ...WHOLE.hfa,
+    ...EMPTY,
+    name: "family: an excluded HFA section empties an HFA results object",
+    scope: excluding("hfa"),
+  },
+  {
+    ...WHOLE.iceh,
+    ...EMPTY,
+    name: "family: an excluded ICEH section empties an ICEH results object",
+    scope: excluding("iceh"),
+  },
+  {
+    ...WHOLE.hmis,
+    name: "family: excluding HFA and ICEH leaves an HMIS results object whole",
+    scope: { ...excluding("hfa"), iceh: { include: false } },
+  },
+  {
+    ...WHOLE.hfa,
+    name: "family: excluding HMIS and ICEH leaves an HFA results object whole",
+    scope: { ...excluding("hmis"), iceh: { include: false } },
+  },
+  {
+    ...WHOLE.iceh,
+    name: "family: excluding HMIS and HFA leaves an ICEH results object whole",
+    scope: { ...excluding("hmis"), hfa: { include: false } },
+  },
+
+  // Modules, one list per section.
   {
     ...WHOLE.hmis,
     ...EMPTY,
     name: "modules: a results object whose module is outside the list is empty",
-    scope: { ...whole, modules: ["m_other"] },
+    scope: hmisScope({ modules: ["m_other"] }),
   },
   {
     ...WHOLE.hmis,
     name: "modules: a results object whose module is in the list is whole",
-    scope: { ...whole, modules: ["m_other", "m_scope_hmis"] },
+    scope: hmisScope({ modules: ["m_other", "m_scope_hmis"] }),
+  },
+  {
+    ...WHOLE.hfa,
+    ...EMPTY,
+    name: "modules: an HFA module outside the HFA list is empty",
+    scope: hfaScope({ modules: ["m_scope_hmis"] }),
+  },
+  {
+    ...WHOLE.iceh,
+    ...EMPTY,
+    name: "modules: an ICEH module outside the ICEH list is empty",
+    scope: icehScope({ modules: ["m_scope_hmis"] }),
+  },
+  {
+    ...WHOLE.hmis,
+    name: "modules: another section's list does not touch an HMIS module",
+    scope: {
+      ...hfaScope({ modules: ["m_other"] }),
+      iceh: { ...NO_LIMITS, years: null, modules: ["m_other"] },
+    },
   },
 
-  // Geography.
+  // Geography, one area per section.
   {
     ...WHOLE.hmis,
     name: "geography: admin_area_2 is filtered directly",
     scope: area("A2_south"),
     rows: [{ admin_area_2: "A2_south", value: 56 }],
     rawCount: 3,
+  },
+  {
+    ...WHOLE.hmis,
+    name: "geography: an HMIS results object takes the HMIS section's area",
+    scope: {
+      ...hmisScope({ adminArea2: "A2_south" }),
+      hfa: { ...NO_LIMITS, adminArea2: "A2_north", timePoints: null },
+    },
+    rows: [{ admin_area_2: "A2_south", value: 56 }],
+    rawCount: 3,
+  },
+  {
+    ...WHOLE.hfa,
+    name: "geography: an HFA results object takes the HFA section's area",
+    scope: {
+      ...hmisScope({ adminArea2: "A2_south" }),
+      hfa: { ...NO_LIMITS, adminArea2: "A2_north", timePoints: null },
+    },
+    rows: [{ admin_area_2: "A2_north", value: 19 }],
+    rawCount: 3,
+  },
+  {
+    ...WHOLE.hfa,
+    name: "geography: the HMIS section's area does not touch an HFA object",
+    scope: hmisScope({ adminArea2: "A2_south" }),
+  },
+  {
+    ...WHOLE.hmis,
+    name: "geography: the HFA section's area does not touch an HMIS object",
+    scope: hfaScope({ adminArea2: "A2_south" }),
   },
   {
     ...WHOLE.admin3,
@@ -1478,123 +1606,124 @@ const SCOPE_MATRIX_ROWS: ScopeMatrixRow[] = [
   },
   {
     ...WHOLE.iceh,
-    name: "geography does not apply: the ICEH shape is served whole",
+    name: "geography does not apply: the ICEH section has none",
     scope: area("A2_south"),
   },
 
-  // Years.
+  // Years, HMIS and ICEH each with their own range.
   {
     ...WHOLE.hmis,
-    name: "years: a range on period_id",
-    scope: {
-      ...whole,
-      time: { years: { start: 2025, end: 2025 }, hfaTimePoints: null },
-    },
+    name: "years: the HMIS range on period_id",
+    scope: hmisScope({ years: { start: 2025, end: 2025 } }),
     rows: [{ admin_area_2: "A2_south", value: 16 }],
     rawCount: 1,
   },
   {
     ...WHOLE.iceh,
-    name: "years: a range on a year column",
-    scope: {
-      ...whole,
-      time: { years: { start: 2022, end: 2022 }, hfaTimePoints: null },
-    },
+    name: "years: the ICEH range on a year column",
+    scope: icehScope({ years: { start: 2022, end: 2022 } }),
     rows: [{ iceh_indicator: "cov_a", value: 1 }],
     rawCount: 1,
   },
   {
-    ...WHOLE.hfa,
-    name: "years do not apply: no physical time column, served whole",
-    scope: {
-      ...whole,
-      time: { years: { start: 2024, end: 2024 }, hfaTimePoints: null },
-    },
+    ...WHOLE.iceh,
+    name: "years: the HMIS range does not touch an ICEH results object",
+    scope: hmisScope({ years: { start: 2022, end: 2022 } }),
+  },
+  {
+    ...WHOLE.hmis,
+    name: "years: the ICEH range does not touch an HMIS results object",
+    scope: icehScope({ years: { start: 2025, end: 2025 } }),
   },
   {
     ...WHOLE.hfaDated,
-    name: "years do not apply: time_point beside a year column, served whole",
+    name: "years: an HFA results object with a year column takes no range",
     scope: {
-      ...whole,
-      time: { years: { start: 2024, end: 2024 }, hfaTimePoints: null },
+      ...hmisScope({ years: { start: 2024, end: 2024 } }),
+      iceh: { ...NO_LIMITS, years: { start: 2024, end: 2024 } },
     },
+  },
+  {
+    ...WHOLE.admin3,
+    name: "years do not apply: an HMIS object with no time column is whole",
+    scope: hmisScope({ years: { start: 2024, end: 2024 } }),
+  },
+  {
+    ...WHOLE.icehPlain,
+    name: "years do not apply: an ICEH object with no time column is whole",
+    scope: icehScope({ years: { start: 2024, end: 2024 } }),
   },
 
   // HFA time points.
   {
     ...WHOLE.hfa,
     name: "time points: time_point is filtered to the list",
-    scope: {
-      ...whole,
-      time: { years: null, hfaTimePoints: ["midline", "no_such_round"] },
-    },
+    scope: hfaScope({ timePoints: ["midline", "no_such_round"] }),
     rows: [{ admin_area_2: "A2_north", value: 2 }],
     rawCount: 1,
   },
   {
-    ...WHOLE.hfa,
-    ...EMPTY,
-    name: "time points: an empty list matches nothing",
-    scope: { ...whole, time: { years: null, hfaTimePoints: [] } },
-  },
-  {
-    ...WHOLE.hmis,
+    ...WHOLE.hfaPlain,
     name: "time points do not apply: no time_point column, served whole",
-    scope: { ...whole, time: { years: null, hfaTimePoints: ["baseline"] } },
+    scope: hfaScope({ timePoints: ["baseline"] }),
   },
 
-  // Indicators, one list per indicator column.
+  // Indicators, one list per section, on that family's indicator column.
   {
     ...WHOLE.hmis,
-    name: "indicators: indicator_common_id is filtered to the hmis list",
-    scope: {
-      ...whole,
-      indicators: { hmis: ["penta3"], hfa: null, iceh: null },
-    },
+    name: "indicators: indicator_common_id is filtered to the HMIS list",
+    scope: hmisScope({ indicators: ["penta3"] }),
     rows: [{ admin_area_2: "A2_south", value: 48 }],
     rawCount: 2,
   },
   {
     ...WHOLE.hfa,
-    name: "indicators: hfa_indicator is filtered to the hfa list",
-    scope: { ...whole, indicators: { hmis: null, hfa: ["ind_a"], iceh: null } },
+    name: "indicators: hfa_indicator is filtered to the HFA list",
+    scope: hfaScope({ indicators: ["ind_a"] }),
     rows: [{ admin_area_2: "A2_north", value: 3 }],
     rawCount: 2,
   },
   {
     ...WHOLE.iceh,
-    name: "indicators: iceh_indicator is filtered to the iceh list",
-    scope: { ...whole, indicators: { hmis: null, hfa: null, iceh: ["cov_a"] } },
+    name: "indicators: iceh_indicator is filtered to the ICEH list",
+    scope: icehScope({ indicators: ["cov_a"] }),
     rows: [{ iceh_indicator: "cov_a", value: 3 }],
     rawCount: 2,
   },
   {
     ...WHOLE.hmis,
-    name: "indicators: a column whose own list is not set is served whole",
+    name: "indicators: the other sections' lists do not touch an HMIS object",
     scope: {
-      ...whole,
-      indicators: { hmis: null, hfa: ["ind_a"], iceh: ["cov_a"] },
+      ...hfaScope({ indicators: ["ind_a"] }),
+      iceh: { ...NO_LIMITS, years: null, indicators: ["cov_a"] },
     },
   },
   {
     ...WHOLE.admin3,
-    name: "indicators do not apply: no indicator column, served whole",
-    scope: {
-      ...whole,
-      indicators: { hmis: ["anc1"], hfa: ["ind_a"], iceh: ["cov_a"] },
-    },
+    name: "indicators do not apply: an HMIS object with no indicator column",
+    scope: hmisScope({ indicators: ["anc1"] }),
+  },
+  {
+    ...WHOLE.hfaPlain,
+    name: "indicators do not apply: an HFA object with no indicator column",
+    scope: hfaScope({ indicators: ["ind_a"] }),
+  },
+  {
+    ...WHOLE.icehPlain,
+    name: "indicators do not apply: an ICEH object with no indicator column",
+    scope: icehScope({ indicators: ["cov_a"] }),
   },
 
   // The parts are ANDed.
   {
     ...WHOLE.hmis,
     name: "all parts together: area, year and indicator",
-    scope: {
-      geography: { adminArea2: "A2_south" },
-      time: { years: { start: 2024, end: 2025 }, hfaTimePoints: ["baseline"] },
+    scope: hmisScope({
+      adminArea2: "A2_south",
+      years: { start: 2024, end: 2025 },
       modules: ["m_scope_hmis"],
-      indicators: { hmis: ["anc1"], hfa: null, iceh: null },
-    },
+      indicators: ["anc1"],
+    }),
     rows: [{ admin_area_2: "A2_south", value: 8 }],
     rawCount: 1,
   },
@@ -1650,21 +1779,19 @@ const SCOPE_MATRIX: Case[] = SCOPE_MATRIX_ROWS.flatMap((row): Case[] => {
   ];
 });
 
-const years = (start: number, end: number): ScopeDefinition => ({
-  ...whole,
-  time: { years: { start, end }, hfaTimePoints: null },
-});
+const years = (start: number, end: number): ScopeDefinition =>
+  hmisScope({ years: { start, end } });
 
 // What the matrix cannot express: the other physical time columns, an integer
-// time_point, and the two readers that take period bounds from the manifest
-// stamp instead of a query (R27).
+// time_point, each family's own facilities view, and the two readers that
+// take period bounds from the manifest stamp instead of a query.
 const SCOPE_DIMENSION_CASES: Case[] = [
   {
     name: "years: a range on quarter_id",
     fixture: "hmis_quarterly",
     scope: years(2024, 2024),
     fetchConfig: { ...base(), groupBys: ["quarter_id"] },
-    // The whole package also holds 20234 (5).
+    // All data also holds 20234 (5).
     expect: {
       status: "ok",
       rows: [
@@ -1676,16 +1803,16 @@ const SCOPE_DIMENSION_CASES: Case[] = [
   {
     name: "time points: the list matches an INTEGER time_point",
     fixture: "hfa_timepoint_integer",
-    scope: { ...whole, time: { years: null, hfaTimePoints: ["1"] } },
+    scope: hfaScope({ timePoints: ["1"] }),
     fetchConfig: { ...base(), groupBys: ["time_point"] },
-    // The whole package also holds round 2 (26) and the blank round (4).
+    // All data also holds round 2 (26) and the blank round (4).
     expect: {
       status: "ok",
       rows: [{ time_point: 1, value: 26, __n_value: 4 }],
     },
   },
   {
-    name: "facilities view: the whole package joins every facility",
+    name: "facilities view: all data joins every facility",
     fixture: "hfa_variants",
     fetchConfig: { ...base(), groupBys: ["facility_type"] },
     expect: {
@@ -1697,15 +1824,28 @@ const SCOPE_DIMENSION_CASES: Case[] = [
     },
   },
   {
-    name: "facilities view: it takes the geography part of the scope",
+    name: "facilities view: the HMIS section's area leaves the HFA view whole",
     fixture: "hfa_variants",
-    scope: area("A2_south"),
+    scope: hmisScope({ adminArea2: "A2_south" }),
+    fetchConfig: { ...base(), groupBys: ["facility_type"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 23, __n_value: 1 },
+        { facility_type: "clinic", value: 23, __n_value: 2 },
+      ],
+    },
+  },
+  {
+    name: "facilities view: it takes the area of its own family's section",
+    fixture: "hfa_variants",
+    scope: hfaScope({ adminArea2: "A2_south" }),
     fetchConfig: { ...base(), groupBys: ["facility_type"] },
     // The results object has no admin column, so its rows are served whole
     // (the default principle), and the facilities view holds A2_south's
     // facilities only: the rows of h1 and h2, which sit in A2_north, join to
-    // nothing and their facility columns read as blank. Intended (PLAN_SCOPES
-    // 2.3): a facility outside the scope's area is not described.
+    // nothing and their facility columns read as blank. Intended: a facility
+    // outside the scope's area is not described.
     expect: {
       status: "ok",
       rows: [
@@ -1715,7 +1855,7 @@ const SCOPE_DIMENSION_CASES: Case[] = [
     },
   },
   {
-    name: "period bounds: the whole package reads the manifest stamp",
+    name: "period bounds: all data reads the manifest stamp",
     fixture: "hmis_scope_dims",
     entry: "metricInfo",
     fetchConfig: { ...base(), groupBys: [] },
@@ -1746,12 +1886,31 @@ const SCOPE_DIMENSION_CASES: Case[] = [
     expect: { periodBounds: null },
   },
   {
-    name: "period bounds: a results object with time_point keeps the stamp",
-    fixture: "hfa_dated_rounds",
-    scope: years(2024, 2024),
+    name: "period bounds: the ICEH years clamp an ICEH stamp",
+    fixture: "iceh_scope_dims",
+    scope: icehScope({ years: { start: 2023, end: 2023 } }),
     entry: "metricInfo",
     fetchConfig: { ...base(), groupBys: [] },
-    // The year range does not apply to it (R18), so neither does the clamp.
+    expect: { periodBounds: { min: 2023, max: 2023 } },
+  },
+  {
+    name: "period bounds: the HMIS years leave an ICEH stamp alone",
+    fixture: "iceh_scope_dims",
+    scope: years(2023, 2023),
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: { periodBounds: { min: 2022, max: 2024 } },
+  },
+  {
+    name: "period bounds: an HFA results object keeps the stamp",
+    fixture: "hfa_dated_rounds",
+    scope: {
+      ...years(2024, 2024),
+      iceh: { ...NO_LIMITS, years: { start: 2024, end: 2024 } },
+    },
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The HFA section has no years, so nothing clamps its stamp.
     expect: { periodBounds: { min: 2022, max: 2024 } },
   },
   {

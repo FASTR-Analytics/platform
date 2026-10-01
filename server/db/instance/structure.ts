@@ -94,22 +94,24 @@ export function facilitiesTableForFacilityFamily(
   return family === "hmis" ? "facilities_hmis" : "facilities_hfa";
 }
 
-// A product's AA2 scope is registry-agnostic, so this picker unions both
-// families' level-2 trees (UNION dedupes exact matches).
+// One family's level-2 registry: a scope's HMIS and HFA sections each name an
+// area of their own family, and the two registries can spell one differently.
 export async function listAdminArea2s(
   mainDb: Sql,
+  family: FacilityFamily,
 ): Promise<APIResponseWithData<string[]>> {
   return await tryCatchDatabaseAsync(async () => {
+    const table = family === "hmis"
+      ? "admin_areas_hmis_2"
+      : "admin_areas_hfa_2";
     const adminArea2s = (
       await mainDb<{ admin_area_2: string }[]>`
-        SELECT admin_area_2 FROM (
-          SELECT admin_area_2 FROM admin_areas_hmis_2
-          UNION
-          SELECT admin_area_2 FROM admin_areas_hfa_2
-        ) u
-        ORDER BY LOWER(admin_area_2)
+        SELECT DISTINCT admin_area_2 FROM ${mainDb(table)}
+        ORDER BY admin_area_2
       `
-    ).map((r) => r.admin_area_2);
+    ).map((r) => r.admin_area_2).toSorted((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase())
+    );
     return { success: true, data: adminArea2s };
   });
 }

@@ -9,14 +9,15 @@
 
 import { assertEquals } from "@std/assert";
 import {
+  ALL_DATA_DEFINITION_HASH,
+  ALL_DATA_SCOPE_DEFINITION,
   type FigureBundle,
   geographyOnlyScopeDefinition,
+  parseScopeDefinition,
   type ResolvedPackageScope,
   resolvePackageScope,
   type Scope,
   scopeDefinitionHash,
-  UNCONSTRAINED_SCOPE_DEFINITION,
-  WHOLE_PACKAGE_DEFINITION_HASH,
 } from "lib";
 import {
   findStaleFiguresInLayout,
@@ -47,7 +48,7 @@ const CONTAINER: ResolvedPackageScope = {
   runId: RUN_A,
   scopeId: "scope-kano",
   definitionHash: KANO_HASH,
-  adminArea2: "Kano",
+  areas: { hmis: "Kano", hfa: "Kano" },
 };
 
 Deno.test("stale: matching run and matching definition is not stale", () => {
@@ -61,7 +62,7 @@ Deno.test("stale: mismatching run with matching definition is stale", () => {
 Deno.test("stale: matching run with mismatching definition is stale", () => {
   assertEquals(
     isFigureBundleStale(
-      bundle(RUN_A, WHOLE_PACKAGE_DEFINITION_HASH),
+      bundle(RUN_A, ALL_DATA_DEFINITION_HASH),
       CONTAINER,
     ),
     true,
@@ -72,7 +73,7 @@ Deno.test("stale: matching run with mismatching definition is stale", () => {
 Deno.test("stale: mismatching run and mismatching definition is stale", () => {
   assertEquals(
     isFigureBundleStale(
-      bundle(RUN_B, WHOLE_PACKAGE_DEFINITION_HASH),
+      bundle(RUN_B, ALL_DATA_DEFINITION_HASH),
       CONTAINER,
     ),
     true,
@@ -97,20 +98,35 @@ Deno.test("stale: editing a scope's definition makes its figures stale", () => {
   const after = resolvePackageScope(pair, [
     scope({
       ...geographyOnlyScopeDefinition("Kano"),
-      time: { years: { start: 2020, end: 2022 }, hfaTimePoints: null },
+      iceh: {
+        include: true,
+        modules: null,
+        indicators: null,
+        years: { start: 2020, end: 2022 },
+      },
     }),
   ]);
   assertEquals(isFigureBundleStale(figure, after), true);
 });
 
-Deno.test("stale: a pair resolves to the whole package, a listed scope, or a hash nothing carries", () => {
-  assertEquals(
-    resolvePackageScope({ runId: RUN_A, scopeId: null }, []).definitionHash,
-    WHOLE_PACKAGE_DEFINITION_HASH,
-  );
+Deno.test("stale: a pair resolves to a listed scope, with each family's own area, or to a hash nothing carries", () => {
+  const definition: Scope["definition"] = {
+    ...ALL_DATA_SCOPE_DEFINITION,
+    hmis: { ...ALL_DATA_SCOPE_DEFINITION.hmis, adminArea2: "Kano" },
+    hfa: { include: false },
+  } as Scope["definition"];
+  const listed = resolvePackageScope({ runId: RUN_A, scopeId: "s1" }, [{
+    id: "s1",
+    label: "Kano HMIS",
+    definition,
+    definitionHash: scopeDefinitionHash(definition),
+    lastUpdated: "2026-10-01T00:00:00.000Z",
+  }]);
+  assertEquals(listed.definitionHash, scopeDefinitionHash(definition));
+  assertEquals(listed.areas, { hmis: "Kano", hfa: null });
   const missing = resolvePackageScope({ runId: RUN_A, scopeId: "gone" }, []);
   assertEquals(missing.definitionHash, "missing:gone");
-  assertEquals(missing.adminArea2, null);
+  assertEquals(missing.areas, { hmis: null, hfa: null });
 });
 
 Deno.test("stale: the layout walk reports figure blocks with a bundle, in layout order", () => {
@@ -135,7 +151,7 @@ Deno.test("stale: the layout walk reports figure blocks with a bundle, in layout
         id: "b5",
         data: {
           type: "figure",
-          bundle: bundle(RUN_A, WHOLE_PACKAGE_DEFINITION_HASH),
+          bundle: bundle(RUN_A, ALL_DATA_DEFINITION_HASH),
         },
       },
     ],
@@ -159,9 +175,9 @@ Deno.test("stale: the report walk reports registry entries with a stale bundle",
 });
 
 // Migration 204 gives a product whose admin_area_2 was "Kano" a scope whose
-// definition holds only that area, and a national product the unconstrained
-// scope. The transform stamps each legacy bundle from its OWN area, so the
-// comparison against the product's scope comes out as it did before.
+// HMIS and HFA sections both carry that area, and a national product the "All
+// data" scope. The transform stamps each legacy bundle from its OWN area, so
+// the comparison against the product's scope comes out as it did before.
 
 function legacyBlock(adminArea2: string | null): FigureBlockMut {
   return {
@@ -177,14 +193,13 @@ function transformed(adminArea2: string | null): FigureBundle {
 }
 
 function productOn(adminArea2: string | null): ResolvedPackageScope {
-  const definition = adminArea2 === null
-    ? UNCONSTRAINED_SCOPE_DEFINITION
-    : geographyOnlyScopeDefinition(adminArea2);
   return {
     runId: RUN_A,
     scopeId: "migrated",
-    definitionHash: scopeDefinitionHash(definition),
-    adminArea2,
+    definitionHash: scopeDefinitionHash(
+      geographyOnlyScopeDefinition(adminArea2),
+    ),
+    areas: { hmis: adminArea2, hfa: adminArea2 },
   };
 }
 
@@ -195,7 +210,7 @@ Deno.test("transform: a legacy bundle whose area matches its product stays fresh
 
   const national = transformed(null);
   assertEquals(national.scope, {
-    definitionHash: WHOLE_PACKAGE_DEFINITION_HASH,
+    definitionHash: ALL_DATA_DEFINITION_HASH,
     adminArea2: null,
   });
   assertEquals(isFigureBundleStale(national, productOn(null)), false);
@@ -223,4 +238,21 @@ Deno.test("transform: a bundle already carrying the hash is left alone", () => {
     definitionHash: "kept",
     adminArea2: "Kano",
   });
+});
+
+// The "All data" definition is written three times: in lib, as a literal in
+// migration 204, and by the transform for a national bundle. A national
+// figure stays fresh only while all three hash the same.
+Deno.test("transform: migration 204's All data literal hashes as the transform stamps a national bundle", async () => {
+  const sql = await Deno.readTextFile(
+    new URL("../db/migrations/instance/204_scopes.sql", import.meta.url),
+  );
+  const literal = sql.match(/'(\{"hmis":.*\})'/)?.[1];
+  assertEquals(typeof literal, "string");
+  const seeded = parseScopeDefinition(literal!);
+  assertEquals(seeded, ALL_DATA_SCOPE_DEFINITION);
+  assertEquals(
+    scopeDefinitionHash(seeded),
+    transformed(null).scope.definitionHash,
+  );
 });

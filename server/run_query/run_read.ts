@@ -38,13 +38,14 @@ import {
   type RunMetric,
   type RunModule,
   type RunResultsObject,
+  SCOPE_INDICATOR_COLUMN,
   type ScopeAccess,
   type ScopeDefinition,
   scopeDefinitionHash,
   throwIfErrWithData,
   toIndicatorMetadataDisplay,
-  UNCONSTRAINED_SCOPE_DEFINITION,
   vizPresetInstalled,
+  type YearRange,
 } from "lib";
 import {
   getResultsObjectTableName,
@@ -106,9 +107,9 @@ export type RunReadContext = {
 // lens (getReadyRunReadContext) takes both halves from the caller, the
 // (runId, scopeId) pair a product carries, and gates on a ready package:
 // every run-keyed figure-data route uses it. The manifest lens
-// (getRunReadContextForRun) has no ready gate: it takes the run id as the
-// whole package for the package-internals reads, and the caller's scope for
-// the authoring context. Everything below the context is shared.
+// (getRunReadContextForRun) has no ready gate: the authoring context uses it.
+// Both take the scope from the caller, and no context exists without one.
+// Everything below the context is shared.
 
 async function buildRunReadContext(
   runId: string,
@@ -126,20 +127,14 @@ async function buildRunReadContext(
 
 export const SCOPE_NOT_GRANTED = "You do not have access to this scope";
 
-// A null scope id is the whole package; any other names a `scopes` row. An
-// unknown id fails as SCOPE_NOT_FOUND before the grant is asked, and a
-// restricted caller is refused the whole package and every scope it does not
-// hold (PLAN_SCOPES §2.4).
+// A scope id names a `scopes` row. An unknown id fails as SCOPE_NOT_FOUND
+// before the grant is asked, and a restricted caller is refused every scope it
+// does not hold.
 async function loadScopeDefinition(
   mainDb: Sql,
-  scopeId: string | null,
+  scopeId: string,
   access: ScopeAccess,
 ): Promise<APIResponseWithData<ScopeDefinition>> {
-  if (scopeId === null) {
-    return canUseScope(access, null)
-      ? { success: true, data: UNCONSTRAINED_SCOPE_DEFINITION }
-      : { success: false, err: SCOPE_NOT_GRANTED };
-  }
   const scopeRes = await getScope(mainDb, scopeId);
   if (scopeRes.success === false) return scopeRes;
   return canUseScope(access, scopeId)
@@ -147,25 +142,37 @@ async function loadScopeDefinition(
     : { success: false, err: SCOPE_NOT_GRANTED };
 }
 
-// The manifest lens. An unreadable or unknown run surfaces as the manifest
-// read failing. The run id arrives over the wire and becomes a path, so it is
-// shape-checked first. With no `scoped` argument the context is the whole
-// package; the authoring context's read passes the scope its caller names.
-export async function getRunReadContextForRun(
+// The manifest alone, for a read that serves no data and so needs no scope.
+// The run id arrives over the wire and becomes a path, so it is shape-checked
+// first; an unreadable or unknown run surfaces as the manifest read failing.
+export async function getRunManifestForRun(
   runId: string,
-  scoped?: { mainDb: Sql; scopeId: string | null; access: ScopeAccess },
+): Promise<APIResponseWithData<RunManifest>> {
+  if (!isRunIdShape(runId)) {
+    return { success: false, err: "Invalid results package id" };
+  }
+  try {
+    return { success: true, data: await getRunManifestCached(runId) };
+  } catch (e) {
+    return {
+      success: false,
+      err: `Results run unavailable: ${e instanceof Error ? e.message : e}`,
+    };
+  }
+}
+
+// The manifest lens, shape-checked and failing as getRunManifestForRun does.
+export async function getRunReadContextForRun(
+  mainDb: Sql,
+  runId: string,
+  scopeId: string,
+  access: ScopeAccess,
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
   }
   try {
-    const scopeRes = scoped === undefined
-      ? { success: true as const, data: UNCONSTRAINED_SCOPE_DEFINITION }
-      : await loadScopeDefinition(
-        scoped.mainDb,
-        scoped.scopeId,
-        scoped.access,
-      );
+    const scopeRes = await loadScopeDefinition(mainDb, scopeId, access);
     if (scopeRes.success === false) return scopeRes;
     return {
       success: true,
@@ -181,7 +188,7 @@ export async function getRunReadContextForRun(
 
 // The data lens. Both halves arrive over the wire: the run id becomes a path
 // (shape-checked here) and the scope id names a `scopes` row whose definition
-// is loaded here (null is the whole package). The definition's values become
+// is loaded here. The definition's values become
 // SQL literals (escaped in scopePredicateFor) and its hash the cache-key
 // segment. `runs.status = 'ready'` is checked against the catalog, not the
 // manifest: a generating run has no manifest file at all, but a FAILED one
@@ -189,7 +196,7 @@ export async function getRunReadContextForRun(
 export async function getReadyRunReadContext(
   mainDb: Sql,
   runId: string,
-  scopeId: string | null,
+  scopeId: string,
   access: ScopeAccess,
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
@@ -237,8 +244,8 @@ function findModule(
 
 // The scope is enforced here and nowhere else: each view is the parquet under
 // the scope's predicate, so a query built above the executor cannot read
-// outside it. The facilities views take the geography part only, and come
-// first because a results object's predicate may read one.
+// outside it. Each facilities view takes the area of its own family's section,
+// and comes first because a results object's predicate may read one.
 function viewsFor(ctx: RunReadContext, resultsObjectId: string): ParquetView[] {
   const views: ParquetView[] = [];
   for (const table of FACILITIES_TABLES) {
@@ -246,9 +253,7 @@ function viewsFor(ctx: RunReadContext, resultsObjectId: string): ParquetView[] {
       views.push({
         viewName: table,
         parquetPath: runInputFilePath(ctx.runDir, `${table}.parquet`),
-        predicate: ctx.scope.geography === null
-          ? undefined
-          : inAreaPredicate("admin_area_2", ctx.scope.geography.adminArea2),
+        predicate: facilitiesPredicate(ctx.scope[FACILITIES_FAMILY[table]]),
       });
     }
   }
@@ -785,50 +790,71 @@ export function moduleHasRun(ctx: RunReadContext, moduleId: string): boolean {
 
 const FACILITIES_TABLES = ["facilities_hmis", "facilities_hfa"] as const;
 
+const FACILITIES_FAMILY = {
+  facilities_hmis: "hmis",
+  facilities_hfa: "hfa",
+} as const;
+
 function hasFacilitiesParquet(manifest: RunManifest, table: string): boolean {
   return manifest.inputFiles.includes(`inputs/${table}.parquet`);
 }
 
-// The predicate the scope puts on one results object's view, decided from the
-// manifest column stamps (never from a baked list, a new module can add a
-// results object of any shape). Undefined means the view is the whole parquet.
+// An excluded section needs no predicate here: only its own family's results
+// objects read its facilities view, and their views are already empty.
+function facilitiesPredicate(
+  section: ScopeDefinition["hmis"] | ScopeDefinition["hfa"],
+): string | undefined {
+  return section.include && section.adminArea2 !== null
+    ? inAreaPredicate("admin_area_2", section.adminArea2)
+    : undefined;
+}
+
+// The predicate the scope puts on one results object's view. The section is
+// picked by the family the object's module declares: an excluded section, or
+// a module outside the section's list, empties the view. Undefined means the
+// view is the whole parquet.
 //
-// The default principle: a dimension filters a results object only when the
-// object has a column for it. Where it has none, that dimension contributes
-// nothing and the object is served whole, as long as its module is allowed.
-// The module list is the only part that can remove a whole table.
+// Within the section, the default principle: a dimension filters a results
+// object only when the object has a column for it, decided from the manifest
+// column stamps (never from a baked list, a new module can add a results
+// object of any shape). Where it has none, that dimension contributes nothing
+// and the object is served whole.
 export function scopePredicateFor(
   definition: ScopeDefinition,
   ro: RunResultsObject,
   manifest: RunManifest,
 ): string | undefined {
+  const family = datasetFamilyFromManifest(manifest, ro.moduleId);
+  if (family === undefined) return "FALSE";
+  const section = definition[family];
   if (
-    definition.modules !== null && !definition.modules.includes(ro.moduleId)
+    !section.include ||
+    (section.modules !== null && !section.modules.includes(ro.moduleId))
   ) {
     return "FALSE";
   }
   const columnNames = new Set(ro.columns.map((c) => c.name));
+  const indicatorColumn = SCOPE_INDICATOR_COLUMN[family];
   const parts = [
-    geographyPredicate(definition, ro, columnNames, manifest),
-    yearsPredicate(definition, columnNames),
-    columnNames.has("time_point")
-      ? inListPredicate("time_point", definition.time.hfaTimePoints)
+    "adminArea2" in section
+      ? geographyPredicate(
+        section.adminArea2,
+        `facilities_${family}`,
+        columnNames,
+        manifest,
+      )
       : undefined,
-    ...INDICATOR_COLUMNS.map(({ list, column }) =>
-      columnNames.has(column)
-        ? inListPredicate(column, definition.indicators[list])
-        : undefined
-    ),
+    "years" in section ? yearsPredicate(section.years, columnNames) : undefined,
+    "timePoints" in section && columnNames.has("time_point")
+      ? inListPredicate("time_point", section.timePoints)
+      : undefined,
+    columnNames.has(indicatorColumn)
+      ? inListPredicate(indicatorColumn, section.indicators)
+      : undefined,
   ].filter((part) => part !== undefined);
   if (parts.includes("FALSE")) return "FALSE";
   return parts.length === 0 ? undefined : parts.join(" AND ");
 }
-
-const INDICATOR_COLUMNS = [
-  { list: "hmis", column: "indicator_common_id" },
-  { list: "hfa", column: "hfa_indicator" },
-  { list: "iceh", column: "iceh_indicator" },
-] as const;
 
 // The cast makes one predicate serve a text column and an integer one (a
 // module may declare time_point as either).
@@ -837,7 +863,6 @@ function inListPredicate(
   values: string[] | null,
 ): string | undefined {
   if (values === null) return undefined;
-  if (values.length === 0) return "FALSE";
   return `CAST(${column} AS VARCHAR) IN (${
     values.map((v) => `'${escapeSqlLiteral(v)}'`).join(", ")
   })`;
@@ -848,28 +873,25 @@ function inAreaPredicate(column: string, adminArea2: string): string {
 }
 
 // A results object with admin_area_2 is filtered on it. One with only a child
-// admin column is filtered through the family facilities view, matching by
-// NAME (the duplicate-district collision is an accepted latent, see
+// admin column is filtered through its own family's facilities view, matching
+// by NAME (the duplicate-district collision is an accepted latent, see
 // SYSTEM_08's ruling). One with no admin column is served whole.
 //
 // The one exception to the default principle: a results object that HAS a
-// child admin column but cannot reach a facilities view gets FALSE, never the
-// whole parquet. The family is undeclarable for a module whose dataSources are
-// all upstream results objects (m004/m005/m006), and those same modules drop
-// admin_area_2 from their admin3 outputs, so the pair would otherwise show
-// every area in the country inside a scoped product. Blank is wrong visibly;
-// national data under a regional heading is wrong silently. The durable fix
-// is those scripts emitting admin_area_2, tracked in the modules repo as
-// PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md. Packages are immutable, so this
-// branch still guards every package generated before that lands.
+// child admin column but whose package has no facilities parquet for its
+// family gets FALSE, never the whole parquet. Modules m004, m005 and m006 drop
+// admin_area_2 from their admin3 outputs, so serving the table whole would
+// show every area in the country inside a scoped product. Blank is wrong
+// visibly; national data under a regional heading is wrong silently. The
+// durable fix is those scripts emitting admin_area_2, tracked in the modules
+// repo as PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md.
 function geographyPredicate(
-  definition: ScopeDefinition,
-  ro: RunResultsObject,
+  adminArea2: string | null,
+  facilitiesTable: string,
   columnNames: Set<string>,
   manifest: RunManifest,
 ): string | undefined {
-  if (definition.geography === null) return undefined;
-  const adminArea2 = definition.geography.adminArea2;
+  if (adminArea2 === null) return undefined;
   if (columnNames.has("admin_area_2")) {
     return inAreaPredicate("admin_area_2", adminArea2);
   }
@@ -879,16 +901,7 @@ function geographyPredicate(
     ? "admin_area_4"
     : undefined;
   if (childColumn === undefined) return undefined;
-  const family = datasetFamilyFromManifest(manifest, ro.moduleId);
-  const facilitiesTable = family === "hmis" || family === "hfa"
-    ? `facilities_${family}`
-    : undefined;
-  if (
-    facilitiesTable === undefined ||
-    !hasFacilitiesParquet(manifest, facilitiesTable)
-  ) {
-    return "FALSE";
-  }
+  if (!hasFacilitiesParquet(manifest, facilitiesTable)) return "FALSE";
   // The subquery's columns are qualified by the facilities view: an
   // unqualified child column that view lacks would bind to the results object
   // and match every row.
@@ -899,17 +912,12 @@ function geographyPredicate(
 
 const PHYSICAL_TIME_COLUMNS = ["period_id", "quarter_id", "year"] as const;
 
-// The column the year range applies to. A results object with time_point is
-// governed by the time-point list alone (R18): its rounds carry no date.
+// The column a section's year range applies to.
 function yearsColumnOf(columnNames: Set<string>): PeriodOption | undefined {
-  if (columnNames.has("time_point")) return undefined;
   return PHYSICAL_TIME_COLUMNS.find((column) => columnNames.has(column));
 }
 
-function yearsRangeIn(
-  years: { start: number; end: number },
-  column: PeriodOption,
-): PeriodBounds {
+function yearsRangeIn(years: YearRange, column: PeriodOption): PeriodBounds {
   return {
     min: convertPeriodValue(years.start, column, false),
     max: convertPeriodValue(years.end, column, true),
@@ -917,19 +925,33 @@ function yearsRangeIn(
 }
 
 function yearsPredicate(
-  definition: ScopeDefinition,
+  years: YearRange | null,
   columnNames: Set<string>,
 ): string | undefined {
   const column = yearsColumnOf(columnNames);
-  if (definition.time.years === null || column === undefined) return undefined;
-  const range = yearsRangeIn(definition.time.years, column);
+  if (years === null || column === undefined) return undefined;
+  const range = yearsRangeIn(years, column);
   return `${column} BETWEEN ${range.min} AND ${range.max}`;
 }
 
+// The years a definition holds one module's tables to: those of the module's
+// family section. HFA has none.
+function sectionYearsFor(
+  definition: ScopeDefinition,
+  manifest: RunManifest,
+  moduleId: string,
+): YearRange | null {
+  const family = datasetFamilyFromManifest(manifest, moduleId);
+  const section = family === undefined ? undefined : definition[family];
+  return section !== undefined && section.include && "years" in section
+    ? section.years
+    : null;
+}
+
 // The manifest's periodBounds stamp is package-wide, so a reader that uses it
-// in place of a query clamps it to the scope's years (R27). Geography is not
-// applied to the stamp (SYSTEM_09's ruling). Undefined when the scope's years
-// and the package's do not overlap.
+// in place of a query clamps it to the years of the results object's family
+// section. Geography is not applied to the stamp (SYSTEM_09's ruling).
+// Undefined when the section's years and the package's do not overlap.
 function scopedPeriodBounds(
   ctx: RunReadContext,
   ro: RunResultsObject | undefined,
@@ -937,8 +959,9 @@ function scopedPeriodBounds(
   const stamp = ro?.periodBounds ?? undefined;
   if (ro === undefined || stamp === undefined) return undefined;
   const column = yearsColumnOf(new Set(ro.columns.map((c) => c.name)));
-  if (ctx.scope.time.years === null || column === undefined) return stamp;
-  const range = yearsRangeIn(ctx.scope.time.years, column);
+  const years = sectionYearsFor(ctx.scope, ctx.manifest, ro.moduleId);
+  if (years === null || column === undefined) return stamp;
+  const range = yearsRangeIn(years, column);
   const clamped = {
     min: Math.max(stamp.min, range.min),
     max: Math.min(stamp.max, range.max),

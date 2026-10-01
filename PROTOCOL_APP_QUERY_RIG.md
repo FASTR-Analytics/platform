@@ -19,15 +19,14 @@ runs the **production** run read path (`server/run_query/run_read.ts`:
 `getPresentationObjectItemsFromRun`, `getPossibleValuesFromRun`,
 `getResultsValueInfoFromRun`, `getResultsObjectItemsFromRun`, and
 `computeRunReplicantOptions` from `run_data_reads.ts`) against it over a
-`RunReadContext` at the case's scope (the unconstrained definition, the whole
-package, unless the case carries a `scope`). Config → SQL → DuckDB over parquet
-→ real rows: the engine production serves from, not a stand-in. Nothing is
-mocked and there is no test seam. A throwaway Postgres survives only for what
-the package builder reads from the MAIN database (the per-family structure
-schema rows in `instance_config`).
+`RunReadContext` at the case's scope (the "All data" definition, unless the case
+carries a `scope`). Config → SQL → DuckDB over parquet → real rows: the engine
+production serves from, not a stand-in. Nothing is mocked and there is no test
+seam. A throwaway Postgres survives only for what the package builder reads from
+the MAIN database (the per-family structure schema rows in `instance_config`).
 
 ```bash
-./validate_queries            # ~15s: container up, 19 packages built, 223 cases
+./validate_queries            # ~15s: container up, 20 packages built, 321 cases
 ```
 
 (once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -38,14 +37,14 @@ running Docker daemon, and the typecheck gate must work without one. The rig
 typechecks itself before running, since `query_rig/` sits outside
 `lint_systems`' tracked globs.
 
-| File                         | Role                                                                          |
-| ---------------------------- | ----------------------------------------------------------------------------- |
-| `validate_queries`           | container + runs-dir lifecycle, env, invokes the runner                       |
-| `query_rig/mod.ts`           | runner: build packages, loop cases, summarise                                 |
-| `query_rig/cases.ts`         | **the case table**, where you add coverage                                    |
-| `query_rig/fixtures.ts`      | F1–F19                                                                        |
-| `query_rig/build_package.ts` | fixture → structure-schema rows + results package + unscoped `RunReadContext` |
-| `query_rig/harness.ts`       | connections, schema loading, multiset compare                                 |
+| File                         | Role                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------- |
+| `validate_queries`           | container + runs-dir lifecycle, env, invokes the runner                         |
+| `query_rig/mod.ts`           | runner: build packages, loop cases, summarise                                   |
+| `query_rig/cases.ts`         | **the case table**, where you add coverage                                      |
+| `query_rig/fixtures.ts`      | F1–F20                                                                          |
+| `query_rig/build_package.ts` | fixture → structure-schema rows + results package + "All data" `RunReadContext` |
+| `query_rig/harness.ts`       | connections, schema loading, multiset compare                                   |
 
 ## Adding a case
 
@@ -80,12 +79,14 @@ literal, one place to look.
   whose `scope` is that `ScopeDefinition` and whose `scopeToken` is its hash.
   The rig builds the context itself, because the production gate
   (`getReadyRunReadContext`) loads the definition from a `scopes` row and the
-  rig's scopes exist only in the case table. Absent = the unconstrained
-  definition. Scope is a predicate on the view the query runs against, which the
-  caller's fetch config never shows, so pair every scoped case with the unscoped
-  reading of the same query. On every items case the runner also asserts that
-  the echoed `fetchConfig` is the request and that the holder's `runId` /
-  `scopeToken` are the context's.
+  rig's scopes exist only in the case table. Absent = the "All data" definition.
+  `hmisScope`, `hfaScope` and `icehScope` in `cases.ts` build "All data" with
+  one family's section limited, and `excluding(family)` drops one. Scope is a
+  predicate on the view the query runs against, which the caller's fetch config
+  never shows, so pair every scoped case with the "All data" reading of the same
+  query. On every items case the runner also asserts that the echoed
+  `fetchConfig` is the request and that the holder's `runId` / `scopeToken` are
+  the context's.
 - `entry: "possibleValues"` with `disOpt` runs the option-list query instead of
   the items query, reusing `fetchConfig.filters` as the filter set.
 - `entry: "metricInfo"` resolves the fixture's `metric` through the enricher and
@@ -108,11 +109,14 @@ dimension to group by, the grouped `rows` and the `rawCount`; the other
 expectations follow from those. To cover a new branch, add one row.
 
 A row whose dimension does not apply to its fixture spreads the fixture's entry
-in `WHOLE`, the whole-package reading, which is itself a row. That is how the
-default principle is asserted: the same rows as the whole package, on every read
-kind. Pick a scope that removes a whole group, so the option lists change as
-well as the sums: a year range that keeps every area leaves the option-list,
-metric-info and replicant cases green under a broken predicate.
+in `WHOLE`, the "All data" reading, which is itself a row. That is how the
+default principle is asserted, and how one family's section is shown not to
+touch another family's results objects: the same rows as under "All data", on
+every read kind. Each family has a fixture with its dimension columns and one
+without, so each section's dimensions are pinned both applying and not applying.
+Pick a scope that removes a whole group, so the option lists change as well as
+the sums: a year range that keeps every area leaves the option-list, metric-info
+and replicant cases green under a broken predicate.
 
 ## Adding a fixture
 
@@ -179,55 +183,60 @@ Verified controls so far (the failure texts were recorded on the rig's Postgres
 era, 2026-08; DuckDB words the same failures differently: the case that goes red
 is the control, not the text):
 
-| Break                                                                    | Expected failure                                                                                                                                            |
-| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shouldFoldBlank` → name-only gate                                       | F3: `function btrim(integer, unknown) does not exist`                                                                                                       |
-| `exceedsMaxReplicantOptions` → count all values                          | F9 500-case: `ok` → `too_many_values`                                                                                                                       |
-| drop the multi-membership skip in `getSingleValueDimsFromPossibleValues` | F8: `isSingleValueDim=false` → `true`                                                                                                                       |
-| `emitsSampleN` → family-only gate (drop `hasFacilityId`)                 | F10: `column ro_….facility_id does not exist`                                                                                                               |
-| `COUNT(DISTINCT facility_id)` → `COUNT(facility_id)`                     | 4 cases: n reports rows (4/4/8) instead of facilities (2/3/5)                                                                                               |
-| drop `sourceTable.` from the value aggregates (buildAggregateColumns)    | both Ghana-shape cases: `column reference "facility_id" is ambiguous`                                                                                       |
-| drop `sourceTable.` from the plain-values sample-n FILTER                | HFA Ghana-shape case only: same ambiguity error                                                                                                             |
-| wrapper `groupByPrefix` → plain join (no collision re-alias)             | both F12 PAE cases: `column reference "denominator" is ambiguous`                                                                                           |
-| disable the non-PAE value-prop guard in `validateFetchConfig`            | F12 boundary case: expected error, got success (silent key clobber)                                                                                         |
-| disable buildWhereClause's numeric filter branch                         | both F12 filter cases: `function upper(numeric) does not exist`                                                                                             |
-| drop the PERIOD exclusion from the numeric filter gate                   | month-filter case: derived TEXT month misrouted to `month IN (2)`                                                                                           |
-| `scopePredicateFor` returns no predicate                                 | the 8 scoped cases go red (items, option list, metric info, child column, no children, fail-closed); the 5 paired national readings stay green (2026-10-01) |
-| drop the modules part of `scopePredicateFor`                             | 5 red of 223: the "module is outside the list" row on all five read kinds (2026-10-01)                                                                      |
-| drop the geography part                                                  | 28 red: the three geography rows and the combined row on all five read kinds, and the 8 scoped cases above                                                  |
-| `yearsPredicate` returns nothing                                         | 11 red: the `period_id` and `year` rows on all five read kinds, and the `quarter_id` case                                                                   |
-| drop the `time_point` part                                               | 11 red: the time-point row and the empty-list row on all five read kinds, and the INTEGER `time_point` case                                                 |
-| drop the `time_point` line from `yearsColumnOf`                          | 6 red: the "time_point beside a year column" row on all five read kinds, and its period-bounds case                                                         |
-| drop the indicator parts                                                 | 17 red: the three indicator rows on all five read kinds, and the combined row's items and raw preview                                                       |
-| `scopedPeriodBounds` returns the stamp unclamped                         | 3 red: the clamped bounds, the no-overlap bounds, and the replicant read's relative filter under years                                                      |
-| drop the predicate from the facilities views                             | 1 red: "facilities view: it takes the geography part of the scope"                                                                                          |
+| Break                                                                    | Expected failure                                                                                                               |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `shouldFoldBlank` → name-only gate                                       | F3: `function btrim(integer, unknown) does not exist`                                                                          |
+| `exceedsMaxReplicantOptions` → count all values                          | F9 500-case: `ok` → `too_many_values`                                                                                          |
+| drop the multi-membership skip in `getSingleValueDimsFromPossibleValues` | F8: `isSingleValueDim=false` → `true`                                                                                          |
+| `emitsSampleN` → family-only gate (drop `hasFacilityId`)                 | F10: `column ro_….facility_id does not exist`                                                                                  |
+| `COUNT(DISTINCT facility_id)` → `COUNT(facility_id)`                     | 4 cases: n reports rows (4/4/8) instead of facilities (2/3/5)                                                                  |
+| drop `sourceTable.` from the value aggregates (buildAggregateColumns)    | both Ghana-shape cases: `column reference "facility_id" is ambiguous`                                                          |
+| drop `sourceTable.` from the plain-values sample-n FILTER                | HFA Ghana-shape case only: same ambiguity error                                                                                |
+| wrapper `groupByPrefix` → plain join (no collision re-alias)             | both F12 PAE cases: `column reference "denominator" is ambiguous`                                                              |
+| disable the non-PAE value-prop guard in `validateFetchConfig`            | F12 boundary case: expected error, got success (silent key clobber)                                                            |
+| disable buildWhereClause's numeric filter branch                         | both F12 filter cases: `function upper(numeric) does not exist`                                                                |
+| drop the PERIOD exclusion from the numeric filter gate                   | month-filter case: derived TEXT month misrouted to `month IN (2)`                                                              |
+| no predicate on any results object's view (`viewsFor`)                   | 100 red of 321: every scoped case; the "All data" readings and every row asserting "served whole" stay green (2026-10-01)      |
+| an excluded section no longer returns `FALSE`                            | 15 red: the three "excluded section empties" rows on all five read kinds                                                       |
+| drop the module-list check of `scopePredicateFor`                        | 15 red: the three "module outside the list" rows (HMIS, HFA, ICEH) on all five read kinds                                      |
+| an HFA results object reads the HMIS section                             | 40 red: the HFA rows for exclusion, modules, area, time points, indicators and "takes no year range"                           |
+| an ICEH results object reads the HMIS section                            | 30 red: the ICEH rows for exclusion, modules, years and indicators, and "the HMIS range does not touch an ICEH results object" |
+| drop the geography part                                                  | 38 red: the five geography rows that filter and the combined row on all five read kinds, and the 8 `SCOPE_CASES`               |
+| `yearsPredicate` returns nothing                                         | 11 red: the HMIS `period_id` row and the ICEH `year` row on all five read kinds, and the `quarter_id` case                     |
+| drop the `time_point` part                                               | 6 red: the time-point row on all five read kinds, and the INTEGER `time_point` case                                            |
+| drop the indicator part                                                  | 17 red: the three indicator rows on all five read kinds, and the combined row's items and raw preview                          |
+| `scopedPeriodBounds` returns the stamp unclamped                         | 4 red: the clamped bounds, the no-overlap bounds, the ICEH clamp, and the replicant read's relative filter under years         |
+| `sectionYearsFor` reads the HMIS years for every family                  | 3 red: the ICEH clamp, "the HMIS years leave an ICEH stamp alone" and "an HFA results object keeps the stamp"                  |
+| drop the predicate from the facilities views                             | 1 red: "facilities view: it takes the area of its own family's section"                                                        |
+| swap the two families in `FACILITIES_FAMILY`                             | 2 red: that case and "the HMIS section's area leaves the HFA view whole"                                                       |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
 changes. `git checkout` would discard parallel work.
 
 ## The fixtures
 
-| Fixture                      | Shape                                                                         | Exists for                                                                                                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hmis_monthly` (F1)          | HMIS, physical `period_id`, facility rows                                     | general grouping, blank-fold specimens (`NULL`, spaces, tab, and the `'x'`/`' x'` pair), derived month/quarter/year                                                     |
-| `hfa_service_cats` (F2)      | HFA, `hfa_service_category` pipe-joined sets, `time_point` **text**           | multi-membership, blank fold on text                                                                                                                                    |
-| `hfa_timepoint_integer` (F3) | F2 with `time_point` **integer**                                              | the type gate, see below                                                                                                                                                |
-| `hmis_ratio` (F4)            | facility rows + `num`/`den`                                                   | PAE roll-up, AVG eligibility (allowed)                                                                                                                                  |
-| `hmis_area_only` (F5)        | pre-aggregated areas, **no** `facility_id`                                    | AVG eligibility (refused)                                                                                                                                               |
-| `hmis_quarterly` (F6)        | physical `quarter_id`                                                         | derives `year`, never `month`                                                                                                                                           |
-| `hmis_yearly` (F7)           | physical `year`                                                               | derives nothing                                                                                                                                                         |
-| `hfa_facility_blanks` (F8)   | NULL facility cell + a results row with no facilities row                     | the fold reaches joined facility columns, from both blank origins; single-member set column                                                                             |
-| `hmis_option_cap` (F9)       | 500 named + blank / 501 named                                                 | the option-list cap counts NAMED values only                                                                                                                            |
-| `hfa_area_only` (F10)        | HFA, pre-aggregated area rows, **no** `facility_id`                           | the table-aware half of the sample-n gate. The family check alone would emit `COUNT(DISTINCT facility_id)` against a table without the column                           |
-| `hfa_variants` (F11)         | HFA, `hfa_variant_item` plain TEXT physical column, parent in `hfa_indicator` | the generic physical-column path for group-by / filter / option lists on the variants dimension                                                                         |
-| `hmis_scorecard` (F12)       | `denominator` is BOTH a PAE ingredient and a disaggregation option            | the PAE groupBy/value-prop collision (`paeCollidingGroupBys`): den=20 spans two rows so raw-binding (40/20 = 2) diverges from the correct aggregate binding (40/40 = 1) |
-| `hfa_divergent_schema` (F13) | HFA depth 2, `includeTypes` on, seeded beside a divergent HMIS row            | the per-family structure-schema split; also the metric-info half of the scope cases                                                                                     |
-| `hmis_admin3_only` (F14)     | HMIS, `admin_area_3` and NO `admin_area_2`, F1's facilities                   | the child-column predicate: A2_south resolves to its child areas through the facilities view, by name; an unknown area has no children and matches nothing              |
-| `admin3_no_facilities` (F15) | F14's shape in a package with no facilities parquet (`facilities: null`)      | the fail-CLOSED branch: no facilities view to resolve the scope's child areas, so the predicate is `FALSE` and a scoped read returns no rows rather than national rows  |
-| `hmis_scope_dims` (F16)      | HMIS, `period_id` over three years, two indicators, no `facility_id`          | the year range, the `hmis` indicator list, the module list, the period-bound clamp; values are powers of two, so every subset of rows has its own sum                   |
-| `hfa_scope_dims` (F17)       | the HFA shape: `time_point`, `hfa_indicator`, no physical time column         | the time-point list, the `hfa` indicator list, and a year range not applying                                                                                            |
-| `iceh_scope_dims` (F18)      | family `iceh`: `iceh_indicator`, physical `year`, no admin column             | the `iceh` indicator list, the year range on a `year` column, and geography not applying                                                                                |
-| `hfa_dated_rounds` (F19)     | the HFA shape with a physical `year` column beside `time_point`               | a year range not applying to a results object with `time_point`, in the predicate and in the period-bound clamp                                                         |
+| Fixture                      | Shape                                                                         | Exists for                                                                                                                                                                                                 |
+| ---------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hmis_monthly` (F1)          | HMIS, physical `period_id`, facility rows                                     | general grouping, blank-fold specimens (`NULL`, spaces, tab, and the `'x'`/`' x'` pair), derived month/quarter/year                                                                                        |
+| `hfa_service_cats` (F2)      | HFA, `hfa_service_category` pipe-joined sets, `time_point` **text**           | multi-membership, blank fold on text                                                                                                                                                                       |
+| `hfa_timepoint_integer` (F3) | F2 with `time_point` **integer**                                              | the type gate, see below                                                                                                                                                                                   |
+| `hmis_ratio` (F4)            | facility rows + `num`/`den`                                                   | PAE roll-up, AVG eligibility (allowed)                                                                                                                                                                     |
+| `hmis_area_only` (F5)        | pre-aggregated areas, **no** `facility_id`                                    | AVG eligibility (refused)                                                                                                                                                                                  |
+| `hmis_quarterly` (F6)        | physical `quarter_id`                                                         | derives `year`, never `month`                                                                                                                                                                              |
+| `hmis_yearly` (F7)           | physical `year`                                                               | derives nothing                                                                                                                                                                                            |
+| `hfa_facility_blanks` (F8)   | NULL facility cell + a results row with no facilities row                     | the fold reaches joined facility columns, from both blank origins; single-member set column                                                                                                                |
+| `hmis_option_cap` (F9)       | 500 named + blank / 501 named                                                 | the option-list cap counts NAMED values only                                                                                                                                                               |
+| `hfa_area_only` (F10)        | HFA, pre-aggregated area rows, **no** `facility_id`                           | the table-aware half of the sample-n gate. The family check alone would emit `COUNT(DISTINCT facility_id)` against a table without the column                                                              |
+| `hfa_variants` (F11)         | HFA, `hfa_variant_item` plain TEXT physical column, parent in `hfa_indicator` | the generic physical-column path for group-by / filter / option lists on the variants dimension                                                                                                            |
+| `hmis_scorecard` (F12)       | `denominator` is BOTH a PAE ingredient and a disaggregation option            | the PAE groupBy/value-prop collision (`paeCollidingGroupBys`): den=20 spans two rows so raw-binding (40/20 = 2) diverges from the correct aggregate binding (40/40 = 1)                                    |
+| `hfa_divergent_schema` (F13) | HFA depth 2, `includeTypes` on, seeded beside a divergent HMIS row            | the per-family structure-schema split; the metric-info half of the scope cases; and, having no `time_point` and no indicator column, the HFA time points and indicators not applying                       |
+| `hmis_admin3_only` (F14)     | HMIS, `admin_area_3` and NO `admin_area_2`, F1's facilities                   | the child-column predicate: A2_south resolves to its child areas through the facilities view, by name; an unknown area has no children and matches nothing; and the HMIS years and indicators not applying |
+| `admin3_no_facilities` (F15) | F14's shape in a package with no facilities parquet (`facilities: null`)      | the fail-CLOSED branch: no facilities view to resolve the scope's child areas, so the predicate is `FALSE` and a scoped read returns no rows rather than national rows                                     |
+| `hmis_scope_dims` (F16)      | HMIS, `period_id` over three years, two indicators, no `facility_id`          | the HMIS section: its exclusion, area, year range, indicator list and module list, and the period-bound clamp; values are powers of two, so every subset of rows has its own sum                           |
+| `hfa_scope_dims` (F17)       | the HFA shape: `time_point`, `hfa_indicator`, no physical time column         | the HFA section: its exclusion, its own area beside a different HMIS area, the time-point list, the indicator list and the module list                                                                     |
+| `iceh_scope_dims` (F18)      | family `iceh`: `iceh_indicator`, physical `year`, no admin column             | the ICEH section: its exclusion, its own year range on a `year` column (apart from the HMIS years), the indicator list, the module list, and geography not applying                                        |
+| `hfa_dated_rounds` (F19)     | the HFA shape with a physical `year` column beside `time_point`               | the HFA section having no years: another section's year range leaves an HFA results object whole and its period bounds unclamped                                                                           |
+| `iceh_no_dims` (F20)         | family `iceh` with neither a `year` nor an `iceh_indicator` column            | the ICEH years and indicators not applying                                                                                                                                                                 |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and

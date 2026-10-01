@@ -146,20 +146,23 @@ FigureBundle = {
 `scope` and `provenance.runId` record what the bundle was resolved under
 (PLAN_PRODUCTS_RESTRUCTURE D4): the package, and the hash of the scope's
 definition at that moment (`scopeDefinitionHash`, `lib/types/scope.ts`). The
-bundle records the hash and not the scope's id. `adminArea2` is the definition's
-area, kept because the roll-up row label is rendered from the frozen bundle
-(below). Every assembly site stamps them from its container's `PackageScope`
-(the product's live `{ runId, scopeId }`, read from the T1 products row by the
-deck and report editors) through `figureScopeStamp`
+bundle records the hash and not the scope's id. `adminArea2` is the area the
+definition holds the figure's own family to (the HMIS section's for an HMIS
+metric, the HFA section's for an HFA one, null for ICEH, which has no
+geography), kept because the roll-up row label is rendered from the frozen
+bundle (below). Every assembly site stamps them from its container's
+`PackageScope` (the product's live `{ runId, scopeId }`, read from the T1
+products row by the deck and report editors) through
+`figureScopeStamp(scope, scopeToken, family)`
 (`client/src/state/instance/t1_store.ts`), which takes the hash from the
 `scopeToken` of the payload the bundle is built from (the definition the server
-computed the rows under) and the area from the T1 scopes list: the metric-keyed
-resolvers, `makeFigureBundleFromFetchedData` and the live editor's transient
-bundle. A null scope id stamps `WHOLE_PACKAGE_DEFINITION_HASH`, the hash of the
-unconstrained definition. The stamp lives on the bundle and never in `config`,
-so it stays out of the fetch hash (S9). Both are required, and a definition with
-no area is an explicit `adminArea2: null`. The pin is
-`server/tests/figure_bundle_schema_test.ts`.
+computed the rows under) and the area from the T1 scopes list, by the metric's
+family: the metric-keyed resolvers, `makeFigureBundleFromFetchedData` and the
+live editor's transient bundle. A bundle backfilled by the stored-figure
+transform keeps the area its product had, whatever the figure's family (S2). The
+stamp lives on the bundle and never in `config`, so it stays out of the fetch
+hash (S9). Both are required, and a definition with no area is an explicit
+`adminArea2: null`. The pin is `server/tests/figure_bundle_schema_test.ts`.
 
 **Why `resultsValue` is a projection, not the whole metric (proven, not
 asserted):** `buildFigureInputs` and every downstream builder

@@ -277,36 +277,35 @@ package's is a line saying results appear once generation completes. A family
 tab (`package_view/family_pane.tsx`) is a `SelectList` of the family's modules,
 the primary first and the secondaries under a "Supporting analyses" header,
 beside the selected module's pane (`package_view/module_pane.tsx`), which shows
-one module whole: the page scope select (the shared `ScopeSelect` with its
-"Whole package" option; the page starts on the whole package, a null scope id,
-the choice is shared by every tab and module and is never stored, and a chosen
-scope that is deleted falls back to the whole package), the module's default
-visualizations (`package_view/visualizations.tsx`: the entries of
-`RunAuthoringContext.presets` whose metric the module produced, in preset order,
-each rendered through S11's shared `_shared/figure_preview.ts` helper under the
-page scope; a default whose metric is stamped unavailable shows the stamped
-reason in place of a figure and is not clickable; clicking a card opens S11's
-`VisualizationEditor` as a viewer (`viewOnly`) through the page's own editor
-wrapper, with the default's metric and config, the page scope and the package's
-authoring context, so the user can disaggregate it differently to look at, and
-closing returns nothing: no draft, no storage, no route, no cache key, no write
-of any kind), then its settings, Script and Logs viewers (gated client-side by
-`canViewPackageContents()`/`canViewPackageLogs()` in `status.tsx`) and output
-files with download, from `RunDetail.modules[]`, which `readRunDetail` fills
-from the manifest's own definition blob (label and the three presentation
-facts). The active family (starts at the first), the selected module per family
-(starts at the primary) and the page scope are page signals that die with the
-page. Modules are named from the package's manifest on every ready surface; the
-registry label (`moduleLabel` in `status.tsx`) names modules only where there is
-no manifest: the status bar's chips of a generating or failed package, the
-failed body, and the wizard's confirm step. Both ready reads run once the row is
-ready (a run that becomes ready under the open page fetches then); a manifest
-the server cannot read fails them, and the page shows that error as the body.
-The detail is **T2, immutable-by-identity** (`state/instance/t2_runs.ts`,
-`createReactiveCache` keyed `[runId]`, `versionKey: () => "immutable"`, the
-`t2_images` shape: nothing ever invalidates it because a ready run dir never
-changes; bump the cache name when `RunDetail` changes shape). Script/log bytes
-stay T3.
+one module whole: the page scope select (the shared `ScopeSelect`; the page
+starts on "All data", the choice is shared by every tab and module and is never
+stored, and a chosen scope that is deleted falls back to "All data"), the
+module's default visualizations (`package_view/visualizations.tsx`: the entries
+of `RunAuthoringContext.presets` whose metric the module produced, in preset
+order, each rendered through S11's shared `_shared/figure_preview.ts` helper
+under the page scope; a default whose metric is stamped unavailable shows the
+stamped reason in place of a figure and is not clickable; clicking a card opens
+S11's `VisualizationEditor` as a viewer (`viewOnly`) through the page's own
+editor wrapper, with the default's metric and config, the page scope and the
+package's authoring context, so the user can disaggregate it differently to look
+at, and closing returns nothing: no draft, no storage, no route, no cache key,
+no write of any kind), then its settings, Script and Logs viewers (gated
+client-side by `canViewPackageContents()`/`canViewPackageLogs()` in
+`status.tsx`) and output files with download, from `RunDetail.modules[]`, which
+`readRunDetail` fills from the manifest's own definition blob (label and the
+three presentation facts). The active family (starts at the first), the selected
+module per family (starts at the primary) and the page scope are page signals
+that die with the page. Modules are named from the package's manifest on every
+ready surface; the registry label (`moduleLabel` in `status.tsx`) names modules
+only where there is no manifest: the status bar's chips of a generating or
+failed package, the failed body, and the wizard's confirm step. Both ready reads
+run once the row is ready (a run that becomes ready under the open page fetches
+then); a manifest the server cannot read fails them, and the page shows that
+error as the body. The detail is **T2, immutable-by-identity**
+(`state/instance/t2_runs.ts`, `createReactiveCache` keyed `[runId]`,
+`versionKey: () => "immutable"`, the `t2_images` shape: nothing ever invalidates
+it because a ready run dir never changes; bump the cache name when `RunDetail`
+changes shape). Script/log bytes stay T3.
 
 The same rule governs the AI tools: the shared tools' `AIToolEnv`
 (`lib/ai_tools/env.ts`) is bound to ONE package at construction: a runId never
@@ -330,18 +329,18 @@ bits already reach in the UI, and less.
 (`getReadyRunReadContext(mainDb, runId, scopeId)`) shape-checks the run id
 (`isRunIdShape`, run_paths.ts, since a caller-supplied id becomes a path),
 requires `runs.status = 'ready'` against the catalog (a failed run can have a
-published partial dir), and takes `scopeId` from the body (a uuid or null at the
-registry). A non-null id is loaded from `scopes` (`getScope`), and an unknown
-one is `SCOPE_NOT_FOUND`, which the routes answer with 404. Null is the whole
-package, the unconstrained definition. The context carries the resolved
-`ScopeDefinition` as `scope` and its hash as `scopeToken`. The manifest lens
-(`getRunReadContextForRun(runId)`) is the whole package with no ready check and
-serves the package-internals reads, which do not share one guard:
-`getRunModuleWithConfigSelections` carries `can_view_data`, the same exposure as
-`getRunDetail`, while `getRunAuthoringContext` carries the broader
-`requireApprovedUser()` (D7). Everything below the context is shared: the items
-/ value-info / replicant handler bodies live once in
-`run_query/run_data_reads.ts` (cache-before-queue, shared queues) and are
+published partial dir), and takes `scopeId` from the body (`scopeIdSchema` at
+the registry: a uuid or the reserved `all-data`, never null). The id is loaded
+from `scopes` (`getScope`), and an unknown one is `SCOPE_NOT_FOUND`, which the
+routes answer with 404. No read context exists without a scope. The context
+carries the resolved `ScopeDefinition` as `scope` and its hash as `scopeToken`.
+The manifest lens (`getRunReadContextForRun(mainDb, runId, scopeId, access)`) is
+the same with no ready check and serves `getRunAuthoringContext`, under
+`requireApprovedUser()` (D7). `getRunModuleWithConfigSelections` serves no data
+and takes no scope: it reads the manifest alone (`getRunManifestForRun`) under
+`can_view_data`, the same exposure as `getRunDetail`. Everything below the
+context is shared: the items / value-info / replicant handler bodies live once
+in `run_query/run_data_reads.ts` (cache-before-queue, shared queues) and are
 mounted on `getRunPresentationObjectItems` / `getRunResultsValueInfo` /
 `getRunReplicantOptions` (instance, `requireApprovedUser()`, then the caller's
 grants in the read context: "Scope access" below). `getRunResultsObjectItems`
@@ -446,50 +445,60 @@ package and should not pin. Rulings, all deliberate:
   `pinnedRunId` is instance T1, broadcast unfiltered (S3), which is what lets
   the dialog default to the pin for users without `can_configure_data`.
 - **MCP reads the pin** (PLAN_MCP_PINNED_PACKAGE). The `/mcp` surface is
-  instance-level: every tool reads the pinned package whole (`scopeId: null`)
-  through the run-keyed instance routes, gated on an approved user (D7); no
-  package id appears in any tool schema. It reads `getPinnedRunId` from the DB
-  on EVERY call (never the 30 s cached `InstanceState` copy), so a pin-move is
-  visible on the next call; its context cache is keyed `(token, runId)`. No pin
-  is a typed state: `get_overview` still answers (naming the fix: an admin with
-  `can_configure_data` pins one), the package tools fail with the same sentence.
-  Deploying to an instance with MCP users and no pin therefore takes their data
-  tools dark until someone pins. Prose in S13 principle 2.
+  instance-level: every tool reads the pinned package under "All data"
+  (`scopeId: "all-data"`) through the run-keyed instance routes, gated on an
+  approved user (D7); no package id appears in any tool schema. It reads
+  `getPinnedRunId` from the DB on EVERY call (never the 30 s cached
+  `InstanceState` copy), so a pin-move is visible on the next call; its context
+  cache is keyed `(token, runId)`. No pin is a typed state: `get_overview` still
+  answers (naming the fix: an admin with `can_configure_data` pins one), the
+  package tools fail with the same sentence. Deploying to an instance with MCP
+  users and no pin therefore takes their data tools dark until someone pins.
+  Prose in S13 principle 2.
 
 ## Scope
 
 A scope is a named row in `scopes`: a label and a `ScopeDefinition`
-(`lib/types/scope.ts`) with a geography part (one admin area 2, or null), a time
-part (a year range and a list of HFA time points), a module list and one
-indicator list per indicator column (`hmis`, `hfa`, `iceh`). Null means
-unconstrained at every level. A product carries exactly one scope,
-`products.scope_id`, named when the product is created and changed in product
-settings through `setProductScope` (product `edit` access). The entity, its
-routes and the screens that pick one are S12's ("Scopes"). Packages stay
-scope-blind: instance-level, immutable, no product FKs; one full package serving
-many products renders as each product's own view. A scope is independent of
-packages. The definition is applied at the run read layer as a predicate on the
-DuckDB view each query runs against (SYSTEM_09 "The scoped view").
+(`lib/types/scope.ts`) with one section per dataset family (`hmis`, `hfa`,
+`iceh`). A section is excluded (`include: false`) or included with that family's
+own limits: a module list and an indicator list for each, one admin area 2 for
+HMIS and for HFA, a year range for HMIS and for ICEH, and a list of time points
+for HFA. Inside an included section null means no limit on that dimension. One
+scope is reserved: "All data", id `all-data`, with every section included and
+nothing limited; it is seeded by migration 204 and can be neither edited nor
+deleted. A product carries exactly one scope, `products.scope_id`, named when
+the product is created and changed in product settings through `setProductScope`
+(product `edit` access). The entity, its routes and the screens that pick one
+are S12's ("Scopes"). Packages stay scope-blind: instance-level, immutable, no
+product FKs; one full package serving many products renders as each product's
+own view. A scope is independent of packages. The definition is applied at the
+run read layer as a predicate on the DuckDB view each query runs against
+(SYSTEM_09 "The scoped view").
 
-**Every part filters, where it applies.** A dimension filters a results object
-only when the object has a column for it (the default principle, SYSTEM_09 "The
-scoped view"): geography needs an admin column, the year range a physical time
-column, the HFA time points `time_point`, and each indicator list its own
-indicator column. A results object with no such column is served whole, as long
-as its module is in the module list, which is the only part that removes a whole
-table. The authoring context a product reads is cut by the module list alone
-(S9).
+**The family picks the section, and every part of it filters where it applies.**
+A results object is read under the section of the family its module declares. An
+excluded section, or a module outside the section's module list, empties the
+object: those are the only two ways a whole table is removed. Within an included
+section, a dimension filters a results object only when the object has a column
+for it (the default principle, SYSTEM_09 "The scoped view"): geography needs an
+admin column, the year range a physical time column, the time points
+`time_point`, and the indicator list the family's indicator column. A results
+object with no such column is served whole. The authoring context a product
+reads drops each module whose section is excluded or which is outside its
+section's module list, and nothing else (S9).
 
 **Scope access.** The scope is a security boundary for data values (PLAN_SCOPES
 R5 to R7, replacing PLAN_PRODUCTS_RESTRUCTURE D7's "any approved user reads any
 package at any scope"). An unrestricted user reads any ready package under any
-scope or as the whole package (`scopeId: null`). A restricted user (S15 "Scope
-access") reads only through a scope they hold: `getReadyRunReadContext` and the
-authoring context's manifest lens take the caller's `ScopeAccess`, answer an
-unknown scope id with `SCOPE_NOT_FOUND` (404) first, and then refuse the whole
-package and every scope not held with `SCOPE_NOT_GRANTED` (403). Package
-metadata (which periods, modules and indicators exist) is not restricted (R5).
-Package internals (scripts, logs, raw downloads) stay reachable under the
+scope, "All data" included. A restricted user (S15 "Scope access") reads only
+through a scope they hold: `getReadyRunReadContext` and the authoring context's
+manifest lens take the caller's `ScopeAccess`, answer an unknown scope id with
+`SCOPE_NOT_FOUND` (404) first, and then refuse every scope not held with
+`SCOPE_NOT_GRANTED` (403). "All data" is granted like any other scope, and a
+restricted user who holds it reads unfiltered data through it; there is no null
+scope, so a lost scope id is a validation failure and never a wider read.
+Package metadata (which periods, modules and indicators exist) is not restricted
+(R5). Package internals (scripts, logs, raw downloads) stay reachable under the
 instance data bits and show the package as-is; a restricted user never holds
 those bits (R26).
 

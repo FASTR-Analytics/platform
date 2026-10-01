@@ -1,12 +1,12 @@
 import { join } from "@std/path";
 import type { Sql } from "postgres";
 import {
+  ALL_DATA_DEFINITION_HASH,
+  ALL_DATA_SCOPE_DEFINITION,
   type RunFacilitiesTable,
   type RunManifestDataset,
   type RunMetric,
   type RunModule,
-  UNCONSTRAINED_SCOPE_DEFINITION,
-  WHOLE_PACKAGE_DEFINITION_HASH,
 } from "lib";
 import { RUN_FACILITY_COLUMN_NAMES } from "../server/runs/capture_inputs/hmis.ts";
 import {
@@ -180,8 +180,8 @@ export async function buildFixturePackage(
     runId,
     runDir,
     manifest,
-    scope: UNCONSTRAINED_SCOPE_DEFINITION,
-    scopeToken: WHOLE_PACKAGE_DEFINITION_HASH,
+    scope: ALL_DATA_SCOPE_DEFINITION,
+    scopeToken: ALL_DATA_DEFINITION_HASH,
   };
 }
 

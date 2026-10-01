@@ -15,7 +15,7 @@
 //   deno test -A --env-file server/tests/report_format_conversion_test.ts
 
 import { assert, assertEquals } from "@std/assert";
-import { UNCONSTRAINED_SCOPE_DEFINITION } from "lib";
+import { ALL_DATA_SCOPE_DEFINITION } from "lib";
 import { migrateReports } from "../db/migrations/data_transforms/reports.ts";
 
 type StubRow = Record<string, unknown>;
@@ -29,7 +29,7 @@ function reportRow(id: string, config: string | null, body = "# R\n"): StubRow {
     figures: "{}",
     images: "{}",
     run_id: "run1",
-    scope_definition: JSON.stringify(UNCONSTRAINED_SCOPE_DEFINITION),
+    scope_definition: JSON.stringify(ALL_DATA_SCOPE_DEFINITION),
   };
 }
 

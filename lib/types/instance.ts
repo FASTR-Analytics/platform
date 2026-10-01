@@ -289,13 +289,8 @@ export type ScopeAccess = { all: true } | { all: false; scopeIds: string[] };
 
 export const ALL_SCOPES: ScopeAccess = { all: true };
 
-// A null scope id is the whole package, which only an unrestricted user may
-// read.
-export function canUseScope(
-  access: ScopeAccess,
-  scopeId: string | null,
-): boolean {
-  return access.all || (scopeId !== null && access.scopeIds.includes(scopeId));
+export function canUseScope(access: ScopeAccess, scopeId: string): boolean {
+  return access.all || access.scopeIds.includes(scopeId);
 }
 
 export function scopeAccessEqual(a: ScopeAccess, b: ScopeAccess): boolean {

@@ -5,38 +5,56 @@ import {
   buildSystemPrompt,
   type InstanceState,
   MAX_CONTENT_BLOCKS,
+  MODULE_FAMILY_ORDER,
   type PackageScope,
   type RunAuthoringContext,
   type Scope,
+  type ScopeDefinition,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
 import { SPA_INFO_TOPICS } from "./client_info_topics";
 
-// What the scope limits, in words the model can act on: a figure it authors
-// reads only rows inside these limits, so a filter outside them returns
-// nothing.
-function scopeLines(scope: Scope | undefined): string[] {
-  if (scope === undefined) return ["**Scope:** whole package"];
-  const d = scope.definition;
-  const list = (values: string[]) =>
-    values.length === 0 ? "none" : values.join(", ");
+const FAMILY_NAMES = { hmis: "HMIS", hfa: "HFA", iceh: "ICEH" } as const;
+
+// One family's section of the scope: excluded, unlimited, or its limits.
+function familyLine(
+  family: keyof ScopeDefinition,
+  definition: ScopeDefinition,
+): string {
+  const section = definition[family];
+  const name = FAMILY_NAMES[family];
+  if (!section.include) {
+    return `- ${name}: excluded. Every ${name} table reads as empty and no ${name} module or metric is offered.`;
+  }
   const limits = [
-    d.geography && `admin area 2 "${d.geography.adminArea2}"`,
-    d.time.years && `years ${d.time.years.start} to ${d.time.years.end}`,
-    d.time.hfaTimePoints && `HFA time points ${list(d.time.hfaTimePoints)}`,
-    d.modules && `modules ${list(d.modules)}`,
-    d.indicators.hmis && `HMIS indicators ${list(d.indicators.hmis)}`,
-    d.indicators.hfa && `HFA indicators ${list(d.indicators.hfa)}`,
-    d.indicators.iceh && `ICEH indicators ${list(d.indicators.iceh)}`,
+    "adminArea2" in section && section.adminArea2 !== null &&
+    `admin area 2 "${section.adminArea2}"`,
+    "years" in section && section.years !== null &&
+    `years ${section.years.start} to ${section.years.end}`,
+    "timePoints" in section && section.timePoints !== null &&
+    `time points ${section.timePoints.join(", ")}`,
+    section.modules !== null && `modules ${section.modules.join(", ")}`,
+    section.indicators !== null &&
+    `indicators ${section.indicators.join(", ")}`,
   ].filter((limit) => typeof limit === "string");
+  return limits.length === 0
+    ? `- ${name}: included, no limits.`
+    : `- ${name}: included, limited to ${limits.join("; ")}.`;
+}
+
+// What the scope limits, family by family, in words the model can act on: a
+// figure it authors reads only rows inside these limits, so a filter outside
+// them returns nothing.
+function scopeLines(scope: Scope | undefined): string[] {
+  if (scope === undefined) return ["**Scope:** not listed"];
   return [
     `**Scope:** ${scope.label}`,
-    limits.length === 0
-      ? "This scope limits nothing: every read returns the whole package."
-      : `Every read returns only the rows inside this scope: ${
-        limits.join("; ")
-      }. A limit applies to a table only when the table has a column for it; a table without one is returned whole.`,
+    "Every read returns only the rows inside this scope. Each dataset family has its own limits:",
+    ...MODULE_FAMILY_ORDER.map((family) =>
+      familyLine(family, scope.definition)
+    ),
+    "A limit applies to a table only when the table has a column for it; a table without one is returned whole, unless its module is outside its family's module list.",
   ];
 }
 

@@ -135,7 +135,8 @@ export const figureBundleSchema = z.strictObject({
   // are compared against the container's package and its scope's current hash
   // for staleness (client/src/generate_visualization/figure_staleness.ts), so
   // editing a scope marks every figure resolved under it stale. `adminArea2`
-  // is the definition's area, kept because getRollupRowLabel renders the
+  // is the area the definition holds the figure's own family to (null for
+  // ICEH, which has no geography), kept because getRollupRowLabel renders the
   // roll-up row label from the frozen bundle. They live here and not in
   // `config` so they stay out of the fetch hash (SYSTEM_09).
   scope: z.strictObject({

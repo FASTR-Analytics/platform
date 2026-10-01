@@ -95,7 +95,7 @@ export async function resolveFigureBundleFromMetric(
     geo,
     localization: getSnapshotInstanceLocalization(),
     metricId,
-    scope: figureScopeStamp(scope, itemsHolder.scopeToken),
+    scope: figureScopeStamp(scope, itemsHolder.scopeToken, datasetFamily),
     snapshotAt: new Date().toISOString(),
     provenance: { runId: scope.runId },
   };

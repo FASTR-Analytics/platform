@@ -64,31 +64,48 @@ is S9 "The scoped view"). It is not a tab: a "Scopes" button on the Results page
 view through `openShellEditor`. The button is shown only when
 `instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
 routes enforce with `requireAdmin`. `ScopesPage` (`scopes.tsx`) is a `Table`
-over `instanceState.scopes` with one row per scope: label, area, time limits,
-data limits and the number of products that carry it, counted from
-`instanceState.products`. A row opens `ScopeEditor` (`scope_editor.tsx`) in a
-modal; "New scope" opens it empty.
+over `instanceState.scopes` with one row per scope, "All data" included: the
+label, one column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or
+the section's limits in a few words, and the number of products that carry it,
+counted in one pass over `instanceState.products`. A row opens `ScopeEditor`
+(`scope_editor.tsx`) in a modal; "New scope" opens it with every family included
+and nothing limited. The reserved "All data" row opens `AllDataScopeView`
+instead: a read-only statement of what the scope is, with no Save and no Delete,
+since the routes refuse both (S12).
 
-The editor holds one control per dimension. Geography is `AreaPicker`
-(`area_picker.tsx`: every area, or one admin area 2 from `listAdminArea2s`).
-Years are a checkbox and two four-digit inputs. HFA time points, modules and the
-three indicator lists are each a checkbox ("Limit ...") over a
+The editor has the label above three tabs, HMIS, HFA and ICEH, one per section
+of the definition. Each tab opens with an "Include" checkbox (the component
+library has no switch); with it off the section is stored as `include: false`
+and the tab says the scope shows none of that family's data. With it on the tab
+shows that family's own dimensions: `AreaPicker` for HMIS and HFA
+(`area_picker.tsx`: every area, or one admin area 2 of that family's registry,
+`listAdminArea2s({ family })`); a "Limit years" checkbox and two four-digit
+inputs for HMIS and ICEH; a time-point list for HFA; and that family's module
+list and indicator list. Each list is a checkbox ("Limit ...") over a
 `MultiSelectSearch`: unchecked stores null (no limit), checked stores the list.
-Save refuses an empty label, a single-area choice with no area, years that are
-not four digits or are out of order, and a checked limit with nothing selected
-(an empty list matches no data). `scopeDefinitionSchema` holds years to four
+Save refuses an empty label and, in any included section, a single-area choice
+with no area, years that are not four digits or are out of order, and a checked
+limit with nothing selected (the schema refuses an empty list: leaving the
+family out is how a scope shows none of it). The refusal names the family, since
+its tab may not be the open one. `scopeDefinitionSchema` holds years to four
 digits as well, because the view predicate's year conversion reads a value's
 format off its digit count.
 
-Where the options come from: areas from the structure (`listAdminArea2s`); HFA
-time points from `instanceState.hfaTimePoints` (the `time_point` column holds
-the label); modules and the three indicator lists from the authoring context of
-the pinned package, or the first ready package when nothing is pinned, read as
-the whole package. A scope is independent of packages, so that list is an aid
-and not a constraint: with no ready package the lists are empty. A stored value
-the offered options lack (an orphaned area, a module the offered package does
-not hold) is shown as an annotated option and kept on save. The option lists are
-computed once per open editor, since a list that changed under the control would
+The editor is one snapshot of the scope it opened: each list is copied out of
+the T1 store row, so a `scopes_updated` that arrives while it is open changes
+nothing in it, and the last save wins.
+
+Where the options come from: each family's areas from its own structure registry
+(`listAdminArea2s`); HFA time points from `instanceState.hfaTimePoints` (the
+`time_point` column holds the label); each family's modules and indicators from
+the authoring context of the pinned package, or the first ready package when
+nothing is pinned, read under "All data" (modules by their declared family). A
+scope is independent of packages, so that list is an aid and not a constraint:
+with no ready package the lists are empty, and when the read fails the editor
+says so and still shows every control with empty lists. A stored value the
+offered options lack (an orphaned area, a module the offered package does not
+hold) is shown as an annotated option and kept on save. The option lists are
+computed once per open tab, since a list that changed under the control would
 reset it.
 
 Delete is offered on an existing scope and disabled while a product carries it
@@ -120,7 +137,9 @@ admin's row, because the rename moves the flag to the new address (the fleet's
 status-key call has no caller and is trusted). The user editor's Scopes card
 (`components/users/user_scopes.tsx`) is shown to global admins and hidden for a
 global admin's row: an "All scopes" checkbox over a multi-select of the
-instance's scopes. `setUserScopeAccess` (`POST /user/scope-access`,
+instance's scopes, "All data" among them. A restricted user granted "All data"
+reads unfiltered data through it and still has no Explore, no `/mcp` and no
+Results or Data page. `setUserScopeAccess` (`POST /user/scope-access`,
 `requireAdmin`) refuses a global admin and an unknown scope id, replaces the
 flag and the grants in one transaction (an unrestricted user keeps no grants),
 re-broadcasts the roster and closes the user's collab sockets. Every route that

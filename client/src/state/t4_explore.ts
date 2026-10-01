@@ -1,11 +1,16 @@
-import { type DatasetType, type GridQuery, MODULE_FAMILY_ORDER } from "lib";
+import {
+  ALL_DATA_SCOPE_ID,
+  type DatasetType,
+  type GridQuery,
+  MODULE_FAMILY_ORDER,
+} from "lib";
 import { createSignal } from "solid-js";
 
 // The Explore page's selections, module level so they outlive the page's
 // mount. Each is resolved against the current package on every read, so a
 // choice the package cannot answer falls back without being overwritten.
 // The family, the module per family and the view per module persist in
-// localStorage; the package, the area and the query controls last the
+// localStorage; the package, the scope and the query controls last the
 // session, since a stored package id could outlive its package.
 
 function readStored<T extends string>(key: string): Record<string, T> {
@@ -58,9 +63,9 @@ export const [explorePackageId, setExplorePackageId] = createSignal<
   string | null
 >(null);
 
-export const [exploreScopeId, setExploreScopeId] = createSignal<
-  string | null
->(null);
+export const [exploreScopeId, setExploreScopeId] = createSignal(
+  ALL_DATA_SCOPE_ID,
+);
 
 type QueriesByFamily = Partial<Record<DatasetType, GridQuery>>;
 export const [exploreQueries, setExploreQueriesInternal] = createSignal<

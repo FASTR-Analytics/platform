@@ -10,6 +10,7 @@ import {
   periodChoicesFor,
   resolveGridQuery,
   type RunAuthoringContext,
+  scopeAreaForFamily,
 } from "lib";
 import {
   FigureHolder,
@@ -55,7 +56,7 @@ export function Timeseries(p: {
   const intent = (): GridQuery =>
     p.query ?? defaultGridQuery(
       p.family,
-      resolveScope(p.scope).adminArea2,
+      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
       p.ctx,
       NO_TIME_VALUES,
     );
@@ -63,7 +64,7 @@ export function Timeseries(p: {
     resolveGridQuery(
       intent(),
       "time",
-      resolveScope(p.scope).adminArea2,
+      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
       p.ctx,
       NO_TIME_VALUES,
     )

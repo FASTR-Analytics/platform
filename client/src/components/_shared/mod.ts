@@ -25,7 +25,6 @@ export {
   packageLabel,
   packageScopeCaption,
   scopeLabel,
-  wholePackageLabel,
 } from "./package_label.ts";
 export { PresenceAvatars } from "./presence_avatars.tsx";
 export { ScopeSelect, scopeSelectLabel } from "./scope_select.tsx";

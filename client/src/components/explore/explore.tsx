@@ -1,4 +1,5 @@
 import {
+  ALL_DATA_SCOPE_ID,
   compareModules,
   type DatasetType,
   getModuleFamilyLabel,
@@ -10,7 +11,6 @@ import {
   type RunAuthoringContext,
   t3,
   TC,
-  WHOLE_PACKAGE_DEFINITION_HASH,
 } from "lib";
 import {
   createQuery,
@@ -105,16 +105,13 @@ export function Explore() {
     )[0]
       ?.id;
   });
-  // Explore always reads through a named scope. It falls back to an
-  // unconstrained one, else the first, whenever the chosen one is gone.
-  const scopeId = createMemo((): string | undefined => {
-    const scopes = instanceState.scopes;
+  // Explore reads through "All data" until a scope is chosen, and again
+  // whenever the chosen one is gone.
+  const scopeId = createMemo((): string => {
     const chosen = exploreScopeId();
-    if (chosen !== null && scopes.some((s) => s.id === chosen)) return chosen;
-    return (
-      scopes.find((s) => s.definitionHash === WHOLE_PACKAGE_DEFINITION_HASH) ??
-        scopes.at(0)
-    )?.id;
+    return instanceState.scopes.some((s) => s.id === chosen)
+      ? chosen
+      : ALL_DATA_SCOPE_ID;
   });
   return (
     <Show
@@ -134,45 +131,27 @@ export function Explore() {
       }
     >
       {(runId) => (
-        <Show
-          when={scopeId()}
-          fallback={
-            <div class="ui-pad text-base-content-muted text-sm">
-              {t3({
-                en:
-                  "No scope exists yet. A global admin creates one from the Results page.",
-                fr:
-                  "Aucune portée n'existe encore. Un administrateur global en crée une depuis la page Résultats.",
-                pt:
-                  "Ainda não existe nenhum âmbito. Um administrador global cria um a partir da página Resultados.",
-              })}
+        <PackageExplorer
+          scope={{ runId, scopeId: scopeId() }}
+          controls={
+            <div class="ui-gap-sm flex items-center">
+              <Select
+                value={runId}
+                options={instanceState.readyPackages.map((pkg) => ({
+                  value: pkg.id,
+                  label: pkg.label,
+                }))}
+                onChange={setExplorePackageId}
+                size="sm"
+              />
+              <ScopeSelect
+                scopeId={scopeId()}
+                onChange={setExploreScopeId}
+                size="sm"
+              />
             </div>
           }
-        >
-          {(chosenScopeId) => (
-            <PackageExplorer
-              scope={{ runId, scopeId: chosenScopeId() }}
-              controls={
-                <div class="ui-gap-sm flex items-center">
-                  <Select
-                    value={runId}
-                    options={instanceState.readyPackages.map((pkg) => ({
-                      value: pkg.id,
-                      label: pkg.label,
-                    }))}
-                    onChange={setExplorePackageId}
-                    size="sm"
-                  />
-                  <ScopeSelect
-                    scopeId={chosenScopeId()}
-                    onChange={setExploreScopeId}
-                    size="sm"
-                  />
-                </div>
-              }
-            />
-          )}
-        </Show>
+        />
       )}
     </Show>
   );
