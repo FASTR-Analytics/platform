@@ -21,7 +21,6 @@ import {
   getEditorWrapper,
   getQueryStateFromApiResponse,
   HeadingBar,
-  Input,
   type ListItem,
   openComponent,
   saveAs,
@@ -67,6 +66,8 @@ export function HfaIndicatorsManager(p: Props) {
   // because nothing renders from it: Table reads it once on mount.
   let indicatorsScrollTop = 0;
 
+  // Hoisted for the same reason: the Table would lose a search text it held
+  // itself on every remount.
   const [searchText, setSearchText] = createSignal("");
 
   const [indicators, setIndicators] = createSignal<StateHolder<HfaIndicator[]>>(
@@ -807,28 +808,23 @@ export function HfaIndicatorsManager(p: Props) {
     return map;
   });
 
-  const filteredIndicators = createMemo<HfaIndicator[]>(() => {
-    const st = indicators();
-    if (st.status !== "ready") return [];
-    const q = searchText().trim().toLowerCase();
-    if (!q) return st.data;
+  // The table's search text. The indicator id has no column, and the category
+  // columns hold ids whose labels are resolved here.
+  const indicatorSearchText = (ind: HfaIndicator): string => {
     const catLabels = categoryLabelById();
     const subCatLabels = subCategoryLabelById();
     const svcLabels = serviceCategoryLabelById();
-    return st.data.filter((ind) => {
-      const haystack = [
-        ind.indicatorId,
-        ind.shortLabel,
-        ind.definition,
-        ind.categoryId ? (catLabels.get(ind.categoryId) ?? ind.categoryId) : "",
-        ind.subCategoryId
-          ? (subCatLabels.get(ind.subCategoryId) ?? ind.subCategoryId)
-          : "",
-        ...ind.serviceCategoryIds.map((id) => svcLabels.get(id) ?? id),
-      ];
-      return haystack.some((v) => v.toLowerCase().includes(q));
-    });
-  });
+    return [
+      ind.indicatorId,
+      ind.shortLabel,
+      ind.definition,
+      ind.categoryId ? (catLabels.get(ind.categoryId) ?? ind.categoryId) : "",
+      ind.subCategoryId
+        ? (subCatLabels.get(ind.subCategoryId) ?? ind.subCategoryId)
+        : "",
+      ...ind.serviceCategoryIds.map((id) => svcLabels.get(id) ?? id),
+    ].join(" ");
+  };
 
   const columns: TableColumn<HfaIndicator>[] = [
     {
@@ -1085,120 +1081,6 @@ export function HfaIndicatorsManager(p: Props) {
               <StateHolderWrapper state={indicators()}>
                 {(keyedIndicators) => (
                   <div class="flex h-full flex-col">
-                    <div class="ui-gap-sm flex flex-none items-center pb-4">
-                      <div class="flex-1 truncate">
-                        {searchText().trim()
-                          ? t3({
-                            en:
-                              `${filteredIndicators().length} of ${keyedIndicators.length}`,
-                            fr:
-                              `${filteredIndicators().length} sur ${keyedIndicators.length}`,
-                            pt:
-                              `${filteredIndicators().length} de ${keyedIndicators.length}`,
-                          })
-                          : t3({
-                            en: `${keyedIndicators.length} indicators`,
-                            fr: `${keyedIndicators.length} indicateurs`,
-                            pt: `${keyedIndicators.length} indicadores`,
-                          })}
-                      </div>
-                      <div class="w-72 flex-none">
-                        <Input
-                          value={searchText()}
-                          onChange={setSearchText}
-                          label={t3({
-                            en: "Search",
-                            fr: "Recherche",
-                            pt: "Pesquisar",
-                          })}
-                          placeholder={t3({
-                            en: "Search indicators...",
-                            fr: "Rechercher des indicateurs...",
-                            pt: "Pesquisar indicadores...",
-                          })}
-                          searchIcon
-                          clearable
-                          fullWidth
-                        />
-                      </div>
-                      <Show when={instanceState.currentUserIsGlobalAdmin}>
-                        <div
-                          class="ui-gap-sm flex items-center"
-                          title={hfaDataAvailable() ? "" : noHfaDataMsg()}
-                        >
-                          <Button
-                            iconName="refresh"
-                            onClick={handleRevalidateAll}
-                            loading={revalidating()}
-                            disabled={!hfaDataAvailable()}
-                            outline
-                          >
-                            {t3({
-                              en: "Revalidate all",
-                              fr: "Revalider tout",
-                              pt: "Revalidar tudo",
-                            })}
-                          </Button>
-                          <Button
-                            iconName="search"
-                            onClick={handleCheckUnusedVariables}
-                            disabled={!hfaDataAvailable()}
-                            outline
-                          >
-                            {t3({
-                              en: "Check unused variables",
-                              fr: "Vérifier les variables inutilisées",
-                              pt: "Verificar variáveis não utilizadas",
-                            })}
-                          </Button>
-                          <Button
-                            iconName="download"
-                            onClick={handleDownloadXlsx}
-                            disabled={!hfaDataAvailable()}
-                            outline
-                          >
-                            {t3({
-                              en: "Download Excel",
-                              fr: "Télécharger Excel",
-                              pt: "Transferir Excel",
-                            })}
-                          </Button>
-                          <Button
-                            iconName="upload"
-                            onClick={() =>
-                              handleWorkbookImport({ kind: "pick" })}
-                            disabled={!hfaDataAvailable()}
-                            outline
-                          >
-                            {t3({
-                              en: "Import Excel",
-                              fr: "Importer Excel",
-                              pt: "Importar Excel",
-                            })}
-                          </Button>
-                          <Button
-                            iconName="import"
-                            onClick={() =>
-                              handleWorkbookImport({ kind: "default" })}
-                            disabled={!hfaDataAvailable()}
-                            outline
-                          >
-                            {t3({
-                              en: "Import default indicators",
-                              fr: "Importer les indicateurs par défaut",
-                              pt: "Importar indicadores predefinidos",
-                            })}
-                          </Button>
-                        </div>
-                        <Button
-                          iconName="plus"
-                          intent="primary"
-                          onClick={handleCreate}
-                        >
-                          {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
-                        </Button>
-                      </Show>
-                    </div>
                     <Show when={!hfaDataAvailable()}>
                       <div class="bg-warning-subtle text-warning-subtle-content mb-4 flex-none rounded px-3 py-2 text-sm">
                         {noHfaDataMsg()}
@@ -1206,22 +1088,15 @@ export function HfaIndicatorsManager(p: Props) {
                     </Show>
                     <div class="h-0 w-full flex-1">
                       <Table
-                        data={filteredIndicators()}
+                        data={keyedIndicators}
                         columns={allColumns()}
                         keyField="indicatorId"
                         defaultSort={{ key: "definition", direction: "asc" }}
-                        noRowsMessage={searchText().trim()
-                          ? t3({
-                            en: "No indicators match your search",
-                            fr:
-                              "Aucun indicateur ne correspond à votre recherche",
-                            pt: "Nenhum indicador corresponde à sua pesquisa",
-                          })
-                          : t3({
-                            en: "No HFA indicators configured",
-                            fr: "Aucun indicateur HFA configuré",
-                            pt: "Nenhum indicador HFA configurado",
-                          })}
+                        noRowsMessage={t3({
+                          en: "No HFA indicators configured",
+                          fr: "Aucun indicateur HFA configuré",
+                          pt: "Nenhum indicador HFA configurado",
+                        })}
                         bulkActions={bulkActions()}
                         itemLabel={{
                           one: t3({
@@ -1234,6 +1109,101 @@ export function HfaIndicatorsManager(p: Props) {
                             fr: "indicateurs",
                             pt: "indicadores",
                           }),
+                        }}
+                        searchValue={indicatorSearchText}
+                        searchText={searchText()}
+                        setSearchText={setSearchText}
+                        toolbar={{
+                          search: {
+                            placeholder: t3({
+                              en: "Search indicators...",
+                              fr: "Rechercher des indicateurs...",
+                              pt: "Pesquisar indicadores...",
+                            }),
+                          },
+                          children: (
+                            <Show when={instanceState.currentUserIsGlobalAdmin}>
+                              <div
+                                class="ui-gap-sm flex items-center"
+                                title={hfaDataAvailable() ? "" : noHfaDataMsg()}
+                              >
+                                <Button
+                                  iconName="refresh"
+                                  onClick={handleRevalidateAll}
+                                  loading={revalidating()}
+                                  disabled={!hfaDataAvailable()}
+                                  outline
+                                >
+                                  {t3({
+                                    en: "Revalidate all",
+                                    fr: "Revalider tout",
+                                    pt: "Revalidar tudo",
+                                  })}
+                                </Button>
+                                <Button
+                                  iconName="search"
+                                  onClick={handleCheckUnusedVariables}
+                                  disabled={!hfaDataAvailable()}
+                                  outline
+                                >
+                                  {t3({
+                                    en: "Check unused variables",
+                                    fr: "Vérifier les variables inutilisées",
+                                    pt: "Verificar variáveis não utilizadas",
+                                  })}
+                                </Button>
+                                <Button
+                                  iconName="download"
+                                  onClick={handleDownloadXlsx}
+                                  disabled={!hfaDataAvailable()}
+                                  outline
+                                >
+                                  {t3({
+                                    en: "Download Excel",
+                                    fr: "Télécharger Excel",
+                                    pt: "Transferir Excel",
+                                  })}
+                                </Button>
+                                <Button
+                                  iconName="upload"
+                                  onClick={() =>
+                                    handleWorkbookImport({ kind: "pick" })}
+                                  disabled={!hfaDataAvailable()}
+                                  outline
+                                >
+                                  {t3({
+                                    en: "Import Excel",
+                                    fr: "Importer Excel",
+                                    pt: "Importar Excel",
+                                  })}
+                                </Button>
+                                <Button
+                                  iconName="import"
+                                  onClick={() =>
+                                    handleWorkbookImport({ kind: "default" })}
+                                  disabled={!hfaDataAvailable()}
+                                  outline
+                                >
+                                  {t3({
+                                    en: "Import default indicators",
+                                    fr: "Importer les indicateurs par défaut",
+                                    pt: "Importar indicadores predefinidos",
+                                  })}
+                                </Button>
+                              </div>
+                              <Button
+                                iconName="plus"
+                                intent="primary"
+                                onClick={handleCreate}
+                              >
+                                {t3({
+                                  en: "Add",
+                                  fr: "Ajouter",
+                                  pt: "Adicionar",
+                                })}
+                              </Button>
+                            </Show>
+                          ),
                         }}
                         initialScrollTop={indicatorsScrollTop}
                         onScrollTopChange={(v) => {
