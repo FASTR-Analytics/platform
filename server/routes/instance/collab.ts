@@ -253,6 +253,21 @@ routesCollab.get(
       if (markProductOpened(connectionId, productId)) then();
     }
 
+    async function updatePresenceWhenInGrants(
+      productId: string,
+      view: Parameters<typeof updateConnectionPresence>[1],
+    ): Promise<void> {
+      try {
+        if (
+          (await productInGrants(productId, auth.scopeAccess)) && !socketGone
+        ) {
+          updateConnectionPresence(connectionId, view);
+        }
+      } catch (e) {
+        console.error("[collab] presence grant check failed:", e);
+      }
+    }
+
     // DB-backed room dependencies for one slide of one deck product. The
     // checkpoint re-broadcasts the deck's summary (its card and its detail
     // cache version derive from the row it just wrote) and version capture
@@ -486,11 +501,7 @@ routesCollab.get(
             if (productId === undefined || auth.scopeAccess.all) {
               updateConnectionPresence(connectionId, view);
             } else {
-              void productInGrants(productId, auth.scopeAccess).then((ok) => {
-                if (ok && !socketGone) {
-                  updateConnectionPresence(connectionId, view);
-                }
-              });
+              void updatePresenceWhenInGrants(productId, view);
             }
             break;
           }
