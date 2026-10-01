@@ -9,7 +9,7 @@ in September 2026, plus an Add button in the unused-variables list. Each step
 also moves its catalogue rows to "Already done", so the catalogue stays the
 current list of open HFA work after this plan is deleted.
 
-**Next step:** Do 2
+**Next step:** Review 2
 
 **Branch:** `version2`.
 
@@ -235,3 +235,8 @@ of the step's commits.
 | 1    | Floor, `./run`: not run. A dev instance started from this checkout was already up (server on 8000, client on 3000), and `./run` replaces the machine-global `pg` and `valkey-local` containers under it. Checked instead that the running client serves both changed modules (HTTP 200 from Vite) and the server answers. |
 | 1    | Step 1 built                                                                                                                                                                                                                                                                                                              |
 | 1    | Step 1 reviewed: pass                                                                                                                                                                                                                                                                                                     |
+| 2    | Deviation from the Surface: `SYSTEM_06_ingestion.md` changed by one manifest line. `lint:systems` claims each test file by name, so the new `server/tests/csv_header_preselect_test.ts` fails the typecheck until a manifest lists it (`PROTOCOL_APP_PLANS.md`, "Docs move with the code").                               |
+| 2    | Choice the rulings did not cover: the two core column names are constants beside the helper in `lib/utils.ts` (`HFA_CORE_FACILITY_ID_COLUMN`, `HFA_CORE_WEIGHT_COLUMN`), because `id_fac_txt` is used at three call sites. The helper is `findEncodedCsvHeader`.                                                          |
+| 2    | Choice: in the HFA data wizard the pre-selection runs in `parseIfReady`, the one place the raw headers exist, whenever `facilityIdColumn` is empty. `resetColumnChoices` runs before each parse of a new CSV, so that covers ruling 6's "also after `resetColumnChoices`".                                                |
+| 2    | Floor: `deno task test` has the same 2 failures as step 1 and 508 passes (3 new). `./run` not run, for the reason in step 1; the running client serves the three changed modules.                                                                                                                                         |
+| 2    | Step 2 built                                                                                                                                                                                                                                                                                                              |

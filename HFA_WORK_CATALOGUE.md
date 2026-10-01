@@ -29,13 +29,11 @@ Nothing was run in the app.
 
 Built by [PLAN_HFA_QUICK_FIXES.md](PLAN_HFA_QUICK_FIXES.md).
 
-| Id | Issue                                                                              | Raised by          | State in code                                                                                                                                                         | Fix                                                                                   |
-| -- | ---------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Q3 | Cannot search for a variable when mapping file columns                             | Ashley, 2026-09-11 | The weights, facility and HFA data wizards use a plain `Select`. `SelectSearch` exists and the HMIS CSV wizard uses it                                                | `SelectSearch` on every file-column picker                                            |
-| Q4 | Module settings: "not clear if checking the box is a yes or a no"                  | Ashley, 2026-09-11 | Boolean parameters render as a checkbox labelled "Yes / No" (`client/src/components/results_packages/_shared/module_parameter_inputs.tsx:89`). Shared by every module | A Yes/No select                                                                       |
-| Q5 | Data upload should check that all facility ids are in the facility list            | Tim, 2026-09-29    | The check exists and holds the run in "needs review", but shows a count only, never the ids (`lib/types/dataset_hfa_import.ts:107`)                                   | Show a sample of the missing ids                                                      |
-| Q6 | Facility import: default column picks from the core questionnaire                  | Ashley, 2026-09-11 | No pre-selection in any wizard                                                                                                                                        | Pre-select `id_fac_txt` and `wgt`. Admin and type column names are not yet known (W3) |
-| Q7 | An "add" button to create an indicator from an unused variable (High in the sheet) | Meghan, 2026-09-14 | The unused-variables modal is a read-only list (`client/src/components/data/hfa/indicators/unused_variables_modal.tsx`)                                               | An Add button that opens the new-indicator form with the variable's label filled in   |
+| Id | Issue                                                                              | Raised by          | State in code                                                                                                                                                         | Fix                                                                                 |
+| -- | ---------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Q4 | Module settings: "not clear if checking the box is a yes or a no"                  | Ashley, 2026-09-11 | Boolean parameters render as a checkbox labelled "Yes / No" (`client/src/components/results_packages/_shared/module_parameter_inputs.tsx:89`). Shared by every module | A Yes/No select                                                                     |
+| Q5 | Data upload should check that all facility ids are in the facility list            | Tim, 2026-09-29    | The check exists and holds the run in "needs review", but shows a count only, never the ids (`lib/types/dataset_hfa_import.ts:107`)                                   | Show a sample of the missing ids                                                    |
+| Q7 | An "add" button to create an indicator from an unused variable (High in the sheet) | Meghan, 2026-09-14 | The unused-variables modal is a read-only list (`client/src/components/data/hfa/indicators/unused_variables_modal.tsx`)                                               | An Add button that opens the new-indicator form with the variable's label filled in |
 
 ## Waiting on the HFA team
 
@@ -133,6 +131,11 @@ Verified in code or commits:
   `1da3284a1`).
 - Q2: on the Data page, a round with weights and no data reads "N weights, no
   data yet" instead of "0/0" (2026-10-01, `1da3284a1`).
+- Q3: every file-column picker in the weights, facility and HFA data wizards is
+  a searchable `SelectSearch` (2026-10-01, `6a245e03f`).
+- Q6: the facility id picker pre-selects `id_fac_txt` and the weight picker
+  pre-selects `wgt` when the file has those columns (2026-10-01, `0b5e216cb`).
+  Admin, type and ownership columns wait on W3.
 
 From Tim's emails only, not re-verified:
 
