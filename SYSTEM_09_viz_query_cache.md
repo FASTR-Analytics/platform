@@ -27,7 +27,7 @@ globs:
 > `server_only_funcs_presentation_objects/` take their `QueryContext` from the
 > manifest and their executor from DuckDB over the run's parquet. Caches are
 > run-keyed. The constants in `server/routes/caches/visualizations.ts` are the
-> authority for the live keying (`PO_CACHE_VERSION` is "26"); SYSTEM_03's cache
+> authority for the live keying (`PO_CACHE_VERSION` is "27"); SYSTEM_03's cache
 > catalog restates them. Calendar threads via `QueryContext`, not
 > `getCalendar()` at the call sites.
 
@@ -769,7 +769,7 @@ the version hash on both sides is the constant. That pairing is the `TimCacheC`
 contract; a mismatch silently no-ops the cache. Error envelopes are never stored
 (`shouldStore: false`).
 
-Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "26")
+Two invalidation knobs, one rule each: **`PO_CACHE_VERSION`** (currently "27")
 is folded into the version hash: bump it when a code change alters the _meaning_
 of a cached payload without any data change, and once per manifest transform
 block (full history in the comment block above the constant; "19" is the payload
@@ -827,9 +827,9 @@ exists (see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 
 **Client (IndexedDB, `createReactiveCache`).**
 [t2_figure_data.ts](client/src/state/products/t2_figure_data.ts)
-(`run_metric_info_v2`, `run_po_items_v2`) and
+(`run_metric_info_v3`, `run_po_items_v3`) and
 [t2_replicant_options.ts](client/src/state/products/t2_replicant_options.ts)
-(`run_replicant_options_v2`) are the three reads against the run-keyed mount
+(`run_replicant_options_v3`) are the three reads against the run-keyed mount
 (`getRunResultsValueInfo`, `getRunPresentationObjectItems`,
 `getRunReplicantOptions`; PLAN_PRODUCTS_RESTRUCTURE D7): the caller passes a
 `PackageScope` (`{ runId, scopeId }`) and the pair leads the UNIQUENESS key as
@@ -882,7 +882,7 @@ table's pivot consumes them unchanged; `server/tests/grid_items_test.ts` proves
 the round trip. It is cached in `_GRID_ITEMS_CACHE` (`grid_items`), keyed as
 `po_items`, and purged with the run. On the client, `t2_grid_items.ts`
 (`getGridRowsFromCacheOrFetch`) is the `t2_figure_data` idiom for it:
-`createReactiveCache` (`run_grid_items_v2`) keyed
+`createReactiveCache` (`run_grid_items_v3`) keyed
 `runId | definitionHash | resultsObjectId | hashFetchConfig` with version
 `"immutable"`, on the items queue, storing the encoded payload and handing
 callers the decoded rows.

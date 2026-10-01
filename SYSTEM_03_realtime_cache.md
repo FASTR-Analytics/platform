@@ -307,7 +307,7 @@ self-check. Redis key: `cache:<prefix>:<uniquenessHash>`; stored value:
    scope's id or label. Data never changes under a run, and an edited definition
    hashes to new keys, so no write ever needs to out-version an entry.
 2. **`PO_CACHE_VERSION`** (`server/routes/caches/visualizations.ts`, currently
-   `"26"`, bump history in the adjacent comment) is a manually-bumped semantic
+   `"27"`, bump history in the adjacent comment) is a manually-bumped semantic
    version used as the `versionHash` of all three; bump it when the _generated
    SQL, payload semantics or payload shape_ change so old entries miss without a
    prefix migration.

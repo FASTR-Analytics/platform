@@ -229,8 +229,8 @@ A scope is a row in `scopes` (`id` uuid from `crypto.randomUUID()`, `label`,
 (`lib/types/scope.ts`, strict Zod): `geography` (`{ adminArea2 }` or null),
 `time` (`years` as `{ start, end }` or null, `hfaTimePoints` as a list or null),
 `modules` (a list or null) and `indicators` (`hmis`, `hfa`, `iceh`, each a list
-or null). Null means unconstrained at every level. What a definition filters,
-and that only geography filters today, is S8 "Scope" and S9 "The scoped view".
+or null). Null means unconstrained at every level. What a definition filters is
+S8 "Scope" and S9 "The scoped view".
 
 `scopeDefinitionHash(definition)` is the SHA-256 of the definition's canonical
 form: only the constrained parts (a null is left out at every level, and so is

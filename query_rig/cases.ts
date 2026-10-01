@@ -1384,6 +1384,15 @@ const WHOLE: Record<string, WholeReading> = {
     ],
     rawCount: 4,
   },
+  hfaDated: {
+    fixture: "hfa_dated_rounds",
+    disOpt: "admin_area_2",
+    rows: [
+      { admin_area_2: "A2_north", value: 1 },
+      { admin_area_2: "A2_south", value: 2 },
+    ],
+    rawCount: 2,
+  },
   admin3: {
     fixture: "hmis_admin3_only",
     disOpt: "admin_area_3",
@@ -1497,6 +1506,14 @@ const SCOPE_MATRIX_ROWS: ScopeMatrixRow[] = [
   {
     ...WHOLE.hfa,
     name: "years do not apply: no physical time column, served whole",
+    scope: {
+      ...whole,
+      time: { years: { start: 2024, end: 2024 }, hfaTimePoints: null },
+    },
+  },
+  {
+    ...WHOLE.hfaDated,
+    name: "years do not apply: time_point beside a year column, served whole",
     scope: {
       ...whole,
       time: { years: { start: 2024, end: 2024 }, hfaTimePoints: null },
@@ -1727,6 +1744,15 @@ const SCOPE_DIMENSION_CASES: Case[] = [
     entry: "metricInfo",
     fetchConfig: { ...base(), groupBys: [] },
     expect: { periodBounds: null },
+  },
+  {
+    name: "period bounds: a results object with time_point keeps the stamp",
+    fixture: "hfa_dated_rounds",
+    scope: years(2024, 2024),
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    // The year range does not apply to it (R18), so neither does the clamp.
+    expect: { periodBounds: { min: 2022, max: 2024 } },
   },
   {
     name: "period bounds: geography does not move the stamp",

@@ -27,7 +27,7 @@ the package builder reads from the MAIN database (the per-family structure
 schema rows in `instance_config`).
 
 ```bash
-./validate_queries            # ~15s: container up, 18 packages built, 212 cases
+./validate_queries            # ~15s: container up, 19 packages built, 223 cases
 ```
 
 (once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -43,7 +43,7 @@ typechecks itself before running, since `query_rig/` sits outside
 | `validate_queries`           | container + runs-dir lifecycle, env, invokes the runner                       |
 | `query_rig/mod.ts`           | runner: build packages, loop cases, summarise                                 |
 | `query_rig/cases.ts`         | **the case table**, where you add coverage                                    |
-| `query_rig/fixtures.ts`      | F1–F18                                                                        |
+| `query_rig/fixtures.ts`      | F1–F19                                                                        |
 | `query_rig/build_package.ts` | fixture → structure-schema rows + results package + unscoped `RunReadContext` |
 | `query_rig/harness.ts`       | connections, schema loading, multiset compare                                 |
 
@@ -193,10 +193,11 @@ is the control, not the text):
 | disable buildWhereClause's numeric filter branch                         | both F12 filter cases: `function upper(numeric) does not exist`                                                                                             |
 | drop the PERIOD exclusion from the numeric filter gate                   | month-filter case: derived TEXT month misrouted to `month IN (2)`                                                                                           |
 | `scopePredicateFor` returns no predicate                                 | the 8 scoped cases go red (items, option list, metric info, child column, no children, fail-closed); the 5 paired national readings stay green (2026-10-01) |
-| drop the modules part of `scopePredicateFor`                             | 5 red of 212: the "module is outside the list" row on all five read kinds (2026-10-01)                                                                      |
+| drop the modules part of `scopePredicateFor`                             | 5 red of 223: the "module is outside the list" row on all five read kinds (2026-10-01)                                                                      |
 | drop the geography part                                                  | 28 red: the three geography rows and the combined row on all five read kinds, and the 8 scoped cases above                                                  |
-| `timePredicate` returns nothing for the year range                       | 11 red: the `period_id` and `year` rows on all five read kinds, and the `quarter_id` case                                                                   |
-| `timePredicate` returns nothing for `time_point`                         | 11 red: the time-point row and the empty-list row on all five read kinds, and the INTEGER `time_point` case                                                 |
+| `yearsPredicate` returns nothing                                         | 11 red: the `period_id` and `year` rows on all five read kinds, and the `quarter_id` case                                                                   |
+| drop the `time_point` part                                               | 11 red: the time-point row and the empty-list row on all five read kinds, and the INTEGER `time_point` case                                                 |
+| drop the `time_point` line from `yearsColumnOf`                          | 6 red: the "time_point beside a year column" row on all five read kinds, and its period-bounds case                                                         |
 | drop the indicator parts                                                 | 17 red: the three indicator rows on all five read kinds, and the combined row's items and raw preview                                                       |
 | `scopedPeriodBounds` returns the stamp unclamped                         | 3 red: the clamped bounds, the no-overlap bounds, and the replicant read's relative filter under years                                                      |
 | drop the predicate from the facilities views                             | 1 red: "facilities view: it takes the geography part of the scope"                                                                                          |
@@ -226,6 +227,7 @@ changes. `git checkout` would discard parallel work.
 | `hmis_scope_dims` (F16)      | HMIS, `period_id` over three years, two indicators, no `facility_id`          | the year range, the `hmis` indicator list, the module list, the period-bound clamp; values are powers of two, so every subset of rows has its own sum                   |
 | `hfa_scope_dims` (F17)       | the HFA shape: `time_point`, `hfa_indicator`, no physical time column         | the time-point list, the `hfa` indicator list, and a year range not applying                                                                                            |
 | `iceh_scope_dims` (F18)      | family `iceh`: `iceh_indicator`, physical `year`, no admin column             | the `iceh` indicator list, the year range on a `year` column, and geography not applying                                                                                |
+| `hfa_dated_rounds` (F19)     | the HFA shape with a physical `year` column beside `time_point`               | a year range not applying to a results object with `time_point`, in the predicate and in the period-bound clamp                                                         |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and

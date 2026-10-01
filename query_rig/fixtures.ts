@@ -1227,6 +1227,37 @@ export const F18_ICEH_SCOPE_DIMS: Fixture = {
   firstPeriodOption: "year",
 };
 
+// F19: an HFA results object that carries a physical year column beside
+// time_point. Its rounds are governed by the time-point list alone (R18), so
+// a year range must leave it whole and its period bounds unclamped.
+export const F19_HFA_DATED_ROUNDS: Fixture = {
+  name: "hfa_dated_rounds",
+  family: "hfa",
+  adminDepth: 4,
+  moduleId: "m_scope_hfa_dated",
+  moduleDefinition: {
+    scriptGenerationType: "hfa",
+    dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
+  },
+  resultsObjectId: "cccccccc-1111-2222-3333-444444444444",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: [],
+  roColumns: [
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "year", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    { admin_area_2: "A2_north", time_point: "baseline", year: 2022, value: 1 },
+    { admin_area_2: "A2_south", time_point: "endline", year: 2024, value: 2 },
+  ],
+  indicators: [],
+  hfaSnapshots: HFA_SNAPSHOTS,
+  metric: sumMetric("metric_scope_hfa_dated"),
+  firstPeriodOption: "year",
+};
+
 export const ALL_FIXTURES: Fixture[] = [
   F1_HMIS_MONTHLY,
   F2_HFA_SERVICE_CATS,
@@ -1246,4 +1277,5 @@ export const ALL_FIXTURES: Fixture[] = [
   F16_HMIS_SCOPE_DIMS,
   F17_HFA_SCOPE_DIMS,
   F18_ICEH_SCOPE_DIMS,
+  F19_HFA_DATED_ROUNDS,
 ];

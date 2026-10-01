@@ -252,12 +252,14 @@ reattach is handled live there, D16) and keys the chat beside it on the
 product's (package, scope) pair plus that package's `RunAuthoringContext` under
 that scope (T2, immutable per run id and definition hash; modules outside the
 scope's module list are absent from it, with their metrics and presets): the
-inner `ProductCopilot` remounts when the pair changes, which is what keeps the
-env, the tools and the system prompt fixed for the life of one chat instance.
-The Products page and every other tab have no copilot; the results explorer,
-when it lands, mounts its own with its own tools, the pattern the HFA indicator
-manager already uses. Each mount builds one panther `AIChatProvider` config,
-validated in dev by panther's no-mount construction check: both assistants call
+inner `ProductCopilot` remounts when the pair or its scope's definition changes
+(`createResolvedScope`, `t1_store.ts`, holds the resolved pair steady through
+every other change to the scopes list), which is what keeps the env, the tools
+and the system prompt fixed for the life of one chat instance. The Products page
+and every other tab have no copilot; the results explorer, when it lands, mounts
+its own with its own tools, the pattern the HFA indicator manager already uses.
+Each mount builds one panther `AIChatProvider` config, validated in dev by
+panther's no-mount construction check: both assistants call
 `validateAIChatConfig(config)` under `import.meta.env.DEV` at config assembly
 (HFA
 [ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):

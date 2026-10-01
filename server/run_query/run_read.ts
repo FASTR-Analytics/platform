@@ -104,9 +104,9 @@ export type RunReadContext = {
 // lens (getReadyRunReadContext) takes both halves from the caller, the
 // (runId, scopeId) pair a product carries, and gates on a ready package:
 // every run-keyed figure-data route uses it. The manifest lens
-// (getRunReadContextForRun) takes the run id as the whole package with no
-// ready gate, for the package-internals reads. Everything below the context
-// is shared.
+// (getRunReadContextForRun) has no ready gate: it takes the run id as the
+// whole package for the package-internals reads, and the caller's scope for
+// the authoring context. Everything below the context is shared.
 
 async function buildRunReadContext(
   runId: string,
@@ -794,7 +794,10 @@ export function scopePredicateFor(
   const columnNames = new Set(ro.columns.map((c) => c.name));
   const parts = [
     geographyPredicate(definition, ro, columnNames, manifest),
-    timePredicate(definition, columnNames),
+    yearsPredicate(definition, columnNames),
+    columnNames.has("time_point")
+      ? inListPredicate("time_point", definition.time.hfaTimePoints)
+      : undefined,
     ...INDICATOR_COLUMNS.map(({ list, column }) =>
       columnNames.has(column)
         ? inListPredicate(column, definition.indicators[list])
@@ -897,13 +900,10 @@ function yearsRangeIn(
   };
 }
 
-function timePredicate(
+function yearsPredicate(
   definition: ScopeDefinition,
   columnNames: Set<string>,
 ): string | undefined {
-  if (columnNames.has("time_point")) {
-    return inListPredicate("time_point", definition.time.hfaTimePoints);
-  }
   const column = yearsColumnOf(columnNames);
   if (definition.time.years === null || column === undefined) return undefined;
   const range = yearsRangeIn(definition.time.years, column);

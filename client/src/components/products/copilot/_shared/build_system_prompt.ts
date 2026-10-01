@@ -19,7 +19,8 @@ import { SPA_INFO_TOPICS } from "./client_info_topics";
 function scopeLines(scope: Scope | undefined): string[] {
   if (scope === undefined) return ["**Scope:** whole package"];
   const d = scope.definition;
-  const list = (values: string[]) => values.join(", ");
+  const list = (values: string[]) =>
+    values.length === 0 ? "none" : values.join(", ");
   const limits = [
     d.geography && `admin area 2 "${d.geography.adminArea2}"`,
     d.time.years && `years ${d.time.years.start} to ${d.time.years.end}`,
