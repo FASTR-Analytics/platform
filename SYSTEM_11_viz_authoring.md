@@ -393,28 +393,30 @@ query to `resolveGridQuery` and `deriveGridConfig`. `deriveTimeseriesConfig`
 derives the timeseries view's config from the same query ("Timeseries" above).
 `primaryMetricFor` is the family's primary module's first ready metric by id,
 the one metric the page offers a data table for. `defaultGridQuery` opens at the
-scope's level plus one (a scope with no area: admin area 2; a single-area scope:
-3; the area is `resolveScope(scope).adminArea2`), every indicator, ICEH on its
-first stratifier, and every period ("All"); in Indicators mode HFA and ICEH
-resolve that to their latest time point or year. `resolveGridQuery` maps the
-query onto what the current package and scope can answer on every read and never
-rewrites the caller's state: an unoffered family becomes the first offered, a
-level becomes one the metric's `disaggregationOptions` carry and deeper than the
-scope (`levelOptionsFor`), a stratifier becomes an available one, indicators are
-intersected with the family's dictionary (the dropped ids are returned for the
-page's notice), and time values are intersected with the available ones. Time is
-never a column group: HFA survey rounds and ICEH years are never pooled, so HFA
-and ICEH in Indicators mode resolve to exactly one time point or year (the
-latest chosen, else the latest available), and `deriveGridConfig` returns
-undefined for such a query without one. `deriveGridConfig` takes the primary
-metric's first preset through `deriveConfigFromVizPreset` and replaces `d` whole
-with a table: the unit as `row` (admin levels carry `rollup: true`, position
-top; ICEH's `level` has no roll-up), then the indicator dimension as `col` in
-Indicators mode, or the time dimension as `col` and the indicator dimension as
-`colGroup` in Time mode; filters for the ICEH stratifier, chosen indicators and
-HFA or ICEH time values; HMIS windows as `periodFilter`. `periodChoicesFor`
-lists the period control's choices, offering HFA and ICEH "All" only in Time
-mode. Tested in `server/tests/explore_grid_query_test.ts`.
+scope's level plus one (a scope with no area for the open family: admin area 2;
+one that holds the family to an area: 3; the area is
+`scopeAreaForFamily(resolveScope(scope).areas, family)`, null for ICEH), every
+indicator, ICEH on its first stratifier, and every period ("All"); in Indicators
+mode HFA and ICEH resolve that to their latest time point or year.
+`resolveGridQuery` maps the query onto what the current package and scope can
+answer on every read and never rewrites the caller's state: an unoffered family
+becomes the first offered, a level becomes one the metric's
+`disaggregationOptions` carry and deeper than the scope (`levelOptionsFor`), a
+stratifier becomes an available one, indicators are intersected with the
+family's dictionary (the dropped ids are returned for the page's notice), and
+time values are intersected with the available ones. Time is never a column
+group: HFA survey rounds and ICEH years are never pooled, so HFA and ICEH in
+Indicators mode resolve to exactly one time point or year (the latest chosen,
+else the latest available), and `deriveGridConfig` returns undefined for such a
+query without one. `deriveGridConfig` takes the primary metric's first preset
+through `deriveConfigFromVizPreset` and replaces `d` whole with a table: the
+unit as `row` (admin levels carry `rollup: true`, position top; ICEH's `level`
+has no roll-up), then the indicator dimension as `col` in Indicators mode, or
+the time dimension as `col` and the indicator dimension as `colGroup` in Time
+mode; filters for the ICEH stratifier, chosen indicators and HFA or ICEH time
+values; HMIS windows as `periodFilter`. `periodChoicesFor` lists the period
+control's choices, offering HFA and ICEH "All" only in Time mode. Tested in
+`server/tests/explore_grid_query_test.ts`.
 
 ## Replicant machinery
 

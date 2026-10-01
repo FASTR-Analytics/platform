@@ -86,9 +86,13 @@ the query pipeline the data tools call is **S9**.
    (under the reserved "All data" scope, `scopeId: "all-data"`, on the run-keyed
    instance routes, gate = an approved unrestricted user:
    `resolvePackageContext` refuses a restricted one with a tool failure, even
-   one who holds a grant on "All data") and exposes only the shared tools +
-   `get_overview`: 6 read-only tools, no writes. **Interpretation context rides
-   the grounding and the shared reads, not extra tools**:
+   one who holds a grant on "All data". That check is the only thing keeping
+   such a user off `/mcp`, since the routes serve a holder of "All data", and it
+   runs when a context is built, not on a cached one: a user restricted while
+   holding that grant keeps `/mcp` until their cached context expires, at most
+   30 seconds, reading only data the grant allows) and exposes only the shared
+   tools + `get_overview`: 6 read-only tools, no writes. **Interpretation
+   context rides the grounding and the shared reads, not extra tools**:
    `buildPackageGroundingSections` lists every HMIS indicator of the package
    with its format, direction, thresholds, target and, for a calculated
    indicator, its flattened formula (the manifest's `hmisIndicators`, in
