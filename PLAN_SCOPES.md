@@ -7,6 +7,10 @@ and reads only data inside them. The scope is enforced by building it into the
 DuckDB view every query runs against, in one place, instead of appending filters
 to each query.
 
+**The default principle.** A dimension filters a table only when the table has a
+column for that dimension. A table with no such column is served whole, as long
+as its module is allowed. The full statement is at the top of §2.
+
 **Next step: Do 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N` for steps 1 to 5. The review of step 5
 deletes this file.
@@ -41,10 +45,10 @@ definition**: the three dimensions, each of which may be unconstrained.
 only to unrestricted users. **Definition hash**: the hash of a canonical
 definition, the token in every cache key and figure stamp. **Grant**: a
 `user_scopes` row. **Restricted user**: a user with `all_scopes = false`.
-**Unrestricted user**: everyone else, including every global admin.
-**Unfilterable**: a results object with no column a constrained dimension can be
-applied to. **PackageScope**: the pair `{ runId, scopeId }` a figure read
-resolves under.
+**Unrestricted user**: everyone else, including every global admin. **Applies**:
+a dimension applies to a results object when the object has a column for that
+dimension (the columns are listed at the top of §2). **PackageScope**: the pair
+`{ runId, scopeId }` a figure read resolves under.
 
 "Public", "private" and "published" are not concepts in this app. A scope's
 label is free text and implies nothing.
@@ -93,6 +97,42 @@ label is free text and implies nothing.
 ---
 
 ## 2. The model
+
+### The default principle
+
+**A dimension filters a table only when it applies to that table. Where it does
+not apply, the table is served whole, as long as its module is allowed.**
+
+This is one rule for geography, time and indicators. A dimension applies to a
+results object when the object has a column for it:
+
+| Dimension       | Applies when the results object has                        |
+| --------------- | ---------------------------------------------------------- |
+| Geography       | `admin_area_2`, `admin_area_3` or `admin_area_4`           |
+| Years           | a physical time column (`period_id`, `quarter_id`, `year`) |
+| HFA time points | `time_point`                                               |
+| HMIS indicators | `indicator_common_id`                                      |
+| HFA indicators  | `hfa_indicator`                                            |
+| ICEH indicators | `iceh_indicator`                                           |
+
+What follows from it:
+
+- A national-only table (no admin column below area 1) is served whole under a
+  single-area scope. This is what the app does today.
+- A table with no time column is served whole under a year-limited scope.
+- A table with no indicator column is served whole under an indicator-limited
+  scope.
+- The module list is the only way to remove a whole table. A results object
+  whose module is outside `modules` is empty.
+- `scopePredicateFor` never returns `FALSE` because a column is missing. A new
+  kind of table needs no new rule: it is filtered by the columns it has.
+
+There is exactly one exception, and it is a failure to apply a dimension that
+does apply. A results object that has `admin_area_3` or `admin_area_4` but not
+`admin_area_2` is filtered through the facilities parquet. When that cannot be
+done (no facilities parquet, or the module's family is undeclared), the table is
+empty. Serving it whole would show every district in the country under a
+single-area scope.
 
 ### 2.1 The scope definition
 
@@ -170,24 +210,25 @@ object, and the view becomes
 `CREATE VIEW x AS SELECT * FROM read_parquet(...) WHERE <predicate>`. The query
 builders above the executor are unchanged.
 
-The predicate for a results object is the AND of four parts. A part is absent
-when its dimension is unconstrained.
+The predicate for a results object is the AND of its parts. A part is absent
+when its dimension is unconstrained, and absent when the dimension does not
+apply to the results object (the default principle). "none" in the table means
+that part is absent and filters nothing.
 
-| Dimension  | Results object has                                   | Predicate                                                          |
-| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
-| Geography  | `admin_area_2`                                       | `UPPER(admin_area_2) = UPPER('<aa2>')`                             |
-|            | only `admin_area_3` or `admin_area_4`                | child column `IN` a subquery on the family facilities parquet      |
-|            | a child column but no facilities parquet             | `FALSE`                                                            |
-|            | no admin-area-2-or-lower column                      | `FALSE`                                                            |
-| Years      | a physical time column                               | range on that column, converted with `lib/convert_period_value.ts` |
-|            | `time_point` and no physical time column             | none (governed by `hfaTimePoints`)                                 |
-|            | neither                                              | `FALSE`                                                            |
-| HFA rounds | `time_point`                                         | `time_point IN (...)`                                              |
-|            | no `time_point`                                      | none                                                               |
-| Modules    | a `moduleId` outside the list                        | `FALSE`                                                            |
-| Indicators | one of the three indicator columns, and its list set | that column `IN (...)`                                             |
-|            | one of the three indicator columns, its list not set | none                                                               |
-|            | none of the three columns, and any list set          | `FALSE`                                                            |
+| Dimension  | Results object has                                     | Predicate                                                          |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
+| Modules    | a `moduleId` outside the list                          | `FALSE`                                                            |
+| Geography  | `admin_area_2`                                         | `UPPER(admin_area_2) = UPPER('<aa2>')`                             |
+|            | only `admin_area_3` or `admin_area_4`                  | child column `IN` a subquery on the family facilities parquet      |
+|            | a child column, but no facilities parquet or no family | `FALSE` (the one exception)                                        |
+|            | none of the three admin columns                        | none                                                               |
+| Years      | a physical time column                                 | range on that column, converted with `lib/convert_period_value.ts` |
+|            | no physical time column                                | none                                                               |
+| HFA rounds | `time_point`                                           | `time_point IN (...)`                                              |
+|            | no `time_point`                                        | none                                                               |
+| Indicators | an indicator column whose list is set                  | that column `IN (...)`                                             |
+|            | an indicator column whose list is not set              | none                                                               |
+|            | none of the three indicator columns                    | none                                                               |
 
 The facilities views take the geography part only.
 
@@ -283,8 +324,11 @@ per-query filters. (Tim)
 
 **R7. The data routes enforce grants**, not only product visibility. (Tim)
 
-**R8. An unfilterable results object is empty**, for every scope and every
-dimension. Today's single-area products lose their national tables. (Tim)
+**R8. The default principle: a dimension that does not apply to a table does not
+filter it.** The table is served whole, as long as its module is allowed. The
+rule is the same for geography, time and indicators, and its full statement and
+its one exception are at the top of §2. A user limited to a scope therefore sees
+tables the scope cannot filter, such as national totals. (Tim)
 
 **R9. Geography is national or one admin area 2.** A set of areas is a later
 change. (Tim)
@@ -310,14 +354,15 @@ they do today. (Tim)
 `runs.id` are.
 
 **R17. The indicator list is one list per indicator column**:
-`indicator_common_id`, `hfa_indicator`, `iceh_indicator`. A results object with
-none of the three columns is empty when any list is set.
+`indicator_common_id`, `hfa_indicator`, `iceh_indicator`. A list filters only
+the results objects that have its column. A results object with none of the
+three columns is served whole (R8).
 
 **R18. The time dimension is whole years plus an optional list of HFA time
 points.** Health facility assessment outputs carry `time_point`, a text label
 with no date, so a year range cannot filter them. A results object with
 `time_point` is governed by the time-point list alone. A results object with
-neither kind of time column is empty when `years` is set. (Tim)
+neither kind of time column is served whole (R8). (Tim)
 
 **R19. The predicate is decided by column presence, never by dataset family.**
 The family is undeclarable for modules whose inputs are all upstream results
@@ -385,7 +430,7 @@ not edited.
 | ---- | ---------------------------------------------------- |
 | 1    | The scoped view, geography only, no behaviour change |
 | 2    | The scope entity end to end, geography only          |
-| 3    | Time and data dimensions, and the unfilterable rule  |
+| 3    | Time and data dimensions                             |
 | 4    | The Scopes tab                                       |
 | 5    | Grants and enforcement                               |
 
@@ -401,15 +446,15 @@ SYSTEM_08 and SYSTEM_09 prose.
 exported function producing today's geography behaviour exactly: the direct
 filter, the child-column subquery on the facilities parquet, `FALSE` where
 `computeScopeFilters` returns the sentinel today, and no predicate for a results
-object with no admin column (R8 arrives in step 3). The three injection sites,
-`computeScopeFilters`, `SCOPE_EMPTY_SENTINEL`, the derivation cache with
-`evictRunFromScopeDerivationCache`, the fetch-config restore and the
+object with no admin column (R8, which is today's behaviour). The three
+injection sites, `computeScopeFilters`, `SCOPE_EMPTY_SENTINEL`, the derivation
+cache with `evictRunFromScopeDerivationCache`, the fetch-config restore and the
 `textColumns` hint are deleted. `rowCount` from the manifest is used only when
 the view has no predicate. The wire, the cache keys and `PO_CACHE_VERSION` are
 unchanged.
 
 **Not in this step.** Any change to `adminArea2` on the wire, in
-`RunReadContext` or in the rig's case type. The unfilterable rule.
+`RunReadContext` or in the rig's case type.
 
 **Gates.** `./validate_queries` green with every existing case unchanged. The
 rig's mutation table in PROTOCOL_APP_QUERY_RIG gets the row "`scopePredicateFor`
@@ -491,7 +536,7 @@ respectively.
 **Ends with.** Several commits, each green: schema with migration and
 transforms; server reads and routes with lib; client.
 
-### Step 3: Time and data dimensions, and the unfilterable rule
+### Step 3: Time and data dimensions
 
 **Surface.** `server/run_query/**`;
 `server/server_only_funcs_presentation_objects/**` (period bounds only);
@@ -502,19 +547,22 @@ transforms; server reads and routes with lib; client.
 `client/src/components/products/copilot/**` (the scope line in the prompt);
 `query_rig/**`; `PROTOCOL_APP_QUERY_RIG.md`; SYSTEM_08, 09, 13 prose.
 
-**Deliverable.** `scopePredicateFor` implements the whole table in §2.3,
-including R8 for geography. Values are escaped with `escapeSqlLiteral`. Period
-bounds are clamped per R27 on both stamp readers. `getRunAuthoringContext` takes
-`scopeId` and filters per R28, and its client cache key adds the definition
-hash. `PO_CACHE_VERSION` is bumped, since a results object that was unfiltered
-under an area scope is now empty under the same hash.
+**Deliverable.** `scopePredicateFor` implements the whole table in §2.3. The
+geography rows are unchanged from step 1. Values are escaped with
+`escapeSqlLiteral`. Period bounds are clamped per R27 on both stamp readers.
+`getRunAuthoringContext` takes `scopeId` and filters per R28, and its client
+cache key adds the definition hash. `PO_CACHE_VERSION` is bumped, since step 2
+served a definition holding time or data dimensions without applying them, under
+the same hash.
 
 **Not in this step.** Any UI to author the new dimensions.
 
 **Gates.** `./validate_queries` with new cases for each row of the §2.3 table on
 each read kind (items, possible values, metric info, replicant options, raw
-preview), and a mutation row per dimension in PROTOCOL_APP_QUERY_RIG. A fixture
-with an HFA-shaped results object (`time_point`, `hfa_indicator`) and one with
+preview), and a mutation row per dimension in PROTOCOL_APP_QUERY_RIG. For each
+dimension, a case proves the default principle: a results object the dimension
+does not apply to returns the same rows as a whole-package read. A fixture with
+an HFA-shaped results object (`time_point`, `hfa_indicator`) and one with
 `iceh_indicator`.
 
 **Ends with.** One commit.
@@ -613,6 +661,8 @@ hidden folder and asserts the folder appears. `./validate_migrations`,
 - A scoped projection of package metadata (R5).
 - Scoped copies of packages (R6).
 - Geography as a set of areas (R9).
+- Hiding one table of an allowed module. The module list is the only way to
+  remove a table (R8).
 - Owner, edit and view levels on products and folders. This plan gives
   `productAccessPolicy` its first real rule, and that rebuild adds levels to it.
 - Folder rules for restricted users beyond R23. The ownership plan rules them.
@@ -631,8 +681,7 @@ migrations 204 and 205 never ride the same deploy as 200 to 203. After that it
 ships as one release through `./deploy_testing`, then `./deploy`.
 
 Every existing user stays unrestricted and every existing product keeps its
-data, with one visible change: a product on a single-area scope loses national
-tables (R8).
+data. A product on a single-area scope keeps its national tables (R8).
 
 Rollback is a restore of the main database from the pre-deploy backup plus the
 previous image. Migration 204 drops `products.admin_area_2`, so there is no
