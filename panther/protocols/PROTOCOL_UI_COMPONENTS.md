@@ -64,6 +64,18 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
     inset on one axis, a background that must fill the slot, a scroller a sticky
     header needs, and a padded stack inside a plain parent. The model is
     `DOC_CONTAINER_MODEL.md`.
+12. **A table's search field is the table's**: `toolbar={{ search: true }}` on
+    the `Table`. The one alternative is a `HeadingBar`'s field wired to the
+    table's `searchText` / `setSearchText`, for a page whose whole content is
+    one table and whose only header is that bar. Never an `Input` beside a
+    `Table`, and never a hand-built count or "no results" line: the toolbar
+    shows "5 of 12 users" and the table has its own no-match state.
+13. **A table's search text is declared on the table**: per column
+    (`searchValue`, else `filterValue`, else the field; `searchable: false` to
+    leave a column out), or as a table-level `searchValue` when the rows are
+    searched by text no column shows. Never a memo in front of `data` that
+    filters the rows before the `Table` sees them: it hides the total from the
+    count and loses the "Clear search" state.
 
 ## Do / Don't
 
@@ -130,8 +142,47 @@ const columns: TableColumn<Row>[] = [
 ```
 
 **Why:** `Table` provides sorting, per-column filtering (`filterable` in the
-column config), selection and rendering consistently; bespoke tables re-solve
-those and diverge.
+column config), search, selection with bulk actions, and rendering consistently;
+bespoke tables re-solve those and diverge.
+
+```tsx
+// ❌ DON'T: a search row in front of the table
+const [search, setSearch] = createSignal("");
+const shown = createMemo(() =>
+  rows().filter((r) => r.name.toLowerCase().includes(search().toLowerCase()))
+);
+<div class="w-72">
+  <Input value={search()} onChange={setSearch} searchIcon clearable fullWidth />
+</div>
+<Table
+  columns={columns}
+  data={shown()}
+  keyField="id"
+  noRowsMessage={search() ? t3(NO_MATCH) : t3(NO_ROWS)}
+/>;
+
+// ✅ DO: the table searches its own rows
+<Table
+  columns={columns}
+  data={rows()}
+  keyField="id"
+  itemLabel={{ one: t3(USER), other: t3(USERS) }}
+  toolbar={{ search: true, children: <Button onClick={add}>{t3(ADD)}</Button> }}
+  noRowsMessage={t3(NO_ROWS)}
+/>;
+```
+
+**Why:** the built-in search is accent-insensitive, matches every word of the
+query, keeps the total in the count, and keeps the field in a row that does not
+move when rows are selected. A hand-rolled one re-decides each of those per
+screen.
+
+While rows are selected the toolbar shows the selection sentence and the
+`bulkActions` in place of the count and `toolbar.children`. A screen that wants
+its bulk actions in its `HeadingBar` instead controls selection, passes the
+table no `bulkActions` and no `toolbar`, and renders `SelectionActions` in the
+bar. `itemLabel` (`{ one, other }`) names the rows in the count and the
+sentence.
 
 ### Modals & editors
 
@@ -241,8 +292,8 @@ showMenu({ anchor: rect, items })        // right-click / card context menus onl
   `HeadingBar`, `TabsNavigation`, `getStepper` + `StepperChipsWithTitles`,
   collapsible sections.
 - **Display:** `Badge`, `Card`, `EmptyState`.
-- **Data:** `Table` (sortable/filterable/selectable), `DataGrid`,
-  `PresenceGrid`, `FigureHolder`, `PageHolder`.
+- **Data:** `Table` (sortable/filterable/searchable/selectable, with a toolbar),
+  `SelectionActions`, `DataGrid`, `PresenceGrid`, `FigureHolder`, `PageHolder`.
 - **State/feedback:** `StateHolderWrapper`, `StateHolderFormError`, editor/alert
   helpers, `ModalContainer` (with `actions` / `onCancel`), `MenuButton` /
   `ActionMenuButton`, loading/progress indicators.
@@ -334,6 +385,9 @@ Outline `Button`s placed in a `tonal` bar still declare their surface:
 
 - [ ] No hand-rolled equivalents of panther `Button`/`Input`/`Select`/etc.
 - [ ] Data tables use `Table` with typed `TableColumn<T>[]`
+- [ ] A table's search is `toolbar.search` (or the `HeadingBar` field wired to
+      `searchText`), its search text is declared on the table or its columns,
+      and its rows are named by `itemLabel`
 - [ ] Dialogs use the editor/alert helpers; deletes use `createDeleteAction`
 - [ ] Component sizing uses the `size` prop / `ui-form-*`, not ad-hoc classes
 - [ ] Async data rendered through `StateHolderWrapper`

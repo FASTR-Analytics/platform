@@ -240,11 +240,14 @@ export function AIChatConversationSelector(
           defaultSort={{ key: "lastMessageAt", direction: "desc" }}
           onRowClick={handleSelect}
           bulkActions={bulkActions()}
-          selectionLabel={t3({
-            en: "conversation",
-            fr: "conversation",
-            pt: "conversa",
-          })}
+          itemLabel={{
+            one: t3({ en: "conversation", fr: "conversation", pt: "conversa" }),
+            other: t3({
+              en: "conversations",
+              fr: "conversations",
+              pt: "conversas",
+            }),
+          }}
           selectedKeys={selectedKeys}
           setSelectedKeys={setSelectedKeys}
           paddingX="comfortable"

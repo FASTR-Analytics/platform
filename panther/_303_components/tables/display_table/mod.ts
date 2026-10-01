@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export { Table } from "./table.tsx";
+export { SelectionActions } from "./selection_actions.tsx";
 export type {
   BulkAction,
   FilterConfig,

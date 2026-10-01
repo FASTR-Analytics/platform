@@ -86,6 +86,42 @@ export function filterData<T extends AnyRow>(
   );
 }
 
+export function getColumnSearchValue<T extends AnyRow>(
+  item: T,
+  column: TableColumn<T>,
+): string {
+  return column.searchValue?.(item) ?? getFilterValue(item, column);
+}
+
+// The fold and the matcher (foldString and matchesSearch in _000_utils) are
+// parameters rather than imports: this module's deps.ts loads _301, whose
+// router cannot be evaluated under `deno test`, and these functions' tests are
+// the table search's only check.
+export function buildSearchHaystacks<T extends AnyRow>(
+  data: T[],
+  columns: TableColumn<T>[],
+  rowSearchValue: ((item: T) => string) | undefined,
+  fold: (s: string) => string,
+): string[] {
+  if (rowSearchValue) {
+    return data.map((item) => fold(rowSearchValue(item)));
+  }
+  const searched = columns.filter((column) => column.searchable !== false);
+  return data.map((item) =>
+    fold(searched.map((column) => getColumnSearchValue(item, column)).join(" "))
+  );
+}
+
+export function searchData<T>(
+  data: T[],
+  haystacks: string[],
+  tokens: string[],
+  matches: (foldedHaystack: string, tokens: string[]) => boolean,
+): T[] {
+  if (tokens.length === 0) return data;
+  return data.filter((_, i) => matches(haystacks[i], tokens));
+}
+
 export function getCellAlignment(alignH?: string): string {
   switch (alignH) {
     case "center":

@@ -15,6 +15,7 @@ export {
   getSortedAlphabetical,
   matchesSearch,
   normalizeTo01,
+  plural,
   searchTokens,
   t3,
   to100Pct0,
@@ -25,6 +26,7 @@ export type {
   CalendarType,
   Language,
   PeriodType,
+  PluralForms,
   ZonedDateTime,
 } from "../_000_utils/mod.ts";
 export { Color, runWithDarkKeyColors } from "../_001_color/mod.ts";

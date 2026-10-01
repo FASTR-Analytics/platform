@@ -14,7 +14,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
-import { t3 } from "../../deps.ts";
+import { foldString, matchesSearch, searchTokens, t3 } from "../../deps.ts";
 import { Input } from "../../form_inputs/mod.ts";
 import { CheckMark } from "../../form_inputs/_internal/check_glyphs.tsx";
 import { distinctFilterValues } from "./helpers.ts";
@@ -47,10 +47,15 @@ export function ColumnFilter<T extends AnyRow>(p: ColumnFilterProps<T>) {
     open() ? distinctFilterValues(p.data, p.column) : []
   );
 
+  const foldedOptionLabels = createMemo(() =>
+    options().map((v) => foldString(optionLabel(v)))
+  );
+
   const shown = createMemo(() => {
-    const q = query().trim().toLowerCase();
-    if (!q) return options();
-    return options().filter((v) => optionLabel(v).toLowerCase().includes(q));
+    const tokens = searchTokens(query());
+    if (tokens.length === 0) return options();
+    const haystacks = foldedOptionLabels();
+    return options().filter((_, i) => matchesSearch(haystacks[i], tokens));
   });
 
   const checkedCount = () => options().filter((v) => !p.excluded.has(v)).length;

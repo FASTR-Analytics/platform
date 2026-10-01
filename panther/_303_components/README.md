@@ -196,23 +196,84 @@ filter (`tables/display_table/column_filter.tsx`) does.
 
 ```tsx
 <Table
-  columns={columns}   // TableColumn<T>[]: { key, header, sortable?, filterable? }
+  columns={columns}   // TableColumn<T>[]: { key, header, sortable?, filterable?, searchable?, searchValue? }
   data={data()}
   keyField="id"
+  itemLabel={{ one: t3(USER), other: t3(USERS) }} // PluralForms<string>, default "item" / "items"
   onRowClick={open}
   selectedKeys={selectedKeys}          // controlled selection (optional)
   setSelectedKeys={setSelectedKeys}
   bulkActions={bulkActions}
+  toolbar={{ search: true, children: <Button onClick={add}>Add</Button> }}
 />
 
 <TableFromCsv csv={csvData()} />
 ```
 
 Sorting and per-column value filters via column config (`sortable`,
-`filterable`), controlled multi-select with bulk actions, and an `EmptyState`
-no-rows fallback. A filterable column gets a funnel button in its header that
-lists the column's distinct values as check rows; `defaultFilters` and
-`onFilterChange` persist the unchecked values.
+`filterable`), a built-in search, controlled multi-select with bulk actions, and
+an `EmptyState` no-rows fallback. A filterable column gets a funnel button in
+its header that lists the column's distinct values as check rows;
+`defaultFilters` and `onFilterChange` persist the unchecked values.
+
+**The frame.** The Table's root carries the border and rounding and wraps the
+toolbar row and the scroll box. The scroll box owns the sticky header and takes
+`maxHeight`, or the parent's definite height.
+
+**The toolbar** is a row of fixed height above the scroll box, inside the frame.
+It renders when `toolbar` is passed or `bulkActions` is non-empty. Three
+regions, left to right: a text, the search field (`toolbar.search`, `true` or
+`{ placeholder }`), and a right-aligned button group. The text and the button
+group each have two faces, switched together on whether any row is selected. At
+rest: the count ("12 users", or "5 of 12 users" while a search or a filter hides
+rows; `toolbar.count: false` removes it) and `toolbar.children`. With rows
+selected: the selection sentence ("Selected: 3 users") and the bulk action
+buttons with "Clear selection". The search field stays mounted across the
+switch, and the row's height does not change, so selecting a row does not move
+the rows; the field shifts sideways by the difference in width between the count
+and the sentence. `toolbar.children` are hidden while rows are selected: a
+button that must stay live during a selection belongs among the bulk actions.
+
+**Search.** The query is split on whitespace and every token must appear in the
+row's search text, case- and accent-insensitively (`searchTokens`,
+`matchesSearch` and `foldString` in `_000_utils`). A row's search text is the
+table-level `searchValue(item)` when given; otherwise the text of every column
+not marked `searchable: false`, joined by spaces, where a column's text is its
+`searchValue(item)`, else its `filterValue(item)`, else the field as a string.
+Columns search by default: a text no column shows (an id, a resolved label) goes
+in a table-level `searchValue`. The search text is the Table's own state unless
+`searchText` and `setSearchText` are passed together, which is how a field
+outside the table (a `HeadingBar`'s) drives it. Visible rows are `data` after
+the search and the column filters; sort applies after. Select-all acts on the
+visible rows, and a selected row hidden by the search or a filter stays
+selected. When nothing matches, the Table says so and offers "Clear search",
+which also clears the column filters; `noRowsMessage` is only for empty `data`.
+
+**`itemLabel`** names what a row is, as `PluralForms<string>`. The count and the
+selection sentence pick the form with `plural()`, and the sentence is worded so
+that only the noun inflects.
+
+**`SelectionActions`** is the selection sentence, the bulk action buttons and
+"Clear selection" in one flex row with no border, background or padding, for a
+screen that hosts its bulk actions in a fixed-height row of its own. The screen
+controls selection, passes the Table no `bulkActions` and no `toolbar` (it then
+shows checkboxes and no toolbar row), and swaps its ordinary buttons for the
+actions:
+
+```tsx
+<HeadingBar heading={title}>
+  <Show when={selectedKeys().size > 0} fallback={<Button onClick={add}>Add</Button>}>
+    <SelectionActions
+      items={selectedItems()}
+      actions={bulkActions}
+      itemLabel={itemLabel}
+      onClear={() => setSelectedKeys(new Set())}
+    />
+  </Show>
+</HeadingBar>
+<Table data={rows()} columns={columns} keyField="id"
+  selectedKeys={selectedKeys} setSelectedKeys={setSelectedKeys} />
+```
 
 Two matrix grids draw rows × columns with a sticky row-header column and share
 the grid contract: `GridColumn { id, label, groupId? }`,
@@ -274,18 +335,18 @@ import {
 } from "@timroberton/panther";
 
 function MyApp() {
-  const [value, setValue] = createSignal("");
+  const [name, setName] = createSignal("");
 
   return (
     <FrameLeft pad="md" spy="md" panelChildren={<Sidebar />}>
-      <Input
-        value={value()}
-        onChange={setValue}
-        searchIcon
-        placeholder="Search..."
-      />
+      <Input value={name()} onChange={setName} label="Name" />
       <Card header="Results" pad="none">
-        <Table columns={columns} data={results()} keyField="id" />
+        <Table
+          columns={columns}
+          data={results()}
+          keyField="id"
+          toolbar={{ search: true }}
+        />
       </Card>
     </FrameLeft>
   );

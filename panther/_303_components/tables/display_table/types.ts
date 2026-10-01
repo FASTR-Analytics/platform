@@ -4,6 +4,7 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type { Accessor, JSX } from "solid-js";
+import type { PluralForms } from "../../deps.ts";
 import type {
   StateHolderButtonAction,
   StateHolderFormAction,
@@ -19,6 +20,11 @@ export type TableColumn<T> = {
   sortValue?: (item: T) => unknown;
   filterable?: boolean;
   filterValue?: (item: T) => string;
+  // Every column is searched unless it opts out: were it opt-in, a searched
+  // table with no column marked would empty on the first keystroke.
+  searchable?: boolean;
+  // The column's search text; without it, filterValue, then the field.
+  searchValue?: (item: T) => string;
   render?: (item: T) => JSX.Element;
   width?: string;
   alignH?: "left" | "center" | "right";
@@ -51,6 +57,18 @@ export type TableProps<T, K extends keyof T = keyof T> =
     data: T[];
     columns: TableColumn<T>[];
     keyField: K;
+    // What a row is, for the count and the selection sentence: "user" /
+    // "users". Default "item" / "items".
+    itemLabel?: PluralForms<string>;
+    // A fixed-height row above the rows: the count or the selection sentence,
+    // the search field, then children or the bulk actions, the two faces
+    // switching on whether anything is selected. Also present, without being
+    // asked for, whenever there are bulk actions.
+    toolbar?: {
+      search?: boolean | { placeholder?: string };
+      count?: boolean;
+      children?: JSX.Element;
+    };
     onRowClick?: (item: T) => void;
     noRowsMessage?: string;
     // Caps the scroll box (e.g. "500px", "60vh") in place of the parent's
@@ -61,6 +79,8 @@ export type TableProps<T, K extends keyof T = keyof T> =
     // Initial per-column excluded values, and the callback to persist them.
     defaultFilters?: FilterConfig;
     onFilterChange?: (filters: FilterConfig) => void;
+    // The row's whole search text; when given, the columns are not consulted.
+    searchValue?: (item: T) => string;
     paddingX?: TablePadding;
     paddingY?: TablePadding;
     // Restore the scroll container to this offset on mount, and report it as it
@@ -68,7 +88,13 @@ export type TableProps<T, K extends keyof T = keyof T> =
     initialScrollTop?: number;
     onScrollTopChange?: (scrollTop: number) => void;
   }
-  & TableHeaderForm<T, K>;
+  & TableHeaderForm<T, K>
+  & TableSearchForm;
+
+// Controlled search text; both or neither.
+type TableSearchForm =
+  | { searchText: string; setSearchText: (v: string) => void }
+  | { searchText?: undefined; setSearchText?: undefined };
 
 // Selection needs the header, where its select-all checkbox lives, so the type
 // admits a hidden header only on a table without selection. Sort and filter
@@ -77,7 +103,6 @@ type TableHeaderForm<T, K extends keyof T> =
   | {
     hideHeader?: false;
     bulkActions?: BulkAction<T>[];
-    selectionLabel?: string; // e.g. "user", "row", "item"
     // Controlled selection; both or neither.
     selectedKeys?: Accessor<Set<T[K]>>;
     setSelectedKeys?: (keys: Set<T[K]>) => void;
@@ -85,7 +110,6 @@ type TableHeaderForm<T, K extends keyof T> =
   | {
     hideHeader: true;
     bulkActions?: undefined;
-    selectionLabel?: undefined;
     selectedKeys?: undefined;
     setSelectedKeys?: undefined;
   };

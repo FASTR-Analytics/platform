@@ -12,24 +12,35 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { t3 } from "../../deps.ts";
+import {
+  foldString,
+  matchesSearch,
+  plural,
+  searchTokens,
+  t3,
+} from "../../deps.ts";
 import type {
   AnyRow,
-  BulkAction,
   FilterConfig,
   SortConfig,
   TableColumn,
   TableProps,
 } from "./types.ts";
 import {
+  buildSearchHaystacks,
   filterData,
   getCellAlignment,
   getPaddingClasses,
+  searchData,
   sortData,
 } from "./helpers.ts";
 import { ColumnFilter } from "./column_filter.tsx";
+import {
+  _BulkActionButtons,
+  getSelectionSentence,
+} from "./selection_actions.tsx";
 import { HeaderGlyph } from "./header_glyph.tsx";
-import { Button, Checkbox } from "../../form_inputs/mod.ts";
+import { Button, Checkbox, Input } from "../../form_inputs/mod.ts";
 import { EmptyState } from "../../display/mod.ts";
 
 // Shared by every control in a header cell so they are the same height.
@@ -96,13 +107,51 @@ export function Table<
   const [filters, setFilters] = createSignal<FilterConfig>(
     p.defaultFilters ?? new Map(),
   );
+
+  const [internalSearchText, setInternalSearchText] = createSignal("");
+  const searchText = () => p.searchText ?? internalSearchText();
+  const setSearchText = (v: string) => {
+    if (p.setSearchText) {
+      p.setSearchText(v);
+    } else {
+      setInternalSearchText(v);
+    }
+  };
+  const activeSearchTokens = createMemo(() => searchTokens(searchText()));
+  const isSearching = createMemo(() => activeSearchTokens().length > 0);
+  // Folded once per change of the rows, not per keystroke, and only while a
+  // search is active, so a table that is never searched folds nothing.
+  const searchHaystacks = createMemo(() =>
+    isSearching()
+      ? buildSearchHaystacks(p.data, p.columns, p.searchValue, foldString)
+      : []
+  );
+
+  // The search runs first because its haystacks are parallel to p.data; both
+  // steps keep row order, so the result is the same in either order.
   const visibleRows = createMemo(() =>
-    filterData(p.data, filters(), p.columns)
+    filterData(
+      searchData(
+        p.data,
+        searchHaystacks(),
+        activeSearchTokens(),
+        matchesSearch,
+      ),
+      filters(),
+      p.columns,
+    )
   );
 
   const replaceFilters = (next: FilterConfig) => {
     setFilters(next);
     p.onFilterChange?.(next);
+  };
+
+  const clearSearchAndFilters = () => {
+    setSearchText("");
+    if (filters().size > 0) {
+      replaceFilters(new Map());
+    }
   };
 
   const updateFilter = (key: string, excluded: ReadonlySet<string>) => {
@@ -182,22 +231,36 @@ export function Table<
     return p.data.filter((item) => selected.has(item[p.keyField]));
   });
 
-  // Handle bulk action
-  const handleBulkAction = async (action: BulkAction<T>) => {
-    const result = await action.onClick(selectedItems());
-    if (result === true || result === "CLEAR_SELECTION") {
-      setSelectedKeys(new Set()); // Clear selection after action
-    }
-  };
+  const itemLabel = () =>
+    p.itemLabel ?? {
+      one: t3({ en: "item", fr: "élément", pt: "item" }),
+      other: t3({ en: "items", fr: "éléments", pt: "itens" }),
+    };
 
   // Check if selection should be enabled
   const enableSelection = () =>
     !!(p.bulkActions && p.bulkActions.length > 0) || isControlled();
-  // The bar exists for the bulk actions; a controlled table without any
-  // clears its selection with the header checkbox.
-  const showBulkActionBar = () =>
-    !!(p.bulkActions && p.bulkActions.length > 0) &&
-    selectedItems().length > 0;
+  // Read once: a toolbar literal in JSX is a getter that builds its children
+  // anew on every access, so every reader shares one resolution.
+  const toolbar = createMemo(() => p.toolbar);
+  const showToolbar = () =>
+    toolbar() !== undefined || !!(p.bulkActions && p.bulkActions.length > 0);
+  const hasSelection = () => selectedItems().length > 0;
+
+  const countText = () => {
+    const n = p.data.length;
+    const label = plural(n, itemLabel());
+    const v = visibleRows().length;
+    return v === n
+      ? `${n} ${label}`
+      : `${v} ${t3({ en: "of", fr: "sur", pt: "de" })} ${n} ${label}`;
+  };
+
+  const searchPlaceholder = () => {
+    const search = toolbar()?.search;
+    return (typeof search === "object" ? search.placeholder : undefined) ??
+      t3({ en: "Search", fr: "Rechercher", pt: "Pesquisar" });
+  };
 
   const padding = createMemo(() =>
     getPaddingClasses(p.paddingX ?? "normal", p.paddingY ?? "normal")
@@ -213,43 +276,48 @@ export function Table<
   });
 
   return (
-    <div class="flex max-h-full w-full flex-col">
-      <Show when={showBulkActionBar()}>
-        <div class="ui-pad ui-gap bg-base-100 mb-4 flex items-center rounded border">
-          <span class="font-700 flex-none text-sm">
-            {selectedItems().length}{" "}
-            {p.selectionLabel || t3({ en: "item", fr: "élément", pt: "item" })}
-            {selectedItems().length !== 1 ? "s" : ""}{" "}
-            {selectedItems().length !== 1
-              ? t3({ en: "selected", fr: "sélectionnés", pt: "selecionados" })
-              : t3({ en: "selected", fr: "sélectionné", pt: "selecionado" })}
-          </span>
-          <div class="flex items-center gap-2">
-            <For each={p.bulkActions}>
-              {(action) => (
-                <Button
-                  onClick={() => handleBulkAction(action)}
-                  intent={action.intent || "neutral"}
-                  outline={action.outline}
-                  state={action.state?.()}
-                >
-                  {action.label}
-                </Button>
-              )}
-            </For>
-            <Button
-              onClick={() => {
-                setSelectedKeys(new Set());
-              }}
-              intent="neutral"
-              outline
-            >
-              {t3({
-                en: "Clear selection",
-                fr: "Effacer la sélection",
-                pt: "Limpar seleção",
-              })}
-            </Button>
+    <div class="flex max-h-full w-full flex-col overflow-hidden rounded border">
+      <Show when={showToolbar()}>
+        <div class="ui-pad-sm bg-base-100 flex flex-none items-center border-b">
+          <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
+            <Switch>
+              <Match when={hasSelection()}>
+                <span class="font-700 flex-none text-sm">
+                  {getSelectionSentence(selectedItems().length, itemLabel())}
+                </span>
+              </Match>
+              <Match when={toolbar()?.count !== false}>
+                <span class="text-base-content-muted flex-none text-sm">
+                  {countText()}
+                </span>
+              </Match>
+            </Switch>
+            <Show when={toolbar()?.search}>
+              <div class="w-72 flex-none">
+                <Input
+                  value={searchText()}
+                  onChange={setSearchText}
+                  placeholder={searchPlaceholder()}
+                  searchIcon
+                  clearable
+                  fullWidth
+                />
+              </div>
+            </Show>
+            <Switch>
+              <Match when={hasSelection()}>
+                <_BulkActionButtons
+                  items={selectedItems()}
+                  actions={p.bulkActions ?? []}
+                  onClear={() => setSelectedKeys(new Set())}
+                />
+              </Match>
+              <Match when={toolbar()?.children}>
+                <div class="ml-auto ui-gap-sm flex items-center">
+                  {toolbar()?.children}
+                </div>
+              </Match>
+            </Switch>
           </div>
         </div>
       </Show>
@@ -257,7 +325,7 @@ export function Table<
         <div
           ref={scrollContainerRef}
           onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
-          class="min-h-0 overflow-auto rounded border"
+          class="min-h-0 overflow-auto"
           style={{ "max-height": p.maxHeight }}
         >
           <table class="min-w-full table-auto border-collapse">
@@ -363,6 +431,33 @@ export function Table<
                     </td>
                   </tr>
                 </Match>
+                <Match when={visibleRows().length === 0 && isSearching()}>
+                  <tr>
+                    <td
+                      colspan={p.columns.length + (enableSelection() ? 1 : 0)}
+                    >
+                      <EmptyState
+                        title={t3({
+                          en: "No rows match your search",
+                          fr: "Aucune ligne ne correspond à votre recherche",
+                          pt: "Nenhuma linha corresponde à sua pesquisa",
+                        })}
+                      >
+                        <Button
+                          intent="neutral"
+                          outline
+                          onClick={clearSearchAndFilters}
+                        >
+                          {t3({
+                            en: "Clear search",
+                            fr: "Effacer la recherche",
+                            pt: "Limpar pesquisa",
+                          })}
+                        </Button>
+                      </EmptyState>
+                    </td>
+                  </tr>
+                </Match>
                 <Match when={visibleRows().length === 0}>
                   <tr>
                     <td
@@ -447,8 +542,8 @@ type TableRowProps<T, K extends keyof T = keyof T> = {
   onToggleSelection: (key: T[K]) => void;
   onRowClick?: (item: T) => void;
   padding: { px: string; py: string };
-  // Off for the first row of a headerless table, where the scroll box's own
-  // border is the edge and a row border would double it.
+  // Off for the first row of a headerless table, where the table's own border
+  // is the edge and a row border would double it.
   topBorder: boolean;
 };
 
