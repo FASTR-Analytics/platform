@@ -1,4 +1,4 @@
-import { type ProductType, t3 } from "lib";
+import { ALL_DATA_SCOPE_ID, type ProductType, t3 } from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
@@ -18,8 +18,9 @@ type Props = {
 type ReturnType = { productId: string } | undefined;
 
 // A new product names its package and its scope before it exists: the row
-// needs both at insert. The package starts on the pin. The scope starts
-// chosen only when there is exactly one to choose.
+// needs both at insert. The package starts on the pin and the scope on "All
+// data". A restricted user's list never holds "All data", so their scope
+// starts chosen only when there is exactly one to choose.
 export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
   const pinIsReady = instanceState.readyPackages.some(
     (pkg) => pkg.id === instanceState.pinnedRunId,
@@ -32,7 +33,11 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
       : undefined,
   );
   const [scopeId, setScopeId] = createSignal<string | undefined>(
-    instanceState.scopes.length === 1 ? instanceState.scopes[0].id : undefined,
+    instanceState.scopes.some((s) => s.id === ALL_DATA_SCOPE_ID)
+      ? ALL_DATA_SCOPE_ID
+      : instanceState.scopes.length === 1
+      ? instanceState.scopes[0].id
+      : undefined,
   );
 
   const save = createFormAction(
