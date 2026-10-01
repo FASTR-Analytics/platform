@@ -6,7 +6,6 @@ import {
   TC,
 } from "lib";
 import {
-  Badge,
   type BulkAction,
   Button,
   createDeleteAction,
@@ -26,6 +25,10 @@ import { ResultsPackageWizard } from "./wizard/mod.ts";
 import { ResultsPackagePage } from "./package_page";
 import { ModuleDefaultsEditor } from "./module_defaults";
 import { ScopesPage } from "~/components/scopes/mod.ts";
+import {
+  ProductCountBadge,
+  usageColumnHeader,
+} from "~/components/_shared/mod.ts";
 import {
   addInstanceRScriptListener,
   addInstanceRunProgressListener,
@@ -202,7 +205,7 @@ export function InstanceResultsPackages() {
     },
     {
       key: "usage",
-      header: t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" }),
+      header: usageColumnHeader(),
       sortable: true,
       sortValue: (run) => run.attachedProducts.length,
       searchable: false,
@@ -216,17 +219,7 @@ export function InstanceResultsPackages() {
           <Show when={run.id === instanceState.pinnedRunId}>
             <PinnedBadge />
           </Show>
-          <Show when={run.attachedProducts.length > 0}>
-            <Badge>
-              {run.attachedProducts.length === 1
-                ? t3({ en: "1 product", fr: "1 produit", pt: "1 produto" })
-                : t3({
-                  en: `${run.attachedProducts.length} products`,
-                  fr: `${run.attachedProducts.length} produits`,
-                  pt: `${run.attachedProducts.length} produtos`,
-                })}
-            </Badge>
-          </Show>
+          <ProductCountBadge count={run.attachedProducts.length} />
         </span>
       ),
     },

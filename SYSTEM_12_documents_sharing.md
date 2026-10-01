@@ -6,6 +6,7 @@ globs:
   - client/src/components/_shared/live_cursors.tsx
   - client/src/components/_shared/mod.ts
   - client/src/components/_shared/package_label.ts
+  - client/src/components/_shared/product_count_badge.tsx
   - client/src/components/_shared/presence_avatars.tsx
   - client/src/components/_shared/scope_select.tsx
   - client/src/components/products/*.ts

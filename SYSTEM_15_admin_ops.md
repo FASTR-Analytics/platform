@@ -66,12 +66,14 @@ view through `openShellEditor`. The button is shown only when
 routes enforce with `requireAdmin`. `ScopesPage` (`scopes.tsx`) is a `Table`
 over `instanceState.scopes` with one row per scope, "All data" included: the
 label, one column per family (HMIS, HFA, ICEH) saying "Excluded", "No limits" or
-the section's limits in a few words, and the number of products that carry it,
-counted in one pass over `instanceState.products`. A row opens `ScopeEditor`
-(`scope_editor.tsx`) in a modal; "New scope" opens it with every family included
-and nothing limited. The reserved "All data" row opens `AllDataScopeView`
-instead: a read-only statement of what the scope is, with no Save and no Delete,
-since the routes refuse both (S12).
+the section's limits in a few words, and a Usage column showing the number of
+products that carry it as a badge (`ProductCountBadge`, shared with the results
+packages table, S8; nothing for none), counted in one pass over
+`instanceState.products`. A row opens `ScopeEditor` (`scope_editor.tsx`) in a
+modal; "New scope" opens it with every family included and nothing limited. The
+reserved "All data" row opens `AllDataScopeView` instead: a read-only statement
+of what the scope is, with no Save and no Delete, since the routes refuse both
+(S12).
 
 The editor has the label above three tabs, HMIS, HFA and ICEH, one per section
 of the definition. Each tab opens with an "Include" checkbox (the component

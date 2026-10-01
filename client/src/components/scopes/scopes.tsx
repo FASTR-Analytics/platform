@@ -16,6 +16,10 @@ import {
   type TableColumn,
 } from "panther";
 import { createMemo } from "solid-js";
+import {
+  ProductCountBadge,
+  usageColumnHeader,
+} from "~/components/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import { AllDataScopeView, ScopeEditor } from "./scope_editor";
 
@@ -125,9 +129,10 @@ export function ScopesPage(p: Props) {
     { key: "iceh", header: getModuleFamilyLabel("iceh") },
     {
       key: "productCount",
-      header: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
+      header: usageColumnHeader(),
       sortable: true,
       searchable: false,
+      render: (row) => <ProductCountBadge count={row.productCount} />,
     },
   ];
 
