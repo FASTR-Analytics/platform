@@ -216,26 +216,28 @@ rendered from the frozen bundle.
 `{ all: false, scopeIds: string[] }`. Global admins and open-access instances
 are always `{ all: true }`.
 
-| Surface                                               | Restricted user                                  |
-| ----------------------------------------------------- | ------------------------------------------------ |
-| Product routes                                        | every target product's scope must be granted     |
-| A `scopeId` in a product route body                   | must be granted                                  |
-| Folder routes                                         | unchanged                                        |
-| Run-keyed data reads, authoring context               | the named scope must be granted; null is refused |
-| Instance SSE: products, slide stamps, scopes          | only rows in granted scopes                      |
-| Instance SSE: folders, ready packages                 | unchanged                                        |
-| Collab subscribe                                      | the product's scope must be granted              |
-| `/mcp`                                                | refused                                          |
-| Explore, Results, Data, Scopes tabs                   | hidden                                           |
-| `can_view_data`, `can_configure_data`,`can_view_logs` | read as false                                    |
-| Copilot                                               | unchanged (it reads through the product's scope) |
+| Surface                                               | Restricted user                                    |
+| ----------------------------------------------------- | -------------------------------------------------- |
+| Product routes                                        | every target product's scope must be granted       |
+| A `scopeId` in a product route body                   | must be granted                                    |
+| Folder routes (create, update, delete)                | refused                                            |
+| A folder named as a destination                       | must be visible to the user                        |
+| Run-keyed data reads, authoring context               | the named scope must be granted; null is refused   |
+| Instance SSE: products, slide stamps, scopes          | only rows in granted scopes                        |
+| Instance SSE: folders                                 | only folders whose subtree holds a visible product |
+| Instance SSE: ready packages                          | unchanged                                          |
+| Collab subscribe                                      | the product's scope must be granted                |
+| `/mcp`                                                | refused                                            |
+| Explore, Results, Data, Scopes tabs                   | hidden                                             |
+| `can_view_data`, `can_configure_data`,`can_view_logs` | read as false                                      |
+| Copilot                                               | unchanged (it reads through the product's scope)   |
 
 ### 2.7 Screens
 
 - **Scopes tab** (global admins): list, create, edit, delete. Delete is refused
   while a product carries the scope.
-- **User editor**: a Scopes card with "All scopes" and a multi-select, hidden
-  for global admins.
+- **User editor**: a Scopes card with "All scopes" and a multi-select, shown to
+  global admins only and hidden when the edited user is a global admin.
 - **Named scope select** replaces the national-or-area picker on the product
   package-and-scope modal, the duplicate modal and Explore. The package page's
   select adds "Whole package" and defaults to it. The area picker survives only
@@ -245,8 +247,8 @@ are always `{ all: true }`.
 
 ## 3. Rulings
 
-Rulings marked _(proposed)_ were derived while writing the plan and stand unless
-overruled here before `Do 1`.
+Rulings marked (Tim) were made by Tim. The rest were derived while writing the
+plan and follow from the code or from a ruling above them.
 
 **R1. Three dimensions.** A scope is geography, time and data. (Tim)
 
@@ -300,7 +302,7 @@ none of the three columns is empty when any list is set.
 points.** Health facility assessment outputs carry `time_point`, a text label
 with no date, so a year range cannot filter them. A results object with
 `time_point` is governed by the time-point list alone. A results object with
-neither kind of time column is empty when `years` is set. _(proposed)_
+neither kind of time column is empty when `years` is set. (Tim)
 
 **R19. The predicate is decided by column presence, never by dataset family.**
 The family is undeclarable for modules whose inputs are all upstream results
@@ -314,24 +316,29 @@ carry a scope.
 scope per distinct `products.admin_area_2`**, labelled with the area name.
 National products move to "All data". Seeded scopes are ordinary rows.
 
-**R22. Creating a product opens a dialog for package and scope.** The package
-defaults to the pin. The scope has no default unless the user can use exactly
-one. _(proposed)_
+**R22. Creating a product names its package and scope.** Creation today is one
+click with no dialog (`client/src/components/products/products.tsx:255`), so
+this adds a dialog. The package defaults to the pin. The scope has no default
+unless the user can use exactly one. (Tim)
 
-**R23. Folders are not restricted.** Every approved user sees and edits the
-folder tree as today. A folder holds a label and no data. _(proposed)_
+**R23. A restricted user sees only folders that hold something they can see**: a
+folder whose subtree contains a visible product. (Tim) Until the ownership plan
+(owner, edit and view on products and folders) rules the details, a restricted
+user cannot create, rename or delete a folder, and can place a product only at
+the root or in a folder they can see.
 
 **R24. A new user is unrestricted** (`all_scopes` defaults to true), as today.
-_(proposed)_
+(Tim)
 
 **R25. Scopes are managed by global admins only** (`requireAdmin`), on a new
-Scopes tab. Grants are edited in the user editor under `can_configure_users`.
-_(proposed)_
+Scopes tab. A user's scope access is also changed by global admins only, so a
+restricted user holding `can_configure_users` cannot lift their own restriction.
+(Tim)
 
 **R26. A restricted user's `can_view_data`, `can_configure_data` and
 `can_view_logs` read as false**, forced where the row becomes a `GlobalUser`
 (`buildGlobalUserFromDb`). Those bits expose whole packages and raw datasets.
-_(proposed)_
+(Tim)
 
 **R27. Period bounds from the manifest are clamped to the scope's years.** The
 geography ruling in SYSTEM_09 (the replicant path keeps the package-wide stamp)
@@ -526,7 +533,8 @@ session records in §8 where each option list comes from.
   `scopes.ts`, `instance-sse.ts`,
   `server/task_management/build_instance_state.ts`,
   `server/routes/instance/collab.ts`, `server/collab/**`,
-  `server/mcp/context_cache.ts`.
+  `server/mcp/context_cache.ts`, `server/routes/products/folders.ts`,
+  `lib/api-routes/products/folders.ts`.
 - Client: `client/src/components/users/**`,
   `client/src/components/instance/instance.tsx`,
   `client/src/state/instance/{t1_store,t1_sse,product_access}.ts*`.
@@ -539,18 +547,22 @@ session records in §8 where each option list comes from.
 and the authoring-context route take the user and apply §2.4. The SSE starting
 payload and the `forwardable` closure filter by grant, and a `products_upserted`
 row outside the connection's grants is rewritten as `products_deleted` for that
-connection. Collab checks the product on subscribe. The roster row carries scope
-access, and the user editor gets the Scopes card and its route. R26, R29 and the
-tab gating.
+connection. A restricted connection's folder list is recomputed per R23 whenever
+a product or folder message passes, and sent when it changes. The folder routes
+and folder destinations follow R23. Collab checks the product on subscribe. The
+roster row carries scope access, and the user editor gets the Scopes card and
+its route, guarded per R25. R26, R29 and the tab gating.
 
 **Not in this step.** R15's protections. Owner, edit and view levels.
 
 **Gates.** A committed route test with one unrestricted and one restricted user
 covering: product list, product detail, a data read inside a grant, a data read
 outside a grant, a whole-package read, a scope set to an ungranted scope, a
-collab subscribe to an ungranted product, and `/mcp`. A committed test that
-feeds the SSE filter an upsert outside the grants and asserts the rewrite.
-`./validate_migrations`, `./validate_fresh_boot`.
+collab subscribe to an ungranted product, a folder create, a move into a folder
+the user cannot see, and `/mcp`. A committed test that feeds the SSE filter an
+upsert outside the grants and asserts the rewrite, and a product moving into a
+hidden folder and asserts the folder appears. `./validate_migrations`,
+`./validate_fresh_boot`.
 
 **Ends with.** Several commits, each green. The review deletes this file.
 
@@ -581,7 +593,7 @@ feeds the SSE filter an upsert outside the grants and asserts the rewrite.
 - Geography as a set of areas (R9).
 - Owner, edit and view levels on products and folders. This plan gives
   `productAccessPolicy` its first real rule, and that rebuild adds levels to it.
-- Restricting folders (R23).
+- Folder rules for restricted users beyond R23. The ownership plan rules them.
 - Explore, `/mcp` and the package page for restricted users (R13).
 - Emitting `admin_area_2` on the admin-3 module outputs
   (`wb-fastr-modules/PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md`). The child-column
