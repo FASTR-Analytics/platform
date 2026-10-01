@@ -31,8 +31,6 @@ Built by [PLAN_HFA_QUICK_FIXES.md](PLAN_HFA_QUICK_FIXES.md).
 
 | Id | Issue                                                                              | Raised by          | State in code                                                                                                                                                         | Fix                                                                                   |
 | -- | ---------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Q1 | Weights import: "no way to exit the page"                                          | Ashley, 2026-09-11 | The wizard's upload step has no back or close (`client/src/components/data/hfa/hfa_weights.tsx:241`)                                                                  | Close the wizard from the upload step                                                 |
-| Q2 | Sampling weights read "0/0" after upload                                           | Ashley, 2026-09-11 | The Data page shows facilities with data and a weight over facilities with data, so weights uploaded before data read 0/0 (`client/src/components/data/data.tsx:363`) | Show the weight count when the round has no data                                      |
 | Q3 | Cannot search for a variable when mapping file columns                             | Ashley, 2026-09-11 | The weights, facility and HFA data wizards use a plain `Select`. `SelectSearch` exists and the HMIS CSV wizard uses it                                                | `SelectSearch` on every file-column picker                                            |
 | Q4 | Module settings: "not clear if checking the box is a yes or a no"                  | Ashley, 2026-09-11 | Boolean parameters render as a checkbox labelled "Yes / No" (`client/src/components/results_packages/_shared/module_parameter_inputs.tsx:89`). Shared by every module | A Yes/No select                                                                       |
 | Q5 | Data upload should check that all facility ids are in the facility list            | Tim, 2026-09-29    | The check exists and holds the run in "needs review", but shows a count only, never the ids (`lib/types/dataset_hfa_import.ts:107`)                                   | Show a sample of the missing ids                                                      |
@@ -131,6 +129,10 @@ Verified in code or commits:
 - Don't know recognised as both `-99` and `-999999`.
 - The admin-depth error names the GeoJSON levels to delete
   (`server/db/instance/config.ts:125`).
+- Q1: the weights import wizard can be closed from its upload step (2026-10-01,
+  `1da3284a1`).
+- Q2: on the Data page, a round with weights and no data reads "N weights, no
+  data yet" instead of "0/0" (2026-10-01, `1da3284a1`).
 
 From Tim's emails only, not re-verified:
 

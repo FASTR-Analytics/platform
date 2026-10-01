@@ -9,7 +9,7 @@ in September 2026, plus an Add button in the unused-variables list. Each step
 also moves its catalogue rows to "Already done", so the catalogue stays the
 current list of open HFA work after this plan is deleted.
 
-**Next step:** Do 1
+**Next step:** Review 1
 
 **Branch:** `version2`.
 
@@ -229,5 +229,8 @@ of the step's commits.
 
 ## 8. Build log
 
-| Step | Row |
-| ---- | --- |
+| Step | Row                                                                                                                                                                                                                                                                                                                       |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Floor, `deno task test`: 2 of 507 tests fail, both in `server/tests/report_fastr_word_test.ts` (`:119` raster block ids, `:164` kitchen sink). They exercise the Word report renderer, which no file in this plan's surfaces touches. Outside the surface: reported, not fixed.                                           |
+| 1    | Floor, `./run`: not run. A dev instance started from this checkout was already up (server on 8000, client on 3000), and `./run` replaces the machine-global `pg` and `valkey-local` containers under it. Checked instead that the running client serves both changed modules (HTTP 200 from Vite) and the server answers. |
+| 1    | Step 1 built                                                                                                                                                                                                                                                                                                              |
