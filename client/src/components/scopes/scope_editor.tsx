@@ -615,6 +615,7 @@ export function ScopeEditor(
           pt: "Editar âmbito",
         })}
       width="lg"
+      height="lg"
       form
       onCancel={() => p.close(undefined)}
       actions={[
