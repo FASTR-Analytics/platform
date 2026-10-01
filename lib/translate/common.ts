@@ -11,6 +11,7 @@ export const TC = {
   settings: { en: "Settings", fr: "Paramètres", pt: "Definições" },
   email: { en: "Email", fr: "E-mail", pt: "E-mail" },
   national: { en: "National", fr: "National", pt: "Nacional" },
+  allData: { en: "All data", fr: "Toutes les données", pt: "Todos os dados" },
   columns: { en: "Columns", fr: "Colonnes", pt: "Colunas" },
   rows: { en: "Rows", fr: "Lignes", pt: "Linhas" },
   loading: { en: "Loading...", fr: "Chargement...", pt: "A carregar..." },

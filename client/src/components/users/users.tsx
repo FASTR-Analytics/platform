@@ -241,11 +241,7 @@ function getScopeLabels(user: UserData): string[] {
 
 function getScopesLabel(user: UserData): string {
   if (user.scopeAccess.all) {
-    return t3({
-      en: "All data",
-      fr: "Toutes les données",
-      pt: "Todos os dados",
-    });
+    return t3(TC.allData);
   }
   const labels = getScopeLabels(user);
   if (labels.length === 0) {

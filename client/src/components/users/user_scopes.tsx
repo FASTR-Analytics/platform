@@ -4,6 +4,7 @@ import {
   type ScopeAccess,
   scopeAccessEqual,
   t3,
+  TC,
 } from "lib";
 import {
   Button,
@@ -69,11 +70,7 @@ export function UserScopesCard(p: { user: OtherUser }) {
     >
       <div class="ui-spy-sm">
         <Checkbox
-          label={t3({
-            en: "All data",
-            fr: "Toutes les données",
-            pt: "Todos os dados",
-          })}
+          label={t3(TC.allData)}
           checked={allData()}
           onChange={setAllData}
         />

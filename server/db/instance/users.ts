@@ -15,6 +15,9 @@ import { tryCatchDatabaseAsync } from "./../utils.ts";
 import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 import { DBUser } from "./_main_database_types.ts";
+import { SCOPE_NOT_FOUND } from "./scopes.ts";
+
+const USER_NOT_FOUND = "No matching user";
 
 // Mirrors the user's name from Clerk, the sole source of truth for names, into
 // the users table. Writes only when the stored pair differs, so it is a no-op
@@ -96,7 +99,7 @@ export async function getOtherUser(
       await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${email}`
     ).at(0);
     if (rawUser === undefined) {
-      throw new Error("No matching user");
+      throw new Error(USER_NOT_FOUND);
     }
     const grants = await getScopeGrantsByEmail(mainDb, [email]);
     return {
@@ -127,7 +130,7 @@ export async function setUserScopeAccess(
       `
     ).at(0);
     if (row === undefined) {
-      return { success: false, err: "No matching user" };
+      return { success: false, err: USER_NOT_FOUND };
     }
     if (row.is_admin) {
       return { success: false, err: SCOPE_ACCESS_ADMIN };
@@ -142,7 +145,7 @@ export async function setUserScopeAccess(
       SELECT id FROM scopes WHERE id = ANY(${scopeIds})
     `;
     if (known.length !== scopeIds.length) {
-      return { success: false, err: "Scope not found" };
+      return { success: false, err: SCOPE_NOT_FOUND };
     }
     await mainDb.begin(async (sql) => {
       await sql`UPDATE users SET all_scopes = ${access.all} WHERE email = ${email}`;
