@@ -24,6 +24,8 @@ import {
 // as staging finishes. This replaces the fixed staging-table names, and is
 // what makes releasing the single-running slot on needs_review safe.
 
+const FACILITY_NOT_FOUND_SAMPLE_SIZE = 10;
+
 export function hfaStagingTableNames(runId: number): {
   raw: string;
   validFacilities: string;
@@ -521,6 +523,18 @@ WHERE NOT EXISTS (
 )`
   )[0].count;
 
+  const facilityNotFoundSample = (
+    await importDb<{ facility_id: string }[]>`
+SELECT DISTINCT facility_id
+FROM ${importDb.unsafe(names.raw)}
+WHERE NOT EXISTS (
+  SELECT 1 FROM ${importDb.unsafe(names.validFacilities)} vf
+  WHERE vf.facility_id = ${importDb.unsafe(names.raw)}.facility_id
+)
+ORDER BY facility_id
+LIMIT ${FACILITY_NOT_FOUND_SAMPLE_SIZE}`
+  ).map((r) => r.facility_id);
+
   // The intermediates are done; the three tables the integrate leg reads stay.
   await dropHfaStagingTables(importDb, runId, { keepFinal: true });
 
@@ -531,6 +545,7 @@ WHERE NOT EXISTS (
     nRowsValid: rowsProcessed - invalidFacilityNotFoundCount,
     nRowsInvalidMissingFacilityId: missingFacilityIdCount,
     nRowsInvalidFacilityNotFound: invalidFacilityNotFoundCount,
+    facilityNotFoundSample,
     nRowsDuplicated: duplicateRowsCount,
     nRowsFilteredOut,
     dedupStrategy,

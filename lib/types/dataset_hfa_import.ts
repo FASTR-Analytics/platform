@@ -105,6 +105,9 @@ export type DatasetHfaCsvStagingResult = {
   nRowsValid: number;
   nRowsInvalidMissingFacilityId: number;
   nRowsInvalidFacilityNotFound: number;
+  // At most 10 of the facility ids counted above, ascending. Absent on runs
+  // staged before the field existed.
+  facilityNotFoundSample?: string[];
   nRowsDuplicated: number;
   nRowsFilteredOut: number;
   dedupStrategy: "first" | "last";

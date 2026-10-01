@@ -223,7 +223,12 @@ above is the authority on the shared mechanism; HFA differs only here:
   the hold AND at complete; rides the polled list, no detail route; a TEXT
   column parsed without a schema, so a renamed key is rewritten in place by an
   instance migration, as 093 did for `nDictionaryVariables` and
-  `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`.
+  `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`. The diagnostics carry
+  `facilityNotFoundSample`: at most 10 distinct facility ids, ascending, that
+  the file has and `facilities_hfa` lacks, read from the raw staging table
+  before the intermediates are dropped. The staging summary lists them under the
+  not-found count. The field is optional, so a run staged before it existed
+  shows the count alone.
 - **Clean condition**:
   `nRowsInvalidMissingFacilityId +
   nRowsInvalidFacilityNotFound = 0 AND nRowsTotal > 0`.
