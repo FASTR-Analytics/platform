@@ -375,16 +375,16 @@ Two version idioms exist. Product documents version on the SSE-pushed
 (`state/products/t2_figure_data.ts`, `t2_replicant_options.ts`,
 `state/instance/t2_runs.ts`, `t2_run_authoring_context.ts`) versions on the
 constant `"immutable"` with the identity leading the UNIQUENESS key (`runId` in
-all four; the `state/products/` caches add the scope's definition hash beside
-it, read from T1 with `resolveScope` once, when the read starts): a ready
-package never changes, and an edited scope definition hashes to a new key, so
-nothing invalidates an entry and a late response cannot land under another
-package's key. The scope half has a response-side guard, `answersKeyedScope`
-(`t1_store.ts`), as each cache's `shouldStore`: the server resolves the scope id
-against the `scopes` row at request time, T1 learns of an edit only when
-`scopes_updated` arrives, and a response whose `scopeToken` is not the hash in
-its key is served but never stored. Old IndexedDB entries become unreachable via
-the version flip and age out: no purge.
+all four; the `state/products/` caches and the authoring context add the scope's
+definition hash beside it, read from T1 with `resolveScope` once, when the read
+starts): a ready package never changes, and an edited scope definition hashes to
+a new key, so nothing invalidates an entry and a late response cannot land under
+another package's key. The scope half has a response-side guard,
+`answersKeyedScope` (`t1_store.ts`), as each cache's `shouldStore`: the server
+resolves the scope id against the `scopes` row at request time, T1 learns of an
+edit only when `scopes_updated` arrives, and a response whose `scopeToken` is
+not the hash in its key is served but never stored. Old IndexedDB entries become
+unreachable via the version flip and age out: no purge.
 
 Around it:
 

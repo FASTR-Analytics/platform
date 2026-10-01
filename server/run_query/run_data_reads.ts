@@ -336,17 +336,19 @@ export async function readRunResultsValueInfo(
   });
 }
 
+type ReplicantOptionsBody = {
+  resultsObjectId: string;
+  replicateBy: DisaggregationOption;
+  fetchConfig: GenericLongFormFetchConfig;
+};
+
 // The replicant dimension's option list: one figure per value, so this is
 // what bounds the fan-out before any items query runs. Keyed by results
 // object, the cache identity; the run-keyed route narrows its metric id to
 // the results object first.
 export async function readRunReplicantOptions(
   runCtx: RunReadContext,
-  body: {
-    resultsObjectId: string;
-    replicateBy: DisaggregationOption;
-    fetchConfig: GenericLongFormFetchConfig;
-  },
+  body: ReplicantOptionsBody,
 ): Promise<APIResponseWithData<RunReplicantOptions>> {
   // body is attacker-controllable and flows into generated SQL via
   // getPossibleValuesFromRun (replicateBy becomes a column reference) and
@@ -404,81 +406,7 @@ export async function readRunReplicantOptions(
         (performance.now() - t0).toFixed(0)
       }ms in queue)`,
     );
-    const holderBase = {
-      resultsObjectId: body.resultsObjectId,
-      replicateBy: body.replicateBy,
-      fetchConfig: body.fetchConfig,
-      ...versionInfo,
-    };
-    const newPromise = (async (): Promise<
-      APIResponseWithData<RunReplicantOptions>
-    > => {
-      const indicatorMetadata = getIndicatorMetadataFromRun(runCtx, moduleId);
-      const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
-
-      // Resolve the period filter to exact bounds the same way the items
-      // query does, so relative filters ("last N months") narrow the option
-      // list too and from_month re-anchors to the live data: a bounded-only
-      // read here would list values the filtered figure can never show. The
-      // manifest stamp IS the no-filter bounds of the physical time column.
-      let periodFilterExactBounds: PeriodBounds | undefined;
-      if (body.fetchConfig.periodFilter) {
-        try {
-          periodFilterExactBounds = getPeriodFilterExactBounds(
-            body.fetchConfig.periodFilter,
-            getRawPeriodBoundsFromRun(runCtx, body.resultsObjectId),
-          );
-        } catch (e) {
-          return {
-            success: true,
-            data: {
-              ...holderBase,
-              status: "error",
-              message: e instanceof Error ? e.message : String(e),
-            },
-          };
-        }
-      }
-
-      const resDisPossibleVals = await getPossibleValuesFromRun(
-        runCtx,
-        body.resultsObjectId,
-        body.replicateBy,
-        labelMap,
-        body.fetchConfig.filters,
-        periodFilterExactBounds,
-      );
-      if (resDisPossibleVals.success === false) {
-        return {
-          success: true,
-          data: {
-            ...holderBase,
-            // Surfaced as its own status (matching the metric-info path)
-            // instead of masquerading as no_values_available.
-            status: "error",
-            message: resDisPossibleVals.err,
-          },
-        };
-      }
-
-      const vals = resDisPossibleVals.data;
-      if (exceedsMaxReplicantOptions(vals)) {
-        return {
-          success: true,
-          data: { ...holderBase, status: "too_many_values" },
-        };
-      }
-      if (vals.length === 0) {
-        return {
-          success: true,
-          data: { ...holderBase, status: "no_values_available" },
-        };
-      }
-      return {
-        success: true,
-        data: { ...holderBase, status: "ok", possibleValues: vals },
-      };
-    })();
+    const newPromise = computeRunReplicantOptions(runCtx, body, moduleId);
     _REPLICANT_OPTIONS_CACHE.setPromise(newPromise, cacheKey, versionInfo);
     const res = await newPromise;
     console.log(
@@ -488,4 +416,85 @@ export async function readRunReplicantOptions(
     );
     return res;
   });
+}
+
+// The replicant read on a cache miss: the option list under the request's
+// filters, with a relative period filter resolved against the scoped bounds.
+export async function computeRunReplicantOptions(
+  runCtx: RunReadContext,
+  body: ReplicantOptionsBody,
+  moduleId: string,
+): Promise<APIResponseWithData<RunReplicantOptions>> {
+  const holderBase = {
+    resultsObjectId: body.resultsObjectId,
+    replicateBy: body.replicateBy,
+    fetchConfig: body.fetchConfig,
+    ...getRunVersionInfo(runCtx),
+  };
+  const indicatorMetadata = getIndicatorMetadataFromRun(runCtx, moduleId);
+  const labelMap = new Map(indicatorMetadata.map((m) => [m.id, m.label]));
+
+  // Resolve the period filter to exact bounds the same way the items
+  // query does, so relative filters ("last N months") narrow the option
+  // list too and from_month re-anchors to the live data: a bounded-only
+  // read here would list values the filtered figure can never show. The
+  // manifest stamp IS the no-filter bounds of the physical time column,
+  // clamped to the scope's years.
+  let periodFilterExactBounds: PeriodBounds | undefined;
+  if (body.fetchConfig.periodFilter) {
+    try {
+      periodFilterExactBounds = getPeriodFilterExactBounds(
+        body.fetchConfig.periodFilter,
+        getRawPeriodBoundsFromRun(runCtx, body.resultsObjectId),
+      );
+    } catch (e) {
+      return {
+        success: true,
+        data: {
+          ...holderBase,
+          status: "error",
+          message: e instanceof Error ? e.message : String(e),
+        },
+      };
+    }
+  }
+
+  const resDisPossibleVals = await getPossibleValuesFromRun(
+    runCtx,
+    body.resultsObjectId,
+    body.replicateBy,
+    labelMap,
+    body.fetchConfig.filters,
+    periodFilterExactBounds,
+  );
+  if (resDisPossibleVals.success === false) {
+    return {
+      success: true,
+      data: {
+        ...holderBase,
+        // Surfaced as its own status (matching the metric-info path)
+        // instead of masquerading as no_values_available.
+        status: "error",
+        message: resDisPossibleVals.err,
+      },
+    };
+  }
+
+  const vals = resDisPossibleVals.data;
+  if (exceedsMaxReplicantOptions(vals)) {
+    return {
+      success: true,
+      data: { ...holderBase, status: "too_many_values" },
+    };
+  }
+  if (vals.length === 0) {
+    return {
+      success: true,
+      data: { ...holderBase, status: "no_values_available" },
+    };
+  }
+  return {
+    success: true,
+    data: { ...holderBase, status: "ok", possibleValues: vals },
+  };
 }

@@ -27,7 +27,7 @@ const _REPLICANT_OPTIONS_CACHE = createReactiveCache<
   },
   RunReplicantOptions
 >({
-  name: "run_replicant_options_v2",
+  name: "run_replicant_options_v3",
   uniquenessKeys: (params) => [
     params.scope.runId,
     params.scope.definitionHash,

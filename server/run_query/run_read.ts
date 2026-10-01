@@ -5,6 +5,7 @@ import {
   catalogExpressionEvaluationStrict,
   compareModules,
   composeHfaIndicatorLabel,
+  convertPeriodValue,
   type DatasetType,
   type DisaggregationOption,
   disaggregationOption,
@@ -121,19 +122,39 @@ async function buildRunReadContext(
   };
 }
 
+// A null scope id is the whole package; any other names a `scopes` row.
+async function loadScopeDefinition(
+  mainDb: Sql,
+  scopeId: string | null,
+): Promise<APIResponseWithData<ScopeDefinition>> {
+  if (scopeId === null) {
+    return { success: true, data: UNCONSTRAINED_SCOPE_DEFINITION };
+  }
+  const scopeRes = await getScope(mainDb, scopeId);
+  return scopeRes.success
+    ? { success: true, data: scopeRes.data.definition }
+    : scopeRes;
+}
+
 // The manifest lens. An unreadable or unknown run surfaces as the manifest
 // read failing. The run id arrives over the wire and becomes a path, so it is
-// shape-checked first.
+// shape-checked first. With no `scoped` argument the context is the whole
+// package; the authoring context's read passes the scope its caller names.
 export async function getRunReadContextForRun(
   runId: string,
+  scoped?: { mainDb: Sql; scopeId: string | null },
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
   }
   try {
+    const scopeRes = scoped === undefined
+      ? { success: true as const, data: UNCONSTRAINED_SCOPE_DEFINITION }
+      : await loadScopeDefinition(scoped.mainDb, scoped.scopeId);
+    if (scopeRes.success === false) return scopeRes;
     return {
       success: true,
-      data: await buildRunReadContext(runId, UNCONSTRAINED_SCOPE_DEFINITION),
+      data: await buildRunReadContext(runId, scopeRes.data),
     };
   } catch (e) {
     return {
@@ -170,15 +191,11 @@ SELECT status FROM runs WHERE id = ${runId}
     if (row.status !== "ready") {
       return { success: false, err: "This results package is not ready" };
     }
-    let scope = UNCONSTRAINED_SCOPE_DEFINITION;
-    if (scopeId !== null) {
-      const scopeRes = await getScope(mainDb, scopeId);
-      if (scopeRes.success === false) return scopeRes;
-      scope = scopeRes.data.definition;
-    }
+    const scopeRes = await loadScopeDefinition(mainDb, scopeId);
+    if (scopeRes.success === false) return scopeRes;
     return {
       success: true,
-      data: await buildRunReadContext(runId, scope),
+      data: await buildRunReadContext(runId, scopeRes.data),
     };
   } catch (e) {
     return {
@@ -204,8 +221,8 @@ function findModule(
 
 // The scope is enforced here and nowhere else: each view is the parquet under
 // the scope's predicate, so a query built above the executor cannot read
-// outside it. The facilities views come first because a results object's
-// predicate may read one.
+// outside it. The facilities views take the geography part only, and come
+// first because a results object's predicate may read one.
 function viewsFor(ctx: RunReadContext, resultsObjectId: string): ParquetView[] {
   const views: ParquetView[] = [];
   for (const table of FACILITIES_TABLES) {
@@ -213,6 +230,9 @@ function viewsFor(ctx: RunReadContext, resultsObjectId: string): ParquetView[] {
       views.push({
         viewName: table,
         parquetPath: runInputFilePath(ctx.runDir, `${table}.parquet`),
+        predicate: ctx.scope.geography === null
+          ? undefined
+          : inAreaPredicate("admin_area_2", ctx.scope.geography.adminArea2),
       });
     }
   }
@@ -757,32 +777,83 @@ function hasFacilitiesParquet(manifest: RunManifest, table: string): boolean {
 // manifest column stamps (never from a baked list, a new module can add a
 // results object of any shape). Undefined means the view is the whole parquet.
 //
-// A results object with admin_area_2 is filtered on it. One with only a child
-// admin column is filtered through the family facilities view, matching by
-// NAME (the duplicate-district collision is an accepted latent, see
-// SYSTEM_08's ruling). One with no admin column is served whole.
-//
-// A results object that HAS a child admin column but cannot reach a facilities
-// view gets FALSE, never the whole parquet: the family is undeclarable for a
-// module whose dataSources are all upstream results objects (m004/m005/m006),
-// and those same modules drop admin_area_2 from their admin3 outputs, so the
-// pair would otherwise show every area in the country inside a scoped product.
-// Blank is wrong visibly; national data under a regional heading is wrong
-// silently. The durable fix is those scripts emitting admin_area_2, tracked in
-// the modules repo as PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md. Packages are
-// immutable, so this branch still guards every package generated before that
-// lands.
+// The default principle: a dimension filters a results object only when the
+// object has a column for it. Where it has none, that dimension contributes
+// nothing and the object is served whole, as long as its module is allowed.
+// The module list is the only part that can remove a whole table.
 export function scopePredicateFor(
   definition: ScopeDefinition,
   ro: RunResultsObject,
   manifest: RunManifest,
 ): string | undefined {
+  if (
+    definition.modules !== null && !definition.modules.includes(ro.moduleId)
+  ) {
+    return "FALSE";
+  }
+  const columnNames = new Set(ro.columns.map((c) => c.name));
+  const parts = [
+    geographyPredicate(definition, ro, columnNames, manifest),
+    timePredicate(definition, columnNames),
+    ...INDICATOR_COLUMNS.map(({ list, column }) =>
+      columnNames.has(column)
+        ? inListPredicate(column, definition.indicators[list])
+        : undefined
+    ),
+  ].filter((part) => part !== undefined);
+  if (parts.includes("FALSE")) return "FALSE";
+  return parts.length === 0 ? undefined : parts.join(" AND ");
+}
+
+const INDICATOR_COLUMNS = [
+  { list: "hmis", column: "indicator_common_id" },
+  { list: "hfa", column: "hfa_indicator" },
+  { list: "iceh", column: "iceh_indicator" },
+] as const;
+
+// The cast makes one predicate serve a text column and an integer one (a
+// module may declare time_point as either).
+function inListPredicate(
+  column: string,
+  values: string[] | null,
+): string | undefined {
+  if (values === null) return undefined;
+  if (values.length === 0) return "FALSE";
+  return `CAST(${column} AS VARCHAR) IN (${
+    values.map((v) => `'${escapeSqlLiteral(v)}'`).join(", ")
+  })`;
+}
+
+function inAreaPredicate(column: string, adminArea2: string): string {
+  return `UPPER(${column}) = UPPER('${escapeSqlLiteral(adminArea2)}')`;
+}
+
+// A results object with admin_area_2 is filtered on it. One with only a child
+// admin column is filtered through the family facilities view, matching by
+// NAME (the duplicate-district collision is an accepted latent, see
+// SYSTEM_08's ruling). One with no admin column is served whole.
+//
+// The one exception to the default principle: a results object that HAS a
+// child admin column but cannot reach a facilities view gets FALSE, never the
+// whole parquet. The family is undeclarable for a module whose dataSources are
+// all upstream results objects (m004/m005/m006), and those same modules drop
+// admin_area_2 from their admin3 outputs, so the pair would otherwise show
+// every area in the country inside a scoped product. Blank is wrong visibly;
+// national data under a regional heading is wrong silently. The durable fix
+// is those scripts emitting admin_area_2, tracked in the modules repo as
+// PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md. Packages are immutable, so this
+// branch still guards every package generated before that lands.
+function geographyPredicate(
+  definition: ScopeDefinition,
+  ro: RunResultsObject,
+  columnNames: Set<string>,
+  manifest: RunManifest,
+): string | undefined {
   if (definition.geography === null) return undefined;
   const adminArea2 = definition.geography.adminArea2;
-  const inArea = (column: string) =>
-    `UPPER(${column}) = UPPER('${escapeSqlLiteral(adminArea2)}')`;
-  const columnNames = new Set(ro.columns.map((c) => c.name));
-  if (columnNames.has("admin_area_2")) return inArea("admin_area_2");
+  if (columnNames.has("admin_area_2")) {
+    return inAreaPredicate("admin_area_2", adminArea2);
+  }
   const childColumn = columnNames.has("admin_area_3")
     ? "admin_area_3"
     : columnNames.has("admin_area_4")
@@ -803,8 +874,60 @@ export function scopePredicateFor(
   // unqualified child column that view lacks would bind to the results object
   // and match every row.
   return `UPPER(${childColumn}) IN (SELECT UPPER(${facilitiesTable}.${childColumn}) FROM ${facilitiesTable} WHERE ${
-    inArea(`${facilitiesTable}.admin_area_2`)
+    inAreaPredicate(`${facilitiesTable}.admin_area_2`, adminArea2)
   })`;
+}
+
+const PHYSICAL_TIME_COLUMNS = ["period_id", "quarter_id", "year"] as const;
+
+// The column the year range applies to. A results object with time_point is
+// governed by the time-point list alone (R18): its rounds carry no date.
+function yearsColumnOf(columnNames: Set<string>): PeriodOption | undefined {
+  if (columnNames.has("time_point")) return undefined;
+  return PHYSICAL_TIME_COLUMNS.find((column) => columnNames.has(column));
+}
+
+function yearsRangeIn(
+  years: { start: number; end: number },
+  column: PeriodOption,
+): PeriodBounds {
+  return {
+    min: convertPeriodValue(years.start, column, false),
+    max: convertPeriodValue(years.end, column, true),
+  };
+}
+
+function timePredicate(
+  definition: ScopeDefinition,
+  columnNames: Set<string>,
+): string | undefined {
+  if (columnNames.has("time_point")) {
+    return inListPredicate("time_point", definition.time.hfaTimePoints);
+  }
+  const column = yearsColumnOf(columnNames);
+  if (definition.time.years === null || column === undefined) return undefined;
+  const range = yearsRangeIn(definition.time.years, column);
+  return `${column} BETWEEN ${range.min} AND ${range.max}`;
+}
+
+// The manifest's periodBounds stamp is package-wide, so a reader that uses it
+// in place of a query clamps it to the scope's years (R27). Geography is not
+// applied to the stamp (SYSTEM_09's ruling). Undefined when the scope's years
+// and the package's do not overlap.
+function scopedPeriodBounds(
+  ctx: RunReadContext,
+  ro: RunResultsObject | undefined,
+): PeriodBounds | undefined {
+  const stamp = ro?.periodBounds ?? undefined;
+  if (ro === undefined || stamp === undefined) return undefined;
+  const column = yearsColumnOf(new Set(ro.columns.map((c) => c.name)));
+  if (ctx.scope.time.years === null || column === undefined) return stamp;
+  const range = yearsRangeIn(ctx.scope.time.years, column);
+  const clamped = {
+    min: Math.max(stamp.min, range.min),
+    max: Math.min(stamp.max, range.max),
+  };
+  return clamped.min <= clamped.max ? clamped : undefined;
 }
 
 // ── The read functions ───────────────────────────────────────────────────────
@@ -949,7 +1072,7 @@ export async function getResultsValueInfoFromRun(
     resultsObjectId,
     resultsValue.datasetFamily,
     getRunVersionInfo(ctx),
-    ro?.periodBounds ?? undefined,
+    scopedPeriodBounds(ctx, ro),
     resultsValue.disaggregationOptions.map((d) => d.value),
     indicatorFormatsFrom(indicatorMetadata),
     indicatorRulesFrom(indicatorMetadata),
@@ -959,13 +1082,16 @@ export async function getResultsValueInfoFromRun(
 }
 
 // Raw no-filter bounds for the replicant-options route: the manifest stamp
-// IS the no-filter MIN/MAX of the physical time column.
+// IS the no-filter MIN/MAX of the physical time column, clamped to the scope's
+// years.
 export function getRawPeriodBoundsFromRun(
   ctx: RunReadContext,
   resultsObjectId: string,
 ): PeriodBounds | undefined {
-  return findResultsObject(ctx.manifest, resultsObjectId)?.periodBounds ??
-    undefined;
+  return scopedPeriodBounds(
+    ctx,
+    findResultsObject(ctx.manifest, resultsObjectId),
+  );
 }
 
 // Raw-rows preview (S8 read surface) over the run's query parquet.

@@ -101,7 +101,10 @@ import { TimCacheC } from "../../valkey/cache_class_C.ts";
 // "26" (2026-10-01): scopes (PLAN_SCOPES step 2). The trailing key segment
 // is the hash of the scope's definition, where "25" entries carry the
 // percent-encoded area name, and every payload's `scopeToken` is that hash.
-const PO_CACHE_VERSION = "26";
+// "27" (2026-10-01): the scope's time, module and indicator parts filter
+// (PLAN_SCOPES step 3). "26" entries under a definition holding those parts
+// were computed without them, under the same hash.
+const PO_CACHE_VERSION = "27";
 
 // The immutable run id replaces the data-version dimensions (PLAN_RESULTS_RUNS
 // §2.5): it is the uniqueness scope for the four data caches, so two products

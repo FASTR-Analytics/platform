@@ -38,7 +38,7 @@ export const _METRIC_INFO_CACHE = createReactiveCache<
   { scope: ResolvedPackageScope; metricId: string },
   ResultsValueInfoForPresentationObject
 >({
-  name: "run_metric_info_v2",
+  name: "run_metric_info_v3",
   uniquenessKeys: (params) => [
     params.scope.runId,
     params.scope.definitionHash,
@@ -64,7 +64,7 @@ export const _PO_ITEMS_CACHE = createReactiveCache<
   },
   ItemsHolderPresentationObject
 >({
-  name: "run_po_items_v2",
+  name: "run_po_items_v3",
   uniquenessKeys: (params) => [
     params.scope.runId,
     params.scope.definitionHash,

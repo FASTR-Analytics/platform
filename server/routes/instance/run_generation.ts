@@ -347,19 +347,22 @@ defineRoute(
   },
 );
 
-// A pure function of the run directory (lib/types/run_authoring_context.ts):
-// the manifest lens, no scope and no ready gate, the same exposure as
-// getRunDetail.
+// A pure function of the run directory and the scope
+// (lib/types/run_authoring_context.ts): the manifest lens under the caller's
+// scope, with no ready gate.
 defineRoute(
   routesRunGeneration,
   "getRunAuthoringContext",
   requireApprovedUser(),
-  async (c, { params }) => {
-    const ctxRes = await getRunReadContextForRun(params.run_id);
-    if (ctxRes.success === false) return c.json(ctxRes);
+  async (c, { params, body }) => {
+    const ctxRes = await getRunReadContextForRun(params.run_id, {
+      mainDb: c.var.mainDb,
+      scopeId: body.scopeId,
+    });
+    if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json({
       success: true,
-      data: await buildRunAuthoringContext(ctxRes.data.manifest),
+      data: await buildRunAuthoringContext(ctxRes.data),
     });
   },
 );

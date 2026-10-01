@@ -249,15 +249,17 @@ the copilot mount (D15): the product opener (`openProduct` in
 around whichever editor it opens, so there is one copilot per open product and
 the panel spans the editor's full height. The host keeps the editor mounted (a
 reattach is handled live there, D16) and keys the chat beside it on the
-product's (package, scope) pair plus that package's `RunAuthoringContext` (T2,
-immutable per run id): the inner `ProductCopilot` remounts when the pair
-changes, which is what keeps the env, the tools and the system prompt fixed for
-the life of one chat instance. The Products page and every other tab have no
-copilot; the results explorer, when it lands, mounts its own with its own tools,
-the pattern the HFA indicator manager already uses. Each mount builds one
-panther `AIChatProvider` config, validated in dev by panther's no-mount
-construction check: both assistants call `validateAIChatConfig(config)` under
-`import.meta.env.DEV` at config assembly (HFA
+product's (package, scope) pair plus that package's `RunAuthoringContext` under
+that scope (T2, immutable per run id and definition hash; modules outside the
+scope's module list are absent from it, with their metrics and presets): the
+inner `ProductCopilot` remounts when the pair changes, which is what keeps the
+env, the tools and the system prompt fixed for the life of one chat instance.
+The Products page and every other tab have no copilot; the results explorer,
+when it lands, mounts its own with its own tools, the pattern the HFA indicator
+manager already uses. Each mount builds one panther `AIChatProvider` config,
+validated in dev by panther's no-mount construction check: both assistants call
+`validateAIChatConfig(config)` under `import.meta.env.DEV` at config assembly
+(HFA
 [ai/wrapper.tsx:39-41](client/src/components/data/hfa/indicators/ai/wrapper.tsx#L39-L41)):
 
 - **sdkClient**
@@ -572,13 +574,15 @@ identical:
 ([build_system_prompt.ts](client/src/components/products/copilot/_shared/build_system_prompt.ts)):
 date header + instance/terminology section (country, admin-area labels, data
 sources) + results-package section (the package label and generation time, the
-scope, the package's datasets and indicator lists) + the instance-level
-`ai_context` + reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions
-(read-data-first, no fabrication, indicator directionality) + the tool catalog.
-The accessor takes no view argument, so the prompt is **byte-stable across
-navigation within one package** and its prompt-cache breakpoint keeps hitting:
-the per-view instructions (still exported from this file, with short
-primary-tool pointers) are composed by the view registry
+scope's label and what its definition limits reads to: area, years, HFA time
+points, modules and indicator lists, with the rule that a limit applies only to
+a table that has a column for it; the package's datasets and indicator lists) +
+the instance-level `ai_context` + reference-doc catalog (`SPA_INFO_TOPICS`) +
+base instructions (read-data-first, no fabrication, indicator directionality) +
+the tool catalog. The accessor takes no view argument, so the prompt is
+**byte-stable across navigation within one package** and its prompt-cache
+breakpoint keeps hitting: the per-view instructions (still exported from this
+file, with short primary-tool pointers) are composed by the view registry
 ([ai_views.ts](client/src/components/products/copilot/_shared/ai_views.ts)) and
 delivered ephemerally per turn, and the hand-typed tool list was replaced by
 panther's `buildToolCatalog(tools)`, composed ONCE in the wrapper. Cache rule:

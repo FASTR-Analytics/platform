@@ -22,7 +22,7 @@ import {
   StateHolderWrapper,
 } from "panther";
 import { createMemo, type JSX, Show } from "solid-js";
-import { instanceState } from "~/state/instance/t1_store";
+import { instanceState, resolveScope } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import {
   exploreFamily,
@@ -181,7 +181,7 @@ function PackageExplorer(p: {
   controls: JSX.Element;
 }) {
   const context = createQuery(
-    () => getRunAuthoringContextFromCacheOrFetch(p.scope.runId),
+    () => getRunAuthoringContextFromCacheOrFetch(resolveScope(p.scope)),
     t3(TC.loading),
   );
   const families = createMemo((): DatasetType[] => {

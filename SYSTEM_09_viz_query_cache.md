@@ -654,16 +654,43 @@ appends it:
 column stamps, never from a baked list, because a new module output can change
 the split.
 
-**Only the geography part is applied.** `scopePredicateFor` reads
-`definition.geography` and nothing else: a definition with no geography gives no
-predicate on any view. The time, module and indicator parts are part of the
-definition and of its hash, so they change the cache key, and they filter no
-rows.
+**The default principle.** A dimension filters a results object only when the
+object has a column for it. Where it has none, that dimension contributes no
+predicate and the object is served whole, as long as its module is allowed. The
+predicate is the AND of the parts below, and `FALSE` if any part is `FALSE`. A
+part is absent when its dimension is unconstrained (null) or does not apply.
+Every value is escaped with `escapeSqlLiteral`.
 
-`./validate_queries` pins every branch below with scope as a case axis (a
-`ScopeDefinition` as `scope` on a case; the runner also asserts the echoed
-fetchConfig is the request and the holder's (run, scope) identity on every items
-case). `<aa2>` is `definition.geography.adminArea2`:
+| Dimension   | Results object has                                       | Part                                                                                                           |
+| ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Modules     | a `moduleId` outside `modules`                           | `FALSE`, the only way to remove a whole table                                                                  |
+| Geography   | `admin_area_2`                                           | `UPPER(admin_area_2) = UPPER('<aa2>')`                                                                         |
+|             | only `admin_area_3` or `admin_area_4`                    | the child column `IN` a subquery on the family facilities view                                                 |
+|             | a child column, but no facilities view or no family      | `FALSE`, the one exception to the principle                                                                    |
+|             | none of the three admin columns                          | none                                                                                                           |
+| Years       | `period_id`, `quarter_id` or `year`, and no `time_point` | `<column> BETWEEN <start> AND <end>`, the years converted with `convertPeriodValue`                            |
+|             | no physical time column, or `time_point`                 | none                                                                                                           |
+| Time points | `time_point`                                             | `CAST(time_point AS VARCHAR) IN (...)`                                                                         |
+| Indicators  | `indicator_common_id`, `hfa_indicator`, `iceh_indicator` | `CAST(<column> AS VARCHAR) IN (...)` from that column's own list (`hmis`, `hfa`, `iceh`), when the list is set |
+|             | none of the three, or a column whose list is null        | none                                                                                                           |
+
+An empty list is `FALSE`. A results object with `time_point` is governed by the
+time-point list alone: its rounds carry no date, so the year range does not
+apply to it. The cast lets one predicate serve a text column and an integer one
+(a module may declare `time_point` as either). The year of a `period_id` or
+`quarter_id` is the column's own leading digits, on every calendar. The
+facilities views take the geography part only
+(`UPPER(admin_area_2) =
+UPPER('<aa2>')`), so a results object with `facility_id`
+and no admin column is served whole while the facility columns of a facility
+outside the area read as blank.
+
+`./validate_queries` pins every row of the table on every read kind (items,
+option list, metric info, replicant options, raw preview) with scope as a case
+axis (a `ScopeDefinition` as `scope` on a case; the runner also asserts the
+echoed fetchConfig is the request and the holder's (run, scope) identity on
+every items case). The geography rows in detail, where `<aa2>` is
+`definition.geography.adminArea2`:
 
 - RO has `admin_area_2` → `UPPER(admin_area_2) = UPPER('<aa2>')`, the area
   escaped with `escapeSqlLiteral`. A PO whose own filterBy names a different AA2
@@ -694,12 +721,18 @@ replicant-options route) and the raw-rows preview
 `totalCount` is the manifest's package-wide `rowCount` only when the view has no
 predicate, and a `COUNT(*)` over the view otherwise.
 
-**Period bounds anchor differently on the two paths, ruled fine**:
+**Period bounds anchor differently on the two paths, ruled fine for geography**:
 `getPeriodBoundsCore` queries the scoped view, so the items path anchors to the
-scoped subset (axis min moves), while the replicant-options route keeps the
-manifest stamp (`getRawPeriodBoundsFromRun`). Measured across 83 real RO/run
-pairs: zero areas lag the package period max, and every relative filter type
-anchors on max. Do not "fix" the replicant path on this basis.
+scoped subset (axis min moves), while the value-info read and the
+replicant-options route take the manifest stamp (`getRawPeriodBoundsFromRun`).
+Measured across 83 real RO/run pairs: zero areas lag the package period max, and
+every relative filter type anchors on max. Do not "fix" the stamp readers for
+geography on this basis. A year range breaks the stamp by construction, so both
+stamp readers clamp it to the scope's years (`scopedPeriodBounds`, run_read.ts):
+the stamp's min and max are pulled inside the range, converted to the results
+object's physical time column, and a range that does not overlap the package
+leaves no bounds. The clamp is the range's edge, not the MIN/MAX of the rows
+inside it.
 
 ## Caching
 
@@ -742,10 +775,10 @@ of a cached payload without any data change, and once per manifest transform
 block (full history in the comment block above the constant; "19" is the payload
 shape without the write-only freshness pair: `runId` + `scopeToken` are the
 whole identity; "20" to "25" track the indicator restructure's payload and
-manifest-schema changes; "26" is the `scopeToken` as the definition hash). A
-payload _shape_ change is also a meaning change for these keys, so it takes the
-same bump (the version hash carries no data dimension that would otherwise
-orphan old-shape entries).
+manifest-schema changes; "26" is the `scopeToken` as the definition hash; "27"
+is the time, module and indicator parts filtering). A payload _shape_ change is
+also a meaning change for these keys, so it takes the same bump (the version
+hash carries no data dimension that would otherwise orphan old-shape entries).
 
 The instance **facility-columns config** is not a cache dimension and needs
 none: the manifest freezes the per-family structure schema
@@ -765,14 +798,23 @@ routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo` /
 `routes/instance/run_generation.ts`, the caller supplying `(run_id, scopeId)`,
 `runs.status = 'ready'` and an existing scope required, guarded
 `requireApprovedUser()`; the manifest-only `getRunAuthoringContext` sits beside
-them under the same guard but takes no scope and no ready gate). The replicant
-read is keyed by results object (the cache identity); the route narrows its
-`metricId` first. The client caches `getRunAuthoringContext` in
+them under the same guard, takes the same `scopeId` in its body and has no ready
+gate). The replicant read is keyed by results object (the cache identity); the
+route narrows its `metricId` first; its compute below the cache is
+`computeRunReplicantOptions`, which the query rig calls directly. The authoring
+context is cut by the scope's module list and nothing else: modules outside the
+list are absent, with their metrics and presets, and the indicator vocabularies
+and datasets stay whole, because they are package metadata
+(`buildRunAuthoringContext`, run_query/authoring_context.ts). Its payload
+carries the `scopeToken` it was built under. The client caches it in
 [t2_run_authoring_context.ts](client/src/state/instance/t2_run_authoring_context.ts),
-keyed by `runId` with a constant version key (the `t2_runs.ts` idiom: a ready
-run dir never changes, so nothing invalidates an entry); the deck and report
-editors read it by their container's live `runId` and the D4 update action takes
-its metric from it.
+keyed by `(runId, definitionHash)` with a constant version key (the `t2_runs.ts`
+idiom: a ready run dir never changes, so nothing invalidates an entry) and the
+same `answersKeyedScope` store guard as the figure-data caches. The deck and
+report editors and the copilot read it by their container's live pair, resolved
+with `resolveScope` inside the effect so an edit to the scope's definition
+re-reads; the package page reads it as the whole package. The D4 update action
+takes its metric from it.
 
 **HFA dataset display cache**
 ([routes/caches/dataset.ts](server/routes/caches/dataset.ts)): `ds_hfa` is a

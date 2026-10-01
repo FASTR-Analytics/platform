@@ -10,7 +10,11 @@ import {
   t3,
 } from "lib";
 import { LoadingIndicator, openAlert } from "panther";
-import { instanceState, productById } from "~/state/instance/t1_store";
+import {
+  instanceState,
+  productById,
+  resolveScope,
+} from "~/state/instance/t1_store";
 import {
   AIToolFailure,
   EditorComponentProps,
@@ -190,13 +194,14 @@ export function SlideDeckEditor(p: Props) {
   // actions author against. Immutable by identity, so this is a cache hit
   // after the first read of any given package.
   createEffect(() => {
-    const runId = scope()?.runId;
+    const pair = scope();
     setAuthoringContext(undefined);
-    if (runId === undefined) return;
+    if (pair === undefined) return;
+    const resolved = resolveScope(pair);
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     void (async () => {
-      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
+      const res = await getRunAuthoringContextFromCacheOrFetch(resolved);
       if (controller.signal.aborted || !res.success) return;
       setAuthoringContext(res.data);
     })();

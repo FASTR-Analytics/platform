@@ -44,7 +44,7 @@ import {
   StatusBar,
 } from "./package_view/mod.ts";
 import { serverActions } from "~/server_actions";
-import { instanceState } from "~/state/instance/t1_store";
+import { instanceState, resolveScope } from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getRunDetailFromCacheOrFetch } from "~/state/instance/t2_runs";
 
@@ -209,7 +209,9 @@ function PackageBody(p: {
     const requestId = ++requestCounter;
     const [detail, ctx] = await Promise.all([
       getRunDetailFromCacheOrFetch(runId),
-      getRunAuthoringContextFromCacheOrFetch(runId),
+      getRunAuthoringContextFromCacheOrFetch(
+        resolveScope({ runId, scopeId: null }),
+      ),
     ]);
     if (requestId !== requestCounter) return;
     setReads(

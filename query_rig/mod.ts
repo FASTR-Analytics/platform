@@ -8,9 +8,11 @@ import {
 } from "lib";
 import { getSingleValueDimsFromPossibleValues } from "lib";
 import {
+  computeRunReplicantOptions,
   getIndicatorMetadataFromRun,
   getPossibleValuesFromRun,
   getPresentationObjectItemsFromRun,
+  getResultsObjectItemsFromRun,
   getResultsValueInfoFromRun,
   type RunReadContext,
 } from "../server/run_query/mod.ts";
@@ -118,8 +120,11 @@ async function runMetricInfo(
   c: Case,
   p: Prepared,
 ): Promise<Failure | undefined> {
-  if (!("dimStatus" in c.expect)) {
-    return { case: c.name, detail: "metricInfo case must expect `dimStatus`" };
+  if (!("dimStatus" in c.expect) && !("periodBounds" in c.expect)) {
+    return {
+      case: c.name,
+      detail: "metricInfo case must expect `dimStatus` or `periodBounds`",
+    };
   }
   const metricId = p.fixture.metric?.id;
   if (!metricId) {
@@ -134,6 +139,15 @@ async function runMetricInfo(
     return {
       case: c.name,
       detail: `expected metric info, got error: ${res.err}`,
+    };
+  }
+
+  if ("periodBounds" in c.expect) {
+    const actual = JSON.stringify(res.data.periodBounds ?? null);
+    const expected = JSON.stringify(c.expect.periodBounds);
+    return actual === expected ? undefined : {
+      case: c.name,
+      detail: `expected periodBounds ${expected}, got ${actual}`,
     };
   }
 
@@ -179,6 +193,73 @@ async function runMetricInfo(
   return undefined;
 }
 
+// The replicant read's compute, below its cache (Valkey is out of the rig's
+// scope), after the validation the handler runs first.
+async function runReplicantOptions(
+  c: Case,
+  p: Prepared,
+): Promise<Failure | undefined> {
+  if (!("replicantIds" in c.expect)) {
+    return {
+      case: c.name,
+      detail: "replicantOptions case must expect `replicantIds`",
+    };
+  }
+  validateFetchConfig(c.fetchConfig);
+  const res = await computeRunReplicantOptions(
+    contextFor(c, p),
+    {
+      resultsObjectId: p.fixture.resultsObjectId,
+      replicateBy: c.disOpt!,
+      fetchConfig: c.fetchConfig,
+    },
+    p.fixture.moduleId,
+  );
+  if (!res.success) {
+    return { case: c.name, detail: `expected options, got error: ${res.err}` };
+  }
+  const actual = res.data.status === "ok"
+    ? res.data.possibleValues.map((v) => v.id)
+    : res.data.status === "no_values_available"
+    ? []
+    : res.data.status;
+  return JSON.stringify(actual) === JSON.stringify(c.expect.replicantIds)
+    ? undefined
+    : {
+      case: c.name,
+      detail: `expected option ids ${describe(c.expect.replicantIds)}, got ${
+        describe(actual)
+      }`,
+    };
+}
+
+async function runRawPreview(
+  c: Case,
+  p: Prepared,
+): Promise<Failure | undefined> {
+  if (!("rawCount" in c.expect)) {
+    return { case: c.name, detail: "rawPreview case must expect `rawCount`" };
+  }
+  const res = await getResultsObjectItemsFromRun(
+    contextFor(c, p),
+    p.fixture.resultsObjectId,
+    undefined,
+  );
+  if (!res.success) {
+    return { case: c.name, detail: `expected rows, got error: ${res.err}` };
+  }
+  const actual = res.data.status === "ok"
+    ? { totalCount: res.data.totalCount, rows: res.data.items.length }
+    : { totalCount: 0, rows: 0 };
+  const want = c.expect.rawCount;
+  return actual.totalCount === want && actual.rows === want ? undefined : {
+    case: c.name,
+    detail: `expected ${want} rows and totalCount ${want}, got ${
+      describe(actual)
+    }`,
+  };
+}
+
 async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
   setCalendar(c.calendar ?? "gregorian");
 
@@ -187,6 +268,12 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
   }
   if (c.entry === "metricInfo") {
     return await runMetricInfo(c, p);
+  }
+  if (c.entry === "replicantOptions") {
+    return await runReplicantOptions(c, p);
+  }
+  if (c.entry === "rawPreview") {
+    return await runRawPreview(c, p);
   }
 
   // Reproduce the route's sequence. validateFetchConfig lives in the handler,
@@ -229,10 +316,13 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
       detail: '`values` expectation requires entry: "possibleValues"',
     };
   }
-  if ("dimStatus" in c.expect) {
+  if (
+    "dimStatus" in c.expect || "periodBounds" in c.expect ||
+    "replicantIds" in c.expect || "rawCount" in c.expect
+  ) {
     return {
       case: c.name,
-      detail: '`dimStatus` expectation requires entry: "metricInfo"',
+      detail: "this expectation requires its own `entry`",
     };
   }
 

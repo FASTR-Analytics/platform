@@ -28,7 +28,11 @@ import {
   DEFAULT_BUILTIN_TOOLS,
 } from "./ai_configs/mod.ts";
 import { copilotViewController } from "./_shared/mod.ts";
-import { instanceState, productById } from "~/state/instance/t1_store";
+import {
+  instanceState,
+  productById,
+  resolveScope,
+} from "~/state/instance/t1_store";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { ConsolidatedChatPane } from "./chat_pane";
@@ -71,13 +75,14 @@ export function ProductCopilotHost(p: HostProps) {
     RunAuthoringContext | undefined
   >();
   createEffect(() => {
-    const runId = scope()?.runId;
+    const pair = scope();
     setAuthoringContext(undefined);
-    if (runId === undefined) return;
+    if (pair === undefined) return;
+    const resolved = resolveScope(pair);
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     void (async () => {
-      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
+      const res = await getRunAuthoringContextFromCacheOrFetch(resolved);
       if (controller.signal.aborted || !res.success) return;
       setAuthoringContext(res.data);
     })();
@@ -86,7 +91,8 @@ export function ProductCopilotHost(p: HostProps) {
   const binding = createMemo<CopilotBinding | undefined>(() => {
     const s = scope();
     const ctx = authoringContext();
-    return s !== undefined && ctx !== undefined && ctx.runId === s.runId
+    return s !== undefined && ctx !== undefined && ctx.runId === s.runId &&
+        ctx.scopeToken === resolveScope(s).definitionHash
       ? { scope: s, authoringContext: ctx }
       : undefined;
   });

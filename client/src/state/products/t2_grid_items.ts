@@ -38,7 +38,7 @@ type GridItemsParams = {
 
 const _GRID_ITEMS_CACHE = createReactiveCache<GridItemsParams, GridItemsHolder>(
   {
-    name: "run_grid_items_v2",
+    name: "run_grid_items_v3",
     uniquenessKeys: (params) => [
       params.scope.runId,
       params.scope.definitionHash,

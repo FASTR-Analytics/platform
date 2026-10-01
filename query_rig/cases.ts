@@ -8,8 +8,10 @@ import type {
   DisaggregationOption,
   GenericLongFormFetchConfig,
   InstanceCalendar,
+  PeriodBounds,
   ScopeDefinition,
 } from "lib";
+import { UNCONSTRAINED_SCOPE_DEFINITION } from "lib";
 
 export type Case = {
   name: string;
@@ -20,7 +22,15 @@ export type Case = {
   scope?: ScopeDefinition;
   // "possibleValues" runs the option-list query for `disOpt`, reusing
   // fetchConfig.filters as the filter set the route would pass.
-  entry?: "items" | "possibleValues" | "metricInfo";
+  // "replicantOptions" runs the replicant read's uncached compute with
+  // `disOpt` as replicateBy and the whole fetchConfig. "rawPreview" runs the
+  // raw-rows preview, which takes no fetch config.
+  entry?:
+    | "items"
+    | "possibleValues"
+    | "metricInfo"
+    | "replicantOptions"
+    | "rawPreview";
   disOpt?: DisaggregationOption;
   fetchConfig: GenericLongFormFetchConfig;
   expect:
@@ -40,6 +50,12 @@ export type Case = {
         isSingleValueDim?: boolean;
       };
     }
+    // The metric-info payload's period bounds (null: none).
+    | { periodBounds: PeriodBounds | null }
+    // The replicant read's option ids, ordered (empty: no_values_available).
+    | { replicantIds: string[] }
+    // The preview's totalCount (0: no_data_available).
+    | { rawCount: number }
     | { err: string };
 };
 
@@ -1319,9 +1335,445 @@ const SCOPE_CASES: Case[] = [
   },
 ];
 
+// The whole scope predicate, one row per branch of scopePredicateFor (the
+// table in SYSTEM_09 "The scoped view"), each run through all five read kinds:
+// items, option list, metric info, replicant options and the raw preview.
+// `rows` is the items read grouped by `disOpt`; the other four expectations
+// follow from it and from `rawCount`.
+type ScopeMatrixRow = {
+  name: string;
+  fixture: string;
+  scope: ScopeDefinition | undefined;
+  disOpt: DisaggregationOption;
+  rows: Record<string, unknown>[];
+  rawCount: number;
+};
+
+type WholeReading = Omit<ScopeMatrixRow, "name" | "scope">;
+
+const whole = UNCONSTRAINED_SCOPE_DEFINITION;
+
+// The whole-package reading of each fixture in the matrix. A row whose
+// dimension does not apply to the fixture spreads its fixture's entry, so the
+// default principle is asserted as "the same rows as the whole package".
+const WHOLE: Record<string, WholeReading> = {
+  hmis: {
+    fixture: "hmis_scope_dims",
+    disOpt: "admin_area_2",
+    rows: [
+      { admin_area_2: "A2_north", value: 7 },
+      { admin_area_2: "A2_south", value: 56 },
+    ],
+    rawCount: 6,
+  },
+  hfa: {
+    fixture: "hfa_scope_dims",
+    disOpt: "admin_area_2",
+    rows: [
+      { admin_area_2: "A2_north", value: 19 },
+      { admin_area_2: "A2_south", value: 12 },
+    ],
+    rawCount: 5,
+  },
+  iceh: {
+    fixture: "iceh_scope_dims",
+    disOpt: "iceh_indicator",
+    rows: [
+      { iceh_indicator: "cov_a", value: 3 },
+      { iceh_indicator: "cov_b", value: 12 },
+    ],
+    rawCount: 4,
+  },
+  admin3: {
+    fixture: "hmis_admin3_only",
+    disOpt: "admin_area_3",
+    rows: [
+      { admin_area_3: "A3_alpha", value: 10 },
+      { admin_area_3: "A3_beta", value: 5 },
+      { admin_area_3: "A3_delta", value: 1 },
+      { admin_area_3: "A3_gamma", value: 7 },
+    ],
+    rawCount: 4,
+  },
+  admin3NoFacilities: {
+    fixture: "admin3_no_facilities",
+    disOpt: "admin_area_3",
+    rows: [
+      { admin_area_3: "A3_alpha", value: 10 },
+      { admin_area_3: "A3_gamma", value: 7 },
+    ],
+    rawCount: 2,
+  },
+  variants: {
+    fixture: "hfa_variants",
+    disOpt: "hfa_variant_item",
+    rows: [
+      { hfa_variant_item: "campaign", value: 38, __n_value: 2 },
+      { hfa_variant_item: "piped", value: 2, __n_value: 1 },
+      { hfa_variant_item: "routine", value: 6, __n_value: 2 },
+    ],
+    rawCount: 6,
+  },
+};
+
+const EMPTY = { rows: [], rawCount: 0 };
+
+const SCOPE_MATRIX_ROWS: ScopeMatrixRow[] = [
+  ...Object.values(WHOLE).map((w) => ({
+    ...w,
+    name: `whole package: ${w.fixture}`,
+    scope: undefined,
+  })),
+
+  // Modules.
+  {
+    ...WHOLE.hmis,
+    ...EMPTY,
+    name: "modules: a results object whose module is outside the list is empty",
+    scope: { ...whole, modules: ["m_other"] },
+  },
+  {
+    ...WHOLE.hmis,
+    name: "modules: a results object whose module is in the list is whole",
+    scope: { ...whole, modules: ["m_other", "m_scope_hmis"] },
+  },
+
+  // Geography.
+  {
+    ...WHOLE.hmis,
+    name: "geography: admin_area_2 is filtered directly",
+    scope: area("A2_south"),
+    rows: [{ admin_area_2: "A2_south", value: 56 }],
+    rawCount: 3,
+  },
+  {
+    ...WHOLE.admin3,
+    name: "geography: a child column is filtered through the facilities view",
+    scope: area("A2_south"),
+    rows: [
+      { admin_area_3: "A3_delta", value: 1 },
+      { admin_area_3: "A3_gamma", value: 7 },
+    ],
+    rawCount: 2,
+  },
+  {
+    ...WHOLE.admin3NoFacilities,
+    ...EMPTY,
+    name: "geography: a child column with no facilities view is empty",
+    scope: area("A2_south"),
+  },
+  {
+    ...WHOLE.variants,
+    name: "geography does not apply: no admin column, served whole",
+    scope: area("A2_south"),
+  },
+  {
+    ...WHOLE.iceh,
+    name: "geography does not apply: the ICEH shape is served whole",
+    scope: area("A2_south"),
+  },
+
+  // Years.
+  {
+    ...WHOLE.hmis,
+    name: "years: a range on period_id",
+    scope: {
+      ...whole,
+      time: { years: { start: 2025, end: 2025 }, hfaTimePoints: null },
+    },
+    rows: [{ admin_area_2: "A2_south", value: 16 }],
+    rawCount: 1,
+  },
+  {
+    ...WHOLE.iceh,
+    name: "years: a range on a year column",
+    scope: {
+      ...whole,
+      time: { years: { start: 2022, end: 2022 }, hfaTimePoints: null },
+    },
+    rows: [{ iceh_indicator: "cov_a", value: 1 }],
+    rawCount: 1,
+  },
+  {
+    ...WHOLE.hfa,
+    name: "years do not apply: no physical time column, served whole",
+    scope: {
+      ...whole,
+      time: { years: { start: 2024, end: 2024 }, hfaTimePoints: null },
+    },
+  },
+
+  // HFA time points.
+  {
+    ...WHOLE.hfa,
+    name: "time points: time_point is filtered to the list",
+    scope: {
+      ...whole,
+      time: { years: null, hfaTimePoints: ["midline", "no_such_round"] },
+    },
+    rows: [{ admin_area_2: "A2_north", value: 2 }],
+    rawCount: 1,
+  },
+  {
+    ...WHOLE.hfa,
+    ...EMPTY,
+    name: "time points: an empty list matches nothing",
+    scope: { ...whole, time: { years: null, hfaTimePoints: [] } },
+  },
+  {
+    ...WHOLE.hmis,
+    name: "time points do not apply: no time_point column, served whole",
+    scope: { ...whole, time: { years: null, hfaTimePoints: ["baseline"] } },
+  },
+
+  // Indicators, one list per indicator column.
+  {
+    ...WHOLE.hmis,
+    name: "indicators: indicator_common_id is filtered to the hmis list",
+    scope: {
+      ...whole,
+      indicators: { hmis: ["penta3"], hfa: null, iceh: null },
+    },
+    rows: [{ admin_area_2: "A2_south", value: 48 }],
+    rawCount: 2,
+  },
+  {
+    ...WHOLE.hfa,
+    name: "indicators: hfa_indicator is filtered to the hfa list",
+    scope: { ...whole, indicators: { hmis: null, hfa: ["ind_a"], iceh: null } },
+    rows: [{ admin_area_2: "A2_north", value: 3 }],
+    rawCount: 2,
+  },
+  {
+    ...WHOLE.iceh,
+    name: "indicators: iceh_indicator is filtered to the iceh list",
+    scope: { ...whole, indicators: { hmis: null, hfa: null, iceh: ["cov_a"] } },
+    rows: [{ iceh_indicator: "cov_a", value: 3 }],
+    rawCount: 2,
+  },
+  {
+    ...WHOLE.hmis,
+    name: "indicators: a column whose own list is not set is served whole",
+    scope: {
+      ...whole,
+      indicators: { hmis: null, hfa: ["ind_a"], iceh: ["cov_a"] },
+    },
+  },
+  {
+    ...WHOLE.admin3,
+    name: "indicators do not apply: no indicator column, served whole",
+    scope: {
+      ...whole,
+      indicators: { hmis: ["anc1"], hfa: ["ind_a"], iceh: ["cov_a"] },
+    },
+  },
+
+  // The parts are ANDed.
+  {
+    ...WHOLE.hmis,
+    name: "all parts together: area, year and indicator",
+    scope: {
+      geography: { adminArea2: "A2_south" },
+      time: { years: { start: 2024, end: 2025 }, hfaTimePoints: ["baseline"] },
+      modules: ["m_scope_hmis"],
+      indicators: { hmis: ["anc1"], hfa: null, iceh: null },
+    },
+    rows: [{ admin_area_2: "A2_south", value: 8 }],
+    rawCount: 1,
+  },
+];
+
+const SCOPE_MATRIX: Case[] = SCOPE_MATRIX_ROWS.flatMap((row): Case[] => {
+  const common = {
+    fixture: row.fixture,
+    scope: row.scope,
+    disOpt: row.disOpt,
+    fetchConfig: { ...base(), groupBys: [row.disOpt] },
+  };
+  const ids = row.rows.map((r) => String(r[row.disOpt]));
+  return [
+    {
+      ...common,
+      name: `${row.name} / items`,
+      expect: row.rows.length === 0
+        ? { status: "no_data_available" }
+        : { status: "ok", rows: row.rows },
+    },
+    {
+      ...common,
+      name: `${row.name} / option list`,
+      entry: "possibleValues",
+      fetchConfig: { ...base(), groupBys: [] },
+      expect: { values: ids.map((id) => ({ id, label: id })) },
+    },
+    {
+      ...common,
+      name: `${row.name} / metric info`,
+      entry: "metricInfo",
+      expect: {
+        dimStatus: {
+          disOpt: row.disOpt,
+          status: ids.length === 0 ? "no_values_available" : "ok",
+          ...(ids.length === 0 ? {} : { namedCount: ids.length }),
+        },
+      },
+    },
+    {
+      ...common,
+      name: `${row.name} / replicant options`,
+      entry: "replicantOptions",
+      expect: { replicantIds: ids },
+    },
+    {
+      ...common,
+      name: `${row.name} / raw preview`,
+      entry: "rawPreview",
+      expect: { rawCount: row.rawCount },
+    },
+  ];
+});
+
+const years = (start: number, end: number): ScopeDefinition => ({
+  ...whole,
+  time: { years: { start, end }, hfaTimePoints: null },
+});
+
+// What the matrix cannot express: the other physical time columns, an integer
+// time_point, and the two readers that take period bounds from the manifest
+// stamp instead of a query (R27).
+const SCOPE_DIMENSION_CASES: Case[] = [
+  {
+    name: "years: a range on quarter_id",
+    fixture: "hmis_quarterly",
+    scope: years(2024, 2024),
+    fetchConfig: { ...base(), groupBys: ["quarter_id"] },
+    // The whole package also holds 20234 (5).
+    expect: {
+      status: "ok",
+      rows: [
+        { quarter_id: 20241, value: 10 },
+        { quarter_id: 20242, value: 20 },
+      ],
+    },
+  },
+  {
+    name: "time points: the list matches an INTEGER time_point",
+    fixture: "hfa_timepoint_integer",
+    scope: { ...whole, time: { years: null, hfaTimePoints: ["1"] } },
+    fetchConfig: { ...base(), groupBys: ["time_point"] },
+    // The whole package also holds round 2 (26) and the blank round (4).
+    expect: {
+      status: "ok",
+      rows: [{ time_point: 1, value: 26, __n_value: 4 }],
+    },
+  },
+  {
+    name: "facilities view: the whole package joins every facility",
+    fixture: "hfa_variants",
+    fetchConfig: { ...base(), groupBys: ["facility_type"] },
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: "hospital", value: 23, __n_value: 1 },
+        { facility_type: "clinic", value: 23, __n_value: 2 },
+      ],
+    },
+  },
+  {
+    name: "facilities view: it takes the geography part of the scope",
+    fixture: "hfa_variants",
+    scope: area("A2_south"),
+    fetchConfig: { ...base(), groupBys: ["facility_type"] },
+    // The results object has no admin column, so its rows are served whole
+    // (the default principle), and the facilities view holds A2_south's
+    // facilities only: the rows of h1 and h2, which sit in A2_north, join to
+    // nothing and their facility columns read as blank. Intended (PLAN_SCOPES
+    // 2.3): a facility outside the scope's area is not described.
+    expect: {
+      status: "ok",
+      rows: [
+        { facility_type: BLANK_SENTINEL, value: 44, __n_value: 2 },
+        { facility_type: "clinic", value: 2, __n_value: 1 },
+      ],
+    },
+  },
+  {
+    name: "period bounds: the whole package reads the manifest stamp",
+    fixture: "hmis_scope_dims",
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: { periodBounds: { min: 202306, max: 202501 } },
+  },
+  {
+    name: "period bounds: the stamp is clamped to the scope's years",
+    fixture: "hmis_scope_dims",
+    scope: years(2024, 2024),
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: { periodBounds: { min: 202401, max: 202412 } },
+  },
+  {
+    name: "period bounds: a range wider than the package keeps the stamp",
+    fixture: "hmis_scope_dims",
+    scope: years(2000, 2100),
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: { periodBounds: { min: 202306, max: 202501 } },
+  },
+  {
+    name: "period bounds: years outside the package leave no bounds",
+    fixture: "hmis_scope_dims",
+    scope: years(2030, 2031),
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    expect: { periodBounds: null },
+  },
+  {
+    name: "period bounds: geography does not move the stamp",
+    fixture: "hmis_scope_dims",
+    scope: area("A2_north"),
+    entry: "metricInfo",
+    fetchConfig: { ...base(), groupBys: [] },
+    // A2_north's own rows end at 202412. SYSTEM_09 rules the package-wide
+    // stamp fine for geography.
+    expect: { periodBounds: { min: 202306, max: 202501 } },
+  },
+  {
+    name: "replicant options: a relative filter anchors on the package max",
+    fixture: "hmis_scope_dims",
+    entry: "replicantOptions",
+    disOpt: "admin_area_2",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["admin_area_2"],
+      periodFilter: { filterType: "last_n_months", nMonths: 1 },
+    },
+    // The last month of the package is 202501, A2_south's.
+    expect: { replicantIds: ["A2_south"] },
+  },
+  {
+    name: "replicant options: under years it anchors on the clamped max",
+    fixture: "hmis_scope_dims",
+    scope: years(2024, 2024),
+    entry: "replicantOptions",
+    disOpt: "admin_area_2",
+    fetchConfig: {
+      ...base(),
+      groupBys: ["admin_area_2"],
+      periodFilter: { filterType: "last_n_months", nMonths: 1 },
+    },
+    // The last month inside the scope is 202412, A2_north's. Anchored on the
+    // package-wide stamp the filter would be 202501, which the scoped view
+    // does not hold, and the list would be empty.
+    expect: { replicantIds: ["A2_north"] },
+  },
+];
+
 export const CASES: Case[] = [
   ...EXPLICIT_CASES,
   ...PERIOD_MATRIX,
   ...QUARTER_DERIVATION,
   ...SCOPE_CASES,
+  ...SCOPE_MATRIX,
+  ...SCOPE_DIMENSION_CASES,
 ];

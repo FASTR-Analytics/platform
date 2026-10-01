@@ -180,13 +180,13 @@ export const runGenerationRouteRegistry = {
     response: {} as ItemsHolderResultsObject,
   }),
   // Everything an author needs FROM a package, a pure function of the run
-  // directory (lib/types/run_authoring_context.ts): the client caches it by
-  // runId without revalidating. No scope: scope changes what a query returns,
-  // never what exists to author against.
+  // directory and the scope (lib/types/run_authoring_context.ts): the client
+  // caches it by (runId, definition hash) without revalidating.
   getRunAuthoringContext: route({
     path: "/run_generation/run/:run_id/authoring_context",
-    method: "GET",
+    method: "POST",
     params: z.object({ run_id: z.string() }),
+    body: z.object({ scopeId: scopeIdSchema }),
     response: {} as RunAuthoringContext,
   }),
   // What a READY run contains: per-module settings (resolved server-side

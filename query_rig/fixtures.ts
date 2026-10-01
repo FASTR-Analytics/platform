@@ -33,7 +33,7 @@ export type HfaSnapshots = {
 
 export type Fixture = {
   name: string;
-  family: "hmis" | "hfa";
+  family: "hmis" | "hfa" | "iceh";
   // Seeded into the family's structure_schema_{family} row alongside the
   // flags. Not consumed by the query engine (ruling 4: flags only). It makes
   // the seeded row a valid StructureSchema.
@@ -60,6 +60,17 @@ export type Fixture = {
   };
   firstPeriodOption: PeriodOption | undefined;
 };
+
+function sumMetric(id: string): NonNullable<Fixture["metric"]> {
+  return {
+    id,
+    label: id,
+    value_func: "SUM",
+    format_as: "number",
+    value_props: ["value"],
+    required_disaggregation_options: [],
+  };
+}
 
 const ALL_FACILITY_COLUMNS_OFF = {
   includeNames: false,
@@ -826,8 +837,9 @@ export const F11_HFA_VARIANTS: Fixture = {
     dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
   },
   resultsObjectId: "22222222-3333-4444-5555-666666666666",
-  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF, includeTypes: true },
   facilities: HFA_FACILITIES,
+  metric: sumMetric("metric_variants"),
   roColumns: [
     { name: "facility_id", type: "TEXT" },
     { name: "time_point", type: "TEXT" },
@@ -1015,6 +1027,7 @@ export const F14_HMIS_ADMIN3_ONLY: Fixture = {
   resultsObjectId: "77777777-8888-9999-aaaa-bbbbbbbbbbbb",
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: F1_HMIS_MONTHLY.facilities,
+  metric: sumMetric("metric_admin3"),
   roColumns: [
     { name: "admin_area_3", type: "TEXT" },
     { name: "value", type: "NUMERIC" },
@@ -1041,6 +1054,7 @@ export const F15_ADMIN3_NO_FACILITIES: Fixture = {
   resultsObjectId: "88888888-9999-aaaa-bbbb-cccccccccccc",
   facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
   facilities: null,
+  metric: sumMetric("metric_admin3_derived"),
   roColumns: [
     { name: "admin_area_3", type: "TEXT" },
     { name: "value", type: "NUMERIC" },
@@ -1051,6 +1065,166 @@ export const F15_ADMIN3_NO_FACILITIES: Fixture = {
   ],
   indicators: [],
   firstPeriodOption: undefined,
+};
+
+// F16 to F18: the scope's time and data dimensions, one results object per
+// family shape. No facility_id, so no sample-n column rides the rows. Values
+// are powers of two, so every subset of rows has its own sum and a predicate
+// that keeps the wrong rows cannot land on the expected number. Each family
+// holds a year, a round and an indicator that only one group has, so a scope
+// on it changes the option lists as well as the sums.
+//
+// F16: HMIS with a physical period_id spanning three years and two indicators.
+// By admin_area_2: A2_north = 7, A2_south = 56.
+export const F16_HMIS_SCOPE_DIMS: Fixture = {
+  name: "hmis_scope_dims",
+  family: "hmis",
+  adminDepth: 4,
+  moduleId: "m_scope_hmis",
+  moduleDefinition: hmisModule(),
+  resultsObjectId: "99999999-aaaa-bbbb-cccc-dddddddddddd",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: [],
+  roColumns: [
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "period_id", type: "INTEGER" },
+    { name: "indicator_common_id", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    {
+      admin_area_2: "A2_north",
+      period_id: 202306,
+      indicator_common_id: "anc1",
+      value: 1,
+    },
+    {
+      admin_area_2: "A2_north",
+      period_id: 202401,
+      indicator_common_id: "anc1",
+      value: 2,
+    },
+    {
+      admin_area_2: "A2_north",
+      period_id: 202412,
+      indicator_common_id: "anc1",
+      value: 4,
+    },
+    {
+      admin_area_2: "A2_south",
+      period_id: 202403,
+      indicator_common_id: "anc1",
+      value: 8,
+    },
+    {
+      admin_area_2: "A2_south",
+      period_id: 202501,
+      indicator_common_id: "penta3",
+      value: 16,
+    },
+    {
+      admin_area_2: "A2_south",
+      period_id: 202312,
+      indicator_common_id: "penta3",
+      value: 32,
+    },
+  ],
+  indicators: [
+    { indicator_common_id: "anc1", indicator_common_label: "ANC 1st visit" },
+    { indicator_common_id: "penta3", indicator_common_label: "Penta 3" },
+  ],
+  metric: sumMetric("metric_scope_hmis"),
+  firstPeriodOption: "period_id",
+};
+
+// F17: the HFA shape, time_point and hfa_indicator and no physical time
+// column, so a year range does not apply to it.
+// By admin_area_2: A2_north = 19, A2_south = 12.
+export const F17_HFA_SCOPE_DIMS: Fixture = {
+  name: "hfa_scope_dims",
+  family: "hfa",
+  adminDepth: 4,
+  moduleId: "m_scope_hfa",
+  moduleDefinition: {
+    scriptGenerationType: "hfa",
+    dataSources: [{ sourceType: "dataset", datasetType: "hfa" }],
+  },
+  resultsObjectId: "aaaaaaaa-1111-2222-3333-444444444444",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: [],
+  roColumns: [
+    { name: "admin_area_2", type: "TEXT" },
+    { name: "time_point", type: "TEXT" },
+    { name: "hfa_indicator", type: "TEXT" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    {
+      admin_area_2: "A2_north",
+      time_point: "baseline",
+      hfa_indicator: "ind_a",
+      value: 1,
+    },
+    {
+      admin_area_2: "A2_north",
+      time_point: "midline",
+      hfa_indicator: "ind_a",
+      value: 2,
+    },
+    {
+      admin_area_2: "A2_south",
+      time_point: "baseline",
+      hfa_indicator: "ind_b",
+      value: 4,
+    },
+    {
+      admin_area_2: "A2_south",
+      time_point: "endline",
+      hfa_indicator: "ind_b",
+      value: 8,
+    },
+    {
+      admin_area_2: "A2_north",
+      time_point: "endline",
+      hfa_indicator: "ind_b",
+      value: 16,
+    },
+  ],
+  indicators: [],
+  hfaSnapshots: HFA_SNAPSHOTS,
+  metric: sumMetric("metric_scope_hfa"),
+  firstPeriodOption: undefined,
+};
+
+// F18: the ICEH shape, iceh_indicator and a physical year column and no admin
+// column, so geography does not apply to it.
+// By iceh_indicator: cov_a = 3, cov_b = 12.
+export const F18_ICEH_SCOPE_DIMS: Fixture = {
+  name: "iceh_scope_dims",
+  family: "iceh",
+  adminDepth: 4,
+  moduleId: "m_scope_iceh",
+  moduleDefinition: {
+    scriptGenerationType: "standard",
+    dataSources: [{ sourceType: "dataset", datasetType: "iceh" }],
+  },
+  resultsObjectId: "bbbbbbbb-1111-2222-3333-444444444444",
+  facilityColumns: { ...ALL_FACILITY_COLUMNS_OFF },
+  facilities: null,
+  roColumns: [
+    { name: "iceh_indicator", type: "TEXT" },
+    { name: "year", type: "INTEGER" },
+    { name: "value", type: "NUMERIC" },
+  ],
+  roRows: [
+    { iceh_indicator: "cov_a", year: 2022, value: 1 },
+    { iceh_indicator: "cov_a", year: 2023, value: 2 },
+    { iceh_indicator: "cov_b", year: 2023, value: 4 },
+    { iceh_indicator: "cov_b", year: 2024, value: 8 },
+  ],
+  indicators: [],
+  metric: sumMetric("metric_scope_iceh"),
+  firstPeriodOption: "year",
 };
 
 export const ALL_FIXTURES: Fixture[] = [
@@ -1069,4 +1243,7 @@ export const ALL_FIXTURES: Fixture[] = [
   F13_HFA_DIVERGENT_SCHEMA,
   F14_HMIS_ADMIN3_ONLY,
   F15_ADMIN3_NO_FACILITIES,
+  F16_HMIS_SCOPE_DIMS,
+  F17_HFA_SCOPE_DIMS,
+  F18_ICEH_SCOPE_DIMS,
 ];

@@ -329,10 +329,10 @@ text without re-validation.
 [slide_deck/slide_deck.tsx](client/src/components/products/slide_deck/slide_deck.tsx))
 takes `{ productId }`: label, package and scope come from `productById` on the
 T1 store (D16), the authoring context from S9's immutable
-`t2_run_authoring_context.ts` keyed by the LIVE `runId`, so a reattach or
-rescope (from the header chip, the Products page or a collaborator) moves figure
-data, metrics and presets together and lights the stale badges without a
-remount; a product deleted under an open editor closes it. The header shows the
+`t2_run_authoring_context.ts` keyed by the LIVE pair, so a reattach or rescope
+(from the header chip, the Products page or a collaborator) moves figure data,
+metrics and presets together and lights the stale badges without a remount; a
+product deleted under an open editor closes it. The header shows the
 `PackageScopeChip` ("package · scope" in the package accent from `app.css`),
 which for an editor opens `PackageScopeModal` with a count of the figures the
 candidate pair would leave stale; Present and History are buttons on the bar,

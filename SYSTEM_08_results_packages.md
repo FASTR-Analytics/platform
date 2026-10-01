@@ -472,10 +472,14 @@ many products renders as each product's own view. A scope is independent of
 packages. The definition is applied at the run read layer as a predicate on the
 DuckDB view each query runs against (SYSTEM_09 "The scoped view").
 
-**Only geography filters today.** The time, module and indicator parts are
-validated, stored and included in the definition hash, and `scopePredicateFor`
-does not read them, so two scopes that differ only in those parts return the
-same rows under different cache keys.
+**Every part filters, where it applies.** A dimension filters a results object
+only when the object has a column for it (the default principle, SYSTEM_09 "The
+scoped view"): geography needs an admin column, the year range a physical time
+column, the HFA time points `time_point`, and each indicator list its own
+indicator column. A results object with no such column is served whole, as long
+as its module is in the module list, which is the only part that removes a whole
+table. The authoring context a product reads is cut by the module list alone
+(S9).
 
 **Scopes are not enforced per user.** Any approved user can read any ready
 package under any scope, or as the whole package (`scopeId: null`), through the

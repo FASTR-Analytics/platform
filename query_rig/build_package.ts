@@ -29,15 +29,14 @@ export async function seedInstance(mainDb: Sql, fx: Fixture): Promise<void> {
       Object.entries(fx.facilityColumns).map(([k, v]) => [k, !v]),
     ),
   };
-  const ownKey = `structure_schema_${fx.family}`;
-  const otherKey = fx.family === "hmis"
-    ? "structure_schema_hfa"
-    : "structure_schema_hmis";
+  // ICEH has no structure schema, so both rows are the divergent one.
+  const hmisSchema = fx.family === "hmis" ? ownSchema : otherSchema;
+  const hfaSchema = fx.family === "hfa" ? ownSchema : otherSchema;
   await mainDb`
     INSERT INTO instance_config (config_key, config_json_value)
     VALUES
-      (${ownKey}, ${JSON.stringify(ownSchema)}),
-      (${otherKey}, ${JSON.stringify(otherSchema)})
+      ('structure_schema_hmis', ${JSON.stringify(hmisSchema)}),
+      ('structure_schema_hfa', ${JSON.stringify(hfaSchema)})
     ON CONFLICT (config_key)
     DO UPDATE SET config_json_value = EXCLUDED.config_json_value
   `;

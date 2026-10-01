@@ -7,10 +7,37 @@ import {
   MAX_CONTENT_BLOCKS,
   type PackageScope,
   type RunAuthoringContext,
+  type Scope,
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
 import { SPA_INFO_TOPICS } from "./client_info_topics";
+
+// What the scope limits, in words the model can act on: a figure it authors
+// reads only rows inside these limits, so a filter outside them returns
+// nothing.
+function scopeLines(scope: Scope | undefined): string[] {
+  if (scope === undefined) return ["**Scope:** whole package"];
+  const d = scope.definition;
+  const list = (values: string[]) => values.join(", ");
+  const limits = [
+    d.geography && `admin area 2 "${d.geography.adminArea2}"`,
+    d.time.years && `years ${d.time.years.start} to ${d.time.years.end}`,
+    d.time.hfaTimePoints && `HFA time points ${list(d.time.hfaTimePoints)}`,
+    d.modules && `modules ${list(d.modules)}`,
+    d.indicators.hmis && `HMIS indicators ${list(d.indicators.hmis)}`,
+    d.indicators.hfa && `HFA indicators ${list(d.indicators.hfa)}`,
+    d.indicators.iceh && `ICEH indicators ${list(d.indicators.iceh)}`,
+  ].filter((limit) => typeof limit === "string");
+  return [
+    `**Scope:** ${scope.label}`,
+    limits.length === 0
+      ? "This scope limits nothing: every read returns the whole package."
+      : `Every read returns only the rows inside this scope: ${
+        limits.join("; ")
+      }. A limit applies to a table only when the table has a column for it; a table without one is returned whole.`,
+  ];
+}
 
 // The copilot's system prompt: the shared grounding blocks (lib/ai_tools/
 // build_system_prompt.ts) plus the instance's own prose: the open product's
@@ -42,10 +69,7 @@ export function buildSystemPromptForContext(
     "The open product is attached to exactly one results package at one scope; every figure inside it, and every metric read you make, resolves under that pair.",
     "",
     packageLine,
-    `**Scope:** ${
-      instance.scopes.find((s) => s.id === scope.scopeId)?.label ??
-        "whole package"
-    }`,
+    ...scopeLines(instance.scopes.find((s) => s.id === scope.scopeId)),
     ...buildPackageGroundingSections({
       calendar: instance.instanceCalendar,
       datasets: authoringContext.datasets,

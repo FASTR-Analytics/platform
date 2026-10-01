@@ -795,13 +795,14 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     RunAuthoringContext | undefined
   >();
   createEffect(() => {
-    const runId = scope()?.runId;
+    const pair = scope();
     setAuthoringContext(undefined);
-    if (runId === undefined) return;
+    if (pair === undefined) return;
+    const resolved = resolveScope(pair);
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     void (async () => {
-      const res = await getRunAuthoringContextFromCacheOrFetch(runId);
+      const res = await getRunAuthoringContextFromCacheOrFetch(resolved);
       if (controller.signal.aborted || !res.success) return;
       setAuthoringContext(res.data);
     })();

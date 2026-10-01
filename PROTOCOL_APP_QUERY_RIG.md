@@ -17,15 +17,17 @@ The fixture's rows are written as the module's raw output CSV, then the
 produce the parquet and the manifest into a throwaway runs directory. It then
 runs the **production** run read path (`server/run_query/run_read.ts`:
 `getPresentationObjectItemsFromRun`, `getPossibleValuesFromRun`,
-`getResultsValueInfoFromRun`) against it over a `RunReadContext` at the case's
-scope (the unconstrained definition, the whole package, unless the case carries
-a `scope`). Config → SQL → DuckDB over parquet → real rows: the engine
-production serves from, not a stand-in. Nothing is mocked and there is no test
-seam. A throwaway Postgres survives only for what the package builder reads from
-the MAIN database (the per-family structure schema rows in `instance_config`).
+`getResultsValueInfoFromRun`, `getResultsObjectItemsFromRun`, and
+`computeRunReplicantOptions` from `run_data_reads.ts`) against it over a
+`RunReadContext` at the case's scope (the unconstrained definition, the whole
+package, unless the case carries a `scope`). Config → SQL → DuckDB over parquet
+→ real rows: the engine production serves from, not a stand-in. Nothing is
+mocked and there is no test seam. A throwaway Postgres survives only for what
+the package builder reads from the MAIN database (the per-family structure
+schema rows in `instance_config`).
 
 ```bash
-./validate_queries            # ~10s: container up, 15 packages built, 76 cases
+./validate_queries            # ~15s: container up, 18 packages built, 212 cases
 ```
 
 (once the `postgres:17.4` image is cached locally; the first run pulls it.)
@@ -41,7 +43,7 @@ typechecks itself before running, since `query_rig/` sits outside
 | `validate_queries`           | container + runs-dir lifecycle, env, invokes the runner                       |
 | `query_rig/mod.ts`           | runner: build packages, loop cases, summarise                                 |
 | `query_rig/cases.ts`         | **the case table**, where you add coverage                                    |
-| `query_rig/fixtures.ts`      | F1–F15                                                                        |
+| `query_rig/fixtures.ts`      | F1–F18                                                                        |
 | `query_rig/build_package.ts` | fixture → structure-schema rows + results package + unscoped `RunReadContext` |
 | `query_rig/harness.ts`       | connections, schema loading, multiset compare                                 |
 
@@ -66,8 +68,12 @@ literal, one place to look.
 - `expect` is one of `{status:"ok", rows}`,
   `{status:"no_data_available" |
   "too_many_items"}`, `{values}` (option lists,
-  **ordered**), `{dimStatus}` (one dimension's option-list status), or `{err}`
-  (substring match).
+  **ordered**), `{dimStatus}` (one dimension's option-list status),
+  `{periodBounds}` (the metric-info payload's bounds, `null` for none),
+  `{replicantIds}` (the replicant read's option ids, ordered, empty for
+  `no_values_available`), `{rawCount}` (the raw preview's `totalCount`, which
+  must also be its row count, 0 for `no_data_available`), or `{err}` (substring
+  match).
 - `calendar: "ethiopian"` flips `setCalendar()` for that case:
   `getQuarterIdExpression` emits different SQL per calendar.
 - `scope: geographyOnlyScopeDefinition("A2_south")` reads through a context
@@ -75,8 +81,7 @@ literal, one place to look.
   The rig builds the context itself, because the production gate
   (`getReadyRunReadContext`) loads the definition from a `scopes` row and the
   rig's scopes exist only in the case table. Absent = the unconstrained
-  definition. Only the geography part of a definition changes what a read
-  returns. Scope is a predicate on the view the query runs against, which the
+  definition. Scope is a predicate on the view the query runs against, which the
   caller's fetch config never shows, so pair every scoped case with the unscoped
   reading of the same query. On every items case the runner also asserts that
   the echoed `fetchConfig` is the request and that the holder's `runId` /
@@ -86,7 +91,28 @@ literal, one place to look.
 - `entry: "metricInfo"` resolves the fixture's `metric` through the enricher and
   asserts a `dimStatus`: `status`, `namedCount` (sentinel excluded), and
   `isSingleValueDim` (which runs the real `getSingleValueDimsFromPossibleValues`
-  over the whole payload). Requires the fixture to declare a `metric`.
+  over the whole payload), or the payload's `periodBounds`. Requires the fixture
+  to declare a `metric`.
+- `entry: "replicantOptions"` with `disOpt` as `replicateBy` runs the replicant
+  read's compute below its cache (`computeRunReplicantOptions`) with the whole
+  `fetchConfig`, period filter included.
+- `entry: "rawPreview"` runs the raw-rows preview. It takes no fetch config.
+
+## The scope matrix
+
+`SCOPE_MATRIX_ROWS` in `cases.ts` holds one row per branch of
+`scopePredicateFor` (the table in SYSTEM_09 "The scoped view"), and each row
+generates five cases, one per read kind: items, option list, metric info,
+replicant options and raw preview. A row is the fixture, the scope, the
+dimension to group by, the grouped `rows` and the `rawCount`; the other
+expectations follow from those. To cover a new branch, add one row.
+
+A row whose dimension does not apply to its fixture spreads the fixture's entry
+in `WHOLE`, the whole-package reading, which is itself a row. That is how the
+default principle is asserted: the same rows as the whole package, on every read
+kind. Pick a scope that removes a whole group, so the option lists change as
+well as the sums: a year range that keeps every area leaves the option-list,
+metric-info and replicant cases green under a broken predicate.
 
 ## Adding a fixture
 
@@ -167,6 +193,13 @@ is the control, not the text):
 | disable buildWhereClause's numeric filter branch                         | both F12 filter cases: `function upper(numeric) does not exist`                                                                                             |
 | drop the PERIOD exclusion from the numeric filter gate                   | month-filter case: derived TEXT month misrouted to `month IN (2)`                                                                                           |
 | `scopePredicateFor` returns no predicate                                 | the 8 scoped cases go red (items, option list, metric info, child column, no children, fail-closed); the 5 paired national readings stay green (2026-10-01) |
+| drop the modules part of `scopePredicateFor`                             | 5 red of 212: the "module is outside the list" row on all five read kinds (2026-10-01)                                                                      |
+| drop the geography part                                                  | 28 red: the three geography rows and the combined row on all five read kinds, and the 8 scoped cases above                                                  |
+| `timePredicate` returns nothing for the year range                       | 11 red: the `period_id` and `year` rows on all five read kinds, and the `quarter_id` case                                                                   |
+| `timePredicate` returns nothing for `time_point`                         | 11 red: the time-point row and the empty-list row on all five read kinds, and the INTEGER `time_point` case                                                 |
+| drop the indicator parts                                                 | 17 red: the three indicator rows on all five read kinds, and the combined row's items and raw preview                                                       |
+| `scopedPeriodBounds` returns the stamp unclamped                         | 3 red: the clamped bounds, the no-overlap bounds, and the replicant read's relative filter under years                                                      |
+| drop the predicate from the facilities views                             | 1 red: "facilities view: it takes the geography part of the scope"                                                                                          |
 
 Check `git status` on the file first and restore by copy if it has uncommitted
 changes. `git checkout` would discard parallel work.
@@ -190,6 +223,9 @@ changes. `git checkout` would discard parallel work.
 | `hfa_divergent_schema` (F13) | HFA depth 2, `includeTypes` on, seeded beside a divergent HMIS row            | the per-family structure-schema split; also the metric-info half of the scope cases                                                                                     |
 | `hmis_admin3_only` (F14)     | HMIS, `admin_area_3` and NO `admin_area_2`, F1's facilities                   | the child-column predicate: A2_south resolves to its child areas through the facilities view, by name; an unknown area has no children and matches nothing              |
 | `admin3_no_facilities` (F15) | F14's shape in a package with no facilities parquet (`facilities: null`)      | the fail-CLOSED branch: no facilities view to resolve the scope's child areas, so the predicate is `FALSE` and a scoped read returns no rows rather than national rows  |
+| `hmis_scope_dims` (F16)      | HMIS, `period_id` over three years, two indicators, no `facility_id`          | the year range, the `hmis` indicator list, the module list, the period-bound clamp; values are powers of two, so every subset of rows has its own sum                   |
+| `hfa_scope_dims` (F17)       | the HFA shape: `time_point`, `hfa_indicator`, no physical time column         | the time-point list, the `hfa` indicator list, and a year range not applying                                                                                            |
+| `iceh_scope_dims` (F18)      | family `iceh`: `iceh_indicator`, physical `year`, no admin column             | the `iceh` indicator list, the year range on a `year` column, and geography not applying                                                                                |
 
 **F2/F3 are a minimal pair and the rig's central argument.** They differ in one
 thing: `time_point`'s declared column type. The blank fold emits `btrim()` and
