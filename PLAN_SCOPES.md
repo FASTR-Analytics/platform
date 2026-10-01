@@ -321,7 +321,9 @@ neither kind of time column is empty when `years` is set. (Tim)
 
 **R19. The predicate is decided by column presence, never by dataset family.**
 The family is undeclarable for modules whose inputs are all upstream results
-objects (the comment above `computeScopeFilters`).
+objects (the comment above `computeScopeFilters`). The one use of family is
+choosing which facilities parquet the child-column subquery reads, as
+`computeScopeFilters` does today; an undeclared family gives `FALSE`.
 
 **R20. `scopeId: null` on the wire means the whole package**, and is refused for
 a restricted user. `/mcp` and the package page's default use it. Products always
