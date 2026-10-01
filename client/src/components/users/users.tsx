@@ -17,7 +17,7 @@ import {
   openAlert,
   openComponent,
 } from "panther";
-import { createMemo, createSignal, Show } from "solid-js";
+import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { AddUserForm } from "./add_user_form";
 import { BatchUploadUsersForm } from "./batch_upload_users_form";
 import { BulkEditPermissionsForm } from "./bulk_edit_permissions_form";
@@ -81,77 +81,7 @@ export function InstanceUsers(p: Props) {
   }
 
   return (
-    <FrameTop
-      pad="md"
-      panelChildren={
-        <div
-          class="ui-pad-x ui-pad-t flex justify-end"
-          data-tour="instance-users-header"
-        >
-          <div class="ui-gap-sm flex items-center">
-            <Show when={currentUserIsHUser()}>
-              <Button
-                onClick={() => setShowHUsers((v) => !v)}
-                iconName={showHUsers() ? "eyeOff" : "eye"}
-                outline
-                size="sm"
-              >
-                {showHUsers()
-                  ? t3({
-                    en: "Hide system users",
-                    fr: "Masquer les utilisateurs système",
-                    pt: "Ocultar utilizadores do sistema",
-                  })
-                  : t3({
-                    en: "Show system users",
-                    fr: "Afficher les utilisateurs système",
-                    pt: "Mostrar utilizadores do sistema",
-                  })}
-              </Button>
-            </Show>
-            <div class="ui-gap-sm flex items-center">
-              <Button
-                data-tour="instance-users-bulk"
-                onClick={downloadUsersCSV}
-                iconName="download"
-                outline
-                size="sm"
-              >
-                {t3({
-                  en: "Download",
-                  fr: "Télécharger",
-                  pt: "Transferir",
-                })}
-              </Button>
-              <Button
-                onClick={attemptBatchUploadUsers}
-                iconName="upload"
-                outline
-                size="sm"
-              >
-                {t3({
-                  en: "Batch import",
-                  fr: "Importation groupée",
-                  pt: "Importação em lote",
-                })}
-              </Button>
-            </div>
-            <Button
-              data-tour="instance-users-add"
-              onClick={attemptAddUser}
-              iconName="plus"
-              size="sm"
-            >
-              {t3({
-                en: "Add users",
-                fr: "Ajouter des utilisateurs",
-                pt: "Adicionar utilizadores",
-              })}
-            </Button>
-          </div>
-        </div>
-      }
-    >
+    <FrameTop pad="md">
       <div class="flex h-full w-full flex-col gap-4">
         <div class="min-h-0 flex-1" data-tour="instance-users-table">
           <UserTable
@@ -170,6 +100,68 @@ export function InstanceUsers(p: Props) {
               })}
             showCommingSoon={showCommingSoon}
             showHUsers={showHUsers}
+            toolbarChildren={
+              <div
+                class="ui-gap-sm flex items-center"
+                data-tour="instance-users-header"
+              >
+                <Show when={currentUserIsHUser()}>
+                  <Button
+                    onClick={() => setShowHUsers((v) => !v)}
+                    iconName={showHUsers() ? "eyeOff" : "eye"}
+                    outline
+                  >
+                    {showHUsers()
+                      ? t3({
+                        en: "Hide system users",
+                        fr: "Masquer les utilisateurs système",
+                        pt: "Ocultar utilizadores do sistema",
+                      })
+                      : t3({
+                        en: "Show system users",
+                        fr: "Afficher les utilisateurs système",
+                        pt: "Mostrar utilizadores do sistema",
+                      })}
+                  </Button>
+                </Show>
+                <div class="ui-gap-sm flex items-center">
+                  <Button
+                    data-tour="instance-users-bulk"
+                    onClick={downloadUsersCSV}
+                    iconName="download"
+                    outline
+                  >
+                    {t3({
+                      en: "Download",
+                      fr: "Télécharger",
+                      pt: "Transferir",
+                    })}
+                  </Button>
+                  <Button
+                    onClick={attemptBatchUploadUsers}
+                    iconName="upload"
+                    outline
+                  >
+                    {t3({
+                      en: "Batch import",
+                      fr: "Importation groupée",
+                      pt: "Importação em lote",
+                    })}
+                  </Button>
+                </div>
+                <Button
+                  data-tour="instance-users-add"
+                  onClick={attemptAddUser}
+                  iconName="plus"
+                >
+                  {t3({
+                    en: "Add users",
+                    fr: "Ajouter des utilisateurs",
+                    pt: "Adicionar utilizadores",
+                  })}
+                </Button>
+              </div>
+            }
           />
         </div>
       </div>
@@ -187,6 +179,10 @@ type UserData = {
 
 function hasGlobalPermissions(user: UserData): boolean {
   return USER_PERMISSIONS.some((k) => user[k]);
+}
+
+function getFullName(user: UserData): string {
+  return [user.firstName, user.lastName].filter(Boolean).join(" ");
 }
 
 function getStatusLabel(user: UserData): string {
@@ -280,6 +276,7 @@ function UserTable(p: {
   onUserClick: (user: UserData) => void;
   showCommingSoon: () => Promise<boolean>;
   showHUsers: () => boolean;
+  toolbarChildren: JSX.Element;
 }) {
   const userRows = (): UserTableData[] => {
     const map = new Map<string, number>();
@@ -309,8 +306,9 @@ function UserTable(p: {
       key: "firstName",
       header: t3({ en: "Name", fr: "Nom", pt: "Nome" }),
       sortable: true,
+      searchValue: getFullName,
       render: (user) => {
-        const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
+        const name = getFullName(user);
         return name
           ? <span>{name}</span>
           : <span class="text-base-content-muted">—</span>;
@@ -329,6 +327,7 @@ function UserTable(p: {
         pt: "Última atividade",
       }),
       sortable: true,
+      searchable: false,
       render: (user) => {
         if (user.lastActiveTs === -1) {
           return (
@@ -503,6 +502,7 @@ function UserTable(p: {
         one: t3({ en: "user", fr: "utilisateur", pt: "utilizador" }),
         other: t3({ en: "users", fr: "utilisateurs", pt: "utilizadores" }),
       }}
+      toolbar={{ search: true, children: p.toolbarChildren }}
     />
   );
 }

@@ -10,7 +10,6 @@ import {
   type BulkAction,
   Button,
   createDeleteAction,
-  EmptyState,
   FrameTop,
   openComponent,
   Table,
@@ -175,6 +174,7 @@ export function InstanceResultsPackages() {
       key: "createdAt",
       header: t3({ en: "Created", fr: "Créé", pt: "Criado" }),
       sortable: true,
+      searchable: false,
       render: (run) => new Date(run.createdAt).toLocaleString(),
     },
     {
@@ -197,6 +197,7 @@ export function InstanceResultsPackages() {
       header: t3({ en: "Usage", fr: "Utilisation", pt: "Utilização" }),
       sortable: true,
       sortValue: (run) => run.attachedProducts.length,
+      searchable: false,
       filterable: true,
       filterValue: (run) =>
         run.attachedProducts.length > 0
@@ -223,63 +224,63 @@ export function InstanceResultsPackages() {
     },
   ];
 
+  // Anchored only while there are rows: the catalogue tour starts on this
+  // anchor, and its first step needs a row to click.
+  const tableTourAnchor = () =>
+    instanceState.runsCatalog.length > 0
+      ? "instance-results-packages-table"
+      : undefined;
+
   return (
-    <FrameTop
-      pad="md"
-      panelChildren={
-        <div
-          class="ui-pad-x ui-pad-t flex justify-end"
-          data-tour="instance-results-packages-header"
-        >
-          <div class="ui-gap-sm flex items-center">
-            <Button
-              data-tour="instance-results-packages-defaults"
-              size="sm"
-              onClick={openModuleDefaults}
-              outline
-              iconName="settings"
-            >
-              {t3({
-                en: "Module defaults",
-                fr: "Paramètres par défaut des modules",
-                pt: "Predefinições dos módulos",
-              })}
-            </Button>
-            <Button
-              data-tour="instance-results-packages-generate"
-              size="sm"
-              onClick={openWizard}
-              iconName="package"
-            >
-              {t3({
-                en: "Generate new results package",
-                fr: "Générer un nouveau paquet de résultats",
-                pt: "Gerar novo pacote de resultados",
-              })}
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      <Show
-        when={instanceState.runsCatalog.length > 0}
-        fallback={<EmptyState iconName="package" title={emptyMessage()} />}
-      >
-        <div class="h-full w-full" data-tour="instance-results-packages-table">
-          <Table
-            data={instanceState.runsCatalog}
-            columns={columns()}
-            keyField="id"
-            defaultSort={{ key: "createdAt", direction: "desc" }}
-            onRowClick={(run) => openPackagePage(run.id)}
-            bulkActions={bulkActions()}
-            itemLabel={{
-              one: t3({ en: "package", fr: "paquet", pt: "pacote" }),
-              other: t3({ en: "packages", fr: "paquets", pt: "pacotes" }),
-            }}
-          />
-        </div>
-      </Show>
+    <FrameTop pad="md">
+      <div class="h-full w-full" data-tour={tableTourAnchor()}>
+        <Table
+          data={instanceState.runsCatalog}
+          columns={columns()}
+          keyField="id"
+          defaultSort={{ key: "createdAt", direction: "desc" }}
+          onRowClick={(run) => openPackagePage(run.id)}
+          bulkActions={bulkActions()}
+          noRowsMessage={emptyMessage()}
+          itemLabel={{
+            one: t3({ en: "package", fr: "paquet", pt: "pacote" }),
+            other: t3({ en: "packages", fr: "paquets", pt: "pacotes" }),
+          }}
+          toolbar={{
+            search: true,
+            children: (
+              <div
+                class="ui-gap-sm flex items-center"
+                data-tour="instance-results-packages-header"
+              >
+                <Button
+                  data-tour="instance-results-packages-defaults"
+                  onClick={openModuleDefaults}
+                  outline
+                  iconName="settings"
+                >
+                  {t3({
+                    en: "Module defaults",
+                    fr: "Paramètres par défaut des modules",
+                    pt: "Predefinições dos módulos",
+                  })}
+                </Button>
+                <Button
+                  data-tour="instance-results-packages-generate"
+                  onClick={openWizard}
+                  iconName="package"
+                >
+                  {t3({
+                    en: "Generate new results package",
+                    fr: "Générer un nouveau paquet de résultats",
+                    pt: "Gerar novo pacote de resultados",
+                  })}
+                </Button>
+              </div>
+            ),
+          }}
+        />
+      </div>
     </FrameTop>
   );
 }

@@ -80,19 +80,7 @@ export function InstanceAssets() {
   }
 
   return (
-    <FrameTop
-      pad="md"
-      panelChildren={
-        <div
-          class="ui-pad-x ui-pad-t flex justify-end"
-          data-tour="instance-assets-header"
-        >
-          <Button id="select-file-button" iconName="upload" size="sm">
-            {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
-          </Button>
-        </div>
-      }
-    >
+    <FrameTop pad="md">
       <div class="h-full w-full" data-tour="instance-assets-list">
         <AssetTable
           files={instanceState.assets}
@@ -135,6 +123,7 @@ function AssetTable(p: {
       key: "size",
       header: t3({ en: "Size", fr: "Taille", pt: "Tamanho" }),
       sortable: true,
+      searchable: false,
       render: (asset) => (
         <span class="text-base-content-muted">
           {formatFileSize(asset.size)}
@@ -145,6 +134,7 @@ function AssetTable(p: {
       key: "lastModified",
       header: t3({ en: "Modified", fr: "Modifié", pt: "Modificado" }),
       sortable: true,
+      searchable: false,
       render: (asset) => (
         <span class="text-base-content-muted">
           {formatDate(asset.lastModified)}
@@ -273,6 +263,16 @@ function AssetTable(p: {
       itemLabel={{
         one: t3({ en: "asset", fr: "ressource", pt: "recurso" }),
         other: t3({ en: "assets", fr: "ressources", pt: "recursos" }),
+      }}
+      toolbar={{
+        search: true,
+        children: (
+          <div data-tour="instance-assets-header">
+            <Button id="select-file-button" iconName="upload">
+              {t3({ en: "Upload", fr: "Téléverser", pt: "Carregar" })}
+            </Button>
+          </div>
+        ),
       }}
     />
   );
