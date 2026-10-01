@@ -616,9 +616,9 @@ word for all seven columns, so no per-column or per-instance naming is needed;
 fr/pt use the app's established "établissement" / "estabelecimento"). The same
 context drives the editor checkbox text, so row and checkbox can't tell
 different stories. One display-side override (S10's `getRollupRowLabel`): under
-a product AA2 scope the injected filter is server-side and never in the config,
-so the context still reads national while the SQL totals one area: a bundle
-whose stored scope carries an `adminArea2`, read with a national context,
+a product AA2 scope the filter is the server's view predicate and never in the
+config, so the context still reads national while the SQL totals one area: a
+bundle whose stored scope carries an `adminArea2`, read with a national context,
 renders the pinned form ("{Area} — All areas") instead. Display-only; the scope
 is never pushed into the config (that would reach the fetch config and the cache
 hash).
@@ -635,53 +635,58 @@ clearing on transient gate closures.
 canonical off-state is both entry fields absent. AI data payloads deliberately
 exclude the roll-up row (double-counting hazard).
 
-## AA2 scope injection
+## The scoped view
 
 The scope is the caller's: it arrives over the wire beside the run id on the
 run-keyed reads (`adminArea2`, null = national; PLAN_PRODUCTS_RESTRUCTURE D7).
-It is enforced **wrapper-level, above the Cores**, so the shared Cores are
-untouched. `getReadyRunReadContext` shape-checks the run id and derives
-`scopeToken`; `computeScopeFilters(ctx, ro)` (run_read.ts) decides per-RO from
-the manifest column stamps at runtime, never from a baked list, because a new
-module output can change the split. `./validate_queries` pins every branch below
-with scope as a case axis (`adminArea2` on a case; the runner also asserts the
-echoed fetchConfig and the holder's (run, scope) identity on every items case):
+It is enforced **in the DuckDB view every query runs against**, in one place, so
+the shared Cores and the query builders are untouched and a read path cannot
+forget it. `getReadyRunReadContext` shape-checks the run id and derives
+`scopeToken`. `viewsFor` (run_read.ts) builds the views for one read, and gives
+the results object's view the predicate
+`scopePredicateFor(adminArea2, ro,
+manifest)` returns. `executeSqlOverParquet`
+appends it:
+`CREATE VIEW x AS SELECT * FROM read_parquet(...) WHERE <predicate>`.
+`scopePredicateFor` is pure and decides per results object from the manifest
+column stamps, never from a baked list, because a new module output can change
+the split. `./validate_queries` pins every branch below with scope as a case
+axis (`adminArea2` on a case; the runner also asserts the echoed fetchConfig is
+the request and the holder's (run, scope) identity on every items case):
 
-- RO has `admin_area_2` → `[{disOpt: "admin_area_2", values: [aa2]}]`, appended
-  to the caller's filters. Compares case-insensitively and escapes like any
-  filter value (buildWhereClause UPPER + escapeSqlString). A PO whose own
-  filterBy names a different AA2 ANDs to empty, which is correct.
-- Only `admin_area_3` (or `admin_area_4`) → child values derived from the family
-  facilities parquet
-  (`SELECT DISTINCT <child> WHERE
-  UPPER(admin_area_2) = UPPER(aa2)`), memoized
-  per `runId|table|child|UPPER(aa2)` (FIFO ~50, evicted by
-  `evictRunFromScopeDerivationCache` in `delete_run.ts`). The facilities table
-  resolves off `manifest.inputFiles`, never `facilitiesTableForFamily` unguarded
-  (it throws for iceh/undefined). An **empty derivation injects the
-  `__SCOPE_EMPTY__` sentinel**: an empty values array is skipped by
-  `buildWhereClause` and would show ALL data. Matching is by district NAME (the
-  collision caveat, SYSTEM_08). As of the last prod sweep this reaches 7 RO
-  names (M4/M5/M6 coverage/denominators/combined-results under historical
-  numberings); 24 scope directly; 19 have no admin columns and pass unfiltered.
-- Injection sites, all in the FromRun wrappers:
-  `getPresentationObjectItemsFromRun` (effective config passed to BOTH the query
-  context and the Core; the caller's fetchConfig restored onto the holder
-  afterwards: the echo is the request, the scope rides as `scopeToken`),
-  `getPossibleValuesFromRun` (the `filters` param is REASSIGNED because it is
-  consumed twice; automatically scopes `getResultsValueInfoFromRun` and the
-  replicant-options route), and `getResultsObjectItemsFromRun` (raw-rows
-  preview: WHERE spliced before the LIMIT, with the scope columns passed as
-  textColumns (an empty set would route admin-area names down the numeric branch
-  and compile to FALSE), and `totalCount` counted over the same WHERE instead of
-  the manifest's package-wide rowCount).
+- RO has `admin_area_2` → `UPPER(admin_area_2) = UPPER('<aa2>')`, the area
+  escaped with `escapeSqlLiteral`. A PO whose own filterBy names a different AA2
+  ANDs to empty, which is correct.
+- Only `admin_area_3` (or `admin_area_4`) →
+  `UPPER(<child>) IN (SELECT
+  UPPER(<child>) FROM <facilities view> WHERE UPPER(admin_area_2) =
+  UPPER('<aa2>'))`.
+  The facilities views are created before the results object's view so the
+  subquery can read one. The facilities table is chosen by the module's declared
+  family and must be in `manifest.inputFiles`. Matching is by district NAME (the
+  collision caveat, SYSTEM_08). An area with no children matches nothing. As of
+  the last prod sweep this reaches 7 RO names (M4/M5/M6
+  coverage/denominators/combined-results under historical numberings); 24 scope
+  directly; 19 have no admin columns and are served whole.
+- A child column but no facilities view (no facilities parquet, or a module
+  whose family is not hmis or hfa) → `FALSE`. This is the one case where a
+  missing piece empties the view; serving it whole would show every district
+  under a single-area scope.
+- No admin column → no predicate, the view is the whole parquet.
 
-**Period bounds anchor differently on the two paths, ruled fine**: the scope
-filter is a non-facility filter, so `getPeriodBoundsCore` re-anchors the items
-path to the scoped subset (axis min moves), while the replicant-options route
-keeps the manifest stamp (`getRawPeriodBoundsFromRun`). Measured across 83 real
-RO/run pairs: zero areas lag the package period max, and every relative filter
-type anchors on max. Do not "fix" the replicant path on this basis.
+Every read goes through `executorFor`, so the items read, the option lists
+(`getPossibleValuesFromRun`, and through it `getResultsValueInfoFromRun` and the
+replicant-options route) and the raw-rows preview
+(`getResultsObjectItemsFromRun`) are all scoped by the view. The preview's
+`totalCount` is the manifest's package-wide `rowCount` only when the view has no
+predicate, and a `COUNT(*)` over the view otherwise.
+
+**Period bounds anchor differently on the two paths, ruled fine**:
+`getPeriodBoundsCore` queries the scoped view, so the items path anchors to the
+scoped subset (axis min moves), while the replicant-options route keeps the
+manifest stamp (`getRawPeriodBoundsFromRun`). Measured across 83 real RO/run
+pairs: zero areas lag the package period max, and every relative filter type
+anchors on max. Do not "fix" the replicant path on this basis.
 
 ## Caching
 

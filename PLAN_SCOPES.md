@@ -11,8 +11,8 @@ to each query.
 column for that dimension. A table with no such column is served whole, as long
 as its module is allowed. The full statement is at the top of §2.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
-are `Do N`, `Review N` and `Fix N` for steps 1 to 5. The review of step 5
+**Next step: Review 1.** Each session sets this line in its final commit. Its
+values are `Do N`, `Review N` and `Fix N` for steps 1 to 5. The review of step 5
 deletes this file.
 
 All work is on `version2`. Repos touched: this app only.
@@ -691,5 +691,13 @@ in-place downgrade.
 
 ## 8. Build log
 
-| Date | Step | Entry |
-| ---- | ---- | ----- |
+| Date       | Step | Entry                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-01 | 1    | `scopePredicateFor` takes `(adminArea2, ro, manifest)` in this step, since the definition type arrives in step 2. Its first parameter becomes the definition then.                                                                                                                                                                                                                                   |
+| 2026-10-01 | 1    | The child-column subquery reads the facilities VIEW by name, not `read_parquet(path)`, so the function needs no run directory and stays pure. `viewsFor` therefore creates the facilities views before the results object's view. The facilities views carry no predicate in this step (today's behaviour).                                                                                          |
+| 2026-10-01 | 1    | The per-run memo of derived child values is gone with the derivation: the subquery runs inside each query.                                                                                                                                                                                                                                                                                           |
+| 2026-10-01 | 1    | Mutation control run: `scopePredicateFor` returning no predicate turns 8 cases red and leaves 68 green, the same counts as the `computeScopeFilters` row it replaces.                                                                                                                                                                                                                                |
+| 2026-10-01 | 1    | `server/routes/instance/run_generation.ts:319` has a comment naming the deleted `computeScopeFilters`. The file is outside step 1's Surface and inside step 2's, which rewrites it.                                                                                                                                                                                                                  |
+| 2026-10-01 | 1    | Floor, `deno task test`: 2 failures in `server/tests/report_fastr_word_test.ts` ("raster block ids", "kitchen sink"), 476 pass. They test the Word export (`lib/report_fastr_word.ts`), which this plan does not touch, and fail the same way without the step's changes. Reported, not fixed.                                                                                                       |
+| 2026-10-01 | 1    | Floor, `./run`: a dev server from this checkout was already running on port 8000, and `./run` restarts the shared `pg` and `valkey-local` containers under it. The boot was proven instead with `PORT=8011 deno run --allow-all --env-file --unstable-broadcast-channel main.ts` against the same dev database: migrations checked, 232 routes validated, listening. Reviewers use the same command. |
+| 2026-10-01 | 1    | Step 1 built.                                                                                                                                                                                                                                                                                                                                                                                        |

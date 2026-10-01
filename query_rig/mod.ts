@@ -244,10 +244,10 @@ async function runCase(c: Case, p: Prepared): Promise<Failure | undefined> {
 
   const holder = res.data;
 
-  // The echoed fetchConfig is the REQUEST, on every case: a scoped read adds
-  // its filters internally and must restore the caller's config, or the
-  // client would see filters it never sent (and cache them). The holder's
-  // identity is the (run, scope) pair, which is what the caches key on.
+  // The echoed fetchConfig is the REQUEST, on every case: the scope lives in
+  // the view, never in the config, or the client would see filters it never
+  // sent (and cache them). The holder's identity is the (run, scope) pair,
+  // which is what the caches key on.
   if (JSON.stringify(holder.fetchConfig) !== JSON.stringify(c.fetchConfig)) {
     return {
       case: c.name,

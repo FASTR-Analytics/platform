@@ -33,9 +33,11 @@ const DUCKDB_MEMORY_LIMIT = "4GB";
 
 const SAFE_VIEW_NAME = /^[a-z_][a-z0-9_]*$/;
 
+// `predicate` is trusted SQL built by the caller, never caller-supplied text.
 export type ParquetView = {
   viewName: string;
   parquetPath: string;
+  predicate?: string;
 };
 
 export type DuckDbRow = Record<string, string | number | boolean | null>;
@@ -91,7 +93,7 @@ export async function executeSqlOverParquet(
       await conn.run(
         `CREATE VIEW ${view.viewName} AS SELECT * FROM read_parquet('${
           escapeSqlLiteral(view.parquetPath)
-        }')`,
+        }')${view.predicate === undefined ? "" : ` WHERE ${view.predicate}`}`,
       );
     }
     const reader = await conn.runAndReadAll(sql);

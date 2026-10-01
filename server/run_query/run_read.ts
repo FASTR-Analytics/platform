@@ -42,7 +42,6 @@ import {
   vizPresetInstalled,
 } from "lib";
 import {
-  escapeSqlString,
   getResultsObjectTableName,
   tryCatchDatabaseAsync,
 } from "../db/utils.ts";
@@ -60,7 +59,6 @@ import {
 import {
   buildMinimalFetchConfig,
   buildResultsValueInfo,
-  buildWhereClause,
   computeFacilityContext,
   detectNeededPeriodColumns,
   facilitiesTableForFamily,
@@ -77,7 +75,11 @@ import {
   applyCatalogExpressionsToItems,
   getCatalogEvaluationForResultsObject,
 } from "./catalog_expression_items.ts";
-import { executeSqlOverParquet, type ParquetView } from "./duckdb_executor.ts";
+import {
+  escapeSqlLiteral,
+  executeSqlOverParquet,
+  type ParquetView,
+} from "./duckdb_executor.ts";
 
 // The run read path: every function here consults ONLY the immutable run:
 // manifest for metadata (no probes), parquet for data. The SQL builders
@@ -89,7 +91,7 @@ export type RunReadContext = {
   runDir: string;
   manifest: RunManifest;
   // The caller's admin-area-2 identity (a product's admin_area_2); null =
-  // national. Scopes every read through the FromRun wrappers.
+  // national. Every view a read runs against is built under it (viewsFor).
   adminArea2: string | null;
   scopeToken: string;
 };
@@ -136,8 +138,8 @@ export async function getRunReadContextForRun(
 }
 
 // The data lens. Both halves arrive over the wire: the run id becomes a path
-// (shape-checked here) and adminArea2 becomes a SQL literal (escaped at its
-// interpolation sites) and a Valkey key segment (percent-encoded by
+// (shape-checked here) and adminArea2 becomes a SQL literal (escaped in
+// scopePredicateFor) and a Valkey key segment (percent-encoded by
 // scopeToken). `runs.status = 'ready'` is checked against the catalog, not
 // the manifest: a generating run has no manifest file at all, but a FAILED
 // one can have a published partial dir, and neither may serve figures.
@@ -187,22 +189,27 @@ function findModule(
   return manifest.modules.find((m) => m.id === moduleId);
 }
 
+// The scope is enforced here and nowhere else: each view is the parquet under
+// the scope's predicate, so a query built above the executor cannot read
+// outside it. The facilities views come first because a results object's
+// predicate may read one.
 function viewsFor(ctx: RunReadContext, resultsObjectId: string): ParquetView[] {
   const views: ParquetView[] = [];
-  const ro = findResultsObject(ctx.manifest, resultsObjectId);
-  if (ro?.hasParquet) {
-    views.push({
-      viewName: getResultsObjectTableName(resultsObjectId),
-      parquetPath: runResultsObjectParquetPath(ctx.runDir, ro.moduleId, ro.id),
-    });
-  }
-  for (const table of ["facilities_hmis", "facilities_hfa"]) {
-    if (ctx.manifest.inputFiles.includes(`inputs/${table}.parquet`)) {
+  for (const table of FACILITIES_TABLES) {
+    if (hasFacilitiesParquet(ctx.manifest, table)) {
       views.push({
         viewName: table,
         parquetPath: runInputFilePath(ctx.runDir, `${table}.parquet`),
       });
     }
+  }
+  const ro = findResultsObject(ctx.manifest, resultsObjectId);
+  if (ro?.hasParquet) {
+    views.push({
+      viewName: getResultsObjectTableName(resultsObjectId),
+      parquetPath: runResultsObjectParquetPath(ctx.runDir, ro.moduleId, ro.id),
+      predicate: scopePredicateFor(ctx.adminArea2, ro, ctx.manifest),
+    });
   }
   return views;
 }
@@ -686,12 +693,19 @@ function moduleFamilyFromDefinition(moduleDefinition: string): DatasetType {
   return moduleFamilyOnly.parse(JSON.parse(moduleDefinition)).family;
 }
 
+function datasetFamilyFromManifest(
+  manifest: RunManifest,
+  moduleId: string,
+): DatasetType | undefined {
+  const mod = findModule(manifest, moduleId);
+  return mod ? moduleFamilyFromDefinition(mod.moduleDefinition) : undefined;
+}
+
 export function getDatasetFamilyFromRun(
   ctx: RunReadContext,
   moduleId: string,
 ): DatasetType | undefined {
-  const mod = findModule(ctx.manifest, moduleId);
-  return mod ? moduleFamilyFromDefinition(mod.moduleDefinition) : undefined;
+  return datasetFamilyFromManifest(ctx.manifest, moduleId);
 }
 
 export function getModuleIdForResultsObjectFromRun(
@@ -720,90 +734,59 @@ export function moduleHasRun(ctx: RunReadContext, moduleId: string): boolean {
 
 // ── Scope ───────────────────────────────────────────────────────────────────
 
-// Derived child values are immutable per run, so they memo like manifests:
-// FIFO cap for memory, evicted only when the run is deleted.
-const MAX_CACHED_SCOPE_DERIVATIONS = 50;
-const SCOPE_DERIVATION_CACHE = new Map<string, string[]>();
+const FACILITIES_TABLES = ["facilities_hmis", "facilities_hfa"] as const;
 
-export function evictRunFromScopeDerivationCache(runId: string): void {
-  for (const key of SCOPE_DERIVATION_CACHE.keys()) {
-    if (key.startsWith(`${runId}|`)) SCOPE_DERIVATION_CACHE.delete(key);
-  }
+function hasFacilitiesParquet(manifest: RunManifest, table: string): boolean {
+  return manifest.inputFiles.includes(`inputs/${table}.parquet`);
 }
 
-// An empty derivation must inject a never-matching sentinel: an empty
-// `values` array is skipped by buildWhereClause and would show ALL data.
-const SCOPE_EMPTY_SENTINEL = "__SCOPE_EMPTY__";
-
-// The scope filter for one results object, decided per-RO from the manifest
-// column stamps at runtime (never from a baked list, a new module can add to
-// the derivation surface). RO carries admin_area_2 → filter it directly; only
-// a child admin column → filter by the child values derived from the family
-// facilities parquet (matching by NAME, the duplicate-district collision is
-// an accepted latent, see SYSTEM_08's ruling); no admin columns at all
-// (national ROs, ICEH) → unfiltered, which is the ruling's one blessed
-// unfiltered case.
+// The predicate the scope puts on one results object's view, decided from the
+// manifest column stamps (never from a baked list, a new module can add a
+// results object of any shape). Undefined means the view is the whole parquet.
 //
-// An RO that HAS an admin column but whose scope cannot be applied fails
-// CLOSED, never unfiltered: the family is undeclarable for a module whose
-// dataSources are all upstream results objects (m004/m005/m006), and those
-// same modules drop admin_area_2 from their admin3 outputs, so the pair would
-// otherwise show every area in the country inside a scoped product. Blank is
-// wrong visibly; national data under a regional heading is wrong silently.
-// The durable fix is those scripts emitting admin_area_2 (which puts them on
-// the direct-filter path and retires the derivation entirely), tracked in
+// A results object with admin_area_2 is filtered on it. One with only a child
+// admin column is filtered through the family facilities view, matching by
+// NAME (the duplicate-district collision is an accepted latent, see
+// SYSTEM_08's ruling). One with no admin column is served whole.
+//
+// A results object that HAS a child admin column but cannot reach a facilities
+// view gets FALSE, never the whole parquet: the family is undeclarable for a
+// module whose dataSources are all upstream results objects (m004/m005/m006),
+// and those same modules drop admin_area_2 from their admin3 outputs, so the
+// pair would otherwise show every area in the country inside a scoped product.
+// Blank is wrong visibly; national data under a regional heading is wrong
+// silently. The durable fix is those scripts emitting admin_area_2, tracked in
 // the modules repo as PLAN_ADMIN_AREA_2_ON_ADMIN3_OUTPUTS.md. Packages are
-// immutable,
-// so this branch still guards every package generated before that lands.
-export async function computeScopeFilters(
-  ctx: RunReadContext,
+// immutable, so this branch still guards every package generated before that
+// lands.
+export function scopePredicateFor(
+  adminArea2: string | null,
   ro: RunResultsObject,
-): Promise<GenericLongFormFetchConfig["filters"]> {
-  if (ctx.adminArea2 === null) return [];
+  manifest: RunManifest,
+): string | undefined {
+  if (adminArea2 === null) return undefined;
+  const inArea = `UPPER(admin_area_2) = UPPER('${
+    escapeSqlLiteral(adminArea2)
+  }')`;
   const columnNames = new Set(ro.columns.map((c) => c.name));
-  if (columnNames.has("admin_area_2")) {
-    return [{ disOpt: "admin_area_2", values: [ctx.adminArea2] }];
-  }
+  if (columnNames.has("admin_area_2")) return inArea;
   const childColumn = columnNames.has("admin_area_3")
-    ? ("admin_area_3" as const)
+    ? "admin_area_3"
     : columnNames.has("admin_area_4")
-    ? ("admin_area_4" as const)
+    ? "admin_area_4"
     : undefined;
-  if (childColumn === undefined) return [];
-  const family = getDatasetFamilyFromRun(ctx, ro.moduleId);
+  if (childColumn === undefined) return undefined;
+  const family = datasetFamilyFromManifest(manifest, ro.moduleId);
   const facilitiesTable = family === "hmis" || family === "hfa"
     ? `facilities_${family}`
     : undefined;
   if (
     facilitiesTable === undefined ||
-    !ctx.manifest.inputFiles.includes(`inputs/${facilitiesTable}.parquet`)
+    !hasFacilitiesParquet(manifest, facilitiesTable)
   ) {
-    return [{ disOpt: childColumn, values: [SCOPE_EMPTY_SENTINEL] }];
+    return "FALSE";
   }
-  const cacheKey =
-    `${ctx.runId}|${facilitiesTable}|${childColumn}|${ctx.adminArea2.toUpperCase()}`;
-  let values = SCOPE_DERIVATION_CACHE.get(cacheKey);
-  if (values === undefined) {
-    const rows = await executeSqlOverParquet(
-      [{
-        viewName: facilitiesTable,
-        parquetPath: runInputFilePath(ctx.runDir, `${facilitiesTable}.parquet`),
-      }],
-      `SELECT DISTINCT ${childColumn} FROM ${facilitiesTable} WHERE UPPER(admin_area_2) = UPPER('${
-        escapeSqlString(ctx.adminArea2)
-      }') AND ${childColumn} IS NOT NULL`,
-    );
-    values = rows.map((r) => String(r[childColumn]));
-    SCOPE_DERIVATION_CACHE.set(cacheKey, values);
-    if (SCOPE_DERIVATION_CACHE.size > MAX_CACHED_SCOPE_DERIVATIONS) {
-      const oldest = SCOPE_DERIVATION_CACHE.keys().next().value!;
-      SCOPE_DERIVATION_CACHE.delete(oldest);
-    }
-  }
-  return [{
-    disOpt: childColumn,
-    values: values.length === 0 ? [SCOPE_EMPTY_SENTINEL] : values,
-  }];
+  return `UPPER(${childColumn}) IN (SELECT UPPER(${childColumn}) FROM ${facilitiesTable} WHERE ${inArea})`;
 }
 
 // ── The read functions ───────────────────────────────────────────────────────
@@ -834,15 +817,10 @@ export async function getPresentationObjectItemsFromRun(
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
-  const scopeFilters = await computeScopeFilters(ctx, ro);
-  const effectiveFetchConfig = scopeFilters.length === 0 ? fetchConfig : {
-    ...fetchConfig,
-    filters: [...fetchConfig.filters, ...scopeFilters],
-  };
   const queryContext = buildQueryContextFromManifest(
     ctx.manifest,
     ro,
-    effectiveFetchConfig,
+    fetchConfig,
     datasetFamily,
   );
   const catalog = getIndicatorMetadataFromRun(ctx, ro.moduleId);
@@ -857,7 +835,7 @@ export async function getPresentationObjectItemsFromRun(
     resultsObjectId,
     getResultsObjectTableName(resultsObjectId),
     queryContext,
-    effectiveFetchConfig,
+    fetchConfig,
     firstPeriodOption,
     getRunVersionInfo(ctx),
     maxItems,
@@ -877,11 +855,6 @@ export async function getPresentationObjectItemsFromRun(
       catalog,
       catalogEvaluation.ingredientProps,
     );
-  }
-  // The echo is the REQUEST: restore the caller's fetchConfig onto the
-  // holder: the scope rides separately as the version-info scopeToken.
-  if (res.success && scopeFilters.length !== 0) {
-    res.data.fetchConfig = fetchConfig;
   }
   return res;
 }
@@ -913,10 +886,6 @@ export async function getPossibleValuesFromRun(
     };
   }
   const datasetFamily = getDatasetFamilyFromRun(ctx, ro.moduleId);
-  // REASSIGN the param: it is consumed twice below (buildMinimalFetchConfig
-  // AND the getPossibleValuesCore call); scoping only one would leave the
-  // query context and the actual query disagreeing.
-  filters = [...filters, ...(await computeScopeFilters(ctx, ro))];
   const fetchConfig = buildMinimalFetchConfig(
     disaggregationOptionValue,
     filters,
@@ -996,30 +965,9 @@ export async function getResultsObjectItemsFromRun(
       };
     }
     const tableName = getResultsObjectTableName(resultsObjectId);
-    const scopeFilters = await computeScopeFilters(ctx, ro);
-    // Scope columns are always text, route them down buildWhereClause's
-    // UPPER/escape path (an empty textColumns set would send them down the
-    // numeric branch, which compiles admin-area names to FALSE).
-    const whereStatements = buildWhereClause(
-      {
-        values: [],
-        groupBys: [],
-        filters: scopeFilters,
-        periodFilter: undefined,
-        postAggregationExpression: undefined,
-      },
-      false,
-      undefined,
-      { textColumns: new Set(scopeFilters.map((f) => f.disOpt)) },
-    );
-    const whereClause = whereStatements.length === 0
-      ? ""
-      : ` WHERE ${whereStatements.join(" AND ")}`;
     const execute = executorFor(ctx, resultsObjectId);
     const rawItems = await execute(
-      `SELECT * FROM ${tableName}${whereClause}${
-        limit ? ` LIMIT ${Math.floor(limit)}` : ""
-      }`,
+      `SELECT * FROM ${tableName}${limit ? ` LIMIT ${Math.floor(limit)}` : ""}`,
     );
     if (rawItems.length === 0) {
       return {
@@ -1027,12 +975,13 @@ export async function getResultsObjectItemsFromRun(
         data: { status: "no_data_available" as const },
       };
     }
-    // The manifest rowCount is package-wide; a scoped preview must count over
-    // the same WHERE or report scoped items under an unscoped total.
-    const totalCount = whereClause === "" ? ro.rowCount : Number(
-      (await execute(
-        `SELECT COUNT(*) AS total_count FROM ${tableName}${whereClause}`,
-      )).at(0)?.total_count ?? 0,
+    // The manifest rowCount is package-wide, so it is the view's count only
+    // when the view is the whole parquet.
+    const isWholeParquet =
+      scopePredicateFor(ctx.adminArea2, ro, ctx.manifest) === undefined;
+    const totalCount = isWholeParquet ? ro.rowCount : Number(
+      (await execute(`SELECT COUNT(*) AS total_count FROM ${tableName}`))
+        .at(0)?.total_count ?? 0,
     );
     return {
       success: true as const,

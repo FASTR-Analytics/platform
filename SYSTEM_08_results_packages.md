@@ -464,14 +464,14 @@ Rulings:
 
 - **Scope where the column exists.** RO carries `admin_area_2` → filtered
   directly; only `admin_area_3`/`admin_area_4` → filtered by child values
-  derived by NAME from the family facilities parquet; no admin columns (national
-  ROs, ICEH) → shown unfiltered, so a state product still sees national metrics,
-  inevitable and coherent under the branding. The degrade-to-empty guarantee
-  holds for direct-filter ROs, NOT the derived ones: an instance with duplicate
-  district names across regions would fold the twin's numbers in (measured nil
-  in prod today; latent). If it ever goes live, the fix is stopping the m005 and
-  m006 R scripts dropping `admin_area_2`, a modules lockstep this design
-  otherwise avoids.
+  matched by NAME through the family facilities parquet; no admin columns
+  (national ROs, ICEH) → shown unfiltered, so a state product still sees
+  national metrics, inevitable and coherent under the branding. The
+  degrade-to-empty guarantee holds for direct-filter ROs, NOT the derived ones:
+  an instance with duplicate district names across regions would fold the twin's
+  numbers in (measured nil in prod today; latent). If it ever goes live, the fix
+  is stopping the m005 and m006 R scripts dropping `admin_area_2`, a modules
+  lockstep this design otherwise avoids.
 - **Mismatch is allowed, never auto-fixed.** A package without the product's AA2
   attaches fine; area metrics degrade to empty. The scope is never silently
   cleared: the scope picker (`components/_shared/scope_picker.tsx`) renders an

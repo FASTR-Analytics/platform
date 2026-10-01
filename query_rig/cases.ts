@@ -1134,14 +1134,13 @@ const QUARTER_DERIVATION: Case[] = [
 ];
 
 // Admin-area-2 scope (D7). Scope is the second half of a read context, and
-// it is applied by INJECTING filters the caller never sent, so every case
-// here is paired with the national reading of the same query, and the
-// echoed-fetchConfig assertion in the runner covers all of them at once. The
-// three branches of computeScopeFilters each get a pair: the RO carries
-// admin_area_2 (direct), the RO carries only a child column (derived from the
-// facilities parquet), the RO carries no admin column at all (the blessed
-// unfiltered case), plus the fail-CLOSED branch where the derivation cannot
-// run.
+// it is applied as a predicate on the view the query runs against, which the
+// caller's fetch config never shows, so every case here is paired with the
+// national reading of the same query. The branches of scopePredicateFor each
+// get a pair: the RO carries admin_area_2 (direct), the RO carries only a
+// child column (filtered through the facilities view), the RO carries no
+// admin column at all (served whole), plus the fail-CLOSED branch where no
+// facilities view exists.
 const SCOPE_CASES: Case[] = [
   {
     name: "scope: RO carrying admin_area_2 is filtered directly",
@@ -1238,7 +1237,7 @@ const SCOPE_CASES: Case[] = [
     adminArea2: "A2_south",
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
     // A2_south's children are A3_gamma (f3) and A3_delta (f4, f5); the
-    // derivation matches by NAME, and the values it finds become the filter.
+    // subquery on the facilities view matches them by NAME.
     expect: {
       status: "ok",
       rows: [
@@ -1253,8 +1252,8 @@ const SCOPE_CASES: Case[] = [
     fixture: "hmis_admin3_only",
     adminArea2: "A2_nowhere",
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
-    // An empty derivation injects the never-matching sentinel: an empty
-    // values array would be skipped by buildWhereClause and show ALL data.
+    // The subquery on the facilities view returns no children, so the IN
+    // matches nothing.
     expect: { status: "no_data_available" },
   },
   {
@@ -1274,9 +1273,8 @@ const SCOPE_CASES: Case[] = [
     fixture: "admin3_no_facilities",
     adminArea2: "A2_south",
     fetchConfig: { ...base(), groupBys: ["admin_area_3"] },
-    // No facilities parquet, so no derivation. The sentinel filter matches
-    // nothing: blank is wrong visibly, national data under a regional heading
-    // is wrong silently.
+    // No facilities parquet, so the predicate is FALSE: blank is wrong
+    // visibly, national data under a regional heading is wrong silently.
     expect: { status: "no_data_available" },
   },
   {
@@ -1284,7 +1282,7 @@ const SCOPE_CASES: Case[] = [
     fixture: "hfa_variants",
     adminArea2: "A2_south",
     fetchConfig: { ...base(), groupBys: ["hfa_indicator", "hfa_variant_item"] },
-    // The one blessed unfiltered case. Identical to the national reading of
+    // The dimension does not apply. Identical to the national reading of
     // the same group-by (38 / 6 / 2): a national RO carries no area to
     // filter on, and refusing to serve it would blank every scoped product.
     expect: {
