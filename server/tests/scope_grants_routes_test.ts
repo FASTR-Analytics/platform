@@ -134,12 +134,14 @@ async function subscribeReport(
   }
 }
 
-// Subscribes to a report over a real socket, runs `act` once the subscribe has
-// synced, and returns the code the server then closes the socket with.
+// Opens a report over a real socket (a subscribe, or presence alone), runs
+// `act` once the server has answered it, and returns the code the server then
+// closes the socket with.
 async function closeCodeAfter(
   email: string,
   reportId: string,
   act: () => Promise<unknown>,
+  open: "subscribe" | "presence" = "subscribe",
 ): Promise<number> {
   const server = Deno.serve(
     { port: 0, onListen: () => {} },
@@ -155,11 +157,17 @@ async function closeCodeAfter(
       ws.onmessage = (evt) => {
         const msg = JSON.parse(evt.data) as CollabServerMessage;
         if (msg.type === "hello") {
-          ws.send(JSON.stringify({
-            type: "report_subscribe",
-            data: { productId: reportId, reportId, stateVector: "" },
-          }));
-        } else if (msg.type === "report_sync") {
+          ws.send(JSON.stringify(
+            open === "subscribe"
+              ? {
+                type: "report_subscribe",
+                data: { productId: reportId, reportId, stateVector: "" },
+              }
+              : { type: "presence_update", data: { reportId } },
+          ));
+        } else if (
+          msg.type === (open === "subscribe" ? "report_sync" : "presence_state")
+        ) {
           act().catch(reject);
         } else if (msg.type === "report_error") {
           reject(new Error(msg.data.message));
@@ -425,6 +433,22 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     await ok(open, "PUT", `/products/${inside.productId}/scope`, {
       scopeId: granted,
     });
+    // The same for a socket that only joined the product's presence.
+    assertEquals(
+      await closeCodeAfter(
+        LIMITED_EMAIL,
+        inside.productId,
+        () =>
+          ok(open, "PUT", `/products/${inside.productId}/scope`, {
+            scopeId: other,
+          }),
+        "presence",
+      ),
+      COLLAB_CLOSE_ACCESS_CHANGED,
+    );
+    await ok(open, "PUT", `/products/${inside.productId}/scope`, {
+      scopeId: granted,
+    });
 
     // A socket opened under one scope access closes when an admin flag change
     // gives its user another.
@@ -448,8 +472,9 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     await mainDb`UPDATE users SET is_admin = FALSE WHERE email = ${OPEN_EMAIL}`;
 
     // A restricted user who manages users cannot write the admin flag, which
-    // would lift their own restriction (R25): not on a new user, and not on
-    // their own row through the batch upload.
+    // would lift their own restriction (R25): not on a new user, not on their
+    // own row through the batch upload, and not by renaming an admin's row to
+    // an address of their own.
     await mainDb`
       UPDATE users SET can_configure_users = TRUE WHERE email = ${LIMITED_EMAIL}
     `;
@@ -475,6 +500,15 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       (await buildGlobalUserFromDb(LIMITED_EMAIL, null, null)).scopeAccess,
       { all: false, scopeIds: [granted] },
     );
+    await mainDb`UPDATE users SET is_admin = TRUE WHERE email = ${OPEN_EMAIL}`;
+    assertEquals(
+      (await call(limited, "POST", "/user/rename-email", {
+        oldEmail: OPEN_EMAIL,
+        newEmail: MINTED_EMAIL,
+      })).status,
+      403,
+    );
+    await mainDb`UPDATE users SET is_admin = FALSE WHERE email = ${OPEN_EMAIL}`;
     assertEquals(
       (await mainDb`SELECT 1 FROM users WHERE email = ${MINTED_EMAIL}`).length,
       0,

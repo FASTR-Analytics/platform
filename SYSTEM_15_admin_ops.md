@@ -115,19 +115,21 @@ Only a global admin changes it (R25), so a restricted user holding
 flag too, since an admin is unrestricted: `addUsers` and `batchUploadUsers`
 answer 403 (`ADMIN_FLAG_NEEDS_ADMIN`) when a caller who is not a global admin
 asks for `is_admin` TRUE on any row, as `toggleUserAdmin` requires an admin
-outright. The user editor's Scopes card (`components/users/user_scopes.tsx`) is
-shown to global admins and hidden for a global admin's row: an "All scopes"
-checkbox over a multi-select of the instance's scopes. `setUserScopeAccess`
-(`POST /user/scope-access`, `requireAdmin`) refuses a global admin and an
-unknown scope id, replaces the flag and the grants in one transaction (an
-unrestricted user keeps no grants), re-broadcasts the roster and closes the
-user's collab sockets. Every route that can change a user's access does the same
-through `broadcastRosterAndCloseStaleCollab` (`setUserScopeAccess`,
-`toggleUserAdmin`, `batchUploadUsers`): it closes each collab socket whose
-access no longer equals its user's roster row. The client compares its own row's
-access with the one its connection was built under and reconnects both channels
-on a change (`t1_sse.tsx`, R29). An email rename moves the grants
-(`rename_user_email.ts`).
+outright, and `renameUserEmail` answers the same 403 when such a caller names an
+admin's row, because the rename moves the flag to the new address (the fleet's
+status-key call has no caller and is trusted). The user editor's Scopes card
+(`components/users/user_scopes.tsx`) is shown to global admins and hidden for a
+global admin's row: an "All scopes" checkbox over a multi-select of the
+instance's scopes. `setUserScopeAccess` (`POST /user/scope-access`,
+`requireAdmin`) refuses a global admin and an unknown scope id, replaces the
+flag and the grants in one transaction (an unrestricted user keeps no grants),
+re-broadcasts the roster and closes the user's collab sockets. Every route that
+can change a user's access does the same through
+`broadcastRosterAndCloseStaleCollab` (`setUserScopeAccess`, `toggleUserAdmin`,
+`batchUploadUsers`): it closes each collab socket whose access no longer equals
+its user's roster row. The client compares its own row's access with the one its
+connection was built under and reconnects both channels on a change
+(`t1_sse.tsx`, R29). An email rename moves the grants (`rename_user_email.ts`).
 
 ## Permissions (write side)
 

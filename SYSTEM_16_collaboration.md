@@ -134,15 +134,15 @@ server-stamped, unspoofable: only the avatar URL is self-reported).
   `presence_registry.ts`), and the access a socket was admitted under is fixed
   at connect, so each route that changes either answer closes the sockets it no
   longer holds for, with `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable):
-  `setProductScope` closes every connection that opened the product and does not
-  hold its new scope (`closeConnectionsLosingProduct`), and
-  `setUserScopeAccess`, `toggleUserAdmin` and `batchUploadUsers` close every
-  connection whose access no longer equals its user's roster row
-  (`closeConnectionsWithChangedAccess`). The client reconnects and
-  re-subscribes, and a product outside its grants is refused then (R29).
-  `PresenceEntry` carries identity plus opaque document ids, never labels or
-  content. Authorization refusals are delivered as a **post-upgrade close** with
-  `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
+  `setProductScope` closes every connection that opened the product, or whose
+  presence names it, and does not hold its new scope
+  (`closeConnectionsLosingProduct`), and `setUserScopeAccess`, `toggleUserAdmin`
+  and `batchUploadUsers` close every connection whose access no longer equals
+  its user's roster row (`closeConnectionsWithChangedAccess`). The client
+  reconnects and re-subscribes, and a product outside its grants is refused then
+  (R29). `PresenceEntry` carries identity plus opaque document ids, never labels
+  or content. Authorization refusals are delivered as a **post-upgrade close**
+  with `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
   browser cannot read a refused handshake (it surfaces as an unreadable 1006,
   indistinguishable from a network drop); only the Origin check (403, never
   upgrade for a foreign origin) and the retryable 503 stay pre-upgrade. The

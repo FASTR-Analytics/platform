@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  type GlobalUser,
   H_USERS,
   type RenameEmailInstanceResult,
 } from "lib";
@@ -517,6 +518,16 @@ defineRoute(
         err:
           "You cannot rename your own email here. Use Change email in your profile instead.",
       });
+    }
+    // The rename moves the whole row, admin flag included, to an address the
+    // caller may hold, so only an admin renames an admin (R25). The machine
+    // call has no caller and is trusted.
+    const caller = c.var.globalUser as GlobalUser | undefined;
+    if (caller !== undefined && !caller.isGlobalAdmin) {
+      const target = await getOtherUser(c.var.mainDb, oldEmail);
+      if (target.success && target.data.isGlobalAdmin) {
+        return c.json({ success: false, err: ADMIN_FLAG_NEEDS_ADMIN }, 403);
+      }
     }
     const res = await renameUserEmailLocally(
       c.var.mainDb,

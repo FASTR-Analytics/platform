@@ -251,9 +251,9 @@ export function closeConnectionsForEmail(
   );
 }
 
-/** A product moved to `scopeId`: every connection that opened it and does not
- *  hold that scope is closed, so it leaves the product's rooms and its
- *  reconnect is refused the subscribe. */
+/** A product moved to `scopeId`: every connection that opened it, or whose
+ *  presence names it, and does not hold that scope is closed, so it leaves
+ *  the product's rooms and presence group and its reconnect is refused both. */
 export function closeConnectionsLosingProduct(
   productId: string,
   scopeId: string,
@@ -262,7 +262,8 @@ export function closeConnectionsLosingProduct(
 ): void {
   closeConnectionsWhere(
     (conn) =>
-      conn.openedProducts.has(productId) &&
+      (conn.openedProducts.has(productId) ||
+        productIdFor(conn.entry) === productId) &&
       !canUseScope(conn.scopeAccess, scopeId),
     closeCode,
     reason,
