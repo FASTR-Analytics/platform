@@ -20,10 +20,21 @@ const SPY: Record<PadSize, string> = {
   lg: "ui-spy-lg",
 };
 
+const PAD_Y: Record<PadSize, string> = {
+  none: "",
+  sm: "ui-pad-y-sm",
+  md: "ui-pad-y",
+  lg: "ui-pad-y-lg",
+};
+
 export function padClass(size: PadSize = "none"): string {
   return PAD[size];
 }
 
 export function spyClass(size: PadSize = "none"): string {
   return SPY[size];
+}
+
+export function padYClass(size: PadSize = "none"): string {
+  return PAD_Y[size];
 }

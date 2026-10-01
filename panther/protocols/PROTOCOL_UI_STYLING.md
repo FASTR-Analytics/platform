@@ -466,7 +466,11 @@ Usable from app code:
 - **Spacing/density:** `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
   `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and
   one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`,
-  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`
+  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`; and the `ui-tablepad-*`
+  family (`ui-tablepad-x-compact`, `-x-normal`, `-x-comfortable`, the same three
+  for `-y-`, and `ui-tablepad-y-header`), which is the padding of `Table`'s
+  cells and header row, one token per `paddingX` / `paddingY` value, so an app
+  tunes table density by overriding the `--ui-tablepad-*` variables
 - **Form density:** `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`

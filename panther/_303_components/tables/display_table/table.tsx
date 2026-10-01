@@ -7,6 +7,7 @@ import {
   createMemo,
   createSignal,
   For,
+  type JSX,
   Match,
   onMount,
   Show,
@@ -16,11 +17,14 @@ import {
   foldString,
   matchesSearch,
   plural,
+  type PluralForms,
   searchTokens,
   t3,
 } from "../../deps.ts";
+import { padYClass, spyClass } from "../../_internal/pad_classes.ts";
 import type {
   AnyRow,
+  BulkAction,
   FilterConfig,
   SortConfig,
   TableColumn,
@@ -245,7 +249,7 @@ export function Table<
   const toolbar = createMemo(() => p.toolbar);
   const showToolbar = () =>
     toolbar() !== undefined || !!(p.bulkActions && p.bulkActions.length > 0);
-  const hasSelection = () => selectedItems().length > 0;
+  const nested = () => toolbar()?.nested === true;
 
   const countText = () => {
     const n = p.data.length;
@@ -266,6 +270,31 @@ export function Table<
     getPaddingClasses(p.paddingX ?? "normal", p.paddingY ?? "normal")
   );
 
+  const floatingSpyClass = () => {
+    const tb = toolbar();
+    return showToolbar() && !tb?.nested ? spyClass(tb?.spy ?? "md") : "";
+  };
+  const nestedPadYClass = () => {
+    const tb = toolbar();
+    return padYClass(tb?.nested ? tb.pad ?? "md" : "md");
+  };
+
+  const toolbarRow = () => (
+    <ToolbarRow
+      selectedItems={selectedItems()}
+      itemLabel={itemLabel()}
+      countText={toolbar()?.count !== false ? countText() : undefined}
+      search={!!toolbar()?.search}
+      searchText={searchText()}
+      setSearchText={setSearchText}
+      searchPlaceholder={searchPlaceholder()}
+      bulkActions={p.bulkActions ?? []}
+      onClearSelection={() => setSelectedKeys(new Set())}
+    >
+      {toolbar()?.children}
+    </ToolbarRow>
+  );
+
   // Restore needs real layout — under a display:none ancestor scrollHeight is 0
   // and the write is a silent no-op (hide with visibility:hidden instead).
   let scrollContainerRef: HTMLDivElement | undefined;
@@ -275,53 +304,24 @@ export function Table<
     }
   });
 
+  // min-h-0 on the root: as an item of a column flex parent it must be able to
+  // shrink below its rows' height, or it overflows the parent instead of
+  // scrolling.
   return (
-    <div class="flex max-h-full w-full flex-col overflow-hidden rounded border">
-      <Show when={showToolbar()}>
-        <div class="ui-pad-sm bg-base-100 flex flex-none items-center border-b">
-          <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
-            <Switch>
-              <Match when={hasSelection()}>
-                <span class="font-700 flex-none text-sm">
-                  {getSelectionSentence(selectedItems().length, itemLabel())}
-                </span>
-              </Match>
-              <Match when={toolbar()?.count !== false}>
-                <span class="text-base-content-muted flex-none text-sm">
-                  {countText()}
-                </span>
-              </Match>
-            </Switch>
-            <Show when={toolbar()?.search}>
-              <div class="w-72 flex-none">
-                <Input
-                  value={searchText()}
-                  onChange={setSearchText}
-                  placeholder={searchPlaceholder()}
-                  searchIcon
-                  clearable
-                  fullWidth
-                />
-              </div>
-            </Show>
-            <Switch>
-              <Match when={hasSelection()}>
-                <_BulkActionButtons
-                  items={selectedItems()}
-                  actions={p.bulkActions ?? []}
-                  onClear={() => setSelectedKeys(new Set())}
-                />
-              </Match>
-              <Match when={toolbar()?.children}>
-                <div class="ml-auto ui-gap-sm flex items-center">
-                  {toolbar()?.children}
-                </div>
-              </Match>
-            </Switch>
-          </div>
-        </div>
+    <div
+      class={`flex max-h-full min-h-0 w-full flex-col ${floatingSpyClass()}`}
+    >
+      <Show when={showToolbar() && !nested()}>
+        <div class="flex flex-none items-center">{toolbarRow()}</div>
       </Show>
-      <div class="flex min-h-0 flex-col overflow-hidden">
+      <div class="flex min-h-0 flex-col overflow-hidden rounded border">
+        <Show when={showToolbar() && nested()}>
+          <div
+            class={`${padding().px} ${nestedPadYClass()} bg-base-100 flex flex-none items-center border-b`}
+          >
+            {toolbarRow()}
+          </div>
+        </Show>
         <div
           ref={scrollContainerRef}
           onScroll={() => p.onScrollTopChange?.(scrollContainerRef!.scrollTop)}
@@ -334,7 +334,7 @@ export function Table<
                 <tr>
                   <Show when={enableSelection()}>
                     <th
-                      class={`text-base-content w-4 ${padding().px} py-2 text-left text-xs font-700 uppercase tracking-wider`}
+                      class={`text-base-content w-4 ${padding().px} ui-tablepad-y-header text-left text-xs font-700 uppercase tracking-wider`}
                     >
                       <Checkbox
                         checked={allSelected()}
@@ -352,7 +352,7 @@ export function Table<
                         );
                       return (
                         <th
-                          class={`${padding().px} py-2 font-700 text-base-content text-xs uppercase tracking-wider`}
+                          class={`${padding().px} ui-tablepad-y-header font-700 text-base-content text-xs uppercase tracking-wider`}
                           style={{ width: column.width }}
                           aria-sort={column.sortable
                             ? (sortConfig()?.key === column.key
@@ -511,6 +511,65 @@ export function Table<
   );
 }
 
+type ToolbarRowProps<T> = {
+  selectedItems: T[];
+  itemLabel: PluralForms<string>;
+  countText: string | undefined;
+  search: boolean;
+  searchText: string;
+  setSearchText: (v: string) => void;
+  searchPlaceholder: string;
+  bulkActions: BulkAction<T>[];
+  onClearSelection: () => void;
+  children?: JSX.Element;
+};
+
+function ToolbarRow<T>(p: ToolbarRowProps<T>) {
+  const hasSelection = () => p.selectedItems.length > 0;
+  return (
+    <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
+      <Switch>
+        <Match when={hasSelection()}>
+          <span class="font-700 flex-none text-sm">
+            {getSelectionSentence(p.selectedItems.length, p.itemLabel)}
+          </span>
+        </Match>
+        <Match when={p.countText !== undefined}>
+          <span class="text-base-content-muted flex-none text-sm">
+            {p.countText}
+          </span>
+        </Match>
+      </Switch>
+      <Show when={p.search}>
+        <div class="w-72 flex-none">
+          <Input
+            value={p.searchText}
+            onChange={p.setSearchText}
+            placeholder={p.searchPlaceholder}
+            searchIcon
+            clearable
+            fullWidth
+          />
+        </div>
+      </Show>
+      <Switch>
+        <Match when={hasSelection()}>
+          <_BulkActionButtons
+            items={p.selectedItems}
+            actions={p.bulkActions}
+            onClear={p.onClearSelection}
+          />
+        </Match>
+        <Match when={p.children}>
+          <div class="ml-auto ui-gap-sm flex items-center">
+            {p.children}
+          </div>
+        </Match>
+      </Switch>
+    </div>
+  );
+}
+
 type SortIconProps<T> = {
   column: TableColumn<T>;
   sortConfig: () => SortConfig | null;
@@ -542,8 +601,8 @@ type TableRowProps<T, K extends keyof T = keyof T> = {
   onToggleSelection: (key: T[K]) => void;
   onRowClick?: (item: T) => void;
   padding: { px: string; py: string };
-  // Off for the first row of a headerless table, where the table's own border
-  // is the edge and a row border would double it.
+  // Off for the first row of a headerless table, where the frame's border (or a
+  // nested toolbar's) is the edge and a row border would double it.
   topBorder: boolean;
 };
 

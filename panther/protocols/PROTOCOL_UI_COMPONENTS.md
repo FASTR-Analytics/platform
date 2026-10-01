@@ -69,7 +69,10 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
     table's `searchText` / `setSearchText`, for a page whose whole content is
     one table and whose only header is that bar. Never an `Input` beside a
     `Table`, and never a hand-built count or "no results" line: the toolbar
-    shows "5 of 12 users" and the table has its own no-match state.
+    shows "5 of 12 users" and the table has its own no-match state. The toolbar
+    floats above the table's border by default, with no inset of its own. A
+    table placed flush in an unpadded parent (a `<Card pad="none">`, a `none`
+    slot) passes `toolbar={{ nested: true }}`, which puts it inside the border.
 13. **A table's search text is declared on the table**: per column
     (`searchValue`, else `filterValue`, else the field; `searchable: false` to
     leave a column out), or as a table-level `searchValue` when the rows are

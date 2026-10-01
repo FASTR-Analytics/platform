@@ -216,14 +216,31 @@ an `EmptyState` no-rows fallback. A filterable column gets a funnel button in
 its header that lists the column's distinct values as check rows;
 `defaultFilters` and `onFilterChange` persist the unchecked values.
 
-**The frame.** The Table's root carries the border and rounding and wraps the
-toolbar row and the scroll box. The scroll box owns the sticky header and takes
-`maxHeight`, or the parent's definite height.
+**The frame** is the bordered, rounded box that holds the rows. It is the
+element directly around the scroll box, not the Table's root. The scroll box
+owns the sticky header and takes `maxHeight`, or the parent's definite height.
 
-**The toolbar** is a row of fixed height above the scroll box, inside the frame.
-It renders when `toolbar` is passed or `bulkActions` is non-empty. Three
-regions, left to right: a text, the search field (`toolbar.search`, `true` or
-`{ placeholder }`), and a right-aligned button group. The text and the button
+**The toolbar** is a row of fixed height above the rows. It renders when
+`toolbar` is passed or `bulkActions` is non-empty, in one of two placements:
+
+- **Floating** (the default): above the frame, outside its border, with no
+  padding, background or border of its own, so its content starts and ends at
+  the frame's outer edges. The space between it and the frame is stack spacing
+  on the Table's root, sized by `toolbar.spy` (a `PadSize`, default `"md"`;
+  `"none"` puts the toolbar against the frame).
+- **Nested** (`toolbar={{ nested: true }}`): inside the frame, above the scroll
+  box, with a background and a bottom border. Its horizontal padding is always
+  the cells' (`paddingX`), so its content lines up with the first and last
+  columns. Its vertical padding is sized by `toolbar.pad` (a `PadSize`, default
+  `"md"`).
+
+`spy` exists only on a floating toolbar and `pad` only on a nested one. The
+floating toolbar has no inset, so it belongs in a padded parent: a `Table`
+placed flush in a `none` slot (a `<Card pad="none">`, an unpadded Frame slot)
+passes `nested`. That is the caller's job and the component does not check it.
+
+Three regions, left to right: a text, the search field (`toolbar.search`, `true`
+or `{ placeholder }`), and a right-aligned button group. The text and the button
 group each have two faces, switched together on whether any row is selected. At
 rest: the count ("12 users", or "5 of 12 users" while a search or a filter hides
 rows; `toolbar.count: false` removes it) and `toolbar.children`. With rows
@@ -243,11 +260,13 @@ not marked `searchable: false`, joined by spaces, where a column's text is its
 Columns search by default: a text no column shows (an id, a resolved label) goes
 in a table-level `searchValue`. The search text is the Table's own state unless
 `searchText` and `setSearchText` are passed together, which is how a field
-outside the table (a `HeadingBar`'s) drives it. Visible rows are `data` after
-the search and the column filters; sort applies after. Select-all acts on the
-visible rows, and a selected row hidden by the search or a filter stays
-selected. When nothing matches, the Table says so and offers "Clear search",
-which also clears the column filters; `noRowsMessage` is only for empty `data`.
+outside the table (a `HeadingBar`'s) drives it, and how a search survives a
+remount of the table: the Table's own text is lost when it remounts, so a parent
+that remounts it holds the signal. Visible rows are `data` after the search and
+the column filters; sort applies after. Select-all acts on the visible rows, and
+a selected row hidden by the search or a filter stays selected. When nothing
+matches, the Table says so and offers "Clear search", which also clears the
+column filters; `noRowsMessage` is only for empty `data`.
 
 **`itemLabel`** names what a row is, as `PluralForms<string>`. The count and the
 selection sentence pick the form with `plural()`, and the sentence is worded so
@@ -303,7 +322,11 @@ surface for app code:
 - **Spacing/density** — `ui-pad`, `ui-pad-sm`, `ui-pad-lg`, `ui-pad-x`,
   `ui-pad-x-sm`, `ui-pad-x-lg`, `ui-pad-y`, `ui-pad-y-sm`, `ui-pad-y-lg`, and
   one-sided `ui-pad-{t,b,l,r}`, `-sm`, `-lg`, `ui-gap`, `ui-gap-sm`,
-  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`
+  `ui-gap-lg`, `ui-spy`, `ui-spy-sm`, `ui-spy-lg`; and the `ui-tablepad-*`
+  family (`ui-tablepad-x-compact`, `-x-normal`, `-x-comfortable`, the same three
+  for `-y-`, and `ui-tablepad-y-header`), which is the padding of `Table`'s
+  cells and header row, one token per `paddingX` / `paddingY` value, so an app
+  tunes table density by overriding the `--ui-tablepad-*` variables
 - **Form density** — `ui-form-pad`, `ui-form-pad-sm`, `ui-form-text-size`,
   `ui-form-text-size-sm`, `ui-icon-only-correction`,
   `ui-icon-only-correction-sm`
@@ -345,7 +368,7 @@ function MyApp() {
           columns={columns}
           data={results()}
           keyField="id"
-          toolbar={{ search: true }}
+          toolbar={{ nested: true, search: true }}
         />
       </Card>
     </FrameLeft>

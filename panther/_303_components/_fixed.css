@@ -260,6 +260,17 @@
   --ui-spy: 1.5rem; /* space-y-6 */
   --ui-spy-lg: 2rem; /* space-y-8 */
 
+  /* Table cell padding, one var per value of Table's paddingX / paddingY
+     ("compact" | "normal" | "comfortable"), plus the header row's own
+     vertical padding. */
+  --ui-tablepad-x-compact: 0.5rem;
+  --ui-tablepad-x-normal: 1rem;
+  --ui-tablepad-x-comfortable: 1.5rem;
+  --ui-tablepad-y-compact: 0.125rem;
+  --ui-tablepad-y-normal: 0.375rem;
+  --ui-tablepad-y-comfortable: 0.75rem;
+  --ui-tablepad-y-header: 0.5rem;
+
   /* ============================================= */
   /* Form control density — padding, text size, icon correction × default / sm */
   /* ============================================= */
@@ -605,6 +616,36 @@
 
 @utility ui-pad-y-lg { /* = py-6 */
   padding-block: var(--ui-pad-lg-y);
+}
+
+/* ---- Table pad ---- */
+
+@utility ui-tablepad-x-compact {
+  padding-inline: var(--ui-tablepad-x-compact);
+}
+
+@utility ui-tablepad-x-normal {
+  padding-inline: var(--ui-tablepad-x-normal);
+}
+
+@utility ui-tablepad-x-comfortable {
+  padding-inline: var(--ui-tablepad-x-comfortable);
+}
+
+@utility ui-tablepad-y-compact {
+  padding-block: var(--ui-tablepad-y-compact);
+}
+
+@utility ui-tablepad-y-normal {
+  padding-block: var(--ui-tablepad-y-normal);
+}
+
+@utility ui-tablepad-y-comfortable {
+  padding-block: var(--ui-tablepad-y-comfortable);
+}
+
+@utility ui-tablepad-y-header {
+  padding-block: var(--ui-tablepad-y-header);
 }
 
 /* ---- Pad — one side ---- */

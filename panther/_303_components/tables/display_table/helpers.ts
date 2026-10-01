@@ -133,19 +133,23 @@ export function getCellAlignment(alignH?: string): string {
   }
 }
 
+// Whole class names, not a template over the enum: Tailwind only emits a
+// utility whose name it can read in the source.
+const TABLE_PAD_X: Record<TablePadding, string> = {
+  compact: "ui-tablepad-x-compact",
+  normal: "ui-tablepad-x-normal",
+  comfortable: "ui-tablepad-x-comfortable",
+};
+
+const TABLE_PAD_Y: Record<TablePadding, string> = {
+  compact: "ui-tablepad-y-compact",
+  normal: "ui-tablepad-y-normal",
+  comfortable: "ui-tablepad-y-comfortable",
+};
+
 export function getPaddingClasses(
   paddingX: TablePadding,
   paddingY: TablePadding,
 ): { px: string; py: string } {
-  const px = paddingX === "compact"
-    ? "px-2"
-    : paddingX === "comfortable"
-    ? "px-6"
-    : "px-4";
-  const py = paddingY === "compact"
-    ? "py-0.5"
-    : paddingY === "comfortable"
-    ? "py-3"
-    : "py-1.5";
-  return { px, py };
+  return { px: TABLE_PAD_X[paddingX], py: TABLE_PAD_Y[paddingY] };
 }

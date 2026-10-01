@@ -5,6 +5,7 @@
 
 import type { Accessor, JSX } from "solid-js";
 import type { PluralForms } from "../../deps.ts";
+import type { PadSize } from "../../types.ts";
 import type {
   StateHolderButtonAction,
   StateHolderFormAction,
@@ -64,11 +65,19 @@ export type TableProps<T, K extends keyof T = keyof T> =
     // the search field, then children or the bulk actions, the two faces
     // switching on whether anything is selected. Also present, without being
     // asked for, whenever there are bulk actions.
-    toolbar?: {
-      search?: boolean | { placeholder?: string };
-      count?: boolean;
-      children?: JSX.Element;
-    };
+    // It floats above the frame by default, unpadded, `spy` away from it;
+    // `nested` puts it inside the frame, inset like the cells and padded
+    // vertically by `pad`. Both sizes default to "md".
+    toolbar?:
+      & {
+        search?: boolean | { placeholder?: string };
+        count?: boolean;
+        children?: JSX.Element;
+      }
+      & (
+        | { nested?: false; spy?: PadSize }
+        | { nested: true; pad?: PadSize }
+      );
     onRowClick?: (item: T) => void;
     noRowsMessage?: string;
     // Caps the scroll box (e.g. "500px", "60vh") in place of the parent's
