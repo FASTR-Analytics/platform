@@ -1,4 +1,5 @@
 import {
+  type FastrChartPalette,
   type FigureBundle,
   PackageScope,
   PresentationObjectConfig,
@@ -74,6 +75,12 @@ export type VisualizationEditorProps = {
   /** A viewer over a figure nobody owns: the draft is for looking at, and
    *  closing returns nothing. No Apply, no discard prompt. */
   viewOnly?: boolean;
+  /** The host document's own chart palette (a FASTR report's theme), so the
+   *  figure is edited in the colours it will be printed in. Absent, the
+   *  editor draws the standard palette, as a standalone figure is drawn.
+   *  An accessor, so a collaborator re-theming the report while the editor
+   *  is open re-colours it. */
+  chartPalette?: () => FastrChartPalette | undefined;
 };
 
 export function VisualizationEditor(
@@ -103,6 +110,7 @@ export function VisualizationEditor(
           resultsValueInfo={keyedResultsValueInfo}
           collabBinding={p.collabBinding}
           viewOnly={p.viewOnly}
+          chartPalette={p.chartPalette}
           onClose={p.close}
         />
       )}

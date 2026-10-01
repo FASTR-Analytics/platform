@@ -1913,6 +1913,8 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
             configSnapshot: structuredClone(bundle.config),
             authoringContext: ctx.context,
             collabBinding,
+            // The theme's chart colours, the ones this figure prints in.
+            chartPalette,
           },
         }),
       );

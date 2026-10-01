@@ -1,5 +1,6 @@
 import { trackStore } from "@solid-primitives/deep";
 import {
+  type FastrChartPalette,
   FIGURE_EXPORT_WIDTH_PX,
   getEffectivePOConfig,
   getReplicateByProp,
@@ -112,6 +113,8 @@ type InnerProps = {
   collabBinding?: VizFigureCollabBinding;
   /** Back only: the draft never leaves the editor. */
   viewOnly?: boolean;
+  /** The host document's chart palette (VisualizationEditorProps). */
+  chartPalette?: () => FastrChartPalette | undefined;
   onClose: (result: FigureEditorResult) => void;
 };
 
@@ -613,7 +616,7 @@ export function VisualizationEditorInner(p: InnerProps) {
         >[1]["ih"],
         effectiveConfig: ih.data.config,
       });
-      figureInputs = buildFigureInputs(bundle);
+      figureInputs = buildFigureInputs(bundle, undefined, p.chartPalette?.());
     } catch {
       await openAlert({ text: "Could not get figure", intent: "danger" });
       return;
@@ -1023,7 +1026,13 @@ export function VisualizationEditorInner(p: InnerProps) {
                                 );
                                 return {
                                   status: "ready" as const,
-                                  data: buildFigureInputs(bundle),
+                                  // The host's palette, so the figure is
+                                  // edited in the colours it prints in.
+                                  data: buildFigureInputs(
+                                    bundle,
+                                    undefined,
+                                    p.chartPalette?.(),
+                                  ),
                                 };
                               } catch (e) {
                                 return {
