@@ -242,9 +242,9 @@ function getScopeLabels(user: UserData): string[] {
 function getScopesLabel(user: UserData): string {
   if (user.scopeAccess.all) {
     return t3({
-      en: "All scopes",
-      fr: "Toutes les portées",
-      pt: "Todos os âmbitos",
+      en: "All data",
+      fr: "Toutes les données",
+      pt: "Todos os dados",
     });
   }
   const labels = getScopeLabels(user);
