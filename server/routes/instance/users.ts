@@ -8,11 +8,15 @@ import {
 import { verifyClerkEmailOwnership } from "../../clerk_api.ts";
 import { renameAuthorEmails } from "../../collab/authorship.ts";
 import { renameDeckLedgerEmails } from "../../collab/deck_session_ledger.ts";
-import { closeConnectionsForEmail } from "../../collab/presence_registry.ts";
+import {
+  closeConnectionsForEmail,
+  closeConnectionsWithChangedAccess,
+} from "../../collab/presence_registry.ts";
 import { renameVersionEditorEmail } from "../../collab/version_capture.ts";
 import { GetLogs } from "../../db/instance/user_logs.ts";
 import {
   addUsers,
+  ADMIN_FLAG_NEEDS_ADMIN,
   batchUploadUsers,
   bulkUpdateUserPermissions,
   createPersonalAccessToken,
@@ -57,6 +61,23 @@ import {
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();
+
+// Every route that can change a user's scope access (their grants, or their
+// admin flag, since an admin is unrestricted) broadcasts the roster and
+// closes the collab sockets whose access is no longer the roster's, so each
+// reconnects and subscribes under the new access (R29). The instance stream
+// ends itself on the same roster (instance-sse.ts). On an open-access
+// instance every connection has every scope whatever its row says.
+async function broadcastRosterAndCloseStaleCollab(mainDb: Sql): Promise<void> {
+  const users = await getInstanceUsers(mainDb);
+  notifyInstanceUsersUpdated(users);
+  if (_OPEN_ACCESS) return;
+  closeConnectionsWithChangedAccess(
+    users,
+    COLLAB_CLOSE_ACCESS_CHANGED,
+    "Scope access changed",
+  );
+}
 
 defineRoute(
   routesUsers,
@@ -143,6 +164,11 @@ defineRoute(
   requireGlobalPermission("can_configure_users"),
   log("addUsers"),
   async (c, { body }) => {
+    // The admin flag makes a user unrestricted, so only an admin grants it
+    // (R25), as toggleUserAdmin requires.
+    if (body.isGlobalAdmin && !c.var.globalUser.isGlobalAdmin) {
+      return c.json({ success: false, err: ADMIN_FLAG_NEEDS_ADMIN }, 403);
+    }
     const resUser = await addUsers(
       c.var.mainDb,
       body.emails,
@@ -175,7 +201,7 @@ defineRoute(
       body.makeAdmin,
     );
     if (resUser.success) {
-      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+      await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
     return c.json(resUser);
   },
@@ -220,12 +246,18 @@ defineRoute(
       c.var.mainDb,
       body.asset_file_name,
       body.replace_all_existing,
-      c.var.globalUser.email,
+      {
+        email: c.var.globalUser.email,
+        isGlobalAdmin: c.var.globalUser.isGlobalAdmin,
+      },
     );
     if (res.success) {
-      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+      await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
-    return c.json(res);
+    return c.json(
+      res,
+      !res.success && res.err === ADMIN_FLAG_NEEDS_ADMIN ? 403 : 200,
+    );
   },
 );
 
@@ -290,8 +322,6 @@ defineRoute(
   },
 );
 
-// R29: the user's collab sockets close so their next one subscribes under the
-// new grants; their instance stream ends on this roster (instance-sse.ts).
 defineRoute(
   routesUsers,
   "setUserScopeAccess",
@@ -304,12 +334,7 @@ defineRoute(
       body.scopeAccess,
     );
     if (res.success) {
-      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
-      closeConnectionsForEmail(
-        body.email,
-        COLLAB_CLOSE_ACCESS_CHANGED,
-        "Scope access changed",
-      );
+      await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
     return c.json(res);
   },

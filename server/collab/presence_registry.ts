@@ -1,4 +1,11 @@
-import type { CollabServerMessage, PresenceEntry, PresenceView } from "lib";
+import {
+  canUseScope,
+  type CollabServerMessage,
+  type PresenceEntry,
+  type PresenceView,
+  type ScopeAccess,
+  scopeAccessEqual,
+} from "lib";
 
 // In-process presence registry for the collab WebSocket. Single-process only
 // (matches the in-process BroadcastChannel assumption elsewhere); horizontal
@@ -19,10 +26,21 @@ type Sender = {
 type Conn = {
   entry: PresenceEntry;
   ws: Sender;
+  // Fixed at connect time, like the rest of the socket's authorization.
+  scopeAccess: ScopeAccess;
+  // The products a restricted connection passed the grant check for
+  // (routes/instance/collab.ts). Rooms do not check membership on an update,
+  // so this is what its edits and awareness are gated on.
+  openedProducts: Set<string>;
   /** Pending clear of the server-stamped `isEditing` flag. */
   editingTimer?: ReturnType<typeof setTimeout>;
 };
-type Identity = { email: string; name: string; color: string };
+type Identity = {
+  email: string;
+  name: string;
+  color: string;
+  scopeAccess: ScopeAccess;
+};
 
 /** How long after the last applied doc update a connection still counts as
  *  "editing now". Long enough to bridge normal typing pauses, short enough
@@ -71,6 +89,8 @@ export function addConnection(
   // is the first moment there is a group to broadcast.
   connections.set(connectionId, {
     ws,
+    scopeAccess: identity.scopeAccess,
+    openedProducts: new Set(),
     entry: {
       connectionId,
       email: identity.email,
@@ -163,20 +183,40 @@ function broadcastPresenceForConnection(conn: Conn): void {
   }
 }
 
-/** Force-close every connection authenticated as `email` (user email rename):
- *  the socket's authorization, including the email stamped into room-edit
- *  attribution, was frozen at connect time and cannot be patched in place, so
- *  the connection is closed and the client reconnects under its refreshed
+/** False when the connection was closed while its grant check was in flight,
+ *  in which case it must not be subscribed. */
+export function markProductOpened(
+  connectionId: string,
+  productId: string,
+): boolean {
+  const conn = connections.get(connectionId);
+  conn?.openedProducts.add(productId);
+  return conn !== undefined;
+}
+
+/** False once the connection is closed or deregistered. */
+export function hasOpenedProduct(
+  connectionId: string,
+  productId: string,
+): boolean {
+  return connections.get(connectionId)?.openedProducts.has(productId) ?? false;
+}
+
+/** Force-close every connection the predicate picks. A socket's
+ *  authorization (its email, stamped into room-edit attribution, and its
+ *  scope access) was frozen at connect time and cannot be patched in place,
+ *  so the connection is closed and the client reconnects under its refreshed
  *  identity. Deregisters immediately (the socket's own close handler makes
- *  removeConnection a no-op later) and broadcasts each affected product. */
-export function closeConnectionsForEmail(
-  email: string,
+ *  removeConnection a no-op later, and leaves its rooms) and broadcasts each
+ *  affected product. */
+function closeConnectionsWhere(
+  shouldClose: (conn: Conn) => boolean,
   closeCode: number,
   reason: string,
 ): void {
   const touchedProductIds = new Set<string>();
   for (const [connectionId, conn] of [...connections]) {
-    if (conn.entry.email !== email) {
+    if (!shouldClose(conn)) {
       continue;
     }
     const productId = productIdFor(conn.entry);
@@ -197,6 +237,56 @@ export function closeConnectionsForEmail(
   for (const productId of touchedProductIds) {
     broadcastPresence(productId);
   }
+}
+
+export function closeConnectionsForEmail(
+  email: string,
+  closeCode: number,
+  reason: string,
+): void {
+  closeConnectionsWhere(
+    (conn) => conn.entry.email === email,
+    closeCode,
+    reason,
+  );
+}
+
+/** A product moved to `scopeId`: every connection that opened it and does not
+ *  hold that scope is closed, so it leaves the product's rooms and its
+ *  reconnect is refused the subscribe. */
+export function closeConnectionsLosingProduct(
+  productId: string,
+  scopeId: string,
+  closeCode: number,
+  reason: string,
+): void {
+  closeConnectionsWhere(
+    (conn) =>
+      conn.openedProducts.has(productId) &&
+      !canUseScope(conn.scopeAccess, scopeId),
+    closeCode,
+    reason,
+  );
+}
+
+/** Closes every connection whose scope access differs from its user's row in
+ *  `users` (a grant change, or an admin flag change, which changes access by
+ *  definition). A connection whose user has no row is left alone. */
+export function closeConnectionsWithChangedAccess(
+  users: { email: string; scopeAccess: ScopeAccess }[],
+  closeCode: number,
+  reason: string,
+): void {
+  const accessByEmail = new Map(users.map((u) => [u.email, u.scopeAccess]));
+  closeConnectionsWhere(
+    (conn) => {
+      const current = accessByEmail.get(conn.entry.email);
+      return current !== undefined &&
+        !scopeAccessEqual(current, conn.scopeAccess);
+    },
+    closeCode,
+    reason,
+  );
 }
 
 export function removeConnection(connectionId: string): void {

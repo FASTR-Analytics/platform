@@ -35,7 +35,9 @@ import {
 } from "../../collab/authorship.ts";
 import {
   addConnection,
+  hasOpenedProduct,
   markConnectionEditing,
+  markProductOpened,
   removeConnection,
   updateConnectionPresence,
 } from "../../collab/presence_registry.ts";
@@ -73,8 +75,10 @@ type CollabAuth = {
 };
 
 // A restricted user may open a product only when they hold its scope
-// (PLAN_SCOPES §2.6). Asked on every subscribe and presence change, never
-// cached, so a product moved out of their grants is refused from then on.
+// (PLAN_SCOPES §2.6). Asked on every subscribe and presence change. A pass is
+// remembered for the socket's life (the registry's openedProducts), so the
+// routes that change the answer close the sockets it no longer holds for:
+// setProductScope, and every route that changes a user's scope access.
 async function productInGrants(
   productId: string,
   access: ScopeAccess,
@@ -233,12 +237,10 @@ routesCollab.get(
     // socket that dies while a first-subscribe load is in flight must not be
     // registered as a room member afterwards.
     let socketGone = false;
-    // The products this socket passed productInGrants for. A restricted
-    // socket's edits and awareness for any other product are dropped: rooms
-    // do not check membership on an update.
-    const openedProducts = new Set<string>();
+    // A restricted socket's edits and awareness pass only for a product it
+    // passed productInGrants for: rooms do not check membership on an update.
     const mayWrite = (productId: string) =>
-      auth.scopeAccess.all || openedProducts.has(productId);
+      auth.scopeAccess.all || hasOpenedProduct(connectionId, productId);
     async function whenInGrants(
       productId: string,
       refuse: () => CollabServerMessage,
@@ -248,8 +250,7 @@ routesCollab.get(
         if (!socketGone) roomConn?.send(refuse());
         return;
       }
-      openedProducts.add(productId);
-      then();
+      if (markProductOpened(connectionId, productId)) then();
     }
 
     // DB-backed room dependencies for one slide of one deck product. The

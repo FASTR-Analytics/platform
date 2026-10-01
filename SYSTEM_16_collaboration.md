@@ -126,13 +126,20 @@ server-stamped, unspoofable: only the avatar URL is self-reported).
   a later permission model fills per subscribe. A restricted user (PLAN_SCOPES
   §2.6) carries their `scopeAccess` on the connection: each `slide_subscribe`,
   `report_subscribe` and product-naming `presence_update` is checked against the
-  product's scope (`productInGrants`, one query, never cached), a refused
-  subscribe answers a fatal `slide_error` / `report_error`, a refused presence
-  is dropped, and the connection's updates and awareness pass only for products
-  whose subscribe passed, because rooms do not check membership on an update.
-  When a global admin changes a user's scope access, `setUserScopeAccess` closes
-  that user's sockets with `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable), so
-  the client reconnects and re-subscribes under the new grants (R29).
+  product's scope (`productInGrants`, one query), a refused subscribe answers a
+  fatal `slide_error` / `report_error`, a refused presence is dropped, and the
+  connection's updates and awareness pass only for products whose subscribe
+  passed, because rooms do not check membership on an update. A pass is
+  remembered for the socket's life (`openedProducts` on the connection, in
+  `presence_registry.ts`), and the access a socket was admitted under is fixed
+  at connect, so each route that changes either answer closes the sockets it no
+  longer holds for, with `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable):
+  `setProductScope` closes every connection that opened the product and does not
+  hold its new scope (`closeConnectionsLosingProduct`), and
+  `setUserScopeAccess`, `toggleUserAdmin` and `batchUploadUsers` close every
+  connection whose access no longer equals its user's roster row
+  (`closeConnectionsWithChangedAccess`). The client reconnects and
+  re-subscribes, and a product outside its grants is refused then (R29).
   `PresenceEntry` carries identity plus opaque document ids, never labels or
   content. Authorization refusals are delivered as a **post-upgrade close** with
   `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a

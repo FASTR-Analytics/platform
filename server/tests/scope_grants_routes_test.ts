@@ -1,6 +1,6 @@
 // Scope grants end to end (PLAN_SCOPES step 5): one unrestricted and one
-// restricted user against the real product, folder and run-keyed read routes,
-// the collab socket and the /mcp door check, on the dev database. The Clerk
+// restricted user against the real product, folder, user and run-keyed read
+// routes, the collab socket and the /mcp door check, on the dev database. The Clerk
 // leg simulates only clerkMiddleware's output contract, as
 // products_routes_test.ts does.
 //
@@ -8,6 +8,7 @@
 //   BYPASS_AUTH= deno test -A --env-file --unstable-broadcast-channel server/tests/scope_grants_routes_test.ts
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
+import { join } from "@std/path";
 import { Hono } from "hono";
 import { AIToolFailure } from "@timroberton/panther";
 import {
@@ -22,11 +23,15 @@ import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { createScope } from "../db/instance/scopes.ts";
 import { setUserScopeAccess } from "../db/instance/users.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
-import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
+import { _ASSETS_DIR_PATH, _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
 import { resolvePackageContext } from "../mcp/context_cache.ts";
-import { routesCollab } from "../routes/instance/collab.ts";
+import {
+  COLLAB_CLOSE_ACCESS_CHANGED,
+  routesCollab,
+} from "../routes/instance/collab.ts";
 import { routesRunGeneration } from "../routes/instance/run_generation.ts";
+import { routesUsers } from "../routes/instance/users.ts";
 import { routesFolders } from "../routes/products/folders.ts";
 import { routesProducts } from "../routes/products/products.ts";
 import { routesProductReports } from "../routes/products/reports.ts";
@@ -34,6 +39,7 @@ import { buildInstanceState } from "../task_management/build_instance_state.ts";
 
 const OPEN_EMAIL = "scope-grants-test-open@example.com";
 const LIMITED_EMAIL = "scope-grants-test-limited@example.com";
+const MINTED_EMAIL = "scope-grants-test-minted@example.com";
 
 function clerkLegMiddleware(email: string) {
   const auth = {
@@ -58,6 +64,7 @@ function appFor(email: string): Hono {
   app.route("/", routesProductReports);
   app.route("/", routesRunGeneration);
   app.route("/", routesCollab);
+  app.route("/", routesUsers);
   return app;
 }
 
@@ -127,6 +134,48 @@ async function subscribeReport(
   }
 }
 
+// Subscribes to a report over a real socket, runs `act` once the subscribe has
+// synced, and returns the code the server then closes the socket with.
+async function closeCodeAfter(
+  email: string,
+  reportId: string,
+  act: () => Promise<unknown>,
+): Promise<number> {
+  const server = Deno.serve(
+    { port: 0, onListen: () => {} },
+    appFor(email).fetch,
+  );
+  try {
+    const ws = new WebSocket(`ws://localhost:${server.addr.port}/collab`);
+    return await new Promise<number>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        ws.close();
+        reject(new Error("the socket was not closed"));
+      }, 10_000);
+      ws.onmessage = (evt) => {
+        const msg = JSON.parse(evt.data) as CollabServerMessage;
+        if (msg.type === "hello") {
+          ws.send(JSON.stringify({
+            type: "report_subscribe",
+            data: { productId: reportId, reportId, stateVector: "" },
+          }));
+        } else if (msg.type === "report_sync") {
+          act().catch(reject);
+        } else if (msg.type === "report_error") {
+          reject(new Error(msg.data.message));
+        }
+      };
+      ws.onclose = (evt) => {
+        clearTimeout(timer);
+        resolve(evt.code);
+      };
+      ws.onerror = () => reject(new Error("socket error"));
+    });
+  } finally {
+    await server.shutdown();
+  }
+}
+
 Deno.test("scope grants: products, folders, data reads, collab and /mcp", async () => {
   if (_BYPASS_AUTH) {
     throw new Error(
@@ -169,6 +218,7 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
   const limited = appFor(LIMITED_EMAIL);
   const productIds: string[] = [];
   const folderIds: string[] = [];
+  const csvName = `scope_grants_test_${tag}.csv`;
 
   try {
     const grant = await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
@@ -355,6 +405,81 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       "report_sync",
     );
 
+    // A socket that holds a product loses it when the product leaves the
+    // user's grants: the rescope closes it, and its reconnect is refused.
+    assertEquals(
+      await closeCodeAfter(
+        LIMITED_EMAIL,
+        inside.productId,
+        () =>
+          ok(open, "PUT", `/products/${inside.productId}/scope`, {
+            scopeId: other,
+          }),
+      ),
+      COLLAB_CLOSE_ACCESS_CHANGED,
+    );
+    assertEquals(
+      (await subscribeReport(LIMITED_EMAIL, inside.productId)).type,
+      "report_error",
+    );
+    await ok(open, "PUT", `/products/${inside.productId}/scope`, {
+      scopeId: granted,
+    });
+
+    // A socket opened under one scope access closes when an admin flag change
+    // gives its user another.
+    await mainDb`UPDATE users SET is_admin = TRUE WHERE email = ${OPEN_EMAIL}`;
+    assertEquals(
+      await closeCodeAfter(
+        LIMITED_EMAIL,
+        inside.productId,
+        () =>
+          ok(open, "POST", "/user/toggle-admin", {
+            emails: [LIMITED_EMAIL],
+            makeAdmin: true,
+          }),
+      ),
+      COLLAB_CLOSE_ACCESS_CHANGED,
+    );
+    await ok(open, "POST", "/user/toggle-admin", {
+      emails: [LIMITED_EMAIL],
+      makeAdmin: false,
+    });
+    await mainDb`UPDATE users SET is_admin = FALSE WHERE email = ${OPEN_EMAIL}`;
+
+    // A restricted user who manages users cannot write the admin flag, which
+    // would lift their own restriction (R25): not on a new user, and not on
+    // their own row through the batch upload.
+    await mainDb`
+      UPDATE users SET can_configure_users = TRUE WHERE email = ${LIMITED_EMAIL}
+    `;
+    assertEquals(
+      (await call(limited, "POST", "/user", {
+        emails: [MINTED_EMAIL],
+        isGlobalAdmin: true,
+      })).status,
+      403,
+    );
+    await Deno.writeTextFile(
+      join(_ASSETS_DIR_PATH, csvName),
+      `email,is_global_admin\n${LIMITED_EMAIL},true\n`,
+    );
+    assertEquals(
+      (await call(limited, "POST", "/users/batch", {
+        asset_file_name: csvName,
+        replace_all_existing: false,
+      })).status,
+      403,
+    );
+    assertEquals(
+      (await buildGlobalUserFromDb(LIMITED_EMAIL, null, null)).scopeAccess,
+      { all: false, scopeIds: [granted] },
+    );
+    assertEquals(
+      (await mainDb`SELECT 1 FROM users WHERE email = ${MINTED_EMAIL}`).length,
+      0,
+    );
+
     // /mcp reads the whole package, which a restricted user is refused.
     await assertRejects(
       () => resolvePackageContext({ token: "t", email: LIMITED_EMAIL }, runId),
@@ -367,7 +492,11 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
     if (folderIds.length > 0) {
       await mainDb`DELETE FROM folders WHERE id = ANY(${folderIds})`;
     }
-    await mainDb`DELETE FROM users WHERE email IN (${OPEN_EMAIL}, ${LIMITED_EMAIL})`;
+    await mainDb`
+      DELETE FROM users
+      WHERE email IN (${OPEN_EMAIL}, ${LIMITED_EMAIL}, ${MINTED_EMAIL})
+    `;
+    await Deno.remove(join(_ASSETS_DIR_PATH, csvName)).catch(() => {});
     await mainDb`DELETE FROM scopes WHERE id IN (${granted}, ${other})`;
     await closeAllConnections();
   }

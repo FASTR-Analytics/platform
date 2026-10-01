@@ -105,6 +105,9 @@ export async function getOtherUser(
   });
 }
 
+export const ADMIN_FLAG_NEEDS_ADMIN =
+  "Only a global admin can make a user an admin";
+
 export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
 
 // Replaces a user's flag and grants together. An unrestricted user keeps no
@@ -308,8 +311,8 @@ export async function deleteUser(
 export async function batchUploadUsers(
   mainDb: Sql,
   assetFileName: string,
-  replaceAllExisting = false,
-  currentUserEmail?: string,
+  replaceAllExisting: boolean,
+  caller: { email: string; isGlobalAdmin: boolean },
 ): Promise<APIResponseNoData> {
   return await tryCatchDatabaseAsync(async () => {
     // Read and parse the CSV file
@@ -368,15 +371,23 @@ export async function batchUploadUsers(
       }
     }
 
+    const isAdminRow = (u: BatchUser) =>
+      u.is_global_admin.toLowerCase() === "true";
+
+    // The admin flag makes a user unrestricted, so only an admin grants it
+    // (PLAN_SCOPES R25).
+    if (!caller.isGlobalAdmin && batchUsers.some(isAdminRow)) {
+      return { success: false, err: ADMIN_FLAG_NEEDS_ADMIN };
+    }
+
     // Check if current user would lose admin status or be deleted
-    if (currentUserEmail) {
+    {
       const currentUserInBatch = batchUsers.find(
-        (u) => u.email === currentUserEmail,
+        (u) => u.email === caller.email,
       );
       if (
         replaceAllExisting &&
-        (!currentUserInBatch ||
-          currentUserInBatch.is_global_admin.toLowerCase() !== "true")
+        (!currentUserInBatch || !isAdminRow(currentUserInBatch))
       ) {
         return {
           success: false,
@@ -385,8 +396,8 @@ export async function batchUploadUsers(
         };
       }
       if (
-        currentUserInBatch &&
-        currentUserInBatch.is_global_admin.toLowerCase() === "false"
+        caller.isGlobalAdmin && currentUserInBatch &&
+        !isAdminRow(currentUserInBatch)
       ) {
         return {
           success: false,
@@ -406,7 +417,7 @@ export async function batchUploadUsers(
       }
 
       for (const batchUser of batchUsers) {
-        const isAdmin = batchUser.is_global_admin.toLowerCase() === "true";
+        const isAdmin = isAdminRow(batchUser);
 
         // Insert or update the user
         await sql`

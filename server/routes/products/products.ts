@@ -9,6 +9,7 @@ import {
   updateProductLabel,
 } from "../../db/products/mod.ts";
 import { setProductRun } from "../../db/instance/run_generation.ts";
+import { closeConnectionsLosingProduct } from "../../collab/presence_registry.ts";
 import { closeReportRoom } from "../../collab/report_rooms.ts";
 import { closeSlideRoom } from "../../collab/slide_rooms.ts";
 import {
@@ -23,6 +24,7 @@ import {
   notifyInstanceProductsUpserted,
   notifyInstanceRunsCatalogUpdated,
 } from "../../task_management/notify_instance_updated.ts";
+import { COLLAB_CLOSE_ACCESS_CHANGED } from "../instance/collab.ts";
 import { defineRoute } from "../route-helpers.ts";
 import { respond } from "./_respond.ts";
 
@@ -190,6 +192,12 @@ defineRoute(
       return respond(c, res);
     }
     await notifyInstanceProductsUpserted(c.var.mainDb, [params.product_id]);
+    closeConnectionsLosingProduct(
+      params.product_id,
+      body.scopeId,
+      COLLAB_CLOSE_ACCESS_CHANGED,
+      "Product scope changed",
+    );
     return respond(c, res);
   },
 );
