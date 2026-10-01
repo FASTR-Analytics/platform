@@ -81,17 +81,20 @@ library has no switch); with it off the section is stored as `include: false`
 and the tab says the scope shows none of that family's data. With it on the tab
 shows that family's own dimensions: `AreaPicker` for HMIS and HFA
 (`area_picker.tsx`: every area, or one admin area 2 of that family's registry,
-`listAdminArea2s({ family })`); a "Limit years" checkbox and two four-digit
-inputs for HMIS and ICEH; a time-point list for HFA; and that family's module
+`listAdminArea2s({ family })`); a "Limit years" checkbox over a `DoubleSlider`
+for HMIS and ICEH, whose track runs from 2000 to the current year in the
+calendar the family's years are stored in (`yearBounds`: the instance calendar
+for HMIS, through `periodIdForDate`, so 1992 to the current Ethiopian year on an
+Ethiopian-calendar instance; Gregorian for ICEH, whose years are the survey
+years of the ICEH export); a time-point list for HFA; and that family's module
 list and indicator list. Each list is a checkbox ("Limit ...") over a
 `MultiSelectSearch`: unchecked stores null (no limit), checked stores the list.
 Save refuses an empty label and, in any included section, a single-area choice
-with no area, years that are not four digits or are out of order, and a checked
-limit with nothing selected (the schema refuses an empty list: leaving the
-family out is how a scope shows none of it). The refusal names the family, since
-its tab may not be the open one. `scopeDefinitionSchema` holds years to four
-digits as well, because the view predicate's year conversion reads a value's
-format off its digit count.
+with no area, and a checked limit with nothing selected (the schema refuses an
+empty list: leaving the family out is how a scope shows none of it). The refusal
+names the family, since its tab may not be the open one. `scopeDefinitionSchema`
+holds years to four digits, because the view predicate's year conversion reads a
+value's format off its digit count.
 
 The editor is one snapshot of the scope it opened: each list is copied out of
 the T1 store row, so a `scopes_updated` that arrives while it is open changes

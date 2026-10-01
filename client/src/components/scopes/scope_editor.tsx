@@ -3,8 +3,10 @@ import {
   ALL_DATA_SCOPE_ID,
   type APIResponseWithData,
   type DatasetType,
+  getCalendar,
   getModuleFamilyLabel,
   MODULE_FAMILY_ORDER,
+  periodIdForDate,
   type Scope,
   type ScopeDefinition,
   t3,
@@ -16,6 +18,7 @@ import {
   createDeleteAction,
   createFormAction,
   createQuery,
+  DoubleSlider,
   Input,
   ModalContainer,
   MultiSelectSearch,
@@ -161,8 +164,14 @@ function LimitedList(p: {
   );
 }
 
-function parseYear(text: string): number | undefined {
-  return /^[1-9]\d{3}$/.test(text.trim()) ? Number(text.trim()) : undefined;
+// The year slider's track: 2000 to the current year, in the calendar the
+// family's years are stored in. HMIS periods are in the instance calendar;
+// ICEH years are the survey years of the ICEH export, always Gregorian.
+function yearBounds(family: DatasetType): YearRange {
+  const calendar = family === "hmis" ? getCalendar() : "gregorian";
+  const yearOf = (date: Date) =>
+    Math.floor(periodIdForDate(calendar, date) / 100);
+  return { start: yearOf(new Date(2000, 0, 1)), end: yearOf(new Date()) };
 }
 
 // Every dimension any family has, so one draft serves the three sections.
@@ -205,12 +214,8 @@ function createSectionDraft(stored: SectionFields) {
   const [area, setArea] = createSignal<AreaSelection>(
     areaSelectionFromStored(stored.adminArea2),
   );
-  const [limitYears, setLimitYears] = createSignal(stored.years !== null);
-  const [startYear, setStartYear] = createSignal(
-    stored.years === null ? "" : String(stored.years.start),
-  );
-  const [endYear, setEndYear] = createSignal(
-    stored.years === null ? "" : String(stored.years.end),
+  const [years, setYears] = createSignal(
+    stored.years === null ? null : { ...stored.years },
   );
   const [timePoints, setTimePoints] = createSignal(copy(stored.timePoints));
   const [modules, setModules] = createSignal(copy(stored.modules));
@@ -221,12 +226,8 @@ function createSectionDraft(stored: SectionFields) {
     setInclude,
     area,
     setArea,
-    limitYears,
-    setLimitYears,
-    startYear,
-    setStartYear,
-    endYear,
-    setEndYear,
+    years,
+    setYears,
     timePoints,
     setTimePoints,
     modules,
@@ -257,27 +258,6 @@ function draftArea(draft: SectionDraft): APIResponseWithData<string | null> {
       }),
     }
     : { success: true, data: area.adminArea2 };
-}
-
-function draftYears(
-  draft: SectionDraft,
-): APIResponseWithData<YearRange | null> {
-  if (!draft.limitYears()) return { success: true, data: null };
-  const start = parseYear(draft.startYear());
-  const end = parseYear(draft.endYear());
-  return start === undefined || end === undefined || start > end
-    ? {
-      success: false,
-      err: t3({
-        en:
-          "Enter a first and a last year as four digits, the first not after the last",
-        fr:
-          "Saisissez une première et une dernière année à quatre chiffres, la première n'étant pas postérieure à la dernière",
-        pt:
-          "Introduza um primeiro e um último ano com quatro dígitos, o primeiro não posterior ao último",
-      }),
-    }
-    : { success: true, data: { start, end } };
 }
 
 // The schema refuses an empty list: it would match no data, which is what
@@ -329,9 +309,7 @@ function buildDefinition(
     if (base.success === false) return base;
     const area = draftArea(drafts.hmis);
     if (area.success === false) return failed("hmis", area.err);
-    const years = draftYears(drafts.hmis);
-    if (years.success === false) return failed("hmis", years.err);
-    hmis = { ...base.data, adminArea2: area.data, years: years.data };
+    hmis = { ...base.data, adminArea2: area.data, years: drafts.hmis.years() };
   }
   let hfa: ScopeDefinition["hfa"] = { include: false };
   if (drafts.hfa.include()) {
@@ -347,9 +325,7 @@ function buildDefinition(
   if (drafts.iceh.include()) {
     const base = common("iceh");
     if (base.success === false) return base;
-    const years = draftYears(drafts.iceh);
-    if (years.success === false) return failed("iceh", years.err);
-    iceh = { ...base.data, years: years.data };
+    iceh = { ...base.data, years: drafts.iceh.years() };
   }
   return { success: true, data: { hmis, hfa, iceh } };
 }
@@ -422,30 +398,31 @@ function SectionTab(p: {
                 fr: "Limiter les années",
                 pt: "Limitar os anos",
               })}
-              checked={p.draft.limitYears()}
-              onChange={p.draft.setLimitYears}
+              checked={p.draft.years() !== null}
+              onChange={(checked) =>
+                p.draft.setYears(checked ? yearBounds(p.family) : null)}
             />
-            <Show when={p.draft.limitYears()}>
-              <div class="ui-gap-sm flex items-end">
-                <Input
-                  label={t3({
-                    en: "First year",
-                    fr: "Première année",
-                    pt: "Primeiro ano",
-                  })}
-                  value={p.draft.startYear()}
-                  onChange={p.draft.setStartYear}
-                />
-                <Input
-                  label={t3({
-                    en: "Last year",
-                    fr: "Dernière année",
-                    pt: "Último ano",
-                  })}
-                  value={p.draft.endYear()}
-                  onChange={p.draft.setEndYear}
-                />
-              </div>
+            <Show when={p.draft.years()}>
+              {(years) => (
+                <div>
+                  <DoubleSlider
+                    min={yearBounds(p.family).start}
+                    max={yearBounds(p.family).end}
+                    increment={1}
+                    valueLow={years().start}
+                    valueHigh={years().end}
+                    onChangeLow={(start) =>
+                      p.draft.setYears((prev) => prev && { ...prev, start })}
+                    onChangeHigh={(end) =>
+                      p.draft.setYears((prev) => prev && { ...prev, end })}
+                    fullWidth
+                  />
+                  <div class="pt-3">
+                    {years().start} {t3({ en: "to", fr: "à", pt: "a" })}{" "}
+                    {years().end}
+                  </div>
+                </div>
+              )}
             </Show>
           </div>
         </Show>
