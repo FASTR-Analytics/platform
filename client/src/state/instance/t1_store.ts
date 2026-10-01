@@ -1,3 +1,4 @@
+import { type Accessor, createMemo } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type {
   AssetInfo,
@@ -241,6 +242,25 @@ export function updateInstanceScopes(scopes: Scope[]): void {
 // scope's definition or label.
 export function resolveScope(scope: PackageScope): ResolvedPackageScope {
   return resolvePackageScope(scope, instanceState.scopes);
+}
+
+// The resolved pair as a memo that keeps its previous object while the run,
+// the scope id and the definition hash are unchanged. resolveScope reads the
+// whole scopes list, so a consumer that tracked it directly would re-run when
+// any other scope is created or deleted.
+export function createResolvedScope(
+  scope: Accessor<PackageScope | undefined>,
+): Accessor<ResolvedPackageScope | undefined> {
+  return createMemo<ResolvedPackageScope | undefined>((prev) => {
+    const pair = scope();
+    if (pair === undefined) return undefined;
+    const next = resolveScope(pair);
+    return prev !== undefined && prev.runId === next.runId &&
+        prev.scopeId === next.scopeId &&
+        prev.definitionHash === next.definitionHash
+      ? prev
+      : next;
+  });
 }
 
 // The server resolves a scope id against the `scopes` row at request time,

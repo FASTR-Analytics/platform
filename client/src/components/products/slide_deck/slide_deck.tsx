@@ -11,9 +11,9 @@ import {
 } from "lib";
 import { LoadingIndicator, openAlert } from "panther";
 import {
+  createResolvedScope,
   instanceState,
   productById,
-  resolveScope,
 } from "~/state/instance/t1_store";
 import {
   AIToolFailure,
@@ -189,15 +189,16 @@ export function SlideDeckEditor(p: Props) {
     load();
   });
 
-  // The authoring context follows the LIVE runId: a reattach swaps the whole
+  // The authoring context follows the LIVE pair and its scope's definition: a
+  // reattach, a scope change or an edit to the scope's module list swaps the
   // metric and preset catalogue the insert-figure wizard and the update
   // actions author against. Immutable by identity, so this is a cache hit
-  // after the first read of any given package.
+  // after the first read of any given package under a definition.
+  const resolvedScope = createResolvedScope(scope);
   createEffect(() => {
-    const pair = scope();
+    const resolved = resolvedScope();
     setAuthoringContext(undefined);
-    if (pair === undefined) return;
-    const resolved = resolveScope(pair);
+    if (resolved === undefined) return;
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     void (async () => {

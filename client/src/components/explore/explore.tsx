@@ -21,8 +21,12 @@ import {
   SelectV2,
   StateHolderWrapper,
 } from "panther";
-import { createMemo, type JSX, Show } from "solid-js";
-import { instanceState, resolveScope } from "~/state/instance/t1_store";
+import { createEffect, createMemo, type JSX, on, Show } from "solid-js";
+import {
+  createResolvedScope,
+  instanceState,
+  resolveScope,
+} from "~/state/instance/t1_store";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import {
   exploreFamily,
@@ -180,10 +184,14 @@ function PackageExplorer(p: {
   scope: PackageScope;
   controls: JSX.Element;
 }) {
+  // createQuery reads once, so the scope and its definition re-read it here:
+  // the family tabs and the module select follow the scope's module list.
+  const resolvedScope = createResolvedScope(() => p.scope);
   const context = createQuery(
     () => getRunAuthoringContextFromCacheOrFetch(resolveScope(p.scope)),
     t3(TC.loading),
   );
+  createEffect(on(resolvedScope, () => void context.fetch(), { defer: true }));
   const families = createMemo((): DatasetType[] => {
     const state = context.state();
     return state.status === "ready" ? familiesInPackage(state.data) : [];

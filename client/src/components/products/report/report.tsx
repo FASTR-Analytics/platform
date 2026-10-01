@@ -99,7 +99,11 @@ import { buildStandaloneReportHtml } from "~/exports/export_report_as_html";
 import { PresenceAvatars } from "~/components/_shared/mod.ts";
 import { ReportEditorCursors } from "./cursors";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
-import { productById, resolveScope } from "~/state/instance/t1_store";
+import {
+  createResolvedScope,
+  productById,
+  resolveScope,
+} from "~/state/instance/t1_store";
 import { canEditProduct } from "~/state/instance/product_access";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
 import { getReportDetailFromCacheOrFetch } from "~/state/products/t2_report_detail";
@@ -789,16 +793,18 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   });
 
   // ── Package and scope (D16, D4) ─────────────────────────────────────────────
-  // The authoring context follows the LIVE runId: a reattach swaps the metric
-  // and preset catalogue the wizard and the update actions author against.
+  // The authoring context follows the LIVE pair and its scope's definition: a
+  // reattach, a scope change or an edit to the scope's module list swaps the
+  // metric and preset catalogue the wizard and the update actions author
+  // against.
   const [authoringContext, setAuthoringContext] = createSignal<
     RunAuthoringContext | undefined
   >();
+  const resolvedScope = createResolvedScope(scope);
   createEffect(() => {
-    const pair = scope();
+    const resolved = resolvedScope();
     setAuthoringContext(undefined);
-    if (pair === undefined) return;
-    const resolved = resolveScope(pair);
+    if (resolved === undefined) return;
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     void (async () => {

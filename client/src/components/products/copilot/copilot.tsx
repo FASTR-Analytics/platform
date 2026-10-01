@@ -29,9 +29,9 @@ import {
 } from "./ai_configs/mod.ts";
 import { copilotViewController } from "./_shared/mod.ts";
 import {
+  createResolvedScope,
   instanceState,
   productById,
-  resolveScope,
 } from "~/state/instance/t1_store";
 import { addLastUpdatedListener } from "~/state/instance/t1_sse";
 import { getRunAuthoringContextFromCacheOrFetch } from "~/state/instance/t2_run_authoring_context";
@@ -70,15 +70,17 @@ export function ProductCopilotHost(p: HostProps) {
     return prev !== undefined && packageScopesEqual(prev, next) ? prev : next;
   });
 
-  // Immutable per runId, so the T2 cache answers instantly on every revisit.
+  // Immutable per (runId, definition hash), so the T2 cache answers instantly
+  // on every revisit. It re-reads when the pair or the scope's definition
+  // changes, and at no other change to the scopes list.
   const [authoringContext, setAuthoringContext] = createSignal<
     RunAuthoringContext | undefined
   >();
+  const resolvedScope = createResolvedScope(scope);
   createEffect(() => {
-    const pair = scope();
+    const resolved = resolvedScope();
     setAuthoringContext(undefined);
-    if (pair === undefined) return;
-    const resolved = resolveScope(pair);
+    if (resolved === undefined) return;
     const controller = new AbortController();
     onCleanup(() => controller.abort());
     void (async () => {
@@ -90,9 +92,11 @@ export function ProductCopilotHost(p: HostProps) {
 
   const binding = createMemo<CopilotBinding | undefined>(() => {
     const s = scope();
+    const resolved = resolvedScope();
     const ctx = authoringContext();
-    return s !== undefined && ctx !== undefined && ctx.runId === s.runId &&
-        ctx.scopeToken === resolveScope(s).definitionHash
+    return s !== undefined && resolved !== undefined && ctx !== undefined &&
+        ctx.runId === resolved.runId &&
+        ctx.scopeToken === resolved.definitionHash
       ? { scope: s, authoringContext: ctx }
       : undefined;
   });
