@@ -5,7 +5,7 @@ import { route } from "../route-utils.ts";
 const scopeIdParamsSchema = z.object({ scope_id: scopeIdSchema });
 
 const scopeBodySchema = z.object({
-  label: z.string(),
+  label: z.string().trim().min(1),
   definition: scopeDefinitionSchema,
 });
 
