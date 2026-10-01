@@ -239,18 +239,21 @@ floating toolbar has no inset, so it belongs in a padded parent: a `Table`
 placed flush in a `none` slot (a `<Card pad="none">`, an unpadded Frame slot)
 passes `nested`. That is the caller's job and the component does not check it.
 
-Three regions, left to right: the search field (`toolbar.search`, `true` or
-`{ placeholder }`), a text, and a right-aligned button group. The field comes
-first because the text changes width, and anything to the right of it would
-move. The text and the button group each have two faces, switched together on
-whether any row is selected. At rest: the count ("12 users", or "5 of 12 users"
-while a search or a filter hides rows; `toolbar.count: false` removes it) and
-`toolbar.children`. With rows selected: the selection sentence ("Selected: 3
-users") and the bulk action buttons with "Clear selection". The search field
-stays mounted across the switch, and the row's height does not change, so
-selecting a row does not move the rows, and neither a search nor a selection
-moves the field. `toolbar.children` are hidden while rows are selected: a button
-that must stay live during a selection belongs among the bulk actions.
+Two groups. On the left, in order: the search field (`toolbar.search`, `true` or
+`{ placeholder }`), then a text, then, while rows are selected, the bulk action
+buttons with "Clear selection". On the right: `toolbar.children`. The field
+comes first because the text changes width, and anything to the right of it
+would move. The text has two faces. At rest it is the count ("12 users", or "5
+of 12 users" while a search or a filter hides rows; `toolbar.count: false`
+removes it). With rows selected it is the selection sentence ("Selected: 3
+users"), and the bulk actions follow it directly, next to the text that just
+changed. `toolbar.children` stay where they are in both faces: they are the
+table's standing buttons and have nothing to do with the selection. The search
+field stays mounted across the switch, and neither a search nor a selection
+moves it. The row's height does not change either, so selecting a row does not
+move the rows, as long as the left group fits on one line. When it does not, the
+left group wraps, the bulk actions dropping under the field; the children never
+wrap, shrink or move.
 
 **Search.** The query is split on whitespace and every token must appear in the
 row's search text, case- and accent-insensitively (`searchTokens`,

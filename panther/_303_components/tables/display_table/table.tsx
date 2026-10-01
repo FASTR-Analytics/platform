@@ -340,6 +340,7 @@ export function Table<
                         checked={allSelected()}
                         indeterminate={someSelected()}
                         onChange={toggleSelectAll}
+                        disabled={visibleRows().length === 0}
                       />
                     </th>
                   </Show>
@@ -526,47 +527,49 @@ type ToolbarRowProps<T> = {
 
 function ToolbarRow<T>(p: ToolbarRowProps<T>) {
   const hasSelection = () => p.selectedItems.length > 0;
+  // Two groups. The left one wraps when the row is too narrow, the bulk actions
+  // dropping under the field; the children never wrap, shrink or move.
   return (
-    <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
-      {/* The field precedes the text: the text changes width, and would move it. */}
-      <Show when={p.search}>
-        <div class="w-72 flex-none">
-          <Input
-            value={p.searchText}
-            onChange={p.setSearchText}
-            placeholder={p.searchPlaceholder}
-            searchIcon
-            clearable
-            fullWidth
-          />
-        </div>
-      </Show>
-      <Switch>
-        <Match when={hasSelection()}>
-          <span class="font-700 flex-none text-sm">
-            {getSelectionSentence(p.selectedItems.length, p.itemLabel)}
-          </span>
-        </Match>
-        <Match when={p.countText !== undefined}>
-          <span class="text-base-content-muted flex-none text-sm">
-            {p.countText}
-          </span>
-        </Match>
-      </Switch>
-      <Switch>
-        <Match when={hasSelection()}>
+    <div class="ui-gap flex w-full items-start">
+      <div class="ui-gap flex min-h-[var(--ui-form-height)] min-w-0 flex-1 flex-wrap items-center">
+        {/* The field precedes the text: the text changes width, and would move it. */}
+        <Show when={p.search}>
+          <div class="w-72 flex-none">
+            <Input
+              value={p.searchText}
+              onChange={p.setSearchText}
+              placeholder={p.searchPlaceholder}
+              searchIcon
+              clearable
+              fullWidth
+            />
+          </div>
+        </Show>
+        <Switch>
+          <Match when={hasSelection()}>
+            <span class="font-700 flex-none text-sm">
+              {getSelectionSentence(p.selectedItems.length, p.itemLabel)}
+            </span>
+          </Match>
+          <Match when={p.countText !== undefined}>
+            <span class="text-base-content-muted flex-none text-sm">
+              {p.countText}
+            </span>
+          </Match>
+        </Switch>
+        <Show when={hasSelection()}>
           <_BulkActionButtons
             items={p.selectedItems}
             actions={p.bulkActions}
             onClear={p.onClearSelection}
           />
-        </Match>
-        <Match when={p.children}>
-          <div class="ml-auto ui-gap-sm flex items-center">
-            {p.children}
-          </div>
-        </Match>
-      </Switch>
+        </Show>
+      </div>
+      <Show when={p.children}>
+        <div class="ui-gap-sm flex min-h-[var(--ui-form-height)] flex-none items-center">
+          {p.children}
+        </div>
+      </Show>
     </div>
   );
 }

@@ -61,10 +61,10 @@ export type TableProps<T, K extends keyof T = keyof T> =
     // What a row is, for the count and the selection sentence: "user" /
     // "users". Default "item" / "items".
     itemLabel?: PluralForms<string>;
-    // A fixed-height row above the rows: the search field, the count or the
-    // selection sentence, then children or the bulk actions, the two faces
-    // switching on whether anything is selected. Also present, without being
-    // asked for, whenever there are bulk actions.
+    // A row above the rows: the search field, then the count, or the
+    // selection sentence and the bulk actions while anything is selected, and
+    // children on the right, always. Also present, without being asked for,
+    // whenever there are bulk actions.
     // It floats above the frame by default, unpadded, `spy` away from it;
     // `nested` puts it inside the frame, inset like the cells and padded
     // vertically by `pad`. Both sizes default to "md".

@@ -180,12 +180,12 @@ query, keeps the total in the count, and keeps the field in a row that does not
 move when rows are selected. A hand-rolled one re-decides each of those per
 screen.
 
-While rows are selected the toolbar shows the selection sentence and the
-`bulkActions` in place of the count and `toolbar.children`. A screen that wants
-its bulk actions in its `HeadingBar` instead controls selection, passes the
-table no `bulkActions` and no `toolbar`, and renders `SelectionActions` in the
-bar. `itemLabel` (`{ one, other }`) names the rows in the count and the
-sentence.
+While rows are selected the toolbar shows the selection sentence in place of the
+count, with the `bulkActions` directly after it. `toolbar.children` stay on the
+right throughout. A screen that wants its bulk actions in its `HeadingBar`
+instead controls selection, passes the table no `bulkActions` and no `toolbar`,
+and renders `SelectionActions` in the bar. `itemLabel` (`{ one, other }`) names
+the rows in the count and the sentence.
 
 ### Modals & editors
 

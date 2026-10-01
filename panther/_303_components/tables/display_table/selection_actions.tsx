@@ -33,11 +33,13 @@ export function SelectionActions<T>(p: SelectionActionsProps<T>): JSX.Element {
       <span class="font-700 flex-none text-sm">
         {getSelectionSentence(p.items.length, p.itemLabel)}
       </span>
-      <_BulkActionButtons
-        items={p.items}
-        actions={p.actions}
-        onClear={p.onClear}
-      />
+      <div class="ml-auto">
+        <_BulkActionButtons
+          items={p.items}
+          actions={p.actions}
+          onClear={p.onClear}
+        />
+      </div>
     </div>
   );
 }
@@ -57,7 +59,7 @@ export function _BulkActionButtons<T>(p: BulkActionButtonsProps<T>) {
   };
 
   return (
-    <div class="ml-auto ui-gap-sm flex items-center">
+    <div class="ui-gap-sm flex flex-wrap items-center">
       <For each={p.actions}>
         {(action) => (
           <Button

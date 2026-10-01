@@ -23,7 +23,12 @@ export function Checkbox(p: CheckboxProps) {
         <input
           checked={p.checked}
           type="checkbox"
-          onChange={(v) => p.onChange(v.currentTarget.checked)}
+          onChange={(e) => {
+            p.onChange(e.currentTarget.checked);
+            // The browser has already toggled the box; a parent that leaves
+            // `checked` as it was triggers no update to put it back.
+            e.currentTarget.checked = p.checked;
+          }}
           classList={{
             "ui-focusable": true,
             "peer": true,
