@@ -11,7 +11,11 @@
 // brief that teaches the block vocabulary.
 // =============================================================================
 
-import { cssColorLuminance } from "./fastr_markdown_blocks.ts";
+import {
+  cssColorLuminance,
+  FASTR_FIGURE_PAGE_CEILING,
+  fastrFigureShare,
+} from "./fastr_markdown_blocks.ts";
 import {
   deriveFastrThemeColors,
   FASTR_GROUNDS,
@@ -349,42 +353,50 @@ ${d}p, ${d}li, ${d}td, ${d}th, ${d}h1, ${d}h2, ${d}h3, ${d}h4, ${d}h5, ${d}h6 { 
 
 /* ── Figures (an embed on its own line becomes a captioned figure) ────────── */
 ${d}.fm-figure { margin: 1.6em 0; --fm-mt: 1.6em; --fm-mb: 1.6em; }
-/* A figure is capped at a share of the page's content area (--fm-page-area,
-   set by the paged sheet and by the editor's page boxes; a browser window
-   falls back to its own height): a tall chart at full column width used to
-   take two thirds of a page, so it could only ever sit alone with its
-   heading and the page above it was left half empty. Capped, it narrows and
-   centres, and two figures or a figure and its prose share a page. */
+/* A figure is the width its author gave it, the same wherever it falls
+   (fastr_markdown_blocks.ts, "Figure widths"): the text column by default,
+   a share of it at width=small|medium (--fm-fig-share). Its height is its
+   own aspect at that width. The ONLY height limit is the page ceiling
+   (FASTR_FIGURE_PAGE_CEILING of --fm-page-area, which the paged sheet and
+   the editor's page boxes set; a browser window falls back to its own
+   height), which only a figure shaped taller than the page ever meets; it
+   then narrows, centred, to the tallest that fits. An image is never
+   stretched past its own pixels (width: auto). */
+${d}.fm-figure--small { --fm-fig-share: ${fastrFigureShare("small")}; }
+${d}.fm-figure--medium { --fm-fig-share: ${fastrFigureShare("medium")}; }
 ${d}.fm-figure img {
   display: block;
   width: auto;
-  max-width: 100%;
-  max-height: calc(var(--fm-page-area, 100vh) * 0.42);
+  max-width: calc(100% * var(--fm-fig-share, 1));
+  max-height: calc(var(--fm-page-area, 100vh) * ${FASTR_FIGURE_PAGE_CEILING});
   margin-inline: auto;
 }
 /* The editor's stand-in while a figure renders (report_html.ts): the same
-   cap, so the page flow does not move when the raster replaces it. */
-${d}.fm-figure .report-embed-pending { max-height: calc(var(--fm-page-area, 100vh) * 0.42); }
+   width and ceiling, so the page flow does not move when the raster
+   replaces it. */
+${d}.fm-figure .report-embed-pending {
+  width: calc(100% * var(--fm-fig-share, 1));
+  max-height: calc(var(--fm-page-area, 100vh) * ${FASTR_FIGURE_PAGE_CEILING});
+  margin-inline: auto;
+}
 /* The editor's LIVE chart mount (live_preview_extension applyFigureSize):
-   the raster's aspect (--fm-fig-w/h) under the same cap, narrowed and
-   centred exactly as the img above, sized before the chart draws; the
-   canvas inside is cut to the box (it lays out to the same aspect, give or
-   take a pixel of rounding). A figure the page layout shrank to the room
-   left on its page carries that height as --fm-fig-fit (the pageBoxPlugin
-   writes it; print gets the same number, fastrFigureFitCss). */
+   the raster's aspect (--fm-fig-w/h) at the figure's share of the column,
+   under the same ceiling, narrowed and centred exactly as the img above,
+   sized before the chart draws; the canvas inside is cut to the box (it lays
+   out to the same aspect, give or take a pixel of rounding). */
 ${d}.fm-figure [data-embed-kind="figure"][data-fm-sized] {
-  --fm-fig-cap: min(var(--fm-fig-fit, 100000px), calc(var(--fm-page-area, 100vh) * 0.42));
+  --fm-fig-cap: calc(var(--fm-page-area, 100vh) * ${FASTR_FIGURE_PAGE_CEILING});
   aspect-ratio: var(--fm-fig-w) / var(--fm-fig-h);
-  width: min(100%, calc(var(--fm-fig-cap) * var(--fm-fig-w) / var(--fm-fig-h)));
+  width: min(calc(100% * var(--fm-fig-share, 1)), calc(var(--fm-fig-cap) * var(--fm-fig-w) / var(--fm-fig-h)));
   margin-inline: auto;
   overflow: hidden;
 }
 /* A mount still waiting for its size draws its chart at the chart's own
-   height meanwhile: capped like a printed figure, so a figure can never
-   stand a page tall while it waits (the editor sizes the mount from the
-   drawn canvas itself a frame later). */
+   height meanwhile: under the ceiling like a printed figure, so a figure can
+   never stand a page tall while it waits (the editor sizes the mount from
+   the drawn canvas itself a frame later). */
 ${d}.fm-figure [data-embed-kind="figure"][data-fm-pending] {
-  max-height: calc(var(--fm-page-area, 100vh) * 0.42);
+  max-height: calc(var(--fm-page-area, 100vh) * ${FASTR_FIGURE_PAGE_CEILING});
   overflow: hidden;
 }
 ${d}.fm-figure__caption {
@@ -989,11 +1001,11 @@ ${d}.fm-overlay--dark::before { background: rgba(0, 0, 0, 0.55); }
 ${d}.fm-overlay--light::before { background: rgba(255, 255, 255, 0.72); }
 
 /* ── Figure widths ────────────────────────────────────────────────────────── */
-/* A figure sits in the text column. width=wide (accepted, still classed
-   fm-figure--wide) once overhung the column by up to 4rem a side: on a
-   paged sheet that crosses the margin line and reads as a mistake, not a
-   design (Nick, 2026-09-10), so it is the column now. width=full bleeds
-   edge to edge, as a band does. */
+/* small and medium are shares of the column (--fm-fig-share, with the figure
+   rules above). width=wide (accepted, still classed fm-figure--wide) once
+   overhung the column by up to 4rem a side: on a paged sheet that crosses
+   the margin line and reads as a mistake, not a design (Nick, 2026-09-10),
+   so it is the column now. width=full bleeds edge to edge, as a band does. */
 ${d}.fm-figure--full {
   margin: 2em var(--fm-bleed-margin);
 }

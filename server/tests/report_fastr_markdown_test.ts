@@ -13,10 +13,14 @@ import {
   containerHtmlFor,
   FASTR_BLOCK_NAMES,
   FASTR_COVER_LAYOUTS,
+  FASTR_FIGURE_PAGE_CEILING,
   FASTR_INK_ROLES,
   FASTR_TONES,
   fastrContainerStackUpTo,
   fastrDocumentOutline,
+  fastrFigureShare,
+  fastrFigureWidthOfClass,
+  fastrFigureWidthOfLine,
   fastrLogoImageIds,
   fastrOpenFenceOnLine,
   fastrToneOf,
@@ -37,6 +41,7 @@ import {
   serializeContainerFence,
   serializeFastrMarkAttrs,
   updateContainerFenceLine,
+  updateEmbedLineAttrs,
 } from "../../lib/fastr_markdown_blocks.ts";
 import { renderFastrMarkdownToHtml } from "../../lib/report_fastr_markdown.ts";
 import {
@@ -1160,6 +1165,97 @@ Deno.test("a figure takes a width, and the attribute block is consumed", () => {
   assertEquals(
     render("![T](figure:abc){width=enormous}\n").includes("fm-figure--"),
     false,
+  );
+});
+
+Deno.test("small and medium are figure widths, classed and read back from the line", () => {
+  assertStringIncludes(
+    render("![T](figure:abc){width=small}\n"),
+    'class="fm-figure fm-figure--small"',
+  );
+  assertStringIncludes(
+    render("![T](image:abc){width=medium}\n"),
+    'class="fm-figure fm-figure--medium"',
+  );
+  // Read back from the SOURCE line (the editor's layout, the toolbar) and
+  // from the compiled class (the Word export): the same answer both ways.
+  assertEquals(
+    fastrFigureWidthOfLine("![T](figure:abc){width=small}"),
+    "small",
+  );
+  assertEquals(
+    fastrFigureWidthOfLine("![T](figure:abc) {width=medium}"),
+    "medium",
+  );
+  assertEquals(fastrFigureWidthOfLine("![T](figure:abc)"), "normal");
+  assertEquals(
+    fastrFigureWidthOfLine("![T](figure:abc){width=enormous}"),
+    "normal",
+  );
+  assertEquals(fastrFigureWidthOfClass("fm-figure fm-figure--small"), "small");
+  assertEquals(fastrFigureWidthOfClass("fm-figure"), "normal");
+  // One table of shares for the sheet, the editor and Word.
+  assertEquals(fastrFigureShare("small"), 0.5);
+  assertEquals(fastrFigureShare("medium"), 0.75);
+  assertEquals(fastrFigureShare("normal"), 1);
+  assertEquals(fastrFigureShare("wide"), 1);
+  // width=full bleeds rather than taking a share; the sheet does that.
+  assertEquals(fastrFigureShare("full"), 1);
+});
+
+// The regression this pins (2026-10-01): a figure was a different size
+// depending on where it fell. It was capped at 42% of the page's height
+// (so a tall chart narrowed and a wide one did not) and it shrank to the
+// room left at the foot of its page (--fm-fig-fit). Now it is its width at
+// its own aspect, with only a page-sized ceiling a portrait figure can meet.
+Deno.test("the sheet sizes a figure by its width alone, under a page ceiling", () => {
+  const css = buildFastrReportCss("default");
+  assert(!css.includes("0.42"), "the old 42% height cap is back");
+  assert(!css.includes("--fm-fig-fit"), "a figure is fitted to its page again");
+  assertStringIncludes(css, `* ${FASTR_FIGURE_PAGE_CEILING})`);
+  assertStringIncludes(css, "max-width: calc(100% * var(--fm-fig-share, 1))");
+  assertStringIncludes(css, ".fm-figure--small { --fm-fig-share: 0.5; }");
+  assertStringIncludes(css, ".fm-figure--medium { --fm-fig-share: 0.75; }");
+  // The editor's live chart mount takes the same share.
+  assertStringIncludes(css, "width: min(calc(100% * var(--fm-fig-share, 1))");
+  // The ceiling only bites on a figure shaped taller than the page, so it
+  // must leave room for a caption, and must not be the old sizing cap.
+  assert(FASTR_FIGURE_PAGE_CEILING > 0.42 && FASTR_FIGURE_PAGE_CEILING < 1);
+});
+
+Deno.test("updateEmbedLineAttrs sets, replaces and clears a figure's width, byte-preserving", () => {
+  const bare = "![Trend](figure:abc)";
+  assertEquals(
+    updateEmbedLineAttrs(bare, { width: "small" }),
+    `${bare}{width=small}`,
+  );
+  assertEquals(
+    updateEmbedLineAttrs(`${bare}{width=small}`, { width: "medium" }),
+    `${bare}{width=medium}`,
+  );
+  // The column is the default and is never written: clearing it removes the
+  // whole block rather than leaving `{}` behind.
+  assertEquals(
+    updateEmbedLineAttrs(`${bare}{width=small}`, { width: undefined }),
+    bare,
+  );
+  // Other attributes keep their exact spelling and place.
+  assertEquals(
+    updateEmbedLineAttrs(`${bare}{width=full x="a b"}`, { width: "small" }),
+    `${bare}{width=small x="a b"}`,
+  );
+  // A patch that changes nothing hands back the author's exact line.
+  const odd = `${bare}  {width=small}`;
+  assertEquals(updateEmbedLineAttrs(odd, { width: "small" }), odd);
+  assertEquals(updateEmbedLineAttrs(odd, {}), odd);
+  // Not a lone embed: an embed inside a paragraph is not a figure.
+  assertEquals(
+    updateEmbedLineAttrs(`See ${bare} here`, { width: "small" }),
+    undefined,
+  );
+  assertEquals(
+    updateEmbedLineAttrs("plain text", { width: "small" }),
+    undefined,
   );
 });
 

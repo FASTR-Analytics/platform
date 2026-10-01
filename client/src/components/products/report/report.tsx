@@ -8,6 +8,8 @@ import {
   fastrChartPalette,
   fastrDocumentOutline,
   type FastrFencePatch,
+  type FastrFigureWidth,
+  fastrFigureWidthOfLine,
   fastrLayoutHints,
   fastrLogoImageIds,
   fastrLogoSrcAttr,
@@ -29,6 +31,7 @@ import {
   getReportFormat,
   getReportHtmlStyle,
   type ImageBlock,
+  isFastrEmbedLine,
   logosSnippet,
   materializeReport,
   type PackageScope,
@@ -982,6 +985,25 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     );
   }
 
+  // A FASTR figure's width, read off its line's `{…}` block (first
+  // occurrence); undefined where a width means nothing (another format, or
+  // an embed inline in a paragraph, which is not a figure).
+  function widthForId(
+    kind: EmbedKind,
+    id: string,
+  ): FastrFigureWidth | undefined {
+    if (format() !== "fastr") return undefined;
+    const src = body();
+    const ref = findReportEmbeds(src, "fastr").find(
+      (r) => r.kind === kind && r.id === id,
+    );
+    if (!ref) return undefined;
+    const from = src.lastIndexOf("\n", ref.start - 1) + 1;
+    const nl = src.indexOf("\n", ref.end);
+    const line = src.slice(from, nl === -1 ? src.length : nl);
+    return isFastrEmbedLine(line) ? fastrFigureWidthOfLine(line) : undefined;
+  }
+
   const selectedEmbedDetail = createMemo<SelectedReportEmbed | undefined>(
     () => {
       const sel = selectedEmbed();
@@ -993,6 +1015,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           kind: "figure",
           id: sel.id,
           caption: captionForId("figure", sel.id),
+          width: widthForId("figure", sel.id),
           figureBlock: fb,
         };
       }
@@ -1002,6 +1025,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         kind: "image",
         id: sel.id,
         caption: captionForId("image", sel.id),
+        width: widthForId("image", sel.id),
         imageBlock: ib,
       };
     },
@@ -1809,6 +1833,12 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     editorApi?.setEmbedCaption(sel.kind, id, caption);
   }
 
+  function handleSetEmbedWidth(width: FastrFigureWidth) {
+    const sel = selectedEmbed();
+    if (!sel) return;
+    editorApi?.setEmbedWidth(sel.kind, sel.id, width);
+  }
+
   async function replaceSelectedFigure() {
     const sel = selectedEmbed();
     if (!sel || sel.kind !== "figure") return;
@@ -2448,6 +2478,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
               embed={selectedEmbedDetail()}
               canConfigure={canConfigure() && mode() !== "view"}
               onUpdateCaption={handleUpdateCaption}
+              onSetWidth={handleSetEmbedWidth}
               onEditFigure={handleEdit}
               onSwitchFigure={replaceSelectedFigure}
               onCreateFigure={replaceSelectedFigure}

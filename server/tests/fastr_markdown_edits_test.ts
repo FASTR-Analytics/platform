@@ -713,7 +713,7 @@ Deno.test("stat tile actions keep the column count following the tile count", ()
   // Add after the second tile: four tiles, four columns.
   const r = applyTilesChildAction(doc, 3, "insertAfter", {
     tile: "New tile",
-    card: "C",
+
     body: "T",
   });
   assertWellFormed(r);
@@ -752,7 +752,7 @@ Deno.test("stat tile actions keep the column count following the tile count", ()
       lone,
       applyTilesChildAction(lone, 2, "insertAfter", {
         tile: "N",
-        card: "C",
+
         body: "T",
       }),
     ),
@@ -763,19 +763,23 @@ Deno.test("stat tile actions keep the column count following the tile count", ()
 });
 
 Deno.test("card grids get the same insert, delete and column following", () => {
+  // A fresh card carries NO title attribute: an empty one would render as a
+  // blank title row holding its margin for good, where an absent one renders
+  // nothing and the editor offers a ghost "Title…" row to click into.
   assertEquals(
-    cardTilesSnippet(2, "Card", "Text"),
-    ':::tiles{cols=2}\n:::card{title="Card 1"}\nText\n:::\n:::card{title="Card 2"}\nText\n:::\n:::',
+    cardTilesSnippet(2, "Text"),
+    ":::tiles{cols=2}\n:::card\nText\n:::\n:::card\nText\n:::\n:::",
   );
   const doc =
     ':::tiles{cols=2}\n:::card{title="A"}\nbody a\n:::\n:::card{title="B"}\nbody b\n:::\n:::\nend';
-  const labels = { tile: "T", card: "New card", body: "Text" };
-  // Add after card A (a multi-line block): lands after its closing fence.
+  const labels = { tile: "T", body: "Text" };
+  // Add after card A (a multi-line block): lands after its closing fence, and
+  // the new card is untitled even though its neighbours are titled.
   const r = applyTilesChildAction(doc, 2, "insertAfter", labels);
   assertWellFormed(r);
   assertEquals(
     apply(doc, r),
-    ':::tiles{cols=3}\n:::card{title="A"}\nbody a\n:::\n:::card{title="New card"}\nText\n:::\n:::card{title="B"}\nbody b\n:::\n:::\nend',
+    ':::tiles{cols=3}\n:::card{title="A"}\nbody a\n:::\n:::card\nText\n:::\n:::card{title="B"}\nbody b\n:::\n:::\nend',
   );
   // Delete card A removes its whole block and shrinks the columns.
   const r2 = applyTilesChildAction(doc, 2, "delete", labels);
@@ -798,7 +802,7 @@ Deno.test("columns get the same picker snippet and column actions", () => {
   );
   const doc =
     ":::columns{cols=2}\n:::col\nleft\n:::\n:::col\nright\n:::\n:::\nend";
-  const labels = { tile: "T", card: "C", body: "Text", heading: "Head" };
+  const labels = { tile: "T", body: "Text", heading: "Head" };
   const r = applyTilesChildAction(doc, 2, "insertAfter", labels);
   assertWellFormed(r);
   assertEquals(

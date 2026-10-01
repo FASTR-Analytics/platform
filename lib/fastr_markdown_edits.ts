@@ -892,17 +892,20 @@ export function columnsSnippet(
   return [`:::columns{cols=${c}}`, ...columns, ":::"].join("\n");
 }
 
-// The same grid of `cols` cards, each titled and holding one body line.
-export function cardTilesSnippet(
-  cols: number,
-  title = "Card",
-  body = "Text",
-): string {
+// The same grid of `cols` cards, each holding one body line and NO title.
+//
+// The title attribute is left OFF the fence rather than written empty. The
+// two are not the same: `titleHtml` renders an absent title as nothing at all
+// and an empty one as an empty `<div class="fm-card__title">`, which is a
+// blank row holding its margin on the page for good. Absent is also what the
+// editor wants — a card with no title grows a ghost "Title…" row to click
+// into whenever the caret is inside it (`chromeAttrRows`, ghost = true), so
+// the header is reachable the moment its author wants one and invisible until
+// then. A card still carries its body line, so a fresh grid is never a row of
+// invisible boxes.
+export function cardTilesSnippet(cols: number, body = "Text"): string {
   const c = Math.max(1, Math.min(TILES_MAX_COLS, cols));
-  const cards = Array.from(
-    { length: c },
-    (_, i) => `:::card{title="${title} ${i + 1}"}\n${body}\n:::`,
-  );
+  const cards = Array.from({ length: c }, () => `:::card\n${body}\n:::`);
   return [`:::tiles{cols=${c}}`, ...cards, ":::"].join("\n");
 }
 
@@ -1006,9 +1009,10 @@ export function tilesChildInfo(
 
 // The new sibling's text: a stat's label, a card's title, and the body line
 // a new card or column starts with.
+// A card needs no label of its own: it is minted with no title (see
+// cardTilesSnippet), so only its body line is written.
 export type TilesChildLabels = {
   tile: string;
-  card: string;
   body: string;
   heading?: string;
 };
@@ -1023,7 +1027,6 @@ export function applyTilesChildAction(
   action: TilesChildAction,
   labels: TilesChildLabels = {
     tile: "New tile",
-    card: "New card",
     body: "Text",
   },
 ): EditResult {
@@ -1040,7 +1043,7 @@ export function applyTilesChildAction(
   const sibling = info.kind === "stat"
     ? `:::stat{value="0" label="${labels.tile}"}`
     : info.kind === "card"
-    ? `:::card{title="${labels.card}"}\n${labels.body}\n:::`
+    ? `:::card\n${labels.body}\n:::`
     : `:::col\n### ${labels.heading ?? "Heading"}\n${labels.body}\n:::`;
   const changes: TextEdit[] = [];
   const nextCount = tiles

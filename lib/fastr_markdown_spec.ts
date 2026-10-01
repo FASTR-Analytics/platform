@@ -225,9 +225,11 @@ Underlining — the same span, since markdown has no underline of its own:
 
   The [only]{underline} district to improve, [and by a lot]{.success underline}.
 
-A figure sits in the text column, never past it. ![caption](figure:<id>){width=full}
-runs edge to edge like a band: for the one chart a report is built around,
-at most, never for emphasis.
+A figure is as wide as the text column, at its own aspect, and the same size
+wherever it falls. Size one down only when it should read as secondary:
+![caption](figure:<id>){width=medium} takes three quarters of the column and
+{width=small} half of it. {width=full} runs edge to edge like a band: for
+the one chart a report is built around, at most, never for emphasis.
 
 Composing a report — this matters as much as the syntax:
 
@@ -275,15 +277,15 @@ Composing a report — this matters as much as the syntax:
 
   The report prints on pages, and the pages are what the reader holds.
   Every block keeps itself whole on one page (a callout, a band, a steps
-  list, a table, a paragraph), and a heading always travels with what
-  follows it, so a big block that misses the foot of a page by a line
+  list, a table, a figure, a paragraph), and a heading always travels with
+  what follows it, so a big block that misses the foot of a page by a line
   takes its whole height to the next page and leaves that much white
-  behind. A figure is the one block that bends: short of room at the foot
-  of its page it shrinks to what is left (never below six tenths of its
-  size) rather than opening the next page, so a figure placed after a
-  section's opening paragraph fills the page out. Only a block taller than
-  a page continues onto the next, and that reads badly, so keep every
-  block shorter than half a page:
+  behind. A figure does NOT bend to its page: it is the size it is wherever
+  it falls, so a full-width chart is a large block and plans like one. Only
+  a block taller than a page continues onto the next, and that reads badly,
+  so keep every block you write shorter than half a page (a figure is the
+  exception: it is as tall as its width and aspect make it, and is never
+  taller than a page):
   - Think in pages. A section is a heading, two or three paragraphs and
     one figure or one block: about a page. A section twice that long reads
     as two, so split it under its own heading.
@@ -306,8 +308,11 @@ Composing a report — this matters as much as the syntax:
     heading 10 (an h1 section heading 11), a blank line of space 2.5, a
     cover 60 (page 1 only; fill=page takes the whole page), a tiles row
     22, a band of two or three lines 25, a columns pair of a few lines a
-    side 30, a callout 8 plus 4 a line, a steps block 12 a step, a figure
-    50, a table 6 a row plus 6, a logos row 8, a contents block 13 plus 3.5 an entry (from
+    side 30, a callout 8 plus 4 a line, a steps block 12 a step, a
+    full-width figure 45 to 75 by its shape (a wide chart the low end, a
+    square one the high end; {width=medium} about three quarters of that,
+    {width=small} a little over half), a table 6 a row plus 6, a logos row 8, a
+    contents block 13 plus 3.5 an entry (from
     14 entries it runs in two columns: 13 plus 1.75 an entry).
   Lay the report out page by page to between 85 and 95 units each: page 1
   is the cover, the standfirst paragraph and the tiles row; every page

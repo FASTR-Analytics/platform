@@ -1,4 +1,4 @@
-import type { FigureBlock, ImageBlock } from "lib";
+import type { FastrFigureWidth, FigureBlock, ImageBlock } from "lib";
 import type Uppy from "@uppy/core";
 import { t3 } from "lib";
 import { Button, Icon, Input } from "panther";
@@ -26,10 +26,55 @@ import {
 } from "~/components/products/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 
-// The currently-selected report embed.
+// The currently-selected report embed. `width` is the FASTR Markdown
+// figure's `{width=…}`, and is undefined wherever a width means nothing:
+// another format, or an embed inline in a paragraph rather than on its own
+// line (which is not a figure).
 export type SelectedReportEmbed =
-  | { kind: "figure"; id: string; caption: string; figureBlock: FigureBlock }
-  | { kind: "image"; id: string; caption: string; imageBlock: ImageBlock };
+  | {
+    kind: "figure";
+    id: string;
+    caption: string;
+    width?: FastrFigureWidth;
+    figureBlock: FigureBlock;
+  }
+  | {
+    kind: "image";
+    id: string;
+    caption: string;
+    width?: FastrFigureWidth;
+    imageBlock: ImageBlock;
+  };
+
+// The sizes the toolbar offers, narrowest first; "normal" (the column) is the
+// default. The retired `wide` is not offered, and a figure still carrying it
+// reads as the column (it renders as one).
+const FIGURE_SIZE_OPTIONS: { value: FastrFigureWidth; label: () => string }[] =
+  [
+    {
+      value: "small",
+      label: () => t3({ en: "Small", fr: "Petite", pt: "Pequena" }),
+    },
+    {
+      value: "medium",
+      label: () => t3({ en: "Medium", fr: "Moyenne", pt: "Média" }),
+    },
+    {
+      value: "normal",
+      label: () =>
+        t3({ en: "Full width", fr: "Pleine largeur", pt: "Largura total" }),
+    },
+    {
+      value: "full",
+      label: () =>
+        t3({ en: "Edge to edge", fr: "Bord à bord", pt: "De ponta a ponta" }),
+    },
+  ];
+
+function figureSizeLabel(width: FastrFigureWidth): string {
+  const shown = width === "wide" ? "normal" : width;
+  return FIGURE_SIZE_OPTIONS.find((o) => o.value === shown)?.label() ?? "";
+}
 
 // The insert buttons — the toolbar's Insert tab (fastr) or the plain strip
 // (markdown/html) render these; the editing controls live separately below.
@@ -79,6 +124,8 @@ type ControlsProps = {
   embed: SelectedReportEmbed | undefined;
   canConfigure: boolean;
   onUpdateCaption: (id: string, caption: string) => void;
+  // FASTR Markdown only (the toolbar pill): the figure's `{width=…}`.
+  onSetWidth?: (width: FastrFigureWidth) => void;
   // figure
   onEditFigure: () => void;
   onSwitchFigure: () => void;
@@ -470,6 +517,48 @@ export function ReportEmbedToolbarControls(p: ControlsProps) {
                   )}
                 </Match>
               </Switch>
+              <Show when={p.onSetWidth && embed().width}>
+                {(width) => (
+                  <>
+                    <ToolbarDivider />
+                    <ToolbarPopover
+                      label={
+                        <span class="flex items-center gap-1">
+                          {t3({ en: "Size", fr: "Taille", pt: "Tamanho" })}
+                          <span class="text-base-content-muted">
+                            {figureSizeLabel(width())}
+                          </span>
+                        </span>
+                      }
+                      title={t3({
+                        en: "How wide the figure is on the page",
+                        fr: "La largeur de la figure sur la page",
+                        pt: "A largura da figura na página",
+                      })}
+                    >
+                      {(close) => (
+                        <div class="w-48">
+                          <For each={FIGURE_SIZE_OPTIONS}>
+                            {(opt) => (
+                              <PopoverRow
+                                active={(width() === "wide"
+                                  ? "normal"
+                                  : width()) === opt.value}
+                                onClick={() => {
+                                  p.onSetWidth?.(opt.value);
+                                  close();
+                                }}
+                              >
+                                {opt.label()}
+                              </PopoverRow>
+                            )}
+                          </For>
+                        </div>
+                      )}
+                    </ToolbarPopover>
+                  </>
+                )}
+              </Show>
               <ToolbarDivider />
               <PillButton danger onClick={() => p.onDelete()}>
                 <Icon iconName="trash" class="h-4 w-4" />

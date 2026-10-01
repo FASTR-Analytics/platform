@@ -62,8 +62,12 @@ import {
   WidthType,
 } from "docx";
 import {
+  FASTR_FIGURE_PAGE_CEILING,
   fastrBreakMode,
   type FastrContainerAttrs,
+  fastrFigureShare,
+  type FastrFigureWidth,
+  fastrFigureWidthOfClass,
   fastrLogoAlign,
   fastrLogoImageIds,
   fastrLogoSize,
@@ -1126,11 +1130,18 @@ class Builder {
     return m[1] === "figure" ? this.input.figure(m[2]) : this.input.image(m[2]);
   }
 
-  private imageSize(fig: FastrWordFigure): { width: number; height: number } {
-    // The column, and the sheet's 42% cap on a figure's height, like the
-    // sheet; a capped figure narrows with its aspect kept.
-    const maxW = this.width;
-    const maxH = 0.42 * (this.sheetPx[1] - 2 * this.marginPx);
+  private imageSize(
+    fig: FastrWordFigure,
+    width: FastrFigureWidth = "normal",
+  ): { width: number; height: number } {
+    // The figure's share of the column under the page ceiling, exactly as
+    // the sheet sizes it (fastr_markdown_blocks.ts, "Figure widths"); a
+    // figure taller than the ceiling narrows with its aspect kept, and an
+    // image is never stretched past its own pixels. Word has no bleed, so
+    // width=full is the column here.
+    const maxW = this.width * fastrFigureShare(width);
+    const maxH = FASTR_FIGURE_PAGE_CEILING *
+      (this.sheetPx[1] - 2 * this.marginPx);
     let w = Math.min(maxW, fig.width);
     let h = w * fig.height / fig.width;
     if (h > maxH) {
@@ -1140,21 +1151,27 @@ class Builder {
     return { width: Math.round(w), height: Math.round(h) };
   }
 
-  private inlineImage(t: Token): ImageRun | undefined {
+  private inlineImage(
+    t: Token,
+    width: FastrFigureWidth = "normal",
+  ): ImageRun | undefined {
     const fig = this.resolveEmbed(t.attrGet("src") ?? "");
     if (fig === undefined) return undefined;
     return new ImageRun({
       type: fig.type,
       data: fig.bytes,
-      transformation: this.imageSize(fig),
+      transformation: this.imageSize(fig, width),
     });
   }
 
-  private figure(inline: Token): void {
+  // `cls` is the compiled figure's class list, which carries its width
+  // (fm-figure--small etc.): the `{…}` block itself was claimed by the
+  // compiler before the token stream got here.
+  private figure(inline: Token, cls = ""): void {
     const img = (inline.children ?? []).find((k) => k.type === "image");
     if (img === undefined) return;
     const caption = inlineText(img.children ?? []).trim();
-    const run = this.inlineImage(img);
+    const run = this.inlineImage(img, fastrFigureWidthOfClass(cls));
     const p = this.pal;
     if (run === undefined) {
       this.push(this.paragraph([
@@ -1547,7 +1564,9 @@ class Builder {
     const inline = this.tokens[i + 1];
     let end = i + 2;
     if (open.tag === "figure") {
-      if (inline?.type === "inline") this.figure(inline);
+      if (inline?.type === "inline") {
+        this.figure(inline, open.attrGet("class") ?? "");
+      }
       // The figcaption the compiler inserted after the close.
       if (
         this.tokens[end + 1]?.type === "html_block" &&

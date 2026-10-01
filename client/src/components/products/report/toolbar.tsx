@@ -655,11 +655,6 @@ export function ReportToolbar(p: Props) {
                               ? cardTilesSnippet(
                                 n,
                                 t3({
-                                  en: "Card",
-                                  fr: "Carte",
-                                  pt: "Cartão",
-                                }),
-                                t3({
                                   en: "Text",
                                   fr: "Texte",
                                   pt: "Texto",

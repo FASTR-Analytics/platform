@@ -743,12 +743,75 @@ export function readFastrDocumentSettings(body: string): FastrDocumentSettings {
   return empty;
 }
 
-// Figures take a width: `full` goes edge to edge (same grid mechanism as a
-// band); `wide` is still accepted and classed, but the stylesheet gives it
-// the text column (on a paged sheet an overhang reads as a mistake).
+// ── Figure widths ────────────────────────────────────────────────────────────
+// A figure (a `figure:` or `image:` embed on its own line) is as wide as the
+// text column unless its author says otherwise, and the SAME size wherever it
+// falls in the report. It is never shrunk to fit the room left on a page or
+// narrowed to a share of the page's height (both were automatic until
+// 2026-10-01, and made one chart a different size from the next depending on
+// what stood around it). The author sizes it instead, with `{width=…}`:
+//   small   half the column
+//   medium  three quarters of it
+//   normal  the column; the default, never written to the source
+//   full    edge to edge, past the column, as a band does
+//   wide    the retired overhang: still accepted and classed, rendered as
+//           the column (on a paged sheet an overhang read as a mistake)
+// Figures keep their own list rather than sharing DOC_WIDTHS, which is the
+// `:::report{width=…}` vocabulary, where small and medium mean nothing.
+export const FASTR_FIGURE_WIDTHS = [
+  "small",
+  "medium",
+  "normal",
+  "wide",
+  "full",
+] as const;
+export type FastrFigureWidth = (typeof FASTR_FIGURE_WIDTHS)[number];
+
+// The share of the text column a figure takes at each width. One table for
+// the stylesheet (--fm-fig-share), the editor's page layout (figureImageBox)
+// and the Word export, so the three can never size a figure differently.
+export function fastrFigureShare(width: FastrFigureWidth): number {
+  return width === "small" ? 0.5 : width === "medium" ? 0.75 : 1;
+}
+
+// LOAD-BEARING. The tallest a figure's IMAGE may stand, as a share of the
+// page's content area. Not a sizing rule: at the column's width almost every
+// chart is shorter than this, so it only bites on a figure shaped taller than
+// the page (a portrait map), which then narrows, centred, to the tallest that
+// still fits. Without it such a figure would stand taller than a page, and
+// every block is atomic, so it could be placed nowhere. The share leaves the
+// room a caption and the figure's own margins take. Read by the stylesheet,
+// the editor's page layout and the Word export.
+export const FASTR_FIGURE_PAGE_CEILING = 0.85;
+
 export function figureWidthClass(attrs: FastrContainerAttrs): string {
-  const w = oneOf(attrs, "width", DOC_WIDTHS, "normal");
+  const w = oneOf(attrs, "width", FASTR_FIGURE_WIDTHS, "normal");
   return w === "normal" ? "" : ` fm-figure--${w}`;
+}
+
+// The width an embed LINE asks for, read from its trailing `{…}` block (the
+// one the compiler's fm_figures rule claims). Total: no block, no `width`, or
+// a value outside the list all read as the column.
+export function fastrFigureWidthOfLine(line: string): FastrFigureWidth {
+  const m = /\)\s*(\{[^}]*\})\s*$/.exec(line);
+  if (m === null) return "normal";
+  return oneOf(
+    parseContainerAttrs(m[1].slice(1, -1)),
+    "width",
+    FASTR_FIGURE_WIDTHS,
+    "normal",
+  ) as FastrFigureWidth;
+}
+
+// The same, from the compiled figure's class list (the Word export reads the
+// token stream, where the `{…}` block has already been claimed).
+export function fastrFigureWidthOfClass(cls: string): FastrFigureWidth {
+  const m = /\bfm-figure--([a-z]+)\b/.exec(cls);
+  const w = m?.[1];
+  return w !== undefined &&
+      (FASTR_FIGURE_WIDTHS as readonly string[]).includes(w)
+    ? w as FastrFigureWidth
+    : "normal";
 }
 
 function attrText(attrs: FastrContainerAttrs, key: string): string | undefined {
@@ -1600,7 +1663,46 @@ export function updateContainerFenceLine(
     ? trimmed
     : trimmed.slice(0, trimmed.indexOf("{"));
   const inner = raw.length === 0 ? "" : raw.slice(1, -1);
+  const body = patchAttrBody(inner, patch);
+  // Nothing to do — hand back the author's exact line. This is the guarantee
+  // the toolbar rests on: a click that changes nothing rewrites nothing, so
+  // no diff, no Y.Text op, no churn in anyone else's collab session.
+  if (body === undefined) return line;
+  return `${indent}${head.trimEnd()}${body.length === 0 ? "" : `{${body}}`}`;
+}
 
+// A lone embed line split into the token and its optional `{…}` block (the
+// predicate form is isFastrEmbedLine, fastr_live_regions.ts).
+const EMBED_LINE_RE =
+  /^(\s*!\[[^\]]*\]\((?:figure|image):[^)\s]+\))\s*(\{[^}]*\})?\s*$/;
+
+// The same for ONE embed line (`![caption](figure:<id>){…}`) and its trailing
+// attribute block, the one the compiler's fm_figures rule claims, with the
+// same guarantees: untouched attributes keep their exact spelling and place,
+// an emptied block goes whole rather than leaving `{}` behind, and a patch
+// that changes nothing hands back the author's exact line. Undefined when the
+// line is not a lone embed, which is the only place the block means anything.
+export function updateEmbedLineAttrs(
+  line: string,
+  patch: FastrFencePatch,
+): string | undefined {
+  const m = EMBED_LINE_RE.exec(line);
+  if (m === null) return undefined;
+  const body = patchAttrBody(
+    m[2] === undefined ? "" : m[2].slice(1, -1),
+    patch,
+  );
+  if (body === undefined) return line;
+  return `${m[1]}${body.length === 0 ? "" : `{${body}}`}`;
+}
+
+// The patch itself, on the `{…}` interior: the new interior, or undefined
+// when the patch changes nothing (so the caller can return its input
+// byte-identical).
+function patchAttrBody(
+  inner: string,
+  patch: FastrFencePatch,
+): string | undefined {
   const spans = rawAttrSpans(inner);
   const seen = new Set(spans.map((s) => s.key));
   let changed = false;
@@ -1630,10 +1732,6 @@ export function updateContainerFenceLine(
     added.push(attrPairText(k, value));
     changed = true;
   }
-  // Nothing to do — hand back the author's exact line. This is the guarantee
-  // the toolbar rests on: a click that changes nothing rewrites nothing, so
-  // no diff, no Y.Text op, no churn in anyone else's collab session.
-  if (!changed) return line;
-  const body = [next.trim(), ...added].filter((s) => s.length > 0).join(" ");
-  return `${indent}${head.trimEnd()}${body.length === 0 ? "" : `{${body}}`}`;
+  if (!changed) return undefined;
+  return [next.trim(), ...added].filter((s) => s.length > 0).join(" ");
 }

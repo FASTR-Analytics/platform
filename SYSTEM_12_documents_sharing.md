@@ -940,25 +940,21 @@ back) and is quiet with the fix, pending and landed alike, and the forced print
 agrees with the editor on the bulletin.
 
 **Setting the page** (2026-09-10, "make the spacing and page structure better
-when creating reports with the AI"). Three things fill an AI report's pages. A
-figure short of room at the foot of its page shrinks to what is left rather than
-opening the next page: `FastrLayoutBlock.flex` (what it may give up, four tenths
-of its natural image height, `FIGURE_FLOOR`) and `tail` (the separator line that
-stays under it before the seam), the layout's `fits` (`FastrPagedResult.fits`,
-px taken off the block), the editor writes `--fm-fig-fit` on the mount (the
-stylesheet caps the box at it) and keeps the block's own height NATURAL when it
-measures a fitted mount (`figureImageBox`: the raster's aspect at the column
-under the 42% cap, plus what the fit took off), or the layout would find the
-room it made and give it back; print gets the image height as
-`fastrFigureFitCss` (`figure[data-line] img { max-height }`), through
-`getPageLayout().figureFits`. A page that ends because its next block did not
-fit shares its leftover among the gaps between its blocks (`stretchesOf`: 40px
-at most beside a heading, a figure or a block, 12px between two paragraphs,
-nothing under 20px of leftover, never on the last page, after a break or a
-cover, or on a page cut inside a block): the stretch is a line decoration on the
-separator line (`stretchField`, `--fm-stretch` as the line's padding-bottom),
-the seam's filler pads what the gaps do not, the layout never sees it (gaps come
-from the source), and print takes each gap as the next block's whole top margin
+when creating reports with the AI"). Two things fill an AI report's pages. (A
+third, a figure shrinking to the room left at the foot of its page, was RETIRED
+2026-10-01 because it made one chart a different size from the next; see "Figure
+sizing". The machinery is generic and stays, dormant, because no block offers it
+any more: `FastrLayoutBlock.flex`/`tail`, the layout's `fits`, the editor's
+`--fm-fig-fit` write and `figureImageBox`'s `fitted` read-back, and print's
+`fastrFigureFitCss` through `getPageLayout().figureFits`, which now always
+carries an empty list.) A page that ends because its next block did not fit
+shares its leftover among the gaps between its blocks (`stretchesOf`: 40px at
+most beside a heading, a figure or a block, 12px between two paragraphs, nothing
+under 20px of leftover, never on the last page, after a break or a cover, or on
+a page cut inside a block): the stretch is a line decoration on the separator
+line (`stretchField`, `--fm-stretch` as the line's padding-bottom), the seam's
+filler pads what the gaps do not, the layout never sees it (gaps come from the
+source), and print takes each gap as the next block's whole top margin
 (`fastrGapStretchCss`, print's collapsed margin plus the stretch, from the
 blocks' `printMt`/`printMb`). And an h1 is a section now (the cover carries the
 title): print gives it an h2's space above in px (1.3em of its own em; the
@@ -1449,13 +1445,36 @@ as designed. It escapes the centred column with `margin: … calc(50% - 50vw)` a
 insets its content back to `--fm-measure`; `html { overflow-x: hidden }` absorbs
 the scrollbar width, and `@media print` drops the bleed. `:::cover` is a band
 that is tall and `break-after: page`. Scoped sheets (picker tiles) neutralise
-the bleed, since there the viewport is not the page. Figures take
-`{width=full}`: markdown-it has no attribute syntax, so the `fm_figures` core
-rule claims a trailing `{…}` text child and removes it. `width=wide` is still
-accepted and classed but renders at the text column: it used to overhang the
-column by up to 4rem a side, which on a paged sheet crosses the margin line and
-read as a mistake (Nick, 2026-09-10); the spec no longer offers it, so the AI
-stops asking for it.
+the bleed, since there the viewport is not the page.
+
+**Figure sizing** (2026-10-01, "the viz being sized differently based on where
+they are on the report and what is around them"). A figure is as wide as the
+text column at its own aspect, and the SAME size wherever it falls. Two
+automatic rules used to break that: a 42% cap on its height (so a square chart
+narrowed to 58% of the width a 16:9 one took, by its shape alone) and the page
+fit below, which shrank it to the room left at the foot of its page (the same
+chart drew at 400, 355 or 255px by how much prose stood above it). Both are
+gone. The author sizes a figure instead, with `{width=…}`
+(`FASTR_FIGURE_WIDTHS`, fastr_markdown_blocks.ts): `small` half the column,
+`medium` three quarters, the column by default (never written), `full` edge to
+edge as a band. The toolbar's selected-embed pill carries a Size control for it
+(`ReportEmbedToolbarControls` → `setEmbedWidth` → `updateEmbedLineAttrs`, which
+keeps `updateContainerFenceLine`'s byte-preserving guarantees on the embed
+line's `{…}` block). One table of shares (`fastrFigureShare`) and one height
+limit (`FASTR_FIGURE_PAGE_CEILING`, 0.85 of the page's content area) are read by
+all three sizers, the stylesheet (`--fm-fig-share`), the editor's page layout
+(`figureImageBox`) and the Word export; they used to carry three copies of the
+0.42. The ceiling is not a sizing rule: only a figure shaped taller than the
+page meets it, and it narrows, centred, rather than standing taller than a page,
+which no atomic block may. markdown-it has no attribute syntax, so the
+`fm_figures` core rule claims a trailing `{…}` text child and removes it.
+`width=wide` is still accepted and classed but renders at the text column: it
+used to overhang the column by up to 4rem a side, which on a paged sheet crosses
+the margin line and read as a mistake (Nick, 2026-09-10); the spec no longer
+offers it, so the AI stops asking for it. A sized figure's line is still the
+figure's: the editor's `ownsLine` takes the token plus its `{…}` block
+(`isFastrEmbedLine`), or deleting a sized figure would leave the block behind as
+literal text.
 
 **Escape hatch** (documented as theme-breaking, and the editor guide says so):
 `bg=` emits an inline STANDARD declaration — never a custom property, which

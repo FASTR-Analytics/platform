@@ -20,6 +20,7 @@ import {
   type FastrChartPalette,
   fastrContainerStackUpTo,
   type FastrFencePatch,
+  type FastrFigureWidth,
   type FastrInkRole,
   type FastrLayoutHint,
   type FastrOpenFence,
@@ -50,6 +51,7 @@ import {
   toggleInlineDelimiters,
   toggleLinePrefixEdit,
   updateContainerFenceLine,
+  updateEmbedLineAttrs,
 } from "lib";
 import type { ReportEditorSelection } from "~/components/products/copilot/mod.ts";
 import { type EmbedResolver, embedWidgets } from "./figure_widget_extension";
@@ -135,6 +137,12 @@ export type ReportEditorApi = {
     kind: "figure" | "image",
     id: string,
     caption: string,
+  ) => void;
+  // FASTR Markdown: the figure's `{width=…}` ("normal" clears it).
+  setEmbedWidth: (
+    kind: "figure" | "image",
+    id: string,
+    width: FastrFigureWidth,
   ) => void;
   // Current text selection / cursor (surfaced to the AI).
   getSelection: () => ReportEditorSelection;
@@ -883,7 +891,10 @@ export function ReportBodyEditor(p: Props) {
     );
     if (!ref) return undefined;
     const line = doc.lineAt(ref.start);
-    const ownsLine = line.text.trim() === ref.raw.trim() &&
+    // The token alone, or (FASTR Markdown) the token and its `{…}` block:
+    // a sized figure's line is still the figure's, so it goes whole.
+    const ownsLine = (line.text.trim() === ref.raw.trim() ||
+      (p.format === "fastr" && isFastrEmbedLine(line.text))) &&
       doc.lineAt(ref.end).number === line.number;
     return { ref, ownsLine };
   }
@@ -917,6 +928,25 @@ export function ReportBodyEditor(p: Props) {
         insert: rewriteReportEmbedToken(found.ref, { caption }, p.format),
       },
     });
+  }
+
+  // Only a lone embed line is a figure, so only it takes a width. The column
+  // is the default and is never written: choosing it deletes the key, and an
+  // emptied `{…}` block goes with it (updateEmbedLineAttrs).
+  function setEmbedWidth(
+    kind: "figure" | "image",
+    id: string,
+    width: FastrFigureWidth,
+  ) {
+    if (!view || p.format !== "fastr") return;
+    const found = findToken(kind, id);
+    if (!found?.ownsLine) return;
+    const line = view.state.doc.lineAt(found.ref.start);
+    const next = updateEmbedLineAttrs(line.text, {
+      width: width === "normal" ? undefined : width,
+    });
+    if (next === undefined || next === line.text) return;
+    view.dispatch({ changes: { from: line.from, to: line.to, insert: next } });
   }
 
   function getSelection() {
@@ -1117,6 +1147,7 @@ export function ReportBodyEditor(p: Props) {
       applyRebasedBody,
       removeEmbedToken,
       setEmbedCaption,
+      setEmbedWidth,
       getSelection,
       setBlockAttrs,
       insertPageSetup,

@@ -65,8 +65,11 @@ import {
   applyTilesChildAction,
   deleteFastrBlockEdit,
   FASTR_BLOCK_NAMES,
+  FASTR_FIGURE_PAGE_CEILING,
   type FastrBlockName,
   fastrDocumentOutline,
+  fastrFigureShare,
+  fastrFigureWidthOfLine,
   type FastrLayoutBlock,
   type FastrLayoutGeometry,
   type FastrLayoutHint,
@@ -802,21 +805,18 @@ function applyFigureFit(mount: HTMLElement, fit: number | undefined): void {
   else mount.style.setProperty("--fm-fig-fit", `${fit}px`);
 }
 
-// The share of the page's content area a figure's image may take: the
-// stylesheet's cap (report_fastr_css.ts, .fm-figure img and the live mount).
-const FIGURE_PAGE_SHARE = 0.42;
 // A rendered block at least this share of the page area tall offers its
 // inner boundaries to the layout (a shorter one always fits under a heading).
 const INNER_SHARE = 0.8;
-// How far a figure may shrink to fill the room left on its page: never
-// below this share of its natural size.
-const FIGURE_FLOOR = 0.6;
 
-// A figure block's image box at its natural size, px: the raster's aspect
-// (the host's size cache) at the figure's width, under the page cap, which
-// is what the mount takes before the chart draws (applyFigureSize); and
-// the height the layout last fitted it to when its rendered mount carries
-// one. Undefined while the size is unknown.
+// A figure block's image box, px: the raster's aspect (the host's size
+// cache) at the figure's own width (its share of the column, or the sheet
+// for width=full), under the page ceiling, which is what the mount takes
+// before the chart draws (applyFigureSize). The same box wherever the figure
+// falls: a figure offers the layout no `flex`, so it never shrinks to the
+// room left on its page (fastr_markdown_blocks.ts, "Figure widths"). The
+// `fitted` half reads back a fit the layout no longer makes; it stays
+// undefined. Undefined while the size is unknown.
 function figureImageBox(
   view: EditorView,
   resolver: EmbedResolver,
@@ -831,9 +831,12 @@ function figureImageBox(
   if (size === undefined || !(size.width > 0) || !(size.height > 0)) {
     return undefined;
   }
-  const full = /\{[^}]*\bwidth=full\b/.test(text);
-  const w = full ? (geometry.sheetPx ?? view.scrollDOM.clientWidth) : columnW;
-  const cap = FIGURE_PAGE_SHARE * (geometry.pageH - 2 * geometry.marginPx);
+  const width = fastrFigureWidthOfLine(text);
+  const w = width === "full"
+    ? (geometry.sheetPx ?? view.scrollDOM.clientWidth)
+    : columnW * fastrFigureShare(width);
+  const cap = FASTR_FIGURE_PAGE_CEILING *
+    (geometry.pageH - 2 * geometry.marginPx);
   const imgH = Math.min(cap, w * size.height / size.width);
   const mount = dom?.querySelector<HTMLElement>(
     '[data-embed-kind="figure"][data-fm-sized]',
@@ -1925,7 +1928,6 @@ export function attachTilesChildContextMenu(
     e.stopPropagation();
     const labels = {
       tile: t3({ en: "New tile", fr: "Nouvelle tuile", pt: "Novo mosaico" }),
-      card: t3({ en: "New card", fr: "Nouvelle carte", pt: "Novo cartão" }),
       body: t3({ en: "Text", fr: "Texte", pt: "Texto" }),
       heading: t3({ en: "Heading", fr: "Titre", pt: "Título" }),
     };
@@ -5767,12 +5769,14 @@ function flowBlocksOf(
         inner,
         repeat,
         topExtra,
-        flex: imgH !== undefined ? imgH * (1 - FIGURE_FLOOR) : undefined,
-        // The separator line after it stays on the page when it shrinks.
-        tail: imgH !== undefined && r.endLine + 1 < doc.lines &&
-            blank(r.endLine + 1)
-          ? rhythm.blankGap.get(r.endLine + 1) ?? 0
-          : undefined,
+        // No flex: a figure is the size its author gave it wherever it
+        // falls, so short of room at the foot of a page it moves whole to
+        // the next, like every other block (the page it leaves shares its
+        // leftover among its gaps instead: stretchesOf). It used to give up
+        // to four tenths of its height here, which made one chart a
+        // different size from the next (2026-10-01).
+        flex: undefined,
+        tail: undefined,
         rendered: isRendered,
         domHeight,
         imgH,
