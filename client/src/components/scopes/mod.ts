@@ -1,1 +1,1 @@
-export { InstanceScopes } from "./scopes.tsx";
+export { ScopesPage } from "./scopes.tsx";

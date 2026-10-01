@@ -163,13 +163,12 @@ product's editor once the store has hydrated (S12). No other product parameter
 Everything else is a **signal-driven switchboard**, never the URL:
 `components/instance/instance.tsx` holds a local `_tab` signal filtered through
 a permission-guarded derivation that selects Products / Explore / Results / Data
-/ Scopes / Assets / Users, in that nav order (Scopes, S15's
-`components/scopes/`, is shown to global admins only); Products (S12's
-`components/products/`) is first and the default, and Explore (S11's
-`components/explore/`, one package at one scope, a family's modules in a select
-and a view per module, S11 "The Explore page") needs approval only, which the
-whole nav already requires. The tab id union is `InstanceTab` in
-`onboarding/catalogue.ts` and the shell imports it.
+/ Assets / Users, in that nav order; Products (S12's `components/products/`) is
+first and the default, and Explore (S11's `components/explore/`, one package at
+one scope, a family's modules in a select and a view per module, S11 "The
+Explore page") needs approval only, which the whole nav already requires. The
+tab id union is `InstanceTab` in `onboarding/catalogue.ts` and the shell imports
+it.
 
 The shell is `ShellEditorWrapper` around a `FrameTop` whose panel is the header
 (instance name, logo, and the right-hand cluster: Theme, Help, versions,
@@ -183,13 +182,13 @@ its panel, because a `Show` passed as a prop is a truthy accessor even when it
 renders nothing and `FrameLeft` would draw an empty rail. `ShellEditorWrapper`
 and `openShellEditor` are the one `getEditorWrapper()` the app has at shell
 level, created in `t4_ui.ts`; every view a user reaches through a Back button
-(the product editors, module defaults, the package viewers, the Data hub's
-sub-pages, the user detail) opens through it and covers the header and the rail,
-so its Back is the only way out and the rail cannot switch tabs under an open
-editor. The tab stays on Products while a product editor is open. Views those
-full-page views open through their own wrappers (the slide editor, an import run
-detail) are already full page. This file also hosts the language menu and the
-onboarding-modal effect (below).
+(the product editors, module defaults, the Scopes page, the package viewers, the
+Data hub's sub-pages, the user detail) opens through it and covers the header
+and the rail, so its Back is the only way out and the rail cannot switch tabs
+under an open editor. The tab stays on Products while a product editor is open.
+Views those full-page views open through their own wrappers (the slide editor,
+an import run detail) are already full page. This file also hosts the language
+menu and the onboarding-modal effect (below).
 
 ## Language, calendar & translation
 

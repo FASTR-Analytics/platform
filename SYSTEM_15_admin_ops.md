@@ -23,7 +23,7 @@ docs_absorbed:
 
 # S15: Instance Administration & Ops
 
-User and permission management, the Scopes tab, instance settings UI, plus the
+User and permission management, the Scopes page, instance settings UI, plus the
 operational side-channel: health endpoints, disk autonomics, scheduled jobs,
 deploy. Small server surface, highest privilege.
 
@@ -54,13 +54,15 @@ route registry: the sanctioned escape from S1's registry-as-contract. Disk
 autonomics fire out-of-band side effects (volume resize, alert emails) invisible
 to the registry.
 
-## The Scopes tab
+## The Scopes page
 
 `components/scopes/` is where a global admin creates, edits and deletes scopes
 (the entity, its routes and its hash are S12 "Scopes"; what a definition filters
-is S9 "The scoped view"). The tab is shown only when
+is S9 "The scoped view"). It is not a tab: a "Scopes" button on the Results page
+(`results_packages.tsx`, S8), beside "Module defaults", opens it as a full-page
+view through `openShellEditor`. The button is shown only when
 `instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
-routes enforce with `requireAdmin`. `InstanceScopes` (`scopes.tsx`) is a `Table`
+routes enforce with `requireAdmin`. `ScopesPage` (`scopes.tsx`) is a `Table`
 over `instanceState.scopes` with one row per scope: label, area, time limits,
 data limits and the number of products that carry it, counted from
 `instanceState.products`. A row opens `ScopeEditor` (`scope_editor.tsx`) in a
@@ -90,8 +92,8 @@ reset it.
 
 Delete is offered on an existing scope and disabled while a product carries it
 (`deleteScope` refuses that server-side too). The editor states the product
-count, and that changing what the scope limits marks every figure in those
-products as out of date (the definition hash changes, S10).
+count, and that changing what the scope limits marks every visualization in
+those products as out of date (the definition hash changes, S10).
 
 ## Permissions (write side)
 

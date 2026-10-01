@@ -268,7 +268,7 @@ delete is a 404. There is no list route: every successful write re-reads the
 whole list and broadcasts it as `scopes_updated` (S3), and
 `InstanceState.scopes` (`Scope[]`: id, label, definition, definitionHash,
 lastUpdated) rides the `starting` payload for approved connections. The Scopes
-tab (S15, `components/scopes/`) is the one client surface that calls the three
+page (S15, `components/scopes/`) is the one client surface that calls the three
 routes.
 
 **On the client** the list is `instanceState.scopes` in T1

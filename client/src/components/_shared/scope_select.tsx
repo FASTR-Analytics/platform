@@ -17,7 +17,7 @@ type Props = {
 };
 
 // Scopes are picked by label. The author never sets a scope's dimensions:
-// those are edited by a global admin on the Scopes page.
+// those are edited by a global admin on the Scopes page, opened from Results.
 export function ScopeSelect(p: Props) {
   const options = () => [
     ...(p.allowWholePackage

@@ -142,7 +142,7 @@ function LimitedList(p: {
 }
 
 function parseYear(text: string): number | undefined {
-  return /^\d{4}$/.test(text.trim()) ? Number(text.trim()) : undefined;
+  return /^[1-9]\d{3}$/.test(text.trim()) ? Number(text.trim()) : undefined;
 }
 
 export function ScopeEditor(
@@ -347,11 +347,11 @@ export function ScopeEditor(
                     })
                     : t3({
                       en:
-                        `${p.productCount} product(s) carry this scope, so it cannot be deleted. Changing what it limits marks every figure in them as out of date.`,
+                        `${p.productCount} product(s) carry this scope, so it cannot be deleted. Changing what it limits marks every visualization in them as out of date.`,
                       fr:
-                        `${p.productCount} produit(s) portent cette portée, elle ne peut donc pas être supprimée. Modifier ce qu'elle limite marque chaque figure de ces produits comme obsolète.`,
+                        `${p.productCount} produit(s) portent cette portée, elle ne peut donc pas être supprimée. Modifier ce qu'elle limite marque chaque visualisation de ces produits comme obsolète.`,
                       pt:
-                        `${p.productCount} produto(s) têm este âmbito, pelo que não pode ser eliminado. Alterar o que ele limita marca todas as figuras desses produtos como desatualizadas.`,
+                        `${p.productCount} produto(s) têm este âmbito, pelo que não pode ser eliminado. Alterar o que ele limita marca todas as visualizações desses produtos como desatualizadas.`,
                     })}
                 </div>
               </Show>

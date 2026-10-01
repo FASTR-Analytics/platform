@@ -140,11 +140,11 @@ export function Explore() {
             <div class="ui-pad text-base-content-muted text-sm">
               {t3({
                 en:
-                  "No scope exists yet. A global admin creates one on the Scopes page.",
+                  "No scope exists yet. A global admin creates one from the Results page.",
                 fr:
-                  "Aucune portée n'existe encore. Un administrateur global en crée une sur la page Portées.",
+                  "Aucune portée n'existe encore. Un administrateur global en crée une depuis la page Résultats.",
                 pt:
-                  "Ainda não existe nenhum âmbito. Um administrador global cria um na página Âmbitos.",
+                  "Ainda não existe nenhum âmbito. Um administrador global cria um a partir da página Resultados.",
               })}
             </div>
           }

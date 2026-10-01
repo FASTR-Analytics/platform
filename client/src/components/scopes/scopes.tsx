@@ -1,7 +1,9 @@
 import { type Scope, type ScopeDefinition, t3 } from "lib";
 import {
   Button,
+  type EditorComponentProps,
   FrameTop,
+  HeadingBar,
   openComponent,
   Table,
   type TableColumn,
@@ -86,9 +88,11 @@ function toRow(scope: Scope): ScopeRow {
   };
 }
 
+type Props = EditorComponentProps<Record<never, never>, undefined>;
+
 // Scopes are created, edited and deleted here, by global admins only (the
 // scope routes are guarded the same way). A product picks one by label.
-export function InstanceScopes() {
+export function ScopesPage(p: Props) {
   function openEditor(scope: Scope | undefined) {
     void openComponent({
       element: ScopeEditor,
@@ -127,7 +131,15 @@ export function InstanceScopes() {
   ];
 
   return (
-    <FrameTop pad="md">
+    <FrameTop
+      pad="md"
+      panelChildren={
+        <HeadingBar
+          onBack={() => p.close(undefined)}
+          heading={t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" })}
+        />
+      }
+    >
       <Table
         data={instanceState.scopes.map(toRow)}
         columns={columns}
