@@ -142,6 +142,7 @@ import {
 import { REPORT_MARKDOWN_STYLE } from "~/generate_report/mod";
 import {
   ReportEmbedControls,
+  ReportEmbedToolbarControls,
   ReportInsertEmbedButtons,
   type SelectedReportEmbed,
 } from "./embed_editor";
@@ -2098,7 +2099,22 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
   const MainArea = () => (
     <div
       class="bg-base-200 flex h-full w-full flex-col"
-      onClick={() => setSelectedEmbed(undefined)}
+      // A press anywhere in the document but on an embed ends the embed
+      // selection, so the toolbar returns to the text controls. On the press
+      // and in the CAPTURE phase: the in-place editors (islands, block
+      // titles, stat pieces) stop their clicks from bubbling, so a click
+      // handler here never heard a press on another widget. A press on an
+      // embed passes, and its own click selects it.
+      ref={(el) =>
+        el.addEventListener(
+          "pointerdown",
+          (e) => {
+            const t = e.target as Element | null;
+            if (t?.closest?.("[data-embed-id]")) return;
+            setSelectedEmbed(undefined);
+          },
+          true,
+        )}
     >
       <Show when={collabFatal()}>
         <div class="bg-danger/10 text-danger ui-pad flex items-center gap-2 text-xs">
@@ -2428,7 +2444,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
           documentStats={documentStats}
           embedKind={() => selectedEmbed()?.kind}
           embedControls={
-            <ReportEmbedControls
+            <ReportEmbedToolbarControls
               embed={selectedEmbedDetail()}
               canConfigure={canConfigure() && mode() !== "view"}
               onUpdateCaption={handleUpdateCaption}

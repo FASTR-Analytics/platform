@@ -13,7 +13,6 @@ import type {
 import {
   canonicalJson,
   COLLAB_NO_EDIT_PERMISSION,
-  findNodeMap,
   findSlideFigureConfigMap,
   getSlideTitle,
   materializeSlide,
@@ -104,7 +103,6 @@ import { convertSlideType } from "../slide_transforms/mod.ts";
 import { updateBlockInLayout } from "../slide_transforms/mod.ts";
 import { SlideToolbar } from "./slide_toolbar";
 import { SLIDE_TEXT_FIELDS, slideTextField } from "./slide_fields";
-import { MarkdownSourceModal } from "./markdown_source_modal";
 import {
   type InlineEditTarget,
   type InlineTextApi,
@@ -400,31 +398,6 @@ export function SlideEditor(p: Props) {
         }),
       );
     }
-  }
-
-  // A text block's markdown source, for what typing on the canvas can't
-  // reach (code blocks, link targets) or anyone who prefers it.
-  function openMarkdownSource(blockId: string) {
-    setInlineEdit(undefined);
-    const s = session();
-    const yText = collabReady() && s
-      ? (findNodeMap(s.doc, blockId)?.get("markdown") as Y.Text | undefined)
-      : undefined;
-    const initial = textOfTarget({ kind: "block", id: blockId }) ?? "";
-    void withCanvasCovered(
-      openComponent({
-        element: MarkdownSourceModal,
-        props: {
-          productId: p.productId,
-          yText,
-          awareness: s?.awareness,
-          undoManager: s?.undoManager,
-          initial,
-          onText: (md: string) =>
-            applyInlineText({ kind: "block", id: blockId }, md),
-        },
-      }),
-    );
   }
 
   // The block or field went away under the editor (deleted, retyped, a slide
@@ -1233,7 +1206,6 @@ export function SlideEditor(p: Props) {
           inlineApi={inlineApi()}
           onEditText={(target) => startInlineEdit(target)}
           onAddField={addTitleField}
-          onEditMarkdown={openMarkdownSource}
           onShowLayoutMenu={handleShowLayoutMenu}
           menuRowHost={p.menuRowHost}
           onBlockTypeChange={handleBlockTypeChange}

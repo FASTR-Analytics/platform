@@ -58,6 +58,7 @@ import {
 import { fastrThemeLabel } from "./fastr_theme_labels";
 import {
   fastrBlockLabel,
+  fastrBlockShortLabel,
   fastrCoverLayoutLabel,
   fastrLogoAlignLabel,
   fastrLogoSizeLabel,
@@ -376,6 +377,24 @@ export function ReportToolbar(p: Props) {
   });
 
   const marks = () => p.context()?.marks;
+
+  // What the text controls can act on here. A caret parked on a block's own
+  // line (a stat, a block title, a cover's kicker, contents, a page break,
+  // logos: every in-place attribute editor parks it there) or on a figure
+  // or image line has no text for them, so the formatting controls go
+  // (Nick, 2026-09-30: "change font size in a statistics tile"). In a table
+  // or a steps block the text is formatted but a line may not change KIND:
+  // a heading, list or quote would break the table or the numbering.
+  const textOk = () => {
+    const c = p.context();
+    return c === undefined || (c.fenceHere === undefined && !c.embed);
+  };
+  const blockStylesOk = () => {
+    const c = p.context();
+    if (!textOk()) return false;
+    if (c?.table !== undefined) return false;
+    return c?.stack[c.stack.length - 1]?.name !== "steps";
+  };
 
   function patch(attr: string, value: string | undefined) {
     const t = target();
@@ -1023,293 +1042,303 @@ export function ReportToolbar(p: Props) {
           </ToolButton>
         </div>
 
-        <Divider />
+        <Show when={blockStylesOk()}>
+          <Divider />
 
-        <div class="flex items-center gap-0.5">
-          <Popover
-            label={
-              <span class="w-24 truncate text-left">{headingStyleFace()}</span>
-            }
-            title={t3({
-              en: "Text style",
-              fr: "Style de texte",
-              pt: "Estilo de texto",
-            })}
-          >
-            {(close) => (
-              <div class="ui-spy-sm flex flex-col">
-                <For each={[0, 1, 2, 3, 4]}>
-                  {(level) => (
-                    <PopoverRow
-                      active={(marks()?.headingLevel ?? 0) === level}
-                      onClick={() => {
-                        p.api()?.setHeadingLevel(level);
-                        close();
-                      }}
-                    >
-                      {level === 0
-                        ? t3({
-                          en: "Normal text",
-                          fr: "Texte normal",
-                          pt: "Texto normal",
-                        })
-                        : `${
-                          t3({ en: "Heading", fr: "Titre", pt: "Título" })
-                        } ${level}`}
-                    </PopoverRow>
-                  )}
-                </For>
-              </div>
-            )}
-          </Popover>
-        </div>
+          <div class="flex items-center gap-0.5">
+            <Popover
+              label={
+                <span class="w-24 truncate text-left">
+                  {headingStyleFace()}
+                </span>
+              }
+              title={t3({
+                en: "Text style",
+                fr: "Style de texte",
+                pt: "Estilo de texto",
+              })}
+            >
+              {(close) => (
+                <div class="ui-spy-sm flex flex-col">
+                  <For each={[0, 1, 2, 3, 4]}>
+                    {(level) => (
+                      <PopoverRow
+                        active={(marks()?.headingLevel ?? 0) === level}
+                        onClick={() => {
+                          p.api()?.setHeadingLevel(level);
+                          close();
+                        }}
+                      >
+                        {level === 0
+                          ? t3({
+                            en: "Normal text",
+                            fr: "Texte normal",
+                            pt: "Texto normal",
+                          })
+                          : `${
+                            t3({ en: "Heading", fr: "Titre", pt: "Título" })
+                          } ${level}`}
+                      </PopoverRow>
+                    )}
+                  </For>
+                </div>
+              )}
+            </Popover>
+          </div>
+        </Show>
 
-        <Divider />
+        <Show when={textOk()}>
+          <Divider />
 
-        <div class="flex items-center gap-0.5">
-          <ToolButton
-            active={() => marks()?.bold === true}
-            onClick={() => p.api()?.toggleInlineMark("**", "**")}
-            label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
-          >
-            <span class="font-700">B</span>
-          </ToolButton>
-          <ToolButton
-            active={() => marks()?.italic === true}
-            onClick={() => p.api()?.toggleInlineMark("*", "*")}
-            label={t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
-          >
-            <span class="italic">I</span>
-          </ToolButton>
-          <ToolButton
-            active={() => marks()?.underline === true}
-            onClick={() =>
-              p.api()?.setInlineUnderline(marks()?.underline !== true)}
-            label={t3({ en: "Underline", fr: "Souligné", pt: "Sublinhado" })}
-          >
-            <span class="underline">U</span>
-          </ToolButton>
-          {
-            /* Text size — `[phrase]{size=N}`, points like a word processor,
+          <div class="flex items-center gap-0.5">
+            <ToolButton
+              active={() => marks()?.bold === true}
+              onClick={() => p.api()?.toggleInlineMark("**", "**")}
+              label={t3({ en: "Bold", fr: "Gras", pt: "Negrito" })}
+            >
+              <span class="font-700">B</span>
+            </ToolButton>
+            <ToolButton
+              active={() => marks()?.italic === true}
+              onClick={() => p.api()?.toggleInlineMark("*", "*")}
+              label={t3({ en: "Italic", fr: "Italique", pt: "Itálico" })}
+            >
+              <span class="italic">I</span>
+            </ToolButton>
+            <ToolButton
+              active={() => marks()?.underline === true}
+              onClick={() =>
+                p.api()?.setInlineUnderline(marks()?.underline !== true)}
+              label={t3({ en: "Underline", fr: "Souligné", pt: "Sublinhado" })}
+            >
+              <span class="underline">U</span>
+            </ToolButton>
+            {
+              /* Text size — `[phrase]{size=N}`, points like a word processor,
                 as Google Docs' − N + stepper. With no explicit mark the box
                 shows the size the text actually RENDERS at (measured from the
                 DOM by the editor, so a theme's heading scale is honoured), and
                 the stepper steps from that. */
-          }
-          <div class="flex items-center">
-            <ToolButton
-              label={t3({
-                en: "Decrease text size",
-                fr: "Réduire la taille du texte",
-                pt: "Diminuir o tamanho do texto",
-              })}
-              onClick={() => stepSize(-1)}
+            }
+            <div class="flex items-center">
+              <ToolButton
+                label={t3({
+                  en: "Decrease text size",
+                  fr: "Réduire la taille du texte",
+                  pt: "Diminuir o tamanho do texto",
+                })}
+                onClick={() => stepSize(-1)}
+              >
+                <Icon iconName="minus" class="h-3.5 w-3.5" />
+              </ToolButton>
+              <Popover
+                chevron={false}
+                label={
+                  <span class="bg-base-100 inline-block w-8 rounded border text-center text-xs leading-5">
+                    {shownSize() ?? "–"}
+                  </span>
+                }
+                title={t3({
+                  en: "Text size",
+                  fr: "Taille du texte",
+                  pt: "Tamanho do texto",
+                })}
+              >
+                {(close) => {
+                  const apply = (raw: string) => {
+                    const n = Number(raw);
+                    if (!Number.isFinite(n) || n < 1 || n > 400) return;
+                    p.api()?.setInlineSize(Math.round(n * 10) / 10);
+                    close();
+                  };
+                  return (
+                    <div class="ui-spy-sm flex w-28 flex-col">
+                      <PopoverRow
+                        active={marks()?.size === undefined}
+                        onClick={() => {
+                          p.api()?.setInlineSize(undefined);
+                          close();
+                        }}
+                      >
+                        {t3({
+                          en: "Default",
+                          fr: "Par défaut",
+                          pt: "Predefinido",
+                        })}
+                      </PopoverRow>
+                      <For each={[8, 9, 10, 11, 12, 14, 18, 24, 36]}>
+                        {(n) => (
+                          <PopoverRow
+                            active={marks()?.size === n}
+                            onClick={() => {
+                              p.api()?.setInlineSize(n);
+                              close();
+                            }}
+                          >
+                            {String(n)}
+                          </PopoverRow>
+                        )}
+                      </For>
+                      <input
+                        type="number"
+                        min="1"
+                        max="400"
+                        step="0.5"
+                        class="mt-1 w-full rounded border px-2 py-1 text-sm"
+                        placeholder={t3({
+                          en: "Custom",
+                          fr: "Autre",
+                          pt: "Outro",
+                        })}
+                        value={shownSize() ?? ""}
+                        // Enter only — a blur-apply would fire (and close the
+                        // panel) before a preset row's own click could land.
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") apply(e.currentTarget.value);
+                        }}
+                      />
+                    </div>
+                  );
+                }}
+              </Popover>
+              <ToolButton
+                label={t3({
+                  en: "Increase text size",
+                  fr: "Augmenter la taille du texte",
+                  pt: "Aumentar o tamanho do texto",
+                })}
+                onClick={() => stepSize(1)}
+              >
+                <Icon iconName="plus" class="h-3.5 w-3.5" />
+              </ToolButton>
+            </div>
+            {
+              /* Highlight: the same panel shape as the ground and ink
+                pickers, but only literal colours — a stripe IS the colour. */
+            }
+            <Popover
+              chevron={false}
+              label={
+                <span
+                  class="font-700 rounded px-1 leading-none"
+                  style={marks()?.highlight !== undefined
+                    ? { "background-color": marks()?.highlight }
+                    : { "border-bottom": "3px solid #ffe08a" }}
+                >
+                  H
+                </span>
+              }
+              title={t3({ en: "Highlight", fr: "Surlignage", pt: "Realce" })}
             >
-              <Icon iconName="minus" class="h-3.5 w-3.5" />
+              {(close) => (
+                <div class="flex w-56 flex-col">
+                  <PopoverRow
+                    active={marks()?.highlight === undefined}
+                    onClick={() => {
+                      p.api()?.setInlineHighlight(undefined);
+                      close();
+                    }}
+                  >
+                    {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
+                  </PopoverRow>
+                  <LiteralColours
+                    literal={marks()?.highlight}
+                    onLiteral={(c) => p.api()?.setInlineHighlight(c)}
+                    onPick={close}
+                  />
+                </div>
+              )}
+            </Popover>
+            <ToolButton
+              label={`${
+                t3({ en: "Link", fr: "Lien", pt: "Ligação" })
+              } (Ctrl+K)`}
+              onClick={() => p.api()?.insertLink()}
+            >
+              {
+                /* panther's icon set has no chain glyph, so the link button
+                  uses a letterform like B/I/U do. */
+              }
+              <span class="underline">↗</span>
             </ToolButton>
             <Popover
               chevron={false}
               label={
-                <span class="bg-base-100 inline-block w-8 rounded border text-center text-xs leading-5">
-                  {shownSize() ?? "–"}
+                <span class={scopeClass}>
+                  {
+                    /* border-current: the bar under the A takes the role's
+                      own colour — or the literal — as Google Docs' colour
+                      button does. */
+                  }
+                  <span
+                    class={`${
+                      roleClassOf(
+                        marks()?.role,
+                      )
+                    } font-700 border-b-2 border-current px-0.5 leading-none`}
+                    style={marks()?.color !== undefined
+                      ? { color: marks()?.color }
+                      : undefined}
+                  >
+                    A
+                  </span>
                 </span>
               }
               title={t3({
-                en: "Text size",
-                fr: "Taille du texte",
-                pt: "Tamanho do texto",
+                en: "Text colour",
+                fr: "Couleur du texte",
+                pt: "Cor do texto",
               })}
             >
-              {(close) => {
-                const apply = (raw: string) => {
-                  const n = Number(raw);
-                  if (!Number.isFinite(n) || n < 1 || n > 400) return;
-                  p.api()?.setInlineSize(Math.round(n * 10) / 10);
-                  close();
-                };
-                return (
-                  <div class="ui-spy-sm flex w-28 flex-col">
-                    <PopoverRow
-                      active={marks()?.size === undefined}
-                      onClick={() => {
-                        p.api()?.setInlineSize(undefined);
-                        close();
-                      }}
-                    >
-                      {t3({
-                        en: "Default",
-                        fr: "Par défaut",
-                        pt: "Predefinido",
-                      })}
-                    </PopoverRow>
-                    <For each={[8, 9, 10, 11, 12, 14, 18, 24, 36]}>
-                      {(n) => (
-                        <PopoverRow
-                          active={marks()?.size === n}
-                          onClick={() => {
-                            p.api()?.setInlineSize(n);
-                            close();
-                          }}
-                        >
-                          {String(n)}
-                        </PopoverRow>
-                      )}
-                    </For>
-                    <input
-                      type="number"
-                      min="1"
-                      max="400"
-                      step="0.5"
-                      class="mt-1 w-full rounded border px-2 py-1 text-sm"
-                      placeholder={t3({
-                        en: "Custom",
-                        fr: "Autre",
-                        pt: "Outro",
-                      })}
-                      value={shownSize() ?? ""}
-                      // Enter only — a blur-apply would fire (and close the
-                      // panel) before a preset row's own click could land.
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") apply(e.currentTarget.value);
-                      }}
-                    />
-                  </div>
-                );
-              }}
-            </Popover>
-            <ToolButton
-              label={t3({
-                en: "Increase text size",
-                fr: "Augmenter la taille du texte",
-                pt: "Aumentar o tamanho do texto",
-              })}
-              onClick={() => stepSize(1)}
-            >
-              <Icon iconName="plus" class="h-3.5 w-3.5" />
-            </ToolButton>
-          </div>
-          {
-            /* Highlight: the same panel shape as the ground and ink
-                pickers, but only literal colours — a stripe IS the colour. */
-          }
-          <Popover
-            chevron={false}
-            label={
-              <span
-                class="font-700 rounded px-1 leading-none"
-                style={marks()?.highlight !== undefined
-                  ? { "background-color": marks()?.highlight }
-                  : { "border-bottom": "3px solid #ffe08a" }}
-              >
-                H
-              </span>
-            }
-            title={t3({ en: "Highlight", fr: "Surlignage", pt: "Realce" })}
-          >
-            {(close) => (
-              <div class="flex w-56 flex-col">
-                <PopoverRow
-                  active={marks()?.highlight === undefined}
-                  onClick={() => {
-                    p.api()?.setInlineHighlight(undefined);
-                    close();
-                  }}
-                >
-                  {t3({ en: "None", fr: "Aucun", pt: "Nenhum" })}
-                </PopoverRow>
-                <LiteralColours
-                  literal={marks()?.highlight}
-                  onLiteral={(c) => p.api()?.setInlineHighlight(c)}
+              {(close) => (
+                <InkPanel
+                  scopeClass={scopeClass}
+                  role={marks()?.role}
+                  literal={marks()?.color}
+                  onRole={(role) => p.api()?.setInlineRole(role)}
+                  onLiteral={(color) => p.api()?.setInlineColor(color)}
                   onPick={close}
                 />
-              </div>
-            )}
-          </Popover>
-          <ToolButton
-            label={`${t3({ en: "Link", fr: "Lien", pt: "Ligação" })} (Ctrl+K)`}
-            onClick={() => p.api()?.insertLink()}
-          >
-            {
-              /* panther's icon set has no chain glyph, so the link button
-                  uses a letterform like B/I/U do. */
-            }
-            <span class="underline">↗</span>
-          </ToolButton>
-          <Popover
-            chevron={false}
-            label={
-              <span class={scopeClass}>
-                {
-                  /* border-current: the bar under the A takes the role's
-                      own colour — or the literal — as Google Docs' colour
-                      button does. */
-                }
-                <span
-                  class={`${
-                    roleClassOf(
-                      marks()?.role,
-                    )
-                  } font-700 border-b-2 border-current px-0.5 leading-none`}
-                  style={marks()?.color !== undefined
-                    ? { color: marks()?.color }
-                    : undefined}
-                >
-                  A
-                </span>
-              </span>
-            }
-            title={t3({
-              en: "Text colour",
-              fr: "Couleur du texte",
-              pt: "Cor do texto",
-            })}
-          >
-            {(close) => (
-              <InkPanel
-                scopeClass={scopeClass}
-                role={marks()?.role}
-                literal={marks()?.color}
-                onRole={(role) => p.api()?.setInlineRole(role)}
-                onLiteral={(color) => p.api()?.setInlineColor(color)}
-                onPick={close}
-              />
-            )}
-          </Popover>
-        </div>
+              )}
+            </Popover>
+          </div>
+        </Show>
 
-        <Divider />
+        <Show when={blockStylesOk()}>
+          <Divider />
 
-        <div class="flex items-center gap-0.5">
-          <ToolButton
-            active={() => marks()?.list === "bullet"}
-            onClick={() => p.api()?.toggleLinePrefix("bullet")}
-            label={t3({
-              en: "Bulleted list",
-              fr: "Liste à puces",
-              pt: "Lista com marcas",
-            })}
-          >
-            <span>•</span>
-          </ToolButton>
-          <ToolButton
-            active={() => marks()?.list === "ordered"}
-            onClick={() => p.api()?.toggleLinePrefix("ordered")}
-            label={t3({
-              en: "Numbered list",
-              fr: "Liste numérotée",
-              pt: "Lista numerada",
-            })}
-          >
-            <span class="text-xs">1.</span>
-          </ToolButton>
-          <ToolButton
-            active={() => marks()?.quote === true}
-            onClick={() => p.api()?.toggleLinePrefix("quote")}
-            label={t3({ en: "Quote", fr: "Citation", pt: "Citação" })}
-          >
-            <span class="font-700">"</span>
-          </ToolButton>
-        </div>
+          <div class="flex items-center gap-0.5">
+            <ToolButton
+              active={() => marks()?.list === "bullet"}
+              onClick={() => p.api()?.toggleLinePrefix("bullet")}
+              label={t3({
+                en: "Bulleted list",
+                fr: "Liste à puces",
+                pt: "Lista com marcas",
+              })}
+            >
+              <span>•</span>
+            </ToolButton>
+            <ToolButton
+              active={() => marks()?.list === "ordered"}
+              onClick={() => p.api()?.toggleLinePrefix("ordered")}
+              label={t3({
+                en: "Numbered list",
+                fr: "Liste numérotée",
+                pt: "Lista numerada",
+              })}
+            >
+              <span class="text-xs">1.</span>
+            </ToolButton>
+            <ToolButton
+              active={() => marks()?.quote === true}
+              onClick={() => p.api()?.toggleLinePrefix("quote")}
+              label={t3({ en: "Quote", fr: "Citation", pt: "Citação" })}
+            >
+              <span class="font-700">"</span>
+            </ToolButton>
+          </div>
+        </Show>
 
         {
           /* The caret is in a TABLE: rows and columns, in the pill rather
@@ -1357,9 +1386,11 @@ export function ReportToolbar(p: Props) {
                 class="flex flex-wrap items-center gap-0.5"
                 data-tour="report-block-controls"
               >
-                <code class="bg-base-100 text-base-content-muted shrink-0 rounded-full border px-2 py-0.5 font-mono text-xs">
-                  :::{block().name}
-                </code>
+                <span class="bg-base-100 text-base-content-muted shrink-0 rounded-full border px-2 py-0.5 text-xs">
+                  {isFastrBlockName(block().name)
+                    ? fastrBlockShortLabel(block().name as FastrBlockName)
+                    : block().name}
+                </span>
 
                 <Show when={targetName()}>
                   {(name) => (

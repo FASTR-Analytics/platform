@@ -3,7 +3,7 @@
 // follows the selection: text formatting while typing on the canvas, a title's
 // size and weight, or the selected block's type, layout and figure/image
 // controls. It replaces the old left-hand panel; text itself is edited on the
-// canvas (inline_text_editor.tsx), or as markdown in MarkdownSourceModal.
+// canvas (inline_text_editor.tsx).
 
 import type {
   ContentBlock,
@@ -73,7 +73,6 @@ type Props = {
   onEditText: (target: InlineEditTarget) => void;
   /** Show an absent title field: seed it and start typing into it. */
   onAddField: (primitiveId: string) => void;
-  onEditMarkdown: (blockId: string) => void;
   onShowLayoutMenu: (x: number, y: number) => void;
   // Where the deck wants the menu row (its header); absent, it renders here.
   menuRowHost?: HTMLElement;
@@ -963,23 +962,9 @@ export function SlideToolbar(p: Props) {
         {
           /* What is selected, AFTER the text controls, as the report's block
             segment comes after its own: a text block's kind, layout and
-            options; a title's reset; or, with nothing selected, how to
-            start. */
+            options, or a title's reset. Nothing selected shows nothing. */
         }
-        <Switch
-          fallback={
-            <span class="text-base-content-muted px-2 text-sm">
-              {t3({
-                en:
-                  "Double-click text on the slide to type, or click a block for its options",
-                fr:
-                  "Double-cliquez sur un texte pour écrire, ou cliquez sur un bloc pour ses options",
-                pt:
-                  "Faça duplo clique num texto para escrever, ou clique num bloco para as suas opções",
-              })}
-            </span>
-          }
-        >
+        <Switch>
           <Match when={textBlockId()}>
             {(blockId) => (
               <>
@@ -1081,20 +1066,6 @@ function TextBlockControls(p: Props & { blockId: string }) {
           </For>
         )}
       </ToolbarPopover>
-      <TextButton
-        title={t3({
-          en:
-            "Edit this block's markdown source (code blocks, links, anything typing can't reach)",
-          fr:
-            "Modifier la source markdown de ce bloc (blocs de code, liens, etc.)",
-          pt:
-            "Editar a fonte markdown deste bloco (blocos de código, ligações, etc.)",
-        })}
-        onClick={() => p.onEditMarkdown(p.blockId)}
-      >
-        <Icon iconName="code" class="h-4 w-4" />
-        {t3({ en: "Markdown", fr: "Markdown", pt: "Markdown" })}
-      </TextButton>
     </>
   );
 }

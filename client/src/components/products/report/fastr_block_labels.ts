@@ -247,3 +247,46 @@ export function fastrLogoSizeLabel(size: FastrLogoSize): string {
       return t3({ en: "Large", fr: "Grand", pt: "Grande" });
   }
 }
+
+// The block's name in a word, for the toolbar's chip beside its controls
+// (the Insert menu keeps the descriptive fastrBlockLabel).
+export function fastrBlockShortLabel(name: FastrBlockName): string {
+  switch (name) {
+    case "callout":
+      return t3({ en: "Callout", fr: "Encadré", pt: "Destaque" });
+    case "tiles":
+      return t3({ en: "Tiles", fr: "Tuiles", pt: "Mosaicos" });
+    case "card":
+      return t3({ en: "Card", fr: "Carte", pt: "Cartão" });
+    case "stat":
+      return t3({ en: "Stat", fr: "Chiffre", pt: "Indicador" });
+    case "columns":
+      return t3({ en: "Columns", fr: "Colonnes", pt: "Colunas" });
+    case "col":
+      return t3({ en: "Column", fr: "Colonne", pt: "Coluna" });
+    case "quote":
+      return t3({ en: "Quote", fr: "Citation", pt: "Citação" });
+    case "band":
+      return t3({ en: "Band", fr: "Bandeau", pt: "Faixa" });
+    case "cover":
+      return t3({ en: "Cover", fr: "Couverture", pt: "Capa" });
+    case "steps":
+      return t3({ en: "Steps", fr: "Étapes", pt: "Passos" });
+    case "contents":
+      return t3({ en: "Contents", fr: "Sommaire", pt: "Índice" });
+    case "pagebreak":
+      return t3({
+        en: "Page break",
+        fr: "Saut de page",
+        pt: "Quebra de página",
+      });
+    case "logos":
+      return t3({ en: "Logos", fr: "Logos", pt: "Logótipos" });
+    case "report":
+      return t3({
+        en: "Page setup",
+        fr: "Mise en page",
+        pt: "Configuração da página",
+      });
+  }
+}

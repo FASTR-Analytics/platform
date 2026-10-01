@@ -460,9 +460,7 @@ session for the same slide):
   the session's shared `undoManager`, paints peers' carets and selections over
   the canvas from their awareness `cursor`, and mirrors every change into
   `tempSlide` so the canvas re-renders (S12 "Typing on the canvas"). Without a
-  ready session it edits `tempSlide` directly. A text block's markdown source
-  opens in `markdown_source_modal.tsx`, the shared editor bound to the same
-  Y.Text.
+  ready session it edits `tempSlide` directly.
 - Awareness (cursor positions) rides the same WS as `awareness_update` /
   `awareness`; the server relays without applying or persisting (ephemeral). The
   `user` awareness field (name/color) is stamped from the client's own

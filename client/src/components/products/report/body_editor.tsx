@@ -33,6 +33,7 @@ import {
   inlineMarkStateAt,
   insertBlockEdit,
   insertLinkEdit,
+  isFastrEmbedLine,
   parseContainerFence,
   type ReportEmbedRef,
   type ReportFormat,
@@ -276,6 +277,8 @@ export type ReportBlockContext = {
   // columns without the reader having to find the right-click menu. Undefined
   // when the caret is not in one.
   table: { rowLine: number; cellIndex: number } | undefined;
+  // The caret line is a figure or image embed line.
+  embed: boolean;
 };
 
 export function ReportBodyEditor(p: Props) {
@@ -832,6 +835,7 @@ export function ReportBodyEditor(p: Props) {
       marks,
       fontSizePt: measureFontSizePt(pos),
       table,
+      embed: isFastrEmbedLine(line.text),
     };
     // Out of the CodeMirror update. A synchronous signal write here re-renders
     // the toolbar mid-update, and anything in that render that touches the

@@ -15,6 +15,8 @@
 
 import {
   FASTR_REPORT_THEMES,
+  getReportFormat,
+  listFastrContainerDefects,
   REPORT_HTML_STYLES,
   reportConfigSchema,
   reportFiguresSchema,
@@ -42,14 +44,17 @@ export async function migrateReports(
   const rows = await tx<
     {
       id: string;
+      label: string;
       config: string | null;
+      body: string;
       figures: string;
       images: string;
       run_id: string;
       admin_area_2: string | null;
     }[]
   >`
-    SELECT r.id, r.config, r.figures, r.images, p.run_id, p.admin_area_2
+    SELECT r.id, p.label, r.config, r.body, r.figures, r.images,
+           p.run_id, p.admin_area_2
     FROM reports r
     JOIN products p ON p.id = r.id
   `;
@@ -62,7 +67,8 @@ export async function migrateReports(
     const images = JSON.parse(row.images);
 
     // Already valid? Skip: unless legacy keys (which safeParse silently
-    // strips) still need the embedded-config rename. figureInputs drift is
+    // strips) still need the embedded-config rename, or the row is still on
+    // the retired markdown format (Block 4). figureInputs drift is
     // covered by reportFiguresSchema: figureBlockSchema validates figureInputs
     // against panther's zFigureInputs (lib/types figureInputsSchema).
     if (
@@ -70,7 +76,8 @@ export async function migrateReports(
       reportFiguresSchema.safeParse(figures).success &&
       reportImagesSchema.safeParse(images).success &&
       !rawJsonNeedsForcedTransform(row.figures) &&
-      !rawJsonNeedsFigureBlockTransform(row.figures)
+      !rawJsonNeedsFigureBlockTransform(row.figures) &&
+      getReportFormat(config) !== "markdown"
     ) {
       continue;
     }
@@ -123,6 +130,56 @@ export async function migrateReports(
       !(FASTR_REPORT_THEMES as readonly string[]).includes(config.fastrTheme)
     ) {
       delete config.fastrTheme;
+    }
+
+    // Block 4: markdown to FASTR Markdown (2026-09-30). The plain-markdown
+    // format is retired: every report still on it becomes a FASTR Markdown
+    // report on the `legacy` theme, which reproduces the panther markdown
+    // look those reports render in today (the theme's own note in
+    // lib/types/report_fastr_themes.ts). The BODY is deliberately untouched.
+    // A markdown body is ALREADY valid FASTR Markdown: embed tokens are the
+    // same (buildReportEmbedToken special-cases html alone), headings and
+    // sections are the same `#` scan, and both parsers are markdown-it with
+    // the same options. So this is a config flip and nothing else, which is
+    // also what makes it reversible: flipping `format` back restores the old
+    // render exactly, because nothing was rewritten.
+    //
+    // The skip gate above forces markdown rows here, since their config is
+    // perfectly valid and would otherwise be skipped (the Skip-Gate Gotcha in
+    // PROTOCOL_APP_MIGRATIONS.md). It is self-terminating: a converted row
+    // reads as fastr on the next boot and is skipped like any other.
+    //
+    // getReportFormat is TOTAL, so this also catches the oldest reports,
+    // which carry no `format` key at all (absent reads as markdown), and any
+    // row holding a format that no longer exists.
+    //
+    // `themeChosen` is deliberately NOT written. Its absence is the mark of a
+    // report that was never offered the theme modal, so a converted report is
+    // not interrupted about a choice it was never given; the Page menu still
+    // reaches the theme whenever its author wants a different one.
+    if (getReportFormat(config) === "markdown") {
+      config.format = "fastr";
+      config.fastrTheme = "legacy";
+      // One body shape does NOT survive the move silently: a line that reads
+      // as a `:::` container fence was inert prose in markdown and opens a
+      // block in FASTR Markdown, and an unclosed one runs to the end of the
+      // document, swallowing everything under it. Nothing is rewritten (the
+      // body is the author's), so the row is converted either way and the
+      // report is NAMED here instead, for a human to open and close the
+      // fence. Deploy logs are the delivery mechanism: this runs once.
+      const defects = listFastrContainerDefects(row.body);
+      if (defects.length > 0) {
+        console.warn(
+          `[reports] converted "${row.label}" (${row.id}) to FASTR Markdown, ` +
+            `but its body has ${defects.length} ` +
+            `\`:::\` block problem${
+              defects.length === 1 ? "" : "s"
+            } that were ` +
+            `inert as plain markdown: ${
+              defects.slice(0, 5).map((d) => `line ${d.line}`).join(", ")
+            }. Open the report and close or escape the fence.`,
+        );
+      }
     }
 
     // Throws if the row is still invalid after every transform (including

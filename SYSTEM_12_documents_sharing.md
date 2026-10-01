@@ -54,6 +54,7 @@ globs:
   - server/tests/products_routes_test.ts
   - server/tests/report_fastr_markdown_test.ts
   - server/tests/report_fastr_word_test.ts
+  - server/tests/report_format_conversion_test.ts
   - server/tests/report_format_helpers_test.ts
   - server/tests/report_html_sanitize_test.ts
   - server/tests/report_pdf_render_test.ts
@@ -357,27 +358,27 @@ grouping: undo/redo | text style (Normal text / Heading 1-3, a body block's `#`
 prefix; a title shows its own name there) | bold, italic, the − N + size (a
 cover/section title's size; body text has none, the slide renderer sizes it to
 fit) | bulleted, numbered, quote | then the selection's segment (a text block's
-type, Layout, Edit text, background and markdown source; a styled title's reset;
-with nothing selected, how to start). Every text control is ALWAYS present and
-greyed when nothing it applies to is active, so the row never reflows as the
-selection moves; a selected figure or image swaps the text group for its own
-controls, as a selected embed does in the report. The report's underline,
-highlight, link and colour are absent on purpose: panther's markdown, which
-draws slide text, renders none of them. Below it the canvas is a live preview
-through S10's `convertSlideToPageInputs`, debounced 100ms off
-`trackStore(tempSlide)` except while typing on it. Every figure it writes is
-stamped with the product's pair, a figure block whose bundle was resolved under
-another pair shows S11's stale badge in the block panel, and the header counts
-them with "Update all figures" (S10 "The captured pair and staleness"). The deck
-header does the same across every slide through `deck_stale_figures.ts`, which
-walks the per-slide cache, swaps bundles with
-`slide_transforms/update_block_in_layout.ts` (the one structural walk the slide
-editor's own block edits use, so every write carries a fresh reference for the
-CRDT sync) and writes each updated slide back through `updateSlide` with its
-`expectedLastUpdated`. Slide-type switching keeps a per-type cache so switching
-back restores prior state (same idiom per-block for block-type switches). The
-layout tree is manipulated exclusively through panther node ops via
-`buildLayoutContextMenu`
+type, Layout, Edit text and background; a styled title's reset; nothing when
+nothing is selected, and double-click-to-type is taught by the slide editor tour
+instead). Every text control is ALWAYS present and greyed when nothing it
+applies to is active, so the row never reflows as the selection moves; a
+selected figure or image swaps the text group for its own controls, as a
+selected embed does in the report. The report's underline, highlight, link and
+colour are absent on purpose: panther's markdown, which draws slide text,
+renders none of them. Below it the canvas is a live preview through S10's
+`convertSlideToPageInputs`, debounced 100ms off `trackStore(tempSlide)` except
+while typing on it. Every figure it writes is stamped with the product's pair, a
+figure block whose bundle was resolved under another pair shows S11's stale
+badge in the block panel, and the header counts them with "Update all figures"
+(S10 "The captured pair and staleness"). The deck header does the same across
+every slide through `deck_stale_figures.ts`, which walks the per-slide cache,
+swaps bundles with `slide_transforms/update_block_in_layout.ts` (the one
+structural walk the slide editor's own block edits use, so every write carries a
+fresh reference for the CRDT sync) and writes each updated slide back through
+`updateSlide` with its `expectedLastUpdated`. Slide-type switching keeps a
+per-type cache so switching back restores prior state (same idiom per-block for
+block-type switches). The layout tree is manipulated exclusively through panther
+node ops via `buildLayoutContextMenu`
 ([slide_editor/build_context_menu.ts](client/src/components/products/slide_deck/slide_editor/build_context_menu.ts)):
 split/add/move/delete/convert, reachable from both the panel button and canvas
 right-click. Figure blocks have ONE authoring path (D3): insert and replace open
@@ -528,22 +529,34 @@ creation**, and every new report is minted FASTR Markdown:
 `getStartingConfigForReport("fastr")` and the format's worked starting body.
 Nothing mints a markdown or an html report any more; both are still read,
 edited, exported and restored from a version, which is why every path below
-stays format-aware. Absent format means markdown (`getReportFormat` is total —
-the stored config is a raw cast — and an unknown value reads as markdown, which
-is what makes adding a format a no-migration change).
-`reportRendersAsHtml(format)` names the two formats that go through the sanitize
-→ iframe → `.html`/print funnel (html, fastr) rather than panther's markdown IR.
-html reports additionally carry `htmlStyle?` — one of the `REPORT_HTML_STYLES`
-presets (default, minimal, corporate, ministry, classic, executive, clinical,
-editorial, swiss, monochrome, bauhaus, blueprint, broadsheet, risograph,
-artdeco, japanese, terminal, brutalist; also fixed at creation, also total via
-`getReportHtmlStyle`) — it changes ONLY the S13 AI authoring brief, never the
-render path. Eight of those names have no FASTR theme any more (blueprint
-retired 2026-09-03; risograph, artdeco, japanese, terminal and brutalist
-2026-09-17, as too loud for the reports people actually send; classic
-2026-09-21; monochrome 2026-09-29, its stored reports moved to minimal, the
-other greyscale theme): the html style stays so an html report written in one
-still renders, and a fastr report stored on a retired theme opens on the
+stays format-aware. **The markdown format was converted away on 2026-09-30**
+(Block 4 of `data_transforms/reports.ts`): every report still on it became a
+FASTR Markdown report on the `legacy` theme, which reproduces the panther
+markdown look it rendered in. The body is never touched, because a markdown body
+is ALREADY valid FASTR Markdown (same embed tokens, same `#` section scan, both
+parsers markdown-it with the same options), so the sweep is a config flip and is
+reversible by flipping `format` back. `legacy` is a STARTING theme, not a
+fixture: a converted report re-themes from the Page menu like any other.
+`themeChosen` is deliberately left absent, so a converted report is never
+interrupted by the theme modal about a choice it was never offered. The format
+itself stays in the enum and every markdown path stays live: retiring a format
+value needs the retired-value treatment, and nothing requires it. Absent format
+means markdown (`getReportFormat` is total — the stored config is a raw cast —
+and an unknown value reads as markdown, which is what makes adding a format a
+no-migration change, and is what routed the oldest config-less reports through
+that sweep). `reportRendersAsHtml(format)` names the two formats that go through
+the sanitize → iframe → `.html`/print funnel (html, fastr) rather than panther's
+markdown IR. html reports additionally carry `htmlStyle?` — one of the
+`REPORT_HTML_STYLES` presets (default, minimal, corporate, ministry, classic,
+executive, clinical, editorial, swiss, monochrome, bauhaus, blueprint,
+broadsheet, risograph, artdeco, japanese, terminal, brutalist; also fixed at
+creation, also total via `getReportHtmlStyle`) — it changes ONLY the S13 AI
+authoring brief, never the render path. Eight of those names have no FASTR theme
+any more (blueprint retired 2026-09-03; risograph, artdeco, japanese, terminal
+and brutalist 2026-09-17, as too loud for the reports people actually send;
+classic 2026-09-21; monochrome 2026-09-29, its stored reports moved to minimal,
+the other greyscale theme): the html style stays so an html report written in
+one still renders, and a fastr report stored on a retired theme opens on the
 default, `getFastrReportTheme` being total. **Creation asks nothing**: the
 products page mints the report the way it mints a deck, server-labelled and
 instantly open (D16). The look is chosen from INSIDE the report instead, by

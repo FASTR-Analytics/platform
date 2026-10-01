@@ -1378,6 +1378,101 @@ export function textIslandEndRel(
   return endRel;
 }
 
+// The editing surface of an island is the raw source, but the syntax the
+// toolbar OWNS stays invisible while editing: a heading's leading marker and
+// role-mark wrappers are swapped in as display:none spans (textContent still
+// includes them, so a commit round-trips byte-identically and a Range-based
+// selection offset stays a source offset), and the marked phrase keeps its
+// real colour and size. Emphasis/code/link syntax stays visible: it is typed.
+// Shared by the paragraph islands and the table cell editor.
+// The caret in an island at a source offset (textContent offsets, hidden
+// spans included), or at its end.
+function placeIslandCaret(el: HTMLElement, caretAt?: number): void {
+  const sel = winOf(el).getSelection();
+  if (!sel) return;
+  const range = docOf(el).createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  if (caretAt !== undefined) {
+    const walker = docOf(el).createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let remaining = caretAt;
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null) !== null) {
+      if (remaining <= node.length) {
+        range.setStart(node, remaining);
+        range.collapse(true);
+        break;
+      }
+      remaining -= node.length;
+    }
+  }
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+export function renderEditableIsland(
+  el: HTMLElement,
+  source: string,
+  heading: boolean,
+): void {
+  el.textContent = "";
+  const hiddenSpan = (t: string) => {
+    const s = docOf(el).createElement("span");
+    s.className = "cm-fm-island-syntax";
+    s.textContent = t;
+    return s;
+  };
+  // Emphasis runs: same-length `*` fences, content not space-flanked (so a
+  // list bullet or a lone `*` in prose never matches). The markers hide,
+  // the content styles — inside role phrases too.
+  const EMPH_RE = /(\*{3}|\*{2}|\*)(?!\s)([^*]*?)(?<!\s)\1/g;
+  const appendWithEmphasis = (parent: ParentNode, text: string) => {
+    EMPH_RE.lastIndex = 0;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = EMPH_RE.exec(text)) !== null) {
+      parent.append(docOf(el).createTextNode(text.slice(last, m.index)));
+      parent.append(hiddenSpan(m[1]));
+      const styled = docOf(el).createElement("span");
+      if (m[1].length >= 2) styled.style.fontWeight = "700";
+      if (m[1].length !== 2) styled.style.fontStyle = "italic";
+      styled.textContent = m[2];
+      parent.append(styled);
+      parent.append(hiddenSpan(m[1]));
+      last = m.index + m[0].length;
+    }
+    parent.append(docOf(el).createTextNode(text.slice(last)));
+  };
+  const frag = docOf(el).createDocumentFragment();
+  let rest = source;
+  const hm = /^(#{1,6} )/.exec(rest);
+  if (hm && heading) {
+    frag.append(hiddenSpan(hm[1]));
+    rest = rest.slice(hm[1].length);
+  }
+  MARK_RE.lastIndex = 0;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = MARK_RE.exec(rest)) !== null) {
+    const attrs = parseFastrMarkAttrs(m[2]);
+    if (!attrs) continue;
+    appendWithEmphasis(frag, rest.slice(last, m.index));
+    frag.append(hiddenSpan("["));
+    const marked = docOf(el).createElement("span");
+    marked.className = fastrMarkClass(attrs);
+    if (attrs.color !== undefined) marked.style.color = attrs.color;
+    if (attrs.size !== undefined) marked.style.fontSize = `${attrs.size}pt`;
+    if (attrs.underline === true) marked.style.textDecoration = "underline";
+    appendWithEmphasis(marked, m[1]);
+    frag.append(marked);
+    // m[2] verbatim, so textContent stays byte-identical to the source.
+    frag.append(hiddenSpan(`]{${m[2]}}`));
+    last = m.index + m[0].length;
+  }
+  appendWithEmphasis(frag, rest.slice(last));
+  el.append(frag);
+}
+
 export function attachTextEditor(
   el: HTMLElement,
   view: EditorView,
@@ -1450,70 +1545,9 @@ export function attachTextEditor(
     }
   };
   el.classList.add("cm-fm-text-edit");
-  // The editing surface is the raw source, but the syntax the toolbar OWNS
-  // stays invisible while editing: the leading heading marker and role-mark
-  // wrappers are swapped in as display:none spans (textContent still includes
-  // them, so a commit round-trips byte-identically and the selection mirror's
-  // Range-based offsets stay source offsets), and the marked phrase keeps its
-  // real colour. Emphasis/code/link syntax stays visible — it is typed.
-  const renderEditableSource = (source = original) => {
-    el.textContent = "";
-    const hiddenSpan = (t: string) => {
-      const s = docOf(el).createElement("span");
-      s.className = "cm-fm-island-syntax";
-      s.textContent = t;
-      return s;
-    };
-    // Emphasis runs: same-length `*` fences, content not space-flanked (so a
-    // list bullet or a lone `*` in prose never matches). The markers hide,
-    // the content styles — inside role phrases too.
-    const EMPH_RE = /(\*{3}|\*{2}|\*)(?!\s)([^*]*?)(?<!\s)\1/g;
-    const appendWithEmphasis = (parent: ParentNode, text: string) => {
-      EMPH_RE.lastIndex = 0;
-      let last = 0;
-      let m: RegExpExecArray | null;
-      while ((m = EMPH_RE.exec(text)) !== null) {
-        parent.append(docOf(el).createTextNode(text.slice(last, m.index)));
-        parent.append(hiddenSpan(m[1]));
-        const styled = docOf(el).createElement("span");
-        if (m[1].length >= 2) styled.style.fontWeight = "700";
-        if (m[1].length !== 2) styled.style.fontStyle = "italic";
-        styled.textContent = m[2];
-        parent.append(styled);
-        parent.append(hiddenSpan(m[1]));
-        last = m.index + m[0].length;
-      }
-      parent.append(docOf(el).createTextNode(text.slice(last)));
-    };
-    const frag = docOf(el).createDocumentFragment();
-    let rest = source;
-    const hm = /^(#{1,6} )/.exec(rest);
-    if (hm && /^H[1-6]$/.test(el.tagName)) {
-      frag.append(hiddenSpan(hm[1]));
-      rest = rest.slice(hm[1].length);
-    }
-    MARK_RE.lastIndex = 0;
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = MARK_RE.exec(rest)) !== null) {
-      const attrs = parseFastrMarkAttrs(m[2]);
-      if (!attrs) continue;
-      appendWithEmphasis(frag, rest.slice(last, m.index));
-      frag.append(hiddenSpan("["));
-      const marked = docOf(el).createElement("span");
-      marked.className = fastrMarkClass(attrs);
-      if (attrs.color !== undefined) marked.style.color = attrs.color;
-      if (attrs.size !== undefined) marked.style.fontSize = `${attrs.size}pt`;
-      if (attrs.underline === true) marked.style.textDecoration = "underline";
-      appendWithEmphasis(marked, m[1]);
-      frag.append(marked);
-      // m[2] verbatim, so textContent stays byte-identical to the source.
-      frag.append(hiddenSpan(`]{${m[2]}}`));
-      last = m.index + m[0].length;
-    }
-    appendWithEmphasis(frag, rest.slice(last));
-    el.append(frag);
-  };
+  // The raw source with the toolbar's syntax hidden (renderEditableIsland).
+  const renderEditableSource = (source = original) =>
+    renderEditableIsland(el, source, /^H[1-6]$/.test(el.tagName));
   const activate = (caretAt?: number) => {
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
     renderEditableSource();
@@ -1533,29 +1567,7 @@ export function attachTextEditor(
   };
   // The caret at a source offset (textContent offsets, hidden spans
   // included), or at the end.
-  const placeCaret = (caretAt?: number) => {
-    const sel = winOf(el).getSelection();
-    if (sel) {
-      const range = docOf(el).createRange();
-      range.selectNodeContents(el);
-      range.collapse(false);
-      if (caretAt !== undefined) {
-        const walker = docOf(el).createTreeWalker(el, NodeFilter.SHOW_TEXT);
-        let remaining = caretAt;
-        let node: Text | null;
-        while ((node = walker.nextNode() as Text | null) !== null) {
-          if (remaining <= node.length) {
-            range.setStart(node, remaining);
-            range.collapse(true);
-            break;
-          }
-          remaining -= node.length;
-        }
-      }
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  };
+  const placeCaret = (caretAt?: number) => placeIslandCaret(el, caretAt);
   (el as unknown as { _fmActivate?: (caretAt?: number) => void })._fmActivate =
     activate;
   el.addEventListener("mousedown", (e) => {
@@ -2165,8 +2177,9 @@ export function attachCellEditor(
   };
   // Mirror the island's DOM selection into the CM selection while editing, so
   // the toolbar's text actions (size, colour, bold) act on what is selected
-  // IN THE CELL — same contract as attachTextEditor's mirror. The island is
-  // plain text (no hidden spans), so Range lengths are cell offsets directly.
+  // IN THE CELL — same contract as attachTextEditor's mirror. The cell's
+  // mark syntax is hidden spans (renderEditableIsland), whose text Range
+  // lengths still count, so they are cell offsets directly.
   const mirrorSelection = () => {
     if (!el.isContentEditable) return;
     const sel = winOf(el).getSelection();
@@ -2216,15 +2229,27 @@ export function attachCellEditor(
   };
   const commitLive = () => {
     if (!el.isContentEditable || !el.isConnected) return;
-    writeCell((el.textContent ?? "").replace(/[\r\n|]/g, " ").trim(), true);
+    let next = (el.textContent ?? "").replace(/[\r\n|]/g, " ").trim();
+    // A formatted phrase stays whole or goes whole (fastrMarkAwareRewrite,
+    // as in a paragraph island).
+    const fixed = committed === undefined
+      ? undefined
+      : fastrMarkAwareRewrite(committed, next);
+    if (fixed !== undefined) {
+      next = fixed.text;
+      renderEditableIsland(el, next, false);
+      placeIslandCaret(el, fixed.caret);
+    }
+    writeCell(next, true);
   };
   const activate = () => {
     if (rowLine1 > view.state.doc.lines) return;
     const cells = cellsOf(view.state.doc.line(rowLine1).text);
     (el as unknown as { _rendered: string })._rendered = el.innerHTML;
-    el.textContent = cells[cellIndex] ?? "";
     original = cells[cellIndex] ?? "";
     committed = original;
+    // The cell's source, its colour/size marks hidden and still styled.
+    renderEditableIsland(el, original, false);
     try {
       el.contentEditable = "plaintext-only";
     } catch {
