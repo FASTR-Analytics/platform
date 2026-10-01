@@ -7,7 +7,7 @@ import { mintSlideIds, reSequence } from "./slides.ts";
 // The cross-deck reuse path: there is no figure library (D3), so copying
 // slides between decks is how a figure gets reused. Slide configs, and so
 // their FigureBundles, are copied VERBATIM: a copied figure keeps the
-// (runId, adminArea2) pair it was resolved under and shows stale under the
+// (run id, definition hash) stamp it was resolved under and shows stale under the
 // target whenever the two products' pairs differ (D4). Copies land at the end
 // of the target deck, in the order requested. The source ids are scoped by
 // the source product, so a slide id from a third deck is not found.

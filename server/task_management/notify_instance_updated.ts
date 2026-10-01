@@ -101,7 +101,8 @@ export function notifyInstanceProductsDeleted(ids: string[]) {
   notifyInstanceUpdate({ type: "products_deleted", data: { ids } });
 }
 
-// Folders are few and change rarely, so the whole list rides each change.
+// Scopes and folders are few and change rarely, so the whole list rides each
+// change.
 export function notifyInstanceScopesUpdated(scopes: Scope[]) {
   notifyInstanceUpdate({ type: "scopes_updated", data: { scopes } });
 }

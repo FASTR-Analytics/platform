@@ -8,7 +8,7 @@ import { type DBFolder } from "../instance/_main_database_types.ts";
 // cascades.
 
 /** Typed refusal for an illegal move, returned through the envelope like
- *  NO_READY_PINNED_PACKAGE. */
+ *  PACKAGE_OR_SCOPE_UNAVAILABLE. */
 export const FOLDER_CYCLE =
   "A folder cannot be moved into itself or into one of its own subfolders";
 
