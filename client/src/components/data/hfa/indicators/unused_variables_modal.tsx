@@ -1,15 +1,18 @@
 import { t3 } from "lib";
 import {
   AlertComponentProps,
+  Button,
   type ListItem,
   ModalContainer,
   TabsNavigation,
 } from "panther";
 import { createSignal, For, Show } from "solid-js";
 
+export type UnusedVariable = { variableId: string; variableLabel: string };
+
 export type UnusedVariablesByTimePoint = {
   timePoint: string;
-  unused: { variableId: string; variableLabel: string }[];
+  unused: UnusedVariable[];
 };
 
 type Props = {
@@ -17,7 +20,7 @@ type Props = {
 };
 
 export function HfaUnusedVariablesModal(
-  p: AlertComponentProps<Props, undefined>,
+  p: AlertComponentProps<Props, UnusedVariable>,
 ) {
   const [selected, setSelected] = createSignal<string>(
     p.timePoints[0]?.timePoint ?? "",
@@ -77,13 +80,19 @@ export function HfaUnusedVariablesModal(
             <div class="ui-spy-sm">
               <For each={activeUnused()}>
                 {(v) => (
-                  <div class="ui-gap-sm flex items-baseline border-b pb-2">
+                  <div class="ui-gap-sm flex items-center border-b pb-2">
                     <span class="font-mono">{v.variableId}</span>
-                    <Show when={v.variableLabel}>
-                      <span class="text-base-content-muted flex-1 truncate">
-                        {v.variableLabel}
-                      </span>
-                    </Show>
+                    <span class="text-base-content-muted flex-1 truncate">
+                      {v.variableLabel}
+                    </span>
+                    <Button
+                      size="sm"
+                      outline
+                      iconName="plus"
+                      onClick={() => p.close(v)}
+                    >
+                      {t3({ en: "Add", fr: "Ajouter", pt: "Adicionar" })}
+                    </Button>
                   </div>
                 )}
               </For>

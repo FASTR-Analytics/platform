@@ -1071,6 +1071,12 @@ layer.
   `can_configure_data`; config mutations `can_configure_settings`. Several
   manager UIs still gate their write buttons on `currentUserIsGlobalAdmin`
   instead (Open items).
+- The HFA manager's unused-variables modal (`HfaUnusedVariablesModal`) lists,
+  per time point, the survey variables no indicator code references. Each row
+  has an Add button: the modal closes with that variable, and the manager opens
+  `EditHfaIndicator` in create mode with `initialDefinition` set to the
+  variable's label, or its id when the label is empty. Nothing else is filled in
+  and no code is written, because the right code depends on the question type.
 
 ## Traps
 

@@ -469,7 +469,7 @@ export function HfaIndicatorsManager(p: Props) {
     setRevalidating(false);
   }
 
-  async function handleCreate() {
+  async function openCreateIndicator(initialDefinition?: string) {
     const st = indicators();
     const catSt = categories();
     const subCatSt = subCategories();
@@ -485,6 +485,7 @@ export function HfaIndicatorsManager(p: Props) {
     await openComponent({
       element: EditHfaIndicator,
       props: {
+        initialDefinition,
         sortOrder,
         categories: catSt.data,
         subCategories: subCatSt.data,
@@ -778,10 +779,13 @@ export function HfaIndicatorsManager(p: Props) {
         };
       });
 
-    await openComponent({
+    const chosen = await openComponent({
       element: HfaUnusedVariablesModal,
       props: { timePoints },
     });
+    if (chosen) {
+      await openCreateIndicator(chosen.variableLabel || chosen.variableId);
+    }
   }
 
   const categoryLabelById = createMemo(() => {
@@ -1197,7 +1201,8 @@ export function HfaIndicatorsManager(p: Props) {
                               <Button
                                 iconName="plus"
                                 intent="primary"
-                                onClick={handleCreate}
+                                onClick={() =>
+                                  openCreateIndicator()}
                               >
                                 {t3({
                                   en: "Add",

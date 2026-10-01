@@ -22,6 +22,7 @@ export function EditHfaIndicator(
   p: AlertComponentProps<
     {
       existingIndicator?: HfaIndicator;
+      initialDefinition?: string;
       sortOrder: number;
       categories: HfaIndicatorCategory[];
       subCategories: HfaIndicatorSubCategory[];
@@ -45,7 +46,7 @@ export function EditHfaIndicator(
     p.existingIndicator?.shortLabel ?? "",
   );
   const [definition, setDefinition] = createSignal(
-    p.existingIndicator?.definition ?? "",
+    p.existingIndicator?.definition ?? p.initialDefinition ?? "",
   );
   const [type, setType] = createSignal<"binary" | "numeric">(
     p.existingIndicator?.type ?? "binary",
