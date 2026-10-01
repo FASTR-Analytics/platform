@@ -239,17 +239,18 @@ floating toolbar has no inset, so it belongs in a padded parent: a `Table`
 placed flush in a `none` slot (a `<Card pad="none">`, an unpadded Frame slot)
 passes `nested`. That is the caller's job and the component does not check it.
 
-Three regions, left to right: a text, the search field (`toolbar.search`, `true`
-or `{ placeholder }`), and a right-aligned button group. The text and the button
-group each have two faces, switched together on whether any row is selected. At
-rest: the count ("12 users", or "5 of 12 users" while a search or a filter hides
-rows; `toolbar.count: false` removes it) and `toolbar.children`. With rows
-selected: the selection sentence ("Selected: 3 users") and the bulk action
-buttons with "Clear selection". The search field stays mounted across the
-switch, and the row's height does not change, so selecting a row does not move
-the rows; the field shifts sideways by the difference in width between the count
-and the sentence. `toolbar.children` are hidden while rows are selected: a
-button that must stay live during a selection belongs among the bulk actions.
+Three regions, left to right: the search field (`toolbar.search`, `true` or
+`{ placeholder }`), a text, and a right-aligned button group. The field comes
+first because the text changes width, and anything to the right of it would
+move. The text and the button group each have two faces, switched together on
+whether any row is selected. At rest: the count ("12 users", or "5 of 12 users"
+while a search or a filter hides rows; `toolbar.count: false` removes it) and
+`toolbar.children`. With rows selected: the selection sentence ("Selected: 3
+users") and the bulk action buttons with "Clear selection". The search field
+stays mounted across the switch, and the row's height does not change, so
+selecting a row does not move the rows, and neither a search nor a selection
+moves the field. `toolbar.children` are hidden while rows are selected: a button
+that must stay live during a selection belongs among the bulk actions.
 
 **Search.** The query is split on whitespace and every token must appear in the
 row's search text, case- and accent-insensitively (`searchTokens`,

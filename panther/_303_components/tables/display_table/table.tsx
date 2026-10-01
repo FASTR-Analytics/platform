@@ -528,18 +528,7 @@ function ToolbarRow<T>(p: ToolbarRowProps<T>) {
   const hasSelection = () => p.selectedItems.length > 0;
   return (
     <div class="ui-gap flex min-h-[var(--ui-form-height)] w-full items-center">
-      <Switch>
-        <Match when={hasSelection()}>
-          <span class="font-700 flex-none text-sm">
-            {getSelectionSentence(p.selectedItems.length, p.itemLabel)}
-          </span>
-        </Match>
-        <Match when={p.countText !== undefined}>
-          <span class="text-base-content-muted flex-none text-sm">
-            {p.countText}
-          </span>
-        </Match>
-      </Switch>
+      {/* The field precedes the text: the text changes width, and would move it. */}
       <Show when={p.search}>
         <div class="w-72 flex-none">
           <Input
@@ -552,6 +541,18 @@ function ToolbarRow<T>(p: ToolbarRowProps<T>) {
           />
         </div>
       </Show>
+      <Switch>
+        <Match when={hasSelection()}>
+          <span class="font-700 flex-none text-sm">
+            {getSelectionSentence(p.selectedItems.length, p.itemLabel)}
+          </span>
+        </Match>
+        <Match when={p.countText !== undefined}>
+          <span class="text-base-content-muted flex-none text-sm">
+            {p.countText}
+          </span>
+        </Match>
+      </Switch>
       <Switch>
         <Match when={hasSelection()}>
           <_BulkActionButtons
