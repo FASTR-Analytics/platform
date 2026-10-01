@@ -5,15 +5,23 @@
 import { createSignal, type JSX, onCleanup, Show, splitProps } from "solid-js";
 import { Icon } from "panther";
 
+// The rows under a product's HeadingBar: the menu row, then the toolbar row
+// (or the host a toolbar portals into). The closing pad and rule are the
+// container's, so the header ends the same way whether or not a toolbar is
+// mounted, and no row has to know that it is the last one.
+export function HeaderRows(p: { children: JSX.Element }) {
+  return (
+    <div class="border-b pb-1.5" data-cursor-zone="header">
+      {p.children}
+    </div>
+  );
+}
+
 // The menu row (File, Insert, Page...) under the heading bar, the same in
 // both headers: a flat row the header fills with its own menus, and the
 // open document's toolbar portals its menus into (the ref is the portal host).
-// The toolbar row under it closes the header; when none follows
-// (`closesHeader`: a blank or read-only deck) the menu row takes the
-// toolbar's bottom pad and rule itself.
 export function MenuRow(p: {
   ref: (el: HTMLDivElement) => void;
-  closesHeader?: boolean;
   children?: JSX.Element;
 }) {
   return (
@@ -23,10 +31,6 @@ export function MenuRow(p: {
       // label ("File") starts on the header's padding edge, under the back
       // button.
       class="flex flex-wrap items-center gap-1 pt-1.5 pr-[var(--ui-pad-x)] pl-[calc(var(--ui-pad-x)-var(--ui-pad-sm-x))]"
-      classList={{
-        "border-b pb-1.5": p.closesHeader === true,
-        "pb-0.5": p.closesHeader !== true,
-      }}
       data-cursor-zone="header"
     >
       {p.children}
@@ -35,7 +39,8 @@ export function MenuRow(p: {
 }
 
 // The formatting row itself, the root of both editors' toolbars so the two
-// cannot drift: a flat wrapping row that closes the header with a rule.
+// cannot drift: a flat wrapping row whose top pad is its gap from the menu
+// row above.
 export function ToolbarRow(
   p:
     & { children: JSX.Element }
@@ -47,7 +52,7 @@ export function ToolbarRow(
   const [local, rest] = splitProps(p, ["children"]);
   return (
     <div
-      class="flex flex-wrap items-center gap-0.5 border-b px-3 pt-0.5 pb-1.5"
+      class="flex flex-wrap items-center gap-0.5 px-3 pt-1"
       data-cursor-zone="header"
       {...rest}
     >

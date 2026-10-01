@@ -49,6 +49,7 @@ export type {
 export { InsertFigureModal } from "./insert_figure/mod.ts";
 export type { InsertFigureResult } from "./insert_figure/mod.ts";
 export {
+  HeaderRows,
   MenuDivider,
   MenuFlyout,
   MenuRow,

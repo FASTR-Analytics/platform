@@ -87,6 +87,7 @@ import {
 import { fastrThemeOptions } from "./fastr_theme_labels";
 import {
   createReportPaginator,
+  HeaderRows,
   MenuRow,
   ProductTitle,
 } from "~/components/products/_shared/mod.ts";
@@ -2442,58 +2443,60 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       </HeadingBar>
       {/* The toolbar's menu row: the toolbar portals its menus in. */}
       <Show when={fileMenuShown()}>
-        <MenuRow
-          ref={(el) => {
-            setMenuRowHost(el);
-            onCleanup(() => setMenuRowHost(undefined));
-          }}
-        />
-        {
-          /* The formatting strip: the toolbar's PILL, under the header
-                whose menu row it portals into. A row of its own rather than
-                more controls in the header's right group, which already
-                carries seven and is anchored by onboarding tour steps.
-                FrameTop's panel sizes to its content, so the strip just grows
-                the header. The embed controls (insert visualization/image;
-                the selected embed's actions) ride the same row: the left
-                sidebar they used to live in is gone. */
-        }
-        <ReportToolbar
-          menuRowHost={menuRowHost()}
-          api={() => editorApi}
-          onDownload={download}
-          onEmail={emailReport}
-          onRename={openProductSettings}
-          onDuplicate={duplicateReport}
-          context={blockContext}
-          theme={fastrTheme}
-          colors={fastrColors}
-          pageSetup={pageSetupFence}
-          onPatchPageSetup={patchPageSetup}
-          onSelectTheme={changeFastrTheme}
-          onOpenThemeModal={() => void openThemeModal()}
-          onPickPageImage={pickPageImage}
-          documentStats={documentStats}
-          embedKind={() => selectedEmbed()?.kind}
-          embedControls={
-            <ReportEmbedToolbarControls
-              embed={selectedEmbedDetail()}
-              canConfigure={canConfigure() && mode() !== "view"}
-              onUpdateCaption={handleUpdateCaption}
-              onSetWidth={handleSetEmbedWidth}
-              onEditFigure={handleEdit}
-              onSwitchFigure={replaceSelectedFigure}
-              onCreateFigure={replaceSelectedFigure}
-              onChangeImageFile={handleChangeImageFile}
-              onDelete={handleDelete}
-            />
+        <HeaderRows>
+          <MenuRow
+            ref={(el) => {
+              setMenuRowHost(el);
+              onCleanup(() => setMenuRowHost(undefined));
+            }}
+          />
+          {
+            /* The formatting strip: the toolbar's PILL, under the header
+                  whose menu row it portals into. A row of its own rather than
+                  more controls in the header's right group, which already
+                  carries seven and is anchored by onboarding tour steps.
+                  FrameTop's panel sizes to its content, so the strip just grows
+                  the header. The embed controls (insert visualization/image;
+                  the selected embed's actions) ride the same row: the left
+                  sidebar they used to live in is gone. */
           }
-          canInsertEmbeds={() => canConfigure() && mode() !== "view"}
-          onInsertFigure={insertFigure}
-          onInsertImage={insertImage}
-          onInsertLogos={insertLogos}
-          onEditLogos={editLogos}
-        />
+          <ReportToolbar
+            menuRowHost={menuRowHost()}
+            api={() => editorApi}
+            onDownload={download}
+            onEmail={emailReport}
+            onRename={openProductSettings}
+            onDuplicate={duplicateReport}
+            context={blockContext}
+            theme={fastrTheme}
+            colors={fastrColors}
+            pageSetup={pageSetupFence}
+            onPatchPageSetup={patchPageSetup}
+            onSelectTheme={changeFastrTheme}
+            onOpenThemeModal={() => void openThemeModal()}
+            onPickPageImage={pickPageImage}
+            documentStats={documentStats}
+            embedKind={() => selectedEmbed()?.kind}
+            embedControls={
+              <ReportEmbedToolbarControls
+                embed={selectedEmbedDetail()}
+                canConfigure={canConfigure() && mode() !== "view"}
+                onUpdateCaption={handleUpdateCaption}
+                onSetWidth={handleSetEmbedWidth}
+                onEditFigure={handleEdit}
+                onSwitchFigure={replaceSelectedFigure}
+                onCreateFigure={replaceSelectedFigure}
+                onChangeImageFile={handleChangeImageFile}
+                onDelete={handleDelete}
+              />
+            }
+            canInsertEmbeds={() => canConfigure() && mode() !== "view"}
+            onInsertFigure={insertFigure}
+            onInsertImage={insertImage}
+            onInsertLogos={insertLogos}
+            onEditLogos={editLogos}
+          />
+        </HeaderRows>
       </Show>
       <Show
         when={!isLoading() && mode() !== "view" && format() !== "fastr" &&
