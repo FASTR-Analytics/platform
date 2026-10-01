@@ -6,9 +6,9 @@ export {
   indicatorFormatWord,
   indicatorNameText,
   indicatorsByDataId,
+  indicatorSearchText,
   indicatorTypeLabel,
   indicatorTypeWord,
-  matchesIndicatorSearch,
 } from "./indicator_display.ts";
 export { PeriodSelector } from "./period_selector/mod.ts";
 export { IndicatorTypeBadge } from "./type_badge.tsx";

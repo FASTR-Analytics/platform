@@ -993,11 +993,14 @@ layer.
   reaches an indicator with its checkbox off says so under the formula once and
   saves (ruling 3). Counts have no status. The Status column is sortable. It is
   not in the CSV download, which carries the dictionary's authored fields.
-- Both indicator tables, the manager's and the import picker's, carry a search
-  box: every typed word must appear in the id, label, DHIS2 name, type word or
-  definition (`matchesIndicatorSearch`); the caller filters the rows before the
-  table, which has no search of its own. A controlled selection survives
-  filtering, and the header checkbox acts on the visible rows.
+- Both indicator tables, the manager's and the import picker's, are searched
+  through the `Table`'s own toolbar field: every typed word must appear in the
+  id, label, DHIS2 name, type word or definition, ignoring case and accents.
+  Both pass `indicatorSearchText` as the table-level `searchValue`, because the
+  DHIS2 name is text the picker's columns do not show. The toolbar also carries
+  the count, the manager's admin buttons, and, while rows are selected, the
+  selection sentence and the bulk actions in their place. A selection survives
+  the search, and the header checkbox acts on the visible rows.
 - The manager is one list with a Type column (DHIS2 element, Uploaded, Sum,
   Calculated, `indicatorTypeLabel`), a Defined-by column (the DHIS2 id of an
   element with the DHIS2 name under it when one is stored (`dhis2LabelOf`; the

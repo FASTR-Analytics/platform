@@ -28,7 +28,6 @@ import {
   getQueryStateFromApiResponse,
   HeadingBar,
   Icon,
-  Input,
   type MenuItem,
   ModalContainer,
   openAlert,
@@ -63,8 +62,8 @@ import { deleteIndicatorsConfirm } from "./delete_confirm";
 import {
   definedByText,
   dhis2LabelOf,
+  indicatorSearchText,
   indicatorTypeLabel,
-  matchesIndicatorSearch,
 } from "~/components/data/hmis/_shared/mod.ts";
 import { Dhis2IndicatorSelectForm } from "./dhis2_indicator_select_form";
 import { SortIndicatorsModal } from "./sort_indicators_modal";
@@ -340,10 +339,6 @@ function IndicatorsTable(p: {
   const statusOf = (indicator: HmisIndicator) =>
     statuses().get(indicator.indicator_common_id);
 
-  const [search, setSearch] = createSignal("");
-  const visibleIndicators = createMemo(() =>
-    p.indicators.filter((i) => matchesIndicatorSearch(i, search()))
-  );
   const uncomputableCount = createMemo(
     () =>
       [...statuses().values()].filter((s) => s.problem !== undefined).length,
@@ -628,96 +623,69 @@ function IndicatorsTable(p: {
         )
         : undefined}
     >
-      <div class="flex h-full flex-col">
-        <div class="ui-gap-sm flex items-center pb-4">
-          <div class="flex-1">
-            {search().trim()
-              ? t3({
-                en: `${visibleIndicators().length} of ${p.indicators.length}`,
-                fr: `${visibleIndicators().length} sur ${p.indicators.length}`,
-                pt: `${visibleIndicators().length} de ${p.indicators.length}`,
-              })
-              : t3({
-                en: `${p.indicators.length} indicators`,
-                fr: `${p.indicators.length} indicateurs`,
-                pt: `${p.indicators.length} indicadores`,
-              })}
-          </div>
-          <div class="w-72 xl:w-96">
-            <Input
-              value={search()}
-              onChange={setSearch}
-              searchIcon
-              clearable
-              fullWidth
-              placeholder={t3({
-                en: "Search indicators",
-                fr: "Rechercher des indicateurs",
-                pt: "Pesquisar indicadores",
-              })}
-            />
-          </div>
-          <Show when={instanceState.currentUserIsGlobalAdmin}>
-            <Button
-              onClick={handleSortIndicators}
-              iconName="gripVertical"
-              // intent="neutral"
-              outline
-            >
-              {t3({ en: "Sort", fr: "Trier", pt: "Ordenar" })}
-            </Button>
-            <Button
-              onClick={p.handleDhis2IndicatorSelect}
-              iconName="import"
-              intent="primary"
-            >
-              {t3({
-                en: "Add from DHIS2",
-                fr: "Ajouter depuis DHIS2",
-                pt: "Adicionar do DHIS2",
-              })}
-            </Button>
-            <Button
-              onClick={handleCreateIndicator}
-              iconName="plus"
-              intent="primary"
-            >
-              {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
-            </Button>
-            <ActionMenuButton items={otherActions} outline />
-          </Show>
-        </div>
-        <div class="h-0 w-full flex-1">
-          <Table
-            data={visibleIndicators()}
-            columns={columns}
-            keyField="indicator_common_id"
-            onRowClick={instanceState.currentUserIsGlobalAdmin
-              ? handleUpdateIndicator
-              : undefined}
-            noRowsMessage={search() === ""
-              ? t3({
-                en: "No indicators",
-                fr: "Aucun indicateur",
-                pt: "Nenhum indicador",
-              })
-              : t3({
-                en: "No indicators match",
-                fr: "Aucun indicateur ne correspond",
-                pt: "Nenhum indicador corresponde",
-              })}
-            bulkActions={bulkActions()}
-            itemLabel={{
-              one: t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
-              other: t3({
-                en: "indicators",
-                fr: "indicateurs",
-                pt: "indicadores",
-              }),
-            }}
-          />
-        </div>
-      </div>
+      <Table
+        data={p.indicators}
+        columns={columns}
+        keyField="indicator_common_id"
+        onRowClick={instanceState.currentUserIsGlobalAdmin
+          ? handleUpdateIndicator
+          : undefined}
+        noRowsMessage={t3({
+          en: "No indicators",
+          fr: "Aucun indicateur",
+          pt: "Nenhum indicador",
+        })}
+        bulkActions={bulkActions()}
+        itemLabel={{
+          one: t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
+          other: t3({
+            en: "indicators",
+            fr: "indicateurs",
+            pt: "indicadores",
+          }),
+        }}
+        searchValue={indicatorSearchText}
+        toolbar={{
+          search: {
+            placeholder: t3({
+              en: "Search indicators",
+              fr: "Rechercher des indicateurs",
+              pt: "Pesquisar indicadores",
+            }),
+          },
+          children: (
+            <Show when={instanceState.currentUserIsGlobalAdmin}>
+              <Button
+                onClick={handleSortIndicators}
+                iconName="gripVertical"
+                // intent="neutral"
+                outline
+              >
+                {t3({ en: "Sort", fr: "Trier", pt: "Ordenar" })}
+              </Button>
+              <Button
+                onClick={p.handleDhis2IndicatorSelect}
+                iconName="import"
+                intent="primary"
+              >
+                {t3({
+                  en: "Add from DHIS2",
+                  fr: "Ajouter depuis DHIS2",
+                  pt: "Adicionar do DHIS2",
+                })}
+              </Button>
+              <Button
+                onClick={handleCreateIndicator}
+                iconName="plus"
+                intent="primary"
+              >
+                {t3({ en: "Create new", fr: "Créer", pt: "Criar" })}
+              </Button>
+              <ActionMenuButton items={otherActions} outline />
+            </Show>
+          ),
+        }}
+      />
     </FrameTop>
   );
 }

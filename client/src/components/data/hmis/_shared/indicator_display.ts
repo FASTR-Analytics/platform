@@ -79,25 +79,18 @@ export function indicatorFormatWord(format: IndicatorFormat): string {
   }
 }
 
-// The search over an indicator list, shared by the manager and the import
-// picker: every typed word must appear in the id, label, DHIS2 name, type
-// word or definition, case-insensitive.
-export function matchesIndicatorSearch(
-  indicator: HmisIndicator,
-  query: string,
-): boolean {
-  const words = query.toLowerCase().split(/\s+/).filter((w) => w !== "");
-  if (words.length === 0) return true;
-  const haystack = [
+// What an indicator is searched by, shared by the manager and the import
+// picker as their tables' search text: the id, label, DHIS2 name, type word
+// and definition. The DHIS2 name has no column in the picker, so the text is
+// the row's, not its columns'.
+export function indicatorSearchText(indicator: HmisIndicator): string {
+  return [
     indicator.indicator_common_id,
     indicator.indicator_common_label,
     dhis2LabelOf(indicator) ?? "",
     indicatorTypeLabel(indicator),
     definedByText(indicator),
-  ]
-    .join(" ")
-    .toLowerCase();
-  return words.every((w) => haystack.includes(w));
+  ].join(" ");
 }
 
 // How an import surface names an indicator it reached through a data id.
