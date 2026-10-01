@@ -29,11 +29,10 @@ Nothing was run in the app.
 
 Built by [PLAN_HFA_QUICK_FIXES.md](PLAN_HFA_QUICK_FIXES.md).
 
-| Id | Issue                                                                              | Raised by          | State in code                                                                                                                                                         | Fix                                                                                 |
-| -- | ---------------------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Q4 | Module settings: "not clear if checking the box is a yes or a no"                  | Ashley, 2026-09-11 | Boolean parameters render as a checkbox labelled "Yes / No" (`client/src/components/results_packages/_shared/module_parameter_inputs.tsx:89`). Shared by every module | A Yes/No select                                                                     |
-| Q5 | Data upload should check that all facility ids are in the facility list            | Tim, 2026-09-29    | The check exists and holds the run in "needs review", but shows a count only, never the ids (`lib/types/dataset_hfa_import.ts:107`)                                   | Show a sample of the missing ids                                                    |
-| Q7 | An "add" button to create an indicator from an unused variable (High in the sheet) | Meghan, 2026-09-14 | The unused-variables modal is a read-only list (`client/src/components/data/hfa/indicators/unused_variables_modal.tsx`)                                               | An Add button that opens the new-indicator form with the variable's label filled in |
+| Id | Issue                                                                              | Raised by          | State in code                                                                                                                       | Fix                                                                                 |
+| -- | ---------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Q5 | Data upload should check that all facility ids are in the facility list            | Tim, 2026-09-29    | The check exists and holds the run in "needs review", but shows a count only, never the ids (`lib/types/dataset_hfa_import.ts:107`) | Show a sample of the missing ids                                                    |
+| Q7 | An "add" button to create an indicator from an unused variable (High in the sheet) | Meghan, 2026-09-14 | The unused-variables modal is a read-only list (`client/src/components/data/hfa/indicators/unused_variables_modal.tsx`)             | An Add button that opens the new-indicator form with the variable's label filled in |
 
 ## Waiting on the HFA team
 
@@ -136,6 +135,8 @@ Verified in code or commits:
 - Q6: the facility id picker pre-selects `id_fac_txt` and the weight picker
   pre-selects `wgt` when the file has those columns (2026-10-01, `0b5e216cb`).
   Admin, type and ownership columns wait on W3.
+- Q4: a boolean module parameter is a Yes/No select labelled with the
+  parameter's description, in every module's settings (2026-10-01, `426dc5f17`).
 
 From Tim's emails only, not re-verified:
 
