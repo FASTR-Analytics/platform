@@ -205,6 +205,12 @@ export type ReportEditorApi = {
   getTopLine: () => number | undefined;
   // Scroll so a fractional 0-based source line sits at the viewport top.
   scrollToLine: (line: number) => void;
+  // The 1-based source line `offsetPx` below the viewport top, or undefined
+  // if it can't be read (the outline's "where am I").
+  getLineAt: (offsetPx: number) => number | undefined;
+  // Jump to a 1-based line: caret at its start, the line scrolled to the
+  // viewport top (not merely into view), editor focused.
+  goToLine: (line: number) => void;
   // True only when the editor is scrollable AND scrolled to its end (for
   // bottom-edge sync; a non-scrollable editor returns false).
   isAtBottom: () => boolean;
@@ -1120,6 +1126,27 @@ export function ReportBodyEditor(p: Props) {
       frac * block.height;
   }
 
+  function getLineAt(offsetPx: number): number | undefined {
+    if (!view) return undefined;
+    const rect = view.scrollDOM.getBoundingClientRect();
+    if (rect.height === 0) return undefined;
+    const x = rect.left + view.scrollDOM.clientWidth / 2;
+    const y = rect.top + Math.min(offsetPx, rect.height - 1);
+    const pos = view.posAtCoords({ x, y }, false);
+    return view.state.doc.lineAt(view.lineBlockAt(pos).from).number;
+  }
+
+  function goToLine(line: number) {
+    if (!view) return;
+    const doc = view.state.doc;
+    const from = doc.line(clamp(Math.round(line), 1, doc.lines)).from;
+    view.dispatch({
+      selection: { anchor: from },
+      effects: EditorView.scrollIntoView(from, { y: "start", yMargin: 32 }),
+    });
+    view.focus();
+  }
+
   function isAtBottom(): boolean {
     if (!view) return false;
     const s = view.scrollDOM;
@@ -1173,6 +1200,8 @@ export function ReportBodyEditor(p: Props) {
       getPageLayout,
       getTopLine,
       scrollToLine,
+      getLineAt,
+      goToLine,
       isAtBottom,
       scrollToBottom,
     });

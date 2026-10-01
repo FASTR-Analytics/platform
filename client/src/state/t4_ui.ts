@@ -106,6 +106,17 @@ export function setProductsSort(sort: ListSort) {
   setProductsSortInternal(sort);
 }
 
+// The FASTR report editor's outline sidebar (Google Docs' document outline),
+// open unless the user closed it.
+export const [reportOutlineClosed, setReportOutlineClosedInternal] =
+  createSignal<boolean>(
+    localStorage.getItem("reportOutlineClosed") === "true",
+  );
+export function setReportOutlineClosed(closed: boolean) {
+  localStorage.setItem("reportOutlineClosed", String(closed));
+  setReportOutlineClosedInternal(closed);
+}
+
 // ============================================================================
 // Appearance
 // ============================================================================
