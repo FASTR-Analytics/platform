@@ -85,6 +85,7 @@ export function GeoJsonManager(p: Props) {
       key: "actions",
       header: "",
       alignH: "right",
+      pullInY: true,
       render: (item) => {
         const deleteAction = createDeleteAction(
           {

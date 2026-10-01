@@ -176,6 +176,7 @@ function AssetTable(p: {
       key: "actions",
       header: "",
       alignH: "right",
+      pullInY: true,
       render: (asset) => {
         const canDelete = p.isAdmin ||
           asset.uploaderEmail === p.currentUserEmail;

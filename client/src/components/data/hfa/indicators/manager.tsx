@@ -1008,6 +1008,7 @@ export function HfaIndicatorsManager(p: Props) {
         key: "actions",
         header: "",
         alignH: "right",
+        pullInY: true,
         render: (ind) => (
           <div class="ui-gap-sm flex justify-end">
             <Button
@@ -1018,6 +1019,7 @@ export function HfaIndicatorsManager(p: Props) {
               }}
               iconName="pencil"
               intent="base-100"
+              size="sm"
             />
             <Button
               onClick={(e: MouseEvent) => {
@@ -1026,6 +1028,7 @@ export function HfaIndicatorsManager(p: Props) {
               }}
               iconName="trash"
               intent="base-100"
+              size="sm"
             />
           </div>
         ),
