@@ -24,6 +24,7 @@ export {
   figureScopeLabel,
   packageLabel,
   packageScopeCaption,
+  scopeDisplayLabel,
   scopeLabel,
 } from "./package_label.ts";
 export { PresenceAvatars } from "./presence_avatars.tsx";

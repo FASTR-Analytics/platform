@@ -13,6 +13,7 @@ import {
   SLIDE_TEXT_TOTAL_WORD_COUNT_MAX,
   SLIDE_TEXT_TOTAL_WORD_COUNT_TARGET,
 } from "lib";
+import { scopeDisplayLabel } from "~/components/_shared/mod.ts";
 import { SPA_INFO_TOPICS } from "./client_info_topics";
 
 const FAMILY_NAMES = { hmis: "HMIS", hfa: "HFA", iceh: "ICEH" } as const;
@@ -49,7 +50,7 @@ function familyLine(
 function scopeLines(scope: Scope | undefined): string[] {
   if (scope === undefined) return ["**Scope:** not listed"];
   return [
-    `**Scope:** ${scope.label}`,
+    `**Scope:** ${scopeDisplayLabel(scope)}`,
     "Every read returns only the rows inside this scope. Each dataset family has its own limits:",
     ...MODULE_FAMILY_ORDER.map((family) =>
       familyLine(family, scope.definition)

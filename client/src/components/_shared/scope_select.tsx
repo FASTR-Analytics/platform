@@ -1,6 +1,7 @@
 import { t3 } from "lib";
 import { Select } from "panther";
 import { instanceState } from "~/state/instance/t1_store";
+import { scopeDisplayLabel } from "./package_label.ts";
 
 type Props = {
   // undefined = nothing chosen yet.
@@ -21,7 +22,7 @@ export function ScopeSelect(p: Props) {
       value={p.scopeId}
       options={instanceState.scopes.map((s) => ({
         value: s.id,
-        label: s.label,
+        label: scopeDisplayLabel(s),
       }))}
       onChange={p.onChange}
       placeholder={t3({

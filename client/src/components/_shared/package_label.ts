@@ -1,4 +1,4 @@
-import { type FigureScope, t3 } from "lib";
+import { ALL_DATA_SCOPE_ID, type FigureScope, type Scope, t3, TC } from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 
 // The package a product serves from, by LABEL. Ready-package labels are
@@ -18,14 +18,20 @@ export function packageLabel(runId: string): string {
   });
 }
 
+// The label a scope is shown under. The reserved scope's stored label is
+// English, so it is shown translated; every other label is the admin's own.
+export function scopeDisplayLabel(scope: Pick<Scope, "id" | "label">): string {
+  return scope.id === ALL_DATA_SCOPE_ID ? t3(TC.allData) : scope.label;
+}
+
 // A scope by LABEL, from instance T1.
 export function scopeLabel(scopeId: string): string {
-  return instanceState.scopes.find((s) => s.id === scopeId)?.label ??
-    t3({
-      en: "Unlisted scope",
-      fr: "Portée non répertoriée",
-      pt: "Âmbito não listado",
-    });
+  const scope = instanceState.scopes.find((s) => s.id === scopeId);
+  return scope !== undefined ? scopeDisplayLabel(scope) : t3({
+    en: "Unlisted scope",
+    fr: "Portée non répertoriée",
+    pt: "Âmbito não listado",
+  });
 }
 
 // What a stored figure says it was resolved under. A bundle records the hash
@@ -36,7 +42,7 @@ export function figureScopeLabel(stamp: FigureScope): string {
   const match = instanceState.scopes.find(
     (s) => s.definitionHash === stamp.definitionHash,
   );
-  if (match) return match.label;
+  if (match) return scopeDisplayLabel(match);
   return stamp.adminArea2 ??
     t3({
       en: "An earlier scope definition",

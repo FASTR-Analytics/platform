@@ -18,6 +18,7 @@ import {
 import { createMemo } from "solid-js";
 import {
   ProductCountBadge,
+  scopeDisplayLabel,
   usageColumnHeader,
 } from "~/components/_shared/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
@@ -82,7 +83,7 @@ function productCountsByScope(): Map<string, number> {
 function toRow(scope: Scope, counts: Map<string, number>): ScopeRow {
   return {
     id: scope.id,
-    label: scope.label,
+    label: scopeDisplayLabel(scope),
     hmis: describeSection(scope.definition.hmis),
     hfa: describeSection(scope.definition.hfa),
     iceh: describeSection(scope.definition.iceh),
