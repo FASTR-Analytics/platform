@@ -316,10 +316,14 @@ carry a scope.
 scope per distinct `products.admin_area_2`**, labelled with the area name.
 National products move to "All data". Seeded scopes are ordinary rows.
 
-**R22. Creating a product names its package and scope.** Creation today is one
-click with no dialog (`client/src/components/products/products.tsx:255`), so
-this adds a dialog. The package defaults to the pin. The scope has no default
-unless the user can use exactly one. (Tim)
+**R22. Creating a product names its package and scope.** (Tim) Today the create
+call carries neither (`client/src/components/products/products.tsx:255`): the
+server attaches the pin at national scope, and the only question a new product
+asks is its theme, on first open (`slide_deck/style_editor/theme_modal.tsx`,
+`report/theme_modal.tsx`). The row needs its package and scope at insert, so the
+choice is a dialog before the create call. The package defaults to the pin. The
+scope has no default unless the user can use exactly one. The theme question
+stays where it is.
 
 **R23. A restricted user sees only folders that hold something they can see**: a
 folder whose subtree contains a visible product. (Tim) Until the ownership plan
