@@ -147,9 +147,7 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
         <ScopeSelect
           label={scopeSelectLabel()}
           scopeId={tempScopeId()}
-          onChange={(v) => {
-            if (v !== null) setTempScopeId(v);
-          }}
+          onChange={setTempScopeId}
           fullWidth
         />
         <Show when={staleCount()} keyed>

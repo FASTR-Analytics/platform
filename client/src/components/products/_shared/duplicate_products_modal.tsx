@@ -139,9 +139,7 @@ export function DuplicateProductsModal(
         <Show when={scopeChoice() === "set"}>
           <ScopeSelect
             scopeId={tempScopeId()}
-            onChange={(v) => {
-              if (v !== null) setTempScopeId(v);
-            }}
+            onChange={setTempScopeId}
             fullWidth
           />
         </Show>

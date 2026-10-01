@@ -101,9 +101,7 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
         <ScopeSelect
           label={scopeSelectLabel()}
           scopeId={scopeId()}
-          onChange={(v) => {
-            if (v !== null) setScopeId(v);
-          }}
+          onChange={setScopeId}
           fullWidth
         />
       </div>
