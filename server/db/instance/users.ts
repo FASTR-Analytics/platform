@@ -67,7 +67,12 @@ export async function getScopeGrantsByEmail(
       `;
   const grants = new Map<string, string[]>();
   for (const row of rows) {
-    grants.set(row.email, [...(grants.get(row.email) ?? []), row.scope_id]);
+    const held = grants.get(row.email);
+    if (held === undefined) {
+      grants.set(row.email, [row.scope_id]);
+    } else {
+      held.push(row.scope_id);
+    }
   }
   return grants;
 }
@@ -123,31 +128,33 @@ export async function setUserScopeAccess(
   email: string,
   access: ScopeAccess,
 ): Promise<APIResponseNoData> {
+  const scopeIds = access.all ? [] : [...new Set(access.scopeIds)];
+  // "All data" filters nothing, so holding it is being unrestricted in all
+  // but name: a grant list holds only scopes that limit.
+  if (scopeIds.includes(ALL_DATA_SCOPE_ID)) {
+    return { success: false, err: SCOPE_ACCESS_ALL_DATA };
+  }
   return await tryCatchDatabaseAsync(async () => {
-    const row = (
-      await mainDb<Pick<DBUser, "is_admin">[]>`
-        SELECT is_admin FROM users WHERE email = ${email}
-      `
-    ).at(0);
-    if (row === undefined) {
-      return { success: false, err: USER_NOT_FOUND };
-    }
-    if (row.is_admin) {
-      return { success: false, err: SCOPE_ACCESS_ADMIN };
-    }
-    const scopeIds = access.all ? [] : [...new Set(access.scopeIds)];
-    // "All data" filters nothing, so holding it is being unrestricted in all
-    // but name: a grant list holds only scopes that limit.
-    if (scopeIds.includes(ALL_DATA_SCOPE_ID)) {
-      return { success: false, err: SCOPE_ACCESS_ALL_DATA };
-    }
-    const known = await mainDb<{ id: string }[]>`
-      SELECT id FROM scopes WHERE id = ANY(${scopeIds})
-    `;
-    if (known.length !== scopeIds.length) {
-      return { success: false, err: SCOPE_NOT_FOUND };
-    }
-    await mainDb.begin(async (sql) => {
+    // The checks lock the rows they read, so a user or scope deleted
+    // alongside cannot turn the write into a raw foreign-key error.
+    const refusal = await mainDb.begin(async (sql) => {
+      const row = (
+        await sql<Pick<DBUser, "is_admin">[]>`
+          SELECT is_admin FROM users WHERE email = ${email} FOR UPDATE
+        `
+      ).at(0);
+      if (row === undefined) {
+        return USER_NOT_FOUND;
+      }
+      if (row.is_admin) {
+        return SCOPE_ACCESS_ADMIN;
+      }
+      const known = await sql<{ id: string }[]>`
+        SELECT id FROM scopes WHERE id = ANY(${scopeIds}) FOR SHARE
+      `;
+      if (known.length !== scopeIds.length) {
+        return SCOPE_NOT_FOUND;
+      }
       await sql`UPDATE users SET all_scopes = ${access.all} WHERE email = ${email}`;
       await sql`DELETE FROM user_scopes WHERE email = ${email}`;
       if (scopeIds.length > 0) {
@@ -157,8 +164,11 @@ export async function setUserScopeAccess(
         }
         `;
       }
+      return undefined;
     });
-    return { success: true };
+    return refusal === undefined
+      ? { success: true }
+      : { success: false, err: refusal };
   });
 }
 
