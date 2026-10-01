@@ -1,4 +1,10 @@
-import { type OtherUser, type ScopeAccess, scopeAccessEqual, t3 } from "lib";
+import {
+  ALL_DATA_SCOPE_ID,
+  type OtherUser,
+  type ScopeAccess,
+  scopeAccessEqual,
+  t3,
+} from "lib";
 import {
   Button,
   Card,
@@ -20,13 +26,13 @@ export function UserScopesCard(p: { user: OtherUser }) {
       ? { all: true }
       : { all: false, scopeIds: [...p.user.scopeAccess.scopeIds] };
   const [saved, setSaved] = createSignal<ScopeAccess>(initial());
-  const [allScopes, setAllScopes] = createSignal(saved().all);
+  const [allData, setAllData] = createSignal(saved().all);
   const [scopeIds, setScopeIds] = createSignal<string[]>(
     p.user.scopeAccess.all ? [] : [...p.user.scopeAccess.scopeIds],
   );
 
   const edited = (): ScopeAccess =>
-    allScopes() ? { all: true } : { all: false, scopeIds: scopeIds() };
+    allData() ? { all: true } : { all: false, scopeIds: scopeIds() };
   const hasChanges = () => !scopeAccessEqual(edited(), saved());
 
   const save = createButtonAction(
@@ -40,8 +46,11 @@ export function UserScopesCard(p: { user: OtherUser }) {
     },
   );
 
+  // "All data" is the checkbox, never a grant: setUserScopeAccess refuses it.
   const options = () =>
-    instanceState.scopes.map((s) => ({ value: s.id, label: s.label }));
+    instanceState.scopes
+      .filter((s) => s.id !== ALL_DATA_SCOPE_ID)
+      .map((s) => ({ value: s.id, label: s.label }));
 
   return (
     <Card
@@ -61,14 +70,14 @@ export function UserScopesCard(p: { user: OtherUser }) {
       <div class="ui-spy-sm">
         <Checkbox
           label={t3({
-            en: "All scopes",
-            fr: "Toutes les portées",
-            pt: "Todos os âmbitos",
+            en: "All data",
+            fr: "Toutes les données",
+            pt: "Todos os dados",
           })}
-          checked={allScopes()}
-          onChange={setAllScopes}
+          checked={allData()}
+          onChange={setAllData}
         />
-        <Show when={!allScopes()}>
+        <Show when={!allData()}>
           <MultiSelectSearch
             values={scopeIds()}
             options={options()}

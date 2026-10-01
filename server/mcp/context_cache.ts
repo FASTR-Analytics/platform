@@ -44,9 +44,7 @@ import {
 
 // The /mcp endpoint reads the instance's PINNED results package (S8 "The
 // pinned package"): every tool call resolves the pin, and this
-// cache is PURELY performance: correctness never depends on it, with one
-// exception, the door check's refusal of a restricted user, which is judged
-// when a context is built (see resolvePackageContext). The pin is
+// cache is PURELY performance: correctness never depends on it. The pin is
 // read from the DB on EVERY call (never from the 30 s InstanceState copy), so
 // a pin-move is visible on the next call; the context behind a given
 // (token, runId) is what the cache holds. Keyed by token because a context
@@ -252,13 +250,11 @@ export async function resolvePackageContext(
   const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
-  // The door check. The run-keyed routes require an approved user (D7) on
-  // every dispatch regardless; judging it here gives the model one clean
-  // failure instead of a denial on each tool. A restricted user has no /mcp
-  // at all, and this is the one place that says so: the routes would serve
-  // one who holds a grant on "All data". It runs on a cold resolve only, so a
-  // user restricted while holding that grant keeps a cached context until it
-  // expires, and reads through it only what the grant allows.
+  // The door check: the run-keyed routes require an approved user (D7) and
+  // refuse a restricted user the "All data" scope this surface reads through
+  // (a restricted user cannot hold it) on every dispatch regardless; judging
+  // it here gives the model one clean failure instead of a denial on each
+  // tool.
   const globalUser = await resolveGlobalUser(principal);
   if (!globalUser.approved) {
     throw new AIToolFailure(

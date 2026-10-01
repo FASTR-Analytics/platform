@@ -1,6 +1,7 @@
 import { Sql } from "postgres";
 import {
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  ALL_DATA_SCOPE_ID,
   ALL_SCOPES,
   APIResponseNoData,
   APIResponseWithData,
@@ -109,6 +110,8 @@ export const ADMIN_FLAG_NEEDS_ADMIN =
   "Only a global admin can make a user an admin";
 
 export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
+export const SCOPE_ACCESS_ALL_DATA =
+  'A user limited to some scopes cannot hold "All data"';
 
 // Replaces a user's flag and grants together. An unrestricted user keeps no
 // grants, so a later restriction starts from an empty list.
@@ -130,6 +133,11 @@ export async function setUserScopeAccess(
       return { success: false, err: SCOPE_ACCESS_ADMIN };
     }
     const scopeIds = access.all ? [] : [...new Set(access.scopeIds)];
+    // "All data" filters nothing, so holding it is being unrestricted in all
+    // but name: a grant list holds only scopes that limit.
+    if (scopeIds.includes(ALL_DATA_SCOPE_ID)) {
+      return { success: false, err: SCOPE_ACCESS_ALL_DATA };
+    }
     const known = await mainDb<{ id: string }[]>`
       SELECT id FROM scopes WHERE id = ANY(${scopeIds})
     `;

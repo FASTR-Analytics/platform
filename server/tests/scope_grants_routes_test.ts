@@ -22,7 +22,10 @@ import {
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { createScope } from "../db/instance/scopes.ts";
-import { setUserScopeAccess } from "../db/instance/users.ts";
+import {
+  SCOPE_ACCESS_ALL_DATA,
+  setUserScopeAccess,
+} from "../db/instance/users.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { _ASSETS_DIR_PATH, _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
@@ -347,23 +350,20 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
       );
     }
 
-    // "All data" is granted like any other scope (R33): the restricted user
-    // then reads through it, and loses it again with the grant.
-    const widened = await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
-      all: false,
-      scopeIds: [granted, ALL_DATA_SCOPE_ID],
-    });
-    assert(widened.success, JSON.stringify(widened));
-    await ok(limited, "POST", contextPath, { scopeId: ALL_DATA_SCOPE_ID });
+    // A restricted user cannot be granted "All data": it filters nothing, so
+    // all data is the unrestricted state and nothing else. The refused write
+    // leaves the grants as they were.
     assertEquals(
-      (await call(limited, "POST", contextPath, { scopeId: other })).status,
-      403,
+      await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
+        all: false,
+        scopeIds: [granted, ALL_DATA_SCOPE_ID],
+      }),
+      { success: false, err: SCOPE_ACCESS_ALL_DATA },
     );
-    const narrowed = await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
-      all: false,
-      scopeIds: [granted],
-    });
-    assert(narrowed.success, JSON.stringify(narrowed));
+    assertEquals(
+      (await buildGlobalUserFromDb(LIMITED_EMAIL, null, null)).scopeAccess,
+      { all: false, scopeIds: [granted] },
+    );
     assertEquals(
       (await call(limited, "POST", contextPath, { scopeId: ALL_DATA_SCOPE_ID }))
         .status,

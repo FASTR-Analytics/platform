@@ -494,13 +494,13 @@ scope, "All data" included. A restricted user (S15 "Scope access") reads only
 through a scope they hold: `getReadyRunReadContext` and the authoring context's
 manifest lens take the caller's `ScopeAccess`, answer an unknown scope id with
 `SCOPE_NOT_FOUND` (404) first, and then refuse every scope not held with
-`SCOPE_NOT_GRANTED` (403). "All data" is granted like any other scope, and a
-restricted user who holds it reads unfiltered data through it; there is no null
-scope, so a lost scope id is a validation failure and never a wider read.
-Package metadata (which periods, modules and indicators exist) is not restricted
-(R5). Package internals (scripts, logs, raw downloads) stay reachable under the
-instance data bits and show the package as-is; a restricted user never holds
-those bits (R26).
+`SCOPE_NOT_GRANTED` (403). A restricted user cannot hold "All data"
+(`setUserScopeAccess` refuses it, S15), so they are always refused it. There is
+no null scope, so a lost scope id is a validation failure and never a wider
+read. Package metadata (which periods, modules and indicators exist) is not
+restricted (R5). Package internals (scripts, logs, raw downloads) stay reachable
+under the instance data bits and show the package as-is; a restricted user never
+holds those bits (R26).
 
 Rulings:
 

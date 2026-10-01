@@ -141,11 +141,13 @@ outright, and `renameUserEmail` answers the same 403 when such a caller names an
 admin's row, because the rename moves the flag to the new address (the fleet's
 status-key call has no caller and is trusted). The user editor's Scopes card
 (`components/users/user_scopes.tsx`) is shown to global admins and hidden for a
-global admin's row: an "All scopes" checkbox over a multi-select of the
-instance's scopes, "All data" among them. A restricted user granted "All data"
-reads unfiltered data through it and still has no Explore, no `/mcp` and no
-Results or Data page. `setUserScopeAccess` (`POST /user/scope-access`,
-`requireAdmin`) refuses a global admin and an unknown scope id, replaces the
+global admin's row: an "All data" checkbox (the unrestricted state, `all: true`)
+over a multi-select of the instance's other scopes, shown when it is off. "All
+data" is never in that list: the scope filters nothing, so a restricted user
+holding it would be unrestricted in all but name. A restricted user therefore
+never sees a product that carries "All data". `setUserScopeAccess`
+(`POST /user/scope-access`, `requireAdmin`) refuses a global admin, an unknown
+scope id and `all-data` in a grant list (`SCOPE_ACCESS_ALL_DATA`), replaces the
 flag and the grants in one transaction (an unrestricted user keeps no grants),
 re-broadcasts the roster and closes the user's collab sockets. Every route that
 can change a user's access does the same through
