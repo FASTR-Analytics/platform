@@ -297,7 +297,7 @@ function UserDetail(p: DetailProps) {
                   state={savePermissions.state()}
                 >
                   {t3({
-                    en: "Save Changes",
+                    en: "Save changes",
                     fr: "Sauvegarder les modifications",
                     pt: "Guardar alterações",
                   })}

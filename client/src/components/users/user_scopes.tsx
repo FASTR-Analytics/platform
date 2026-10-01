@@ -60,7 +60,7 @@ export function UserScopesCard(p: { user: OtherUser }) {
         <Show when={hasChanges()}>
           <Button onClick={save.click} state={save.state()}>
             {t3({
-              en: "Save Changes",
+              en: "Save changes",
               fr: "Sauvegarder les modifications",
               pt: "Guardar alterações",
             })}
