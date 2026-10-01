@@ -36,6 +36,7 @@ import { InstanceAssets } from "~/components/assets/mod.ts";
 import { InstanceData } from "~/components/data/mod.ts";
 import { Products } from "~/components/products/mod.ts";
 import { InstanceResultsPackages } from "~/components/results_packages/mod.ts";
+import { InstanceScopes } from "~/components/scopes/mod.ts";
 import { InstanceUsers } from "~/components/users/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
@@ -103,6 +104,14 @@ function navItems(): ListItem<InstanceTab>[] {
       iconName: "database",
     });
   }
+  // Global admins only, like the scope routes (PLAN_SCOPES R25).
+  if (instanceState.currentUserIsGlobalAdmin) {
+    items.push({
+      id: "scopes",
+      label: t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" }),
+      iconName: "filter",
+    });
+  }
   items.push({
     id: "assets",
     label: t3({ en: "Assets", fr: "Ressources", pt: "Recursos" }),
@@ -139,6 +148,7 @@ export default function Instance(p: Props) {
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
     if (t === "data" && !canData) return "products";
     if (t === "results_packages" && !canConfigureData()) return "products";
+    if (t === "scopes" && !admin) return "products";
     if (t === "users" && !canUsers) return "products";
     return t;
   };
@@ -392,6 +402,9 @@ export default function Instance(p: Props) {
                   when={tab() === "results_packages" && canConfigureData()}
                 >
                   <InstanceResultsPackages />
+                </Match>
+                <Match when={tab() === "scopes"}>
+                  <InstanceScopes />
                 </Match>
                 <Match when={tab() === "assets"}>
                   <InstanceAssets />

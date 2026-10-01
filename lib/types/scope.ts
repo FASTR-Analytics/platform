@@ -9,11 +9,15 @@ import { z } from "zod";
 
 const idListSchema = z.array(z.string().min(1)).nullable();
 
+// The view predicate converts a year to the results object's time column, and
+// that conversion reads a value's format off its digit count.
+const fourDigitYear = z.number().int().min(1000).max(9999);
+
 export const scopeDefinitionSchema = z.strictObject({
   geography: z.strictObject({ adminArea2: z.string().min(1) }).nullable(),
   time: z.strictObject({
     years: z
-      .strictObject({ start: z.number().int(), end: z.number().int() })
+      .strictObject({ start: fourDigitYear, end: fourDigitYear })
       .refine((y) => y.start <= y.end, "start must not be after end")
       .nullable(),
     hfaTimePoints: idListSchema,

@@ -12,6 +12,10 @@ globs:
   - client/src/components/users/users.tsx
   - client/src/components/instance/profile.tsx
   - client/src/components/users/user.tsx
+  - client/src/components/scopes/area_picker.tsx
+  - client/src/components/scopes/mod.ts
+  - client/src/components/scopes/scope_editor.tsx
+  - client/src/components/scopes/scopes.tsx
   - server/routes/instance/health.ts
   - server/utils/disk_space.ts
 docs_absorbed:
@@ -19,17 +23,17 @@ docs_absorbed:
 
 # S15: Instance Administration & Ops
 
-User and permission management, instance settings UI, plus the operational
-side-channel: health endpoints, disk autonomics, scheduled jobs, deploy. Small
-server surface, highest privilege.
+User and permission management, the Scopes tab, instance settings UI, plus the
+operational side-channel: health endpoints, disk autonomics, scheduled jobs,
+deploy. Small server surface, highest privilege.
 
 ## Scope
 
 The `globs:` frontmatter above is the lint-enforced manifest
 (`lint_systems.ts`); sub-file custody exceptions are in SYSTEMS.md §4.1. Client:
-`components/users/**`, and under `components/instance/` the profile, feedback,
-instance-meta and change-email forms (`instance.tsx`, its entry and the four
-header modals → S14, `logged_in_wrapper.tsx` → S1). Server:
+`components/users/**`, `components/scopes/**`, and under `components/instance/`
+the profile, feedback, instance-meta and change-email forms (`instance.tsx`, its
+entry and the four header modals → S14, `logged_in_wrapper.tsx` → S1). Server:
 `routes/instance/health.ts`, `utils/disk_space.ts` (`db/instance/user_logs.ts` →
 S17); cron jobs in `main.ts` (S1-owned, S15 reader);
 `routes/instance/instance.ts` is S5-owned with S15 reading its meta/disk slice;
@@ -49,6 +53,45 @@ the exposure inventory); health uses bare Hono routes, so it is invisible to the
 route registry: the sanctioned escape from S1's registry-as-contract. Disk
 autonomics fire out-of-band side effects (volume resize, alert emails) invisible
 to the registry.
+
+## The Scopes tab
+
+`components/scopes/` is where a global admin creates, edits and deletes scopes
+(the entity, its routes and its hash are S12 "Scopes"; what a definition filters
+is S9 "The scoped view"). The tab is shown only when
+`instanceState.currentUserIsGlobalAdmin` is true, the same rule the three scope
+routes enforce with `requireAdmin`. `InstanceScopes` (`scopes.tsx`) is a `Table`
+over `instanceState.scopes` with one row per scope: label, area, time limits,
+data limits and the number of products that carry it, counted from
+`instanceState.products`. A row opens `ScopeEditor` (`scope_editor.tsx`) in a
+modal; "New scope" opens it empty.
+
+The editor holds one control per dimension. Geography is `AreaPicker`
+(`area_picker.tsx`: every area, or one admin area 2 from `listAdminArea2s`).
+Years are a checkbox and two four-digit inputs. HFA time points, modules and the
+three indicator lists are each a checkbox ("Limit ...") over a
+`MultiSelectSearch`: unchecked stores null (no limit), checked stores the list.
+Save refuses an empty label, a single-area choice with no area, years that are
+not four digits or are out of order, and a checked limit with nothing selected
+(an empty list matches no data). `scopeDefinitionSchema` holds years to four
+digits as well, because the view predicate's year conversion reads a value's
+format off its digit count.
+
+Where the options come from: areas from the structure (`listAdminArea2s`); HFA
+time points from `instanceState.hfaTimePoints` (the `time_point` column holds
+the label); modules and the three indicator lists from the authoring context of
+the pinned package, or the first ready package when nothing is pinned, read as
+the whole package. A scope is independent of packages, so that list is an aid
+and not a constraint: with no ready package the lists are empty. A stored value
+the offered options lack (an orphaned area, a module the offered package does
+not hold) is shown as an annotated option and kept on save. The option lists are
+computed once per open editor, since a list that changed under the control would
+reset it.
+
+Delete is offered on an existing scope and disabled while a product carries it
+(`deleteScope` refuses that server-side too). The editor states the product
+count, and that changing what the scope limits marks every figure in those
+products as out of date (the definition hash changes, S10).
 
 ## Permissions (write side)
 

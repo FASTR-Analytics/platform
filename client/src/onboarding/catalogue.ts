@@ -15,6 +15,7 @@ export type InstanceTab =
   | "explore"
   | "data"
   | "results_packages"
+  | "scopes"
   | "assets"
   | "users";
 
