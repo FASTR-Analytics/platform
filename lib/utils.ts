@@ -36,6 +36,17 @@ export function encodeRawCsvHeader(
   return `Col ${i_colHeader + 1}: ${colHeader}`;
 }
 
+export const HFA_CORE_FACILITY_ID_COLUMN = "id_fac_txt";
+export const HFA_CORE_WEIGHT_COLUMN = "wgt";
+
+export function findEncodedCsvHeader(
+  rawColHeaders: string[],
+  colHeader: string,
+): string {
+  const i_colHeader = rawColHeaders.indexOf(colHeader);
+  return i_colHeader === -1 ? "" : encodeRawCsvHeader(i_colHeader, colHeader);
+}
+
 export function parseJsonOrUndefined<T>(
   str: string | null | undefined,
 ): T | undefined {

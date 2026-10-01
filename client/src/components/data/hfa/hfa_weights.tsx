@@ -1,6 +1,9 @@
 import {
   type CsvDetails,
   encodeRawCsvHeader,
+  findEncodedCsvHeader,
+  HFA_CORE_FACILITY_ID_COLUMN,
+  HFA_CORE_WEIGHT_COLUMN,
   type HfaFacilityWeightsImportResult,
   t3,
   TC,
@@ -377,8 +380,14 @@ function MapStep(p: {
     );
 
   const [mappings, setMappings] = createStore<Mappings>({
-    facilityIdColumn: "",
-    weightColumn: "",
+    facilityIdColumn: findEncodedCsvHeader(
+      p.csvDetails.headers,
+      HFA_CORE_FACILITY_ID_COLUMN,
+    ),
+    weightColumn: findEncodedCsvHeader(
+      p.csvDetails.headers,
+      HFA_CORE_WEIGHT_COLUMN,
+    ),
     timePoint: p.timePointOptions.length === 1
       ? p.timePointOptions[0].value
       : "",

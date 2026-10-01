@@ -1,5 +1,7 @@
 import {
   encodeRawCsvHeader,
+  findEncodedCsvHeader,
+  HFA_CORE_FACILITY_ID_COLUMN,
   type HfaCsvMappingParams,
   type HfaDedupOverride,
   type HfaDuplicateGroup,
@@ -70,6 +72,12 @@ export function HfaWizard(p: AlertComponentProps<object, HfaWizardResult>) {
     });
     if (res.success) {
       setHeaders(res.data.headers.map((v, i) => encodeRawCsvHeader(i, v)));
+      if (mappings.facilityIdColumn === "") {
+        setMappings(
+          "facilityIdColumn",
+          findEncodedCsvHeader(res.data.headers, HFA_CORE_FACILITY_ID_COLUMN),
+        );
+      }
     } else {
       setParseError(res.err);
     }

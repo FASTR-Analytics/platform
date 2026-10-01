@@ -16,6 +16,7 @@ globs:
   - client/src/components/data/iceh/**
   - client/src/state/instance/t2_datasets.ts
   - lib/hfa_sentinel_classification.ts
+  - lib/period_id_for_date.ts
   - lib/table_structures/**
   - lib/types/dataset_hfa.ts
   - lib/types/dataset_hfa_import.ts
@@ -40,6 +41,7 @@ globs:
   - server/routes/instance/iceh.ts
   - server/runs/capture_inputs/**
   - server/server_only_funcs_csvs/**
+  - server/tests/csv_header_preselect_test.ts
   - server/tests/csv_mapping_staging_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
   - server/tests/indicator_selection_expansion_test.ts
@@ -534,9 +536,9 @@ into its inputs plus the dataset version stamps the manifest records
 - `getCsvDetails` (both CSV families' header parse) reads the whole file into
   memory for headers; the streaming variant's header read is one 64 KB
   `file.read()` (wide XLSForm exports / short reads → confusing failure).
-- Ethiopian-calendar period math in the DHIS2 wizard
-  (`data/hmis/imports/wizard/wizard.tsx`, `getCurrentPeriodId`) assumes 12
-  months (no Pagume); untranslated strings in the delete flows and
+- Ethiopian-calendar period math (`periodIdForDate`, `lib/period_id_for_date.ts`,
+  used by the DHIS2 wizard, the import scheduler and the scope editor's year
+  slider) assumes 12 months (no Pagume); untranslated strings in the delete flows and
   Period/TimeIndex selectors; `facilityOwnwershipsToInclude` typo is the
   persisted canonical field (fixing it = stored-JSON migration).
 - **Decoupling: heal the db→worker inversion.** The run spawn sites

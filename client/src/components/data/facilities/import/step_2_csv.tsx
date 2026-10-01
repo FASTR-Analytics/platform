@@ -4,7 +4,9 @@ import {
   type CsvDetails,
   encodeRawCsvHeader,
   type FacilityFamily,
+  findEncodedCsvHeader,
   getEnabledOptionalFacilityColumns,
+  HFA_CORE_FACILITY_ID_COLUMN,
   type StructureColumnMappings,
   type StructureSchema,
   t3,
@@ -61,10 +63,22 @@ export function Step2_Csv(p: Props) {
   });
 
   const [tempMappings, setTempMappings] = createStore<Record<string, string>>(
-    allColumns().reduce<Record<string, string>>((obj, col) => {
-      obj[col] = p.step2Result?.[col as keyof StructureColumnMappings] ?? "";
-      return obj;
-    }, {}),
+    p.step2Result
+      ? Object.fromEntries(
+        allColumns().map((col) => [
+          col,
+          p.step2Result?.[col as keyof StructureColumnMappings] ?? "",
+        ]),
+      )
+      : {
+        ...Object.fromEntries(allColumns().map((col) => [col, ""])),
+        facility_id: p.family === "hfa"
+          ? findEncodedCsvHeader(
+            p.step1Result.headers,
+            HFA_CORE_FACILITY_ID_COLUMN,
+          )
+          : "",
+      },
   );
 
   const [needsSaving, setNeedsSaving] = createSignal<boolean>(!p.step2Result);

@@ -68,26 +68,13 @@ function getNMonths(startPeriod: number, endPeriod: number): number {
   return (endYear - startYear) * 12 + (endMonth - startMonth) + 1;
 }
 
-function getCurrentPeriodId(calendar: CalendarType): number {
-  const now = new Date();
-  const gregorianYear = now.getFullYear();
-  const gregorianMonth = now.getMonth() + 1;
-  if (calendar === "ethiopian") {
-    if (gregorianMonth >= 9) {
-      return (gregorianYear - 7) * 100 + (gregorianMonth - 8);
-    }
-    return (gregorianYear - 8) * 100 + (gregorianMonth + 4);
-  }
-  return gregorianYear * 100 + gregorianMonth;
-}
-
-function getMinMaxPeriods(calendar: CalendarType): {
+function getMinMaxPeriods(calendar: InstanceCalendar): {
   min: number;
   max: number;
   defaultStart: number;
   defaultEnd: number;
 } {
-  const current = getCurrentPeriodId(calendar);
+  const current = periodIdForDate(calendar, new Date());
   const currentYear = Math.floor(current / 100);
   const currentMonth = current % 100;
   let defaultStartYear = currentYear;
