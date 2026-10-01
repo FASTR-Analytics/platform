@@ -257,8 +257,8 @@
   --ui-gap-lg: 1.5rem; /* gap-6 */
 
   --ui-spy-sm: 0.5rem; /* space-y-2 */
-  --ui-spy: 1.25rem; /* space-y-5 */
-  --ui-spy-lg: 2rem; /* space-y-8 */
+  --ui-spy: 1rem; /* space-y-4 */
+  --ui-spy-lg: 1.5rem; /* space-y-6 */
 
   /* Table cell padding, one var per value of Table's paddingX / paddingY
      ("compact" | "normal" | "comfortable"), plus the header row's own
@@ -724,13 +724,13 @@
   }
 }
 
-@utility ui-spy { /* = space-y-5 */
+@utility ui-spy { /* = space-y-4 */
   & > :not([hidden]) ~ :not([hidden]) {
     margin-top: var(--ui-spy);
   }
 }
 
-@utility ui-spy-lg { /* = space-y-8 */
+@utility ui-spy-lg { /* = space-y-6 */
   & > :not([hidden]) ~ :not([hidden]) {
     margin-top: var(--ui-spy-lg);
   }
