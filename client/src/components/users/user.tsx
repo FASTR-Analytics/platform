@@ -28,6 +28,7 @@ import {
 } from "solid-js";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
+import { UserScopesCard } from "./user_scopes";
 
 type Props = {
   email: string;
@@ -325,6 +326,12 @@ function UserDetail(p: DetailProps) {
               </Show>
             </div>
           </Card>
+        </Show>
+        <Show
+          when={instanceState.currentUserIsGlobalAdmin &&
+            !p.user.isGlobalAdmin}
+        >
+          <UserScopesCard user={p.user} />
         </Show>
         <Show when={currentUserIsHUser()}>
           <Card

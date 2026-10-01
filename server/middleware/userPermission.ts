@@ -96,7 +96,8 @@ function stringsOf(value: unknown): string[] {
 
 // The route's targets come from the id fields the contract declares (§3.2)
 // and nowhere else: path product_id / folder_id; body productIds and
-// targetProductId (products), folderId and parentId (folders; null = root).
+// targetProductId (products), folderId and parentId (folders; null = root),
+// and scopeId. Only the folder routes declare folder_id or parentId.
 async function resolveProductAccessTargets(
   c: Context,
 ): Promise<ProductAccessTargets> {
@@ -123,6 +124,8 @@ async function resolveProductAccessTargets(
       ...stringsOf(body.folderId),
       ...stringsOf(body.parentId),
     ],
+    scopeIds: stringsOf(body.scopeId),
+    folderRoute: params.folder_id !== undefined || "parentId" in body,
   };
 }
 
@@ -147,7 +150,8 @@ export function requireProductAccess(level: ProductAccessLevel) {
           return globalUser;
         }
         const targets = await resolveProductAccessTargets(c);
-        if (!productAccessPolicy(globalUser, level, targets)) {
+        const mainDb = getPgConnectionFromCacheOrNew("main", "READ_AND_WRITE");
+        if (!(await productAccessPolicy(mainDb, globalUser, level, targets))) {
           c.status(403);
           return c.json({
             success: false,

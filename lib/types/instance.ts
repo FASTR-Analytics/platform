@@ -266,8 +266,11 @@ export type GlobalUser = {
   isGlobalAdmin: boolean;
   thisUserPermissions: UserPermissions;
   unlimitedAi: boolean;
+  scopeAccess: ScopeAccess;
 };
 
+// The roster row carries the STORED permission bits; a restricted user's
+// effective bits are permissionsUnderScopeAccess of them.
 export type OtherUser = {
   email: string;
   isGlobalAdmin: boolean;
@@ -275,7 +278,46 @@ export type OtherUser = {
   lastName?: string;
   unlimitedAi: boolean;
   isContactPerson: boolean;
+  scopeAccess: ScopeAccess;
 } & UserPermissions;
+
+// Which scopes a user may use (PLAN_SCOPES §2.6). `all: false` is a
+// restricted user (`users.all_scopes = FALSE`), limited to the products that
+// carry one of `scopeIds` and to package data read through one of them. A
+// global admin and every user of an open-access instance are `{ all: true }`.
+export type ScopeAccess = { all: true } | { all: false; scopeIds: string[] };
+
+export const ALL_SCOPES: ScopeAccess = { all: true };
+
+// A null scope id is the whole package, which only an unrestricted user may
+// read.
+export function canUseScope(
+  access: ScopeAccess,
+  scopeId: string | null,
+): boolean {
+  return access.all || (scopeId !== null && access.scopeIds.includes(scopeId));
+}
+
+export function scopeAccessEqual(a: ScopeAccess, b: ScopeAccess): boolean {
+  if (a.all || b.all) return a.all === b.all;
+  const bIds = new Set(b.scopeIds);
+  return a.scopeIds.length === bIds.size &&
+    a.scopeIds.every((id) => bIds.has(id));
+}
+
+// R26: these three bits expose whole packages and raw datasets, which a
+// restricted user must not read, so they read as false whatever is stored.
+export function permissionsUnderScopeAccess(
+  permissions: UserPermissions,
+  access: ScopeAccess,
+): UserPermissions {
+  return access.all ? permissions : {
+    ...permissions,
+    can_view_data: false,
+    can_configure_data: false,
+    can_view_logs: false,
+  };
+}
 
 /** Per-instance outcome of a fleet-wide email rename
  *  (renameUserEmailEverywhere). "pending" appears only in dry runs. */
@@ -340,6 +382,7 @@ export function createDevGlobalUser(
       can_view_data: true,
     },
     unlimitedAi: false,
+    scopeAccess: ALL_SCOPES,
   };
 }
 

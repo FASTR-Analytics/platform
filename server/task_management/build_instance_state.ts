@@ -1,5 +1,13 @@
-import type { GlobalUser, InstanceState, RunCatalogItem } from "lib";
+import {
+  ALL_SCOPES,
+  type GlobalUser,
+  type InstanceState,
+  permissionsUnderScopeAccess,
+  type RunCatalogItem,
+  type ScopeAccess,
+} from "lib";
 import type { Sql } from "postgres";
+import { visibleFolderIds } from "../auth/product_access.ts";
 import {
   getInstanceDatasetsSummary,
   getInstanceDetail,
@@ -59,8 +67,12 @@ export async function buildInstanceStateWithoutProducts(
   // else gets []. After connect, runs_catalog_updated broadcasts only a
   // timestamp and entitled clients refetch via listRunCatalog (per-request
   // guard). The /mcp context cache inherits the same fill, which is correct.
+  const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
+  const myPermissions = me === undefined
+    ? undefined
+    : permissionsUnderScopeAccess(me, scopeAccess);
   const canSeeRuns = (me?.isGlobalAdmin ?? false) ||
-    (me?.can_configure_data ?? false);
+    (myPermissions?.can_configure_data ?? false);
   let runsCatalog: RunCatalogItem[] = [];
   if (canSeeRuns) {
     const runsRes = await listRunCatalog(mainDb);
@@ -117,14 +129,15 @@ export async function buildInstanceStateWithoutProducts(
     currentUserEmail: globalUser.email,
     currentUserApproved: !!me,
     currentUserIsGlobalAdmin: me?.isGlobalAdmin ?? false,
-    currentUserPermissions: me
+    currentUserScopeAccess: scopeAccess,
+    currentUserPermissions: myPermissions
       ? {
-        can_configure_users: me.can_configure_users,
-        can_view_users: me.can_view_users,
-        can_view_logs: me.can_view_logs,
-        can_configure_settings: me.can_configure_settings,
-        can_configure_data: me.can_configure_data,
-        can_view_data: me.can_view_data,
+        can_configure_users: myPermissions.can_configure_users,
+        can_view_users: myPermissions.can_view_users,
+        can_view_logs: myPermissions.can_view_logs,
+        can_configure_settings: myPermissions.can_configure_settings,
+        can_configure_data: myPermissions.can_configure_data,
+        can_view_data: myPermissions.can_view_data,
       }
       : {
         can_configure_users: false,
@@ -146,7 +159,8 @@ export async function buildInstanceStateWithoutProducts(
  *
  * The product plane is withheld from an UNAPPROVED connection by the same
  * roster rule that empties `users`; the client reconnects once a roster
- * names its user, which rebuilds this payload whole. Each read degrades
+ * names its user, which rebuilds this payload whole. A RESTRICTED connection
+ * gets only its grants' share (restrictProductPlane). Each read degrades
  * independently: a failure logs and leaves that list empty rather than
  * stopping the boundary from coming up (the runsCatalog rule).
  */
@@ -181,11 +195,26 @@ export async function buildInstanceState(
     }
   }
 
+  const plane = restrictProductPlane(res.data.currentUserScopeAccess, {
+    products: productsRes.success ? productsRes.data : [],
+    folders: foldersRes.success ? foldersRes.data : [],
+    scopes: scopesRes.success ? scopesRes.data : [],
+  });
+  const slideStamps = slideStampsRes.success ? slideStampsRes.data : {};
+  const visibleSlideIds = res.data.currentUserScopeAccess.all
+    ? undefined
+    : new Set(
+      await slideIdsInScopes(
+        mainDb,
+        Object.keys(slideStamps),
+        res.data.currentUserScopeAccess.scopeIds,
+      ),
+    );
+
   // A product's own stamp IS its cache version, so the index is derived from
   // the list rather than read twice; products_upserted keeps it in step.
-  const products = productsRes.success ? productsRes.data : [];
   const productStamps: Record<string, string> = {};
-  for (const product of products) {
+  for (const product of plane.products) {
     productStamps[product.id] = product.lastUpdated;
   }
 
@@ -193,14 +222,56 @@ export async function buildInstanceState(
     success: true,
     data: {
       ...res.data,
-      products,
-      folders: foldersRes.success ? foldersRes.data : [],
+      ...plane,
       readyPackages: packagesRes.success ? packagesRes.data : [],
-      scopes: scopesRes.success ? scopesRes.data : [],
       lastUpdated: {
         products: productStamps,
-        slides: slideStampsRes.success ? slideStampsRes.data : {},
+        slides: visibleSlideIds === undefined
+          ? slideStamps
+          : Object.fromEntries(
+            Object.entries(slideStamps).filter(([id]) =>
+              visibleSlideIds.has(id)
+            ),
+          ),
       },
     },
   };
+}
+
+type ProductPlane = Pick<InstanceState, "products" | "folders" | "scopes">;
+
+// A restricted user's share of the product plane (PLAN_SCOPES §2.6): the
+// products and scopes of their grants, and the folders that hold one of
+// those products (R23). An unrestricted user's plane is returned whole.
+export function restrictProductPlane(
+  access: ScopeAccess,
+  plane: ProductPlane,
+): ProductPlane {
+  if (access.all) return plane;
+  const granted = new Set(access.scopeIds);
+  const products = plane.products.filter((p) => granted.has(p.scopeId));
+  const folderIds = visibleFolderIds(
+    plane.folders,
+    products.map((p) => p.folderId),
+  );
+  return {
+    products,
+    folders: plane.folders.filter((f) => folderIds.has(f.id)),
+    scopes: plane.scopes.filter((s) => granted.has(s.id)),
+  };
+}
+
+// The slides, of those named, whose deck carries one of the scopes.
+export async function slideIdsInScopes(
+  mainDb: Sql,
+  slideIds: string[],
+  scopeIds: string[],
+): Promise<string[]> {
+  if (slideIds.length === 0 || scopeIds.length === 0) return [];
+  const rows = await mainDb<{ id: string }[]>`
+    SELECT s.id FROM slides s
+    JOIN products p ON p.id = s.slide_deck_id
+    WHERE s.id = ANY(${slideIds}) AND p.scope_id = ANY(${scopeIds})
+  `;
+  return rows.map((r) => r.id);
 }

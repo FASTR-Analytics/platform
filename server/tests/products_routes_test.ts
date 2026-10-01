@@ -11,6 +11,7 @@
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 import { Hono } from "hono";
 import {
+  ALL_SCOPES,
   type ContentSlide,
   geographyOnlyScopeDefinition,
   getStartingConfigForSlideDeck,
@@ -129,6 +130,7 @@ function testGlobalUser(email: string, approved: boolean): GlobalUser {
       can_view_data: false,
     },
     unlimitedAi: false,
+    scopeAccess: ALL_SCOPES,
   };
 }
 

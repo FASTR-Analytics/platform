@@ -12,6 +12,7 @@ globs:
   - client/src/components/users/users.tsx
   - client/src/components/instance/profile.tsx
   - client/src/components/users/user.tsx
+  - client/src/components/users/user_scopes.tsx
   - client/src/components/scopes/area_picker.tsx
   - client/src/components/scopes/mod.ts
   - client/src/components/scopes/scope_editor.tsx
@@ -94,6 +95,32 @@ Delete is offered on an existing scope and disabled while a product carries it
 (`deleteScope` refuses that server-side too). The editor states the product
 count, and that changing what the scope limits marks every visualization in
 those products as out of date (the definition hash changes, S10).
+
+## Scope access
+
+A user is unrestricted (`users.all_scopes`, default TRUE) or restricted to the
+scopes named in `user_scopes` (email, scope id; both foreign keys cascade on
+delete; migration 205). A global admin is unrestricted whatever the flag says.
+`ScopeAccess` (`lib/types/instance.ts`) is `{ all: true }` or
+`{ all: false, scopeIds }`; `scopeAccessFromRow` builds it, `GlobalUser` and
+every roster row (`OtherUser`) carry it, and `canUseScope` asks it. A restricted
+user sees only products in their scopes, reads data only through them, has no
+Explore, no `/mcp`, no Results or Data page, and their `can_view_data`,
+`can_configure_data` and `can_view_logs` read as false (PLAN_SCOPES R13, R26).
+Where each rule is enforced: products and folders S1 (`productAccessPolicy`),
+data reads S8 "Scope access", the instance stream S3, collab S16.
+
+Only a global admin changes it (R25), so a restricted user holding
+`can_configure_users` cannot lift their own restriction. The user editor's
+Scopes card (`components/users/user_scopes.tsx`) is shown to global admins and
+hidden for a global admin's row: an "All scopes" checkbox over a multi-select of
+the instance's scopes. `setUserScopeAccess` (`POST /user/scope-access`,
+`requireAdmin`) refuses a global admin and an unknown scope id, replaces the
+flag and the grants in one transaction (an unrestricted user keeps no grants),
+re-broadcasts the roster and closes the user's collab sockets. The client
+compares its own row's access with the one its connection was built under and
+reconnects both channels on a change (`t1_sse.tsx`, R29). An email rename moves
+the grants (`rename_user_email.ts`).
 
 ## Permissions (write side)
 

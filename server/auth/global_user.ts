@@ -4,6 +4,8 @@
 // session. `approved` (`_OPEN_ACCESS || !!usersRow`) is what
 // requireApprovedUser() and productAccessPolicy gate the product surface on;
 // the six instance permission flags say nothing about approval.
+// `scopeAccess` is the user's grants (PLAN_SCOPES §2.6), and a restricted
+// user's permission bits are reduced here, once (R26).
 
 import type { Context } from "hono";
 import {
@@ -15,14 +17,20 @@ import {
   _OPEN_ACCESS,
 } from "../exposed_env_vars.ts";
 import type { DBUser } from "../db/mod.ts";
-import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
+import {
+  getPgConnectionFromCacheOrNew,
+  getScopeGrantsByEmail,
+  scopeAccessFromRow,
+} from "../db/mod.ts";
 import type { GlobalUser } from "lib";
 import {
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   _USER_PERMISSIONS_DEFAULT_NO_ACCESS,
+  ALL_SCOPES,
   buildUserPermissionsFromRow,
   createDevGlobalUser,
   H_USERS,
+  permissionsUnderScopeAccess,
 } from "lib";
 import {
   getClerkSessionAuth,
@@ -88,11 +96,21 @@ export async function buildGlobalUserFromDb(
 
     const isGlobalAdmin = _OPEN_ACCESS || (!!rawUser && rawUser.is_admin);
 
+    const scopeAccess = isGlobalAdmin || !rawUser || rawUser.all_scopes
+      ? ALL_SCOPES
+      : scopeAccessFromRow(
+        rawUser,
+        (await getScopeGrantsByEmail(mainDb, [email])).get(email) ?? [],
+      );
+
     // Admins get all permissions, others get their configured permissions
     const thisUserPermissions: GlobalUser["thisUserPermissions"] = isGlobalAdmin
       ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
       : rawUser
-      ? buildUserPermissionsFromRow(rawUser)
+      ? permissionsUnderScopeAccess(
+        buildUserPermissionsFromRow(rawUser),
+        scopeAccess,
+      )
       : _USER_PERMISSIONS_DEFAULT_NO_ACCESS;
 
     const globalUser: GlobalUser = {
@@ -108,6 +126,7 @@ export async function buildGlobalUserFromDb(
       isGlobalAdmin,
       thisUserPermissions,
       unlimitedAi: H_USERS.includes(email) || (rawUser?.unlimited_ai ?? false),
+      scopeAccess,
     };
     return globalUser;
   } catch (error) {

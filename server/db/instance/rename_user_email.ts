@@ -46,6 +46,7 @@ const USERS_FK_CHILDREN = [
   { table: "ai_usage_logs", column: "user_email" },
   { table: "custom_prompts", column: "created_by" },
   { table: "asset_metadata", column: "uploader_email" },
+  { table: "user_scopes", column: "email" },
 ] as const;
 
 /** Which of the two addresses exist as users here: drives the fleet
@@ -113,6 +114,7 @@ export async function renameUserEmailInMainDb(
       await sql`DELETE FROM ai_limit_hits WHERE user_email = ${oldEmail}`;
       await sql`UPDATE custom_prompts SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
       await sql`UPDATE asset_metadata SET uploader_email = ${newEmail} WHERE uploader_email = ${oldEmail}`;
+      await sql`UPDATE user_scopes SET email = ${newEmail} WHERE email = ${oldEmail}`;
       await sql`UPDATE dataset_hmis_scheduled_imports SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
       await sql`UPDATE dataset_hmis_import_runs SET triggered_by = ${newEmail} WHERE triggered_by = ${oldEmail}`;
       await sql`UPDATE instance_dhis2_credentials SET updated_by = ${newEmail} WHERE updated_by = ${oldEmail}`;

@@ -343,11 +343,10 @@ serves the package-internals reads, which do not share one guard:
 / value-info / replicant handler bodies live once in
 `run_query/run_data_reads.ts` (cache-before-queue, shared queues) and are
 mounted on `getRunPresentationObjectItems` / `getRunResultsValueInfo` /
-`getRunReplicantOptions` (instance, `requireApprovedUser()`: package data is an
-instance-level resource any approved user reads under any scope or as the whole
-package, D7). `getRunResultsObjectItems` (the raw preview) is scoped the same
-way. Caches are keyed `runId + scopeToken` with the run id leading; the token is
-the definition hash.
+`getRunReplicantOptions` (instance, `requireApprovedUser()`, then the caller's
+grants in the read context: "Scope access" below). `getRunResultsObjectItems`
+(the raw preview) is scoped the same way. Caches are keyed `runId + scopeToken`
+with the run id leading; the token is the definition hash.
 
 **No product-side package tab.** A product's package and scope are one
 `product_settings.tsx` surface (S12) over the ready-package list in instance T1
@@ -481,10 +480,18 @@ as its module is in the module list, which is the only part that removes a whole
 table. The authoring context a product reads is cut by the module list alone
 (S9).
 
-**Scopes are not enforced per user.** Any approved user can read any ready
-package under any scope, or as the whole package (`scopeId: null`), through the
-run-keyed routes. Package internals (scripts, logs, raw downloads) stay
-reachable under the instance data bits and show the package as-is.
+**Scope access.** The scope is a security boundary for data values (PLAN_SCOPES
+R5 to R7, replacing PLAN_PRODUCTS_RESTRUCTURE D7's "any approved user reads any
+package at any scope"). An unrestricted user reads any ready package under any
+scope or as the whole package (`scopeId: null`). A restricted user (S15 "Scope
+access") reads only through a scope they hold: `getReadyRunReadContext` and the
+authoring context's manifest lens take the caller's `ScopeAccess`, answer an
+unknown scope id with `SCOPE_NOT_FOUND` (404) first, and then refuse the whole
+package and every scope not held with `SCOPE_NOT_GRANTED` (403). Package
+metadata (which periods, modules and indicators exist) is not restricted (R5).
+Package internals (scripts, logs, raw downloads) stay reachable under the
+instance data bits and show the package as-is; a restricted user never holds
+those bits (R26).
 
 Rulings:
 

@@ -33,6 +33,7 @@ import {
   readRunReplicantOptions,
   readRunResultsValueInfo,
   resolveMetricFromRun,
+  SCOPE_NOT_GRANTED,
 } from "../../run_query/mod.ts";
 import { notifyInstanceRunsCatalogUpdated } from "../../task_management/notify_instance_updated.ts";
 import { launchRunGeneration } from "../../worker_routines/generate_run/mod.ts";
@@ -52,10 +53,16 @@ import { defineRoute } from "../route-helpers.ts";
 export const routesRunGeneration = new Hono();
 
 // A figure-data read that names an unknown scope is a 404, like a product
-// route naming an unknown product. Every other context failure keeps the
+// route naming an unknown product, and one a restricted caller does not hold
+// (or the whole package) is a 403. Every other context failure keeps the
 // default status: the client transport reads the envelope on any status.
 function readContextFailure(c: Context, res: { success: false; err: string }) {
-  return c.json(res, res.err === SCOPE_NOT_FOUND ? 404 : 200);
+  const status = res.err === SCOPE_NOT_FOUND
+    ? 404
+    : res.err === SCOPE_NOT_GRANTED
+    ? 403
+    : 200;
+  return c.json(res, status);
 }
 
 defineRoute(
@@ -240,8 +247,9 @@ defineRoute(
 // the scope's definition; the read path escapes the definition's values.
 // /mcp reaches getRunPresentationObjectItems and getRunResultsValueInfo with
 // a null scope through the headless allowlist.
-// Guard: requireApprovedUser(), so package data is an instance-level
-// resource any approved user can read at any scope.
+// Guard: requireApprovedUser(), then the caller's grants in the read context:
+// an unrestricted user reads any ready package at any scope or whole, and a
+// restricted one only through a scope they hold (PLAN_SCOPES §2.4).
 
 defineRoute(
   routesRunGeneration,
@@ -252,6 +260,7 @@ defineRoute(
       c.var.mainDb,
       params.run_id,
       body.scopeId,
+      c.var.globalUser.scopeAccess,
     );
     if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(
@@ -272,6 +281,7 @@ defineRoute(
       c.var.mainDb,
       params.run_id,
       body.scopeId,
+      c.var.globalUser.scopeAccess,
     );
     if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(
@@ -292,6 +302,7 @@ defineRoute(
       c.var.mainDb,
       params.run_id,
       body.scopeId,
+      c.var.globalUser.scopeAccess,
     );
     if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(await readRunResultsValueInfo(ctxRes.data, body.metricId));
@@ -309,6 +320,7 @@ defineRoute(
       c.var.mainDb,
       params.run_id,
       body.scopeId,
+      c.var.globalUser.scopeAccess,
     );
     if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     const metricRes = resolveMetricFromRun(ctxRes.data, body.metricId);
@@ -335,6 +347,7 @@ defineRoute(
       c.var.mainDb,
       params.run_id,
       body.scopeId,
+      c.var.globalUser.scopeAccess,
     );
     if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json(
@@ -358,6 +371,7 @@ defineRoute(
     const ctxRes = await getRunReadContextForRun(params.run_id, {
       mainDb: c.var.mainDb,
       scopeId: body.scopeId,
+      access: c.var.globalUser.scopeAccess,
     });
     if (ctxRes.success === false) return readContextFailure(c, ctxRes);
     return c.json({

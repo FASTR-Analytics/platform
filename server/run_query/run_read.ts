@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  canUseScope,
   catalogExpressionEvaluationStrict,
   compareModules,
   composeHfaIndicatorLabel,
@@ -37,6 +38,7 @@ import {
   type RunMetric,
   type RunModule,
   type RunResultsObject,
+  type ScopeAccess,
   type ScopeDefinition,
   scopeDefinitionHash,
   throwIfErrWithData,
@@ -122,18 +124,27 @@ async function buildRunReadContext(
   };
 }
 
-// A null scope id is the whole package; any other names a `scopes` row.
+export const SCOPE_NOT_GRANTED = "You do not have access to this scope";
+
+// A null scope id is the whole package; any other names a `scopes` row. An
+// unknown id fails as SCOPE_NOT_FOUND before the grant is asked, and a
+// restricted caller is refused the whole package and every scope it does not
+// hold (PLAN_SCOPES §2.4).
 async function loadScopeDefinition(
   mainDb: Sql,
   scopeId: string | null,
+  access: ScopeAccess,
 ): Promise<APIResponseWithData<ScopeDefinition>> {
   if (scopeId === null) {
-    return { success: true, data: UNCONSTRAINED_SCOPE_DEFINITION };
+    return canUseScope(access, null)
+      ? { success: true, data: UNCONSTRAINED_SCOPE_DEFINITION }
+      : { success: false, err: SCOPE_NOT_GRANTED };
   }
   const scopeRes = await getScope(mainDb, scopeId);
-  return scopeRes.success
+  if (scopeRes.success === false) return scopeRes;
+  return canUseScope(access, scopeId)
     ? { success: true, data: scopeRes.data.definition }
-    : scopeRes;
+    : { success: false, err: SCOPE_NOT_GRANTED };
 }
 
 // The manifest lens. An unreadable or unknown run surfaces as the manifest
@@ -142,7 +153,7 @@ async function loadScopeDefinition(
 // package; the authoring context's read passes the scope its caller names.
 export async function getRunReadContextForRun(
   runId: string,
-  scoped?: { mainDb: Sql; scopeId: string | null },
+  scoped?: { mainDb: Sql; scopeId: string | null; access: ScopeAccess },
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
@@ -150,7 +161,11 @@ export async function getRunReadContextForRun(
   try {
     const scopeRes = scoped === undefined
       ? { success: true as const, data: UNCONSTRAINED_SCOPE_DEFINITION }
-      : await loadScopeDefinition(scoped.mainDb, scoped.scopeId);
+      : await loadScopeDefinition(
+        scoped.mainDb,
+        scoped.scopeId,
+        scoped.access,
+      );
     if (scopeRes.success === false) return scopeRes;
     return {
       success: true,
@@ -175,6 +190,7 @@ export async function getReadyRunReadContext(
   mainDb: Sql,
   runId: string,
   scopeId: string | null,
+  access: ScopeAccess,
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
     return { success: false, err: "Invalid results package id" };
@@ -191,7 +207,7 @@ SELECT status FROM runs WHERE id = ${runId}
     if (row.status !== "ready") {
       return { success: false, err: "This results package is not ready" };
     }
-    const scopeRes = await loadScopeDefinition(mainDb, scopeId);
+    const scopeRes = await loadScopeDefinition(mainDb, scopeId, access);
     if (scopeRes.success === false) return scopeRes;
     return {
       success: true,

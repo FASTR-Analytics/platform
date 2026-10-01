@@ -23,7 +23,11 @@ import type {
   Scope,
   StructureSchema,
 } from "lib";
-import { resolvePackageScope } from "lib";
+import {
+  ALL_SCOPES,
+  permissionsUnderScopeAccess,
+  resolvePackageScope,
+} from "lib";
 
 // ============================================================================
 // Store
@@ -82,6 +86,7 @@ const EMPTY_INSTANCE_STATE: InstanceState = {
   currentUserEmail: "",
   currentUserApproved: false,
   currentUserIsGlobalAdmin: false,
+  currentUserScopeAccess: ALL_SCOPES,
   currentUserPermissions: {
     can_configure_users: false,
     can_view_users: false,
@@ -388,20 +393,27 @@ export function updateInstancePopulation(
 // Current user (per-connection, populated by server in starting message)
 // ============================================================================
 
+// The roster row carries stored permission bits; the current user's are
+// reduced for a restricted user (R26), as the server reduces them.
 export function updateCurrentUser(me: OtherUser | undefined): void {
+  const scopeAccess = me?.scopeAccess ?? ALL_SCOPES;
+  const permissions = me === undefined
+    ? undefined
+    : permissionsUnderScopeAccess(me, scopeAccess);
   setInstanceState("currentUserApproved", !!me);
   setInstanceState("currentUserIsGlobalAdmin", me?.isGlobalAdmin ?? false);
+  setInstanceState("currentUserScopeAccess", reconcile(scopeAccess));
   setInstanceState(
     "currentUserPermissions",
     reconcile(
-      me
+      permissions
         ? {
-          can_configure_users: me.can_configure_users,
-          can_view_users: me.can_view_users,
-          can_view_logs: me.can_view_logs,
-          can_configure_settings: me.can_configure_settings,
-          can_configure_data: me.can_configure_data,
-          can_view_data: me.can_view_data,
+          can_configure_users: permissions.can_configure_users,
+          can_view_users: permissions.can_view_users,
+          can_view_logs: permissions.can_view_logs,
+          can_configure_settings: permissions.can_configure_settings,
+          can_configure_data: permissions.can_configure_data,
+          can_view_data: permissions.can_view_data,
         }
         : {
           can_configure_users: false,

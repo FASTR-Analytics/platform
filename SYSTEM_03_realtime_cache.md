@@ -12,6 +12,7 @@ globs:
   - lib/types/last_updated_tables.ts
   - server/routes/instance/instance-sse.ts
   - server/task_management/build_instance_state.ts
+  - server/tests/instance_sse_filter_test.ts
   - server/task_management/notify_instance_updated.ts
   - server/utils/request_queue.ts
   - server/valkey/**
@@ -113,8 +114,26 @@ unapproved connection, and the forward loop drops `products_upserted`,
 the connection's user is absent from the roster. The `readyPackages` labels are
 approved-user data by design: a deliberate narrowing of Q-B to generation
 telemetry (`RunListingItem`'s progress, summary and provenance), because every
-product card shows the label of the package it serves from. No other message on
-the channel is filtered per user.
+product card shows the label of the package it serves from.
+
+A RESTRICTED connection (its user's `currentUserScopeAccess.all` is false, S15
+"Scope access") gets only its grants' share of the product plane (PLAN_SCOPES
+§2.6). `buildInstanceState` cuts the `starting` payload with
+`restrictProductPlane`: the products of granted scopes, the granted scopes, the
+folders whose subtree holds one of those products (`visibleFolderIds`,
+`server/auth/product_access.ts`), and the slide stamps of granted decks
+(`slideIdsInScopes`). The forward loop is `createInstanceSseFilter`
+(`instance-sse.ts`), which holds the rules above and these: an upserted product
+outside the grants is rewritten as `products_deleted` (it may have been rescoped
+out), `scopes_updated` is cut to the granted scopes, a `last_updated` is cut to
+granted rows and dropped when none remain, and the connection's folder list is
+recomputed from its own copy of what it holds on every product or folder message
+and sent as `folders_updated` when it changes. A restricted user's stored data
+bits never open the generation stream (R26). A `users_updated` that changes the
+connection's own scope access ends the stream after forwarding it; the client
+reconnects (R29) and the new `starting` is built under the new grants. The
+filter is pinned by `server/tests/instance_sse_filter_test.ts`. No other message
+on the channel is filtered per user.
 
 `BroadcastChannel` in Deno is in-process: it fans out across the main thread and
 all Web Workers in the same process, which is how a background worker's progress

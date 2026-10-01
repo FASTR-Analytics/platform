@@ -639,14 +639,15 @@ exclude the roll-up row (double-counting hazard).
 
 The scope is the caller's: it arrives over the wire beside the run id on the
 run-keyed reads as `scopeId`, the id of a `scopes` row, or null for the whole
-package (PLAN_PRODUCTS_RESTRUCTURE D7). `getReadyRunReadContext` shape-checks
-the run id, loads the scope's definition (an unknown id is `SCOPE_NOT_FOUND`,
-answered 404; null resolves to the unconstrained definition) and puts the
-`ScopeDefinition` on the context as `scope`, with its hash as `scopeToken`. The
-definition is applied **in the DuckDB view every query runs against**, in one
-place, so the shared Cores and the query builders are untouched and a read path
-cannot forget it. `viewsFor` (run_read.ts) builds the views for one read, and
-gives the results object's view the predicate
+package. `getReadyRunReadContext` shape-checks the run id, loads the scope's
+definition (an unknown id is `SCOPE_NOT_FOUND`, answered 404; null resolves to
+the unconstrained definition), refuses a restricted caller the whole package and
+every scope they do not hold (`SCOPE_NOT_GRANTED`, answered 403; S8 "Scope
+access") and puts the `ScopeDefinition` on the context as `scope`, with its hash
+as `scopeToken`. The definition is applied **in the DuckDB view every query runs
+against**, in one place, so the shared Cores and the query builders are
+untouched and a read path cannot forget it. `viewsFor` (run_read.ts) builds the
+views for one read, and gives the results object's view the predicate
 `scopePredicateFor(definition, ro, manifest)` returns. `executeSqlOverParquet`
 appends it:
 `CREATE VIEW x AS SELECT * FROM read_parquet(...) WHERE <predicate>`.
@@ -796,17 +797,18 @@ check → queue → `…FromRun` → `setPromise`) and their queues live ONCE in
 routes (`getRunPresentationObjectItems` / `getRunResultsValueInfo` /
 `getRunReplicantOptions`, plus `getRunResultsObjectItems`, all under
 `routes/instance/run_generation.ts`, the caller supplying `(run_id, scopeId)`,
-`runs.status = 'ready'` and an existing scope required, guarded
-`requireApprovedUser()`; the manifest-only `getRunAuthoringContext` sits beside
-them under the same guard, takes the same `scopeId` in its body and has no ready
-gate). The replicant read is keyed by results object (the cache identity); the
-route narrows its `metricId` first; its compute below the cache is
-`computeRunReplicantOptions`, which the query rig calls directly. The authoring
-context is cut by the scope's module list and nothing else: modules outside the
-list are absent, with their metrics and presets, and the indicator vocabularies
-and datasets stay whole, because they are package metadata
-(`buildRunAuthoringContext`, run_query/authoring_context.ts). Its payload
-carries the `scopeToken` it was built under. The client caches it in
+`runs.status = 'ready'`, an existing scope and, for a restricted caller, a held
+one required, guarded `requireApprovedUser()`; the manifest-only
+`getRunAuthoringContext` sits beside them under the same guard and grant check,
+takes the same `scopeId` in its body and has no ready gate). The replicant read
+is keyed by results object (the cache identity); the route narrows its
+`metricId` first; its compute below the cache is `computeRunReplicantOptions`,
+which the query rig calls directly. The authoring context is cut by the scope's
+module list and nothing else: modules outside the list are absent, with their
+metrics and presets, and the indicator vocabularies and datasets stay whole,
+because they are package metadata (`buildRunAuthoringContext`,
+run_query/authoring_context.ts). Its payload carries the `scopeToken` it was
+built under. The client caches it in
 [t2_run_authoring_context.ts](client/src/state/instance/t2_run_authoring_context.ts),
 keyed by `(runId, definitionHash)` with a constant version key (the `t2_runs.ts`
 idiom: a ready run dir never changes, so nothing invalidates an entry) and the
@@ -831,8 +833,8 @@ exists (see [SYSTEM_03_realtime_cache.md](SYSTEM_03_realtime_cache.md)).
 [t2_replicant_options.ts](client/src/state/products/t2_replicant_options.ts)
 (`run_replicant_options_v3`) are the three reads against the run-keyed mount
 (`getRunResultsValueInfo`, `getRunPresentationObjectItems`,
-`getRunReplicantOptions`; PLAN_PRODUCTS_RESTRUCTURE D7): the caller passes a
-`PackageScope` (`{ runId, scopeId }`) and the pair leads the UNIQUENESS key as
+`getRunReplicantOptions`): the caller passes a `PackageScope`
+(`{ runId, scopeId }`) and the pair leads the UNIQUENESS key as
 `runId | definitionHash | ...` while the version key is the constant
 `"immutable"` (the `t2_runs.ts` idiom). The hash is
 `resolveScope(scope).definitionHash`, looked up in the T1 scopes list

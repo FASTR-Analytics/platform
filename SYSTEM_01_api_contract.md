@@ -499,14 +499,20 @@ in `lib/api-routes/products/*` declares `access: "view" | "edit"
 whenever an entry carries the field. Per request it authenticates (401),
 resolves the route's targets from the id fields the contract declares and
 nowhere else (path `product_id` / `folder_id`; body `productIds`,
-`targetProductId`, `folderId`, `parentId`), and asks
-`productAccessPolicy(user, level, targets)` in `server/auth/product_access.ts`
-once (403 on false). Today's policy returns `user.approved` for every level and
-target: every approved user is a full editor of every product and folder.
-Doctrine: the product id in the path IS the authority; a future permission model
-replaces the policy function and inherits the per-route access inventory, and
-must never be built as per-handler checks behind this guard. The registry's
-other guards never check `access`; instance routes do not declare it.
+`targetProductId`, `folderId`, `parentId`, `scopeId`; a route declaring
+`folder_id` or `parentId` is a folder route), and awaits
+`productAccessPolicy(mainDb, user, level, targets)` in
+`server/auth/product_access.ts` once (403 on false). The level is not consulted.
+An approved unrestricted user is a full editor of every product and folder. A
+restricted user (`user.scopeAccess.all === false`, S15 "Scope access") may act
+only on products whose scope they hold, may name only a scope they hold, may
+name as a destination only the root or a folder whose subtree holds one of their
+products (`visibleFolderIds`), and is refused every folder route. An id that
+names no row passes the policy and fails in the handler. Doctrine: the product
+id in the path IS the authority; a future permission model replaces the policy
+function and inherits the per-route access inventory, and must never be built as
+per-handler checks behind this guard. The registry's other guards never check
+`access`; instance routes do not declare it.
 
 **The `authError` flag is 401-only.** Only the 401 not-authenticated responses
 carry `authError: true`; no 403 in any guard does, and the client
@@ -526,7 +532,11 @@ token-refresh/logout. Auth-failure vs outage stays distinguishable by status:
 Six instance permissions: `can_configure_users`, `can_view_users`,
 `can_view_logs`, `can_configure_settings`, `can_configure_data`, `can_view_data`
 (migration 046 removes `can_configure_assets`). There are no per-product
-permissions: product access is `productAccessPolicy` above. Display labels are
+permissions: product access is `productAccessPolicy` above. A restricted user's
+`can_view_data`, `can_configure_data` and `can_view_logs` read as false
+(`permissionsUnderScopeAccess`, `lib/types/instance.ts`), applied once where the
+row becomes a `GlobalUser` (`buildGlobalUserFromDb`) and, for the client's own
+row, where the roster row becomes `currentUserPermissions`. Display labels are
 `INSTANCE_PERMISSION_LABELS` (`lib/types/permission_labels.ts`). Add a key in
 `permissions.ts` (so the exhaustiveness assert and `buildUserPermissionsFromRow`
 stay correct), never inline a permission string elsewhere.

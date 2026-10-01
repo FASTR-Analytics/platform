@@ -18,7 +18,10 @@ CREATE TABLE users (
   daily_token_usage integer NOT NULL DEFAULT 0,
   daily_token_usage_date date NOT NULL DEFAULT CURRENT_DATE,
   unlimited_ai boolean NOT NULL DEFAULT false,
-  is_contact_person boolean NOT NULL DEFAULT false
+  is_contact_person boolean NOT NULL DEFAULT false,
+  -- FALSE = restricted to the scopes in user_scopes. Ignored for a global
+  -- admin. Last because migration 205 adds it to a live table.
+  all_scopes boolean NOT NULL DEFAULT TRUE
 );
 
 -- Results runs catalog (PLAN_RESULTS_RUNS §2.6).
@@ -140,6 +143,15 @@ CREATE TABLE scopes (
   created_at text,
   last_updated text NOT NULL
 );
+
+-- A restricted user's grants (users.all_scopes = FALSE).
+CREATE TABLE user_scopes (
+  email text NOT NULL REFERENCES users(email) ON DELETE CASCADE,
+  scope_id text NOT NULL REFERENCES scopes(id) ON DELETE CASCADE,
+  PRIMARY KEY (email, scope_id)
+);
+
+CREATE INDEX idx_user_scopes_scope_id ON user_scopes(scope_id);
 
 -- scope_id is the last column because migration 204 adds it to a live table,
 -- and a migrated instance and a fresh one must dump the same schema.

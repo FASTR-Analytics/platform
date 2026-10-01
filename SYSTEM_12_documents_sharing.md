@@ -55,6 +55,7 @@ globs:
   - server/tests/fastr_report_page_map_test.ts
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
+  - server/tests/scope_grants_routes_test.ts
   - server/tests/report_fastr_markdown_test.ts
   - server/tests/report_fastr_word_test.ts
   - server/tests/report_format_conversion_test.ts
@@ -137,10 +138,12 @@ functions and additive columns (`saveSlideCheckpoint` / `saveReportCheckpoint`,
 routes ride its route files. S12 owns the files, S16 the feature (SYSTEMS.md
 §4.1; [SYSTEM_16_collaboration.md](SYSTEM_16_collaboration.md)). Every product
 route declares its `access` level and is guarded by `requireProductAccess` (S1;
-every approved user passes every level today, D2); on the client the one gate is
-`canEditProduct(productId)` in `state/instance/product_access.ts`. There is no
-unauthenticated product surface: a deck reaches recipients as an emailed PDF
-(cross-cutting audit SYSTEMS.md §4.3.9).
+an unrestricted approved user passes every level, a restricted one only for
+products in their grants, PLAN_SCOPES §2.6); on the client the one gate is
+`canEditProduct(productId)` in `state/instance/product_access.ts`, which needs
+no grant check because a restricted client holds only its grants' products.
+There is no unauthenticated product surface: a deck reaches recipients as an
+emailed PDF (cross-cutting audit SYSTEMS.md §4.3.9).
 
 ## The products registry on `main`
 
@@ -267,9 +270,11 @@ with the strict schema. `deleteScope` refuses while a product carries the scope
 delete is a 404. There is no list route: every successful write re-reads the
 whole list and broadcasts it as `scopes_updated` (S3), and
 `InstanceState.scopes` (`Scope[]`: id, label, definition, definitionHash,
-lastUpdated) rides the `starting` payload for approved connections. The Scopes
-page (S15, `components/scopes/`) is the one client surface that calls the three
-routes.
+lastUpdated) rides the `starting` payload for approved connections, cut to the
+granted scopes for a restricted one (S3). The Scopes page (S15,
+`components/scopes/`) is the one client surface that calls the three routes.
+Deleting a scope cascades its grants (`user_scopes`), so the delete route also
+re-broadcasts the roster (`users_updated`).
 
 **On the client** the list is `instanceState.scopes` in T1
 (`updateInstanceScopes`). `resolveScope(scope)` in `state/instance/t1_store.ts`

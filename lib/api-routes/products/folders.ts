@@ -6,7 +6,9 @@ const folderIdParamsSchema = z.object({ folder_id: z.uuid() });
 
 // Folders nest through `parentId` (adjacency list, no depth cap). A move is
 // `updateFolder`: label, colour and parent are one metadata write, and the
-// server refuses a cycle with the typed FOLDER_CYCLE failure.
+// server refuses a cycle with the typed FOLDER_CYCLE failure. Only these
+// routes declare `folder_id` or `parentId`, which is how the access guard
+// tells a folder route from a product route naming a destination folder.
 export const folderRouteRegistry = {
   createFolder: route({
     path: "/folders",

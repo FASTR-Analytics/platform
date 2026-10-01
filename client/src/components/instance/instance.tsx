@@ -73,14 +73,18 @@ function navItems(): ListItem<InstanceTab>[] {
       label: t3({ en: "Products", fr: "Produits", pt: "Produtos" }),
       iconName: "presentation",
     },
-    // Approved users only, like every tab: the whole nav sits behind
-    // currentUserApproved (PLAN_PRODUCTS_RESTRUCTURE D6).
-    {
+  ];
+  // Approved users only, like every tab: the whole nav sits behind
+  // currentUserApproved (PLAN_PRODUCTS_RESTRUCTURE D6). A restricted user has
+  // no Explore (PLAN_SCOPES R13); Results and Data hide for them because their
+  // data bits read as false (R26).
+  if (instanceState.currentUserScopeAccess.all) {
+    items.push({
       id: "explore",
       label: t3({ en: "Explore", fr: "Explorer", pt: "Explorar" }),
       iconName: "chart",
-    },
-  ];
+    });
+  }
   if (canConfigureData()) {
     items.push({
       id: "results_packages",
@@ -137,6 +141,9 @@ export default function Instance(p: Props) {
     const perms = p_();
     const canData = admin || perms.can_view_data || perms.can_configure_data;
     const canUsers = admin || perms.can_configure_users || perms.can_view_users;
+    if (t === "explore" && !instanceState.currentUserScopeAccess.all) {
+      return "products";
+    }
     if (t === "data" && !canData) return "products";
     if (t === "results_packages" && !canConfigureData()) return "products";
     if (t === "users" && !canUsers) return "products";

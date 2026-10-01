@@ -250,13 +250,19 @@ export async function resolvePackageContext(
   const cached = cacheGet(packageContexts, key);
   if (cached) return cached;
 
-  // The door check: the run-keyed routes require an approved user (D7) on
+  // The door check: the run-keyed routes require an approved user (D7) and
+  // refuse a restricted user's whole-package read (PLAN_SCOPES R13, R20) on
   // every dispatch regardless; judging it here gives the model one clean
   // failure instead of a denial on each tool.
   const globalUser = await resolveGlobalUser(principal);
   if (!globalUser.approved) {
     throw new AIToolFailure(
       "Your account is awaiting approval, which the results-package reads require. Ask an instance admin to approve it.",
+    );
+  }
+  if (!globalUser.scopeAccess.all) {
+    throw new AIToolFailure(
+      "Your account is limited to some scopes, and this connection reads the whole results package. Ask an instance admin if you need it.",
     );
   }
 

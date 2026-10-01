@@ -1,11 +1,13 @@
 import { Sql } from "postgres";
 import {
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
+  ALL_SCOPES,
   APIResponseNoData,
   APIResponseWithData,
   type BatchUser,
   buildUserPermissionsFromRow,
   OtherUser,
+  type ScopeAccess,
   type UserPermission,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -37,6 +39,53 @@ export async function syncUserName(
   return updated.length > 0;
 }
 
+// A global admin is unrestricted whatever all_scopes says.
+export function scopeAccessFromRow(
+  row: Pick<DBUser, "is_admin" | "all_scopes">,
+  grantedScopeIds: string[],
+): ScopeAccess {
+  return row.is_admin || row.all_scopes
+    ? ALL_SCOPES
+    : { all: false, scopeIds: grantedScopeIds };
+}
+
+// The grants of the named users, or of every user, in one read.
+export async function getScopeGrantsByEmail(
+  mainDb: Sql,
+  emails?: string[],
+): Promise<Map<string, string[]>> {
+  const rows = emails === undefined
+    ? await mainDb<{ email: string; scope_id: string }[]>`
+        SELECT email, scope_id FROM user_scopes
+      `
+    : await mainDb<{ email: string; scope_id: string }[]>`
+        SELECT email, scope_id FROM user_scopes WHERE email = ANY(${emails})
+      `;
+  const grants = new Map<string, string[]>();
+  for (const row of rows) {
+    grants.set(row.email, [...(grants.get(row.email) ?? []), row.scope_id]);
+  }
+  return grants;
+}
+
+export function otherUserFromRow(
+  row: DBUser,
+  grantedScopeIds: string[],
+): OtherUser {
+  return {
+    email: row.email,
+    isGlobalAdmin: row.is_admin,
+    firstName: row.first_name ?? undefined,
+    lastName: row.last_name ?? undefined,
+    unlimitedAi: row.unlimited_ai,
+    isContactPerson: row.is_contact_person,
+    scopeAccess: scopeAccessFromRow(row, grantedScopeIds),
+    ...(row.is_admin
+      ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
+      : buildUserPermissionsFromRow(row)),
+  };
+}
+
 export async function getOtherUser(
   mainDb: Sql,
   email: string,
@@ -48,16 +97,54 @@ export async function getOtherUser(
     if (rawUser === undefined) {
       throw new Error("No matching user");
     }
-    const user: OtherUser = {
-      email,
-      isGlobalAdmin: rawUser.is_admin,
-      unlimitedAi: rawUser.unlimited_ai,
-      isContactPerson: rawUser.is_contact_person,
-      ...(rawUser.is_admin
-        ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
-        : buildUserPermissionsFromRow(rawUser)),
+    const grants = await getScopeGrantsByEmail(mainDb, [email]);
+    return {
+      success: true,
+      data: otherUserFromRow(rawUser, grants.get(email) ?? []),
     };
-    return { success: true, data: user };
+  });
+}
+
+export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
+
+// Replaces a user's flag and grants together. An unrestricted user keeps no
+// grants, so a later restriction starts from an empty list.
+export async function setUserScopeAccess(
+  mainDb: Sql,
+  email: string,
+  access: ScopeAccess,
+): Promise<APIResponseNoData> {
+  return await tryCatchDatabaseAsync(async () => {
+    const row = (
+      await mainDb<Pick<DBUser, "is_admin">[]>`
+        SELECT is_admin FROM users WHERE email = ${email}
+      `
+    ).at(0);
+    if (row === undefined) {
+      return { success: false, err: "No matching user" };
+    }
+    if (row.is_admin) {
+      return { success: false, err: SCOPE_ACCESS_ADMIN };
+    }
+    const scopeIds = access.all ? [] : [...new Set(access.scopeIds)];
+    const known = await mainDb<{ id: string }[]>`
+      SELECT id FROM scopes WHERE id = ANY(${scopeIds})
+    `;
+    if (known.length !== scopeIds.length) {
+      return { success: false, err: "Scope not found" };
+    }
+    await mainDb.begin(async (sql) => {
+      await sql`UPDATE users SET all_scopes = ${access.all} WHERE email = ${email}`;
+      await sql`DELETE FROM user_scopes WHERE email = ${email}`;
+      if (scopeIds.length > 0) {
+        await sql`
+          INSERT INTO user_scopes ${
+          sql(scopeIds.map((scope_id) => ({ email, scope_id })))
+        }
+        `;
+      }
+    });
+    return { success: true };
   });
 }
 

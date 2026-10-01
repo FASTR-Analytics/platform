@@ -16,9 +16,10 @@ import { respond } from "./_respond.ts";
 
 export const routesFolders = new Hono();
 
-// The guard is the registry entry's `access` (defineRoute installs it); the
-// DB layer refuses a cycle with the typed FOLDER_CYCLE failure, which returns
-// through the envelope before any notify fires.
+// The guard is the registry entry's `access` (defineRoute installs it), and
+// productAccessPolicy refuses a restricted user every route here (PLAN_SCOPES
+// R23); the DB layer refuses a cycle with the typed FOLDER_CYCLE failure,
+// which returns through the envelope before any notify fires.
 
 async function notifyFolders(mainDb: Sql): Promise<void> {
   const res = await listFolders(mainDb);

@@ -25,6 +25,11 @@ const userPermissionsSchema = z
   )
   .partial();
 
+const scopeAccessSchema = z.discriminatedUnion("all", [
+  z.object({ all: z.literal(true) }),
+  z.object({ all: z.literal(false), scopeIds: z.array(z.uuid()) }),
+]);
+
 export const userRouteRegistry = {
   getCurrentUser: route({
     path: "/user",
@@ -99,6 +104,14 @@ export const userRouteRegistry = {
     path: "/user/unlimited-ai",
     method: "POST",
     body: z.object({ email: z.string(), unlimited: z.boolean() }),
+  }),
+  // Global admins only (PLAN_SCOPES R25), so a restricted user holding
+  // can_configure_users cannot lift their own restriction. Refused for a
+  // global admin, who always has every scope.
+  setUserScopeAccess: route({
+    path: "/user/scope-access",
+    method: "POST",
+    body: z.object({ email: z.string(), scopeAccess: scopeAccessSchema }),
   }),
   setUserContactPerson: route({
     path: "/user/contact-person",

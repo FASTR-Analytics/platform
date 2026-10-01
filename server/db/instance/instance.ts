@@ -1,9 +1,7 @@
 import { Sql } from "postgres";
 import { getStoredDhis2CredentialsInfo } from "./instance_dhis2_credentials.ts";
 import {
-  _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
   APIResponseWithData,
-  buildUserPermissionsFromRow,
   type DatasetType,
   type FacilityFamily,
   type InstanceDatasetsSummary,
@@ -37,6 +35,7 @@ import { hasScheduledImportAttention } from "./dataset_hmis_scheduled_imports.ts
 import { computeHfaCacheHash } from "./dataset_hfa.ts";
 import { getHfaWeightsCoverage } from "./hfa_facility_weights.ts";
 import { getIcehCacheHash } from "./dataset_iceh.ts";
+import { getScopeGrantsByEmail, otherUserFromRow } from "./users.ts";
 
 export async function getHfaIndicatorsVersion(mainDb: Sql): Promise<string> {
   const result = await mainDb<{ version: string | null }[]>`
@@ -105,19 +104,11 @@ export async function getCountIndicatorsVersion(
 }
 
 export async function getInstanceUsers(mainDb: Sql): Promise<OtherUser[]> {
-  return (await mainDb<DBUser[]>`SELECT * FROM users`).map<OtherUser>(
-    (rawUser) => ({
-      email: rawUser.email,
-      isGlobalAdmin: rawUser.is_admin,
-      firstName: rawUser.first_name ?? undefined,
-      lastName: rawUser.last_name ?? undefined,
-      unlimitedAi: rawUser.unlimited_ai,
-      isContactPerson: rawUser.is_contact_person,
-      ...(rawUser.is_admin
-        ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
-        : buildUserPermissionsFromRow(rawUser)),
-    }),
-  );
+  const [rows, grants] = await Promise.all([
+    mainDb<DBUser[]>`SELECT * FROM users`,
+    getScopeGrantsByEmail(mainDb),
+  ]);
+  return rows.map((row) => otherUserFromRow(row, grants.get(row.email) ?? []));
 }
 
 export async function getInstanceIndicatorsSummary(

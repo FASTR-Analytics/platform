@@ -120,20 +120,30 @@ server-stamped, unspoofable: only the avatar URL is self-reported).
   message can precede the check. Every document message names its product
   (`productId`; a report's equals its `reportId`), rooms are keyed
   `productId::docType::docId`, and presence is keyed by product, so a
-  per-subscribe permission check has its subject without a lookup. Today every
-  approved user is a full editor of every product: `RoomConn.canEdit` is TRUE
-  for every admitted connection and kept as the seam a later permission model
-  fills per subscribe. `PresenceEntry` carries identity plus opaque document
-  ids, never labels or content. Authorization refusals are delivered as a
-  **post-upgrade close** with `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an
-  HTTP status, because a browser cannot read a refused handshake (it surfaces as
-  an unreadable 1006, indistinguishable from a network drop); only the Origin
-  check (403, never upgrade for a foreign origin) and the retryable 503 stay
-  pre-upgrade. The Origin allowlist mirrors `server/middleware/cors.ts` (WS
-  handshakes bypass CORS); same-origin requests are additionally allowed, and
-  requests with **no** Origin header pass (non-browser clients). Frames over ~32
-  MiB (measured in string length) are rejected unparsed (`error` reply); every
-  parsed frame is schema-validated (`collabClientMessageSchema` in
+  per-subscribe permission check has its subject without a lookup. An
+  unrestricted approved user is a full editor of every product:
+  `RoomConn.canEdit` is TRUE for every admitted connection and kept as the seam
+  a later permission model fills per subscribe. A restricted user (PLAN_SCOPES
+  §2.6) carries their `scopeAccess` on the connection: each `slide_subscribe`,
+  `report_subscribe` and product-naming `presence_update` is checked against the
+  product's scope (`productInGrants`, one query, never cached), a refused
+  subscribe answers a fatal `slide_error` / `report_error`, a refused presence
+  is dropped, and the connection's updates and awareness pass only for products
+  whose subscribe passed, because rooms do not check membership on an update.
+  When a global admin changes a user's scope access, `setUserScopeAccess` closes
+  that user's sockets with `COLLAB_CLOSE_ACCESS_CHANGED` (4001, retryable), so
+  the client reconnects and re-subscribes under the new grants (R29).
+  `PresenceEntry` carries identity plus opaque document ids, never labels or
+  content. Authorization refusals are delivered as a **post-upgrade close** with
+  `COLLAB_CLOSE_UNAUTHORIZED` (4403) rather than an HTTP status, because a
+  browser cannot read a refused handshake (it surfaces as an unreadable 1006,
+  indistinguishable from a network drop); only the Origin check (403, never
+  upgrade for a foreign origin) and the retryable 503 stay pre-upgrade. The
+  Origin allowlist mirrors `server/middleware/cors.ts` (WS handshakes bypass
+  CORS); same-origin requests are additionally allowed, and requests with **no**
+  Origin header pass (non-browser clients). Frames over ~32 MiB (measured in
+  string length) are rejected unparsed (`error` reply); every parsed frame is
+  schema-validated (`collabClientMessageSchema` in
   [lib/types/collab.ts](lib/types/collab.ts): bounded presence/awareness payload
   sizes, `avatarUrl` restricted to bounded https URLs) before any handler
   touches it.

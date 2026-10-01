@@ -43,5 +43,6 @@ export {
   moduleHasRun,
   resolveMetricFromRun,
   type RunReadContext,
+  SCOPE_NOT_GRANTED,
   scopePredicateFor,
 } from "./run_read.ts";

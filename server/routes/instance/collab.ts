@@ -9,6 +9,7 @@ import {
   presenceColorForKey,
   reportFiguresSchema,
   reportImagesSchema,
+  type ScopeAccess,
   type Slide,
   slideConfigSchema,
   storedMatchesDoc,
@@ -68,7 +69,26 @@ type CollabAuth = {
   email: string;
   name: string;
   color: string;
+  scopeAccess: ScopeAccess;
 };
+
+// A restricted user may open a product only when they hold its scope
+// (PLAN_SCOPES §2.6). Asked on every subscribe and presence change, never
+// cached, so a product moved out of their grants is refused from then on.
+async function productInGrants(
+  productId: string,
+  access: ScopeAccess,
+): Promise<boolean> {
+  if (access.all) return true;
+  const mainDb = getPgConnectionFromCacheOrNew("main", "READ_ONLY");
+  const rows = await mainDb<{ id: string }[]>`
+    SELECT id FROM products
+    WHERE id = ${productId} AND scope_id = ANY(${access.scopeIds})
+  `;
+  return rows.length > 0;
+}
+
+const NO_PRODUCT_ACCESS = "You do not have access to this product";
 
 /**
  * Close code for "you are not allowed on this socket": a permanent condition
@@ -78,6 +98,12 @@ type CollabAuth = {
  * indistinguishable from a network drop and so retried forever.
  */
 export const COLLAB_CLOSE_UNAUTHORIZED = 4403;
+
+/**
+ * Close code for "your scope access changed": retryable, so the client
+ * reconnects at once and its new socket subscribes under the new grants.
+ */
+export const COLLAB_CLOSE_ACCESS_CHANGED = 4001;
 
 export const routesCollab = new Hono<
   {
@@ -122,9 +148,11 @@ function isAllowedWsOrigin(
  * Admission is origin plus Clerk plus approved (PLAN_PRODUCTS_RESTRUCTURE D2,
  * D8) and resolves BEFORE the upgrade so the socket can never become an
  * unauthenticated channel. Every document message names its product, which
- * keys the room and is where a later per-product check slots in; today every
- * approved user is a full editor of every product, so an admitted connection
- * may subscribe to and edit any slide or report. Presence is scoped to the
+ * keys the room. An unrestricted approved user is a full editor of every
+ * product, so their connection may subscribe to and edit any slide or report;
+ * a restricted user's subscribe and presence are checked against the
+ * product's scope, and their edits pass only for a product whose check passed
+ * (PLAN_SCOPES §2.6). Presence is scoped to the
  * product a peer has open (presence_registry.ts) and carries no document
  * content: identity plus opaque ids.
  *
@@ -177,6 +205,7 @@ routesCollab.get(
       email: globalUser.email,
       name,
       color: presenceColorForKey(globalUser.email),
+      scopeAccess: globalUser.scopeAccess,
     });
     await next();
   },
@@ -204,6 +233,24 @@ routesCollab.get(
     // socket that dies while a first-subscribe load is in flight must not be
     // registered as a room member afterwards.
     let socketGone = false;
+    // The products this socket passed productInGrants for. A restricted
+    // socket's edits and awareness for any other product are dropped: rooms
+    // do not check membership on an update.
+    const openedProducts = new Set<string>();
+    const mayWrite = (productId: string) =>
+      auth.scopeAccess.all || openedProducts.has(productId);
+    async function whenInGrants(
+      productId: string,
+      refuse: () => CollabServerMessage,
+      then: () => void,
+    ): Promise<void> {
+      if (!(await productInGrants(productId, auth.scopeAccess))) {
+        if (!socketGone) roomConn?.send(refuse());
+        return;
+      }
+      openedProducts.add(productId);
+      then();
+    }
 
     // DB-backed room dependencies for one slide of one deck product. The
     // checkpoint re-broadcasts the deck's summary (its card and its detail
@@ -428,24 +475,47 @@ routesCollab.get(
             ws.send(JSON.stringify(pong));
             break;
           }
-          case "presence_update":
+          case "presence_update": {
             // Broadcasts the product this peer left and the one it joined:
             // the registry owns both, since only it knows the previous view.
-            updateConnectionPresence(connectionId, msg.data);
+            // A restricted peer never joins the presence of a product it
+            // cannot open.
+            const view = msg.data;
+            const productId = view.deckId ?? view.reportId;
+            if (productId === undefined || auth.scopeAccess.all) {
+              updateConnectionPresence(connectionId, view);
+            } else {
+              void productInGrants(productId, auth.scopeAccess).then((ok) => {
+                if (ok && !socketGone) {
+                  updateConnectionPresence(connectionId, view);
+                }
+              });
+            }
             break;
+          }
           case "slide_subscribe":
             if (roomConn) {
-              void subscribeSlide(
-                msg.data.productId,
-                msg.data.slideId,
-                roomConn,
-                msg.data.stateVector,
-                depsForSlide(msg.data.productId, msg.data.slideId),
+              const conn = roomConn;
+              const { productId, slideId, stateVector } = msg.data;
+              void whenInGrants(
+                productId,
+                () => ({
+                  type: "slide_error",
+                  data: { slideId, message: NO_PRODUCT_ACCESS, fatal: true },
+                }),
+                () =>
+                  void subscribeSlide(
+                    productId,
+                    slideId,
+                    conn,
+                    stateVector,
+                    depsForSlide(productId, slideId),
+                  ),
               );
             }
             break;
           case "slide_update":
-            if (roomConn) {
+            if (roomConn && mayWrite(msg.data.productId)) {
               applySlideUpdate(
                 msg.data.productId,
                 msg.data.slideId,
@@ -461,7 +531,7 @@ routesCollab.get(
             }
             break;
           case "awareness_update":
-            if (roomConn) {
+            if (roomConn && mayWrite(msg.data.productId)) {
               relayAwareness(
                 msg.data.productId,
                 msg.data.slideId,
@@ -472,17 +542,27 @@ routesCollab.get(
             break;
           case "report_subscribe":
             if (roomConn) {
-              void subscribeReport(
-                msg.data.productId,
-                msg.data.reportId,
-                roomConn,
-                msg.data.stateVector,
-                depsForReport(msg.data.productId),
+              const conn = roomConn;
+              const { productId, reportId, stateVector } = msg.data;
+              void whenInGrants(
+                productId,
+                () => ({
+                  type: "report_error",
+                  data: { reportId, message: NO_PRODUCT_ACCESS, fatal: true },
+                }),
+                () =>
+                  void subscribeReport(
+                    productId,
+                    reportId,
+                    conn,
+                    stateVector,
+                    depsForReport(productId),
+                  ),
               );
             }
             break;
           case "report_update":
-            if (roomConn) {
+            if (roomConn && mayWrite(msg.data.productId)) {
               applyReportUpdate(
                 msg.data.productId,
                 msg.data.reportId,
@@ -502,7 +582,7 @@ routesCollab.get(
             }
             break;
           case "report_awareness_update":
-            if (roomConn) {
+            if (roomConn && mayWrite(msg.data.productId)) {
               relayReportAwareness(
                 msg.data.productId,
                 msg.data.reportId,

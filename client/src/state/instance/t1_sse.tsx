@@ -1,5 +1,10 @@
-import type { InstanceSseMessage, LastUpdateTableName, RunProgress } from "lib";
-import { t3 } from "lib";
+import type {
+  InstanceSseMessage,
+  LastUpdateTableName,
+  RunProgress,
+  ScopeAccess,
+} from "lib";
+import { ALL_SCOPES, scopeAccessEqual, t3 } from "lib";
 import { batch, createEffect, type JSX, on, Show } from "solid-js";
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { _SERVER_HOST, serverActions } from "~/server_actions";
@@ -119,6 +124,9 @@ let shouldBeConnected = false;
 // connection, and it decides that once, at connect. So an approval that lands
 // mid-session needs a new connection, not just a store update (D8).
 let connectedAsApproved = false;
+// The scope access the current connection was built under. The server filters
+// the product plane by it, so a change needs a new connection too (R29).
+let connectedScopeAccess: ScopeAccess = ALL_SCOPES;
 
 const [connectionDown, setConnectionDown] = createSignal(false);
 
@@ -183,6 +191,7 @@ export function connectInstanceSSE(): void {
           // it to tell "opened unapproved, needs a fresh payload" from
           // "already approved, nothing to redo".
           connectedAsApproved = msg.data.currentUserApproved;
+          connectedScopeAccess = msg.data.currentUserScopeAccess;
           initInstanceState(msg.data);
           preloadGeoJson(msg.data.geojsonMaps);
           break;
@@ -221,12 +230,20 @@ export function connectInstanceSSE(): void {
             msg.data.lastUpdated,
           );
           break;
-        case "users_updated":
-          updateInstanceUsers(msg.data);
-          updateCurrentUser(
-            msg.data.find((u) => u.email === instanceState.currentUserEmail),
+        case "users_updated": {
+          const me = msg.data.find(
+            (u) => u.email === instanceState.currentUserEmail,
           );
+          updateInstanceUsers(msg.data);
+          updateCurrentUser(me);
+          if (
+            me !== undefined && connectedAsApproved &&
+            !scopeAccessEqual(me.scopeAccess, connectedScopeAccess)
+          ) {
+            queueMicrotask(reconnectForApproval);
+          }
           break;
+        }
         case "assets_updated":
           updateInstanceAssets(msg.data);
           break;
@@ -301,8 +318,9 @@ export function disconnectInstanceSSE(): void {
   resetInstanceState();
 }
 
-// The unapproved to approved transition (D8). Everything approval unlocks is
-// decided per CONNECTION server-side, so re-open both channels: the SSE for
+// The unapproved to approved transition (D8), and a change to the user's own
+// scope access (R29). Everything either unlocks or hides is decided per
+// CONNECTION server-side, so re-open both channels: the SSE for
 // its `starting` payload and the collab socket, which the server refuses to
 // an unapproved user with a terminal close the client never retries. The
 // reset inside the disconnect flips `currentUserApproved` back to false for

@@ -9,6 +9,7 @@ import type {
   InstanceConfigAdminAreaLabels,
   InstanceFiscalYear,
   OtherUser,
+  ScopeAccess,
   StructureFamilyCounts,
   StructureSchema,
 } from "./instance.ts";
@@ -146,7 +147,10 @@ export type InstanceState = {
   currentUserEmail: string;
   currentUserApproved: boolean;
   currentUserIsGlobalAdmin: boolean;
+  // Already reduced per R26 for a restricted user
+  // (permissionsUnderScopeAccess).
   currentUserPermissions: UserPermissions;
+  currentUserScopeAccess: ScopeAccess;
 };
 
 // ============================================================================

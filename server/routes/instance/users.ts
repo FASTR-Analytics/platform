@@ -28,6 +28,7 @@ import {
   renameUserEmailInProducts,
   revokePersonalAccessToken,
   setUserContactPerson,
+  setUserScopeAccess,
   SetUserUnlimitedAi,
   syncUserName,
   toggleAdmin,
@@ -49,7 +50,10 @@ import {
 } from "../../middleware/userPermission.ts";
 import { getClerkSessionAuth } from "../../middleware/auth.ts";
 import { notifyInstanceUsersUpdated } from "../../task_management/notify_instance_updated.ts";
-import { COLLAB_CLOSE_UNAUTHORIZED } from "./collab.ts";
+import {
+  COLLAB_CLOSE_ACCESS_CHANGED,
+  COLLAB_CLOSE_UNAUTHORIZED,
+} from "./collab.ts";
 import { defineRoute } from "../route-helpers.ts";
 
 export const routesUsers = new Hono();
@@ -281,6 +285,31 @@ defineRoute(
     );
     if (res.success) {
       notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    }
+    return c.json(res);
+  },
+);
+
+// R29: the user's collab sockets close so their next one subscribes under the
+// new grants; their instance stream ends on this roster (instance-sse.ts).
+defineRoute(
+  routesUsers,
+  "setUserScopeAccess",
+  requireGlobalPermission({ requireAdmin: true }),
+  log("setUserScopeAccess"),
+  async (c, { body }) => {
+    const res = await setUserScopeAccess(
+      c.var.mainDb,
+      body.email,
+      body.scopeAccess,
+    );
+    if (res.success) {
+      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+      closeConnectionsForEmail(
+        body.email,
+        COLLAB_CLOSE_ACCESS_CHANGED,
+        "Scope access changed",
+      );
     }
     return c.json(res);
   },
