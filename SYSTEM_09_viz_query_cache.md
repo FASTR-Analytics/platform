@@ -661,13 +661,15 @@ the request and the holder's (run, scope) identity on every items case):
   `UPPER(<child>) IN (SELECT
   UPPER(<child>) FROM <facilities view> WHERE UPPER(admin_area_2) =
   UPPER('<aa2>'))`.
-  The facilities views are created before the results object's view so the
-  subquery can read one. The facilities table is chosen by the module's declared
-  family and must be in `manifest.inputFiles`. Matching is by district NAME (the
-  collision caveat, SYSTEM_08). An area with no children matches nothing. As of
-  the last prod sweep this reaches 7 RO names (M4/M5/M6
-  coverage/denominators/combined-results under historical numberings); 24 scope
-  directly; 19 have no admin columns and are served whole.
+  The subquery's columns are qualified by the facilities view, so a facilities
+  view without the child column is a binder error and never a match on the
+  results object's own column. The facilities views are created before the
+  results object's view so the subquery can read one. The facilities table is
+  chosen by the module's declared family and must be in `manifest.inputFiles`.
+  Matching is by district NAME (the collision caveat, SYSTEM_08). An area with
+  no children matches nothing. As of the last prod sweep this reaches 7 RO names
+  (M4/M5/M6 coverage/denominators/combined-results under historical numberings);
+  24 scope directly; 19 have no admin columns and are served whole.
 - A child column but no facilities view (no facilities parquet, or a module
   whose family is not hmis or hfa) → `FALSE`. This is the one case where a
   missing piece empties the view; serving it whole would show every district

@@ -765,11 +765,10 @@ export function scopePredicateFor(
   manifest: RunManifest,
 ): string | undefined {
   if (adminArea2 === null) return undefined;
-  const inArea = `UPPER(admin_area_2) = UPPER('${
-    escapeSqlLiteral(adminArea2)
-  }')`;
+  const inArea = (column: string) =>
+    `UPPER(${column}) = UPPER('${escapeSqlLiteral(adminArea2)}')`;
   const columnNames = new Set(ro.columns.map((c) => c.name));
-  if (columnNames.has("admin_area_2")) return inArea;
+  if (columnNames.has("admin_area_2")) return inArea("admin_area_2");
   const childColumn = columnNames.has("admin_area_3")
     ? "admin_area_3"
     : columnNames.has("admin_area_4")
@@ -786,7 +785,12 @@ export function scopePredicateFor(
   ) {
     return "FALSE";
   }
-  return `UPPER(${childColumn}) IN (SELECT UPPER(${childColumn}) FROM ${facilitiesTable} WHERE ${inArea})`;
+  // The subquery's columns are qualified by the facilities view: an
+  // unqualified child column that view lacks would bind to the results object
+  // and match every row.
+  return `UPPER(${childColumn}) IN (SELECT UPPER(${facilitiesTable}.${childColumn}) FROM ${facilitiesTable} WHERE ${
+    inArea(`${facilitiesTable}.admin_area_2`)
+  })`;
 }
 
 // ── The read functions ───────────────────────────────────────────────────────

@@ -1002,10 +1002,10 @@ export const F13_HFA_DIVERGENT_SCHEMA: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F14: an RO with admin_area_3 and NO admin_area_2, the shape the scope
-// DERIVATION exists for (m004/m005/m006 admin3 outputs). A scoped read must
-// resolve A2_south to its child areas out of the family facilities parquet
-// and filter on those, matching by NAME.
+// F14: an RO with admin_area_3 and NO admin_area_2, the shape the
+// child-column predicate exists for (m004/m005/m006 admin3 outputs). A scoped
+// read must resolve A2_south to its child areas through the family facilities
+// view, matching by NAME.
 export const F14_HMIS_ADMIN3_ONLY: Fixture = {
   name: "hmis_admin3_only",
   family: "hmis",
@@ -1029,10 +1029,9 @@ export const F14_HMIS_ADMIN3_ONLY: Fixture = {
   firstPeriodOption: undefined,
 };
 
-// F15: F14's shape in a package where the derivation CANNOT run: the package
-// carries no facilities parquet for the family, so nothing can resolve
-// A2_south to its child areas. The scope must fail CLOSED (a never-matching
-// sentinel), never unfiltered.
+// F15: F14's shape in a package with no facilities parquet for the family, so
+// nothing can resolve A2_south to its child areas. The predicate must be
+// FALSE, never absent.
 export const F15_ADMIN3_NO_FACILITIES: Fixture = {
   name: "admin3_no_facilities",
   family: "hmis",
