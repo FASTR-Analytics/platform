@@ -51,7 +51,7 @@ import { EmptyState } from "../../display/mod.ts";
 const HEADER_BUTTON =
   "inline-flex items-center gap-1 rounded px-1.5 py-1 uppercase ui-hoverable-base-200 ui-focusable";
 
-function getHeaderJustify(alignH?: TableColumn<unknown>["alignH"]): string {
+function getJustify(alignH?: TableColumn<unknown>["alignH"]): string {
   switch (alignH) {
     case "center":
       return "justify-center";
@@ -365,7 +365,7 @@ export function Table<
                         >
                           <div
                             class={`flex items-stretch gap-0.5 ${
-                              getHeaderJustify(column.alignH)
+                              getJustify(column.alignH)
                             }`}
                           >
                             <Show
@@ -658,20 +658,33 @@ function TableRow<T extends AnyRow, K extends keyof T = keyof T>(
         </td>
       </Show>
       <For each={p.columns}>
-        {(column) => (
-          <td
-            class={`${p.padding.px} ${p.padding.py} ${
-              getCellAlignment(
-                column.alignH,
-              )
-            } text-sm`}
-            style={{ width: column.width }}
-          >
+        {(column) => {
+          const content = () => (
             <Show when={column.render} fallback={String(p.item[column.key])}>
               {column.render!(p.item)}
             </Show>
-          </td>
-        )}
+          );
+          return (
+            <td
+              class={`${p.padding.px} ${p.padding.py} ${
+                getCellAlignment(
+                  column.alignH,
+                )
+              } text-sm`}
+              style={{ width: column.width }}
+            >
+              <Show when={column.pullInY} fallback={content()}>
+                <div
+                  class={`flex h-[1lh] items-center ${
+                    getJustify(column.alignH)
+                  }`}
+                >
+                  {content()}
+                </div>
+              </Show>
+            </td>
+          );
+        }}
       </For>
     </tr>
   );

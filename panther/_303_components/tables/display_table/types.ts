@@ -29,6 +29,11 @@ export type TableColumn<T> = {
   render?: (item: T) => JSX.Element;
   width?: string;
   alignH?: "left" | "center" | "right";
+  // For a column of controls taller than a line of text: the cell counts as
+  // one line and its content overflows that, centred, so the row is as tall as
+  // its text. Content that wraps, or is taller than the row, overlaps the
+  // neighbouring rows.
+  pullInY?: boolean;
 };
 
 export type SortConfig = {
