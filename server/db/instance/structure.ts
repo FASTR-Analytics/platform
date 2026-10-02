@@ -1214,8 +1214,8 @@ export async function setStructureRecodes(
     if (totalAssignments > 5000) {
       return { success: false, err: "Too many assignments" };
     }
-    // Validation-only read; the conditional UPDATE below re-checks state
-    // atomically (a read-then-write guard passes mid-restage and would
+    // Validation-only read; the locked read below re-checks state before the
+    // write (an unlocked read-then-write guard passes mid-restage and would
     // attach stale facility_ids to a new row set).
     const resCtx = await getStagedReviewContext(mainDb, family);
     if (!resCtx.success) {

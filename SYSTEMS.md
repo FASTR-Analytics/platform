@@ -178,5 +178,6 @@ an arbitrary `text-[Npx]`, the non-token `text-md`, or an inline font-size in px
 or pt. Document and canvas rendering is exempt by file in the script.
 
 `lint_jsonb.ts` (task `lint:jsonb`, chained after `lint:text-sizes`) fails on
-`jsonb` in any tracked `.ts`, `.tsx` or `.sql` file outside
-`server/db/migrations/`. Stored JSON is a `text` column, parsed in TypeScript.
+`jsonb`, in any case, in any tracked source file, `.sql` file or root script
+outside `server/db/migrations/`. Stored JSON is a `text` column, parsed in
+TypeScript.

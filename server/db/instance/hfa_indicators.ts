@@ -1455,7 +1455,8 @@ export async function getHfaDictionaryForValidation(
 
 // Rewrites the service-category list of every indicator tagged with `id`,
 // in one read and one write. The rows are locked so an indicator saved
-// alongside cannot be written back with the old list.
+// alongside cannot be written back with the old list, at the strength a
+// plain UPDATE takes, so inserts that reference an indicator are not held.
 async function rewriteServiceCategoryTags(
   sql: Sql,
   id: string,
@@ -1464,7 +1465,8 @@ async function rewriteServiceCategoryTags(
   const rows = await sql<
     Pick<DBHfaIndicator, "indicator_id" | "service_category_ids">[]
   >`
-    SELECT indicator_id, service_category_ids FROM hfa_indicators FOR UPDATE
+    SELECT indicator_id, service_category_ids FROM hfa_indicators
+    FOR NO KEY UPDATE
   `;
   const changed = rows.flatMap((row) => {
     const ids = z.array(z.string()).parse(JSON.parse(row.service_category_ids));

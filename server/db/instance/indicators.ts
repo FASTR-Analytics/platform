@@ -1119,11 +1119,14 @@ async function renameReferences(
     `;
   }
   const schedules = await sql<{ id: number; selection: string }[]>`
-    SELECT id, selection FROM dataset_hmis_scheduled_imports FOR UPDATE
+    SELECT id, selection FROM dataset_hmis_scheduled_imports
+    FOR NO KEY UPDATE
   `;
   const renamed = schedules.flatMap((row) => {
-    const selection = parseJsonOrThrow<Record<string, unknown>>(row.selection);
-    const ids = selection.indicatorIds;
+    const selection = parseJsonOrThrow<Record<string, unknown> | null>(
+      row.selection,
+    );
+    const ids = selection?.indicatorIds;
     return Array.isArray(ids) && ids.includes(from)
       ? [{
         id: row.id,
