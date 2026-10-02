@@ -1,4 +1,5 @@
 import postgres, { type Sql } from "postgres";
+import type { DBProduct } from "./_main_database_types.ts";
 import {
   type APIResponseNoData,
   type APIResponseWithData,
@@ -70,31 +71,26 @@ export async function listRunCatalog(
   mainDb: Sql,
 ): Promise<APIResponseWithData<RunCatalogItem[]>> {
   try {
-    const rows = await mainDb<
-      (RunListingRow & {
-        attached_products: RunCatalogItem["attachedProducts"];
-      })[]
-    >`
-SELECT r.id, r.label, r.status, r.provenance, r.created_at, r.created_by,
-  r.summary, r.progress,
-  COALESCE(
-    (
-      SELECT json_agg(
-        json_build_object('type', pr.type, 'id', pr.id, 'label', pr.label)
-        ORDER BY pr.label)
-      FROM products pr
-      WHERE pr.run_id = r.id
-    ),
-    '[]'::json
-  ) AS attached_products
-FROM runs r
-ORDER BY r.created_at DESC
-`;
+    const [rows, products] = await Promise.all([
+      mainDb<RunListingRow[]>`
+SELECT id, label, status, provenance, created_at, created_by, summary, progress
+FROM runs
+ORDER BY created_at DESC
+`,
+      mainDb<Pick<DBProduct, "run_id" | "type" | "id" | "label">[]>`
+SELECT run_id, type, id, label FROM products ORDER BY label
+`,
+    ]);
+    const attached = Map.groupBy(products, (product) => product.run_id);
     return {
       success: true,
       data: rows.map((row) => ({
         ...toRunListingItem(row),
-        attachedProducts: row.attached_products,
+        attachedProducts: (attached.get(row.id) ?? []).map((product) => ({
+          type: product.type,
+          id: product.id,
+          label: product.label,
+        })),
       })),
     };
   } catch (e) {
