@@ -153,7 +153,17 @@ export function Products() {
     );
   });
 
-  const isSearching = () => searchText().length >= _SEARCH_MIN_LENGTH;
+  const isSearching = () => searchText().trim().length >= _SEARCH_MIN_LENGTH;
+
+  // Folded once per change of the folders and products, not per keystroke.
+  const foldedLabels = createMemo(() =>
+    new Map(
+      [...instanceState.folders, ...instanceState.products].map((item) => [
+        item.label,
+        foldString(item.label),
+      ]),
+    )
+  );
 
   const productTree = createMemo(() => {
     const listSort = productsSort();
@@ -165,11 +175,12 @@ export function Products() {
         (x) => x.lastUpdated,
       );
     const tokens = searchTokens(searchText());
+    const folded = foldedLabels();
     return buildProductTree({
       folders: instanceState.folders,
       products: instanceState.products,
       matches: isSearching()
-        ? (label) => matchesSearch(foldString(label), tokens)
+        ? (label) => matchesSearch(folded.get(label) ?? "", tokens)
         : null,
       generalLabel: generalLabel(),
       sort,

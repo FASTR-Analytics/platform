@@ -332,9 +332,14 @@ function CustomValueOrderModal(
   );
   const [filter, setFilter] = createSignal("");
 
+  const foldedItems = createMemo(() =>
+    items().map((item) => ({ item, folded: foldString(item.label) }))
+  );
   const filteredItems = () => {
     const tokens = searchTokens(filter());
-    return items().filter((i) => matchesSearch(foldString(i.label), tokens));
+    return foldedItems()
+      .filter((entry) => matchesSearch(entry.folded, tokens))
+      .map((entry) => entry.item);
   };
 
   function moveTo(id: string, position: "top" | "bottom") {

@@ -483,7 +483,7 @@ export function buildHfaIndicatorTools() {
           "Restrict to one round / time point.",
         ),
         search: z.string().optional().describe(
-          "Only variables whose id or label contains this text (case-insensitive).",
+          "Only variables whose id and label together contain every word of this text, in any order (case- and accent-insensitive).",
         ),
       }),
       handler: async (input) => {

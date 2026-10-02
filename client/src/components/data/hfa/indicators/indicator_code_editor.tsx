@@ -516,8 +516,20 @@ function EditorInner(p: {
   }
 
   const variableSearchTokens = createMemo(() => searchTokens(variableSearch()));
+  // The searched texts come from several lists (variables per round,
+  // indicators), so each is folded once on first use, not per keystroke.
+  const foldedTexts = new Map<string, string>();
+  const folded = (text: string) => {
+    const known = foldedTexts.get(text);
+    if (known !== undefined) {
+      return known;
+    }
+    const fresh = foldString(text);
+    foldedTexts.set(text, fresh);
+    return fresh;
+  };
   const searchMatches = (text: string) =>
-    matchesSearch(foldString(text), variableSearchTokens());
+    matchesSearch(folded(text), variableSearchTokens());
 
   return (
     <div class="flex h-full flex-col">

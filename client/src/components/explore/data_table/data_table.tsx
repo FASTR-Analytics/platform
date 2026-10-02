@@ -239,13 +239,18 @@ function ReadyFamilyTable(p: {
     return g?.ok ? g.grid : undefined;
   };
 
-  const focusColumnId = createMemo((): string | null => {
+  const foldedColumnLabels = createMemo(() => {
     const g = readyGrid();
+    return g === undefined ? [] : g.columns.map((c) => ({
+      id: c.id,
+      folded: foldString(columnLabel(g, c.id)),
+    }));
+  });
+  const focusColumnId = createMemo((): string | null => {
     const tokens = searchTokens(find());
-    if (g === undefined || tokens.length === 0) return null;
-    return g.columns.find((c) =>
-      matchesSearch(foldString(columnLabel(g, c.id)), tokens)
-    )?.id ?? null;
+    if (tokens.length === 0) return null;
+    return foldedColumnLabels().find((c) => matchesSearch(c.folded, tokens))
+      ?.id ?? null;
   });
 
   const download = () => {
