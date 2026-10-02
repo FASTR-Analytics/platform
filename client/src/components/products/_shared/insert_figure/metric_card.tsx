@@ -1,4 +1,5 @@
 import { type MetricGroup, type MetricWithStatus, t3 } from "lib";
+import { plural } from "panther";
 import { For, Show } from "solid-js";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 
@@ -74,9 +75,14 @@ export function MetricCard(p: Props) {
         <Show when={(firstMetric().vizPresets?.length ?? 0) > 0}>
           <div class="text-primary text-xs">
             {firstMetric().vizPresets!.length}{" "}
-            {firstMetric().vizPresets!.length === 1
-              ? t3({ en: "preset", fr: "préréglage", pt: "predefinição" })
-              : t3({ en: "presets", fr: "préréglages", pt: "predefinições" })}
+            {plural(firstMetric().vizPresets!.length, {
+              one: t3({ en: "preset", fr: "préréglage", pt: "predefinição" }),
+              other: t3({
+                en: "presets",
+                fr: "préréglages",
+                pt: "predefinições",
+              }),
+            })}
           </div>
         </Show>
 

@@ -44,7 +44,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { Button, Icon } from "panther";
+import { Button, Icon, plural } from "panther";
 import { Portal } from "solid-js/web";
 import {
   MenuDivider,
@@ -630,15 +630,20 @@ export function ReportToolbar(p: Props) {
                         max={row.name === "steps" ? STEPS_MAX_PICK : undefined}
                         caption={row.name === "steps"
                           ? (n) =>
-                            n === 1
-                              ? t3({
-                                en: "1 step",
-                                fr: "1 étape",
-                                pt: "1 passo",
+                            `${n} ${
+                              plural(n, {
+                                one: t3({
+                                  en: "step",
+                                  fr: "étape",
+                                  pt: "passo",
+                                }),
+                                other: t3({
+                                  en: "steps",
+                                  fr: "étapes",
+                                  pt: "passos",
+                                }),
                               })
-                              : `${n} ${
-                                t3({ en: "steps", fr: "étapes", pt: "passos" })
-                              }`
+                            }`
                           : undefined}
                         onPick={(n) => {
                           p.api()?.insertBlockOnNewLine(

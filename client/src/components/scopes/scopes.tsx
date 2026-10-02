@@ -13,6 +13,7 @@ import {
   FrameTop,
   HeadingBar,
   openComponent,
+  plural,
   Table,
   type TableColumn,
 } from "panther";
@@ -130,7 +131,7 @@ function countOf(
 ): string | undefined {
   return list === null
     ? undefined
-    : `${list.length} ${list.length === 1 ? one : other}`;
+    : `${list.length} ${plural(list.length, { one, other })}`;
 }
 
 // One family's section in a few words: excluded, unlimited, or its limits.
