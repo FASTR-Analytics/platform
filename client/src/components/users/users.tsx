@@ -18,6 +18,7 @@ import {
   FrameTop,
   openAlert,
   openComponent,
+  plural,
 } from "panther";
 import { createMemo, createSignal, type JSX, Show } from "solid-js";
 import { AddUserForm } from "./add_user_form";
@@ -420,13 +421,18 @@ function UserTable(p: {
   async function handleBulkRemoveUsers(selectedUsers: UserTableData[]) {
     const emails = selectedUsers.map((u) => u.email);
     const userCount = emails.length;
-    const userText = userCount === 1
-      ? t3({ en: "this user", fr: "cet utilisateur", pt: "este utilizador" })
-      : t3({
+    const userText = plural(userCount, {
+      one: t3({
+        en: "this user",
+        fr: "cet utilisateur",
+        pt: "este utilizador",
+      }),
+      other: t3({
         en: "these users",
         fr: "ces utilisateurs",
         pt: "estes utilizadores",
-      });
+      }),
+    });
 
     const deleteAction = createDeleteAction(
       {

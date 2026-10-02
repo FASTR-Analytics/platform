@@ -1,4 +1,9 @@
-import { AlertComponentProps, createFormAction, ModalContainer } from "panther";
+import {
+  AlertComponentProps,
+  createFormAction,
+  ModalContainer,
+  plural,
+} from "panther";
 import { For } from "solid-js";
 import { createStore } from "solid-js/store";
 import { serverActions } from "~/server_actions";
@@ -55,16 +60,17 @@ export function BulkEditPermissionsForm(
   return (
     <ModalContainer
       width="sm"
-      title={t3({
-        en: `Edit permissions for ${userCount} user${
-          userCount === 1 ? "" : "s"
-        }`,
-        fr: `Modifier les permissions pour ${userCount} utilisateur${
-          userCount === 1 ? "" : "s"
-        }`,
-        pt: `Editar permissões para ${userCount} utilizador${
-          userCount === 1 ? "" : "es"
-        }`,
+      title={plural(userCount, {
+        one: t3({
+          en: `Edit permissions for ${userCount} user`,
+          fr: `Modifier les permissions pour ${userCount} utilisateur`,
+          pt: `Editar permissões para ${userCount} utilizador`,
+        }),
+        other: t3({
+          en: `Edit permissions for ${userCount} users`,
+          fr: `Modifier les permissions pour ${userCount} utilisateurs`,
+          pt: `Editar permissões para ${userCount} utilizadores`,
+        }),
       })}
       actions={[
         {
