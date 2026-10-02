@@ -129,6 +129,23 @@ Deno.test("hash: stable across area case", () => {
   );
 });
 
+Deno.test("hash: stable across service-category case", () => {
+  assertEquals(
+    scopeDefinitionHash({
+      ...FULL,
+      hfa: { ...FULL.hfa, serviceCategories: ["RMNCH", "Malaria", "rmnch"] },
+    }),
+    scopeDefinitionHash(FULL),
+  );
+  assertNotEquals(
+    scopeDefinitionHash({
+      ...FULL,
+      hfa: { ...FULL.hfa, categories: ["INFRA", "staff"] },
+    }),
+    scopeDefinitionHash(FULL),
+  );
+});
+
 Deno.test("hash: an extra unlimited key changes nothing", () => {
   const widened = {
     ...FULL,

@@ -788,17 +788,17 @@ The four caches key on the immutable run, not on any caller (two callers on one
 run share entries), plus the **scopeToken**: the hash of the scope's definition
 (`scopeDefinitionHash`, `lib/types/scope.ts`; a SHA-256 of the canonical form,
 which keeps each section's `include` and only its limited parts, with keys
-sorted, lists sorted and de-duplicated and each area upper-cased). Payloads are
-computed under that definition, so sharing requires BOTH run and definition hash
-to match, whatever the scope's id or label: two scopes with equivalent
-definitions share entries (a scope defined as "All data" shares the token of
-`all-data`, `ALL_DATA_DEFINITION_HASH`), and an edited definition reads under
-new keys. The run id leads and the token trails on every key. scopeToken is
-**required** on the uniqueness-param types (an optional would compile and
-silently mis-key) and rides as the **trailing** segment so the
-`${runId}|`/`${runId}::` prefix scans in `delete_run.ts` keep working. Both are
-REQUIRED on every data payload (`RunVersionInfo`). The run id is also the
-figure's provenance.
+sorted, lists sorted and de-duplicated, and each area and the HFA service
+categories upper-cased, as the predicate compares them). Payloads are computed
+under that definition, so sharing requires BOTH run and definition hash to
+match, whatever the scope's id or label: two scopes with equivalent definitions
+share entries (a scope defined as "All data" shares the token of `all-data`,
+`ALL_DATA_DEFINITION_HASH`), and an edited definition reads under new keys. The
+run id leads and the token trails on every key. scopeToken is **required** on
+the uniqueness-param types (an optional would compile and silently mis-key) and
+rides as the **trailing** segment so the `${runId}|`/`${runId}::` prefix scans
+in `delete_run.ts` keep working. Both are REQUIRED on every data payload
+(`RunVersionInfo`). The run id is also the figure's provenance.
 
 Payloads carry the key ingredients (`runId`, `scopeToken`) so `parseData` can
 reproduce the uniqueness hash byte-identically to `uniquenessHashFromParams`;

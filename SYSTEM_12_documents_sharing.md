@@ -269,8 +269,9 @@ null. What a definition filters is S8 "Scope" and S9 "The scoped view".
 
 `scopeDefinitionHash(definition)` is the SHA-256 of the definition's canonical
 form: `include` always, and otherwise only the limited parts (a null is left out
-at every level), keys sorted, lists sorted and de-duplicated, each area
-upper-cased. The hash is derived on read and never stored. It is the
+at every level), keys sorted, lists sorted and de-duplicated, each area and the
+HFA service categories upper-cased (the predicate compares both
+case-insensitively). The hash is derived on read and never stored. It is the
 `scopeToken` of every server cache key and payload, the scope half of every
 client cache key (S9), and the `definitionHash` a figure bundle records (S10).
 `ALL_DATA_DEFINITION_HASH` is the hash of the "All data" definition.

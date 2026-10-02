@@ -282,8 +282,8 @@ type Canonical =
 // The hashed form holds only the limited parts: a null is left out at every
 // level, so a dimension added later leaves every existing hash unchanged.
 // `include` is always kept. Keys are sorted, lists are sorted and
-// de-duplicated, and an area is upper-cased because the view predicate
-// compares it case-insensitively.
+// de-duplicated, and an area and the service categories are upper-cased
+// because the view predicate compares them case-insensitively.
 function canonicalValue(value: unknown, key: string): Canonical | undefined {
   if (value === null || value === undefined) {
     return undefined;
@@ -295,7 +295,14 @@ function canonicalValue(value: unknown, key: string): Canonical | undefined {
     return value;
   }
   if (Array.isArray(value)) {
-    return [...new Set(value.map(String))].toSorted();
+    const items = value.map(String);
+    return [
+      ...new Set(
+        key === "serviceCategories"
+          ? items.map((item) => item.toUpperCase())
+          : items,
+      ),
+    ].toSorted();
   }
   const out: { [key: string]: Canonical } = {};
   for (const childKey of Object.keys(value).toSorted()) {
