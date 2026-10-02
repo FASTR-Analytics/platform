@@ -2,6 +2,7 @@ import { type Dhis2ScheduleRecurrence, t3 } from "lib";
 import {
   DateInput,
   MonthSelect,
+  plural,
   RadioGroup,
   Select,
   type SelectOption,
@@ -84,11 +85,16 @@ export function Dhis2StepTime(p: Props) {
 
   const weeklyIntervalOptions: SelectOption<string>[] = [1, 2, 4].map((w) => ({
     value: String(w),
-    label: w === 1
-      ? t3({ en: "Every week", fr: "Chaque semaine", pt: "Todas as semanas" })
-      : `${t3({ en: "Every", fr: "Toutes les", pt: "A cada" })} ${w} ${
+    label: plural(w, {
+      one: t3({
+        en: "Every week",
+        fr: "Chaque semaine",
+        pt: "Todas as semanas",
+      }),
+      other: `${t3({ en: "Every", fr: "Toutes les", pt: "A cada" })} ${w} ${
         t3({ en: "weeks", fr: "semaines", pt: "semanas" })
       }`,
+    }),
   }));
 
   const nthOptions: SelectOption<string>[] = [
