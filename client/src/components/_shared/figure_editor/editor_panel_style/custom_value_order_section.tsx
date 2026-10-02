@@ -9,10 +9,13 @@ import {
 import {
   AlertComponentProps,
   Button,
+  foldString,
   Input,
+  matchesSearch,
   ModalContainer,
   openComponent,
   openConfirm,
+  searchTokens,
   SortableList,
 } from "panther";
 import { createMemo, createSignal, For, Show } from "solid-js";
@@ -330,8 +333,8 @@ function CustomValueOrderModal(
   const [filter, setFilter] = createSignal("");
 
   const filteredItems = () => {
-    const f = filter().trim().toLowerCase();
-    return items().filter((i) => i.label.toLowerCase().includes(f));
+    const tokens = searchTokens(filter());
+    return items().filter((i) => matchesSearch(foldString(i.label), tokens));
   };
 
   function moveTo(id: string, position: "top" | "bottom") {
