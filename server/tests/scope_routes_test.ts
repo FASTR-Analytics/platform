@@ -184,7 +184,13 @@ Deno.test("scope routes: All data is reserved, and only the per-family definitio
     assertEquals(taken.body.success, false);
     // "All data" in any language is refused as a new label and as a rename:
     // the reserved scope is shown under its translated label.
-    for (const reserved of Object.values(TC.allData)) {
+    const lookalikes = [
+      "Toutes les donnees",
+      "Toutes les donne\u0301es",
+      "Toutes\u00a0les  données",
+      "All\u200b data",
+    ];
+    for (const reserved of [...Object.values(TC.allData), ...lookalikes]) {
       for (const label of [reserved, reserved.toUpperCase()]) {
         const createdAs = await call(app, "POST", "/scopes", {
           label,

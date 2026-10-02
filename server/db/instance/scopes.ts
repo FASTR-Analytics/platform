@@ -1,4 +1,5 @@
 import type { Sql } from "postgres";
+import { foldString } from "@timroberton/panther";
 import {
   ALL_DATA_SCOPE_ID,
   type APIResponseNoData,
@@ -27,9 +28,10 @@ const SCOPE_LABEL_EMPTY = "A scope needs a label";
 
 // The reserved scope is shown as the translated TC.allData, and the unique
 // index sees only its stored English label: a scope named "Toutes les
-// données" would be indistinguishable from it to a French user.
+// données" would be indistinguishable from it to a French user. Compared
+// folded, so a missing accent does not get past it either.
 const RESERVED_LABELS: ReadonlySet<string> = new Set(
-  Object.values(TC.allData).map((label) => label.toLowerCase()),
+  Object.values(TC.allData).map(foldString),
 );
 
 export async function listScopes(
@@ -65,7 +67,7 @@ export async function createScope(
 ): Promise<APIResponseWithData<{ scopeId: ScopeUuid }>> {
   return await tryCatchDatabaseAsync(async () => {
     const scopeId = crypto.randomUUID();
-    const label = args.label.trim();
+    const label = normaliseLabel(args.label);
     const definition = JSON.stringify(
       scopeDefinitionSchema.parse(args.definition),
     );
@@ -92,7 +94,7 @@ export async function updateScope(
     return { success: false, err: SCOPE_RESERVED };
   }
   return await tryCatchDatabaseAsync(async () => {
-    const label = args.label.trim();
+    const label = normaliseLabel(args.label);
     const definition = JSON.stringify(
       scopeDefinitionSchema.parse(args.definition),
     );
@@ -165,7 +167,7 @@ async function assertLabelFree(
   if (label === "") {
     throw new Error(SCOPE_LABEL_EMPTY);
   }
-  if (RESERVED_LABELS.has(label.toLowerCase())) {
+  if (RESERVED_LABELS.has(foldString(label))) {
     throw new Error(SCOPE_LABEL_RESERVED);
   }
   const taken = await sql`
@@ -176,4 +178,15 @@ async function assertLabelFree(
   if (taken.length > 0) {
     throw new Error(SCOPE_LABEL_TAKEN);
   }
+}
+
+// What a label is stored as: composed characters, no zero-width characters,
+// and single spaces. Two labels that look the same are then the same string
+// to the unique index and to the reserved-name check.
+function normaliseLabel(raw: string): string {
+  return raw
+    .normalize("NFC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
