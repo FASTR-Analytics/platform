@@ -2,12 +2,15 @@ import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import {
   AlertComponentProps,
   CollapsibleSection,
+  foldString,
   Icon,
   Input,
   LoadingIndicator,
+  matchesSearch,
   ModalContainer,
   openComponent,
   openConfirm,
+  searchTokens,
   TextArea,
 } from "panther";
 import { getLanguage, t3, TC } from "lib";
@@ -53,48 +56,52 @@ export function PromptLibraryModal(
 
   const currentUserEmail = () => instanceState.currentUserEmail;
 
-  const filteredCategories = createMemo(() => {
-    const search = searchText().toLowerCase().trim();
-    const cats = parseResult().categories;
-    if (!search) return cats;
-    return cats
-      .map((cat) => ({
+  // A prompt is searched by its title, content and category together. The
+  // folded text is built once per prompt list, not per keystroke.
+  const tokens = createMemo(() => searchTokens(searchText()));
+  const libraryCategories = createMemo(() =>
+    parseResult().categories.map((cat) => ({
+      cat,
+      prompts: cat.prompts.map((prompt) => ({
+        prompt,
+        folded: foldString([prompt.title, prompt.content, cat.title].join(" ")),
+      })),
+    }))
+  );
+  const searchableCustomPrompts = createMemo(() =>
+    customPrompts().map((prompt) => ({
+      prompt,
+      folded: foldString(
+        [prompt.name, prompt.content, prompt.category].join(" "),
+      ),
+    }))
+  );
+  const matchingCustomPrompts = createMemo(() =>
+    searchableCustomPrompts()
+      .filter((entry) => matchesSearch(entry.folded, tokens()))
+      .map((entry) => entry.prompt)
+  );
+
+  const filteredCategories = createMemo(() =>
+    libraryCategories()
+      .map(({ cat, prompts }) => ({
         ...cat,
-        prompts: cat.prompts.filter(
-          (pr) =>
-            pr.title.toLowerCase().includes(search) ||
-            pr.content.toLowerCase().includes(search) ||
-            cat.title.toLowerCase().includes(search),
-        ),
+        prompts: prompts
+          .filter((entry) => matchesSearch(entry.folded, tokens()))
+          .map((entry) => entry.prompt),
       }))
-      .filter((cat) => cat.prompts.length > 0);
-  });
+      .filter((cat) => tokens().length === 0 || cat.prompts.length > 0)
+  );
 
-  const myCustomPrompts = createMemo(() => {
-    const search = searchText().toLowerCase().trim();
-    const prompts = customPrompts().filter(
+  const myCustomPrompts = createMemo(() =>
+    matchingCustomPrompts().filter(
       (pr) => pr.scope === "user" && pr.createdBy === currentUserEmail(),
-    );
-    if (!search) return prompts;
-    return prompts.filter(
-      (pr) =>
-        pr.name.toLowerCase().includes(search) ||
-        pr.content.toLowerCase().includes(search) ||
-        pr.category.toLowerCase().includes(search),
-    );
-  });
+    )
+  );
 
-  const countryCustomPrompts = createMemo(() => {
-    const search = searchText().toLowerCase().trim();
-    const prompts = customPrompts().filter((pr) => pr.scope === "country");
-    if (!search) return prompts;
-    return prompts.filter(
-      (pr) =>
-        pr.name.toLowerCase().includes(search) ||
-        pr.content.toLowerCase().includes(search) ||
-        pr.category.toLowerCase().includes(search),
-    );
-  });
+  const countryCustomPrompts = createMemo(() =>
+    matchingCustomPrompts().filter((pr) => pr.scope === "country")
+  );
 
   async function loadCustomPrompts() {
     const res = await serverActions.getCustomPrompts({});
