@@ -64,9 +64,9 @@ type ScopeOptions = {
 // and indicators a definition may name. The editor offers what the pinned
 // package holds (the first ready package when nothing is pinned), read under
 // "All data" (the HFA categories and service categories with them), and the
-// HFA time points of the instance. With no ready package,
-// or when that read fails, the lists are empty and a definition keeps what it
-// already names: the editor's controls never depend on the read succeeding.
+// HFA time points of the instance. With no ready package, or when that read
+// fails, the lists are empty and a definition keeps what it already names:
+// the editor's controls never depend on the read succeeding.
 async function loadScopeOptions(): Promise<APIResponseWithData<ScopeOptions>> {
   const hfaTimePoints = instanceState.hfaTimePoints.map((tp) => ({
     value: tp.label,

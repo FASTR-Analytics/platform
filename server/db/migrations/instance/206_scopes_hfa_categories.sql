@@ -1,5 +1,5 @@
 -- A scope's HFA section gains two list dimensions, categories and service
--- categories (PLAN_SCOPES_HFA_CATEGORIES). Every included HFA section written
+-- categories (SYSTEM_08 "Scope"). Every included HFA section written
 -- before them (migration 204's seeds, and scopes authored since) gets both as
 -- null, which limits nothing and leaves the definition hash unchanged.
 

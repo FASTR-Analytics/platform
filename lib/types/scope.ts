@@ -4,12 +4,12 @@ import type { DatasetType } from "./datasets.ts";
 // A scope is a named, admin-created row in `scopes`: a label and a definition
 // with one section per dataset family. A section is excluded, or included
 // with that family's dimensions (area, years or time points, modules,
-// indicators, and for HFA categories and service categories). Inside an included section `null` means no limit on that
-// dimension and nothing else; the only way to drop a family is
-// `include: false`. A product carries a scope by id, and every figure read
-// resolves under the pair (package, scope). The server builds the definition
-// into the DuckDB view each query runs against (scopePredicateFor,
-// server/run_query/run_read.ts).
+// indicators, and for HFA categories and service categories). Inside an
+// included section `null` means no limit on that dimension and nothing else;
+// the only way to drop a family is `include: false`. A product carries a
+// scope by id, and every figure read resolves under the pair (package,
+// scope). The server builds the definition into the DuckDB view each query
+// runs against (scopePredicateFor, server/run_query/run_read.ts).
 
 // The one reserved scope: every section included, no dimension limited. Its
 // row is seeded by migration 204 and can be neither edited nor deleted.
