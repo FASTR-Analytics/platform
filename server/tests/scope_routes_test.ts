@@ -17,9 +17,14 @@ import {
   type Scope,
   type ScopeDefinition,
   type ScopeUuid,
+  TC,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
-import { getScope, SCOPE_RESERVED } from "../db/instance/scopes.ts";
+import {
+  getScope,
+  SCOPE_LABEL_RESERVED,
+  SCOPE_RESERVED,
+} from "../db/instance/scopes.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { routesScopes } from "../routes/instance/scopes.ts";
@@ -177,6 +182,28 @@ Deno.test("scope routes: All data is reserved, and only the per-family definitio
       definition: ALL_DATA_SCOPE_DEFINITION,
     });
     assertEquals(taken.body.success, false);
+    // "All data" in any language is refused as a new label and as a rename:
+    // the reserved scope is shown under its translated label.
+    for (const reserved of Object.values(TC.allData)) {
+      for (const label of [reserved, reserved.toUpperCase()]) {
+        const createdAs = await call(app, "POST", "/scopes", {
+          label,
+          definition: geographyOnlyScopeDefinition(`Routes Area ${tag}`),
+        });
+        assertEquals(createdAs.body, {
+          success: false,
+          err: SCOPE_LABEL_RESERVED,
+        });
+        const renamedTo = await call(app, "PUT", `/scopes/${scopeId}`, {
+          label,
+          definition: edited,
+        });
+        assertEquals(renamedTo.body, {
+          success: false,
+          err: SCOPE_LABEL_RESERVED,
+        });
+      }
+    }
     const unchanged = await getScope(mainDb, scopeId);
     assert(unchanged.success);
     assertEquals(unchanged.data.definition, edited);

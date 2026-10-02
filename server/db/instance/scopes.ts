@@ -10,6 +10,7 @@ import {
   scopeDefinitionSchema,
   type ScopeId,
   type ScopeUuid,
+  TC,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import type { DBScope } from "./_main_database_types.ts";
@@ -20,7 +21,16 @@ export const SCOPE_IN_USE =
 export const SCOPE_LABEL_TAKEN = "Another scope already has this label";
 export const SCOPE_RESERVED =
   'The "All data" scope cannot be edited or deleted';
+export const SCOPE_LABEL_RESERVED =
+  'A scope cannot be named "All data", in any language';
 const SCOPE_LABEL_EMPTY = "A scope needs a label";
+
+// The reserved scope is shown as the translated TC.allData, and the unique
+// index sees only its stored English label: a scope named "Toutes les
+// données" would be indistinguishable from it to a French user.
+const RESERVED_LABELS: ReadonlySet<string> = new Set(
+  Object.values(TC.allData).map((label) => label.toLowerCase()),
+);
 
 function rowToScope(row: DBScope): Scope {
   const definition = parseScopeDefinition(row.definition);
@@ -68,6 +78,9 @@ async function assertLabelFree(
 ): Promise<void> {
   if (label === "") {
     throw new Error(SCOPE_LABEL_EMPTY);
+  }
+  if (RESERVED_LABELS.has(label.toLowerCase())) {
+    throw new Error(SCOPE_LABEL_RESERVED);
   }
   const taken = await sql`
     SELECT 1 FROM scopes

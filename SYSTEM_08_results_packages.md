@@ -468,10 +468,13 @@ points, a list of HFA categories and a list of HFA service categories. Inside an
 included section null means no limit on that dimension. One scope is reserved:
 "All data", id `all-data`, with every section included and nothing limited; it
 is seeded by migration 204 (migration 206 adds the two HFA category lists to it
-as null) and can be neither edited nor deleted. A product carries exactly one
-scope, `products.scope_id`, named when the product is created and changed in
-product settings through `setProductScope` (product `edit` access). The entity,
-its routes and the screens that pick one are S12's ("Scopes"). Packages stay
+as null) and can be neither edited nor deleted. Its label is reserved in every
+language: it is shown as the translated `TC.allData`, so `createScope` and
+`updateScope` refuse a label equal to any language of it, case-insensitively
+(`SCOPE_LABEL_RESERVED`). A product carries exactly one scope,
+`products.scope_id`, named when the product is created and changed in product
+settings through `setProductScope` (product `edit` access). The entity, its
+routes and the screens that pick one are S12's ("Scopes"). Packages stay
 scope-blind: instance-level, immutable, no product FKs; one full package serving
 many products renders as each product's own view. A scope is independent of
 packages. The definition is applied at the run read layer as a predicate on the
