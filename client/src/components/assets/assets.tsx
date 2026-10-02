@@ -3,6 +3,7 @@ import {
   Button,
   createDeleteAction,
   FrameTop,
+  plural,
   Table,
   type TableColumn,
 } from "panther";
@@ -216,19 +217,20 @@ function AssetTable(p: {
     const assetFileNames = selected.map((a) => a.fileName);
     const deleteAction = createDeleteAction(
       {
-        text: assetFileNames.length === 1
-          ? t3({
+        text: plural(assetFileNames.length, {
+          one: t3({
             en: "Are you sure you want to delete this asset file?",
             fr: "Êtes-vous sûr de vouloir supprimer ce fichier ressource ?",
             pt:
               "Tem a certeza de que pretende eliminar este ficheiro de recurso?",
-          })
-          : t3({
+          }),
+          other: t3({
             en: "Are you sure you want to delete these asset files?",
             fr: "Êtes-vous sûr de vouloir supprimer ces fichiers ressources ?",
             pt:
               "Tem a certeza de que pretende eliminar estes ficheiros de recurso?",
           }),
+        }),
         itemList: assetFileNames,
       },
       () => serverActions.deleteAssets({ assetFileNames }),

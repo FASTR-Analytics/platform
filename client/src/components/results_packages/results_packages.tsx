@@ -11,6 +11,7 @@ import {
   createDeleteAction,
   FrameTop,
   openComponent,
+  plural,
   Table,
   type TableColumn,
 } from "panther";
@@ -120,16 +121,16 @@ export function InstanceResultsPackages() {
   async function handleBulkDelete(selected: RunCatalogItem[]): Promise<void> {
     const deleteAction = createDeleteAction(
       {
-        text: selected.length === 1
-          ? t3({
+        text: plural(selected.length, {
+          one: t3({
             en:
               "Delete this results package? Its files and cached results are permanently removed.",
             fr:
               "Supprimer ce paquet de résultats ? Ses fichiers et ses résultats mis en cache sont définitivement supprimés.",
             pt:
               "Eliminar este pacote de resultados? Os seus ficheiros e resultados em cache são removidos permanentemente.",
-          })
-          : t3({
+          }),
+          other: t3({
             en:
               "Delete these results packages? Their files and cached results are permanently removed.",
             fr:
@@ -137,6 +138,7 @@ export function InstanceResultsPackages() {
             pt:
               "Eliminar estes pacotes de resultados? Os seus ficheiros e resultados em cache são removidos permanentemente.",
           }),
+        }),
         itemList: selected.map((run) => run.label),
       },
       () => deleteRuns(selected),
