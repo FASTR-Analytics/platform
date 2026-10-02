@@ -17,26 +17,6 @@ import { broadcastRosterAndCloseStaleCollab } from "./users.ts";
 
 export const routesScopes = new Hono();
 
-function failureStatus(res: APIResponseNoData): 200 | 403 | 404 {
-  if (res.success) return 200;
-  return res.err === SCOPE_NOT_FOUND
-    ? 404
-    : res.err === SCOPE_RESERVED
-    ? 403
-    : 200;
-}
-
-// The write has committed, so a failed re-read is logged and swallowed, as
-// notifyInstanceProductsUpserted does.
-async function notifyScopes(mainDb: Sql): Promise<void> {
-  const res = await listScopes(mainDb);
-  if (!res.success) {
-    console.error(`[notify] scope list broadcast failed: ${res.err}`);
-    return;
-  }
-  notifyInstanceScopesUpdated(res.data);
-}
-
 defineRoute(
   routesScopes,
   "createScope",
@@ -47,7 +27,9 @@ defineRoute(
       ...body,
       createdBy: c.var.globalUser.email,
     });
-    if (res.success) await notifyScopes(c.var.mainDb);
+    if (res.success) {
+      await notifyScopes(c.var.mainDb);
+    }
     return c.json(res);
   },
 );
@@ -59,7 +41,9 @@ defineRoute(
   log("updateScope"),
   async (c, { params, body }) => {
     const res = await updateScope(c.var.mainDb, params.scope_id, body);
-    if (res.success) await notifyScopes(c.var.mainDb);
+    if (res.success) {
+      await notifyScopes(c.var.mainDb);
+    }
     return c.json(res, failureStatus(res));
   },
 );
@@ -80,3 +64,25 @@ defineRoute(
     return c.json(res, failureStatus(res));
   },
 );
+
+function failureStatus(res: APIResponseNoData): 200 | 403 | 404 {
+  if (res.success) {
+    return 200;
+  }
+  return res.err === SCOPE_NOT_FOUND
+    ? 404
+    : res.err === SCOPE_RESERVED
+    ? 403
+    : 200;
+}
+
+// The write has committed, so a failed re-read is logged and swallowed, as
+// notifyInstanceProductsUpserted does.
+async function notifyScopes(mainDb: Sql): Promise<void> {
+  const res = await listScopes(mainDb);
+  if (!res.success) {
+    console.error(`[notify] scope list broadcast failed: ${res.err}`);
+    return;
+  }
+  notifyInstanceScopesUpdated(res.data);
+}

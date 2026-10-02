@@ -285,11 +285,15 @@ type Canonical =
 // de-duplicated, and an area is upper-cased because the view predicate
 // compares it case-insensitively.
 function canonicalValue(value: unknown, key: string): Canonical | undefined {
-  if (value === null || value === undefined) return undefined;
+  if (value === null || value === undefined) {
+    return undefined;
+  }
   if (typeof value === "string") {
     return key === "adminArea2" ? value.toUpperCase() : value;
   }
-  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
   if (Array.isArray(value)) {
     return [...new Set(value.map(String))].toSorted();
   }
@@ -299,7 +303,9 @@ function canonicalValue(value: unknown, key: string): Canonical | undefined {
       (value as Record<string, unknown>)[childKey],
       childKey,
     );
-    if (child !== undefined) out[childKey] = child;
+    if (child !== undefined) {
+      out[childKey] = child;
+    }
   }
   return Object.keys(out).length === 0 ? undefined : out;
 }

@@ -298,7 +298,9 @@ export function canUseScope(access: ScopeAccess, scopeId: ScopeId): boolean {
 }
 
 export function scopeAccessEqual(a: ScopeAccess, b: ScopeAccess): boolean {
-  if (a.all || b.all) return a.all === b.all;
+  if (a.all || b.all) {
+    return a.all === b.all;
+  }
   const bIds = new Set(b.scopeIds);
   return a.scopeIds.length === bIds.size &&
     a.scopeIds.every((id) => bIds.has(id));

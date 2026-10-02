@@ -14,13 +14,15 @@ type Props = {
 // so the pair a document renders from is never something to hunt for.
 export function PackageScopeChip(p: Props) {
   const text = () => {
-    if (!p.product) return "";
+    if (!p.product) {
+      return "";
+    }
     return `${packageLabel(p.product.runId)} · ${
       scopeLabel(p.product.scopeId)
     }`;
   };
   const layout =
-    "inline-flex max-w-full min-w-0 items-center gap-1.5 rounded px-2 py-1 font-700 text-sm whitespace-nowrap";
+    "inline-flex max-w-full min-w-0 items-center ui-gap-sm rounded ui-pad-x-sm ui-pad-y-sm font-700 text-sm whitespace-nowrap";
   const content = () => (
     <>
       <span class="inline-block w-3.5 flex-none">

@@ -34,86 +34,6 @@ type ScopeRow = {
   productCount: number;
 };
 
-function countOf(
-  list: string[] | null,
-  one: string,
-  other: string,
-): string | undefined {
-  return list === null
-    ? undefined
-    : `${list.length} ${list.length === 1 ? one : other}`;
-}
-
-// One family's section in a few words: excluded, unlimited, or its limits.
-function describeSection(section: ScopeDefinition[DatasetType]): string {
-  if (!section.include) {
-    return t3({ en: "Excluded", fr: "Exclue", pt: "Excluída" });
-  }
-  const parts = [
-    "adminArea2" in section ? section.adminArea2 ?? undefined : undefined,
-    "years" in section && section.years !== null
-      ? `${section.years.start}–${section.years.end}`
-      : undefined,
-    "timePoints" in section && section.timePoints !== null
-      ? section.timePoints.join(", ")
-      : undefined,
-    countOf(
-      section.modules,
-      t3({ en: "module", fr: "module", pt: "módulo" }),
-      t3({ en: "modules", fr: "modules", pt: "módulos" }),
-    ),
-    countOf(
-      section.indicators,
-      t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
-      t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" }),
-    ),
-    "categories" in section
-      ? countOf(
-        section.categories,
-        t3({ en: "category", fr: "catégorie", pt: "categoria" }),
-        t3({ en: "categories", fr: "catégories", pt: "categorias" }),
-      )
-      : undefined,
-    "serviceCategories" in section
-      ? countOf(
-        section.serviceCategories,
-        t3({
-          en: "service category",
-          fr: "catégorie de service",
-          pt: "categoria de serviço",
-        }),
-        t3({
-          en: "service categories",
-          fr: "catégories de service",
-          pt: "categorias de serviço",
-        }),
-      )
-      : undefined,
-  ].filter((part) => part !== undefined);
-  return parts.length === 0
-    ? t3({ en: "No limits", fr: "Aucune limite", pt: "Sem limites" })
-    : parts.join("; ");
-}
-
-function productCountsByScope(): Map<ScopeId, number> {
-  const counts = new Map<ScopeId, number>();
-  for (const product of instanceState.products) {
-    counts.set(product.scopeId, (counts.get(product.scopeId) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function toRow(scope: Scope, counts: Map<ScopeId, number>): ScopeRow {
-  return {
-    id: scope.id,
-    label: scopeDisplayLabel(scope),
-    hmis: describeSection(scope.definition.hmis),
-    hfa: describeSection(scope.definition.hfa),
-    iceh: describeSection(scope.definition.iceh),
-    productCount: counts.get(scope.id) ?? 0,
-  };
-}
-
 type Props = EditorComponentProps<Record<never, never>, undefined>;
 
 // Scopes are created, edited and deleted here, by global admins only (the
@@ -201,4 +121,84 @@ export function ScopesPage(p: Props) {
       />
     </FrameTop>
   );
+}
+
+function countOf(
+  list: string[] | null,
+  one: string,
+  other: string,
+): string | undefined {
+  return list === null
+    ? undefined
+    : `${list.length} ${list.length === 1 ? one : other}`;
+}
+
+// One family's section in a few words: excluded, unlimited, or its limits.
+function describeSection(section: ScopeDefinition[DatasetType]): string {
+  if (!section.include) {
+    return t3({ en: "Excluded", fr: "Exclue", pt: "Excluída" });
+  }
+  const parts = [
+    "adminArea2" in section ? section.adminArea2 ?? undefined : undefined,
+    "years" in section && section.years !== null
+      ? `${section.years.start}–${section.years.end}`
+      : undefined,
+    "timePoints" in section && section.timePoints !== null
+      ? section.timePoints.join(", ")
+      : undefined,
+    countOf(
+      section.modules,
+      t3({ en: "module", fr: "module", pt: "módulo" }),
+      t3({ en: "modules", fr: "modules", pt: "módulos" }),
+    ),
+    countOf(
+      section.indicators,
+      t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
+      t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" }),
+    ),
+    "categories" in section
+      ? countOf(
+        section.categories,
+        t3({ en: "category", fr: "catégorie", pt: "categoria" }),
+        t3({ en: "categories", fr: "catégories", pt: "categorias" }),
+      )
+      : undefined,
+    "serviceCategories" in section
+      ? countOf(
+        section.serviceCategories,
+        t3({
+          en: "service category",
+          fr: "catégorie de service",
+          pt: "categoria de serviço",
+        }),
+        t3({
+          en: "service categories",
+          fr: "catégories de service",
+          pt: "categorias de serviço",
+        }),
+      )
+      : undefined,
+  ].filter((part) => part !== undefined);
+  return parts.length === 0
+    ? t3({ en: "No limits", fr: "Aucune limite", pt: "Sem limites" })
+    : parts.join("; ");
+}
+
+function productCountsByScope(): Map<ScopeId, number> {
+  const counts = new Map<ScopeId, number>();
+  for (const product of instanceState.products) {
+    counts.set(product.scopeId, (counts.get(product.scopeId) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function toRow(scope: Scope, counts: Map<ScopeId, number>): ScopeRow {
+  return {
+    id: scope.id,
+    label: scopeDisplayLabel(scope),
+    hmis: describeSection(scope.definition.hmis),
+    hfa: describeSection(scope.definition.hfa),
+    iceh: describeSection(scope.definition.iceh),
+    productCount: counts.get(scope.id) ?? 0,
+  };
 }

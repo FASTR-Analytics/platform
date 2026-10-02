@@ -32,17 +32,6 @@ const RESERVED_LABELS: ReadonlySet<string> = new Set(
   Object.values(TC.allData).map((label) => label.toLowerCase()),
 );
 
-function rowToScope(row: DBScope): Scope {
-  const definition = parseScopeDefinition(row.definition);
-  return {
-    id: row.id,
-    label: row.label,
-    definition,
-    definitionHash: scopeDefinitionHash(definition),
-    lastUpdated: row.last_updated,
-  };
-}
-
 export async function listScopes(
   mainDb: Sql,
 ): Promise<APIResponseWithData<Scope[]>> {
@@ -68,28 +57,6 @@ export async function getScope(
     }
     return { success: true, data: rowToScope(row) };
   });
-}
-
-// Labels are how a product picks a scope, so two scopes never share one.
-async function assertLabelFree(
-  sql: Sql,
-  label: string,
-  exceptScopeId: ScopeId | null,
-): Promise<void> {
-  if (label === "") {
-    throw new Error(SCOPE_LABEL_EMPTY);
-  }
-  if (RESERVED_LABELS.has(label.toLowerCase())) {
-    throw new Error(SCOPE_LABEL_RESERVED);
-  }
-  const taken = await sql`
-    SELECT 1 FROM scopes
-    WHERE LOWER(label) = LOWER(${label})
-      AND id IS DISTINCT FROM ${exceptScopeId}
-  `;
-  if (taken.length > 0) {
-    throw new Error(SCOPE_LABEL_TAKEN);
-  }
 }
 
 export async function createScope(
@@ -160,7 +127,9 @@ export async function deleteScope(
       const existing = await sql`
         SELECT 1 FROM scopes WHERE id = ${scopeId} FOR UPDATE
       `;
-      if (existing.length === 0) return SCOPE_NOT_FOUND;
+      if (existing.length === 0) {
+        return SCOPE_NOT_FOUND;
+      }
       const deleted = await sql`
         DELETE FROM scopes
         WHERE id = ${scopeId}
@@ -174,4 +143,37 @@ export async function deleteScope(
     }
     return { success: true };
   });
+}
+
+function rowToScope(row: DBScope): Scope {
+  const definition = parseScopeDefinition(row.definition);
+  return {
+    id: row.id,
+    label: row.label,
+    definition,
+    definitionHash: scopeDefinitionHash(definition),
+    lastUpdated: row.last_updated,
+  };
+}
+
+// Labels are how a product picks a scope, so two scopes never share one.
+async function assertLabelFree(
+  sql: Sql,
+  label: string,
+  exceptScopeId: ScopeId | null,
+): Promise<void> {
+  if (label === "") {
+    throw new Error(SCOPE_LABEL_EMPTY);
+  }
+  if (RESERVED_LABELS.has(label.toLowerCase())) {
+    throw new Error(SCOPE_LABEL_RESERVED);
+  }
+  const taken = await sql`
+    SELECT 1 FROM scopes
+    WHERE LOWER(label) = LOWER(${label})
+      AND id IS DISTINCT FROM ${exceptScopeId}
+  `;
+  if (taken.length > 0) {
+    throw new Error(SCOPE_LABEL_TAKEN);
+  }
 }

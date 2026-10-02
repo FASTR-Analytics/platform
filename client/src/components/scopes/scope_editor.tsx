@@ -43,6 +43,182 @@ type Props = {
   productCount: number;
 };
 
+// "All data" is the one reserved scope: the routes refuse to edit or delete
+// it, so it opens as a statement of what it is.
+export function AllDataScopeView(
+  p: AlertComponentProps<{ scope: Scope; productCount: number }, undefined>,
+) {
+  return (
+    <ModalContainer
+      title={scopeDisplayLabel(p.scope)}
+      width="md"
+      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
+    >
+      <div class="ui-spy">
+        <div>
+          {t3({
+            en:
+              "This scope is built in. It includes HMIS, HFA and ICEH data and limits nothing. It cannot be edited or deleted.",
+            fr:
+              "Cette portée est intégrée. Elle inclut les données HMIS, HFA et ICEH et ne limite rien. Elle ne peut être ni modifiée ni supprimée.",
+            pt:
+              "Este âmbito é incorporado. Inclui os dados HMIS, HFA e ICEH e não limita nada. Não pode ser editado nem eliminado.",
+          })}
+        </div>
+        <ProductCountLine productCount={p.productCount} reserved />
+      </div>
+    </ModalContainer>
+  );
+}
+
+export function ScopeEditor(
+  p: AlertComponentProps<Props, undefined>,
+) {
+  const stored = p.scope?.definition ?? ALL_DATA_SCOPE_DEFINITION;
+  const optionsQuery = createQuery(loadScopeOptions);
+
+  const [tempLabel, setTempLabel] = createSignal(p.scope?.label ?? "");
+  const drafts: Record<DatasetType, SectionDraft> = {
+    hmis: createSectionDraft(sectionFields(stored.hmis)),
+    hfa: createSectionDraft(sectionFields(stored.hfa)),
+    iceh: createSectionDraft(sectionFields(stored.iceh)),
+  };
+  const [tab, setTab] = createSignal<DatasetType>("hmis");
+  const tabs: Accessor<{ id: DatasetType; label: string }[]> = () =>
+    MODULE_FAMILY_ORDER.map((family) => ({
+      id: family,
+      label: getModuleFamilyLabel(family),
+    }));
+
+  const save = createFormAction(
+    async (e: MouseEvent) => {
+      e.preventDefault();
+      const label = tempLabel().trim();
+      if (label === "") {
+        return {
+          success: false,
+          err: t3({
+            en: "Enter a label",
+            fr: "Saisissez un libellé",
+            pt: "Introduza uma etiqueta",
+          }),
+        };
+      }
+      const definition = buildDefinition(drafts);
+      if (definition.success === false) {
+        return definition;
+      }
+      const body = { label, definition: definition.data };
+      return p.scope === undefined
+        ? await serverActions.createScope(body)
+        : await serverActions.updateScope({ scope_id: p.scope.id, ...body });
+    },
+    () => p.close(undefined),
+  );
+
+  const scopeId = p.scope?.id;
+  const attemptDelete = scopeId === undefined ? undefined : createDeleteAction(
+    t3({
+      en: "Are you sure you want to delete this scope?",
+      fr: "Êtes-vous sûr de vouloir supprimer cette portée ?",
+      pt: "Tem a certeza de que pretende eliminar este âmbito?",
+    }),
+    () => serverActions.deleteScope({ scope_id: scopeId }),
+    () => p.close(undefined),
+  );
+
+  return (
+    <ModalContainer
+      title={p.scope === undefined
+        ? t3({ en: "New scope", fr: "Nouvelle portée", pt: "Novo âmbito" })
+        : t3({
+          en: "Edit scope",
+          fr: "Modifier la portée",
+          pt: "Editar âmbito",
+        })}
+      width="lg"
+      height="lg"
+      form
+      onCancel={() => p.close(undefined)}
+      actions={[
+        ...(attemptDelete === undefined ? [] : [{
+          label: t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" }),
+          onClick: () => void attemptDelete.click(),
+          intent: "danger" as const,
+          outline: true,
+          disabled: p.productCount > 0,
+        }]),
+        {
+          label: t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
+          onClick: save.click,
+          state: save.state(),
+        },
+      ]}
+    >
+      <div class="ui-spy">
+        <Input
+          label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
+          value={tempLabel()}
+          onChange={setTempLabel}
+          autoFocus
+          fullWidth
+        />
+        <Show when={p.scope !== undefined}>
+          <ProductCountLine productCount={p.productCount} reserved={false} />
+        </Show>
+        <div class="text-base-content-muted text-sm">
+          {t3({
+            en:
+              "Each family has its own limits. A limit applies to a table only when the table has a column for it. A table without one is shown whole, unless its module is outside the family's module limit.",
+            fr:
+              "Chaque famille a ses propres limites. Une limite s'applique à un tableau seulement s'il a une colonne correspondante. Un tableau sans cette colonne est affiché en entier, sauf si son module est hors de la limite de modules de la famille.",
+            pt:
+              "Cada família tem os seus próprios limites. Um limite aplica-se a uma tabela apenas quando esta tem uma coluna correspondente. Uma tabela sem essa coluna é mostrada por inteiro, exceto se o seu módulo estiver fora do limite de módulos da família.",
+          })}
+        </div>
+        <TabsNavigation
+          items={tabs()}
+          value={tab()}
+          onChange={setTab}
+          noPad
+        />
+        <StateHolderWrapper state={optionsQuery.state()}>
+          {(options) => (
+            <>
+              <Show when={options.err}>
+                {(err) => (
+                  <div class="text-danger text-sm">
+                    {t3({
+                      en:
+                        "The modules and indicators of the current package could not be read, so none are offered:",
+                      fr:
+                        "Les modules et indicateurs du paquet actuel n'ont pas pu être lus, aucun n'est donc proposé :",
+                      pt:
+                        "Não foi possível ler os módulos e indicadores do pacote atual, pelo que nenhum é oferecido:",
+                    })} {err()}
+                  </div>
+                )}
+              </Show>
+              <Switch>
+                {MODULE_FAMILY_ORDER.map((family) => (
+                  <Match when={tab() === family}>
+                    <SectionTab
+                      family={family}
+                      draft={drafts[family]}
+                      options={options.families[family]}
+                      hfaOptions={options.hfa}
+                    />
+                  </Match>
+                ))}
+              </Switch>
+            </>
+          )}
+        </StateHolderWrapper>
+      </div>
+    </ModalContainer>
+  );
+}
+
 type Option = SelectOption<string>;
 
 type FamilyOptions = { modules: Option[]; indicators: Option[] };
@@ -84,11 +260,15 @@ async function loadScopeOptions(): Promise<APIResponseWithData<ScopeOptions>> {
   const pkg = instanceState.readyPackages.find(
     (p) => p.id === instanceState.pinnedRunId,
   ) ?? instanceState.readyPackages.at(0);
-  if (pkg === undefined) return empty(undefined);
+  if (pkg === undefined) {
+    return empty(undefined);
+  }
   const res = await getRunAuthoringContextFromCacheOrFetch(
     resolveScope({ runId: pkg.id, scopeId: ALL_DATA_SCOPE_ID }),
   );
-  if (res.success === false) return empty(res.err);
+  if (res.success === false) {
+    return empty(res.err);
+  }
   const withId = (o: { id: string; label: string }) => ({
     value: o.id,
     label: `${o.label} (${o.id})`,
@@ -273,7 +453,9 @@ const HAS_YEARS: Record<DatasetType, boolean> = {
 
 function draftArea(draft: SectionDraft): APIResponseWithData<string | null> {
   const area = draft.area();
-  if (area.mode === "all") return { success: true, data: null };
+  if (area.mode === "all") {
+    return { success: true, data: null };
+  }
   return area.adminArea2 === undefined
     ? {
       success: false,
@@ -314,58 +496,108 @@ function buildDefinition(
     success: false as const,
     err: `${getModuleFamilyLabel(family)}: ${err}`,
   });
-  const common = (family: DatasetType) => {
-    const modules = draftList(drafts[family].modules());
-    if (modules.success === false) return failed(family, modules.err);
-    const indicators = draftList(drafts[family].indicators());
-    if (indicators.success === false) return failed(family, indicators.err);
-    return {
-      success: true as const,
-      data: {
-        include: true as const,
-        modules: modules.data,
-        indicators: indicators.data,
-      },
-    };
-  };
-
-  let hmis: ScopeDefinition["hmis"] = { include: false };
-  if (drafts.hmis.include()) {
-    const base = common("hmis");
-    if (base.success === false) return base;
-    const area = draftArea(drafts.hmis);
-    if (area.success === false) return failed("hmis", area.err);
-    hmis = { ...base.data, adminArea2: area.data, years: drafts.hmis.years() };
+  const hmis = buildHmisSection(drafts.hmis);
+  if (hmis.success === false) {
+    return failed("hmis", hmis.err);
   }
-  let hfa: ScopeDefinition["hfa"] = { include: false };
-  if (drafts.hfa.include()) {
-    const base = common("hfa");
-    if (base.success === false) return base;
-    const area = draftArea(drafts.hfa);
-    if (area.success === false) return failed("hfa", area.err);
-    const timePoints = draftList(drafts.hfa.timePoints());
-    if (timePoints.success === false) return failed("hfa", timePoints.err);
-    const categories = draftList(drafts.hfa.categories());
-    if (categories.success === false) return failed("hfa", categories.err);
-    const serviceCategories = draftList(drafts.hfa.serviceCategories());
-    if (serviceCategories.success === false) {
-      return failed("hfa", serviceCategories.err);
-    }
-    hfa = {
+  const hfa = buildHfaSection(drafts.hfa);
+  if (hfa.success === false) {
+    return failed("hfa", hfa.err);
+  }
+  const iceh = buildIcehSection(drafts.iceh);
+  if (iceh.success === false) {
+    return failed("iceh", iceh.err);
+  }
+  return {
+    success: true,
+    data: { hmis: hmis.data, hfa: hfa.data, iceh: iceh.data },
+  };
+}
+
+type BuiltSection<F extends DatasetType> = APIResponseWithData<
+  ScopeDefinition[F]
+>;
+
+function buildCommonLimits(draft: SectionDraft): APIResponseWithData<
+  { include: true; modules: string[] | null; indicators: string[] | null }
+> {
+  const modules = draftList(draft.modules());
+  if (modules.success === false) {
+    return modules;
+  }
+  const indicators = draftList(draft.indicators());
+  if (indicators.success === false) {
+    return indicators;
+  }
+  return {
+    success: true,
+    data: { include: true, modules: modules.data, indicators: indicators.data },
+  };
+}
+
+function buildHmisSection(draft: SectionDraft): BuiltSection<"hmis"> {
+  if (!draft.include()) {
+    return { success: true, data: { include: false } };
+  }
+  const base = buildCommonLimits(draft);
+  if (base.success === false) {
+    return base;
+  }
+  const area = draftArea(draft);
+  if (area.success === false) {
+    return area;
+  }
+  return {
+    success: true,
+    data: { ...base.data, adminArea2: area.data, years: draft.years() },
+  };
+}
+
+function buildHfaSection(draft: SectionDraft): BuiltSection<"hfa"> {
+  if (!draft.include()) {
+    return { success: true, data: { include: false } };
+  }
+  const base = buildCommonLimits(draft);
+  if (base.success === false) {
+    return base;
+  }
+  const area = draftArea(draft);
+  if (area.success === false) {
+    return area;
+  }
+  const timePoints = draftList(draft.timePoints());
+  if (timePoints.success === false) {
+    return timePoints;
+  }
+  const categories = draftList(draft.categories());
+  if (categories.success === false) {
+    return categories;
+  }
+  const serviceCategories = draftList(draft.serviceCategories());
+  if (serviceCategories.success === false) {
+    return serviceCategories;
+  }
+  return {
+    success: true,
+    data: {
       ...base.data,
       adminArea2: area.data,
       timePoints: timePoints.data,
       categories: categories.data,
       serviceCategories: serviceCategories.data,
-    };
+    },
+  };
+}
+
+function buildIcehSection(draft: SectionDraft): BuiltSection<"iceh"> {
+  if (!draft.include()) {
+    return { success: true, data: { include: false } };
   }
-  let iceh: ScopeDefinition["iceh"] = { include: false };
-  if (drafts.iceh.include()) {
-    const base = common("iceh");
-    if (base.success === false) return base;
-    iceh = { ...base.data, years: drafts.iceh.years() };
+  const base = buildCommonLimits(draft);
+  if (base.success === false) {
+    return base;
   }
-  return { success: true, data: { hmis, hfa, iceh } };
+  return { success: true, data: { ...base.data, years: draft.years() } };
 }
 
 // One family's tab: the include switch, then that family's own dimensions.
@@ -463,7 +695,7 @@ function SectionTab(p: {
                       p.draft.setYears((prev) => prev && { ...prev, end })}
                     fullWidth
                   />
-                  <div class="pt-3">
+                  <div class="ui-pad-t-sm">
                     {years().start} {t3({ en: "to", fr: "à", pt: "a" })}{" "}
                     {years().end}
                   </div>
@@ -540,14 +772,14 @@ function ProductCountLine(p: { productCount: number; reserved: boolean }) {
             pt: "Nenhum produto tem este âmbito.",
           })}
         </Match>
-        <Match when={p.reserved}>
+        <Match when={p.productCount > 0 && p.reserved}>
           {t3({
             en: `${p.productCount} product(s) carry this scope.`,
             fr: `${p.productCount} produit(s) portent cette portée.`,
             pt: `${p.productCount} produto(s) têm este âmbito.`,
           })}
         </Match>
-        <Match when={true}>
+        <Match when={p.productCount > 0 && !p.reserved}>
           {t3({
             en:
               `${p.productCount} product(s) carry this scope, so it cannot be deleted. Changing what it limits marks every visualization in them as out of date.`,
@@ -559,179 +791,5 @@ function ProductCountLine(p: { productCount: number; reserved: boolean }) {
         </Match>
       </Switch>
     </div>
-  );
-}
-
-// "All data" is the one reserved scope: the routes refuse to edit or delete
-// it, so it opens as a statement of what it is.
-export function AllDataScopeView(
-  p: AlertComponentProps<{ scope: Scope; productCount: number }, undefined>,
-) {
-  return (
-    <ModalContainer
-      title={scopeDisplayLabel(p.scope)}
-      width="md"
-      onClose={{ kind: "close", onClick: () => p.close(undefined) }}
-    >
-      <div class="ui-spy">
-        <div>
-          {t3({
-            en:
-              "This scope is built in. It includes HMIS, HFA and ICEH data and limits nothing. It cannot be edited or deleted.",
-            fr:
-              "Cette portée est intégrée. Elle inclut les données HMIS, HFA et ICEH et ne limite rien. Elle ne peut être ni modifiée ni supprimée.",
-            pt:
-              "Este âmbito é incorporado. Inclui os dados HMIS, HFA e ICEH e não limita nada. Não pode ser editado nem eliminado.",
-          })}
-        </div>
-        <ProductCountLine productCount={p.productCount} reserved />
-      </div>
-    </ModalContainer>
-  );
-}
-
-export function ScopeEditor(
-  p: AlertComponentProps<Props, undefined>,
-) {
-  const stored = p.scope?.definition ?? ALL_DATA_SCOPE_DEFINITION;
-  const optionsQuery = createQuery(loadScopeOptions);
-
-  const [tempLabel, setTempLabel] = createSignal(p.scope?.label ?? "");
-  const drafts: Record<DatasetType, SectionDraft> = {
-    hmis: createSectionDraft(sectionFields(stored.hmis)),
-    hfa: createSectionDraft(sectionFields(stored.hfa)),
-    iceh: createSectionDraft(sectionFields(stored.iceh)),
-  };
-  const [tab, setTab] = createSignal<DatasetType>("hmis");
-  const tabs: Accessor<{ id: DatasetType; label: string }[]> = () =>
-    MODULE_FAMILY_ORDER.map((family) => ({
-      id: family,
-      label: getModuleFamilyLabel(family),
-    }));
-
-  const save = createFormAction(
-    async (e: MouseEvent) => {
-      e.preventDefault();
-      const label = tempLabel().trim();
-      if (label === "") {
-        return {
-          success: false,
-          err: t3({
-            en: "Enter a label",
-            fr: "Saisissez un libellé",
-            pt: "Introduza uma etiqueta",
-          }),
-        };
-      }
-      const definition = buildDefinition(drafts);
-      if (definition.success === false) return definition;
-      const body = { label, definition: definition.data };
-      return p.scope === undefined
-        ? await serverActions.createScope(body)
-        : await serverActions.updateScope({ scope_id: p.scope.id, ...body });
-    },
-    () => p.close(undefined),
-  );
-
-  const scopeId = p.scope?.id;
-  const attemptDelete = scopeId === undefined ? undefined : createDeleteAction(
-    t3({
-      en: "Are you sure you want to delete this scope?",
-      fr: "Êtes-vous sûr de vouloir supprimer cette portée ?",
-      pt: "Tem a certeza de que pretende eliminar este âmbito?",
-    }),
-    () => serverActions.deleteScope({ scope_id: scopeId }),
-    () => p.close(undefined),
-  );
-
-  return (
-    <ModalContainer
-      title={p.scope === undefined
-        ? t3({ en: "New scope", fr: "Nouvelle portée", pt: "Novo âmbito" })
-        : t3({
-          en: "Edit scope",
-          fr: "Modifier la portée",
-          pt: "Editar âmbito",
-        })}
-      width="lg"
-      height="lg"
-      form
-      onCancel={() => p.close(undefined)}
-      actions={[
-        ...(attemptDelete === undefined ? [] : [{
-          label: t3({ en: "Delete", fr: "Supprimer", pt: "Eliminar" }),
-          onClick: () => void attemptDelete.click(),
-          intent: "danger" as const,
-          outline: true,
-          disabled: p.productCount > 0,
-        }]),
-        {
-          label: t3({ en: "Save", fr: "Enregistrer", pt: "Guardar" }),
-          onClick: save.click,
-          state: save.state(),
-        },
-      ]}
-    >
-      <div class="ui-spy">
-        <Input
-          label={t3({ en: "Label", fr: "Libellé", pt: "Etiqueta" })}
-          value={tempLabel()}
-          onChange={setTempLabel}
-          autoFocus
-          fullWidth
-        />
-        <Show when={p.scope !== undefined}>
-          <ProductCountLine productCount={p.productCount} reserved={false} />
-        </Show>
-        <div class="text-base-content-muted text-sm">
-          {t3({
-            en:
-              "Each family has its own limits. A limit applies to a table only when the table has a column for it. A table without one is shown whole, unless its module is outside the family's module limit.",
-            fr:
-              "Chaque famille a ses propres limites. Une limite s'applique à un tableau seulement s'il a une colonne correspondante. Un tableau sans cette colonne est affiché en entier, sauf si son module est hors de la limite de modules de la famille.",
-            pt:
-              "Cada família tem os seus próprios limites. Um limite aplica-se a uma tabela apenas quando esta tem uma coluna correspondente. Uma tabela sem essa coluna é mostrada por inteiro, exceto se o seu módulo estiver fora do limite de módulos da família.",
-          })}
-        </div>
-        <TabsNavigation
-          items={tabs()}
-          value={tab()}
-          onChange={setTab}
-          noPad
-        />
-        <StateHolderWrapper state={optionsQuery.state()}>
-          {(options) => (
-            <>
-              <Show when={options.err}>
-                {(err) => (
-                  <div class="text-danger text-sm">
-                    {t3({
-                      en:
-                        "The modules and indicators of the current package could not be read, so none are offered:",
-                      fr:
-                        "Les modules et indicateurs du paquet actuel n'ont pas pu être lus, aucun n'est donc proposé :",
-                      pt:
-                        "Não foi possível ler os módulos e indicadores do pacote atual, pelo que nenhum é oferecido:",
-                    })} {err()}
-                  </div>
-                )}
-              </Show>
-              <Switch>
-                {MODULE_FAMILY_ORDER.map((family) => (
-                  <Match when={tab() === family}>
-                    <SectionTab
-                      family={family}
-                      draft={drafts[family]}
-                      options={options.families[family]}
-                      hfaOptions={options.hfa}
-                    />
-                  </Match>
-                ))}
-              </Switch>
-            </>
-          )}
-        </StateHolderWrapper>
-      </div>
-    </ModalContainer>
   );
 }

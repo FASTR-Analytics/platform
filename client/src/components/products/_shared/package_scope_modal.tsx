@@ -103,7 +103,9 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
           product_id: p.product.id,
           runId: tempRunId(),
         });
-        if (!res.success) return res;
+        if (!res.success) {
+          return res;
+        }
         lastUpdated = res.data.lastUpdated;
       }
       if (tempScopeId() !== p.product.scopeId) {
@@ -111,7 +113,9 @@ export function PackageScopeModal(p: AlertComponentProps<Props, ReturnType>) {
           product_id: p.product.id,
           scopeId: tempScopeId(),
         });
-        if (!res.success) return res;
+        if (!res.success) {
+          return res;
+        }
         lastUpdated = res.data.lastUpdated;
       }
       return { success: true, data: { lastUpdated } };

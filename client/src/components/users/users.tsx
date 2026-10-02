@@ -233,7 +233,9 @@ function summariseLabels(labels: string[]): string {
 }
 
 function getScopeLabels(user: UserData): string[] {
-  if (user.scopeAccess.all) return [];
+  if (user.scopeAccess.all) {
+    return [];
+  }
   const scopeIds: ReadonlySet<ScopeId> = new Set(user.scopeAccess.scopeIds);
   return instanceState.scopes
     .filter((s) => scopeIds.has(s.id))
