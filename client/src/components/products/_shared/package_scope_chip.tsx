@@ -22,7 +22,7 @@ export function PackageScopeChip(p: Props) {
     }`;
   };
   const layout =
-    "inline-flex max-w-full min-w-0 items-center ui-gap-sm rounded ui-pad-x-sm ui-pad-y-sm font-700 text-sm whitespace-nowrap";
+    "inline-flex max-w-full min-w-0 items-center ui-gap-sm ui-form-pad-sm rounded font-700 text-sm whitespace-nowrap";
   const content = () => (
     <>
       <span class="inline-block w-3.5 flex-none">
