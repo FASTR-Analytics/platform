@@ -59,6 +59,7 @@ import {
   MarkdownPresentationJsx,
   openAlert,
   openComponent,
+  plural,
   Select,
 } from "panther";
 import {
@@ -1401,20 +1402,28 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
     }
     if (res.skipped.length > 0) {
       const lines = formatLineRanges(res.skipped);
-      const one = res.skipped.length === 1;
+      // One skipped change can still span several lines.
+      const where = res.skipped[0].fromLine === res.skipped[0].toLine
+        ? t3({ en: "on line", fr: "à la ligne", pt: "na linha" })
+        : t3({ en: "on lines", fr: "aux lignes", pt: "nas linhas" });
       void openAlert({
-        text: t3({
-          en: `The AI's change${one ? "" : "s"} on line${
-            one && res.skipped[0].fromLine === res.skipped[0].toLine ? "" : "s"
-          } ${lines} ${
-            one ? "was" : "were"
-          } not applied because a collaborator is editing that text. Re-run the AI if you still want ${
-            one ? "it" : "them"
-          }.`,
-          fr:
-            `La ou les modifications de l'IA aux lignes ${lines} n'ont pas été appliquées car un collaborateur modifie ce texte. Relancez l'IA si vous les souhaitez toujours.`,
-          pt:
-            `A(s) alteração(ões) da IA na(s) linha(s) ${lines} não foi/foram aplicada(s) porque um colaborador está a editar esse texto. Volte a executar a IA se ainda a(s) quiser.`,
+        text: plural(res.skipped.length, {
+          one: t3({
+            en:
+              `The AI's change ${where} ${lines} was not applied because a collaborator is editing that text. Re-run the AI if you still want it.`,
+            fr:
+              `La modification de l'IA ${where} ${lines} n'a pas été appliquée car un collaborateur modifie ce texte. Relancez l'IA si vous la souhaitez toujours.`,
+            pt:
+              `A alteração da IA ${where} ${lines} não foi aplicada porque um colaborador está a editar esse texto. Volte a executar a IA se ainda a quiser.`,
+          }),
+          other: t3({
+            en:
+              `The AI's changes on lines ${lines} were not applied because a collaborator is editing that text. Re-run the AI if you still want them.`,
+            fr:
+              `Les modifications de l'IA aux lignes ${lines} n'ont pas été appliquées car un collaborateur modifie ce texte. Relancez l'IA si vous les souhaitez toujours.`,
+            pt:
+              `As alterações da IA nas linhas ${lines} não foram aplicadas porque um colaborador está a editar esse texto. Volte a executar a IA se ainda as quiser.`,
+          }),
         }),
       });
     }
