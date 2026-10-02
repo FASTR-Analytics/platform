@@ -11,12 +11,9 @@ import {
 } from "../../db/instance/scopes.ts";
 import { log } from "../../middleware/logging.ts";
 import { requireGlobalPermission } from "../../middleware/mod.ts";
-import { getInstanceUsers } from "../../db/instance/instance.ts";
-import {
-  notifyInstanceScopesUpdated,
-  notifyInstanceUsersUpdated,
-} from "../../task_management/notify_instance_updated.ts";
+import { notifyInstanceScopesUpdated } from "../../task_management/notify_instance_updated.ts";
 import { defineRoute } from "../route-helpers.ts";
+import { broadcastRosterAndCloseStaleCollab } from "./users.ts";
 
 export const routesScopes = new Hono();
 
@@ -78,7 +75,7 @@ defineRoute(
       await notifyScopes(c.var.mainDb);
       // The delete cascaded the scope's grants (user_scopes), so the roster's
       // scope access changed for every user who held it.
-      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+      await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
     }
     return c.json(res, failureStatus(res));
   },

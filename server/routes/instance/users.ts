@@ -69,7 +69,9 @@ export const routesUsers = new Hono();
 // reconnects and subscribes under the new access (R29). The instance stream
 // ends itself on the same roster (instance-sse.ts). On an open-access
 // instance every connection has every scope whatever its row says.
-async function broadcastRosterAndCloseStaleCollab(mainDb: Sql): Promise<void> {
+export async function broadcastRosterAndCloseStaleCollab(
+  mainDb: Sql,
+): Promise<void> {
   const users = await getInstanceUsers(mainDb);
   notifyInstanceUsersUpdated(users);
   if (_OPEN_ACCESS) return;
