@@ -672,20 +672,31 @@ absent when its dimension is not limited (null), when the section has no such
 dimension, or when it does not apply. Every value is escaped with
 `escapeSqlLiteral`.
 
-| Dimension   | Sections   | Results object has                                    | Part                                                                                |
-| ----------- | ---------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Family      | all        | a module whose section is excluded                    | `FALSE`                                                                             |
-| Modules     | all        | a `moduleId` outside the section's `modules`          | `FALSE`                                                                             |
-| Geography   | HMIS, HFA  | `admin_area_2`                                        | `UPPER(admin_area_2) = UPPER('<aa2>')`                                              |
-|             |            | only `admin_area_3` or `admin_area_4`                 | the child column `IN` a subquery on the family's own facilities view                |
-|             |            | a child column, but no facilities view for the family | `FALSE`, the one exception to the principle                                         |
-|             |            | none of the three admin columns                       | none                                                                                |
-| Years       | HMIS, ICEH | `period_id`, `quarter_id` or `year`                   | `<column> BETWEEN <start> AND <end>`, the years converted with `convertPeriodValue` |
-|             |            | no physical time column                               | none                                                                                |
-| Time points | HFA        | `time_point`                                          | `CAST(time_point AS VARCHAR) IN (...)`                                              |
-|             |            | no `time_point`                                       | none                                                                                |
-| Indicators  | all        | the family's indicator column                         | `CAST(<column> AS VARCHAR) IN (...)` from the section's `indicators`                |
-|             |            | no such column                                        | none                                                                                |
+| Dimension          | Sections   | Results object has                                    | Part                                                                                |
+| ------------------ | ---------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Family             | all        | a module whose section is excluded                    | `FALSE`                                                                             |
+| Modules            | all        | a `moduleId` outside the section's `modules`          | `FALSE`                                                                             |
+| Geography          | HMIS, HFA  | `admin_area_2`                                        | `UPPER(admin_area_2) = UPPER('<aa2>')`                                              |
+|                    |            | only `admin_area_3` or `admin_area_4`                 | the child column `IN` a subquery on the family's own facilities view                |
+|                    |            | a child column, but no facilities view for the family | `FALSE`, the one exception to the principle                                         |
+|                    |            | none of the three admin columns                       | none                                                                                |
+| Years              | HMIS, ICEH | `period_id`, `quarter_id` or `year`                   | `<column> BETWEEN <start> AND <end>`, the years converted with `convertPeriodValue` |
+|                    |            | no physical time column                               | none                                                                                |
+| Time points        | HFA        | `time_point`                                          | `CAST(time_point AS VARCHAR) IN (...)`                                              |
+|                    |            | no `time_point`                                       | none                                                                                |
+| Indicators         | all        | the family's indicator column                         | `CAST(<column> AS VARCHAR) IN (...)` from the section's `indicators`                |
+|                    |            | no such column                                        | none                                                                                |
+| Categories         | HFA        | `hfa_category`                                        | `CAST(hfa_category AS VARCHAR) IN (...)`                                            |
+|                    |            | no `hfa_category`                                     | none                                                                                |
+| Service categories | HFA        | `hfa_service_category`                                | `string_to_array(UPPER(hfa_service_category), '\|') && ARRAY[<upper-cased ids>]`    |
+|                    |            | no `hfa_service_category`                             | none                                                                                |
+
+`hfa_service_category` is a set column: its cell is a delimiter-joined set of
+ids (`MULTI_MEMBERSHIP_DELIMITER`), so its part is the engine's own filter form
+for such a column, set overlap with both sides upper-cased. A row passes when
+its set shares at least one id with the list, and is served as it is, with its
+other memberships. A blank cell fails the part, as it fails any list part. The
+category, service-category and indicator lists are ANDed like every other part.
 
 The indicator column is the family's own (`SCOPE_INDICATOR_COLUMN`,
 `lib/types/scope.ts`): `indicator_common_id` for HMIS, `hfa_indicator` for HFA,

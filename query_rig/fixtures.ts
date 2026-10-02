@@ -1137,8 +1137,9 @@ export const F16_HMIS_SCOPE_DIMS: Fixture = {
   firstPeriodOption: "period_id",
 };
 
-// F17: the HFA shape, time_point and hfa_indicator and no physical time
-// column, so a year range does not apply to it.
+// F17: the HFA shape, time_point, hfa_indicator, hfa_category and the set
+// column hfa_service_category (one cell blank), and no physical time column,
+// so a year range does not apply to it.
 // By admin_area_2: A2_north = 19, A2_south = 12.
 export const F17_HFA_SCOPE_DIMS: Fixture = {
   name: "hfa_scope_dims",
@@ -1156,6 +1157,8 @@ export const F17_HFA_SCOPE_DIMS: Fixture = {
     { name: "admin_area_2", type: "TEXT" },
     { name: "time_point", type: "TEXT" },
     { name: "hfa_indicator", type: "TEXT" },
+    { name: "hfa_category", type: "TEXT" },
+    { name: "hfa_service_category", type: "TEXT" },
     { name: "value", type: "NUMERIC" },
   ],
   roRows: [
@@ -1163,30 +1166,40 @@ export const F17_HFA_SCOPE_DIMS: Fixture = {
       admin_area_2: "A2_north",
       time_point: "baseline",
       hfa_indicator: "ind_a",
+      hfa_category: "infra",
+      hfa_service_category: "rmnch|nutrition",
       value: 1,
     },
     {
       admin_area_2: "A2_north",
       time_point: "midline",
       hfa_indicator: "ind_a",
+      hfa_category: "infra",
+      hfa_service_category: "rmnch",
       value: 2,
     },
     {
       admin_area_2: "A2_south",
       time_point: "baseline",
       hfa_indicator: "ind_b",
+      hfa_category: "staff",
+      hfa_service_category: null,
       value: 4,
     },
     {
       admin_area_2: "A2_south",
       time_point: "endline",
       hfa_indicator: "ind_b",
+      hfa_category: "staff",
+      hfa_service_category: "malaria|nutrition",
       value: 8,
     },
     {
       admin_area_2: "A2_north",
       time_point: "endline",
       hfa_indicator: "ind_b",
+      hfa_category: "infra",
+      hfa_service_category: "malaria|rmnch",
       value: 16,
     },
   ],

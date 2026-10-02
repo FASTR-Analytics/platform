@@ -145,6 +145,14 @@ Deno.test("scope routes: All data is reserved, and only the per-family definitio
         hfa: { ...ALL_DATA_SCOPE_DEFINITION.hfa, timePoints: [] },
       },
       {
+        ...ALL_DATA_SCOPE_DEFINITION,
+        hfa: { ...ALL_DATA_SCOPE_DEFINITION.hfa, categories: [] },
+      },
+      {
+        ...ALL_DATA_SCOPE_DEFINITION,
+        hfa: { ...ALL_DATA_SCOPE_DEFINITION.hfa, serviceCategories: [] },
+      },
+      {
         geography: null,
         time: { years: null, hfaTimePoints: null },
         modules: null,

@@ -86,15 +86,17 @@ for HMIS and ICEH, whose track runs from 2000 to the current year in the
 calendar the family's years are stored in (`yearBounds`: the instance calendar
 for HMIS, through `periodIdForDate`, so 1992 to the current Ethiopian year on an
 Ethiopian-calendar instance; Gregorian for ICEH, whose years are the survey
-years of the ICEH export); a time-point list for HFA; and that family's module
-list and indicator list. Each list is a checkbox ("Limit ...") over a
-`MultiSelectSearch`: unchecked stores null (no limit), checked stores the list.
-Save refuses an empty label and, in any included section, a single-area choice
-with no area, and a checked limit with nothing selected (the schema refuses an
-empty list: leaving the family out is how a scope shows none of it). The refusal
-names the family, since its tab may not be the open one. `scopeDefinitionSchema`
-holds years to four digits, because the view predicate's year conversion reads a
-value's format off its digit count.
+years of the ICEH export); for HFA a time-point list, a category list and a
+service-category list; and that family's module list and indicator list. The
+scopes table's HFA cell counts the two category lists beside the modules and
+indicators. Each list is a checkbox ("Limit ...") over a `MultiSelectSearch`:
+unchecked stores null (no limit), checked stores the list. Save refuses an empty
+label and, in any included section, a single-area choice with no area, and a
+checked limit with nothing selected (the schema refuses an empty list: leaving
+the family out is how a scope shows none of it). The refusal names the family,
+since its tab may not be the open one. `scopeDefinitionSchema` holds years to
+four digits, because the view predicate's year conversion reads a value's format
+off its digit count.
 
 The editor is one snapshot of the scope it opened: each list is copied out of
 the T1 store row, so a `scopes_updated` that arrives while it is open changes
@@ -104,14 +106,15 @@ Where the options come from: each family's areas from its own structure registry
 (`listAdminArea2s`); HFA time points from `instanceState.hfaTimePoints` (the
 `time_point` column holds the label); each family's modules and indicators from
 the authoring context of the pinned package, or the first ready package when
-nothing is pinned, read under "All data" (modules by their declared family). A
-scope is independent of packages, so that list is an aid and not a constraint:
-with no ready package the lists are empty, and when the read fails the editor
-says so and still shows every control with empty lists. A stored value the
-offered options lack (an orphaned area, a module the offered package does not
-hold) is shown as an annotated option and kept on save. The option lists are
-computed once per open tab, since a list that changed under the control would
-reset it.
+nothing is pinned, read under "All data" (modules by their declared family), and
+the HFA categories and service categories from that same context's
+`hfaTaxonomy`. A scope is independent of packages, so that list is an aid and
+not a constraint: with no ready package the lists are empty, and when the read
+fails the editor says so and still shows every control with empty lists. A
+stored value the offered options lack (an orphaned area, a module the offered
+package does not hold) is shown as an annotated option and kept on save. The
+option lists are computed once per open tab, since a list that changed under the
+control would reset it.
 
 Delete is offered on an existing scope and disabled while a product carries it
 (`deleteScope` refuses that server-side too). The editor states the product

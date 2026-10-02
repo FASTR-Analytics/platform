@@ -32,6 +32,8 @@ const FULL = {
     indicators: ["water"],
     adminArea2: "Kano State",
     timePoints: ["r1", "r2"],
+    categories: ["infra", "staff"],
+    serviceCategories: ["rmnch", "malaria"],
   },
   iceh: {
     include: true,
@@ -79,6 +81,8 @@ Deno.test("hash: stable across key order", () => {
       include: true,
     },
     hfa: {
+      serviceCategories: ["rmnch", "malaria"],
+      categories: ["infra", "staff"],
       timePoints: ["r1", "r2"],
       adminArea2: "Kano State",
       indicators: ["water"],
@@ -104,7 +108,12 @@ Deno.test("hash: stable across list order and duplicates", () => {
       modules: ["m002", "m001"],
       indicators: ["penta3", "anc1", "anc1"],
     },
-    hfa: { ...FULL.hfa, timePoints: ["r2", "r1", "r2"] },
+    hfa: {
+      ...FULL.hfa,
+      timePoints: ["r2", "r1", "r2"],
+      categories: ["staff", "infra", "staff"],
+      serviceCategories: ["malaria", "rmnch", "rmnch"],
+    },
   };
   assertEquals(scopeDefinitionHash(shuffled), scopeDefinitionHash(FULL));
 });
@@ -145,6 +154,18 @@ Deno.test("hash: each section and each dimension moves it", () => {
     { ...FULL, hmis: { ...FULL.hmis, indicators: ["anc1"] } },
     { ...FULL, hfa: { ...FULL.hfa, indicators: ["power"] } },
     { ...FULL, iceh: { ...FULL.iceh, indicators: ["cov_b"] } },
+    { ...FULL, hfa: { ...FULL.hfa, categories: ["infra"] } },
+    { ...FULL, hfa: { ...FULL.hfa, categories: null } },
+    { ...FULL, hfa: { ...FULL.hfa, serviceCategories: ["rmnch"] } },
+    { ...FULL, hfa: { ...FULL.hfa, serviceCategories: null } },
+    {
+      ...FULL,
+      hfa: {
+        ...FULL.hfa,
+        categories: ["rmnch", "malaria"],
+        serviceCategories: ["infra", "staff"],
+      },
+    },
   ];
   const hashes = new Set(variants.map(scopeDefinitionHash));
   hashes.add(scopeDefinitionHash(FULL));
@@ -199,6 +220,8 @@ Deno.test("schema: an empty list is refused in every list of every section", () 
     { ...FULL, hfa: { ...FULL.hfa, modules: [] } },
     { ...FULL, hfa: { ...FULL.hfa, indicators: [] } },
     { ...FULL, hfa: { ...FULL.hfa, timePoints: [] } },
+    { ...FULL, hfa: { ...FULL.hfa, categories: [] } },
+    { ...FULL, hfa: { ...FULL.hfa, serviceCategories: [] } },
     { ...FULL, iceh: { ...FULL.iceh, modules: [] } },
     { ...FULL, iceh: { ...FULL.iceh, indicators: [] } },
   ];
@@ -210,6 +233,8 @@ Deno.test("schema: an empty list is refused in every list of every section", () 
 Deno.test("schema: a section holds only its own family's dimensions", () => {
   const misplaced: unknown[] = [
     { ...FULL, hmis: { ...FULL.hmis, timePoints: ["r1"] } },
+    { ...FULL, hmis: { ...FULL.hmis, categories: ["infra"] } },
+    { ...FULL, iceh: { ...FULL.iceh, serviceCategories: ["rmnch"] } },
     { ...FULL, hfa: { ...FULL.hfa, years: { start: 2020, end: 2021 } } },
     { ...FULL, iceh: { ...FULL.iceh, adminArea2: "Kano" } },
     { ...FULL, hmis: { include: false, adminArea2: "Kano" } },

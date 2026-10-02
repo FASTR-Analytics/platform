@@ -47,9 +47,15 @@ type Option = SelectOption<string>;
 
 type FamilyOptions = { modules: Option[]; indicators: Option[] };
 
+type HfaOptions = {
+  timePoints: Option[];
+  categories: Option[];
+  serviceCategories: Option[];
+};
+
 type ScopeOptions = {
   families: Record<DatasetType, FamilyOptions>;
-  hfaTimePoints: Option[];
+  hfa: HfaOptions;
   // Why the module and indicator lists are empty, when the read failed.
   err: string | undefined;
 };
@@ -57,7 +63,8 @@ type ScopeOptions = {
 // A scope is independent of packages, so there is no one list of the modules
 // and indicators a definition may name. The editor offers what the pinned
 // package holds (the first ready package when nothing is pinned), read under
-// "All data", and the HFA time points of the instance. With no ready package,
+// "All data" (the HFA categories and service categories with them), and the
+// HFA time points of the instance. With no ready package,
 // or when that read fails, the lists are empty and a definition keeps what it
 // already names: the editor's controls never depend on the read succeeding.
 async function loadScopeOptions(): Promise<APIResponseWithData<ScopeOptions>> {
@@ -70,7 +77,7 @@ async function loadScopeOptions(): Promise<APIResponseWithData<ScopeOptions>> {
     success: true as const,
     data: {
       families: { hmis: none, hfa: none, iceh: none },
-      hfaTimePoints,
+      hfa: { timePoints: hfaTimePoints, categories: [], serviceCategories: [] },
       err,
     },
   });
@@ -105,7 +112,11 @@ async function loadScopeOptions(): Promise<APIResponseWithData<ScopeOptions>> {
           indicators: res.data.icehIndicators.map(withId),
         },
       },
-      hfaTimePoints,
+      hfa: {
+        timePoints: hfaTimePoints,
+        categories: res.data.hfaTaxonomy.categories.map(withId),
+        serviceCategories: res.data.hfaTaxonomy.serviceCategories.map(withId),
+      },
       err: undefined,
     },
   };
@@ -182,6 +193,8 @@ type SectionFields = {
   adminArea2: string | null;
   years: YearRange | null;
   timePoints: string[] | null;
+  categories: string[] | null;
+  serviceCategories: string[] | null;
   modules: string[] | null;
   indicators: string[] | null;
 };
@@ -205,6 +218,12 @@ function sectionFields(
     timePoints: included !== undefined && "timePoints" in included
       ? copy(included.timePoints)
       : null,
+    categories: included !== undefined && "categories" in included
+      ? copy(included.categories)
+      : null,
+    serviceCategories: included !== undefined && "serviceCategories" in included
+      ? copy(included.serviceCategories)
+      : null,
     modules: copy(included?.modules ?? null),
     indicators: copy(included?.indicators ?? null),
   };
@@ -217,6 +236,10 @@ function createSectionDraft(stored: SectionFields) {
   );
   const [years, setYears] = createSignal(stored.years);
   const [timePoints, setTimePoints] = createSignal(stored.timePoints);
+  const [categories, setCategories] = createSignal(stored.categories);
+  const [serviceCategories, setServiceCategories] = createSignal(
+    stored.serviceCategories,
+  );
   const [modules, setModules] = createSignal(stored.modules);
   const [indicators, setIndicators] = createSignal(stored.indicators);
   return {
@@ -229,6 +252,10 @@ function createSectionDraft(stored: SectionFields) {
     setYears,
     timePoints,
     setTimePoints,
+    categories,
+    setCategories,
+    serviceCategories,
+    setServiceCategories,
     modules,
     setModules,
     indicators,
@@ -318,7 +345,19 @@ function buildDefinition(
     if (area.success === false) return failed("hfa", area.err);
     const timePoints = draftList(drafts.hfa.timePoints());
     if (timePoints.success === false) return failed("hfa", timePoints.err);
-    hfa = { ...base.data, adminArea2: area.data, timePoints: timePoints.data };
+    const categories = draftList(drafts.hfa.categories());
+    if (categories.success === false) return failed("hfa", categories.err);
+    const serviceCategories = draftList(drafts.hfa.serviceCategories());
+    if (serviceCategories.success === false) {
+      return failed("hfa", serviceCategories.err);
+    }
+    hfa = {
+      ...base.data,
+      adminArea2: area.data,
+      timePoints: timePoints.data,
+      categories: categories.data,
+      serviceCategories: serviceCategories.data,
+    };
   }
   let iceh: ScopeDefinition["iceh"] = { include: false };
   if (drafts.iceh.include()) {
@@ -334,7 +373,7 @@ function SectionTab(p: {
   family: DatasetType;
   draft: SectionDraft;
   options: FamilyOptions;
-  timePointOptions: Option[];
+  hfaOptions: HfaOptions;
 }) {
   const name = () => getModuleFamilyLabel(p.family);
   // Once per tab: the options must not change while the user toggles.
@@ -347,8 +386,16 @@ function SectionTab(p: {
     p.draft.stored.indicators,
   );
   const timePointOptions = withStoredValues(
-    p.timePointOptions,
+    p.hfaOptions.timePoints,
     p.draft.stored.timePoints,
+  );
+  const categoryOptions = withStoredValues(
+    p.hfaOptions.categories,
+    p.draft.stored.categories,
+  );
+  const serviceCategoryOptions = withStoredValues(
+    p.hfaOptions.serviceCategories,
+    p.draft.stored.serviceCategories,
   );
   return (
     <div class="ui-spy">
@@ -435,6 +482,26 @@ function SectionTab(p: {
             values={p.draft.timePoints()}
             onChange={p.draft.setTimePoints}
             options={timePointOptions}
+          />
+          <LimitedList
+            limitLabel={t3({
+              en: "Limit categories",
+              fr: "Limiter les catégories",
+              pt: "Limitar as categorias",
+            })}
+            values={p.draft.categories()}
+            onChange={p.draft.setCategories}
+            options={categoryOptions}
+          />
+          <LimitedList
+            limitLabel={t3({
+              en: "Limit service categories",
+              fr: "Limiter les catégories de service",
+              pt: "Limitar as categorias de serviço",
+            })}
+            values={p.draft.serviceCategories()}
+            onChange={p.draft.setServiceCategories}
+            options={serviceCategoryOptions}
           />
         </Show>
         <LimitedList
@@ -656,7 +723,7 @@ export function ScopeEditor(
                       family={family}
                       draft={drafts[family]}
                       options={options.families[family]}
-                      timePointOptions={options.hfaTimePoints}
+                      hfaOptions={options.hfa}
                     />
                   </Match>
                 ))}

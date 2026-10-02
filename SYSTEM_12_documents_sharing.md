@@ -247,7 +247,12 @@ type ScopeDefinition = {
     | Included<{ adminArea2: string | null; years: YearRange | null }>;
   hfa:
     | { include: false }
-    | Included<{ adminArea2: string | null; timePoints: string[] | null }>;
+    | Included<{
+      adminArea2: string | null;
+      timePoints: string[] | null;
+      categories: string[] | null; // column hfa_category
+      serviceCategories: string[] | null; // column hfa_service_category
+    }>;
   iceh: { include: false } | Included<{ years: YearRange | null }>;
 };
 ```

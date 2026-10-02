@@ -6,8 +6,9 @@ column, as the indicator list does, so an admin can limit a scope to "the RMNCH
 service category" without listing every indicator in it, and the limit stays
 right when an indicator is added to the category later.
 
-**Next step: Do 1.** Each session sets this line in its final commit. Its values
-are `Do 1`, `Review 1` and `Fix 1`. The review of step 1 deletes this file.
+**Next step: Review 1.** Each session sets this line in its final commit. Its
+values are `Do 1`, `Review 1` and `Fix 1`. The review of step 1 deletes this
+file.
 
 All work is on `version2`. Repos touched: this app only.
 
@@ -70,8 +71,8 @@ dimension filters a results object only when the object has a column for it.
   (`lib/types/hfa_types.ts:77-84`).
 - **The schema is strict**, so a stored definition without the new keys fails to
   parse. Migration `204_scopes.sql` writes the HFA section in three places
-  (`:36`, `:77`, `:103`) and has not shipped. The dev database holds three scope
-  rows in the current shape.
+  (`:36`, `:77`, `:103`) and has run on the testing instances, so every stored
+  scope row there, and on dev, is in the shape without the two keys.
 
 ---
 
@@ -138,12 +139,14 @@ are in both.
 `MULTI_MEMBERSHIP_DELIMITER`, upper-casing both sides as the engine does. The
 category part is a list part like indicators, compared as written.
 
-**R6. Migration 204 is edited in place** (nothing that ran it has shipped): each
-HFA section it writes gains `"categories": null` and
-`"serviceCategories": null`. The dev database's scope rows are rewritten once by
-an uncommitted script that adds the two null keys to every included HFA section.
-No stored figure is re-stamped, because no hash changes. The Do session records
-what the script did in §8.
+**R6. A new migration, 206, adds the two keys; 204 stays as shipped.** (Tim,
+2026-10-02: 204 has run on the testing instances, and the runner tracks
+migrations by id, so an edited 204 would never reach them.)
+`206_scopes_hfa_categories.sql` adds `"categories": null` and
+`"serviceCategories": null` to every included HFA section that lacks them. Every
+instance runs 204 then 206 and ends in the same state, dev included. No stored
+figure is re-stamped, because no hash changes. `jsonb` is used in migration
+files only, and the column stays `text`.
 
 **R7. No cache bump.** No cached payload changes shape, and a definition that
 sets either list hashes to a token no existing entry carries.
@@ -167,7 +170,8 @@ copilot's HFA scope line name the two limits.
 **Surface.**
 
 - lib: `lib/types/scope.ts`.
-- Schema and data: `server/db/migrations/instance/204_scopes.sql`.
+- Schema and data:
+  `server/db/migrations/instance/206_scopes_hfa_categories.sql`.
 - Server: `server/run_query/run_read.ts`.
 - Client: `client/src/components/scopes/scope_editor.tsx`,
   `client/src/components/scopes/scopes.tsx`,
@@ -188,7 +192,7 @@ copilot's HFA scope line name the two limits.
 - R3 to R5: the two parts in `scopePredicateFor`, the service-category part
   built from `MULTI_MEMBERSHIP_DELIMITER` and every value escaped with
   `escapeSqlLiteral`.
-- R6: migration 204's three HFA sections, and the dev conversion.
+- R6: migration 206.
 - R9: the two lists in the editor's HFA tab, saved and reloaded without change;
   the scopes table and the copilot prompt name them.
 - SYSTEM_09's predicate table has the two rows, and the prose that lists the HFA
@@ -210,8 +214,8 @@ Cutting the authoring context's taxonomy to the scope (R8).
   and its red count recorded.
 - `scope_definition_hash_test.ts`: each new list moves the hash, a null one does
   not, and the schema refuses an empty one. `figure_staleness_test.ts` still
-  proves migration 204's "All data" literal parses to
-  `ALL_DATA_SCOPE_DEFINITION`.
+  proves migration 204's "All data" literal, with the two null keys 206 adds,
+  parses to `ALL_DATA_SCOPE_DEFINITION`.
 - `./validate_migrations`, `./validate_fresh_boot`,
   `./validate_migrations_replay`, `./validate_consolidation_replay`.
 
@@ -244,16 +248,18 @@ Cutting the authoring context's taxonomy to the scope (R8).
 ## 7. Rollout and rollback
 
 Nothing ships on its own. This rides the same release as the scopes work
-(migrations 204 and 205), after PLAN_PRODUCTS_RESTRUCTURE's fleet deploy,
-through `./deploy_testing` then `./deploy`.
+(migrations 204 to 206), after PLAN_PRODUCTS_RESTRUCTURE's fleet deploy, through
+`./deploy_testing` then `./deploy`.
 
-Every scope that exists at deploy time is seeded by migration 204 with both
-lists null, so nothing changes for an existing product. Rollback is the scopes
+Every scope that exists at deploy time gets both lists as null from migration
+206, so nothing changes for an existing product. Rollback is the scopes
 release's rollback: a restore of the main database plus the previous image.
 
 ---
 
 ## 8. Build log
 
-| Date | Step | Entry |
-| ---- | ---- | ----- |
+| Date       | Step | Entry                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-02 | plan | R6 re-ruled by Tim: 204 has run on the testing instances, so the two keys arrive by a new migration, 206, and 204 is not edited. §1, the step 1 surface, deliverable and gates, and §7 follow.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2026-10-02 | 1    | Do 1. Schema, `geographyOnlyScopeDefinition`, the two parts in `scopePredicateFor` (`setOverlapPredicate` for the set column), migration 206, the editor's two lists, the scopes table cell, the copilot scope line, SYSTEM_08/09/12/13/15 and PROTOCOL_APP_QUERY_RIG. No file outside the surface needed a mechanical edit. Dev database: the port-8011 boot applied 206 (before it, three route tests failed on the dev rows' old shape; after it they pass). Gates: typecheck, `./validate_protocols`, `./validate_queries` (356 cases, 35 new), `./validate_migrations`, `./validate_fresh_boot`, `./validate_migrations_replay`, `./validate_consolidation_replay` green; `deno task test` 508 passed with the two known `report_fastr_word_test.ts` failures. Mutations run: category part dropped, 10 red; service-category part dropped, 10 red; service-category part as equality, 7 red. The older mutation rows in PROTOCOL_APP_QUERY_RIG were not re-run, so their red counts predate the 35 new cases. The first two code edits (`lib/types/scope.ts`, `run_read.ts`) were made by a shell script against §0's rule; the rest by Edit. |

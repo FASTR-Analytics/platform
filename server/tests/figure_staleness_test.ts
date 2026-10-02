@@ -242,14 +242,20 @@ Deno.test("transform: a bundle already carrying the hash is left alone", () => {
 
 // The "All data" definition is written three times: in lib, as a literal in
 // migration 204, and by the transform for a national bundle. A national
-// figure stays fresh only while all three hash the same.
+// figure stays fresh only while all three hash the same. Migration 206 adds
+// the HFA section's two category lists to the seeded row as null, applied
+// here by hand; ./validate_migrations_replay runs the real pair.
 Deno.test("transform: migration 204's All data literal hashes as the transform stamps a national bundle", async () => {
   const sql = await Deno.readTextFile(
     new URL("../db/migrations/instance/204_scopes.sql", import.meta.url),
   );
   const literal = sql.match(/'(\{"hmis":.*\})'/)?.[1];
   assertEquals(typeof literal, "string");
-  const seeded = parseScopeDefinition(literal!);
+  const raw = JSON.parse(literal!);
+  const seeded = parseScopeDefinition(JSON.stringify({
+    ...raw,
+    hfa: { ...raw.hfa, categories: null, serviceCategories: null },
+  }));
   assertEquals(seeded, ALL_DATA_SCOPE_DEFINITION);
   assertEquals(
     scopeDefinitionHash(seeded),

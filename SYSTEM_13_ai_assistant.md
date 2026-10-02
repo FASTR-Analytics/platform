@@ -582,15 +582,15 @@ date header + instance/terminology section (country, admin-area labels, data
 sources) + results-package section (the package label and generation time, the
 scope's label and one line per dataset family saying what its section does:
 excluded, included with no limits, or limited to an area, years, time points,
-modules and indicators, each listed in full, with the rule that a limit applies
-only to a table that has a column for it; the package's datasets and indicator
-lists) + the instance-level `ai_context` + reference-doc catalog
-(`SPA_INFO_TOPICS`) + base instructions (read-data-first, no fabrication,
-indicator directionality) + the tool catalog. The accessor takes no view
-argument, so the prompt is **byte-stable across navigation within one package**
-and its prompt-cache breakpoint keeps hitting: the per-view instructions (still
-exported from this file, with short primary-tool pointers) are composed by the
-view registry
+modules, indicators, HFA categories and HFA service categories, each listed in
+full, with the rule that a limit applies only to a table that has a column for
+it; the package's datasets and indicator lists) + the instance-level
+`ai_context` + reference-doc catalog (`SPA_INFO_TOPICS`) + base instructions
+(read-data-first, no fabrication, indicator directionality) + the tool catalog.
+The accessor takes no view argument, so the prompt is **byte-stable across
+navigation within one package** and its prompt-cache breakpoint keeps hitting:
+the per-view instructions (still exported from this file, with short
+primary-tool pointers) are composed by the view registry
 ([ai_views.ts](client/src/components/products/copilot/_shared/ai_views.ts)) and
 delivered ephemerally per turn, and the hand-typed tool list was replaced by
 panther's `buildToolCatalog(tools)`, composed ONCE in the wrapper. Cache rule:

@@ -462,18 +462,19 @@ A scope is a named row in `scopes`: a label and a `ScopeDefinition`
 (`lib/types/scope.ts`) with one section per dataset family (`hmis`, `hfa`,
 `iceh`). A section is excluded (`include: false`) or included with that family's
 own limits: a module list and an indicator list for each, one admin area 2 for
-HMIS and for HFA, a year range for HMIS and for ICEH, and a list of time points
-for HFA. Inside an included section null means no limit on that dimension. One
-scope is reserved: "All data", id `all-data`, with every section included and
-nothing limited; it is seeded by migration 204 and can be neither edited nor
-deleted. A product carries exactly one scope, `products.scope_id`, named when
-the product is created and changed in product settings through `setProductScope`
-(product `edit` access). The entity, its routes and the screens that pick one
-are S12's ("Scopes"). Packages stay scope-blind: instance-level, immutable, no
-product FKs; one full package serving many products renders as each product's
-own view. A scope is independent of packages. The definition is applied at the
-run read layer as a predicate on the DuckDB view each query runs against
-(SYSTEM_09 "The scoped view").
+HMIS and for HFA, a year range for HMIS and for ICEH, and for HFA a list of time
+points, a list of HFA categories and a list of HFA service categories. Inside an
+included section null means no limit on that dimension. One scope is reserved:
+"All data", id `all-data`, with every section included and nothing limited; it
+is seeded by migration 204 (migration 206 adds the two HFA category lists to it
+as null) and can be neither edited nor deleted. A product carries exactly one
+scope, `products.scope_id`, named when the product is created and changed in
+product settings through `setProductScope` (product `edit` access). The entity,
+its routes and the screens that pick one are S12's ("Scopes"). Packages stay
+scope-blind: instance-level, immutable, no product FKs; one full package serving
+many products renders as each product's own view. A scope is independent of
+packages. The definition is applied at the run read layer as a predicate on the
+DuckDB view each query runs against (SYSTEM_09 "The scoped view").
 
 **The family picks the section, and every part of it filters where it applies.**
 A results object is read under the section of the family its module declares. An
@@ -482,10 +483,11 @@ object: those are the only two ways a whole table is removed. Within an included
 section, a dimension filters a results object only when the object has a column
 for it (the default principle, SYSTEM_09 "The scoped view"): geography needs an
 admin column, the year range a physical time column, the time points
-`time_point`, and the indicator list the family's indicator column. A results
-object with no such column is served whole. The authoring context a product
-reads drops each module whose section is excluded or which is outside its
-section's module list, and nothing else (S9).
+`time_point`, the indicator list the family's indicator column, the HFA
+categories `hfa_category`, and the HFA service categories
+`hfa_service_category`. A results object with no such column is served whole.
+The authoring context a product reads drops each module whose section is
+excluded or which is outside its section's module list, and nothing else (S9).
 
 **Scope access.** The scope is a security boundary for data values (PLAN_SCOPES
 R5 to R7, replacing PLAN_PRODUCTS_RESTRUCTURE D7's "any approved user reads any

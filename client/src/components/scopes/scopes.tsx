@@ -66,6 +66,28 @@ function describeSection(section: ScopeDefinition[DatasetType]): string {
       t3({ en: "indicator", fr: "indicateur", pt: "indicador" }),
       t3({ en: "indicators", fr: "indicateurs", pt: "indicadores" }),
     ),
+    "categories" in section
+      ? countOf(
+        section.categories,
+        t3({ en: "category", fr: "catégorie", pt: "categoria" }),
+        t3({ en: "categories", fr: "catégories", pt: "categorias" }),
+      )
+      : undefined,
+    "serviceCategories" in section
+      ? countOf(
+        section.serviceCategories,
+        t3({
+          en: "service category",
+          fr: "catégorie de service",
+          pt: "categoria de serviço",
+        }),
+        t3({
+          en: "service categories",
+          fr: "catégories de service",
+          pt: "categorias de serviço",
+        }),
+      )
+      : undefined,
   ].filter((part) => part !== undefined);
   return parts.length === 0
     ? t3({ en: "No limits", fr: "Aucune limite", pt: "Sem limites" })

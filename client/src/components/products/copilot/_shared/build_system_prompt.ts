@@ -38,6 +38,10 @@ function familyLine(
     section.modules !== null && `modules ${section.modules.join(", ")}`,
     section.indicators !== null &&
     `indicators ${section.indicators.join(", ")}`,
+    "categories" in section && section.categories !== null &&
+    `categories ${section.categories.join(", ")}`,
+    "serviceCategories" in section && section.serviceCategories !== null &&
+    `service categories ${section.serviceCategories.join(", ")}`,
   ].filter((limit) => typeof limit === "string");
   return limits.length === 0
     ? `- ${name}: included, no limits.`

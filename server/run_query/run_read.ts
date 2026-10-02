@@ -25,6 +25,7 @@ import {
   metricAIDescriptionInstalled,
   type MetricWithStatus,
   moduleDefinitionInstalledStrict,
+  MULTI_MEMBERSHIP_DELIMITER,
   parseInstalledModuleDefinition,
   parsePresentationObjectConfig,
   type PeriodBounds,
@@ -851,6 +852,12 @@ export function scopePredicateFor(
     columnNames.has(indicatorColumn)
       ? inListPredicate(indicatorColumn, section.indicators)
       : undefined,
+    "categories" in section && columnNames.has("hfa_category")
+      ? inListPredicate("hfa_category", section.categories)
+      : undefined,
+    "serviceCategories" in section && columnNames.has("hfa_service_category")
+      ? setOverlapPredicate("hfa_service_category", section.serviceCategories)
+      : undefined,
   ].filter((part) => part !== undefined);
   if (parts.includes("FALSE")) return "FALSE";
   return parts.length === 0 ? undefined : parts.join(" AND ");
@@ -866,6 +873,19 @@ function inListPredicate(
   return `CAST(${column} AS VARCHAR) IN (${
     values.map((v) => `'${escapeSqlLiteral(v)}'`).join(", ")
   })`;
+}
+
+// A set column holds a delimiter-joined set of ids, and a row passes when its
+// set shares an id with the list: the engine's own filter form
+// (MULTI_MEMBERSHIP_FILTER_COLUMNS, lib/validate_fetch_config.ts).
+function setOverlapPredicate(
+  column: string,
+  values: string[] | null,
+): string | undefined {
+  if (values === null) return undefined;
+  return `string_to_array(UPPER(${column}), '${MULTI_MEMBERSHIP_DELIMITER}') && ARRAY[${
+    values.map((v) => `'${escapeSqlLiteral(v.toUpperCase())}'`).join(", ")
+  }]`;
 }
 
 function inAreaPredicate(column: string, adminArea2: string): string {

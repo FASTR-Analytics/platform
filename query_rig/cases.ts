@@ -1359,6 +1359,12 @@ type Included<F extends keyof ScopeDefinition> = Extract<
 >;
 
 const NO_LIMITS = { include: true, modules: null, indicators: null } as const;
+const HFA_NO_LIMITS = {
+  ...NO_LIMITS,
+  timePoints: null,
+  categories: null,
+  serviceCategories: null,
+} as const;
 
 // "All data" with one family's section limited.
 const hmisScope = (limits: Partial<Included<"hmis">>): ScopeDefinition => ({
@@ -1367,7 +1373,7 @@ const hmisScope = (limits: Partial<Included<"hmis">>): ScopeDefinition => ({
 });
 const hfaScope = (limits: Partial<Included<"hfa">>): ScopeDefinition => ({
   ...whole,
-  hfa: { ...NO_LIMITS, adminArea2: null, timePoints: null, ...limits },
+  hfa: { ...HFA_NO_LIMITS, adminArea2: null, ...limits },
 });
 const icehScope = (limits: Partial<Included<"iceh">>): ScopeDefinition => ({
   ...whole,
@@ -1558,7 +1564,7 @@ const SCOPE_MATRIX_ROWS: ScopeMatrixRow[] = [
     name: "geography: an HMIS results object takes the HMIS section's area",
     scope: {
       ...hmisScope({ adminArea2: "A2_south" }),
-      hfa: { ...NO_LIMITS, adminArea2: "A2_north", timePoints: null },
+      hfa: { ...HFA_NO_LIMITS, adminArea2: "A2_north" },
     },
     rows: [{ admin_area_2: "A2_south", value: 56 }],
     rawCount: 3,
@@ -1568,7 +1574,7 @@ const SCOPE_MATRIX_ROWS: ScopeMatrixRow[] = [
     name: "geography: an HFA results object takes the HFA section's area",
     scope: {
       ...hmisScope({ adminArea2: "A2_south" }),
-      hfa: { ...NO_LIMITS, adminArea2: "A2_north", timePoints: null },
+      hfa: { ...HFA_NO_LIMITS, adminArea2: "A2_north" },
     },
     rows: [{ admin_area_2: "A2_north", value: 19 }],
     rawCount: 3,
@@ -1712,6 +1718,58 @@ const SCOPE_MATRIX_ROWS: ScopeMatrixRow[] = [
     ...WHOLE.icehPlain,
     name: "indicators do not apply: an ICEH object with no indicator column",
     scope: icehScope({ indicators: ["cov_a"] }),
+  },
+
+  // HFA categories (a list part) and service categories (a set column,
+  // matched by overlap).
+  {
+    ...WHOLE.hfa,
+    name: "categories: hfa_category is filtered to the list",
+    scope: hfaScope({ categories: ["infra", "no_such_category"] }),
+    rows: [{ admin_area_2: "A2_north", value: 19 }],
+    rawCount: 3,
+  },
+  {
+    ...WHOLE.hfa,
+    name: "service categories: a row passes when its set holds a listed id",
+    scope: hfaScope({ serviceCategories: ["rmnch", "no_such_category"] }),
+    // "rmnch|nutrition", "rmnch" and "malaria|rmnch" pass; a blank cell and
+    // "malaria|nutrition" do not.
+    rows: [{ admin_area_2: "A2_north", value: 19 }],
+    rawCount: 3,
+  },
+  {
+    ...WHOLE.hfa,
+    ...EMPTY,
+    name: "service categories: a list no row's set holds is empty",
+    scope: hfaScope({ serviceCategories: ["no_such_category"] }),
+  },
+  {
+    ...WHOLE.hfaPlain,
+    name: "categories do not apply: no hfa_category column, served whole",
+    scope: hfaScope({ categories: ["infra"] }),
+  },
+  {
+    ...WHOLE.hfaPlain,
+    name:
+      "service categories do not apply: no hfa_service_category column, served whole",
+    scope: hfaScope({ serviceCategories: ["rmnch"] }),
+  },
+  {
+    ...WHOLE.hmis,
+    name: "categories: the HFA section's two lists do not touch an HMIS object",
+    scope: hfaScope({ categories: ["infra"], serviceCategories: ["rmnch"] }),
+  },
+  {
+    ...WHOLE.hfa,
+    name: "categories: both lists and the indicator list together",
+    scope: hfaScope({
+      indicators: ["ind_b"],
+      categories: ["infra"],
+      serviceCategories: ["malaria"],
+    }),
+    rows: [{ admin_area_2: "A2_north", value: 16 }],
+    rawCount: 1,
   },
 
   // The parts are ANDed.
