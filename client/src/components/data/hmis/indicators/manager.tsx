@@ -32,6 +32,7 @@ import {
   ModalContainer,
   openAlert,
   openComponent,
+  plural,
   type StateHolder,
   StateHolderWrapper,
   Table,
@@ -600,23 +601,24 @@ function IndicatorsTable(p: {
             </Show>
             <Show when={uncomputableCount() > 0}>
               <Callout intent="warning" pad="sm">
-                {uncomputableCount() === 1
-                  ? t3({
+                {plural(uncomputableCount(), {
+                  one: t3({
                     en:
                       "1 calculated indicator cannot be computed. Results cannot be generated until it is edited or removed, or the indicators it uses have data.",
                     fr:
                       "1 indicateur calculé ne peut pas être évalué. Les résultats ne pourront pas être générés tant qu'il n'est pas modifié ou supprimé, ou que les indicateurs qu'il utilise n'ont pas de données.",
                     pt:
                       "1 indicador calculado não pode ser avaliado. Os resultados não podem ser gerados até que seja editado ou removido, ou até que os indicadores que utiliza tenham dados.",
-                  })
-                  : t3({
+                  }),
+                  other: t3({
                     en:
                       `${uncomputableCount()} calculated indicators cannot be computed. Results cannot be generated until they are edited or removed, or the indicators they use have data.`,
                     fr:
                       `${uncomputableCount()} indicateurs calculés ne peuvent pas être évalués. Les résultats ne pourront pas être générés tant qu'ils ne sont pas modifiés ou supprimés, ou que les indicateurs qu'ils utilisent n'ont pas de données.`,
                     pt:
                       `${uncomputableCount()} indicadores calculados não podem ser avaliados. Os resultados não podem ser gerados até que sejam editados ou removidos, ou até que os indicadores que utilizam tenham dados.`,
-                  })}
+                  }),
+                })}
               </Callout>
             </Show>
           </>

@@ -11,6 +11,7 @@ import {
   type ResolvedIndicatorExpression,
   t3,
 } from "lib";
+import { plural } from "panther";
 
 export function computabilityProblemText(
   judgement: Exclude<CalculatedIndicatorComputability, { kind: "computable" }>,
@@ -24,17 +25,18 @@ export function computabilityProblemText(
     return `${prefix}: ${judgement.problem}`;
   }
   const ids = judgement.missing.join(", ");
-  const detail = judgement.missing.length === 1
-    ? t3({
+  const detail = plural(judgement.missing.length, {
+    one: t3({
       en: `${ids} has no data`,
       fr: `${ids} n'a aucune donnée`,
       pt: `${ids} não tem dados`,
-    })
-    : t3({
+    }),
+    other: t3({
       en: `${ids} have no data`,
       fr: `${ids} n'ont aucune donnée`,
       pt: `${ids} não têm dados`,
-    });
+    }),
+  });
   return `${prefix}: ${detail}`;
 }
 

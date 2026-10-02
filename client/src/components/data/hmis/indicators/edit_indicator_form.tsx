@@ -19,6 +19,7 @@ import {
   Input,
   ModalContainer,
   MultiSelectSearch,
+  plural,
   Select,
   SelectSearch,
   TextArea,
@@ -380,23 +381,24 @@ export function EditIndicatorForm(
     const ids = unanalysedReached();
     if (ids.length === 0) return undefined;
     const list = ids.join(", ");
-    return ids.length === 1
-      ? t3({
+    return plural(ids.length, {
+      one: t3({
         en:
           `${list} is not included in analysis, but this formula uses it, so generation includes it anyway.`,
         fr:
           `${list} n'est pas inclus dans l'analyse, mais cette formule l'utilise : la génération l'inclut donc quand même.`,
         pt:
           `${list} não está incluído na análise, mas esta fórmula utiliza-o, pelo que a geração o inclui de qualquer forma.`,
-      })
-      : t3({
+      }),
+      other: t3({
         en:
           `${list} are not included in analysis, but this formula uses them, so generation includes them anyway.`,
         fr:
           `${list} ne sont pas inclus dans l'analyse, mais cette formule les utilise : la génération les inclut donc quand même.`,
         pt:
           `${list} não estão incluídos na análise, mas esta fórmula utiliza-os, pelo que a geração os inclui de qualquer forma.`,
-      });
+      }),
+    });
   });
 
   // Every identifier the formula names, with what it resolves to. Empty while

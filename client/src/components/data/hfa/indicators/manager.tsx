@@ -23,6 +23,7 @@ import {
   HeadingBar,
   type ListItem,
   openComponent,
+  plural,
   saveAs,
   type StateHolder,
   StateHolderWrapper,
@@ -592,17 +593,18 @@ export function HfaIndicatorsManager(p: Props) {
   }
 
   function deleteConfirmText(indicatorIds: string[]): string {
-    const base = indicatorIds.length === 1
-      ? t3({
+    const base = plural(indicatorIds.length, {
+      one: t3({
         en: "Are you sure you want to delete this indicator?",
         fr: "Êtes-vous sûr de vouloir supprimer cet indicateur ?",
         pt: "Tem a certeza de que pretende eliminar este indicador?",
-      })
-      : t3({
+      }),
+      other: t3({
         en: "Are you sure you want to delete these indicators?",
         fr: "Êtes-vous sûr de vouloir supprimer ces indicateurs ?",
         pt: "Tem a certeza de que pretende eliminar estes indicadores?",
-      });
+      }),
+    });
     const referencing = findReferencingIndicators(indicatorIds);
     if (referencing.length === 0) {
       return base;
