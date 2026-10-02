@@ -17,17 +17,20 @@ import {
   createButtonAction,
   createQuery,
   EditorComponentProps,
+  foldString,
   FrameTop,
   HeadingBar,
   Input,
+  matchesSearch,
   MultiSelect,
   openConfirm,
   RadioGroup,
+  searchTokens,
   Select,
   StateHolderWrapper,
   TextArea,
 } from "panther";
-import { type Accessor, createSignal, For, Show } from "solid-js";
+import { type Accessor, createMemo, createSignal, For, Show } from "solid-js";
 import { createStore, unwrap } from "solid-js/store";
 import { serverActions } from "~/server_actions";
 import {
@@ -512,10 +515,9 @@ function EditorInner(p: {
     markDirty();
   }
 
-  const searchMatches = (text: string) => {
-    const q = variableSearch().trim().toLowerCase();
-    return !q || text.toLowerCase().includes(q);
-  };
+  const variableSearchTokens = createMemo(() => searchTokens(variableSearch()));
+  const searchMatches = (text: string) =>
+    matchesSearch(foldString(text), variableSearchTokens());
 
   return (
     <div class="flex h-full flex-col">
@@ -1099,8 +1101,9 @@ function EditorInner(p: {
                       <For
                         each={dict().variables.filter(
                           (v) =>
-                            searchMatches(v.variableId) ||
-                            searchMatches(v.variableLabel),
+                            searchMatches(
+                              `${v.variableId} ${v.variableLabel}`,
+                            ),
                         )}
                       >
                         {(v) => {

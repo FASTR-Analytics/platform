@@ -2,6 +2,9 @@ import {
   AIToolFailure,
   createAITool,
   createAskUserQuestionsTool,
+  foldString,
+  matchesSearch,
+  searchTokens,
 } from "panther";
 import { z } from "zod";
 import {
@@ -485,20 +488,18 @@ export function buildHfaIndicatorTools() {
       }),
       handler: async (input) => {
         const dict = await loadDictionary();
-        const search = input.search?.toLowerCase();
+        const tokens = searchTokens(input.search ?? "");
         const tps = input.timePoint
           ? dict.timePoints.filter((t) => t.timePoint === input.timePoint)
           : dict.timePoints;
         return {
           timePoints: tps.map((tp) => {
-            let variables = tp.variables;
-            if (search) {
-              variables = variables.filter(
-                (v) =>
-                  v.variableId.toLowerCase().includes(search) ||
-                  v.variableLabel.toLowerCase().includes(search),
-              );
-            }
+            const variables = tp.variables.filter((v) =>
+              matchesSearch(
+                foldString(`${v.variableId} ${v.variableLabel}`),
+                tokens,
+              )
+            );
             return {
               timePoint: tp.timePoint,
               variableCount: variables.length,
