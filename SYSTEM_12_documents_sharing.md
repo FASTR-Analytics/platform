@@ -277,7 +277,7 @@ client cache key (S9), and the `definitionHash` a figure bundle records (S10).
 `server/tests/scope_definition_hash_test.ts` pins the hash and what the schema
 refuses.
 
-`PackageScope` is `{ runId, scopeId: string }`. Every pair names a scope: a
+`PackageScope` is `{ runId, scopeId: ScopeId }`. Every pair names a scope: a
 product's is its own (`productScope(product)`), and a surface with no product
 (the package page, S8; Explore, S11; `/mcp`, S13) uses "All data" until another
 is chosen. There is no null scope: a lost value must never read as "everything".

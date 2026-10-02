@@ -145,7 +145,7 @@ export async function setUserScopeAccess(
       if (row.is_admin) {
         return SCOPE_ACCESS_ADMIN;
       }
-      const known = await sql<{ id: string }[]>`
+      const known = await sql<{ id: ScopeUuid }[]>`
         SELECT id FROM scopes WHERE id = ANY(${scopeIds}) FOR SHARE
       `;
       if (known.length !== scopeIds.length) {

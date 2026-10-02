@@ -4,6 +4,7 @@ import {
   getModuleFamilyLabel,
   type Scope,
   type ScopeDefinition,
+  type ScopeId,
   t3,
 } from "lib";
 import {
@@ -25,7 +26,7 @@ import { instanceState } from "~/state/instance/t1_store";
 import { AllDataScopeView, ScopeEditor } from "./scope_editor";
 
 type ScopeRow = {
-  id: string;
+  id: ScopeId;
   label: string;
   hmis: string;
   hfa: string;
@@ -94,15 +95,15 @@ function describeSection(section: ScopeDefinition[DatasetType]): string {
     : parts.join("; ");
 }
 
-function productCountsByScope(): Map<string, number> {
-  const counts = new Map<string, number>();
+function productCountsByScope(): Map<ScopeId, number> {
+  const counts = new Map<ScopeId, number>();
   for (const product of instanceState.products) {
     counts.set(product.scopeId, (counts.get(product.scopeId) ?? 0) + 1);
   }
   return counts;
 }
 
-function toRow(scope: Scope, counts: Map<string, number>): ScopeRow {
+function toRow(scope: Scope, counts: Map<ScopeId, number>): ScopeRow {
   return {
     id: scope.id,
     label: scopeDisplayLabel(scope),

@@ -26,6 +26,7 @@ const uuidSchema = z.uuid();
 
 export const scopeUuidSchema = z.custom<ScopeUuid>(
   (value) => uuidSchema.safeParse(value).success,
+  "Invalid UUID",
 );
 
 export const scopeIdSchema = z.union([
