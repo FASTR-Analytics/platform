@@ -180,13 +180,15 @@ async function assertLabelFree(
   }
 }
 
-// What a label is stored as: composed characters, no zero-width characters,
-// and single spaces. Two labels that look the same are then the same string
-// to the unique index and to the reserved-name check.
+// What a label is stored as: composed characters, single spaces, and none of
+// the invisible characters that carry no meaning in a label (zero-width
+// space, word joiner, byte-order mark, soft hyphen, direction marks). The
+// zero-width joiner and non-joiner stay: emoji sequences and Persian
+// spelling need them.
 function normaliseLabel(raw: string): string {
   return raw
     .normalize("NFC")
-    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
+    .replace(/[\u00AD\u200B\u200E\u200F\u2060\uFEFF]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -290,17 +290,17 @@ resolves to `missing:<id>`, a hash no payload carries.
 
 **DB layer** (`server/db/instance/scopes.ts`): `listScopes` ("All data" first,
 then by label), `getScope`, `createScope`, `updateScope` and `deleteScope`.
-Create and update normalise the label (`normaliseLabel`: composed characters, no
-zero-width characters, single spaces, trimmed), so two labels that look the same
-are the same string. They refuse an empty one, any language of "All data"
-(`SCOPE_LABEL_RESERVED`, S8), a label another scope already has (compared
-case-insensitively, `SCOPE_LABEL_TAKEN`) and re-parse the definition with the
-strict schema. `updateScope` and `deleteScope` refuse the reserved scope before
-touching the database (`SCOPE_RESERVED`): neither its label nor its definition
-can change, and it cannot be deleted. `deleteScope` refuses while a product
-carries the scope (`SCOPE_IN_USE`): the check and the delete are one statement,
-and the `products.scope_id` foreign key is the backstop. `rowToScope` derives
-`definitionHash` on every read.
+Create and update normalise the label (`normaliseLabel`: composed characters,
+single spaces, trimmed, and no zero-width space, soft hyphen or direction mark),
+so a label that differs only by one of those is the same string. They refuse an
+empty one, any language of "All data" (`SCOPE_LABEL_RESERVED`, S8), a label
+another scope already has (compared case-insensitively, `SCOPE_LABEL_TAKEN`) and
+re-parse the definition with the strict schema. `updateScope` and `deleteScope`
+refuse the reserved scope before touching the database (`SCOPE_RESERVED`):
+neither its label nor its definition can change, and it cannot be deleted.
+`deleteScope` refuses while a product carries the scope (`SCOPE_IN_USE`): the
+check and the delete are one statement, and the `products.scope_id` foreign key
+is the backstop. `rowToScope` derives `definitionHash` on every read.
 
 **Routes** (`server/routes/instance/scopes.ts` over
 `lib/api-routes/instance/scopes.ts`): `createScope` (`POST /scopes`),
