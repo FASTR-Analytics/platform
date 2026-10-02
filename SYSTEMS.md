@@ -152,7 +152,7 @@ the PO vocabulary in code is a separate refactor.
 deno task lint:systems
 deno task lint:structure
 deno task lint:text-sizes
-deno task lint:jsonb
+deno task lint:sql-json
 ```
 
 Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/` (+
@@ -177,7 +177,8 @@ scans the tracked `.ts`, `.tsx` and `.css` files under `client/src/` and
 an arbitrary `text-[Npx]`, the non-token `text-md`, or an inline font-size in px
 or pt. Document and canvas rendering is exempt by file in the script.
 
-`lint_jsonb.ts` (task `lint:jsonb`, chained after `lint:text-sizes`) fails on
-`jsonb`, in any case, in any tracked source file, `.sql` file or root script
-outside `server/db/migrations/`. Stored JSON is a `text` column, parsed in
-TypeScript.
+`lint_sql_json.ts` (task `lint:sql-json`, chained after `lint:text-sizes`) fails
+on a SQL `json` or `jsonb` type, cast or function, in any case, in any tracked
+source file, `.sql` file or root script. Stored JSON is a `text` column, parsed
+in TypeScript. The existing migrations that already use them are listed by name
+in the script and are the only files exempt.

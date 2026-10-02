@@ -43,17 +43,22 @@ per-directory style.
 ## Gates
 
 - `deno task typecheck` runs `deno fmt --check`, the server check, the client
-  check, `lint:systems`, `lint:structure`, `lint:text-sizes` and `lint:jsonb`.
-  The systems lint fails if any tracked `.ts` or `.tsx` file under `server/`,
-  `lib/`, or `client/src/` is not claimed by exactly one SYSTEM file's
-  file-pattern (`globs`) manifest. Adding or moving a file means editing a
-  manifest. The structure lint fails if the client tree breaks a rule of
+  check, `lint:systems`, `lint:structure`, `lint:text-sizes` and
+  `lint:sql-json`. The systems lint fails if any tracked `.ts` or `.tsx` file
+  under `server/`, `lib/`, or `client/src/` is not claimed by exactly one SYSTEM
+  file's file-pattern (`globs`) manifest. Adding or moving a file means editing
+  a manifest. The structure lint fails if the client tree breaks a rule of
   `panther/protocols/PROTOCOL_UI_STRUCTURE.md` (names, `mod.ts` entries, scoped
   `_shared/`, layer direction, reachability, folder cycles). The text-size lint
   fails on any UI text size outside the rem token scale: an arbitrary
   `text-[Npx]`, `text-md`, or an inline font-size in px.
 - Migrations use idempotent schema SQL and must pass `./validate_migrations`. A
   hook in `.claude/settings.json` reminds you when you touch one.
+- **Write a new migration file. Do not edit an existing one.** A new numbered
+  file costs nothing, so a fix, an extension or a reshaping of what an earlier
+  migration did goes in a new file, whether or not the earlier one has been
+  deployed. Editing, renaming, splitting or deleting an existing migration file
+  is very rare and needs Tim to say so for that file.
 - Query-engine changes must pass `./validate_queries`.
 - `./validate_protocols` checks the client against the SolidJS and state
   protocols. Entries in its baseline file are reviewed and accepted exceptions.
@@ -99,11 +104,14 @@ per-directory style.
 
 ## Lockstep rules
 
-- **No `jsonb` outside migration files.** Stored JSON is a `text` column.
-  Runtime code reads the text, parses and rewrites it in TypeScript, and writes
-  text back: no `jsonb` column, cast or function in `server/`, `lib/` or a root
-  script. `lint:jsonb` fails the typecheck on one. A migration under
-  `server/db/migrations/` may cast to `jsonb` to reshape a row, and stores text.
+- **No SQL `json` or `jsonb`.** Stored JSON is a `text` column. Code reads the
+  text, parses and rewrites it in TypeScript (`parseJsonOrThrow`,
+  `parseJsonOrUndefined`, `lib/utils.ts`), and writes text back: no `json` or
+  `jsonb` column type, cast or function, in runtime code, a root script or a new
+  migration. A migration that has to reshape stored JSON is a `.ts` migration.
+  `lint:sql-json` fails the typecheck on one. The only files allowed to contain
+  them are the existing migrations that already do, listed by name in
+  `lint_sql_json.ts`, because an existing migration is not edited.
 - **Renaming or deleting a stored JSON field changes more than the key name.**
   Zod, the schema library, strips unknown keys by default, so it treats the old
   key as valid and silently drops it on every read. The setting vanishes with no

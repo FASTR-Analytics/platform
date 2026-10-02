@@ -259,10 +259,11 @@ failures surface as user-facing route errors with GB figures.
 - **`./run`**: backgrounds the Deno server + Vite client with prefixed output,
   killing both on INT/TERM.
 - **`./deploy`** (in order): typecheck gate (includes `lint:systems`,
-  `lint:structure`, `lint:text-sizes` and `lint:jsonb`) → `./validate_protocols`
-  (a failure prompts to continue) → optional `./validate_migrations` → optional
-  `./validate_queries` → minor/patch VERSION bump prompts → client build baked
-  into `client_dist/` (with backup/rollback trap) →
+  `lint:structure`, `lint:text-sizes` and `lint:sql-json`) →
+  `./validate_protocols` (a failure prompts to continue) → optional
+  `./validate_migrations` → optional `./validate_queries` → minor/patch VERSION
+  bump prompts → client build baked into `client_dist/` (with backup/rollback
+  trap) →
   `docker build --platform linux/amd64 -t
   timroberton/comb:wb-fastr-server-v$VERSION`
   → push (`crane` when installed, else `docker push`) → git commit

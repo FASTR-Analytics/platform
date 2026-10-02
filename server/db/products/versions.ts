@@ -466,7 +466,7 @@ export async function insertSlideDeckVersion(
     const versionId = crypto.randomUUID();
     await mainDb`
       INSERT INTO slide_deck_versions
-        (id, slide_deck_id, created_at, label, slide_deck_config, slides, editors, content_hash, restored_from_version_id, slide_editors)
+        (id, slide_deck_id, created_at, label, slide_deck_config, slides, editors, content_hash, restored_from_version_id, slide_editors, slide_count)
       VALUES (
         ${versionId},
         ${args.productId},
@@ -477,7 +477,8 @@ export async function insertSlideDeckVersion(
         ${JSON.stringify(args.editors)},
         ${args.contentHash},
         ${args.restoredFromVersionId ?? null},
-        ${args.slideEditors ? JSON.stringify(args.slideEditors) : null}
+        ${args.slideEditors ? JSON.stringify(args.slideEditors) : null},
+        ${args.slides.length}
       )
     `;
     await mainDb`
@@ -519,17 +520,17 @@ export async function listSlideDeckVersions(
       (
         & Pick<
           DBSlideDeckVersion,
-          "id" | "created_at" | "editors" | "restored_from_version_id"
+          | "id"
+          | "created_at"
+          | "editors"
+          | "restored_from_version_id"
+          | "slide_count"
         >
-        & {
-          size_bytes: number;
-          slide_count: number;
-        }
+        & { size_bytes: number }
       )[]
     >`
-      SELECT id, created_at, editors, restored_from_version_id,
-        (octet_length(slide_deck_config) + octet_length(slides)) AS size_bytes,
-        json_array_length(slides::json) AS slide_count
+      SELECT id, created_at, editors, restored_from_version_id, slide_count,
+        (octet_length(slide_deck_config) + octet_length(slides)) AS size_bytes
       FROM slide_deck_versions
       WHERE slide_deck_id = ${productId}
       ORDER BY created_at DESC, id DESC
@@ -540,7 +541,7 @@ export async function listSlideDeckVersions(
         id: r.id,
         createdAt: r.created_at,
         editors: parseJsonOrThrow<VersionEditor[]>(r.editors),
-        slideCount: Number(r.slide_count),
+        slideCount: r.slide_count,
         sizeBytes: Number(r.size_bytes),
         restoredFromVersionId: r.restored_from_version_id,
       })),

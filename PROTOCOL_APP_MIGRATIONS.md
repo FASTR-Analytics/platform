@@ -26,10 +26,18 @@ Two types of migrations:
    the database.
 4. **Fail fast:** Startup sweep validates all stored data. Boot fails if
    anything is invalid.
-5. **Stored JSON is text.** No column is typed `jsonb`. A migration file may
-   cast to `jsonb` to reshape a row and must store text; nothing outside
-   `server/db/migrations/` may name `jsonb` at all (`lint:jsonb`, chained into
-   `deno task typecheck`).
+5. **Stored JSON is text, and SQL never treats it as JSON.** No column is typed
+   `json` or `jsonb`, and no statement casts to them or calls a `json_*` or
+   `jsonb_*` function, in runtime code or in a new migration. A migration that
+   has to reshape stored JSON is a `.ts` migration that parses it in TypeScript.
+   `lint:sql-json`, chained into `deno task typecheck`, enforces it. The
+   existing migrations that already use them are listed by name in
+   `lint_sql_json.ts` and are the only exception.
+6. **A new migration file, never an edit to an existing one.** A new numbered
+   file costs nothing. A fix, an extension or a reshaping of what an earlier
+   migration did goes in a new file, whether or not the earlier one has been
+   deployed. Editing, renaming, splitting or deleting an existing migration file
+   is very rare and needs Tim to say so for that file.
 
 ---
 

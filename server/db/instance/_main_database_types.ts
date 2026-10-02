@@ -113,6 +113,7 @@ export type DBSlideDeckVersion = {
   content_hash: string;
   restored_from_version_id: string | null;
   slide_editors: string | null;
+  slide_count: number;
 };
 
 export type DBReport = {

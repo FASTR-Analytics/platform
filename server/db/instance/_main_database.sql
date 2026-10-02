@@ -246,7 +246,8 @@ CREATE TABLE slide_deck_versions (
   editors text NOT NULL DEFAULT '[]',
   content_hash text NOT NULL,
   restored_from_version_id text,
-  slide_editors text
+  slide_editors text,
+  slide_count integer NOT NULL
 );
 
 CREATE INDEX idx_slide_deck_versions_slide_deck ON slide_deck_versions(slide_deck_id, created_at DESC);
