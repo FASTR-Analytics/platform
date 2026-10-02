@@ -3,6 +3,8 @@ import {
   type Folder,
   type GlobalUser,
   type ProductAccessLevel,
+  type ScopeId,
+  type ScopeUuid,
 } from "lib";
 import type { Sql } from "postgres";
 
@@ -15,7 +17,7 @@ import type { Sql } from "postgres";
 export type ProductAccessTargets = {
   productIds: string[];
   folderIds: string[];
-  scopeIds: string[];
+  scopeIds: ScopeId[];
   folderRoute: boolean;
 };
 
@@ -73,7 +75,7 @@ export function visibleFolderIds(
 
 async function visibleFolderIdsForScopes(
   mainDb: Sql,
-  scopeIds: string[],
+  scopeIds: ScopeUuid[],
 ): Promise<Set<string>> {
   const [folders, products] = await Promise.all([
     mainDb<{ id: string; parent_id: string | null }[]>`

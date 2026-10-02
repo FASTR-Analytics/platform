@@ -3,6 +3,7 @@ import {
   type PackageScope,
   type RunAuthoringContext,
   type RunDetail,
+  type ScopeId,
   t3,
 } from "lib";
 import { Button, formatFileSize } from "panther";
@@ -28,7 +29,7 @@ export function ModulePane(p: {
   detailModule: RunDetail["modules"][number] | undefined;
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  onChangeScope: (scopeId: string) => void;
+  onChangeScope: (scopeId: ScopeId) => void;
   openEditor: OpenEditor;
 }) {
   const presets = createMemo(() => {

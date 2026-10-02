@@ -9,6 +9,7 @@ import {
   type ModuleTier,
   type PackageScope,
   type RunAuthoringContext,
+  type ScopeId,
   t3,
   TC,
 } from "lib";
@@ -107,7 +108,7 @@ export function Explore() {
   });
   // Explore reads through "All data" until a scope is chosen, and again
   // whenever the chosen one is gone.
-  const scopeId = createMemo((): string => {
+  const scopeId = createMemo((): ScopeId => {
     const chosen = exploreScopeId();
     return instanceState.scopes.some((s) => s.id === chosen)
       ? chosen

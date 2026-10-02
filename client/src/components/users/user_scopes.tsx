@@ -3,6 +3,7 @@ import {
   type OtherUser,
   type ScopeAccess,
   scopeAccessEqual,
+  type ScopeUuid,
   t3,
   TC,
 } from "lib";
@@ -28,7 +29,7 @@ export function UserScopesCard(p: { user: OtherUser }) {
       : { all: false, scopeIds: [...p.user.scopeAccess.scopeIds] };
   const [saved, setSaved] = createSignal<ScopeAccess>(initial());
   const [allData, setAllData] = createSignal(saved().all);
-  const [scopeIds, setScopeIds] = createSignal<string[]>(
+  const [scopeIds, setScopeIds] = createSignal<ScopeUuid[]>(
     p.user.scopeAccess.all ? [] : [...p.user.scopeAccess.scopeIds],
   );
 
@@ -47,11 +48,11 @@ export function UserScopesCard(p: { user: OtherUser }) {
     },
   );
 
-  // "All data" is the checkbox, never a grant: setUserScopeAccess refuses it.
+  // "All data" is the checkbox, never a grant: a grant is a ScopeUuid.
   const options = () =>
-    instanceState.scopes
-      .filter((s) => s.id !== ALL_DATA_SCOPE_ID)
-      .map((s) => ({ value: s.id, label: s.label }));
+    instanceState.scopes.flatMap((s) =>
+      s.id === ALL_DATA_SCOPE_ID ? [] : [{ value: s.id, label: s.label }]
+    );
 
   return (
     <Card

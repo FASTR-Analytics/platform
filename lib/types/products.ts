@@ -1,7 +1,7 @@
 // Contract: the PRODUCTS AND FOLDERS block in
 // server/db/instance/_main_database.sql.
 
-import type { PackageScope } from "./scope.ts";
+import type { PackageScope, ScopeId } from "./scope.ts";
 
 export type ProductType = "slide_deck" | "report";
 
@@ -28,7 +28,7 @@ export type ProductBase = {
   // A product is always attached to exactly one package and never follows
   // the pin; the pin is only the default for a new product.
   runId: string;
-  scopeId: string;
+  scopeId: ScopeId;
   // null = pre-restructure row (no invented provenance at consolidation).
   createdBy: string | null;
   createdAt: string | null;

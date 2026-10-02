@@ -8,6 +8,8 @@ import {
   type ScopeDefinition,
   scopeDefinitionHash,
   scopeDefinitionSchema,
+  type ScopeId,
+  type ScopeUuid,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
 import type { DBScope } from "./_main_database_types.ts";
@@ -45,7 +47,7 @@ export async function listScopes(
 
 export async function getScope(
   mainDb: Sql,
-  scopeId: string,
+  scopeId: ScopeId,
 ): Promise<APIResponseWithData<Scope>> {
   return await tryCatchDatabaseAsync(async () => {
     const row = (
@@ -62,7 +64,7 @@ export async function getScope(
 async function assertLabelFree(
   sql: Sql,
   label: string,
-  exceptScopeId: string | null,
+  exceptScopeId: ScopeId | null,
 ): Promise<void> {
   if (label === "") {
     throw new Error(SCOPE_LABEL_EMPTY);
@@ -80,7 +82,7 @@ async function assertLabelFree(
 export async function createScope(
   mainDb: Sql,
   args: { label: string; definition: ScopeDefinition; createdBy: string },
-): Promise<APIResponseWithData<{ scopeId: string }>> {
+): Promise<APIResponseWithData<{ scopeId: ScopeUuid }>> {
   return await tryCatchDatabaseAsync(async () => {
     const scopeId = crypto.randomUUID();
     const label = args.label.trim();
@@ -103,7 +105,7 @@ export async function createScope(
 
 export async function updateScope(
   mainDb: Sql,
-  scopeId: string,
+  scopeId: ScopeId,
   args: { label: string; definition: ScopeDefinition },
 ): Promise<APIResponseNoData> {
   if (scopeId === ALL_DATA_SCOPE_ID) {
@@ -135,7 +137,7 @@ export async function updateScope(
 // check and a delete cannot be orphaned; the foreign key is the backstop.
 export async function deleteScope(
   mainDb: Sql,
-  scopeId: string,
+  scopeId: ScopeId,
 ): Promise<APIResponseNoData> {
   if (scopeId === ALL_DATA_SCOPE_ID) {
     return { success: false, err: SCOPE_RESERVED };

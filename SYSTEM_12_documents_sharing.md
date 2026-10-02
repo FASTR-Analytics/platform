@@ -231,9 +231,11 @@ re-nonce the runs catalogue.
 A scope is a row in `scopes` (`id`, `label`, `definition` as JSON, `created_by`,
 `created_at`, `last_updated`; created by `204_scopes.sql`, S2). A scope id is a
 uuid from `crypto.randomUUID()` or the one reserved id, `all-data`
-(`ALL_DATA_SCOPE_ID`); `scopeIdSchema` (`lib/types/scope.ts`) is the one schema
-every route validates a scope id with, and it takes no null. The definition is a
-`ScopeDefinition` (same file, strict Zod), one section per dataset family:
+(`ALL_DATA_SCOPE_ID`): the types `ScopeUuid` and `ScopeId`
+(`lib/types/scope.ts`), which every scope id in lib, server and client carries.
+`scopeIdSchema` (same file) is the one schema every route validates a scope id
+with, and it takes no null; `scopeUuidSchema` validates a grant. The definition
+is a `ScopeDefinition` (same file, strict Zod), one section per dataset family:
 
 ```ts
 type Included<Dims> = {

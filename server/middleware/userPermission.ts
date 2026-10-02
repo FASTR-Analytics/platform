@@ -1,6 +1,12 @@
 import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
-import type { GlobalUser, ProductAccessLevel, UserPermission } from "lib";
+import {
+  type GlobalUser,
+  type ProductAccessLevel,
+  type ScopeId,
+  scopeIdSchema,
+  type UserPermission,
+} from "lib";
 import type { Sql } from "postgres";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { _STATUS_API_KEY } from "../exposed_env_vars.ts";
@@ -94,6 +100,15 @@ function stringsOf(value: unknown): string[] {
   return [];
 }
 
+// A value that is not a scope id names no scope here, and defineRoute's body
+// validation refuses it after this guard.
+function scopeIdsOf(value: unknown): ScopeId[] {
+  return stringsOf(value).flatMap((id) => {
+    const parsed = scopeIdSchema.safeParse(id);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
 // The route's targets come from the id fields the contract declares (§3.2)
 // and nowhere else: path product_id / folder_id; body productIds and
 // targetProductId (products), folderId and parentId (folders; null = root),
@@ -124,7 +139,7 @@ async function resolveProductAccessTargets(
       ...stringsOf(body.folderId),
       ...stringsOf(body.parentId),
     ],
-    scopeIds: stringsOf(body.scopeId),
+    scopeIds: scopeIdsOf(body.scopeId),
     folderRoute: params.folder_id !== undefined || "parentId" in body,
   };
 }

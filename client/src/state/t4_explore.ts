@@ -3,6 +3,7 @@ import {
   type DatasetType,
   type GridQuery,
   MODULE_FAMILY_ORDER,
+  type ScopeId,
 } from "lib";
 import { createSignal } from "solid-js";
 
@@ -63,7 +64,7 @@ export const [explorePackageId, setExplorePackageId] = createSignal<
   string | null
 >(null);
 
-export const [exploreScopeId, setExploreScopeId] = createSignal(
+export const [exploreScopeId, setExploreScopeId] = createSignal<ScopeId>(
   ALL_DATA_SCOPE_ID,
 );
 

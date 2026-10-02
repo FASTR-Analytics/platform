@@ -7,6 +7,7 @@ import type {
   IndicatorMetadataDisplay,
 } from "./indicators.ts";
 import type { UserPermissions } from "./permissions.ts";
+import type { ScopeId, ScopeUuid } from "./scope.ts";
 import type { HfaWeightsCoverage } from "./structure.ts";
 import type { JsonArrayItem } from "./_figure_bundle.ts";
 import {
@@ -285,12 +286,15 @@ export type OtherUser = {
 // restricted user (`users.all_scopes = FALSE`), limited to the products that
 // carry one of `scopeIds` and to package data read through one of them. A
 // global admin and every user of an open-access instance are `{ all: true }`.
-export type ScopeAccess = { all: true } | { all: false; scopeIds: string[] };
+export type ScopeAccess =
+  | { all: true }
+  | { all: false; scopeIds: ScopeUuid[] };
 
 export const ALL_SCOPES: ScopeAccess = { all: true };
 
-export function canUseScope(access: ScopeAccess, scopeId: string): boolean {
-  return access.all || access.scopeIds.includes(scopeId);
+export function canUseScope(access: ScopeAccess, scopeId: ScopeId): boolean {
+  return access.all ||
+    access.scopeIds.some((granted) => granted === scopeId);
 }
 
 export function scopeAccessEqual(a: ScopeAccess, b: ScopeAccess): boolean {

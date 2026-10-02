@@ -1,12 +1,12 @@
-import { t3 } from "lib";
+import { type ScopeId, t3 } from "lib";
 import { Select } from "panther";
 import { instanceState } from "~/state/instance/t1_store";
 import { scopeDisplayLabel } from "./package_label.ts";
 
 type Props = {
   // undefined = nothing chosen yet.
-  scopeId: string | undefined;
-  onChange: (scopeId: string) => void;
+  scopeId: ScopeId | undefined;
+  onChange: (scopeId: ScopeId) => void;
   label?: string;
   size?: "sm";
   fullWidth?: boolean;

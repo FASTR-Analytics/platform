@@ -1,7 +1,6 @@
 import { Sql } from "postgres";
 import {
   _USER_PERMISSIONS_DEFAULT_FULL_ACCESS,
-  ALL_DATA_SCOPE_ID,
   ALL_SCOPES,
   APIResponseNoData,
   APIResponseWithData,
@@ -9,6 +8,7 @@ import {
   buildUserPermissionsFromRow,
   OtherUser,
   type ScopeAccess,
+  type ScopeUuid,
   type UserPermission,
 } from "lib";
 import { tryCatchDatabaseAsync } from "./../utils.ts";
@@ -46,7 +46,7 @@ export async function syncUserName(
 // A global admin is unrestricted whatever all_scopes says.
 export function scopeAccessFromRow(
   row: Pick<DBUser, "is_admin" | "all_scopes">,
-  grantedScopeIds: string[],
+  grantedScopeIds: ScopeUuid[],
 ): ScopeAccess {
   return row.is_admin || row.all_scopes
     ? ALL_SCOPES
@@ -57,15 +57,15 @@ export function scopeAccessFromRow(
 export async function getScopeGrantsByEmail(
   mainDb: Sql,
   emails?: string[],
-): Promise<Map<string, string[]>> {
+): Promise<Map<string, ScopeUuid[]>> {
   const rows = emails === undefined
-    ? await mainDb<{ email: string; scope_id: string }[]>`
+    ? await mainDb<{ email: string; scope_id: ScopeUuid }[]>`
         SELECT email, scope_id FROM user_scopes
       `
-    : await mainDb<{ email: string; scope_id: string }[]>`
+    : await mainDb<{ email: string; scope_id: ScopeUuid }[]>`
         SELECT email, scope_id FROM user_scopes WHERE email = ANY(${emails})
       `;
-  const grants = new Map<string, string[]>();
+  const grants = new Map<string, ScopeUuid[]>();
   for (const row of rows) {
     const held = grants.get(row.email);
     if (held === undefined) {
@@ -79,7 +79,7 @@ export async function getScopeGrantsByEmail(
 
 export function otherUserFromRow(
   row: DBUser,
-  grantedScopeIds: string[],
+  grantedScopeIds: ScopeUuid[],
 ): OtherUser {
   return {
     email: row.email,
@@ -118,22 +118,18 @@ export const ADMIN_FLAG_NEEDS_ADMIN =
   "Only a global admin can make a user an admin";
 
 export const SCOPE_ACCESS_ADMIN = "A global admin always has every scope";
-export const SCOPE_ACCESS_ALL_DATA =
-  'A user limited to some scopes cannot hold "All data"';
 
 // Replaces a user's flag and grants together. An unrestricted user keeps no
-// grants, so a later restriction starts from an empty list.
+// grants, so a later restriction starts from an empty list. "All data"
+// filters nothing, so holding it is being unrestricted in all but name: a
+// grant is a ScopeUuid, the route schema refuses anything else, and the
+// user_scopes CHECK is the backstop.
 export async function setUserScopeAccess(
   mainDb: Sql,
   email: string,
   access: ScopeAccess,
 ): Promise<APIResponseNoData> {
   const scopeIds = access.all ? [] : [...new Set(access.scopeIds)];
-  // "All data" filters nothing, so holding it is being unrestricted in all
-  // but name: a grant list holds only scopes that limit.
-  if (scopeIds.includes(ALL_DATA_SCOPE_ID)) {
-    return { success: false, err: SCOPE_ACCESS_ALL_DATA };
-  }
   return await tryCatchDatabaseAsync(async () => {
     // The checks lock the rows they read, so a user or scope deleted
     // alongside cannot turn the write into a raw foreign-key error.

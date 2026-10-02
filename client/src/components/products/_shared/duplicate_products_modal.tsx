@@ -1,4 +1,4 @@
-import { type ProductSummary, t3 } from "lib";
+import { type ProductSummary, type ScopeId, t3 } from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
@@ -29,7 +29,7 @@ export function DuplicateProductsModal(
 ) {
   const progress = getProgress();
   const [scopeChoice, setScopeChoice] = createSignal<ScopeChoice>("keep");
-  const [tempScopeId, setTempScopeId] = createSignal<string | undefined>();
+  const [tempScopeId, setTempScopeId] = createSignal<ScopeId | undefined>();
 
   const save = createFormAction(
     async (e: MouseEvent) => {

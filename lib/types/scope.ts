@@ -15,9 +15,22 @@ import type { DatasetType } from "./datasets.ts";
 // row is seeded by migration 204 and can be neither edited nor deleted.
 export const ALL_DATA_SCOPE_ID = "all-data";
 
+// The id of an admin-created scope, the type crypto.randomUUID() returns. A
+// grant is always one of these: "All data" has one hyphen, so it is not a
+// ScopeUuid, and holding all data is `ScopeAccess` `{ all: true }`.
+export type ScopeUuid = `${string}-${string}-${string}-${string}-${string}`;
+
+export type ScopeId = typeof ALL_DATA_SCOPE_ID | ScopeUuid;
+
+const uuidSchema = z.uuid();
+
+export const scopeUuidSchema = z.custom<ScopeUuid>(
+  (value) => uuidSchema.safeParse(value).success,
+);
+
 export const scopeIdSchema = z.union([
   z.literal(ALL_DATA_SCOPE_ID),
-  z.uuid(),
+  scopeUuidSchema,
 ]);
 
 // An empty list would match no data, which is what `include: false` says.
@@ -125,7 +138,7 @@ export function scopeAreaForFamily(
 // What a client holds for a scope (instance T1). `definitionHash` is derived
 // on read and never stored.
 export type Scope = {
-  id: string;
+  id: ScopeId;
   label: string;
   definition: ScopeDefinition;
   definitionHash: string;
@@ -311,7 +324,7 @@ export const ALL_DATA_DEFINITION_HASH = scopeDefinitionHash(
 
 export type PackageScope = {
   runId: string;
-  scopeId: string;
+  scopeId: ScopeId;
 };
 
 export function packageScopesEqual(a: PackageScope, b: PackageScope): boolean {

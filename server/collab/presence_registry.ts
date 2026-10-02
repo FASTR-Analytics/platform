@@ -5,6 +5,7 @@ import {
   type PresenceView,
   type ScopeAccess,
   scopeAccessEqual,
+  type ScopeId,
 } from "lib";
 
 // In-process presence registry for the collab WebSocket. Single-process only
@@ -256,7 +257,7 @@ export function closeConnectionsForEmail(
  *  the product's rooms and presence group and its reconnect is refused both. */
 export function closeConnectionsLosingProduct(
   productId: string,
-  scopeId: string,
+  scopeId: ScopeId,
   closeCode: number,
   reason: string,
 ): void {

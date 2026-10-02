@@ -2,6 +2,7 @@ import {
   H_USERS,
   INSTANCE_PERMISSION_LABELS,
   type ScopeAccess,
+  type ScopeId,
   t3,
   TC,
   USER_PERMISSIONS,
@@ -233,7 +234,7 @@ function summariseLabels(labels: string[]): string {
 
 function getScopeLabels(user: UserData): string[] {
   if (user.scopeAccess.all) return [];
-  const scopeIds = new Set(user.scopeAccess.scopeIds);
+  const scopeIds: ReadonlySet<ScopeId> = new Set(user.scopeAccess.scopeIds);
   return instanceState.scopes
     .filter((s) => scopeIds.has(s.id))
     .map((s) => s.label);

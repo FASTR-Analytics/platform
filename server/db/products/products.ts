@@ -4,6 +4,7 @@ import {
   type ProductBase,
   type ProductSummary,
   type ProductType,
+  type ScopeId,
   t3,
   type TranslatableString,
 } from "lib";
@@ -171,7 +172,7 @@ export async function createProduct(
     type: ProductType;
     folderId: string | null;
     runId: string;
-    scopeId: string;
+    scopeId: ScopeId;
     createdBy: string;
   },
 ): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
@@ -297,7 +298,7 @@ export async function deleteProducts(
 export async function setProductScope(
   mainDb: Sql,
   productId: string,
-  scopeId: string,
+  scopeId: ScopeId,
 ): Promise<APIResponseWithData<{ lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const lastUpdated = new Date().toISOString();
@@ -340,7 +341,7 @@ export async function duplicateProduct(
   mainDb: Sql,
   productId: string,
   createdBy: string,
-  scopeId: string,
+  scopeId: ScopeId,
 ): Promise<APIResponseWithData<{ productId: string; lastUpdated: string }>> {
   return await tryCatchDatabaseAsync(async () => {
     const source = (

@@ -18,6 +18,7 @@ import {
   getStartingConfigForSlideDeck,
   type GlobalUser,
   type ProductSummary,
+  type ScopeId,
   type SlideDeckConfig,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
@@ -277,7 +278,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
         type: string;
         label: string;
         run_id: string;
-        scope_id: string;
+        scope_id: ScopeId;
         created_by: string;
       }[]
     >`SELECT id, type, label, run_id, scope_id, created_by FROM products WHERE id = ANY(${createdProductIds})`;
@@ -397,7 +398,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(unknownScope.body, { success: false, err: SCOPE_NOT_FOUND });
     const scoped = (
       await mainDb<
-        { scope_id: string }[]
+        { scope_id: ScopeId }[]
       >`SELECT scope_id FROM products WHERE id = ${deck.productId}`
     )[0];
     assertEquals(scoped.scope_id, areaScopeId);
@@ -589,7 +590,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
       {
         id: string;
         run_id: string;
-        scope_id: string;
+        scope_id: ScopeId;
         label: string;
       }[]
     >`SELECT id, run_id, scope_id, label FROM products WHERE id IN (${deck.productId}, ${copy.productId})`;
@@ -613,7 +614,7 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     createdProductIds.push(rescoped.productId);
     const rescopedRow = (
       await mainDb<
-        { run_id: string; scope_id: string }[]
+        { run_id: string; scope_id: ScopeId }[]
       >`SELECT run_id, scope_id FROM products WHERE id = ${rescoped.productId}`
     )[0];
     assertEquals(rescopedRow, { run_id: otherReady.id, scope_id: allScopeId });

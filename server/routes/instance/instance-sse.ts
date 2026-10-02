@@ -7,6 +7,8 @@ import {
   permissionsUnderScopeAccess,
   type ScopeAccess,
   scopeAccessEqual,
+  type ScopeId,
+  type ScopeUuid,
 } from "lib";
 import { visibleFolderIds } from "../../auth/product_access.ts";
 import { listFolders } from "../../db/products/folders.ts";
@@ -24,7 +26,7 @@ export type InstanceSseFilterDeps = {
   allFolders: Folder[];
   slideIdsInScopes: (
     slideIds: string[],
-    scopeIds: string[],
+    scopeIds: ScopeUuid[],
   ) => Promise<string[]>;
 };
 
@@ -135,7 +137,7 @@ export function createInstanceSseFilter(
     if (!productPlane) return pass(msg);
     if (!isApproved) return drop;
     if (access.all) return pass(msg);
-    const granted = new Set(access.scopeIds);
+    const granted: ReadonlySet<ScopeId> = new Set(access.scopeIds);
     switch (msg.type) {
       case "products_upserted": {
         const inside = msg.data.products.filter((p) => granted.has(p.scopeId));

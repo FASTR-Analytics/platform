@@ -10,6 +10,7 @@ import type {
   OtherUser,
   ProductSummary,
   ScopeAccess,
+  ScopeUuid,
 } from "lib";
 import {
   createInstanceSseFilter,
@@ -17,8 +18,8 @@ import {
 } from "../routes/instance/instance-sse.ts";
 
 const EMAIL = "restricted@example.com";
-const GRANTED = "00000000-0000-4000-8000-000000000001";
-const OTHER = "00000000-0000-4000-8000-000000000002";
+const GRANTED: ScopeUuid = "00000000-0000-4000-8000-000000000001";
+const OTHER: ScopeUuid = "00000000-0000-4000-8000-000000000002";
 const RESTRICTED: ScopeAccess = { all: false, scopeIds: [GRANTED] };
 
 const NO_PERMISSIONS = {
@@ -44,7 +45,7 @@ function folder(id: string, parentId: string | null): Folder {
 
 function product(
   id: string,
-  scopeId: string,
+  scopeId: ScopeUuid,
   folderId: string | null,
 ): ProductSummary {
   return {

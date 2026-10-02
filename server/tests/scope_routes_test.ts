@@ -16,6 +16,7 @@ import {
   geographyOnlyScopeDefinition,
   type Scope,
   type ScopeDefinition,
+  type ScopeUuid,
 } from "lib";
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { getScope, SCOPE_RESERVED } from "../db/instance/scopes.ts";
@@ -69,7 +70,7 @@ Deno.test("scope routes: All data is reserved, and only the per-family definitio
   `;
   const app = adminApp();
   const tag = crypto.randomUUID().slice(0, 8);
-  const created: string[] = [];
+  const created: ScopeUuid[] = [];
   const allData = async (): Promise<Scope> => {
     const res = await getScope(mainDb, ALL_DATA_SCOPE_ID);
     if (!res.success) throw new Error(res.err);
@@ -111,7 +112,7 @@ Deno.test("scope routes: All data is reserved, and only the per-family definitio
     });
     assertEquals(made.status, 200);
     assert(made.body.success);
-    const scopeId = (made.body.data as { scopeId: string }).scopeId;
+    const scopeId = (made.body.data as { scopeId: ScopeUuid }).scopeId;
     created.push(scopeId);
     const edited: ScopeDefinition = {
       ...ALL_DATA_SCOPE_DEFINITION,

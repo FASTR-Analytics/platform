@@ -5,6 +5,8 @@ import {
   permissionsUnderScopeAccess,
   type RunCatalogItem,
   type ScopeAccess,
+  type ScopeId,
+  type ScopeUuid,
 } from "lib";
 import type { Sql } from "postgres";
 import { visibleFolderIds } from "../auth/product_access.ts";
@@ -248,7 +250,7 @@ export function restrictProductPlane(
   plane: ProductPlane,
 ): ProductPlane {
   if (access.all) return plane;
-  const granted = new Set(access.scopeIds);
+  const granted: ReadonlySet<ScopeId> = new Set(access.scopeIds);
   const products = plane.products.filter((p) => granted.has(p.scopeId));
   const folderIds = visibleFolderIds(
     plane.folders,
@@ -265,7 +267,7 @@ export function restrictProductPlane(
 export async function slideIdsInScopes(
   mainDb: Sql,
   slideIds: string[],
-  scopeIds: string[],
+  scopeIds: ScopeUuid[],
 ): Promise<string[]> {
   if (slideIds.length === 0 || scopeIds.length === 0) return [];
   const rows = await mainDb<{ id: string }[]>`

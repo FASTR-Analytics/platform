@@ -1,4 +1,4 @@
-import type { ProductType } from "lib";
+import type { ProductType, ScopeId } from "lib";
 
 export type DBUser = {
   email: string;
@@ -70,14 +70,14 @@ export type DBProduct = {
   label: string;
   folder_id: string | null;
   run_id: string;
-  scope_id: string;
+  scope_id: ScopeId;
   created_by: string | null;
   created_at: string | null;
   last_updated: string;
 };
 
 export type DBScope = {
-  id: string;
+  id: ScopeId;
   label: string;
   definition: string;
   created_by: string | null;

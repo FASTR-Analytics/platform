@@ -43,6 +43,7 @@ import {
   type ScopeAccess,
   type ScopeDefinition,
   scopeDefinitionHash,
+  type ScopeId,
   throwIfErrWithData,
   toIndicatorMetadataDisplay,
   vizPresetInstalled,
@@ -133,7 +134,7 @@ export const SCOPE_NOT_GRANTED = "You do not have access to this scope";
 // does not hold.
 async function loadScopeDefinition(
   mainDb: Sql,
-  scopeId: string,
+  scopeId: ScopeId,
   access: ScopeAccess,
 ): Promise<APIResponseWithData<ScopeDefinition>> {
   const scopeRes = await getScope(mainDb, scopeId);
@@ -166,7 +167,7 @@ export async function getRunManifestForRun(
 export async function getRunReadContextForRun(
   mainDb: Sql,
   runId: string,
-  scopeId: string,
+  scopeId: ScopeId,
   access: ScopeAccess,
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {
@@ -197,7 +198,7 @@ export async function getRunReadContextForRun(
 export async function getReadyRunReadContext(
   mainDb: Sql,
   runId: string,
-  scopeId: string,
+  scopeId: ScopeId,
   access: ScopeAccess,
 ): Promise<APIResponseWithData<RunReadContext>> {
   if (!isRunIdShape(runId)) {

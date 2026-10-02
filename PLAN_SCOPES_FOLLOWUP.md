@@ -6,7 +6,7 @@ fixed (commits `0a132ac69` to `b19c0259f`). This plan holds what was left: scope
 ids are still plain strings, and a handful of small contract and conformance
 gaps remain in the scope files.
 
-**Next step: Do 1**
+**Next step: Review 1**
 
 Branch: `version2`. Repos touched: this app only. Read first: §0.
 
@@ -90,24 +90,24 @@ binds them as follows.
 
 ## 3. Rulings
 
-1. _(proposed)_ `ScopeId` and `ScopeUuid` are template-literal types as in §2,
-   not zod brands. No `enum` (TYPESCRIPT 3).
-2. _(proposed)_ `scopeIdSchema` outputs `ScopeId`, and a new `scopeUuidSchema`
-   outputs `ScopeUuid`. Both live in `lib/types/scope.ts`.
-3. _(proposed)_ Database row types carry the types without a per-row parse:
+1. `ScopeId` and `ScopeUuid` are template-literal types as in §2, not zod
+   brands. No `enum` (TYPESCRIPT 3).
+2. `scopeIdSchema` outputs `ScopeId`, and a new `scopeUuidSchema` outputs
+   `ScopeUuid`. Both live in `lib/types/scope.ts`.
+3. Database row types carry the types without a per-row parse:
    `DBScope.id: ScopeId`, `DBProduct.scope_id: ScopeId`, and the `user_scopes`
    reads select `scope_id` as `ScopeUuid`. The `CHECK` constraints and the
    foreign keys are what make that true.
-4. _(proposed)_ The grant route schema takes `z.array(scopeUuidSchema)`. The
-   hand-written check and `SCOPE_ACCESS_ALL_DATA` are deleted from
+4. The grant route schema takes `z.array(scopeUuidSchema)`. The hand-written
+   check and `SCOPE_ACCESS_ALL_DATA` are deleted from
    `server/db/instance/users.ts`: the type and the schema refuse it, and the
    `user_scopes` `CHECK` is the backstop. The case in
    `server/tests/scope_grants_routes_test.ts` asserts the refusal through the
    route.
-5. _(proposed)_ `createScope` and `updateScope` refuse a label that equals any
-   language of `TC.allData`, compared as `assertLabelFree` compares, with a new
+5. `createScope` and `updateScope` refuse a label that equals any language of
+   `TC.allData`, compared as `assertLabelFree` compares, with a new
    `SCOPE_LABEL_RESERVED` message.
-6. _(proposed)_ `deleteScope`'s route calls the same roster-and-close function
+6. `deleteScope`'s route calls the same roster-and-close function
    `setUserScopeAccess`'s route calls. The contract comments stay as written.
 7. Repo-wide braces and exports-first are not this plan's (§6). Step 2 fixes
    them in the files §1.5 names and nowhere else.
@@ -185,5 +185,7 @@ step's commits.
 
 ## 8. Build log
 
-| Step | Entry |
-| ---- | ----- |
+| Step | Entry                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| plan | 2026-10-02. Rulings 1 to 6 accepted by Tim as written; the "(proposed)" marks are removed.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 1    | 2026-10-02, Do 1. `ScopeUuid` and `ScopeId` in `lib/types/scope.ts`; `scopeUuidSchema` is `z.custom<ScopeUuid>` over `z.uuid()`, so its input and output are both typed and no cast exists. `ScopeAccess.scopeIds`, `Scope.id`, `PackageScope.scopeId`, `ProductBase.scopeId`, `DBScope.id`, `DBProduct.scope_id` and the `user_scopes` reads carry the types; every function and prop that took a scope id follows. A `Set` of grants is read as `ReadonlySet<ScopeId>` where a product's scope is looked up in it. `canUseScope` compares with `some`, since a `ScopeUuid[]` has no `includes(ScopeId)`. The product-access guard reads the body before validation, so it parses `scopeId` with `scopeIdSchema` (`scopeIdsOf`, `server/middleware/userPermission.ts`). Ruling 4: the hand check and `SCOPE_ACCESS_ALL_DATA` are gone, and `scope_grants_routes_test.ts` asserts the 400 through `POST /user/scope-access`. Tests that used made-up ids (`"scope-kano"`, `"s1"`, `"gone"`, `"scope"`) now use uuids or `ALL_DATA_SCOPE_ID`. SYSTEM_08, SYSTEM_12 and SYSTEM_15 name the two types. Gates: typecheck, `./validate_protocols`, boot on 8011 green; `deno task test` 508 passed with the two known `report_fastr_word_test.ts` failures; the three `git grep` patterns and `as ScopeId` / `as ScopeUuid` return nothing. |

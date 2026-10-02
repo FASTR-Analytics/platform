@@ -13,6 +13,7 @@ import { assert, assertEquals } from "@std/assert";
 import { Hono } from "hono";
 import {
   reportFiguresSchema,
+  type ScopeId,
   slideConfigSchema,
   type SlideDeckVersionSlide,
 } from "lib";
@@ -51,7 +52,7 @@ const migratedReportVersion = (
 ).at(0);
 
 const migratedDeck = (
-  await mainDb<{ id: string; scope_id: string }[]>`
+  await mainDb<{ id: string; scope_id: ScopeId }[]>`
     SELECT p.id, p.scope_id FROM products p
     WHERE p.type = 'slide_deck' AND p.created_by IS NULL
       AND (SELECT count(*) FROM slides s WHERE s.slide_deck_id = p.id) >= 2

@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { scopeDefinitionSchema, scopeIdSchema } from "../../types/scope.ts";
+import {
+  scopeDefinitionSchema,
+  scopeIdSchema,
+  type ScopeUuid,
+} from "../../types/scope.ts";
 import { route } from "../route-utils.ts";
 
 const scopeIdParamsSchema = z.object({ scope_id: scopeIdSchema });
@@ -17,7 +21,7 @@ export const scopeRouteRegistry = {
     path: "/scopes",
     method: "POST",
     body: scopeBodySchema,
-    response: {} as { scopeId: string },
+    response: {} as { scopeId: ScopeUuid },
   }),
   // Editing a definition changes its hash, so every figure resolved under the
   // scope shows as stale and every cached payload under the old hash is

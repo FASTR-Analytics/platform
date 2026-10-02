@@ -127,13 +127,14 @@ A user is unrestricted (`users.all_scopes`, default TRUE) or restricted to the
 scopes named in `user_scopes` (email, scope id; both foreign keys cascade on
 delete; migration 205). A global admin is unrestricted whatever the flag says.
 `ScopeAccess` (`lib/types/instance.ts`) is `{ all: true }` or
-`{ all: false, scopeIds }`; `scopeAccessFromRow` builds it, `GlobalUser` and
-every roster row (`OtherUser`) carry it, and `canUseScope` asks it. A restricted
-user sees only products in their scopes, reads data only through them, has no
-Explore, no `/mcp`, no Results or Data page, and their `can_view_data`,
-`can_configure_data` and `can_view_logs` read as false (PLAN_SCOPES R13, R26).
-Where each rule is enforced: products and folders S1 (`productAccessPolicy`),
-data reads S8 "Scope access", the instance stream S3, collab S16.
+`{ all: false, scopeIds: ScopeUuid[] }`; `scopeAccessFromRow` builds it,
+`GlobalUser` and every roster row (`OtherUser`) carry it, and `canUseScope` asks
+it. A restricted user sees only products in their scopes, reads data only
+through them, has no Explore, no `/mcp`, no Results or Data page, and their
+`can_view_data`, `can_configure_data` and `can_view_logs` read as false
+(PLAN_SCOPES R13, R26). Where each rule is enforced: products and folders S1
+(`productAccessPolicy`), data reads S8 "Scope access", the instance stream S3,
+collab S16.
 
 Only a global admin changes it (R25), so a restricted user holding
 `can_configure_users` cannot lift their own restriction. That covers the admin
@@ -149,9 +150,11 @@ over a multi-select of the instance's other scopes, shown when it is off. "All
 data" is never in that list: the scope filters nothing, so a restricted user
 holding it would be unrestricted in all but name. A restricted user therefore
 never sees a product that carries "All data". `setUserScopeAccess`
-(`POST /user/scope-access`, `requireAdmin`) refuses a global admin, an unknown
-scope id and `all-data` in a grant list (`SCOPE_ACCESS_ALL_DATA`), replaces the
-flag and the grants in one transaction (an unrestricted user keeps no grants),
+(`POST /user/scope-access`, `requireAdmin`) refuses a global admin and an
+unknown scope id. `all-data` in a grant list never reaches it: a grant is a
+`ScopeUuid` (`lib/types/scope.ts`), the route schema (`scopeUuidSchema`) answers
+it with a 400, and the `user_scopes` CHECK is the backstop. It replaces the flag
+and the grants in one transaction (an unrestricted user keeps no grants),
 re-broadcasts the roster and closes the user's collab sockets. Every route that
 can change a user's access does the same through
 `broadcastRosterAndCloseStaleCollab` (`setUserScopeAccess`, `toggleUserAdmin`,

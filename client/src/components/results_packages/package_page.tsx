@@ -11,6 +11,7 @@ import {
   type RunDetail,
   type RunListingItem,
   type RunProgress,
+  type ScopeId,
   t3,
   TC,
 } from "lib";
@@ -370,7 +371,9 @@ function FamilyTabs(p: {
   >({});
   // The page starts on "All data". A scope deleted while it is chosen falls
   // back to it.
-  const [chosenScopeId, setChosenScopeId] = createSignal(ALL_DATA_SCOPE_ID);
+  const [chosenScopeId, setChosenScopeId] = createSignal<ScopeId>(
+    ALL_DATA_SCOPE_ID,
+  );
   const scope = (): PackageScope => {
     const chosen = chosenScopeId();
     return {

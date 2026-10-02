@@ -18,6 +18,7 @@ import {
   resolvePackageScope,
   type Scope,
   scopeDefinitionHash,
+  type ScopeUuid,
 } from "lib";
 import {
   findStaleFiguresInLayout,
@@ -30,6 +31,9 @@ import {
 } from "../db/migrations/data_transforms/_figure_block.ts";
 
 const RUN_A = "00000000-0000-4000-8000-00000000000a";
+const KANO_SCOPE_ID: ScopeUuid = "00000000-0000-4000-8000-0000000000c1";
+const LISTED_SCOPE_ID: ScopeUuid = "00000000-0000-4000-8000-0000000000c2";
+const GONE_SCOPE_ID: ScopeUuid = "00000000-0000-4000-8000-0000000000c3";
 const RUN_B = "00000000-0000-4000-8000-00000000000b";
 
 const KANO_HASH = scopeDefinitionHash(geographyOnlyScopeDefinition("Kano"));
@@ -46,7 +50,7 @@ function bundle(runId: string, definitionHash: string): FigureBundle {
 
 const CONTAINER: ResolvedPackageScope = {
   runId: RUN_A,
-  scopeId: "scope-kano",
+  scopeId: KANO_SCOPE_ID,
   definitionHash: KANO_HASH,
   areas: { hmis: "Kano", hfa: "Kano" },
 };
@@ -82,13 +86,13 @@ Deno.test("stale: mismatching run and mismatching definition is stale", () => {
 
 Deno.test("stale: editing a scope's definition makes its figures stale", () => {
   const scope = (definition: Scope["definition"]): Scope => ({
-    id: "scope-kano",
+    id: KANO_SCOPE_ID,
     label: "Kano",
     definition,
     definitionHash: scopeDefinitionHash(definition),
     lastUpdated: "2026-10-01T00:00:00.000Z",
   });
-  const pair = { runId: RUN_A, scopeId: "scope-kano" };
+  const pair = { runId: RUN_A, scopeId: KANO_SCOPE_ID };
   const before = resolvePackageScope(pair, [
     scope(geographyOnlyScopeDefinition("Kano")),
   ]);
@@ -115,17 +119,23 @@ Deno.test("stale: a pair resolves to a listed scope, with each family's own area
     hmis: { ...ALL_DATA_SCOPE_DEFINITION.hmis, adminArea2: "Kano" },
     hfa: { include: false },
   } as Scope["definition"];
-  const listed = resolvePackageScope({ runId: RUN_A, scopeId: "s1" }, [{
-    id: "s1",
-    label: "Kano HMIS",
-    definition,
-    definitionHash: scopeDefinitionHash(definition),
-    lastUpdated: "2026-10-01T00:00:00.000Z",
-  }]);
+  const listed = resolvePackageScope(
+    { runId: RUN_A, scopeId: LISTED_SCOPE_ID },
+    [{
+      id: LISTED_SCOPE_ID,
+      label: "Kano HMIS",
+      definition,
+      definitionHash: scopeDefinitionHash(definition),
+      lastUpdated: "2026-10-01T00:00:00.000Z",
+    }],
+  );
   assertEquals(listed.definitionHash, scopeDefinitionHash(definition));
   assertEquals(listed.areas, { hmis: "Kano", hfa: null });
-  const missing = resolvePackageScope({ runId: RUN_A, scopeId: "gone" }, []);
-  assertEquals(missing.definitionHash, "missing:gone");
+  const missing = resolvePackageScope(
+    { runId: RUN_A, scopeId: GONE_SCOPE_ID },
+    [],
+  );
+  assertEquals(missing.definitionHash, `missing:${GONE_SCOPE_ID}`);
   assertEquals(missing.areas, { hmis: null, hfa: null });
 });
 
@@ -195,7 +205,7 @@ function transformed(adminArea2: string | null): FigureBundle {
 function productOn(adminArea2: string | null): ResolvedPackageScope {
   return {
     runId: RUN_A,
-    scopeId: "migrated",
+    scopeId: KANO_SCOPE_ID,
     definitionHash: scopeDefinitionHash(
       geographyOnlyScopeDefinition(adminArea2),
     ),

@@ -1,4 +1,4 @@
-import { ALL_DATA_SCOPE_ID, type ProductType, t3 } from "lib";
+import { ALL_DATA_SCOPE_ID, type ProductType, type ScopeId, t3 } from "lib";
 import {
   type AlertComponentProps,
   createFormAction,
@@ -32,7 +32,7 @@ export function CreateProductModal(p: AlertComponentProps<Props, ReturnType>) {
       ? instanceState.readyPackages[0].id
       : undefined,
   );
-  const [scopeId, setScopeId] = createSignal<string | undefined>(
+  const [scopeId, setScopeId] = createSignal<ScopeId | undefined>(
     instanceState.scopes.some((s) => s.id === ALL_DATA_SCOPE_ID)
       ? ALL_DATA_SCOPE_ID
       : instanceState.scopes.length === 1

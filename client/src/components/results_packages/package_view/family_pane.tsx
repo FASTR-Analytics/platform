@@ -3,6 +3,7 @@ import {
   type PackageScope,
   type RunAuthoringContext,
   type RunDetail,
+  type ScopeId,
   t3,
 } from "lib";
 import { type ListEntry, SelectList } from "panther";
@@ -23,7 +24,7 @@ export function FamilyPane(p: {
   detail: RunDetail;
   ctx: RunAuthoringContext;
   scope: PackageScope;
-  onChangeScope: (scopeId: string) => void;
+  onChangeScope: (scopeId: ScopeId) => void;
   openEditor: OpenEditor;
 }) {
   const items = createMemo((): ListEntry<string>[] => {

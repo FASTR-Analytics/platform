@@ -22,10 +22,7 @@ import {
 import { getPgConnectionFromCacheOrNew } from "../db/mod.ts";
 import { getPinnedRunId } from "../db/instance/run_generation.ts";
 import { createScope } from "../db/instance/scopes.ts";
-import {
-  SCOPE_ACCESS_ALL_DATA,
-  setUserScopeAccess,
-} from "../db/instance/users.ts";
+import { setUserScopeAccess } from "../db/instance/users.ts";
 import { closeAllConnections } from "../db/postgres/connection_manager.ts";
 import { _ASSETS_DIR_PATH, _BYPASS_AUTH } from "../exposed_env_vars.ts";
 import { buildGlobalUserFromDb } from "../auth/global_user.ts";
@@ -352,14 +349,17 @@ Deno.test("scope grants: products, folders, data reads, collab and /mcp", async 
 
     // A restricted user cannot be granted "All data": it filters nothing, so
     // all data is the unrestricted state and nothing else. The refused write
-    // leaves the grants as they were.
+    // leaves the grants as they were. A grant is a ScopeUuid, so the route's
+    // schema is what refuses it.
+    await mainDb`UPDATE users SET is_admin = TRUE WHERE email = ${OPEN_EMAIL}`;
     assertEquals(
-      await setUserScopeAccess(mainDb, LIMITED_EMAIL, {
-        all: false,
-        scopeIds: [granted, ALL_DATA_SCOPE_ID],
-      }),
-      { success: false, err: SCOPE_ACCESS_ALL_DATA },
+      (await call(open, "POST", "/user/scope-access", {
+        email: LIMITED_EMAIL,
+        scopeAccess: { all: false, scopeIds: [granted, ALL_DATA_SCOPE_ID] },
+      })).status,
+      400,
     );
+    await mainDb`UPDATE users SET is_admin = FALSE WHERE email = ${OPEN_EMAIL}`;
     assertEquals(
       (await buildGlobalUserFromDb(LIMITED_EMAIL, null, null)).scopeAccess,
       { all: false, scopeIds: [granted] },

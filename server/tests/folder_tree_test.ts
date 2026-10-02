@@ -8,7 +8,13 @@
 //   deno test -A --env-file server/tests/folder_tree_test.ts
 
 import { assertEquals } from "@std/assert";
-import type { Folder, ProductSummary, ProductType } from "lib";
+import {
+  ALL_DATA_SCOPE_ID,
+  type Folder,
+  type ProductBase,
+  type ProductSummary,
+  type ProductType,
+} from "lib";
 import {
   buildProductTree,
   childFolders,
@@ -38,12 +44,12 @@ function product(
   type: ProductType = "slide_deck",
   lastUpdated = "2026-01-01T00:00:00.000Z",
 ): ProductSummary {
-  const base = {
+  const base: ProductBase = {
     id,
     label,
     folderId,
     runId: "run",
-    scopeId: "scope",
+    scopeId: ALL_DATA_SCOPE_ID,
     createdBy: null,
     createdAt: null,
     lastUpdated,

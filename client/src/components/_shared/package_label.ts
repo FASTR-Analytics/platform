@@ -1,4 +1,11 @@
-import { ALL_DATA_SCOPE_ID, type FigureScope, type Scope, t3, TC } from "lib";
+import {
+  ALL_DATA_SCOPE_ID,
+  type FigureScope,
+  type Scope,
+  type ScopeId,
+  t3,
+  TC,
+} from "lib";
 import { instanceState } from "~/state/instance/t1_store";
 
 // The package a product serves from, by LABEL. Ready-package labels are
@@ -25,7 +32,7 @@ export function scopeDisplayLabel(scope: Pick<Scope, "id" | "label">): string {
 }
 
 // A scope by LABEL, from instance T1.
-export function scopeLabel(scopeId: string): string {
+export function scopeLabel(scopeId: ScopeId): string {
   const scope = instanceState.scopes.find((s) => s.id === scopeId);
   return scope !== undefined ? scopeDisplayLabel(scope) : t3({
     en: "Unlisted scope",
@@ -55,7 +62,7 @@ export function figureScopeLabel(stamp: FigureScope): string {
 // rows, editor headers).
 export function packageScopeCaption(product: {
   runId: string;
-  scopeId: string;
+  scopeId: ScopeId;
 }): string {
   return `${packageLabel(product.runId)} · ${scopeLabel(product.scopeId)}`;
 }
