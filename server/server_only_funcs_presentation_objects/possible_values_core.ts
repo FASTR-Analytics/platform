@@ -1,3 +1,4 @@
+import { foldString } from "@timroberton/panther";
 import { tryCatchDatabaseAsync } from "../db/mod.ts";
 import {
   APIResponseWithData,
@@ -35,11 +36,8 @@ const DYNAMIC_PERIOD_COLUMNS = ["year", "month", "quarter_id"] as const;
 // sort exists to remove: host vs deployed-image Deno versions would emit
 // different orders. Rules: digit runs compare numerically ("anc2" < "anc10");
 // everything else by code point over a case-folded, diacritic-stripped key
-// (French/accented admin-area ids sort with their base letter, not after
-// "z"); full ties break on the raw string so the order is total.
-function normalizeForOptionOrder(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
+// (foldString; French/accented admin-area ids sort with their base letter,
+// not after "z"); full ties break on the raw string so the order is total.
 
 function compareDigitRuns(a: string, b: string): number {
   const at = a.replace(/^0+/, "");
@@ -54,8 +52,8 @@ function compareDigitRuns(a: string, b: string): number {
 const OPTION_ORDER_SEGMENTS = /\d+|\D+/g;
 
 function compareOptionIds(a: string, b: string): number {
-  const as = normalizeForOptionOrder(a).match(OPTION_ORDER_SEGMENTS) ?? [];
-  const bs = normalizeForOptionOrder(b).match(OPTION_ORDER_SEGMENTS) ?? [];
+  const as = foldString(a).match(OPTION_ORDER_SEGMENTS) ?? [];
+  const bs = foldString(b).match(OPTION_ORDER_SEGMENTS) ?? [];
   const n = Math.min(as.length, bs.length);
   for (let i = 0; i < n; i++) {
     const x = as[i];
