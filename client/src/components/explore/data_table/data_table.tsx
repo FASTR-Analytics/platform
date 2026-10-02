@@ -28,9 +28,12 @@ import {
   Csv,
   dataGridPropsFromTableData,
   downloadCsv,
+  foldString,
   FrameTop,
   getLanguage,
   getTableDataTransformed,
+  matchesSearch,
+  searchTokens,
   StateHolderWrapper,
 } from "panther";
 import {
@@ -238,10 +241,10 @@ function ReadyFamilyTable(p: {
 
   const focusColumnId = createMemo((): string | null => {
     const g = readyGrid();
-    const needle = find().trim().toLowerCase();
-    if (g === undefined || needle === "") return null;
+    const tokens = searchTokens(find());
+    if (g === undefined || tokens.length === 0) return null;
     return g.columns.find((c) =>
-      columnLabel(g, c.id).toLowerCase().includes(needle)
+      matchesSearch(foldString(columnLabel(g, c.id)), tokens)
     )?.id ?? null;
   });
 
