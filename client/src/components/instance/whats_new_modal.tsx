@@ -15,6 +15,7 @@ import {
   type AlertComponentProps,
   MarkdownPresentationJsx,
   ModalContainer,
+  plural,
 } from "panther";
 import {
   createEffect,
@@ -484,9 +485,10 @@ export function WhatsNewFeedModal(
     const pageCount = post.pages?.length ?? 0;
     parts.push(
       `${pageCount} ${
-        pageCount === 1
-          ? t3({ en: "page", fr: "page", pt: "página" })
-          : t3({ en: "pages", fr: "pages", pt: "páginas" })
+        plural(pageCount, {
+          one: t3({ en: "page", fr: "page", pt: "página" }),
+          other: t3({ en: "pages", fr: "pages", pt: "páginas" }),
+        })
       }`,
     );
     return parts.join(" · ");
