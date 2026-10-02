@@ -181,7 +181,9 @@ function tree(
   return buildProductTree({
     folders: opts.folders ?? TREE,
     products: opts.products ?? PRODUCTS,
-    needle: opts.needle ?? null,
+    matches: opts.needle === undefined
+      ? null
+      : (label) => label.toLowerCase().includes(opts.needle ?? ""),
     generalLabel: "General",
     sort: opts.sort ?? byLabel,
   });

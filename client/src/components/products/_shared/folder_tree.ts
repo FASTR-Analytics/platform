@@ -143,16 +143,16 @@ function later(a: string | undefined, b: string): string {
 export function buildProductTree(args: {
   folders: Folder[];
   products: ProductSummary[];
-  // Lowercased search text, or null when not searching.
-  needle: string | null;
+  // Whether a label matches the search, or null when not searching. Passed
+  // in, like `sort`, so this module stays type-import-only.
+  matches: ((label: string) => boolean) | null;
   // General's label in the user's language: it sorts by it among the root
-  // folders. Passed in so this module stays type-import-only.
+  // folders.
   generalLabel: string;
   sort: <T extends Sortable>(items: T[]) => T[];
 }): ProductTree {
-  const { needle } = args;
-  const matches = (label: string) =>
-    needle !== null && label.toLowerCase().includes(needle);
+  const searching = args.matches !== null;
+  const matches = args.matches ?? (() => false);
   const foldersByParent = groupBy(args.folders, (f) => f.parentId);
   const productsByFolder = groupBy(args.products, (p) => p.folderId);
   const tree: ProductTree = {
@@ -186,7 +186,7 @@ export function buildProductTree(args: {
   ): { match: boolean; newest: string | undefined } {
     const allProducts = productsByFolder.get(parentId) ?? [];
     const shownProducts = allProducts.filter(
-      (p) => needle === null || underMatch || matches(p.label),
+      (p) => !searching || underMatch || matches(p.label),
     );
     const matchedProducts = shownProducts.filter((p) => matches(p.label));
     tree.matchCount += matchedProducts.length;
@@ -206,7 +206,7 @@ export function buildProductTree(args: {
       newest = later(newest, date);
       const hasContents = (tree.folders.get(folder.id)?.length ?? 0) > 0 ||
         (tree.products.get(folder.id)?.length ?? 0) > 0;
-      const eligible = needle === null || underMatch || selfMatch;
+      const eligible = !searching || underMatch || selfMatch;
       if (!eligible && !hasContents) continue;
       shownFolders.push(folder);
       if (selfMatch) tree.matchCount += 1;

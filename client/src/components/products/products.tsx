@@ -3,12 +3,15 @@ import { type Folder, type ProductSummary, type ProductType, t3 } from "lib";
 import {
   Button,
   createDeleteAction,
+  foldString,
   FrameTop,
   getFirstString,
   HeadingBar,
+  matchesSearch,
   type MenuItem,
   openAlert,
   openComponent,
+  searchTokens,
   showMenu,
 } from "panther";
 import {
@@ -161,10 +164,13 @@ export function Products() {
         (x) => x.label,
         (x) => x.lastUpdated,
       );
+    const tokens = searchTokens(searchText());
     return buildProductTree({
       folders: instanceState.folders,
       products: instanceState.products,
-      needle: isSearching() ? searchText().toLowerCase() : null,
+      matches: isSearching()
+        ? (label) => matchesSearch(foldString(label), tokens)
+        : null,
       generalLabel: generalLabel(),
       sort,
     });
