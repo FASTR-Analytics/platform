@@ -106,7 +106,7 @@ The script performs the following steps:
 
 3. **Typecheck Gate**
    - Runs `deno task typecheck` (server + client + `lint:systems` +
-     `lint:structure` + `lint:text-sizes`)
+     `lint:structure` + `lint:text-sizes` + `lint:jsonb`)
 
 4. **Docker Image**
    - Builds Docker image tagged with version:

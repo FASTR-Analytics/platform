@@ -43,11 +43,11 @@ per-directory style.
 ## Gates
 
 - `deno task typecheck` runs `deno fmt --check`, the server check, the client
-  check, `lint:systems`, `lint:structure` and `lint:text-sizes`. The systems
-  lint fails if any tracked `.ts` or `.tsx` file under `server/`, `lib/`, or
-  `client/src/` is not claimed by exactly one SYSTEM file's file-pattern
-  (`globs`) manifest. Adding or moving a file means editing a manifest. The
-  structure lint fails if the client tree breaks a rule of
+  check, `lint:systems`, `lint:structure`, `lint:text-sizes` and `lint:jsonb`.
+  The systems lint fails if any tracked `.ts` or `.tsx` file under `server/`,
+  `lib/`, or `client/src/` is not claimed by exactly one SYSTEM file's
+  file-pattern (`globs`) manifest. Adding or moving a file means editing a
+  manifest. The structure lint fails if the client tree breaks a rule of
   `panther/protocols/PROTOCOL_UI_STRUCTURE.md` (names, `mod.ts` entries, scoped
   `_shared/`, layer direction, reachability, folder cycles). The text-size lint
   fails on any UI text size outside the rem token scale: an arbitrary
@@ -99,6 +99,11 @@ per-directory style.
 
 ## Lockstep rules
 
+- **No `jsonb` outside migration files.** Stored JSON is a `text` column.
+  Runtime code reads the text, parses and rewrites it in TypeScript, and writes
+  text back: no `jsonb` column, cast or function in `server/`, `lib/` or a root
+  script. `lint:jsonb` fails the typecheck on one. A migration under
+  `server/db/migrations/` may cast to `jsonb` to reshape a row, and stores text.
 - **Renaming or deleting a stored JSON field changes more than the key name.**
   Zod, the schema library, strips unknown keys by default, so it treats the old
   key as valid and silently drops it on every read. The setting vanishes with no

@@ -398,18 +398,11 @@ export async function updateHfaIndicatorServiceCategory(
       `;
       // No FK on the JSON list; keep indicator tags in sync when the id changes.
       if (serviceCategory.id !== oldId) {
-        await sql`
-          UPDATE hfa_indicators
-          SET service_category_ids = (
-                SELECT COALESCE(
-                  jsonb_agg(CASE WHEN e = ${oldId} THEN ${serviceCategory.id} ELSE e END),
-                  '[]'::jsonb
-                )
-                FROM jsonb_array_elements_text(service_category_ids::jsonb) AS e
-              )::text,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE jsonb_exists(service_category_ids::jsonb, ${oldId})
-        `;
+        await rewriteServiceCategoryTags(
+          sql,
+          oldId,
+          (ids) => ids.map((id) => id === oldId ? serviceCategory.id : id),
+        );
       }
       await assertVariantIntegrity(sql);
     });
@@ -425,12 +418,11 @@ export async function deleteHfaIndicatorServiceCategory(
     await mainDb.begin(async (sql) => {
       // No FK on the JSON list; scrub the deleted id from indicator tags
       // (replaces the old ON DELETE SET NULL behaviour).
-      await sql`
-        UPDATE hfa_indicators
-        SET service_category_ids = (service_category_ids::jsonb - ${id})::text,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE jsonb_exists(service_category_ids::jsonb, ${id})
-      `;
+      await rewriteServiceCategoryTags(
+        sql,
+        id,
+        (ids) => ids.filter((tagged) => tagged !== id),
+      );
       await sql`DELETE FROM hfa_indicator_service_categories WHERE id = ${id}`;
     });
     return { success: true };
@@ -1459,4 +1451,37 @@ export async function getHfaDictionaryForValidation(
 
     return { success: true, data: { timePoints } };
   });
+}
+
+// Rewrites the service-category list of every indicator tagged with `id`,
+// in one read and one write. The rows are locked so an indicator saved
+// alongside cannot be written back with the old list.
+async function rewriteServiceCategoryTags(
+  sql: Sql,
+  id: string,
+  rewrite: (ids: string[]) => string[],
+): Promise<void> {
+  const rows = await sql<
+    Pick<DBHfaIndicator, "indicator_id" | "service_category_ids">[]
+  >`
+    SELECT indicator_id, service_category_ids FROM hfa_indicators FOR UPDATE
+  `;
+  const changed = rows.flatMap((row) => {
+    const ids = z.array(z.string()).parse(JSON.parse(row.service_category_ids));
+    return ids.includes(id)
+      ? [{ indicatorId: row.indicator_id, ids: JSON.stringify(rewrite(ids)) }]
+      : [];
+  });
+  if (changed.length === 0) {
+    return;
+  }
+  await sql`
+    UPDATE hfa_indicators AS h
+    SET service_category_ids = v.ids, updated_at = CURRENT_TIMESTAMP
+    FROM unnest(
+      ${changed.map((c) => c.indicatorId)}::text[],
+      ${changed.map((c) => c.ids)}::text[]
+    ) AS v(indicator_id, ids)
+    WHERE h.indicator_id = v.indicator_id
+  `;
 }

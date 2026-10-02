@@ -152,6 +152,7 @@ the PO vocabulary in code is a separate refactor.
 deno task lint:systems
 deno task lint:structure
 deno task lint:text-sizes
+deno task lint:jsonb
 ```
 
 Green = every tracked `.ts`/`.tsx` under `server/`, `lib/`, `client/src/` (+
@@ -175,3 +176,7 @@ scans the tracked `.ts`, `.tsx` and `.css` files under `client/src/` and
 `panther/_303_components/` and fails on a text size outside the rem token scale:
 an arbitrary `text-[Npx]`, the non-token `text-md`, or an inline font-size in px
 or pt. Document and canvas rendering is exempt by file in the script.
+
+`lint_jsonb.ts` (task `lint:jsonb`, chained after `lint:text-sizes`) fails on
+`jsonb` in any tracked `.ts`, `.tsx` or `.sql` file outside
+`server/db/migrations/`. Stored JSON is a `text` column, parsed in TypeScript.

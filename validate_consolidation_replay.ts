@@ -35,6 +35,7 @@
 // is the mechanism the step 10 post-check reuses.
 
 import { dirname, fromFileUrl, join } from "@std/path";
+import { parseScopeDefinition, scopeAreasOf } from "lib";
 import type { Sql } from "postgres";
 import { getPgConnection } from "./server/db/postgres/connection_manager.ts";
 import {
@@ -447,11 +448,16 @@ async function assertConsolidated(db: Sql): Promise<void> {
   >`SELECT id, label, color, parent_id, created_by FROM folders`;
   // 204 runs after the consolidation and moves each product's area into its
   // scope's definition, so the area 201 wrote is read back from there.
-  const products = await db<ProductRow[]>`
-    SELECT p.id, p.type, p.label, p.folder_id, p.run_id,
-           s.definition::jsonb #>> '{hmis,adminArea2}' AS admin_area_2,
+  const productRows = await db<
+    (Omit<ProductRow, "admin_area_2"> & { definition: string })[]
+  >`
+    SELECT p.id, p.type, p.label, p.folder_id, p.run_id, s.definition,
            p.created_by, p.created_at
     FROM products p JOIN scopes s ON s.id = p.scope_id`;
+  const products: ProductRow[] = productRows.map(({ definition, ...row }) => ({
+    ...row,
+    admin_area_2: scopeAreasOf(parseScopeDefinition(definition)).hmis,
+  }));
 
   const roots = folders.filter((f) => f.parent_id === null);
   const children = folders.filter((f) => f.parent_id !== null);

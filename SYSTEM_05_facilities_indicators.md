@@ -496,9 +496,10 @@ that predate this rule (or violate `HFA_INDICATOR_ID_REGEX`,
 `^[a-zA-Z][a-zA-Z0-9_]{0,63}$`, which batch and workbook ids must still pass)
 are carried unchanged. Taxonomy: categories → sub-categories (real FKs) plus
 service categories stored as a JSON string array on the indicator (no FK;
-rename/delete integrity is maintained by jsonb rewrites in the service-category
-mutations). `lib/hfa_indicator_labels.ts` is the single label authority
-(`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
+rename/delete integrity is maintained by `rewriteServiceCategoryTags`, which the
+service-category mutations call to rewrite the tagged indicators' lists in
+TypeScript, in the same transaction). `lib/hfa_indicator_labels.ts` is the
+single label authority (`composeHfaIndicatorLabel`, `getHfaIndicatorMeasure`).
 
 **HFA workbook import** (`xlsx_upload_form.tsx`) has two inputs behind one flow:
 a picked `.xlsx`, or the **default indicator set** fetched client-side from the

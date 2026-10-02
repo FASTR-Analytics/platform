@@ -26,6 +26,10 @@ Two types of migrations:
    the database.
 4. **Fail fast:** Startup sweep validates all stored data. Boot fails if
    anything is invalid.
+5. **Stored JSON is text.** No column is typed `jsonb`. A migration file may
+   cast to `jsonb` to reshape a row and must store text; nothing outside
+   `server/db/migrations/` may name `jsonb` at all (`lint:jsonb`, chained into
+   `deno task typecheck`).
 
 ---
 

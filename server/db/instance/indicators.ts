@@ -29,6 +29,7 @@ import {
   isSpecialIndicatorId,
   MAX_INDICATOR_EXPRESSION_INGREDIENTS,
   parseIndicatorExpression,
+  parseJsonOrThrow,
   POPULATION_TYPE_IDS,
   renameIdentifierInExpression,
   renameIdentifiers,
@@ -1117,14 +1118,33 @@ async function renameReferences(
       WHERE indicator_common_id = ${row.indicator_common_id}
     `;
   }
+  const schedules = await sql<{ id: number; selection: string }[]>`
+    SELECT id, selection FROM dataset_hmis_scheduled_imports FOR UPDATE
+  `;
+  const renamed = schedules.flatMap((row) => {
+    const selection = parseJsonOrThrow<Record<string, unknown>>(row.selection);
+    const ids = selection.indicatorIds;
+    return Array.isArray(ids) && ids.includes(from)
+      ? [{
+        id: row.id,
+        selection: JSON.stringify({
+          ...selection,
+          indicatorIds: ids.map((id) => id === from ? to : id),
+        }),
+      }]
+      : [];
+  });
+  if (renamed.length === 0) {
+    return;
+  }
   await sql`
-    UPDATE dataset_hmis_scheduled_imports
-    SET selection = jsonb_set(
-      selection::jsonb, '{indicatorIds}',
-      (SELECT COALESCE(jsonb_agg(CASE WHEN id = ${from} THEN ${to} ELSE id END ORDER BY ord), '[]'::jsonb)
-       FROM jsonb_array_elements_text(selection::jsonb -> 'indicatorIds') WITH ORDINALITY AS t(id, ord))
-    )::text
-    WHERE selection::jsonb -> 'indicatorIds' ? ${from}
+    UPDATE dataset_hmis_scheduled_imports AS s
+    SET selection = v.selection
+    FROM unnest(
+      ${renamed.map((r) => r.id)}::int[],
+      ${renamed.map((r) => r.selection)}::text[]
+    ) AS v(id, selection)
+    WHERE s.id = v.id
   `;
 }
 

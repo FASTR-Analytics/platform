@@ -1234,15 +1234,32 @@ export async function setStructureRecodes(
           "Staging has changed since this page was loaded — refresh and review again.",
       };
     }
-    const updated = await mainDb`
-      UPDATE structure_upload_attempts
-      SET recodes = ${JSON.stringify(normalized)}
-      WHERE dataset_family = ${family}
-        AND step = 4
-        AND status_type <> 'importing'
-        AND (step_3_result::jsonb->>'stagingNonce') = ${stagingNonce}
-    `;
-    if (updated.count === 0) {
+    // The row is locked while its nonce is compared, so a restage cannot
+    // land between the check and the write.
+    const saved = await mainDb.begin(async (sql) => {
+      const attempt = (
+        await sql<Pick<DBStructureUploadAttempt, "step_3_result">[]>`
+          SELECT step_3_result FROM structure_upload_attempts
+          WHERE dataset_family = ${family}
+            AND step = 4
+            AND status_type <> 'importing'
+          FOR UPDATE
+        `
+      ).at(0);
+      const staged = parseJsonOrUndefined<StructureStagingResult>(
+        attempt?.step_3_result,
+      );
+      if (staged?.stagingNonce !== stagingNonce) {
+        return false;
+      }
+      await sql`
+        UPDATE structure_upload_attempts
+        SET recodes = ${JSON.stringify(normalized)}
+        WHERE dataset_family = ${family}
+      `;
+      return true;
+    });
+    if (!saved) {
       return {
         success: false,
         err:
