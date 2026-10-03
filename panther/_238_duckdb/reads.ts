@@ -5,8 +5,12 @@
 
 import {
   BLANK_SENTINEL,
+  caseHint,
   compareOptionValues,
+  getDimensionNames,
   LongTableValidationError,
+  normalizeLongTableQuery,
+  resolveDimension,
   resolvePeriodFilter,
   toLongTableCell,
   validateLongTableQuery,
@@ -29,11 +33,7 @@ import { buildItemsPlan } from "./_sql/items.ts";
 import type { QueryPlan } from "./_sql/plan.ts";
 import { quoteIdentifier } from "./_sql/quote.ts";
 import { buildRowsPlan } from "./_sql/rows.ts";
-import {
-  buildValuesPlan,
-  OPTION_ALIAS,
-  resolveOptionDimension,
-} from "./_sql/values.ts";
+import { buildValuesPlan, OPTION_ALIAS } from "./_sql/values.ts";
 
 export type LongTableItemsOptions = { maxItems?: number };
 export type LongTableValuesOptions = {
@@ -59,9 +59,13 @@ const COUNT_ALL: LongTableQuery["values"] = [{
   as: "n",
 }];
 
+// `columnOf` names the table column behind a result key, for a read whose
+// keys are its own aliases, so a cell that cannot be converted is reported
+// under a name the caller knows.
 async function runPlan(
   handle: LongTableHandle,
   plan: QueryPlan,
+  columnOf: (key: string) => string = (key) => key,
 ): Promise<LongTableRow[]> {
   const reader = await handle.connection.runAndReadAll(
     emitQuery(plan),
@@ -70,7 +74,7 @@ async function runPlan(
   );
   return reader.getRowObjects().map((row) =>
     Object.fromEntries(
-      Object.entries(row).map(([k, v]) => [k, toLongTableCell(v, k)]),
+      Object.entries(row).map(([k, v]) => [k, toLongTableCell(v, columnOf(k))]),
     )
   );
 }
@@ -79,23 +83,33 @@ function source(handle: LongTableHandle): string {
   return quoteIdentifier(handle.viewName);
 }
 
+// A server-owned cap. A value below 1 or a fraction is the app's mistake,
+// not the query's, so it is a plain Error.
+function requireCap(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${name} ${value} must be a whole number of at least 1`);
+  }
+  return value;
+}
+
 // MIN and MAX of the physical time column under the filters and ranges, or
-// undefined when the table has no time column or they select nothing.
+// undefined when the table has no time column or no selected row has a
+// period.
 export async function getPeriodBounds(
   handle: LongTableHandle,
   filters: LongTableFilter[],
   ranges: LongTableRange[] = [],
 ): Promise<PeriodBounds | undefined> {
-  const time = handle.schema.time;
-  if (time === undefined) {
-    return undefined;
-  }
   validateLongTableQuery(handle.schema, {
     values: COUNT_ALL,
     groupBy: [],
     filters,
     ranges,
   });
+  const time = handle.schema.time;
+  if (time === undefined) {
+    return undefined;
+  }
   const plan = buildBoundsPlan(
     handle.schema,
     time.column,
@@ -103,7 +117,7 @@ export async function getPeriodBounds(
     ranges,
     source(handle),
   );
-  const [row] = await runPlan(handle, plan);
+  const [row] = await runPlan(handle, plan, () => time.column);
   const min = row?.min;
   const max = row?.max;
   if (typeof min !== "number" || typeof max !== "number") {
@@ -113,7 +127,9 @@ export async function getPeriodBounds(
 }
 
 // The period bounds a read runs under: the resolved filter when one is
-// present, else the data bounds. `none` means nothing can match.
+// present, else the data bounds. `none` means a period filter selects
+// nothing. With no period filter a read has no time constraint, so rows
+// whose time cell is blank are read and "no bounds" is not "no data".
 export async function resolveBounds(
   handle: LongTableHandle,
   filters: LongTableFilter[],
@@ -125,9 +141,6 @@ export async function resolveBounds(
     return { bounds: undefined, none: false };
   }
   const data = await getPeriodBounds(handle, filters, ranges);
-  if (data === undefined) {
-    return { bounds: undefined, none: true };
-  }
   if (periodFilter === undefined) {
     return { bounds: data, none: false };
   }
@@ -137,11 +150,15 @@ export async function resolveBounds(
 
 export async function getItems(
   handle: LongTableHandle,
-  query: LongTableQuery,
+  given: LongTableQuery,
   opts: LongTableItemsOptions = {},
 ): Promise<ItemsResult> {
-  validateLongTableQuery(handle.schema, query);
-  const maxItems = opts.maxItems ?? DEFAULT_MAX_ITEMS;
+  validateLongTableQuery(handle.schema, given);
+  // The read runs from the normalized copy: two queries with one key then
+  // give one result (value order is the row tiebreak), and a caller that
+  // mutates its object during the bounds query cannot reach the builders.
+  const query = normalizeLongTableQuery(given);
+  const maxItems = requireCap(opts.maxItems ?? DEFAULT_MAX_ITEMS, "maxItems");
   if (query.limit !== undefined && query.limit > maxItems) {
     throw new LongTableValidationError(
       `limit ${query.limit} exceeds maxItems ${maxItems}`,
@@ -198,11 +215,18 @@ export async function getDimensionValues(
     ranges,
     periodFilter,
   });
-  const resolved = resolveOptionDimension(handle.schema, dim);
+  const resolved = resolveDimension(handle.schema, dim);
   if (resolved === undefined) {
-    throw new LongTableValidationError(`"${dim}" is not a dimension`);
+    throw new LongTableValidationError(
+      `"${dim}" is not a dimension${
+        caseHint(dim, getDimensionNames(handle.schema))
+      }`,
+    );
   }
-  const maxValues = opts.maxValues ?? DEFAULT_MAX_VALUES;
+  const maxValues = requireCap(
+    opts.maxValues ?? DEFAULT_MAX_VALUES,
+    "maxValues",
+  );
   const { bounds, none } = await resolveBounds(
     handle,
     filters,
@@ -221,10 +245,10 @@ export async function getDimensionValues(
     source(handle),
     maxValues + 2,
   );
-  const rows = await runPlan(handle, plan);
-  const values = rows
-    .map((row) => row[OPTION_ALIAS])
-    .filter((v): v is string | number => v !== null && v !== undefined);
+  const rows = await runPlan(handle, plan, () => dim);
+  // A text dimension's blank cells arrive folded onto the sentinel; a NULL
+  // of any other type is the same blank group and is offered the same way.
+  const values = rows.map((row) => row[OPTION_ALIAS] ?? BLANK_SENTINEL);
   const named = values.filter((v) => v !== BLANK_SENTINEL);
   if (named.length > maxValues) {
     return { status: "too_many_values" };
@@ -250,7 +274,7 @@ export async function getRows(
     ranges,
     periodFilter: opts.periodFilter,
   });
-  const maxRows = opts.maxRows ?? DEFAULT_MAX_ROWS;
+  const maxRows = requireCap(opts.maxRows ?? DEFAULT_MAX_ROWS, "maxRows");
   const limit = opts.limit ?? Math.min(DEFAULT_ROW_LIMIT, maxRows);
   if (!Number.isInteger(limit) || limit < 1 || limit > maxRows) {
     throw new LongTableValidationError(

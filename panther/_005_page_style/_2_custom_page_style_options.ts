@@ -67,7 +67,7 @@ export type ContentStyleOptions = {
   // Layout stretch ceiling: how far a figure may grow beyond its ideal height
   // to fill page space (maxH = idealH × this). A page/layout policy — figures
   // own their ideal height, the page owns how much they stretch past it.
-  // Figures that fill freely (sankey, simpleviz, map, image) ignore this.
+  // Figures that fill freely (sankey, map, image) ignore this.
   figureMaxStretch?: number;
 };
 

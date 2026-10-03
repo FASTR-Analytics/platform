@@ -5,9 +5,11 @@
 
 export {
   ALL_LONG_TABLE_AGGREGATES,
+  BLANK_CHARACTERS,
   BLANK_SENTINEL,
   DEFAULT_ROLLUP_SENTINEL,
   DEFAULT_SET_DELIMITER,
+  isBlankText,
   LongTableValidationError,
   SAMPLE_N_PREFIX,
 } from "./types.ts";
@@ -37,21 +39,35 @@ export type {
   RowsResult,
 } from "./types.ts";
 export {
+  caseHint,
+  findNonPeriod,
+  foldName,
   getColumnType,
   getDerivedDimensions,
+  getDimensionNames,
   getReachableComponents,
   getReachableGrains,
+  getTimeConventions,
   inferLongTableSchema,
   resolveDimension,
+  TIME_VALUES_LIMIT,
   validateLongTableSchema,
 } from "./schema.ts";
 export {
   coerceFilterValue,
   getFilterBindType,
   getLongTableQueryKey,
+  getOutputNames,
   getValueOutputName,
   isBareIdentifier,
+  isIngredientOnly,
+  MAX_EXPRESSIONS,
+  MAX_FILTER_VALUE_LENGTH,
   MAX_FILTER_VALUES,
+  MAX_FILTERS,
+  MAX_NAME_LENGTH,
+  MAX_RANGES,
+  MAX_VALUES,
   normalizeLongTableQuery,
   validateLongTableQuery,
 } from "./query.ts";

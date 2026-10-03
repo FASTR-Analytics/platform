@@ -25,7 +25,6 @@ import type {
   MergedPieStyle,
   MergedSankeyStyle,
   MergedScaleLegendStyle,
-  MergedSimpleVizStyle,
   MergedSurroundsStyle,
   MergedTableStyle,
   MergedVizGraphStyle,
@@ -111,7 +110,6 @@ export type FigureStyleKeyCoverage = {
   >;
   grid: AssertNoMissingKeys<Missing<"grid", MergedGridStyle>>;
   panes: AssertNoMissingKeys<Missing<"panes", MergedPaneStyle>>;
-  simpleviz: AssertNoMissingKeys<Missing<"simpleviz", MergedSimpleVizStyle>>;
   vizgraph: AssertNoMissingKeys<Missing<"vizgraph", MergedVizGraphStyle>>;
   sankey: AssertNoMissingKeys<Missing<"sankey", MergedSankeyStyle>>;
   map: AssertNoMissingKeys<Missing<"map", MergedMapStyle["map"]>>;
@@ -148,12 +146,6 @@ type MergedFigureTextKey =
   | keyof MergedYScaleAxisStyle["text"]
   | keyof MergedPieStyle["pie"]["text"]
   | (MergedLegendStyle["text"] extends TextInfoUnkeyed ? "legend" : never)
-  | (MergedSimpleVizStyle["text"]["primary"] extends TextInfoUnkeyed
-    ? "simplevizBoxTextPrimary"
-    : never)
-  | (MergedSimpleVizStyle["text"]["secondary"] extends TextInfoUnkeyed
-    ? "simplevizBoxTextSecondary"
-    : never)
   | (MergedVizGraphStyle["text"]["primary"] extends TextInfoUnkeyed
     ? "vizgraphNodeTextPrimary"
     : never)

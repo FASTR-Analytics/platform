@@ -6,8 +6,6 @@
 import type {
   AreaStyle,
   Arrowhead,
-  ArrowPrimitive,
-  BoxPrimitive,
   CascadeArrowPrimitive,
   ChartAxisPrimitive,
   ChartCaptionPrimitive,
@@ -292,13 +290,6 @@ function renderPrimitive(rc: RenderContext, primitive: Primitive): void {
       renderLabelPrimitive(rc, primitive);
       break;
 
-    case "simpleviz-box":
-      renderBoxPrimitive(rc, primitive);
-      break;
-
-    case "simpleviz-arrow":
-      renderArrowPrimitive(rc, primitive);
-      break;
     case "vizgraph-node":
       renderVizGraphNodePrimitive(rc, primitive);
       break;
@@ -657,47 +648,6 @@ function renderLabelPrimitive(
     primitive.bounds,
     primitive.alignment.h,
     primitive.alignment.v,
-  );
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    SimpleViz Box Rendering                                                 //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-function renderBoxPrimitive(rc: RenderContext, primitive: BoxPrimitive): void {
-  rc.rRect(primitive.rcd, primitive.rectStyle);
-
-  if (primitive.text) {
-    rc.rText(primitive.text.mText, primitive.text.position, "center", "middle");
-  }
-
-  if (primitive.secondaryText) {
-    rc.rText(
-      primitive.secondaryText.mText,
-      primitive.secondaryText.position,
-      "center",
-      "middle",
-    );
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//    SimpleViz Arrow Rendering                                               //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-function renderArrowPrimitive(
-  rc: RenderContext,
-  primitive: ArrowPrimitive,
-): void {
-  renderLineWithArrowheads(
-    rc,
-    primitive.pathCoords,
-    primitive.lineStyle,
-    primitive.arrowheads,
   );
 }
 

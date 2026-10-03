@@ -44,9 +44,7 @@ export {
 export type {
   AreaStyle,
   Arrowhead,
-  ArrowPrimitive,
   AxisMembership,
-  BoxPrimitive,
   CascadeArrowInfo,
   CascadeArrowPrimitive,
   ChartAxisPrimitive,

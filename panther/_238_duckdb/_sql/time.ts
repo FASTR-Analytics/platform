@@ -12,8 +12,10 @@ export const TIME_CTE = "time";
 
 // The derived time dimensions as integer arithmetic over the physical
 // column. `//` truncates only on integer operands, which is why the time
-// column must be declared integer; DuckDB's `%` of a negative is negative,
-// so the fiscal quarter adds 12 before reducing.
+// column must be declared integer. The fiscal quarter adds the months from
+// the start month to the year's end as one constant, so no step is negative:
+// DuckDB's `%` of a negative is negative, and on an unsigned column a
+// subtraction below zero is an overflow.
 export function derivedExpr(
   schema: LongTableSchema,
   derived: DerivedDimension,
@@ -34,7 +36,7 @@ export function derivedExpr(
   const rule = time.fiscalYear;
   const quarter = rule === undefined
     ? `(${m} + 2) // 3`
-    : `((${m} - ${rule.startMonth} + 12) % 12) // 3 + 1`;
+    : `((${m} + ${12 - rule.startMonth}) % 12) // 3 + 1`;
   if (derived.kind === "component") {
     return quarter;
   }

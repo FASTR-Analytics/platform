@@ -32,13 +32,17 @@ export const MAX_EXPRESSION_LENGTH = 2000;
 export const MAX_EXPRESSION_NODES = 500;
 export const MAX_EXPRESSION_DEPTH = 32;
 
+// `at` is the token's character position in the expression, for messages.
 type Token =
-  | { kind: "number"; value: number }
-  | { kind: "identifier"; name: string }
-  | { kind: "op"; op: BinaryOperator }
-  | { kind: "(" }
-  | { kind: ")" }
-  | { kind: "," };
+  & { at: number }
+  & (
+    | { kind: "number"; value: number }
+    | { kind: "identifier"; name: string }
+    | { kind: "op"; op: BinaryOperator }
+    | { kind: "(" }
+    | { kind: ")" }
+    | { kind: "," }
+  );
 
 function fail(message: string): never {
   throw new LongTableValidationError(message);
@@ -64,7 +68,13 @@ function tokenize(expr: string): Token[] {
       if (m === null) {
         fail(`Bad number at position ${i} in expression`);
       }
-      tokens.push({ kind: "number", value: Number(m[0]) });
+      const value = Number(m[0]);
+      // A long enough digit run parses to Infinity, which is not a number
+      // the SQL can carry: emitted bare it would read as a column name.
+      if (!Number.isFinite(value)) {
+        fail(`Number at position ${i} in expression is too large`);
+      }
+      tokens.push({ kind: "number", value, at: i });
       i += m[0].length;
       continue;
     }
@@ -73,17 +83,17 @@ function tokenize(expr: string): Token[] {
       if (m === null) {
         fail(`Bad identifier at position ${i} in expression`);
       }
-      tokens.push({ kind: "identifier", name: m[0] });
+      tokens.push({ kind: "identifier", name: m[0], at: i });
       i += m[0].length;
       continue;
     }
     if (ch === "+" || ch === "-" || ch === "*" || ch === "/") {
-      tokens.push({ kind: "op", op: ch });
+      tokens.push({ kind: "op", op: ch, at: i });
       i++;
       continue;
     }
     if (ch === "(" || ch === ")" || ch === ",") {
-      tokens.push({ kind: ch });
+      tokens.push({ kind: ch, at: i });
       i++;
       continue;
     }
@@ -110,8 +120,9 @@ class Parser {
       fail("Expression is empty");
     }
     const node = this.sum(0);
-    if (this.pos < this.tokens.length) {
-      fail(`Unexpected token after the expression at token ${this.pos + 1}`);
+    const extra = this.peek();
+    if (extra !== undefined) {
+      fail(`Unexpected token at position ${extra.at} in expression`);
     }
     return node;
   }
@@ -196,21 +207,20 @@ class Parser {
       return inner;
     }
     if (t.kind === "identifier") {
+      // A name followed by "(" is a call; anything else is an identifier, so
+      // a value named like a function ("abs") can still be referenced.
       if (this.peek()?.kind === "(") {
-        return this.call(t.name, depth);
-      }
-      if (isFunctionName(t.name.toLowerCase())) {
-        fail(`"${t.name}" is a function and needs arguments`);
+        return this.call(t.name, t.at, depth);
       }
       return this.make({ type: "identifier", name: t.name });
     }
-    fail(`Unexpected token at token ${this.pos}`);
+    fail(`Unexpected token at position ${t.at} in expression`);
   }
 
-  private call(name: string, depth: number): ExpressionNode {
+  private call(name: string, at: number, depth: number): ExpressionNode {
     const fn = name.toLowerCase();
     if (!isFunctionName(fn)) {
-      fail(`Unknown function "${name}"`);
+      fail(`Unknown function "${name}" at position ${at} in expression`);
     }
     this.expect("(");
     const args: ExpressionNode[] = [];
@@ -238,7 +248,7 @@ class Parser {
   private expect(kind: "(" | ")"): void {
     const t = this.next();
     if (t.kind !== kind) {
-      fail(`Expected "${kind}" at token ${this.pos}`);
+      fail(`Expected "${kind}" at position ${t.at} in expression`);
     }
   }
 }

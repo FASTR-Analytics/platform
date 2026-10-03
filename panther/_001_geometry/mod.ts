@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 export * from "./alignment.ts";
-export * from "./anchor_point.ts";
 export * from "./coordinates.ts";
 export * from "./dimensions.ts";
 export * from "./padding.ts";

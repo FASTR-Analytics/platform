@@ -32,9 +32,6 @@ export const FIGURE_TEXT_STYLE_KEYS = [
   "paneHeaders",
   // Pie (indicator-slot headers; read as mergedStyle.pie.text.indicatorHeaders)
   "indicatorHeaders",
-  // SimpleViz
-  "simplevizBoxTextPrimary",
-  "simplevizBoxTextSecondary",
   // VizGraph
   "vizgraphNodeTextPrimary",
   "vizgraphNodeTextSecondary",

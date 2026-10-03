@@ -16,6 +16,7 @@ import type {
   InferConventions,
   LongTableColumnType,
   LongTableDimension,
+  LongTableGrainNames,
   LongTableSchema,
   LongTableTime,
   ResolvedDimension,
@@ -33,6 +34,32 @@ const DEFAULT_TIME_COLUMNS: Record<string, PeriodType> = {
   quarter_id: "year-quarter",
   year: "year",
 };
+
+// One more than the distinct periods any grain can hold (151 years of 12
+// months, the range periods.ts accepts). A read of a time column's distinct
+// values limited to this is every value, or proof there are too many for
+// them all to be periods; either way the check over them is complete, which
+// a small sample is not.
+export const TIME_VALUES_LIMIT = 1813;
+
+export function getTimeConventions(
+  conventions?: InferConventions,
+): Record<string, PeriodType> {
+  return conventions?.timeColumns ?? DEFAULT_TIME_COLUMNS;
+}
+
+// Whether a time column's distinct values (read up to TIME_VALUES_LIMIT) are
+// all periods of the grain; when not, the first value that is not, or
+// "too many".
+export function findNonPeriod(
+  values: number[],
+  grain: PeriodType,
+): number | "too many" | undefined {
+  if (values.length >= TIME_VALUES_LIMIT) {
+    return "too many";
+  }
+  return values.find((v) => getPeriodTypeFromValue(v) !== grain);
+}
 
 function fail(message: string): never {
   throw new LongTableValidationError(message);
@@ -118,7 +145,7 @@ export function resolveDimension(
   return undefined;
 }
 
-function hasControlCharacter(s: string): boolean {
+export function hasControlCharacter(s: string): boolean {
   for (let i = 0; i < s.length; i++) {
     const code = s.charCodeAt(i);
     if (code < 32 || code === 127) {
@@ -128,8 +155,40 @@ function hasControlCharacter(s: string): boolean {
   return false;
 }
 
-function fold(name: string): string {
-  return name.toLowerCase();
+// DuckDB folds identifiers over ASCII only: "É" and "é" are two columns,
+// "E" and "e" are one. Every uniqueness check in the layer uses this fold, so
+// the layer and the engine agree on which names are the same name.
+export function foldName(name: string): string {
+  return name.replace(/[A-Z]/g, (c) => c.toLowerCase());
+}
+
+// The declared name a reference differs from only in case, for a message
+// that names the spelling to use. References themselves are exact.
+export function findCaseVariant(
+  name: string,
+  declared: Iterable<string>,
+): string | undefined {
+  const folded = foldName(name);
+  for (const candidate of declared) {
+    if (candidate !== name && foldName(candidate) === folded) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+export function caseHint(name: string, declared: Iterable<string>): string {
+  const variant = findCaseVariant(name, declared);
+  return variant === undefined ? "" : `; it differs in case from "${variant}"`;
+}
+
+// Every name a groupBy entry or a filter may use.
+export function getDimensionNames(schema: LongTableSchema): string[] {
+  return [
+    ...schema.dimensions.map((d) => d.column),
+    ...(schema.time === undefined ? [] : [schema.time.column]),
+    ...getDerivedDimensions(schema).map((d) => d.name),
+  ];
 }
 
 export function validateLongTableSchema(schema: LongTableSchema): void {
@@ -138,48 +197,65 @@ export function validateLongTableSchema(schema: LongTableSchema): void {
     if (column.name.length === 0) {
       fail("A column name is empty");
     }
+    if (column.name === "*") {
+      fail(`A column cannot be named "*", which a query reads as every row`);
+    }
     if (hasControlCharacter(column.name)) {
       fail(
         `Column name ${JSON.stringify(column.name)} has a control character`,
       );
     }
-    if (column.name.startsWith(SAMPLE_N_PREFIX)) {
+    if (foldName(column.name).startsWith(SAMPLE_N_PREFIX)) {
       fail(
         `Column "${column.name}" starts with the reserved "${SAMPLE_N_PREFIX}"`,
       );
     }
-    if (seen.has(fold(column.name))) {
+    if (seen.has(foldName(column.name))) {
       fail(
         `Column "${column.name}" is declared twice (names are case-insensitive)`,
       );
     }
-    seen.add(fold(column.name));
+    seen.add(foldName(column.name));
   }
+  const columnNames = schema.columns.map((c) => c.name);
   const requireColumn = (name: string, where: string) => {
-    if (!seen.has(fold(name))) {
-      fail(`${where} "${name}" is not a column`);
-    }
     if (getColumnType(schema, name) === undefined) {
-      fail(`${where} "${name}" differs in case from its column`);
+      fail(
+        `${where} "${name}" is not a column${caseHint(name, columnNames)}`,
+      );
     }
   };
+  const valueNames = new Set<string>();
   for (const v of schema.values) {
     requireColumn(v, "Value");
+    if (valueNames.has(v)) {
+      fail(`Value "${v}" is listed twice`);
+    }
+    valueNames.add(v);
+    // values gates SUM, AVG and identity, none of which takes text.
+    if (getColumnType(schema, v) === "text") {
+      fail(`Value "${v}" is a text column`);
+    }
   }
   const dimensionNames = new Set<string>();
   for (const d of schema.dimensions) {
     requireColumn(d.column, "Dimension");
-    if (dimensionNames.has(fold(d.column))) {
+    if (dimensionNames.has(foldName(d.column))) {
       fail(`Dimension "${d.column}" is declared twice`);
     }
-    dimensionNames.add(fold(d.column));
+    dimensionNames.add(foldName(d.column));
     validateDimension(schema, d);
   }
   if (schema.unitColumn !== undefined) {
     requireColumn(schema.unitColumn, "Unit column");
   }
   if (schema.time !== undefined) {
+    requireColumn(schema.time.column, "Time column");
     validateTime(schema, schema.time, seen, dimensionNames);
+    // A period id is not a measure.
+    if (valueNames.has(schema.time.column)) {
+      fail(`Value "${schema.time.column}" is the time column`);
+    }
   }
 }
 
@@ -206,6 +282,9 @@ function validateDimension(
     if (type !== "text") {
       fail(`rollup on "${d.column}" requires a text column`);
     }
+    if (d.kind === "set") {
+      fail(`rollup on "${d.column}" requires kind "category"`);
+    }
     const sentinel = d.rollup.sentinel;
     if (sentinel !== undefined) {
       if (sentinel.trim().length === 0 || sentinel === BLANK_SENTINEL) {
@@ -220,24 +299,39 @@ function validateDimension(
   }
 }
 
+const PERIOD_TYPES: readonly string[] = ["year-month", "year-quarter", "year"];
+
+// A key whose value is undefined is not a declaration.
+function declaredKeys(
+  names: Record<string, string | undefined> | undefined,
+): string[] {
+  return Object.entries(names ?? {})
+    .filter(([, name]) => name !== undefined)
+    .map(([key]) => key);
+}
+
 function validateTime(
   schema: LongTableSchema,
   time: LongTableTime,
   columnNames: Set<string>,
   dimensionNames: Set<string>,
 ): void {
-  if (getColumnType(schema, time.column) === undefined) {
-    fail(`Time column "${time.column}" is not a column`);
-  }
   if (getColumnType(schema, time.column) !== "integer") {
     fail(`Time column "${time.column}" must be an integer column`);
   }
-  if (dimensionNames.has(fold(time.column))) {
+  if (dimensionNames.has(foldName(time.column))) {
     fail(`Time column "${time.column}" cannot also be a dimension`);
+  }
+  if (!PERIOD_TYPES.includes(time.grain)) {
+    fail(`Time grain ${JSON.stringify(time.grain)} is not a period type`);
   }
   if (time.fiscalYear !== undefined) {
     if (time.grain !== "year-month") {
       fail("A fiscal year rule requires a year-month time column");
+    }
+    const namedBy: string = time.fiscalYear.namedBy;
+    if (namedBy !== "start" && namedBy !== "end") {
+      fail(`fiscalYear.namedBy must be "start" or "end"`);
     }
     const s = time.fiscalYear.startMonth;
     if (!Number.isInteger(s) || s < 2 || s > 12) {
@@ -245,7 +339,7 @@ function validateTime(
     }
   }
   const reachableGrains = new Set<string>(getReachableGrains(time.grain));
-  for (const grain of Object.keys(time.grains ?? {})) {
+  for (const grain of declaredKeys(time.grains)) {
     if (!reachableGrains.has(grain)) {
       fail(
         `Grain "${grain}" is not reachable from a ${time.grain} time column`,
@@ -255,7 +349,7 @@ function validateTime(
   const reachableComponents = new Set<string>(
     getReachableComponents(time.grain),
   );
-  for (const component of Object.keys(time.components ?? {})) {
+  for (const component of declaredKeys(time.components)) {
     if (!reachableComponents.has(component)) {
       fail(
         `Component "${component}" is not reachable from a ${time.grain} time column`,
@@ -267,24 +361,27 @@ function validateTime(
     if (derived.name.length === 0 || hasControlCharacter(derived.name)) {
       fail(`Derived dimension name ${JSON.stringify(derived.name)} is invalid`);
     }
-    if (derived.name.startsWith(SAMPLE_N_PREFIX)) {
+    if (foldName(derived.name).startsWith(SAMPLE_N_PREFIX)) {
       fail(
         `Derived dimension "${derived.name}" starts with the reserved "${SAMPLE_N_PREFIX}"`,
       );
     }
-    if (columnNames.has(fold(derived.name))) {
+    if (columnNames.has(foldName(derived.name))) {
       fail(`Derived dimension "${derived.name}" collides with a column`);
     }
-    if (derivedNames.has(fold(derived.name))) {
+    if (derivedNames.has(foldName(derived.name))) {
       fail(`Derived dimension "${derived.name}" is declared twice`);
     }
-    derivedNames.add(fold(derived.name));
+    derivedNames.add(foldName(derived.name));
   }
 }
 
 // Panther's defaults over a described parquet: a convention-named integer
-// column whose every sampled value matches its grain is the time column
-// (first match wins, in the conventions' order); text, boolean, date and
+// column whose every value is a period of its grain is the time column
+// (first match wins, in the conventions' order; `sample` holds the column's
+// distinct values up to TIME_VALUES_LIMIT); a derived dimension whose default
+// name is taken by a column is renamed after the time column, so the schema
+// is always one validation accepts; text, boolean, date and
 // timestamp columns are category dimensions (the engine's view casts the
 // last three to text); integer columns are both dimension and value, except
 // the time column, which is neither (a period id is not a measure); number
@@ -293,9 +390,11 @@ export function inferLongTableSchema(
   columns: DescribedColumn[],
   conventions?: InferConventions,
 ): LongTableSchema {
-  const timeColumns = conventions?.timeColumns ?? DEFAULT_TIME_COLUMNS;
   const usable = columns.filter((c) => c.type !== "unsupported");
-  const time = findTimeColumn(usable, timeColumns);
+  const found = findTimeColumn(usable, getTimeConventions(conventions));
+  const time = found === undefined
+    ? undefined
+    : withFreeDerivedNames(found, usable.map((c) => c.name));
   const schema: LongTableSchema = {
     columns: usable.map((c) => ({
       name: c.name,
@@ -314,13 +413,22 @@ export function inferLongTableSchema(
   if (time !== undefined) {
     schema.time = time;
   }
-  if (
-    conventions?.unitColumn !== undefined &&
-    usable.some((c) => c.name === conventions.unitColumn)
-  ) {
-    schema.unitColumn = conventions.unitColumn;
+  const unit = conventions?.unitColumn === undefined
+    ? undefined
+    : findByFoldedName(usable, conventions.unitColumn);
+  if (unit !== undefined) {
+    schema.unitColumn = unit.name;
   }
   return schema;
+}
+
+// A convention names a column whatever its case; the schema keeps the file's
+// spelling.
+function findByFoldedName(
+  columns: DescribedColumn[],
+  name: string,
+): DescribedColumn | undefined {
+  return columns.find((c) => foldName(c.name) === foldName(name));
 }
 
 function findTimeColumn(
@@ -328,16 +436,60 @@ function findTimeColumn(
   timeColumns: Record<string, PeriodType>,
 ): LongTableTime | undefined {
   for (const [name, grain] of Object.entries(timeColumns)) {
-    const column = columns.find((c) => c.name === name);
+    const column = findByFoldedName(columns, name);
     if (
       column === undefined || column.type !== "integer" ||
       column.sample === undefined || column.sample.length === 0
     ) {
       continue;
     }
-    if (column.sample.every((v) => getPeriodTypeFromValue(v) === grain)) {
-      return { column: name, grain };
+    const values = column.sample.map(Number);
+    if (findNonPeriod(values, grain) === undefined) {
+      return { column: column.name, grain };
     }
   }
   return undefined;
+}
+
+// A derived dimension's default name ("year", "quarter") may be a column of
+// the file. That derived dimension is renamed `<time column>_<default>`, then
+// `_2`, `_3` until the name is free; the others keep their defaults and the
+// physical column is untouched.
+function withFreeDerivedNames(
+  time: LongTableTime,
+  columnNames: string[],
+): LongTableTime {
+  const taken = new Set(columnNames.map(foldName));
+  const free = (name: string): string | undefined => {
+    if (!taken.has(foldName(name))) {
+      taken.add(foldName(name));
+      return undefined;
+    }
+    const base = `${time.column}_${name}`;
+    let renamed = base;
+    for (let i = 2; taken.has(foldName(renamed)); i++) {
+      renamed = `${base}_${i}`;
+    }
+    taken.add(foldName(renamed));
+    return renamed;
+  };
+  const grains: LongTableGrainNames = {};
+  for (const grain of getReachableGrains(time.grain)) {
+    const renamed = free(DEFAULT_GRAIN_NAMES[grain]);
+    if (renamed !== undefined) {
+      grains[grain] = renamed;
+    }
+  }
+  const components: NonNullable<LongTableTime["components"]> = {};
+  for (const component of getReachableComponents(time.grain)) {
+    const renamed = free(DEFAULT_COMPONENT_NAMES[component]);
+    if (renamed !== undefined) {
+      components[component] = renamed;
+    }
+  }
+  return {
+    ...time,
+    ...(Object.keys(grains).length > 0 ? { grains } : {}),
+    ...(Object.keys(components).length > 0 ? { components } : {}),
+  };
 }

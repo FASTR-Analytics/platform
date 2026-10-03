@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type AnchorPoint,
   type CalendarType,
   type CascadeArrowInfo,
   type CascadeArrowInfoFunc,
@@ -490,32 +489,6 @@ const _DS = {
     gapY: 15,
     nCols: typed<number | "auto">("auto"),
     minWidth: 230,
-  },
-  // SimpleViz
-  simpleviz: {
-    layerGap: 150,
-    orderGap: 100,
-    layerAlign: typed<
-      "left" | "center" | "right" | Array<"left" | "center" | "right">
-    >("left"),
-    boxes: {
-      fillColor: typed<ColorKeyOrString>({ key: "base200" }),
-      strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
-      strokeWidth: 1,
-      alignH: typed<"left" | "center" | "right">("center"),
-      alignV: typed<"top" | "middle" | "bottom">("middle"),
-      textGap: 10,
-      padding: typed<PaddingOptions>(10),
-      arrowStartPoint: typed<AnchorPoint>("center"),
-      arrowEndPoint: typed<AnchorPoint>("center"),
-    },
-    arrows: {
-      strokeColor: typed<ColorKeyOrString>({ key: "baseContent" }),
-      strokeWidth: 2,
-      lineDash: typed<"solid" | "dashed">("solid"),
-      truncateStart: 10,
-      truncateEnd: 10,
-    },
   },
   // VizGraph
   vizgraph: {

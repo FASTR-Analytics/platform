@@ -18,7 +18,9 @@
 8. **Early throw**: Validate and throw early with descriptive messages
 9. **Braces required**: Always use braces with `if` statements
 10. **No magic values**: Use constants or config objects
-11. **Static imports only**: Never use dynamic imports
+11. **Static imports only**: Never use dynamic imports. The one exception is
+    code that exists only at runtime (generated or fetched as text): it has no
+    static form and is loaded with `import()`
 12. **Exports first**: Main/exported functions at top, helpers below
 13. **Async/await**: Never use Promise chains
 14. **No vestigial versioning**: Don't suffix the only/current version (`fooV2`
@@ -117,6 +119,26 @@ if (!data) {
 }
 ```
 
+### Imports
+
+```typescript
+// ❌ DON'T: import() a module that exists when the code is written
+const { parseModel } = await import("./parse_model.ts");
+
+// ✅ DO
+import { parseModel } from "./parse_model.ts";
+
+// ✅ DO: import() code that exists only at runtime
+const url = URL.createObjectURL(
+  new Blob([generatedJs], { type: "text/javascript" }),
+);
+const generated = await import(url);
+```
+
+**Why:** A static import is typechecked and bundled with the code that uses it.
+Code generated at runtime has no file to import, so `import()` on its URL is the
+only way to load it as a module.
+
 ### Versioning
 
 ```typescript
@@ -179,7 +201,8 @@ logUsage(data).catch((e) => console.error(`logUsage failed: ${e.message}`));
 - [ ] Function declarations for exports
 - [ ] Braces on all `if` statements
 - [ ] No magic numbers/strings
-- [ ] Static imports only
+- [ ] Static imports only: `import()` appears only where the code it loads
+      exists only at runtime
 - [ ] Exports before helpers in file order
 - [ ] No version-suffixed names without a surviving prior version
 - [ ] No commented-out or dead code

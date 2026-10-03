@@ -10,7 +10,8 @@
    `components/`, where `_shared/` is the only underscore
    (`PROTOCOL_UI_STRUCTURE.md` rule 5)
 4. **Domain types centralized**: In `data/types.ts` or `lib/types/`
-5. **Static imports only**: Never dynamic imports
+5. **Static imports only**: Never dynamic imports, except for code that exists
+   only at runtime (`PROTOCOL_ALL_TYPESCRIPT.md` rule 11)
 6. **Exports before helpers**: Main functions at top of file
 
 ## File Naming

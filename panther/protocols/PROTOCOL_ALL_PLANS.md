@@ -183,3 +183,30 @@ Cadence, session shapes, the two-things rule and the step rules are
 - A step reads, in order: `CLAUDE.md`, §2 and §3 of this plan, the step's own
   section in §4, and §8.
 ```
+
+## Programs
+
+When plans in several repos depend on one another, they form a program. A
+program has one orchestration plan in the library repo, named
+`PLAN_<PROGRAM>_ORCHESTRATION.md`, and child plans in the repos they execute in,
+named `PLAN_<PROGRAM><nn>_<NAME>.md`, two digits so they sort. The orchestration
+plan holds the dependency graph, the gates, the program rulings, a "runnable
+now" board in its status header, and an append-only log of gate openings. A
+child is an ordinary plan: its §0 names the gates it waits on and the gate it
+opens, and cites program rulings by number instead of restating them.
+
+- A gate is a fact a reviewer reads: a commit on a branch, a file absent, a
+  build-log row, a passing command. Never a board entry.
+- A session checks the gates a child waits on by reading those facts before it
+  starts the child.
+- The Review session that passes a child's last step deletes the child file in
+  the child's repo, then opens its gate in the orchestration plan in a second
+  commit: one log row and the board updated. Those two things are all any
+  session edits there.
+- A cross-repo step keeps the library change in the library plan; each consumer
+  sync is its own commit in that consumer; the step's "Ends with" lists them
+  all.
+- An unwritten child is written when its gates are one plan from opening, from
+  the orchestration plan's scope paragraph and the facts current then.
+- The orchestration plan is deleted when the last child lands; its residue goes
+  to the standing docs like any plan's.

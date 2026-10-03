@@ -49,6 +49,10 @@ export type QueryPlan = {
   source: string;
   columns: SelectColumn[];
   where: string[];
+  // HAVING on the main select. An aggregate select with no GROUP BY returns
+  // one row over no input, so an ungrouped read carries COUNT(*) > 0 and
+  // "nothing matched" is no rows, as it is when grouped.
+  having?: string[];
   union?: UnionBranch;
   // An outer select over the main select (and its union): the expression
   // wrapper. It re-projects inner aliases under output names and adds the

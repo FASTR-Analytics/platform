@@ -30,15 +30,29 @@ import type {
 } from "./deps.ts";
 
 // Zod twins of the long-table wire types, each bound to its hand-written
-// type in _014 by a Conforms check. Every object is strict: a query is
+// type in _014 by a conformance check. Every object is strict: a query is
 // written by hand, often by an AI, and a misspelled key that a lenient
 // parser stripped would be intent silently ignored.
+
+type DeepRequired<T> = T extends (infer U)[] ? DeepRequired<U>[]
+  : T extends object
+    ? { [K in keyof T]-?: DeepRequired<Exclude<T[K], undefined>> }
+  : T;
+
+// Conforms is mutual assignability, which an optional field on one side only
+// passes: the way this contract grows. The twins are strict, so a field the
+// type gains and the twin lacks would be refused at runtime with the
+// typecheck green. Comparing the two with every field made required closes
+// that.
+type ConformsExactly<A, B> = Conforms<A, B> extends true
+  ? Conforms<DeepRequired<A>, DeepRequired<B>>
+  : false;
 
 export const zFiscalYearRule = z.strictObject({
   startMonth: z.number(),
   namedBy: z.enum(["start", "end"]),
 });
-const _zFiscalYearRuleConforms: Conforms<
+const _zFiscalYearRuleConforms: ConformsExactly<
   z.infer<typeof zFiscalYearRule>,
   FiscalYearRule
 > = true;
@@ -49,7 +63,7 @@ export const zLongTableColumn = z.strictObject({
   name: z.string(),
   type: zLongTableColumnType,
 });
-const _zLongTableColumnConforms: Conforms<
+const _zLongTableColumnConforms: ConformsExactly<
   z.infer<typeof zLongTableColumn>,
   LongTableColumn
 > = true;
@@ -61,7 +75,7 @@ export const zLongTableDimension = z.strictObject({
   caseInsensitive: z.boolean().optional(),
   rollup: z.strictObject({ sentinel: z.string().optional() }).optional(),
 });
-const _zLongTableDimensionConforms: Conforms<
+const _zLongTableDimensionConforms: ConformsExactly<
   z.infer<typeof zLongTableDimension>,
   LongTableDimension
 > = true;
@@ -79,7 +93,7 @@ export const zLongTableTime = z.strictObject({
     quarter: z.string().optional(),
   }).optional(),
 });
-const _zLongTableTimeConforms: Conforms<
+const _zLongTableTimeConforms: ConformsExactly<
   z.infer<typeof zLongTableTime>,
   LongTableTime
 > = true;
@@ -91,17 +105,19 @@ export const zLongTableSchema = z.strictObject({
   time: zLongTableTime.optional(),
   unitColumn: z.string().optional(),
 });
-const _zLongTableSchemaConforms: Conforms<
+const _zLongTableSchemaConforms: ConformsExactly<
   z.infer<typeof zLongTableSchema>,
   LongTableSchema
 > = true;
 
 const zPeriodUnit = z.enum(["period", "month", "quarter", "year"]);
-const _zPeriodUnitConforms: Conforms<z.infer<typeof zPeriodUnit>, PeriodUnit> =
-  true;
+const _zPeriodUnitConforms: ConformsExactly<
+  z.infer<typeof zPeriodUnit>,
+  PeriodUnit
+> = true;
 
 const zFullPeriodUnit = z.enum(["quarter", "year"]);
-const _zFullPeriodUnitConforms: Conforms<
+const _zFullPeriodUnitConforms: ConformsExactly<
   z.infer<typeof zFullPeriodUnit>,
   FullPeriodUnit
 > = true;
@@ -120,13 +136,13 @@ export const zPeriodFilter = z.discriminatedUnion("type", [
     unit: zFullPeriodUnit,
   }),
 ]);
-const _zPeriodFilterConforms: Conforms<
+const _zPeriodFilterConforms: ConformsExactly<
   z.infer<typeof zPeriodFilter>,
   PeriodFilter
 > = true;
 
 export const zLongTableAggregate = z.enum(ALL_LONG_TABLE_AGGREGATES);
-const _zLongTableAggregateConforms: Conforms<
+const _zLongTableAggregateConforms: ConformsExactly<
   z.infer<typeof zLongTableAggregate>,
   LongTableAggregate
 > = true;
@@ -136,7 +152,7 @@ export const zLongTableValue = z.strictObject({
   func: zLongTableAggregate,
   as: z.string().optional(),
 });
-const _zLongTableValueConforms: Conforms<
+const _zLongTableValueConforms: ConformsExactly<
   z.infer<typeof zLongTableValue>,
   LongTableValue
 > = true;
@@ -145,7 +161,7 @@ export const zLongTableFilter = z.strictObject({
   dim: z.string(),
   values: z.array(z.union([z.string(), z.number()])),
 });
-const _zLongTableFilterConforms: Conforms<
+const _zLongTableFilterConforms: ConformsExactly<
   z.infer<typeof zLongTableFilter>,
   LongTableFilter
 > = true;
@@ -155,7 +171,7 @@ export const zLongTableRange = z.strictObject({
   min: z.number().optional(),
   max: z.number().optional(),
 });
-const _zLongTableRangeConforms: Conforms<
+const _zLongTableRangeConforms: ConformsExactly<
   z.infer<typeof zLongTableRange>,
   LongTableRange
 > = true;
@@ -164,7 +180,7 @@ export const zLongTableExpression = z.strictObject({
   name: z.string(),
   expr: z.string(),
 });
-const _zLongTableExpressionConforms: Conforms<
+const _zLongTableExpressionConforms: ConformsExactly<
   z.infer<typeof zLongTableExpression>,
   LongTableExpression
 > = true;
@@ -173,7 +189,7 @@ export const zLongTableOrder = z.strictObject({
   name: z.string(),
   dir: z.enum(["asc", "desc"]),
 });
-const _zLongTableOrderConforms: Conforms<
+const _zLongTableOrderConforms: ConformsExactly<
   z.infer<typeof zLongTableOrder>,
   LongTableOrder
 > = true;
@@ -190,7 +206,7 @@ export const zLongTableQuery = z.strictObject({
   orderBy: z.array(zLongTableOrder).optional(),
   limit: z.number().optional(),
 });
-const _zLongTableQueryConforms: Conforms<
+const _zLongTableQueryConforms: ConformsExactly<
   z.infer<typeof zLongTableQuery>,
   LongTableQuery
 > = true;

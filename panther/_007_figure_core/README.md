@@ -1,7 +1,7 @@
 # _007_figure_core
 
 Core visualization framework providing the foundational rendering system for all
-Figures (Charts, SimpleViz, Tables).
+Figures (Charts, VizGraph, Tables).
 
 ## Purpose
 
@@ -9,7 +9,7 @@ The heart of the Panther visualization system, providing shared infrastructure
 for all Figure types:
 
 - **Primitive system**: Low-level rendering instructions (points, lines, bars,
-  areas, boxes, arrows, axes, grids, captions, legends)
+  areas, nodes, edges, axes, grids, captions, legends)
 - **Renderer pattern**: Common `measure()` and `render()` interface
 - **Styling infrastructure**: Consistent style merging across all figures
 - **Surrounds**: Titles, subtitles, footnotes, captions (shared by all figures)
@@ -31,7 +31,8 @@ All Figures share common infrastructure from this module.
 with panes, tiers, and lanes:
 
 - **Chart types**: Timeseries (`_010_timeseries/`), ChartOV (`_010_chartov/`)
-- **Non-Chart Figures**: SimpleViz (`_010_simpleviz/`), Table (`_010_table/`)
+- **Non-Chart Figures**: VizGraph (`_010_vizgraph_figure/`), Table
+  (`_010_table/`)
 
 See `DOC_FIGURE_ARCHITECTURE.md` for detailed taxonomy.
 
@@ -69,10 +70,12 @@ renderPrimitives(rc, measured.primitives);
 - `ChartCaptionPrimitive` - Titles, subtitles, footnotes
 - `ChartLegendPrimitive` - Legend with symbols and labels
 
-**SimpleViz primitives**:
+**VizGraph primitives**:
 
-- `SimpleVizBoxPrimitive` - Boxes with text
-- `SimpleVizArrowPrimitive` - Arrows between boxes
+- `VizGraphNodePrimitive` - Nodes and folded-group reps
+- `VizGraphEdgePrimitive` - Routed edges with arrowheads
+- `VizGraphUnfoldedGroupPrimitive` - Group boxes as edge-hug rings
+- `VizGraphLanePrimitive` - Lane bands
 - `ChartCaptionPrimitive` - Captions (shared)
 - `ChartLegendPrimitive` - Legend (shared)
 

@@ -3,14 +3,14 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
+import { assertSqlShape } from "./guard.ts";
 import type { QueryPlan, SelectColumn } from "./plan.ts";
 import { quoteIdentifier } from "./quote.ts";
 
 const INNER_ALIAS = "inner";
 
 // The one place query SQL is assembled. Assembly is data in the plan; this
-// file only joins it, then checks that the only quotes in the text are the
-// registered literals'.
+// file only joins it, then checks the finished text's shape.
 export function emitQuery(plan: QueryPlan): string {
   const parts: string[] = [];
   if (plan.ctes.length > 0) {
@@ -22,7 +22,7 @@ export function emitQuery(plan: QueryPlan): string {
       }`,
     );
   }
-  const inner = [emitBranch(plan, plan.columns, [])];
+  const inner = [emitBranch(plan, plan.columns, plan.having ?? [])];
   if (plan.union !== undefined) {
     assertSameAliases(plan.columns, plan.union.columns);
     inner.push(
@@ -44,7 +44,7 @@ export function emitQuery(plan: QueryPlan): string {
     parts.push(`LIMIT ${plan.limit}`);
   }
   const sql = parts.join(" ");
-  assertOnlyRegisteredLiterals(sql, plan);
+  assertSqlShape(sql, plan.literals.quoted);
   return sql;
 }
 
@@ -82,22 +82,5 @@ function assertSameAliases(main: SelectColumn[], union: SelectColumn[]): void {
     main.every((c, i) => c.alias === union[i].alias);
   if (!same) {
     throw new Error("Union branch columns differ from the main select");
-  }
-}
-
-function assertOnlyRegisteredLiterals(sql: string, plan: QueryPlan): void {
-  // Longest first, so a literal that contains a doubled quote is removed
-  // before the empty literal could split it.
-  const registered = [...new Set(plan.literals.quoted)].sort(
-    (a, b) => b.length - a.length,
-  );
-  let rest = sql;
-  for (const literal of registered) {
-    rest = rest.replaceAll(literal, "");
-  }
-  if (rest.includes("'")) {
-    throw new Error(
-      "Emitted SQL holds a quote outside the registered literals",
-    );
   }
 }

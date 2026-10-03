@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import {
-  type AnchorPoint,
   assert,
   type CalendarType,
   type CascadeArrowInfoFunc,
@@ -293,34 +292,6 @@ export type CustomFigureStyleOptions = {
     nCols?: number | "auto";
     // The pane width the automatic column count packs to, in design units.
     minWidth?: number;
-  };
-
-  simpleviz?: {
-    layerGap?: number;
-    orderGap?: number;
-    layerAlign?:
-      | "left"
-      | "center"
-      | "right"
-      | Array<"left" | "center" | "right">;
-    boxes?: {
-      fillColor?: ColorKeyOrString;
-      strokeColor?: ColorKeyOrString;
-      strokeWidth?: number;
-      alignH?: "left" | "center" | "right";
-      alignV?: "top" | "middle" | "bottom";
-      textGap?: number;
-      padding?: PaddingOptions;
-      arrowStartPoint?: AnchorPoint;
-      arrowEndPoint?: AnchorPoint;
-    };
-    arrows?: {
-      strokeColor?: ColorKeyOrString;
-      strokeWidth?: number;
-      lineDash?: "solid" | "dashed";
-      truncateStart?: number;
-      truncateEnd?: number;
-    };
   };
 
   // VizGraph (node-edge graph figures; layout config lives in the data's

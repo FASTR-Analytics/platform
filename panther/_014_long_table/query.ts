@@ -5,28 +5,49 @@
 
 import { getPeriodTypeFromValue, stableStringify } from "./deps.ts";
 import type { PeriodType } from "./deps.ts";
-import { getColumnType, resolveDimension } from "./schema.ts";
+import {
+  caseHint,
+  foldName,
+  getColumnType,
+  getDimensionNames,
+  hasControlCharacter,
+  resolveDimension,
+} from "./schema.ts";
 import {
   getExpressionIdentifiers,
   parseExpression,
 } from "./_expression/parse.ts";
+import type { ExpressionNode } from "./_expression/parse.ts";
 import {
+  ALL_LONG_TABLE_AGGREGATES,
   BLANK_SENTINEL,
+  isBlankText,
   LongTableValidationError,
   SAMPLE_N_PREFIX,
 } from "./types.ts";
 import type {
+  DerivedDimension,
   LongTableColumnType,
   LongTableFilter,
   LongTableQuery,
   LongTableRange,
   LongTableSchema,
+  LongTableTime,
   LongTableValue,
   PeriodFilter,
   ResolvedDimension,
 } from "./types.ts";
 
 export const MAX_FILTER_VALUES = 1000;
+// DuckDB plans a WHERE of many predicates recursively: several hundred filters
+// overflow its native stack and abort the process, which no memory limit
+// catches. The caps keep a valid query far below that.
+export const MAX_FILTERS = 50;
+export const MAX_RANGES = 50;
+export const MAX_VALUES = 100;
+export const MAX_EXPRESSIONS = 100;
+export const MAX_NAME_LENGTH = 200;
+export const MAX_FILTER_VALUE_LENGTH = 1000;
 
 const BARE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -42,6 +63,28 @@ export function getValueOutputName(value: LongTableValue): string {
   return value.as ?? value.column;
 }
 
+// A value whose output name is a groupBy entry (names compare by fold) is an
+// ingredient only: an expression consumes it and the dimension keeps the name.
+export function isIngredientOnly(
+  query: LongTableQuery,
+  value: LongTableValue,
+): boolean {
+  const name = foldName(getValueOutputName(value));
+  return query.groupBy.some((g) => foldName(g) === name);
+}
+
+// The result's columns in order: groupBy entries, values that are not
+// ingredient-only, expressions.
+export function getOutputNames(query: LongTableQuery): string[] {
+  return [
+    ...query.groupBy,
+    ...query.values
+      .filter((v) => !isIngredientOnly(query, v))
+      .map(getValueOutputName),
+    ...(query.expressions ?? []).map((e) => e.name),
+  ];
+}
+
 export function validateLongTableQuery(
   schema: LongTableSchema,
   query: LongTableQuery,
@@ -49,23 +92,36 @@ export function validateLongTableQuery(
   if (query.values.length === 0) {
     fail("A query needs at least one value");
   }
-  const referenced = new Set<string>();
-  for (const expression of query.expressions ?? []) {
-    for (
-      const name of getExpressionIdentifiers(parseExpression(expression.expr))
-    ) {
-      referenced.add(name);
-    }
-  }
+  requireAtMost(query.values.length, MAX_VALUES, "values");
+  requireAtMost(query.filters.length, MAX_FILTERS, "filters");
+  requireAtMost(query.ranges?.length ?? 0, MAX_RANGES, "ranges");
+  requireAtMost(
+    query.expressions?.length ?? 0,
+    MAX_EXPRESSIONS,
+    "expressions",
+  );
+  const identifiers = (query.expressions ?? []).map((expression) => {
+    requireString(expression.name, "An expression's name");
+    requireString(expression.expr, "An expression's expr");
+    return getExpressionIdentifiers(parseNamed(expression));
+  });
+  const referenced = new Set(identifiers.flatMap((names) => [...names]));
   const outputNames = new Set<string>();
   const claim = (name: string, what: string) => {
+    requireString(name, `${what} name`);
     if (name.length === 0) {
       fail(`${what} has an empty name`);
     }
-    if (name.startsWith(SAMPLE_N_PREFIX)) {
+    if (name.length > MAX_NAME_LENGTH) {
+      fail(`${what} name is longer than ${MAX_NAME_LENGTH} characters`);
+    }
+    if (hasControlCharacter(name)) {
+      fail(`${what} name ${JSON.stringify(name)} has a control character`);
+    }
+    const folded = foldName(name);
+    if (folded.startsWith(SAMPLE_N_PREFIX)) {
       fail(`${what} "${name}" starts with the reserved "${SAMPLE_N_PREFIX}"`);
     }
-    const folded = name.toLowerCase();
     if (
       outputNames.has(folded) || outputNames.has(SAMPLE_N_PREFIX + folded) ||
       (folded.startsWith(SAMPLE_N_PREFIX) &&
@@ -79,37 +135,48 @@ export function validateLongTableQuery(
     validateValue(schema, value);
     const name = getValueOutputName(value);
     claim(name, "Value");
-    if (referenced.has(name) && !isBareIdentifier(name)) {
-      fail(
-        `Value "${name}" is used in an expression, so its output name must be a bare identifier`,
-      );
-    }
   }
-  const valueNames = new Set(query.values.map(getValueOutputName));
-  for (const expression of query.expressions ?? []) {
+  const valuesByName = new Map(
+    query.values.map((v) => [getValueOutputName(v), v]),
+  );
+  for (const [i, expression] of (query.expressions ?? []).entries()) {
     claim(expression.name, "Expression");
     if (!isBareIdentifier(expression.name)) {
       fail(`Expression name "${expression.name}" must be a bare identifier`);
     }
-    for (
-      const name of getExpressionIdentifiers(parseExpression(expression.expr))
-    ) {
-      if (!valueNames.has(name)) {
+    for (const name of identifiers[i]) {
+      const value = valuesByName.get(name);
+      if (value === undefined) {
         fail(
-          `Expression "${expression.name}" uses "${name}", which is not a requested value's output name`,
+          `Expression "${expression.name}" uses "${name}", which is not a requested value's output name${
+            caseHint(name, valuesByName.keys())
+          }`,
+        );
+      }
+      // MIN and MAX of a text column are text, the one output an expression
+      // cannot do arithmetic on.
+      if (
+        (value.func === "MIN" || value.func === "MAX") &&
+        getColumnType(schema, value.column) === "text"
+      ) {
+        fail(
+          `Expression "${expression.name}" uses "${name}", which is ${value.func} of the text column "${value.column}"; an expression needs numbers`,
         );
       }
     }
   }
+  const dimensionNames = getDimensionNames(schema);
   const groupBy = new Set<string>();
   for (const name of query.groupBy) {
-    if (groupBy.has(name)) {
+    if (groupBy.has(foldName(name))) {
       fail(`groupBy names "${name}" twice`);
     }
-    groupBy.add(name);
+    groupBy.add(foldName(name));
     const resolved = resolveDimension(schema, name);
     if (resolved === undefined) {
-      fail(`groupBy "${name}" is not a dimension`);
+      fail(
+        `groupBy "${name}" is not a dimension${caseHint(name, dimensionNames)}`,
+      );
     }
     if (resolved.kind === "dimension" && resolved.dimension.kind === "set") {
       fail(`groupBy "${name}" is a set dimension and cannot be grouped by`);
@@ -117,14 +184,19 @@ export function validateLongTableQuery(
   }
   for (const value of query.values) {
     const name = getValueOutputName(value);
-    if (groupBy.has(name) && !referenced.has(name)) {
+    if (groupBy.has(foldName(name)) && value.func === "identity") {
+      fail(
+        `identity value "${name}" has the same output name as a groupBy entry; an identity value is grouped by, so it cannot be hidden as an expression's ingredient`,
+      );
+    }
+    if (groupBy.has(foldName(name)) && !referenced.has(name)) {
       fail(
         `Value "${name}" has the same output name as a groupBy entry; that is allowed only when an expression uses the value`,
       );
     }
   }
   for (const expression of query.expressions ?? []) {
-    if (groupBy.has(expression.name)) {
+    if (groupBy.has(foldName(expression.name))) {
       fail(
         `Expression "${expression.name}" has the same name as a groupBy entry`,
       );
@@ -148,7 +220,7 @@ export function validateLongTableQuery(
   if (query.rollup !== undefined) {
     validateRollup(schema, query);
   }
-  validateOrderBy(query, groupBy);
+  validateOrderBy(query);
   if (
     query.limit !== undefined &&
     (!Number.isInteger(query.limit) || query.limit < 1)
@@ -159,16 +231,16 @@ export function validateLongTableQuery(
 
 // orderBy names output columns only; the upper bound on limit is checked by
 // the engine, which knows maxItems.
-function validateOrderBy(query: LongTableQuery, groupBy: Set<string>): void {
-  const outputs = new Set([
-    ...groupBy,
-    ...query.values.map(getValueOutputName),
-    ...(query.expressions ?? []).map((e) => e.name),
-  ]);
+function validateOrderBy(query: LongTableQuery): void {
+  const outputs = new Set(getOutputNames(query));
   const seen = new Set<string>();
   for (const order of query.orderBy ?? []) {
     if (!outputs.has(order.name)) {
-      fail(`orderBy "${order.name}" is not an output column`);
+      fail(
+        `orderBy "${order.name}" is not an output column${
+          caseHint(order.name, outputs)
+        }`,
+      );
     }
     if (seen.has(order.name)) {
       fail(`orderBy names "${order.name}" twice`);
@@ -177,7 +249,47 @@ function validateOrderBy(query: LongTableQuery, groupBy: Set<string>): void {
   }
 }
 
+// A parse error says where in the text; this says which expression.
+function parseNamed(
+  expression: { name: string; expr: string },
+): ExpressionNode {
+  try {
+    return parseExpression(expression.expr);
+  } catch (cause) {
+    if (cause instanceof LongTableValidationError) {
+      fail(`Expression "${expression.name}": ${cause.message}`);
+    }
+    throw cause;
+  }
+}
+
+function requireAtMost(count: number, max: number, field: string): void {
+  if (count > max) {
+    fail(`A query has at most ${max} ${field}; this one has ${count}`);
+  }
+}
+
+// The zod twin types these fields; a caller that skips it must still get a
+// validation error, never a TypeError from a string method.
+function requireString(value: unknown, what: string): void {
+  if (typeof value !== "string") {
+    fail(`${what} must be a string`);
+  }
+}
+
+function isAggregate(func: string): boolean {
+  return (ALL_LONG_TABLE_AGGREGATES as readonly string[]).includes(func);
+}
+
 function validateValue(schema: LongTableSchema, value: LongTableValue): void {
+  requireString(value.column, "A value's column");
+  if (!isAggregate(value.func)) {
+    fail(
+      `Value "${value.column}" has func ${
+        JSON.stringify(value.func)
+      }; it must be one of ${ALL_LONG_TABLE_AGGREGATES.join(", ")}`,
+    );
+  }
   if (value.column === "*") {
     if (value.func !== "COUNT") {
       fail(`"*" is accepted only with COUNT`);
@@ -189,7 +301,11 @@ function validateValue(schema: LongTableSchema, value: LongTableValue): void {
   }
   const type = getColumnType(schema, value.column);
   if (type === undefined) {
-    fail(`Value column "${value.column}" is not a column`);
+    fail(
+      `Value column "${value.column}" is not a column${
+        caseHint(value.column, schema.columns.map((c) => c.name))
+      }`,
+    );
   }
   if (
     value.func === "SUM" || value.func === "AVG" || value.func === "identity"
@@ -211,7 +327,11 @@ function validateFilter(
 ): void {
   const resolved = resolveDimension(schema, filter.dim);
   if (resolved === undefined) {
-    fail(`Filter "${filter.dim}" is not a dimension`);
+    fail(
+      `Filter "${filter.dim}" is not a dimension${
+        caseHint(filter.dim, getDimensionNames(schema))
+      }`,
+    );
   }
   if (filter.values.length === 0) {
     fail(`Filter "${filter.dim}" has no values`);
@@ -219,20 +339,59 @@ function validateFilter(
   if (filter.values.length > MAX_FILTER_VALUES) {
     fail(`Filter "${filter.dim}" has more than ${MAX_FILTER_VALUES} values`);
   }
-  if (resolved.kind === "dimension" && resolved.type === "text") {
-    for (const v of filter.values) {
-      if (String(v).trim().length === 0) {
-        fail(
-          `Filter "${filter.dim}" has a blank value; use "${BLANK_SENTINEL}" for the blank group`,
-        );
-      }
-      if (resolved.dimension.kind === "set" && v === BLANK_SENTINEL) {
+  const isSet = resolved.kind === "dimension" &&
+    resolved.dimension.kind === "set";
+  const isText = resolved.kind === "dimension" && resolved.type === "text";
+  for (const v of filter.values) {
+    if (typeof v === "string" && v.length > MAX_FILTER_VALUE_LENGTH) {
+      fail(
+        `Filter "${filter.dim}" has a value longer than ${MAX_FILTER_VALUE_LENGTH} characters`,
+      );
+    }
+    if (typeof v === "number" && !Number.isFinite(v)) {
+      fail(`Filter "${filter.dim}" has the value ${v}, which is not a number`);
+    }
+    if (v === BLANK_SENTINEL) {
+      if (isSet) {
         fail(
           `Filter "${filter.dim}" is a set dimension and has no blank member`,
         );
       }
+      continue;
+    }
+    if (isText) {
+      if (isBlankText(String(v))) {
+        fail(
+          `Filter "${filter.dim}" has a blank value; use "${BLANK_SENTINEL}" for the blank group`,
+        );
+      }
+      continue;
+    }
+    if (coerceFilterValue(v, resolved, schema.time) === undefined) {
+      fail(
+        `Filter "${filter.dim}" has the value ${
+          JSON.stringify(v)
+        }, which is not ${
+          bindRule(resolved)
+        }; use "${BLANK_SENTINEL}" for blank cells`,
+      );
     }
   }
+}
+
+function bindRule(resolved: ResolvedDimension): string {
+  if (resolved.kind === "time") {
+    return `a ${resolved.grain} period`;
+  }
+  if (resolved.kind === "derived") {
+    if (resolved.derived.kind === "grain") {
+      return `a ${resolved.derived.grain} period`;
+    }
+    return resolved.derived.component === "month"
+      ? "a month from 1 to 12"
+      : "a quarter from 1 to 4";
+  }
+  return resolved.type === "integer" ? "a whole number" : "a number";
 }
 
 // A range names a numeric column other than the time column, which the
@@ -241,7 +400,11 @@ function validateFilter(
 function validateRange(schema: LongTableSchema, range: LongTableRange): void {
   const type = getColumnType(schema, range.column);
   if (type === undefined) {
-    fail(`Range column "${range.column}" is not a column`);
+    fail(
+      `Range column "${range.column}" is not a column${
+        caseHint(range.column, schema.columns.map((c) => c.name))
+      }`,
+    );
   }
   if (type === "text") {
     fail(`Range column "${range.column}" is a text column`);
@@ -299,7 +462,11 @@ function validatePeriodFilter(filter: PeriodFilter, grain: PeriodType): void {
 function validateRollup(schema: LongTableSchema, query: LongTableQuery): void {
   const dim = query.rollup?.dim ?? "";
   if (!query.groupBy.includes(dim)) {
-    fail(`rollup dimension "${dim}" is not in groupBy`);
+    fail(
+      `rollup dimension "${dim}" is not in groupBy${
+        caseHint(dim, query.groupBy)
+      }`,
+    );
   }
   const resolved = resolveDimension(schema, dim);
   if (
@@ -330,19 +497,19 @@ export function getFilterBindType(
 }
 
 // A requested filter value typed by its dimension before it is bound, or
-// undefined when it cannot be: DuckDB would otherwise cast the column toward
-// the numeric side and throw on the first non-numeric cell.
+// undefined when it cannot be, which validation reports: DuckDB would
+// otherwise cast the column toward the numeric side and throw on the first
+// non-numeric cell. A text value is bound as given; a caseInsensitive
+// dimension folds both sides in SQL, where one function does both. `time` is
+// the schema's time declaration, whose fiscal rule widens a derived grain.
 export function coerceFilterValue(
   v: string | number,
   resolved: ResolvedDimension,
+  time?: LongTableTime,
 ): string | number | undefined {
   const type = getFilterBindType(resolved);
   if (type === "text") {
-    const s = String(v);
-    return resolved.kind === "dimension" &&
-        resolved.dimension.caseInsensitive === true
-      ? s.toUpperCase()
-      : s;
+    return String(v);
   }
   if (type === "integer") {
     const n = typeof v === "number"
@@ -356,10 +523,8 @@ export function coerceFilterValue(
     if (resolved.kind === "time") {
       return getPeriodTypeFromValue(n) === resolved.grain ? n : undefined;
     }
-    if (resolved.kind === "derived" && resolved.derived.kind === "grain") {
-      return getPeriodTypeFromValue(n) === resolved.derived.grain
-        ? n
-        : undefined;
+    if (resolved.kind === "derived") {
+      return isDerivedValue(n, resolved.derived, time) ? n : undefined;
     }
     return n;
   }
@@ -368,7 +533,38 @@ export function coerceFilterValue(
     : NUMBER_STRING.test(v)
     ? Number(v)
     : undefined;
-  return n !== undefined && Number.isFinite(n) ? n : undefined;
+  if (n === undefined || !Number.isFinite(n)) {
+    return undefined;
+  }
+  // A whole number written past 2^53 would bind a neighbour, silently.
+  if (typeof v === "string" && !v.includes(".") && !Number.isSafeInteger(n)) {
+    return undefined;
+  }
+  return n;
+}
+
+// Whether a derived dimension can hold `n`. A fiscal rule names a year by
+// its start or its end, so the derived year of the last (or first) period in
+// range lies one year outside it: under { 11, end } the period 205012 is
+// fiscal 2051.
+function isDerivedValue(
+  n: number,
+  derived: DerivedDimension,
+  time: LongTableTime | undefined,
+): boolean {
+  if (derived.kind === "component") {
+    return n >= 1 && n <= (derived.component === "month" ? 12 : 4);
+  }
+  if (getPeriodTypeFromValue(n) === derived.grain) {
+    return true;
+  }
+  const rule = time?.fiscalYear;
+  if (rule === undefined) {
+    return false;
+  }
+  const oneYear = derived.grain === "year" ? 1 : 10;
+  const shifted = rule.namedBy === "end" ? n - oneYear : n + oneYear;
+  return getPeriodTypeFromValue(shifted) === derived.grain;
 }
 
 // ── Normalization and the key ────────────────────────────────────────────────

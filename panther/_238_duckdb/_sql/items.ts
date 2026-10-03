@@ -7,11 +7,13 @@ import {
   BIGINT,
   DEFAULT_ROLLUP_SENTINEL,
   getValueOutputName,
+  isIngredientOnly,
   parseExpression,
   resolveDimension,
   SAMPLE_N_PREFIX,
 } from "../deps.ts";
 import type {
+  LongTableAggregate,
   LongTableQuery,
   LongTableSchema,
   LongTableValue,
@@ -24,18 +26,28 @@ import { buildWhere, columnRef, dimensionExpr } from "./predicates.ts";
 import { quoteIdentifier } from "./quote.ts";
 import { timeSource } from "./time.ts";
 
+const NOT_EMPTY = "COUNT(*) > 0";
+
+// Closed: the emitted function is chosen by the aggregate, never taken from
+// the query's text.
+const AGGREGATE_SQL: Record<LongTableAggregate, (ref: string) => string> = {
+  SUM: (ref) => `SUM(${ref})`,
+  AVG: (ref) => `AVG(${ref})`,
+  COUNT: (ref) => `COUNT(${ref})`,
+  COUNT_DISTINCT: (ref) => `COUNT(DISTINCT ${ref})`,
+  MIN: (ref) => `MIN(${ref})`,
+  MAX: (ref) => `MAX(${ref})`,
+  identity: (ref) => ref,
+};
+
 export function aggregateExpr(value: LongTableValue): string {
   if (value.column === "*") {
     return "COUNT(*)";
   }
-  const ref = columnRef(value.column);
-  if (value.func === "identity") {
-    return ref;
+  if (!Object.hasOwn(AGGREGATE_SQL, value.func)) {
+    throw new Error(`Value "${value.column}" has an unknown func`);
   }
-  if (value.func === "COUNT_DISTINCT") {
-    return `COUNT(DISTINCT ${ref})`;
-  }
-  return `${value.func}(${ref})`;
+  return AGGREGATE_SQL[value.func](columnRef(value.column));
 }
 
 export function buildItemsPlan(
@@ -53,21 +65,22 @@ export function buildItemsPlan(
     if (resolved === undefined) {
       throw new Error(`groupBy "${name}" is not a dimension`);
     }
-    const expr = dimensionExpr(resolved, literals);
-    columns.push({ alias: name, expr, groupExpr: expr });
+    columns.push({ alias: name, ...dimensionExpr(resolved, literals) });
   }
   // A value whose output name is a groupBy entry is an ingredient only: its
   // aggregate takes an inner alias, the dimension keeps the name, and the
   // wrapper leaves the aggregate out. Grouping and selecting under one name
-  // would bind the raw grouped cell in DuckDB, silently.
+  // would bind the raw grouped cell in DuckDB, silently. Inner aliases sit
+  // under the reserved prefix in forms no output name can take (an output
+  // name is never empty and never starts with the prefix), so they cannot
+  // collide with a requested column.
   const innerAlias = new Map<string, string>();
-  const groupBy = new Set(query.groupBy);
   const sampleN: SelectColumn[] = [];
   const unit = query.sampleN === true ? schema.unitColumn : undefined;
   for (const value of query.values) {
     const name = getValueOutputName(value);
-    const alias = groupBy.has(name)
-      ? uniqueAlias(name, columns.map((c) => c.alias))
+    const alias = isIngredientOnly(query, value)
+      ? SAMPLE_N_PREFIX + SAMPLE_N_PREFIX + name
       : name;
     innerAlias.set(name, alias);
     columns.push({
@@ -91,7 +104,7 @@ export function buildItemsPlan(
   // Every expression's sample is the distinct units of the whole group, one
   // inner column the wrapper projects once per expression.
   const unitsAlias = unit !== undefined && expressions.length > 0
-    ? uniqueAlias(SAMPLE_N_PREFIX, columns.map((c) => c.alias))
+    ? SAMPLE_N_PREFIX
     : undefined;
   if (unitsAlias !== undefined && unit !== undefined) {
     columns.push({ alias: unitsAlias, expr: unitCountExpr(unit) });
@@ -133,6 +146,9 @@ export function buildItemsPlan(
     binds,
     literals,
   };
+  if (columns.every((c) => c.groupExpr === undefined)) {
+    plan.having = [NOT_EMPTY];
+  }
   if (query.rollup !== undefined) {
     plan.union = rollupBranch(
       schema,
@@ -153,17 +169,6 @@ function unitCountExpr(unit: string, column?: string): string {
   return column === undefined || column === "*"
     ? count
     : `${count} FILTER (WHERE ${columnRef(column)} IS NOT NULL)`;
-}
-
-// The inner aliases only need to be distinct from each other: the wrapper
-// maps them to output names, so nothing here can leak into a result.
-function uniqueAlias(name: string, taken: string[]): string {
-  const folded = new Set(taken.map((t) => t.toLowerCase()));
-  let alias = `${name}__agg`;
-  while (folded.has(alias.toLowerCase())) {
-    alias += "_";
-  }
-  return alias;
 }
 
 // The expression wrapper's columns: every inner column under its output name
@@ -224,6 +229,6 @@ function rollupBranch(
     columns: columns.map((c, i) =>
       i === position ? { alias: c.alias, expr: literals.add(sentinel) } : c
     ),
-    having: ["COUNT(*) > 0"],
+    having: [NOT_EMPTY],
   };
 }

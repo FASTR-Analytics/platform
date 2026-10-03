@@ -3,7 +3,7 @@
 // ⚠️  EXTERNAL LIBRARY - Auto-synced from timroberton-panther
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
-import { BIGINT, resolveDimension } from "../deps.ts";
+import { BIGINT, BLANK_CHARACTERS } from "../deps.ts";
 import type {
   LongTableFilter,
   LongTableRange,
@@ -12,13 +12,8 @@ import type {
   ResolvedDimension,
 } from "../deps.ts";
 import { BindList, LiteralList } from "./plan.ts";
-import type { QueryPlan } from "./plan.ts";
-import {
-  buildWhere,
-  dimensionExpr,
-  setMembersExpr,
-  TRIM_CHARSET,
-} from "./predicates.ts";
+import type { QueryPlan, SelectColumn } from "./plan.ts";
+import { buildWhere, dimensionExpr, setMembersExpr } from "./predicates.ts";
 import { quoteIdentifier } from "./quote.ts";
 import { timeSource } from "./time.ts";
 
@@ -57,9 +52,7 @@ export function buildValuesPlan(
   );
   if (resolved.kind === "dimension" && resolved.dimension.kind === "set") {
     const inner = [
-      `SELECT unnest(${
-        setMembersExpr(resolved.dimension, literals, false)
-      }) AS ${v}`,
+      `SELECT unnest(${setMembersExpr(resolved.dimension, literals)}) AS ${v}`,
       `FROM ${source}`,
       where.length === 0
         ? ""
@@ -68,9 +61,15 @@ export function buildValuesPlan(
     return {
       ctes: [...ctes, { name: "members", sql: inner }],
       source: quoteIdentifier("members"),
-      columns: [{ alias: OPTION_ALIAS, expr: `DISTINCT ${v}` }],
+      columns: [
+        distinctColumn(
+          resolved.dimension.caseInsensitive === true
+            ? { expr: `MIN(${v})`, groupExpr: `UPPER(${v})` }
+            : { expr: v, groupExpr: v },
+        ),
+      ],
       where: [
-        `trim(${v}, ${literals.add(TRIM_CHARSET)}) <> ${literals.add("")}`,
+        `trim(${v}, ${literals.add(BLANK_CHARACTERS)}) <> ${literals.add("")}`,
       ],
       orderBy: [v],
       limit: binds.add(limit, BIGINT),
@@ -81,10 +80,7 @@ export function buildValuesPlan(
   return {
     ctes,
     source,
-    columns: [{
-      alias: OPTION_ALIAS,
-      expr: `DISTINCT ${dimensionExpr(resolved, literals)}`,
-    }],
+    columns: [distinctColumn(dimensionExpr(resolved, literals))],
     where,
     orderBy: [v],
     limit: binds.add(limit, BIGINT),
@@ -93,9 +89,10 @@ export function buildValuesPlan(
   };
 }
 
-export function resolveOptionDimension(
-  schema: LongTableSchema,
-  dim: string,
-): ResolvedDimension | undefined {
-  return resolveDimension(schema, dim);
+// One row per distinct value: grouped, so a caseInsensitive dimension's
+// aggregate over its case variants and a plain column read the same way.
+function distinctColumn(
+  dimension: { expr: string; groupExpr: string },
+): SelectColumn {
+  return { alias: OPTION_ALIAS, ...dimension };
 }

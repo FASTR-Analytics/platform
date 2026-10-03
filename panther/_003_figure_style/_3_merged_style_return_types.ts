@@ -4,7 +4,6 @@
 // ⚠️  DO NOT EDIT - Changes will be overwritten on next sync
 
 import type {
-  AnchorPoint,
   AreaStyle,
   CalendarType,
   CascadeArrowInfoFunc,
@@ -429,36 +428,6 @@ export type MergedXPeriodAxisStyle = {
   periodLabelSmallTopPadding: number;
   periodLabelLargeTopPadding: number;
   calendar: CalendarType;
-};
-
-export type MergedSimpleVizStyle = {
-  alreadyScaledValue: number;
-  layerGap: number; // Vertical spacing between layers (default: 150)
-  orderGap: number; // Horizontal spacing between boxes in same layer (default: 100)
-  layerAlign: "left" | "center" | "right" | Array<"left" | "center" | "right">; // Alignment of boxes within each layer
-  text: {
-    primary: TextInfoUnkeyed;
-    secondary: TextInfoUnkeyed;
-    base: TextInfo; // Unscaled base for per-box text style overrides
-  };
-  boxes: {
-    fillColor: string;
-    strokeColor: string;
-    strokeWidth: number;
-    alignH: "left" | "center" | "right";
-    alignV: "top" | "middle" | "bottom";
-    textGap: number;
-    padding: Padding;
-    arrowStartPoint: AnchorPoint;
-    arrowEndPoint: AnchorPoint;
-  };
-  arrows: {
-    strokeColor: string;
-    strokeWidth: number;
-    lineDash: "solid" | "dashed";
-    truncateStart: number;
-    truncateEnd: number;
-  };
 };
 
 export type MergedVizGraphStyle = {

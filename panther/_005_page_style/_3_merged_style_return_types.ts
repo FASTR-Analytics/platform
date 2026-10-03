@@ -45,7 +45,7 @@ export type MergedFreeformContentStyle = {
   gapY: number;
   // Layout stretch ceiling for figures: maxH = idealH × this. Owns the
   // stretch-beyond-ideal policy (figures own ideal height; fill-figures —
-  // sankey/simpleviz/map/image — report Infinity and are left uncapped).
+  // sankey/map/image — report Infinity and are left uncapped).
   figureMaxStretch: number;
 };
 

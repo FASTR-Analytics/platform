@@ -57,7 +57,3 @@ export function isCompatibleType(
   }
   return normalized === "text";
 }
-
-export function isIntegerFamily(rawType: string): boolean {
-  return normalizeDuckDbType(rawType) === "integer";
-}

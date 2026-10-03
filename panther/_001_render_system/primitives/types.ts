@@ -49,9 +49,6 @@ export const Z_INDEX = {
   LABEL: 700,
   LEGEND: 800,
   CAPTION: 900,
-  // SimpleViz defaults
-  SIMPLEVIZ_ARROW: 490, // Behind boxes by default
-  SIMPLEVIZ_BOX: 500,
   // VizGraph defaults
   VIZGRAPH_LANE: 470, // Lane bands behind group boxes
   VIZGRAPH_UNFOLDED_GROUP: 480, // Group boxes behind edges and nodes
@@ -339,56 +336,14 @@ export type ChartLabelPrimitive = BasePrimitive & {
 
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-//    SimpleViz Primitives                                                    //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-export type BoxPrimitive = BasePrimitive & {
-  type: "simpleviz-box";
-  meta: {
-    boxId: string;
-  };
-  // Visual
-  rcd: RectCoordsDims;
-  rectStyle: RectStyle;
-  // Text (if present)
-  text?: {
-    mText: MeasuredText;
-    position: Coordinates;
-  };
-  secondaryText?: {
-    mText: MeasuredText;
-    position: Coordinates;
-  };
-};
-
-export type ArrowPrimitive = BasePrimitive & {
-  type: "simpleviz-arrow";
-  meta: {
-    arrowId: string;
-    fromBoxId?: string;
-    toBoxId?: string;
-  };
-  // Visual - simple array of points defining the arrow path
-  pathCoords: Coordinates[];
-  lineStyle: LineStyle;
-  // Arrowheads (if any)
-  arrowheads?: {
-    start?: Arrowhead;
-    end?: Arrowhead;
-  };
-};
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
 //    VizGraph Primitives                                                     //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-// VizGraph owns its primitive types (Tim, 2026-07-13: never reuse
-// simpleviz-box — SimpleViz will be retired). Three primitives:
-// vizgraph-node (real nodes AND folded-group reps), vizgraph-edge, and
-// vizgraph-unfolded-group (a folded group renders as a node, never as this).
+// VizGraph owns its primitive types (Tim, 2026-07-13). Four primitives:
+// vizgraph-node (real nodes AND folded-group reps), vizgraph-edge,
+// vizgraph-unfolded-group (a folded group renders as a node, never as this),
+// and vizgraph-lane.
 
 export type VizGraphNodePrimitive = BasePrimitive & {
   type: "vizgraph-node";
@@ -773,9 +728,6 @@ export type Primitive =
   | ChartLegendPrimitive
   | ChartCaptionPrimitive
   | ChartLabelPrimitive
-  // SimpleViz primitives
-  | BoxPrimitive
-  | ArrowPrimitive
   // VizGraph primitives
   | VizGraphNodePrimitive
   | VizGraphLanePrimitive
