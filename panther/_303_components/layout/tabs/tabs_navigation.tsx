@@ -40,6 +40,11 @@ type TabsNavigationProps<T extends string = string, M = never> = DataAttrs & {
   collapsible?: boolean;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+
+  // Vertical only. Draws each item as a rounded block set in from the
+  // container's edges, the selected one filled, with no primary bar. The
+  // container keeps its surface and its width, and the labels their place.
+  inset?: boolean;
 };
 
 export function TabsNavigation<T extends string = string, M = never>(
@@ -49,6 +54,7 @@ export function TabsNavigation<T extends string = string, M = never>(
   const isVertical = () => p.vertical === true;
   const isCollapsed = () => p.collapsed === true && isVertical();
   const isCollapsible = () => p.collapsible === true && isVertical();
+  const isInset = () => p.inset === true && isVertical();
   const isSmall = () => p.size === "sm";
   const hasPadX = () => p.noPad !== true;
   // A panel strip at full size is a compact header: its height is the
@@ -79,11 +85,22 @@ export function TabsNavigation<T extends string = string, M = never>(
       const gapClass = isCollapsed() ? "" : "gap-[0.75em]";
       const justifyClass = isCollapsed() ? "justify-center" : "justify-between";
       const paddingClass = isCollapsed() ? "pr-4 pl-5 py-4" : "py-4 pr-4 pl-5";
+      // The rows' px-1.5 plus a block's own padding adds up to the flush
+      // item's pl-5 and pr-4, so inset changes neither the container's width
+      // nor where the labels sit.
+      const insetClass = isCollapsed()
+        ? "px-3 py-2.5 rounded"
+        : "py-2.5 pr-2.5 pl-3.5 rounded";
       const baseClasses =
-        `ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${paddingClass} w-full font-700 text-sm leading-tight cursor-pointer select-none`;
+        `ui-focusable relative flex items-center ${gapClass} ${justifyClass} ${
+          isInset() ? insetClass : paddingClass
+        } w-full font-700 text-sm leading-tight cursor-pointer select-none`;
 
       if (isActive(id)) {
-        return `${baseClasses} shadow-[inset_4px_0_0_0_var(--color-primary)] text-primary bg-base-200`;
+        const barClass = isInset()
+          ? ""
+          : "shadow-[inset_4px_0_0_0_var(--color-primary)]";
+        return `${baseClasses} ${barClass} text-primary bg-base-200`;
       }
       // ui-hoverable-base-100, not the old hover:bg-base-100 — that was an
       // invisible hover on the sidebar's own base-100 background.
@@ -115,7 +132,9 @@ export function TabsNavigation<T extends string = string, M = never>(
       ? `flex ${railOnRow() ? "border-b" : ""} ${
         isSmall() ? "ui-gap" : "ui-gap-lg"
       } ${isPanelHeader() ? "flex-1" : ""}`
-      : "flex-1 overflow-y-auto";
+      : `flex-1 overflow-y-auto ${
+        isInset() ? "flex flex-col gap-0.5 px-1.5 pt-1.5" : ""
+      }`;
 
   const renderTabContent = (item: ListItem<T, M>) => {
     const dot = item.dot;

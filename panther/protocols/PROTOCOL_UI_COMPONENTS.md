@@ -52,7 +52,9 @@ theme, `ui-*` utilities, sizing utilities, and sentence case see
     strip in a padding `<div>` (the one exception is `ui-pad-x` around a `noPad`
     strip, which is the same as `insetRail`), and never put a `Callout` or other
     content above a panel strip; a notice goes below the rail as the first block
-    of content.
+    of content. A vertical `TabsNavigation` takes `inset`, which draws its items
+    as rounded blocks set in from the panel's edges, the selected one filled, in
+    place of full-width rows with a primary bar.
 11. **A slot owns the space around its content and between its children, and a
     Frame slot owns scrolling. The slot knob comes first; a raw element is for
     what the slot cannot say**: choose the inset and the stack spacing once, on
