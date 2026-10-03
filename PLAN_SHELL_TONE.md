@@ -90,7 +90,7 @@ unchanged. In the deck and report editors only the `HeadingBar` changes; the
    `--ui-heading-bar-tonal-bg: var(--color-base-300);` to its `@theme` block.
    The token is a `light-dark()` pair, so both schemes follow. `-fg` is not
    overridden.
-2. **`tonal` stays a boolean.** _(proposed)_ No call site names a tone.
+2. **`tonal` stays a boolean.** No call site names a tone.
    `PROTOCOL_UI_COMPONENTS.md` ("`HeadingBar`: every header bar"): "There is
    deliberately no way to pick which tonal colour at a call site. The surface is
    `--ui-heading-bar-tonal-bg` / `-fg`, retuned once per app." The knob in
@@ -98,16 +98,15 @@ unchanged. In the deck and report editors only the `HeadingBar` changes; the
 3. **No line under a top bar.** `tonal` already draws none:
    `heading_bar.tsx:64-69` picks `ui-heading-bar-tonal` instead of `border-b`.
    Nothing is added.
-4. **Every top bar is tonal; every page bar stays flush.** _(proposed for the
-   views other than the editors)_ The editors' top bars are tonal by Tim's
-   instruction; the other full-page views follow so that opening a view keeps
-   the tone. The page bars named in §2 keep `border-b`.
+4. **Every top bar is tonal; every page bar stays flush.** The editors' top bars
+   are tonal by Tim's instruction; the other full-page views follow so that
+   opening a view keeps the tone. The page bars named in §2 keep `border-b`.
 5. **In the editors only the `HeadingBar` changes.** `HeaderRows`, `MenuRow` and
    the toolbar rows in `slide_list.tsx` and `report.tsx` keep their surface and
    their lines.
-6. **Controls on a tonal bar.** _(proposed)_ `onBackground` reaches only outline
-   buttons (`button.tsx`, `getButtonClasses`), so it is not the answer for the
-   shell's fills. On a top bar: a quiet fill (`intent="base-100"`) becomes
+6. **Controls on a tonal bar.** `onBackground` reaches only outline buttons
+   (`button.tsx`, `getButtonClasses`), so it is not the answer for the shell's
+   fills. On a top bar: a quiet fill (`intent="base-100"`) becomes
    `intent="base-300"`, the same idiom on the new surface; an outline `Button`,
    `MenuButton` or `ButtonGroup` declares `onBackground="base-300"` (styling
    rule 7); primary, success, danger and neutral fills are unchanged; a
@@ -121,11 +120,10 @@ unchanged. In the deck and report editors only the `HeadingBar` changes; the
    `px-0 py-2.5 justify-center`); the selected item is
    `bg-base-200
    text-primary` with no inset bar; unselected items keep
-   `ui-hoverable-base-100 text-base-content hover:text-primary`. _(geometry
-   proposed, from the mock)_
-8. **The collapse chevron stays `intent="base-100"`.** _(proposed)_ It sits on
-   the white rail.
-9. **The shell header becomes a `HeadingBar`.** _(proposed)_
+   `ui-hoverable-base-100 text-base-content hover:text-primary`.
+8. **The collapse chevron stays `intent="base-100"`.** It sits on the white
+   rail.
+9. **The shell header becomes a `HeadingBar`.**
    `<HeadingBar tonal leftChildren={ident}>{cluster}</HeadingBar>` as
    `FrameTop`'s panel, where `ident` is the instance name and logo block and
    `cluster` the right-hand controls. Both are built once as `const`s above the
