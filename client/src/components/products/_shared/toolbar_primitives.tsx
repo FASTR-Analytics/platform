@@ -8,10 +8,13 @@ import { Icon } from "panther";
 // The rows under a product's HeadingBar: the menu row, then the toolbar row
 // (or the host a toolbar portals into). The closing pad and rule are the
 // container's, so the header ends the same way whether or not a toolbar is
-// mounted, and no row has to know that it is the last one.
+// mounted, and no row has to know that it is the last one. The rows sit on
+// base-200, the editor pane's own surface, so the bands under the tonal bar
+// step in ramp order: on base-100 the rows are the lightest band in the light
+// scheme and the darkest in the dark one, between two tinted neighbours.
 export function HeaderRows(p: { children: JSX.Element }) {
   return (
-    <div class="border-b pb-1.5" data-cursor-zone="header">
+    <div class="bg-base-200 border-b pb-1.5" data-cursor-zone="header">
       {p.children}
     </div>
   );
@@ -79,7 +82,7 @@ export function MenuFlyout(p: { label: string; children: JSX.Element }) {
 }
 
 export function ToolbarDivider() {
-  return <div class="bg-base-300 mx-1 h-4 w-px" />;
+  return <div class="bg-border mx-1 h-4 w-px" />;
 }
 
 export function MenuDivider() {
@@ -191,7 +194,7 @@ export function ToolbarPopover(p: {
       >
         <button
           type="button"
-          class="ui-focusable ui-hoverable-base-100 rounded px-2 py-0.5 text-sm"
+          class="ui-focusable ui-hoverable-base-200 rounded px-2 py-0.5 text-sm"
           data-tour={p.tour}
           onClick={toggle}
         >
