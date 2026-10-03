@@ -48,6 +48,9 @@ Today's app-level additions:
   `ui-fill-package` and `ui-hoverable-package` skins: the one accent for the
   results-package chip (`components/products/_shared/package_scope_chip.tsx`) on
   editor headers, product cards and list rows. Nothing else wears it.
+- `--ui-heading-bar-tonal-bg` retuned to `base-300`: the kit's one tonal header
+  surface, worn by every top bar. Against `base-100` it reads as an edge with no
+  line under it.
 - The base layer: `html, body, #app` → `font-sans`,
   `bg-base-100 text-base-content`, `font-variant-numeric: tabular-nums` for
   aligned numeric columns.
@@ -100,8 +103,10 @@ modal's Appearance section (`client/src/components/instance/profile.tsx`, a
   `data-scheme="dark"` (and `system` while the OS is dark); used by the report
   View pane and the version-history report preview. Markdown with no style (AI
   chat) needs no wrapper.
-- **No inverted chrome.** Every header is a flush `HeadingBar` that follows the
-  scheme; no surface in this app pins its `color-scheme`.
+- **No inverted chrome.** Every header is a `HeadingBar` that follows the
+  scheme. A top bar (the shell header, and the bar that opens a full-page view)
+  is `<HeadingBar tonal>`; a page bar inside a page's content, under a top bar,
+  is flush. No surface in this app pins its `color-scheme`.
 - **No `text-white` / `bg-white`**: they are not tokens and break the dark
   palette. Document surfaces (slide canvases, thumbnails, previews) wear
   `ui-scheme-light`; constant contrast over media/data is an inline style beside
@@ -143,10 +148,10 @@ Pattern specifics, from the live pages:
   own `getEditorWrapper()`; panel widths in use: viz editor `384/300/600`, slide
   editor `400/300/600`; canvas area is `FigureHolder`/`PageHolder`.
 - **Instance page:** `ShellEditorWrapper` around a `FrameTop` whose panel is the
-  header (instance name, logo, right-hand cluster) and whose content is a
-  `FrameLeft` with the rail: pattern B, a vertical collapsible `TabsNavigation`
-  over `navItems()`, collapsed state in `t4_ui`'s `navCollapsed`. Nothing in the
-  shell is responsive.
+  header, a tonal `HeadingBar` (instance name, logo, right-hand cluster), and
+  whose content is a `FrameLeft` with the rail: pattern B, a vertical
+  collapsible `TabsNavigation` with `inset` items over `navItems()`, collapsed
+  state in `t4_ui`'s `navCollapsed`. Nothing in the shell is responsive.
 
 ## Recurring scaffolds
 

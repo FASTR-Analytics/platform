@@ -15,6 +15,7 @@ import {
   Button,
   FrameLeft,
   FrameTop,
+  HeadingBar,
   Icon,
   type ListItem,
   MenuButton,
@@ -208,144 +209,149 @@ export default function Instance(p: Props) {
     });
   }
 
+  // Built once: FrameTop reads `panelChildren` twice (report.tsx `headerPanel`).
+  const ident = (
+    <div class="flex items-center">
+      <div class="font-700 border-r pr-4 text-xl text-nowrap antialiased">
+        {instanceState.instanceName}
+      </div>
+      <div class="w-24 flex-none pl-4">
+        <img src="/images/logo.png" class="h-4 w-24 object-contain" />
+      </div>
+    </div>
+  );
+  const cluster = (
+    <div class="ui-gap-sm flex items-center">
+      <Show when={THEME_SWITCHER_ENABLED}>
+        <Button intent="base-300" onClick={openTheme}>
+          {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
+        </Button>
+      </Show>
+      <Show when={instanceState.currentUserApproved}>
+        <MenuButton
+          data-tour="instance-topbar-help"
+          items={() => {
+            const items: MenuItem[] = [];
+            items.push({
+              label: t3({
+                en: "Guided tours",
+                fr: "Visites guidées",
+                pt: "Visitas guiadas",
+              }),
+              icon: "slideshow",
+              onClick: () => void openTours(),
+            });
+            items.push({
+              label: t3({
+                en: "Ask for help",
+                fr: "Demander de l'aide",
+                pt: "Pedir ajuda",
+              }),
+              icon: "lifebuoy",
+              onClick: () => void openFeedback("help"),
+            });
+            items.push({
+              label: t3({
+                en: "Send feedback",
+                fr: "Envoyer un commentaire",
+                pt: "Enviar comentários",
+              }),
+              icon: "pencil",
+              onClick: () => void openFeedback(),
+            });
+            items.push({
+              label: t3({
+                en: "Documentation",
+                fr: "Documentation",
+                pt: "Documentação",
+              }),
+              icon: "document",
+              onClick: () => window.open(getDocsOverviewUrl(), "_blank"),
+            });
+            return items;
+          }}
+          position="bottom-end"
+          intent="base-300"
+        >
+          {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
+        </MenuButton>
+        <Show when={INSTANCE_META_BUTTON_ENABLED}>
+          <Button
+            onClick={openInstanceMeta}
+            iconName="versions"
+            intent="base-300"
+          />
+        </Show>
+        <MenuButton
+          data-tour="instance-topbar-language"
+          items={[
+            {
+              label: "English",
+              onClick: () => {
+                localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
+                if (getLanguage() === "en") return;
+                window.location.reload();
+              },
+            },
+            {
+              label: "Français",
+              onClick: () => {
+                localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
+                if (getLanguage() === "fr") return;
+                window.location.reload();
+              },
+            },
+            {
+              label: "Português",
+              onClick: () => {
+                localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
+                if (getLanguage() === "pt") return;
+                window.location.reload();
+              },
+            },
+          ] satisfies MenuItem[]}
+          position="bottom-end"
+          intent="base-300"
+        >
+          {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
+        </MenuButton>
+        <Show
+          when={instanceState.currentUserApproved &&
+            whatsNewPostsForCurrentUser().length > 0}
+        >
+          <div class="relative" data-tour="instance-topbar-whats-new">
+            <Button
+              onClick={openWhatsNewFeed}
+              iconName="bell"
+              intent="base-300"
+            />
+            <Show when={whatsNewHasUnread()}>
+              <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
+            </Show>
+          </div>
+        </Show>
+      </Show>
+      <div
+        class="ui-hoverable-base-300 ui-gap-sm ui-pad-sm flex items-center rounded"
+        data-tour="instance-topbar-profile"
+        onClick={openProfile}
+      >
+        <span class="text-primary inline-block w-5">
+          <Icon iconName="userCircle" />
+        </span>
+      </div>
+    </div>
+  );
+  const header = (
+    <HeadingBar tonal leftChildren={ident}>
+      {cluster}
+    </HeadingBar>
+  );
+
   return (
     <>
       <ShellEditorWrapper>
-        <FrameTop
-          panelChildren={
-            <div class="ui-pad ui-gap bg-base-100 text-base-content flex items-center justify-between border-b">
-              <div class="flex flex-0 items-center">
-                <div class="font-700 border-r pr-4 text-xl text-nowrap antialiased">
-                  {instanceState.instanceName}
-                </div>
-                <div class="w-24 flex-none pl-4">
-                  <img src="/images/logo.png" class="h-4 w-24 object-contain" />
-                </div>
-              </div>
-              <div class="ui-gap-sm flex flex-0 items-center justify-end">
-                <Show when={THEME_SWITCHER_ENABLED}>
-                  <Button intent="base-100" onClick={openTheme}>
-                    {t3({ en: "Theme", fr: "Thème", pt: "Tema" })}
-                  </Button>
-                </Show>
-                <Show when={instanceState.currentUserApproved}>
-                  <MenuButton
-                    data-tour="instance-topbar-help"
-                    items={() => {
-                      const items: MenuItem[] = [];
-                      items.push({
-                        label: t3({
-                          en: "Guided tours",
-                          fr: "Visites guidées",
-                          pt: "Visitas guiadas",
-                        }),
-                        icon: "slideshow",
-                        onClick: () => void openTours(),
-                      });
-                      items.push({
-                        label: t3({
-                          en: "Ask for help",
-                          fr: "Demander de l'aide",
-                          pt: "Pedir ajuda",
-                        }),
-                        icon: "lifebuoy",
-                        onClick: () => void openFeedback("help"),
-                      });
-                      items.push({
-                        label: t3({
-                          en: "Send feedback",
-                          fr: "Envoyer un commentaire",
-                          pt: "Enviar comentários",
-                        }),
-                        icon: "pencil",
-                        onClick: () => void openFeedback(),
-                      });
-                      items.push({
-                        label: t3({
-                          en: "Documentation",
-                          fr: "Documentation",
-                          pt: "Documentação",
-                        }),
-                        icon: "document",
-                        onClick: () =>
-                          window.open(getDocsOverviewUrl(), "_blank"),
-                      });
-                      return items;
-                    }}
-                    position="bottom-end"
-                    intent="base-100"
-                  >
-                    {t3({ en: "Help", fr: "Aide", pt: "Ajuda" })}
-                  </MenuButton>
-                  <Show when={INSTANCE_META_BUTTON_ENABLED}>
-                    <Button
-                      onClick={openInstanceMeta}
-                      iconName="versions"
-                      intent="base-100"
-                    />
-                  </Show>
-                  <MenuButton
-                    data-tour="instance-topbar-language"
-                    items={[
-                      {
-                        label: "English",
-                        onClick: () => {
-                          localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
-                          if (getLanguage() === "en") return;
-                          window.location.reload();
-                        },
-                      },
-                      {
-                        label: "Français",
-                        onClick: () => {
-                          localStorage.setItem(LANGUAGE_STORAGE_KEY, "fr");
-                          if (getLanguage() === "fr") return;
-                          window.location.reload();
-                        },
-                      },
-                      {
-                        label: "Português",
-                        onClick: () => {
-                          localStorage.setItem(LANGUAGE_STORAGE_KEY, "pt");
-                          if (getLanguage() === "pt") return;
-                          window.location.reload();
-                        },
-                      },
-                    ] satisfies MenuItem[]}
-                    position="bottom-end"
-                    intent="base-100"
-                  >
-                    {({ en: "EN", fr: "FR", pt: "PT" } as const)[getLanguage()]}
-                  </MenuButton>
-                  <Show
-                    when={instanceState.currentUserApproved &&
-                      whatsNewPostsForCurrentUser().length > 0}
-                  >
-                    <div class="relative" data-tour="instance-topbar-whats-new">
-                      <Button
-                        onClick={openWhatsNewFeed}
-                        iconName="bell"
-                        intent="base-100"
-                      />
-                      <Show when={whatsNewHasUnread()}>
-                        <div class="bg-warning pointer-events-none absolute top-1 right-1 h-2 w-2 rounded-full" />
-                      </Show>
-                    </div>
-                  </Show>
-                </Show>
-                <div
-                  class="ui-hoverable-base-100 ui-gap-sm ui-pad-sm flex items-center rounded"
-                  data-tour="instance-topbar-profile"
-                  onClick={openProfile}
-                >
-                  <span class="text-primary inline-block w-5">
-                    <Icon iconName="userCircle" />
-                  </span>
-                </div>
-              </div>
-            </div>
-          }
-        >
+        <FrameTop panelChildren={header}>
           <Show
             when={instanceState.currentUserApproved}
             fallback={
@@ -374,6 +380,7 @@ export default function Instance(p: Props) {
                   collapsible
                   collapsed={navCollapsed()}
                   onCollapsedChange={setNavCollapsed}
+                  inset
                   items={navItems()}
                   value={tab()}
                   onChange={setTab}
