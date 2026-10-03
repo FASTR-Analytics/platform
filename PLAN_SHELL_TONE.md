@@ -11,9 +11,11 @@ lines dropped, rail item Inset).
 **Next step: Do 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. Step 3's review deletes the file.
 
-Branch `version2`. Two repos: this app and the panther source at
-`/Users/timroberton/projects/panther/timroberton-panther` (Step 1 only). Read
-first: `CLAUDE.md`, then §2 and §3 here.
+All app work is in this checkout,
+`/Users/timroberton/projects/apps/wb-fastr-v2`, on `version2`. Panther work
+(Step 1 only) is in the panther source at
+`/Users/timroberton/projects/panther/timroberton-panther` and reaches this
+checkout by sync. Read first: `CLAUDE.md`, then §2 and §3 here.
 
 ---
 
@@ -24,7 +26,8 @@ Cadence, session shapes, the two-things rule and the step rules are
 `PROTOCOL_APP_PLANS.md`. This plan binds them as follows.
 
 - Instruction: "Do the next step of PLAN_SHELL_TONE.md."
-- Branch: `version2` here; the panther source commits to its `main`.
+- Branch: `version2`, in this checkout only; the panther source commits to its
+  `main`. Nothing is edited under `panther/` here.
 - Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`,
   `./run`. Step 1 also runs the panther repo's own four commands (its
   `CLAUDE.md`): `deno task typecheck`, `deno run -A clean.ts --dry-run`,
