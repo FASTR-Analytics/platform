@@ -1061,6 +1061,7 @@ export function HfaIndicatorsManager(p: Props) {
         <FrameTop
           panelChildren={
             <HeadingBar
+              tonal
               onBack={() => p.close(undefined)}
               heading={t3({
                 en: "HFA INDICATORS",
@@ -1069,7 +1070,12 @@ export function HfaIndicatorsManager(p: Props) {
               })}
             >
               <Show when={instanceState.currentUserIsGlobalAdmin && !showAi()}>
-                <Button iconName="chevronLeft" outline onClick={openAi}>
+                <Button
+                  iconName="chevronLeft"
+                  outline
+                  onBackground="base-300"
+                  onClick={openAi}
+                >
                   {t3({ en: "AI", fr: "IA", pt: "IA" })}
                 </Button>
               </Show>

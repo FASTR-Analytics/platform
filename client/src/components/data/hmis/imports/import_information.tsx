@@ -66,6 +66,7 @@ export function ImportInformation(
       spy="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={t3({
             en: "Import information",

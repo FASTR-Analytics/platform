@@ -277,6 +277,7 @@ export function InstanceDatasetHmis(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
+            tonal
             onBack={() => p.close(undefined)}
             heading={t3({
               en: "DATASET",
@@ -313,6 +314,7 @@ export function InstanceDatasetHmis(p: Props) {
                     intent="danger"
                     iconName="trash"
                     outline
+                    onBackground="base-300"
                   >
                     {t3({
                       en: "Delete data",

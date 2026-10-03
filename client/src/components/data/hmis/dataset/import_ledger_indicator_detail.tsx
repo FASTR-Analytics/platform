@@ -184,6 +184,7 @@ export function ImportLedgerIndicatorDetail(
       pad="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={t3({
             en: "Import status",

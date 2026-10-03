@@ -650,12 +650,18 @@ export function SlideList(p: Props) {
         id="deck-history-button"
         iconName="rotate"
         outline
+        onBackground="base-300"
         onClick={() => p.openVersionHistory()}
       >
         {t3({ en: "History", fr: "Historique", pt: "Histórico" })}
       </Button>
       <Show when={!showAi()}>
-        <Button onClick={() => setShowAi(true)} iconName="chevronLeft" outline>
+        <Button
+          onClick={() => setShowAi(true)}
+          iconName="chevronLeft"
+          outline
+          onBackground="base-300"
+        >
           {t3({ en: "AI", fr: "IA", pt: "IA" })}
         </Button>
       </Show>
@@ -667,7 +673,7 @@ export function SlideList(p: Props) {
   // slide toolbar); and the toolbar for whatever is selected.
   const headerPanel = (
     <div data-cursor-zone="header" data-tour="deck-toolbar">
-      <HeadingBar onBack={() => p.handleClose()} heading={headerTitle}>
+      <HeadingBar tonal onBack={() => p.handleClose()} heading={headerTitle}>
         {headerActions}
       </HeadingBar>
       <HeaderRows>

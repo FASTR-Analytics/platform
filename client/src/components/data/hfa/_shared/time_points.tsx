@@ -27,6 +27,7 @@ export function InstanceHfaTimePoints(p: Props) {
       pad="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={t3({
             en: "HFA time points",

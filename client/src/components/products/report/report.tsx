@@ -2417,6 +2417,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <Show when={knownFormat() !== undefined && knownFormat() !== "fastr"}>
         <ButtonGroup<ReportMode>
           data-tour="report-mode"
+          onBackground="base-300"
           items={[
             {
               id: "edit",
@@ -2491,11 +2492,13 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       >
         <Button
           outline
+          onBackground="base-300"
           iconName="undo"
           onClick={() => editorApi?.undo()}
         />
         <Button
           outline
+          onBackground="base-300"
           iconName="redo"
           onClick={() => editorApi?.redo()}
         />
@@ -2510,6 +2513,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       <Button
         id="report-history-button"
         outline
+        onBackground="base-300"
         iconName="rotate"
         onClick={openVersionHistory}
       >
@@ -2519,6 +2523,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         <Button
           id="report-download-button"
           outline
+          onBackground="base-300"
           iconName="download"
           onClick={download}
         >
@@ -2529,6 +2534,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
         <Button
           id="report-ai-button"
           outline
+          onBackground="base-300"
           iconName="chevronLeft"
           onClick={() => setShowAi(true)}
         >
@@ -2547,6 +2553,7 @@ ${scope} .cm-fm-h1 .fm-mark--u, ${scope} .cm-fm-h2 .fm-mark--u, ${scope} .cm-fm-
       data-cursor-zone="header"
     >
       <HeadingBar
+        tonal
         data-tour="report-toolbar"
         leftChildren={headerBack}
         heading={headerTitle}

@@ -187,6 +187,7 @@ export function FamilyConfiguration(p: Props) {
       pad="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={p.family === "hmis"
             ? t3({

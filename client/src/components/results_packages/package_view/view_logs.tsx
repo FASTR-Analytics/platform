@@ -40,6 +40,7 @@ export function ViewLogs(
       pad="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={`${
             t3({ en: "Logs for", fr: "Journaux pour", pt: "Registos de" })

@@ -118,6 +118,7 @@ export function SlideDeckSettings(p: Props) {
       pad="md"
       panelChildren={
         <HeadingBar
+          tonal
           heading={
             <div class="flex items-center gap-2">
               <span>{p.heading}:</span>
@@ -128,13 +129,14 @@ export function SlideDeckSettings(p: Props) {
                   intent="neutral"
                   size="sm"
                   outline
+                  onBackground="base-300"
                   onClick={() => setEditingName(true)}
                 />
               </Show>
               <Show when={editingName()}>
                 <input
                   type="text"
-                  class="font-400 rounded border px-2 py-1 text-base"
+                  class="font-400 bg-base-100 rounded border px-2 py-1 text-base"
                   value={tempConfig.label}
                   onInput={(e) => setTempConfig("label", e.currentTarget.value)}
                   onBlur={() => setEditingName(false)}

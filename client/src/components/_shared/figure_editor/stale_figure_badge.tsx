@@ -175,7 +175,13 @@ type UpdateAllProps = {
 export function UpdateAllFiguresButton(p: UpdateAllProps) {
   return (
     <Show when={p.count > 0}>
-      <Button outline iconName="refresh" onClick={p.onClick} loading={p.busy}>
+      <Button
+        outline
+        onBackground="base-300"
+        iconName="refresh"
+        onClick={p.onClick}
+        loading={p.busy}
+      >
         {t3({
           en: `Update all visualizations (${p.count})`,
           fr: `Mettre à jour toutes les visualisations (${p.count})`,

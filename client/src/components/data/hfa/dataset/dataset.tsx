@@ -47,6 +47,7 @@ export function InstanceDatasetHfa(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
+            tonal
             onBack={() => p.close(undefined)}
             heading={t3({
               en: "DATASET",

@@ -24,6 +24,7 @@ export function HfaRunDetail(
       spy="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={
             <>

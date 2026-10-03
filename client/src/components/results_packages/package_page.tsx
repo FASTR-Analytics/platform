@@ -248,6 +248,7 @@ function PackageBody(p: {
           <Button
             size="sm"
             outline
+            onBackground="base-300"
             state={unpinPackage.state()}
             onClick={unpinPackage.click}
           >
@@ -258,6 +259,7 @@ function PackageBody(p: {
           <Button
             size="sm"
             outline
+            onBackground="base-300"
             state={pinPackage.state()}
             onClick={pinPackage.click}
           >
@@ -274,6 +276,7 @@ function PackageBody(p: {
             size="sm"
             intent="danger"
             outline
+            onBackground="base-300"
             iconName="trash"
             onClick={deletePackage.click}
           >
@@ -289,6 +292,7 @@ function PackageBody(p: {
       panelChildren={
         <>
           <HeadingBar
+            tonal
             onBack={p.close}
             heading={heading}
             subheading={provenanceLine(p.run)}

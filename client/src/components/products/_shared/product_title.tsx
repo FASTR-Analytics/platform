@@ -41,9 +41,10 @@ export function ProductTitle(p: { productId: string; label: string }) {
         <div
           class="ui-text-heading min-w-0 truncate text-lg"
           classList={{
-            "cursor-text rounded px-1 -mx-1 hover:bg-base-200": canEditProduct(
-              p.productId,
-            ),
+            "cursor-text rounded px-1 -mx-1 hover:bg-base-300-hover":
+              canEditProduct(
+                p.productId,
+              ),
           }}
           title={canEditProduct(p.productId)
             ? t3({

@@ -197,6 +197,7 @@ function UserDetail(p: DetailProps) {
       spy="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={p.close}
           heading={`${
             t3({

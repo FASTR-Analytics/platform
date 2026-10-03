@@ -124,6 +124,7 @@ export function PopulationImportForm(p: { close: (p: unknown) => void }) {
       pad="md"
       panelChildren={
         <HeadingBar
+          tonal
           heading={t3({
             en: "Import population data",
             fr: "Importer des données de population",

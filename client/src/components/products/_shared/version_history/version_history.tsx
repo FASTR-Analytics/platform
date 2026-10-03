@@ -132,6 +132,7 @@ export function VersionHistoryEditor(p: Props) {
     <FrameTop
       panelChildren={
         <HeadingBar
+          tonal
           heading={`${
             t3({
               en: "Version history",
@@ -150,7 +151,7 @@ export function VersionHistoryEditor(p: Props) {
           <div class="ui-gap-sm flex items-center">
             <Button
               iconName="refresh"
-              intent="base-100"
+              intent="base-300"
               ariaLabel={t3({
                 en: "Refresh",
                 fr: "Actualiser",

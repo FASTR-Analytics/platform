@@ -215,6 +215,7 @@ export function IndicatorsManager(p: Props) {
       <FrameTop
         panelChildren={
           <HeadingBar
+            tonal
             onBack={() => p.close(undefined)}
             heading={t3({
               en: "HMIS INDICATORS",
@@ -223,14 +224,24 @@ export function IndicatorsManager(p: Props) {
             })}
           >
             <div class="ui-gap-sm flex items-center">
-              <Button iconName="info" onClick={handleTypes} outline>
+              <Button
+                iconName="info"
+                onClick={handleTypes}
+                outline
+                onBackground="base-300"
+              >
                 {t3({
                   en: "Indicator types",
                   fr: "Types d'indicateurs",
                   pt: "Tipos de indicadores",
                 })}
               </Button>
-              <Button iconName="info" onClick={handleReference} outline>
+              <Button
+                iconName="info"
+                onClick={handleReference}
+                outline
+                onBackground="base-300"
+              >
                 {t3({
                   en: "Special indicators and reserved words",
                   fr: "Indicateurs spéciaux et mots réservés",

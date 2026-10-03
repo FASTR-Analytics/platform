@@ -86,6 +86,7 @@ export function ScopesPage(p: Props) {
       pad="md"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={t3({ en: "Scopes", fr: "Portées", pt: "Âmbitos" })}
         />

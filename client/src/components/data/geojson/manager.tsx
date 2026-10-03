@@ -141,6 +141,7 @@ export function GeoJsonManager(p: Props) {
         spy="md"
         panelChildren={
           <HeadingBar
+            tonal
             onBack={() => p.close(undefined)}
             heading={familyHeading(p.family)}
           >

@@ -47,6 +47,7 @@ export function ViewFiles(
       spy="sm"
       panelChildren={
         <HeadingBar
+          tonal
           onBack={() => p.close(undefined)}
           heading={`${
             t3({ en: "Files for", fr: "Fichiers pour", pt: "Ficheiros para" })
