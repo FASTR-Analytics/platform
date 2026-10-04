@@ -173,25 +173,26 @@ it.
 The shell is `ShellEditorWrapper` around a `FrameTop` whose panel is the header,
 a tonal `HeadingBar` (logo and instance name in its left slot, with the divider
 between them on the rail's border: the shell measures the rail, whose width
-follows its labels, and shows only the logo's arrows while the rail is
-collapsed; and the right-hand cluster: Theme, Help, versions, language, bell,
-profile; Theme and versions are hidden behind `THEME_SWITCHER_ENABLED` and
-`INSTANCE_META_BUTTON_ENABLED`) and whose content is, once the user is approved,
-a `FrameLeft` whose panel is the rail: a vertical, collapsible `TabsNavigation`
-with `inset` items over `navItems()`, one gated ordered list, with its collapsed
-state persisted in `t4_ui`'s `navCollapsed` (default collapsed). The approval
-`Show` wraps the `FrameLeft` rather than sitting inside its panel, because a
-`Show` passed as a prop is a truthy accessor even when it renders nothing and
-`FrameLeft` would draw an empty rail. `ShellEditorWrapper` and `openShellEditor`
-are the one `getEditorWrapper()` the app has at shell level, created in
-`t4_ui.ts`; every view a user reaches through a Back button (the product
-editors, module defaults, the Scopes page, the package viewers, the Data hub's
-sub-pages, the user detail) opens through it and covers the header and the rail,
-so its Back is the only way out and the rail cannot switch tabs under an open
-editor. The tab stays on Products while a product editor is open. Views those
-full-page views open through their own wrappers (the slide editor, an import run
-detail) are already full page. This file also hosts the language menu and the
-onboarding-modal effect (below).
+follows its labels, centres the logo over it, and shows only the logo's arrows
+while the rail is collapsed; and the right-hand cluster: Theme, Help, versions,
+language, bell, profile; Theme and versions are hidden behind
+`THEME_SWITCHER_ENABLED` and `INSTANCE_META_BUTTON_ENABLED`) and whose content
+is, once the user is approved, a `FrameLeft` whose panel is the rail: a
+vertical, collapsible `TabsNavigation` with `inset` items over `navItems()`, one
+gated ordered list, with its collapsed state persisted in `t4_ui`'s
+`navCollapsed` (default collapsed). The approval `Show` wraps the `FrameLeft`
+rather than sitting inside its panel, because a `Show` passed as a prop is a
+truthy accessor even when it renders nothing and `FrameLeft` would draw an empty
+rail. `ShellEditorWrapper` and `openShellEditor` are the one
+`getEditorWrapper()` the app has at shell level, created in `t4_ui.ts`; every
+view a user reaches through a Back button (the product editors, module defaults,
+the Scopes page, the package viewers, the Data hub's sub-pages, the user detail)
+opens through it and covers the header and the rail, so its Back is the only way
+out and the rail cannot switch tabs under an open editor. The tab stays on
+Products while a product editor is open. Views those full-page views open
+through their own wrappers (the slide editor, an import run detail) are already
+full page. This file also hosts the language menu and the onboarding-modal
+effect (below).
 
 ## Language, calendar & translation
 

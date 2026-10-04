@@ -28,6 +28,7 @@ import {
 import {
   createEffect,
   createSignal,
+  type JSX,
   Match,
   onCleanup,
   Show,
@@ -217,7 +218,9 @@ export default function Instance(p: Props) {
   }
 
   // The rail sizes to its labels, which change with the language, so the
-  // header measures it to put the divider on the rail's border.
+  // header measures it to centre the logo over the rail and put the divider on
+  // the rail's border. The logo slot reaches back through the bar's padding to
+  // the window edge, where the rail starts.
   const [railWidth, setRailWidth] = createSignal<number>();
   function observeRail(el: HTMLDivElement) {
     const observer = new ResizeObserver(([entry]) =>
@@ -229,18 +232,21 @@ export default function Instance(p: Props) {
     onCleanup(() => observer.disconnect());
   }
   const railBeside = () => railWidth() !== undefined;
+  const logoSlotStyle = (): JSX.CSSProperties => {
+    const width = railWidth();
+    return width === undefined ? {} : {
+      width: `${width}px`,
+      "margin-left": "calc(-1 * var(--ui-pad-x))",
+    };
+  };
 
   // Built once: FrameTop reads `panelChildren` twice (report.tsx `headerPanel`).
   const ident = (
     <div class="flex items-center">
       <div
-        class="flex-none"
+        class="flex flex-none justify-center"
         classList={{ "pr-4": !railBeside() }}
-        style={{
-          width: railBeside()
-            ? `calc(${railWidth()}px - var(--ui-pad-x))`
-            : undefined,
-        }}
+        style={logoSlotStyle()}
       >
         <img
           src={railBeside() && navCollapsed()
