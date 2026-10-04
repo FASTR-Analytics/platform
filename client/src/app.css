@@ -33,9 +33,12 @@
      on base-content in _fixed.css. Every top bar wears it (`<HeadingBar
      tonal>`), and against base-100 a base-300 bar reads as an edge with no
      line under it. Its words, the heading and the instance name, are in the
-     brand colour. */
+     brand colour on light and in base-content on dark. */
   --ui-heading-bar-tonal-bg: var(--color-base-300);
-  --ui-heading-bar-tonal-content: var(--color-primary);
+  --ui-heading-bar-tonal-content: light-dark(
+    var(--color-primary),
+    var(--color-base-content)
+  );
 }
 
 /* The package accent's fill and hoverable skins, the same two bundles
