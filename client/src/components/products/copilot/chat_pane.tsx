@@ -432,10 +432,6 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
     }
   };
 
-  // The per-mode label switch moved onto the view registry (ai_views.ts):
-  // the controller resolves the current view's label.
-  const titleSubtext = () => copilotViewController.currentLabel();
-
   type AiUsageData = {
     tokensUsedToday: number;
     dailyTokenLimit: number | null;
@@ -491,11 +487,7 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <HeadingBar
-        tonal
-        heading={t3({ en: "AI", fr: "IA", pt: "IA" })}
-        subheading={titleSubtext()}
-      >
+      <HeadingBar tonal heading={t3({ en: "AI", fr: "IA", pt: "IA" })}>
         <div class="ui-gap-sm flex items-center">
           <ActionMenuButton items={menuItems} intent="base-300" />
           <Button
