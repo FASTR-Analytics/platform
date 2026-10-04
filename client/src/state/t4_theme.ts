@@ -141,7 +141,7 @@ const RAMPS: Record<ThemeRamp, Halves<RampHalf>> = {
       base300Active: "#534f4a",
     },
   },
-  // White tinted toward GFF Deep Green; near-black green in the dark.
+  // White tinted toward GFF Deep Green; a near-black green-grey in the dark.
   cool: {
     light: {
       base100: "#ffffff",
@@ -156,16 +156,16 @@ const RAMPS: Record<ThemeRamp, Halves<RampHalf>> = {
       base300Active: "#ccd6d5",
     },
     dark: {
-      base100: "#0f1f1d",
-      base200: "#182c29",
-      base300: "#243f39",
-      border: "#365650",
-      base100Hover: "#132523",
-      base100Active: "#162927",
-      base200Hover: "#1e3531",
-      base200Active: "#223b36",
-      base300Hover: "#2d4a44",
-      base300Active: "#32514b",
+      base100: "#161d1c",
+      base200: "#212a28",
+      base300: "#303c3a",
+      border: "#445250",
+      base100Hover: "#1b2322",
+      base100Active: "#1f2726",
+      base200Hover: "#283331",
+      base200Active: "#2d3836",
+      base300Hover: "#3a4745",
+      base300Active: "#404e4c",
     },
   },
 };
