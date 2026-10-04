@@ -171,9 +171,11 @@ tab id union is `InstanceTab` in `onboarding/catalogue.ts` and the shell imports
 it.
 
 The shell is `ShellEditorWrapper` around a `FrameTop` whose panel is the header,
-a tonal `HeadingBar` (instance name and logo in its left slot, and the
-right-hand cluster: Theme, Help, versions, language, bell, profile; Theme and
-versions are hidden behind `THEME_SWITCHER_ENABLED` and
+a tonal `HeadingBar` (logo and instance name in its left slot, with the divider
+between them on the rail's border: the shell measures the rail, whose width
+follows its labels, and shows only the logo's arrows while the rail is
+collapsed; and the right-hand cluster: Theme, Help, versions, language, bell,
+profile; Theme and versions are hidden behind `THEME_SWITCHER_ENABLED` and
 `INSTANCE_META_BUTTON_ENABLED`) and whose content is, once the user is approved,
 a `FrameLeft` whose panel is the rail: a vertical, collapsible `TabsNavigation`
 with `inset` items over `navItems()`, one gated ordered list, with its collapsed

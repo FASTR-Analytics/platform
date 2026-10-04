@@ -25,7 +25,14 @@ import {
   TabsNavigation,
   TooltipProvider,
 } from "panther";
-import { createEffect, createSignal, Match, Show, Switch } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
 import { clerk } from "~/state/_infra/clerk";
 import { OrganisationModal } from "./organisation_modal";
 import { ThemeModal } from "./theme_modal";
@@ -209,14 +216,41 @@ export default function Instance(p: Props) {
     });
   }
 
+  // The rail sizes to its labels, which change with the language, so the
+  // header measures it to put the divider on the rail's border.
+  const [railWidth, setRailWidth] = createSignal<number>();
+  function observeRail(el: HTMLDivElement) {
+    const observer = new ResizeObserver(([entry]) =>
+      setRailWidth(
+        el.isConnected ? entry.borderBoxSize[0].inlineSize : undefined,
+      )
+    );
+    observer.observe(el);
+    onCleanup(() => observer.disconnect());
+  }
+  const railBeside = () => railWidth() !== undefined;
+
   // Built once: FrameTop reads `panelChildren` twice (report.tsx `headerPanel`).
   const ident = (
     <div class="flex items-center">
-      <div class="font-700 border-r pr-4 text-xl text-nowrap antialiased">
-        {instanceState.instanceName}
+      <div
+        class="flex-none"
+        classList={{ "pr-4": !railBeside() }}
+        style={{
+          width: railBeside()
+            ? `calc(${railWidth()}px - var(--ui-pad-x))`
+            : undefined,
+        }}
+      >
+        <img
+          src={railBeside() && navCollapsed()
+            ? "/images/logo_mark.png"
+            : "/images/logo.png"}
+          class="h-4"
+        />
       </div>
-      <div class="w-24 flex-none pl-4">
-        <img src="/images/logo.png" class="h-4 w-24 object-contain" />
+      <div class="font-700 border-l pl-4 text-xl text-nowrap antialiased">
+        {instanceState.instanceName}
       </div>
     </div>
   );
@@ -347,6 +381,22 @@ export default function Instance(p: Props) {
       {cluster}
     </HeadingBar>
   );
+  // Built once, like the header: FrameLeft also reads `panelChildren` twice.
+  const rail = (
+    <div ref={observeRail} class="h-full">
+      <TabsNavigation
+        data-tour="instance-nav"
+        vertical
+        collapsible
+        collapsed={navCollapsed()}
+        onCollapsedChange={setNavCollapsed}
+        inset
+        items={navItems()}
+        value={tab()}
+        onChange={setTab}
+      />
+    </div>
+  );
 
   return (
     <>
@@ -373,19 +423,7 @@ export default function Instance(p: Props) {
               renders nothing, so FrameLeft would draw an empty rail. */
             }
             <FrameLeft
-              panelChildren={
-                <TabsNavigation
-                  data-tour="instance-nav"
-                  vertical
-                  collapsible
-                  collapsed={navCollapsed()}
-                  onCollapsedChange={setNavCollapsed}
-                  inset
-                  items={navItems()}
-                  value={tab()}
-                  onChange={setTab}
-                />
-              }
+              panelChildren={rail}
             >
               <Switch>
                 <Match when={tab() === "products"}>

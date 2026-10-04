@@ -148,7 +148,7 @@ Pattern specifics, from the live pages:
   own `getEditorWrapper()`; panel widths in use: viz editor `384/300/600`, slide
   editor `400/300/600`; canvas area is `FigureHolder`/`PageHolder`.
 - **Instance page:** `ShellEditorWrapper` around a `FrameTop` whose panel is the
-  header, a tonal `HeadingBar` (instance name, logo, right-hand cluster), and
+  header, a tonal `HeadingBar` (logo, instance name, right-hand cluster), and
   whose content is a `FrameLeft` with the rail: pattern B, a vertical
   collapsible `TabsNavigation` with `inset` items over `navItems()`, collapsed
   state in `t4_ui`'s `navCollapsed`. Nothing in the shell is responsive.
