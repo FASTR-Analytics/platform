@@ -8,7 +8,7 @@ import type { Geometry } from "./types_geometry.ts";
 export type LayoutOptions = {
   orientation?: "left-right" | "top-bottom";
   spacing?: Partial<Spacing>;
-  ranking?: "given" | "longest-path" | "auto";
+  ranking?: "given" | "longest-path";
   coordinateMode?: "budge" | "brandes-koepf";
   routing?: "orthogonal" | "polyline";
   cornerRadius?: number;

@@ -201,8 +201,10 @@ opens, and cites program rulings by number instead of restating them.
   starts the child.
 - The Review session that passes a child's last step deletes the child file in
   the child's repo, then opens its gate in the orchestration plan in a second
-  commit: one log row and the board updated. Those two things are all any
-  session edits there.
+  commit: one log row and the board updated. A row of the child's build log that
+  corrects a program fact or a gate is copied into the log in that commit,
+  because the child's file is gone. The board and the log are all any session
+  edits there.
 - A cross-repo step keeps the library change in the library plan; each consumer
   sync is its own commit in that consumer; the step's "Ends with" lists them
   all.

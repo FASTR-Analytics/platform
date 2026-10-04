@@ -492,14 +492,14 @@ Every other `ui-*` class is internal and may change without notice.
 
 Retune these in `@theme`; never override a derived one directly.
 
-| Var                                 | Role                                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `--ui-text-body`                    | **Authoring knob.** The size every unsized element inherits from `body`; form text reads it too. |
-| `--ui-form-content-h`               | **Authoring knob.** A control's content height, as a ratio of its own text size.                 |
-| `--ui-form-content-h-em`            | Derived. The same ratio with the unit attached: what components consume.                         |
-| `--ui-form-line-height` / `-sm`     | Derived from the ratio.                                                                          |
-| `--ui-form-height` / `-sm`          | Derived. A control's full outer height; what `HeadingBar` floors its row to.                     |
-| `--ui-heading-bar-tonal-bg` / `-fg` | **Authoring knob (a pair).** The one tonal header surface.                                       |
+| Var                                      | Role                                                                                             |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `--ui-text-body`                         | **Authoring knob.** The size every unsized element inherits from `body`; form text reads it too. |
+| `--ui-form-content-h`                    | **Authoring knob.** A control's content height, as a ratio of its own text size.                 |
+| `--ui-form-content-h-em`                 | Derived. The same ratio with the unit attached: what components consume.                         |
+| `--ui-form-line-height` / `-sm`          | Derived from the ratio.                                                                          |
+| `--ui-form-height` / `-sm`               | Derived. A control's full outer height; what `HeadingBar` floors its row to.                     |
+| `--ui-heading-bar-tonal-bg` / `-content` | **Authoring knob (a pair).** The one tonal header surface and its text, the `heading` included.  |
 
 The ratio is deliberately shared across sizes: `em` rescales it, so there is no
 `--ui-form-content-h-sm`. Overriding `--ui-form-height` or

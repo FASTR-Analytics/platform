@@ -359,8 +359,9 @@ bare `TabsNavigation`.
   the divider.
 
 There is deliberately no way to pick _which_ tonal colour at a call site. The
-surface is `--ui-heading-bar-tonal-bg` / `-fg`, retuned once per app, so "what
-does a tonal header look like?" has a single answer.
+surface is `--ui-heading-bar-tonal-bg` / `-content`, retuned once per app, so
+"what does a tonal header look like?" has a single answer. The content colour is
+the bar's text colour, and the `heading` wears it too.
 
 ```tsx
 // ❌ DON'T: the hand-rolled bar this component exists to delete

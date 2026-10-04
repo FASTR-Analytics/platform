@@ -322,10 +322,11 @@
   /* THE tonal header surface — one answer for the whole app, so no call site
      ever picks between base-200 and base-300. `<HeadingBar tonal>` wears it;
      a HeadingBar without it is flush and draws a border instead. Retune both
-     together: the fg is not derived from the bg. */
+     together: the content colour is not derived from the bg. The bar's
+     heading wears the content colour too. */
 
   --ui-heading-bar-tonal-bg: var(--color-base-200);
-  --ui-heading-bar-tonal-fg: var(--color-base-content);
+  --ui-heading-bar-tonal-content: var(--color-base-content);
 
   /* The second header form, beside the titled bar: a HeadingBar with no
      heading or with tabs, and a panel TabsNavigation strip, are all exactly
@@ -779,7 +780,7 @@
 
 @utility ui-heading-bar-tonal {
   background-color: var(--ui-heading-bar-tonal-bg);
-  color: var(--ui-heading-bar-tonal-fg);
+  color: var(--ui-heading-bar-tonal-content);
 }
 
 /* ---- Forced-scheme island ---- */

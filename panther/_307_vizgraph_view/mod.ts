@@ -5,6 +5,8 @@
 
 export type {
   VizGraphViewApi,
+  VizGraphViewGroupInfo,
+  VizGraphViewLaneInfo,
   VizGraphViewNodeInfo,
   VizGraphViewProps,
 } from "./types.ts";
