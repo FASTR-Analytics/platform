@@ -9,6 +9,7 @@ import {
   type AIChatSystemPromptPanelProps,
   Button,
   createAIChat,
+  HeadingBar,
   Icon,
   type MenuItem,
   openComponent,
@@ -490,28 +491,21 @@ export function ConsolidatedChatPane(p: ConsolidatedChatPaneProps) {
 
   return (
     <div class="flex h-full w-full flex-col">
-      <div class="ui-pad ui-gap border-primary-active bg-primary text-primary-content flex items-center justify-between border-b">
-        <h3 class="ui-text-heading text-primary-content flex items-baseline gap-2 truncate">
-          <span>{t3({ en: "AI", fr: "IA", pt: "IA" })}</span>
-          <span class="font-400 text-sm opacity-70">{titleSubtext()}</span>
-        </h3>
+      <HeadingBar
+        tonal
+        heading={t3({ en: "AI", fr: "IA", pt: "IA" })}
+        subheading={titleSubtext()}
+      >
         <div class="ui-gap-sm flex items-center">
-          <ActionMenuButton
-            items={menuItems}
-            outline
-            onBackground="primary"
-            intent="base-100"
-          />
+          <ActionMenuButton items={menuItems} intent="base-300" />
           <Button
             onClick={() => setShowAi(false)}
-            outline
-            onBackground="primary"
-            intent="base-100"
+            intent="base-300"
             iconName="chevronRight"
             ariaLabel="Hide AI panel"
           />
         </div>
-      </div>
+      </HeadingBar>
 
       <AIDocumentList
         sent={p.aiDocs.sentDocs()}
