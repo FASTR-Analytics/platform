@@ -48,6 +48,7 @@ import { InstanceResultsPackages } from "~/components/results_packages/mod.ts";
 import { InstanceUsers } from "~/components/users/mod.ts";
 import { instanceState } from "~/state/instance/t1_store";
 import {
+  darkMode,
   navCollapsed,
   setNavCollapsed,
   ShellEditorWrapper,
@@ -249,9 +250,9 @@ export default function Instance(p: Props) {
         style={logoSlotStyle()}
       >
         <img
-          src={railBeside() && navCollapsed()
-            ? "/images/logo_mark.png"
-            : "/images/logo.png"}
+          src={`/images/${
+            railBeside() && navCollapsed() ? "logo_mark" : "logo"
+          }${darkMode() ? "_white" : ""}.png`}
           class="h-4"
         />
       </div>
