@@ -30,9 +30,12 @@
   --color-package-active: color-mix(in oklab, var(--color-package), black 14%);
 
   /* The app's retune of the kit's one tonal header surface, which is base-200
-     in _fixed.css. Every top bar wears it (`<HeadingBar tonal>`), and against
-     base-100 a base-300 bar reads as an edge with no line under it. */
+     on base-content in _fixed.css. Every top bar wears it (`<HeadingBar
+     tonal>`), and against base-100 a base-300 bar reads as an edge with no
+     line under it. Its words, the heading and the instance name, are in the
+     brand colour. */
   --ui-heading-bar-tonal-bg: var(--color-base-300);
+  --ui-heading-bar-tonal-content: var(--color-primary);
 }
 
 /* The package accent's fill and hoverable skins, the same two bundles

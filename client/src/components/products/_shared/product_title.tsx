@@ -7,7 +7,8 @@ import { canEditProduct } from "~/state/instance/product_access";
 // Enter or a click elsewhere saves, Escape puts it back (Google Docs). The
 // write is the same `updateProductLabel` the settings modal makes; the label
 // shown is the LIVE T1 one, so the SSE echo (and a collaborator's rename)
-// lands here without a remount.
+// lands here without a remount. It sits in a HeadingBar's `heading` slot and
+// takes its weight and colour from there.
 export function ProductTitle(p: { productId: string; label: string }) {
   const [editing, setEditing] = createSignal(false);
   const [draft, setDraft] = createSignal("");
@@ -39,7 +40,7 @@ export function ProductTitle(p: { productId: string; label: string }) {
       when={editing()}
       fallback={
         <div
-          class="ui-text-heading min-w-0 truncate text-lg"
+          class="min-w-0 truncate text-lg"
           classList={{
             "cursor-text rounded px-1 -mx-1 hover:bg-base-300-hover":
               canEditProduct(
@@ -61,7 +62,7 @@ export function ProductTitle(p: { productId: string; label: string }) {
     >
       <input
         ref={input}
-        class="ui-text-heading border-primary min-w-0 rounded border-b bg-transparent px-1 -mx-1 text-lg outline-none"
+        class="border-primary min-w-0 rounded border-b bg-transparent px-1 -mx-1 text-lg outline-none"
         style={{
           width: `${Math.max(8, draft().length + 2)}ch`,
           "max-width": "40rem",

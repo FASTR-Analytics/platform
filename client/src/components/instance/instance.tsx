@@ -256,7 +256,7 @@ export default function Instance(p: Props) {
           class="h-4"
         />
       </div>
-      <div class="font-700 text-primary border-l border-transparent pl-4 text-xl text-nowrap antialiased">
+      <div class="font-700 border-l border-transparent pl-4 text-xl text-nowrap antialiased">
         {instanceState.instanceName}
       </div>
     </div>
