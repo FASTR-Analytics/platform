@@ -432,8 +432,9 @@ a bound module that no binding reads, with a reason.
 always run, and under `FASTR_MODULES_LOCAL_DIR` every binding is checked against
 the module definitions (metrics present and not hidden, role dimensions columns
 of the results object, required non-time dimensions grouped with at most one
-replicant per type, a period column for the over-time type, every non-hidden
-metric of a bound module bound or listed).
+replicant per type, a type's `values` among every bound metric's value props and
+a unit on the series reading one value prop, a period column for the over-time
+type, every non-hidden metric of a bound module bound or listed).
 
 The bindings today, each view with its types in order, the first the default:
 m012 "Service counts" (a table of areas by indicator; over time). m001
