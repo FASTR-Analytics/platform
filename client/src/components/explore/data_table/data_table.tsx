@@ -12,6 +12,7 @@ import {
   type PresentationObjectConfig,
   resolveEffectiveIndicatorFacts,
   type ResultsValueInfoForPresentationObject,
+  selectCf,
   t3,
 } from "lib";
 import {
@@ -250,7 +251,7 @@ function buildGrid(args: {
     const grid = dataGridPropsFromTableData(
       getTableDataTransformed(inputs.data),
       gridCellFunction({
-        family: args.family,
+        cf: selectCf(config.s),
         indicatorAxis: config.d.disaggregateBy.find((e) =>
           e.disOpt === indicatorDim
         )?.disDisplayOpt,

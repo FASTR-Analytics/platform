@@ -1,24 +1,33 @@
 import {
-  type DatasetType,
+  type ConditionalFormatting,
   type DisaggregationDisplayOption,
   type EffectiveIndicatorFacts,
   thresholdBucketIndex,
+  type ThresholdsRule,
 } from "lib";
 import { type DataGridCellFunction, getColor } from "panther";
 import { formatIndicatorValue } from "~/generate_visualization/get_style_from_po/_0_common";
 
 // Each cell formatted by its own indicator's format, the raw number kept as
-// the sort key, and HMIS cells coloured by the indicator's own threshold rule.
+// the sort key, and coloured by the config's conditional formatting (R11):
+// a thresholds rule applies to every cell, the indicator mode applies each
+// indicator's own rule, anything else leaves the cell uncoloured.
 // `indicatorAxis` is the grid axis the indicator dimension is laid out on;
 // when the canvas pipeline collapsed a single-indicator axis away, or the
 // indicator is pinned, `onlyIndicator` names it.
 export function gridCellFunction(args: {
-  family: DatasetType;
+  cf: ConditionalFormatting;
   indicatorAxis: DisaggregationDisplayOption | undefined;
   facts: EffectiveIndicatorFacts;
   decimalPlaces: 0 | 1 | 2 | 3;
   onlyIndicator: string | undefined;
 }): DataGridCellFunction {
+  const ruleFor = (ids: string[]): ThresholdsRule | undefined =>
+    args.cf.type === "thresholds"
+      ? args.cf
+      : args.cf.type === "indicator"
+      ? args.facts.ruleForValue(ids)
+      : undefined;
   return (raw, position) => {
     if (raw === undefined) return undefined;
     const value = Number(raw);
@@ -39,8 +48,7 @@ export function gridCellFunction(args: {
       args.facts.formatForValue(ids),
       args.decimalPlaces,
     );
-    if (args.family !== "hmis") return { text, value };
-    const rule = args.facts.ruleForValue(ids);
+    const rule = ruleFor(ids);
     const bucket = rule === undefined
       ? undefined
       : thresholdBucketIndex(rule, value);
