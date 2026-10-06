@@ -1,0 +1,605 @@
+# PLAN: Explore views: four view types, bindings per module
+
+Status: written 2026-10-06 from the ruling of the same day (bindings in the app,
+a type toggle per view, the family query shared, all eight active modules in
+scope). Nothing is built.
+
+Every active module gets views on the Explore page. A view is one named reading
+of a module, offered in one to four **view types**: Table, Over time, Chart and
+Map. The four types are code, each with a fixed toolbar whose controls are
+derived from the roles the view names. Which views a module offers, which
+metrics they read and how they are laid out is a **binding** table in `lib`, one
+entry per module, and nothing else on the page is per module. The page that
+exists, two views of the HMIS primary module, becomes the first binding and
+keeps behaving as it does.
+
+**Next step: Do 1**
+
+- Branch: `version2`.
+- Repos: this app. `wb-fastr-modules` is read by one test through
+  `FASTR_MODULES_LOCAL_DIR` and never edited.
+- Read first: `CLAUDE.md`, `SYSTEMS.md`,
+  [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) ("The Explore page",
+  "Grid query model", "lib config semantics"),
+  [SYSTEM_09_viz_query_cache.md](SYSTEM_09_viz_query_cache.md) ("The grid read",
+  "FigureBundle: the capture side"),
+  [SYSTEM_10_figure_render_export.md](SYSTEM_10_figure_render_export.md)
+  (`buildFigureInputs`, "Effective format", `liveFigureStyle`),
+  [PROTOCOL_APP_STATE.md](PROTOCOL_APP_STATE.md),
+  [PROTOCOL_APP_UI_CONVENTIONS.md](PROTOCOL_APP_UI_CONVENTIONS.md),
+  `panther/protocols/PROTOCOL_UI_STRUCTURE.md`.
+
+## 0. How to work this plan
+
+Cadence, session shapes, the two-things rule and the step rules are
+`panther/protocols/PROTOCOL_ALL_PLANS.md`; the app's bindings are
+[PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md). This plan binds them as follows.
+
+- Instruction: "Do the next step of PLAN_EXPLORE_VIEWS.md."
+- Branch: `version2`. Every session confirms it with
+  `git branch
+  --show-current`.
+- Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`,
+  `./run`. No step touches a migration, the query engine, the extract or help
+  text, so no conditional gate applies. `deno task test` loads `.env`, so the
+  bindings test runs against the local modules checkout on Tim's machine and is
+  ignored where `FASTR_MODULES_LOCAL_DIR` is unset.
+- Build log: §8. Last step: 6.
+- A step reads, in order: `CLAUDE.md`, `SYSTEMS.md`, SYSTEM_11, §2 and §3 of
+  this plan, the step's own section in §4, and §8.
+- Vocabulary is §2.1 and is used in code, prose and commit messages.
+- Every user-facing string is `en`, `fr` and `pt`.
+- `deno fmt` before every commit; every `.md` this plan touches included.
+- Browser verification is Tim's and appears nowhere below.
+
+## 1. The problem
+
+The page is a vertical slice for one metric. Four facts in the code keep it
+there.
+
+1. The metric is a function of the family, not of the view.
+   [explore_grid_query.ts:92](lib/explore_grid_query.ts#L92)
+   (`primaryMetricFor`) is consulted by `defaultGridQuery` (line 193),
+   `resolveGridQuery` (line 222), `primaryPreset` (line 283, which feeds
+   `deriveGridConfig` at 304 and `deriveTimeseriesConfig` at 374).
+   [data_table.tsx:167](client/src/components/explore/data_table/data_table.tsx#L167)
+   and [timeseries.tsx:74](client/src/components/explore/timeseries.tsx#L74)
+   receive a `metric` prop and derive from the family anyway. No second metric
+   can have a view.
+2. The views are hard-coded to the HMIS primary module.
+   [module_view.tsx:36](client/src/components/explore/module_view.tsx#L36) gates
+   on `family === "hmis"`, although the lib model already answers HFA (rounds,
+   the one-period rule) and ICEH (stratifier rows, years) and the tests cover
+   both. Every other module shows the placeholder at
+   [module_view.tsx:194](client/src/components/explore/module_view.tsx#L194).
+3. Five of the eight active modules split their results by admin level or by
+   variant into separate metrics (m005, m006, m011 by level; m002 by adjustment;
+   m010 by carry-forward), so a level or variant control must be able to choose
+   the metric, which no part of the model can express.
+4. Two readings the modules need have no renderer: a bar or point chart (m006
+   coverage by area, m009 equiplot and inequality) and a map (m001, m012, m002,
+   m006, m010 presets all declare one).
+
+The active modules and what each needs are in §2.7; the frozen m003, m004, m007
+and m008 are not in the registry and get no bindings.
+
+## 2. The model
+
+### 2.1 Vocabulary
+
+- **View**: one named reading of a module, chosen in the view select. It names a
+  metric (or one metric per value of a control), its roles and its types.
+- **View type** (type): Table, Over time (`timeseries`), Chart, Map. The four
+  renderers. A view offers one or more; a `ButtonGroup` toggles between them
+  when it offers more than one.
+- **Binding**: a view's entry in `lib/explore_views.ts`. `EXPLORE_VIEWS` maps a
+  module id to its bindings in display order.
+- **Role**: a dimension the view reads, by its part in the reading: `area` (the
+  metric's admin levels, by dimension or by metric), `unit` (a non-area
+  dimension read whole: ICEH population groups, denominators, HFA variant
+  items), `category` (the dimension behind the multi-select: the family's
+  indicators, ratio types), `time` (the metric's time column), and `facets`
+  (dimensions always read at one value: an HFA category, an ICEH stratifier, a
+  denominator).
+- **Laid out**: a role placed on an axis of the active type. **Pinned**: a role
+  read at one value chosen in a single select. **Dropped**: a role aggregated
+  over because the active type has no place for it.
+- **Family query**: the selections shared by every view of a family: `level`,
+  `indicators`, `period`, `grain`. **View choices**: the selections one view
+  holds: its type, its switch value, its pinned values, and its category values
+  when the category is not the family's indicator dimension.
+- **View key**: `${moduleId}/${viewId}`, the key of every per-view state.
+
+### 2.2 Bindings
+
+```ts
+// lib/explore_views.ts
+export type ExploreAxis = "area" | "unit" | "category" | "time" | "values";
+
+export type ExploreViewType =
+  | { type: "table"; rows: ExploreAxis; cols: ExploreAxis; values?: string[] }
+  | { type: "timeseries"; series?: "unit"; values?: string[] }
+  | {
+    type: "chart";
+    axis: "area" | "category";
+    series?: "unit";
+    values?: string[];
+  }
+  | { type: "map"; values?: string[] };
+
+export type ExploreMetricBinding =
+  | { id: string }
+  | { byLevel: Partial<Record<"national" | AdminLevel, string>> }
+  | {
+    switch: {
+      label: TranslatableString;
+      options: { id: string; label: TranslatableString; metricId: string }[];
+    };
+  };
+
+export type ExploreViewBinding = {
+  id: string;
+  label: TranslatableString;
+  metric: ExploreMetricBinding;
+  unit?: DisaggregationOption;
+  category?: DisaggregationOption;
+  facets?: DisaggregationOption[];
+  types: ExploreViewType[];
+};
+
+export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]>;
+export const UNBOUND_METRICS: { metricId: string; reason: string }[];
+```
+
+The `area` role exists when the metric is `byLevel` or when any type lays `area`
+out; it is never declared. The `time` role is the metric's time column:
+`mostGranularTimePeriodColumnInResultsFile` for HMIS (months with a grain, or
+years), `time_point` for HFA, `year` for ICEH. The over-time type is only bound
+where that column is a period column, so never for HFA. `values` on a type
+narrows the metric's value props to those; absent means all.
+
+### 2.3 How a type lays roles out
+
+| Type       | Layout                                                                                                                                         | Values                                                                                         |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| table      | `rows` → `row`, `cols` → `col`; `area` rows carry `rollup: true, rollupPosition: "top"`; `cols: "values"` puts the value props as columns      | `valuesDisDisplayOpt: "col"`                                                                   |
+| timeseries | panes (`cell`) are the category when the view has one; `series: "unit"` puts the unit's values as lines; the time role is `timeseriesGrouping` | on `series`, unless `series: "unit"`, then on `col`, and the type's `values` names exactly one |
+| chart      | `axis` → `indicator`; `series: "unit"` → `series`                                                                                              | on `series`, unless `series: "unit"`, then on `col`, and the type's `values` names exactly one |
+| map        | the area level → `mapArea`                                                                                                                     | `valuesDisDisplayOpt: "cell"`                                                                  |
+
+A role the active type does not lay out is pinned or dropped by §2.4 R-pin.
+
+### 2.4 Resolution rules
+
+Every rule below is a pure function in `lib/explore_query.ts`, takes the
+binding, the active type, the family query, the view choices, the scope area,
+the authoring context and the metric's possible values, and never rewrites what
+the user chose (the existing resolve-on-read principle).
+
+- **Metric.** `{ id }` is that metric. `byLevel` is the metric under the
+  resolved level. `switch` is the metric under the chosen option, else the first
+  offered. An option whose metric is not in the package or is stamped
+  unavailable is not offered.
+- **Level.** The offered levels are: for a `byLevel` metric, the keys whose
+  metric is offered; for a metric with admin dimensions, the levels its
+  `disaggregationOptions` carry. A level is offered only when it is deeper than
+  the scope's area for the family when the area is laid out, and deeper or equal
+  when it is pinned; `national` only when the scope holds no area. The family
+  query's `level` is taken when offered, else the shallowest offered; the
+  default is the shallowest offered. (Under "All data" the m012 table keeps
+  opening at admin area 2, as today.)
+- **Pin (R-pin).** `category` and `unit` are laid out or pinned, never dropped.
+  `facets` are always pinned. `time` is laid out or pinned. `area` is laid out,
+  else pinned when the active metric requires its admin dimension, else dropped
+  (so the m012 over-time view stays the scope's total and the m011 admin-area-2
+  view gets an area select). A pinned dimension enters the config as one
+  `filterBy` entry; when the active metric requires it and it is not time-based
+  (`getDisaggregationAllowedPresentationOptions` returns undefined) it enters as
+  the replicant instead (`disaggregateBy` entry `replicant` plus
+  `selectedReplicantValue`), because the server's `findMissingRequiredGroupBys`
+  demands required dimensions grouped. A view's type never needs two replicants;
+  the bindings test asserts it.
+- **Pinned value.** The options are the metric's possible values for the
+  dimension under the scope (`disaggregationPossibleValues`), in the order
+  served; HFA time points in the instance's declared order. The chosen value is
+  taken when among the options, else the first. The derived config always
+  carries a concrete value, so neither read path auto-resolves a replicant. A
+  dimension that answers `too_many_values` shows the cap message in place of its
+  select, the derived config is undefined, and the body shows the no-data
+  message.
+- **Category options.** The family's dictionary from the authoring context for
+  `indicator_common_id`, `hfa_indicator` and `iceh_indicator`, the possible
+  values otherwise. When an `hfa_category` facet is pinned, the HFA indicator
+  options are the taxonomy's indicators of that category. Chosen ids the package
+  lacks stay in state and raise the existing dropped notice.
+- **Time.** Laid out: months take the family grain as the column (`period_id`,
+  `quarter_id`, `year`) and the family period as `periodFilter` (a window) or no
+  filter (All); years and time points take the dimension as the column and the
+  chosen values as a `filterBy`, All meaning none. Pinned: months take one
+  window as `periodFilter` (All pools every month, the existing default); years
+  and time points take the latest chosen value, else the latest available, as a
+  `filterBy`. The period control's choices are `periodChoicesFor` as today,
+  keyed by whether time is laid out. The grain control shows only for months
+  laid out.
+- **Style (R5).** `s` is the metric's first preset of the same `d.type`, through
+  `deriveConfigFromVizPreset`, else `DEFAULT_S_CONFIG` plus
+  `cfMode: "indicator"` when the metric's format is `indicator`. Over it the
+  live overrides the page already applies: `content: "lines"` and a hidden
+  legend when every pane has one line, the success colour for a single line. `t`
+  is never borrowed: the view's name is the caption. `d` is always derived.
+- **Values (R6).** The type's `values`, else every value prop. A catalog or
+  post-aggregation metric ignores it (the fetch config builder already does).
+- **Cell colour (R11).** The table colours a cell by `selectCf(config.s)`:
+  `thresholds` applies that rule to every cell; `indicator` applies the
+  indicator's own rule through `ruleForValue`; anything else leaves the cell
+  uncoloured. The `family !== "hmis"` gate in `cell_function.ts` goes.
+
+### 2.5 State
+
+`client/src/state/t4_explore.ts`, module level, resolved on every read:
+
+| Signal               | Key       | Holds                                                                                     | Lifetime     |
+| -------------------- | --------- | ----------------------------------------------------------------------------------------- | ------------ |
+| `exploreFamily`      |           | the family tab                                                                            | localStorage |
+| `exploreModules`     | family    | the module                                                                                | localStorage |
+| `exploreViews`       | module id | the view id                                                                               | localStorage |
+| `exploreViewTypes`   | view key  | the view type                                                                             | localStorage |
+| `explorePackageId`   |           | the package                                                                               | session      |
+| `exploreScopeId`     |           | the scope                                                                                 | session      |
+| `exploreQueries`     | family    | `{ level, indicators, period, grain }`                                                    | session      |
+| `exploreViewChoices` | view key  | `{ switch?, pinned: Partial<Record<DisaggregationOption, string>>, category?: string[] }` | session      |
+
+`exploreQueries` loses `unit` (the ICEH stratifier becomes a facet) and gains
+`level`. A family query is `undefined` until edited, so it follows the scope.
+
+### 2.6 Rendering
+
+- Table: the grid read (`t2_grid_items`), the canvas table pipeline and the
+  `DataGrid`, with find and Download, exactly the existing `data_table/`.
+- Over time, Chart, Map: `createFigurePreview` over the derived
+  `{ metric, config }` and `FigureHolder` under `liveFigureStyle`, exactly the
+  existing timeseries path. Over time and Chart at `height="ideal"` in a
+  scrolling pane; Map fills the pane. Missing boundaries already surface as
+  `buildFigureInputs`' `[INFO] Map files not yet uploaded` error through the
+  preview's error state, and `getGeoJsonSync` is tracked, so a map re-renders
+  when its boundaries load. No new server code anywhere.
+- The frame (`view_frame.tsx`) owns the metric info read (tracked), the toolbar
+  and the body. Toolbar top row: the module select, the view select, the type
+  toggle, and the table's find and Download at the right. Second row: the switch
+  select, the level select, each facet and each pinned select, the category
+  control (multi-select when laid out, single select when pinned), the period
+  select, the grain select. A control appears only when its role is present and
+  its options number more than one, except the level and period selects, which
+  always appear when their role is present.
+
+### 2.7 The bindings
+
+Nineteen views. `category` is the family's indicator dimension unless named.
+"pinned" lists what R-pin pins under that type.
+
+| Module | View id                   | Label (en)                            | Metric                                                                       | Roles                                                                   | Types                                                                                                                                                               |
+| ------ | ------------------------- | ------------------------------------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| m012   | `service_counts`          | Service counts                        | m12-01-01                                                                    | area, category                                                          | table rows area × cols category (time pinned); timeseries panes category; map (category pinned)                                                                     |
+| m001   | `outliers`                | Outliers                              | m1-01-01                                                                     | area, category                                                          | table area × category; timeseries; map                                                                                                                              |
+| m001   | `completeness`            | Completeness                          | m1-02-02                                                                     | area, category                                                          | table area × category; timeseries; map                                                                                                                              |
+| m001   | `consistency`             | Internal consistency                  | m1-03-01                                                                     | area, category `ratio_type`                                             | table area × category; timeseries; map                                                                                                                              |
+| m001   | `dqa_adequate`            | Facilities with adequate data quality | m1-04-01                                                                     | area                                                                    | table rows area × cols time; timeseries (one line); map                                                                                                             |
+| m001   | `dqa_mean`                | Mean data quality score               | m1-04-02                                                                     | area                                                                    | table area × time; timeseries; map                                                                                                                                  |
+| m002   | `adjustment_impact`       | Adjustment impact                     | switch Outliers m2-01-01 / Completeness m2-01-02 / Both m2-01-03             | area, category                                                          | table area × category; timeseries; map                                                                                                                              |
+| m011   | `disruptions`             | Observed and expected services        | byLevel national m11-01-01 / admin_area_2 m11-01-02                          | area, category                                                          | timeseries panes category, lines the four values (area pinned at admin area 2)                                                                                      |
+| m005   | `denominators`            | Denominator values                    | m4a-01-01                                                                    | unit `denominator`                                                      | table rows unit × cols time                                                                                                                                         |
+| m005   | `denominators_by_area`    | Denominator values by area            | byLevel admin_area_2 m4a-01-02 / admin_area_3 m4a-01-03                      | area, facet `denominator`                                               | table rows area × cols time                                                                                                                                         |
+| m005   | `coverage_by_denominator` | Coverage by denominator type          | byLevel national m4a-02-01 / admin_area_2 m4a-02-02 / admin_area_3 m4a-02-03 | area, unit `denominator_best_or_survey`, category                       | timeseries panes category, series unit; table rows unit × cols category (time pinned; area pinned when subnational)                                                 |
+| m006   | `coverage_over_time`      | Coverage over time                    | byLevel national m6-01-01 / admin_area_2 m6-02-01 / admin_area_3 m6-03-01    | area, category                                                          | timeseries panes category, lines the three estimates (area pinned when subnational)                                                                                 |
+| m006   | `coverage_by_area`        | Coverage by area                      | byLevel admin_area_2 m6-02-01 / admin_area_3 m6-03-01                        | area, category                                                          | table rows area × cols category, values `coverage_cov` (time pinned); chart axis area, values `coverage_cov` (category and time pinned); map, values `coverage_cov` |
+| m010   | `hfa_by_round`            | Indicators by survey round            | switch Observed m10-01-01 / With carry-forward m10-01-02                     | category `hfa_indicator`, facet `hfa_category`                          | table rows category × cols time                                                                                                                                     |
+| m010   | `hfa_by_area`             | Indicators by area                    | switch Observed m10-01-01 / With carry-forward m10-01-02                     | area, category `hfa_indicator`, facet `hfa_category`                    | table rows area × cols category (time pinned); map (category and time pinned)                                                                                       |
+| m010   | `hfa_variants`            | Indicators by variant item            | switch Observed m10-03-01 / With carry-forward m10-03-02                     | unit `hfa_variant_item`, category `hfa_indicator`, facet `hfa_category` | table rows category × cols unit (time pinned)                                                                                                                       |
+| m010   | `hfa_response`            | Don't-know and missing rates          | switch Don't know m10-02-01 / Missing m10-02-02                              | category `hfa_indicator`, facet `hfa_category`                          | table rows category × cols time                                                                                                                                     |
+| m009   | `iceh_coverage`           | Coverage by population group          | m9-01-01                                                                     | unit `level`, category `iceh_indicator`, facet `strat`                  | table rows unit × cols category (time pinned); chart axis category, series unit (time pinned); timeseries panes category, series unit                               |
+| m009   | `iceh_inequality`         | Inequality measures                   | m9-02-01                                                                     | category `iceh_indicator`, facet `strat`                                | table rows category × cols values (time pinned); chart axis category, values `cix` (time pinned); timeseries panes category, values `cix`                           |
+
+Where a module's national and subnational metrics want different layouts they
+are two views (m005, m006), by R2. The type order in a binding is the default
+type: table first wherever a table exists.
+
+### 2.8 Unbound metrics
+
+`UNBOUND_METRICS` lists, with a reason, every non-hidden metric of a registry
+module that no binding reads. Today: m6-02-02 and m6-03-02 (Coverage, HMIS
+only), whose one value is the `coverage_cov` prop of m6-02-01 and m6-03-01,
+which `coverage_by_area` already reads. Hidden metrics (m1-01-00, m1-05-01) are
+not in the authoring context and need no entry.
+
+### 2.9 Files, end state
+
+```
+lib/explore_views.ts                     bindings, UNBOUND_METRICS, viewsForModule
+lib/explore_query.ts                     family query, view choices, resolution, deriveViewConfig
+client/src/state/t4_explore.ts
+client/src/components/explore/
+  explore.tsx                            the page (unchanged shape)
+  module_view.tsx                        view select, type toggle, no_view state
+  view_frame.tsx                         metric info read, toolbar, body by type
+  toolbar.tsx                            the controls row from the roles
+  figure_view.tsx                        timeseries, chart, map through createFigurePreview
+  data_table/{data_table,grid,cell_function,mod}.ts(x)
+  _shared/{query_controls,empty_state,tracked_query,mod}.ts(x)
+server/tests/explore_query_test.ts
+server/tests/explore_views_test.ts
+```
+
+Gone: `lib/explore_grid_query.ts`, `server/tests/explore_grid_query_test.ts`,
+`explore/timeseries.tsx`, `explore/data_table/toolbar.tsx`,
+`explore/data_table/tracked_query.ts`, the `Placeholder` in `module_view.tsx`.
+
+## 3. Rulings
+
+- **R1 Bindings live in the app.** `lib/explore_views.ts`, keyed by module id.
+  Presentation is deployable; a manifest is frozen. SYSTEM_11's sentence that
+  module definitions will declare views is replaced by this one: adding a metric
+  to a module is two declarations, a preset for products and a binding for
+  Explore. (Tim, 2026-10-06.)
+- **R2 One view, one layout per type.** The level control switches metrics
+  (`byLevel`) and never layouts; a module whose national and subnational metrics
+  want different layouts gets two views. _(proposed)_
+- **R3 The view select names the view; a `ButtonGroup` toggles the type**, shown
+  only when the view offers more than one type. m012's two views become one view
+  with two types. (Tim, 2026-10-06.)
+- **R4 State split** as §2.5: the family query is shared by a family's views;
+  the type persists per view; switch, pinned values and a non-indicator category
+  last the session per view. (Tim, 2026-10-06.)
+- **R5 Style is borrowed by type** from the metric's first preset of the same
+  `d.type`, else defaults; `t` never; `d` always derived. (Tim, 2026-10-06.)
+- **R6 Values are the type binding's**, never read from a preset's
+  `valuesFilter`. (Tim, 2026-10-06.)
+- **R7 A view is offered only for metrics the package carries.** `{ id }`:
+  present and ready. `byLevel` and `switch`: at least one option present and
+  ready, and only those options offered. A module whose views are all withheld,
+  or that has no binding, shows the `no_view` state. (Tim, 2026-10-06; option
+  rule proposed.)
+- **R8 The pin rule** is §2.4 R-pin, replicant for a required non-time
+  dimension, at most one per type. _(proposed)_
+- **R9 Time** is §2.4 Time; `All` keeps pooling every month on a pinned monthly
+  read, the existing default. _(proposed)_
+- **R10 Level** is §2.4 Level: offered by depth against the scope, `national`
+  only without a scope area, default the shallowest offered. _(proposed)_
+- **R11 Cell colour** follows the borrowed CF, §2.4. HFA and ICEH tables become
+  coloured where their presets colour them. _(proposed)_
+- **R12 Rename.** `lib/explore_grid_query.ts` → `lib/explore_query.ts`,
+  `server/tests/explore_grid_query_test.ts` → `explore_query_test.ts`;
+  `GridQuery` → `FamilyQuery`, `GridPeriod` → `ExplorePeriod`, `GridGrain` →
+  `ExploreGrain`; `GridColumns`, `GridUnit`, `primaryMetricFor` and
+  `familiesOffered` go. The model serves four types now, and nothing outside
+  Explore imports these names. Cost: two manifest lines and the barrel.
+  _(proposed)_
+- **R13 Over the cap.** A pinned dimension at `too_many_values` shows the cap
+  message where its select would be and the body shows no data; no second read
+  is attempted. The same limit the editor's replicant list states inline.
+  _(proposed)_
+- **R14 Figure types render through the preview path**, the table through the
+  grid read; no server change in this plan. _(proposed)_
+- **R15 The bindings test is the lockstep guard.** Under
+  `FASTR_MODULES_LOCAL_DIR` it checks every binding against the module
+  definitions (§4 step 1); without it, only the pure checks run. _(proposed)_
+- **R16 Facet-aware indicator options** for HFA, through the taxonomy's
+  `categoryId`. _(proposed)_
+
+## 4. Steps
+
+### Step 1: the model in lib, the same page over it
+
+**Surface.** `lib/explore_query.ts` (new; `lib/explore_grid_query.ts` deleted),
+`lib/explore_views.ts` (new), `lib/mod.ts`, `server/tests/explore_query_test.ts`
+(new; `explore_grid_query_test.ts` deleted),
+`server/tests/explore_views_test.ts` (new), `client/src/state/t4_explore.ts`,
+`client/src/components/explore/explore.tsx`, `module_view.tsx`,
+`timeseries.tsx`, `data_table/data_table.tsx`, `data_table/toolbar.tsx`,
+`_shared/query_controls.tsx`, `SYSTEM_11_viz_authoring.md`.
+
+**Deliverable.**
+
+- The types of §2.2 and `EXPLORE_VIEWS` holding m012's one view with its table
+  and timeseries types; `UNBOUND_METRICS` empty; `viewsForModule(module, ctx)`
+  applying R7.
+- `lib/explore_query.ts` (R12): `FamilyQuery`, `ViewChoices`, the option helpers
+  (levels, pinned values, category options, period choices) and `resolveView`
+  and `deriveViewConfig` for all four types per §2.3 and §2.4, style borrowing
+  per R5, values per R6. The chart and map derivations have no renderer until
+  steps 5 and 6; the harness is their consumer.
+- `t4_explore.ts` per §2.5: `exploreViewTypes`, `exploreViewChoices`, the family
+  query shape.
+- The page consumes the new model: the view select lists `viewsForModule`, a
+  `ButtonGroup` beside it toggles the type (R3), the table and timeseries
+  components take the derived `{ metric, config }` and the resolved query from
+  the model and keep their own toolbars for this step. The page behaves as
+  before for m012; every other module still shows the placeholder.
+- `explore_query_test.ts` rewrites the nineteen cases onto the new functions and
+  adds: level resolution by dimension and by level against the scope (R10);
+  pinned versus dropped area (R-pin), replicant versus filter; time laid out and
+  pinned for months, years and time points (R9); style borrowed by type and the
+  no-preset default (R5); values narrowing (R6); the derived config of one
+  binding per type across §2.7 (m012 table and map, m011 admin-area-2
+  timeseries, m006 chart, m009 equiplot, m010 `hfa_by_round`, m005
+  `denominators`).
+- `explore_views_test.ts`: pure checks always (view ids unique per module, every
+  axis a role the view has, `rows !== cols`, a `series: "unit"` type naming one
+  value, timeseries never on HFA); under `FASTR_MODULES_LOCAL_DIR` (`ignore`
+  otherwise, the precedent is `run_generation_module_options_test.ts`): every
+  bound metric exists in its module's `definition.json` and is not hidden; every
+  role dimension is a column of the metric's results object; every required
+  non-time dimension is laid out or pinned with at most one replicant per type;
+  a timeseries type's metric has a period column; every non-hidden metric of
+  every `MODULE_REGISTRY` module is bound or in `UNBOUND_METRICS`.
+- SYSTEM_11: globs (`lib/explore_views.ts`, `lib/explore_query.ts`, the two
+  tests); "Grid query model" becomes "Explore query model" and the bindings
+  paragraph, describing §2.2 to §2.4 as built; R1's sentence replaces the
+  module-definitions sentence under "The Explore page".
+
+**Not in this step.** The shared frame and toolbar, the figure view, pinned
+selects, the `no_view` state, any binding beyond m012.
+
+**Gates.** The floor.
+`deno test -A server/tests/explore_query_test.ts
+server/tests/explore_views_test.ts`
+with `FASTR_MODULES_LOCAL_DIR` set.
+
+**Ends with.** Two commits: the lib model with its tests; the page on the model
+with the state and SYSTEM_11.
+
+### Step 2: the frame
+
+**Surface.** `client/src/components/explore/view_frame.tsx` (new), `toolbar.tsx`
+(new; `data_table/toolbar.tsx` deleted), `figure_view.tsx` (new;
+`timeseries.tsx` deleted), `module_view.tsx`, `data_table/data_table.tsx`,
+`data_table/cell_function.ts`, `data_table/mod.ts`, `_shared/tracked_query.ts`
+(moved from `data_table/`), `_shared/query_controls.tsx`,
+`_shared/empty_state.tsx`, `_shared/mod.ts`, `mod.ts`,
+`client/src/state/t4_explore.ts`, `lib/explore_query.ts`,
+`SYSTEM_11_viz_authoring.md`, `SYSTEM_14_client_shell.md` (the one sentence
+naming the page's shape).
+
+**Deliverable.**
+
+- `ViewFrame` per §2.6: one tracked metric info read for the active metric, the
+  toolbar from the roles (switch, level, facets, pinned selects, category multi
+  or single, period, grain), the dropped-indicators notice, and the body by
+  type: `DataTable` for table, `FigureView` for timeseries (chart and map
+  branches arrive in steps 5 and 6 and render nothing until then; no binding
+  names them yet).
+- Pinned selects with the pinned-value rule and the cap message (R13).
+- The `no_view` empty state replaces the placeholder; `Placeholder` is gone.
+- `cell_function.ts` colours per R11.
+- `FigureView` keeps the timeseries behaviour of today (single-line panes in the
+  success colour, legend hidden) and shows the legend when a pane has several
+  lines.
+- m012 behaves as in step 1.
+
+**Not in this step.** Any binding beyond m012; chart and map rendering.
+
+**Gates.** The floor; `deno task lint:structure` green on the moved files.
+
+**Ends with.** One commit per moved or new component, each green.
+
+### Step 3: HMIS supporting modules on Table and Over time
+
+**Surface.** `lib/explore_views.ts`, `lib/explore_query.ts`,
+`server/tests/explore_query_test.ts`, `server/tests/explore_views_test.ts`,
+`client/src/components/explore/**` only where a §2.7 binding needs a frame
+capability the step finds missing, `SYSTEM_11_viz_authoring.md`.
+
+**Deliverable.** The table and timeseries types of every m001, m002, m011, m005
+and m006 binding in §2.7, rendering through the frame: the switch (m002),
+`byLevel` with a pinned area replicant (m011, m005, m006), `series:
+"unit"`
+(m005 `coverage_by_denominator`), the `unit` rows (m005 `denominators`), years
+as the time column (m005, m006), borrowed special styles (m011's credible band,
+m006's coverage chart), `rows area × cols time` (m001 DQA). `UNBOUND_METRICS`
+gains m6-02-02 and m6-03-02. Tests cover each new derivation shape once.
+SYSTEM_11 lists the bindings.
+
+**Not in this step.** HFA, ICEH, chart and map types.
+
+**Gates.** The floor; the two explore tests.
+
+**Ends with.** One commit per module, each green.
+
+### Step 4: HFA and ICEH on Table and Over time
+
+**Surface.** As step 3.
+
+**Deliverable.** Every m010 and m009 binding in §2.7 on its table and timeseries
+types: `rows category × cols time` and `cols: "values"`, the `hfa_category`
+facet narrowing the indicator options (R16), the `strat` facet (a replicant for
+m9-02-01, a filter for m9-01-01), the ICEH `level` unit as rows and as series,
+HFA time points in the instance's order, the m010 switches. Tests cover each new
+shape once. SYSTEM_11 lists the bindings.
+
+**Not in this step.** Chart and map types.
+
+**Gates.** The floor; the two explore tests.
+
+**Ends with.** One commit per module, each green.
+
+### Step 5: Chart
+
+**Surface.** `client/src/components/explore/figure_view.tsx`,
+`lib/explore_views.ts`, `lib/explore_query.ts` (only if the step finds the
+derivation wrong), the two tests, `SYSTEM_11_viz_authoring.md`.
+
+**Deliverable.** The chart branch of `FigureView`; the chart types of m006
+`coverage_by_area` (bars by area, one indicator pinned as the replicant), m009
+`iceh_coverage` (the equiplot: category axis, population groups as series,
+horizontal points and connectors borrowed from `iceh-equiplot`) and m009
+`iceh_inequality` (CIX by indicator, borrowed from `iceh-inequality-chart`).
+SYSTEM_11 describes the chart type.
+
+**Not in this step.** Map.
+
+**Gates.** The floor; the two explore tests.
+
+**Ends with.** One commit.
+
+### Step 6: Map, and the page whole
+
+**Surface.** `client/src/components/explore/figure_view.tsx`,
+`lib/explore_views.ts`, `lib/explore_query.ts` (as step 5), the two tests,
+`SYSTEM_11_viz_authoring.md`.
+
+**Deliverable.** The map branch of `FigureView` filling the pane; the map types
+of m012, the five m001 views, m002, m006 `coverage_by_area` and m010
+`hfa_by_area`, each with the category pinned as the replicant and time pinned,
+CF borrowed from the metric's first map preset where one exists. Missing
+boundaries show as the preview's error. SYSTEM_11's "The Explore page" section
+is re-verified top to bottom against the code and every sentence that describes
+the old shape is gone. The review that passes this step deletes this file.
+
+**Not in this step.** Nothing of this plan remains.
+
+**Gates.** The floor; the two explore tests;
+`grep -rn "Placeholder\|GridQuery\|explore_grid_query" client/src lib server`
+returns nothing.
+
+**Ends with.** One commit for the map, one for the SYSTEM_11 pass.
+
+## 5. Gates catalogue
+
+| Gate                                                                                                                    | First reached |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `deno task typecheck` (fmt check, both tiers, `lint:systems`, `lint:structure`, `lint:text-sizes`, `lint:sql-json`)     | step 1        |
+| `deno task test`                                                                                                        | step 1        |
+| `deno test -A server/tests/explore_query_test.ts server/tests/explore_views_test.ts` with `FASTR_MODULES_LOCAL_DIR` set | step 1        |
+| `./validate_protocols`                                                                                                  | step 1        |
+| `./run`                                                                                                                 | step 1        |
+| The step 6 grep                                                                                                         | step 6        |
+
+## 6. Out of scope
+
+- Downloads for the figure types (PNG, CSV of a chart); the table keeps its CSV.
+- Inserting a view into a product, a copilot view, help buttons, tour changes.
+- Bindings in module definitions, or any edit to `wb-fastr-modules`.
+- The package page's default-visualization cards (S8) and the presets
+  themselves.
+- Facility-attribute dimensions (`facility_type` and the custom columns),
+  `hfa_sub_category` and `hfa_service_category` as roles.
+- A two-step area pick for admin area 3 and 4 lists over the server cap (R13
+  states the limit).
+- The m012 → m003 renaming of PLAN_1e; when it lands, the binding key and metric
+  id change with it in that plan.
+- Multi-replicant reads, product-style captions and footnotes on a view.
+
+## 7. Rollout and rollback
+
+Nothing ships before step 6's review passes. After any passing review a session
+may run `./deploy_testing`: the page is read-only and additive, and the testing
+instance is where Tim looks at it. Rollback of any step is `git revert` of its
+commits: there is no migration, no cache-prefix change (the derived configs read
+through the existing scope-keyed caches under `hashFetchConfig` keys), no stored
+data, and the localStorage keys resolve on read, so an old view id or type falls
+back to the first offered.
+
+## 8. Build log
+
+| Date       | Step | Row                                                          |
+| ---------- | ---- | ------------------------------------------------------------ |
+| 2026-10-06 | plan | Written from the chat ruling of 2026-10-06. Next step: Do 1. |
