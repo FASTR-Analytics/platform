@@ -455,12 +455,16 @@ package carries and stamps ready, and `byLevel` and `switch` need one ready
 option and offer only those. `UNBOUND_METRICS` lists every non-hidden metric of
 a bound module that no binding reads, with a reason.
 `server/tests/explore_views_test.ts` is the lockstep guard: the pure checks
-always run, and under `FASTR_MODULES_LOCAL_DIR` every binding is checked against
-the module definitions (metrics present and not hidden, role dimensions columns
-of the results object, required non-time dimensions grouped with at most one
-replicant per type, a type's `values` among every bound metric's value props and
-a unit on the series reading one value prop, a period column for the over-time
-type, every non-hidden metric of a bound module bound or listed).
+always run (view ids unique per module and every view with a type, every axis a
+role the view has and rows apart from cols, a type's `values` non-empty and one
+under a unit on the series, no `byLevel` national key with the area laid out, no
+over-time type on HFA, every registry module bound), and under
+`FASTR_MODULES_LOCAL_DIR` every binding is checked against the module
+definitions (metrics present and not hidden, role dimensions columns of the
+results object, required non-time dimensions grouped with at most one replicant
+per type, a type's `values` among every bound metric's value props and a unit on
+the series reading one value prop, a period column for the over-time type, every
+non-hidden metric of a bound module bound or listed).
 
 The bindings today, each view with its types in order, the first the default:
 m012 "Service counts" (a table of areas by indicator; over time; a map under one

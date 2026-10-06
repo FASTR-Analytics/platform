@@ -300,7 +300,7 @@ layout/cells, map regions, pie slices, the standard series/map color funcs) live
 in `_0_common.ts`, which also owns `GLOBAL_STYLE_OPTIONS`, applied app-wide via
 `setGlobalStyle` at boot ([index.tsx:12](client/src/index.tsx#L12)).
 `liveFigureStyle` (`live_figure_style.ts`) is the one transform for a figure
-read on screen at one design unit per CSS pixel (the Explore timeseries, S11;
+read on screen at one design unit per CSS pixel (the Explore figure view, S11;
 the HMIS dataset display, S6): over the figure's own style it sets one-pixel
 strokes on axes, grid and lines, base-300 grid lines, a 12-unit base (the data
 grid's `ui-text-small`, 12 CSS pixels) with every chart label key at relative
