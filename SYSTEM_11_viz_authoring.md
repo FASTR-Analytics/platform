@@ -308,22 +308,24 @@ indicators or coarsen the grain); no ready package is `explore.tsx`'s own.
 
 **Figure view** (`explore/figure_view.tsx`) is the body of the figure types,
 today the over-time type. The derived config (`deriveViewConfig` for
-`timeseries`: the category as `cell`, the grain as `timeseriesGrouping`, the
-chosen indicators as a filter, the window as `periodFilter`, the style borrowed
-from the metric's first over-time preset, else the defaults, with
-`content: "lines"` and the legend hidden when every pane holds one line, and `t`
-empty, since the view's name is the caption) is fetched and built through
-`createFigurePreview` (S11's one path for a figure that is not a row, so it
-shares the scope-keyed items cache with products) and rendered by panther's
-`FigureHolder` at its ideal height in a pane that scrolls, with the default
-`sizing="reflow"`, which lays the figure out at the container width so one
-design unit is one CSS pixel and lines are as crisp as the UI, under S10's
-`liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's text size,
-abbreviated ticks). A view whose every pane holds one line (`hasOneLinePerPane`,
-the rule the config's hidden legend shares) draws it in the success colour; one
-with several lines keeps the figure's own colours and its legend. The over-time
-type is bound only where the metric's time column is a period column: never for
-HFA.
+`timeseries`: the category as `cell`, the unit as `series` when the type puts it
+there, else the values as the lines, the time column as `timeseriesGrouping`
+(the grain for months, else the year), the chosen category values as a filter,
+the window as `periodFilter` for months or the chosen years as a filter, a
+pinned area as the replicant, the style borrowed from the metric's first
+over-time preset, else the defaults, with `content: "lines"` and the legend
+hidden when every pane holds one line, and `t` empty, since the view's name is
+the caption) is fetched and built through `createFigurePreview` (S11's one path
+for a figure that is not a row, so it shares the scope-keyed items cache with
+products) and rendered by panther's `FigureHolder` at its ideal height in a pane
+that scrolls, with the default `sizing="reflow"`, which lays the figure out at
+the container width so one design unit is one CSS pixel and lines are as crisp
+as the UI, under S10's `liveFigureStyle` (one-pixel strokes, base-300 grid, the
+data grid's text size, abbreviated ticks). A view whose every pane holds one
+line (`hasOneLinePerPane`, the rule the config's hidden legend shares) draws it
+in the success colour; one with several lines keeps the figure's own colours and
+its legend. The over-time type is bound only where the metric's time column is a
+period column: never for HFA.
 
 ## lib config semantics
 
