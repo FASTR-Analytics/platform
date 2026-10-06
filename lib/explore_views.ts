@@ -221,6 +221,45 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       ],
     },
   ],
+  m006: [
+    {
+      id: "coverage_over_time",
+      label: {
+        en: "Coverage over time",
+        fr: "Couverture dans le temps",
+        pt: "Cobertura ao longo do tempo",
+      },
+      metric: {
+        byLevel: {
+          national: "m6-01-01",
+          admin_area_2: "m6-02-01",
+          admin_area_3: "m6-03-01",
+        },
+      },
+      category: "indicator_common_id",
+      types: [OVER_TIME],
+    },
+    {
+      id: "coverage_by_area",
+      label: {
+        en: "Coverage by area",
+        fr: "Couverture par zone",
+        pt: "Cobertura por área",
+      },
+      metric: {
+        byLevel: { admin_area_2: "m6-02-01", admin_area_3: "m6-03-01" },
+      },
+      category: "indicator_common_id",
+      types: [
+        {
+          type: "table",
+          rows: "area",
+          cols: "category",
+          values: ["coverage_cov"],
+        },
+      ],
+    },
+  ],
   m011: [
     {
       id: "disruptions",
@@ -251,7 +290,18 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
 
 // Every non-hidden metric of a registry module that no binding reads, with
 // the reason.
-export const UNBOUND_METRICS: { metricId: string; reason: string }[] = [];
+export const UNBOUND_METRICS: { metricId: string; reason: string }[] = [
+  {
+    metricId: "m6-02-02",
+    reason:
+      "Coverage (HMIS only) at admin area 2: its one value is the coverage_cov prop of m6-02-01, which coverage_by_area reads.",
+  },
+  {
+    metricId: "m6-03-02",
+    reason:
+      "Coverage (HMIS only) at admin area 3: its one value is the coverage_cov prop of m6-03-01, which coverage_by_area reads.",
+  },
+];
 
 export function boundMetricIds(metric: ExploreMetricBinding): string[] {
   if ("id" in metric) return [metric.id];

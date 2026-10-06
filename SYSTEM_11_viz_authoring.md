@@ -448,7 +448,12 @@ chart style). m005 "Denominator values" (a table of denominators by year),
 under one denominator, the replicant) and "Coverage by denominator type" (a
 table of denominator types by indicator at one year, national or by level with
 the area the replicant; over time with the types as lines, one pane per
-indicator). The HFA and ICEH modules have no binding yet.
+indicator). m006 "Coverage over time" (over time only, national or by level with
+the area the replicant, the three estimates as lines under the coverage chart
+style) and "Coverage by area" (a table of areas by indicator at one year, the
+HMIS coverage value only). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose
+one value is the HMIS coverage of m6-02-01 and m6-03-01. The HFA and ICEH
+modules have no binding yet.
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a

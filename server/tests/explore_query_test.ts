@@ -163,6 +163,19 @@ const METRICS: MetricWithStatus[] = [
     presets: [preset("timeseries", { specialDisruptionsChartV2: true })],
   }),
   metric({
+    id: "m6-01-01",
+    moduleId: "m006",
+    dims: ["indicator_common_id", "year"],
+    required: ["indicator_common_id", "year"],
+    valueProps: [
+      "coverage_original_estimate",
+      "coverage_avgsurveyprojection",
+      "coverage_cov",
+    ],
+    periodColumn: "year",
+    presets: [preset("timeseries", { specialCoverageChart: true })],
+  }),
+  metric({
     id: "m6-02-01",
     moduleId: "m006",
     dims: ["indicator_common_id", "admin_area_2", "year"],
@@ -373,6 +386,7 @@ const M011 = bound("m011", "disruptions");
 const M005_DENOM = bound("m005", "denominators");
 const M005_BY_AREA = bound("m005", "denominators_by_area");
 const M005_BY_DENOM = bound("m005", "coverage_by_denominator");
+const M006_OVER_TIME = bound("m006", "coverage_over_time");
 
 const M012_MAP: ExploreViewBinding = {
   ...M012,
@@ -384,24 +398,14 @@ const M012_BY_TIME: ExploreViewBinding = {
   types: [{ type: "table", rows: "area", cols: "time" }],
 };
 
+// The chart and map types arrive in steps 5 and 6.
 const M006_BY_AREA: ExploreViewBinding = {
-  id: "coverage_by_area",
-  label: { en: "Coverage by area", fr: "" },
-  metric: { byLevel: { admin_area_2: "m6-02-01", admin_area_3: "m6-03-01" } },
-  category: "indicator_common_id",
+  ...bound("m006", "coverage_by_area"),
   types: [
-    { type: "table", rows: "area", cols: "category", values: ["coverage_cov"] },
+    ...bound("m006", "coverage_by_area").types,
     { type: "chart", axis: "area", values: ["coverage_cov"] },
     { type: "map", values: ["coverage_cov"] },
   ],
-};
-
-const M006_OVER_TIME: ExploreViewBinding = {
-  id: "coverage_over_time",
-  label: { en: "Coverage over time", fr: "" },
-  metric: { byLevel: { admin_area_2: "m6-02-01", admin_area_3: "m6-03-01" } },
-  category: "indicator_common_id",
-  types: [{ type: "timeseries" }],
 };
 
 const M010_ROUND: ExploreViewBinding = {
@@ -1130,6 +1134,53 @@ Deno.test("derive: m005 coverage_by_denominator is denominator types by indicato
     selectedReplicantValue: "Kano",
   });
   assertEquals(config?.s.hideLegend, false);
+});
+
+Deno.test("derive: m006 coverage_over_time is the three estimates by year, national without a pin, by area with the replicant", () => {
+  const national = resolve(M006_OVER_TIME, "hmis");
+  assertEquals(national.area?.levels, [
+    "national",
+    "admin_area_2",
+    "admin_area_3",
+  ]);
+  assertEquals(national.metric.id, "m6-01-01");
+  assertEquals(national.pins, []);
+  const config = deriveViewConfig(national, "en")?.config;
+  assertEquals(config?.d, {
+    type: "timeseries",
+    valuesDisDisplayOpt: "series",
+    disaggregateBy: [{ disOpt: "indicator_common_id", disDisplayOpt: "cell" }],
+    filterBy: [],
+    timeseriesGrouping: "year",
+  });
+  assertEquals(config?.s.specialCoverageChart, true);
+  assertEquals(config?.s.hideLegend, false);
+
+  const scoped = resolve(M006_OVER_TIME, "hmis", { scopeArea: KANO });
+  assertEquals(scoped.area?.levels, ["admin_area_2", "admin_area_3"]);
+  assertEquals(scoped.metric.id, "m6-02-01");
+  assertEquals(deriveViewConfig(scoped, "en")?.config.d.disaggregateBy, [
+    { disOpt: "indicator_common_id", disDisplayOpt: "cell" },
+    { disOpt: "admin_area_2", disDisplayOpt: "replicant" },
+  ]);
+});
+
+Deno.test("derive: m006 coverage_by_area is the rolled-up area by indicator at the latest year, HMIS coverage only", () => {
+  const view = resolve(M006_BY_AREA, "hmis");
+  assertEquals(view.area?.levels, ["admin_area_2", "admin_area_3"]);
+  assertEquals(view.time?.placement, "pinned");
+  assertEquals(view.time?.choices.map((c) => c.id), ["2018", "2013"]);
+  assertEquals(view.pins, []);
+  assertEquals(deriveViewConfig(view, "en")?.config.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [ROWS_AA2, {
+      disOpt: "indicator_common_id",
+      disDisplayOpt: "col",
+    }],
+    filterBy: [{ disOpt: "year", values: ["2018"] }],
+    valuesFilter: ["coverage_cov"],
+  });
 });
 
 // Types and views
