@@ -7,7 +7,8 @@ Products get the access model of a Google Doc: one owner, per-user grants at
 (`none`, `view` or `edit`). The guard's declared route levels start to mean
 something, every client derives its own level per product, the instance stream
 and the collab socket deliver only what a user may see, and a "Manage access"
-dialog is where an editor sets it. Global admins own everything.
+dialog is where an editor sets it. Global admins own everything, and can set
+access on every product in a folder at once.
 
 **Next step: Do 1.** Each session sets this line in its final commit. Its values
 are `Do N`, `Review N` and `Fix N`. The review that passes step 4 deletes this
@@ -62,7 +63,8 @@ Rules peculiar to this plan:
   (`none`, `view` or `edit`); **subject** = a product a route acts on (path
   `product_id` or body `productIds`); **destination** = the product a route
   writes into (body `targetProductId`); **viewer** = a user whose level on a
-  product is `view`; **editor** = a user whose level is `edit` or `own`;
+  product is `view`; **editor** = a user whose level is `edit` or `own`; **the
+  bulk action** = "Set access for everything in this folder…" (R19);
   **restricted user** = a user with `scopeAccess.all === false` (SYSTEM_15
   "Scope access"); **the restricted folder rule** = a restricted user may not
   create, change or delete a folder, and may name as a destination only the root
@@ -240,8 +242,10 @@ export async function productAccessPolicy(
 
 In order: not approved → false. A global admin → true, with no query: an admin
 is unrestricted and owns every product. A folder route → refused for a
-restricted user, as today; folders carry no level (R5). Every `scopeIds` entry
-must be usable (unchanged). Then one query,
+restricted user, as today. A folder route that declares `own` is refused to
+everyone else too, because nobody but an admin owns a folder; only the bulk
+action declares it (R19). Any other folder route passes, since folders carry no
+level (R5). Every `scopeIds` entry must be usable (unchanged). Then one query,
 `getProductLevelRows(mainDb, ids, user.email)`, reads each subject and
 destination: its scope, owner, general access and the caller's grant. Each
 subject must carry a scope the user holds and a level, by `productLevelFor`, at
@@ -288,12 +292,33 @@ setProductOwner: route({
 }),
 ```
 
+One route is added to `lib/api-routes/products/folders.ts`:
+
+```ts
+// R19: raises access on every product in the folder and its subfolders, in one
+// transaction (§2.11). Refuses an email with no users row and a list naming one
+// email twice.
+setFolderProductsAccess: route({
+  path: "/folders/:folder_id/products/access",
+  method: "PUT",
+  params: folderIdParamsSchema,
+  body: z.object({
+    defaultAccess: z.enum(["none", "view", "edit"]),
+    grants: z.array(
+      z.object({ email: z.string(), level: z.enum(["view", "edit"]) }),
+    ),
+  }),
+  response: {} as { productIds: string[] },
+  access: "own",
+}),
+```
+
 The refusals are typed errors exported beside `PRODUCT_NOT_FOUND`:
 `PRODUCT_GRANT_IS_OWNER`, `PRODUCT_GRANT_DUPLICATE` and
 `PRODUCT_ACCESS_UNKNOWN_USER`. They answer through `_respond.ts` at 200 with
-`success: false`, like `FOLDER_CYCLE`. Both handlers re-broadcast the product's
-summary and close the collab connections whose level changed (§2.8). Neither
-bumps `last_updated` (R15).
+`success: false`, like `FOLDER_CYCLE`. All three handlers re-broadcast the
+summaries of the products they changed and close the collab connections whose
+level changed on any of them (§2.8). None bumps `last_updated` (R15).
 
 ### 2.6 What a level allows
 
@@ -357,13 +382,13 @@ cannot (`slide_editor.tsx:648-667`, `report.tsx:1222-1238`). An awareness update
 (cursors, selections, cursor chat) passes only at `edit`, so a viewer appears in
 the product's presence but shows no cursor (R12).
 
-The two access routes call
-`closeConnectionsWhoseLevelChanged(productId, access, code, reason)`, which
-closes the connections that recorded a level on the product and whose
-`productLevelFor` under the new access differs; they reconnect at the new level
-(`COLLAB_CLOSE_ACCESS_CHANGED`). `closeConnectionsWithChangedAccess` compares
-the admin flag as well as the scope access, because an admin flag change changes
-every level.
+The three access routes call
+`closeConnectionsWhoseLevelChanged(productId, access, code, reason)` for each
+product they changed. It closes the connections that recorded a level on the
+product and whose `productLevelFor` under the new access differs; they reconnect
+at the new level (`COLLAB_CLOSE_ACCESS_CHANGED`).
+`closeConnectionsWithChangedAccess` compares the admin flag as well as the scope
+access, because an admin flag change changes every level.
 
 ### 2.9 The client
 
@@ -386,8 +411,9 @@ follows a level change live. Every affordance follows this table (R14):
 
 The product menu is built from the table, so a viewer's menu holds Duplicate
 only and `handleProductMenu` opens it for a viewer too. Folder and create
-affordances keep today's gates (R5). A list row shows a lock icon when the
-general access is `none`.
+affordances keep today's gates (R5), and the folder menu also offers a global
+admin the bulk action (§2.11). A list row shows a lock icon when the general
+access is `none`.
 
 `ProductAccessModal`
 (`client/src/components/products/_shared/product_access_modal.tsx`) is the
@@ -424,6 +450,27 @@ upload therefore keeps the ownership and grants of every user it re-inserts.
 `renameUserEmailInMainDb` moves `products.owner` and `product_access.email` in
 the transaction that moves the users row. Each of the three paths returns the
 ids of the products it changed, and its route re-broadcasts their summaries.
+
+### 2.11 The bulk action
+
+"Set access for everything in this folder…" is a folder menu entry shown only to
+global admins. It opens `ProductAccessModal` in bulk mode: a General access
+select whose first choice is "Leave as is", sent as `none`; the add-person
+picker with a level per person; no owner row, no existing people and no remove
+buttons; and a line giving how many products it will change in the folder and
+its subfolders. Saving calls `setFolderProductsAccess`, whose DB function
+`raiseFolderProductsAccess` in `server/db/products/products.ts` does, for each
+product in the folder's subtree, in one transaction:
+
+- general access becomes the higher of its current value and the chosen one;
+- each chosen person's grant becomes the higher of their current grant and the
+  chosen level, and a person who owns the product is skipped for it.
+
+Nothing is removed and nothing is inherited: a product created in or moved into
+the folder later gets nothing, and each product keeps its own settings
+afterwards. The subtree comes from one recursive query over `folders`, the
+technique `updateFolder`'s cycle check uses
+(`server/db/products/folders.ts:78`).
 
 ---
 
@@ -494,10 +541,10 @@ ids of the products it changed, and its route re-broadcasts their summaries.
   (`fr` "Gérer l'accès…", `pt` "Gerir o acesso…"), never "Share…", which already
   means email a PDF. A viewer's product menu holds Duplicate only. The lock icon
   is the only list-level signal.
-- **R15. An access change is not a content change** (Tim). Neither access route
-  bumps `last_updated` or records a version edit: detail caches key on the
-  stamp, no detail payload carries access (§2.3), and the content did not move.
-  The summary is re-broadcast so every client's level updates.
+- **R15. An access change is not a content change** (Tim). No access route bumps
+  `last_updated` or records a version edit: detail caches key on the stamp, no
+  detail payload carries access (§2.3), and the content did not move. The
+  summaries are re-broadcast so every client's level updates.
 - **R16. Headless callers are unchanged** (Tim). No product route is reachable
   headless: the headless app's deny-by-default allowlist holds none
   (`server/middleware/headless_allowlist.ts`). `/mcp` reads packages, not
@@ -508,6 +555,14 @@ ids of the products it changed, and its route re-broadcasts their summaries.
 - **R18. A viewer's editors are read-only, not hidden** (Tim). The deck and
   report editors open for a viewer in the read-only rendering, with every `edit`
   affordance of §2.9 hidden or disabled.
+- **R19. The bulk action sets access for everything in a folder** (Tim). Global
+  admins only. It applies a general access and a list of people to every product
+  in a folder and its subfolders at that moment, and only raises access: it
+  never lowers general access, never removes or lowers a grant, and skips each
+  product's owner. Nothing is inherited (R5): a product created in or moved into
+  the folder later gets nothing. It is how admins restore a team's access to the
+  consolidated products after the fleet deploy (R3), one project folder at a
+  time. §2.11 is the design.
 
 ---
 
@@ -541,7 +596,8 @@ SELECT. `createProduct` writes `owner = createdBy` and leaves `default_access`
 to its default; `duplicateProduct`, `copyReportFromVersion` and
 `copySlideDeckFromVersion` write `owner` = the actor and copy no grant. New DB
 functions: `setProductAccess` and `setProductOwner` with R10's rules and §2.5's
-errors, `getProductLevelRows(mainDb, productIds, email)` (§2.4), and
+errors, `raiseFolderProductsAccess` (§2.11),
+`getProductLevelRows(mainDb, productIds, email)` (§2.4), and
 `dropAccessOfMissingUsers` (§2.10), which `deleteUser` (inside a new
 transaction) and `batchUploadUsers` run. `renameUserEmailInMainDb` moves owner
 and grants in its transaction (§2.10). The three user paths return the product
@@ -551,8 +607,10 @@ ids they changed and their handlers re-broadcast those summaries.
 general access (the higher wins), and a user with neither.
 `server/tests/product_access_db_test.ts` drives the DB layer against the dev
 database: `setProductAccess` and `setProductOwner` with each refusal;
-`deleteUser` on an owner and on a grantee; a users row deleted and re-inserted
-in one transaction, then swept, keeps its ownership and grant;
+`raiseFolderProductsAccess` raising general access and grants without lowering
+either, reaching a product in a subfolder and skipping an owner; `deleteUser` on
+an owner and on a grantee; a users row deleted and re-inserted in one
+transaction, then swept, keeps its ownership and grant;
 `renameUserEmailInMainDb` moves both. Both new test files are added to
 SYSTEM_12's `globs:`. SYSTEM_02 documents migration 210 and why the two columns
 come last. SYSTEM_12 "The products registry on `main`" documents the columns,
@@ -578,7 +636,7 @@ the docs.
 **Surface.** `server/auth/product_access.ts`,
 `server/middleware/userPermission.ts`,
 `lib/api-routes/products/{products,slides,slide-decks,reports,folders}.ts`,
-`server/routes/products/products.ts`,
+`server/routes/products/products.ts`, `server/routes/products/folders.ts`,
 `server/tests/product_access_routes_test.ts` (new),
 `server/tests/scope_grants_routes_test.ts`, `PROTOCOL_APP_ROUTES.md`,
 `SYSTEM_01_api_contract.md`, `SYSTEM_12_documents_sharing.md`.
@@ -587,14 +645,14 @@ the docs.
 `resolveProductAccessTargets` puts body `targetProductId` in
 `destinationProductIds` and nowhere else, and the restricted folder rule's
 visible folders come from scope and level (`visibleFolderIdsForScopes` is
-replaced). The registry changes and the two routes of §2.5; each registry file's
-closing `satisfies` still requires `access`. The two handlers re-broadcast the
-summary. The collab close they also owe is step 3's: this step leaves
-`// step 3: closeConnectionsWhoseLevelChanged` at each call site and §8 records
-it. `scope_grants_routes_test.ts` sets the general access of every product it
-creates to `edit` through the new route, as the product's owner, right after
-creating it, so its scope assertions keep their subject under R2.
-`server/tests/product_access_routes_test.ts`, modelled on
+replaced). The registry changes and the three routes of §2.5; each registry
+file's closing `satisfies` still requires `access`. The three handlers
+re-broadcast the summaries they changed. The collab close they also owe is step
+3's: this step leaves `// step 3: closeConnectionsWhoseLevelChanged` at each
+call site and §8 records it. `scope_grants_routes_test.ts` sets the general
+access of every product it creates to `edit` through the new route, as the
+product's owner, right after creating it, so its scope assertions keep their
+subject under R2. `server/tests/product_access_routes_test.ts`, modelled on
 `scope_grants_routes_test.ts` and added to SYSTEM_12's `globs:`, with five users
 (owner, editor, viewer, stranger, admin) and one product of each type, proves at
 least:
@@ -619,12 +677,18 @@ least:
 - a product with no owner at `view` refuses `deleteProducts` to a non-admin and
   accepts `setProductOwner` from the admin;
 - `deleteFolder` passes for an approved unrestricted user who holds no level on
-  any product inside.
+  any product inside;
+- `setFolderProductsAccess` is 200 for the admin and 403 for a user who can edit
+  every product in the folder; it gives the stranger the chosen level on a
+  product in a subfolder, and leaves a product's higher general access and a
+  person's higher grant as they were.
 
-PROTOCOL_APP_ROUTES's access bullet names the destination rule. SYSTEM_01's
-`requireProductAccess` paragraph and "Permission source of truth" describe the
-level-aware policy, the two target lists and the restricted folder rule's
-visibility. SYSTEM_12 "Contract" says what each level allows (§2.6).
+PROTOCOL_APP_ROUTES's access bullet names the destination rule and what `own`
+means on a folder route. SYSTEM_01's `requireProductAccess` paragraph and
+"Permission source of truth" describe the level-aware policy, the two target
+lists, the restricted folder rule's visibility and the admin-only folder route.
+SYSTEM_12 "Contract" says what each level allows (§2.6) and what the bulk action
+does (§2.11).
 
 **Not in this step.** The stream, the starting payload and the collab socket
 (step 3). The client (step 4).
@@ -635,9 +699,10 @@ visibility. SYSTEM_12 "Contract" says what each level allows (§2.6).
 
 **Ends with.** Two commits, each green. First, under today's policy: the targets
 split, with a destination scope-checked as every product id is today, the
-registry levels and the two routes. Then the level-aware policy with the
-restricted folder rule's new visibility, the `scope_grants_routes_test.ts`
-adjustment, the new harness and the docs.
+registry levels and the three routes, with `setFolderProductsAccess` already
+refused to non-admins. Then the level-aware policy with the restricted folder
+rule's new visibility, the `scope_grants_routes_test.ts` adjustment, the new
+harness and the docs.
 
 ### Step 3: The stream and the collab socket
 
@@ -652,10 +717,11 @@ comments), `server/task_management/notify_instance_updated.ts`
 `server/collab/doc_rooms.ts`, `server/collab/presence_registry.ts`,
 `server/tests/collab_lineage_test.ts` (its `RoomConn` literal only),
 `server/routes/instance/users.ts` (`broadcastRosterAndCloseStaleCollab` only),
-`server/routes/products/products.ts` (the two markers from step 2),
-`server/auth/product_access.ts` (only if a visibility helper is shared from
-there), `server/tests/product_access_routes_test.ts`,
-`SYSTEM_03_realtime_cache.md`, `SYSTEM_16_collaboration.md`.
+`server/routes/products/products.ts` and `server/routes/products/folders.ts`
+(the three markers from step 2), `server/auth/product_access.ts` (only if a
+visibility helper is shared from there),
+`server/tests/product_access_routes_test.ts`, `SYSTEM_03_realtime_cache.md`,
+`SYSTEM_16_collaboration.md`.
 
 **Deliverable.** §2.7 and §2.8 in full. `instance_sse_filter_test.ts` gains an
 unrestricted non-admin connection that holds `none` on one product and `view` on
@@ -687,7 +753,7 @@ the socket and the closes.
 ### Step 4: The client
 
 **Surface.** `client/src/state/instance/product_access.ts`;
-`client/src/components/products/{products.tsx,product_menu.ts,list_view.tsx,move_to_folder_modal.tsx}`;
+`client/src/components/products/{products.tsx,product_menu.ts,folder_menu.ts,list_view.tsx,move_to_folder_modal.tsx}`;
 `client/src/components/products/_shared/{product_access_modal.tsx,mod.ts,product_title.tsx,product_settings.tsx,package_scope_chip.tsx,package_scope_modal.tsx,duplicate_products_modal.tsx,report_style_editor.tsx}`
 (the modal is new);
 `client/src/components/products/_shared/version_history/*.tsx`;
@@ -702,7 +768,7 @@ the socket and the closes.
 or `own` product route, except the create and folder modals, which keep today's
 gates (R5), plus the menus, the slide card, the dialog and the copilot.
 
-**Deliverable.** §2.9 in full. `productLevel`, `canEditProduct` and
+**Deliverable.** §2.9 and §2.11 in full. `productLevel`, `canEditProduct` and
 `canOwnProduct` as §2.9; no call site of `canEditProduct` changes its meaning.
 Every affordance follows §2.9's table: the product menu is built from it and
 opens for a viewer; Add slide, the deck File menu entries and the slide card's
@@ -710,14 +776,14 @@ Duplicate slide and Delete slide get their gates; Restore as copy leaves the
 Restore gate; the copy-to-deck picker lists only decks the user can edit; delete
 is reachable only through `canOwnProduct`. The lock icon on the list row.
 `ProductAccessModal` as §2.9, opened from the product menu, the deck File menu
-and the report toolbar, every string in three languages. The copilot as §2.9. An
-audit of every client call to an `edit` or `own` product route and of the
-editors' document writes, each confirmed behind `canEditProduct`,
-`canOwnProduct` or a picker filtered by `canEditProduct`, recorded as one §8 row
-that lists each call site and its gate. SYSTEM_12's client prose names the
-dialog and the affordance table; SYSTEM_13 names the viewer's catalogue and its
-prompt sentence; SYSTEM_16's read-only editor sentences say a viewer is who gets
-it.
+and the report toolbar, and in its bulk mode from the folder menu for a global
+admin (§2.11), every string in three languages. The copilot as §2.9. An audit of
+every client call to an `edit` or `own` product route and of the editors'
+document writes, each confirmed behind `canEditProduct`, `canOwnProduct` or a
+picker filtered by `canEditProduct`, recorded as one §8 row that lists each call
+site and its gate. SYSTEM_12's client prose names the dialog, its bulk mode and
+the affordance table; SYSTEM_13 names the viewer's catalogue and its prompt
+sentence; SYSTEM_16's read-only editor sentences say a viewer is who gets it.
 
 **Not in this step.** Nothing on the server.
 
@@ -725,7 +791,7 @@ it.
 `lint:text-sizes`), and `./validate_protocols` with no new tier-2 entry.
 
 **Ends with.** Three commits, each green: the gate, the affordances and the
-menus; the dialog; the copilot and the docs.
+menus; the dialog and its bulk mode; the copilot and the docs.
 
 ---
 
@@ -754,7 +820,8 @@ The floor (PROTOCOL_APP_PLANS) is green at the end of every step.
 
 Named so it is not reopened:
 
-- Folder-level access and inheritance (R5).
+- Folder-level access and inheritance (R5, R19).
+- Setting an owner, or removing access, in bulk (R19 only raises).
 - Lowering one person below the general access: levels are additive (R8).
 - A per-product "editors can share" toggle; a commenter level; a public or
   link-based share; a "Shared with me" view; access requests; notifications on
@@ -785,7 +852,7 @@ ad-hoc deploy to the v2 testing instances carries the whole plan, and the fleet
 receives it with PLAN_PRODUCTS_RESTRUCTURE step 13. Migration 210 is additive
 and runs once per instance. At the fleet deploy every consolidated product
 becomes view-only for non-admins, with no owner (R3), until an admin sets its
-access.
+access, one project folder at a time with the bulk action (R19).
 
 Rollback is the previous image. The two columns and the table are inert under
 the previous code: its product reads map named fields and ignore the rest, and
