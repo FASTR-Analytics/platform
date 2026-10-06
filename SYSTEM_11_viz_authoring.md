@@ -440,8 +440,10 @@ indicator, for consistency by ratio type; over time, one pane per indicator or
 ratio type), "Facilities with adequate data quality" and "Mean data quality
 score" (a table of areas by period; over time as one line). m002 "Adjustment
 impact" (a switch over the outlier, completeness and combined adjustments; a
-table of areas by indicator; over time). The HFA and ICEH modules have no
-binding yet.
+table of areas by indicator; over time). m011 "Observed and expected services"
+(over time only, the national metric or the admin-area-2 metric by the level,
+the area pinned as the replicant, the four values as lines under the disruptions
+chart style). The HFA and ICEH modules have no binding yet.
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a

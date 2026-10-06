@@ -312,6 +312,7 @@ const M012 = bound("m012", "service_counts");
 const M001_CONSISTENCY = bound("m001", "consistency");
 const M001_DQA = bound("m001", "dqa_adequate");
 const M002_SWITCH = bound("m002", "adjustment_impact");
+const M011 = bound("m011", "disruptions");
 
 const M012_MAP: ExploreViewBinding = {
   ...M012,
@@ -321,14 +322,6 @@ const M012_MAP: ExploreViewBinding = {
 const M012_BY_TIME: ExploreViewBinding = {
   ...M012,
   types: [{ type: "table", rows: "area", cols: "time" }],
-};
-
-const M011: ExploreViewBinding = {
-  id: "disruptions",
-  label: { en: "Observed and expected services", fr: "" },
-  metric: { byLevel: { national: "m11-01-01", admin_area_2: "m11-01-02" } },
-  category: "indicator_common_id",
-  types: [{ type: "timeseries" }],
 };
 
 const M006_BY_AREA: ExploreViewBinding = {

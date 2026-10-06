@@ -174,6 +174,19 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       types: [AREA_BY_CATEGORY, OVER_TIME],
     },
   ],
+  m011: [
+    {
+      id: "disruptions",
+      label: {
+        en: "Observed and expected services",
+        fr: "Services observés et attendus",
+        pt: "Serviços observados e esperados",
+      },
+      metric: { byLevel: { national: "m11-01-01", admin_area_2: "m11-01-02" } },
+      category: "indicator_common_id",
+      types: [OVER_TIME],
+    },
+  ],
   m012: [
     {
       id: "service_counts",
