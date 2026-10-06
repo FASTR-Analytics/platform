@@ -42,7 +42,7 @@ import {
   setExploreScopeId,
 } from "~/state/t4_explore";
 import { ScopeSelect } from "~/components/_shared/mod.ts";
-import { EmptyState } from "./empty_state";
+import { EmptyState } from "./_shared/mod.ts";
 import { ModuleView } from "./module_view";
 
 function familiesInPackage(ctx: RunAuthoringContext): DatasetType[] {

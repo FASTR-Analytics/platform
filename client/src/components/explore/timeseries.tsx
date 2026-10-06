@@ -10,11 +10,11 @@ import { createFigurePreview } from "~/components/_shared/mod.ts";
 import { liveFigureStyle } from "~/generate_visualization/mod";
 import {
   DroppedIndicatorsNotice,
+  EmptyState,
   GrainControl,
   IndicatorsControl,
   PeriodControl,
 } from "./_shared/mod.ts";
-import { GridMessage } from "./data_table/mod.ts";
 
 // The Timeseries view: the resolved view's metric as lines over time, one
 // pane per indicator, laid out at the container width so a design unit is a
@@ -81,7 +81,7 @@ export function Timeseries(p: {
       <div class="ui-pad-x h-full w-full overflow-y-auto pb-4">
         <Show
           when={p.derived}
-          fallback={<GridMessage status="no_data_available" />}
+          fallback={<EmptyState kind="no_data_available" />}
         >
           {(d) => {
             const figure = createFigurePreview(() => ({

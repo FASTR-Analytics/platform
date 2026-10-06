@@ -37,7 +37,11 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { createTrackedQuery, DroppedIndicatorsNotice } from "../_shared/mod.ts";
+import {
+  createTrackedQuery,
+  DroppedIndicatorsNotice,
+  EmptyState,
+} from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
@@ -49,7 +53,7 @@ import {
   type GridRows,
 } from "~/state/products/t2_grid_items";
 import { gridCellFunction } from "./cell_function";
-import { columnLabel, Grid, GridMessage, type GridProps } from "./grid";
+import { columnLabel, Grid, type GridProps } from "./grid";
 import { Toolbar } from "./toolbar";
 
 const NATIONAL_LABEL = { en: "National", fr: "National", pt: "Nacional" };
@@ -211,13 +215,13 @@ export function DataTable(p: {
       <div class="ui-pad-x h-full pb-4">
         <Show
           when={readSpec()}
-          fallback={<GridMessage status="no_data_available" />}
+          fallback={<EmptyState kind="no_data_available" />}
         >
           <StateHolderWrapper state={read()}>
             {(data) => (
               <Switch>
                 <Match when={data.rows.status !== "ok" && data.rows.status}>
-                  {(status) => <GridMessage status={status()} />}
+                  {(status) => <EmptyState kind={status()} />}
                 </Match>
                 <Match when={grid()} keyed>
                   {(g) =>

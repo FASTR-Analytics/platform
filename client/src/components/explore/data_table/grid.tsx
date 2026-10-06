@@ -1,4 +1,3 @@
-import { t3 } from "lib";
 import { DataGrid, type DataGridHit, type DataGridProps } from "panther";
 import { createMemo, createSignal, Show } from "solid-js";
 
@@ -48,29 +47,6 @@ export function Grid(p: {
             }: ${hit.cell?.text ?? "–"}`}
         </Show>
       </div>
-    </div>
-  );
-}
-
-export function GridMessage(p: {
-  status: "no_data_available" | "too_many_cells";
-}) {
-  return (
-    <div class="text-base-content-muted text-sm">
-      {p.status === "too_many_cells"
-        ? t3({
-          en:
-            "This selection has too many values to show. Choose fewer indicators, or a coarser time grain.",
-          fr:
-            "Cette sélection contient trop de valeurs pour être affichée. Choisissez moins d'indicateurs ou un pas de temps plus large.",
-          pt:
-            "Esta seleção tem demasiados valores para mostrar. Escolha menos indicadores ou uma granularidade temporal maior.",
-        })
-        : t3({
-          en: "No data for this selection",
-          fr: "Aucune donnée pour cette sélection",
-          pt: "Nenhum dado para esta seleção",
-        })}
     </div>
   );
 }
