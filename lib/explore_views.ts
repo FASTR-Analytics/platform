@@ -284,6 +284,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
           cols: "category",
           values: ["coverage_cov"],
         },
+        { type: "chart", axis: "area", values: ["coverage_cov"] },
       ],
     },
   ],
@@ -301,6 +302,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       facets: ["strat"],
       types: [
         { type: "table", rows: "unit", cols: "category" },
+        { type: "chart", axis: "category", series: "unit" },
         { type: "timeseries", series: "unit" },
       ],
     },
@@ -316,6 +318,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       facets: ["strat"],
       types: [
         { type: "table", rows: "category", cols: "values" },
+        { type: "chart", axis: "category", values: ["cix"] },
         { type: "timeseries", values: ["cix"] },
       ],
     },

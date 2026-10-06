@@ -12,13 +12,13 @@ import {
 import { createFigurePreview } from "~/components/_shared/mod.ts";
 import { liveFigureStyle } from "~/generate_visualization/mod";
 
-// The figure types' body: the derived config fetched and built through
-// `createFigurePreview`, so it shares the scope-keyed items cache with
-// products, and rendered by `FigureHolder` at its ideal height in a pane
-// that scrolls, laid out at the container width so a design unit is a CSS
-// pixel, under the live figure style. An over-time view whose every pane
-// holds one line draws it in the success colour; one with several lines
-// keeps the figure's own colours and its legend.
+// The figure types' body, today the over-time and chart types: the derived
+// config fetched and built through `createFigurePreview`, so it shares the
+// scope-keyed items cache with products, and rendered by `FigureHolder` at
+// its ideal height in a pane that scrolls, laid out at the container width
+// so a design unit is a CSS pixel, under the live figure style. An over-time
+// view whose every pane holds one line draws it in the success colour; any
+// other figure keeps its own colours and its legend.
 export function FigureView(p: {
   scope: PackageScope;
   view: ResolvedView;

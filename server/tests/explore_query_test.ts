@@ -439,12 +439,11 @@ const M012_BY_TIME: ExploreViewBinding = {
   types: [{ type: "table", rows: "area", cols: "time" }],
 };
 
-// The chart and map types arrive in steps 5 and 6.
+// The map type arrives in step 6.
 const M006_BY_AREA: ExploreViewBinding = {
   ...bound("m006", "coverage_by_area"),
   types: [
     ...bound("m006", "coverage_by_area").types,
-    { type: "chart", axis: "area", values: ["coverage_cov"] },
     { type: "map", values: ["coverage_cov"] },
   ],
 };
@@ -454,24 +453,8 @@ const M010_AREA = bound("m010", "hfa_by_area");
 const M010_VARIANTS = bound("m010", "hfa_variants");
 const M010_RESPONSE = bound("m010", "hfa_response");
 
-// The chart types arrive in step 5.
-const M009_COV: ExploreViewBinding = {
-  ...bound("m009", "iceh_coverage"),
-  types: [
-    bound("m009", "iceh_coverage").types[0],
-    { type: "chart", axis: "category", series: "unit" },
-    bound("m009", "iceh_coverage").types[1],
-  ],
-};
-
-const M009_INEQ: ExploreViewBinding = {
-  ...bound("m009", "iceh_inequality"),
-  types: [
-    bound("m009", "iceh_inequality").types[0],
-    { type: "chart", axis: "category", values: ["cix"] },
-    bound("m009", "iceh_inequality").types[1],
-  ],
-};
+const M009_COV = bound("m009", "iceh_coverage");
+const M009_INEQ = bound("m009", "iceh_inequality");
 
 function resolve(
   binding: ExploreViewBinding,

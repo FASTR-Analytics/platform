@@ -255,9 +255,9 @@ possible values with HFA time points in the instance's declared order, ICEH
 years and stratifiers, and formats and rules), resolves the view again under
 those values and derives the figure config (`deriveViewConfig`), and renders a
 `FrameTop` whose panel is the toolbar and whose content is the body by type:
-`DataTable` for the table, `FigureView` for the over-time type, nothing yet for
-chart and map, and the no-data empty state while no config derives (a pin
-without a value, a pin over the cap, or a pinned time with no period). The
+`DataTable` for the table, `FigureView` for the over-time and chart types,
+nothing yet for the map, and the no-data empty state while no config derives (a
+pin without a value, a pin over the cap, or a pinned time with no period). The
 toolbar (`toolbar.tsx`) is built from the roles of the resolved view. Its top
 row is the selectors row and, for the table, the find box and Download at the
 right (`TableTools`; the frame holds the find text and the Download action the
@@ -307,26 +307,35 @@ its stamped reason, no view) and the body's (no data, too many cells: narrow the
 indicators or coarsen the grain); no ready package is `explore.tsx`'s own.
 
 **Figure view** (`explore/figure_view.tsx`) is the body of the figure types,
-today the over-time type. The derived config (`deriveViewConfig` for
-`timeseries`: the category as `cell`, the unit as `series` when the type puts it
-there, else the values as the lines, the time column as `timeseriesGrouping`
-(the grain for months, else the year), the chosen category values as a filter,
-the window as `periodFilter` for months or the chosen years as a filter, a
-pinned area or facet as the replicant when the metric requires it, else as a
-filter, the style borrowed from the metric's first over-time preset, else the
-defaults, with `content: "lines"` and the legend hidden when every pane holds
-one line, and `t` empty, since the view's name is the caption) is fetched and
-built through `createFigurePreview` (S11's one path for a figure that is not a
-row, so it shares the scope-keyed items cache with products) and rendered by
-panther's `FigureHolder` at its ideal height in a pane that scrolls, with the
-default `sizing="reflow"`, which lays the figure out at the container width so
-one design unit is one CSS pixel and lines are as crisp as the UI, under S10's
+today the over-time and chart types. The derived config is fetched and built
+through `createFigurePreview` (S11's one path for a figure that is not a row, so
+it shares the scope-keyed items cache with products) and rendered by panther's
+`FigureHolder` at its ideal height in a pane that scrolls, with the default
+`sizing="reflow"`, which lays the figure out at the container width so one
+design unit is one CSS pixel and lines are as crisp as the UI, under S10's
 `liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's text size,
-abbreviated ticks). A view whose every pane holds one line (`hasOneLinePerPane`,
-the rule the config's hidden legend shares) draws it in the success colour; one
-with several lines keeps the figure's own colours and its legend. The over-time
-type is bound only where the metric's time column is a period column: never for
-HFA.
+abbreviated ticks). For the over-time type `deriveViewConfig` puts the category
+on `cell`, the unit on `series` when the type puts it there, else the values as
+the lines, the time column as `timeseriesGrouping` (the grain for months, else
+the year), the chosen category values as a filter, the window as `periodFilter`
+for months or the chosen years as a filter, a pinned area or facet as the
+replicant when the metric requires it, else as a filter, the style borrowed from
+the metric's first over-time preset, else the defaults, with `content: "lines"`
+and the legend hidden when every pane holds one line, and `t` empty, since the
+view's name is the caption; a view whose every pane holds one line
+(`hasOneLinePerPane`, the rule the hidden legend shares) draws it in the success
+colour, and one with several lines keeps the figure's own colours and its
+legend. The over-time type is bound only where the metric's time column is a
+period column: never for HFA. For the chart type it puts the type's `axis` role
+(the area at the level, or the category) on `indicator`, the unit on `series`
+when the type puts it there, else the values as the series, the pinned time as a
+filter (the latest year chosen, else the latest available), a pinned category or
+facet as the replicant when the metric requires it, else as a filter, the type's
+`values` as `valuesFilter`, and the style borrowed from the metric's first chart
+preset, else the defaults: the m006 coverage bars (`single-grey`, data labels,
+sorted descending), the ICEH equiplot (horizontal points and connectors) and the
+ICEH inequality chart (horizontal points, `single-grey`, sorted descending). The
+chart keeps the figure's own colours and legend.
 
 ## lib config semantics
 
@@ -455,7 +464,8 @@ the area the replicant; over time with the types as lines, one pane per
 indicator). m006 "Coverage over time" (over time only, national or by level with
 the area the replicant, the three estimates as lines under the coverage chart
 style) and "Coverage by area" (a table of areas by indicator at one year, the
-HMIS coverage value only). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose
+HMIS coverage value only; a chart of bars by area under one indicator, the
+replicant, at one year). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose
 one value is the HMIS coverage of m6-02-01 and m6-03-01. m010 "Indicators by
 survey round" (a table of HFA indicators by round, under one HFA category, a
 filter, with the category narrowing the indicator options), "Indicators by area"
@@ -466,10 +476,12 @@ forward from the round that last measured them, the tables coloured by the HFA
 threshold style; "Don't-know and missing rates" (a table of indicators by round
 under one category, a switch over the two rates, the default style). m009
 "Coverage by population group" (a table of population groups by indicator at one
-year, under one stratifier, a filter; over time with the groups as lines, one
-pane per indicator) and "Inequality measures" (a table of indicators by the four
-measures at one year, under one stratifier, the replicant; over time as the
-concentration index, one line per indicator).
+year, under one stratifier, a filter; the equiplot, indicators on the axis with
+the groups as series at one year; over time with the groups as lines, one pane
+per indicator) and "Inequality measures" (a table of indicators by the four
+measures at one year, under one stratifier, the replicant; a chart of the
+concentration index by indicator at one year; over time as the concentration
+index, one line per indicator).
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a
@@ -508,8 +520,8 @@ replicant as a `replicant` entry plus `selectedReplicantValue`, a filter as one
 preset of the same type, else `DEFAULT_S_CONFIG` plus `cfMode: "indicator"` for
 an indicator-format metric, with the over-time overrides, and `t` empty;
 undefined while a pin has no value (pending, over the cap, no values) or a
-pinned time has no period. The chart and map derivations have no renderer yet.
-Tested in `server/tests/explore_query_test.ts`.
+pinned time has no period. The map derivation has no renderer yet. Tested in
+`server/tests/explore_query_test.ts`.
 
 ## Replicant machinery
 

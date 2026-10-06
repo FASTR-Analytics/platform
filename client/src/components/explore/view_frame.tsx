@@ -47,7 +47,8 @@ export type ViewFrameProps = {
 // The active metric is resolved first, without possible values, which it
 // does not depend on; its metric info is read once, tracked; the view is
 // resolved again under the metric's own possible values, and the body by
-// type takes the derived config.
+// type takes the derived config: the data table for the table, the figure
+// view for the over-time and chart types.
 export function ViewFrame(p: ViewFrameProps) {
   const input = createMemo((): Omit<ResolveViewInput, "possibleValues"> => ({
     binding: p.binding,
@@ -241,7 +242,10 @@ function MetricFrame(
                           setDownload={(fn) => setDownload(() => fn)}
                         />
                       </Match>
-                      <Match when={v().type.type === "timeseries"}>
+                      <Match
+                        when={v().type.type === "timeseries" ||
+                          v().type.type === "chart"}
+                      >
                         <FigureView scope={p.scope} view={v()} derived={d()} />
                       </Match>
                     </Switch>
