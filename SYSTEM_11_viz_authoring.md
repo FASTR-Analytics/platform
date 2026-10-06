@@ -236,16 +236,17 @@ types when it offers more than one. The module select is built in `explore.tsx`,
 where the family's modules and the resolved module are, and passed to
 `ModuleView` as `moduleSelect`. The selects are at the default size, `fullWidth`
 in fixed-width wrappers (20rem and 28rem): they are the page's navigation below
-the family tabs, and the query controls, find and Download beneath them stay
-`sm`. The row wraps, since the widths are fixed. A view is one named reading of
-a module, a binding in `lib/explore_views.ts` ("Explore query model" below), and
-`viewsForModule` is the one place that says which views a module offers: the
-module's bindings whose metric the package carries and stamps ready. Adding a
-metric to a module is two declarations: a preset for products and a binding for
-Explore. Today m012 binds "Service counts" with a table and an over-time type; a
-module whose views are all withheld, or that has no binding, shows the no-view
-state, and a module with no ready metric shows the stamped reason, each under
-the same row in a `FrameTop`.
+the family tabs; the query controls beneath them stay `sm`, as do the table's
+find and Download at the right of the top row. The row wraps, since the widths
+are fixed. A view is one named reading of a module, a binding in
+`lib/explore_views.ts` ("Explore query model" below), and `viewsForModule` is
+the one place that says which views a module offers: the module's bindings whose
+metric the package carries and stamps ready. Adding a metric to a module is two
+declarations: a preset for products and a binding for Explore. Today m012 binds
+"Service counts" with a table and an over-time type; a module whose views are
+all withheld, or that has no binding, shows the no-view state, and a module with
+no ready metric shows the stamped reason, each under the same row in a
+`FrameTop`.
 
 **The frame** (`view_frame.tsx`) owns one view. It resolves the active metric
 first (`resolveView` without possible values, which the metric does not depend
