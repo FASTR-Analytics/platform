@@ -3,6 +3,7 @@ import { t3, type TranslatableString } from "lib";
 export type EmptyStateKind =
   | "no_modules"
   | "no_metric"
+  | "no_view"
   | "no_data_available"
   | "too_many_cells";
 
@@ -17,6 +18,11 @@ const MESSAGES: Record<EmptyStateKind, TranslatableString> = {
     en: "This module produced no metric in this package",
     fr: "Ce module n'a produit aucun indicateur dans ce paquet",
     pt: "Este módulo não produziu nenhuma métrica neste pacote",
+  },
+  no_view: {
+    en: "No view is available for this module in this package",
+    fr: "Aucune vue n'est disponible pour ce module dans ce paquet",
+    pt: "Nenhuma vista está disponível para este módulo neste pacote",
   },
   no_data_available: {
     en: "No data for this selection",
@@ -33,9 +39,9 @@ const MESSAGES: Record<EmptyStateKind, TranslatableString> = {
   },
 };
 
-// The Explore page's empty states: the page's own (no modules, no metric,
-// with the metric's stamped reason when it has one) and the body's (no data,
-// too many cells).
+// The Explore page's empty states: the page's own (no modules, no metric
+// with the metric's stamped reason when it has one, no view offered) and
+// the body's (no data, too many cells).
 export function EmptyState(p: { kind: EmptyStateKind; reason?: string }) {
   return (
     <div class="text-base-content-muted text-sm">

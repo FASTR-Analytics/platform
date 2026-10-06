@@ -2,8 +2,6 @@ import {
   type APIResponseWithData,
   type DatasetType,
   type DerivedConfig,
-  type ExploreLevel,
-  type FamilyQuery,
   type FigureBundle,
   type GenericLongFormFetchConfig,
   getFetchConfigFromPresentationObjectConfig,
@@ -12,7 +10,6 @@ import {
   type MetricWithStatus,
   type PackageScope,
   type PresentationObjectConfig,
-  type ResolvedView,
   resolveEffectiveIndicatorFacts,
   type ResultsValueInfoForPresentationObject,
   t3,
@@ -22,26 +19,13 @@ import {
   dataGridPropsFromTableData,
   downloadCsv,
   foldString,
-  FrameTop,
   getTableDataTransformed,
   matchesSearch,
   searchTokens,
-  type SelectOption,
   StateHolderWrapper,
 } from "panther";
-import {
-  createMemo,
-  createSignal,
-  type JSX,
-  Match,
-  Show,
-  Switch,
-} from "solid-js";
-import {
-  createTrackedQuery,
-  DroppedIndicatorsNotice,
-  EmptyState,
-} from "../_shared/mod.ts";
+import { createEffect, createMemo, Match, onCleanup, Switch } from "solid-js";
+import { createTrackedQuery, EmptyState } from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
@@ -54,42 +38,31 @@ import {
 } from "~/state/products/t2_grid_items";
 import { gridCellFunction } from "./cell_function";
 import { columnLabel, Grid, type GridProps } from "./grid";
-import { Toolbar } from "./toolbar";
 
-const NATIONAL_LABEL = { en: "National", fr: "National", pt: "Nacional" };
-
-// The Data table view: the resolved view's metric read as a grid through the
-// derived table config. The page resolves the view and derives the config;
-// this reads the rows, pivots them and renders the grid. `selectors` is the
-// page's module, view and type selects, placed first in the toolbar.
+// The Data table body: the derived table config's rows read as a grid,
+// pivoted and rendered. The frame owns the toolbar; it passes the find text
+// in and takes the Download action back through `setDownload`, which is
+// undefined until a grid is built.
 export function DataTable(p: {
   scope: PackageScope;
   family: DatasetType;
-  view: ResolvedView;
-  derived: DerivedConfig | undefined;
+  derived: DerivedConfig;
   info: ResultsValueInfoForPresentationObject;
-  selectors: JSX.Element;
-  onChange: (patch: Partial<FamilyQuery>) => void;
-  onCategoryChange: (ids: string[]) => void;
-  onClearDropped: () => void;
+  find: string;
+  setDownload: (download: (() => void) | undefined) => void;
 }) {
-  const [find, setFind] = createSignal("");
-
   // What one grid read is for. Only a change of fetch config, metric or
   // layout makes a new one, and the grid is built from the config its rows
   // were read for, never from a newer config paired with older rows.
   const readSpec = createMemo(
-    (): ReadSpec | undefined => {
-      const d = p.derived;
-      return d === undefined ? undefined : {
-        fetchConfig: getFetchConfigFromPresentationObjectConfig(
-          d.metric,
-          d.config,
-        ),
-        config: d.config,
-        metric: d.metric,
-      };
-    },
+    (): ReadSpec => ({
+      fetchConfig: getFetchConfigFromPresentationObjectConfig(
+        p.derived.metric,
+        p.derived.config,
+      ),
+      config: p.derived.config,
+      metric: p.derived.metric,
+    }),
     undefined,
     { equals: sameReadSpec },
   );
@@ -98,12 +71,6 @@ export function DataTable(p: {
     (): Promise<APIResponseWithData<GridRead>> => {
       const spec = readSpec();
       const scope = p.scope;
-      if (spec === undefined) {
-        return Promise.resolve({
-          success: false,
-          err: "No read without a config",
-        });
-      }
       if (spec.fetchConfig.success === false) {
         return Promise.resolve(spec.fetchConfig);
       }
@@ -160,87 +127,52 @@ export function DataTable(p: {
     }));
   });
   const focusColumnId = createMemo((): string | null => {
-    const tokens = searchTokens(find());
+    const tokens = searchTokens(p.find);
     if (tokens.length === 0) return null;
     return foldedColumnLabels().find((c) => matchesSearch(c.folded, tokens))
       ?.id ?? null;
   });
 
-  const download = () => {
+  createEffect(() => {
     const g = readyGrid();
-    return g === undefined ? undefined : () =>
-      downloadCsv(
-        new Csv({
-          colHeaders: g.columns.map((c) => columnLabel(g, c.id)),
-          rowHeaders: g.rows.map((r) => r.label),
-          aoa: g.cells.map((row) => row.map((cell) => cell?.text ?? "")),
-        }),
-        `${p.family}_data_table.csv`,
-      );
-  };
-
-  const levelOptions = (): SelectOption<ExploreLevel>[] =>
-    (p.view.area?.levels ?? []).map((level) => ({
-      value: level,
-      label: level === "national"
-        ? t3(NATIONAL_LABEL)
-        : t3(getDisplayDisaggregationLabel(level, p.family)),
-    }));
+    p.setDownload(
+      g === undefined ? undefined : () =>
+        downloadCsv(
+          new Csv({
+            colHeaders: g.columns.map((c) => columnLabel(g, c.id)),
+            rowHeaders: g.rows.map((r) => r.label),
+            aoa: g.cells.map((row) => row.map((cell) => cell?.text ?? "")),
+          }),
+          `${p.family}_data_table.csv`,
+        ),
+    );
+  });
+  onCleanup(() => p.setDownload(undefined));
 
   return (
-    <FrameTop
-      panelPad="md"
-      panelSpy="sm"
-      panelChildren={
-        <>
-          <Toolbar
-            selectors={p.selectors}
-            view={p.view}
-            levelOptions={levelOptions()}
-            onChange={p.onChange}
-            onCategoryChange={p.onCategoryChange}
-            find={find()}
-            onFind={setFind}
-            onDownload={download()}
-          />
-          <Show when={p.view.droppedIndicators.length > 0}>
-            <DroppedIndicatorsNotice
-              count={p.view.droppedIndicators.length}
-              onClear={p.onClearDropped}
-            />
-          </Show>
-        </>
-      }
-    >
-      <div class="ui-pad-x h-full pb-4">
-        <Show
-          when={readSpec()}
-          fallback={<EmptyState kind="no_data_available" />}
-        >
-          <StateHolderWrapper state={read()}>
-            {(data) => (
-              <Switch>
-                <Match when={data.rows.status !== "ok" && data.rows.status}>
-                  {(status) => <EmptyState kind={status()} />}
-                </Match>
-                <Match when={grid()} keyed>
-                  {(g) =>
-                    g.ok
-                      ? (
-                        <Grid
-                          grid={g.grid}
-                          rowHeaderLabel={rowHeaderLabel()}
-                          focusColumnId={focusColumnId()}
-                        />
-                      )
-                      : <div class="text-danger text-sm">{g.err}</div>}
-                </Match>
-              </Switch>
-            )}
-          </StateHolderWrapper>
-        </Show>
-      </div>
-    </FrameTop>
+    <div class="ui-pad-x h-full pb-4">
+      <StateHolderWrapper state={read()}>
+        {(data) => (
+          <Switch>
+            <Match when={data.rows.status !== "ok" && data.rows.status}>
+              {(status) => <EmptyState kind={status()} />}
+            </Match>
+            <Match when={grid()} keyed>
+              {(g) =>
+                g.ok
+                  ? (
+                    <Grid
+                      grid={g.grid}
+                      rowHeaderLabel={rowHeaderLabel()}
+                      focusColumnId={focusColumnId()}
+                    />
+                  )
+                  : <div class="text-danger text-sm">{g.err}</div>}
+            </Match>
+          </Switch>
+        )}
+      </StateHolderWrapper>
+    </div>
   );
 }
 
@@ -252,11 +184,8 @@ type ReadSpec = {
 
 type GridRead = { rows: GridRows; spec: ReadSpec; scope: PackageScope };
 
-function sameReadSpec(
-  a: ReadSpec | undefined,
-  b: ReadSpec | undefined,
-): boolean {
-  if (a === undefined || b === undefined) return a === b;
+function sameReadSpec(a: ReadSpec | undefined, b: ReadSpec): boolean {
+  if (a === undefined) return false;
   if (
     a.metric.id !== b.metric.id ||
     JSON.stringify(a.config.d.disaggregateBy) !==

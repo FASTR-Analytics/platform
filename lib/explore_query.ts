@@ -106,7 +106,11 @@ export type ResolvedView = {
   query: FamilyQuery;
   droppedIndicators: string[];
   switch:
-    | { value: string; options: { id: string; label: TranslatableString }[] }
+    | {
+      value: string;
+      label: TranslatableString;
+      options: { id: string; label: TranslatableString }[];
+    }
     | undefined;
   // The level select's role: absent when the view has no area role, or the
   // active type drops it and the level does not choose the metric.
@@ -607,16 +611,30 @@ export function resolveView(input: ResolveViewInput): ResolvedView | undefined {
       grain,
     },
     droppedIndicators,
-    switch: switchValue === undefined ? undefined : {
-      value: switchValue,
-      options: switchOptions.map((o) => ({ id: o.id, label: o.label })),
-    },
+    switch: switchValue === undefined || !("switch" in metricBinding)
+      ? undefined
+      : {
+        value: switchValue,
+        label: metricBinding.switch.label,
+        options: switchOptions.map((o) => ({ id: o.id, label: o.label })),
+      },
     area,
     unit,
     category,
     time,
     pins,
   };
+}
+
+// Every pane of an over-time type holds one line: no unit on the series
+// and one value. Such a view hides its legend and colours its line as the
+// page's one series.
+export function hasOneLinePerPane(
+  type: ExploreViewType,
+  metric: MetricWithStatus,
+): boolean {
+  return type.type === "timeseries" && type.series !== "unit" &&
+    (type.values ?? metric.valueProps).length === 1;
 }
 
 type DisaggregateByEntry = PresentationObjectConfig["d"]["disaggregateBy"][
@@ -765,13 +783,12 @@ export function deriveViewConfig(
     }
   }
 
-  const values = type.values ?? metric.valueProps;
   const style = borrowedStyle(metric, type.type, language);
   const s: PresentationObjectConfig["s"] = type.type === "timeseries"
     ? {
       ...style,
       content: "lines",
-      hideLegend: type.series !== "unit" && values.length === 1,
+      hideLegend: hasOneLinePerPane(type, metric),
     }
     : style;
 
