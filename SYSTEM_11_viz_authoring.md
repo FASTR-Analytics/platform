@@ -348,10 +348,10 @@ presets' threshold colouring; m012, m002, m006 and m010 have no map preset and
 take `DEFAULT_S_CONFIG`, with `cfMode: "indicator"` for an indicator-format
 metric. Boundaries the instance lacks for the map's registry and level surface
 as `buildFigureInputs`' `[INFO] Map files not yet uploaded` error through the
-preview's error state. The boundaries are preloaded when the instance stream
-lists them (`preloadGeoJson`, S14); the preview builds after an await, outside
-any tracked scope, so a map built before its boundaries arrived is rebuilt on
-the next change of its config, not when they land.
+preview's error state until they arrive: the preview builds after an await,
+where a boundary read tracks nothing, so the figure view reads the map's
+boundaries (`getGeoJsonSync` for the metric's registry and the map's level) in
+the preview's source, and a map shown before they load rebuilds when they land.
 
 ## lib config semantics
 
