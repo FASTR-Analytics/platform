@@ -82,6 +82,33 @@ const AREA_BY_TIME: ExploreViewType = {
 };
 const OVER_TIME: ExploreViewType = { type: "timeseries" };
 
+// HFA results come observed, or with values carried forward from the round
+// that last measured them.
+const HFA_VALUES_LABEL: TranslatableString = {
+  en: "Values",
+  fr: "Valeurs",
+  pt: "Valores",
+};
+const HFA_OBSERVED: TranslatableString = {
+  en: "Observed",
+  fr: "Observées",
+  pt: "Observados",
+};
+const HFA_CARRIED: TranslatableString = {
+  en: "With carry-forward",
+  fr: "Avec valeurs reportées",
+  pt: "Com valores transportados",
+};
+const HFA_VALUES_SWITCH: ExploreMetricBinding = {
+  switch: {
+    label: HFA_VALUES_LABEL,
+    options: [
+      { id: "observed", label: HFA_OBSERVED, metricId: "m10-01-01" },
+      { id: "carried", label: HFA_CARRIED, metricId: "m10-01-02" },
+    ],
+  },
+};
+
 // Module id → its views in display order. The first type of a view is its
 // default: the table wherever one exists.
 export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
@@ -258,6 +285,81 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
           values: ["coverage_cov"],
         },
       ],
+    },
+  ],
+  m010: [
+    {
+      id: "hfa_by_round",
+      label: {
+        en: "Indicators by survey round",
+        fr: "Indicateurs par vague d'enquête",
+        pt: "Indicadores por ronda de inquérito",
+      },
+      metric: HFA_VALUES_SWITCH,
+      category: "hfa_indicator",
+      facets: ["hfa_category"],
+      types: [{ type: "table", rows: "category", cols: "time" }],
+    },
+    {
+      id: "hfa_by_area",
+      label: {
+        en: "Indicators by area",
+        fr: "Indicateurs par zone",
+        pt: "Indicadores por área",
+      },
+      metric: HFA_VALUES_SWITCH,
+      category: "hfa_indicator",
+      facets: ["hfa_category"],
+      types: [AREA_BY_CATEGORY],
+    },
+    {
+      id: "hfa_variants",
+      label: {
+        en: "Indicators by variant item",
+        fr: "Indicateurs par élément de variante",
+        pt: "Indicadores por item de variante",
+      },
+      metric: {
+        switch: {
+          label: HFA_VALUES_LABEL,
+          options: [
+            { id: "observed", label: HFA_OBSERVED, metricId: "m10-03-01" },
+            { id: "carried", label: HFA_CARRIED, metricId: "m10-03-02" },
+          ],
+        },
+      },
+      unit: "hfa_variant_item",
+      category: "hfa_indicator",
+      facets: ["hfa_category"],
+      types: [{ type: "table", rows: "category", cols: "unit" }],
+    },
+    {
+      id: "hfa_response",
+      label: {
+        en: "Don't-know and missing rates",
+        fr: "Taux de « ne sait pas » et de valeurs manquantes",
+        pt: "Taxas de « não sabe » e de valores em falta",
+      },
+      metric: {
+        switch: {
+          label: { en: "Rate", fr: "Taux", pt: "Taxa" },
+          options: [
+            {
+              id: "dont_know",
+              label: { en: "Don't know", fr: "Ne sait pas", pt: "Não sabe" },
+              metricId: "m10-02-01",
+            },
+            {
+              id: "missing",
+              label: { en: "Missing", fr: "Manquant", pt: "Em falta" },
+              metricId: "m10-02-02",
+            },
+          ],
+        },
+      },
+      category: "hfa_indicator",
+      facets: ["hfa_category"],
+      types: [{ type: "table", rows: "category", cols: "time" }],
     },
   ],
   m011: [

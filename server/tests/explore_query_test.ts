@@ -299,6 +299,45 @@ const METRICS: MetricWithStatus[] = [
     formatAs: "indicator",
   }),
   metric({
+    id: "m10-02-01",
+    moduleId: "m010",
+    dims: ["hfa_indicator", "hfa_category", "admin_area_2", "time_point"],
+    required: ["hfa_indicator", "time_point"],
+  }),
+  metric({
+    id: "m10-02-02",
+    moduleId: "m010",
+    dims: ["hfa_indicator", "hfa_category", "admin_area_2", "time_point"],
+    required: ["hfa_indicator", "time_point"],
+  }),
+  metric({
+    id: "m10-03-01",
+    moduleId: "m010",
+    dims: [
+      "hfa_indicator",
+      "hfa_variant_item",
+      "hfa_category",
+      "admin_area_2",
+      "time_point",
+    ],
+    required: ["hfa_indicator", "hfa_variant_item", "time_point"],
+    formatAs: "indicator",
+    presets: [preset("table", { cfMode: "thresholds" })],
+  }),
+  metric({
+    id: "m10-03-02",
+    moduleId: "m010",
+    dims: [
+      "hfa_indicator",
+      "hfa_variant_item",
+      "hfa_category",
+      "admin_area_2",
+      "time_point",
+    ],
+    required: ["hfa_indicator", "hfa_variant_item", "time_point"],
+    formatAs: "indicator",
+  }),
+  metric({
     id: "m9-01-01",
     moduleId: "m009",
     dims: ["iceh_indicator", "level", "strat", "year"],
@@ -408,36 +447,10 @@ const M006_BY_AREA: ExploreViewBinding = {
   ],
 };
 
-const M010_ROUND: ExploreViewBinding = {
-  id: "hfa_by_round",
-  label: { en: "Indicators by survey round", fr: "" },
-  metric: {
-    switch: {
-      label: { en: "Values", fr: "" },
-      options: [
-        {
-          id: "observed",
-          label: { en: "Observed", fr: "" },
-          metricId: "m10-01-01",
-        },
-        {
-          id: "carried",
-          label: { en: "With carry-forward", fr: "" },
-          metricId: "m10-01-02",
-        },
-      ],
-    },
-  },
-  category: "hfa_indicator",
-  facets: ["hfa_category"],
-  types: [{ type: "table", rows: "category", cols: "time" }],
-};
-
-const M010_AREA: ExploreViewBinding = {
-  ...M010_ROUND,
-  id: "hfa_by_area",
-  types: [{ type: "table", rows: "area", cols: "category" }],
-};
+const M010_ROUND = bound("m010", "hfa_by_round");
+const M010_AREA = bound("m010", "hfa_by_area");
+const M010_VARIANTS = bound("m010", "hfa_variants");
+const M010_RESPONSE = bound("m010", "hfa_response");
 
 const M009_COV: ExploreViewBinding = {
   id: "iceh_coverage",
@@ -1047,6 +1060,82 @@ Deno.test("derive: m010 hfa_by_round is indicators by round under the category f
   );
 });
 
+Deno.test("derive: m010 hfa_by_area is the rolled-up area by indicator at the latest round", () => {
+  const view = resolve(M010_AREA, "hfa");
+  assertEquals(view.area?.levels, ["admin_area_2", "admin_area_3"]);
+  assertEquals(view.area?.placement, "laid_out");
+  assertEquals(view.time?.placement, "pinned");
+  assertEquals(deriveViewConfig(view, "en")?.config.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [ROWS_AA2, {
+      disOpt: "hfa_indicator",
+      disDisplayOpt: "col",
+    }],
+    filterBy: [
+      { disOpt: "hfa_category", values: ["c1"] },
+      { disOpt: "time_point", values: ["Round 2"] },
+    ],
+  });
+});
+
+Deno.test("derive: m010 hfa_variants is indicators by variant item at the latest round, both required dimensions laid out", () => {
+  const view = resolve(M010_VARIANTS, "hfa");
+  assertEquals(view.metric.id, "m10-03-01");
+  assertEquals(view.unit, {
+    dimension: "hfa_variant_item",
+    placement: "laid_out",
+  });
+  assertEquals(view.time?.placement, "pinned");
+  assertEquals(
+    view.pins.map((p) => [p.dimension, p.role, p.replicant]),
+    [["hfa_category", "facet", false]],
+  );
+  const config = deriveViewConfig(view, "en")?.config;
+  assertEquals(config?.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [
+      { disOpt: "hfa_indicator", disDisplayOpt: "row" },
+      { disOpt: "hfa_variant_item", disDisplayOpt: "col" },
+    ],
+    filterBy: [
+      { disOpt: "hfa_category", values: ["c1"] },
+      { disOpt: "time_point", values: ["Round 2"] },
+    ],
+  });
+  assertEquals(config?.s.cfMode, "thresholds");
+  assertEquals(
+    resolve(M010_VARIANTS, "hfa", {
+      choices: { pinned: {}, switch: "carried" },
+    }).metric.id,
+    "m10-03-02",
+  );
+});
+
+Deno.test("derive: m010 hfa_response is indicators by round under a switch over the two rates, in the default style", () => {
+  const view = resolve(M010_RESPONSE, "hfa");
+  assertEquals(view.switch?.value, "dont_know");
+  assertEquals(view.metric.id, "m10-02-01");
+  const config = deriveViewConfig(view, "en")?.config;
+  assertEquals(config?.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [
+      { disOpt: "hfa_indicator", disDisplayOpt: "row" },
+      { disOpt: "time_point", disDisplayOpt: "col" },
+    ],
+    filterBy: [{ disOpt: "hfa_category", values: ["c1"] }],
+  });
+  assertEquals(config?.s, DEFAULT_S_CONFIG);
+  assertEquals(
+    resolve(M010_RESPONSE, "hfa", {
+      choices: { pinned: {}, switch: "missing" },
+    }).metric.id,
+    "m10-02-02",
+  );
+});
+
 Deno.test("derive: m005 denominators is the unit by years, nothing pinned", () => {
   const view = resolve(M005_DENOM, "hmis");
   assertEquals(view.pins, []);
@@ -1205,6 +1294,12 @@ Deno.test("views: a view is offered only for metrics the package carries (R7)", 
   assertEquals(viewsForModule(module("m001", "hmis"), CTX).map((v) => v.id), [
     "consistency",
     "dqa_adequate",
+  ]);
+  assertEquals(viewsForModule(module("m010", "hfa"), CTX).map((v) => v.id), [
+    "hfa_by_round",
+    "hfa_by_area",
+    "hfa_variants",
+    "hfa_response",
   ]);
 });
 
