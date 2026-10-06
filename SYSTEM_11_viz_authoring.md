@@ -12,6 +12,8 @@ globs:
   - lib/derive_default_visualizations.ts
   - lib/disaggregation_labels.ts
   - lib/explore_grid_query.ts
+  - lib/explore_query.ts
+  - lib/explore_views.ts
   - lib/format_nigeria_admin_label.ts
   - lib/get_disaggregator_display_prop.ts
   - lib/group_metrics.ts
@@ -26,6 +28,8 @@ globs:
   - lib/types/presentation_object_defaults.ts
   - lib/types/presentation_objects.ts
   - server/tests/explore_grid_query_test.ts
+  - server/tests/explore_query_test.ts
+  - server/tests/explore_views_test.ts
 docs_absorbed:
 ---
 
