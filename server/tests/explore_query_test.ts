@@ -8,23 +8,19 @@ import {
   type DatasetType,
   DEFAULT_S_CONFIG,
   DEFAULT_T_CONFIG,
-  type DisaggregationOption,
-  type MetricWithStatus,
-  type RunAuthoringContext,
-  type VizPreset,
-} from "lib";
-import {
   deriveViewConfig,
+  type DisaggregationOption,
+  EXPLORE_VIEWS,
   type ExplorePossibleValues,
+  type ExploreViewBinding,
+  type MetricWithStatus,
   periodChoiceId,
   resolveView,
   type ResolveViewInput,
-} from "../../lib/explore_query.ts";
-import {
-  EXPLORE_VIEWS,
-  type ExploreViewBinding,
+  type RunAuthoringContext,
   viewsForModule,
-} from "../../lib/explore_views.ts";
+  type VizPreset,
+} from "lib";
 
 const NATIONAL: string | null = null;
 const KANO: string | null = "Kano";
@@ -565,7 +561,8 @@ Deno.test("level: a byLevel option whose metric the package lacks is not offered
 
 Deno.test("pin: the m012 timeseries drops the area, the m011 admin-area-2 view pins it as the replicant", () => {
   const dropped = resolve(M012, "hmis", { type: "timeseries" });
-  assertEquals(dropped.area?.placement, "dropped");
+  assertEquals(dropped.area, undefined);
+  assertEquals(dropped.query.level, "admin_area_2");
   assertEquals(dropped.pins, []);
   assertEquals(
     deriveViewConfig(dropped, "en")?.config.d.disaggregateBy,

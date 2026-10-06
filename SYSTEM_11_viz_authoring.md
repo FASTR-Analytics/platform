@@ -11,7 +11,6 @@ globs:
   - lib/convert_visualization_type.ts
   - lib/derive_default_visualizations.ts
   - lib/disaggregation_labels.ts
-  - lib/explore_grid_query.ts
   - lib/explore_query.ts
   - lib/explore_views.ts
   - lib/format_nigeria_admin_label.ts
@@ -27,7 +26,6 @@ globs:
   - lib/types/disaggregation_options.ts
   - lib/types/presentation_object_defaults.ts
   - lib/types/presentation_objects.ts
-  - server/tests/explore_grid_query_test.ts
   - server/tests/explore_query_test.ts
   - server/tests/explore_views_test.ts
 docs_absorbed:
@@ -219,91 +217,97 @@ deleted. The admin level it offers and defaults to follows the area the scope
 holds the open family to (`scopeAreaForFamily`), so one scope can pin HMIS to an
 area and leave HFA national. Every selection lives in `state/t4_explore.ts`,
 module level so it outlives the page's mount: the family (`exploreFamily`), the
-module per family (`exploreModules`) and the view per module (`exploreViews`)
-persist in localStorage; the package, the scope (`exploreScopeId`) and the
-per-family query (`exploreQueries`) last the session, so a deleted package can
-never be a stored default. Each is resolved against the package on every read: a
-choice the package lacks falls back to the first offered (the package to the
-pin, else the newest ready one) without being overwritten. The authoring context
-is read through `t2_run_authoring_context`. The page writes nothing: no insert
-into a product, no persisted draft, no copilot, no help buttons.
+module per family (`exploreModules`), the view per module (`exploreViews`) and
+the type per view (`exploreViewTypes`) persist in localStorage; the package, the
+scope (`exploreScopeId`), the per-family query (`exploreQueries`) and the
+per-view choices (`exploreViewChoices`) last the session, so a deleted package
+can never be a stored default. Each is resolved against the package on every
+read: a choice the package lacks falls back to the first offered (the package to
+the pin, else the newest ready one) without being overwritten. The authoring
+context is read through `t2_run_authoring_context`. The page writes nothing: no
+insert into a product, no persisted draft, no copilot, no help buttons.
 
 Under a family tab, `ModuleView` (`module_view.tsx`) fills the pane, and its
 first row in every state is the selectors row: a `SelectV2` over the family's
 modules in module order (`compareModules`), a header entry per tier the family
 has a module in (Primary results, Supporting analyses), then a `SelectV2` over
-the chosen module's views when it has any. The module select is built in
-`explore.tsx`, where the family's modules and the resolved module are, and
-passed to `ModuleView` as `moduleSelect`. Both selects are at the default size,
-`fullWidth` in fixed-width wrappers (20rem and 28rem): they are the page's
-navigation below the family tabs, and the query controls, find and Download
-beneath them stay `sm`. The row wraps, since the widths are fixed. A view is one
-named reading of a module, a metric bound to a presentation, and `viewsFor` in
-`module_view.tsx` is the one place that says which views a module offers:
-"Service counts" (the data table, columns Indicators) and "Service counts over
-time" (the timeseries) for the HMIS primary module's first ready metric
-(`primaryMetricFor`), and nothing for any other module. A view takes the row as
-`selectors` and places it first on its toolbar's top row, with the query
-controls beneath. A module with no view shows a placeholder listing its metrics,
-and a module with no ready metric shows the stamped reason, each under the same
-row in a `FrameTop`. When module definitions declare views, `viewsFor` reads
-them and nothing else on the page changes. The views share the family's
-`GridQuery` and the controls over it (`explore/_shared/query_controls.tsx`:
-indicators, period, grain, the dropped-indicators notice and the `queryEditors`
-pair that keeps dropped indicators through a package switch).
+the chosen module's views when it has any, then a `ButtonGroup` over the view's
+types when it offers more than one. The module select is built in `explore.tsx`,
+where the family's modules and the resolved module are, and passed to
+`ModuleView` as `moduleSelect`. The selects are at the default size, `fullWidth`
+in fixed-width wrappers (20rem and 28rem): they are the page's navigation below
+the family tabs, and the query controls, find and Download beneath them stay
+`sm`. The row wraps, since the widths are fixed. A view is one named reading of
+a module, a binding in `lib/explore_views.ts` ("Explore query model" below), and
+`viewsForModule` is the one place that says which views a module offers: the
+module's bindings whose metric the package carries and stamps ready. Adding a
+metric to a module is two declarations: a preset for products and a binding for
+Explore. Today m012 binds "Service counts" with a table and an over-time type;
+every other module shows a placeholder listing its metrics, and a module with no
+ready metric shows the stamped reason, each under the same row in a `FrameTop`.
+`ModuleView` resolves the view in two reads: the active metric first
+(`resolveView` without possible values, which the metric does not depend on),
+then one tracked read of its metric info (`t2_figure_data`, for the package's
+possible values: HFA time points in the instance's declared order, ICEH years
+and stratifiers, and formats and rules), then the view again under those values
+and `deriveViewConfig` for the figure config, which the table and the timeseries
+take as `{ metric, config }` beside the resolved view. The views share the
+family query and its editors (`explore/_shared/query_controls.tsx`: the
+`queryEditors` pair that keeps dropped indicators through a package switch, the
+indicators, period and grain controls, and the dropped-indicators notice); a
+view's own choices hold its switch option, its pinned values and its category
+values when the category is not the family's indicator dimension, keyed by
+`exploreViewKey`.
 
-**Data table** (`explore/data_table/`) reads its metric as a grid whose rows are
-the unit (admin areas at one level, or an ICEH stratifier's levels) and whose
-columns are indicators or time, the view's choice. Its controls' state is a
-`GridQuery` per family ("Grid query model" below), held in `t4_explore` so a
-package, scope or module change, or leaving the page, never resets it; until the
-user edits a family's query it is `defaultGridQuery` for the current scope.
-Every read resolves the query first (`resolveGridQuery`); indicators the package
-lacks stay in state and a one-line notice above the grid offers Clear. The
-toolbar's top row holds the selectors row (the module and view `SelectV2`s) with
-a find box and Download on the right; the row beneath holds level or stratifier,
-indicators (`MultiSelectSearch`, empty means all), period (`periodChoicesFor`)
-and grain (HMIS Time mode only). The reads are tracked (`createTrackedQuery`,
-`data_table/tracked_query.ts`), so they re-run on any change of the pair or the
-query: the metric info (`t2_figure_data`, for the package's HFA time points, in
-the instance's declared order, ICEH's years and stratifiers, and formats and
-rules) and the grid read (`t2_grid_items`, S9 "The grid read") on the fetch
-config of `deriveGridConfig`'s config. A read carries the config and columns
-mode it was issued for, and the grid is built from those, so a newer query is
-never paired with older rows; a change that leaves the fetch config and columns
-alone makes no new read. The decoded rows go through the canvas table's own
-pipeline, `buildFigureInputs` over a figure bundle built in memory, so the
+**Data table** (`explore/data_table/`) reads the resolved view's metric as a
+grid through the derived table config: rows and columns are the type's axes
+(m012: admin areas at the level, rolled up, by indicators). Its controls
+(`data_table/toolbar.tsx`) are the level select over the view's offered levels,
+the indicators `MultiSelectSearch` (empty means all) when the category is laid
+out, the period select over the time role's choices and the grain select when
+months are laid out, each editing the family query through `queryEditors`; the
+controls show the resolved query, so every control shows what is read. The grid
+read (`t2_grid_items`, S9 "The grid read") is tracked (`createTrackedQuery`,
+`data_table/tracked_query.ts`) on the fetch config of the derived config, and a
+read carries the config it was issued for, so a newer config is never paired
+with older rows; a change that leaves the fetch config, the metric and the
+layout alone makes no new read. The decoded rows go through the canvas table's
+own pipeline, `buildFigureInputs` over a figure bundle built in memory, so the
 effective config, roll-up pin and label, label replacements (indicators, dates,
 Nigeria admin cleaning) and header order are the canvas table's; then panther's
 `getTableDataTransformed` pivot and `dataGridPropsFromTableData` with the cell
 function (`data_table/cell_function.ts`): each value formatted by its
 indicator's effective format (`resolveEffectiveIndicatorFacts`,
-`formatIndicatorValue`), the raw number as the sort key, and HMIS cells coloured
-by the indicator's own threshold rule; HFA and ICEH are uncoloured. `DataGrid`
-fills the height with a hover line beneath, sorts by header click (transient,
-never stored), and scrolls to the first column whose label contains the find
-text (`focusColumnId`). Download saves the grid's text as CSV, in the pivot's
-row order. Its empty states are typed: no preset, no data, and too many cells
-(narrow the indicators or coarsen the grain). No preset, no modules and the
-unavailable metric are the page's shared `explore/_shared/empty_state.tsx`; no
-ready package is `explore.tsx`'s own.
+`formatIndicatorValue`), the indicator read from whichever grid axis the config
+lays the indicator dimension on, the raw number as the sort key, and HMIS cells
+coloured by the indicator's own threshold rule; HFA and ICEH are uncoloured. The
+row header is the row dimension's label. `DataGrid` fills the height with a
+hover line beneath, sorts by header click (transient, never stored), and scrolls
+to the first column whose label contains the find text (`focusColumnId`).
+Download saves the grid's text as CSV, in the pivot's row order. Its empty
+states are typed: no data (also while no config derives), and too many cells
+(narrow the indicators or coarsen the grain). No modules and the unavailable
+metric are the page's shared `explore/_shared/empty_state.tsx`; no ready package
+is `explore.tsx`'s own.
 
-**Timeseries** (`explore/timeseries.tsx`) reads the same metric as lines over
-time, one pane per indicator: `deriveTimeseriesConfig` over the resolved query
-(columns Time, so every window is readable) gives the primary preset with `d`
-replaced by type `timeseries`, the query's grain as `timeseriesGrouping`, the
-indicator dimension as `cell`, the chosen indicators as a filter and the window
-as `periodFilter`, `s` set to lines, since the preset's style is a table's, and
-`t` cleared, since the view's name is the caption. The figure is fetched and
-built through `createFigurePreview` (S11's one path for a figure that is not a
-row, so it shares the scope-keyed items cache with products) and rendered by
-panther's `FigureHolder` at its ideal height in a pane that scrolls, with the
-default `sizing="reflow"`, which lays the figure out at the container width so
-one design unit is one CSS pixel and lines are as crisp as the UI, under S10's
-`liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's text size,
-abbreviated ticks). Its controls are indicators, period and grain; the level
-control is the table's alone, since the lines are the scope's total. HMIS only:
-HFA time points and ICEH years are not period columns.
+**Timeseries** (`explore/timeseries.tsx`) renders the derived over-time config:
+lines over the family grain with one pane per indicator (`deriveViewConfig` for
+the `timeseries` type: the category as `cell`, the grain as
+`timeseriesGrouping`, the chosen indicators as a filter, the window as
+`periodFilter`, the style borrowed from the metric's first over-time preset,
+else the defaults, with `content: "lines"` and the legend hidden when every pane
+has one line, and `t` empty, since the view's name is the caption). The figure
+is fetched and built through `createFigurePreview` (S11's one path for a figure
+that is not a row, so it shares the scope-keyed items cache with products) and
+rendered by panther's `FigureHolder` at its ideal height in a pane that scrolls,
+with the default `sizing="reflow"`, which lays the figure out at the container
+width so one design unit is one CSS pixel and lines are as crisp as the UI,
+under S10's `liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's
+text size, abbreviated ticks) with the success colour for its lines. Its
+controls are the indicators, period and grain; the area is dropped (the lines
+are the scope's total) unless the metric requires it, so the level control is
+the table's. The over-time type is bound only where the metric's time column is
+a period column: never for HFA.
 
 ## lib config semantics
 
@@ -388,39 +392,70 @@ HFA time points and ICEH years are not period columns.
   `getDisaggregatorDisplayProp` / `hasDuplicateDisaggregatorDisplayOptions` are
   deliberately NOT filter-aware (they receive effective configs).
 
-### Grid query model
+### Explore query model
 
-`lib/explore_grid_query.ts` holds the Explore Data table's controls' state as a
-`GridQuery` (family, unit, indicators, period, grain) and the pure steps over
-it; the columns mode (Indicators or Time) is the view's and is passed beside the
-query to `resolveGridQuery` and `deriveGridConfig`. `deriveTimeseriesConfig`
-derives the timeseries view's config from the same query ("Timeseries" above).
-`primaryMetricFor` is the family's primary module's first ready metric by id,
-the one metric the page offers a data table for. `defaultGridQuery` opens at the
-scope's level plus one (a scope with no area for the open family: admin area 2;
-one that holds the family to an area: 3; the area is
-`scopeAreaForFamily(resolveScope(scope).areas, family)`, null for ICEH), every
-indicator, ICEH on its first stratifier, and every period ("All"); in Indicators
-mode HFA and ICEH resolve that to their latest time point or year.
-`resolveGridQuery` maps the query onto what the current package and scope can
-answer on every read and never rewrites the caller's state: an unoffered family
-becomes the first offered, a level becomes one the metric's
-`disaggregationOptions` carry and deeper than the scope (`levelOptionsFor`), a
-stratifier becomes an available one, indicators are intersected with the
-family's dictionary (the dropped ids are returned for the page's notice), and
-time values are intersected with the available ones. Time is never a column
-group: HFA survey rounds and ICEH years are never pooled, so HFA and ICEH in
-Indicators mode resolve to exactly one time point or year (the latest chosen,
-else the latest available), and `deriveGridConfig` returns undefined for such a
-query without one. `deriveGridConfig` takes the primary metric's first preset
-through `deriveConfigFromVizPreset` and replaces `d` whole with a table: the
-unit as `row` (admin levels carry `rollup: true`, position top; ICEH's `level`
-has no roll-up), then the indicator dimension as `col` in Indicators mode, or
-the time dimension as `col` and the indicator dimension as `colGroup` in Time
-mode; filters for the ICEH stratifier, chosen indicators and HFA or ICEH time
-values; HMIS windows as `periodFilter`. `periodChoicesFor` lists the period
-control's choices, offering HFA and ICEH "All" only in Time mode. Tested in
-`server/tests/explore_grid_query_test.ts`.
+`lib/explore_views.ts` holds the bindings: `EXPLORE_VIEWS` maps a module id to
+its views in display order, each an `ExploreViewBinding` naming a metric
+(`{ id }`, `byLevel` with one metric per level, or `switch` with labelled
+options), the roles it reads (`unit`, `category`, `facets`; the `area` role
+exists when the metric is `byLevel` or any type lays `area` out, and the `time`
+role is the metric's time column: the most granular period column for HMIS,
+`time_point` for HFA, `year` for ICEH) and its types, each an `ExploreViewType`
+laying roles out on axes: a table's `rows` and `cols` (an `area` row carries the
+roll-up at the top; `values` puts the value props on the axis), an over-time
+type's panes (the category) and lines (the unit when `series: "unit"`, else the
+values), a chart's `axis` (`area` or `category`) and `series`, a map's area. A
+type's `values` narrows the metric's value props; the first type is the view's
+default. `viewsForModule` applies R7: a view is offered only for metrics the
+package carries and stamps ready, and `byLevel` and `switch` need one ready
+option and offer only those. `UNBOUND_METRICS` lists every non-hidden metric of
+a bound module that no binding reads, with a reason.
+`server/tests/explore_views_test.ts` is the lockstep guard: the pure checks
+always run, and under `FASTR_MODULES_LOCAL_DIR` every binding is checked against
+the module definitions (metrics present and not hidden, role dimensions columns
+of the results object, required non-time dimensions grouped with at most one
+replicant per type, a period column for the over-time type, every non-hidden
+metric of a bound module bound or listed).
+
+`lib/explore_query.ts` holds the state the page keeps and the resolution over
+it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a
+family's views; `ViewChoices` (`switch`, `pinned` values per dimension,
+`category` values for a non-indicator category) are one view's own. Both are
+`undefined` until edited and resolved on every read, never rewritten.
+`resolveView` takes the binding, the chosen type, the family query, the view
+choices, the scope's area for the family, the authoring context and the active
+metric's possible values, and answers a `ResolvedView`: the type (the chosen
+when offered, else the first), the switch option and the metric, the area role
+(the offered levels are a `byLevel` metric's ready keys or the admin dimensions
+the metric carries, deeper than the scope's area when the area is laid out and
+deeper or equal when pinned, `national` only without a scope area; the chosen
+level when offered, else the shallowest; absent when the active type drops the
+area and the level does not choose the metric), each role's placement
+(`category` and `unit` are laid out or pinned, `facets` always pinned, `time`
+laid out or pinned, `area` laid out, else pinned when the metric requires its
+admin dimension, else dropped), the category options (the family's dictionary
+for its indicator dimension, narrowed to a pinned `hfa_category` facet's
+indicators for HFA, the possible values otherwise) with the chosen values among
+them and the dropped indicators for the notice, the time role (months, with
+windows as choices and the grain shown when laid out; years and time points,
+with their values newest first and "All" only when laid out; pinned years and
+time points read the latest chosen, else the latest available; months pinned
+read one window, "All" pooling every month), and the pins in toolbar order
+(area, facets, unit, category), each with its options (the possible values, HFA
+time points in the instance's order, the category options for a pinned
+category), its value (the chosen when among the options, else the first), its
+status (`pending` until the values are served, `too_many_values` at the server's
+cap) and whether it enters the config as the replicant (the metric requires it
+and it is not time-based) or as a filter. `deriveViewConfig` turns a resolved
+view into `{ metric, config }`: `d` from the type's layout and the pins (a
+replicant as a `replicant` entry plus `selectedReplicantValue`, a filter as one
+`filterBy` entry, months as `periodFilter`, years and time points as a
+`filterBy`, `valuesFilter` from the type), `s` borrowed from the metric's first
+preset of the same type, else `DEFAULT_S_CONFIG` plus `cfMode: "indicator"` for
+an indicator-format metric, with the over-time overrides, and `t` empty;
+undefined while a pin has no value (pending, over the cap, no values) or a
+pinned time has no period. The chart and map derivations have no renderer yet.
+Tested in `server/tests/explore_query_test.ts`.
 
 ## Replicant machinery
 

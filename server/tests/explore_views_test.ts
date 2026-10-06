@@ -7,28 +7,24 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   ADMIN_LEVELS,
+  boundMetricIds,
+  deriveViewConfig,
   type DisaggregationOption,
+  EXPLORE_LEVELS,
+  EXPLORE_VIEWS,
+  type ExplorePossibleValues,
+  type ExploreViewBinding,
+  type ExploreViewType,
   getDisaggregationAllowedPresentationOptions,
   type MetricDefinitionGithub,
   type MetricWithStatus,
   MODULE_REGISTRY,
   type ModuleDefinitionGithub,
   moduleDefinitionGithubSchema,
-  type RunAuthoringContext,
-} from "lib";
-import {
-  deriveViewConfig,
-  type ExplorePossibleValues,
   resolveView,
-} from "../../lib/explore_query.ts";
-import {
-  boundMetricIds,
-  EXPLORE_LEVELS,
-  EXPLORE_VIEWS,
-  type ExploreViewBinding,
-  type ExploreViewType,
+  type RunAuthoringContext,
   UNBOUND_METRICS,
-} from "../../lib/explore_views.ts";
+} from "lib";
 import { deriveAvailableDisaggregationOptions } from "../runs/disaggregation_availability.ts";
 
 const MODULES_DIR = Deno.env.get("FASTR_MODULES_LOCAL_DIR");

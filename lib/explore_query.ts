@@ -108,8 +108,10 @@ export type ResolvedView = {
   switch:
     | { value: string; options: { id: string; label: TranslatableString }[] }
     | undefined;
-  // `dimension` is the metric's admin dimension at the level; undefined at
-  // national. `levels` are the offered levels, shallowest first.
+  // The level select's role: absent when the view has no area role, or the
+  // active type drops it and the level does not choose the metric.
+  // `dimension` is the metric's admin dimension at the level, undefined at
+  // national; `levels` are the offered levels, shallowest first.
   area:
     | {
       placement: ExplorePlacement;
@@ -472,19 +474,16 @@ export function resolveView(input: ResolveViewInput): ResolvedView | undefined {
       !carries(metric, level)
     ? undefined
     : level;
-  const area: ResolvedView["area"] = hasArea && level !== undefined
-    ? {
-      placement: areaLaidOut
-        ? "laid_out"
-        : areaDimension !== undefined && isReplicant(metric, areaDimension)
-        ? "pinned"
-        : "dropped",
-      level,
-      levels,
-      dimension: areaDimension,
-      byLevel: "byLevel" in metricBinding,
-    }
-    : undefined;
+  const byLevel = "byLevel" in metricBinding;
+  const placement: ExplorePlacement = areaLaidOut
+    ? "laid_out"
+    : areaDimension !== undefined && isReplicant(metric, areaDimension)
+    ? "pinned"
+    : "dropped";
+  const area: ResolvedView["area"] =
+    hasArea && level !== undefined && (byLevel || placement !== "dropped")
+      ? { placement, level, levels, dimension: areaDimension, byLevel }
+      : undefined;
 
   const pinned = choices?.pinned ?? {};
   const pins: ExplorePin[] = [];

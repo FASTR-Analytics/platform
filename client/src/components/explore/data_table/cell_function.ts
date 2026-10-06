@@ -1,7 +1,7 @@
 import {
   type DatasetType,
+  type DisaggregationDisplayOption,
   type EffectiveIndicatorFacts,
-  type GridColumns,
   thresholdBucketIndex,
 } from "lib";
 import { type DataGridCellFunction, getColor } from "panther";
@@ -9,12 +9,12 @@ import { formatIndicatorValue } from "~/generate_visualization/get_style_from_po
 
 // Each cell formatted by its own indicator's format, the raw number kept as
 // the sort key, and HMIS cells coloured by the indicator's own threshold rule.
-// The indicator is the column in Indicators mode and the column group in Time
-// mode; when the canvas pipeline collapsed a single-indicator axis away,
-// `onlyIndicator` names it.
+// `indicatorAxis` is the grid axis the indicator dimension is laid out on;
+// when the canvas pipeline collapsed a single-indicator axis away, or the
+// indicator is pinned, `onlyIndicator` names it.
 export function gridCellFunction(args: {
   family: DatasetType;
-  columns: GridColumns;
+  indicatorAxis: DisaggregationDisplayOption | undefined;
   facts: EffectiveIndicatorFacts;
   decimalPlaces: 0 | 1 | 2 | 3;
   onlyIndicator: string | undefined;
@@ -23,9 +23,16 @@ export function gridCellFunction(args: {
     if (raw === undefined) return undefined;
     const value = Number(raw);
     if (Number.isNaN(value)) return { text: String(raw) };
-    const indicator =
-      (args.columns === "indicators" ? position.colId : position.colGroupId) ??
-        args.onlyIndicator;
+    const onAxis = args.indicatorAxis === "row"
+      ? position.rowId
+      : args.indicatorAxis === "rowGroup"
+      ? position.rowGroupId
+      : args.indicatorAxis === "col"
+      ? position.colId
+      : args.indicatorAxis === "colGroup"
+      ? position.colGroupId
+      : undefined;
+    const indicator = onAxis ?? args.onlyIndicator;
     const ids = indicator === undefined ? [] : [indicator];
     const text = formatIndicatorValue(
       value,

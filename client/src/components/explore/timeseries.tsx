@@ -1,79 +1,34 @@
-import { resolveScope } from "~/state/instance/t1_store";
 import {
-  type DatasetType,
-  defaultGridQuery,
-  deriveTimeseriesConfig,
-  type GridAvailable,
-  type GridQuery,
-  type MetricWithStatus,
+  type DerivedConfig,
+  type FamilyQuery,
   type PackageScope,
-  periodChoicesFor,
-  resolveGridQuery,
-  type RunAuthoringContext,
-  scopeAreaForFamily,
+  type ResolvedView,
 } from "lib";
-import {
-  FigureHolder,
-  FrameTop,
-  getLanguage,
-  StateHolderWrapper,
-} from "panther";
-import { createMemo, type JSX, Show } from "solid-js";
+import { FigureHolder, FrameTop, StateHolderWrapper } from "panther";
+import { type JSX, Show } from "solid-js";
 import { createFigurePreview } from "~/components/_shared/mod.ts";
 import { liveFigureStyle } from "~/generate_visualization/mod";
 import {
   DroppedIndicatorsNotice,
-  EmptyState,
   GrainControl,
-  indicatorOptions,
   IndicatorsControl,
   PeriodControl,
-  queryEditors,
 } from "./_shared/mod.ts";
+import { GridMessage } from "./data_table/mod.ts";
 
-// HMIS reads no time points or years, so the package offers nothing beyond
-// the authoring context here.
-const NO_TIME_VALUES: GridAvailable = {
-  hfaTimePoints: [],
-  icehYears: [],
-  icehStrats: [],
-};
-
-// The Timeseries view: a metric's indicators as lines over time, one pane
-// per indicator, laid out at the container width so a design unit is a CSS
-// pixel. It shares the family's GridQuery with the data table (indicators,
-// period and grain are its controls) and renders through the same
-// scope-keyed items read as a figure in a product.
+// The Timeseries view: the resolved view's metric as lines over time, one
+// pane per indicator, laid out at the container width so a design unit is a
+// CSS pixel. The page resolves the view and derives the config; this renders
+// it through the same scope-keyed items read as a figure in a product.
 export function Timeseries(p: {
-  ctx: RunAuthoringContext;
   scope: PackageScope;
-  family: DatasetType;
-  metric: MetricWithStatus;
+  view: ResolvedView;
+  derived: DerivedConfig | undefined;
   selectors: JSX.Element;
-  query: GridQuery | undefined;
-  setQuery: (query: GridQuery) => void;
+  onChange: (patch: Partial<FamilyQuery>) => void;
+  onCategoryChange: (ids: string[]) => void;
+  onClearDropped: () => void;
 }) {
-  const intent = (): GridQuery =>
-    p.query ?? defaultGridQuery(
-      p.family,
-      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
-      p.ctx,
-      NO_TIME_VALUES,
-    );
-  const resolved = createMemo(() =>
-    resolveGridQuery(
-      intent(),
-      "time",
-      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
-      p.ctx,
-      NO_TIME_VALUES,
-    )
-  );
-  const { update, clearDropped } = queryEditors(intent, resolved, p.setQuery);
-  const derived = createMemo(() =>
-    deriveTimeseriesConfig(resolved().query, p.ctx, getLanguage())
-  );
-
   return (
     <FrameTop
       panelPad="md"
@@ -82,32 +37,52 @@ export function Timeseries(p: {
         <>
           {p.selectors}
           <div class="ui-gap-sm flex flex-wrap items-end">
-            <IndicatorsControl
-              values={resolved().query.indicators}
-              options={indicatorOptions(p.family, p.ctx)}
-              onChange={(indicators) => update({ indicators })}
-            />
-            <PeriodControl
-              period={resolved().query.period}
-              choices={periodChoicesFor(p.family, "time", NO_TIME_VALUES)}
-              onChange={(period) => update({ period })}
-            />
-            <GrainControl
-              value={resolved().query.grain}
-              onChange={(grain) => update({ grain })}
-            />
+            <Show
+              when={p.view.category?.placement === "laid_out"
+                ? p.view.category
+                : undefined}
+            >
+              {(category) => (
+                <IndicatorsControl
+                  values={category().values}
+                  options={category().options.map((o) => ({
+                    value: o.id,
+                    label: o.label,
+                  }))}
+                  onChange={p.onCategoryChange}
+                />
+              )}
+            </Show>
+            <Show when={p.view.time}>
+              {(time) => (
+                <PeriodControl
+                  period={p.view.query.period}
+                  choices={time().choices}
+                  onChange={(period) => p.onChange({ period })}
+                />
+              )}
+            </Show>
+            <Show when={p.view.time?.grainShown}>
+              <GrainControl
+                value={p.view.query.grain}
+                onChange={(grain) => p.onChange({ grain })}
+              />
+            </Show>
           </div>
-          <Show when={resolved().droppedIndicators.length > 0}>
+          <Show when={p.view.droppedIndicators.length > 0}>
             <DroppedIndicatorsNotice
-              count={resolved().droppedIndicators.length}
-              onClear={clearDropped}
+              count={p.view.droppedIndicators.length}
+              onClear={p.onClearDropped}
             />
           </Show>
         </>
       }
     >
       <div class="ui-pad-x h-full w-full overflow-y-auto pb-4">
-        <Show when={derived()} fallback={<EmptyState kind="no_preset" />}>
+        <Show
+          when={p.derived}
+          fallback={<GridMessage status="no_data_available" />}
+        >
           {(d) => {
             const figure = createFigurePreview(() => ({
               scope: p.scope,

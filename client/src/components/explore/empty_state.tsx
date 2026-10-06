@@ -1,6 +1,6 @@
 import { t3 } from "lib";
 
-export type EmptyStateKind = "no_modules" | "no_metric" | "no_preset";
+export type EmptyStateKind = "no_modules" | "no_metric";
 
 // The Explore page's empty states. `no_metric` shows the metric's stamped
 // reason when it has one.
@@ -15,12 +15,6 @@ export function EmptyState(p: { kind: EmptyStateKind; reason?: string }) {
             "Ce paquet n'a aucun module, il n'y a donc aucun résultat à explorer.",
           pt:
             "Este pacote não tem nenhum módulo, pelo que não há resultados para explorar.",
-        })
-        : p.kind === "no_preset"
-        ? t3({
-          en: "This metric declares no visualization preset",
-          fr: "Cet indicateur ne déclare aucune visualisation prédéfinie",
-          pt: "Esta métrica não declara nenhuma visualização predefinida",
         })
         : p.reason ??
           t3({

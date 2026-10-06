@@ -2,8 +2,8 @@ import {
   ALL_DATA_SCOPE_ID,
   compareModules,
   type DatasetType,
+  type FamilyQuery,
   getModuleFamilyLabel,
-  type GridQuery,
   type InstalledModuleSummary,
   MODULE_FAMILY_ORDER,
   type ModuleTier,
@@ -42,7 +42,7 @@ import {
   setExploreScopeId,
 } from "~/state/t4_explore";
 import { ScopeSelect } from "~/components/_shared/mod.ts";
-import { EmptyState } from "./_shared/mod.ts";
+import { EmptyState } from "./empty_state";
 import { ModuleView } from "./module_view";
 
 function familiesInPackage(ctx: RunAuthoringContext): DatasetType[] {
@@ -231,8 +231,8 @@ function FamilyExplorer(p: {
   ctx: RunAuthoringContext;
   scope: PackageScope;
   family: DatasetType;
-  query: GridQuery | undefined;
-  setQuery: (query: GridQuery) => void;
+  query: FamilyQuery | undefined;
+  setQuery: (query: FamilyQuery) => void;
 }) {
   const modules = createMemo(() => modulesInFamily(p.family, p.ctx));
   const module = createMemo(() => {

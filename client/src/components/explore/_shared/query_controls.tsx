@@ -1,52 +1,39 @@
 import {
-  type DatasetType,
-  type GridGrain,
-  type GridPeriod,
-  type GridPeriodChoice,
-  type GridQuery,
+  type ExploreGrain,
+  type ExplorePeriod,
+  type ExplorePeriodChoice,
+  type FamilyQuery,
   periodChoiceId,
-  type ResolvedGridQuery,
-  type RunAuthoringContext,
   t3,
 } from "lib";
 import { Button, MultiSelectSearch, Select, type SelectOption } from "panther";
 
 // The query controls the Explore views share, each editing one field of the
-// family's GridQuery.
+// family query.
 
-export function indicatorOptions(
-  family: DatasetType,
-  ctx: RunAuthoringContext,
-): SelectOption<string>[] {
-  const entries = family === "hmis"
-    ? ctx.hmisIndicators
-    : family === "hfa"
-    ? ctx.hfaTaxonomy.indicators
-    : ctx.icehIndicators;
-  return entries.map((i) => ({ value: i.id, label: i.label }));
-}
-
-// Editors over the family's query. `update` keeps the indicators the package
-// lacks, so a choice survives a package switch; `clearDropped` forgets them.
+// Editors over the family query. `intent` is the stored query, or the
+// resolved one until the user edits. `update` keeps the indicators the
+// package lacks, so a choice survives a package switch; `clearDropped`
+// forgets them.
 export function queryEditors(
-  intent: () => GridQuery,
-  resolved: () => ResolvedGridQuery,
-  setQuery: (query: GridQuery) => void,
+  intent: () => FamilyQuery,
+  dropped: () => string[],
+  setQuery: (query: FamilyQuery) => void,
 ) {
   return {
-    update: (patch: Partial<GridQuery>) =>
+    update: (patch: Partial<FamilyQuery>) =>
       setQuery({
         ...intent(),
         ...patch,
         ...(patch.indicators === undefined ? {} : {
-          indicators: [...patch.indicators, ...resolved().droppedIndicators],
+          indicators: [...patch.indicators, ...dropped()],
         }),
       }),
     clearDropped: () => {
-      const dropped = new Set(resolved().droppedIndicators);
+      const gone = new Set(dropped());
       setQuery({
         ...intent(),
-        indicators: intent().indicators.filter((id) => !dropped.has(id)),
+        indicators: intent().indicators.filter((id) => !gone.has(id)),
       });
     },
   };
@@ -76,9 +63,9 @@ export function IndicatorsControl(p: {
 }
 
 export function PeriodControl(p: {
-  period: GridPeriod;
-  choices: GridPeriodChoice[];
-  onChange: (period: GridPeriod) => void;
+  period: ExplorePeriod;
+  choices: ExplorePeriodChoice[];
+  onChange: (period: ExplorePeriod) => void;
 }) {
   return (
     <Select
@@ -98,7 +85,7 @@ export function PeriodControl(p: {
   );
 }
 
-const GRAIN_OPTIONS = (): SelectOption<GridGrain>[] => [
+const GRAIN_OPTIONS = (): SelectOption<ExploreGrain>[] => [
   { value: "period_id", label: t3({ en: "Month", fr: "Mois", pt: "Mês" }) },
   {
     value: "quarter_id",
@@ -108,8 +95,8 @@ const GRAIN_OPTIONS = (): SelectOption<GridGrain>[] => [
 ];
 
 export function GrainControl(p: {
-  value: GridGrain;
-  onChange: (grain: GridGrain) => void;
+  value: ExploreGrain;
+  onChange: (grain: ExploreGrain) => void;
 }) {
   return (
     <Select

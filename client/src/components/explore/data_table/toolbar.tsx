@@ -1,8 +1,7 @@
 import {
-  type AdminLevel,
-  type GridColumns,
-  type GridPeriodChoice,
-  type GridQuery,
+  type ExploreLevel,
+  type FamilyQuery,
+  type ResolvedView,
   t3,
 } from "lib";
 import { Button, Input, Select, type SelectOption } from "panther";
@@ -14,18 +13,14 @@ import {
 } from "../_shared/mod.ts";
 
 // The Data table's controls: the page's selectors with find and Download on
-// the top row, the query controls beneath. Each edits the query through
-// `onChange`; the query shown is the resolved one, so every control shows
-// what is read.
+// the top row, the query controls beneath, each from a role of the resolved
+// view, so every control shows what is read.
 export function Toolbar(p: {
   selectors: JSX.Element;
-  columns: GridColumns;
-  query: GridQuery;
-  levelOptions: SelectOption<AdminLevel>[];
-  stratOptions: SelectOption<string>[];
-  indicatorOptions: SelectOption<string>[];
-  periodChoices: GridPeriodChoice[];
-  onChange: (patch: Partial<GridQuery>) => void;
+  view: ResolvedView;
+  levelOptions: SelectOption<ExploreLevel>[];
+  onChange: (patch: Partial<FamilyQuery>) => void;
+  onCategoryChange: (ids: string[]) => void;
   find: string;
   onFind: (find: string) => void;
   onDownload: (() => void) | undefined;
@@ -62,45 +57,45 @@ export function Toolbar(p: {
         </div>
       </div>
       <div class="ui-gap-sm flex flex-wrap items-end">
-        <Show
-          when={p.query.unit.kind === "admin" ? p.query.unit : undefined}
-          keyed
-          fallback={
+        <Show when={p.view.area}>
+          {(area) => (
             <Select
-              value={p.query.unit.kind === "strat"
-                ? p.query.unit.strat
-                : undefined}
-              options={p.stratOptions}
-              onChange={(strat) =>
-                p.onChange({ unit: { kind: "strat", strat } })}
-              size="sm"
-            />
-          }
-        >
-          {(unit) => (
-            <Select
-              value={unit.level}
+              value={area().level}
               options={p.levelOptions}
-              onChange={(level) =>
-                p.onChange({ unit: { kind: "admin", level } })}
+              onChange={(level) => p.onChange({ level })}
               disabled={p.levelOptions.length === 0}
               size="sm"
             />
           )}
         </Show>
-        <IndicatorsControl
-          values={p.query.indicators}
-          options={p.indicatorOptions}
-          onChange={(indicators) => p.onChange({ indicators })}
-        />
-        <PeriodControl
-          period={p.query.period}
-          choices={p.periodChoices}
-          onChange={(period) => p.onChange({ period })}
-        />
-        <Show when={p.query.family === "hmis" && p.columns === "time"}>
+        <Show
+          when={p.view.category?.placement === "laid_out"
+            ? p.view.category
+            : undefined}
+        >
+          {(category) => (
+            <IndicatorsControl
+              values={category().values}
+              options={category().options.map((o) => ({
+                value: o.id,
+                label: o.label,
+              }))}
+              onChange={p.onCategoryChange}
+            />
+          )}
+        </Show>
+        <Show when={p.view.time}>
+          {(time) => (
+            <PeriodControl
+              period={p.view.query.period}
+              choices={time().choices}
+              onChange={(period) => p.onChange({ period })}
+            />
+          )}
+        </Show>
+        <Show when={p.view.time?.grainShown}>
           <GrainControl
-            value={p.query.grain}
+            value={p.view.query.grain}
             onChange={(grain) => p.onChange({ grain })}
           />
         </Show>

@@ -1,27 +1,20 @@
 import {
   type APIResponseWithData,
   type DatasetType,
-  defaultGridQuery,
-  deriveGridConfig,
-  type DisaggregationOption,
+  type DerivedConfig,
+  type ExploreLevel,
+  type FamilyQuery,
   type FigureBundle,
   type GenericLongFormFetchConfig,
   getFetchConfigFromPresentationObjectConfig,
-  type GridAvailable,
-  type GridColumns,
-  type GridQuery,
   hashFetchConfig,
   INDICATOR_DIMENSION,
-  levelOptionsFor,
   type MetricWithStatus,
   type PackageScope,
-  periodChoicesFor,
   type PresentationObjectConfig,
+  type ResolvedView,
   resolveEffectiveIndicatorFacts,
-  resolveGridQuery,
   type ResultsValueInfoForPresentationObject,
-  type RunAuthoringContext,
-  scopeAreaForFamily,
   t3,
 } from "lib";
 import {
@@ -30,10 +23,10 @@ import {
   downloadCsv,
   foldString,
   FrameTop,
-  getLanguage,
   getTableDataTransformed,
   matchesSearch,
   searchTokens,
+  type SelectOption,
   StateHolderWrapper,
 } from "panther";
 import {
@@ -44,21 +37,13 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import {
-  DroppedIndicatorsNotice,
-  EmptyState,
-  indicatorOptions,
-  queryEditors,
-} from "../_shared/mod.ts";
+import { DroppedIndicatorsNotice } from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
   figureScopeStamp,
   getSnapshotInstanceLocalization,
-  instanceState,
-  resolveScope,
 } from "~/state/instance/t1_store";
-import { getResultsValueInfoForPresentationObjectFromCacheOrFetch } from "~/state/products/t2_figure_data";
 import {
   getGridRowsFromCacheOrFetch,
   type GridRows,
@@ -68,117 +53,38 @@ import { columnLabel, Grid, GridMessage, type GridProps } from "./grid";
 import { Toolbar } from "./toolbar";
 import { createTrackedQuery } from "./tracked_query";
 
-// The Data table view: a metric read as a grid of units by indicators or by
-// time, the view's choice. The controls' state is one GridQuery per family,
-// owned by the page so it outlives a package, scope or module change; each
-// read resolves it against the current package and scope, so such a change
-// never rewrites what the user chose. `selectors` is the page's module and
-// view selects, placed first in the toolbar.
+const NATIONAL_LABEL = { en: "National", fr: "National", pt: "Nacional" };
+
+// The Data table view: the resolved view's metric read as a grid through the
+// derived table config. The page resolves the view and derives the config;
+// this reads the rows, pivots them and renders the grid. `selectors` is the
+// page's module, view and type selects, placed first in the toolbar.
 export function DataTable(p: {
-  ctx: RunAuthoringContext;
   scope: PackageScope;
   family: DatasetType;
-  metric: MetricWithStatus;
-  columns: GridColumns;
-  selectors: JSX.Element;
-  query: GridQuery | undefined;
-  setQuery: (query: GridQuery) => void;
-}) {
-  const info = createTrackedQuery(() =>
-    getResultsValueInfoForPresentationObjectFromCacheOrFetch(
-      p.scope,
-      p.metric.id,
-    )
-  );
-  return (
-    <StateHolderWrapper state={info()} loadingAndErrorPad="md">
-      {(metricInfo) => (
-        <ReadyFamilyTable
-          ctx={p.ctx}
-          scope={p.scope}
-          family={p.family}
-          metric={p.metric}
-          columns={p.columns}
-          selectors={p.selectors}
-          info={metricInfo}
-          query={p.query}
-          setQuery={p.setQuery}
-        />
-      )}
-    </StateHolderWrapper>
-  );
-}
-
-function possibleValues(
-  info: ResultsValueInfoForPresentationObject,
-  disOpt: DisaggregationOption,
-): { id: string; label: string }[] {
-  const status = info.disaggregationPossibleValues[disOpt];
-  return status?.status === "ok" ? status.values : [];
-}
-
-function ReadyFamilyTable(p: {
-  ctx: RunAuthoringContext;
-  scope: PackageScope;
-  family: DatasetType;
-  metric: MetricWithStatus;
-  columns: GridColumns;
-  selectors: JSX.Element;
+  view: ResolvedView;
+  derived: DerivedConfig | undefined;
   info: ResultsValueInfoForPresentationObject;
-  query: GridQuery | undefined;
-  setQuery: (query: GridQuery) => void;
+  selectors: JSX.Element;
+  onChange: (patch: Partial<FamilyQuery>) => void;
+  onCategoryChange: (ids: string[]) => void;
+  onClearDropped: () => void;
 }) {
   const [find, setFind] = createSignal("");
 
-  // The package's own time points and years, from the metric info. HFA
-  // rounds take the instance's declared order; one the instance no longer
-  // lists goes last.
-  const available = createMemo((): GridAvailable => ({
-    hfaTimePoints: hfaTimePointsInOrder(
-      possibleValues(p.info, "time_point").map((v) => v.id),
-    ),
-    icehYears: possibleValues(p.info, "year")
-      .map((v) => v.id)
-      .toSorted((a, b) => Number(a) - Number(b)),
-    icehStrats: possibleValues(p.info, "strat").map((v) => v.id),
-  }));
-
-  // Until the user edits it, the family's query is the default for the
-  // current scope, so it follows a scope change.
-  const intent = (): GridQuery =>
-    p.query ?? defaultGridQuery(
-      p.family,
-      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
-      p.ctx,
-      available(),
-    );
-  const resolved = createMemo(() =>
-    resolveGridQuery(
-      intent(),
-      p.columns,
-      scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
-      p.ctx,
-      available(),
-    )
-  );
-  const { update, clearDropped } = queryEditors(intent, resolved, p.setQuery);
-
-  const derived = createMemo(() =>
-    deriveGridConfig(resolved().query, p.columns, p.ctx, getLanguage())
-  );
-  // What one grid read is for. Only a change of fetch config or columns
-  // makes a new one, and the grid is built from the config and columns its
-  // rows were read for, never from a newer query paired with older rows.
+  // What one grid read is for. Only a change of fetch config, metric or
+  // layout makes a new one, and the grid is built from the config its rows
+  // were read for, never from a newer config paired with older rows.
   const readSpec = createMemo(
     (): ReadSpec | undefined => {
-      const d = derived();
+      const d = p.derived;
       return d === undefined ? undefined : {
         fetchConfig: getFetchConfigFromPresentationObjectConfig(
           d.metric,
           d.config,
         ),
         config: d.config,
-        columns: p.columns,
+        metric: d.metric,
       };
     },
     undefined,
@@ -200,7 +106,7 @@ function ReadyFamilyTable(p: {
       }
       return getGridRowsFromCacheOrFetch(
         scope,
-        p.metric.resultsObjectId,
+        spec.metric.resultsObjectId,
         spec.fetchConfig.data,
       ).then((res) =>
         res.success
@@ -209,14 +115,6 @@ function ReadyFamilyTable(p: {
       );
     },
   );
-
-  const rowHeaderLabel = createMemo(() => {
-    const unit = resolved().query.unit;
-    return unit.kind === "admin"
-      ? t3(getDisplayDisaggregationLabel(unit.level, p.family))
-      : possibleValues(p.info, "strat").find((v) => v.id === unit.strat)
-        ?.label ?? unit.strat;
-  });
 
   const grid = createMemo((): GridBuild | undefined => {
     const state = read();
@@ -227,8 +125,7 @@ function ReadyFamilyTable(p: {
     return buildGrid({
       rows,
       config: spec.config,
-      columns: spec.columns,
-      metric: p.metric,
+      metric: spec.metric,
       info: p.info,
       scope,
       family: p.family,
@@ -238,6 +135,19 @@ function ReadyFamilyTable(p: {
     const g = grid();
     return g?.ok ? g.grid : undefined;
   };
+
+  // The row dimension of the config the rows were read for.
+  const rowHeaderLabel = createMemo((): string => {
+    const state = read();
+    const dim = state.status === "ready"
+      ? state.data.spec.config.d.disaggregateBy.find((e) =>
+        e.disDisplayOpt === "row"
+      )?.disOpt
+      : undefined;
+    return dim === undefined
+      ? ""
+      : t3(getDisplayDisaggregationLabel(dim, p.family));
+  });
 
   const foldedColumnLabels = createMemo(() => {
     const g = readyGrid();
@@ -266,6 +176,14 @@ function ReadyFamilyTable(p: {
       );
   };
 
+  const levelOptions = (): SelectOption<ExploreLevel>[] =>
+    (p.view.area?.levels ?? []).map((level) => ({
+      value: level,
+      label: level === "national"
+        ? t3(NATIONAL_LABEL)
+        : t3(getDisplayDisaggregationLabel(level, p.family)),
+    }));
+
   return (
     <FrameTop
       panelPad="md"
@@ -274,30 +192,18 @@ function ReadyFamilyTable(p: {
         <>
           <Toolbar
             selectors={p.selectors}
-            columns={p.columns}
-            query={resolved().query}
-            levelOptions={levelOptionsFor(
-              p.metric,
-              scopeAreaForFamily(resolveScope(p.scope).areas, p.family),
-            ).map((level) => ({
-              value: level,
-              label: t3(getDisplayDisaggregationLabel(level, p.family)),
-            }))}
-            stratOptions={possibleValues(p.info, "strat").map((v) => ({
-              value: v.id,
-              label: v.label,
-            }))}
-            indicatorOptions={indicatorOptions(p.family, p.ctx)}
-            periodChoices={periodChoicesFor(p.family, p.columns, available())}
-            onChange={update}
+            view={p.view}
+            levelOptions={levelOptions()}
+            onChange={p.onChange}
+            onCategoryChange={p.onCategoryChange}
             find={find()}
             onFind={setFind}
             onDownload={download()}
           />
-          <Show when={resolved().droppedIndicators.length > 0}>
+          <Show when={p.view.droppedIndicators.length > 0}>
             <DroppedIndicatorsNotice
-              count={resolved().droppedIndicators.length}
-              onClear={clearDropped}
+              count={p.view.droppedIndicators.length}
+              onClear={p.onClearDropped}
             />
           </Show>
         </>
@@ -306,9 +212,7 @@ function ReadyFamilyTable(p: {
       <div class="ui-pad-x h-full pb-4">
         <Show
           when={readSpec()}
-          fallback={(p.metric.vizPresets?.length ?? 0) === 0
-            ? <EmptyState kind="no_preset" />
-            : <GridMessage status="no_data_available" />}
+          fallback={<GridMessage status="no_data_available" />}
         >
           <StateHolderWrapper state={read()}>
             {(data) => (
@@ -340,7 +244,7 @@ function ReadyFamilyTable(p: {
 type ReadSpec = {
   fetchConfig: APIResponseWithData<GenericLongFormFetchConfig>;
   config: PresentationObjectConfig;
-  columns: GridColumns;
+  metric: MetricWithStatus;
 };
 
 type GridRead = { rows: GridRows; spec: ReadSpec; scope: PackageScope };
@@ -350,23 +254,19 @@ function sameReadSpec(
   b: ReadSpec | undefined,
 ): boolean {
   if (a === undefined || b === undefined) return a === b;
-  if (a.columns !== b.columns) return false;
+  if (
+    a.metric.id !== b.metric.id ||
+    JSON.stringify(a.config.d.disaggregateBy) !==
+      JSON.stringify(b.config.d.disaggregateBy)
+  ) {
+    return false;
+  }
   const fa = a.fetchConfig;
   const fb = b.fetchConfig;
   if (fa.success && fb.success) {
     return hashFetchConfig(fa.data) === hashFetchConfig(fb.data);
   }
   return !fa.success && !fb.success && fa.err === fb.err;
-}
-
-function hfaTimePointsInOrder(ids: string[]): string[] {
-  const order = new Map(
-    instanceState.hfaTimePoints.map((tp) => [tp.label, tp.sortOrder]),
-  );
-  return ids.toSorted((a, b) =>
-    (order.get(a) ?? Number.MAX_SAFE_INTEGER) -
-      (order.get(b) ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b)
-  );
 }
 
 type GridBuild = { ok: true; grid: GridProps } | { ok: false; err: string };
@@ -381,7 +281,6 @@ function buildGrid(args: {
   info: ResultsValueInfoForPresentationObject;
   scope: PackageScope;
   family: DatasetType;
-  columns: GridColumns;
 }): GridBuild {
   const { rows, config, metric, info } = args;
   const bundle: FigureBundle = {
@@ -420,7 +319,9 @@ function buildGrid(args: {
       getTableDataTransformed(inputs.data),
       gridCellFunction({
         family: args.family,
-        columns: args.columns,
+        indicatorAxis: config.d.disaggregateBy.find((e) =>
+          e.disOpt === indicatorDim
+        )?.disDisplayOpt,
         facts,
         decimalPlaces: config.s.decimalPlaces,
         onlyIndicator: indicators.size === 1 ? [...indicators][0] : undefined,

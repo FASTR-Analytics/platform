@@ -1,18 +1,22 @@
 import {
   ALL_DATA_SCOPE_ID,
   type DatasetType,
-  type GridQuery,
+  type ExploreViewTypeId,
+  type FamilyQuery,
   MODULE_FAMILY_ORDER,
   type ScopeId,
+  type ViewChoices,
 } from "lib";
 import { createSignal } from "solid-js";
 
 // The Explore page's selections, module level so they outlive the page's
 // mount. Each is resolved against the current package on every read, so a
 // choice the package cannot answer falls back without being overwritten.
-// The family, the module per family and the view per module persist in
-// localStorage; the package, the scope and the query controls last the
-// session, since a stored package id could outlive its package.
+// The family, the module per family, the view per module and the type per
+// view persist in localStorage; the package, the scope, the family queries
+// and the view choices last the session, since a stored package id could
+// outlive its package. Per-view state is keyed by the view key
+// (`exploreViewKey`).
 
 function readStored<T extends string>(key: string): Record<string, T> {
   try {
@@ -60,6 +64,15 @@ export function setExploreView(moduleId: string, viewId: string) {
   setExploreViewsInternal(next);
 }
 
+export const [exploreViewTypes, setExploreViewTypesInternal] = createSignal<
+  Record<string, string>
+>(readStored("exploreViewTypes"));
+export function setExploreViewType(viewKey: string, type: ExploreViewTypeId) {
+  const next = { ...exploreViewTypes(), [viewKey]: type };
+  localStorage.setItem("exploreViewTypes", JSON.stringify(next));
+  setExploreViewTypesInternal(next);
+}
+
 export const [explorePackageId, setExplorePackageId] = createSignal<
   string | null
 >(null);
@@ -68,10 +81,20 @@ export const [exploreScopeId, setExploreScopeId] = createSignal<ScopeId>(
   ALL_DATA_SCOPE_ID,
 );
 
-type QueriesByFamily = Partial<Record<DatasetType, GridQuery>>;
+type QueriesByFamily = Partial<Record<DatasetType, FamilyQuery>>;
 export const [exploreQueries, setExploreQueriesInternal] = createSignal<
   QueriesByFamily
 >({});
-export function setExploreQuery(family: DatasetType, query: GridQuery) {
+export function setExploreQuery(family: DatasetType, query: FamilyQuery) {
   setExploreQueriesInternal({ ...exploreQueries(), [family]: query });
+}
+
+export const [exploreViewChoices, setExploreViewChoicesInternal] = createSignal<
+  Record<string, ViewChoices>
+>({});
+export function setExploreViewChoices(viewKey: string, choices: ViewChoices) {
+  setExploreViewChoicesInternal({
+    ...exploreViewChoices(),
+    [viewKey]: choices,
+  });
 }
