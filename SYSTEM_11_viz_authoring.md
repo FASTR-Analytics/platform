@@ -242,11 +242,10 @@ are fixed. A view is one named reading of a module, a binding in
 `lib/explore_views.ts` ("Explore query model" below), and `viewsForModule` is
 the one place that says which views a module offers: the module's bindings whose
 metric the package carries and stamps ready. Adding a metric to a module is two
-declarations: a preset for products and a binding for Explore. Today m012 binds
-"Service counts" with a table and an over-time type; a module whose views are
-all withheld, or that has no binding, shows the no-view state, and a module with
-no ready metric shows the stamped reason, each under the same row in a
-`FrameTop`.
+declarations: a preset for products and a binding for Explore. The bindings are
+listed under "Explore query model" below; a module whose views are all withheld,
+or that has no binding, shows the no-view state, and a module with no ready
+metric shows the stamped reason, each under the same row in a `FrameTop`.
 
 **The frame** (`view_frame.tsx`) owns one view. It resolves the active metric
 first (`resolveView` without possible values, which the metric does not depend
@@ -265,11 +264,12 @@ right (`TableTools`; the frame holds the find text and the Download action the
 table hands back once its grid is built). Its second row is the switch select
 (labelled with the binding's switch label), the level select over the offered
 levels, a select per pinned dimension in toolbar order (area, facets, unit,
-category), the indicators `MultiSelectSearch` when the category is laid out
-(empty means all), the period select over the time role's choices and the grain
-select when months are laid out. A control appears only when its role is present
-and its options number more than one, except the level and period selects, which
-always appear with their role; a pinned dimension the server caps
+category), the category `MultiSelectSearch` when the category is laid out (empty
+means all; the placeholder names the dimension when the category is not the
+family's indicators), the period select over the time role's choices and the
+grain select when months are laid out. A control appears only when its role is
+present and its options number more than one, except the level and period
+selects, which always appear with their role; a pinned dimension the server caps
 (`too_many_values`) shows the cap message where its select would be, the same
 limit the editor's replicant list states, and the body shows no data. The
 controls show the resolved view, so every control shows what is read. The
@@ -432,6 +432,14 @@ the module definitions (metrics present and not hidden, role dimensions columns
 of the results object, required non-time dimensions grouped with at most one
 replicant per type, a period column for the over-time type, every non-hidden
 metric of a bound module bound or listed).
+
+The bindings today, each view with its types in order, the first the default:
+m012 "Service counts" (a table of areas by indicator; over time). m001
+"Outliers", "Completeness" and "Internal consistency" (a table of areas by
+indicator, for consistency by ratio type; over time, one pane per indicator or
+ratio type), "Facilities with adequate data quality" and "Mean data quality
+score" (a table of areas by period; over time as one line). The HFA and ICEH
+modules have no binding yet.
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a

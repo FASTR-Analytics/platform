@@ -122,11 +122,7 @@ export function Toolbar(p: {
                   label: o.label,
                 }))}
                 onChange={p.onCategory}
-                placeholder={t3({
-                  en: `All indicators (${category().options.length})`,
-                  fr: `Tous les indicateurs (${category().options.length})`,
-                  pt: `Todos os indicadores (${category().options.length})`,
-                })}
+                placeholder={categoryPlaceholder(category(), p.family)}
                 fullWidth
                 size="sm"
               />
@@ -168,6 +164,28 @@ export function Toolbar(p: {
       </Show>
     </div>
   );
+}
+
+// Empty means all. The family's indicators are named as such; any other
+// category is named by its dimension.
+function categoryPlaceholder(
+  category: NonNullable<ResolvedView["category"]>,
+  family: DatasetType,
+): string {
+  const n = category.options.length;
+  if (category.isIndicator) {
+    return t3({
+      en: `All indicators (${n})`,
+      fr: `Tous les indicateurs (${n})`,
+      pt: `Todos os indicadores (${n})`,
+    });
+  }
+  const label = t3(getDisplayDisaggregationLabel(category.dimension, family));
+  return t3({
+    en: `${label}: all (${n})`,
+    fr: `${label} : tout (${n})`,
+    pt: `${label}: tudo (${n})`,
+  });
 }
 
 // The table's find box and Download, placed at the right of the top row.

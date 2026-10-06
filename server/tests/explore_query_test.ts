@@ -117,6 +117,20 @@ const METRICS: MetricWithStatus[] = [
     presets: [preset("table", { cfMode: "indicator" })],
   }),
   metric({
+    id: "m1-03-01",
+    moduleId: "m001",
+    dims: ["ratio_type", "admin_area_2", "admin_area_3", ...HMIS_TIME],
+    required: ["ratio_type"],
+    periodColumn: "period_id",
+  }),
+  metric({
+    id: "m1-04-01",
+    moduleId: "m001",
+    dims: ["admin_area_2", "admin_area_3", ...HMIS_TIME],
+    periodColumn: "period_id",
+    presets: [preset("table", { cfMode: "thresholds" })],
+  }),
+  metric({
     id: "m2-01-01",
     moduleId: "m002",
     dims: ["indicator_common_id", "admin_area_2", ...HMIS_TIME],
@@ -239,6 +253,7 @@ function context(metrics: MetricWithStatus[] = METRICS): RunAuthoringContext {
     runId: "run",
     scopeToken: "token",
     modules: [
+      module("m001", "hmis"),
       module("m012", "hmis"),
       module("m002", "hmis"),
       module("m011", "hmis"),
@@ -280,11 +295,22 @@ const PV: ExplorePossibleValues = {
   hfa_category: ok(["c1", "c2"]),
   denominator: ok(["dhis2", "un"]),
   level: ok(["Q1", "Q5"]),
+  ratio_type: ok(["pair_anc", "pair_pnc"]),
 };
 
 // Bindings
 
-const M012: ExploreViewBinding = EXPLORE_VIEWS["m012"][0];
+function bound(moduleId: string, viewId: string): ExploreViewBinding {
+  const binding = EXPLORE_VIEWS[moduleId]?.find((b) => b.id === viewId);
+  if (binding === undefined) {
+    throw new Error(`No binding ${moduleId}/${viewId}`);
+  }
+  return binding;
+}
+
+const M012 = bound("m012", "service_counts");
+const M001_CONSISTENCY = bound("m001", "consistency");
+const M001_DQA = bound("m001", "dqa_adequate");
 
 const M012_MAP: ExploreViewBinding = {
   ...M012,
@@ -658,6 +684,38 @@ Deno.test("category: an indicator the package lacks is dropped and reported, the
   ]);
 });
 
+Deno.test("category: a non-indicator category offers the possible values and reads the view's own choices", () => {
+  const view = resolve(M001_CONSISTENCY, "hmis", {
+    query: { indicators: ["anc1"], period: ALL, grain: "period_id" },
+    choices: { pinned: {}, category: ["pair_pnc", "gone"] },
+  });
+  assertEquals(view.category, {
+    dimension: "ratio_type",
+    placement: "laid_out",
+    isIndicator: false,
+    options: [
+      { id: "pair_anc", label: "pair_anc" },
+      { id: "pair_pnc", label: "pair_pnc" },
+    ],
+    values: ["pair_pnc"],
+  });
+  assertEquals(view.query.indicators, ["anc1"]);
+  const table = deriveViewConfig(view, "en")?.config.d;
+  assertEquals(table?.disaggregateBy, [
+    ROWS_AA2,
+    { disOpt: "ratio_type", disDisplayOpt: "col" },
+  ]);
+  assertEquals(table?.filterBy, [{
+    disOpt: "ratio_type",
+    values: ["pair_pnc"],
+  }]);
+  assertEquals(
+    derive(M001_CONSISTENCY, "hmis", { type: "timeseries" })?.config.d
+      .disaggregateBy,
+    [{ disOpt: "ratio_type", disDisplayOpt: "cell" }],
+  );
+});
+
 Deno.test("category: a pinned hfa_category facet narrows the HFA indicators (R16)", () => {
   assertEquals(
     resolve(M010_ROUND, "hfa").category?.options.map((o) => o.id),
@@ -840,6 +898,25 @@ Deno.test("derive: the m012 table is the rolled-up area by indicators", () => {
   });
 });
 
+Deno.test("derive: the m001 DQA table is the rolled-up area by month, its over-time view one line", () => {
+  const table = derive(M001_DQA, "hmis")?.config;
+  assertEquals(table?.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [ROWS_AA2, { disOpt: "period_id", disDisplayOpt: "col" }],
+    filterBy: [],
+  });
+  assertEquals(table?.s.cfMode, "thresholds");
+
+  const view = resolve(M001_DQA, "hmis", { type: "timeseries" });
+  assertEquals(view.area, undefined);
+  assertEquals(view.pins, []);
+  const lines = deriveViewConfig(view, "en")?.config;
+  assertEquals(lines?.d.disaggregateBy, []);
+  assertEquals(lines?.d.timeseriesGrouping, "period_id");
+  assertEquals(lines?.s.hideLegend, true);
+});
+
 Deno.test("derive: the m012 map pins the indicator as the replicant and the period as the window", () => {
   const view = resolve(M012_MAP, "hmis", {
     type: "map",
@@ -979,7 +1056,10 @@ Deno.test("views: a view is offered only for metrics the package carries (R7)", 
     ),
   );
   assertEquals(viewsForModule(m012, unavailable), []);
-  assertEquals(viewsForModule(module("m001", "hmis"), CTX), []);
+  assertEquals(viewsForModule(module("m001", "hmis"), CTX).map((v) => v.id), [
+    "consistency",
+    "dqa_adequate",
+  ]);
 });
 
 Deno.test("periods: the choice id of a period, none for an unoffered one", () => {

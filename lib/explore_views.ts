@@ -70,9 +70,72 @@ export const EXPLORE_TYPE_LABELS: Record<
   map: { en: "Map", fr: "Carte", pt: "Mapa" },
 };
 
+const AREA_BY_CATEGORY: ExploreViewType = {
+  type: "table",
+  rows: "area",
+  cols: "category",
+};
+const AREA_BY_TIME: ExploreViewType = {
+  type: "table",
+  rows: "area",
+  cols: "time",
+};
+const OVER_TIME: ExploreViewType = { type: "timeseries" };
+
 // Module id → its views in display order. The first type of a view is its
-// default.
+// default: the table wherever one exists.
 export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
+  m001: [
+    {
+      id: "outliers",
+      label: {
+        en: "Outliers",
+        fr: "Valeurs aberrantes",
+        pt: "Valores atípicos",
+      },
+      metric: { id: "m1-01-01" },
+      category: "indicator_common_id",
+      types: [AREA_BY_CATEGORY, OVER_TIME],
+    },
+    {
+      id: "completeness",
+      label: { en: "Completeness", fr: "Complétude", pt: "Completude" },
+      metric: { id: "m1-02-02" },
+      category: "indicator_common_id",
+      types: [AREA_BY_CATEGORY, OVER_TIME],
+    },
+    {
+      id: "consistency",
+      label: {
+        en: "Internal consistency",
+        fr: "Cohérence interne",
+        pt: "Coerência interna",
+      },
+      metric: { id: "m1-03-01" },
+      category: "ratio_type",
+      types: [AREA_BY_CATEGORY, OVER_TIME],
+    },
+    {
+      id: "dqa_adequate",
+      label: {
+        en: "Facilities with adequate data quality",
+        fr: "Établissements avec une qualité des données adéquate",
+        pt: "Unidades sanitárias com qualidade de dados adequada",
+      },
+      metric: { id: "m1-04-01" },
+      types: [AREA_BY_TIME, OVER_TIME],
+    },
+    {
+      id: "dqa_mean",
+      label: {
+        en: "Mean data quality score",
+        fr: "Score moyen de qualité des données",
+        pt: "Pontuação média da qualidade dos dados",
+      },
+      metric: { id: "m1-04-02" },
+      types: [AREA_BY_TIME, OVER_TIME],
+    },
+  ],
   m012: [
     {
       id: "service_counts",
@@ -83,10 +146,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       },
       metric: { id: "m12-01-01" },
       category: "indicator_common_id",
-      types: [
-        { type: "table", rows: "area", cols: "category" },
-        { type: "timeseries" },
-      ],
+      types: [AREA_BY_CATEGORY, OVER_TIME],
     },
   ],
 };
