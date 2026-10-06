@@ -25,7 +25,14 @@ import {
   searchTokens,
   StateHolderWrapper,
 } from "panther";
-import { createEffect, createMemo, Match, onCleanup, Switch } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from "solid-js";
 import { createTrackedQuery, EmptyState } from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
@@ -106,6 +113,10 @@ export function DataTable(p: {
     const g = grid();
     return g?.ok ? g.grid : undefined;
   };
+  const gridError = (): string | undefined => {
+    const g = grid();
+    return g?.ok === false ? g.err : undefined;
+  };
 
   // The row dimension of the config the rows were read for.
   const rowHeaderLabel = createMemo((): string => {
@@ -158,17 +169,20 @@ export function DataTable(p: {
             <Match when={data.rows.status !== "ok" && data.rows.status}>
               {(status) => <EmptyState kind={status()} />}
             </Match>
-            <Match when={grid()} keyed>
-              {(g) =>
-                g.ok
-                  ? (
-                    <Grid
-                      grid={g.grid}
-                      rowHeaderLabel={rowHeaderLabel()}
-                      focusColumnId={focusColumnId()}
-                    />
-                  )
-                  : <div class="text-danger text-sm">{g.err}</div>}
+            <Match when={grid()}>
+              <Show
+                when={readyGrid()}
+                keyed
+                fallback={<div class="text-danger text-sm">{gridError()}</div>}
+              >
+                {(g) => (
+                  <Grid
+                    grid={g}
+                    rowHeaderLabel={rowHeaderLabel()}
+                    focusColumnId={focusColumnId()}
+                  />
+                )}
+              </Show>
             </Match>
           </Switch>
         )}
