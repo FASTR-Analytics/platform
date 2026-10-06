@@ -464,8 +464,7 @@ by variant item" (a table of indicators by variant item at one round, under one
 category), each with a switch over the observed values and the values carried
 forward from the round that last measured them, the tables coloured by the HFA
 threshold style; "Don't-know and missing rates" (a table of indicators by round
-under one category, a switch over the two rates, the default style). The
-over-time type is never bound on HFA, whose time column is the round. m009
+under one category, a switch over the two rates, the default style). m009
 "Coverage by population group" (a table of population groups by indicator at one
 year, under one stratifier, a filter; over time with the groups as lines, one
 pane per indicator) and "Inequality measures" (a table of indicators by the four
