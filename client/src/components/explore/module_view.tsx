@@ -38,8 +38,8 @@ import {
   setExploreViewChoices,
   setExploreViewType,
 } from "~/state/t4_explore";
-import { queryEditors } from "./_shared/mod.ts";
-import { createTrackedQuery, DataTable } from "./data_table/mod.ts";
+import { createTrackedQuery, queryEditors } from "./_shared/mod.ts";
+import { DataTable } from "./data_table/mod.ts";
 import { EmptyState } from "./empty_state";
 import { Timeseries } from "./timeseries";
 

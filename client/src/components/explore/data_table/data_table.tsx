@@ -37,7 +37,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { DroppedIndicatorsNotice } from "../_shared/mod.ts";
+import { createTrackedQuery, DroppedIndicatorsNotice } from "../_shared/mod.ts";
 import { buildFigureInputs } from "~/generate_visualization/build_figure_inputs";
 import { getDisplayDisaggregationLabel } from "~/state/instance/_util_disaggregation_label";
 import {
@@ -51,7 +51,6 @@ import {
 import { gridCellFunction } from "./cell_function";
 import { columnLabel, Grid, GridMessage, type GridProps } from "./grid";
 import { Toolbar } from "./toolbar";
-import { createTrackedQuery } from "./tracked_query";
 
 const NATIONAL_LABEL = { en: "National", fr: "National", pt: "Nacional" };
 
