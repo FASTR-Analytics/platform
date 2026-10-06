@@ -15,9 +15,10 @@ keeps behaving as it does.
 
 **Next step: Do 1**
 
-- Branch: `version2`.
-- Repos: this app. `wb-fastr-modules` is read by one test through
-  `FASTR_MODULES_LOCAL_DIR` and never edited.
+- Repo: `wb-fastr-v2`, the worktree at
+  `/Users/timroberton/projects/apps/wb-fastr-v2`, on branch `version2`. Never
+  the `wb-fastr` checkout, which is `tim-branch`. `wb-fastr-modules` is read by
+  one test through `FASTR_MODULES_LOCAL_DIR` and never edited.
 - Read first: `CLAUDE.md`, `SYSTEMS.md`,
   [SYSTEM_11_viz_authoring.md](SYSTEM_11_viz_authoring.md) ("The Explore page",
   "Grid query model", "lib config semantics"),
@@ -36,9 +37,10 @@ Cadence, session shapes, the two-things rule and the step rules are
 [PROTOCOL_APP_PLANS.md](PROTOCOL_APP_PLANS.md). This plan binds them as follows.
 
 - Instruction: "Do the next step of PLAN_EXPLORE_VIEWS.md."
-- Branch: `version2`. Every session confirms it with
-  `git branch
-  --show-current`.
+- Repo and branch: `wb-fastr-v2` at
+  `/Users/timroberton/projects/apps/wb-fastr-v2`, branch `version2`. Every
+  session runs there, confirms both with `git rev-parse --show-toplevel` and
+  `git branch --show-current`, and commits there.
 - Floor: `deno task typecheck`, `deno task test`, `./validate_protocols`,
   `./run`. No step touches a migration, the query engine, the extract or help
   text, so no conditional gate applies. `deno task test` loads `.env`, so the
