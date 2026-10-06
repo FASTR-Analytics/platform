@@ -311,6 +311,7 @@ function bound(moduleId: string, viewId: string): ExploreViewBinding {
 const M012 = bound("m012", "service_counts");
 const M001_CONSISTENCY = bound("m001", "consistency");
 const M001_DQA = bound("m001", "dqa_adequate");
+const M002_SWITCH = bound("m002", "adjustment_impact");
 
 const M012_MAP: ExploreViewBinding = {
   ...M012,
@@ -320,31 +321,6 @@ const M012_MAP: ExploreViewBinding = {
 const M012_BY_TIME: ExploreViewBinding = {
   ...M012,
   types: [{ type: "table", rows: "area", cols: "time" }],
-};
-
-const M002_SWITCH: ExploreViewBinding = {
-  id: "adjustment_impact",
-  label: { en: "Adjustment impact", fr: "" },
-  metric: {
-    switch: {
-      label: { en: "Adjustment", fr: "" },
-      options: [
-        {
-          id: "outliers",
-          label: { en: "Outliers", fr: "" },
-          metricId: "m2-01-01",
-        },
-        {
-          id: "completeness",
-          label: { en: "Completeness", fr: "" },
-          metricId: "m2-01-02",
-        },
-        { id: "both", label: { en: "Both", fr: "" }, metricId: "m2-01-03" },
-      ],
-    },
-  },
-  category: "indicator_common_id",
-  types: [{ type: "table", rows: "area", cols: "category" }],
 };
 
 const M011: ExploreViewBinding = {

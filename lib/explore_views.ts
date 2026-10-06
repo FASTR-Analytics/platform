@@ -136,6 +136,44 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       types: [AREA_BY_TIME, OVER_TIME],
     },
   ],
+  m002: [
+    {
+      id: "adjustment_impact",
+      label: {
+        en: "Adjustment impact",
+        fr: "Effet des ajustements",
+        pt: "Impacto dos ajustes",
+      },
+      metric: {
+        switch: {
+          label: { en: "Adjustment", fr: "Ajustement", pt: "Ajuste" },
+          options: [
+            {
+              id: "outliers",
+              label: {
+                en: "Outliers",
+                fr: "Valeurs aberrantes",
+                pt: "Valores atípicos",
+              },
+              metricId: "m2-01-01",
+            },
+            {
+              id: "completeness",
+              label: { en: "Completeness", fr: "Complétude", pt: "Completude" },
+              metricId: "m2-01-02",
+            },
+            {
+              id: "both",
+              label: { en: "Both", fr: "Les deux", pt: "Ambos" },
+              metricId: "m2-01-03",
+            },
+          ],
+        },
+      },
+      category: "indicator_common_id",
+      types: [AREA_BY_CATEGORY, OVER_TIME],
+    },
+  ],
   m012: [
     {
       id: "service_counts",
