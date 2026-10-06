@@ -287,8 +287,8 @@ to the first column whose label contains the find text (`focusColumnId`).
 Download saves the grid's text as CSV, in the pivot's row order. Its empty
 states are typed: no data (also while no config derives), and too many cells
 (narrow the indicators or coarsen the grain). No modules and the unavailable
-metric are the page's shared `explore/_shared/empty_state.tsx`; no ready package
-is `explore.tsx`'s own.
+metric are the page's own `explore/empty_state.tsx`; no ready package is
+`explore.tsx`'s own.
 
 **Timeseries** (`explore/timeseries.tsx`) renders the derived over-time config:
 lines over the family grain with one pane per indicator (`deriveViewConfig` for

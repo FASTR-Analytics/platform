@@ -13,7 +13,7 @@ entry per module, and nothing else on the page is per module. The page that
 exists, two views of the HMIS primary module, becomes the first binding and
 keeps behaving as it does.
 
-**Next step: Fix 1**
+**Next step: Review 1**
 
 - Repo: `wb-fastr-v2`, the worktree at
   `/Users/timroberton/projects/apps/wb-fastr-v2`, on branch `version2`. Never
@@ -616,3 +616,4 @@ back to the first offered.
 | 2026-10-06 | 1    | Review: [SYSTEM_11_viz_authoring.md:290](SYSTEM_11_viz_authoring.md#L290) names `explore/_shared/empty_state.tsx` for the no-modules and no-metric states; the step moved the file to `explore/empty_state.tsx` (its own row in this log) and rewrote the sentence without the path. Fix 1: the sentence names `explore/empty_state.tsx`.                                                                                                                                                                                                                                 |
 | 2026-10-06 | 1    | Review: [explore_views_test.ts:107](server/tests/explore_views_test.ts#L107) reads the Deliverable's pure check "a `series: "unit"` type naming one value" as at most one: an absent `values` passes, because §2.7's m005 `coverage_by_denominator` and m009 `iceh_coverage` over-time types name none while §2.3 says the type names exactly one. Under the definitions nothing asserts that such a metric has one value prop; steps 3 and 4 bind them. No change.                                                                                                       |
 | 2026-10-06 | 1    | Step 1 reviewed: 3 findings, one changing a file (SYSTEM_11's path). Gates run by the reviewer: `deno task typecheck`, `deno task test` (523 passed; the two `report_fastr_word_test.ts` failures confirmed outside the step: the test reads `fastrWordRasterBlockIds` and the kitchen-sink fixture, which the step's diff does not touch), `./validate_protocols`, `./run` (server and Vite up, 200), and the two explore tests with `--env-file` (33 passed, the six definition steps ran). Next step: Fix 1.                                                           |
+| 2026-10-06 | 1    | Step 1 fixed: [SYSTEM_11_viz_authoring.md:290](SYSTEM_11_viz_authoring.md#L290) names `explore/empty_state.tsx`. Next step: Review 1.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
