@@ -242,33 +242,46 @@ a module, a binding in `lib/explore_views.ts` ("Explore query model" below), and
 `viewsForModule` is the one place that says which views a module offers: the
 module's bindings whose metric the package carries and stamps ready. Adding a
 metric to a module is two declarations: a preset for products and a binding for
-Explore. Today m012 binds "Service counts" with a table and an over-time type;
-every other module shows a placeholder listing its metrics, and a module with no
-ready metric shows the stamped reason, each under the same row in a `FrameTop`.
-`ModuleView` resolves the view in two reads: the active metric first
-(`resolveView` without possible values, which the metric does not depend on),
-then one tracked read of its metric info (`t2_figure_data`, for the package's
-possible values: HFA time points in the instance's declared order, ICEH years
-and stratifiers, and formats and rules), then the view again under those values
-and `deriveViewConfig` for the figure config, which the table and the timeseries
-take as `{ metric, config }` beside the resolved view. The views share the
-family query and its editors (`explore/_shared/query_controls.tsx`: the
-`queryEditors` pair that keeps dropped indicators through a package switch, the
-indicators, period and grain controls, and the dropped-indicators notice); a
-view's own choices hold its switch option, its pinned values and its category
-values when the category is not the family's indicator dimension, keyed by
-`exploreViewKey`.
+Explore. Today m012 binds "Service counts" with a table and an over-time type; a
+module whose views are all withheld, or that has no binding, shows the no-view
+state, and a module with no ready metric shows the stamped reason, each under
+the same row in a `FrameTop`.
 
-**Data table** (`explore/data_table/`) reads the resolved view's metric as a
-grid through the derived table config: rows and columns are the type's axes
-(m012: admin areas at the level, rolled up, by indicators). Its controls
-(`data_table/toolbar.tsx`) are the level select over the view's offered levels,
-the indicators `MultiSelectSearch` (empty means all) when the category is laid
-out, the period select over the time role's choices and the grain select when
-months are laid out, each editing the family query through `queryEditors`; the
-controls show the resolved query, so every control shows what is read. The grid
-read (`t2_grid_items`, S9 "The grid read") is tracked (`createTrackedQuery`,
-`data_table/tracked_query.ts`) on the fetch config of the derived config, and a
+**The frame** (`view_frame.tsx`) owns one view. It resolves the active metric
+first (`resolveView` without possible values, which the metric does not depend
+on), reads that metric's info once, tracked (`createTrackedQuery`,
+`explore/_shared/tracked_query.ts`, over `t2_figure_data`, for the package's
+possible values with HFA time points in the instance's declared order, ICEH
+years and stratifiers, and formats and rules), resolves the view again under
+those values and derives the figure config (`deriveViewConfig`), and renders a
+`FrameTop` whose panel is the toolbar and whose content is the body by type:
+`DataTable` for the table, `FigureView` for the over-time type, nothing yet for
+chart and map, and the no-data empty state while no config derives (a pin
+without a value, a pin over the cap, or a pinned time with no period). The
+toolbar (`toolbar.tsx`) is built from the roles of the resolved view. Its top
+row is the selectors row and, for the table, the find box and Download at the
+right (`TableTools`; the frame holds the find text and the Download action the
+table hands back once its grid is built). Its second row is the switch select
+(labelled with the binding's switch label), the level select over the offered
+levels, a select per pinned dimension in toolbar order (area, facets, unit,
+category), the indicators `MultiSelectSearch` when the category is laid out
+(empty means all), the period select over the time role's choices and the grain
+select when months are laid out. A control appears only when its role is present
+and its options number more than one, except the level and period selects, which
+always appear with their role; a pinned dimension the server caps
+(`too_many_values`) shows the cap message where its select would be, the same
+limit the editor's replicant list states, and the body shows no data. The
+controls show the resolved view, so every control shows what is read. The
+family's indicators, level, period and grain edit the family query (the
+`queryEditors` pair in `view_frame.tsx` keeps dropped indicators through a
+package switch, and the dropped-indicators notice beneath the controls offers
+Clear); the switch, the pinned values and a non-indicator category's values edit
+the view's own choices, keyed by `exploreViewKey`.
+
+**Data table** (`explore/data_table/`) is the table body: the derived table
+config's rows read as a grid, rows and columns the type's axes (m012: admin
+areas at the level, rolled up, by indicators). The grid read (`t2_grid_items`,
+S9 "The grid read") is tracked on the fetch config of the derived config, and a
 read carries the config it was issued for, so a newer config is never paired
 with older rows; a change that leaves the fetch config, the metric and the
 layout alone makes no new read. The decoded rows go through the canvas table's
@@ -279,35 +292,37 @@ Nigeria admin cleaning) and header order are the canvas table's; then panther's
 function (`data_table/cell_function.ts`): each value formatted by its
 indicator's effective format (`resolveEffectiveIndicatorFacts`,
 `formatIndicatorValue`), the indicator read from whichever grid axis the config
-lays the indicator dimension on, the raw number as the sort key, and HMIS cells
-coloured by the indicator's own threshold rule; HFA and ICEH are uncoloured. The
-row header is the row dimension's label. `DataGrid` fills the height with a
-hover line beneath, sorts by header click (transient, never stored), and scrolls
-to the first column whose label contains the find text (`focusColumnId`).
-Download saves the grid's text as CSV, in the pivot's row order. Its empty
-states are typed: no data (also while no config derives), and too many cells
-(narrow the indicators or coarsen the grain). No modules and the unavailable
-metric are the page's own `explore/empty_state.tsx`; no ready package is
-`explore.tsx`'s own.
+lays the indicator dimension on, the raw number as the sort key, and the cell
+coloured by the config's conditional formatting (`selectCf(config.s)`, the style
+borrowed from the metric's preset): a thresholds rule applies to every cell, the
+indicator mode applies each indicator's own rule (`ruleForValue`), anything else
+leaves the cell uncoloured. The row header is the row dimension's label.
+`DataGrid` fills the height with a hover line beneath, sorts by header click
+(transient, never stored), and scrolls to the first column whose label contains
+the find text (`focusColumnId`). Download saves the grid's text as CSV, in the
+pivot's row order. The empty states are one component,
+`explore/_shared/empty_state.tsx`: the page's own (no modules, no metric with
+its stamped reason, no view) and the body's (no data, too many cells: narrow the
+indicators or coarsen the grain); no ready package is `explore.tsx`'s own.
 
-**Timeseries** (`explore/timeseries.tsx`) renders the derived over-time config:
-lines over the family grain with one pane per indicator (`deriveViewConfig` for
-the `timeseries` type: the category as `cell`, the grain as
-`timeseriesGrouping`, the chosen indicators as a filter, the window as
-`periodFilter`, the style borrowed from the metric's first over-time preset,
-else the defaults, with `content: "lines"` and the legend hidden when every pane
-has one line, and `t` empty, since the view's name is the caption). The figure
-is fetched and built through `createFigurePreview` (S11's one path for a figure
-that is not a row, so it shares the scope-keyed items cache with products) and
-rendered by panther's `FigureHolder` at its ideal height in a pane that scrolls,
-with the default `sizing="reflow"`, which lays the figure out at the container
-width so one design unit is one CSS pixel and lines are as crisp as the UI,
-under S10's `liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's
-text size, abbreviated ticks) with the success colour for its lines. Its
-controls are the indicators, period and grain; the area is dropped (the lines
-are the scope's total) unless the metric requires it, so the level control is
-the table's. The over-time type is bound only where the metric's time column is
-a period column: never for HFA.
+**Figure view** (`explore/figure_view.tsx`) is the body of the figure types,
+today the over-time type. The derived config (`deriveViewConfig` for
+`timeseries`: the category as `cell`, the grain as `timeseriesGrouping`, the
+chosen indicators as a filter, the window as `periodFilter`, the style borrowed
+from the metric's first over-time preset, else the defaults, with
+`content: "lines"` and the legend hidden when every pane holds one line, and `t`
+empty, since the view's name is the caption) is fetched and built through
+`createFigurePreview` (S11's one path for a figure that is not a row, so it
+shares the scope-keyed items cache with products) and rendered by panther's
+`FigureHolder` at its ideal height in a pane that scrolls, with the default
+`sizing="reflow"`, which lays the figure out at the container width so one
+design unit is one CSS pixel and lines are as crisp as the UI, under S10's
+`liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's text size,
+abbreviated ticks). A view whose every pane holds one line (`hasOneLinePerPane`,
+the rule the config's hidden legend shares) draws it in the success colour; one
+with several lines keeps the figure's own colours and its legend. The over-time
+type is bound only where the metric's time column is a period column: never for
+HFA.
 
 ## lib config semantics
 

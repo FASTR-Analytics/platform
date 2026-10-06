@@ -165,10 +165,10 @@ Everything else is a **signal-driven switchboard**, never the URL:
 a permission-guarded derivation that selects Products / Explore / Results / Data
 / Assets / Users, in that nav order; Products (S12's `components/products/`) is
 first and the default, and Explore (S11's `components/explore/`, one package at
-one scope, a family's modules in a select and a view per module, S11 "The
-Explore page") needs approval only, which the whole nav already requires. The
-tab id union is `InstanceTab` in `onboarding/catalogue.ts` and the shell imports
-it.
+one scope, a family's modules in a select, a module's views in a select with a
+type toggle, and a frame per view, S11 "The Explore page") needs approval only,
+which the whole nav already requires. The tab id union is `InstanceTab` in
+`onboarding/catalogue.ts` and the shell imports it.
 
 The shell is `ShellEditorWrapper` around a `FrameTop` whose panel is the header,
 a tonal `HeadingBar` (logo and instance name in its left slot, with the divider
