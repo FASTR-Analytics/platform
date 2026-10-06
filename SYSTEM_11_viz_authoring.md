@@ -255,21 +255,21 @@ possible values with HFA time points in the instance's declared order, ICEH
 years and stratifiers, and formats and rules), resolves the view again under
 those values and derives the figure config (`deriveViewConfig`), and renders a
 `FrameTop` whose panel is the toolbar and whose content is the body by type:
-`DataTable` for the table, `FigureView` for the over-time and chart types,
-nothing yet for the map, and the no-data empty state while no config derives (a
-pin without a value, a pin over the cap, or a pinned time with no period). The
-toolbar (`toolbar.tsx`) is built from the roles of the resolved view. Its top
-row is the selectors row and, for the table, the find box and Download at the
-right (`TableTools`; the frame holds the find text and the Download action the
-table hands back once its grid is built). Its second row is the switch select
-(labelled with the binding's switch label), the level select over the offered
-levels, a select per pinned dimension in toolbar order (area, facets, unit,
-category), the category `MultiSelectSearch` when the category is laid out (empty
-means all; the placeholder names the dimension when the category is not the
-family's indicators), the period select over the time role's choices and the
-grain select when months are laid out. A control appears only when its role is
-present and its options number more than one, except the level and period
-selects, which always appear with their role; a pinned dimension the server caps
+`DataTable` for the table, `FigureView` for the over-time, chart and map types,
+and the no-data empty state while no config derives (a pin without a value, a
+pin over the cap, or a pinned time with no period). The toolbar (`toolbar.tsx`)
+is built from the roles of the resolved view. Its top row is the selectors row
+and, for the table, the find box and Download at the right (`TableTools`; the
+frame holds the find text and the Download action the table hands back once its
+grid is built). Its second row is the switch select (labelled with the binding's
+switch label), the level select over the offered levels, a select per pinned
+dimension in toolbar order (area, facets, unit, category), the category
+`MultiSelectSearch` when the category is laid out (empty means all; the
+placeholder names the dimension when the category is not the family's
+indicators), the period select over the time role's choices and the grain select
+when months are laid out. A control appears only when its role is present and
+its options number more than one, except the level and period selects, which
+always appear with their role; a pinned dimension the server caps
 (`too_many_values`) shows the cap message where its select would be, the same
 limit the editor's replicant list states, and the body shows no data. The
 controls show the resolved view, so every control shows what is read. The
@@ -306,15 +306,16 @@ pivot's row order. The empty states are one component,
 its stamped reason, no view) and the body's (no data, too many cells: narrow the
 indicators or coarsen the grain); no ready package is `explore.tsx`'s own.
 
-**Figure view** (`explore/figure_view.tsx`) is the body of the figure types,
-today the over-time and chart types. The derived config is fetched and built
-through `createFigurePreview` (S11's one path for a figure that is not a row, so
-it shares the scope-keyed items cache with products) and rendered by panther's
-`FigureHolder` at its ideal height in a pane that scrolls, with the default
-`sizing="reflow"`, which lays the figure out at the container width so one
-design unit is one CSS pixel and lines are as crisp as the UI, under S10's
-`liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's text size,
-abbreviated ticks). For the over-time type `deriveViewConfig` puts the category
+**Figure view** (`explore/figure_view.tsx`) is the body of the figure types:
+over time, chart and map. The derived config is fetched and built through
+`createFigurePreview` (S11's one path for a figure that is not a row, so it
+shares the scope-keyed items cache with products) and rendered by panther's
+`FigureHolder` with the default `sizing="reflow"`, which lays the figure out at
+the container width so one design unit is one CSS pixel and lines are as crisp
+as the UI, under S10's `liveFigureStyle` (one-pixel strokes, base-300 grid, the
+data grid's text size, abbreviated ticks): the over-time and chart types at
+their ideal height in a pane that scrolls, the map filling the pane
+(`height="flex"`). For the over-time type `deriveViewConfig` puts the category
 on `cell`, the unit on `series` when the type puts it there, else the values as
 the lines, the time column as `timeseriesGrouping` (the grain for months, else
 the year), the chosen category values as a filter, the window as `periodFilter`
@@ -335,7 +336,22 @@ facet as the replicant when the metric requires it, else as a filter, the type's
 preset, else the defaults: the m006 coverage bars (`single-grey`, data labels,
 sorted descending), the ICEH equiplot (horizontal points and connectors) and the
 ICEH inequality chart (horizontal points, `single-grey`, sorted descending). The
-chart keeps the figure's own colours and legend.
+chart keeps the figure's own colours and legend. For the map type it puts the
+area at the level on `mapArea`, the pinned category as the replicant when the
+metric requires it (m012, m006 and m010 require their indicator dimension, m001
+"Internal consistency" its ratio type), else as a filter (m001 "Outliers" and
+"Completeness", m002), each facet as a filter, the pinned time as the months
+window (`periodFilter`, All pooling every month) or the latest year or round as
+a filter, the type's `values` as `valuesFilter`, and the style borrowed from the
+metric's first map preset, else the defaults: the five m001 maps carry their
+presets' threshold colouring; m012, m002, m006 and m010 have no map preset and
+take `DEFAULT_S_CONFIG`, with `cfMode: "indicator"` for an indicator-format
+metric. Boundaries the instance lacks for the map's registry and level surface
+as `buildFigureInputs`' `[INFO] Map files not yet uploaded` error through the
+preview's error state. The boundaries are preloaded when the instance stream
+lists them (`preloadGeoJson`, S14); the preview builds after an await, outside
+any tracked scope, so a map built before its boundaries arrived is rebuilt on
+the next change of its config, not when they land.
 
 ## lib config semantics
 
@@ -447,41 +463,44 @@ a unit on the series reading one value prop, a period column for the over-time
 type, every non-hidden metric of a bound module bound or listed).
 
 The bindings today, each view with its types in order, the first the default:
-m012 "Service counts" (a table of areas by indicator; over time). m001
-"Outliers", "Completeness" and "Internal consistency" (a table of areas by
-indicator, for consistency by ratio type; over time, one pane per indicator or
-ratio type), "Facilities with adequate data quality" and "Mean data quality
-score" (a table of areas by period; over time as one line). m002 "Adjustment
-impact" (a switch over the outlier, completeness and combined adjustments; a
-table of areas by indicator; over time). m011 "Observed and expected services"
-(over time only, the national metric or the admin-area-2 metric by the level,
-the area pinned as the replicant, the four values as lines under the disruptions
-chart style). m005 "Denominator values" (a table of denominators by year),
-"Denominator values by area" (a table of areas by year, at admin area 2 or 3,
-under one denominator, the replicant) and "Coverage by denominator type" (a
-table of denominator types by indicator at one year, national or by level with
-the area the replicant; over time with the types as lines, one pane per
-indicator). m006 "Coverage over time" (over time only, national or by level with
-the area the replicant, the three estimates as lines under the coverage chart
-style) and "Coverage by area" (a table of areas by indicator at one year, the
-HMIS coverage value only; a chart of bars by area under one indicator, the
-replicant, at one year). `UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose
-one value is the HMIS coverage of m6-02-01 and m6-03-01. m010 "Indicators by
-survey round" (a table of HFA indicators by round, under one HFA category, a
-filter, with the category narrowing the indicator options), "Indicators by area"
-(a table of areas by indicator at one round, under one category) and "Indicators
-by variant item" (a table of indicators by variant item at one round, under one
-category), each with a switch over the observed values and the values carried
-forward from the round that last measured them, the tables coloured by the HFA
-threshold style; "Don't-know and missing rates" (a table of indicators by round
-under one category, a switch over the two rates, the default style). m009
-"Coverage by population group" (a table of population groups by indicator at one
-year, under one stratifier, a filter; the equiplot, indicators on the axis with
-the groups as series at one year; over time with the groups as lines, one pane
-per indicator) and "Inequality measures" (a table of indicators by the four
-measures at one year, under one stratifier, the replicant; a chart of the
-concentration index by indicator at one year; over time as the concentration
-index, one line per indicator).
+m012 "Service counts" (a table of areas by indicator; over time; a map under one
+indicator, the replicant). m001 "Outliers", "Completeness" and "Internal
+consistency" (a table of areas by indicator, for consistency by ratio type; over
+time, one pane per indicator or ratio type; a map under one indicator or ratio
+type, the replicant where the metric requires it, else a filter), "Facilities
+with adequate data quality" and "Mean data quality score" (a table of areas by
+period; over time as one line; a map). m002 "Adjustment impact" (a switch over
+the outlier, completeness and combined adjustments; a table of areas by
+indicator; over time; a map under one indicator, a filter). m011 "Observed and
+expected services" (over time only, the national metric or the admin-area-2
+metric by the level, the area pinned as the replicant, the four values as lines
+under the disruptions chart style). m005 "Denominator values" (a table of
+denominators by year), "Denominator values by area" (a table of areas by year,
+at admin area 2 or 3, under one denominator, the replicant) and "Coverage by
+denominator type" (a table of denominator types by indicator at one year,
+national or by level with the area the replicant; over time with the types as
+lines, one pane per indicator). m006 "Coverage over time" (over time only,
+national or by level with the area the replicant, the three estimates as lines
+under the coverage chart style) and "Coverage by area" (a table of areas by
+indicator at one year, the HMIS coverage value only; a chart of bars by area
+under one indicator, the replicant, at one year; a map of the same).
+`UNBOUND_METRICS` holds m6-02-02 and m6-03-02, whose one value is the HMIS
+coverage of m6-02-01 and m6-03-01. m010 "Indicators by survey round" (a table of
+HFA indicators by round, under one HFA category, a filter, with the category
+narrowing the indicator options), "Indicators by area" (a table of areas by
+indicator at one round, under one category; a map under one indicator, the
+replicant, at one round) and "Indicators by variant item" (a table of indicators
+by variant item at one round, under one category), each with a switch over the
+observed values and the values carried forward from the round that last measured
+them, the tables coloured by the HFA threshold style; "Don't-know and missing
+rates" (a table of indicators by round under one category, a switch over the two
+rates, the default style). m009 "Coverage by population group" (a table of
+population groups by indicator at one year, under one stratifier, a filter; the
+equiplot, indicators on the axis with the groups as series at one year; over
+time with the groups as lines, one pane per indicator) and "Inequality measures"
+(a table of indicators by the four measures at one year, under one stratifier,
+the replicant; a chart of the concentration index by indicator at one year; over
+time as the concentration index, one line per indicator).
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a
@@ -520,8 +539,7 @@ replicant as a `replicant` entry plus `selectedReplicantValue`, a filter as one
 preset of the same type, else `DEFAULT_S_CONFIG` plus `cfMode: "indicator"` for
 an indicator-format metric, with the over-time overrides, and `t` empty;
 undefined while a pin has no value (pending, over the cap, no values) or a
-pinned time has no period. The map derivation has no renderer yet. Tested in
-`server/tests/explore_query_test.ts`.
+pinned time has no period. Tested in `server/tests/explore_query_test.ts`.
 
 ## Replicant machinery
 

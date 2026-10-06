@@ -137,6 +137,15 @@ Deno.test("bindings: a byLevel view with a national key never lays the area out"
   }
 });
 
+Deno.test("bindings: every registry module has a binding", () => {
+  for (const entry of MODULE_REGISTRY) {
+    assert(
+      (EXPLORE_VIEWS[entry.id]?.length ?? 0) > 0,
+      `${entry.id} has no binding`,
+    );
+  }
+});
+
 Deno.test("bindings: the over-time type is never bound on HFA", () => {
   for (const binding of EXPLORE_VIEWS["m010"] ?? []) {
     assert(

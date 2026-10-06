@@ -429,24 +429,12 @@ const M005_BY_AREA = bound("m005", "denominators_by_area");
 const M005_BY_DENOM = bound("m005", "coverage_by_denominator");
 const M006_OVER_TIME = bound("m006", "coverage_over_time");
 
-const M012_MAP: ExploreViewBinding = {
-  ...M012,
-  types: [...M012.types, { type: "map" }],
-};
-
 const M012_BY_TIME: ExploreViewBinding = {
   ...M012,
   types: [{ type: "table", rows: "area", cols: "time" }],
 };
 
-// The map type arrives in step 6.
-const M006_BY_AREA: ExploreViewBinding = {
-  ...bound("m006", "coverage_by_area"),
-  types: [
-    ...bound("m006", "coverage_by_area").types,
-    { type: "map", values: ["coverage_cov"] },
-  ],
-};
+const M006_BY_AREA = bound("m006", "coverage_by_area");
 
 const M010_ROUND = bound("m010", "hfa_by_round");
 const M010_AREA = bound("m010", "hfa_by_area");
@@ -933,7 +921,7 @@ Deno.test("derive: the m001 DQA table is the rolled-up area by month, its over-t
 });
 
 Deno.test("derive: the m012 map pins the indicator as the replicant and the period as the window", () => {
-  const view = resolve(M012_MAP, "hmis", {
+  const view = resolve(M012, "hmis", {
     type: "map",
     query: { indicators: [], period: LAST_12, grain: "period_id" },
     choices: { pinned: { indicator_common_id: "anc4" } },
@@ -956,6 +944,44 @@ Deno.test("derive: the m012 map pins the indicator as the replicant and the peri
     filterBy: [],
     periodFilter: LAST_12.filter,
     selectedReplicantValue: "anc4",
+  });
+});
+
+Deno.test("derive: the m002 map filters the pinned indicator, which the metric does not require", () => {
+  const view = resolve(M002_SWITCH, "hmis", { type: "map" });
+  assertEquals(view.pins.map((p) => [p.dimension, p.value, p.replicant]), [
+    ["indicator_common_id", "anc1", false],
+  ]);
+  assertEquals(deriveViewConfig(view, "en")?.config.d, {
+    type: "map",
+    valuesDisDisplayOpt: "cell",
+    disaggregateBy: [{ disOpt: "admin_area_2", disDisplayOpt: "mapArea" }],
+    filterBy: [{ disOpt: "indicator_common_id", values: ["anc1"] }],
+  });
+});
+
+Deno.test("derive: the m010 hfa_by_area map pins the indicator as the replicant and the latest round as a filter", () => {
+  const view = resolve(M010_AREA, "hfa", { type: "map" });
+  assertEquals(view.area?.placement, "laid_out");
+  assertEquals(
+    view.pins.map((p) => [p.dimension, p.role, p.value, p.replicant]),
+    [
+      ["hfa_category", "facet", "c1", false],
+      ["hfa_indicator", "category", "hfa1", true],
+    ],
+  );
+  assertEquals(deriveViewConfig(view, "en")?.config.d, {
+    type: "map",
+    valuesDisDisplayOpt: "cell",
+    disaggregateBy: [
+      { disOpt: "admin_area_2", disDisplayOpt: "mapArea" },
+      { disOpt: "hfa_indicator", disDisplayOpt: "replicant" },
+    ],
+    filterBy: [
+      { disOpt: "hfa_category", values: ["c1"] },
+      { disOpt: "time_point", values: ["Round 2"] },
+    ],
+    selectedReplicantValue: "hfa1",
   });
 });
 
@@ -1324,7 +1350,7 @@ Deno.test("derive: m006 coverage_by_area is the rolled-up area by indicator at t
 // Types and views
 
 Deno.test("type: the chosen type when the view offers it, else the first", () => {
-  assertEquals(resolve(M012, "hmis", { type: "map" }).type.type, "table");
+  assertEquals(resolve(M012, "hmis", { type: "chart" }).type.type, "table");
   assertEquals(
     resolve(M012, "hmis", { type: "timeseries" }).type.type,
     "timeseries",

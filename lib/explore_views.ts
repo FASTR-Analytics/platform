@@ -81,6 +81,7 @@ const AREA_BY_TIME: ExploreViewType = {
   cols: "time",
 };
 const OVER_TIME: ExploreViewType = { type: "timeseries" };
+const MAP: ExploreViewType = { type: "map" };
 
 // HFA results come observed, or with values carried forward from the round
 // that last measured them.
@@ -122,14 +123,14 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       },
       metric: { id: "m1-01-01" },
       category: "indicator_common_id",
-      types: [AREA_BY_CATEGORY, OVER_TIME],
+      types: [AREA_BY_CATEGORY, OVER_TIME, MAP],
     },
     {
       id: "completeness",
       label: { en: "Completeness", fr: "Complétude", pt: "Completude" },
       metric: { id: "m1-02-02" },
       category: "indicator_common_id",
-      types: [AREA_BY_CATEGORY, OVER_TIME],
+      types: [AREA_BY_CATEGORY, OVER_TIME, MAP],
     },
     {
       id: "consistency",
@@ -140,7 +141,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       },
       metric: { id: "m1-03-01" },
       category: "ratio_type",
-      types: [AREA_BY_CATEGORY, OVER_TIME],
+      types: [AREA_BY_CATEGORY, OVER_TIME, MAP],
     },
     {
       id: "dqa_adequate",
@@ -150,7 +151,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
         pt: "Unidades sanitárias com qualidade de dados adequada",
       },
       metric: { id: "m1-04-01" },
-      types: [AREA_BY_TIME, OVER_TIME],
+      types: [AREA_BY_TIME, OVER_TIME, MAP],
     },
     {
       id: "dqa_mean",
@@ -160,7 +161,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
         pt: "Pontuação média da qualidade dos dados",
       },
       metric: { id: "m1-04-02" },
-      types: [AREA_BY_TIME, OVER_TIME],
+      types: [AREA_BY_TIME, OVER_TIME, MAP],
     },
   ],
   m002: [
@@ -198,7 +199,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
         },
       },
       category: "indicator_common_id",
-      types: [AREA_BY_CATEGORY, OVER_TIME],
+      types: [AREA_BY_CATEGORY, OVER_TIME, MAP],
     },
   ],
   m005: [
@@ -285,6 +286,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
           values: ["coverage_cov"],
         },
         { type: "chart", axis: "area", values: ["coverage_cov"] },
+        { type: "map", values: ["coverage_cov"] },
       ],
     },
   ],
@@ -346,7 +348,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       metric: HFA_VALUES_SWITCH,
       category: "hfa_indicator",
       facets: ["hfa_category"],
-      types: [AREA_BY_CATEGORY],
+      types: [AREA_BY_CATEGORY, MAP],
     },
     {
       id: "hfa_variants",
@@ -421,7 +423,7 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       },
       metric: { id: "m12-01-01" },
       category: "indicator_common_id",
-      types: [AREA_BY_CATEGORY, OVER_TIME],
+      types: [AREA_BY_CATEGORY, OVER_TIME, MAP],
     },
   ],
 };
