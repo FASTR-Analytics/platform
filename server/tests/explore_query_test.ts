@@ -202,6 +202,63 @@ const METRICS: MetricWithStatus[] = [
     periodColumn: "year",
   }),
   metric({
+    id: "m4a-01-02",
+    moduleId: "m005",
+    dims: ["denominator", "admin_area_2", "year"],
+    required: ["denominator", "admin_area_2", "year"],
+    formatAs: "number",
+    periodColumn: "year",
+  }),
+  metric({
+    id: "m4a-01-03",
+    moduleId: "m005",
+    dims: ["denominator", "admin_area_3", "year"],
+    required: ["denominator", "admin_area_3", "year"],
+    formatAs: "number",
+    periodColumn: "year",
+  }),
+  metric({
+    id: "m4a-02-01",
+    moduleId: "m005",
+    dims: ["denominator_best_or_survey", "indicator_common_id", "year"],
+    required: ["denominator_best_or_survey", "indicator_common_id", "year"],
+    periodColumn: "year",
+  }),
+  metric({
+    id: "m4a-02-02",
+    moduleId: "m005",
+    dims: [
+      "denominator_best_or_survey",
+      "indicator_common_id",
+      "admin_area_2",
+      "year",
+    ],
+    required: [
+      "denominator_best_or_survey",
+      "indicator_common_id",
+      "admin_area_2",
+      "year",
+    ],
+    periodColumn: "year",
+  }),
+  metric({
+    id: "m4a-02-03",
+    moduleId: "m005",
+    dims: [
+      "denominator_best_or_survey",
+      "indicator_common_id",
+      "admin_area_3",
+      "year",
+    ],
+    required: [
+      "denominator_best_or_survey",
+      "indicator_common_id",
+      "admin_area_3",
+      "year",
+    ],
+    periodColumn: "year",
+  }),
+  metric({
     id: "m10-01-01",
     moduleId: "m010",
     dims: [
@@ -313,6 +370,9 @@ const M001_CONSISTENCY = bound("m001", "consistency");
 const M001_DQA = bound("m001", "dqa_adequate");
 const M002_SWITCH = bound("m002", "adjustment_impact");
 const M011 = bound("m011", "disruptions");
+const M005_DENOM = bound("m005", "denominators");
+const M005_BY_AREA = bound("m005", "denominators_by_area");
+const M005_BY_DENOM = bound("m005", "coverage_by_denominator");
 
 const M012_MAP: ExploreViewBinding = {
   ...M012,
@@ -342,14 +402,6 @@ const M006_OVER_TIME: ExploreViewBinding = {
   metric: { byLevel: { admin_area_2: "m6-02-01", admin_area_3: "m6-03-01" } },
   category: "indicator_common_id",
   types: [{ type: "timeseries" }],
-};
-
-const M005_DENOM: ExploreViewBinding = {
-  id: "denominators",
-  label: { en: "Denominator values", fr: "" },
-  metric: { id: "m4a-01-01" },
-  unit: "denominator",
-  types: [{ type: "table", rows: "unit", cols: "time" }],
 };
 
 const M010_ROUND: ExploreViewBinding = {
@@ -1004,6 +1056,80 @@ Deno.test("derive: m005 denominators is the unit by years, nothing pinned", () =
     ],
     filterBy: [],
   });
+});
+
+Deno.test("derive: m005 denominators_by_area is the rolled-up area by year, the denominator the replicant", () => {
+  const view = resolve(M005_BY_AREA, "hmis");
+  assertEquals(view.area?.levels, ["admin_area_2", "admin_area_3"]);
+  assertEquals(view.metric.id, "m4a-01-02");
+  assertEquals(
+    view.pins.map((p) => [p.dimension, p.role, p.value, p.replicant]),
+    [["denominator", "facet", "dhis2", true]],
+  );
+  assertEquals(deriveViewConfig(view, "en")?.config.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [
+      ROWS_AA2,
+      { disOpt: "year", disDisplayOpt: "col" },
+      { disOpt: "denominator", disDisplayOpt: "replicant" },
+    ],
+    filterBy: [],
+    selectedReplicantValue: "dhis2",
+  });
+  const scoped = resolve(M005_BY_AREA, "hmis", { scopeArea: KANO });
+  assertEquals(scoped.area?.levels, ["admin_area_3"]);
+  assertEquals(scoped.metric.id, "m4a-01-03");
+});
+
+Deno.test("derive: m005 coverage_by_denominator is denominator types by indicator at one year, or lines by type over time with the area the replicant", () => {
+  const national = resolve(M005_BY_DENOM, "hmis");
+  assertEquals(national.area?.levels, [
+    "national",
+    "admin_area_2",
+    "admin_area_3",
+  ]);
+  assertEquals(national.metric.id, "m4a-02-01");
+  assertEquals(national.pins, []);
+  assertEquals(national.time?.placement, "pinned");
+  assertEquals(deriveViewConfig(national, "en")?.config.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [
+      { disOpt: "denominator_best_or_survey", disDisplayOpt: "row" },
+      { disOpt: "indicator_common_id", disDisplayOpt: "col" },
+    ],
+    filterBy: [{ disOpt: "year", values: ["2018"] }],
+  });
+
+  const lines = resolve(M005_BY_DENOM, "hmis", {
+    type: "timeseries",
+    query: {
+      level: "admin_area_2",
+      indicators: [],
+      period: ALL,
+      grain: "period_id",
+    },
+  });
+  assertEquals(lines.metric.id, "m4a-02-02");
+  assertEquals(lines.unit, {
+    dimension: "denominator_best_or_survey",
+    placement: "laid_out",
+  });
+  const config = deriveViewConfig(lines, "en")?.config;
+  assertEquals(config?.d, {
+    type: "timeseries",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [
+      { disOpt: "indicator_common_id", disDisplayOpt: "cell" },
+      { disOpt: "denominator_best_or_survey", disDisplayOpt: "series" },
+      { disOpt: "admin_area_2", disDisplayOpt: "replicant" },
+    ],
+    filterBy: [],
+    timeseriesGrouping: "year",
+    selectedReplicantValue: "Kano",
+  });
+  assertEquals(config?.s.hideLegend, false);
 });
 
 // Types and views

@@ -443,7 +443,12 @@ impact" (a switch over the outlier, completeness and combined adjustments; a
 table of areas by indicator; over time). m011 "Observed and expected services"
 (over time only, the national metric or the admin-area-2 metric by the level,
 the area pinned as the replicant, the four values as lines under the disruptions
-chart style). The HFA and ICEH modules have no binding yet.
+chart style). m005 "Denominator values" (a table of denominators by year),
+"Denominator values by area" (a table of areas by year, at admin area 2 or 3,
+under one denominator, the replicant) and "Coverage by denominator type" (a
+table of denominator types by indicator at one year, national or by level with
+the area the replicant; over time with the types as lines, one pane per
+indicator). The HFA and ICEH modules have no binding yet.
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a

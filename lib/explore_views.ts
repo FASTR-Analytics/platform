@@ -174,6 +174,53 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       types: [AREA_BY_CATEGORY, OVER_TIME],
     },
   ],
+  m005: [
+    {
+      id: "denominators",
+      label: {
+        en: "Denominator values",
+        fr: "Valeurs des dénominateurs",
+        pt: "Valores dos denominadores",
+      },
+      metric: { id: "m4a-01-01" },
+      unit: "denominator",
+      types: [{ type: "table", rows: "unit", cols: "time" }],
+    },
+    {
+      id: "denominators_by_area",
+      label: {
+        en: "Denominator values by area",
+        fr: "Valeurs des dénominateurs par zone",
+        pt: "Valores dos denominadores por área",
+      },
+      metric: {
+        byLevel: { admin_area_2: "m4a-01-02", admin_area_3: "m4a-01-03" },
+      },
+      facets: ["denominator"],
+      types: [AREA_BY_TIME],
+    },
+    {
+      id: "coverage_by_denominator",
+      label: {
+        en: "Coverage by denominator type",
+        fr: "Couverture selon le type de dénominateur",
+        pt: "Cobertura por tipo de denominador",
+      },
+      metric: {
+        byLevel: {
+          national: "m4a-02-01",
+          admin_area_2: "m4a-02-02",
+          admin_area_3: "m4a-02-03",
+        },
+      },
+      unit: "denominator_best_or_survey",
+      category: "indicator_common_id",
+      types: [
+        { type: "table", rows: "unit", cols: "category" },
+        { type: "timeseries", series: "unit" },
+      ],
+    },
+  ],
   m011: [
     {
       id: "disruptions",
