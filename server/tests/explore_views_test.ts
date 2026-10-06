@@ -434,6 +434,37 @@ Deno.test({
       },
     );
 
+    await t.step(
+      "a type's values are value props of every metric the binding reads, and a unit on the series reads one",
+      () => {
+        for (const { moduleId, binding } of BINDINGS) {
+          for (const type of binding.types) {
+            const where = `${moduleId}/${binding.id}/${type.type}`;
+            for (const id of boundMetricIds(binding.metric)) {
+              const metric = metricOf(definitions, moduleId, id);
+              if (metric === undefined) continue;
+              for (const value of type.values ?? []) {
+                assert(
+                  metric.valueProps.includes(value),
+                  `${where}: ${id} has no value prop ${value}`,
+                );
+              }
+              if (
+                type.type !== "table" && type.type !== "map" &&
+                type.series === "unit" && type.values === undefined
+              ) {
+                assertEquals(
+                  metric.valueProps.length,
+                  1,
+                  `${where}: ${id} has ${metric.valueProps.length} value props under the unit on the series`,
+                );
+              }
+            }
+          }
+        }
+      },
+    );
+
     await t.step("an over-time type's metric has a period column", () => {
       for (const { moduleId, binding } of BINDINGS) {
         const def = definitions.get(moduleId);
