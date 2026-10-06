@@ -287,6 +287,39 @@ export const EXPLORE_VIEWS: Record<string, ExploreViewBinding[]> = {
       ],
     },
   ],
+  m009: [
+    {
+      id: "iceh_coverage",
+      label: {
+        en: "Coverage by population group",
+        fr: "Couverture par groupe de population",
+        pt: "Cobertura por grupo populacional",
+      },
+      metric: { id: "m9-01-01" },
+      unit: "level",
+      category: "iceh_indicator",
+      facets: ["strat"],
+      types: [
+        { type: "table", rows: "unit", cols: "category" },
+        { type: "timeseries", series: "unit" },
+      ],
+    },
+    {
+      id: "iceh_inequality",
+      label: {
+        en: "Inequality measures",
+        fr: "Mesures d'inégalité",
+        pt: "Medidas de desigualdade",
+      },
+      metric: { id: "m9-02-01" },
+      category: "iceh_indicator",
+      facets: ["strat"],
+      types: [
+        { type: "table", rows: "category", cols: "values" },
+        { type: "timeseries", values: ["cix"] },
+      ],
+    },
+  ],
   m010: [
     {
       id: "hfa_by_round",

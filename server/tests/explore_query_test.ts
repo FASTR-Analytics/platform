@@ -345,6 +345,8 @@ const METRICS: MetricWithStatus[] = [
     valueProps: ["estimate"],
     presets: [
       preset("chart", { content: "points-connectors", horizontal: true }),
+      preset("table", { decimalPlaces: 1 }),
+      preset("timeseries", { content: "lines", decimalPlaces: 1 }),
     ],
   }),
   metric({
@@ -452,30 +454,22 @@ const M010_AREA = bound("m010", "hfa_by_area");
 const M010_VARIANTS = bound("m010", "hfa_variants");
 const M010_RESPONSE = bound("m010", "hfa_response");
 
+// The chart types arrive in step 5.
 const M009_COV: ExploreViewBinding = {
-  id: "iceh_coverage",
-  label: { en: "Coverage by population group", fr: "" },
-  metric: { id: "m9-01-01" },
-  unit: "level",
-  category: "iceh_indicator",
-  facets: ["strat"],
+  ...bound("m009", "iceh_coverage"),
   types: [
-    { type: "table", rows: "unit", cols: "category" },
+    bound("m009", "iceh_coverage").types[0],
     { type: "chart", axis: "category", series: "unit" },
-    { type: "timeseries", series: "unit" },
+    bound("m009", "iceh_coverage").types[1],
   ],
 };
 
 const M009_INEQ: ExploreViewBinding = {
-  id: "iceh_inequality",
-  label: { en: "Inequality measures", fr: "" },
-  metric: { id: "m9-02-01" },
-  category: "iceh_indicator",
-  facets: ["strat"],
+  ...bound("m009", "iceh_inequality"),
   types: [
-    { type: "table", rows: "category", cols: "values" },
+    bound("m009", "iceh_inequality").types[0],
     { type: "chart", axis: "category", values: ["cix"] },
-    { type: "timeseries", values: ["cix"] },
+    bound("m009", "iceh_inequality").types[1],
   ],
 };
 
@@ -1040,6 +1034,78 @@ Deno.test("derive: the m009 equiplot is indicators by population group, the stra
   assertEquals(lines?.s.hideLegend, false);
 });
 
+Deno.test("derive: m009 iceh_coverage is population groups by indicator at the latest year, the stratifier a filter", () => {
+  const view = resolve(M009_COV, "iceh");
+  assertEquals(view.unit, { dimension: "level", placement: "laid_out" });
+  assertEquals(view.time?.placement, "pinned");
+  assertEquals(view.time?.choices.map((c) => c.id), ["2018", "2013"]);
+  assertEquals(
+    view.pins.map((p) => [p.dimension, p.role, p.value, p.replicant]),
+    [["strat", "facet", "wealth_quintiles", false]],
+  );
+  const config = deriveViewConfig(view, "en")?.config;
+  assertEquals(config?.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [
+      { disOpt: "level", disDisplayOpt: "row" },
+      { disOpt: "iceh_indicator", disDisplayOpt: "col" },
+    ],
+    filterBy: [
+      { disOpt: "strat", values: ["wealth_quintiles"] },
+      { disOpt: "year", values: ["2018"] },
+    ],
+  });
+  assertEquals(config?.s.decimalPlaces, 1);
+  assertEquals(
+    resolve(M009_COV, "iceh", { choices: { pinned: { strat: "residence" } } })
+      .pins[0].value,
+    "residence",
+  );
+});
+
+Deno.test("derive: m009 iceh_inequality is indicators by the four measures at the latest year, or CIX by year as one line per indicator, the stratifier the replicant", () => {
+  const table = resolve(M009_INEQ, "iceh");
+  assertEquals(table.unit, undefined);
+  assertEquals(deriveViewConfig(table, "en")?.config.d, {
+    type: "table",
+    valuesDisDisplayOpt: "col",
+    disaggregateBy: [
+      { disOpt: "iceh_indicator", disDisplayOpt: "row" },
+      { disOpt: "strat", disDisplayOpt: "replicant" },
+    ],
+    filterBy: [{ disOpt: "year", values: ["2018"] }],
+    selectedReplicantValue: "wealth_quintiles",
+  });
+
+  const lines = resolve(M009_INEQ, "iceh", {
+    type: "timeseries",
+    query: {
+      indicators: ["cov1"],
+      period: { kind: "values", values: ["2013"] },
+      grain: "period_id",
+    },
+  });
+  assertEquals(lines.time?.placement, "laid_out");
+  const config = deriveViewConfig(lines, "en")?.config;
+  assertEquals(config?.d, {
+    type: "timeseries",
+    valuesDisDisplayOpt: "series",
+    disaggregateBy: [
+      { disOpt: "iceh_indicator", disDisplayOpt: "cell" },
+      { disOpt: "strat", disDisplayOpt: "replicant" },
+    ],
+    filterBy: [
+      { disOpt: "iceh_indicator", values: ["cov1"] },
+      { disOpt: "year", values: ["2013"] },
+    ],
+    valuesFilter: ["cix"],
+    timeseriesGrouping: "year",
+    selectedReplicantValue: "wealth_quintiles",
+  });
+  assertEquals(config?.s.hideLegend, true);
+});
+
 Deno.test("derive: m010 hfa_by_round is indicators by round under the category facet and the switch", () => {
   const view = resolve(M010_ROUND, "hfa");
   assertEquals(view.switch?.value, "observed");
@@ -1300,6 +1366,10 @@ Deno.test("views: a view is offered only for metrics the package carries (R7)", 
     "hfa_by_area",
     "hfa_variants",
     "hfa_response",
+  ]);
+  assertEquals(viewsForModule(module("m009", "iceh"), CTX).map((v) => v.id), [
+    "iceh_coverage",
+    "iceh_inequality",
   ]);
 });
 

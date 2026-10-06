@@ -312,20 +312,21 @@ today the over-time type. The derived config (`deriveViewConfig` for
 there, else the values as the lines, the time column as `timeseriesGrouping`
 (the grain for months, else the year), the chosen category values as a filter,
 the window as `periodFilter` for months or the chosen years as a filter, a
-pinned area as the replicant, the style borrowed from the metric's first
-over-time preset, else the defaults, with `content: "lines"` and the legend
-hidden when every pane holds one line, and `t` empty, since the view's name is
-the caption) is fetched and built through `createFigurePreview` (S11's one path
-for a figure that is not a row, so it shares the scope-keyed items cache with
-products) and rendered by panther's `FigureHolder` at its ideal height in a pane
-that scrolls, with the default `sizing="reflow"`, which lays the figure out at
-the container width so one design unit is one CSS pixel and lines are as crisp
-as the UI, under S10's `liveFigureStyle` (one-pixel strokes, base-300 grid, the
-data grid's text size, abbreviated ticks). A view whose every pane holds one
-line (`hasOneLinePerPane`, the rule the config's hidden legend shares) draws it
-in the success colour; one with several lines keeps the figure's own colours and
-its legend. The over-time type is bound only where the metric's time column is a
-period column: never for HFA.
+pinned area or facet as the replicant when the metric requires it, else as a
+filter, the style borrowed from the metric's first over-time preset, else the
+defaults, with `content: "lines"` and the legend hidden when every pane holds
+one line, and `t` empty, since the view's name is the caption) is fetched and
+built through `createFigurePreview` (S11's one path for a figure that is not a
+row, so it shares the scope-keyed items cache with products) and rendered by
+panther's `FigureHolder` at its ideal height in a pane that scrolls, with the
+default `sizing="reflow"`, which lays the figure out at the container width so
+one design unit is one CSS pixel and lines are as crisp as the UI, under S10's
+`liveFigureStyle` (one-pixel strokes, base-300 grid, the data grid's text size,
+abbreviated ticks). A view whose every pane holds one line (`hasOneLinePerPane`,
+the rule the config's hidden legend shares) draws it in the success colour; one
+with several lines keeps the figure's own colours and its legend. The over-time
+type is bound only where the metric's time column is a period column: never for
+HFA.
 
 ## lib config semantics
 
@@ -464,8 +465,12 @@ category), each with a switch over the observed values and the values carried
 forward from the round that last measured them, the tables coloured by the HFA
 threshold style; "Don't-know and missing rates" (a table of indicators by round
 under one category, a switch over the two rates, the default style). The
-over-time type is never bound on HFA, whose time column is the round. The ICEH
-module has no binding yet.
+over-time type is never bound on HFA, whose time column is the round. m009
+"Coverage by population group" (a table of population groups by indicator at one
+year, under one stratifier, a filter; over time with the groups as lines, one
+pane per indicator) and "Inequality measures" (a table of indicators by the four
+measures at one year, under one stratifier, the replicant; over time as the
+concentration index, one line per indicator).
 
 `lib/explore_query.ts` holds the state the page keeps and the resolution over
 it. A `FamilyQuery` (`level`, `indicators`, `period`, `grain`) is shared by a
