@@ -29,7 +29,7 @@ export function openProposalPreview(
 ): Promise<boolean> {
   return openConfirm({
     title: preview.title,
-    text: <ProposalPreviewBody preview={preview} />,
+    text: () => <ProposalPreviewBody preview={preview} />,
     intent: preview.intent === "danger" ? "danger" : "primary",
     confirmButtonLabel: preview.confirmLabel ??
       t3({ en: "Accept", fr: "Accepter", pt: "Aceitar" }),

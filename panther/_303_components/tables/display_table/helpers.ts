@@ -49,11 +49,13 @@ export function sortData<T extends AnyRow>(
   return sorted;
 }
 
-export function getFilterValue<T extends AnyRow>(
+export function getFilterValues<T extends AnyRow>(
   item: T,
   column: TableColumn<T>,
-): string {
-  return column.filterValue?.(item) ?? String(item[column.key] ?? "");
+): string[] {
+  const value = column.filterValue?.(item) ?? String(item[column.key] ?? "");
+  if (typeof value === "string") return [value];
+  return value.length > 0 ? value : [""];
 }
 
 export function distinctFilterValues<T extends AnyRow>(
@@ -62,7 +64,9 @@ export function distinctFilterValues<T extends AnyRow>(
 ): string[] {
   const values = new Set<string>();
   for (const item of data) {
-    values.add(getFilterValue(item, column));
+    for (const value of getFilterValues(item, column)) {
+      values.add(value);
+    }
   }
   return [...values].sort(compareValues);
 }
@@ -81,7 +85,7 @@ export function filterData<T extends AnyRow>(
   if (active.length === 0) return data;
   return data.filter((item) =>
     active.every(({ column, excluded }) =>
-      !excluded.has(getFilterValue(item, column))
+      getFilterValues(item, column).some((value) => !excluded.has(value))
     )
   );
 }
@@ -90,7 +94,8 @@ export function getColumnSearchValue<T extends AnyRow>(
   item: T,
   column: TableColumn<T>,
 ): string {
-  return column.searchValue?.(item) ?? getFilterValue(item, column);
+  return column.searchValue?.(item) ??
+    getFilterValues(item, column).join(" ");
 }
 
 // The fold and the matcher (foldString and matchesSearch in _000_utils) are

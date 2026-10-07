@@ -19,16 +19,21 @@ import { Input } from "../form_inputs/input.tsx";
 import type { Intent } from "../types.ts";
 import { ModalContainer } from "./modal_container.tsx";
 
+// A function is called inside the dialog, so content opened from an action
+// (after an await, where nothing owns new computations) belongs to the
+// dialog and is disposed with it.
+type DialogText = string | JSX.Element | (() => JSX.Element);
+
 type OpenAlertInput = {
   title?: string;
-  text: string | JSX.Element;
+  text: DialogText;
   intent?: Intent;
   closeButtonLabel?: string;
 };
 
 type OpenConfirmInput = {
   title?: string;
-  text: string | JSX.Element;
+  text: DialogText;
   intent?: Intent;
   confirmButtonLabel?: string;
 };
@@ -277,7 +282,7 @@ function DialogLayer(p: { entry: DialogEntry }) {
 
 type BuiltInDialogProps = {
   title?: string;
-  text?: string | JSX.Element;
+  text?: DialogText;
   intent?: Intent;
   actions: { label: string; intent?: Intent; onClick: () => void }[];
   onCancel?: () => void;
@@ -304,18 +309,18 @@ function BuiltInDialog(p: BuiltInDialogProps) {
       form={p.form}
     >
       <Show when={p.text} keyed>
-        {(text) => (
-          <Switch>
-            <Match when={typeof text === "string"}>
-              <p>{text}</p>
-            </Match>
-            <Match when={typeof text !== "string"}>{text}</Match>
-          </Switch>
-        )}
+        {(text) => dialogText(text)}
       </Show>
       {p.children}
     </ModalContainer>
   );
+}
+
+function dialogText(text: DialogText): JSX.Element {
+  if (typeof text === "string") {
+    return <p>{text}</p>;
+  }
+  return typeof text === "function" ? text() : text;
 }
 
 function PromptDialog(

@@ -142,6 +142,9 @@ block; unknown keys render a visible fallback, never a gap.
 ```tsx
 await openAlert({ text: "Saved", intent: "success" });
 const ok = await openConfirm({ title: "Delete?", text: "..." });
+// JSX built after an await has no owner: pass it as a function, and the
+// dialog builds it inside its own tree.
+const yes = await openConfirm({ title: "Delete?", text: () => <Preview /> });
 await openComponent({ element: EditForm, props: { data } });
 
 // Inside EditForm (an AlertComponentProps component):

@@ -20,7 +20,9 @@ export type TableColumn<T> = {
   sortable?: boolean;
   sortValue?: (item: T) => unknown;
   filterable?: boolean;
-  filterValue?: (item: T) => string;
+  // A row with several values (tags) is kept while any of them is checked; an
+  // empty list is the empty value.
+  filterValue?: (item: T) => string | string[];
   // Every column is searched unless it opts out: were it opt-in, a searched
   // table with no column marked would empty on the first keystroke.
   searchable?: boolean;

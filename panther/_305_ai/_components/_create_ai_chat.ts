@@ -1081,10 +1081,7 @@ export function createAIChat(configOverride?: Partial<AIChatConfig>) {
         // click is a no-op (the resolver is idempotent).
         openConfirm({
           title: previewTitle,
-          // Lazy thunk: the preview body builds DOM only when the dialog
-          // actually renders. Solid's insert() unwraps function children at
-          // runtime; the JSX.Element type just doesn't admit them — cast.
-          text: (() => ProposalPreviewBody({ preview })) as unknown as Element,
+          text: () => ProposalPreviewBody({ preview }),
           intent: preview.intent === "danger" ? "danger" : "primary",
           confirmButtonLabel: preview.confirmLabel,
         }).then((accepted) =>
