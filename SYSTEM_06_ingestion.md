@@ -44,6 +44,7 @@ globs:
   - server/tests/csv_header_preselect_test.ts
   - server/tests/csv_mapping_staging_test.ts
   - server/tests/dhis2_skip_and_record_test.ts
+  - server/tests/hfa_csv_column_matching_test.ts
   - server/tests/indicator_selection_expansion_test.ts
   - server/worker_routines/import_hfa_data_csv/**
   - server/worker_routines/import_hmis_data_csv/**
@@ -226,9 +227,11 @@ above is the authority on the shared mechanism; HFA differs only here:
   `nXlsFormQuestionsNotInCsv`), `n_rows_integrated`. The diagnostics carry
   `facilityNotFoundSample`: at most 10 distinct facility ids, ascending, that
   the file has and `facilities_hfa` lacks, read from the raw staging table
-  before the intermediates are dropped. The staging summary lists them under the
-  not-found count. The field is optional, so a run staged before it existed
-  shows the count alone.
+  before the intermediates are dropped, `csvColsNotInXlsFormSample` (at most 10
+  unmatched headers, file order) and `xlsFormQuestionsNotInCsvSample` (at most
+  10 ids of staged-type questions no column matched, form order). The staging
+  summary lists each under its count. The fields are optional, so a run staged
+  before they existed shows the counts alone.
 - **Clean condition**:
   `nRowsInvalidMissingFacilityId +
   nRowsInvalidFacilityNotFound = 0 AND nRowsTotal > 0`.
@@ -322,7 +325,12 @@ start.
   don't-know parent marks unselected choices `-99`); a variable id that
   `isReservedHfaId` rejects (`weight`, `variable_id`, `time_point`, an R
   keyword, any case, expanded ids included) aborts staging; duplicate question
-  ids are a hard error.
+  ids are a hard error. A CSV header (its last `/` segment, for an ODK group
+  path) matches the question with that id, else the one question whose id equals
+  it ignoring case, and the variable id is always the form's spelling: survey
+  firms re-case the form's names. Two columns matching one staged question abort
+  staging, naming both. Pinned by
+  `server/tests/hfa_csv_column_matching_test.ts`.
 - HFA row filtering + dedup (order fixed: **filter → review → resolve**; all
   fields in the run's mappings JSON): `rowFilters` (ANDed; trimmed-string
   `equals`/`not_equals` on the raw cell) drop rows before any duplicate
@@ -537,7 +545,7 @@ into its inputs plus the dataset version stamps the manifest records
 - select_multiple missingness resolved (see Staging); data staged before the
   change keeps the old explicit-`0` rows until re-imported.
 - HFA: the final staging table is LOGGED while the dict tables are UNLOGGED
-  (mixed crash durability); duplicate CSV columns die on a cryptic PK error.
+  (mixed crash durability).
 - `getCsvDetails` (both CSV families' header parse) reads the whole file into
   memory for headers; the streaming variant's header read is one 64 KB
   `file.read()` (wide XLSForm exports / short reads → confusing failure).

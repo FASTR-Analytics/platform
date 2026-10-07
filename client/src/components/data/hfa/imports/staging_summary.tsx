@@ -9,10 +9,6 @@ type Props = {
 // The staging diagnostics render, relocated from the deleted attempt wizard's
 // step 5. Shown on the needs_review card and on a History run's detail.
 export function HfaStagingSummary(p: Props) {
-  const nFacilitiesNotFoundBeyondSample = () =>
-    p.result.nRowsInvalidFacilityNotFound -
-    (p.result.facilityNotFoundSample?.length ?? 0);
-
   return (
     <div class="ui-spy">
       <div class="ui-pad bg-base-200 rounded">
@@ -110,22 +106,10 @@ export function HfaStagingSummary(p: Props) {
             <span class="font-700 text-danger">
               {toNum0(p.result.nRowsInvalidFacilityNotFound)}
             </span>
-            <Show when={p.result.facilityNotFoundSample?.length}>
-              <span class="text-base-content-muted font-mono text-sm">
-                {p.result.facilityNotFoundSample?.join(", ")}
-              </span>
-              <Show when={nFacilitiesNotFoundBeyondSample() > 0}>
-                <span class="text-base-content-muted text-sm">
-                  {t3({
-                    en: `and ${toNum0(nFacilitiesNotFoundBeyondSample())} more`,
-                    fr: `et ${
-                      toNum0(nFacilitiesNotFoundBeyondSample())
-                    } de plus`,
-                    pt: `e mais ${toNum0(nFacilitiesNotFoundBeyondSample())}`,
-                  })}
-                </span>
-              </Show>
-            </Show>
+            <SampleList
+              sample={p.result.facilityNotFoundSample}
+              total={p.result.nRowsInvalidFacilityNotFound}
+            />
           </div>
           <div class="flex flex-col">
             <span class="text-base-content text-sm">
@@ -241,6 +225,10 @@ export function HfaStagingSummary(p: Props) {
               <span class="font-700">
                 {toNum0(p.result.nXlsFormQuestionsNotInCsv)}
               </span>
+              <SampleList
+                sample={p.result.xlsFormQuestionsNotInCsvSample}
+                total={p.result.nXlsFormQuestionsNotInCsv}
+              />
             </div>
           </Show>
           <Show when={p.result.nCsvColsNotInXlsForm > 0}>
@@ -255,10 +243,34 @@ export function HfaStagingSummary(p: Props) {
               <span class="font-700">
                 {toNum0(p.result.nCsvColsNotInXlsForm)}
               </span>
+              <SampleList
+                sample={p.result.csvColsNotInXlsFormSample}
+                total={p.result.nCsvColsNotInXlsForm}
+              />
             </div>
           </Show>
         </div>
       </div>
     </div>
+  );
+}
+
+function SampleList(p: { sample: string[] | undefined; total: number }) {
+  const nBeyondSample = () => p.total - (p.sample?.length ?? 0);
+  return (
+    <Show when={p.sample?.length}>
+      <span class="text-base-content-muted font-mono text-sm">
+        {p.sample?.join(", ")}
+      </span>
+      <Show when={nBeyondSample() > 0}>
+        <span class="text-base-content-muted text-sm">
+          {t3({
+            en: `and ${toNum0(nBeyondSample())} more`,
+            fr: `et ${toNum0(nBeyondSample())} de plus`,
+            pt: `e mais ${toNum0(nBeyondSample())}`,
+          })}
+        </span>
+      </Show>
+    </Show>
   );
 }
