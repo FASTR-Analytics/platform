@@ -74,6 +74,14 @@ export type DBProduct = {
   created_by: string | null;
   created_at: string | null;
   last_updated: string;
+  owner: string | null;
+  default_access: "none" | "view" | "edit";
+};
+
+export type DBProductAccess = {
+  product_id: string;
+  email: string;
+  level: "view" | "edit";
 };
 
 export type DBScope = {

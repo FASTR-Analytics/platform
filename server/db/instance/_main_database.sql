@@ -161,8 +161,9 @@ CREATE TABLE user_scopes (
 
 CREATE INDEX idx_user_scopes_scope_id ON user_scopes(scope_id);
 
--- scope_id is the last column because migration 204 adds it to a live table,
--- and a migrated instance and a fresh one must dump the same schema.
+-- scope_id, owner and default_access come last because migrations 204 and
+-- 210 add them to a live table, and a migrated instance and a fresh one must
+-- dump the same schema.
 CREATE TABLE products (
   id text PRIMARY KEY NOT NULL,        -- 4-char nanoid (legacy 3-char kept)
   type text NOT NULL CHECK (type IN ('slide_deck', 'report')),
@@ -173,6 +174,12 @@ CREATE TABLE products (
   created_at text,
   last_updated text NOT NULL,
   scope_id text NOT NULL REFERENCES scopes(id),  -- no cascade: the delete-scope guard
+  owner text,                          -- email, no FK; NULL = no owner
+  -- 'view' is what migration 210 gave every product that existed when it
+  -- ran. Every insert writes 'none', so a row inserted by code that does not
+  -- name the column (a rolled-back image) is readable, never hidden.
+  default_access text NOT NULL DEFAULT 'view'
+    CHECK (default_access IN ('none', 'view', 'edit')),
   UNIQUE (id, type)                    -- target of the detail tables' composite FK
 );
 
@@ -181,6 +188,18 @@ CREATE INDEX idx_products_run_id ON products(run_id);
 CREATE INDEX idx_products_scope_id ON products(scope_id);
 CREATE INDEX idx_products_type ON products(type);
 CREATE INDEX idx_products_last_updated ON products(last_updated);
+
+-- A product's per-user grants. The owner is never a grantee. email names a
+-- users row by value, with no FK: the user delete and rename paths keep it
+-- consistent (dropAccessOfMissingUsers, renameUserEmailInMainDb).
+CREATE TABLE product_access (
+  product_id text NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  level text NOT NULL CHECK (level IN ('view', 'edit')),
+  PRIMARY KEY (product_id, email)
+);
+
+CREATE INDEX idx_product_access_email ON product_access(email);
 
 CREATE TABLE slide_decks (
   id text PRIMARY KEY NOT NULL,
