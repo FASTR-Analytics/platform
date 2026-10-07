@@ -56,6 +56,8 @@ globs:
   - server/tests/fastr_report_page_map_test.ts
   - server/tests/folder_tree_test.ts
   - server/tests/products_routes_test.ts
+  - server/tests/product_access_db_test.ts
+  - server/tests/product_level_test.ts
   - server/tests/scope_grants_routes_test.ts
   - server/tests/scope_routes_test.ts
   - server/tests/report_fastr_markdown_test.ts
@@ -154,7 +156,10 @@ instances by `200_products.sql`): `folders` (nested through a nullable
 `parent_id` self-reference), `products` (id, `type` in {`slide_deck`, `report`},
 label, `folder_id`, `run_id NOT NULL` referencing `runs` without cascade,
 `created_by`, `created_at`, `last_updated`, `scope_id NOT NULL` referencing
-`scopes` without cascade), and one detail table per type keyed by the same id,
+`scopes` without cascade, `owner` an email or NULL, `default_access` in {`none`,
+`view`, `edit`}), `product_access` (a product's per-user grants: product id,
+email, level `view` or `edit`, cascading with the product; S2 says why neither
+email references `users`), and one detail table per type keyed by the same id,
 `slide_decks` and `reports`, with `slides`, `slide_deck_versions` and
 `report_versions` hanging off them, all `ON DELETE
 CASCADE`. The two detail
@@ -162,16 +167,30 @@ tables carry a fixed `type` column and a composite FK on `(id, type)` against
 `products`, so a detail row can exist only in the table its registry type names;
 whether the detail row exists at all is a writer rule (one transaction per
 product create), not a constraint. Row types are `DBFolder`, `DBProduct`,
-`DBSlideDeck`, `DBSlide`, `DBSlideDeckVersion`, `DBReport` and `DBReportVersion`
-in `server/db/instance/_main_database_types.ts`; the layer's barrel
-`server/db/products/mod.ts` is star-exported from `server/db/mod.ts`. The shared
-contracts are `lib/types/products.ts` and `lib/types/scope.ts`.
+`DBProductAccess`, `DBSlideDeck`, `DBSlide`, `DBSlideDeckVersion`, `DBReport`
+and `DBReportVersion` in `server/db/instance/_main_database_types.ts`; the
+layer's barrel `server/db/products/mod.ts` is star-exported from
+`server/db/mod.ts`. The shared contracts are `lib/types/products.ts` and
+`lib/types/scope.ts`.
+
+**Levels.** A user holds one level on a product, ordered `none`, `view`, `edit`,
+`own` (`PRODUCT_LEVELS`, `lib/types/products.ts`). `ProductAccess` is who holds
+what: `owner`, `defaultAccess` (the general access, what everyone else in the
+instance holds) and `grants` (`{ email, level }`, `view` or `edit`).
+`productLevelFor(access, user)` is the one derivation: a global admin and the
+owner hold `own`; anyone else holds the higher of their grant and the general
+access, so the general access is a floor no grant lowers. `productLevelAtLeast`
+compares two levels. The level a route declares, `ProductAccessLevel`, is
+`ProductLevel` without `none`.
 
 **The layer** (`server/db/products/**`, PLAN_PRODUCTS_RESTRUCTURE step 5): every
 function takes `mainDb` and keys off the registry. `products.ts` holds the
 cross-type surface: one summary query for both types (`listProducts` /
 `getProductSummaries`, the registry row plus `firstSlideId` for a deck and
-`hasEmbeds` for a report, computed in SQL so no body crosses the DB boundary);
+`hasEmbeds` for a report, computed in SQL so no body crosses the DB boundary,
+plus the product's `ProductAccess`: `owner` and `defaultAccess` from the row,
+and `grants`, ordered by email, from one more SELECT over `product_access` for
+the ids in hand, merged in TypeScript; no detail payload carries access);
 `createProduct` inserts the registry row and the detail row in one transaction
 (a new deck is minted EMPTY with `themeChosen: false`; the config write that
 first answers the theme question, the first-open wizard in practice, makes the
@@ -179,16 +198,40 @@ deck's cover in the same transaction, under a row lock, and only while the deck
 has no slides: see `updateSlideDeckConfig`, whose route announces the new slide
 as createSlide does), takes `runId` and `scopeId` from the caller, checks inside
 the insert that the run is `ready` and that both rows exist, and returns the
-typed `PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies;
-`updateProductLabel`, `moveProductsToFolder`, `setProductScope` (takes a
-`scopeId`, and the scope's existence is checked in the UPDATE: an unknown scope
-is `SCOPE_NOT_FOUND`, a 404 through `_respond.ts`); `deleteProducts` is one
-`DELETE
-... WHERE id = ANY` on the registry, with the batch's slide ids pre-read
-inside the transaction for the room closers; `duplicateProduct` clones `run_id`
-through `INSERT ... SELECT`, takes `scopeId` from the body (the duplicate
-modal's "keep" sends each source's own; an unknown scope is `SCOPE_NOT_FOUND`)
-and copies the detail through a per-type `Record<ProductType, fn>`.
+typed `PACKAGE_OR_SCOPE_UNAVAILABLE` when nothing qualifies. Every product
+insert (`createProduct`, `duplicateProduct`, `copyReportFromVersion`,
+`copySlideDeckFromVersion`) writes the actor as `owner` and `default_access`
+`none`, and no grant is copied; `updateProductLabel`, `moveProductsToFolder`,
+`setProductScope` (takes a `scopeId`, and the scope's existence is checked in
+the UPDATE: an unknown scope is `SCOPE_NOT_FOUND`, a 404 through `_respond.ts`);
+`deleteProducts` is one `DELETE
+... WHERE id = ANY` on the registry, with the
+batch's slide ids pre-read inside the transaction for the room closers;
+`duplicateProduct` clones `run_id` through `INSERT ... SELECT`, takes `scopeId`
+from the body (the duplicate modal's "keep" sends each source's own; an unknown
+scope is `SCOPE_NOT_FOUND`) and copies the detail through a per-type
+`Record<ProductType, fn>`. The access functions, also in `products.ts`, never
+bump `last_updated`, since the content did not change. `setProductAccess`
+replaces the general access and the whole grant list in one transaction, and
+`setProductOwner` sets the owner, turns the previous owner, if any, into an
+`edit` grantee and drops the new owner's grant, so the owner is never a grantee;
+both lock the product row and share-lock the named users rows, and return the
+access they stored. `raiseFolderProductsAccess` (the bulk action) raises every
+product in a folder and its subfolders, found by a recursive CTE walking down
+`folders`, in one transaction: general access becomes the higher of its value
+and the chosen one (`none` leaves it), each chosen person's grant the higher of
+theirs and the chosen level, and a person who owns a product is skipped for it;
+nothing is lowered or removed, nothing is inherited, and it returns the ids
+whose access changed. Their refusals come back through the envelope at 200:
+`PRODUCT_GRANT_IS_OWNER` (a grant naming the owner, `setProductAccess` only),
+`PRODUCT_GRANT_DUPLICATE` (one email twice) and `PRODUCT_ACCESS_UNKNOWN_USER`
+(an email with no `users` row); an unknown product is `PRODUCT_NOT_FOUND` and an
+unknown folder `FOLDER_NOT_FOUND`. `getProductLevelRows(mainDb, ids, email)`
+reads, in one query, each product's scope and its access carrying only that
+user's grant, which is all `productLevelFor` needs; an id that names no row is
+absent. `dropAccessOfMissingUsers(sql)` runs inside every transaction that
+deletes `users` rows (S15): an owner with no `users` row becomes NULL and a
+grant with no `users` row goes, and it returns the products it changed.
 `folders.ts`: `moveFolder` is the move, writes only the parent and refuses a
 cycle with a recursive CTE walking up from the new parent inside the same
 transaction (`FOLDER_CYCLE`, through the envelope); `updateFolder` writes label

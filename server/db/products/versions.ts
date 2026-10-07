@@ -311,7 +311,9 @@ export async function restoreReportContent(
 /** "Restore as copy": a brand-new report PRODUCT from a version snapshot,
  *  in one transaction (the D1 writer rule). It carries the source report's
  *  current config (versions store none) and, through INSERT ... SELECT, the
- *  source product's (run_id, scope_id) pair verbatim. */
+ *  source product's (run_id, scope_id) pair verbatim. Whoever made the copy
+ *  owns it, nobody else can see it, and no grant is copied
+ *  (PLAN_PRODUCT_OWNERSHIP R2). */
 export async function copyReportFromVersion(
   mainDb: Sql,
   args: {
@@ -350,10 +352,12 @@ export async function copyReportFromVersion(
     await mainDb.begin((sql) => [
       sql`
         INSERT INTO products
-          (id, type, label, folder_id, run_id, scope_id, created_by, created_at, last_updated)
+          (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
+           last_updated, owner, default_access)
         SELECT
           ${newProductId}, 'report', ${args.label.trim()}, ${args.folderId},
-          run_id, scope_id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
+          run_id, scope_id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated},
+          ${args.createdBy}, 'none'
         FROM products WHERE id = ${args.productId}
       `,
       sql`
@@ -725,7 +729,8 @@ export async function restoreSlideDeckStructure(
 /** "Restore as copy": a brand-new deck PRODUCT, plus slides with FRESH ids
  *  (the originals may still exist in the source deck), from a version
  *  snapshot, in one transaction. The source product's (run_id, scope_id)
- *  pair is cloned verbatim by INSERT ... SELECT. */
+ *  pair is cloned verbatim by INSERT ... SELECT. Owner and access as
+ *  copyReportFromVersion. */
 export async function copySlideDeckFromVersion(
   mainDb: Sql,
   args: {
@@ -773,10 +778,12 @@ export async function copySlideDeckFromVersion(
     await mainDb.begin((sql) => [
       sql`
         INSERT INTO products
-          (id, type, label, folder_id, run_id, scope_id, created_by, created_at, last_updated)
+          (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
+           last_updated, owner, default_access)
         SELECT
           ${newProductId}, 'slide_deck', ${args.label.trim()}, ${args.folderId},
-          run_id, scope_id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
+          run_id, scope_id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated},
+          ${args.createdBy}, 'none'
         FROM products WHERE id = ${args.productId}
       `,
       sql`

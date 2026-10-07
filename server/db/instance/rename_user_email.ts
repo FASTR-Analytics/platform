@@ -26,11 +26,14 @@ import type {
 // (whose cascade then has nothing left to take). A plain UPDATE would violate
 // the FKs; delete-then-re-add would cascade permissions and history away.
 //
-// Product attribution (products and folders `created_by`, live report
-// authorship, version editors and author runs) stores emails as plain strings
-// with no FK, so a separate sweep rewrites those. Both halves are idempotent: renaming an email
-// that is no longer present touches nothing, so a partially-failed fleet run
-// can simply be retried.
+// Product ownership and grants (products.owner, product_access.email) name
+// users with no FK, and move in the same transaction as the users row: a
+// user-deleting sweep (dropAccessOfMissingUsers) must never see them pointing
+// at neither row. Product attribution (products and folders `created_by`,
+// live report authorship, version editors and author runs) stores emails as
+// plain strings with no FK, so a separate sweep rewrites those. Both halves
+// are idempotent: renaming an email that is no longer present touches
+// nothing, so a partially-failed fleet run can simply be retried.
 
 // ---------------------------------------------------------------------------
 // Main DB
@@ -71,7 +74,7 @@ export async function renameUserEmailInMainDb(
   oldEmail: string,
   newEmail: string,
   actor: string,
-): Promise<APIResponseWithData<{ changed: boolean }>> {
+): Promise<APIResponseWithData<{ changed: boolean; productIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
     const oldRow = (
       await mainDb<DBUser[]>`SELECT * FROM users WHERE email = ${oldEmail}`
@@ -94,10 +97,10 @@ export async function renameUserEmailInMainDb(
     if (!oldRow) {
       // Already renamed (e.g. a retried fleet run): succeed without touching
       // the users row; the caller still runs the attribution sweeps.
-      return { success: true, data: { changed: false } };
+      return { success: true, data: { changed: false, productIds: [] } };
     }
 
-    await mainDb.begin(async (sql) => {
+    const productIds = await mainDb.begin(async (sql) => {
       await sql`INSERT INTO users ${sql({ ...oldRow, email: newEmail })}`;
       await sql`UPDATE user_logs SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
       await sql`UPDATE user_logs_aggregate SET user_email = ${newEmail} WHERE user_email = ${oldEmail}`;
@@ -115,6 +118,14 @@ export async function renameUserEmailInMainDb(
       await sql`UPDATE custom_prompts SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
       await sql`UPDATE asset_metadata SET uploader_email = ${newEmail} WHERE uploader_email = ${oldEmail}`;
       await sql`UPDATE user_scopes SET email = ${newEmail} WHERE email = ${oldEmail}`;
+      const owned = await sql<{ id: string }[]>`
+        UPDATE products SET owner = ${newEmail} WHERE owner = ${oldEmail}
+        RETURNING id
+      `;
+      const granted = await sql<{ product_id: string }[]>`
+        UPDATE product_access SET email = ${newEmail} WHERE email = ${oldEmail}
+        RETURNING product_id
+      `;
       await sql`UPDATE dataset_hmis_scheduled_imports SET created_by = ${newEmail} WHERE created_by = ${oldEmail}`;
       await sql`UPDATE dataset_hmis_import_runs SET triggered_by = ${newEmail} WHERE triggered_by = ${oldEmail}`;
       await sql`UPDATE instance_dhis2_credentials SET updated_by = ${newEmail} WHERE updated_by = ${oldEmail}`;
@@ -141,9 +152,15 @@ export async function renameUserEmailInMainDb(
         JSON.stringify({ oldEmail, newEmail, actor })
       })
       `;
+      return [
+        ...new Set([
+          ...owned.map((r) => r.id),
+          ...granted.map((r) => r.product_id),
+        ]),
+      ];
     });
 
-    return { success: true, data: { changed: true } };
+    return { success: true, data: { changed: true, productIds } };
   });
 }
 

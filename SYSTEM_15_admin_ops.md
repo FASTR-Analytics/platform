@@ -163,6 +163,23 @@ its user's roster row. The client compares its own row's access with the one its
 connection was built under and reconnects both channels on a change
 (`t1_sse.tsx`, R29). An email rename moves the grants (`rename_user_email.ts`).
 
+The roster row reports a global admin as the guard derives one: on an
+open-access instance every user is a global admin whatever `users.is_admin` says
+(`server/auth/global_user.ts`), so `otherUserFromRow` reports every user of such
+an instance as an admin, with full permissions and every scope.
+
+Product ownership and grants (S12) name users by email with no foreign key, and
+the three paths that remove or move a `users` row keep them consistent.
+`deleteUser` deletes the rows and runs `dropAccessOfMissingUsers` in one
+transaction, so a deleted user's products become ownerless (admins still own
+every product) and their grants go. `batchUploadUsers` with replace-all runs the
+same sweep after its re-inserts, in its transaction, so every user it re-inserts
+keeps their ownership and grants; without replace-all it deletes no row and
+sweeps nothing. `renameUserEmailInMainDb` moves `products.owner` and
+`product_access.email` in the transaction that moves the users row. Each path
+returns the products it changed and its route re-broadcasts their summaries
+(`notifyInstanceProductsUpserted`).
+
 ## Permissions (write side)
 
 - **One flat flag set** (`lib/types/permissions.ts`, with a compile-time

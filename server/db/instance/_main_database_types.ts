@@ -1,4 +1,9 @@
-import type { ProductType, ScopeId } from "lib";
+import type {
+  ProductDefaultAccess,
+  ProductGrantLevel,
+  ProductType,
+  ScopeId,
+} from "lib";
 
 export type DBUser = {
   email: string;
@@ -75,13 +80,13 @@ export type DBProduct = {
   created_at: string | null;
   last_updated: string;
   owner: string | null;
-  default_access: "none" | "view" | "edit";
+  default_access: ProductDefaultAccess;
 };
 
 export type DBProductAccess = {
   product_id: string;
   email: string;
-  level: "view" | "edit";
+  level: ProductGrantLevel;
 };
 
 export type DBScope = {

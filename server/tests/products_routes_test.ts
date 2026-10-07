@@ -324,15 +324,26 @@ SELECT id FROM runs WHERE status = 'ready' AND NOT pinned ORDER BY created_at DE
     assertEquals(Object.keys(deckSummary).sort(), [
       "createdAt",
       "createdBy",
+      "defaultAccess",
       "firstSlideId",
       "folderId",
+      "grants",
       "id",
       "label",
       "lastUpdated",
+      "owner",
       "runId",
       "scopeId",
       "type",
     ]);
+    assertEquals(
+      {
+        owner: deckSummary.owner,
+        defaultAccess: deckSummary.defaultAccess,
+        grants: deckSummary.grants,
+      },
+      { owner: APPROVED_EMAIL, defaultAccess: "none", grants: [] },
+    );
     const harnessScope = approvedState.data.scopes.find((sc) =>
       sc.id === areaScopeId
     );

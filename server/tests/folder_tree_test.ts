@@ -11,6 +11,7 @@ import { assertEquals } from "@std/assert";
 import {
   ALL_DATA_SCOPE_ID,
   type Folder,
+  type ProductAccess,
   type ProductBase,
   type ProductSummary,
   type ProductType,
@@ -59,9 +60,14 @@ function product(
     createdAt: null,
     lastUpdated,
   };
+  const access: ProductAccess = {
+    owner: null,
+    defaultAccess: "view",
+    grants: [],
+  };
   return type === "slide_deck"
-    ? { ...base, type, firstSlideId: null }
-    : { ...base, type, hasEmbeds: false };
+    ? { ...base, ...access, type, firstSlideId: null }
+    : { ...base, ...access, type, hasEmbeds: false };
 }
 
 // a > b > c, plus a sibling root d. "zebra" sorts last by path everywhere.

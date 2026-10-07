@@ -1,11 +1,15 @@
 // Utility for creating type-safe route registries
 import { z } from "zod";
-import type { APIResponseNoData, APIResponseWithData } from "../types/mod.ts";
+import type {
+  APIResponseNoData,
+  APIResponseWithData,
+  ProductLevel,
+} from "../types/mod.ts";
 
 // The access level a product or folder route declares. The server's
 // defineRoute installs requireProductAccess whenever an entry carries one,
 // and productAccessPolicy (server/auth/product_access.ts) is the only reader.
-export type ProductAccessLevel = "view" | "edit" | "own";
+export type ProductAccessLevel = Exclude<ProductLevel, "none">;
 
 // Helper to define a route with type information.
 // params and body must be Zod schemas (z.ZodType): phantom {} as T is no longer accepted.

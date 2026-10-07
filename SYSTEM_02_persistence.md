@@ -74,20 +74,37 @@ for existing instances, in `200_products.sql` in `IF NOT EXISTS` form.
 The `scopes` table (`id` a uuid or the reserved `all-data`, `label`,
 `definition` as `ScopeDefinition` JSON, `created_by`, `created_at`,
 `last_updated`) sits beside it, and `products.scope_id` (`NOT NULL`, references
-`scopes(id)` with no cascade) is the last column of `products`. `204_scopes.sql`
-creates the table and seeds the reserved row, id `all-data`, labelled "All
-data", on every instance, a fresh one included, so a product can always be
-created. Its definition includes every family and limits nothing. On an instance
-that still has `products.admin_area_2` it also seeds one scope per distinct
-area, labelled with the area name, whose HMIS and HFA sections both carry that
-area and whose ICEH section is included whole: what those products showed. Areas
-are distinct case-insensitively, so two spellings of one area share a scope, and
-an area whose name is already a scope's label gets the suffix " (area)". It then
-backfills `scope_id` on the same case-insensitive match (a product with no area
-takes `all-data`), sets `NOT NULL` and the foreign key, and drops
-`admin_area_2`. That block is guarded on the column it drops, so a second run
-and a fresh database skip it. `server/db/instance/scopes.ts` reads and writes
-the table (S12 "Scopes").
+`scopes(id)` with no cascade) follows the original columns of `products`.
+`204_scopes.sql` creates the table and seeds the reserved row, id `all-data`,
+labelled "All data", on every instance, a fresh one included, so a product can
+always be created. Its definition includes every family and limits nothing. On
+an instance that still has `products.admin_area_2` it also seeds one scope per
+distinct area, labelled with the area name, whose HMIS and HFA sections both
+carry that area and whose ICEH section is included whole: what those products
+showed. Areas are distinct case-insensitively, so two spellings of one area
+share a scope, and an area whose name is already a scope's label gets the suffix
+" (area)". It then backfills `scope_id` on the same case-insensitive match (a
+product with no area takes `all-data`), sets `NOT NULL` and the foreign key, and
+drops `admin_area_2`. That block is guarded on the column it drops, so a second
+run and a fresh database skip it. `server/db/instance/scopes.ts` reads and
+writes the table (S12 "Scopes").
+
+Product ownership is three things on `main`: `products.owner` (an email, NULL
+for no owner), `products.default_access` (`none`, `view` or `edit`, the general
+access) and the `product_access` table (product id, email, `view` or `edit`;
+cascades with its product). `210_product_ownership.sql` adds the two columns
+after `scope_id`, so they come last in the base schema too: a migrated instance
+and a fresh one must dump the same schema. Every product that exists when 210
+runs takes general access `view` from the column default, and its owner is
+`created_by` when that names a `users` row. The column default stays `view`
+while every insert in the code writes `none`, so a row inserted by an image that
+does not name the column (a rollback) is readable by everyone rather than
+hidden. Neither `owner` nor `product_access.email` references `users`: a
+cascading foreign key would make a replace-all batch upload delete every grant,
+and an open-access instance inserts its users without awaiting, so a product
+created on a first request could precede its creator's row. The user delete and
+rename paths keep them consistent instead (S15 "Scope access").
+`server/db/products/products.ts` reads and writes them (S12).
 
 The connection id (`"postgres"` or `"main"`) is the connection-cache key and the
 database name passed to `getPgConnectionFromCacheOrNew`. Request handlers

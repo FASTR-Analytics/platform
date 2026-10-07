@@ -16,6 +16,8 @@ import { resolveAssetFilePath } from "./assets.ts";
 import { readCsvFile } from "@timroberton/panther";
 import { DBUser } from "./_main_database_types.ts";
 import { SCOPE_NOT_FOUND } from "./scopes.ts";
+import { dropAccessOfMissingUsers } from "../products/products.ts";
+import { _OPEN_ACCESS } from "../../exposed_env_vars.ts";
 
 const USER_NOT_FOUND = "No matching user";
 
@@ -77,19 +79,26 @@ export async function getScopeGrantsByEmail(
   return grants;
 }
 
+// On an open-access instance every user is a global admin whatever the
+// stored flag says, as the guard derives it (server/auth/global_user.ts), so
+// the roster, the starting payload, the stream and the client agree with it.
 export function otherUserFromRow(
   row: DBUser,
   grantedScopeIds: ScopeUuid[],
 ): OtherUser {
+  const isGlobalAdmin = _OPEN_ACCESS || row.is_admin;
   return {
     email: row.email,
-    isGlobalAdmin: row.is_admin,
+    isGlobalAdmin,
     firstName: row.first_name ?? undefined,
     lastName: row.last_name ?? undefined,
     unlimitedAi: row.unlimited_ai,
     isContactPerson: row.is_contact_person,
-    scopeAccess: scopeAccessFromRow(row, grantedScopeIds),
-    ...(row.is_admin
+    scopeAccess: scopeAccessFromRow(
+      { is_admin: isGlobalAdmin, all_scopes: row.all_scopes },
+      grantedScopeIds,
+    ),
+    ...(isGlobalAdmin
       ? _USER_PERMISSIONS_DEFAULT_FULL_ACCESS
       : buildUserPermissionsFromRow(row)),
   };
@@ -315,13 +324,19 @@ export async function IncrementUserDailyTokenUsage(
   `;
 }
 
+// The deleted users' products lose their owner and grants in the same
+// transaction (dropAccessOfMissingUsers); the ids of those products come back
+// for the caller to re-broadcast.
 export async function deleteUser(
   mainDb: Sql,
   emails: string[],
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<{ productIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
-    await mainDb`DELETE FROM users WHERE email = ANY(${emails})`;
-    return { success: true };
+    const productIds = await mainDb.begin(async (sql) => {
+      await sql`DELETE FROM users WHERE email = ANY(${emails})`;
+      return await dropAccessOfMissingUsers(sql);
+    });
+    return { success: true, data: { productIds } };
   });
 }
 
@@ -330,7 +345,7 @@ export async function batchUploadUsers(
   assetFileName: string,
   replaceAllExisting: boolean,
   caller: { email: string; isGlobalAdmin: boolean },
-): Promise<APIResponseNoData> {
+): Promise<APIResponseWithData<{ productIds: string[] }>> {
   return await tryCatchDatabaseAsync(async () => {
     // Read and parse the CSV file
     const filePath = resolveAssetFilePath(assetFileName);
@@ -424,8 +439,10 @@ export async function batchUploadUsers(
       }
     }
 
-    // Process the batch users in a transaction
-    await mainDb.begin(async (sql) => {
+    // Process the batch users in a transaction. A replace-all sweeps product
+    // access after the re-inserts, so a user it re-inserts keeps their
+    // ownership and grants.
+    const productIds = await mainDb.begin(async (sql) => {
       // If replaceAllExisting is true, delete all existing users first
       if (replaceAllExisting) {
         await sql`
@@ -445,8 +462,10 @@ export async function batchUploadUsers(
             is_admin = EXCLUDED.is_admin
         `;
       }
+
+      return replaceAllExisting ? await dropAccessOfMissingUsers(sql) : [];
     });
 
-    return { success: true };
+    return { success: true, data: { productIds } };
   });
 }

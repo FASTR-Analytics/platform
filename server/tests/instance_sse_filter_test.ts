@@ -59,6 +59,9 @@ function product(
     createdBy: null,
     createdAt: null,
     lastUpdated: "t1",
+    owner: null,
+    defaultAccess: "view",
+    grants: [],
   };
 }
 

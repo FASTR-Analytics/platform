@@ -1116,11 +1116,13 @@ session first records a reused id.
 
 **Email rename**: `renameUserEmailLocally`
 ([server/routes/instance/users.ts](server/routes/instance/users.ts)) flips the
-users row, then runs the collab sweep: `closeConnectionsForEmail` closes every
-socket authenticated as the old email (4403), `renameVersionEditorEmail` re-keys
-open tracker sessions, and `renameDeckLedgerEmails` / `renameAuthorEmails`
-rewrite the in-memory deck and report ledgers. Only then does the main-DB
-product attribution sweep run: `renameUserEmailInProducts`
+users row, moving the products the old email owns and its grants
+(`products.owner`, `product_access.email`) in the same transaction, then runs
+the collab sweep: `closeConnectionsForEmail` closes every socket authenticated
+as the old email (4403), `renameVersionEditorEmail` re-keys open tracker
+sessions, and `renameDeckLedgerEmails` / `renameAuthorEmails` rewrite the
+in-memory deck and report ledgers. Only then does the main-DB product
+attribution sweep run: `renameUserEmailInProducts`
 ([rename_user_email.ts](server/db/instance/rename_user_email.ts)) rewrites
 `products.created_by`, `folders.created_by`, `reports.body_authors`
 (compare-and-set on `products.last_updated` and the crdt stamp) and the editors

@@ -54,7 +54,10 @@ import {
   requireGlobalPermissionOrStatusKey,
 } from "../../middleware/userPermission.ts";
 import { getClerkSessionAuth } from "../../middleware/auth.ts";
-import { notifyInstanceUsersUpdated } from "../../task_management/notify_instance_updated.ts";
+import {
+  notifyInstanceProductsUpserted,
+  notifyInstanceUsersUpdated,
+} from "../../task_management/notify_instance_updated.ts";
 import {
   COLLAB_CLOSE_ACCESS_CHANGED,
   COLLAB_CLOSE_UNAUTHORIZED,
@@ -225,10 +228,12 @@ defineRoute(
       );
     }
     const res = await deleteUser(c.var.mainDb, body.emails);
-    if (res.success) {
-      notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    if (!res.success) {
+      return c.json(res);
     }
-    return c.json(res);
+    notifyInstanceUsersUpdated(await getInstanceUsers(c.var.mainDb));
+    await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
+    return c.json({ success: true });
   },
 );
 
@@ -254,13 +259,12 @@ defineRoute(
         isGlobalAdmin: c.var.globalUser.isGlobalAdmin,
       },
     );
-    if (res.success) {
-      await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
+    if (!res.success) {
+      return c.json(res, res.err === ADMIN_FLAG_NEEDS_ADMIN ? 403 : 200);
     }
-    return c.json(
-      res,
-      !res.success && res.err === ADMIN_FLAG_NEEDS_ADMIN ? 403 : 200,
-    );
+    await broadcastRosterAndCloseStaleCollab(c.var.mainDb);
+    await notifyInstanceProductsUpserted(c.var.mainDb, res.data.productIds);
+    return c.json({ success: true });
   },
 );
 
@@ -475,6 +479,7 @@ async function renameUserEmailLocally(
     newEmail,
   );
   notifyInstanceUsersUpdated(await getInstanceUsers(mainDb));
+  await notifyInstanceProductsUpserted(mainDb, mainRes.data.productIds);
   if (!productsRes.success) {
     return productsRes;
   }

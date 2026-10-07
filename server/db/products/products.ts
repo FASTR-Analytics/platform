@@ -1,7 +1,12 @@
 import { Sql } from "postgres";
 import {
   type APIResponseWithData,
+  PRODUCT_LEVELS,
+  type ProductAccess,
   type ProductBase,
+  type ProductDefaultAccess,
+  type ProductGrant,
+  type ProductGrantLevel,
   type ProductSummary,
   type ProductType,
   type ScopeId,
@@ -9,8 +14,12 @@ import {
   type TranslatableString,
 } from "lib";
 import { tryCatchDatabaseAsync } from "../utils.ts";
-import { type DBProduct } from "../instance/_main_database_types.ts";
+import {
+  type DBProduct,
+  type DBProductAccess,
+} from "../instance/_main_database_types.ts";
 import { SCOPE_NOT_FOUND } from "../instance/scopes.ts";
+import { FOLDER_NOT_FOUND } from "./folders.ts";
 import { generateUniqueProductId } from "../../utils/id_generation.ts";
 import {
   duplicateSlideDeckDetail,
@@ -30,6 +39,15 @@ export const PRODUCT_NOT_FOUND = "Product not found";
 // failure, never a throw.
 export const PACKAGE_OR_SCOPE_UNAVAILABLE =
   "The results package is not ready, or the package or scope no longer exists";
+
+// The access writes' refusals (PLAN_PRODUCT_OWNERSHIP R10, R19), returned
+// through the envelope like FOLDER_CYCLE. Rulings cited below without a plan
+// name are that plan's.
+export const PRODUCT_GRANT_IS_OWNER =
+  "The owner already has full access and cannot also be given a level";
+export const PRODUCT_GRANT_DUPLICATE = "Each person can be listed only once";
+export const PRODUCT_ACCESS_UNKNOWN_USER =
+  "Access can be given only to a user of this instance";
 
 const NEW_PRODUCT_LABELS: Record<ProductType, TranslatableString> = {
   slide_deck: {
@@ -74,27 +92,65 @@ function rowToProductBase(row: DBProduct): ProductBase {
 
 const SUMMARY_BY_TYPE: Record<
   ProductType,
-  (base: ProductBase, row: DBProductSummaryRow) => ProductSummary
+  (
+    base: ProductBase,
+    row: DBProductSummaryRow,
+    access: ProductAccess,
+  ) => ProductSummary
 > = {
-  slide_deck: (base, row) => ({
+  slide_deck: (base, row, access) => ({
     ...base,
+    ...access,
     type: "slide_deck",
     firstSlideId: row.first_slide_id,
   }),
-  report: (base, row) => ({
+  report: (base, row, access) => ({
     ...base,
+    ...access,
     type: "report",
     hasEmbeds: row.has_embeds ?? false,
   }),
 };
 
-function rowToProductSummary(row: DBProductSummaryRow): ProductSummary {
-  return SUMMARY_BY_TYPE[row.type](rowToProductBase(row), row);
+function rowToProductSummary(
+  row: DBProductSummaryRow,
+  grants: ProductGrant[],
+): ProductSummary {
+  return SUMMARY_BY_TYPE[row.type](rowToProductBase(row), row, {
+    owner: row.owner,
+    defaultAccess: row.default_access,
+    grants,
+  });
+}
+
+// Each product's grants, ordered by email: a second SELECT merged in
+// TypeScript, because SQL never builds JSON here (CLAUDE.md).
+async function selectGrantsByProduct(
+  sql: Sql,
+  productIds: string[],
+): Promise<Map<string, ProductGrant[]>> {
+  const rows = await sql<DBProductAccess[]>`
+    SELECT product_id, email, level FROM product_access
+    WHERE product_id = ANY(${productIds})
+    ORDER BY email
+  `;
+  const grants = new Map<string, ProductGrant[]>();
+  for (const row of rows) {
+    const grant = { email: row.email, level: row.level };
+    const held = grants.get(row.product_id);
+    if (held === undefined) {
+      grants.set(row.product_id, [grant]);
+    } else {
+      held.push(grant);
+    }
+  }
+  return grants;
 }
 
 // One summary query for both types: the registry drives the list and each
-// detail table contributes its slice through a LEFT JOIN. `productIds` null
-// = the whole instance.
+// detail table contributes its slice through a LEFT JOIN; the grants of the
+// rows in hand follow in one more SELECT. `productIds` null = the whole
+// instance.
 async function selectProductSummaries(
   mainDb: Sql,
   productIds: string[] | null,
@@ -111,7 +167,11 @@ async function selectProductSummaries(
     ${productIds === null ? mainDb`` : mainDb`WHERE p.id = ANY(${productIds})`}
     ORDER BY p.last_updated DESC
   `;
-  return rows.map(rowToProductSummary);
+  const grants = await selectGrantsByProduct(
+    mainDb,
+    rows.map((r) => r.id),
+  );
+  return rows.map((row) => rowToProductSummary(row, grants.get(row.id) ?? []));
 }
 
 export async function listProducts(
@@ -165,7 +225,8 @@ const INSERT_DETAIL_BY_TYPE: Record<
 // The registry row and its detail row go in ONE transaction (the D1 writer
 // rule). The caller names the package and the scope; the ready gate and both
 // existence checks are INSIDE the insert, so there is no read-then-write
-// window. The server mints the label in the instance language.
+// window. The server mints the label in the instance language. The creator
+// owns the product and nobody else can see it (R2).
 export async function createProduct(
   mainDb: Sql,
   args: {
@@ -184,10 +245,12 @@ export async function createProduct(
     const inserted = await mainDb.begin(async (sql) => {
       const rows = await sql<{ id: string }[]>`
         INSERT INTO products
-          (id, type, label, folder_id, run_id, scope_id, created_by, created_at, last_updated)
+          (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
+           last_updated, owner, default_access)
         SELECT
           ${productId}, ${args.type}, ${label}, ${args.folderId},
-          r.id, s.id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated}
+          r.id, s.id, ${args.createdBy}, ${lastUpdated}, ${lastUpdated},
+          ${args.createdBy}, 'none'
         FROM runs r, scopes s
         WHERE r.id = ${args.runId} AND r.status = 'ready'
           AND s.id = ${args.scopeId}
@@ -336,7 +399,8 @@ const DUPLICATE_DETAIL_BY_TYPE: Record<
 
 // The Q2 to Q3 workflow's first half (D5): the copy clones run_id VERBATIM
 // through INSERT ... SELECT, so the package can never drift to the pin, takes
-// the scope the caller names, and lands in the source's folder.
+// the scope the caller names, and lands in the source's folder. Whoever made
+// the copy owns it, nobody else can see it, and no grant is copied (R2).
 export async function duplicateProduct(
   mainDb: Sql,
   productId: string,
@@ -360,10 +424,11 @@ export async function duplicateProduct(
     await mainDb.begin(async (sql) => {
       const inserted = await sql`
         INSERT INTO products
-          (id, type, label, folder_id, run_id, scope_id, created_by, created_at, last_updated)
+          (id, type, label, folder_id, run_id, scope_id, created_by, created_at,
+           last_updated, owner, default_access)
         SELECT
           ${newProductId}, p.type, ${label}, p.folder_id, p.run_id, s.id,
-          ${createdBy}, ${lastUpdated}, ${lastUpdated}
+          ${createdBy}, ${lastUpdated}, ${lastUpdated}, ${createdBy}, 'none'
         FROM products p, scopes s
         WHERE p.id = ${productId} AND s.id = ${scopeId}
         RETURNING id
@@ -382,4 +447,279 @@ export async function duplicateProduct(
 
     return { success: true, data: { productId: newProductId, lastUpdated } };
   });
+}
+
+function grantRows(
+  productId: string,
+  grants: ProductGrant[],
+): DBProductAccess[] {
+  return grants.map((g) => ({
+    product_id: productId,
+    email: g.email,
+    level: g.level,
+  }));
+}
+
+function hasDuplicateEmail(grants: ProductGrant[]): boolean {
+  return new Set(grants.map((g) => g.email)).size !== grants.length;
+}
+
+// Share-locks the named users rows, so a user deleted alongside cannot leave
+// a grant or an ownership behind; true when every email names one.
+async function allUsersExist(sql: Sql, emails: string[]): Promise<boolean> {
+  const known = await sql<{ email: string }[]>`
+    SELECT email FROM users WHERE email = ANY(${emails}) FOR SHARE
+  `;
+  return known.length === new Set(emails).size;
+}
+
+async function readProductAccess(
+  sql: Sql,
+  productId: string,
+): Promise<ProductAccess> {
+  const row = (
+    await sql<Pick<DBProduct, "owner" | "default_access">[]>`
+      SELECT owner, default_access FROM products WHERE id = ${productId}
+    `
+  ).at(0);
+  if (row === undefined) {
+    throw new Error(PRODUCT_NOT_FOUND);
+  }
+  const grants = await selectGrantsByProduct(sql, [productId]);
+  return {
+    owner: row.owner,
+    defaultAccess: row.default_access,
+    grants: grants.get(productId) ?? [],
+  };
+}
+
+// R10: the general access and the whole grant list, replaced in one
+// transaction. The product row is locked, so the owner check and the write
+// see the same owner. No access write bumps last_updated (R15): the content
+// did not change.
+export async function setProductAccess(
+  mainDb: Sql,
+  productId: string,
+  args: { defaultAccess: ProductDefaultAccess; grants: ProductGrant[] },
+): Promise<APIResponseWithData<ProductAccess>> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (hasDuplicateEmail(args.grants)) {
+      return { success: false, err: PRODUCT_GRANT_DUPLICATE };
+    }
+    const emails = args.grants.map((g) => g.email);
+    const result = await mainDb.begin(async (sql) => {
+      const product = (
+        await sql<Pick<DBProduct, "owner">[]>`
+          SELECT owner FROM products WHERE id = ${productId} FOR UPDATE
+        `
+      ).at(0);
+      if (product === undefined) {
+        throw new Error(PRODUCT_NOT_FOUND);
+      }
+      if (product.owner !== null && emails.includes(product.owner)) {
+        return PRODUCT_GRANT_IS_OWNER;
+      }
+      if (!(await allUsersExist(sql, emails))) {
+        return PRODUCT_ACCESS_UNKNOWN_USER;
+      }
+      await sql`
+        UPDATE products SET default_access = ${args.defaultAccess}
+        WHERE id = ${productId}
+      `;
+      await sql`DELETE FROM product_access WHERE product_id = ${productId}`;
+      if (args.grants.length > 0) {
+        await sql`
+          INSERT INTO product_access ${sql(grantRows(productId, args.grants))}
+        `;
+      }
+      return await readProductAccess(sql, productId);
+    });
+    return typeof result === "string"
+      ? { success: false, err: result }
+      : { success: true, data: result };
+  });
+}
+
+// R10: the previous owner, if any, becomes an edit grantee, and the new
+// owner's grant, if any, goes, so the owner is never a grantee.
+export async function setProductOwner(
+  mainDb: Sql,
+  productId: string,
+  email: string,
+): Promise<APIResponseWithData<ProductAccess>> {
+  return await tryCatchDatabaseAsync(async () => {
+    const result = await mainDb.begin(async (sql) => {
+      const product = (
+        await sql<Pick<DBProduct, "owner">[]>`
+          SELECT owner FROM products WHERE id = ${productId} FOR UPDATE
+        `
+      ).at(0);
+      if (product === undefined) {
+        throw new Error(PRODUCT_NOT_FOUND);
+      }
+      if (!(await allUsersExist(sql, [email]))) {
+        return PRODUCT_ACCESS_UNKNOWN_USER;
+      }
+      if (product.owner !== email) {
+        if (product.owner !== null) {
+          await sql`
+            INSERT INTO product_access (product_id, email, level)
+            VALUES (${productId}, ${product.owner}, 'edit')
+            ON CONFLICT (product_id, email) DO UPDATE SET level = 'edit'
+          `;
+        }
+        await sql`
+          DELETE FROM product_access
+          WHERE product_id = ${productId} AND email = ${email}
+        `;
+        await sql`UPDATE products SET owner = ${email} WHERE id = ${productId}`;
+      }
+      return await readProductAccess(sql, productId);
+    });
+    return typeof result === "string"
+      ? { success: false, err: result }
+      : { success: true, data: result };
+  });
+}
+
+// R19, the bulk action: raises access on every product in the folder's
+// subtree at this moment, in one transaction, and never lowers it. General
+// access becomes the higher of its value and the chosen one, and each chosen
+// person's grant the higher of theirs and the chosen level; a person who owns
+// a product is skipped for it. Returns the products whose access changed.
+export async function raiseFolderProductsAccess(
+  mainDb: Sql,
+  folderId: string,
+  args: { defaultAccess: ProductDefaultAccess; grants: ProductGrant[] },
+): Promise<APIResponseWithData<{ productIds: string[] }>> {
+  return await tryCatchDatabaseAsync(async () => {
+    if (hasDuplicateEmail(args.grants)) {
+      return { success: false, err: PRODUCT_GRANT_DUPLICATE };
+    }
+    const lowerDefaults = PRODUCT_LEVELS.slice(
+      0,
+      PRODUCT_LEVELS.indexOf(args.defaultAccess),
+    );
+    const result = await mainDb.begin(async (sql) => {
+      const folder = await sql`
+        SELECT 1 FROM folders WHERE id = ${folderId} FOR SHARE
+      `;
+      if (folder.length === 0) {
+        throw new Error(FOLDER_NOT_FOUND);
+      }
+      if (!(await allUsersExist(sql, args.grants.map((g) => g.email)))) {
+        return PRODUCT_ACCESS_UNKNOWN_USER;
+      }
+      // Locked, so an owner cannot change between the skip and the insert.
+      const subtree = await sql<{ id: string }[]>`
+        WITH RECURSIVE subtree AS (
+          SELECT id FROM folders WHERE id = ${folderId}
+          UNION ALL
+          SELECT f.id FROM folders f JOIN subtree s ON f.parent_id = s.id
+        )
+        SELECT id FROM products
+        WHERE folder_id IN (SELECT id FROM subtree)
+        FOR UPDATE
+      `;
+      const productIds = subtree.map((r) => r.id);
+      if (productIds.length === 0) {
+        return [];
+      }
+      const raisedDefaults = await sql<{ id: string }[]>`
+        UPDATE products SET default_access = ${args.defaultAccess}
+        WHERE id = ANY(${productIds})
+          AND default_access = ANY(${lowerDefaults})
+        RETURNING id
+      `;
+      const raisedGrants = args.grants.length === 0
+        ? []
+        : await sql<{ product_id: string }[]>`
+          INSERT INTO product_access (product_id, email, level)
+          SELECT p.id, g.email, g.level
+          FROM products p,
+            unnest(
+              ${args.grants.map((g) => g.email)}::text[],
+              ${args.grants.map((g) => g.level)}::text[]
+            ) AS g(email, level)
+          WHERE p.id = ANY(${productIds})
+            AND p.owner IS DISTINCT FROM g.email
+          ON CONFLICT (product_id, email) DO UPDATE SET level = EXCLUDED.level
+            WHERE product_access.level = 'view' AND EXCLUDED.level = 'edit'
+          RETURNING product_id
+        `;
+      return [
+        ...new Set([
+          ...raisedDefaults.map((r) => r.id),
+          ...raisedGrants.map((r) => r.product_id),
+        ]),
+      ];
+    });
+    return typeof result === "string"
+      ? { success: false, err: result }
+      : { success: true, data: { productIds: result } };
+  });
+}
+
+// One product as one user's level needs it: its scope, and its access
+// carrying only that user's grant, which is all productLevelFor reads for
+// them. An id that names no row is absent.
+export type ProductLevelRow = {
+  productId: string;
+  scopeId: ScopeId;
+  access: ProductAccess;
+};
+
+export async function getProductLevelRows(
+  mainDb: Sql,
+  productIds: string[],
+  email: string,
+): Promise<ProductLevelRow[]> {
+  if (productIds.length === 0) {
+    return [];
+  }
+  const rows = await mainDb<
+    (Pick<DBProduct, "id" | "scope_id" | "owner" | "default_access"> & {
+      grant_level: ProductGrantLevel | null;
+    })[]
+  >`
+    SELECT p.id, p.scope_id, p.owner, p.default_access, pa.level AS grant_level
+    FROM products p
+    LEFT JOIN product_access pa ON pa.product_id = p.id AND pa.email = ${email}
+    WHERE p.id = ANY(${productIds})
+  `;
+  return rows.map((row) => ({
+    productId: row.id,
+    scopeId: row.scope_id,
+    access: {
+      owner: row.owner,
+      defaultAccess: row.default_access,
+      grants: row.grant_level === null
+        ? []
+        : [{ email, level: row.grant_level }],
+    },
+  }));
+}
+
+// Run by every path that deletes users rows, inside its transaction (R7): an
+// owner with no users row becomes NULL and a grant with no users row goes.
+// A users row deleted and re-inserted in the same transaction keeps both.
+// Returns the products it changed, for the caller to re-broadcast.
+export async function dropAccessOfMissingUsers(sql: Sql): Promise<string[]> {
+  const unowned = await sql<{ id: string }[]>`
+    UPDATE products p SET owner = NULL
+    WHERE p.owner IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM users u WHERE u.email = p.owner)
+    RETURNING p.id
+  `;
+  const revoked = await sql<{ product_id: string }[]>`
+    DELETE FROM product_access pa
+    WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.email = pa.email)
+    RETURNING pa.product_id
+  `;
+  return [
+    ...new Set([
+      ...unowned.map((r) => r.id),
+      ...revoked.map((r) => r.product_id),
+    ]),
+  ];
 }
