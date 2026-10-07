@@ -144,8 +144,10 @@ calls and opening folders, and passes them in:
 
 ```ts
 canDrag: (row: ProductTreeRow) => boolean;
-// Called only at dragstart.
-dragItem: (row: ProductTreeRow) => DragItem;
+// Called only at dragstart, so only for a row canDrag accepted.
+dragItem: (
+  row: Extract<ProductTreeRow, { kind: "product" | "folder" }>,
+) => DragItem;
 onMove: (item: DragItem, parentId: string | null) => void;
 // Adds to the open set and never removes. GENERAL_ID opens General.
 onOpenFolder: (folderId: string) => void;
@@ -369,6 +371,7 @@ localStorage key.
 
 ## 8. Build log
 
-| Date       | Step | Row                                                          |
-| ---------- | ---- | ------------------------------------------------------------ |
-| 2026-10-06 | plan | Written from the chat ruling of 2026-10-06. Next step: Do 1. |
+| Date       | Step | Row                                                                         |
+| ---------- | ---- | --------------------------------------------------------------------------- |
+| 2026-10-06 | plan | Written from the chat ruling of 2026-10-06. Next step: Do 1.                |
+| 2026-10-07 | plan | §2.4: `dragItem` takes only a product or folder row (Tim). Next step: Do 1. |
