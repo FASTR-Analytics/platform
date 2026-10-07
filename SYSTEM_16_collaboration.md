@@ -266,12 +266,13 @@ server-stamped, unspoofable: only the avatar URL is self-reported).
     poll), active again on the next input. Editing state overrides a stale idle
     flag in the avatar UIs.
   - `isEditing` is **server-stamped** in `markConnectionEditing` when a
-    `slide_update`/`report_update` arrives. Broadcasts once on the false→true
-    edge; each update re-arms an 8 s quiet-period timer whose expiry broadcasts
-    the clear. A typing burst costs two presence broadcasts total. A
-    `presence_update` preserves the flag (it is not client-settable). Read only
-    by `PresenceAvatars`' pulsing badge (`showEditingPulse`), which no caller
-    enables.
+    `slide_update`/`report_update` arrives from a connection that holds `edit`
+    on the product; a viewer's refused update stamps nothing. Broadcasts once on
+    the false→true edge; each update re-arms an 8 s quiet-period timer whose
+    expiry broadcasts the clear. A typing burst costs two presence broadcasts
+    total. A `presence_update` preserves the flag (it is not client-settable).
+    Read only by `PresenceAvatars`' pulsing badge (`showEditingPulse`), which no
+    caller enables.
 
 ## The CRDT model
 
@@ -826,7 +827,8 @@ the CONFLICT error, which the room path never produces).
 ### 3. Same functions for the Postgres save and the SSE?
 
 **SSE: identical wrappers.** Both the REST routes and the collab checkpoint deps
-call the same `notifyInstanceLastUpdated("slides", [ids], lastUpdated)` and
+call the same
+`notifyInstanceLastUpdated("slides", productId, [ids], lastUpdated)` and
 `notifyInstanceProductsUpserted(mainDb, [productId])` from S3's notify catalog:
 a product's summary is one row, so a checkpoint re-broadcasts it per product on
 the 1.5 s cadence with no list rebroadcast to throttle.

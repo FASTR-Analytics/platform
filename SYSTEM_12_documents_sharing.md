@@ -2405,10 +2405,11 @@ slide), `slide_deck_detail` (per deck), `report_detail` (per report;
 `notifyInstanceProductsUpserted` (the per-row summary re-read, the only
 product-list message, D8), which is also how a product's own `last_updated`
 reaches the client; slide writers add
-`notifyInstanceLastUpdated("slides", ids, ts)` for the per-slide cache; deletes
-fire `notifyInstanceProductsDeleted`; folders re-broadcast the whole list
-through `notifyInstanceFoldersUpdated`. Because slide create, delete, move and
-duplicate all re-read the deck summary, `firstSlideId` never goes stale.
+`notifyInstanceLastUpdated("slides", productId, ids, ts)` for the per-slide
+cache; deletes fire `notifyInstanceProductsDeleted`; folders re-broadcast the
+whole list through `notifyInstanceFoldersUpdated`. Because slide create, delete,
+move and duplicate all re-read the deck summary, `firstSlideId` never goes
+stale.
 
 ## Emails
 
