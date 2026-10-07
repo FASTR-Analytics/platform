@@ -95,6 +95,9 @@ export type RunGenerationModuleOptions = {
 
 export type RunCatalogStatus = "generating" | "ready" | "failed" | "retired";
 
+// Enforced at launch only, so a stored label can be longer.
+export const RUN_LABEL_MAX_LENGTH = 20;
+
 // Runs-catalog listing row, rendered wherever a package is listed. Which
 // package is PINNED is not a listing column: it is one instance T1 fact,
 // `pinnedRunId` (SYSTEM_08 "The pinned package"), so every

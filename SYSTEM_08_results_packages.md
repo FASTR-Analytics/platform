@@ -123,8 +123,11 @@ re-litigate; the package-format invariants below are their file-level twins):
 - **Vocabulary.** UI label "Results package"; "run" stays the internal name.
 - **Labels are unique per instance** (`runs_label_unique`, on
   `lower(trim(label))`, migration 091). The wizard refuses a taken label against
-  the loaded catalogue and derives a free default; the insert translates the
-  index violation into the same message for the race.
+  the loaded catalogue and derives a free default (today's date); the insert
+  translates the index violation into the same message for the race.
+- **Labels are short.** The launch route caps a new label at
+  `RUN_LABEL_MAX_LENGTH` (20) characters and the wizard refuses a longer one
+  inline. Only launch enforces it, so a stored label can be longer.
 
 ## Loading (`server/module_loader/load_module.ts`)
 

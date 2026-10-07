@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   disaggregationOption,
+  RUN_LABEL_MAX_LENGTH,
   runGenerationDefaultsSchema,
   runGenerationStep1ResultSchema,
   runGenerationStep2ResultSchema,
@@ -225,7 +226,7 @@ export const runGenerationRouteRegistry = {
     path: "/run_generation/launch",
     method: "POST",
     body: z.object({
-      label: z.string().min(1).max(200),
+      label: z.string().min(1).max(RUN_LABEL_MAX_LENGTH),
       step1Result: runGenerationStep1ResultSchema,
       step2Result: runGenerationStep2ResultSchema,
     }),

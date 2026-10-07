@@ -22,7 +22,11 @@ import { createStore, unwrap } from "solid-js/store";
 import { getModuleParameterInvalidMsg } from "../_shared/mod.ts";
 import { serverActions } from "~/server_actions";
 import { instanceState } from "~/state/instance/t1_store";
-import { freeRunLabel, isRunLabelTaken } from "./run_label";
+import {
+  freeRunLabel,
+  getRunLabelTooLongMsg,
+  isRunLabelTaken,
+} from "./run_label";
 import { buildModuleGraph, familiesOf, isOfferable } from "./module_graph";
 import { StepConfirm } from "./step_3_confirm";
 import { type FamilyBlockedReason, StepData } from "./step_1_data";
@@ -198,13 +202,7 @@ function WizardInner(p: InnerProps) {
   // Step 3: confirm.
   const [label, setLabel] = createSignal(
     freeRunLabel(
-      `${
-        t3({
-          en: "Results package",
-          fr: "Paquet de résultats",
-          pt: "Pacote de resultados",
-        })
-      } ${new Date().toISOString().slice(0, 10)}`,
+      new Date().toISOString().slice(0, 10),
       instanceState.runsCatalog,
     ),
   );
@@ -252,6 +250,10 @@ function WizardInner(p: InnerProps) {
             pt: "Introduza um rótulo para o pacote de resultados",
           }),
         };
+      }
+      const tooLongMsg = getRunLabelTooLongMsg(trimmed);
+      if (tooLongMsg !== undefined) {
+        return { success: false, err: tooLongMsg };
       }
       if (isRunLabelTaken(trimmed, instanceState.runsCatalog)) {
         return {
